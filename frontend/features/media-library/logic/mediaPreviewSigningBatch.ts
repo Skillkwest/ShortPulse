@@ -45,7 +45,7 @@ type MediaSignCompletionParams = {
   queryMode: "search" | "default";
   signPrefetchEnabled: boolean;
   sourceClass: string;
-  previewDeliveryMode: "signed-original" | "signed-transform-profile";
+  previewDeliveryMode: "signed-original" | "signed-profile";
   optimizerBypassed: boolean;
   unresolvedAfterResolverCount: number;
   unresolvedWarningPrefix: string;

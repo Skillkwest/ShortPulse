@@ -39,6 +39,10 @@ export const resolveInlineStageRectFromRefs = ({
 > & {
   currentTarget?: HTMLDivElement | null;
 }): DOMRect | null => {
+  const wrapperRect = resolveValidStageRect(
+    inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
+  );
+  if (wrapperRect) return wrapperRect;
   const frameStackRect = resolveValidStageRect(
     primaryCanvasFrameStackRef.current?.getBoundingClientRect() ?? null
   );
@@ -47,10 +51,6 @@ export const resolveInlineStageRectFromRefs = ({
     primaryCompositionSurfaceRef.current?.getBoundingClientRect() ?? null
   );
   if (compositionSurfaceRect) return compositionSurfaceRect;
-  const wrapperRect = resolveValidStageRect(
-    inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
-  );
-  if (wrapperRect) return wrapperRect;
   return resolveValidStageRect(currentTarget?.getBoundingClientRect() ?? null);
 };
 

@@ -2273,12 +2273,8 @@ describe("ExpertEditPanelView", () => {
     expect(
       within(moveSettingsPanel).getByRole("button", { name: /expand markup tools/i })
     ).toBeInTheDocument();
-    expect(
-      within(moveSettingsPanel).getByRole("button", { name: /undo move action/i })
-    ).toBeInTheDocument();
-    expect(
-      within(moveSettingsPanel).getByRole("button", { name: /redo move action/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /undo move action/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /redo move action/i })).toBeInTheDocument();
     expect(
       within(moveSettingsPanel).getByRole("button", { name: /center move action/i })
     ).toBeInTheDocument();
@@ -2891,7 +2887,7 @@ describe("ExpertEditPanelView", () => {
     const rail = screen.getByLabelText("Inpaint action tools");
     fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
 
-    const primaryDropzone = screen.getByLabelText("Primary composition surface");
+    const primaryDropzone = screen.getAllByLabelText("Primary composition surface")[0];
     mockElementRect(primaryDropzone, createSquareRect(320));
 
     fireEvent.pointerDown(primaryDropzone, {
@@ -4552,7 +4548,7 @@ describe("ExpertEditPanelView", () => {
       fireEvent.change(zoomSlider, { target: { value: "100" } });
       expect(readMarkupViewportTransform()?.scale ?? 0).toBeGreaterThan(1);
 
-      const primaryDropzone = screen.getByLabelText("Primary composition surface");
+      const primaryDropzone = screen.getAllByLabelText("Primary composition surface")[0];
       const rect = {
         left: 0,
         top: 0,
@@ -4878,7 +4874,7 @@ describe("ExpertEditPanelView", () => {
       const rail = screen.getByLabelText("Inpaint action tools");
       fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-      const primaryDropzone = screen.getByLabelText("Primary composition surface");
+      const primaryDropzone = screen.getAllByLabelText("Primary composition surface")[0];
       const rect = {
         left: 0,
         top: 0,
@@ -5235,13 +5231,8 @@ describe("ExpertEditPanelView", () => {
     const rotatedDeg = readFrameRotationDeg(frame);
     expect(Math.abs(rotatedDeg)).toBeGreaterThan(1);
 
-    const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
-    const undoButton = within(moveSettingsPanel).getByRole("button", {
-      name: /undo move action/i,
-    });
-    const redoButton = within(moveSettingsPanel).getByRole("button", {
-      name: /redo move action/i,
-    });
+    const undoButton = screen.getByRole("button", { name: /undo move action/i });
+    const redoButton = screen.getByRole("button", { name: /redo move action/i });
 
     fireEvent.click(undoButton);
     expect(readFrameRotationDeg(frame)).toBeCloseTo(0, 3);
@@ -7039,10 +7030,15 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByRole("button", { name: /remove primary image/i })).not.toBeInTheDocument();
   });
 
-  it("manual flatten collapses to layer 1 without adding a reference-grid copy", async () => {
+  it("manual flatten collapses to layer 1, keeps host primary unchanged, and adds a reference-grid copy", async () => {
     const onPrimaryImageChange = vi.fn();
+    const onAddFlattenedReferenceImage = vi.fn();
     const { container } = render(
-      <ExpertEditPanelView {...baseProps} onPrimaryImageChange={onPrimaryImageChange} />
+      <ExpertEditPanelView
+        {...baseProps}
+        onPrimaryImageChange={onPrimaryImageChange}
+        onAddFlattenedReferenceImage={onAddFlattenedReferenceImage}
+      />
     );
 
     uploadPrimaryFile(container, "layer-1.png");
@@ -7059,6 +7055,10 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
     expect(onPrimaryImageChange).not.toHaveBeenCalled();
+    expect(onAddFlattenedReferenceImage).toHaveBeenCalledWith({
+      url: expect.stringMatching(/^blob:flatten-/),
+      mimeType: "image/png",
+    });
   });
 
   it("shows flatten pending feedback while manual flatten is in progress", async () => {
@@ -7094,7 +7094,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: /flatten layers/i })).not.toBeDisabled();
   });
 
-  it("manual flatten forwards selected frame ratio to stage flatten without adding a reference-grid copy", async () => {
+  it("manual flatten forwards selected frame ratio to stage flatten", async () => {
     const { container, rerender } = render(<ExpertEditPanelView {...baseProps} />);
 
     uploadPrimaryFile(container, "layer-1.png");
@@ -8235,14 +8235,15 @@ describe("ExpertEditPanelView", () => {
       fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
       const rail = screen.getByLabelText("Inpaint action tools");
       fireEvent.click(within(rail).getByRole("button", { name: /^move$/i }));
-      const moveSettingsPanel = screen.getByRole("group", { name: /move tools/i });
-      fireEvent.change(within(moveSettingsPanel).getByRole("slider", { name: /zoom stage/i }), {
-        target: { value: "100" },
+      const primaryDropzone = screen.getAllByLabelText("Primary composition surface")[0];
+      mockElementRect(primaryDropzone, createSquareRect(200));
+      dispatchNativeWheelEvent(primaryDropzone, {
+        deltaY: -160,
+        clientX: 100,
+        clientY: 100,
       });
 
       fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
-      const primaryDropzone = screen.getByLabelText("Primary composition surface");
-      mockElementRect(primaryDropzone, createSquareRect(200));
       fireEvent.keyDown(window, { code: "Space" });
       fireEvent.pointerDown(primaryDropzone, {
         pointerId: 944,

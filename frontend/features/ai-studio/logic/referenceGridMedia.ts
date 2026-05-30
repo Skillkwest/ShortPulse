@@ -11,6 +11,7 @@ import {
   logAdaptivePolicyApplied,
   type AdaptiveSurface,
 } from "../../../lib/adaptive-media";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import {
   isGeneratedOutput,
   resolveReferenceOutputAuthorityTier,
@@ -36,7 +37,9 @@ export const isRenderableReferenceMediaUrl = (value: ReferenceMediaCandidate): v
 
 const normalizeRenderableUrl = (value: ReferenceMediaCandidate): string | null => {
   if (!isRenderableReferenceMediaUrl(value)) return null;
-  return value.trim();
+  const trimmed = value.trim();
+  if (isSupabaseRenderImageUrl(trimmed)) return null;
+  return trimmed;
 };
 
 const hasDistinctDurablePreviewAsset = (
@@ -78,10 +81,7 @@ const inferReferenceMediaKind = ({
     if (AUDIO_EXTENSION_PATTERN.test(candidate)) return "audio";
     if (VIDEO_EXTENSION_PATTERN.test(candidate)) return "video";
     if (RELATIVE_IMAGE_PREVIEW_ROUTE_PATTERN.test(candidate)) return "image";
-    if (
-      IMAGE_EXTENSION_PATTERN.test(candidate) ||
-      candidate.includes("/storage/v1/render/image/")
-    ) {
+    if (IMAGE_EXTENSION_PATTERN.test(candidate)) {
       return "image";
     }
   }

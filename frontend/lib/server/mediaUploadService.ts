@@ -54,6 +54,7 @@ const PRIVATE_MEDIA_SOURCE = "private_upload";
 const MAX_UPLOAD_BYTES = MAX_VIDEO_MEDIA_BYTES;
 const MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES = 40 * 1024 * 1024;
 const MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES = 100 * 1024 * 1024;
+const MEDIA_DIRECT_UPLOAD_STAGING_ROOT = "upload-staging";
 
 const VIDEO_DESTINATIONS = new Set<MediaUploadDestinationTab>(["uploaded_videos"]);
 
@@ -406,6 +407,9 @@ const resolveUploadFolder = (
 const resolveUploadSource = (destinationTab: MediaUploadDestinationTab): string =>
   destinationTab === "private" ? PRIVATE_MEDIA_SOURCE : "upload";
 
+const resolveMediaDirectUploadStagingFolder = (destinationTab: MediaUploadDestinationTab): string =>
+  `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/${destinationTab}`;
+
 const resolveVoiceChangerSourceStorageFolder = (kind: VoiceChangerSourceKind): string =>
   kind === "video" ? "voice-changer/source-video" : "voice-changer/source-audio";
 
@@ -439,6 +443,27 @@ const resolvePreparedVoiceChangerSourceMimeType = ({
       400,
       "Invalid request",
       "Voice changer source file is not a supported audio format."
+    );
+  }
+  return normalizedMimeType;
+};
+
+const resolvePreparedMediaUploadMimeType = ({
+  destinationTab,
+  declaredMimeType,
+}: {
+  destinationTab: MediaUploadDestinationTab;
+  declaredMimeType: string;
+}): string => {
+  const normalizedMimeType = normalizeSupportedMimeType(declaredMimeType);
+  if (!normalizedMimeType) {
+    throw new MediaUploadServiceError(400, "Invalid request", "Upload file mime type is required.");
+  }
+  if (!isAllowedMimeType(destinationTab, normalizedMimeType)) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Upload file is not a supported format for the requested destination."
     );
   }
   return normalizedMimeType;
@@ -596,6 +621,18 @@ const resolvePreparedVoiceChangerStoredFileName = ({
   return `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
 };
 
+const resolvePreparedMediaUploadStoredFileName = ({
+  filename,
+  mimeType,
+}: {
+  filename: string;
+  mimeType: string;
+}): string => {
+  const extension = resolveMediaStorageExtension(mimeType, "bin") || "bin";
+  const fileBaseName = resolveBaseFileName(filename);
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
+};
+
 const uploadScopedStorageBuffer = async ({
   userId,
   storageFolder,
@@ -740,6 +777,22 @@ const uploadStorageAssetForUser = async ({
   storageFolderOverride,
 }: StorageUploadOptions): Promise<UploadedStorageAsset> => {
   const parsedUpload = await parseUpload(req, { defaultDestinationTab });
+  return await uploadStorageAssetFromParsedUpload({
+    parsedUpload,
+    userId,
+    storageFolderOverride,
+  });
+};
+
+const uploadStorageAssetFromParsedUpload = async ({
+  parsedUpload,
+  userId,
+  storageFolderOverride,
+}: {
+  parsedUpload: ParsedUpload;
+  userId: string;
+  storageFolderOverride?: string;
+}): Promise<UploadedStorageAsset> => {
   const detectedMimeType = resolveDetectedMimeType(
     parsedUpload.destinationTab,
     parsedUpload.buffer
@@ -868,6 +921,54 @@ export const prepareVoiceChangerSourceUploadForUser = async ({
       500,
       "Unable to prepare voice changer upload",
       error instanceof Error ? error.message : "Unable to prepare voice changer upload."
+    );
+  }
+};
+
+export const prepareMediaUploadForUser = async ({
+  userId,
+  destinationTab,
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  destinationTab: MediaUploadDestinationTab;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<{
+  path: string;
+  token: string;
+  mimeType: string;
+  name: string;
+}> => {
+  const normalizedFilename = filename.trim() || "upload";
+  const normalizedMimeType = resolvePreparedMediaUploadMimeType({
+    destinationTab,
+    declaredMimeType,
+  });
+  const storagePath = buildScopedMediaStoragePath({
+    userId,
+    storageFolder: resolveMediaDirectUploadStagingFolder(destinationTab),
+    storedFileName: resolvePreparedMediaUploadStoredFileName({
+      filename: normalizedFilename,
+      mimeType: normalizedMimeType,
+    }),
+    label: "Prepared media upload storage path",
+  });
+
+  try {
+    const target = await createSignedUploadTarget({ storagePath });
+    return {
+      path: target.path,
+      token: target.token,
+      mimeType: normalizedMimeType,
+      name: normalizedFilename,
+    };
+  } catch (error) {
+    throw new MediaUploadServiceError(
+      500,
+      "Unable to prepare media upload",
+      error instanceof Error ? error.message : "Unable to prepare media upload."
     );
   }
 };
@@ -1067,6 +1168,115 @@ export const uploadSignedStorageAssetForUser = async ({
   }
 };
 
+const persistUploadedMediaAsset = async ({
+  userId,
+  uploaded,
+}: {
+  userId: string;
+  uploaded: UploadedStorageAsset;
+}): Promise<MediaUploadResponseFile> => {
+  const metadata = withCanonicalImageDimensions(
+    uploaded.normalizationMetadata
+      ? { upload_normalization: uploaded.normalizationMetadata }
+      : null,
+    uploaded.fileType === "image" ? uploaded.imageDimensions : null
+  );
+  const normalizedRow = await insertUploadedMediaRow({
+    userId,
+    parsedUpload: uploaded.parsedUpload,
+    storagePath: uploaded.storagePath,
+    fileType: uploaded.fileType,
+    metadata,
+  });
+  const hydratedRow = await hydrateUploadedVideoVariants({
+    userId,
+    parsedUpload: uploaded.parsedUpload,
+    row: normalizedRow,
+  });
+  const { previewStoragePath, signedUrl } = await resolveUploadedMediaPreviewUrl({
+    row: hydratedRow,
+    uploaded,
+    userId,
+  });
+
+  return {
+    id: hydratedRow.id,
+    filename: hydratedRow.filename,
+    storage_path: hydratedRow.storage_path,
+    preview_storage_path: previewStoragePath,
+    file_type: hydratedRow.file_type,
+    file_size: hydratedRow.file_size,
+    source: hydratedRow.source,
+    created_at: hydratedRow.created_at,
+    signedUrl,
+  };
+};
+
+export const finalizePreparedMediaUploadForUser = async ({
+  userId,
+  destinationTab,
+  storagePath,
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  destinationTab: MediaUploadDestinationTab;
+  storagePath: string;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<MediaUploadResponseFile> => {
+  const safeStoragePath = assertUserScopedMediaStoragePath({
+    path: storagePath,
+    userId,
+    label: "Prepared media upload storage path",
+  });
+  const expectedFolderPrefix = `${userId}/${resolveMediaDirectUploadStagingFolder(destinationTab)}/`;
+  if (!safeStoragePath.startsWith(expectedFolderPrefix)) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Prepared media upload storage path is outside the expected namespace."
+    );
+  }
+
+  let uploaded: UploadedStorageAsset | null = null;
+  try {
+    let stored;
+    try {
+      stored = await readStoredMediaBuffer({
+        storagePath: safeStoragePath,
+        maxBytes: MAX_UPLOAD_BYTES,
+      });
+    } catch (error) {
+      if (error instanceof MediaAudioExtractionInputError && error.statusCode === 413) {
+        throw new MediaUploadServiceError(413, "Upload failed: file too large");
+      }
+      throw error;
+    }
+    const parsedUpload: ParsedUpload = {
+      buffer: stored.buffer,
+      declaredMimeType:
+        resolvePreparedMediaUploadMimeType({
+          destinationTab,
+          declaredMimeType: declaredMimeType || stored.contentType || "",
+        }) || normalizeContentType(stored.contentType ?? undefined),
+      size: stored.size,
+      filename: filename.trim() || safeStoragePath.split("/").filter(Boolean).pop() || "upload",
+      destinationTab,
+    };
+    uploaded = await uploadStorageAssetFromParsedUpload({
+      parsedUpload,
+      userId,
+    });
+    return await persistUploadedMediaAsset({
+      userId,
+      uploaded,
+    });
+  } finally {
+    await removeScopedMediaStorageObject(safeStoragePath);
+  }
+};
+
 export const deleteSignedStorageAssetForUser = async ({
   userId,
   storagePath,
@@ -1242,43 +1452,11 @@ export const uploadMediaForUser = async ({
       userId,
     });
     parsedUpload = uploaded.parsedUpload;
-    const storagePath = uploaded.storagePath;
-    storagePathForCleanup = storagePath;
-    const metadata = withCanonicalImageDimensions(
-      uploaded.normalizationMetadata
-        ? { upload_normalization: uploaded.normalizationMetadata }
-        : null,
-      uploaded.fileType === "image" ? uploaded.imageDimensions : null
-    );
-    const normalizedRow = await insertUploadedMediaRow({
+    storagePathForCleanup = uploaded.storagePath;
+    return await persistUploadedMediaAsset({
       userId,
-      parsedUpload,
-      storagePath,
-      fileType: uploaded.fileType,
-      metadata,
-    });
-    const hydratedRow = await hydrateUploadedVideoVariants({
-      userId,
-      parsedUpload,
-      row: normalizedRow,
-    });
-    const { previewStoragePath, signedUrl } = await resolveUploadedMediaPreviewUrl({
-      row: hydratedRow,
       uploaded,
-      userId,
     });
-
-    return {
-      id: hydratedRow.id,
-      filename: hydratedRow.filename,
-      storage_path: hydratedRow.storage_path,
-      preview_storage_path: previewStoragePath,
-      file_type: hydratedRow.file_type,
-      file_size: hydratedRow.file_size,
-      source: hydratedRow.source,
-      created_at: hydratedRow.created_at,
-      signedUrl,
-    };
   } catch (error) {
     if (storagePathForCleanup && isMediaStorageQuotaExceededError(error)) {
       throw new MediaUploadServiceError(

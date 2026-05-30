@@ -138,6 +138,9 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0082-create-pulse-standard-mode-runtime-parking.md`
 - `docs/adr/0083-create-mode-global-right-rail-authority.md`
 - `docs/adr/0084-ai-studio-internal-media-ref-submit-authority.md`
+- `docs/adr/0085-global-media-library-folder-authority.md`
+- `docs/adr/0086-motion-reference-video-lease-cleanup.md`
+- `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/systems/README.md`

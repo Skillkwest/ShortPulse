@@ -10,6 +10,7 @@ import {
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   extractInternalReferenceDragPayload,
+  hasInternalReferenceDragTypeHints,
   type InternalReferenceDragPayload,
 } from "../../../lib/internalReferenceDragPayload";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
@@ -185,11 +186,16 @@ const resolveDroppedStorageCandidates = async (
 const downloadDroppedProfileImageBlob = async (
   source: ElementProfileImageDropSource
 ): Promise<{ blob: Blob; resolvedStoragePath: string | null }> => {
+  let loadBlobError: unknown = null;
   if (source.loadBlob) {
-    return {
-      blob: await source.loadBlob(),
-      resolvedStoragePath: source.storagePath?.trim() || null,
-    };
+    try {
+      return {
+        blob: await source.loadBlob(),
+        resolvedStoragePath: source.storagePath?.trim() || null,
+      };
+    } catch (error) {
+      loadBlobError = error;
+    }
   }
 
   const storageCandidates = await resolveDroppedStorageCandidates(source);
@@ -215,16 +221,26 @@ const downloadDroppedProfileImageBlob = async (
 
   const normalizedSourceUrl = source.url?.trim() ?? "";
   if (!normalizedSourceUrl) {
+    if (loadBlobError instanceof Error && loadBlobError.message.trim()) {
+      throw loadBlobError;
+    }
     throw new Error("Dropped image source could not be resolved.");
   }
-  const response = await fetch(normalizedSourceUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to read profile image (${response.status}).`);
+  try {
+    const response = await fetch(normalizedSourceUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to read profile image (${response.status}).`);
+    }
+    return {
+      blob: await response.blob(),
+      resolvedStoragePath: null,
+    };
+  } catch (error) {
+    if (loadBlobError instanceof Error && loadBlobError.message.trim()) {
+      throw loadBlobError;
+    }
+    throw error;
   }
-  return {
-    blob: await response.blob(),
-    resolvedStoragePath: null,
-  };
 };
 
 const buildProfileImageFileNameFromStoragePath = (
@@ -960,6 +976,25 @@ export const useElementsManagerViewState = ({
         return;
       }
 
+      const internalPayload = extractInternalReferenceDragPayload(transfer);
+      if (internalPayload) {
+        await onSetImageReferenceFromInternalDropAtIndex(index, internalPayload);
+        return;
+      }
+
+      const hasInternalReferenceHints = hasInternalReferenceDragTypeHints(transfer);
+      const droppedReference = resolveDroppedImageReference(transfer);
+      if (hasInternalReferenceHints) {
+        if (droppedReference) {
+          await onSetImageReferenceFromUrlAtIndex(index, {
+            url: droppedReference.url,
+            mediaId: droppedReference.characterMediaId,
+            storagePath: droppedReference.storagePath ?? null,
+          });
+        }
+        return;
+      }
+
       const droppedFile = extractDroppedFiles(transfer).find((file) =>
         file.type.startsWith("image/")
       );
@@ -968,13 +1003,6 @@ export const useElementsManagerViewState = ({
         return;
       }
 
-      const internalPayload = extractInternalReferenceDragPayload(transfer);
-      if (internalPayload) {
-        await onSetImageReferenceFromInternalDropAtIndex(index, internalPayload);
-        return;
-      }
-
-      const droppedReference = resolveDroppedImageReference(transfer);
       if (droppedReference) {
         await onSetImageReferenceFromUrlAtIndex(index, {
           url: droppedReference.url,

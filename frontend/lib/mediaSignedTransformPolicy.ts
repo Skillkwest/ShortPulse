@@ -1,38 +1,30 @@
 /**
- * Shared media signed-transform policy.
- * Ensures signed URL transform usage is controlled by explicit dual-flag enablement.
+ * Deny-only media signed-transform compatibility policy.
+ * Supabase signed transforms are permanently disabled for media delivery.
  */
-import {
-  resolveSignedImageTransform,
-  type MediaPreviewImageTransform,
-  type MediaPreviewTransformProfile,
-} from "./mediaPreviewTransformProfile";
-
-const parseBoolean = (value: string | undefined): boolean => value?.trim().toLowerCase() === "true";
+import type { MediaPreviewTransformProfile } from "./mediaPreviewTransformProfile";
 
 /**
- * Returns true only when both server and client transform flags are explicitly enabled.
+ * Supabase signed transforms stay disabled even if legacy flags are present.
  */
 export const areMediaSignedTransformsEnabled = (overrides?: {
   serverFlag?: string | undefined;
   clientFlag?: string | undefined;
 }): boolean => {
-  const serverFlag =
-    overrides?.serverFlag ?? process.env.SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED;
-  const clientFlag =
-    overrides?.clientFlag ?? process.env.NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED;
-  return parseBoolean(serverFlag) && parseBoolean(clientFlag);
+  void overrides;
+  return false;
 };
 
 /**
- * Resolves image signed-transform payload when policy allows transforms.
+ * Legacy resolver kept so old call sites fail closed instead of creating transforms.
  */
 export const resolvePolicySignedImageTransform = (
   profile: MediaPreviewTransformProfile,
   storagePath: string,
   options?: { transformsEnabled?: boolean }
-): MediaPreviewImageTransform | null => {
-  const transformsEnabled = options?.transformsEnabled ?? areMediaSignedTransformsEnabled();
-  if (!transformsEnabled) return null;
-  return resolveSignedImageTransform(profile, storagePath);
+): null => {
+  void profile;
+  void storagePath;
+  void options;
+  return null;
 };

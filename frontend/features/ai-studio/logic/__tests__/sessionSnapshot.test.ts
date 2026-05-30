@@ -10,8 +10,12 @@ import {
 import { buildGenerationReplayConfigV2 } from "../generationReplay";
 import type { AiStudioSessionSnapshotV2 } from "../sessionSnapshot";
 import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
+import { prepareAiStudioSessionAutosaveSnapshot } from "../sessionAutosaveSerialization";
 import type { StudioOutput } from "../../types";
-import type { AiStudioSessionCanvasState } from "../sessionSnapshotCanvas";
+import {
+  AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
+  type AiStudioSessionCanvasState,
+} from "../sessionSnapshotCanvas";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../chatModeDefaults";
 
@@ -1966,6 +1970,106 @@ describe("sessionSnapshot", () => {
     expect(outputRow).not.toHaveProperty("generationReplay");
   });
 
+  it("trims replay/context payload from pending generated outputs in project workspace snapshots", () => {
+    const heavyPrompt = "A cinematic portrait with dramatic rim light. ".repeat(120).trim();
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-generated-pending-trim-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-generated-pending-heavy",
+          mediaSource: "generated",
+          generationId: "gen-generated-pending-heavy",
+          taskId: "task-generated-pending-heavy",
+          taskState: "pending",
+          prompt: heavyPrompt,
+          previewUrl: "https://cdn.example.com/generated-pending-heavy.png",
+          generationReplay:
+            buildGenerationReplayConfigV2({
+              mode: "image",
+              submitTool: "create",
+              modelId: "seedream-v4.5",
+              displayPrompt: heavyPrompt,
+              submissionPrompt: heavyPrompt,
+              aspect: "9:16",
+              imageResolution: "model_default",
+              referenceInputs: Array.from(
+                { length: 8 },
+                (_, index) => `https://cdn.example.com/reference-${index + 1}.png`
+              ),
+              capturedAt: "2026-03-02T12:00:00.000Z",
+            }) ?? undefined,
+          characterContext: {
+            applied: true,
+            characterId: "char-1",
+            characterName: "Zuri",
+            lookId: "look-1",
+            lookName: "Main",
+            characterProfileImageUrl: "https://cdn.example.com/character-zuri.png",
+          },
+          styleContext: {
+            applied: true,
+            styleId: "style-1",
+            styleName: "Painterly",
+            stylePrompt: "Painterly diffusion".repeat(40),
+            stylePreviewImageUrl: "https://cdn.example.com/style-painterly.png",
+          },
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-generated-pending-heavy",
+      curatedReferenceIds: ["out-generated-pending-heavy"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    const outputRow = projectSnapshot.outputs.active[0] as Record<string, unknown>;
+
+    expect(outputRow).toMatchObject({
+      id: "out-generated-pending-heavy",
+      generationId: "gen-generated-pending-heavy",
+      taskId: "task-generated-pending-heavy",
+      taskState: "pending",
+      prompt: heavyPrompt,
+      previewUrl: "https://cdn.example.com/generated-pending-heavy.png",
+    });
+    expect(outputRow).not.toHaveProperty("generationReplay");
+    expect(outputRow).not.toHaveProperty("characterContext");
+    expect(outputRow).not.toHaveProperty("styleContext");
+  });
+
   it("keeps generated preview fallback URLs in project snapshots until durable preview storage exists", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "project-generated-preview-fallback-session",
@@ -2042,6 +2146,170 @@ describe("sessionSnapshot", () => {
       previewUrl: "https://cdn.example.com/generated-preview-fallback.png",
       resultUrls: ["https://cdn.example.com/generated-preview-fallback.png"],
     });
+  });
+
+  it("drops duplicated prompt text from prompt-only project references", () => {
+    const promptReferenceText =
+      "Art direction note with dense lighting guidance and composition constraints. "
+        .repeat(80)
+        .trim();
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-prompt-reference-trim-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-prompt-reference-heavy",
+          mode: "text",
+          model: "Library prompt",
+          mediaSource: "prompt",
+          prompt: promptReferenceText,
+          previewText: promptReferenceText,
+          promptId: "prompt-1",
+          status: "saved",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-prompt-reference-heavy",
+      curatedReferenceIds: ["out-prompt-reference-heavy"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    const outputRow = projectSnapshot.outputs.active[0] as Record<string, unknown>;
+
+    expect(outputRow).toMatchObject({
+      id: "out-prompt-reference-heavy",
+      previewText: promptReferenceText,
+      promptId: "prompt-1",
+    });
+    expect(outputRow).not.toHaveProperty("prompt");
+  });
+
+  it("keeps project autosave snapshots under the byte cap for accumulated pending generations and prompt refs", () => {
+    const replayPrompt = "Cinematic fantasy portrait with layered atmospheric detail. "
+      .repeat(80)
+      .trim();
+    const promptReferenceText =
+      "Art direction note with dense lighting guidance and composition constraints. "
+        .repeat(80)
+        .trim();
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-autosave-size-regression-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        ...Array.from({ length: 12 }, (_, index) =>
+          createOutput({
+            id: `out-generated-pending-${index + 1}`,
+            mediaSource: "generated",
+            generationId: `gen-generated-pending-${index + 1}`,
+            taskId: `task-generated-pending-${index + 1}`,
+            taskState: "pending",
+            prompt: replayPrompt,
+            generationReplay:
+              buildGenerationReplayConfigV2({
+                mode: "image",
+                submitTool: "create",
+                modelId: "seedream-v4.5",
+                displayPrompt: replayPrompt,
+                submissionPrompt: replayPrompt,
+                aspect: "9:16",
+                imageResolution: "model_default",
+                referenceInputs: Array.from(
+                  { length: 8 },
+                  (_, referenceIndex) =>
+                    `https://cdn.example.com/reference-${index + 1}-${referenceIndex + 1}.png`
+                ),
+                capturedAt: "2026-03-02T12:00:00.000Z",
+              }) ?? undefined,
+          })
+        ),
+        ...Array.from({ length: 86 }, (_, index) =>
+          createOutput({
+            id: `out-prompt-reference-${index + 1}`,
+            mode: "text",
+            model: "Library prompt",
+            mediaSource: "prompt",
+            prompt: promptReferenceText,
+            previewText: promptReferenceText,
+            promptId: `prompt-${index + 1}`,
+            status: "saved",
+          })
+        ),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-generated-pending-1",
+      curatedReferenceIds: ["out-generated-pending-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(projectSnapshot);
+
+    expect(preparedSnapshot.bytes).toBeLessThanOrEqual(AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES);
   });
 
   it("patches workspace-selected character state and recomputes snapshot metadata", () => {

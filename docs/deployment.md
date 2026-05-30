@@ -125,9 +125,10 @@ as applicable):
   - `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; server-authoritative Media Library upload route gate)
   - `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; client upload-controller migration gate)
   - Media Library modal/panel now ship with one canonical list runtime: `/api/media/list` plus the default virtualization, video-budget, sign-prefetch, and gesture behaviors.
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (comma-separated adaptive preview surfaces such as `reference-grid,quick-slot,media-library-grid,media-library-modal-grid,media-library-panel-grid,character-grid,detail-modal`)
-  - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; server half of dual-flag signed-transform policy)
-  - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; client half of dual-flag signed-transform policy)
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (comma-separated adaptive surface allowlist; this is not permission to emit Supabase `/storage/v1/render/image/` URLs, and blank/whitespace is not a safe disable state under the current parser fallback)
+  - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED` (deny-only compatibility flag; must remain `false`; do not use as a rollout control)
+  - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED` (deny-only compatibility flag; must remain `false`; do not use as a rollout control)
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY` (temporary containment switch for disabling adaptive preview routing during incident response; not the final architecture target)
   - AI Studio legacy `sid` session-persistence env flags are retired and should not be configured. `sid` remains runtime identity only, and durable restore authority now belongs to project workspace persistence.
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)

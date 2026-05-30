@@ -91,13 +91,13 @@ describe("referenceGridMedia", () => {
     expect(level2.targetLongEdgePx).toBe(320);
   });
 
-  it("routes supabase object URLs through the native render endpoint in right-rail grid surfaces", () => {
+  it("keeps supabase object URLs off the native render endpoint in right-rail grid surfaces", () => {
+    const sourceUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123";
     const resolved = resolveReferenceCardUrls(
       {
-        previewStoragePath:
-          "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123",
-        fullStoragePath:
-          "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123",
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
         previewUrl: undefined,
         resultUrls: [],
       },
@@ -109,10 +109,7 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.previewUrl).toContain("/storage/v1/render/image/sign/");
-    expect(resolved.previewUrl).toContain("width=320");
-    expect(resolved.previewUrl).toContain("quality=28");
-    expect(resolved.previewUrl).toContain("token=abc123");
+    expect(resolved.previewUrl).toBe(sourceUrl);
     expect(resolved.fullUrl).not.toContain("width=");
   });
 
@@ -133,13 +130,11 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.previewUrl).toContain("/storage/v1/render/image/sign/");
-    expect(resolved.previewUrl).toContain("width=320");
-    expect(resolved.previewUrl).toContain("quality=28");
-    expect(resolved.previewUrl).toContain("token=abc123");
+    expect(resolved.previewUrl).toBe(sourceUrl);
+    expect(resolved.previewUrl).not.toContain("/storage/v1/render/image/");
   });
 
-  it("compresses signed durable preview URLs for right-rail grid display", () => {
+  it("keeps signed durable preview URLs off supabase render-image delivery", () => {
     const durablePreviewUrl =
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user-1/variants/images/ref-1/thumb_480?token=abc123";
     const resolved = resolveReferenceCardUrls(
@@ -156,21 +151,21 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.previewUrl).toContain("/storage/v1/render/image/sign/");
-    expect(resolved.previewUrl).toContain("width=320");
-    expect(resolved.previewUrl).toContain("quality=28");
-    expect(resolved.previewUrl).toContain("token=abc123");
+    expect(resolved.previewUrl).toBe(durablePreviewUrl);
+    expect(resolved.previewUrl).not.toContain("/storage/v1/render/image/");
     expect(resolved.previewQualityBand).toBe("compact");
     expect(resolved.targetLongEdgePx).toBe(320);
   });
 
-  it("applies direct supabase render image transforms when already on render endpoint", () => {
+  it("rejects persisted supabase render image previews while preserving full object URLs", () => {
     const sourceUrl =
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";
+    const fullUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123";
     const resolved = resolveReferenceCardUrls(
       {
         previewStoragePath: sourceUrl,
-        fullStoragePath: sourceUrl,
+        fullStoragePath: fullUrl,
         previewUrl: undefined,
         resultUrls: [],
       },
@@ -182,12 +177,11 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.previewUrl).toContain("/storage/v1/render/image/");
-    expect(resolved.previewUrl).toContain("width=320");
-    expect(resolved.previewUrl).toContain("quality=28");
+    expect(resolved.previewUrl).toBeNull();
+    expect(resolved.fullUrl).toBe(fullUrl);
   });
 
-  it("applies direct supabase render transforms without image extension when mode is image", () => {
+  it("rejects persisted supabase render previews without image extension", () => {
     const sourceUrl =
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/reference_asset_12345?token=abc123";
     const resolved = resolveReferenceCardUrls(
@@ -204,9 +198,7 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.previewUrl).toContain("/storage/v1/render/image/");
-    expect(resolved.previewUrl).toContain("width=384");
-    expect(resolved.previewUrl).toContain("quality=30");
+    expect(resolved.previewUrl).toBeNull();
   });
 
   it("does not transform supabase object URLs without extension when mode is video", () => {
@@ -342,7 +334,7 @@ describe("referenceGridMedia", () => {
     const resolver = await importResolver();
 
     const sourceUrl =
-      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123";
     const resolved = resolver.resolveReferenceCardUrls(
       {
         previewStoragePath: sourceUrl,
@@ -357,8 +349,8 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.targetLongEdgePx).toBe(320);
-    expect(resolved.previewUrl).toContain("width=320");
-    expect(resolved.previewUrl).toContain("quality=28");
+    expect(resolved.previewUrl).toBe(sourceUrl);
+    expect(resolved.previewUrl).not.toContain("/storage/v1/render/image/");
   });
 
   it("compacts adaptive long-edge target at pressure level 2 when flag is enabled", async () => {
@@ -366,7 +358,7 @@ describe("referenceGridMedia", () => {
     const resolver = await importResolver();
 
     const sourceUrl =
-      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123";
     const resolved = resolver.resolveReferenceCardUrls(
       {
         previewStoragePath: sourceUrl,
@@ -381,8 +373,8 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.targetLongEdgePx).toBe(320);
-    expect(resolved.previewUrl).toContain("width=320");
-    expect(resolved.previewUrl).toContain("quality=28");
+    expect(resolved.previewUrl).toBe(sourceUrl);
+    expect(resolved.previewUrl).not.toContain("/storage/v1/render/image/");
   });
 
   it("uses quick-slot compaction policy at pressure level 2 when flag is enabled", async () => {
@@ -390,7 +382,7 @@ describe("referenceGridMedia", () => {
     const resolver = await importResolver();
 
     const sourceUrl =
-      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123";
     const resolved = resolver.resolveReferenceCardUrls(
       {
         previewStoragePath: sourceUrl,
@@ -406,7 +398,7 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.targetLongEdgePx).toBe(259);
-    expect(resolved.previewUrl).toContain("width=259");
-    expect(resolved.previewUrl).toContain("quality=28");
+    expect(resolved.previewUrl).toBe(sourceUrl);
+    expect(resolved.previewUrl).not.toContain("/storage/v1/render/image/");
   });
 });

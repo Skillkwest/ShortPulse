@@ -7,6 +7,7 @@ import type { AspectOption } from "../../types";
 
 import {
   ExpertEditInpaintControlsContent,
+  ExpertEditInlineHistoryControls,
   ExpertEditMarkupModalGeneralPanel,
   ExpertEditMoveControlsContent,
   ExpertEditPresetUtilityActionButtons,
@@ -99,6 +100,7 @@ export function useExpertEditPanelControlsRuntime({
         moveStageZoomSliderValue={moveStageZoomSliderValue}
         canUndoGeneralAction={canUndoGeneralAction}
         canRedoGeneralAction={canRedoGeneralAction}
+        showHistoryActions={scope !== "inline" && scope !== "rail"}
         setSelectedRailTool={setSelectedRailTool}
         handleRecenterMoveAction={handleRecenterMoveAction}
         handleMoveZoomSliderChange={handleMoveZoomSliderChange}
@@ -191,10 +193,23 @@ export function useExpertEditPanelControlsRuntime({
     ]
   );
 
+  const inlineStageHeaderControls = React.useMemo(
+    () => (
+      <ExpertEditInlineHistoryControls
+        canUndoGeneralAction={canUndoGeneralAction}
+        canRedoGeneralAction={canRedoGeneralAction}
+        handleUndoGeneralAction={handleUndoGeneralAction}
+        handleRedoGeneralAction={handleRedoGeneralAction}
+      />
+    ),
+    [canRedoGeneralAction, canUndoGeneralAction, handleRedoGeneralAction, handleUndoGeneralAction]
+  );
+
   return {
     isInpaintLikeToolSelected,
     shouldHideSelectedModeRailPanel,
     collapsedToolsThemeClass,
+    inlineStageHeaderControls,
     renderMoveControlsContent,
     renderMarkupModalGeneralPanel,
     renderPresetUtilityActionButtons,

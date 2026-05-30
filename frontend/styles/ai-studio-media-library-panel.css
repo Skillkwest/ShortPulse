@@ -168,6 +168,10 @@
   color: rgba(132, 214, 255, 0.96);
 }
 
+.media-library-panel-folders-breadcrumb-button.is-drop-hover {
+  color: rgba(132, 214, 255, 0.96);
+}
+
 .media-library-panel-folders-breadcrumb-button:focus-visible {
   outline: none;
   color: rgba(132, 214, 255, 0.96);
@@ -256,6 +260,10 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.media-library-panel-folder-chip.is-dragging {
+  opacity: 0.72;
 }
 
 .media-library-panel-folder-chip--image {

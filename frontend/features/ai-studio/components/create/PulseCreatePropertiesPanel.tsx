@@ -192,7 +192,7 @@ export function PulseCreatePropertiesPanel({
     chatComposerOverlayEnabled: true,
     stackTrailingComposerControls: true,
     agentInputMaxHeightPx: EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX,
-    agentInputCollapseOnBlur: true,
+    agentInputCollapseOnBlur: false,
     hideHeader: true,
   };
 

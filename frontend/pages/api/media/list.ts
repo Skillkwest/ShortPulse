@@ -9,9 +9,7 @@ import {
   resolveMediaListSelectColumns,
   type MediaListProfile,
 } from "../../../lib/mediaListProfile";
-import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { resolvePreferredMediaSigningStoragePath } from "../../../lib/mediaPreviewPath";
-import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -414,7 +412,7 @@ const resolveInitialSignedById = async ({
   surface: MediaListSurface;
   seedLimit: number;
 }): Promise<Record<string, string | null>> => {
-  const previewProfile = resolvePreviewProfileForSurface(surface);
+  void surface;
   const seedRows = rows
     .filter((row) => !isAudioFileType(row.file_type))
     .slice(0, Math.max(0, Math.trunc(seedLimit)));
@@ -435,35 +433,19 @@ const resolveInitialSignedById = async ({
   const signSingleCandidate = async ({
     rowId,
     path,
-    transform,
   }: {
     rowId: string;
     path: string;
-    transform?: NonNullable<ReturnType<typeof resolvePolicySignedImageTransform>>;
   }): Promise<void> => {
-    const { data, error } = await storage.createSignedUrl(
-      path,
-      DEFAULT_SIGNED_URL_TTL_SECONDS,
-      transform ? { transform } : undefined
-    );
+    const { data, error } = await storage.createSignedUrl(path, DEFAULT_SIGNED_URL_TTL_SECONDS);
     if (error || !data?.signedUrl) return;
     signedById[rowId] = data.signedUrl;
   };
 
   const batchEligiblePaths: string[] = [];
   const batchEligibleRowIdsByPath = new Map<string, string[]>();
-  const transformBackedCandidates: Array<{
-    rowId: string;
-    path: string;
-    transform: NonNullable<ReturnType<typeof resolvePolicySignedImageTransform>>;
-  }> = [];
 
   for (const [rowId, candidate] of primaryCandidateById.entries()) {
-    const transform = resolvePolicySignedImageTransform(previewProfile, candidate);
-    if (transform) {
-      transformBackedCandidates.push({ rowId, path: candidate, transform });
-      continue;
-    }
     batchEligiblePaths.push(candidate);
     const rowIdsForPath = batchEligibleRowIdsByPath.get(candidate) ?? [];
     rowIdsForPath.push(rowId);
@@ -493,14 +475,6 @@ const resolveInitialSignedById = async ({
         }
       }
     }
-  }
-
-  if (transformBackedCandidates.length) {
-    await Promise.all(
-      transformBackedCandidates.map(({ rowId, path, transform }) =>
-        signSingleCandidate({ rowId, path, transform })
-      )
-    );
   }
 
   return signedById;

@@ -40,6 +40,7 @@ type UseExpertEditInlineGenerateParams = {
   promptText: string;
   extraImageUrls: [string | null, string | null, string | null];
   reusablePrimarySourceUrl?: string | null;
+  flattenTargetLongestEdgePx?: number | null;
   markupStrokes: MarkupStroke[];
   populatedLayerCount: number;
   editSubmitIntent: EditSubmitIntent;
@@ -85,6 +86,7 @@ export const useExpertEditInlineGenerate = ({
   promptText,
   extraImageUrls,
   reusablePrimarySourceUrl = "",
+  flattenTargetLongestEdgePx = null,
   markupStrokes,
   populatedLayerCount,
   editSubmitIntent,
@@ -179,6 +181,7 @@ export const useExpertEditInlineGenerate = ({
           exportArtifacts = await exportExpertEditStageArtifacts({
             layers,
             reusablePrimarySourceUrl,
+            flattenTargetLongestEdgePx,
             markupStrokes,
             editSubmitIntent,
             hasSelectedLayerMask,
@@ -315,6 +318,7 @@ export const useExpertEditInlineGenerate = ({
     promptText,
     populatedLayerCount,
     reusablePrimarySourceUrl,
+    flattenTargetLongestEdgePx,
     revokeObjectUrlSafe,
     scheduleTransientObjectUrlRevoke,
     resolveBlobDimensions,

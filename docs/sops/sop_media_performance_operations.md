@@ -199,9 +199,10 @@ Key indicators:
     - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY=true`
 - Adaptive media controls:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY`
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (csv allowlist)
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY` (global kill switch)
-  - AI Studio Media Library panel preview compaction follows the shared adaptive resolver when `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-panel-grid`.
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (csv allowlist for transform-free adaptive behavior only; not permission to emit Supabase `/storage/v1/render/image/`)
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY` (temporary no-transform containment switch)
+  - AI Studio Media Library panel preview compaction may follow the shared adaptive resolver only when that resolver remains policy-compliant and transform-free.
+  - `NEXT_PUBLIC_REFERENCE_GRID_*` and adaptive-media flags do not override the repo-wide prohibition on Supabase image transformations.
 - AI Studio shell performance flags:
   - `NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE`
@@ -238,18 +239,21 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
 
 Use this runbook together with `docs/sops/sop_adaptive_media_change_control.md` for PR gating and regression-control requirements.
 
-1. Canonical parity defaults:
+1. Permanent policy:
 
-- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=false`
-- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=reference-grid,quick-slot,media-library-grid,media-library-modal-grid,media-library-panel-grid,character-grid,detail-modal`
+- Supabase image transformations are prohibited on every path, including signed transform parameters and any `/storage/v1/render/image/` URL emission.
+- `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED=false`
+- `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED=false`
 
-2. Tuned policy rollout:
-
-- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=true`
-
-3. Emergency rollback:
+2. Temporary containment:
 
 - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY=true`
+
+3. Transform-free adaptive tuning:
+
+- Only after runtime and regression tests prove no Supabase `/storage/v1/render/image/` usage remains.
+- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=true|false`
+- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=<explicit transform-free surface set>`
 
 Monitor these events during rollout:
 

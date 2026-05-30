@@ -9,6 +9,7 @@ const PENDING_FOLDER_ID_PREFIX = "__pending_new_folder__";
 type FolderRow = {
   id: string;
   name: string;
+  parentFolderId?: string | null;
   itemCount?: number;
 };
 
@@ -41,9 +42,19 @@ type MediaLibraryPanelFoldersSectionProps = {
   creatingFolder: boolean;
   folderError: string | null;
   hoveredFolderId: string | null;
+  hoveredReparentFolderId: string | null;
+  isRootReparentDropHover: boolean;
   onFolderDragOver: (folderId: string, event: React.DragEvent<HTMLDivElement>) => void;
   onFolderDragLeave: (folderId: string) => void;
   onFolderDrop: (folderId: string, event: React.DragEvent<HTMLDivElement>) => Promise<void>;
+  onFolderReparentDragStart: (event: React.DragEvent<HTMLElement>, folder: FolderRow) => void;
+  onFolderReparentDragEnd: (event: React.DragEvent<HTMLElement>) => void;
+  onFolderReparentDragOver: (folderId: string | null, event: React.DragEvent<HTMLElement>) => void;
+  onFolderReparentDragLeave: (folderId: string | null) => void;
+  onFolderReparentDrop: (
+    folderId: string | null,
+    event: React.DragEvent<HTMLElement>
+  ) => Promise<boolean>;
   folderContextMenu: FolderContextMenuState | null;
   folderContextMenuRef: React.Ref<HTMLDivElement>;
   openFolderContextMenu: (
@@ -76,9 +87,16 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
   creatingFolder,
   folderError,
   hoveredFolderId,
+  hoveredReparentFolderId,
+  isRootReparentDropHover,
   onFolderDragOver,
   onFolderDragLeave,
   onFolderDrop,
+  onFolderReparentDragStart,
+  onFolderReparentDragEnd,
+  onFolderReparentDragOver,
+  onFolderReparentDragLeave,
+  onFolderReparentDrop,
   folderContextMenu,
   folderContextMenuRef,
   openFolderContextMenu,
@@ -145,8 +163,15 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
           <span className="tiny subdued">
             <button
               type="button"
-              className="media-library-panel-folders-breadcrumb-button"
+              className={`media-library-panel-folders-breadcrumb-button${
+                isRootReparentDropHover ? " is-drop-hover" : ""
+              }`}
               onClick={onNavigateToRoot}
+              onDragOver={(event) => onFolderReparentDragOver(null, event)}
+              onDragLeave={() => onFolderReparentDragLeave(null)}
+              onDrop={(event) => {
+                void onFolderReparentDrop(null, event);
+              }}
             >
               {renderBreadcrumbLabel(ROOT_FOLDER_LABEL)}
             </button>
@@ -201,14 +226,26 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
               <div
                 key={folder.id}
                 className={`media-library-panel-folder-strip-item ${
-                  hoveredFolderId === folder.id ? "is-drop-hover" : ""
+                  hoveredFolderId === folder.id || hoveredReparentFolderId === folder.id
+                    ? "is-drop-hover"
+                    : ""
                 }`}
                 role="listitem"
                 onContextMenu={(event) => openFolderContextMenu(event, folder, false)}
-                onDragOver={(event) => onFolderDragOver(folder.id, event)}
-                onDragLeave={() => onFolderDragLeave(folder.id)}
+                onDragOver={(event) => {
+                  onFolderReparentDragOver(folder.id, event);
+                  if (event.defaultPrevented) return;
+                  onFolderDragOver(folder.id, event);
+                }}
+                onDragLeave={() => {
+                  onFolderReparentDragLeave(folder.id);
+                  onFolderDragLeave(folder.id);
+                }}
                 onDrop={(event) => {
-                  void onFolderDrop(folder.id, event);
+                  void onFolderReparentDrop(folder.id, event).then((handled) => {
+                    if (handled) return;
+                    void onFolderDrop(folder.id, event);
+                  });
                 }}
               >
                 {isEditing ? (
@@ -274,6 +311,15 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
                       onDoubleClick={() => handleOpenFolder(folder.id)}
                       aria-label={`${folder.name} folder`}
                       aria-disabled={isPending}
+                      draggable={!isPending}
+                      onDragStart={(event) => {
+                        if (isPending) {
+                          event.preventDefault();
+                          return;
+                        }
+                        onFolderReparentDragStart(event, folder);
+                      }}
+                      onDragEnd={onFolderReparentDragEnd}
                     >
                       {/* Decorative folder tile image; raw img preserves current chip sizing and load behavior. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -282,6 +328,7 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
                         src={FOLDER_TILE_IMAGE_SRC}
                         alt=""
                         aria-hidden="true"
+                        draggable={false}
                       />
                       {typeof folder.itemCount === "number" ? (
                         <span

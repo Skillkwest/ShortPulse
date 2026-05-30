@@ -74,8 +74,14 @@ const clampOpacity = (value: number) => Math.min(1, Math.max(0, value));
 const clampScale = (value: number) =>
   Math.min(STAGE_FLATTEN_MAX_SCALE, Math.max(STAGE_FLATTEN_MIN_SCALE, value));
 const clampCameraScale = (value: number) => clampExpertEditCameraScale(value);
-const clampOutputSize = (value: number) =>
-  Math.min(STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX, Math.max(1, Math.round(value)));
+const resolveMaxOutputSizePx = (value?: number | null) => {
+  const normalizedValue = Number.isFinite(value)
+    ? (value as number)
+    : STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX;
+  return Math.min(STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX, Math.max(1, Math.round(normalizedValue)));
+};
+const clampOutputSize = (value: number, maxOutputSizePx?: number | null) =>
+  Math.min(resolveMaxOutputSizePx(maxOutputSizePx), Math.max(1, Math.round(value)));
 const toRadians = (value: number) => (value * Math.PI) / 180;
 const resolveAspectRatio = (value: number | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 1;
@@ -126,7 +132,10 @@ const canvasToBlob = (canvas: HTMLCanvasElement, mimeType: string): Promise<Blob
 /**
  * Resolves a longest-edge output size from visible source layers.
  */
-export const resolveStageFlattenOutputSizePx = (images: StageFlattenImageDimensions[]): number => {
+export const resolveStageFlattenOutputSizePx = (
+  images: StageFlattenImageDimensions[],
+  maxOutputSizePx?: number | null
+): number => {
   const longestEdge = images.reduce((maxEdge, image) => {
     const nextLongest = Math.max(
       Number.isFinite(image.width) ? image.width : 0,
@@ -134,7 +143,7 @@ export const resolveStageFlattenOutputSizePx = (images: StageFlattenImageDimensi
     );
     return Math.max(maxEdge, nextLongest);
   }, 0);
-  return clampOutputSize(longestEdge);
+  return clampOutputSize(longestEdge, maxOutputSizePx);
 };
 
 /**
@@ -143,20 +152,22 @@ export const resolveStageFlattenOutputSizePx = (images: StageFlattenImageDimensi
 export const resolveStageFlattenOutputDimensions = ({
   images,
   outputAspectRatio,
+  maxOutputSizePx,
 }: {
   images: StageFlattenImageDimensions[];
   outputAspectRatio?: number;
+  maxOutputSizePx?: number | null;
 }): StageFlattenOutputDimensions => {
-  const longestEdge = resolveStageFlattenOutputSizePx(images);
+  const longestEdge = resolveStageFlattenOutputSizePx(images, maxOutputSizePx);
   const aspectRatio = resolveAspectRatio(outputAspectRatio);
   if (aspectRatio >= 1) {
     return {
       width: longestEdge,
-      height: clampOutputSize(longestEdge / aspectRatio),
+      height: clampOutputSize(longestEdge / aspectRatio, maxOutputSizePx),
     };
   }
   return {
-    width: clampOutputSize(longestEdge * aspectRatio),
+    width: clampOutputSize(longestEdge * aspectRatio, maxOutputSizePx),
     height: longestEdge,
   };
 };
@@ -280,6 +291,7 @@ export const composePrimaryStageLayersToBlob = async (
     mimeType?: string;
     outputAspectRatio?: number;
     camera?: StageFlattenCameraTransformInput | null;
+    maxOutputSizePx?: number | null;
   }
 ): Promise<Blob> => {
   const populatedLayers = layers.filter(
@@ -322,6 +334,7 @@ export const composePrimaryStageLayersToBlob = async (
       height: Math.max(1, image.naturalHeight || image.height || 1),
     })),
     outputAspectRatio: options?.outputAspectRatio,
+    maxOutputSizePx: options?.maxOutputSizePx,
   });
   const outputWidth = outputDimensions.width;
   const outputHeight = outputDimensions.height;

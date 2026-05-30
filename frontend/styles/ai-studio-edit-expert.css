@@ -1827,8 +1827,20 @@
 .edit-expert-primary-column-header {
   width: 100%;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
+}
+
+.edit-expert-stage-history-controls {
+  display: inline-flex;
+  justify-content: flex-end;
+  width: auto;
+  max-width: 100%;
+}
+
+.edit-expert-stage-history-controls .edit-expert-move-history-row {
+  width: auto;
+  grid-template-columns: repeat(2, minmax(88px, max-content));
 }
 
 .edit-expert-generation-mode-header-controls {
@@ -5065,6 +5077,10 @@
   transition:
     border-color 0.16s ease,
     background 0.16s ease;
+}
+
+.edit-expert-stage-history-controls .edit-expert-move-history-btn {
+  padding-inline: 10px;
 }
 
 .edit-expert-move-history-btn svg {

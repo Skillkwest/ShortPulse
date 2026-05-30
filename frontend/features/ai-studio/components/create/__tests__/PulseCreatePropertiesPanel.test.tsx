@@ -10,6 +10,7 @@ vi.mock("../PulseCreatePanelView", () => ({
     promptStepProps: {
       pulseLoadingState?: { message?: string | null } | null;
       hideHeader?: boolean;
+      agentInputCollapseOnBlur?: boolean;
       chatHistoryHeaderContent?: React.ReactNode;
       composerLeadingContent?: React.ReactNode;
       composerMiddleContent?: React.ReactNode;
@@ -20,6 +21,9 @@ vi.mock("../PulseCreatePanelView", () => ({
         {promptStepProps.pulseLoadingState?.message ?? ""}
       </span>
       <span data-testid="pulse-hide-header">{String(Boolean(promptStepProps.hideHeader))}</span>
+      <span data-testid="pulse-agent-input-collapse-on-blur">
+        {String(Boolean(promptStepProps.agentInputCollapseOnBlur))}
+      </span>
       <div data-testid="pulse-history-header">{promptStepProps.chatHistoryHeaderContent}</div>
       <div data-testid="pulse-leading-content">{promptStepProps.composerLeadingContent}</div>
       <div data-testid="pulse-middle-content">{promptStepProps.composerMiddleContent}</div>
@@ -144,6 +148,12 @@ describe("PulseCreatePropertiesPanel", () => {
 
     expect(screen.getByTestId("pulse-leading-content")).toBeEmptyDOMElement();
     expect(screen.getByTestId("pulse-middle-content")).toBeEmptyDOMElement();
+  });
+
+  it("keeps long Pulse drafts expanded after blur", () => {
+    render(<PulseCreatePropertiesPanel {...baseProps} />);
+
+    expect(screen.getByTestId("pulse-agent-input-collapse-on-blur")).toHaveTextContent("false");
   });
 
   it("keeps the Pulse history header empty after workflow completion", () => {

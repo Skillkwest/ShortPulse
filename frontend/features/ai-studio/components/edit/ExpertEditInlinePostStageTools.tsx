@@ -31,27 +31,26 @@ export function ExpertEditInlinePostStageTools({
   isInpaintToolSelected,
   isMarkupToolSelected,
   isMoveToolSelected,
-  isInpaintLikeToolSelected,
+  isInpaintLikeToolSelected: _isInpaintLikeToolSelected,
   setSelectedRailTool,
   handleInpaintCollapseToggle,
   renderInpaintControlsContent,
   renderMarkupControlsContent,
-  renderMoveControlsContent,
+  renderMoveControlsContent: _renderMoveControlsContent,
   secondaryContent = null,
 }: ExpertEditInlinePostStageToolsProps) {
+  void _isInpaintLikeToolSelected;
+  void _renderMoveControlsContent;
   const activeCollapsedRailTool =
     inpaintRailTools.find((tool) => tool.id === selectedRailTool) ?? inpaintRailTools[0];
 
   if (!isAdvancedEditModesEnabled) {
+    if (!secondaryContent) {
+      return null;
+    }
+
     return (
       <div className="edit-expert-inpaint-row edit-expert-inpaint-row--standard-only">
-        <div
-          className="edit-expert-inpaint-controls is-themed-move"
-          role="group"
-          aria-label="Move tools"
-        >
-          {renderMoveControlsContent("inline")}
-        </div>
         {secondaryContent}
       </div>
     );
@@ -124,27 +123,19 @@ export function ExpertEditInlinePostStageTools({
                   })}
                 </div>
               </div>
-              <div
-                className={`edit-expert-inpaint-controls ${
-                  isInpaintToolSelected ? "is-themed-inpaint" : ""
-                } ${isMarkupToolSelected ? "is-themed-markup" : ""} ${
-                  isMoveToolSelected ? "is-themed-move" : ""
-                }`.trim()}
-                role="group"
-                aria-label={
-                  isInpaintLikeToolSelected
-                    ? isMarkupToolSelected
-                      ? "Markup tools"
-                      : "Inpaint tools"
-                    : "Move tools"
-                }
-              >
-                {isInpaintToolSelected
-                  ? renderInpaintControlsContent("inline")
-                  : isMarkupToolSelected
-                    ? renderMarkupControlsContent("inline")
-                    : renderMoveControlsContent("inline")}
-              </div>
+              {!isMoveToolSelected ? (
+                <div
+                  className={`edit-expert-inpaint-controls ${
+                    isInpaintToolSelected ? "is-themed-inpaint" : ""
+                  } ${isMarkupToolSelected ? "is-themed-markup" : ""}`.trim()}
+                  role="group"
+                  aria-label={isMarkupToolSelected ? "Markup tools" : "Inpaint tools"}
+                >
+                  {isInpaintToolSelected
+                    ? renderInpaintControlsContent("inline")
+                    : renderMarkupControlsContent("inline")}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}

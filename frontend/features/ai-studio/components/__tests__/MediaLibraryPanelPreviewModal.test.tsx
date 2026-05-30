@@ -94,4 +94,74 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(image.getAttribute("src")).toBe("https://cdn.example.com/thumb-portrait.png");
     expect(screen.queryByText("Loading preview…")).not.toBeInTheDocument();
   });
+
+  it("moves image preview failures into controlled unavailable UI", () => {
+    const onPreviewError = vi.fn();
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        file={imageFile}
+        previewUrl="https://cdn.example.com/thumb-portrait.png"
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onPreviewError={onPreviewError}
+      />
+    );
+
+    const image = screen.getByAltText("portrait.png") as HTMLImageElement;
+    fireEvent.error(image);
+
+    expect(onPreviewError).toHaveBeenCalledWith(
+      imageFile,
+      "https://cdn.example.com/thumb-portrait.png"
+    );
+    expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
+    expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
+  });
+
+  it("does not render transform or optimizer image urls as focused preview media", () => {
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: null,
+    };
+
+    const { rerender } = render(
+      <MediaLibraryPanelPreviewModal
+        file={imageFile}
+        previewUrl="https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/image.png?token=abc&width=320&quality=28"
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
+    expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
+
+    rerender(
+      <MediaLibraryPanelPreviewModal
+        file={imageFile}
+        previewUrl="/_next/image?url=https%3A%2F%2Fcdn.example.com%2Fsmall.jpg&w=384&q=28"
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
+    expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
+  });
 });

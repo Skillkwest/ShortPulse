@@ -22,6 +22,7 @@ type StageInteractionRouterHandlers = StageInteractionHandlers & {
 
 type UseExpertEditStageWorkspaceRuntimeArgs = {
   isAdvancedEditModesEnabled: boolean;
+  inlineStageHeaderControls: React.ReactNode;
   layers: ExpertEditLayer[];
   markupStrokes: MarkupStroke[];
   overlayCanvasRef: React.RefObject<HTMLCanvasElement>;
@@ -117,6 +118,7 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
  */
 export function useExpertEditStageWorkspaceRuntime({
   isAdvancedEditModesEnabled,
+  inlineStageHeaderControls,
   layers,
   markupStrokes,
   overlayCanvasRef,
@@ -358,6 +360,7 @@ export function useExpertEditStageWorkspaceRuntime({
   };
 
   return {
+    inlineStageHeaderControls,
     inlineBackdropPanHandlers,
     inlineInteractionHandlers,
     inlineStageWheelHandler: inlineStageInteractionRouter.onWheel,

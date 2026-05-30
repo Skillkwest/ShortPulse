@@ -50,6 +50,7 @@ export type ExpertEditPanelViewProps = {
     context?: ModelModalContext | null
   ) => void;
   onPrimaryImageChange: (url: string | null) => void;
+  onAddFlattenedReferenceImage?: (payload: { url: string; mimeType?: string | null }) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;

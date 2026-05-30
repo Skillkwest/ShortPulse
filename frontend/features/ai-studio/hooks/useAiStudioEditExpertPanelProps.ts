@@ -37,6 +37,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
     context?: ModelModalContext | null
   ) => void;
   setReferenceImageUrl: (url: string | null) => void;
+  addPastedMediaReference?: (reference: { url: string; mimeType?: string | null }) => void;
   setExtraImageUrl: (index: number, url: string | null) => void;
   handleEditPromptTextChange: (value: string) => void;
   handleImageRegenerateWithDebit: (
@@ -90,6 +91,7 @@ export const useAiStudioEditExpertPanelProps = ({
   setAspect,
   handleOpenModelModal,
   setReferenceImageUrl,
+  addPastedMediaReference,
   setExtraImageUrl,
   handleEditPromptTextChange,
   handleImageRegenerateWithDebit,
@@ -145,6 +147,7 @@ export const useAiStudioEditExpertPanelProps = ({
       onAspectChange: setAspect,
       onModelPickerOpen: handleOpenModelModal,
       onPrimaryImageChange: setReferenceImageUrl,
+      onAddFlattenedReferenceImage: addPastedMediaReference,
       onExtraImageChange: setExtraImageUrl,
       onPromptTextChange: handleEditPromptTextChange,
       onEditSubmitIntentChange,
@@ -203,6 +206,7 @@ export const useAiStudioEditExpertPanelProps = ({
     editReferenceText,
     extraImageUrls,
     generationGuardrail,
+    addPastedMediaReference,
     handleEditPromptTextChange,
     handleImageRegenerateWithDebit,
     resolveVariantCostCredits,

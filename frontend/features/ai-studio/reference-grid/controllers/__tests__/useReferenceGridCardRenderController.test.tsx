@@ -121,7 +121,7 @@ describe("useReferenceGridCardRenderController", () => {
     expect(pauseMock).toHaveBeenCalledTimes(1);
   });
 
-  it("compacts reference-grid audio cover art before rendering the player background", () => {
+  it("rejects supabase render-image audio cover art before rendering the player background", () => {
     const output = createOutput({
       id: "audio-cover-1",
       mode: "audio",
@@ -175,8 +175,8 @@ describe("useReferenceGridCardRenderController", () => {
     const { container } = render(<>{result.current.allRefsCardNodes}</>);
     const audioShell = container.querySelector(".reference-card-audio-shell") as HTMLElement | null;
 
-    expect(audioShell?.getAttribute("style")).toContain("width=320");
-    expect(audioShell?.getAttribute("style")).toContain("quality=28");
+    expect(audioShell?.getAttribute("style") ?? "").not.toContain("/storage/v1/render/image/");
+    expect(audioShell?.getAttribute("style") ?? "").not.toContain("quality=28");
   });
 
   it("clears active ownership after audio playback ends", () => {

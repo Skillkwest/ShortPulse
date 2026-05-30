@@ -276,12 +276,17 @@ Checklist:
 - Confirm transformed signing profile headers are present:
   - `/api/media/sign-batch` -> `x-shortpulse-media-sign-preview-profile`
   - `/api/media/resolve-previews` -> `x-shortpulse-media-resolve-preview-profile`
-- Confirm adaptive media surfaces are enabled when expected:
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid`, `media-library-modal-grid`, and `media-library-panel-grid` when those surfaces should use adaptive preview routing.
+- Confirm no preview URL or network request resolves through Supabase `/storage/v1/render/image/`.
+- Confirm hosted/runtime transform compatibility flags remain disabled:
+  - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED=false`
+  - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED=false`
+- If temporary adaptive containment is in effect, confirm:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY=true`
 
 Mitigation:
 
 - Keep media-library preview delivery on Supabase signed URLs (do not re-wrap signed URLs through Next image optimizer).
+- Treat any Supabase `/storage/v1/render/image/` preview usage as a regression to remove, not as an adaptive tuning choice.
 - Hard-refresh/re-open the media surface to clear stale wrapped preview state from older sessions.
 
 ## Internal route returns `404` or `503` during hosted ops checks
@@ -817,16 +822,18 @@ Checklist:
   - review `ai_studio` + `image` rows for:
     - low thumb/preview variant coverage
     - large `p50_bytes` / `p90_bytes`
-  - verify adaptive media surfaces include the active panel/grid surfaces:
-    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid`, `media-library-modal-grid`, and `media-library-panel-grid`
+  - verify the active panel/grid surfaces still resolve preview URLs as signed originals or durable variants and do not emit Supabase `/storage/v1/render/image/`
 - Inspect open-to-first-media attribution events:
   - `media.modal.open_to_first_media`
 - If modal or panel grids stutter at higher counts, verify the canonical Media Library runtime is intact:
   - Media Library modal/panel are using the default virtualization, video-budget, and sign-prefetch behavior.
 - If Reference Grid interactions degrade in long sessions, verify:
-  - adaptive preview routing is active:
-    - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW` not set to `false`
-    - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY` not set to `false`
+  - no Reference Grid preview path emits Supabase `/storage/v1/render/image/`
+  - adaptive preview flags are only active when the runtime remains policy-compliant and transform-free:
+    - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`
+    - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY`
+  - use temporary containment when transform-capable adaptive behavior must be suppressed:
+    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY=true`
   - optional heavy-load long-edge compaction is only enabled when intentionally set (`NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION=true`),
   - visible/buffered card work remains bounded by virtualization and preview budgets rather than by limiting the number of Reference Grid cards.
 - Run the automated gate harness when regressions are suspected:

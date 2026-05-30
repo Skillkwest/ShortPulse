@@ -9,6 +9,7 @@ import {
   logAdaptiveDetailFullQualityUsed,
 } from "../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { StudioOutput } from "../types";
 import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
 import {
@@ -55,11 +56,21 @@ type PreviewSelectionState = {
   rejectedUrls: string[];
 };
 
+const isNextImageOptimizerUrl = (value: string | null | undefined): boolean =>
+  Boolean(value?.trim().startsWith("/_next/image"));
+
+const isForbiddenDetailImageUrl = (value: string | null | undefined): boolean => {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  return isSupabaseRenderImageUrl(trimmed) || isNextImageOptimizerUrl(trimmed);
+};
+
 const buildUniquePreviewCandidates = (urls: Array<string | null | undefined>): string[] => {
   const uniqueUrls = new Set<string>();
   urls.forEach((url) => {
     const trimmed = url?.trim();
     if (!trimmed) return;
+    if (isForbiddenDetailImageUrl(trimmed)) return;
     uniqueUrls.add(trimmed);
   });
   return Array.from(uniqueUrls);
@@ -168,7 +179,8 @@ const resolveCanonicalDetailAuthorityUrl = async (
     | "fullStoragePath"
     | "previewUrl"
     | "resultUrls"
-  >
+  >,
+  options: { forceRefresh?: boolean } = {}
 ): Promise<string | null> => {
   if (!shouldResolveCanonicalDetailAuthority(output)) return null;
   try {
@@ -179,11 +191,13 @@ const resolveCanonicalDetailAuthorityUrl = async (
     });
     const storagePath = resolvedTarget.fileRecord?.storagePath?.trim() ?? "";
     if (!storagePath) return null;
-    return await getSignedMediaUrl({
+    const signedUrl = await getSignedMediaUrl({
       bucket: "media_library",
       storagePath,
       previewProfile: "none",
+      ...(options.forceRefresh === true ? { forceRefresh: true } : {}),
     });
+    return isForbiddenDetailImageUrl(signedUrl) ? null : signedUrl;
   } catch {
     return null;
   }
@@ -393,6 +407,15 @@ function DetailModalContent({
     resolvedCanonicalPreviewUrl,
     resolvedDetailMedia?.previewUrl,
   ]);
+  const fullQualityPromotionUrl = useMemo(() => {
+    const hasExplicitFullStoragePath = Boolean(output?.fullStoragePath?.trim());
+    return (
+      buildUniquePreviewCandidates([
+        resolvedCanonicalPreviewUrl,
+        hasExplicitFullStoragePath ? (resolvedDetailMedia?.fullUrl ?? null) : null,
+      ])[0] ?? null
+    );
+  }, [output?.fullStoragePath, resolvedCanonicalPreviewUrl, resolvedDetailMedia?.fullUrl]);
   const previewSelection =
     previewSelectionByOutput && outputId && previewSelectionByOutput.outputId === outputId
       ? previewSelectionByOutput
@@ -411,19 +434,35 @@ function DetailModalContent({
   }, [previewCandidates, previewSelection]);
   useEffect(() => {
     if (!outputId) return;
-    // The detail modal intentionally locks the first viable preview URL for an open output.
+    // Detail modal media should follow the highest-authority available candidate for the
+    // selected output so restored/saved sessions can promote from compact previews to full media.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPreviewSelectionByOutput((current) => {
-      if (!current || current.outputId !== outputId) {
-        return createPreviewSelectionState(outputId, previewCandidates);
-      }
-      if (current.currentUrl) return current;
+      const rejectedUrls = current?.outputId === outputId ? current.rejectedUrls : [];
       const nextUrl = resolveNextPreviewCandidateUrl({
         currentUrl: null,
         previewCandidates,
-        rejectedUrls: current.rejectedUrls,
+        rejectedUrls,
       });
+      if (!current || current.outputId !== outputId) {
+        return {
+          outputId,
+          currentUrl: nextUrl,
+          rejectedUrls,
+        };
+      }
       if (nextUrl === current.currentUrl) {
+        return current;
+      }
+      const shouldPromoteToFullQuality =
+        Boolean(nextUrl) && nextUrl === fullQualityPromotionUrl && current.currentUrl !== nextUrl;
+      const rejectedUrlSet = new Set(rejectedUrls);
+      const currentUrlWasRejected = Boolean(
+        current.currentUrl && rejectedUrlSet.has(current.currentUrl)
+      );
+      const shouldPreserveCurrentUrl =
+        Boolean(current.currentUrl) && !currentUrlWasRejected && !shouldPromoteToFullQuality;
+      if (shouldPreserveCurrentUrl) {
         return current;
       }
       return {
@@ -431,7 +470,7 @@ function DetailModalContent({
         currentUrl: nextUrl,
       };
     });
-  }, [outputId, previewCandidates]);
+  }, [fullQualityPromotionUrl, outputId, previewCandidates]);
   useEffect(() => {
     if (!outputId) return;
     let cancelled = false;
@@ -704,7 +743,27 @@ function DetailModalContent({
       previewCandidates,
       rejectedUrls,
     });
-    if (!nextUrl) return false;
+    if (!nextUrl) {
+      setPreviewSelectionByOutput((current) => {
+        if (!current || current.outputId !== outputId) {
+          return createPreviewSelectionState(
+            outputId,
+            previewCandidates,
+            currentUrl ? [currentUrl] : []
+          );
+        }
+        const nextRejectedUrls =
+          currentUrl && !current.rejectedUrls.includes(currentUrl)
+            ? [...current.rejectedUrls, currentUrl]
+            : current.rejectedUrls;
+        return {
+          ...current,
+          currentUrl: null,
+          rejectedUrls: nextRejectedUrls,
+        };
+      });
+      return false;
+    }
     setPreviewSelectionByOutput({
       outputId,
       currentUrl: nextUrl,
@@ -712,6 +771,33 @@ function DetailModalContent({
     });
     return true;
   }, [displayPreviewUrl, outputId, previewCandidates, previewSelection]);
+
+  const refreshCanonicalPreviewCandidate = useCallback(async () => {
+    if (!outputId) return null;
+    const refreshedUrl = await resolveCanonicalDetailAuthorityUrl(canonicalAuthorityInput, {
+      forceRefresh: true,
+    });
+    if (!refreshedUrl) return null;
+    setResolvedCanonicalPreviewByOutput({
+      outputId,
+      url: refreshedUrl,
+    });
+    setPreviewSelectionByOutput((current) => {
+      const rejectedUrls = current?.outputId === outputId ? current.rejectedUrls : [];
+      return {
+        outputId,
+        currentUrl: refreshedUrl,
+        rejectedUrls: rejectedUrls.filter((value) => value !== refreshedUrl),
+      };
+    });
+    return refreshedUrl;
+  }, [canonicalAuthorityInput, outputId]);
+
+  const handleDetailImageError = useCallback(() => {
+    const advanced = tryAdvancePreviewCandidate();
+    if (advanced) return;
+    void refreshCanonicalPreviewCandidate();
+  }, [refreshCanonicalPreviewCandidate, tryAdvancePreviewCandidate]);
 
   const refreshCharacterAvatar = useCallback(async () => {
     if (!outputId || !characterId) return null;
@@ -1419,15 +1505,13 @@ function DetailModalContent({
                           draggable={false}
                           onDragStart={(event) => event.preventDefault()}
                           onLoad={handleImageLoad}
-                          onError={() => {
-                            void tryAdvancePreviewCandidate();
-                          }}
+                          onError={handleDetailImageError}
                         />
                       </>
                     )
                   ) : (
                     <div className="art-text-placeholder">
-                      <p>{displayPromptText}</p>
+                      <p>Media unavailable.</p>
                     </div>
                   )}
                 </div>

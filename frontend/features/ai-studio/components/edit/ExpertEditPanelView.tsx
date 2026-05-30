@@ -7,6 +7,7 @@ import {
   isMarkupCollapsedOpenModalEnabled,
   isMarkupModelLockEnabled,
 } from "../../logic/inpaintSubmission";
+import { resolveImageResolutionLongestEdgePx } from "../../logic/imageResolution";
 import { useInpaintMaskController } from "./useInpaintMaskController";
 import {
   createIdleMarkupDrawPointerSession,
@@ -90,6 +91,7 @@ export function ExpertEditPanelView({
   onAspectChange,
   onModelPickerOpen,
   onPrimaryImageChange,
+  onAddFlattenedReferenceImage,
   onExtraImageChange,
   onPromptTextChange,
   onEditSubmitIntentChange,
@@ -600,6 +602,7 @@ export function ExpertEditPanelView({
     setSelectedLayerIndex,
     clearLayerEditing,
     queuePanelHistoryBaselineFromCurrent,
+    onAddFlattenedReferenceImage,
     onRegenerateWithReferenceInputs,
     showStatusToast,
     suppressNextPrimaryPublishUrlRef,
@@ -627,12 +630,17 @@ export function ExpertEditPanelView({
     primaryCompositionSurfaceAspectRatioValue,
     resolveLayerImageAspectRatio,
   ]);
+  const flattenTargetLongestEdgePx = React.useMemo(
+    () => resolveImageResolutionLongestEdgePx(imageResolutionValue),
+    [imageResolutionValue]
+  );
 
   const { handleInlineGenerate, isInlineGeneratePending } = useExpertEditInlineGenerate({
     layers,
     promptText: promptTextValue,
     extraImageUrls,
     reusablePrimarySourceUrl,
+    flattenTargetLongestEdgePx,
     markupStrokes,
     populatedLayerCount,
     editSubmitIntent: effectiveEditSubmitIntent,
@@ -1058,6 +1066,7 @@ export function ExpertEditPanelView({
     isInpaintLikeToolSelected,
     shouldHideSelectedModeRailPanel,
     collapsedToolsThemeClass,
+    inlineStageHeaderControls,
     renderMoveControlsContent,
     renderMarkupModalGeneralPanel,
     renderPresetUtilityActionButtons,
@@ -1095,6 +1104,7 @@ export function ExpertEditPanelView({
   });
 
   const {
+    inlineStageHeaderControls: resolvedInlineStageHeaderControls,
     inlineBackdropPanHandlers: inlineStageBackdropPanHandlers,
     inlineStageWheelHandler,
     inlineInteractionHandlers,
@@ -1104,6 +1114,7 @@ export function ExpertEditPanelView({
     modalSurface,
   } = useExpertEditStageWorkspaceRuntime({
     isAdvancedEditModesEnabled: isGenerationModeToggleEnabled,
+    inlineStageHeaderControls,
     layers,
     markupStrokes,
     overlayCanvasRef,
@@ -1316,6 +1327,7 @@ export function ExpertEditPanelView({
 
   const stageWorkspaceProps = useExpertEditStageWorkspacePropsRuntime({
     sidebar,
+    inlineStageHeaderControls: resolvedInlineStageHeaderControls,
     hasPrimaryCompositePreview,
     selectedLayerName: selectedLayer?.name ?? null,
     onDeleteSelectedLayer: handleDeleteSelectedLayer,

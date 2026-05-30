@@ -2,7 +2,6 @@
  * Projects persistence helpers.
  * Owns server-authoritative create/read access for user-owned project rows.
  */
-import { resolvePolicySignedImageTransform } from "../mediaSignedTransformPolicy";
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
@@ -13,7 +12,6 @@ const MAX_PROJECT_LIST_LIMIT = 24;
 const PROJECT_LIST_ALL = "all";
 const MEDIA_BUCKET = "media_library";
 const PROJECT_PREVIEW_SIGNED_URL_TTL_SECONDS = 3600;
-const PROJECT_CARD_PREVIEW_PROFILE = "project-card-preview";
 const PROJECT_PREVIEW_IMAGE_LIMIT = 4;
 const PROJECT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -365,11 +363,9 @@ export const listProjectsForUser = async ({
     });
     await Promise.all(
       pathsToSign.map(async (path) => {
-        const transform = resolvePolicySignedImageTransform(PROJECT_CARD_PREVIEW_PROFILE, path);
         const { data, error } = await storage.createSignedUrl(
           path,
-          PROJECT_PREVIEW_SIGNED_URL_TTL_SECONDS,
-          transform ? { transform } : undefined
+          PROJECT_PREVIEW_SIGNED_URL_TTL_SECONDS
         );
         if (error) return;
         signedUrlByPath.set(

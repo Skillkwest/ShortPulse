@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { X } from "phosphor-react";
+import { isSupabaseRenderImageUrl } from "../../../../lib/mediaPreviewTrustPolicy";
 import { isAudioFile, isVideoFile, type MediaFileRow } from "../../logic/mediaLibraryModalModel";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
@@ -15,6 +16,7 @@ type MediaLibraryPanelPreviewModalProps = {
   isLoading: boolean;
   error: string | null;
   onClose: () => void;
+  onPreviewError?: (file: MediaFileRow, failedUrl: string) => void;
 };
 
 /**
@@ -29,6 +31,7 @@ export function MediaLibraryPanelPreviewModal({
   isLoading,
   error,
   onClose,
+  onPreviewError,
 }: MediaLibraryPanelPreviewModalProps) {
   useAiStudioModalActivity("media-library-panel-preview-modal", Boolean(file));
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
@@ -41,6 +44,7 @@ export function MediaLibraryPanelPreviewModal({
     `media-library-preview-audio:${file?.id ?? "none"}`,
     audioRef
   );
+  const [failedPreviewUrl, setFailedPreviewUrl] = React.useState<string | null>(null);
   React.useEffect(() => {
     if (!file || typeof document === "undefined") return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -56,12 +60,30 @@ export function MediaLibraryPanelPreviewModal({
     disabled: !file,
   });
 
-  if (!file) return null;
+  const isVideo = Boolean(file && isVideoFile(file.file_type));
+  const isAudio = Boolean(file && isAudioFile(file.file_type));
+  const title = (file?.filename ?? "").trim() || "Media preview";
+  const normalizedPreviewUrl = previewUrl?.trim() ?? "";
+  const isForbiddenImagePreviewUrl =
+    !isVideo &&
+    !isAudio &&
+    (normalizedPreviewUrl.startsWith("/_next/image") ||
+      isSupabaseRenderImageUrl(normalizedPreviewUrl));
+  const canRenderMedia = Boolean(
+    normalizedPreviewUrl && normalizedPreviewUrl !== failedPreviewUrl && !isForbiddenImagePreviewUrl
+  );
 
-  const isVideo = isVideoFile(file.file_type);
-  const isAudio = isAudioFile(file.file_type);
-  const title = (file.filename ?? "").trim() || "Media preview";
-  const canRenderMedia = Boolean(previewUrl);
+  React.useEffect(() => {
+    setFailedPreviewUrl(null);
+  }, [file?.id, normalizedPreviewUrl]);
+
+  const handlePreviewError = React.useCallback(() => {
+    if (!file || !normalizedPreviewUrl) return;
+    setFailedPreviewUrl(normalizedPreviewUrl);
+    onPreviewError?.(file, normalizedPreviewUrl);
+  }, [file, normalizedPreviewUrl, onPreviewError]);
+
+  if (!file) return null;
 
   return (
     <AiStudioModalLayer>
@@ -130,8 +152,9 @@ export function MediaLibraryPanelPreviewModal({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   className="media-library-panel-preview-media"
-                  src={previewUrl ?? undefined}
+                  src={normalizedPreviewUrl}
                   alt={title}
+                  onError={handlePreviewError}
                 />
               </>
             ) : null}

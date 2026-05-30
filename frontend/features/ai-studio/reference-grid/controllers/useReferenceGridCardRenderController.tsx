@@ -21,6 +21,7 @@ import {
   incrementFreezeInvestigationCounter,
   setFreezeInvestigationGauge,
 } from "../../logic/freezeInvestigationTelemetry";
+import { isSupabaseRenderImageUrl } from "../../../../lib/mediaPreviewTrustPolicy";
 
 export type ReferenceGridVisibleCard = {
   item: ReferenceGridMediaOutput;
@@ -228,7 +229,9 @@ export const useReferenceGridCardRenderController = ({
       const audioInstanceKey = `${options.surface}:${currentOutput.id}`;
       const renderContainPreview = perfDegradeLevel === 0 && activeOutputId === currentOutput.id;
       const audioBackgroundImageUrl =
-        currentOutput.mode === "audio" && currentOutput.companionArtUrl
+        currentOutput.mode === "audio" &&
+        currentOutput.companionArtUrl &&
+        !isSupabaseRenderImageUrl(currentOutput.companionArtUrl)
           ? applyAdaptivePreviewTransform({
               url: currentOutput.companionArtUrl,
               qualityBand: card.previewQualityBand ?? "compact",

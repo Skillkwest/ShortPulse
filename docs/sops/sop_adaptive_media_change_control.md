@@ -33,6 +33,12 @@ Purpose: prevent regressions while continuing development in other AI Studio and
 
 - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY`
 
+4. Treat Supabase image transformations as prohibited:
+
+- do not permit `createSignedUrl(..., { transform })`
+- do not permit `/storage/v1/render/image/` runtime emission
+- treat any such appearance as a regression/incident, not an acceptable adaptive fallback
+
 ## Required Automated Gate
 
 Run this command for any PR touching protected paths:
@@ -92,6 +98,7 @@ This gate currently includes:
 - No stuck `loading preview...` or `generating...` cards
 - No broken image placeholders after normal interactions
 - No sustained flicker loops
+- No Supabase `/storage/v1/render/image/` preview URLs or requests on covered surfaces
 
 ## Change Policy
 
@@ -105,6 +112,7 @@ This gate currently includes:
 - Include test evidence for `test:adaptive-media-runtime`.
 - Include evidence for `check:architecture-boundary` and `check:size-budget` when touching protected paths.
 - Note active adaptive flags used during QA.
+- State whether temporary containment (`NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY`) was active during QA and confirm no Supabase image transformation usage was observed.
 - Include any known low-severity issues and whether they are blocking or deferred.
 
 ## Deferred Stabilization Track

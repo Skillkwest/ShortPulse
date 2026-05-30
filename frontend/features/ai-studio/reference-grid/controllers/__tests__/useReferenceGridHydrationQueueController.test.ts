@@ -28,7 +28,7 @@ const adaptivePreviewOutput = (id: string): StudioOutput =>
     mode: "image",
     previewStoragePath: null,
     fullStoragePath: null,
-    previewUrl: "https://example.supabase.co/storage/v1/render/image/public/media/shared.jpg",
+    previewUrl: "https://example.supabase.co/storage/v1/object/public/media/shared.jpg",
     resultUrls: null,
   }) as unknown as StudioOutput;
 
@@ -205,7 +205,7 @@ describe("useReferenceGridHydrationQueueController", () => {
         resolveCardMedia: ({ item }) =>
           createResolvedCardMedia(
             item,
-            "https://example.supabase.co/storage/v1/render/image/public/media/shared.jpg"
+            "https://example.supabase.co/storage/v1/object/public/media/shared.jpg"
           ),
         enqueueImageHydration: enqueuePreferred,
         pruneHydrationQueueToCandidateIds: prunePreferred,

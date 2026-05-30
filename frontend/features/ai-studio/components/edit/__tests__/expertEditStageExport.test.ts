@@ -64,6 +64,7 @@ describe("exportExpertEditStageArtifacts", () => {
     const result = await exportExpertEditStageArtifacts({
       layers: [{ id: "layer-1" } as never],
       reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+      flattenTargetLongestEdgePx: 2048,
       markupStrokes: [],
       editSubmitIntent: "standard",
       hasSelectedLayerMask: false,
@@ -96,6 +97,7 @@ describe("exportExpertEditStageArtifacts", () => {
           viewportWidth: 400,
           viewportHeight: 400,
         },
+        maxOutputSizePx: 2048,
       })
     );
   });
@@ -106,6 +108,7 @@ describe("exportExpertEditStageArtifacts", () => {
     const result = await exportExpertEditStageArtifacts({
       layers: [{ id: "layer-1" } as never],
       reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+      flattenTargetLongestEdgePx: 2048,
       markupStrokes: [{ id: "stroke-1" } as never],
       editSubmitIntent: "markup",
       hasSelectedLayerMask: false,
@@ -139,6 +142,7 @@ describe("exportExpertEditStageArtifacts", () => {
           viewportWidth: 640,
           viewportHeight: 480,
         },
+        maxOutputSizePx: null,
       })
     );
     expect(composeFlattenedMarkupReferenceBlobMock).toHaveBeenCalledWith(

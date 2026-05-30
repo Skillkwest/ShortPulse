@@ -24,6 +24,7 @@ type StageFlattenSnapshot = {
 export type ExpertEditStageExportParams = {
   layers: ExpertEditStageFlattenLayer[];
   reusablePrimarySourceUrl?: string | null;
+  flattenTargetLongestEdgePx?: number | null;
   markupStrokes: MarkupStroke[];
   editSubmitIntent: EditSubmitIntent;
   hasSelectedLayerMask: boolean;
@@ -43,6 +44,7 @@ export type ExpertEditStageExportArtifacts = {
 export const exportExpertEditStageArtifacts = async ({
   layers,
   reusablePrimarySourceUrl = "",
+  flattenTargetLongestEdgePx = null,
   markupStrokes,
   editSubmitIntent,
   hasSelectedLayerMask,
@@ -65,6 +67,8 @@ export const exportExpertEditStageArtifacts = async ({
         mimeType: "image/png",
         outputAspectRatio: flattenSnapshot?.outputAspectRatio,
         camera: flattenSnapshot?.camera,
+        maxOutputSizePx:
+          !isInpaintSubmitSelected && !isMarkupSubmitSelected ? flattenTargetLongestEdgePx : null,
       });
   const flattenedDimensions = flattenedBlob ? await resolveBlobDimensions(flattenedBlob) : null;
 

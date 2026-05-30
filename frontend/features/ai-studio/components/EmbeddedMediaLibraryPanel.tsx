@@ -333,6 +333,7 @@ export function EmbeddedMediaLibraryPanel({
     handleSelectMediaFile,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
+    handlePreviewModalMediaError,
     closePreviewModal,
   } = useMediaLibraryPanelSelectionController({
     activeFolderId,
@@ -1046,6 +1047,7 @@ export function EmbeddedMediaLibraryPanel({
         isLoading={previewModalLoading}
         error={previewModalError}
         onClose={closePreviewModal}
+        onPreviewError={handlePreviewModalMediaError}
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}

@@ -145,3 +145,22 @@ export const normalizeNanoBananaProResolution = (
   if (normalized.includes("1k")) return "1K";
   return fallback;
 };
+
+export const resolveImageResolutionLongestEdgePx = (
+  value: string | null | undefined
+): number | null => {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === MODEL_DEFAULT_IMAGE_RESOLUTION) return null;
+  if (normalized === "0.5k" || normalized === "0.5" || normalized === "half") return 512;
+  if (normalized === "1k") return 1024;
+  if (normalized === "auto_2k" || normalized === "2k") return 2048;
+  if (normalized === "auto_3k" || normalized === "3k") return 3072;
+  if (normalized === "auto_4k" || normalized === "4k") return 4096;
+
+  const kiloMatch = normalized.match(/^(\d+(?:\.\d+)?)k$/);
+  if (!kiloMatch) return null;
+  const kiloValue = Number(kiloMatch[1]);
+  if (!Number.isFinite(kiloValue) || kiloValue <= 0) return null;
+  return Math.max(1, Math.round(kiloValue * 1024));
+};

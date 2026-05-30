@@ -111,7 +111,7 @@ describe("adaptive-media resolver", () => {
     expect(result.previewUrl).toBe("https://v3b.fal.media/files/b/0a8fb9ad/example.png");
   });
 
-  it("routes supabase signed object URLs through native render images in right-rail grid surfaces", () => {
+  it("keeps supabase signed object URLs on the original signed object route", () => {
     const sourceUrl =
       "https://project.supabase.co/storage/v1/object/sign/media_library/user-1/images/a.png?token=abc";
     const result = resolveAdaptiveMedia({
@@ -127,11 +127,32 @@ describe("adaptive-media resolver", () => {
       pressureLevel: 2,
     });
 
-    expect(result.previewUrl).toContain("/storage/v1/render/image/sign/");
-    expect(result.previewUrl).toContain("width=320");
-    expect(result.previewUrl).toContain("quality=28");
-    expect(result.previewUrl).toContain("token=abc");
+    expect(result.previewUrl).toBe(sourceUrl);
     expect(result.fullUrl).toBe(sourceUrl);
+  });
+
+  it("rejects persisted supabase render image URLs as adaptive candidates", () => {
+    const renderUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/images/a.png?token=abc&width=320&quality=28";
+    const fullUrl =
+      "https://project.supabase.co/storage/v1/object/sign/media_library/user-1/images/a.png?token=abc";
+    const result = resolveAdaptiveMedia({
+      surface: "reference-grid",
+      mediaKind: "image",
+      source: "remote",
+      urls: {
+        previewUrl: renderUrl,
+      },
+      storage: {
+        fullStoragePath: fullUrl,
+      },
+      strictPreviewLadder: true,
+      adaptivePreviewQuality: true,
+      pressureLevel: 2,
+    });
+
+    expect(result.previewUrl).toBe(fullUrl);
+    expect(result.fallbackChain).not.toContain(renderUrl);
   });
 
   it("normalizes canonical storage paths and rejects runtime URLs", () => {

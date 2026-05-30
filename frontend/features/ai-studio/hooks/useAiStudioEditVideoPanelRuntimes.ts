@@ -64,6 +64,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     setAspect: base.setAspect,
     handleOpenModelModal,
     setReferenceImageUrl: base.setImageReferenceImageUrl,
+    addPastedMediaReference: base.addPastedMediaReference,
     setExtraImageUrl: base.setImageExtraImageUrl,
     handleEditPromptTextChange,
     handleImageRegenerateWithDebit,

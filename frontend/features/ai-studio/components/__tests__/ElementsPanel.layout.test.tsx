@@ -14,6 +14,24 @@ import {
 } from "../../../elements-manager/logic/elementsManagerPersistence";
 import { uploadImageToStorage } from "../../utils/imageUpload";
 
+const { ensureSupabaseQueryClientMock } = vi.hoisted(() => ({
+  ensureSupabaseQueryClientMock: vi.fn(() => ({
+    storage: {
+      from: vi.fn(() => ({
+        download: vi.fn(async () => ({
+          data: new Blob(["storage-image"], { type: "image/png" }),
+          error: null,
+        })),
+      })),
+    },
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+    })),
+  })),
+}));
+
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
     const imageProps = { ...props };
@@ -174,12 +192,30 @@ vi.mock("../../utils/imageUpload", () => ({
   ),
 }));
 
-const createDataTransfer = () => {
-  const dataStore = new Map<string, string>();
+vi.mock("../../../../lib/supabaseClient", async () => {
+  const actual = await vi.importActual<typeof import("../../../../lib/supabaseClient")>(
+    "../../../../lib/supabaseClient"
+  );
+  return {
+    ...actual,
+    ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
+  };
+});
+
+const createDataTransfer = (options?: { files?: File[]; data?: Record<string, string> }) => {
+  const dataStore = new Map<string, string>(Object.entries(options?.data ?? {}));
+  const files = options?.files ?? [];
   return {
     get types() {
-      return Array.from(dataStore.keys());
+      const baseTypes = Array.from(dataStore.keys());
+      return files.length ? ["Files", ...baseTypes] : baseTypes;
     },
+    files: files satisfies File[] as unknown as FileList,
+    items: files.map((file) => ({
+      kind: "file",
+      type: file.type,
+      getAsFile: () => file,
+    })),
     effectAllowed: "all",
     dropEffect: "move",
     setDragImage: () => undefined,
@@ -191,20 +227,7 @@ const createDataTransfer = () => {
 };
 
 const createFileDataTransfer = (file: File) => ({
-  files: [file],
-  items: [
-    {
-      kind: "file",
-      type: file.type,
-      getAsFile: () => file,
-    },
-  ],
-  types: ["Files"],
-  effectAllowed: "all",
-  dropEffect: "move",
-  setDragImage: () => undefined,
-  setData: () => undefined,
-  getData: () => "",
+  ...createDataTransfer({ files: [file] }),
 });
 
 const addInternalReferenceDragPayload = (
@@ -283,6 +306,7 @@ describe("ElementsPanel layout", () => {
     vi.mocked(loadElementManagerDraftByElementId).mockClear();
     vi.mocked(saveElementManagerDraft).mockClear();
     vi.mocked(uploadImageToStorage).mockClear();
+    ensureSupabaseQueryClientMock.mockClear();
   });
 
   it("renders the Character-style Elements shell with the media library fixed below", async () => {
@@ -537,6 +561,126 @@ describe("ElementsPanel layout", () => {
       );
     });
     expect(uploadImageToStorage).toHaveBeenCalledWith("blob:element-reference-local-file");
+  });
+
+  it("prefers degraded internal reference hints over synthetic dropped files", async () => {
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => "blob:element-reference-local-file"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+
+    render(<ElementsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitForElementEditor();
+
+    const targetZone = screen.getByText("Secondary View").closest("article");
+    if (!targetZone) {
+      throw new Error("Expected secondary reference zone.");
+    }
+
+    const syntheticFile = new File(["synthetic-reference"], "synthetic.png", {
+      type: "image/png",
+    });
+    const degradedDataImage =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WnXl3sAAAAASUVORK5CYII=";
+    const degradedInternalDrag = createDataTransfer({
+      files: [syntheticFile],
+      data: {
+        "text/reference-origin": "",
+        "image/url": degradedDataImage,
+      },
+    });
+
+    fireEvent.dragEnter(targetZone, { dataTransfer: degradedInternalDrag });
+    fireEvent.dragOver(targetZone, { dataTransfer: degradedInternalDrag });
+    fireEvent.drop(targetZone, { dataTransfer: degradedInternalDrag });
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Secondary View reference")).toHaveAttribute(
+        "src",
+        "https://example.com/uploaded/internal-drop.png"
+      );
+    });
+    expect(uploadImageToStorage).toHaveBeenCalledWith(degradedDataImage);
+    expect(uploadImageToStorage).not.toHaveBeenCalledWith("blob:element-reference-local-file");
+  });
+
+  it("recovers element internal drops from storage when the resolver blob loader is stale", async () => {
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => "blob:recovered-internal-reference"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+
+    const resolveElementProfileImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "output-elements-stale-loader",
+      provenance: {
+        origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+        outputId: "output-elements-stale-loader",
+        mediaId: "media-elements-stale-loader",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "output-elements-stale-loader",
+      generationId: "gen-elements-stale-loader",
+      mediaId: "media-elements-stale-loader",
+      mediaSource: "generated" as const,
+      preview: { url: null },
+      previewStoragePath: "user-1/generations/images/stale-loader-preview.png",
+      fullStoragePath: "user-1/generations/images/stale-loader-full.png",
+      promptText: null,
+      preparedImageUrl: null,
+      loadBlob: async () => {
+        throw new Error("stale blob");
+      },
+    }));
+
+    render(<ElementsPanel resolveProfileImageDropSource={resolveElementProfileImageDropSource} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitForElementEditor();
+
+    const targetZone = screen.getByText("Secondary View").closest("article");
+    if (!targetZone) {
+      throw new Error("Expected secondary reference zone.");
+    }
+
+    const internalDrag = createDataTransfer();
+    addInternalReferenceDragPayload(internalDrag, {
+      outputId: "output-elements-stale-loader",
+      mediaId: "media-elements-stale-loader",
+      sourceSurface: "all-refs",
+    });
+
+    fireEvent.dragOver(targetZone, { dataTransfer: internalDrag });
+    fireEvent.drop(targetZone, { dataTransfer: internalDrag });
+
+    await waitFor(() => {
+      expect(resolveElementProfileImageDropSource).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByAltText("Secondary View reference")).toHaveAttribute(
+        "src",
+        "https://example.com/uploaded/internal-drop.png"
+      );
+    });
+    expect(uploadImageToStorage).toHaveBeenCalledWith("blob:recovered-internal-reference");
+    expect(ensureSupabaseQueryClientMock).toHaveBeenCalled();
   });
 
   it("allows another slot upload to finish while a different slot upload is still pending", async () => {

@@ -5,13 +5,13 @@ import {
 } from "../mediaSignedTransformPolicy";
 
 describe("mediaSignedTransformPolicy", () => {
-  it("enables transforms only when both flags are true", () => {
+  it("keeps signed media transforms disabled even when legacy flags are true", () => {
     expect(
       areMediaSignedTransformsEnabled({
         serverFlag: "true",
         clientFlag: "true",
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       areMediaSignedTransformsEnabled({
         serverFlag: "true",
@@ -34,15 +34,11 @@ describe("mediaSignedTransformPolicy", () => {
     ).toBeNull();
   });
 
-  it("returns transform when policy is enabled and path is image-like", () => {
+  it("returns null transform even when legacy overrides request enablement", () => {
     expect(
       resolvePolicySignedImageTransform("media-library-panel-image-card", "user-1/path/image.jpg", {
         transformsEnabled: true,
       })
-    ).toEqual({
-      width: 256,
-      quality: 46,
-      resize: "contain",
-    });
+    ).toBeNull();
   });
 });

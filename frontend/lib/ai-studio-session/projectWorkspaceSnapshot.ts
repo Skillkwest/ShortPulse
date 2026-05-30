@@ -110,26 +110,41 @@ const isInFlightProjectOutput = (output: Record<string, unknown>): boolean => {
   return taskState === "pending" || taskState === "running";
 };
 
+const isPromptOnlyProjectReference = (output: Record<string, unknown>): boolean => {
+  const mode = typeof output.mode === "string" ? output.mode.trim().toLowerCase() : "";
+  const mediaSource =
+    typeof output.mediaSource === "string" ? output.mediaSource.trim().toLowerCase() : "";
+  return (
+    hasText(output.previewText) &&
+    (mode === "text" || mediaSource === "prompt" || hasText(output.promptId))
+  );
+};
+
 const shouldTrimGeneratedOutputPayload = (output: Record<string, unknown>): boolean =>
   hasText(output.generationId) && !isInFlightProjectOutput(output);
 
 const trimGeneratedProjectWorkspaceOutput = (
   output: Record<string, unknown>
 ): Record<string, unknown> => {
-  if (!shouldTrimGeneratedOutputPayload(output)) return output;
-
   const trimmedOutput = {
     ...output,
   };
+
+  if (hasText(output.generationId)) {
+    delete trimmedOutput.generationReplay;
+    delete trimmedOutput.characterContext;
+    delete trimmedOutput.styleContext;
+  }
+
+  if (!shouldTrimGeneratedOutputPayload(output)) {
+    return trimmedOutput;
+  }
 
   delete trimmedOutput.prompt;
   delete trimmedOutput.transcriptText;
   delete trimmedOutput.errorMessage;
   delete trimmedOutput.errorMessageShort;
   delete trimmedOutput.errorDetail;
-  delete trimmedOutput.generationReplay;
-  delete trimmedOutput.characterContext;
-  delete trimmedOutput.styleContext;
 
   if (hasProjectPersistedOutputPreviewAuthority(output)) {
     delete trimmedOutput.resultUrls;
@@ -138,6 +153,26 @@ const trimGeneratedProjectWorkspaceOutput = (
     delete trimmedOutput.companionArtUrl;
   }
 
+  return trimmedOutput;
+};
+
+const trimPromptOnlyProjectWorkspaceOutput = (
+  output: Record<string, unknown>
+): Record<string, unknown> => {
+  if (!isPromptOnlyProjectReference(output)) return output;
+  if (
+    !hasText(output.prompt) ||
+    typeof output.prompt !== "string" ||
+    typeof output.previewText !== "string"
+  ) {
+    return output;
+  }
+  if (output.prompt.trim() !== output.previewText.trim()) return output;
+
+  const trimmedOutput = {
+    ...output,
+  };
+  delete trimmedOutput.prompt;
   return trimmedOutput;
 };
 
@@ -169,7 +204,9 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
   const persistedActiveOutputs = (Array.isArray(outputsRecord.active) ? outputsRecord.active : [])
     .map((output) => asRecord(output))
     .filter(shouldPersistOutputInProjectWorkspaceSnapshot);
-  const normalizedActiveOutputs = persistedActiveOutputs.map(trimGeneratedProjectWorkspaceOutput);
+  const normalizedActiveOutputs = persistedActiveOutputs.map((output) =>
+    trimPromptOnlyProjectWorkspaceOutput(trimGeneratedProjectWorkspaceOutput(output))
+  );
   const persistedOutputIds = new Set<string>([
     ...normalizedActiveOutputs
       .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))

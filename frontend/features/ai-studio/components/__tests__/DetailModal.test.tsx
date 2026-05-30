@@ -758,7 +758,7 @@ describe("DetailModal", () => {
     expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
   });
 
-  it("keeps the initially opened media URL stable when later full delivery arrives", () => {
+  it("promotes the open detail image when later full delivery arrives", () => {
     const initialOutput = {
       ...baseOutput,
       previewUrl: "https://cdn.test/initial-preview.jpg",
@@ -791,12 +791,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const stableImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
-    expect(stableImage).not.toBeNull();
-    expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/initial-preview.jpg");
+    const promotedImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(promotedImage).not.toBeNull();
+    expect(promotedImage?.getAttribute("src")).toBe("https://cdn.test/final-full.jpg");
   });
 
-  it("locks the first available media URL after it appears during an open session", async () => {
+  it("promotes the first available media URL when full delivery arrives during an open session", async () => {
     const initialOutput = {
       ...baseOutput,
       previewUrl: undefined,
@@ -846,9 +846,9 @@ describe("DetailModal", () => {
       />
     );
 
-    const stableImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
-    expect(stableImage).not.toBeNull();
-    expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/first-available.jpg");
+    const promotedImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(promotedImage).not.toBeNull();
+    expect(promotedImage?.getAttribute("src")).toBe("https://cdn.test/final-after-open.jpg");
   });
 
   it("uses full storage media URL for detail rendering when available", () => {
@@ -916,5 +916,52 @@ describe("DetailModal", () => {
     const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
     expect(image).not.toBeNull();
     expect(image?.getAttribute("src")).toBe("https://cdn.test/canonical-preview.jpg");
+  });
+
+  it("renders controlled unavailable UI instead of a broken image when the last image candidate fails", async () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          previewUrl: "https://cdn.test/stale-signed-image.jpg",
+          resultUrls: ["https://cdn.test/stale-signed-image.jpg"],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    fireEvent.error(image as HTMLImageElement);
+
+    await waitFor(() => {
+      expect(baseElement.querySelector(".art-hero-image")).toBeNull();
+      expect(screen.getByText("Media unavailable.")).toBeInTheDocument();
+    });
+  });
+
+  it("does not settle detail modal images on Supabase render-image or Next optimizer urls", () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          previewUrl:
+            "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/image.png?token=abc&width=320&quality=28",
+          resultUrls: [
+            "/_next/image?url=https%3A%2F%2Fcdn.test%2Fsmall.jpg&w=384&q=28",
+            "https://cdn.test/full-image.jpg",
+          ],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute("src")).toBe("https://cdn.test/full-image.jpg");
   });
 });

@@ -2,11 +2,16 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { useMediaLibraryFoldersState } from "../useMediaLibraryFoldersState";
 
+const addBreadcrumbMock = vi.hoisted(() => vi.fn());
 const listMediaFoldersMock = vi.fn();
 const createMediaFolderMock = vi.fn();
 const deleteMediaFolderMock = vi.fn();
 const renameMediaFolderMock = vi.fn();
 const moveMediaFolderMock = vi.fn();
+
+vi.mock("../../../../lib/clientBreadcrumbs", () => ({
+  addBreadcrumb: (...args: unknown[]) => addBreadcrumbMock(...args),
+}));
 
 vi.mock("../../logic/mediaLibraryPanelApi", () => ({
   MEDIA_LIBRARY_ROOT_FOLDER_ID: "all_items",
@@ -19,6 +24,7 @@ vi.mock("../../logic/mediaLibraryPanelApi", () => ({
 
 describe("useMediaLibraryFoldersState", () => {
   beforeEach(() => {
+    addBreadcrumbMock.mockReset();
     listMediaFoldersMock.mockReset();
     createMediaFolderMock.mockReset();
     deleteMediaFolderMock.mockReset();
@@ -306,5 +312,47 @@ describe("useMediaLibraryFoldersState", () => {
     });
 
     expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", null);
+  });
+
+  it("returns false and records an error when a folder move fails", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-1",
+        name: "Campaign",
+        parentFolderId: null,
+        createdAt: "2026-03-29T00:00:00.000Z",
+        updatedAt: "2026-03-29T00:00:00.000Z",
+      },
+      {
+        id: "folder-2",
+        name: "Archive",
+        parentFolderId: null,
+        createdAt: "2026-03-29T00:01:00.000Z",
+        updatedAt: "2026-03-29T00:01:00.000Z",
+      },
+    ]);
+    moveMediaFolderMock.mockRejectedValueOnce(new Error("Failed to fetch"));
+
+    const { result } = renderHook(() => useMediaLibraryFoldersState());
+
+    await waitFor(() => {
+      expect(result.current.folders).toHaveLength(2);
+    });
+
+    let moved = true;
+    await act(async () => {
+      moved = await result.current.moveFolder("folder-1", "folder-2");
+    });
+
+    expect(moved).toBe(false);
+    expect(result.current.folderError).toBe(
+      "Network issue while contacting the Media Library. Please retry."
+    );
+    expect(addBreadcrumbMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "media_library_folder_move_failed",
+        level: "error",
+      })
+    );
   });
 });

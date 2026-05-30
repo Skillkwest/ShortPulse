@@ -3,6 +3,7 @@
  * Handles reference ingestion, identity build (stubbed), and generation calls to Fal endpoints.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { maybePreprocessLocalImageFileForUpload } from "../../../lib/adaptive-media/localTranscode";
 import {
   fetchQueuedGenerationStatusByModelId,
   submitQueuedGenerationByModelId,
@@ -111,24 +112,55 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
 
   const addReferences = useCallback(
     (files: FileList | File[]) => {
-      const asArray = Array.from(files);
       const currentCount = identity.references.length;
-      const nextCount = Math.min(MAX_REFERENCE_FILES, currentCount + asArray.length);
-      const slice = asArray.slice(0, nextCount - currentCount);
-      const nextRefs: CharacterReference[] = slice.map((file) => {
-        const url = URL.createObjectURL(file);
-        objectUrlsRef.current.push(url);
-        return {
-          id: crypto.randomUUID(),
-          url,
-          name: file.name,
-          source: "upload",
-        };
-      });
-      setIdentity((prev) => ({
-        ...prev,
-        references: [...nextRefs, ...prev.references].slice(0, MAX_REFERENCE_FILES),
-      }));
+      const remainingSlots = Math.max(0, MAX_REFERENCE_FILES - currentCount);
+      if (remainingSlots <= 0) return;
+      const slice = Array.from(files).slice(0, remainingSlots);
+      const imageFiles = slice.filter((file) => file.type.toLowerCase().startsWith("image/"));
+      if (!imageFiles.length) {
+        setError("Only image files are supported for character references.");
+        return;
+      }
+      if (imageFiles.length < slice.length) {
+        setError("Only image files are supported for character references.");
+      } else {
+        setError(null);
+      }
+      void (async () => {
+        const preparedResults = await Promise.allSettled(
+          imageFiles.map(async (file) => await maybePreprocessLocalImageFileForUpload(file))
+        );
+        const nextRefs: CharacterReference[] = [];
+        let hasPreprocessFailure = false;
+        preparedResults.forEach((result) => {
+          if (result.status !== "fulfilled") {
+            hasPreprocessFailure = true;
+            return;
+          }
+          const preparedFile = result.value;
+          const url = URL.createObjectURL(preparedFile);
+          objectUrlsRef.current.push(url);
+          nextRefs.push({
+            id: crypto.randomUUID(),
+            url,
+            name: preparedFile.name,
+            source: "upload",
+          });
+        });
+        if (!nextRefs.length) {
+          if (hasPreprocessFailure) {
+            setError("Unable to process the selected reference image. Try a different image.");
+          }
+          return;
+        }
+        if (hasPreprocessFailure) {
+          setError("One or more reference images could not be processed.");
+        }
+        setIdentity((prev) => ({
+          ...prev,
+          references: [...nextRefs, ...prev.references].slice(0, MAX_REFERENCE_FILES),
+        }));
+      })();
     },
     [identity.references.length]
   );

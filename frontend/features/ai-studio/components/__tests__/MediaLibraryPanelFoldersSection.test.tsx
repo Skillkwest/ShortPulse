@@ -27,9 +27,16 @@ describe("MediaLibraryPanelFoldersSection", () => {
         creatingFolder={false}
         folderError={null}
         hoveredFolderId={null}
+        hoveredReparentFolderId={null}
+        isRootReparentDropHover={false}
         onFolderDragOver={vi.fn()}
         onFolderDragLeave={vi.fn()}
         onFolderDrop={vi.fn(async () => {})}
+        onFolderReparentDragStart={vi.fn()}
+        onFolderReparentDragEnd={vi.fn()}
+        onFolderReparentDragOver={vi.fn()}
+        onFolderReparentDragLeave={vi.fn()}
+        onFolderReparentDrop={vi.fn(async () => false)}
         folderContextMenu={null}
         folderContextMenuRef={{ current: null }}
         openFolderContextMenu={vi.fn()}

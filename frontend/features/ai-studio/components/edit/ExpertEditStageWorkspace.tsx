@@ -10,6 +10,7 @@ import {
 } from "./ExpertEditStageSurface";
 type ExpertEditStageWorkspaceProps = {
   sidebar: React.ReactNode;
+  inlineStageHeaderControls?: React.ReactNode;
   hasPrimaryCompositePreview: boolean;
   selectedLayerName: string | null;
   onDeleteSelectedLayer: () => void;
@@ -83,6 +84,7 @@ type ExpertEditStageWorkspaceProps = {
 
 export function ExpertEditStageWorkspace({
   sidebar,
+  inlineStageHeaderControls = null,
   hasPrimaryCompositePreview,
   selectedLayerName,
   onDeleteSelectedLayer,
@@ -132,6 +134,9 @@ export function ExpertEditStageWorkspace({
         <div
           className={`edit-expert-primary-column edit-expert-primary-column-shell ${shouldBlurPromptUnderlay ? "is-composer-expanded" : ""}`.trim()}
         >
+          {inlineStageHeaderControls ? (
+            <div className="edit-expert-primary-column-header">{inlineStageHeaderControls}</div>
+          ) : null}
           <ExpertEditInlineStageSurface
             stageRef={inlineStageRef}
             isEmpty={!hasPrimaryCompositePreview}

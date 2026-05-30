@@ -7,7 +7,6 @@ import {
   resolvePreviewProfileForSurface,
   type MediaPreviewTransformProfile,
 } from "../../../lib/mediaPreviewTransformProfile";
-import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -150,22 +149,9 @@ export default async function handler(
     for (const path of paths) {
       urls[path] = null;
     }
-    const batchEligiblePaths: string[] = [];
-    const transformBackedPaths: Array<{
-      path: string;
-      transform: NonNullable<ReturnType<typeof resolvePolicySignedImageTransform>>;
-    }> = [];
-    for (const path of paths) {
-      const transform = resolvePolicySignedImageTransform(resolvedPreviewProfile, path);
-      if (transform) {
-        transformBackedPaths.push({ path, transform });
-        continue;
-      }
-      batchEligiblePaths.push(path);
-    }
 
-    if (batchEligiblePaths.length) {
-      const { data, error } = await storage.createSignedUrls(batchEligiblePaths, expiresInSeconds);
+    if (paths.length) {
+      const { data, error } = await storage.createSignedUrls(paths, expiresInSeconds);
       if (!error) {
         for (const signedItem of data ?? []) {
           const path = toSafePath((signedItem as SignedUrlRow).path);
@@ -175,17 +161,6 @@ export default async function handler(
         }
       }
     }
-
-    await Promise.all(
-      transformBackedPaths.map(async ({ path, transform }) => {
-        const { data, error } = await storage.createSignedUrl(path, expiresInSeconds, {
-          transform,
-        });
-        if (error) return;
-        const signedUrl = data?.signedUrl;
-        urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;
-      })
-    );
 
     res.setHeader("x-shortpulse-media-sign-surface", telemetrySurface);
     res.setHeader("x-shortpulse-media-sign-query-mode", telemetryQueryMode);

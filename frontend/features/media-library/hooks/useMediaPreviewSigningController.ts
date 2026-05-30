@@ -256,8 +256,7 @@ export const useMediaPreviewSigningController = <
     const scheduledIds = new Set(signBatch.map((row) => row.id));
     const signPaths = collectMediaSignPaths(signableEntries);
     const previewProfile = resolvePreviewProfileForSurface(surface);
-    const previewDeliveryMode =
-      previewProfile === "none" ? "signed-original" : "signed-transform-profile";
+    const previewDeliveryMode = previewProfile === "none" ? "signed-original" : "signed-profile";
     const sourceClass = resolveMediaSignSourceClass(signBatch);
     const optimizerBypassed = true;
     const signBatchById = new Map(signBatch.map((row) => [row.id, row] as const));

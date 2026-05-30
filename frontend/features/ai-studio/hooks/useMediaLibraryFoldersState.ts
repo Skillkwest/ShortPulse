@@ -3,6 +3,7 @@
  * Owns folder load/create/rename/select lifecycle with optimistic create behavior.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
   createMediaFolder,
   deleteMediaFolder,
@@ -13,6 +14,7 @@ import {
   type MediaFolder,
   type MediaFolderId,
 } from "../logic/mediaLibraryPanelApi";
+import { resolveMediaLibraryFolderReparentIntent } from "../logic/mediaLibraryFolderHierarchy";
 import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 
 const ROOT_FOLDER_LABEL = "All Media";
@@ -117,7 +119,7 @@ type UseMediaLibraryFoldersStateResult = {
   ) => void;
   cancelFolderRename: () => void;
   commitFolderRename: () => Promise<void>;
-  moveFolder: (folderId: string, parentFolderId: string | null) => Promise<void>;
+  moveFolder: (folderId: string, parentFolderId: string | null) => Promise<boolean>;
   deleteFolder: (folderId: string) => Promise<void>;
   refreshFolders: () => Promise<void>;
 };
@@ -413,37 +415,62 @@ export const useMediaLibraryFoldersState = (
     [activeFolderId, editingFolderId]
   );
 
-  const moveFolder = useCallback(async (folderId: string, parentFolderId: string | null) => {
-    const normalizedFolderId = folderId.trim();
-    if (!normalizedFolderId || normalizedFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
-    const scopeToken = scopeTokenRef.current;
-    setFolderError(null);
-    try {
-      const moved = await moveMediaFolder({
+  const moveFolder = useCallback(
+    async (folderId: string, parentFolderId: string | null): Promise<boolean> => {
+      const normalizedFolderId = folderId.trim();
+      if (!normalizedFolderId || normalizedFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) {
+        return false;
+      }
+      const intent = resolveMediaLibraryFolderReparentIntent({
+        folders: foldersRef.current,
         folderId: normalizedFolderId,
         parentFolderId,
       });
-      if (scopeTokenRef.current !== scopeToken) {
-        return;
+      if (intent.kind !== "move") {
+        return false;
       }
-      setFolders((previous) =>
-        previous.map((folder) =>
-          folder.id === normalizedFolderId
-            ? {
-                ...folder,
-                ...moved,
-                itemCount: moved.itemCount ?? folder.itemCount ?? 0,
-              }
-            : folder
-        )
-      );
-    } catch (moveError) {
-      if (scopeTokenRef.current !== scopeToken) {
-        return;
+      const scopeToken = scopeTokenRef.current;
+      setFolderError(null);
+      try {
+        const moved = await moveMediaFolder({
+          folderId: normalizedFolderId,
+          parentFolderId,
+        });
+        if (scopeTokenRef.current !== scopeToken) {
+          return false;
+        }
+        setFolders((previous) =>
+          previous.map((folder) =>
+            folder.id === normalizedFolderId
+              ? {
+                  ...folder,
+                  ...moved,
+                  itemCount: moved.itemCount ?? folder.itemCount ?? 0,
+                }
+              : folder
+          )
+        );
+        return true;
+      } catch (moveError) {
+        if (scopeTokenRef.current !== scopeToken) {
+          return false;
+        }
+        addBreadcrumb({
+          type: "network",
+          level: "error",
+          message: "media_library_folder_move_failed",
+          data: {
+            folderId: normalizedFolderId,
+            parentFolderId,
+            error: moveError instanceof Error ? moveError.message : String(moveError ?? ""),
+          },
+        });
+        setFolderError(toMediaLibraryErrorText(moveError, "Unable to move folder."));
+        return false;
       }
-      setFolderError(toMediaLibraryErrorText(moveError, "Unable to move folder."));
-    }
-  }, []);
+    },
+    []
+  );
 
   return {
     folders,

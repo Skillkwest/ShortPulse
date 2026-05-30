@@ -185,12 +185,16 @@ describe("POST /api/media/sign-batch", () => {
   );
 
   it.each(["media-library-panel", "elements-media-panel"] as const)(
-    "applies %s image transforms when both transform flags are enabled",
+    "keeps %s image signing untransformed even when legacy transform flags are enabled",
     async (surface) => {
       vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
       vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
 
       const path = "user-1/uploads/images/panel-image.jpg";
+      const createSignedUrlsMock = vi.fn(async () => ({
+        data: [{ path, signedUrl: "https://example.test/panel-signed" }],
+        error: null,
+      }));
       const createSignedUrlMock = vi.fn(async () => ({
         data: { signedUrl: "https://example.test/panel-signed" },
         error: null,
@@ -199,6 +203,7 @@ describe("POST /api/media/sign-batch", () => {
       getSupabaseAdminMock.mockReturnValue({
         storage: {
           from: vi.fn(() => ({
+            createSignedUrls: createSignedUrlsMock,
             createSignedUrl: createSignedUrlMock,
           })),
         },
@@ -216,25 +221,23 @@ describe("POST /api/media/sign-batch", () => {
 
       await handler(req as never, res as never);
 
-      expect(createSignedUrlMock).toHaveBeenCalledWith(path, 3600, {
-        transform: {
-          width: 256,
-          quality: 46,
-          resize: "contain",
-        },
-      });
+      expect(createSignedUrlsMock).toHaveBeenCalledWith([path], 3600);
+      expect(createSignedUrlMock).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(200);
     }
   );
 
-  it("batches untransformed paths and still signs transformed image paths individually", async () => {
+  it("batches mixed media paths without transform-backed individual signing", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
     vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
 
     const videoPath = "user-1/uploads/videos/panel-video.mp4";
     const imagePath = "user-1/uploads/images/panel-image.jpg";
     const createSignedUrlsMock = vi.fn(async () => ({
-      data: [{ path: videoPath, signedUrl: "https://example.test/panel-video-signed" }],
+      data: [
+        { path: videoPath, signedUrl: "https://example.test/panel-video-signed" },
+        { path: imagePath, signedUrl: "https://example.test/panel-image-signed" },
+      ],
       error: null,
     }));
     const createSignedUrlMock = vi.fn(async () => ({
@@ -263,14 +266,8 @@ describe("POST /api/media/sign-batch", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).toHaveBeenCalledWith([videoPath], 3600);
-    expect(createSignedUrlMock).toHaveBeenCalledWith(imagePath, 3600, {
-      transform: {
-        width: 256,
-        quality: 46,
-        resize: "contain",
-      },
-    });
+    expect(createSignedUrlsMock).toHaveBeenCalledWith([videoPath, imagePath], 3600);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       urls: {

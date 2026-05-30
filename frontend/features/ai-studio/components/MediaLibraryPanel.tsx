@@ -38,9 +38,11 @@ import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPane
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
+import { useMediaLibraryFolderReparentController } from "../hooks/useMediaLibraryFolderReparentController";
 import { useMediaLibraryPanelItemInteractions } from "../hooks/useMediaLibraryPanelItemInteractions";
 import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibraryPanelMutationController";
 import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibraryPanelSelectionController";
+import { collectMediaLibraryFolderDescendantIds } from "../logic/mediaLibraryFolderHierarchy";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import { MediaLibraryPanelFoldersSection } from "./MediaLibraryPanelFoldersSection";
 import { MediaLibraryPanelBulkActions } from "./MediaLibraryPanelBulkActions";
@@ -497,6 +499,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     previewModalError,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
+    handlePreviewModalMediaError,
     closePreviewModal,
   } = useMediaLibraryPanelSelectionController({
     activeFolderId,
@@ -680,27 +683,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setFolderContextMenu(null);
     await deleteFolder(folderId);
   }, [deleteFolder, folderContextMenu]);
-  const collectDescendantIds = useCallback(
-    (folderId: string): Set<string> => {
-      const descendants = new Set<string>();
-      const queue = [folderId];
-      while (queue.length > 0) {
-        const currentId = queue.shift() ?? "";
-        for (const folder of folders) {
-          if (folder.parentFolderId !== currentId || descendants.has(folder.id)) continue;
-          descendants.add(folder.id);
-          queue.push(folder.id);
-        }
-      }
-      return descendants;
-    },
-    [folders]
-  );
   const resolveMoveFolderDestinationOptions = useCallback(
     (folderId: string) => {
       const movingFolder = foldersById.get(folderId);
       if (!movingFolder) return [] as Array<{ id: string | null; label: string }>;
-      const excludedIds = collectDescendantIds(movingFolder.id);
+      const excludedIds = collectMediaLibraryFolderDescendantIds(folders, movingFolder.id);
       excludedIds.add(movingFolder.id);
       const options: Array<{ id: string | null; label: string }> = [];
       if (movingFolder.parentFolderId !== null) {
@@ -724,7 +711,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         ...folderOptions.sort((left, right) => left.label.localeCompare(right.label)),
       ];
     },
-    [buildFolderPathLabel, collectDescendantIds, folders, foldersById]
+    [buildFolderPathLabel, folders, foldersById]
   );
   const moveFolderDestinationOptions = useMemo(() => {
     if (!moveFolderPicker) return [];
@@ -760,6 +747,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     },
     [moveFolder, moveFolderPicker]
   );
+  const folderReparentController = useMediaLibraryFolderReparentController({
+    folders,
+    moveFolder,
+  });
 
   const handleNavigateUp = useCallback(() => {
     if (!canNavigateUp) return;
@@ -1318,9 +1309,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               creatingFolder={creatingFolder}
               folderError={folderError}
               hoveredFolderId={foldersDropController.hoveredFolderId}
+              hoveredReparentFolderId={folderReparentController.hoveredFolderId}
+              isRootReparentDropHover={folderReparentController.isRootDropHover}
               onFolderDragOver={foldersDropController.handleFolderDragOver}
               onFolderDragLeave={foldersDropController.handleFolderDragLeave}
               onFolderDrop={foldersDropController.handleFolderDrop}
+              onFolderReparentDragStart={folderReparentController.handleFolderDragStart}
+              onFolderReparentDragEnd={folderReparentController.handleFolderDragEnd}
+              onFolderReparentDragOver={folderReparentController.handleFolderDragOver}
+              onFolderReparentDragLeave={folderReparentController.handleFolderDragLeave}
+              onFolderReparentDrop={folderReparentController.handleFolderDrop}
               folderContextMenu={folderContextMenu}
               folderContextMenuRef={folderContextMenuRef}
               openFolderContextMenu={openFolderContextMenu}
@@ -1428,6 +1426,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         isLoading={previewModalLoading}
         error={previewModalError}
         onClose={closePreviewModal}
+        onPreviewError={handlePreviewModalMediaError}
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}

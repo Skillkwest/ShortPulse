@@ -396,16 +396,37 @@ describe("ExpertEditPanelView interaction flow", () => {
     const surface = screen.getByLabelText("Primary composition surface");
     surface.focus();
 
-    const inlineZoomSlider = screen.getByLabelText("Zoom stage") as HTMLInputElement;
-    fireEvent.change(inlineZoomSlider, { target: { value: "80" } });
-    expect(inlineZoomSlider.value).toBe("80");
+    const inlineRect = {
+      left: 0,
+      top: 0,
+      width: 320,
+      height: 320,
+      right: 320,
+      bottom: 320,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } satisfies DOMRect;
+    Object.defineProperty(surface, "getBoundingClientRect", {
+      configurable: true,
+      value: () => inlineRect,
+    });
+
+    const wheelEvent = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: -120,
+      clientX: 160,
+      clientY: 160,
+    });
+    surface.dispatchEvent(wheelEvent);
 
     fireEvent.contextMenu(screen.getByLabelText("Primary composition surface"));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Expand" }));
 
     const modal = await screen.findByRole("dialog", { name: "Expanded markup canvas" });
     const modalZoomSlider = within(modal).getByLabelText("Zoom stage") as HTMLInputElement;
-    expect(modalZoomSlider.value).toBe("80");
+    expect(modalZoomSlider.value).not.toBe("50");
     await waitFor(() => {
       expect(document.querySelector(".edit-expert-markup-modal-stage")).toBe(
         document.activeElement

@@ -5,6 +5,7 @@
 
 const MEDIA_BUCKET = "media_library";
 const NEXT_IMAGE_OPTIMIZER_PREFIX = "/_next/image";
+const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS = [
   "tempfile.redpandaai.co",
@@ -64,6 +65,16 @@ const matchesHost = (hostname: string, allowedHost: string): boolean => {
 const isAllowedProtocol = (url: URL): boolean => {
   if (url.protocol === "https:") return true;
   return url.protocol === "http:" && isLocalHostname(url.hostname);
+};
+
+export const isSupabaseRenderImageUrl = (url: string): boolean => {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  try {
+    return new URL(trimmed).pathname.includes(SUPABASE_RENDER_IMAGE_PATH);
+  } catch {
+    return trimmed.includes(SUPABASE_RENDER_IMAGE_PATH);
+  }
 };
 
 const extractObjectPathFromUrl = (url: URL): string | null => {
@@ -153,6 +164,7 @@ export const isTrustedMediaDirectPreviewUrl = (
     return false;
   }
 
+  if (isSupabaseRenderImageUrl(url)) return false;
   if (!isAllowedProtocol(parsedUrl)) return false;
   if (!isHostTrustedForMediaPreview(parsedUrl.hostname)) return false;
 
@@ -189,6 +201,7 @@ export const canUseNextImageOptimizerForUrl = (url: string): boolean => {
   const trimmed = url.trim();
   if (!trimmed) return false;
   if (trimmed.startsWith(NEXT_IMAGE_OPTIMIZER_PREFIX)) return false;
+  if (isSupabaseRenderImageUrl(trimmed)) return false;
   if (trimmed.startsWith("/")) return true;
 
   let parsedUrl: URL;

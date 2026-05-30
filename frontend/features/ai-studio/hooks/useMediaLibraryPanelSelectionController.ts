@@ -53,6 +53,7 @@ type UseMediaLibraryPanelSelectionControllerResult = {
   handleSelectMediaFile: (file: MediaFileRow) => void;
   handleMediaCardDoubleClick: (file: MediaFileRow) => void;
   handleMediaCardContextMenu: (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => void;
+  handlePreviewModalMediaError: (file: MediaFileRow, failedUrl: string) => void;
   closePreviewModal: () => void;
 };
 
@@ -202,6 +203,34 @@ export const useMediaLibraryPanelSelectionController = ({
     [activeFolderId, resolvePreviewModalFullUrl, resolvePreviewModalUrl]
   );
 
+  const handlePreviewModalMediaError = React.useCallback(
+    (file: MediaFileRow, failedUrl: string) => {
+      const nextToken = previewResolveTokenRef.current + 1;
+      previewResolveTokenRef.current = nextToken;
+      setPreviewModalLoading(true);
+      setPreviewModalError(null);
+      void (async () => {
+        try {
+          const refreshedFullUrl = await resolvePreviewModalFullUrl(file).catch(() => null);
+          if (previewResolveTokenRef.current !== nextToken) return;
+          const normalizedFailedUrl = failedUrl.trim();
+          const normalizedRefreshedUrl = refreshedFullUrl?.trim() ?? "";
+          if (normalizedRefreshedUrl && normalizedRefreshedUrl !== normalizedFailedUrl) {
+            setPreviewModalUrl(normalizedRefreshedUrl);
+            return;
+          }
+          setPreviewModalUrl(null);
+          setPreviewModalError("Preview unavailable.");
+        } finally {
+          if (previewResolveTokenRef.current === nextToken) {
+            setPreviewModalLoading(false);
+          }
+        }
+      })();
+    },
+    [resolvePreviewModalFullUrl]
+  );
+
   const handleMediaCardContextMenu = React.useCallback(
     (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => {
       if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
@@ -220,6 +249,7 @@ export const useMediaLibraryPanelSelectionController = ({
     handleSelectMediaFile,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
+    handlePreviewModalMediaError,
     closePreviewModal,
   };
 };

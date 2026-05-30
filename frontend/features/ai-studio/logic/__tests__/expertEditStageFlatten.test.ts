@@ -53,6 +53,13 @@ describe("expertEditStageFlatten", () => {
         images: [{ width: 1000, height: 600 }],
       })
     ).toEqual({ width: 1000, height: 1000 });
+    expect(
+      resolveStageFlattenOutputDimensions({
+        images: [{ width: 3200, height: 1800 }],
+        outputAspectRatio: 16 / 9,
+        maxOutputSizePx: 2048,
+      })
+    ).toEqual({ width: 2048, height: 1152 });
   });
 
   it("contains non-square layers inside arbitrary stage bounds", () => {
@@ -284,6 +291,73 @@ describe("expertEditStageFlatten", () => {
       const firstCameraTranslate = context.translate.mock.calls[0] as [number, number];
       expect(firstCameraTranslate[0]).toBeCloseTo(700, 4);
       expect(firstCameraTranslate[1]).toBeCloseTo(225.2, 1);
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+        configurable: true,
+        value: originalCanvasToBlob,
+      });
+    }
+  });
+
+  it("caps flattened output to the requested max longest edge when provided", async () => {
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToBlob = HTMLCanvasElement.prototype.toBlob;
+    const context = {
+      clearRect: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
+      scale: vi.fn(),
+      drawImage: vi.fn(),
+      globalAlpha: 1,
+    };
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      value: vi.fn(() => context as unknown as CanvasRenderingContext2D),
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+      configurable: true,
+      value: vi.fn((callback: BlobCallback, mimeType?: string | null) => {
+        callback(new Blob(["flattened"], { type: mimeType ?? "image/png" }));
+      }),
+    });
+
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 4096;
+      naturalHeight = 4096;
+      width = 4096;
+      height = 4096;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    const originalImage = globalThis.Image;
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    try {
+      await composePrimaryStageLayersToBlob([{ imageUrl: "https://example.com/source.png" }], {
+        outputAspectRatio: 1,
+        maxOutputSizePx: 2048,
+      });
+
+      expect(context.clearRect).toHaveBeenCalledWith(0, 0, 2048, 2048);
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,

@@ -9,7 +9,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { withCanonicalImageDimensions } from "../../../lib/mediaDimensionMetadata";
 import { resolvePreviewStoragePath } from "../../../lib/mediaPreviewPath";
-import { resolveMediaPreviewTrustedHosts } from "../../../lib/mediaPreviewTrustPolicy";
+import {
+  isSupabaseRenderImageUrl,
+  resolveMediaPreviewTrustedHosts,
+} from "../../../lib/mediaPreviewTrustPolicy";
 import {
   MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
   isMediaStorageQuotaExceededError,
@@ -826,6 +829,11 @@ const signStoragePath = async (storagePath: string | null): Promise<string | nul
   }
 };
 
+const sanitizePreviewUrlHint = (value: string | null): string | null => {
+  if (!value) return null;
+  return isSupabaseRenderImageUrl(value) ? null : value;
+};
+
 const resolveDelivery = async ({
   row,
   storagePath,
@@ -880,9 +888,11 @@ const resolveDelivery = async ({
     signStoragePath(previewPosterStoragePath),
     signStoragePath(fullStoragePath),
   ]);
-  const previewUrl = signedPreviewUrl ?? previewUrlHint ?? fullUrlHint ?? null;
+  const safePreviewUrlHint = sanitizePreviewUrlHint(previewUrlHint);
+  const safeFullUrlHint = sanitizePreviewUrlHint(fullUrlHint);
+  const previewUrl = signedPreviewUrl ?? safePreviewUrlHint ?? safeFullUrlHint ?? null;
   const previewPosterUrl = signedPreviewPosterUrl ?? null;
-  const fullUrl = signedFullUrl ?? fullUrlHint ?? previewUrl ?? null;
+  const fullUrl = signedFullUrl ?? safeFullUrlHint ?? previewUrl ?? null;
   return {
     previewStoragePath,
     previewPosterStoragePath,

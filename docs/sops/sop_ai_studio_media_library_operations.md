@@ -35,6 +35,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Folder canvas snapshot adapters: `frontend/features/ai-studio/logic/mediaFolderCanvasSnapshot.ts`
 - AI Studio shell DnD bridge: `frontend/features/ai-studio/hooks/useAiStudioShellDndController.ts`
 - Server endpoints:
+  - `frontend/pages/api/media/prepare-upload.ts`
+  - `frontend/pages/api/media/finalize-upload.ts`
   - `frontend/pages/api/media/folders/list.ts`
   - `frontend/pages/api/media/folders/create.ts`
   - `frontend/pages/api/media/folders/move.ts`
@@ -95,15 +97,17 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ### 5) Drag/drop and ingest contract
 
 1. Users can drag images, videos, audio, and prompts from any folder into any folder (subject to membership semantics above).
-2. Users can drag images, videos, and prompts from any Media Library folder into:
+2. Users can drag visible custom folders onto other visible custom folders to reparent them, and can drag a visible custom folder onto the `All Media` breadcrumb to return it to the root.
+3. Folder drag/reparent and folder `Move to...` must share the same canonical folder move path and the same invalid-destination rules (self, descendants, and current parent are all invalid/no-op destinations).
+4. Users can drag images, videos, and prompts from any Media Library folder into:
    - Reference Grid,
    - Quick Slot Inventory,
    - Canvas surfaces.
-3. Users can drop desktop image files directly into `Canvas` and `Quick Slot Inventory`. Those drops must proxy through the canonical Reference Grid ingest path first: the asset is created in Reference Grid, then immediately projected onto the surface that owned the drop.
-4. Drag interactions must show a visible drag ghost image for tactile feedback.
-5. Internal Reference Grid -> Media Library drops remain supported through `text/reference-*` payload resolution.
-6. Dropping an internal Reference Grid asset onto root `All Media` must save/import it into the Media Library without creating a folder membership mutation.
-7. Any media or prompt added into the Reference Grid from Media Library or local upload paths must use the moment it appears in the Reference Grid as its ordering timestamp, so the newest grid additions render first regardless of the source row's original `created_at`.
+5. Users can drop desktop image files directly into `Canvas` and `Quick Slot Inventory`. Those drops must proxy through the canonical Reference Grid ingest path first: the asset is created in Reference Grid, then immediately projected onto the surface that owned the drop.
+6. Drag interactions must show a visible drag ghost image for tactile feedback.
+7. Internal Reference Grid -> Media Library drops remain supported through `text/reference-*` payload resolution.
+8. Dropping an internal Reference Grid asset onto root `All Media` must save/import it into the Media Library without creating a folder membership mutation.
+9. Any media or prompt added into the Reference Grid from Media Library or local upload paths must use the moment it appears in the Reference Grid as its ordering timestamp, so the newest grid additions render first regardless of the source row's original `created_at`.
 
 ### 6) Right-click behaviors
 
@@ -166,7 +170,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - `all_items` is virtual root and cannot be passed as a mutation target to `/api/media/folders/membership-batch`.
 - Real folder ancestry is carried by `media_folders.parent_folder_id`; same-user parent ownership, sibling-scoped uniqueness, self-parent rejection, and cycle prevention are enforced in the database contract.
 - `/api/media/folders/move` reparents one user-owned custom folder under a new optional parent (`null` = `All Media` root) and must reject cross-user parents, sibling-name conflicts, self-parenting, and cyclic ancestry.
-- The AI Studio folder context menu exposes `Move to...`, and the picker must exclude the moving folder itself, its descendants, and its current parent as a no-op destination.
+- The AI Studio folder context menu exposes `Move to...`, and visible folder tiles also support drag-to-reparent. Both surfaces must exclude the moving folder itself, its descendants, and its current parent as invalid/no-op destinations.
 - `membership-batch` supports `assign`, `unassign`, and `move` actions with ownership validation.
 - Character-scoped media (`<uid>/characters/%`) is excluded from Media Library list APIs when `SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`.
 - Folder membership/move APIs must reject character-scoped media ids (`409`) to prevent cross-surface coupling drift.
@@ -196,7 +200,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.
 6. Cross-surface ingest in the canonical AI Studio shell:
    - Status: Aligned.
-   - Current: Media Library media and prompt payloads route directly into Reference Grid and Quick Slot Inventory without shell fallback stealing the interaction. Dedicated canvas surfaces continue to own their own drops when mounted explicitly. Desktop image drops into Quick Slot Inventory and Canvas are also surface-owned and must proxy through canonical Reference Grid ingestion before projecting onto the owning surface. The canonical upload service now auto-normalizes oversized still images before the final 25 MB image cap is enforced; oversized animated images still require manual downsizing.
+   - Current: Media Library media and prompt payloads route directly into Reference Grid and Quick Slot Inventory without shell fallback stealing the interaction. Dedicated canvas surfaces continue to own their own drops when mounted explicitly. Desktop image drops into Quick Slot Inventory and Canvas are also surface-owned and must proxy through canonical Reference Grid ingestion before projecting onto the owning surface. Local Media Library / Reference Grid file adds now prepare a signed storage upload target first, upload browser-normalized files directly into storage, and then finalize server-side so production no longer depends on Vercel function body limits. The canonical upload service still auto-normalizes oversized still images before the final 25 MB image cap is enforced; oversized animated images still require manual downsizing.
 7. Panel bulk media actions:
    - Status: Aligned.
    - Current: `All Media` exposes per-card media selection plus a bulk action bar with `Clear`, `Move to folder`, and `Delete from library`. Custom folders expose `Clear`, `Move to folder`, and `Remove from folder`. Panel card click toggles selected state for media and prompt cards without ingesting them into Reference Grid, while root `All Media` right-click still ingests media and root `All Media` double-click still opens preview-only modal behavior.
@@ -220,7 +224,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 12. Folder reparent UI:
 
 - Status: Aligned.
-- Current: Custom folders expose a `Move to...` picker from the context menu. Destination options render as explicit ancestry paths, keep `All Media` at the top, and exclude self, descendants, and the current parent.
+- Current: Visible custom folders can be dragged onto other visible custom folders to reparent, and can be dragged onto the `All Media` breadcrumb to return them to the root. The context-menu `Move to...` picker remains the fallback for deep or non-visible destinations. Both paths exclude self, descendants, and the current parent.
 
 13. `All Media` completeness backfill:
 
@@ -241,7 +245,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 16. Signed preview delivery for media-library card surfaces:
 
 - Status: Aligned.
-- Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware preview-profile telemetry, do not route signed object URLs through `/_next/image`, and keep signed transforms dual-flag gated (disabled by default). The AI Studio panel now owns a panel-specific signing budget (`4/4/4` desktop, `3/3/3` small-screen, `2/2/2` constrained) instead of borrowing the modal budget. `/api/media/sign-batch` now batches untransformed paths through Supabase multi-signing while preserving per-item signing for transform-backed image paths.
+- Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware preview-profile telemetry and do not route signed object URLs through `/_next/image`. Supabase image transformations are prohibited on all media-library paths, including signed transform parameters, `/storage/v1/render/image/` rewrites, adaptive fallbacks, compatibility lanes, and experiments. The AI Studio panel now owns a panel-specific signing budget (`4/4/4` desktop, `3/3/3` small-screen, `2/2/2` constrained) instead of borrowing the modal budget. `/api/media/sign-batch` batches untransformed paths through Supabase multi-signing; any transform-backed image signing path is a regression to remove.
 
 17. Derivative worker pipeline for image thumbs:
 
@@ -312,6 +316,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 1. Folder lifecycle:
    - Create, rename, delete custom folders.
+   - Drag a visible folder onto another visible folder and confirm it reparents.
+   - Drag a visible folder onto the `All Media` breadcrumb and confirm it returns to root.
    - Reparent a folder via `Move to...` and confirm invalid destinations are absent.
 2. `All Media` display:
    - `All Media` root tabs render as `All Media`, `Images`, `Videos`, and `Prompts`.

@@ -4,6 +4,7 @@ import {
   composePrimaryStageLayersToBlob,
   type StageFlattenCameraTransformInput,
 } from "../../logic/expertEditStageFlatten";
+import { rememberObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import type { ExpertEditPanelViewProps } from "./expertEditPanelViewContract";
 import { REMOVE_BACKGROUND_PENDING_TIMEOUT_MS } from "./expertEditPanelViewContract";
@@ -27,6 +28,7 @@ type UseExpertEditLayerActionsParams = {
   setSelectedLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
   clearLayerEditing: () => void;
   queuePanelHistoryBaselineFromCurrent: () => void;
+  onAddFlattenedReferenceImage?: ExpertEditPanelViewProps["onAddFlattenedReferenceImage"];
   onRegenerateWithReferenceInputs?: ExpertEditPanelViewProps["onRegenerateWithReferenceInputs"];
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
   suppressNextPrimaryPublishUrlRef: React.MutableRefObject<string | null>;
@@ -48,6 +50,7 @@ export function useExpertEditLayerActions({
   setSelectedLayerIndex,
   clearLayerEditing,
   queuePanelHistoryBaselineFromCurrent,
+  onAddFlattenedReferenceImage,
   onRegenerateWithReferenceInputs,
   showStatusToast,
   suppressNextPrimaryPublishUrlRef,
@@ -102,6 +105,13 @@ export function useExpertEditLayerActions({
         camera: flattenSnapshot.camera,
       });
       const flattenedLayerUrl = URL.createObjectURL(exportBlob);
+      rememberObjectUrlBlob(flattenedLayerUrl, exportBlob);
+      const flattenedReferenceGridUrl = onAddFlattenedReferenceImage
+        ? URL.createObjectURL(exportBlob)
+        : null;
+      if (flattenedReferenceGridUrl) {
+        rememberObjectUrlBlob(flattenedReferenceGridUrl, exportBlob);
+      }
       const layerOne =
         layers.find((layer) => layer.id === foundationLayerId) ??
         layers[0] ??
@@ -120,6 +130,19 @@ export function useExpertEditLayerActions({
       setLayers([flattenedLayer]);
       setSelectedLayerIndex(0);
       clearLayerEditing();
+      if (flattenedReferenceGridUrl) {
+        try {
+          onAddFlattenedReferenceImage?.({
+            url: flattenedReferenceGridUrl,
+            mimeType: exportBlob.type || "image/png",
+          });
+        } catch {
+          showStatusToast(
+            "Flattened layer saved to canvas, but not added to Reference Grid.",
+            "warning"
+          );
+        }
+      }
     } catch {
       showStatusToast("Unable to flatten layers.");
     } finally {
@@ -137,6 +160,7 @@ export function useExpertEditLayerActions({
     resolveStageFlattenSnapshot,
     setLayers,
     setSelectedLayerIndex,
+    onAddFlattenedReferenceImage,
     showStatusToast,
     suppressNextPrimaryPublishUrlRef,
   ]);

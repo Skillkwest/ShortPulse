@@ -37,6 +37,7 @@ vi.mock("../StandardCreatePanelView", () => ({
     promptStepProps: {
       title?: string;
       hideChatModeToggle?: boolean;
+      agentInputCollapseOnBlur?: boolean;
       composerLeadingContent?: React.ReactNode;
       onChatModeEnabledChange?: (value: boolean) => void;
     };
@@ -47,6 +48,9 @@ vi.mock("../StandardCreatePanelView", () => ({
       <span>{promptStepProps.title}</span>
       <span data-testid="chat-toggle-visibility">
         {promptStepProps.hideChatModeToggle ? "hidden" : "visible"}
+      </span>
+      <span data-testid="agent-input-collapse-on-blur">
+        {String(Boolean(promptStepProps.agentInputCollapseOnBlur))}
       </span>
       <span data-testid="create-control-set-visibility">
         {showCreateControlSet ? "visible" : "hidden"}
@@ -130,6 +134,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(screen.getByTestId("standard-create-panel-view")).toBeInTheDocument();
     expect(screen.getByText("Ask anything")).toBeInTheDocument();
     expect(screen.getByTestId("chat-toggle-visibility")).toHaveTextContent("visible");
+    expect(screen.getByTestId("agent-input-collapse-on-blur")).toHaveTextContent("false");
     expect(screen.getByTestId("create-control-set-visibility")).toHaveTextContent("visible");
     expect(
       within(screen.getByTestId("composer-leading-content")).getByRole("button", {

@@ -21,6 +21,25 @@ describe("mediaPreviewTrustPolicy", () => {
     ).toBe(true);
   });
 
+  it("rejects supabase render-image URLs for direct preview and optimizer use", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const renderUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/images/a.png?token=abc&width=320&quality=28";
+
+    expect(
+      isTrustedMediaDirectPreviewUrl(renderUrl, {
+        userId: "user-1",
+        requireUserScope: true,
+      })
+    ).toBe(false);
+    expect(canUseNextImageOptimizerForUrl(renderUrl)).toBe(false);
+    expect(
+      canUseNextImageOptimizerForUrl(
+        "/storage/v1/render/image/sign/media_library/user-1/images/a.png?token=abc&width=320"
+      )
+    ).toBe(false);
+  });
+
   it("blocks untrusted external direct preview hosts by default", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
 

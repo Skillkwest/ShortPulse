@@ -15,6 +15,7 @@ import {
   KNOWN_VERCEL_KEYS,
   LOCAL_OR_TOOLING_ONLY_KEYS,
   MIRRORED_FLAG_PAIRS,
+  MUST_RESOLVE_FALSE_VERCEL_KEYS,
   PREVIEW_PRODUCTION_MUST_DIFFER_KEYS,
   DEVELOPMENT_PREVIEW_MUST_DIFFER_KEYS,
   SENSITIVE_PRESENCE_ONLY_KEYS,
@@ -338,6 +339,15 @@ const main = async () => {
       environment,
     })) {
       errors.push(`${environment}: ${error}`);
+    }
+    for (const key of MUST_RESOLVE_FALSE_VERCEL_KEYS) {
+      const value = (envMap.get(key) ?? "").trim().toLowerCase();
+      if (!value) continue;
+      if (value !== "false") {
+        errors.push(
+          `${environment}: ${key} must resolve to false because Supabase image transformations are prohibited.`,
+        );
+      }
     }
   }
 

@@ -1,0 +1,124 @@
+import type { NextApiRequest, NextApiResponse } from "next";
+import { requireApiUser } from "../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import {
+  finalizePreparedMediaUploadForUser,
+  MediaUploadServiceError,
+  type MediaUploadDestinationTab,
+  type MediaUploadResponseFile,
+} from "../../../lib/server/mediaUploadService";
+
+type FinalizeMediaUploadRequestBody = {
+  destinationTab?: unknown;
+  sourceMimeType?: unknown;
+  sourceName?: unknown;
+  sourceStoragePath?: unknown;
+};
+
+type FinalizeMediaUploadSuccessResponse = {
+  file: MediaUploadResponseFile;
+};
+
+type FinalizeMediaUploadErrorResponse = {
+  error: string;
+  details?: string;
+};
+
+const normalizeOptionalString = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  return value.trim();
+};
+
+const resolveDestinationTab = (value: unknown): MediaUploadDestinationTab | null => {
+  const normalized = normalizeOptionalString(value);
+  if (normalized === "uploaded_images") return normalized;
+  if (normalized === "uploaded_videos") return normalized;
+  if (normalized === "private") return normalized;
+  return null;
+};
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<FinalizeMediaUploadSuccessResponse | FinalizeMediaUploadErrorResponse>
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const user = await requireApiUser(req, res);
+  if (!user) return;
+
+  try {
+    const body = (req.body ?? {}) as FinalizeMediaUploadRequestBody;
+    const destinationTab = resolveDestinationTab(body.destinationTab);
+    const sourceName = normalizeOptionalString(body.sourceName);
+    const sourceMimeType = normalizeOptionalString(body.sourceMimeType).toLowerCase();
+    const sourceStoragePath = normalizeOptionalString(body.sourceStoragePath);
+
+    if (!destinationTab) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: "Upload destination tab is required.",
+      });
+    }
+    if (!sourceName) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: "Upload file name is required.",
+      });
+    }
+    if (!sourceMimeType) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: "Upload file mime type is required.",
+      });
+    }
+    if (!sourceStoragePath) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: "Prepared upload storage path is required.",
+      });
+    }
+
+    const file = await finalizePreparedMediaUploadForUser({
+      userId: user.id,
+      destinationTab,
+      storagePath: sourceStoragePath,
+      filename: sourceName,
+      declaredMimeType: sourceMimeType,
+    });
+
+    return res.status(200).json({ file });
+  } catch (error) {
+    if (error instanceof MediaUploadServiceError) {
+      if (error.status >= 500) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "media-finalize-upload",
+          user,
+        });
+
+        return res.status(500).json({
+          error: "Unable to finalize media upload",
+        });
+      }
+
+      return res.status(error.status).json({
+        error: error.message,
+        details: error.details,
+      });
+    }
+
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "media-finalize-upload",
+      user,
+    });
+
+    return res.status(500).json({
+      error: "Unable to finalize media upload",
+    });
+  }
+}

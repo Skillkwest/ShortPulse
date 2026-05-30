@@ -45,6 +45,24 @@ const createDeferred = <T,>() => {
   return { promise, resolve };
 };
 
+const createTransferStore = () => {
+  const values = new Map<string, string>();
+  const transfer = {
+    files: { length: 0, item: () => null } as unknown as FileList,
+    types: [] as string[],
+    setData(type: string, value: string) {
+      values.set(type, value);
+      this.types = Array.from(values.keys());
+    },
+    getData(type: string) {
+      return values.get(type) ?? "";
+    },
+    dropEffect: "none",
+    effectAllowed: "none",
+  };
+  return transfer as unknown as DataTransfer;
+};
+
 vi.mock("../../../../lib/adaptive-media", () => ({
   isAdaptiveSurfaceEnabled: (...args: unknown[]) => isAdaptiveSurfaceEnabledMock(...args),
 }));
@@ -2244,7 +2262,7 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", null, null);
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", null);
     });
     expect(screen.getByRole("button", { name: "New Folder folder" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
@@ -2365,13 +2383,108 @@ describe("MediaLibraryPanel", () => {
       expect(moveMediaFolderMock).toHaveBeenCalledWith({
         folderId: "folder-child",
         parentFolderId: null,
-        projectId: null,
       });
     });
     expect(screen.queryByRole("button", { name: "Child A1 folder" })).not.toBeInTheDocument();
     expect(
       document.querySelector(".media-library-panel-folders-breadcrumb-current")
     ).toHaveTextContent("Parent");
+  });
+
+  it("reparents a visible root folder by dragging it onto another folder tile", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-a",
+        name: "Root A",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-b",
+        name: "Root B",
+        parentFolderId: null,
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Root A folder" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Root B folder" })).toBeInTheDocument();
+    });
+
+    const sourceButton = screen.getByRole("button", { name: "Root A folder" });
+    const transfer = createTransferStore();
+    fireEvent.dragStart(sourceButton, { dataTransfer: transfer });
+
+    const targetTile = screen
+      .getByRole("button", { name: "Root B folder" })
+      .closest(".media-library-panel-folder-strip-item") as HTMLElement;
+
+    fireEvent.dragOver(targetTile, { dataTransfer: transfer });
+    expect(targetTile.classList.contains("is-drop-hover")).toBe(true);
+
+    fireEvent.drop(targetTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(moveMediaFolderMock).toHaveBeenCalledWith({
+        folderId: "folder-a",
+        parentFolderId: "folder-b",
+      });
+    });
+    expect(screen.queryByRole("button", { name: "Root A folder" })).not.toBeInTheDocument();
+  });
+
+  it("reparents a visible folder to root by dropping it on the All Media breadcrumb", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-parent",
+        name: "Parent",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-child",
+        name: "Child A1",
+        parentFolderId: "folder-parent",
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Parent folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Parent folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Child A1 folder" })).toBeInTheDocument();
+    });
+
+    const transfer = createTransferStore();
+    fireEvent.dragStart(screen.getByRole("button", { name: "Child A1 folder" }), {
+      dataTransfer: transfer,
+    });
+
+    const allMediaButton = screen.getAllByRole("button", { name: "All Media" })[0];
+    fireEvent.dragOver(allMediaButton, { dataTransfer: transfer });
+    expect(allMediaButton.classList.contains("is-drop-hover")).toBe(true);
+
+    fireEvent.drop(allMediaButton, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(moveMediaFolderMock).toHaveBeenCalledWith({
+        folderId: "folder-child",
+        parentFolderId: null,
+      });
+    });
   });
 
   it("shows sorted deep move destinations and excludes the current parent and descendants", async () => {
@@ -2463,7 +2576,7 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-parent", null);
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-parent");
     });
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
     expect(
@@ -2490,7 +2603,7 @@ describe("MediaLibraryPanel", () => {
     });
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-1", null);
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-1");
     });
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
@@ -2628,8 +2741,8 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenNthCalledWith(1, "New Folder", null, null);
-      expect(createMediaFolderMock).toHaveBeenNthCalledWith(2, "New Folder 2", null, null);
+      expect(createMediaFolderMock).toHaveBeenNthCalledWith(1, "New Folder", null);
+      expect(createMediaFolderMock).toHaveBeenNthCalledWith(2, "New Folder 2", null);
     });
     expect(screen.getByRole("button", { name: "New Folder 2 folder" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("New Folder 2")).toBeInTheDocument();
@@ -2691,7 +2804,6 @@ describe("MediaLibraryPanel", () => {
       expect(renameMediaFolderMock).toHaveBeenCalledWith({
         folderId: "folder-1",
         name: "Campaign Assets",
-        projectId: null,
       });
     });
     expect(screen.getAllByText("Campaign Assets")).toHaveLength(1);
@@ -2796,7 +2908,7 @@ describe("MediaLibraryPanel", () => {
     });
 
     await waitFor(() => {
-      expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-1", null);
+      expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-1");
     });
     expect(screen.queryByRole("button", { name: "Campaign folder" })).not.toBeInTheDocument();
     const footer = container.querySelector(".media-library-panel-footer");
@@ -2842,6 +2954,20 @@ describe("MediaLibraryPanel", () => {
 
     fireEvent.dragLeave(folderTile, { dataTransfer: transfer });
     expect(folderTile.classList.contains("is-drop-hover")).toBe(false);
+  });
+
+  it("disables native image dragging on folder artwork while keeping the folder tile draggable", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderImage = folderButton.querySelector("img");
+
+    expect(folderButton).toHaveAttribute("draggable", "true");
+    expect(folderImage).toHaveAttribute("draggable", "false");
   });
 
   it("shows folder tile drop highlight when transfer data is unavailable during dragover", async () => {

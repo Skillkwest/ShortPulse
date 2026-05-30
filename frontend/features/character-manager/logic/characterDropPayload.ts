@@ -117,7 +117,6 @@ export const resolveDroppedImageReference = (
   if (!transfer) return null;
   const characterMediaId =
     parseDropMediaFileId(transfer.getData("text/reference-media-id")) ??
-    parseDropMediaFileId(transfer.getData("text/reference-id")) ??
     parseDropMediaFileId(transfer.getData("application/x-shortpulse-media-id"));
 
   const explicitReferenceUrl = parseDropUrlCandidate(transfer.getData("text/reference-url"));

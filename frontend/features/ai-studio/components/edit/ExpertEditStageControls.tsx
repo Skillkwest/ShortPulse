@@ -282,6 +282,7 @@ type ExpertEditMoveControlsContentProps = {
   moveStageZoomSliderValue: number;
   canUndoGeneralAction: boolean;
   canRedoGeneralAction: boolean;
+  showHistoryActions?: boolean;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
   handleRecenterMoveAction: () => void;
   handleMoveZoomSliderChange: (value: number) => void;
@@ -295,6 +296,7 @@ export function ExpertEditMoveControlsContent({
   moveStageZoomSliderValue,
   canUndoGeneralAction,
   canRedoGeneralAction,
+  showHistoryActions,
   setSelectedRailTool,
   handleRecenterMoveAction,
   handleMoveZoomSliderChange,
@@ -302,6 +304,10 @@ export function ExpertEditMoveControlsContent({
   handleRedoGeneralAction,
 }: ExpertEditMoveControlsContentProps) {
   const isModalScope = scope === "modal";
+  if (scope === "inline") {
+    return null;
+  }
+  const shouldRenderHistoryActions = showHistoryActions ?? true;
   const modeIconSize = isModalScope ? 18 : 16;
   const recenterIconSize = isModalScope ? 16 : 14;
   const zoomSliderId = isModalScope
@@ -356,7 +362,7 @@ export function ExpertEditMoveControlsContent({
           aria-label="Zoom stage"
         />
       </div>
-      {!isModalScope ? (
+      {!isModalScope && shouldRenderHistoryActions ? (
         <div className="edit-expert-move-history-row">
           <button
             type="button"
@@ -380,6 +386,51 @@ export function ExpertEditMoveControlsContent({
           </button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+type ExpertEditInlineHistoryControlsProps = {
+  canUndoGeneralAction: boolean;
+  canRedoGeneralAction: boolean;
+  handleUndoGeneralAction: () => void;
+  handleRedoGeneralAction: () => void;
+};
+
+export function ExpertEditInlineHistoryControls({
+  canUndoGeneralAction,
+  canRedoGeneralAction,
+  handleUndoGeneralAction,
+  handleRedoGeneralAction,
+}: ExpertEditInlineHistoryControlsProps) {
+  return (
+    <div
+      className="edit-expert-stage-history-controls"
+      role="group"
+      aria-label="Edit history controls"
+    >
+      <div className="edit-expert-move-history-row">
+        <button
+          type="button"
+          className="edit-expert-move-history-btn"
+          aria-label="Undo move action"
+          onClick={handleUndoGeneralAction}
+          disabled={!canUndoGeneralAction}
+        >
+          <ArrowCounterClockwise size={14} weight="regular" />
+          Undo
+        </button>
+        <button
+          type="button"
+          className="edit-expert-move-history-btn"
+          aria-label="Redo move action"
+          onClick={handleRedoGeneralAction}
+          disabled={!canRedoGeneralAction}
+        >
+          <ArrowClockwise size={14} weight="regular" />
+          Redo
+        </button>
+      </div>
     </div>
   );
 }

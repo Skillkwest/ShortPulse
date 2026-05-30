@@ -4,6 +4,7 @@
  */
 import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
 import { createAiStudioProjectWorkspaceSnapshot } from "../ai-studio-session/projectWorkspaceSnapshot";
+import { isSupabaseRenderImageUrl } from "../mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { writeAppErrorLog } from "./api/appErrorLogs";
@@ -226,6 +227,14 @@ const sanitizeProjectWorkspaceOutputsByShape = ({
       row[field] = normalized;
     }
   };
+  const sanitizePreviewUrlFields = (row: Record<string, unknown>) => {
+    for (const field of ["previewUrl", "fullUrl", "previewPosterUrl", "companionArtUrl"] as const) {
+      const value = row[field];
+      if (typeof value === "string" && isSupabaseRenderImageUrl(value)) {
+        delete row[field];
+      }
+    }
+  };
   const isFailedWorkspaceOutputRow = (row: Record<string, unknown>): boolean =>
     typeof row.taskState === "string" && row.taskState.trim() === "fail";
 
@@ -264,6 +273,7 @@ const sanitizeProjectWorkspaceOutputsByShape = ({
           delete nextRow.savedMediaIds;
         }
         sanitizeScopedStoragePathFields(nextRow);
+        sanitizePreviewUrlFields(nextRow);
 
         return nextRow;
       })

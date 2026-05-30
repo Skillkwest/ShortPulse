@@ -356,7 +356,7 @@ Rules:
 - If the batch count grows past three real commits, pause and ask whether the worktree is still one publish lane. Do not let a moving scope silently expand into a long multi-lane publish.
 - If a file's dominant owner is clear but it contains supporting references for another batch, document the dominant-owner decision in the batch plan.
 - If the batch changes a shared contract, write the dependency fan-out into the batch plan before the first preflight. Shared-contract triggers include:
-  - preview transform profiles or signed-preview policy
+  - preview signing profiles or signed-preview policy
   - KPI/report packet fields
   - shared route/request/response payload shapes
   - shared runtime helpers/config constants used across routes or scripts

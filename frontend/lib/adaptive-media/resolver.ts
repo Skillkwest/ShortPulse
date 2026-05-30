@@ -6,7 +6,10 @@ import type {
   AdaptiveResolvedMedia,
   AdaptiveSourceKind,
 } from "./types";
-import { canUseNextImageOptimizerForUrl } from "../mediaPreviewTrustPolicy";
+import {
+  canUseNextImageOptimizerForUrl,
+  isSupabaseRenderImageUrl,
+} from "../mediaPreviewTrustPolicy";
 
 const HTTP_LIKE_PATTERN = /^https?:\/\//i;
 const DATA_LIKE_PATTERN = /^data:(image|video|audio)\//i;
@@ -15,7 +18,6 @@ const WORKSPACE_STORAGE_KEY_ROOT_PATH_PATTERN =
   /^\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//i;
 const STORAGE_PATH_LIKE_PATTERN = /\//;
 const STORAGE_PATH_INVALID_PATTERN = /^(?:https?:\/\/|blob:|data:)/i;
-const SUPABASE_HOST_SUFFIX = ".supabase.co";
 const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp|svg)(?:$|[?#])/i;
 const AUDIO_EXTENSION_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:$|[?#])/i;
 const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
@@ -49,7 +51,9 @@ export const asCanonicalStoragePath = (value: string | null | undefined): string
 
 const normalizeRenderableUrl = (value: string | null | undefined): string | null => {
   if (!isRenderableAdaptiveUrl(value)) return null;
-  return value.trim();
+  const trimmed = value.trim();
+  if (isSupabaseRenderImageUrl(trimmed)) return null;
+  return trimmed;
 };
 
 const resolveNextImageWidth = (targetLongEdgePx: number): number =>
@@ -91,43 +95,6 @@ const parseTransformCandidateUrl = (
 
 const isLikelyVideoPath = (pathname: string): boolean => VIDEO_EXTENSION_PATTERN.test(pathname);
 
-const isLikelyImagePath = (pathname: string): boolean => IMAGE_EXTENSION_PATTERN.test(pathname);
-
-const isSupabaseRenderImagePath = (pathname: string): boolean =>
-  pathname.includes("/storage/v1/render/image/");
-
-const toSupabaseRenderImageUrl = ({
-  parsed,
-  decision,
-}: {
-  parsed: URL;
-  decision: AdaptiveDecision;
-}): string => {
-  if (!isSupabaseRenderImagePath(parsed.pathname)) {
-    parsed.pathname = parsed.pathname.replace("/storage/v1/object/", "/storage/v1/render/image/");
-  }
-  parsed.searchParams.set("width", String(decision.targetLongEdgePx));
-  parsed.searchParams.set("quality", String(decision.qualityParam));
-  return parsed.toString();
-};
-
-const getSupabaseOrigin = (): string | null => {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  if (!raw) return null;
-  try {
-    return new URL(raw).origin;
-  } catch {
-    return null;
-  }
-};
-
-const isSupabaseStorageUrl = (parsedUrl: URL): boolean => {
-  if (!parsedUrl.pathname.includes("/storage/v1/")) return false;
-  if (parsedUrl.hostname.endsWith(SUPABASE_HOST_SUFFIX)) return true;
-  const configuredSupabaseOrigin = getSupabaseOrigin();
-  return configuredSupabaseOrigin != null && parsedUrl.origin === configuredSupabaseOrigin;
-};
-
 const inferMediaKind = (url: string, hint: AdaptiveMediaKind): AdaptiveMediaKind => {
   if (hint === "image" || hint === "video" || hint === "audio") return hint;
   if (AUDIO_EXTENSION_PATTERN.test(url)) return "audio";
@@ -147,6 +114,7 @@ const applyAdaptivePreviewTransform = ({
   mediaKindHint: AdaptiveMediaKind;
   surface: AdaptiveInput["surface"];
 }): { url: string; usedOptimizerTransform: boolean } => {
+  void surface;
   const parsedCandidate = parseTransformCandidateUrl(url);
   if (!parsedCandidate) return { url, usedOptimizerTransform: false };
 
@@ -158,33 +126,6 @@ const applyAdaptivePreviewTransform = ({
   const inferredKind = inferMediaKind(url, mediaKindHint);
   if (inferredKind === "video" || inferredKind === "audio" || isLikelyVideoPath(parsed.pathname)) {
     return { url, usedOptimizerTransform: false };
-  }
-
-  const isRenderImagePath = isSupabaseRenderImagePath(parsed.pathname);
-  const hasImageSignal =
-    inferredKind === "image" || isLikelyImagePath(parsed.pathname) || isRenderImagePath;
-
-  if (isSupabaseStorageUrl(parsed)) {
-    if (!hasImageSignal) return { url, usedOptimizerTransform: false };
-    if (!isRenderImagePath) {
-      if (surface === "reference-grid" || surface === "quick-slot") {
-        return {
-          url: toSupabaseRenderImageUrl({ parsed, decision }),
-          usedOptimizerTransform: true,
-        };
-      }
-      const nextUrl = toNextImageOptimizedUrl({
-        sourceUrl: url,
-        targetLongEdgePx: decision.targetLongEdgePx,
-        decision,
-      });
-      return { url: nextUrl, usedOptimizerTransform: true };
-    }
-
-    return {
-      url: toSupabaseRenderImageUrl({ parsed, decision }),
-      usedOptimizerTransform: true,
-    };
   }
 
   const nextSourceUrl = isRelativeInput ? `${parsed.pathname}${parsed.search}` : url;

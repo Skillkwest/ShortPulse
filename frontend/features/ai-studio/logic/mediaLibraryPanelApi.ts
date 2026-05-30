@@ -1,5 +1,6 @@
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { maybeTranscodeLocalImageBlobForUpload } from "../../../lib/adaptive-media";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { MediaListCursor } from "../../media-library/logic/mediaListApi";
 import { isTransientMediaLibraryNetworkError } from "./mediaLibraryErrorText";
 
@@ -79,8 +80,16 @@ export type MediaUploadRow = {
 
 type MediaUploadResponse = {
   file?: Partial<MediaUploadRow>;
+  target?: Partial<PreparedMediaUploadTarget>;
   error?: string;
   details?: string;
+};
+
+type PreparedMediaUploadTarget = {
+  storagePath: string;
+  uploadToken: string;
+  mimeType: string;
+  name: string;
 };
 
 type MediaLibraryHttpRequestError = Error & {
@@ -283,6 +292,21 @@ const toMediaUploadRow = (value: unknown): MediaUploadRow | null => {
   };
 };
 
+const toPreparedMediaUploadTarget = (value: unknown): PreparedMediaUploadTarget | null => {
+  const target = asRecord(value);
+  const storagePath = asString(target.storagePath);
+  const uploadToken = asString(target.uploadToken);
+  const mimeType = asString(target.mimeType);
+  const name = asString(target.name);
+  if (!storagePath || !uploadToken || !mimeType || !name) return null;
+  return {
+    storagePath,
+    uploadToken,
+    mimeType,
+    name,
+  };
+};
+
 const sleep = async (ms: number): Promise<void> =>
   await new Promise((resolve) => {
     globalThis.setTimeout(resolve, Math.max(0, Math.trunc(ms)));
@@ -312,6 +336,7 @@ const resolveProjectFolderApiPath = (
   _projectId: string | null | undefined,
   suffix: string
 ): string => {
+  void _projectId;
   return `/api/media/folders/${suffix}`;
 };
 
@@ -319,7 +344,25 @@ const resolveProjectFolderCanvasApiPath = (
   _projectId: string | null | undefined,
   folderId: string
 ): string => {
+  void _projectId;
   return `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`;
+};
+
+const toMediaFolderFromPayload = (value: unknown, fallback: string): MediaFolder => {
+  const folder = asRecord(value);
+  const id = asString(folder.id);
+  const name = asString(folder.name);
+  if (!id || !name) {
+    throw new Error(fallback);
+  }
+  return {
+    id,
+    name,
+    parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
+    createdAt: asString(folder.createdAt),
+    updatedAt: asString(folder.updatedAt),
+    itemCount: toNonNegativeInteger(folder.itemCount),
+  };
 };
 
 /**
@@ -380,24 +423,13 @@ export const createMediaFolder = async (
     shortpulseLogScope: "app",
   });
   if (!response.ok) {
-    const payload = asRecord(await response.json().catch(() => ({})));
-    throw new Error(asString(payload.error) || "Unable to create folder.");
+    throw createMediaLibraryHttpRequestError(
+      await readResponseErrorMessage(response, "Unable to create folder."),
+      response.status
+    );
   }
   const payload = asRecord(await response.json().catch(() => ({})));
-  const folder = asRecord(payload.folder);
-  const id = asString(folder.id);
-  const folderName = asString(folder.name);
-  if (!id || !folderName) {
-    throw new Error("Unable to create folder.");
-  }
-  return {
-    id,
-    name: folderName,
-    parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
-    createdAt: asString(folder.createdAt),
-    updatedAt: asString(folder.updatedAt),
-    itemCount: toNonNegativeInteger(folder.itemCount),
-  };
+  return toMediaFolderFromPayload(payload.folder, "Unable to create folder.");
 };
 
 /**
@@ -412,33 +444,25 @@ export const renameMediaFolder = async ({
   name: string;
   projectId?: string | null;
 }): Promise<MediaFolder> => {
-  const response = await fetchWithAuth(resolveProjectFolderApiPath(projectId, "rename"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ folderId, name }),
-    shortpulseLogScope: "app",
-  });
+  const response = await withTransientNetworkRetry(
+    async () =>
+      await fetchWithAuth(resolveProjectFolderApiPath(projectId, "rename"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ folderId, name }),
+        shortpulseLogScope: "app",
+      })
+  );
   if (!response.ok) {
-    const payload = asRecord(await response.json().catch(() => ({})));
-    throw new Error(asString(payload.error) || "Unable to rename folder.");
+    throw createMediaLibraryHttpRequestError(
+      await readResponseErrorMessage(response, "Unable to rename folder."),
+      response.status
+    );
   }
   const payload = asRecord(await response.json().catch(() => ({})));
-  const folder = asRecord(payload.folder);
-  const id = asString(folder.id);
-  const folderName = asString(folder.name);
-  if (!id || !folderName) {
-    throw new Error("Unable to rename folder.");
-  }
-  return {
-    id,
-    name: folderName,
-    parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
-    createdAt: asString(folder.createdAt),
-    updatedAt: asString(folder.updatedAt),
-    itemCount: toNonNegativeInteger(folder.itemCount),
-  };
+  return toMediaFolderFromPayload(payload.folder, "Unable to rename folder.");
 };
 
 /**
@@ -453,33 +477,25 @@ export const moveMediaFolder = async ({
   parentFolderId: string | null;
   projectId?: string | null;
 }): Promise<MediaFolder> => {
-  const response = await fetchWithAuth(resolveProjectFolderApiPath(projectId, "move"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ folderId, parentFolderId }),
-    shortpulseLogScope: "app",
-  });
+  const response = await withTransientNetworkRetry(
+    async () =>
+      await fetchWithAuth(resolveProjectFolderApiPath(projectId, "move"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ folderId, parentFolderId }),
+        shortpulseLogScope: "app",
+      })
+  );
   if (!response.ok) {
-    const payload = asRecord(await response.json().catch(() => ({})));
-    throw new Error(asString(payload.error) || "Unable to move folder.");
+    throw createMediaLibraryHttpRequestError(
+      await readResponseErrorMessage(response, "Unable to move folder."),
+      response.status
+    );
   }
   const payload = asRecord(await response.json().catch(() => ({})));
-  const folder = asRecord(payload.folder);
-  const id = asString(folder.id);
-  const folderName = asString(folder.name);
-  if (!id || !folderName) {
-    throw new Error("Unable to move folder.");
-  }
-  return {
-    id,
-    name: folderName,
-    parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
-    createdAt: asString(folder.createdAt),
-    updatedAt: asString(folder.updatedAt),
-    itemCount: toNonNegativeInteger(folder.itemCount),
-  };
+  return toMediaFolderFromPayload(payload.folder, "Unable to move folder.");
 };
 
 /**
@@ -498,8 +514,10 @@ export const deleteMediaFolder = async (
     shortpulseLogScope: "app",
   });
   if (!response.ok) {
-    const payload = asRecord(await response.json().catch(() => ({})));
-    throw new Error(asString(payload.error) || "Unable to delete folder.");
+    throw createMediaLibraryHttpRequestError(
+      await readResponseErrorMessage(response, "Unable to delete folder."),
+      response.status
+    );
   }
 };
 
@@ -662,6 +680,7 @@ export const saveMediaFolderCanvasState = async ({
   snapshot: Record<string, unknown>;
   projectId?: string | null;
 }): Promise<{ schemaVersion: number; saveSeq: number; updatedAt: string }> => {
+  void _projectId;
   const response = await withTransientNetworkRetry(
     async () =>
       await fetchWithAuth("/api/ai/media-folder-canvas/save", {
@@ -702,21 +721,64 @@ export const uploadMediaFile = async ({
   destinationTab: MediaUploadDestinationTab;
 }): Promise<MediaUploadRow> => {
   const normalizedFile = await normalizeUploadFileForApi(file);
-  const body = new FormData();
-  body.append("file", normalizedFile);
-  body.append("destinationTab", destinationTab);
-
-  const response = await fetchWithAuth("/api/media/upload", {
+  const prepareResponse = await fetchWithAuth("/api/media/prepare-upload", {
     method: "POST",
-    body,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      destinationTab,
+      sourceMimeType: normalizedFile.type,
+      sourceName: normalizedFile.name,
+    }),
     shortpulseLogScope: "app",
   });
-
-  const { payload, rawText } = await readUploadErrorResponse(response);
-  if (!response.ok) {
+  const { payload: preparePayload, rawText: prepareRawText } =
+    await readUploadErrorResponse(prepareResponse);
+  if (!prepareResponse.ok) {
     throw new Error(
       resolveUploadErrorMessage({
-        response,
+        response: prepareResponse,
+        file: normalizedFile,
+        payload: preparePayload,
+        rawText: prepareRawText,
+      })
+    );
+  }
+  const preparedTarget = toPreparedMediaUploadTarget(preparePayload?.target);
+  if (!preparedTarget) {
+    throw new Error("Upload preparation returned an invalid target.");
+  }
+
+  const supabase = ensureSupabaseQueryClient();
+  const uploadResult = await supabase.storage
+    .from("media_library")
+    .uploadToSignedUrl(preparedTarget.storagePath, preparedTarget.uploadToken, normalizedFile, {
+      contentType: preparedTarget.mimeType,
+      upsert: false,
+    });
+  if (uploadResult.error) {
+    throw new Error(uploadResult.error.message || "Unable to upload media.");
+  }
+
+  const finalizeResponse = await fetchWithAuth("/api/media/finalize-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      destinationTab,
+      sourceMimeType: preparedTarget.mimeType,
+      sourceName: preparedTarget.name,
+      sourceStoragePath: preparedTarget.storagePath,
+    }),
+    shortpulseLogScope: "app",
+  });
+  const { payload, rawText } = await readUploadErrorResponse(finalizeResponse);
+  if (!finalizeResponse.ok) {
+    throw new Error(
+      resolveUploadErrorMessage({
+        response: finalizeResponse,
         file: normalizedFile,
         payload,
         rawText,

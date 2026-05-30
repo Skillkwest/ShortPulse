@@ -74,6 +74,10 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.
   - `docs/agents/holomony/standard-operating-procedure.md`: Holomony's standing SOP for media-surface performance audits, optimization lanes, KPI discipline, and training updates.
   - `docs/agents/holomony/ownership-manifest.md`: Holomony's ownership boundary map for local instructions, artifacts, helper scripts, and shared dependencies.
+- `docs/agents/gutan/README.md`: Gutan media-ingestion normalization and product image admission contract and memory entrypoint.
+  - `docs/agents/gutan/AGENTS.md`: Gutan-scoped execution overlay for image admission, resizing, compression, and boundary handoffs.
+  - `docs/agents/gutan/standard-operating-procedure.md`: Gutan's standing SOP for image-admission audits, plans, implementation runs, and validation.
+  - `docs/agents/gutan/ownership-manifest.md`: Gutan's ownership boundary map for product image admission versus display, storage, security, and Create/Pulse runtime lanes.
 - `docs/agents/Create Workflow/README.md`: Create Workflow Create-panel stewardship contract and memory entrypoint for Standard/Pulse runtime boundaries, composer behavior, and retained workflow training.
   - `docs/agents/Create Workflow/create-panel-operating-brief.md`: compact current-state brief for Create panel runtime ownership, composer contract, and workflow boundaries.
   - `docs/agents/Create Workflow/create-panel-system-map.md`: compact system map for Create page orchestration, Standard/Pulse runtime boundaries, composer intake, and reference-feed ownership.

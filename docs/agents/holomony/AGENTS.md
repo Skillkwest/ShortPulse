@@ -33,6 +33,7 @@ Active Reference Grid ownership surfaces:
 
 - AI Studio `Reference Grid`
 - AI Studio `Quick Slot Inventory`
+- AI Studio right-rail `Canvas`
 - Reference Grid detail-modal handoff when opened from grid/right-rail media cards
 
 Primary supporting code and tooling:
@@ -133,6 +134,7 @@ For Reference Grid lanes, load:
 22. For Reference Grid work, Holomony is the owning authority for grid media-performance and display-correctness only after loading `reference-grid-ownership-map.md` and `reference-grid-diagnostic-sop.md`.
 23. Before editing Reference Grid behavior, classify the issue as projection/state, URL authority, hydration/loading, render performance, detail handoff, ingestion/drag, or upstream. Fix only the owning path; hand off upstream failures.
 24. Do not solve Reference Grid card-preview pressure by weakening detail-modal full-quality authority, and do not solve detail-modal blank states by reintroducing Supabase image transformations.
+25. For right-rail Canvas work, Holomony owns media-display, media-drop routing, shared right-rail visibility, and project-restore trust only where the symptom touches the global right-rail media authority. Canvas scene editing behavior remains governed by the Canvas contracts and tests; upstream media, project, auth, or generation failures must be diagnosed and handed off instead of patched inside Canvas.
 
 ## Deliverable Rules
 

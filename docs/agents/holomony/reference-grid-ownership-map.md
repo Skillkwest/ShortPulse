@@ -10,7 +10,7 @@ Holomony does not own upstream provider failures, auth/session failures, Supabas
 
 ## Product Contract
 
-Reference Grid must:
+Reference Grid, Quick Slot Inventory, and the right-rail Canvas must:
 
 - remain a workspace-global right-rail surface across AI Studio workflows and Create modes;
 - preserve Quick Slot Inventory, Reference Grid, and Canvas as one shared right-rail authority;
@@ -22,6 +22,8 @@ Reference Grid must:
 - reject Supabase `/storage/v1/render/image/` transform URLs everywhere;
 - keep grid-card adaptive compression separate from detail-modal full-quality display;
 - stay responsive under large grids through projection hygiene, virtualization, hydration budgeting, and render containment.
+- route media drops to the surface under the pointer without shell fallback stealing Canvas or Quick Slot ownership;
+- keep right-rail Canvas scene state shared across Create modes while preserving separate main/rail viewport cameras.
 
 ## Canonical Authority References
 
@@ -156,6 +158,27 @@ Responsibilities:
 - preserve drag payload media authority and prompt metadata;
 - avoid duplicating invalid stale references.
 
+### Right-Rail Canvas And Shared Drop Ownership
+
+- `frontend/features/ai-studio/components/canvas/`
+- `frontend/features/ai-studio/components/canvas/CANVAS_BEHAVIOR_MATRIX.md`
+- `frontend/features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState.ts`
+- `frontend/features/ai-studio/components/canvas/useCanvasViewportDropHandlers.ts`
+- `frontend/features/ai-studio/components/canvas/canvasDropController.ts`
+- `frontend/features/ai-studio/logic/sessionSnapshotCanvas.ts`
+- `frontend/features/ai-studio/logic/referenceGridDropOwnership.ts`
+- `frontend/features/ai-studio/hooks/useAiStudioPageMediaReferenceRuntime.ts`
+- `frontend/lib/ai-studio-session/projectWorkspaceSnapshot.ts`
+
+Responsibilities:
+
+- render the right-rail Canvas as a global rail section above Quick Slot and All Refs when visible;
+- share Canvas scene items across main and rail viewports while keeping viewport cameras separate;
+- resolve internal Reference Grid, Quick Slot, Media Library, pasted media, text, and desktop-file drops into Canvas-safe scene items;
+- proxy persistence-relevant media drops through canonical reference/media ingestion before Canvas insertion;
+- serialize only durable Canvas scene items and cameras into project workspace snapshots;
+- avoid workflow-local, Create-mode-local, or route-local Canvas state forks.
+
 ### Telemetry And Diagnostics
 
 - `frontend/features/ai-studio/logic/freezeInvestigationTelemetry.ts`
@@ -180,6 +203,7 @@ Use this classification before editing:
 - Render-performance failure: large grids cause broad recompute, duplicate card trees, excessive visible work, long tasks, or memory pressure.
 - Detail handoff failure: double-click opens the right output but modal source selection/full-quality promotion fails.
 - Ingestion/drag failure: references enter the grid with insufficient identity, wrong metadata, or invalid drag payloads.
+- Canvas/right-rail failure: the rail Canvas receives wrong media authority, loses durable scene/camera state, steals or loses drops, or forks from the shared right-rail workspace.
 - Upstream failure: provider, auth, persistence, Supabase storage, media-library list/folder, billing, or deployment state is the real owner.
 
 ## Ownership Stop Rule

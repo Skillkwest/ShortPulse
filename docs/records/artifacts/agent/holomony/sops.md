@@ -17,6 +17,7 @@ Purpose: track the SOPs and operating documents Holomony relies on most often.
 - `docs/adr/0083-create-mode-global-right-rail-authority.md`
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/sops/sop_adaptive_media_change_control.md`
+- `frontend/features/ai-studio/components/canvas/CANVAS_BEHAVIOR_MATRIX.md`
 
 ## SOP Synthesis Evidence
 
@@ -39,3 +40,4 @@ When in doubt:
 3. optimize only if the next change has better ROI than stopping.
 4. if a surface embeds shared browse runtime but persists through a different authority path, onboard it as a separate candidate surface instead of silently widening the existing family.
 5. for Reference Grid, classify the failure layer before editing and keep card-preview compression separate from detail-modal full-quality authority.
+6. for right-rail Canvas, separate media-display/drop/restore ownership from generic canvas editing behavior before editing.

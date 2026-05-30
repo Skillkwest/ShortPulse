@@ -33,6 +33,7 @@ Not every agent needs every file.
 - `docs/records/artifacts/agent/dave-the-security-guy/`
 - `docs/records/artifacts/agent/gear-ball/`
 - `docs/records/artifacts/agent/gottspan-the-admin/`
+- `docs/records/artifacts/agent/gutan/`
 - `docs/records/artifacts/agent/holomony/`
 - `docs/records/artifacts/agent/lever/`
 - `docs/records/artifacts/agent/Money Stuff/`

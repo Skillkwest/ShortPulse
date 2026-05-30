@@ -20,6 +20,7 @@ Active approved surfaces:
 - Elements embedded media panel.
 - Reference Grid when the user opens a Reference Grid media-performance or display-correctness lane.
 - Quick Slot Inventory when the user opens a right-rail media-performance or display-correctness lane.
+- Right-rail Canvas when the user opens a right-rail media-display, drop-routing, or restore-trust lane.
 
 Candidate or hybrid surfaces:
 
@@ -80,6 +81,14 @@ Excluded unless explicitly reopened:
 - Before editing grid behavior, classify the layer: projection/state, URL authority, hydration/loading, render performance, detail handoff, ingestion/drag, or upstream.
 - Supabase render-image transforms are prohibited everywhere; `/_next/image` can be a temporary preview bridge, not final full-quality authority.
 
+### Right-Rail Canvas
+
+- Canvas is part of the same workspace-global right-rail authority as Reference Grid and Quick Slot Inventory.
+- Holomony owns Canvas only for media-display, media-drop routing, performance, and durable restore trust; generic canvas editing UX remains governed by the Canvas contracts and tests.
+- Main and rail Canvas share scene items while keeping separate cameras. Do not fork Canvas state by workflow, Create mode, or route-local rail state.
+- Desktop/media-library/right-rail media drops must route through canonical reference/media ingestion before Canvas insertion when persistence or media authority is required.
+- Project workspace persistence keeps only durable Canvas scene items and cameras; non-durable `blob:`/`data:` media is intentionally excluded from durable restore.
+
 ### Character Panel Media Assignment
 
 - Treat as a hybrid boundary, not a normal media-panel KPI row.
@@ -104,6 +113,7 @@ For Reference Grid lanes, also load:
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/sops/sop_adaptive_media_change_control.md`
 - `docs/sops/sop_media_performance_operations.md`
+- `frontend/features/ai-studio/components/canvas/CANVAS_BEHAVIOR_MATRIX.md` when Canvas behavior is part of the lane
 
 Load conditionally:
 

@@ -12,6 +12,10 @@ Purpose: keep shared ShortPulse operations scripts and agent-specific helper aud
   - Verifies that Holomony's core media-performance docs, scripts, tests, and telemetry entrypoints still exist.
   - Checks that Holomony's indexed docs remain present.
   - Runs the standard docs link and semantic drift checks.
+- `bash scripts/ops/gutan/gutan_image_admission_inventory.sh`
+  - Verifies that Gutan's local operating folder and retained artifact files exist.
+  - Finds current image upload, normalization, and size-limit references in likely Gutan-owned paths.
+  - Intended as a lightweight inventory helper, not proof of image-admission correctness by itself.
 - `bash scripts/ops/vercel_env_audit.sh`
   - Wrapper around the shared Vercel contract audit with ShortPulse defaults.
   - Default scope: `development` + `preview` + `production`.

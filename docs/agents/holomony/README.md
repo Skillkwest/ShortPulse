@@ -45,7 +45,7 @@ Future expansion surfaces:
 
 - other media-heavy render surfaces once they are explicitly added to the KPI and audit contract
 
-`Reference Grid` and `Quick Slot Inventory` are approved Holomony ownership surfaces for media-performance and display-correctness lanes. They remain global right-rail product surfaces, not Holomony-private state.
+`Reference Grid`, `Quick Slot Inventory`, and the right-rail `Canvas` are approved Holomony ownership surfaces for media-performance, display-correctness, drop-routing, and restore-trust lanes. They remain global right-rail product surfaces, not Holomony-private state.
 
 ## Primary Job
 

@@ -60,6 +60,9 @@ Use these existing checks selectively by owner layer:
   - `npm run test -- useReferenceGridViewportProjectionController useReferenceGridVirtualMetricsController useReferenceGridCardItemsController referenceGridPropsEquality`
 - Detail handoff:
   - `npm run test -- DetailModal`
+- Right-rail Canvas:
+  - `npm run test -- canvas`
+  - `npm run test -- useAiStudioPageMediaReferenceRuntime useAiStudioShellDndController useAiStudioPageProjectSessionRuntime`
 
 Production behavior still requires production evidence from `https://www.shortpulse.ai` when the user-reported symptom is deployed-only.
 

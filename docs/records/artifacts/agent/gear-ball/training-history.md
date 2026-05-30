@@ -32,3 +32,4 @@ Purpose: keep the current training synthesis short and actionable.
 6. When one broad shared-runtime lane brushes a large stale UI suite, validate the exact touched expectations plus the modern integration/launch-lock seams first, and only reopen the full legacy suite if the runtime evidence genuinely points there.
 7. When validation commands derive from the manifest, build them from `git status --short` instead of tracked diffs alone so new source files join the first lint pass and page-to-hook contract seams surface earlier.
 8. When a shared-runtime lane tightens internal drag or authority behavior, sanity-check whether failing tests are asserting an old permissive fallback before reopening the runtime path.
+9. When a monolithic legacy UI suite still throws unrelated React queue noise after the modern focused seams and the final build are green, treat that suite as cold debt to reconcile later rather than letting it block the current converged publish lane.

@@ -31,6 +31,7 @@ import {
   extractComposerImageDropPayload,
   extractDragDropPayload,
   extractInternalReferenceDragPayload,
+  type InternalReferenceDragPayload,
   normalizeReferenceTransferUrlCandidate,
 } from "../../utils/dragDrop";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../utils/imageUpload";

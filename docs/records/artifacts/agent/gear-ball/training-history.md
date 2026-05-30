@@ -29,3 +29,4 @@ Purpose: keep the current training synthesis short and actionable.
 3. Preserve strict end-of-run integrity: no stale closeout, no early score-loop writeback, no unclassified tails, and one last `git diff --name-only` scan before the score loop when a broad lane touched shared runtime seams.
 4. Keep startup and retained-history loading lean by default.
 5. On mixed frontend/docs/sql lanes, split the first cleanup pass by tool ownership so raw SQL does not steal time from the real validation ladder.
+6. When one broad shared-runtime lane brushes a large stale UI suite, validate the exact touched expectations plus the modern integration/launch-lock seams first, and only reopen the full legacy suite if the runtime evidence genuinely points there.

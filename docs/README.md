@@ -93,6 +93,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/holomony/standard-operating-procedure.md`
 - `docs/agents/holomony/memory.md`
 - `docs/agents/holomony/ownership-manifest.md`
+- `docs/agents/holomony/reference-grid-ownership-map.md`
+- `docs/agents/holomony/reference-grid-diagnostic-sop.md`
 - `docs/agents/Money Stuff/README.md`
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`

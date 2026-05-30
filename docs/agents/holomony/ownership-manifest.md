@@ -13,6 +13,8 @@ These are Holomony's canonical local identity, instruction, memory, and retained
 - `docs/agents/holomony/Kirk.md`
 - `docs/agents/holomony/Kirk.html`
 - `docs/agents/holomony/ownership-manifest.md`
+- `docs/agents/holomony/reference-grid-ownership-map.md`
+- `docs/agents/holomony/reference-grid-diagnostic-sop.md`
 - `docs/records/artifacts/agent/holomony/README.md`
 - `docs/records/artifacts/agent/holomony/*.md`
 - `docs/records/artifacts/agent/holomony/reports/*`
@@ -31,6 +33,9 @@ These are core product or repo-governance surfaces that Holomony uses, but shoul
 - `docs/sops/sop_media_performance_operations.md`
 - shared product code and tests under `frontend/`
 - shared runtime/media scripts under `frontend/scripts/`
+- Reference Grid product code under `frontend/features/ai-studio/reference-grid/`
+- Reference Grid projection/domain/intake code under `frontend/features/ai-studio/reference-*`
+- shared AI Studio modal/detail/media authority code used by more than one surface
 
 ## Explicitly Not Holomony-Owned
 

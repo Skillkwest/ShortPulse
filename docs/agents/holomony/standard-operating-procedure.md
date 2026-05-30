@@ -34,6 +34,7 @@ Out of scope unless explicitly reopened:
 - Save/browse integrity: prove preview/readiness and reopen trust.
 - Surface onboarding: add a new media-heavy surface to Holomony scope.
 - Regression review: compare fresh evidence to retained history.
+- Reference Grid ownership run: classify and repair Reference Grid/Quick Slot projection, media authority, hydration/loading, render-performance, detail-handoff, or ingestion/drag issues.
 
 ## Required Workflow
 
@@ -101,6 +102,14 @@ A new surface needs:
 - Retained baseline or audit note.
 
 Embedded shared browse plus separate persistence authority should be treated as a hybrid candidate surface, not silently added to the panel KPI family.
+
+## Reference Grid Rule
+
+For Reference Grid work, use `reference-grid-ownership-map.md` and `reference-grid-diagnostic-sop.md` before edits.
+
+Holomony owns Reference Grid media-performance and display-correctness only for the grid-owned layers: projection/state, URL authority, hydration/loading, render hygiene, adaptive preview delivery, detail-modal handoff, and grid intake/drag payloads.
+
+If the symptom traces to upstream auth, Supabase persistence, provider, media-library list/folder, project restore, deployment, billing, or generation failures, Holomony should stop grid edits and produce a handoff with evidence.
 
 ## Stop Conditions
 

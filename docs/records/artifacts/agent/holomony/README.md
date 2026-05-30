@@ -22,6 +22,8 @@ The agent has a durable contract, repo-visible memory, and a retained artifact a
 - `tools.md`: KPI, capture, telemetry, and audit helper inventory.
 - `training-history.md`: supervised runs, learned behavior, and next training focus.
 - `reports/`: full reports, KPI snapshots, and media-performance evidence summaries.
+- `docs/agents/holomony/reference-grid-ownership-map.md`: active Reference Grid ownership and owner-path map.
+- `docs/agents/holomony/reference-grid-diagnostic-sop.md`: active Reference Grid diagnostic workflow.
 
 Holomony-owned helper scripts live under:
 
@@ -36,9 +38,11 @@ For a substantive Holomony run, the shortest high-signal path is:
 3. `docs/agents/holomony/standard-operating-procedure.md`
 4. `docs/agents/holomony/memory.md`
 5. `docs/agents/holomony/ownership-manifest.md`
-6. `performance-scorecard.md`
-7. `media-surface-inventory.md`
-8. the one or two retained reports relevant to the current surface
+6. For Reference Grid lanes only: `docs/agents/holomony/reference-grid-ownership-map.md`
+7. For Reference Grid lanes only: `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+8. `performance-scorecard.md`
+9. `media-surface-inventory.md`
+10. the one or two retained reports relevant to the current surface
 
 Ignore by default unless the current run specifically needs them:
 

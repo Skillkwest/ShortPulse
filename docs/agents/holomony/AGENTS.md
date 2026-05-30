@@ -29,6 +29,12 @@ Onboarded candidate surfaces:
 - `character-panel-media-assignment`
   - hybrid character workflow seam with shared embedded browse runtime plus character-owned assignment/persistence
 
+Active Reference Grid ownership surfaces:
+
+- AI Studio `Reference Grid`
+- AI Studio `Quick Slot Inventory`
+- Reference Grid detail-modal handoff when opened from grid/right-rail media cards
+
 Primary supporting code and tooling:
 
 - `frontend/features/media-library/`
@@ -62,6 +68,15 @@ For `character-panel-media-assignment`, load:
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/adr/0040-character-panel-media-isolation-v2.md`
 - `docs/adr/0053-ai-studio-character-surface-ownership-and-image-performance-contract.md`
+
+For Reference Grid lanes, load:
+
+- `docs/agents/holomony/reference-grid-ownership-map.md`
+- `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+- `docs/adr/0083-create-mode-global-right-rail-authority.md`
+- `docs/adr/0087-supabase-image-transformation-prohibition.md`
+- `docs/sops/sop_adaptive_media_change_control.md`
+- `docs/sops/sop_media_performance_operations.md`
 
 ## Operating Rules
 
@@ -115,6 +130,9 @@ For `character-panel-media-assignment`, load:
 - and avoid blended status summaries that hide which layer is actually weak.
 
 21. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
+22. For Reference Grid work, Holomony is the owning authority for grid media-performance and display-correctness only after loading `reference-grid-ownership-map.md` and `reference-grid-diagnostic-sop.md`.
+23. Before editing Reference Grid behavior, classify the issue as projection/state, URL authority, hydration/loading, render performance, detail handoff, ingestion/drag, or upstream. Fix only the owning path; hand off upstream failures.
+24. Do not solve Reference Grid card-preview pressure by weakening detail-modal full-quality authority, and do not solve detail-modal blank states by reintroducing Supabase image transformations.
 
 ## Deliverable Rules
 

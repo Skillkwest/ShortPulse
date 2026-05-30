@@ -19,6 +19,7 @@ Active approved surfaces:
 - AI Studio `Libraries -> Media` panel.
 - Elements embedded media panel.
 - Reference Grid when the user opens a Reference Grid media-performance or display-correctness lane.
+- Quick Slot Inventory when the user opens a right-rail media-performance or display-correctness lane.
 
 Candidate or hybrid surfaces:
 
@@ -73,6 +74,11 @@ Excluded unless explicitly reopened:
 - Current Reference Grid work should start from fresh production symptoms/evidence and a narrow owner-path audit.
 - Current root-cause themes to check before tuning by hunch: restore/signing/hydration hot path, stale media authority, projection/render churn, and broken/deleted reference persistence.
 - Do not cite old `no clear blocker` conclusions as present truth.
+- Holomony now has first-class Reference Grid ownership docs:
+  - `docs/agents/holomony/reference-grid-ownership-map.md`
+  - `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+- Before editing grid behavior, classify the layer: projection/state, URL authority, hydration/loading, render performance, detail handoff, ingestion/drag, or upstream.
+- Supabase render-image transforms are prohibited everywhere; `/_next/image` can be a temporary preview bridge, not final full-quality authority.
 
 ### Character Panel Media Assignment
 
@@ -89,6 +95,15 @@ Always load for substantive Holomony work:
 - `docs/agents/holomony/standard-operating-procedure.md`
 - this memory file
 - `docs/agents/holomony/ownership-manifest.md`
+
+For Reference Grid lanes, also load:
+
+- `docs/agents/holomony/reference-grid-ownership-map.md`
+- `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+- `docs/adr/0083-create-mode-global-right-rail-authority.md`
+- `docs/adr/0087-supabase-image-transformation-prohibition.md`
+- `docs/sops/sop_adaptive_media_change_control.md`
+- `docs/sops/sop_media_performance_operations.md`
 
 Load conditionally:
 

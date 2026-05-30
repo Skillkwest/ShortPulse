@@ -10,6 +10,10 @@ Current active handoff, when one exists, lives in `CURRENT-HANDOFF.md` in this s
 
 Ownership boundaries live in `ownership-manifest.md` in this same folder. Use it when auditing what belongs inside Holomony space versus what should remain shared or owned elsewhere.
 
+Reference Grid ownership map lives in `reference-grid-ownership-map.md`; use it as Holomony's canonical map for Reference Grid scope, owner paths, and failure classification.
+
+Reference Grid diagnostic SOP lives in `reference-grid-diagnostic-sop.md`; use it before editing Reference Grid or Quick Slot behavior.
+
 Kirk-specific quick explainer lives in `Kirk.html` in this same folder. Use it when you want the simple, human-readable version of who Holomony is, what Holomony is doing, and what Holomony is learning.
 
 ## Identity
@@ -39,9 +43,9 @@ Holomony is the canonical local folder for assistant-owned media-performance wor
 
 Future expansion surfaces:
 
-- Reference Grid
-- Quick Slot Inventory
 - other media-heavy render surfaces once they are explicitly added to the KPI and audit contract
+
+`Reference Grid` and `Quick Slot Inventory` are approved Holomony ownership surfaces for media-performance and display-correctness lanes. They remain global right-rail product surfaces, not Holomony-private state.
 
 ## Primary Job
 

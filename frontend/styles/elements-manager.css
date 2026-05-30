@@ -334,6 +334,62 @@
   color: rgba(242, 156, 188, 0.96);
 }
 
+.elements-reference-card.is-drop-pending {
+  cursor: wait;
+}
+
+.elements-reference-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  background: rgba(8, 11, 15, 0.72);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.elements-reference-loading-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(244, 154, 186, 0.32);
+  border-radius: 999px;
+  background: rgba(25, 13, 19, 0.88);
+  color: rgba(255, 229, 237, 0.96);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+}
+
+.elements-reference-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(244, 154, 186, 0.24);
+  border-top-color: rgba(244, 154, 186, 0.98);
+  border-right-color: rgba(231, 92, 134, 0.72);
+  border-radius: 999px;
+  flex: 0 0 auto;
+  animation: elements-reference-loading-spin 0.82s linear infinite;
+}
+
+@keyframes elements-reference-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .elements-reference-loading-spinner {
+    animation: none;
+  }
+}
+
 .elements-reference-delete-btn:focus-visible {
   outline: 2px solid rgba(231, 92, 134, 0.3);
   outline-offset: 2px;

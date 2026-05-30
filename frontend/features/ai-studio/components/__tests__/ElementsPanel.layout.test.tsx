@@ -235,6 +235,16 @@ const createFileDataTransfer = (file: File) => ({
   ...createDataTransfer({ files: [file] }),
 });
 
+const createDeferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+};
+
 const addInternalReferenceDragPayload = (
   transfer: ReturnType<typeof createDataTransfer>,
   options?: {
@@ -593,6 +603,46 @@ describe("ElementsPanel layout", () => {
     expect(uploadImageToStorage).not.toHaveBeenCalledWith("blob:element-reference-local-file");
   });
 
+  it("shows a loading spinner over the target reference card while an upload is in flight", async () => {
+    const pendingUpload = createDeferred<string>();
+    vi.mocked(uploadImageBlobToStorage).mockImplementationOnce(async () => pendingUpload.promise);
+
+    render(<ElementsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitForElementEditor();
+
+    const targetZone = screen.getByText("Secondary View").closest("article");
+    if (!targetZone) {
+      throw new Error("Expected secondary reference zone.");
+    }
+
+    const localFile = new File(["local-reference"], "secondary-angle.png", {
+      type: "image/png",
+    });
+
+    fireEvent.drop(targetZone, { dataTransfer: createFileDataTransfer(localFile) });
+
+    await waitFor(() => {
+      expect(uploadImageBlobToStorage).toHaveBeenCalledWith(localFile);
+    });
+
+    expect(
+      screen.getByRole("status", { name: "Loading Secondary View reference" })
+    ).toHaveTextContent("Loading...");
+    expect(targetZone).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => {
+      pendingUpload.resolve("https://example.com/uploaded/secondary-reference.png");
+      await pendingUpload.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("status", { name: "Loading Secondary View reference" })).toBeNull();
+    });
+    expect(targetZone).toHaveAttribute("aria-busy", "false");
+  });
+
   it("accepts a composer image drop session from Reference Grid when no internal payload survives", async () => {
     render(<ElementsPanel />);
 
@@ -767,12 +817,18 @@ describe("ElementsPanel layout", () => {
     await waitFor(() => {
       expect(uploadImageBlobToStorage).toHaveBeenCalledTimes(2);
     });
+    expect(
+      screen.getByRole("status", { name: "Loading Primary View reference" })
+    ).toHaveTextContent("Loading...");
+    expect(primaryZone).toHaveAttribute("aria-busy", "true");
     await waitFor(() => {
       expect(screen.getByAltText("Secondary View reference")).toHaveAttribute(
         "src",
         "https://example.com/uploaded/secondary-reference.png"
       );
     });
+    expect(screen.queryByRole("status", { name: "Loading Secondary View reference" })).toBeNull();
+    expect(secondaryZone).toHaveAttribute("aria-busy", "false");
 
     resolvePrimaryUpload?.("https://example.com/uploaded/primary-reference.png");
 
@@ -782,6 +838,74 @@ describe("ElementsPanel layout", () => {
         "https://example.com/uploaded/primary-reference.png"
       );
     });
+  });
+
+  it("shows independent loading overlays when two element reference slots upload concurrently", async () => {
+    const primaryUpload = createDeferred<string>();
+    const secondaryUpload = createDeferred<string>();
+
+    vi.mocked(uploadImageBlobToStorage)
+      .mockImplementationOnce(async () => primaryUpload.promise)
+      .mockImplementationOnce(async () => secondaryUpload.promise);
+
+    render(<ElementsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitForElementEditor();
+
+    const primaryZone = screen.getByText("Primary View").closest("article");
+    const secondaryZone = screen.getByText("Secondary View").closest("article");
+    if (!primaryZone || !secondaryZone) {
+      throw new Error("Expected primary and secondary reference zones.");
+    }
+
+    fireEvent.drop(primaryZone, {
+      dataTransfer: createFileDataTransfer(
+        new File(["primary"], "primary.png", { type: "image/png" })
+      ),
+    });
+    fireEvent.drop(secondaryZone, {
+      dataTransfer: createFileDataTransfer(
+        new File(["secondary"], "secondary.png", { type: "image/png" })
+      ),
+    });
+
+    await waitFor(() => {
+      expect(uploadImageBlobToStorage).toHaveBeenCalledTimes(2);
+    });
+
+    expect(
+      screen.getByRole("status", { name: "Loading Primary View reference" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: "Loading Secondary View reference" })
+    ).toBeInTheDocument();
+    expect(primaryZone).toHaveAttribute("aria-busy", "true");
+    expect(secondaryZone).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => {
+      primaryUpload.resolve("https://example.com/uploaded/primary-reference.png");
+      await primaryUpload.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("status", { name: "Loading Primary View reference" })).toBeNull();
+    });
+    expect(
+      screen.getByRole("status", { name: "Loading Secondary View reference" })
+    ).toBeInTheDocument();
+    expect(primaryZone).toHaveAttribute("aria-busy", "false");
+    expect(secondaryZone).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => {
+      secondaryUpload.resolve("https://example.com/uploaded/secondary-reference.png");
+      await secondaryUpload.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("status", { name: "Loading Secondary View reference" })).toBeNull();
+    });
+    expect(secondaryZone).toHaveAttribute("aria-busy", "false");
   });
 
   it("keeps profile photo controls out of the embedded element editor", async () => {

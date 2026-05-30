@@ -1026,16 +1026,23 @@ export function ElementsManagerShell({
                               draft.assetType === "image"
                                 ? (draft.imageReferenceUrls[index] ?? "")
                                 : draft.videoReferenceUrl;
+                            const isDropPending =
+                              draft.assetType === "image" && isReferenceSlotPending(index);
                             const isRequiredSlot = draft.assetType === "video" || index < 2;
                             const showDeleteButton =
-                              Boolean(slotValue) && hoveredReferenceCardIndex === index;
+                              Boolean(slotValue) &&
+                              hoveredReferenceCardIndex === index &&
+                              !isDropPending;
                             return (
                               <article
                                 key={`${slotLabel}-${index + 1}`}
                                 ref={index === 0 ? handleReferenceCardMeasureRef : null}
                                 className={`elements-reference-card ${
                                   slotValue ? "is-filled" : "is-empty"
-                                } ${activeSheetDropIndex === index ? "is-drop-active" : ""}`}
+                                } ${activeSheetDropIndex === index ? "is-drop-active" : ""} ${
+                                  isDropPending ? "is-drop-pending" : ""
+                                }`}
+                                aria-busy={isDropPending}
                                 style={{
                                   ...ELEMENT_REFERENCE_CARD_INLINE_STYLE,
                                   borderColor:
@@ -1079,6 +1086,7 @@ export function ElementsManagerShell({
                                         transition: "opacity 140ms ease",
                                       }}
                                       aria-label={`Clear ${slotLabel} reference`}
+                                      disabled={isDropPending}
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         if (draft.assetType === "video") {
@@ -1152,9 +1160,28 @@ export function ElementsManagerShell({
                                       >
                                         {isRequiredSlot ? "(Required)" : "(Optional)"}
                                       </span>
+                                      {isDropPending ? (
+                                        <span className="sr-only">Loading reference...</span>
+                                      ) : null}
                                     </span>
                                   )}
                                 </div>
+                                {isDropPending ? (
+                                  <div
+                                    className="elements-reference-loading-overlay"
+                                    role="status"
+                                    aria-live="polite"
+                                    aria-label={`Loading ${slotLabel} reference`}
+                                  >
+                                    <span className="elements-reference-loading-indicator">
+                                      <span
+                                        className="elements-reference-loading-spinner"
+                                        aria-hidden="true"
+                                      />
+                                      <span>Loading...</span>
+                                    </span>
+                                  </div>
+                                ) : null}
                                 <span
                                   className="elements-reference-empty-hint"
                                   style={ELEMENT_REFERENCE_HINT_INLINE_STYLE}

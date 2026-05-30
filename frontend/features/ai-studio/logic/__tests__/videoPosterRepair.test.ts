@@ -124,6 +124,41 @@ describe("resolveVideoPosterRepairsForOutputs", () => {
     });
   });
 
+  it("repairs playable video authority for poster-backed rows that already have a poster url", async () => {
+    mockMediaRows([
+      {
+        id: "media-4",
+        file_type: "video",
+        storage_path: "user-1/generations/videos/out-4.mp4",
+        poster_variant_path: "user-1/variants/videos/media-4/poster_720.jpg",
+      },
+    ]);
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user-1/generations/videos/out-4.mp4", "https://signed.test/out-4.mp4"]])
+    );
+
+    const repairs = await resolveVideoPosterRepairsForOutputs([
+      makeOutput({
+        id: "out-4",
+        previewPosterUrl: "https://signed.test/poster-4.jpg",
+        previewPosterStoragePath: "user-1/variants/videos/media-4/poster_720.jpg",
+        previewStoragePath: "user-1/variants/videos/media-4/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/out-4.mp4",
+        resultUrls: [],
+        previewUrl: undefined,
+      }),
+    ]);
+
+    expect(repairs.get("out-4")).toMatchObject({
+      previewPosterUrl: "https://signed.test/poster-4.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/media-4/poster_720.jpg",
+      previewStoragePath: "user-1/variants/videos/media-4/poster_720.jpg",
+      fullStoragePath: "user-1/generations/videos/out-4.mp4",
+      previewUrl: "https://signed.test/out-4.mp4",
+      resultUrls: ["https://signed.test/out-4.mp4"],
+    });
+  });
+
   it("does not repair video rows without a poster variant", async () => {
     mockMediaRows([
       {

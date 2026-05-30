@@ -5,6 +5,7 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { isVideoUrl } from "./stateParsers";
 import type { StudioOutput } from "../types";
 import {
   normalizeVideoPosterStoragePathCandidate,
@@ -72,10 +73,22 @@ const rowMatchesStoragePath = (row: MediaFilePosterRow, storagePath: string): bo
   asCanonicalStoragePath(maybeString(row.storage_path)) === storagePath ||
   asCanonicalStoragePath(maybeString(row.preview_storage_path)) === storagePath;
 
+const hasPlayableVideoAuthority = (output: StudioOutput): boolean => {
+  if (output.mode !== "video") return false;
+  if (normalizeText(output.localObjectUrl)) return true;
+  if (output.resultUrls?.some((value) => typeof value === "string" && isVideoUrl(value))) {
+    return true;
+  }
+  return isVideoUrl(output.previewUrl ?? null);
+};
+
 const shouldRepairOutput = (output: StudioOutput): boolean => {
   if (output.mode !== "video") return false;
-  if (normalizeText(output.previewPosterUrl)) return false;
-  if (resolveKnownPosterStoragePath(output)) return true;
+  const hasPosterAuthority = Boolean(
+    normalizeText(output.previewPosterUrl) || resolveKnownPosterStoragePath(output)
+  );
+  if (hasPosterAuthority && !hasPlayableVideoAuthority(output)) return true;
+  if (!hasPosterAuthority && resolveKnownPosterStoragePath(output)) return true;
   if (normalizeIdList(output.savedMediaIds).length > 0) return true;
   return Boolean(
     asCanonicalStoragePath(output.fullStoragePath) ??
@@ -178,17 +191,22 @@ export const resolveVideoPosterRepairsForOutputs = async (
     const mediaRow = resolveBestRowForOutput(output, mediaRows);
     const posterStoragePath =
       resolveKnownPosterStoragePath(output) ?? resolveRowPosterStoragePath(mediaRow);
-    if (!posterStoragePath) continue;
+    const existingPreviewPosterUrl = normalizeText(output.previewPosterUrl);
+    if (!posterStoragePath && !existingPreviewPosterUrl) continue;
 
     const fullStoragePath =
       asCanonicalStoragePath(output.fullStoragePath) ??
       resolveRowFullStoragePath(mediaRow) ??
       asCanonicalStoragePath(output.previewStoragePath);
 
-    posterPathByOutputId.set(output.id, posterStoragePath);
+    if (posterStoragePath) {
+      posterPathByOutputId.set(output.id, posterStoragePath);
+    }
     fullPathByOutputId.set(output.id, fullStoragePath ?? null);
-    pathsToSign.add(posterStoragePath);
-    if (!normalizeText(output.previewUrl) && fullStoragePath) {
+    if (!existingPreviewPosterUrl && posterStoragePath) {
+      pathsToSign.add(posterStoragePath);
+    }
+    if (!hasPlayableVideoAuthority(output) && fullStoragePath) {
       pathsToSign.add(fullStoragePath);
     }
   }
@@ -206,8 +224,9 @@ export const resolveVideoPosterRepairsForOutputs = async (
   const repairs = new Map<string, VideoPosterRepair>();
   for (const output of candidates) {
     const posterStoragePath = posterPathByOutputId.get(output.id);
-    if (!posterStoragePath) continue;
-    const previewPosterUrl = signedByPath.get(posterStoragePath) ?? null;
+    const previewPosterUrl =
+      normalizeText(output.previewPosterUrl) ??
+      (posterStoragePath ? (signedByPath.get(posterStoragePath) ?? null) : null);
     if (!previewPosterUrl) continue;
 
     const fullStoragePath = fullPathByOutputId.get(output.id) ?? null;
@@ -218,7 +237,7 @@ export const resolveVideoPosterRepairsForOutputs = async (
     repairs.set(output.id, {
       outputId: output.id,
       previewPosterUrl,
-      previewPosterStoragePath: posterStoragePath,
+      previewPosterStoragePath: posterStoragePath ?? previewStoragePath,
       previewStoragePath,
       fullStoragePath,
       previewUrl: normalizeText(output.previewUrl) ?? signedFullUrl,

@@ -56,24 +56,46 @@ type PreviewSelectionState = {
   rejectedUrls: string[];
 };
 
-const isNextImageOptimizerUrl = (value: string | null | undefined): boolean =>
-  Boolean(value?.trim().startsWith("/_next/image"));
+const isNextImageOptimizerUrl = (value: string | null | undefined): boolean => {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("/_next/image")) return true;
+  try {
+    return new URL(trimmed).pathname.startsWith("/_next/image");
+  } catch {
+    return false;
+  }
+};
 
 const isForbiddenDetailImageUrl = (value: string | null | undefined): boolean => {
   const trimmed = value?.trim();
   if (!trimmed) return false;
-  return isSupabaseRenderImageUrl(trimmed) || isNextImageOptimizerUrl(trimmed);
+  return isSupabaseRenderImageUrl(trimmed);
+};
+
+const isFullQualityDetailImageUrl = (value: string | null | undefined): boolean => {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  return !isForbiddenDetailImageUrl(trimmed) && !isNextImageOptimizerUrl(trimmed);
 };
 
 const buildUniquePreviewCandidates = (urls: Array<string | null | undefined>): string[] => {
   const uniqueUrls = new Set<string>();
+  const directPreviewUrls: string[] = [];
+  const optimizerPreviewUrls: string[] = [];
   urls.forEach((url) => {
     const trimmed = url?.trim();
     if (!trimmed) return;
     if (isForbiddenDetailImageUrl(trimmed)) return;
+    if (uniqueUrls.has(trimmed)) return;
     uniqueUrls.add(trimmed);
+    if (isNextImageOptimizerUrl(trimmed)) {
+      optimizerPreviewUrls.push(trimmed);
+      return;
+    }
+    directPreviewUrls.push(trimmed);
   });
-  return Array.from(uniqueUrls);
+  return [...directPreviewUrls, ...optimizerPreviewUrls];
 };
 
 const resolveNextPreviewCandidateUrl = ({
@@ -197,7 +219,7 @@ const resolveCanonicalDetailAuthorityUrl = async (
       previewProfile: "none",
       ...(options.forceRefresh === true ? { forceRefresh: true } : {}),
     });
-    return isForbiddenDetailImageUrl(signedUrl) ? null : signedUrl;
+    return isFullQualityDetailImageUrl(signedUrl) ? signedUrl : null;
   } catch {
     return null;
   }
@@ -410,10 +432,10 @@ function DetailModalContent({
   const fullQualityPromotionUrl = useMemo(() => {
     const hasExplicitFullStoragePath = Boolean(output?.fullStoragePath?.trim());
     return (
-      buildUniquePreviewCandidates([
+      [
         resolvedCanonicalPreviewUrl,
         hasExplicitFullStoragePath ? (resolvedDetailMedia?.fullUrl ?? null) : null,
-      ])[0] ?? null
+      ].find((candidateUrl) => isFullQualityDetailImageUrl(candidateUrl)) ?? null
     );
   }, [output?.fullStoragePath, resolvedCanonicalPreviewUrl, resolvedDetailMedia?.fullUrl]);
   const previewSelection =

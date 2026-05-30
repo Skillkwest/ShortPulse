@@ -942,7 +942,7 @@ describe("DetailModal", () => {
     });
   });
 
-  it("does not settle detail modal images on Supabase render-image or Next optimizer urls", () => {
+  it("does not settle detail modal images on Supabase render-image urls when full media is available", () => {
     const { baseElement } = render(
       <DetailModal
         output={{
@@ -963,5 +963,34 @@ describe("DetailModal", () => {
     const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
     expect(image).not.toBeNull();
     expect(image?.getAttribute("src")).toBe("https://cdn.test/full-image.jpg");
+  });
+
+  it("allows a Next optimizer url as a temporary detail preview bridge", () => {
+    const optimizedPreviewUrl =
+      "/_next/image?url=https%3A%2F%2Fcdn.test%2Ftemporary-preview.jpg&w=384&q=28";
+
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          previewUrl: optimizedPreviewUrl,
+          resultUrls: [optimizedPreviewUrl],
+          previewStoragePath: null,
+          fullStoragePath: null,
+          mediaSource: "generated",
+          generationId: null,
+          savedMediaIds: [],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute("src")).toBe(optimizedPreviewUrl);
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
   });
 });

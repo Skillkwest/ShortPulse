@@ -27,6 +27,7 @@ export type ReferenceGridVisibleCard = {
   item: ReferenceGridMediaOutput;
   authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
+  fallbackUrl?: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
   isAudioPreview?: boolean;
@@ -199,6 +200,7 @@ export const useReferenceGridCardRenderController = ({
         currentOutput.mode === "video"
           ? currentOutput.localObjectUrl?.trim() ||
             (card.isVideoPreview ? card.cardPreviewUrl : "") ||
+            (card.fallbackUrl && isVideoUrl(card.fallbackUrl) ? card.fallbackUrl : "") ||
             currentOutput.resultUrls?.find(
               (value) => typeof value === "string" && isVideoUrl(value)
             ) ||
@@ -227,7 +229,7 @@ export const useReferenceGridCardRenderController = ({
           : null;
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       const audioInstanceKey = `${options.surface}:${currentOutput.id}`;
-      const renderContainPreview = perfDegradeLevel === 0 && activeOutputId === currentOutput.id;
+      const renderContainPreview = currentOutput.mode === "image";
       const audioBackgroundImageUrl =
         currentOutput.mode === "audio" &&
         currentOutput.companionArtUrl &&

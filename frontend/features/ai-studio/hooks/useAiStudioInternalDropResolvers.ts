@@ -227,7 +227,7 @@ export const useAiStudioInternalDropResolvers = ({
               ...resolvedSource.preview,
               url: durablePreviewUrl,
             },
-            preparedImageUrl: durablePreviewUrl,
+            preparedImageUrl: resolvedSource.preparedImageUrl ?? durablePreviewUrl,
           };
         }
         return resolvedSource;

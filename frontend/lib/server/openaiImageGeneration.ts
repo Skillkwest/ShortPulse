@@ -4,6 +4,7 @@
  */
 import { randomUUID } from "crypto";
 import {
+  OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION,
   type OpenAiImage2Quality,
   type OpenAiImage2Size,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
@@ -409,7 +410,7 @@ export const generateOpenAiImage = async ({
       quality,
       n: 1,
       output_format: "png",
-      moderation: "auto",
+      moderation: OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION,
     }),
   });
 
@@ -469,7 +470,7 @@ export const editOpenAiImage = async ({
         quality,
         n: 1,
         output_format: "png",
-        moderation: "auto",
+        moderation: OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION,
         ...(resolvedMask ? { mask: resolvedMask.payload } : {}),
       }),
     });

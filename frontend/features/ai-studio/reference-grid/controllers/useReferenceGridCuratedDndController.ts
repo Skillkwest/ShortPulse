@@ -30,35 +30,35 @@ type UseReferenceGridCuratedDndControllerArgs = {
   onReorderCuratedReference?: (
     id: string,
     targetId: string | null,
-    placement: "before" | "after" | "end"
+    placement: "start" | "before" | "after" | "end"
   ) => void;
   onSelectOutput: (id: string) => void;
   onAddDroppedFilesToQuickSlot?: (
     files: FileList,
     options?: {
       targetId: string | null;
-      placement: "before" | "after" | "end";
+      placement: "start" | "before" | "after" | "end";
     }
   ) => Promise<string[]>;
   onAddLibraryMediaReferenceToQuickSlot?: (
     payload: LibraryMediaReferencePayload,
     options?: {
       targetId: string | null;
-      placement: "before" | "after" | "end";
+      placement: "start" | "before" | "after" | "end";
     }
   ) => Promise<string | null>;
   onAddLibraryPromptReferenceToQuickSlot?: (
     payload: LibraryPromptReferencePayload,
     options?: {
       targetId: string | null;
-      placement: "before" | "after" | "end";
+      placement: "start" | "before" | "after" | "end";
     }
   ) => string | null;
   onAddPastedMediaReferenceToQuickSlot?: (
     payload: { url: string; mimeType?: string | null },
     options?: {
       targetId: string | null;
-      placement: "before" | "after" | "end";
+      placement: "start" | "before" | "after" | "end";
     }
   ) => string | null;
 };
@@ -139,7 +139,7 @@ export const useReferenceGridCuratedDndController = ({
   const handleLibraryQuickSlotDrop = useCallback(
     (
       payload: MediaLibraryDragPayload,
-      options: { targetId: string | null; placement: "before" | "after" | "end" }
+      options: { targetId: string | null; placement: "start" | "before" | "after" | "end" }
     ) => {
       if (payload.kind === "libraryMedia") {
         void (async () => {
@@ -168,7 +168,7 @@ export const useReferenceGridCuratedDndController = ({
   const handleQuickSlotFileDrop = useCallback(
     (
       transfer: DataTransfer,
-      options: { targetId: string | null; placement: "before" | "after" | "end" }
+      options: { targetId: string | null; placement: "start" | "before" | "after" | "end" }
     ) => {
       const droppedFiles = readDroppedFiles(transfer);
       if (!droppedFiles || !onAddDroppedFilesToQuickSlot) return false;
@@ -187,7 +187,7 @@ export const useReferenceGridCuratedDndController = ({
   const handleQuickSlotMediaDrop = useCallback(
     (
       transfer: DataTransfer,
-      options: { targetId: string | null; placement: "before" | "after" | "end" }
+      options: { targetId: string | null; placement: "start" | "before" | "after" | "end" }
     ) => {
       const droppedMediaReference = getDroppedMediaReference(transfer);
       if (!droppedMediaReference || !onAddPastedMediaReferenceToQuickSlot) return false;
@@ -212,7 +212,7 @@ export const useReferenceGridCuratedDndController = ({
         mediaLibraryPayload &&
         handleLibraryQuickSlotDrop(mediaLibraryPayload, {
           targetId: null,
-          placement: "end",
+          placement: "start",
         })
       ) {
         return;
@@ -238,7 +238,7 @@ export const useReferenceGridCuratedDndController = ({
         !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
         handleQuickSlotMediaDrop(event.dataTransfer, {
           targetId: null,
-          placement: "end",
+          placement: "start",
         })
       ) {
         return;
@@ -247,7 +247,7 @@ export const useReferenceGridCuratedDndController = ({
         !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
         handleQuickSlotFileDrop(event.dataTransfer, {
           targetId: null,
-          placement: "end",
+          placement: "start",
         })
       ) {
         return;
@@ -382,6 +382,7 @@ export const useReferenceGridCuratedDndController = ({
             return;
           }
           onAddCuratedReference?.(referenceId);
+          onReorderCuratedReference?.(referenceId, target.id, placement);
           onSelectOutput(referenceId);
           return;
         }

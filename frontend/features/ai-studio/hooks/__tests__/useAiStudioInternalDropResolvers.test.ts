@@ -221,7 +221,7 @@ describe("useAiStudioInternalDropResolvers", () => {
       preview: {
         url: "https://cdn.example.com/preview.png",
       },
-      previewStoragePath: "user-1/generations/images/result-0.png",
+      previewStoragePath: "user-1/generations/images/result-0-preview.png",
       fullStoragePath: "user-1/generations/images/result-0.png",
       promptText: "User visible prompt",
       provenance: {
@@ -236,7 +236,7 @@ describe("useAiStudioInternalDropResolvers", () => {
       loadBlob: vi.fn(async () => new Blob(["img0"])),
     });
     resolveAgentAttachmentPreviewUrlMock.mockResolvedValue(
-      "https://signed.example.com/result-0.png"
+      "https://signed.example.com/result-0-preview.png"
     );
     const ensureOutputPersisted = vi.fn(async () => ({
       ok: true,
@@ -268,7 +268,7 @@ describe("useAiStudioInternalDropResolvers", () => {
       expect.objectContaining({
         kind: "internal",
         sourceId: "media-0",
-        previewStoragePath: "user-1/generations/images/result-0.png",
+        previewStoragePath: "user-1/generations/images/result-0-preview.png",
         promptText: "User visible prompt",
       })
     );
@@ -278,11 +278,11 @@ describe("useAiStudioInternalDropResolvers", () => {
       expect.objectContaining({
         kind: "internal",
         sourceId: "media-0",
-        previewStoragePath: "user-1/generations/images/result-0.png",
+        previewStoragePath: "user-1/generations/images/result-0-preview.png",
         promptText: "User visible prompt",
         preparedImageUrl: "https://signed.example.com/result-0.png",
         preview: expect.objectContaining({
-          url: "https://signed.example.com/result-0.png",
+          url: "https://signed.example.com/result-0-preview.png",
         }),
       })
     );

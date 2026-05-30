@@ -33,13 +33,15 @@ describe("reference-projections", () => {
     const initial = createEmptyReferenceProjectionState();
     const withA = addQuickSlotReference(initial, "a");
     const withAB = addQuickSlotReference(withA, "b");
-    const reordered = reorderQuickSlotReference(withAB, "b", "a", "before");
+    const appended = addQuickSlotReference(withAB, "c", "end");
+    const reordered = reorderQuickSlotReference(appended, "a", "b", "after");
     const suppressed = markReferenceRemovedFromAllRefs(reordered, "a");
     const removed = removeQuickSlotReference(suppressed, "a");
 
-    expect(withAB.quickSlotIds).toEqual(["a", "b"]);
-    expect(reordered.quickSlotIds).toEqual(["b", "a"]);
-    expect(removed.quickSlotIds).toEqual(["b"]);
+    expect(withAB.quickSlotIds).toEqual(["b", "a"]);
+    expect(appended.quickSlotIds).toEqual(["b", "a", "c"]);
+    expect(reordered.quickSlotIds).toEqual(["b", "a", "c"]);
+    expect(removed.quickSlotIds).toEqual(["b", "c"]);
     expect(removed.removedFromAllRefsIds).toEqual([]);
   });
 

@@ -174,6 +174,10 @@ export default async function handler(
       return res.status(405).json({ error: "Method not allowed" });
     }
 
+    const requestBody = req.method === "PUT" ? toRequestBody(req.body) : null;
+    workspaceSaveSnapshotLogSummary =
+      req.method === "PUT" ? summarizeWorkspaceSaveSnapshotForLog(requestBody?.snapshot) : null;
+
     user = await requireApiUser(req, res);
     if (!user) return;
 
@@ -181,10 +185,6 @@ export default async function handler(
     if (!projectId) {
       return res.status(400).json({ error: "Invalid project id" });
     }
-
-    const requestBody = req.method === "PUT" ? toRequestBody(req.body) : null;
-    workspaceSaveSnapshotLogSummary =
-      req.method === "PUT" ? summarizeWorkspaceSaveSnapshotForLog(requestBody?.snapshot) : null;
     failureStage = "project lookup";
     const project = await getProjectForUser({
       userId: user.id,

@@ -3118,6 +3118,12 @@
   border-color: rgba(52, 200, 255, 0.28);
 }
 
+.edit-expert-inpaint-row--standard-only .edit-expert-inpaint-controls.is-themed-move {
+  box-sizing: border-box;
+  height: var(--edit-expert-secondary-dropzone-height);
+  min-height: var(--edit-expert-secondary-dropzone-height);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .edit-expert-inpaint-controls.is-themed-move:hover {
     border-color: rgba(61, 173, 248, 0.44);
@@ -5111,7 +5117,7 @@
   max-width: var(--edit-expert-secondary-width);
   margin: 0;
   aspect-ratio: var(--edit-expert-secondary-aspect);
-  min-height: calc(var(--edit-expert-secondary-width) * 1.25);
+  min-height: var(--edit-expert-secondary-dropzone-height);
   color: var(--ai-card-text);
   position: relative;
   cursor: pointer;

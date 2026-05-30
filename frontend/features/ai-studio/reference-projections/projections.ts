@@ -48,9 +48,10 @@ export const createEmptyReferenceProjectionState = (): ReferenceProjectionState 
  */
 export const addQuickSlotReference = (
   state: ReferenceProjectionState,
-  id: string
+  id: string,
+  placement: "start" | "end" = "start"
 ): ReferenceProjectionState => {
-  const nextQuickSlotIds = addCuratedReferenceId(state.quickSlotIds, id);
+  const nextQuickSlotIds = addCuratedReferenceId(state.quickSlotIds, id, placement);
   const nextRemovedIds = removeIdFromList(state.removedFromAllRefsIds, id);
   if (
     areListsEqual(nextQuickSlotIds, state.quickSlotIds) &&
@@ -92,7 +93,7 @@ export const reorderQuickSlotReference = (
   state: ReferenceProjectionState,
   id: string,
   targetId: string | null,
-  placement: "before" | "after" | "end"
+  placement: "start" | "before" | "after" | "end"
 ): ReferenceProjectionState => {
   const nextQuickSlotIds = reorderCuratedReferenceId(state.quickSlotIds, id, targetId, placement);
   if (areListsEqual(nextQuickSlotIds, state.quickSlotIds)) return state;

@@ -76,6 +76,7 @@
   );
   --edit-expert-secondary-shell-height: calc(var(--edit-expert-secondary-width) + 24px);
   --edit-expert-secondary-aspect: 4 / 5;
+  --edit-expert-secondary-dropzone-height: calc(var(--edit-expert-secondary-width) * 1.25);
   --edit-expert-secondary-border: 1px dashed rgba(160, 170, 182, 0.45);
   --edit-expert-secondary-border-hover: rgba(201, 205, 214, 0.44);
   --edit-expert-secondary-border-active: rgba(245, 185, 66, 0.92);

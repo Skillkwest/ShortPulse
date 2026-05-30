@@ -4,7 +4,7 @@
  */
 import type { StudioOutput } from "../types";
 
-export type CuratedReferencePlacement = "before" | "after" | "end";
+export type CuratedReferencePlacement = "start" | "before" | "after" | "end";
 
 const normalizeReferenceId = (value: string): string => value.trim();
 
@@ -14,11 +14,15 @@ const areReferenceListsEqual = (left: string[], right: string[]): boolean =>
 /**
  * Adds a reference id to curated state, preserving insertion order and preventing duplicates.
  */
-export const addCuratedReferenceId = (currentIds: string[], id: string): string[] => {
+export const addCuratedReferenceId = (
+  currentIds: string[],
+  id: string,
+  placement: "start" | "end" = "start"
+): string[] => {
   const normalizedId = normalizeReferenceId(id);
   if (!normalizedId) return currentIds;
   if (currentIds.includes(normalizedId)) return currentIds;
-  return [...currentIds, normalizedId];
+  return placement === "end" ? [...currentIds, normalizedId] : [normalizedId, ...currentIds];
 };
 
 /**
@@ -45,6 +49,10 @@ export const reorderCuratedReferenceId = (
   if (!currentIds.includes(normalizedId)) return currentIds;
 
   const nextWithoutId = currentIds.filter((value) => value !== normalizedId);
+  if (placement === "start") {
+    const next = [normalizedId, ...nextWithoutId];
+    return areReferenceListsEqual(currentIds, next) ? currentIds : next;
+  }
   if (placement === "end") {
     const next = [...nextWithoutId, normalizedId];
     return areReferenceListsEqual(currentIds, next) ? currentIds : next;

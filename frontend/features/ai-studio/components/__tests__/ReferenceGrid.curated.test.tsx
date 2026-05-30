@@ -1346,7 +1346,7 @@ describe("ReferenceGrid curated split", () => {
       }),
       {
         targetId: null,
-        placement: "end",
+        placement: "start",
       }
     );
   });
@@ -1378,7 +1378,7 @@ describe("ReferenceGrid curated split", () => {
       }),
       {
         targetId: null,
-        placement: "end",
+        placement: "start",
       }
     );
   });
@@ -1411,7 +1411,7 @@ describe("ReferenceGrid curated split", () => {
       },
       {
         targetId: null,
-        placement: "end",
+        placement: "start",
       }
     );
     expect(onSelectOutput).toHaveBeenCalledWith("external-out-1");
@@ -1441,7 +1441,7 @@ describe("ReferenceGrid curated split", () => {
       }),
       {
         targetId: null,
-        placement: "end",
+        placement: "start",
       }
     );
   });
@@ -1705,7 +1705,7 @@ describe("ReferenceGrid curated split", () => {
       }),
       {
         targetId: null,
-        placement: "end",
+        placement: "start",
       }
     );
     expect(onSelectOutput).toHaveBeenCalledWith("library-out-1");

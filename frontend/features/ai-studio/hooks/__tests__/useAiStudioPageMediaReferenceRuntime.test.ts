@@ -479,6 +479,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
         videoUrl: "https://cdn.shortpulse.test/clip-1.mp4",
         posterUrl: "https://cdn.shortpulse.test/clip-1-poster.webp",
         title: "Dropped video",
+        durationMs: null,
       },
     ]);
   });
@@ -574,6 +575,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       title: "Dropped audio",
       companionArtUrl: "https://cdn.shortpulse.test/dropped-audio.webp",
       companionArtStoragePath: "user-1/audio/dropped-audio.webp",
+      audioSourceMode: null,
       durationMs: 8_500,
       waveformPeaks: [5, 10, 15],
       width: 160,
@@ -613,6 +615,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       videoUrl: "https://cdn.shortpulse.test/dropped-video.mp4",
       posterUrl: "https://cdn.shortpulse.test/dropped-video-poster.webp",
       title: "Dropped video",
+      durationMs: null,
     });
   });
 });

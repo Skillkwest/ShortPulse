@@ -45,7 +45,7 @@ const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The 
 
 type QuickSlotDropOptions = {
   targetId: string | null;
-  placement: "before" | "after" | "end";
+  placement: "start" | "before" | "after" | "end";
 };
 
 type DirectDroppedMediaFiles = {
@@ -80,7 +80,7 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
   reorderCuratedReference: (
     outputId: string,
     targetId: string | null,
-    placement: "before" | "after" | "end"
+    placement: "start" | "before" | "after" | "end"
   ) => void;
   setActiveOutputId: (outputId: string | null) => void;
   setUiError?: (message: string | null) => void;
@@ -242,9 +242,17 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     (outputIds: string[], options: QuickSlotDropOptions): string[] => {
       if (outputIds.length === 0) return [];
 
-      if (options.placement === "end" || !options.targetId) {
+      if (options.placement === "start") {
+        [...outputIds].reverse().forEach((outputId) => {
+          addCuratedReference(outputId);
+        });
+        return outputIds;
+      }
+
+      if (options.placement === "end") {
         outputIds.forEach((outputId) => {
           addCuratedReference(outputId);
+          reorderCuratedReference(outputId, null, "end");
         });
         return outputIds;
       }
@@ -275,8 +283,8 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       const insertedId = await addLibraryMediaReferenceToQuickSlot(payload, options);
       if (!insertedId) return null;
       addCuratedReference(insertedId);
-      if (options?.targetId || options?.placement === "end") {
-        reorderCuratedReference(insertedId, options?.targetId ?? null, options?.placement ?? "end");
+      if (options && options.placement !== "start") {
+        reorderCuratedReference(insertedId, options.targetId, options.placement);
       }
       setActiveOutputId(insertedId);
       return insertedId;
@@ -301,7 +309,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         insertedResults.map((result) => result.outputId).filter(Boolean),
         {
           targetId: options?.targetId ?? null,
-          placement: options?.placement ?? "end",
+          placement: options?.placement ?? "start",
         }
       );
       const activeOutputId = insertedOutputIds[insertedOutputIds.length - 1] ?? null;
@@ -326,7 +334,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         insertedOutputs.map((output) => output.id).filter(Boolean),
         {
           targetId: options?.targetId ?? null,
-          placement: options?.placement ?? "end",
+          placement: options?.placement ?? "start",
         }
       );
       const activeOutputId = insertedOutputIds[insertedOutputIds.length - 1] ?? null;
@@ -343,8 +351,8 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       const insertedId = addLibraryPromptReferenceToQuickSlot(payload, options);
       if (!insertedId) return null;
       addCuratedReference(insertedId);
-      if (options?.targetId || options?.placement === "end") {
-        reorderCuratedReference(insertedId, options?.targetId ?? null, options?.placement ?? "end");
+      if (options && options.placement !== "start") {
+        reorderCuratedReference(insertedId, options.targetId, options.placement);
       }
       setActiveOutputId(insertedId);
       return insertedId;

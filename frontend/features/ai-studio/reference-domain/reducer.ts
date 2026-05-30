@@ -58,10 +58,13 @@ const reorderIds = (
   current: string[],
   id: string,
   targetId: string | null,
-  placement: "before" | "after" | "end"
+  placement: "start" | "before" | "after" | "end"
 ): string[] => {
   if (!current.includes(id)) return current;
   const withoutId = current.filter((value) => value !== id);
+  if (placement === "start") {
+    return [id, ...withoutId];
+  }
   if (placement === "end") {
     return [...withoutId, id];
   }

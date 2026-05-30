@@ -51,34 +51,34 @@ export type ReferenceGridProps = {
   onReorderCuratedReference?: (
     id: string,
     targetId: string | null,
-    placement: "before" | "after" | "end"
+    placement: "start" | "before" | "after" | "end"
   ) => void;
   onAddLibraryMediaReferenceToQuickSlot?: (
     payload: LibraryMediaReferencePayload,
     options?: {
       targetId: string | null;
-      placement: "before" | "after" | "end";
+      placement: "start" | "before" | "after" | "end";
     }
   ) => Promise<string | null>;
   onAddDroppedFilesToQuickSlot?: (
     files: FileList,
     options?: {
       targetId: string | null;
-      placement: "before" | "after" | "end";
+      placement: "start" | "before" | "after" | "end";
     }
   ) => Promise<string[]>;
   onAddLibraryPromptReferenceToQuickSlot?: (
     payload: LibraryPromptReferencePayload,
     options?: {
       targetId: string | null;
-      placement: "before" | "after" | "end";
+      placement: "start" | "before" | "after" | "end";
     }
   ) => string | null;
   onAddPastedMediaReferenceToQuickSlot?: (
     payload: PastedMediaReference,
     options?: {
       targetId: string | null;
-      placement: "before" | "after" | "end";
+      placement: "start" | "before" | "after" | "end";
     }
   ) => string | null;
   onRestoreArchivedOutput?: (id: string) => void;

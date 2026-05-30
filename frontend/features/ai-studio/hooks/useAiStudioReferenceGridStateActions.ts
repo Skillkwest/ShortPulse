@@ -42,7 +42,7 @@ type UseAiStudioReferenceGridStateActionsResult = {
   reorderCuratedReference: (
     id: string,
     targetId: string | null,
-    placement: "before" | "after" | "end"
+    placement: "start" | "before" | "after" | "end"
   ) => void;
   removeReferencesForDeletedMedia: (targets: DeletedMediaReferenceTarget[]) => void;
   clearCuratedReferences: () => void;
@@ -159,7 +159,7 @@ export const useAiStudioReferenceGridStateActions = ({
   );
 
   const reorderCuratedReference = useCallback(
-    (id: string, targetId: string | null, placement: "before" | "after" | "end") => {
+    (id: string, targetId: string | null, placement: "start" | "before" | "after" | "end") => {
       setReferenceProjectionState((prev) =>
         reorderQuickSlotReference(prev, id, targetId, placement)
       );

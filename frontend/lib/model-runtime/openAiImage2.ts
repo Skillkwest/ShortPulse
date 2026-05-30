@@ -6,10 +6,12 @@ export const OPENAI_GPT_IMAGE_2_MODEL_ID = "gpt-image-2";
 export const OPENAI_GPT_IMAGE_2_DEFAULT_SIZE = "1024x1024";
 export const OPENAI_GPT_IMAGE_2_DEFAULT_QUALITY = "medium";
 export const OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY = "high";
+export const OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION = "low";
 
 export type OpenAiImage2Size = "1024x1024" | "1024x1536" | "1536x1024";
 export type OpenAiImage2Quality = "low" | "medium" | "high";
 export type OpenAiImage2InputFidelity = "high" | "low";
+export type OpenAiImage2Moderation = "auto" | "low";
 
 export const OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD: Record<
   OpenAiImage2Size,

@@ -548,7 +548,7 @@ describe("useAiStudioState output store bridge", () => {
 
     await waitFor(() => {
       expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out", "standard-out"]);
-      expect(result.current.curatedReferenceIds).toEqual(["standard-out", "pulse-out"]);
+      expect(result.current.curatedReferenceIds).toEqual(["pulse-out", "standard-out"]);
       expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out", "standard-out"]);
     });
     expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
@@ -563,7 +563,7 @@ describe("useAiStudioState output store bridge", () => {
       expect(result.current.activeCreatePrompt).toBe("Standard draft");
       expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out", "standard-out"]);
       expect(result.current.activeOutputId).toBe("pulse-out");
-      expect(result.current.curatedReferenceIds).toEqual(["standard-out", "pulse-out"]);
+      expect(result.current.curatedReferenceIds).toEqual(["pulse-out", "standard-out"]);
       expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out", "standard-out"]);
     });
     expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
@@ -578,7 +578,7 @@ describe("useAiStudioState output store bridge", () => {
       expect(result.current.activeCreatePrompt).toBe("Pulse artifact");
       expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out", "standard-out"]);
       expect(result.current.activeOutputId).toBe("pulse-out");
-      expect(result.current.curatedReferenceIds).toEqual(["standard-out", "pulse-out"]);
+      expect(result.current.curatedReferenceIds).toEqual(["pulse-out", "standard-out"]);
       expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out", "standard-out"]);
     });
     expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
@@ -1042,14 +1042,14 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.curatedReferenceIds).toEqual([flowAId, flowBId]);
+      expect(result.current.curatedReferenceIds).toEqual([flowBId, flowAId]);
     });
 
     act(() => {
-      result.current.reorderCuratedReference(flowAId as string, flowBId as string, "after");
+      result.current.reorderCuratedReference(flowBId as string, flowAId as string, "after");
     });
 
-    expect(result.current.curatedReferenceIds).toEqual([flowBId, flowAId]);
+    expect(result.current.curatedReferenceIds).toEqual([flowAId, flowBId]);
 
     act(() => {
       result.current.removeCuratedReference(flowAId as string);

@@ -47,7 +47,7 @@ export type ReferenceState = {
   meta: ReferenceStateMeta;
 };
 
-export type ReferenceQuickSlotPlacement = "before" | "after" | "end";
+export type ReferenceQuickSlotPlacement = "start" | "before" | "after" | "end";
 
 export type ReferenceMediaHydrationPatch = Partial<
   Pick<

@@ -25,12 +25,14 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 describe("curatedReferences helpers", () => {
   it("dedupes when adding ids", () => {
     expect(addCuratedReferenceId(["a", "b"], "b")).toEqual(["a", "b"]);
-    expect(addCuratedReferenceId(["a", "b"], "c")).toEqual(["a", "b", "c"]);
+    expect(addCuratedReferenceId(["a", "b"], "c")).toEqual(["c", "a", "b"]);
+    expect(addCuratedReferenceId(["a", "b"], "c", "end")).toEqual(["a", "b", "c"]);
   });
 
   it("reorders ids before/after/end", () => {
     expect(reorderCuratedReferenceId(["a", "b", "c"], "c", "a", "before")).toEqual(["c", "a", "b"]);
     expect(reorderCuratedReferenceId(["a", "b", "c"], "a", "b", "after")).toEqual(["b", "a", "c"]);
+    expect(reorderCuratedReferenceId(["a", "b", "c"], "c", null, "start")).toEqual(["c", "a", "b"]);
     expect(reorderCuratedReferenceId(["a", "b", "c"], "a", null, "end")).toEqual(["b", "c", "a"]);
     expect(reorderCuratedReferenceId(["a", "b", "c"], "b", "b", "before")).toEqual(["a", "b", "c"]);
   });

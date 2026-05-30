@@ -271,6 +271,74 @@ describe("useExpertEditPrimaryIngress", () => {
     expect(result.current.layers[0]?.ownsImageUrl).toBe(false);
   });
 
+  it("fails closed when internal drop resolution succeeds without a usable durable url", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const resolvePreviewUrlById = vi.fn(() => "https://example.com/weak-preview.png");
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-image-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-image-1",
+      mediaId: "media-1",
+      mediaSource: "generated" as const,
+      preview: { url: "" },
+      previewStoragePath: "user/images/durable-preview.png",
+      fullStoragePath: "user/images/durable-full.png",
+      promptText: null,
+      preparedImageUrl: null,
+      loadBlob: async () => new Blob(["durable"], { type: "image/png" }),
+    }));
+    const event = makeInternalImageDropEvent();
+
+    const { result } = renderHook(() => {
+      const [layers, setHookLayers] = React.useState<ExpertEditLayer[]>([
+        createLayerFixture("layer-1"),
+      ]);
+
+      const ingress = useExpertEditPrimaryIngress({
+        layers,
+        selectedLayerIndex: 0,
+        foundationLayerId: "layer-1",
+        isMorePresetsSurfaceOpen: false,
+        createLayer,
+        queuePanelHistoryBaselineFromCurrent: vi.fn(),
+        setLayers: setHookLayers,
+        setSelectedLayerIndex: vi.fn(),
+        setEditingLayerIndex: vi.fn(),
+        setEditingLayerValue: vi.fn(),
+        revokeObjectUrlSafe: vi.fn(),
+        resolvePreviewUrlById,
+        resolveInternalReferenceImageDropSource,
+      });
+
+      return {
+        ingress,
+        layers,
+      };
+    });
+
+    await act(async () => {
+      result.current.ingress.handlePrimaryDrop(event);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(resolvePreviewUrlById).not.toHaveBeenCalled();
+    expect(createLayer).not.toHaveBeenCalled();
+    expect(result.current.layers[0]?.imageUrl).toBeNull();
+  });
+
   it("creates a new layer when an image is dropped onto a populated stage", async () => {
     const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
       createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)

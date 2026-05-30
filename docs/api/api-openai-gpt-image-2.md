@@ -41,7 +41,7 @@ Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio
   - ShortPulse bills and records GPT Image 2 edit inputs as high fidelity.
   - Do not forward `input_fidelity` to OpenAI for `gpt-image-2`; the provider processes image inputs at high fidelity automatically and rejects the parameter.
 - Output format: `png`
-- Moderation mode: `auto`
+- Moderation mode: `low` (ShortPulse default; least restrictive documented OpenAI Images setting supported by this lane)
 - Standard edit inputs:
   - up to 8 reference images through the current AI Studio client path
   - optional mask on the route contract for future/power-user parity

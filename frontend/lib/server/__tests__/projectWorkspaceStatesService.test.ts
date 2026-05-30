@@ -879,6 +879,81 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
+  it("batches owned prompt and generation resolution for large project workspace saves", async () => {
+    const promptIds = Array.from(
+      { length: 205 },
+      (_, index) => `10000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`
+    );
+    const generationIds = Array.from(
+      { length: 205 },
+      (_, index) => `20000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`
+    );
+    const { promptIdInMock, generationIdInMock, workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+    promptIdInMock.mockImplementation(async (_column: string, ids: string[]) => ({
+      data: ids.map((id) => ({ id })),
+      error: null,
+    }));
+    generationIdInMock.mockImplementation(async (_column: string, ids: string[]) => ({
+      data: ids.map((id) => ({ id })),
+      error: null,
+    }));
+
+    const result = await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-large-owned-prompt-generation-batch",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:large-owned-prompt-generation-batch",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Project prompt",
+        },
+        outputs: {
+          active: generationIds.map((generationId, index) => ({
+            id: `out-generated-${index + 1}`,
+            generationId,
+            promptId: promptIds[index],
+            previewUrl: `https://cdn.example.com/generated-${index + 1}.png`,
+            resultUrls: [`https://cdn.example.com/generated-${index + 1}.png`],
+          })),
+          archived: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(result.saveOutcome).toEqual({ status: "saved" });
+    expect(promptIdInMock).toHaveBeenCalledTimes(3);
+    expect(promptIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);
+    expect(generationIdInMock).toHaveBeenCalledTimes(6);
+    expect(generationIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([
+      100, 100, 5, 100, 100, 5,
+    ]);
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(
+      (firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: unknown[] })?.active
+    ).toHaveLength(205);
+  });
+
   it("strips out-of-scope preview storage paths before saving project workspace snapshots", async () => {
     const { workspaceUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],

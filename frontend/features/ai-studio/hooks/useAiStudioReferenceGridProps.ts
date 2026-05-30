@@ -40,7 +40,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   reorderCuratedReference?: (
     id: string,
     targetId: string | null,
-    placement: "before" | "after" | "end"
+    placement: "start" | "before" | "after" | "end"
   ) => void;
   restoreArchivedOutput?: (id: string) => void;
   restoreAllArchivedOutputs?: () => void;

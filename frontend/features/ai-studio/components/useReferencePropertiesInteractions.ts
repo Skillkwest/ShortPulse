@@ -267,8 +267,12 @@ export const useReferencePropertiesInteractions = ({
         return;
       }
       void (async () => {
-        const prepared = await prepareLocalImageFileForEditIngress(file);
-        commitImageUrl(setter, trackOwnedImageObjectUrl(prepared.url, prepared.blob));
+        try {
+          const prepared = await prepareLocalImageFileForEditIngress(file);
+          commitImageUrl(setter, trackOwnedImageObjectUrl(prepared.url, prepared.blob));
+        } catch (error) {
+          console.error("AI Studio reference image file ingress failed:", error);
+        }
       })();
       event.target.value = "";
     };
@@ -292,55 +296,60 @@ export const useReferencePropertiesInteractions = ({
       const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
       let nextUrl: string | null = null;
       let resolvedInternalMediaRef = null;
-
-      if (internalPayload) {
-        if (effectiveMediaKind && effectiveMediaKind !== "image") {
-          return;
-        }
-        setLoading(true);
-        const resolvedSource = resolveInternalReferenceImageDropSource
-          ? await resolveInternalReferenceImageDropSource(internalPayload).catch(() => null)
-          : null;
-        resolvedInternalMediaRef = resolvedSource
-          ? createInternalMediaRefFromResolvedSource(resolvedSource)
-          : null;
-        if (resolveInternalReferenceImageDropSource && !resolvedSource) {
-          setLoading(false);
-          return;
-        }
-        nextUrl =
-          resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
-      } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
-        return;
-      }
-
-      if (!nextUrl) {
-        nextUrl =
-          (internalPayload?.referenceUrl && looksLikeImageUrl(internalPayload.referenceUrl)
-            ? internalPayload.referenceUrl
-            : null) ?? imageUrl;
-      }
-
-      if (
-        !internalPayload &&
-        (!nextUrl || nextUrl.startsWith("blob:")) &&
-        referenceId &&
-        resolvePreviewUrlById
-      ) {
-        nextUrl = resolvePreviewUrlById(referenceId) ?? nextUrl;
-      }
-
-      if (!nextUrl) return;
-      if (!looksLikeImageUrl(nextUrl)) return;
-
-      if (!internalPayload) {
-        setLoading(true);
-      }
-
-      const isBlobUrl = nextUrl.startsWith("blob:");
-      const canAcceptBlob = fromFile || Boolean(referenceId);
+      let didSetLoading = false;
 
       try {
+        if (internalPayload) {
+          if (effectiveMediaKind && effectiveMediaKind !== "image") {
+            return;
+          }
+          setLoading(true);
+          didSetLoading = true;
+          const resolvedSource = resolveInternalReferenceImageDropSource
+            ? await resolveInternalReferenceImageDropSource(internalPayload).catch(() => null)
+            : null;
+          resolvedInternalMediaRef = resolvedSource
+            ? createInternalMediaRefFromResolvedSource(resolvedSource)
+            : null;
+          if (resolveInternalReferenceImageDropSource && !resolvedSource) {
+            return;
+          }
+          nextUrl =
+            resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
+          if (!nextUrl) {
+            return;
+          }
+        } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
+          return;
+        }
+
+        if (!nextUrl) {
+          nextUrl =
+            (internalPayload?.referenceUrl && looksLikeImageUrl(internalPayload.referenceUrl)
+              ? internalPayload.referenceUrl
+              : null) ?? imageUrl;
+        }
+
+        if (
+          !internalPayload &&
+          (!nextUrl || nextUrl.startsWith("blob:")) &&
+          referenceId &&
+          resolvePreviewUrlById
+        ) {
+          nextUrl = resolvePreviewUrlById(referenceId) ?? nextUrl;
+        }
+
+        if (!nextUrl) return;
+        if (!looksLikeImageUrl(nextUrl)) return;
+
+        if (!internalPayload) {
+          setLoading(true);
+          didSetLoading = true;
+        }
+
+        const isBlobUrl = nextUrl.startsWith("blob:");
+        const canAcceptBlob = fromFile || Boolean(referenceId);
+
         if (!isBlobUrl || canAcceptBlob) {
           const stableUrl = isBlobUrl
             ? await stabilizeDroppedImageUrl({
@@ -353,8 +362,12 @@ export const useReferencePropertiesInteractions = ({
           registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
           commitImageUrl(setter, stableUrl);
         }
+      } catch (error) {
+        console.error("AI Studio reference image drop ingress failed:", error);
       } finally {
-        setLoading(false);
+        if (didSetLoading) {
+          setLoading(false);
+        }
       }
     };
 

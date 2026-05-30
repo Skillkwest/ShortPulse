@@ -48,7 +48,7 @@ type LibraryPromptReferencePayload = {
 
 type QuickSlotLibraryPlacement = {
   targetId: string | null;
-  placement: "before" | "after" | "end";
+  placement: "start" | "before" | "after" | "end";
 };
 
 type IngestedReferenceMediaResult = {

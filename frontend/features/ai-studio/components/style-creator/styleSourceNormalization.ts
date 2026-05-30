@@ -10,6 +10,7 @@ import {
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
 } from "../../../../lib/internalReferenceDragSession";
 import {
+  buildInternalPayloadFromComposerDropPayload,
   COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
 } from "../../../../lib/internalReferenceDragPayload";
@@ -30,8 +31,6 @@ import {
   extractComposerImageDropPayload,
   extractDragDropPayload,
   extractInternalReferenceDragPayload,
-  type ComposerImageDropPayload,
-  type InternalReferenceDragPayload,
   normalizeReferenceTransferUrlCandidate,
 } from "../../utils/dragDrop";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../utils/imageUpload";
@@ -252,33 +251,6 @@ const readImageDataUrlFromUrl = async (sourceUrl: string): Promise<string> => {
     throw new Error("image_read_failed");
   }
   return await readFileAsDataUrl(blob);
-};
-
-const buildInternalPayloadFromComposerDropPayload = (
-  composerPayload: ComposerImageDropPayload | null
-): InternalReferenceDragPayload | null => {
-  if (!composerPayload) return null;
-  return {
-    version: composerPayload.version,
-    origin: composerPayload.origin,
-    referenceId: composerPayload.referenceId,
-    outputId: composerPayload.outputId,
-    imageIndex: 0,
-    mediaId: composerPayload.mediaId,
-    ...(composerPayload.previewStoragePath
-      ? { previewStoragePath: composerPayload.previewStoragePath }
-      : {}),
-    ...(composerPayload.fullStoragePath
-      ? { fullStoragePath: composerPayload.fullStoragePath }
-      : {}),
-    referenceUrl: composerPayload.referenceUrl ?? null,
-    ...(composerPayload.displayArtifactUrl
-      ? { referenceRenderUrl: composerPayload.displayArtifactUrl }
-      : {}),
-    sourceSurface: composerPayload.sourceSurface,
-    ...(typeof composerPayload.width === "number" ? { width: composerPayload.width } : {}),
-    ...(typeof composerPayload.height === "number" ? { height: composerPayload.height } : {}),
-  };
 };
 
 const hasSnapshotReferenceImageHints = (snapshot: StyleDropSnapshot): boolean => {

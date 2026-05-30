@@ -31,6 +31,7 @@ vi.mock("../../../../lib/adaptive-media", () => ({
 import {
   needsImageUpload,
   prepareImageUrlForSubmission,
+  uploadImageBlobToStorage,
   uploadImageToStorage,
 } from "../imageUpload";
 import { rememberObjectUrlBlob, forgetObjectUrlBlob } from "../objectUrlBlobRegistry";
@@ -90,6 +91,27 @@ describe("imageUpload", () => {
     expect(options.shortpulseRetryNetworkOnce).toBe(true);
     expect(options.body).toBeTruthy();
     expect((options.body as Blob).constructor?.name).toBe("Blob");
+    expect((options.body as Blob).type).toBe("image/png");
+  });
+
+  it("uploads in-memory image blobs without fetching a temporary object url", async () => {
+    const imageBlob = new Blob(["image-data"], { type: "image/png" });
+    global.fetch = vi.fn() as typeof fetch;
+    fetchWithAuthMock.mockResolvedValue(
+      jsonResponse({
+        url: "https://example.com/signed/reference-direct.png",
+        path: "user/images/reference-direct.png",
+        size: imageBlob.size,
+      })
+    );
+
+    const signedUrl = await uploadImageBlobToStorage(imageBlob);
+
+    expect(signedUrl).toBe("https://example.com/signed/reference-direct.png");
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(maybeTranscodeLocalImageBlobForUploadMock).toHaveBeenCalledTimes(1);
+    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
+    expect((options.body as Blob).size).toBe(imageBlob.size);
     expect((options.body as Blob).type).toBe("image/png");
   });
 

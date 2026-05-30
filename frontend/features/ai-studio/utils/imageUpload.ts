@@ -267,6 +267,83 @@ const inferExtension = (mimeType: string): string => {
   }
 };
 
+const buildUploadFilename = (blob: Blob): string => {
+  const extension = inferExtension(blob.type);
+  return `reference-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+};
+
+const uploadPreparedImageBlobToStorage = async ({
+  blob,
+  sourceKind,
+  options,
+}: {
+  blob: Blob;
+  sourceKind: PrepareImageSourceKind;
+  options?: PrepareImageUrlOptions;
+}): Promise<ImageUploadResponse> => {
+  const shouldTranscodeLocal = sourceKind === "blob" || sourceKind === "data-url";
+  const normalizedBlob = normalizeUploadBlob(blob);
+  const preparedBlob = shouldTranscodeLocal
+    ? await maybeTranscodeLocalImageBlobForUpload(normalizedBlob)
+    : normalizedBlob;
+  const filename = buildUploadFilename(preparedBlob);
+
+  let uploadResponse: Response;
+  try {
+    uploadResponse = await runAbortableStep({
+      stage: "upload_image_route",
+      timeoutMs: UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
+      sourceKind,
+      options,
+      run: async (signal) =>
+        await fetchWithAuth("/api/upload-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": preparedBlob.type,
+            "x-shortpulse-upload-filename": filename,
+          },
+          body: preparedBlob,
+          signal,
+          shortpulseLogScope: "generation",
+          shortpulseAuthTimeoutMs: UPLOAD_IMAGE_AUTH_TIMEOUT_MS,
+          shortpulseRetryNetworkOnce: true,
+        }),
+    });
+  } catch (error) {
+    throw normalizeImagePreparationError({
+      stage: "upload_image_route",
+      sourceKind,
+      error,
+    });
+  }
+
+  if (!uploadResponse.ok) {
+    const payload = await uploadResponse.json().catch(() => ({}));
+    if (uploadResponse.status === 413) {
+      throw new Error(resolve413UploadErrorMessage(payload));
+    }
+    const error =
+      typeof payload?.error === "string" && payload.error.trim().length
+        ? payload.error
+        : `Image upload failed (${uploadResponse.status})`;
+    const details =
+      typeof payload?.details === "string" && payload.details.trim().length
+        ? payload.details
+        : null;
+    throw new Error(details ? `${error}: ${details}` : error);
+  }
+
+  const data = (await uploadResponse.json()) as ImageUploadResponse;
+  if (!data?.url) {
+    throw new Error("Image upload failed: missing signed URL.");
+  }
+  if (!data?.path) {
+    throw new Error("Image upload failed: missing storage path.");
+  }
+
+  return data;
+};
+
 const resolve413UploadErrorMessage = (payload: unknown): string => {
   const error =
     typeof (payload as { error?: unknown })?.error === "string"
@@ -383,66 +460,11 @@ export const uploadImageAssetToStorage = async (
     }
     fetchedBlob = await response.blob();
   }
-  const normalizedBlob = normalizeUploadBlob(fetchedBlob);
-  const shouldTranscodeLocal = needsImageUpload(localUrl);
-  const blob = shouldTranscodeLocal
-    ? await maybeTranscodeLocalImageBlobForUpload(normalizedBlob)
-    : normalizedBlob;
-  const extension = inferExtension(blob.type);
-  const filename = `reference-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-
-  let uploadResponse: Response;
-  try {
-    uploadResponse = await runAbortableStep({
-      stage: "upload_image_route",
-      timeoutMs: UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
-      sourceKind,
-      options,
-      run: async (signal) =>
-        await fetchWithAuth("/api/upload-image", {
-          method: "POST",
-          headers: {
-            "Content-Type": blob.type,
-            "x-shortpulse-upload-filename": filename,
-          },
-          body: blob,
-          signal,
-          shortpulseLogScope: "generation",
-          shortpulseAuthTimeoutMs: UPLOAD_IMAGE_AUTH_TIMEOUT_MS,
-          shortpulseRetryNetworkOnce: true,
-        }),
-    });
-  } catch (error) {
-    throw normalizeImagePreparationError({
-      stage: "upload_image_route",
-      sourceKind,
-      error,
-    });
-  }
-
-  if (!uploadResponse.ok) {
-    const payload = await uploadResponse.json().catch(() => ({}));
-    if (uploadResponse.status === 413) {
-      throw new Error(resolve413UploadErrorMessage(payload));
-    }
-    const error =
-      typeof payload?.error === "string" && payload.error.trim().length
-        ? payload.error
-        : `Image upload failed (${uploadResponse.status})`;
-    const details =
-      typeof payload?.details === "string" && payload.details.trim().length
-        ? payload.details
-        : null;
-    throw new Error(details ? `${error}: ${details}` : error);
-  }
-
-  const data = (await uploadResponse.json()) as ImageUploadResponse;
-  if (!data?.url) {
-    throw new Error("Image upload failed: missing signed URL.");
-  }
-  if (!data?.path) {
-    throw new Error("Image upload failed: missing storage path.");
-  }
+  const data = await uploadPreparedImageBlobToStorage({
+    blob: fetchedBlob,
+    sourceKind,
+    options,
+  });
 
   if (cacheable) {
     localImageUrlCache.set(localUrl, {
@@ -451,6 +473,21 @@ export const uploadImageAssetToStorage = async (
     });
   }
   return data;
+};
+
+/**
+ * Uploads an in-memory image blob to storage without round-tripping through a fragile object URL.
+ */
+export const uploadImageBlobToStorage = async (
+  blob: Blob,
+  options?: PrepareImageUrlOptions
+): Promise<string> => {
+  const uploaded = await uploadPreparedImageBlobToStorage({
+    blob,
+    sourceKind: "blob",
+    options,
+  });
+  return uploaded.url;
 };
 
 /**

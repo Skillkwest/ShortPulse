@@ -9,12 +9,14 @@ import {
 } from "../../../lib/adaptive-media/localTranscode";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
+  buildInternalPayloadFromComposerDropPayload,
+  extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
   type InternalReferenceDragPayload,
 } from "../../../lib/internalReferenceDragPayload";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
-import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
+import { uploadImageBlobToStorage, uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
 import {
   extractDroppedFiles,
   resolveDroppedImageReference,
@@ -355,12 +357,7 @@ const uploadElementReferenceBlob = async (blob: Blob): Promise<string> => {
   if (normalizedMimeType && !normalizedMimeType.startsWith("image/")) {
     throw new Error("Dropped content is not an image.");
   }
-  const objectUrl = URL.createObjectURL(blob);
-  try {
-    return await uploadImageToStorage(objectUrl);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
+  return await uploadImageBlobToStorage(blob);
 };
 
 type UseElementsManagerViewStateParams = {
@@ -887,14 +884,11 @@ export const useElementsManagerViewState = ({
         return;
       }
       setError(null);
-      const objectUrl = URL.createObjectURL(file);
       try {
-        const uploadedReferenceUrl = await uploadImageToStorage(objectUrl);
+        const uploadedReferenceUrl = await uploadImageBlobToStorage(file);
         assignActiveImageReferenceAtIndex(index, uploadedReferenceUrl);
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to add element reference."));
-      } finally {
-        URL.revokeObjectURL(objectUrl);
       }
     },
     [assignActiveImageReferenceAtIndex]
@@ -980,6 +974,16 @@ export const useElementsManagerViewState = ({
       if (internalPayload) {
         await onSetImageReferenceFromInternalDropAtIndex(index, internalPayload);
         return;
+      }
+
+      const composerPayload = extractComposerImageDropPayload(transfer);
+      if (composerPayload) {
+        const normalizedInternalPayload =
+          buildInternalPayloadFromComposerDropPayload(composerPayload);
+        if (normalizedInternalPayload) {
+          await onSetImageReferenceFromInternalDropAtIndex(index, normalizedInternalPayload);
+          return;
+        }
       }
 
       const hasInternalReferenceHints = hasInternalReferenceDragTypeHints(transfer);

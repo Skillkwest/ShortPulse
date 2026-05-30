@@ -3,6 +3,8 @@
  * Provides a neutral parsing seam for AI Studio-originated reference drags consumed across features.
  */
 import {
+  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
   getComposerImageDropSessionToken,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
@@ -32,6 +34,8 @@ export const COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE = "text/reference-composer-im
 const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
   COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
   "text/reference-id",
@@ -79,6 +83,36 @@ export type ComposerImageDropPayload = {
   width?: number;
   height?: number;
   mimeType?: string | null;
+};
+
+/**
+ * Normalizes a composer image-drop payload into the shared internal reference drag payload shape.
+ */
+export const buildInternalPayloadFromComposerDropPayload = (
+  composerPayload: ComposerImageDropPayload | null
+): InternalReferenceDragPayload | null => {
+  if (!composerPayload) return null;
+  return {
+    version: composerPayload.version,
+    origin: composerPayload.origin,
+    referenceId: composerPayload.referenceId,
+    outputId: composerPayload.outputId,
+    imageIndex: 0,
+    mediaId: composerPayload.mediaId,
+    ...(composerPayload.previewStoragePath
+      ? { previewStoragePath: composerPayload.previewStoragePath }
+      : {}),
+    ...(composerPayload.fullStoragePath
+      ? { fullStoragePath: composerPayload.fullStoragePath }
+      : {}),
+    referenceUrl: composerPayload.referenceUrl ?? null,
+    ...(composerPayload.displayArtifactUrl
+      ? { referenceRenderUrl: composerPayload.displayArtifactUrl }
+      : {}),
+    sourceSurface: composerPayload.sourceSurface,
+    ...(typeof composerPayload.width === "number" ? { width: composerPayload.width } : {}),
+    ...(typeof composerPayload.height === "number" ? { height: composerPayload.height } : {}),
+  };
 };
 
 const toAbsoluteTransferUrl = (value: string): string => {

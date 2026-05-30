@@ -7,12 +7,16 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { describe, expect, it, vi } from "vitest";
 import { ElementsPanel } from "../ElementsPanel";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
+import {
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  registerComposerImageDropSession,
+} from "../../../../lib/internalReferenceDragSession";
 import { deriveElementAliasFromName } from "../../../elements-manager/logic/elementAlias";
 import {
   loadElementManagerDraftByElementId,
   saveElementManagerDraft,
 } from "../../../elements-manager/logic/elementsManagerPersistence";
-import { uploadImageToStorage } from "../../utils/imageUpload";
+import { uploadImageBlobToStorage, uploadImageToStorage } from "../../utils/imageUpload";
 
 const { ensureSupabaseQueryClientMock } = vi.hoisted(() => ({
   ensureSupabaseQueryClientMock: vi.fn(() => ({
@@ -185,6 +189,7 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
 }));
 
 vi.mock("../../utils/imageUpload", () => ({
+  uploadImageBlobToStorage: vi.fn(async () => "https://example.com/uploaded/internal-drop.png"),
   uploadImageToStorage: vi.fn(async (url: string) =>
     url.startsWith("blob:") || url.startsWith("data:image/")
       ? "https://example.com/uploaded/internal-drop.png"
@@ -284,6 +289,38 @@ const addMediaLibraryDragPayload = (
   transfer.setData("text/x-shortpulse-media-library-item", serialized);
 };
 
+const addComposerImageDropSessionPayload = (
+  transfer: ReturnType<typeof createDataTransfer>,
+  options?: {
+    outputId?: string;
+    mediaId?: string;
+    sourceSurface?: "all-refs" | "curated";
+    displayArtifactUrl?: string;
+    displayArtifactKind?: "blob" | "data" | "url";
+    referenceUrl?: string | null;
+    previewStoragePath?: string | null;
+    fullStoragePath?: string | null;
+  }
+) => {
+  const outputId = options?.outputId ?? "output-composer-1";
+  const token = registerComposerImageDropSession({
+    version: 1,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId: outputId,
+    outputId,
+    mediaId: options?.mediaId ?? null,
+    displayArtifactUrl:
+      options?.displayArtifactUrl ??
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WnXl3sAAAAASUVORK5CYII=",
+    displayArtifactKind: options?.displayArtifactKind ?? "data",
+    previewStoragePath: options?.previewStoragePath ?? null,
+    fullStoragePath: options?.fullStoragePath ?? null,
+    referenceUrl: options?.referenceUrl ?? null,
+    sourceSurface: options?.sourceSurface ?? "all-refs",
+  });
+  transfer.setData(COMPOSER_IMAGE_DROP_SESSION_TYPE, token);
+};
+
 const waitForElementEditor = async () => screen.findByLabelText("Element editor");
 
 const openElementLibrary = async () => {
@@ -305,6 +342,7 @@ describe("ElementsPanel layout", () => {
     elementsManagerPersistenceMockState.reset();
     vi.mocked(loadElementManagerDraftByElementId).mockClear();
     vi.mocked(saveElementManagerDraft).mockClear();
+    vi.mocked(uploadImageBlobToStorage).mockClear();
     vi.mocked(uploadImageToStorage).mockClear();
     ensureSupabaseQueryClientMock.mockClear();
   });
@@ -520,21 +558,12 @@ describe("ElementsPanel layout", () => {
         "https://example.com/uploaded/internal-drop.png"
       );
     });
-    expect(uploadImageToStorage).toHaveBeenCalledWith("blob:resolved-internal-reference");
+    expect(uploadImageBlobToStorage).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(uploadImageBlobToStorage).mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    expect(uploadImageToStorage).not.toHaveBeenCalledWith("blob:resolved-internal-reference");
   });
 
   it("accepts a local image file drop into an unsaved element reference slot", async () => {
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      writable: true,
-      value: vi.fn(() => "blob:element-reference-local-file"),
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      writable: true,
-      value: vi.fn(),
-    });
-
     render(<ElementsPanel />);
 
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
@@ -560,21 +589,44 @@ describe("ElementsPanel layout", () => {
         "https://example.com/uploaded/internal-drop.png"
       );
     });
-    expect(uploadImageToStorage).toHaveBeenCalledWith("blob:element-reference-local-file");
+    expect(uploadImageBlobToStorage).toHaveBeenCalledWith(localFile);
+    expect(uploadImageToStorage).not.toHaveBeenCalledWith("blob:element-reference-local-file");
+  });
+
+  it("accepts a composer image drop session from Reference Grid when no internal payload survives", async () => {
+    render(<ElementsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitForElementEditor();
+
+    const targetZone = screen.getByText("Secondary View").closest("article");
+    if (!targetZone) {
+      throw new Error("Expected secondary reference zone.");
+    }
+
+    const composerDrag = createDataTransfer();
+    addComposerImageDropSessionPayload(composerDrag, {
+      outputId: "output-composer-elements-1",
+      mediaId: "media-composer-elements-1",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+    });
+
+    fireEvent.dragOver(targetZone, { dataTransfer: composerDrag });
+    fireEvent.drop(targetZone, { dataTransfer: composerDrag });
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Secondary View reference")).toHaveAttribute(
+        "src",
+        "https://example.com/uploaded/internal-drop.png"
+      );
+    });
+    expect(uploadImageToStorage).toHaveBeenCalledWith(
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WnXl3sAAAAASUVORK5CYII="
+    );
   });
 
   it("prefers degraded internal reference hints over synthetic dropped files", async () => {
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      writable: true,
-      value: vi.fn(() => "blob:element-reference-local-file"),
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      writable: true,
-      value: vi.fn(),
-    });
-
     render(<ElementsPanel />);
 
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
@@ -609,7 +661,7 @@ describe("ElementsPanel layout", () => {
       );
     });
     expect(uploadImageToStorage).toHaveBeenCalledWith(degradedDataImage);
-    expect(uploadImageToStorage).not.toHaveBeenCalledWith("blob:element-reference-local-file");
+    expect(uploadImageBlobToStorage).not.toHaveBeenCalled();
   });
 
   it("recovers element internal drops from storage when the resolver blob loader is stale", async () => {
@@ -679,7 +731,9 @@ describe("ElementsPanel layout", () => {
         "https://example.com/uploaded/internal-drop.png"
       );
     });
-    expect(uploadImageToStorage).toHaveBeenCalledWith("blob:recovered-internal-reference");
+    expect(uploadImageBlobToStorage).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(uploadImageBlobToStorage).mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    expect(uploadImageToStorage).not.toHaveBeenCalledWith("blob:recovered-internal-reference");
     expect(ensureSupabaseQueryClientMock).toHaveBeenCalled();
   });
 
@@ -689,22 +743,7 @@ describe("ElementsPanel layout", () => {
       resolvePrimaryUpload = resolve;
     });
 
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      writable: true,
-      value: vi.fn((file: Blob) => {
-        const name =
-          file instanceof File && typeof file.name === "string" ? file.name : "reference.png";
-        return name.includes("primary") ? "blob:primary-reference" : "blob:secondary-reference";
-      }),
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      writable: true,
-      value: vi.fn(),
-    });
-
-    vi.mocked(uploadImageToStorage)
+    vi.mocked(uploadImageBlobToStorage)
       .mockImplementationOnce(async () => primaryUploadPromise)
       .mockImplementationOnce(async () => "https://example.com/uploaded/secondary-reference.png");
 
@@ -726,7 +765,7 @@ describe("ElementsPanel layout", () => {
     fireEvent.drop(secondaryZone, { dataTransfer: createFileDataTransfer(secondaryFile) });
 
     await waitFor(() => {
-      expect(uploadImageToStorage).toHaveBeenCalledTimes(2);
+      expect(uploadImageBlobToStorage).toHaveBeenCalledTimes(2);
     });
     await waitFor(() => {
       expect(screen.getByAltText("Secondary View reference")).toHaveAttribute(

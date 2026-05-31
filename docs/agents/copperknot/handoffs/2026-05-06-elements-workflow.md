@@ -1,5 +1,13 @@
 # Next-Agent Handoff: Elements Workflow Hardening
 
+Historical note:
+
+- This May 6 packet is no longer the live dispatch-ready Elements handoff.
+- The current active packet is:
+  - `docs/agents/copperknot/handoffs/2026-05-30-elements-approved-panel-runtime-hardening.md`
+- Reason:
+  - current launch truth says the remaining Elements risk is approved-panel/runtime debt, and the user has explicitly forbidden UI, UX, and intended behavior changes.
+
 ## Lane Id
 
 `elements-workflow-hardening`

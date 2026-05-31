@@ -156,6 +156,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0085-global-media-library-folder-authority.md`
 - `docs/adr/0086-motion-reference-video-lease-cleanup.md`
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
+- `docs/adr/0088-admin-priced-billed-credit-authority.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/systems/README.md`

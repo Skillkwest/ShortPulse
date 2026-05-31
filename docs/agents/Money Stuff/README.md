@@ -105,9 +105,10 @@ Adjacent but not default-owned:
 ## Admin Pricing Authority Split
 
 - Scott is the primary author and maintainer of the admin pricing page at `frontend/pages/admin/pricing.tsx`.
-- Money Stuff treats `/admin/pricing` and its shared pricing state as a canonical authority input surface for runtime pricing, credits UX, and product pricing interpretation.
-- Money Stuff owns executive decision authority for how product UI, credit costs, guardrails, and billing-facing behavior should align to the active pricing policy exposed through that surface.
+- For AI usage pricing, the admin pricing grid's canonical `Billed credits` variant rows are the final authority for product pricing behavior.
+- Money Stuff owns executive decision authority for how product UI, credit costs, guardrails, and server billing behavior align to those canonical billed-credit rows.
 - Money Stuff must not edit or maintain the admin pricing page implementation itself unless the user explicitly reassigns that page lane.
+- Shared-policy/runtime pricing math is deprecated as billed-credit authority for AI usage pricing and must not remain the final source of truth for live display or debit behavior.
 
 ## Truth Priority
 
@@ -138,7 +139,7 @@ Money Stuff may:
 
 - inspect and change billing code, docs, tests, and diagnostics when the user requests billing work,
 - audit Stripe/Supabase/catalog/profile parity,
-- treat `/admin/pricing` as the primary authority surface for active runtime pricing policy and use it to drive downstream pricing decisions,
+- treat `/admin/pricing` as the primary operator authority surface for canonical AI usage billed-credit rows and use it to drive downstream pricing decisions,
 - harden support/admin billing repair flows,
 - create or update retained training/history artifacts for durable billing lessons,
 - recommend validation, telemetry, reconciliation, and stop points for billing changes.
@@ -151,6 +152,12 @@ Money Stuff may not:
 - assume production verification succeeded without evidence from the real environment,
 - edit or maintain `frontend/pages/admin/pricing.tsx` or its page-level admin UX by default; Scott remains the primary author of that page unless the user explicitly reassigns it,
 - or work inside Gottspan-owned repo-steward surfaces. Gottspan behavior, prompts, memory, reports, runtime-load policy, training artifacts, and folder maintenance are out of scope for Money Stuff and must not be edited, pruned, retrained, or maintained from this lane.
+
+For AI usage billed pricing decisions specifically:
+
+- button display must read the canonical billed-credit variant row,
+- server debit must read that same canonical billed-credit variant row,
+- and missing variant rows must fail closed instead of falling back to shared-policy math or provider-derived pricing formulas.
 
 ## Operating Guardrails
 

@@ -1,7 +1,8 @@
 # 0068: Model Pricing Control Plane
 
 ## Status
-Accepted
+
+Superseded in part by `docs/adr/0088-admin-priced-billed-credit-authority.md`
 
 ## Context
 
@@ -36,7 +37,7 @@ Expose service-role-only RPCs:
 - `apply_model_pricing_policy(...)`
 - `rollback_model_pricing_policy(...)`
 
-Runtime pricing authority is now:
+Runtime pricing authority was established as:
 
 1. server billing resolves the active policy through the control-plane helper
 2. authenticated AI Studio clients fetch the same active policy snapshot through `/api/pricing/model-policy`
@@ -65,3 +66,4 @@ Runtime pricing authority is now:
 - Subscription/top-up/storage catalog pricing remains a separate control domain.
 - Model pricing policy is versioned globally, not per profile/family.
 - Billability still depends on route implementation. Model/workflow metadata can declare pricing authority intent, but an action is only truly billable when its server route settles through the shared generation-billing path.
+- ADR `0088` supersedes this ADR for final AI usage billed-credit authority. The control plane remains relevant as historical architecture and possible migration plumbing, but it is no longer the durable authority target for billed-credit display/debit behavior.

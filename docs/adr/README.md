@@ -102,3 +102,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0085-global-media-library-folder-authority.md`
 - `docs/adr/0086-motion-reference-video-lease-cleanup.md`
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
+- `docs/adr/0088-admin-priced-billed-credit-authority.md`

@@ -203,7 +203,10 @@ Behavior:
 5. Project workspace writes backstop those associations by extracting restore-relevant `savedMediaIds`, `promptId`, and `generationId` values from the saved snapshot and associating only ids that the caller already owns.
 6. Project workspace reads keep the saved snapshot fast; AI Studio's post-bootstrap generated-output maintenance uses `project_generation_items` to refresh delivery for reopen without scanning all user-global generation rows.
 7. The AI Studio autosave toggle governs automatic Media Library saving only. It does not disable private restore-durability persistence used to keep local project references restorable across reload or reopen.
-8. This association layer is additive; it does not change the visibility of `All Media` or other user-global library surfaces yet.
+8. `project_generation_items` is membership authority, not media-display authority. A completed generated output is displayable in Reference Grid, Quick Slot Inventory, or Detail Modal only when it has durable media authority through owned canonical storage, saved media ids, or canonical generated-output/publication media. Provider URLs alone are not enough for visible success rows.
+9. Quick Slot ids must be resolved through generated-output aliases (`generated:<generationId>`, raw `generationId`, `taskId`, and `sourceRef`) before pruning so canonical hydration does not detach saved quick-slot ownership.
+10. Detail Modal canonical media recovery on project routes must pass the active `projectId` to the reference download resolver and show a resolving state while canonical media is being signed; `Media unavailable.` is a terminal display verdict, not an in-flight loading state.
+11. This association layer is additive; it does not change the visibility of `All Media` or other user-global library surfaces yet.
 
 ## Explicit non-goals for the current shipped foundation
 
@@ -228,6 +231,7 @@ Behavior:
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioProjectWorkspaceRestoreCandidate.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioPersistenceActions.identity.test.ts`
+- `npm -C frontend run test -- generatedMediaAuthority generatedOutputHydration directGenerationSettlement recoveryExecution generationProjection projectGenerationAssociationsService projectWorkspaceStatesService referenceProjections useAiStudioReferenceProjectionEffects DetailModal referenceDownload useAiStudioPreviewDetailProps`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioWorkflowSettings.test.ts`
 - `npm -C frontend run test -- features/ai-studio/logic/__tests__/mediaLibraryPersistence.test.ts`
 - `npm -C frontend run test -- tests/api/media-list.test.ts`

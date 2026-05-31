@@ -1,0 +1,62 @@
+# Elements Approved Panel Runtime Hardening Closeout
+
+- lane id: `elements-approved-panel-runtime-hardening`
+- source handoff path: `docs/agents/copperknot/handoffs/2026-05-30-elements-approved-panel-runtime-hardening.md`
+- execution status: `bounded hardening patch complete`
+- systems touched:
+  - `ai-studio-elements-workflow`
+  - `media-delivery-signing-preview-resolution`
+- files changed:
+  - `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`
+  - `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts`
+  - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-30-elements-approved-panel-runtime-hardening-closeout.md`
+- summary of what changed:
+  - Hardened the shared approved-panel preview-signing runtime so background storage-download fallback now covers the full five-card first visual row on visible panel surfaces instead of stopping at four visible unresolved cards.
+  - Kept the change inside the shared runtime seam used by `elements-media-panel`, `media-library-panel`, and `character-media-panel`; no panel component, layout, copy, or interaction logic changed.
+  - Added a regression test proving the Elements-approved panel surface now escalates fallback recovery for the fifth unresolved visible card instead of leaving it outside the recovery window.
+- acceptance criteria reached:
+  - Identified one exact approved-panel runtime seam still contributing to missing-preview risk: the shared fallback recovery limit was smaller than the shipped five-card visual priority row.
+  - Implemented one bounded backend/runtime hardening change that reduces the approved Elements panel missing-preview risk without changing UI, UX, or intended user-visible behavior.
+  - Added targeted validation for the shared media-panel/runtime seam.
+- evidence snapshot:
+  - Source of truth for lane scope: `docs/agents/copperknot/handoffs/2026-05-30-elements-approved-panel-runtime-hardening.md`
+  - System rows reviewed:
+    - `docs/systems/catalog.md` row `ai-studio-elements-workflow` (`5/10`, below floor, reviewed `2026-05-30`)
+    - `docs/systems/catalog.md` row `media-delivery-signing-preview-resolution` (`6/10`, at floor, reviewed `2026-05-30`)
+  - Runtime evidence anchors reviewed:
+    - `docs/records/artifacts/agent/holomony/reports/current/2026-05-21-approved-panel-runtime-check.md`
+    - `docs/records/artifacts/agent/copperknot/reports/2026-05-30-production-post-redeploy-baseline-refresh.md`
+    - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-28-elements-workflow-hardening-closeout.md`
+  - Code seam inspected:
+    - `frontend/features/ai-studio/components/EmbeddedMediaLibraryPanel.tsx`
+    - `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`
+    - `frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts`
+    - `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
+  - Freshness: inspected and changed on `2026-05-30`
+  - Surface type: repo/worktree code plus local targeted validation only; no new production-URL validation was gathered in this lane
+- validation run:
+  - `npm -C frontend run test -- --run features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts`
+  - `npm -C frontend run test -- --run features/media-library/runtime/__tests__/useMediaLibraryPanelRuntime.test.ts features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx`
+  - `npm -C frontend run docs:check`
+- validation evidence:
+  - `features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts`: `23/23` tests passed, including the new five-card fallback regression.
+  - `features/media-library/runtime/__tests__/useMediaLibraryPanelRuntime.test.ts`: `6/6` tests passed.
+  - `features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx`: `13/13` tests passed.
+  - `npm -C frontend run docs:check`: passed.
+- self-audit findings:
+  - The shared fallback-recovery slice was still hard-coded to `4` even though the approved panel intentionally prioritizes a five-card first visual row.
+  - That mismatch meant one visible approved-panel card could remain outside the background recovery lane after signing and resolver fallback were already exhausted.
+- issues fixed during self-audit:
+  - Replaced the hard-coded fallback limit with a panel-aware resolver that uses the canonical panel column count for visible approved-panel surfaces.
+  - Added a regression that exercises six visible unresolved cards and proves only the first five approved-panel cards get the bounded fallback treatment.
+- issues intentionally left out of scope:
+  - No open-phase sign-budget tuning
+  - No media-list API seeding changes
+  - No panel UI, layout, or interaction changes
+  - No project/workspace persistence work
+- blockers encountered:
+  - None
+- residual risk:
+  - This lane hardens one exact missing-preview seam, but it does not remeasure production `sign-batch` p95 or prove that all remaining Elements approved-panel preview misses are cleared. Other causes, such as mixed-open row composition pressure or video-specific preview-path behavior, may still exist.
+- recommended next step for Copperknot review:
+  - Review this closeout as shared runtime evidence for the `Elements workflow` lane, then decide whether the next bounded follow-up should target production remeasurement of `elements-media-panel` missing-preview ratio or a separate signing-cost seam if Holomony still sees high open-phase sign latency after this patch lands.

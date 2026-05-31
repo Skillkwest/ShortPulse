@@ -183,15 +183,18 @@ Operational rules:
 
 - Treat catalog pricing and runtime model pricing as separate domains even though they share `/admin/pricing`.
 - Treat the `/admin/pricing` truth grid as the only promotable runtime pricing calculator. Plan economics, usage mix, and summary modules are downstream analysis only and must never become a second pricing authority.
-- Treat ElevenLabs sound-generation rows on `/admin/pricing` as `Shared policy` models once they are wired through shared runtime pricing and server debits. These rows should expose live previews and shared-policy override controls.
-- Treat remaining ElevenLabs `Metadata only` rows as informational supporting/provider-preview inventory. They are not billable through the shared model-pricing control plane.
+- For AI usage pricing, treat the admin pricing grid's canonical `Billed credits` variant rows as the final operator-authored price authority.
+- Require both generate-button display and actual server debit to read the same canonical billed-credit variant row for the real billed configuration.
+- If a billed configuration has no canonical variant row, fail closed. Do not fall back to shared-policy math, provider-derived formulas, or local estimate logic.
+- Treat ElevenLabs sound-generation rows on `/admin/pricing` as canonical billed-credit rows once they are wired into the same admin-authored billed-credit authority path as the rest of AI usage pricing.
+- Treat remaining ElevenLabs `Metadata only` rows as informational supporting/provider-preview inventory. They are not billable through the canonical billed-credit authority path.
 - `Create new plan` is a new tier-identity flow. It creates the `billing_plans` row, first current monthly and annual public `billing_plan_offers` rows, the Stripe product, and the Stripe recurring prices together.
 - Plan and storage changes create new public offers for future acquisitions; they do not mutate historical subscriber contracts.
 - Plan and storage offer activation must use the service-role-only atomic RPCs so the previous public acquisition offer is closed and the next offer is inserted in one transaction.
 - Credit-package updates change the active package row used for future top-up checkout.
 - Paid catalog activations must validate the Stripe price before writing: active, USD, amount match, expected interval for recurring offers, and matching ShortPulse catalog metadata when present.
-- Model-pricing policy changes affect future AI Studio estimates and server debits immediately after activation.
-- Model-pricing rollback returns the runtime to the last-known-safe versioned policy; use rollback instead of hand-editing pricing tables or invoking RPCs manually.
+- AI usage pricing changes affect future AI Studio button display and server debits once the canonical billed-credit rows are updated and activated.
+- Any remaining model-pricing control-plane rollback paths are migration-era controls only; do not treat them as the durable operator authority over billed credits.
 - Dashboard special offers are marketing/acquisition cards only. They can advertise discounts or deals, but they do not mutate catalog pricing, model debit policy, subscriber contracts, or Stripe prices by themselves.
 - Stripe-linked public catalog rows must keep valid `stripe_price_id` values before activation for any paid acquisition offer or active paid top-up package.
 - Internal comp remains limited to the canonical hidden offers (`media`, `studio`, `business`) unless a future billing-contract change explicitly widens that support for admin-created plans.
@@ -201,13 +204,13 @@ Recommended operator sequence:
 1. Open `/admin/pricing` and inspect state warnings first.
 2. For a brand-new plan, use `Create new plan` so ShortPulse and Stripe are created together.
 3. For existing plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
-4. For model-pricing changes, edit the truth grid, review the compact plan/usage support modules, then verify the effective credit conversion, per-model markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
+4. For AI usage pricing changes, edit the truth grid, verify the exact canonical `Billed credits` variant rows needed by live product workflows, and confirm those same rows are what billable UI and server debit consume.
 5. After any pricing change, verify the customer-facing catalog on `/profile?section=credits` and `/profile?section=storage`.
 6. Verify `/profile?section=subscription` still routes each plan card to the intended self-serve flow:
    - free/internal-comp to paid should open Stripe Checkout for the selected target plan
    - Stripe-managed paid upgrades/downgrades should open a Stripe Billing Portal plan-change flow
    - internal-comp to Free should complete in-app and return the user to the subscription section
-7. After any model-pricing policy change, verify AI Studio estimate chips and one server-side debit path still agree on billed credits.
+7. After any AI usage pricing change, verify AI Studio button display and one server-side debit path still agree on the same canonical billed-credit row.
 
 ## Charging model behavior
 
@@ -299,12 +302,12 @@ Recommended operator sequence:
   - delta credits
   - pricing display source
   - whether the client considered pricing policy ready
-- Normal healthy traffic should leave `pricingObservabilityMismatchRows` empty for shared-policy billable surfaces.
+- Normal healthy traffic should leave `pricingObservabilityMismatchRows` empty for canonically priced billed surfaces.
 - If mismatch rows appear:
-  1. confirm the action is supposed to be `billable_shared_policy`
-  2. verify the client surface uses the shared pricing adapter instead of local pricing math
-  3. verify the route rebuilds canonical pricing params before `chargeGenerationRequest()`
-  4. only after that inspect active model-pricing policy changes for intentional pricing shifts
+  1. confirm the action is supposed to be a billed canonical-variant-row action
+  2. verify the client surface resolves the same billed-credit row the admin pricing grid exposes
+  3. verify the route resolves that same canonical billed-credit row before `chargeGenerationRequest()`
+  4. only after that inspect admin pricing changes for intentional pricing shifts
 
 ## Media storage quota contract
 

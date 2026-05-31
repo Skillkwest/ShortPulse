@@ -4,17 +4,17 @@ Purpose: provide a fast release-control view derived from `docs/systems/catalog.
 
 ## Snapshot
 
-- Snapshot date: `2026-05-19`
-- Snapshot freshness as of `2026-05-19`: `current`
+- Snapshot date: `2026-05-30`
+- Snapshot freshness as of `2026-05-30`: `current`
 - Freshness reason:
-  - launch-state fields were refreshed against a full repo-plus-worktree audit on `production`
-  - the May 16 rerating package was preserved as historical evidence, not overwritten
-  - a focused May 19 validation pass was run from `frontend/` using the bundled Node runtime to avoid stale shell-path assumptions
+  - launch-state fields were refreshed against a fresh post-redeploy repo-plus-production audit on `production`
+  - the latest AI Studio/media-authority commit and the bounded Elements closeout were both reconciled into the control surface
+  - a targeted May 30 validation pass plus production route parity re-established current launch truth after redeploy
 - Primary sources:
   - `docs/systems/catalog.md`
   - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
   - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-19-production-baseline-refresh.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-30-production-post-redeploy-baseline-refresh.md`
 
 ## Freshness Rule
 
@@ -36,16 +36,16 @@ For exact sequencing inside a priority band, the handoff queue remains the autho
 
 ## Release-Control Summary
 
-| Signal                                             | Current value |
-| -------------------------------------------------- | ------------- |
-| `P0` systems below floor                           | `3`           |
-| Active ship-path blockers                          | `0`           |
-| Active local regression reviews                    | `0`           |
-| External lanes still running                       | `0`           |
-| Reviewed-complete lanes awaiting broader rerate    | `1`           |
-| Undispatched below-floor lanes with handoffs ready | `2`           |
-| Non-blocking production findings tracked           | `3`           |
-| Score changes made in this refresh                 | `0`           |
+| Signal                                          | Current value |
+| ----------------------------------------------- | ------------- |
+| `P0` systems below floor                        | `3`           |
+| Active ship-path blockers                       | `0`           |
+| Active local regression reviews                 | `0`           |
+| External lanes still running                    | `0`           |
+| Reviewed-complete lanes awaiting broader rerate | `1`           |
+| Active below-floor lanes with handoffs ready    | `2`           |
+| Non-blocking production findings tracked        | `3`           |
+| Score changes made in this refresh              | `0`           |
 
 Catalog-tool health metrics:
 
@@ -57,14 +57,15 @@ Catalog-tool health metrics:
 
 ## Current Worktree Review Note
 
-The May 19 refresh first surfaced one Create-side attachment seam, but the current worktree now carries the fix and the focused rerun is green:
+The current product-code worktree is clean.
 
-- `Create workflow`
-  - the attachment staging/refresh hardening landed during the May 19 audit
-  - focused Create + persistence validation reran cleanly at `193/193`
-  - the row stays at `6/10`, but confidence moved up and the seam is no longer the exact next lane
+The latest launch-relevant repo movement is committed at `755fec94b`, redeployed, and validated green:
 
-This is not a reopened blocker. It is now a score-held row with better trust, not an active local regression review.
+- `npm -C frontend run build`
+- targeted AI Studio/media-authority validation bundle at `18 passed test files` and `385 passed / 385 total tests`
+- `node scripts/verify_deployment_route_parity.mjs --base-url https://www.shortpulse.ai`
+
+This is not a reopened blocker picture. It is a stronger green-proof snapshot that still does not justify score lifts on its own.
 
 ## Below-Floor Systems
 
@@ -106,24 +107,28 @@ This is not a reopened blocker. It is now a score-held row with better trust, no
 - score held after bounded review:
   - `project-workspace-persistence-hardening`
   - `edit-workflow-hardening`
-- score held after May 19 validation:
+- score held after May 30 post-redeploy review:
   - `Create workflow`
-- ready next:
+- score held after accepted Elements runtime closeout:
+  - `Elements workflow`
+- ready after that:
+  - `project-workspace-persistence-hardening`
+- third lane:
   - `characters-workflow-hardening`
-- second open workflow lane:
-  - `elements-workflow-hardening`
+
+The accepted Elements runtime patch is real repo evidence, but the next proof is production remeasurement after the patch lands on `https://www.shortpulse.ai`.
 
 ## Non-Blocking Production Findings
 
-- `Media delivery / signing / preview resolution`
-  - a stale signed-thumb path reached production clients in historical implementation
-  - the May 19 repo refresh hardened delivery/list/signing behavior and focused API tests passed, so the row stays at floor but remains worth watching
-- `Media Library workflow`
-  - Uploaded Images no-match search empty-state copy currently misreads a search miss as if no uploads exist
-  - this is a real production UX defect, but not a blocker
-- `Characters workflow`
-  - Beeper captured a real edit -> reload continuity auth bounce on the now-retired `/character` alias
-  - this is a production trust break, but it remains below the current ship-critical set
+- `Elements workflow`
+  - Holomony's `2026-05-21` approved-panel runtime check still rates the shared media-panel lane as `6/10 fragile`
+  - the May 30 repo/deploy refresh did not reopen `Create workflow`, so this remains the highest-ROI open workflow lane
+- `Reference Grid`
+  - Holomony's `2026-05-25` production baseline still says `no clear blocker`
+  - the May 30 reference-card rendering changes and targeted tests did not reopen the old blocker class
+- `Security boundaries`
+  - Dave's `2026-05-23` storage-state exposure report still leaves hosted session cleanup and history-purge judgment as open follow-through
+  - the row stays at floor, but the finding remains retained as a real production signal
 
 ## How To Use This
 

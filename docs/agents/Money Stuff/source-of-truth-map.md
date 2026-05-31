@@ -100,19 +100,18 @@ Money Stuff should reason about billing in this order:
 - `frontend/pages/admin/pricing.tsx`
 - Scott is the primary author and maintainer of this page implementation.
 
-### Shared pricing authority state
+### Canonical billed-credit authority state
 
 - `frontend/pages/api/admin/pricing/state.ts`
-- `frontend/pages/api/pricing/model-policy.ts`
-- `frontend/lib/server/api/modelPricingControlPlane.ts`
-- `frontend/lib/model-runtime/pricingPolicy.ts`
-- `frontend/lib/model-runtime/pricingStrategies.ts`
 - `frontend/features/admin/pricingCostDocs.ts`
+- canonical operator-authored variant rows exposed through the admin pricing state payload
 
 ### Money Stuff responsibility
 
-- Read `/admin/pricing` as the canonical pricing authority input surface.
-- Use that authority to decide whether product credit costs, button labels, guardrails, and billing-facing UX are aligned.
+- Read `/admin/pricing` as the canonical authority for AI usage `Billed credits` variant rows.
+- Require product credit costs, button labels, guardrails, and billed server debits to align to those same canonical variant rows.
+- Treat shared-policy/runtime pricing math as deprecated authority for final AI usage billed credits.
+- Require missing billed variant rows to fail closed instead of falling back to pricing formulas.
 - Do not edit or maintain the admin pricing page implementation itself unless the user explicitly reassigns that page lane.
 
 ## Annual Renewals

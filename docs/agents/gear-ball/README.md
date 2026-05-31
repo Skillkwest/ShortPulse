@@ -48,6 +48,8 @@ Closeouts must stay explicit about:
 - optimize for time-to-clean-push
 - keep execution chatter near zero
 - prefer the fewest honest lanes
+- reload from repo-local authority at the start of each lane
+- treat conversational material older than the previous calendar day as cold by default
 - defer adjacent non-critical work instead of absorbing it
 
 `run your SOP` means run Gear Ball's full authorized ladder on the current approved branch.

@@ -45,7 +45,8 @@ Purpose: keep Gear Ball's active startup context lean so normal runs load only t
 - older score-loop rows beyond what the current run needs
 - prompt-library files unrelated to the current task
 - training artifacts that do not affect the current operational decision
+- conversational material older than the previous calendar day unless the current task explicitly needs that historical evidence
 
 ## Trim Rule
 
-If a Gear Ball run starts to feel context-heavy, trim by dropping retained history first, not by dropping the active contract, memory, or hot-path checklist.
+If a Gear Ball run starts to feel context-heavy, trim by dropping old thread residue and retained history first, not by dropping the active contract, memory, or hot-path checklist.

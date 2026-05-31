@@ -1,6 +1,6 @@
 # AI Studio Pricing & Model Catalog
 
-Short version: models declare metadata in runtime catalog/registry, pricing strategies compute provider USD, and one shared versioned model-pricing policy applies credit conversion plus per-model markup/rounding so UI estimates and server debits stay in parity.
+Short version: the admin pricing grid now owns final AI usage billed credits. Models still declare metadata and provider-cost context in the runtime catalog, but billable UI display and server debit must both resolve the same canonical `Billed credits` variant row authored through `/admin/pricing`.
 
 ## Where things live
 
@@ -9,11 +9,11 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `frontend/lib/model-runtime/modelSizes.ts` — reusable aspect → size maps.
 - `frontend/lib/model-runtime/pricingStrategies.ts` — per-strategy USD calculators.
 - `frontend/lib/model-runtime/pricingCredits.ts` — shared USD→credits conversion with per-model markup and optional row-specific round-nearest behavior.
-- `frontend/lib/server/api/modelPricingControlPlane.ts` — versioned runtime control-plane resolver for the active pricing policy document.
+- `frontend/lib/server/api/modelPricingControlPlane.ts` — legacy/shared-policy control-plane surface retained only as migration-era architecture until billed lanes stop depending on it.
 - `frontend/lib/model-runtime/pricing.ts` — dispatcher (`computeCostForModel`) and helpers.
-- `frontend/features/ai-studio/logic/clientPricingDisplay.ts` — shared client adapter for billable credit display (`resolveClientPricingBreakdown`, `resolveClientBilledCredits`) that fails closed when the active pricing policy is unavailable.
+- `frontend/features/ai-studio/logic/clientPricingDisplay.ts` — current client pricing adapter; this is not the durable end-state authority once billed lanes are fully migrated onto canonical admin-priced variant lookup.
 - `frontend/features/ai-studio/logic/*` re-export runtime pricing modules for compatibility.
-- `frontend/pages/api/pricing/model-policy.ts` — authenticated client read route for the active policy snapshot.
+- `frontend/pages/api/pricing/model-policy.ts` — legacy/shared-policy snapshot route retained until billed lanes stop depending on shared-policy authority.
 - `frontend/pages/api/admin/pricing/model-policy/apply.ts` / `rollback.ts` — admin mutation routes for versioned policy activation and rollback.
 - `frontend/pages/api/admin/generation-trace.ts` + `frontend/pages/admin/generation-trace.tsx` — operator observability surface for estimate-vs-debit mismatch review via persisted `pricing_observability` metadata.
 - `sql/migrations/096_add_model_pricing_control_plane.sql` — persistent policy versions/runtime pointers/audit events + service-role RPCs.
@@ -22,10 +22,12 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 
 - Model config includes lifecycle/surface metadata, `pricingStrategy`, and optional `sizeMap` for dimension-aware strategies.
 - AI Studio picker options are derived from active catalog models with the `picker` surface; `/admin/pricing` model rows are derived from active, billable catalog models with the `pricing` surface.
-- `computeCostForModel(modelId, params, pricingPolicy?)` returns `{ credits, usd, rawCredits, usdRaw, megapixels, width, height } | null`.
-- Billable UI surfaces must render credits through the shared client adapter rather than direct local `computeCostForModel(...)` calls.
-- If the active pricing policy is unavailable, billable UI must fail closed (`null` / `—`) instead of inventing fallback credits.
+- The canonical AI usage billed-credit value is the operator-authored `Billed credits` variant row from `/admin/pricing`.
+- Billable UI surfaces must resolve and display that exact canonical billed-credit row for the user's real billed configuration.
+- Server-side debit must resolve and charge that same canonical billed-credit row for the same configuration.
+- If the canonical billed-credit variant row is unavailable, billable UI and debit must fail closed instead of inventing fallback credits.
 - Defaults for duration/resolution/audio come from catalog/registry and drive both UI estimate chips and server charge inputs.
+- Shared-policy/runtime pricing math is deprecated as final billed-credit authority. It may remain temporarily as migration plumbing only until billed display and debit paths are fully moved onto canonical variant-row lookup.
 - Active model-pricing policy document fields:
   - `global.creditUsdScale`
   - `perModel[modelId].creditUsdScale`
@@ -42,7 +44,7 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - Blocked-pricing models remain legacy/no-markup until provider evidence is supplied.
 - Current blocked set: none.
 - `usdRaw` is provider USD before markup/rounding; `usd` is billed USD (`credits * 0.01`).
-- Runtime authority: admin edits create a new versioned policy document and update the control-plane singleton; AI Studio clients and server billing both resolve that same active document with a short cache TTL.
+- Runtime authority target: admin edits define canonical billed-credit variant rows, and both AI Studio clients and server billing must consume that same stored variant value.
 - Phase-1 billable surfaces on this contract are:
   - core AI Studio create/edit/image/video generate + regenerate flows
   - standard create primary generate

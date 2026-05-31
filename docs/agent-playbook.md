@@ -81,7 +81,8 @@ Authority shortcuts:
 
 - Run `npm -C frontend run docs:check` to validate markdown/index integrity plus semantic parity checks (routes, API inventory, migrations, archive manifest).
 - Use `skills/skill-session-startup-contract/SKILL.md` at freshness checkpoints to enforce bounded startup preflight, core context loading, and no-edit gating.
-- Use `skills/skill-subagent-audit-research/SKILL.md` when the user asks to audit, inspect, investigate, or do online research; use subagents for substantive lanes when available, allowed, and useful, and close unused subagents at will.
+- The user grants standing repo-level permission to use subagents when useful, subject to the active tool contract. Current-task phrases like `you may use subagents for this task`, `use subagents freely where useful`, or `delegate as needed` are explicit subagent authorization.
+- Use `skills/skill-subagent-audit-research/SKILL.md` when the user asks to audit, inspect, investigate, or do online research; use subagents for substantive lanes when available, allowed, useful, and authorized by the active tool contract, and close unused subagents at will.
 - For system-catalog work, map natural-language surfaces like `create panel`, `edit panel`, or `video panel` to their system rows first; do not create panel rows unless the repo shows a truly separate system boundary.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-pricing-wiring/SKILL.md` when implementing shared-policy pricing display or debit-alignment changes in AI Studio, and run `node scripts/check_ai_studio_pricing_display_drift.js` after touching billable AI Studio pricing surfaces.

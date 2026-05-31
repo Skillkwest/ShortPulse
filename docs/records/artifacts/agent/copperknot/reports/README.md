@@ -5,11 +5,11 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 ## Current Live Surfaces
 
 - `2026-05-06-dispatch-log.md`: current external handoff dispatch status for the active production-readiness window.
-- `2026-05-27-production-baseline-reset-audit.md`: current full repo-plus-worktree baseline reset that replaced the stale May 19 queue truth.
-- `2026-05-28-operator-brief.html`: current rich-format operator brief for the Create-lane acceptance follow-up.
-- `2026-05-28-operator-brief.md`: source-only backing artifact for the current operator brief.
-- `2026-05-28-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the Create validation-convergence closeout.
-- `2026-05-28-launch-ready-checklist.html`: browser-friendly version of the current launch-ready checklist.
+- `2026-05-30-production-post-redeploy-baseline-refresh.md`: current post-redeploy repo-plus-production baseline refresh.
+- `2026-05-30-operator-brief.html`: current rich-format operator brief for the post-redeploy audit.
+- `2026-05-30-operator-brief.md`: source-only backing artifact for the current operator brief.
+- `2026-05-30-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the post-redeploy refresh.
+- `2026-05-30-launch-ready-checklist.html`: browser-friendly version of the current launch-ready checklist.
 
 ## Current Intake Surfaces
 
@@ -28,6 +28,7 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-16-memory-and-catalog-prune-audit.md`: earlier pruning audit for Copperknot memory, retained context, and launch-focus catalog docs.
 - `2026-05-16-workspace-audit.md`: workspace-structure audit confirming the Copperknot space is self-contained and operational.
 - `2026-05-19-production-baseline-refresh.md`: dated full repo-plus-worktree baseline refresh that preserved the original May 6 baseline and updated then-current launch-control truth.
+- `2026-05-27-production-baseline-reset-audit.md`: dated repo-plus-worktree baseline reset that retired the stale May 19 queue order and moved exact-next back to Create validation convergence.
 
 ## Historical Operator Briefs And Checklists
 
@@ -43,6 +44,10 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-27-operator-brief.md`
 - `2026-05-27-launch-ready-checklist.md`
 - `2026-05-27-launch-ready-checklist.html`
+- `2026-05-28-operator-brief.html`
+- `2026-05-28-operator-brief.md`
+- `2026-05-28-launch-ready-checklist.md`
+- `2026-05-28-launch-ready-checklist.html`
 
 ## Historical Retained Reports
 

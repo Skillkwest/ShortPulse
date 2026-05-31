@@ -8,19 +8,20 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 2. Run the repo startup contract.
 3. Verify current branch and `shortpulse.allowedBranch`.
 4. Run the workspace artifact safety check.
-5. Select one run profile:
+5. Drop old thread residue. Unless the lane explicitly needs historical evidence, treat conversational material older than the previous calendar day as cold and re-anchor on repo-local instructions.
+6. Select one run profile:
    - `docs-only`
    - `product-targeted`
    - `shared-runtime`
    - `production-targeted`
    - `production-broad`
-6. Build a full live-worktree inventory and classify every non-temp repo-backed change into:
+7. Build a full live-worktree inventory and classify every non-temp repo-backed change into:
    - publish now
    - defer intentionally
    - ignore as temp/noise
-7. Collapse the inventory into the fewest honest lanes possible. Default target: 1 to 3 lanes total.
-8. If the run is large or mixed, lock a file-backed manifest before staging.
-9. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
+8. Collapse the inventory into the fewest honest lanes possible. Default target: 1 to 3 lanes total.
+9. If the run is large or mixed, lock a file-backed manifest before staging.
+10. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
 
 ## Default Ladders
 
@@ -60,10 +61,12 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 8. Once the commit phase starts, keep Git commands serialized. Do not run parallel `git status`, `git add`, `git diff --cached`, or `git commit` calls.
 9. Before every commit, rerun `git diff --cached --name-only` and compare it to the intended lane manifest so pre-staged files cannot silently leak across batch boundaries.
 10. After every commit, run a post-commit convergence loop:
-   - rerun `git status --short`
-   - compare the live tree to the just-validated lane manifest
-   - if related tails surfaced, fold them back into the same lane before any push or score-loop writeback
-   - do not treat the run as stable until this loop returns clean or only intentionally deferred unrelated work remains
+
+- rerun `git status --short`
+- compare the live tree to the just-validated lane manifest
+- if related tails surfaced, fold them back into the same lane before any push or score-loop writeback
+- do not treat the run as stable until this loop returns clean or only intentionally deferred unrelated work remains
+
 11. Do not commit the score loop while any related repo-backed tail is still live. Score-loop writeback happens only after the final commit set is complete.
 12. Before push, rerun only the final required validation on the exact final tree.
 13. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.

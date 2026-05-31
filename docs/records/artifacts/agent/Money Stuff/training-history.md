@@ -136,3 +136,72 @@ Next training focus:
 
 - Run a real Stripe test-mode walkthrough for top-ups and recurring storage if approval is available.
 - Reassess whether Money Stuff now has enough repeated patterns to justify a rubric, reconciliation checklist, or baseline KPI.
+
+## 2026-05-30: AI Usage Billed-Credit Authority Migration Planning
+
+Task: convert the new admin-priced billed-credit authority decision into the smallest durable migration plan that can safely guide implementation.
+
+Actions taken:
+
+- Audited the repo planning-governance rules before creating a new planning artifact.
+- Chose a retained Money Stuff report instead of a top-level planning program so the plan stays durable without creating unnecessary planning sprawl.
+- Wrote a compact master migration plan for AI usage billed-credit authority cutover.
+- Locked the lane order:
+  - Create
+  - Edit
+  - Video
+  - Sound
+- Locked the invariant that display, guardrail, submit metadata, server debit, and observability must switch together for each lane.
+
+Training result:
+
+- Money Stuff now has a reusable migration posture for cross-system billing-authority replacements:
+  - one compact master plan,
+  - lane-by-lane execution,
+  - no isolated display-only cutovers.
+
+Next training focus:
+
+- Build the Create-only implementation plan from the compact master plan.
+- Define the exact canonical Create variant lookup key before any code migration starts.
+
+## 2026-05-30: Create Lane Billing-Authority Cutover Plan
+
+Task: turn the compact billed-credit migration plan into an executable Create-only cutover plan before implementation begins.
+
+Actions taken:
+
+- Audited the real Create pricing consumers across:
+  - button display,
+  - model picker chips,
+  - agent-output Create actions,
+  - guardrail/optimistic debit,
+  - submit metadata,
+  - server debit.
+- Confirmed Create is not a single priced operation:
+  - standard Create can remain text-to-image,
+  - Create can silently become edit-priced when references or masks are present,
+  - Character Mode can remap Create onto paired edit models.
+- Locked the minimum Create canonical priced key:
+  - surface
+  - workflow
+  - operation
+  - model id
+  - aspect
+  - resolution
+  - input image count
+  - input fidelity
+  - mask present
+- Locked the Create fail-closed rule and the exact proof gate needed before calling the lane migrated.
+
+Training result:
+
+- Money Stuff now has a reusable pattern for first-lane authority cutovers:
+  - compact master migration plan first,
+  - then one exact lane execution plan grounded in the actual billed operation shape.
+- The Create lane is now ready for implementation planning without guessing or inventing fallback pricing structure.
+
+Next training focus:
+
+- Implement the canonical Create billed-credit row lookup path.
+- Cut display and server debit over together so no temporary authority split is introduced.

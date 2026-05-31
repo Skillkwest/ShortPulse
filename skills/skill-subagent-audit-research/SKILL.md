@@ -7,7 +7,7 @@ description: Coordinate subagent use for ShortPulse audit, inspection, investiga
 
 ## Overview
 
-Use this skill to honor the repo preference for subagent-assisted audit, inspection, and online research work without forcing unnecessary delegation on tiny tasks. The agent owns the decision: use subagents when the task has meaningful audit/research scope and subagents are available and allowed; record why not when they are unnecessary or unsuitable.
+Use this skill to honor the repo preference for subagent-assisted audit, inspection, and online research work without forcing unnecessary delegation on tiny tasks. The user grants standing repo-level permission for subagents when useful, but the active subagent tool contract still controls whether a current request is authorized. Treat current-task phrases like `you may use subagents for this task`, `use subagents freely where useful`, `delegate as needed`, or equivalent wording as explicit authorization. The agent owns the decision: use subagents when the task has meaningful audit/research scope and subagents are available, allowed, useful, and authorized; record why not when they are unnecessary or unsuitable.
 
 ## Decision Rule
 
@@ -15,9 +15,9 @@ Use this skill to honor the repo preference for subagent-assisted audit, inspect
    - Use this skill for audit, inspect, investigation, broad review, codebase survey, evidence gathering, or online research requests.
    - Treat "online research" as a research lane even when browsing is only one part of the task.
 2. Decide whether subagents are needed for the actual scope.
-   - Use at least one subagent for substantive audit, inspection, or online research lanes when subagents are available and platform policy permits them.
+   - Use at least one subagent for substantive audit, inspection, or online research lanes when subagents are available and the active tool contract permits or the current task explicitly authorizes them.
    - Skip subagents for narrow factual checks, single-file edits, one-command answers, or tasks where the immediate next step depends entirely on local context.
-   - Skip subagents when the platform/session disallows them, but state that constraint in the final response.
+   - Skip subagents when the platform/session/tool contract disallows them or requires explicit current-task authorization that the user has not provided, but state that constraint in the final response.
 3. Keep the main rollout on the critical path.
    - Do immediate blocking work locally.
    - Delegate bounded sidecar tasks that can run independently and materially reduce risk.

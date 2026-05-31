@@ -510,18 +510,39 @@ const resolveOwnedGenerationIds = async ({
   const ownedGenerationIds = new Set<string>();
 
   for (const generationIdChunk of chunkValues(canonicalGenerationIds)) {
-    const { data, error } = await supabaseAdmin
-      .from("ai_generations")
-      .select("id")
-      .eq("user_id", userId)
-      .in("id", generationIdChunk);
+    const [
+      { data: generationData, error: generationError },
+      { data: projectionData, error: projectionError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("ai_generations")
+        .select("id")
+        .eq("user_id", userId)
+        .in("id", generationIdChunk),
+      supabaseAdmin
+        .from("generation_projection")
+        .select("generation_id")
+        .eq("user_id", userId)
+        .in("generation_id", generationIdChunk),
+    ]);
 
-    if (error) {
-      throw new Error(error.message || "Failed to resolve owned generation ids");
+    if (generationError) {
+      throw new Error(generationError.message || "Failed to resolve owned generation ids");
+    }
+    if (projectionError) {
+      throw new Error(
+        projectionError.message || "Failed to resolve owned generation projection ids"
+      );
     }
 
-    (Array.isArray(data) ? data : []).forEach((row) => {
+    (Array.isArray(generationData) ? generationData : []).forEach((row) => {
       const idValue = asRecord(row).id;
+      if (typeof idValue === "string" && idValue.trim().length > 0) {
+        ownedGenerationIds.add(idValue.trim());
+      }
+    });
+    (Array.isArray(projectionData) ? projectionData : []).forEach((row) => {
+      const idValue = asRecord(row).generation_id;
       if (typeof idValue === "string" && idValue.trim().length > 0) {
         ownedGenerationIds.add(idValue.trim());
       }

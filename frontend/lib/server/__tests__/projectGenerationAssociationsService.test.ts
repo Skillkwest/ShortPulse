@@ -8,6 +8,10 @@ import {
 const projectMaybeSingleMock = vi.fn();
 let ownedMediaQueryResult: { data: unknown; error: unknown } = { data: [], error: null };
 let ownedGenerationQueryResult: { data: unknown; error: unknown } = { data: [], error: null };
+let ownedGenerationProjectionQueryResult: { data: unknown; error: unknown } = {
+  data: [],
+  error: null,
+};
 const ownedMediaSelectBuilder = {
   eq: vi.fn(),
   in: vi.fn(),
@@ -32,6 +36,18 @@ const ownedGenerationSelectBuilder = {
 };
 ownedGenerationSelectBuilder.eq.mockReturnValue(ownedGenerationSelectBuilder);
 ownedGenerationSelectBuilder.in.mockReturnValue(ownedGenerationSelectBuilder);
+const ownedGenerationProjectionSelectBuilder = {
+  eq: vi.fn(),
+  in: vi.fn(),
+  then: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["then"]>) =>
+    Promise.resolve(ownedGenerationProjectionQueryResult).then(...args),
+  catch: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["catch"]>) =>
+    Promise.resolve(ownedGenerationProjectionQueryResult).catch(...args),
+  finally: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["finally"]>) =>
+    Promise.resolve(ownedGenerationProjectionQueryResult).finally(...args),
+};
+ownedGenerationProjectionSelectBuilder.eq.mockReturnValue(ownedGenerationProjectionSelectBuilder);
+ownedGenerationProjectionSelectBuilder.in.mockReturnValue(ownedGenerationProjectionSelectBuilder);
 const mediaOwnershipSelectMock = vi.fn<(columns: string) => typeof ownedMediaSelectBuilder>(
   () => ownedMediaSelectBuilder
 );
@@ -124,11 +140,18 @@ describe("associateGenerationWithProjectForUser", () => {
     vi.clearAllMocks();
     ownedMediaQueryResult = { data: [], error: null };
     ownedGenerationQueryResult = { data: [], error: null };
+    ownedGenerationProjectionQueryResult = { data: [], error: null };
     ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
     ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
     ownedGenerationSelectBuilder.eq.mockReturnValue(ownedGenerationSelectBuilder);
     ownedGenerationSelectBuilder.in.mockReturnValue(ownedGenerationSelectBuilder);
     generationOwnershipSelectMock.mockImplementation(() => ownedGenerationSelectBuilder);
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id") {
+        return ownedGenerationProjectionSelectBuilder;
+      }
+      return createAwaitableSelectBuilder({ data: [], error: null });
+    });
     generationPublicationsSelectMock.mockReturnValue(
       createAwaitableSelectBuilder({
         data: [],
@@ -159,6 +182,40 @@ describe("associateGenerationWithProjectForUser", () => {
       expect.objectContaining({
         project_id: "project-1",
         generation_id: "gen-1",
+        user_id: "user-1",
+      }),
+      {
+        onConflict: "project_id,generation_id",
+      }
+    );
+  });
+
+  it("accepts projection-backed ownership when associating a generation to a project", async () => {
+    projectMaybeSingleMock.mockResolvedValue({
+      data: { id: "project-1" },
+      error: null,
+    });
+    ownedGenerationQueryResult = {
+      data: [],
+      error: null,
+    };
+    ownedGenerationProjectionQueryResult = {
+      data: [{ generation_id: "gen-projection-1" }],
+      error: null,
+    };
+    associationUpsertMock.mockResolvedValue({ error: null });
+
+    const associated = await associateGenerationWithProjectForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "gen-projection-1",
+    });
+
+    expect(associated).toBe(true);
+    expect(associationUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project_id: "project-1",
+        generation_id: "gen-projection-1",
         user_id: "user-1",
       }),
       {

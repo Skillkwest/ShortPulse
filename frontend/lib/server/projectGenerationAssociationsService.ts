@@ -201,18 +201,37 @@ const resolveOwnedGenerationIds = async ({
   const ownedGenerationIds = new Set<string>();
 
   for (const generationIdChunk of chunkValues(generationIds)) {
-    const { data, error } = await supabaseAdmin
-      .from("ai_generations")
-      .select("id")
-      .eq("user_id", userId)
-      .in("id", generationIdChunk);
+    const [
+      { data: generationData, error: generationError },
+      { data: projectionData, error: projectionError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("ai_generations")
+        .select("id")
+        .eq("user_id", userId)
+        .in("id", generationIdChunk),
+      supabaseAdmin
+        .from("generation_projection")
+        .select("generation_id")
+        .eq("user_id", userId)
+        .in("generation_id", generationIdChunk),
+    ]);
 
-    if (error) {
-      throw new Error(error.message || "Failed to resolve owned ai_generations ids");
+    if (generationError) {
+      throw new Error(generationError.message || "Failed to resolve owned ai_generations ids");
+    }
+    if (projectionError) {
+      throw new Error(
+        projectionError.message || "Failed to resolve owned generation_projection ids"
+      );
     }
 
-    (Array.isArray(data) ? data : [])
+    (Array.isArray(generationData) ? generationData : [])
       .map((row) => asTrimmedString(asRecord(row).id))
+      .filter((id): id is string => Boolean(id))
+      .forEach((id) => ownedGenerationIds.add(id));
+    (Array.isArray(projectionData) ? projectionData : [])
+      .map((row) => asTrimmedString(asRecord(row).generation_id))
       .filter((id): id is string => Boolean(id))
       .forEach((id) => ownedGenerationIds.add(id));
   }

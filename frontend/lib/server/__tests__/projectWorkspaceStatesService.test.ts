@@ -957,6 +957,97 @@ describe("projectWorkspaceStatesService", () => {
     ).toHaveLength(205);
   });
 
+  it("retains quick-slot generated outputs when ownership is projection-backed during workspace save", async () => {
+    const { generationAssociationUpsert, workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [GENERATION_ID_2],
+      recentGenerationIds: [GENERATION_ID_2],
+      projectionRows: [
+        {
+          generation_id: GENERATION_ID_2,
+          request_id: "task-projection-only-1",
+          preview_url: "https://cdn.example.com/projection-only.png",
+          result_urls: ["https://cdn.example.com/projection-only.png"],
+          preview_storage_path: "user-1/generated/projection-only-preview.png",
+          full_storage_path: "user-1/generated/projection-only-full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Projection-only generated output",
+          provider: "fal",
+          model_id: "fal-ai/seedream",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-projection-only-save",
+        updatedAt: "2026-05-31T18:00:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T18:00:00.000Z",
+          checksum: "fnv1a32:projection-only-save",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Projection-only project workspace",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-projection-only-1",
+              generationId: GENERATION_ID_2,
+              mediaSource: "generated",
+              previewUrl: "https://cdn.example.com/projection-only.png",
+              resultUrls: ["https://cdn.example.com/projection-only.png"],
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-projection-only-1",
+          curatedReferenceIds: ["out-projection-only-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(firstWorkspaceUpsertArg?.snapshot?.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "out-projection-only-1",
+          generationId: GENERATION_ID_2,
+        }),
+      ],
+      curatedReferenceIds: ["out-projection-only-1"],
+    });
+    expect(generationAssociationUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          generation_id: GENERATION_ID_2,
+          user_id: "user-1",
+        }),
+      ],
+      {
+        onConflict: "project_id,generation_id",
+      }
+    );
+  });
+
   it("strips out-of-scope preview storage paths before saving project workspace snapshots", async () => {
     const { workspaceUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
@@ -1678,6 +1769,77 @@ describe("projectWorkspaceStatesService", () => {
           previewUrl: "https://cdn.example.com/upload.png",
         }),
       ],
+    });
+  });
+
+  it("retains quick-slot generated outputs during workspace read when ownership is projection-backed", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-projection-only-read",
+        updatedAt: "2026-05-31T18:05:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T18:05:00.000Z",
+          checksum: "fnv1a32:projection-only-read",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-projection-only-1",
+              generationId: GENERATION_ID_2,
+              mediaSource: "generated",
+              previewUrl: "https://cdn.example.com/projection-only.png",
+              resultUrls: ["https://cdn.example.com/projection-only.png"],
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-projection-only-1",
+          curatedReferenceIds: ["out-projection-only-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      associatedSnapshotGenerationIds: [GENERATION_ID_2],
+      recentGenerationIds: [GENERATION_ID_2],
+      projectionRows: [
+        {
+          generation_id: GENERATION_ID_2,
+          request_id: "task-projection-only-1",
+          preview_url: "https://cdn.example.com/projection-only.png",
+          result_urls: ["https://cdn.example.com/projection-only.png"],
+          preview_storage_path: "user-1/generated/projection-only-preview.png",
+          full_storage_path: "user-1/generated/projection-only-full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Projection-only generated output",
+          provider: "fal",
+          model_id: "fal-ai/seedream",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "out-projection-only-1",
+          generationId: GENERATION_ID_2,
+        }),
+      ],
+      curatedReferenceIds: ["out-projection-only-1"],
     });
   });
 

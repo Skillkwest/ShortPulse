@@ -17,6 +17,7 @@ type UseAiStudioOutputPersistenceEffectsArgs = {
   activeOutputState: StudioOutputCollectionState;
   archivedOutputState: StudioOutputCollectionState;
   curatedReferenceIds: string[];
+  deferProjectionPrune?: boolean;
   setActiveOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
   setArchivedOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
 };
@@ -32,6 +33,7 @@ export const useAiStudioOutputPersistenceEffects = ({
   activeOutputState,
   archivedOutputState,
   curatedReferenceIds,
+  deferProjectionPrune,
   setActiveOutputState,
   setArchivedOutputState,
 }: UseAiStudioOutputPersistenceEffectsArgs) => {
@@ -42,6 +44,7 @@ export const useAiStudioOutputPersistenceEffects = ({
     activeOutputState,
     archivedOutputState,
     curatedReferenceIds,
+    deferProjectionPrune,
     setActiveOutputState,
     setArchivedOutputState,
   });

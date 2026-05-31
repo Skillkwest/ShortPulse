@@ -2,7 +2,7 @@
  * AI Studio generated-output maintenance.
  * Owns canonical generated-output hydration/sync plus generated and storage poster repair loops.
  */
-import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { StudioOutput } from "../types";
 import {
   listVisibleGeneratedOutputs,
@@ -86,6 +86,10 @@ type UseAiStudioGeneratedOutputMaintenanceParams = {
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
 };
 
+type UseAiStudioGeneratedOutputMaintenanceResult = {
+  canonicalGeneratedHydrationSettled: boolean;
+};
+
 /**
  * Runs generated-output hydration, sync, and poster repair maintenance for AI Studio state.
  */
@@ -96,7 +100,13 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   projectId,
   projectRouteRequested,
   setOutputsState,
-}: UseAiStudioGeneratedOutputMaintenanceParams) => {
+}: UseAiStudioGeneratedOutputMaintenanceParams): UseAiStudioGeneratedOutputMaintenanceResult => {
+  const shouldHydrateProjectGeneratedOutputs = Boolean(projectId) && !hasPendingWorkflowRestore;
+  const shouldHydratePlainSessionGeneratedOutputs =
+    !projectRouteRequested && !projectId && isPlainSessionGeneratedOutputHydrationEnabled();
+  const [canonicalGeneratedHydrationSettled, setCanonicalGeneratedHydrationSettled] = useState(
+    !(shouldHydrateProjectGeneratedOutputs || shouldHydratePlainSessionGeneratedOutputs)
+  );
   const canonicalGeneratedHydrationStartedRef = useRef(false);
   const canonicalGeneratedOutputSyncInFlightRef = useRef(false);
   const audioCompanionArtSyncInFlightRef = useRef(false);
@@ -117,9 +127,12 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   }, [baseRuntimeAuthorityKey]);
 
   useEffect(() => {
-    const shouldHydrateProjectGeneratedOutputs = Boolean(projectId) && !hasPendingWorkflowRestore;
-    const shouldHydratePlainSessionGeneratedOutputs =
-      !projectRouteRequested && !projectId && isPlainSessionGeneratedOutputHydrationEnabled();
+    setCanonicalGeneratedHydrationSettled(
+      !(shouldHydrateProjectGeneratedOutputs || shouldHydratePlainSessionGeneratedOutputs)
+    );
+  }, [shouldHydratePlainSessionGeneratedOutputs, shouldHydrateProjectGeneratedOutputs]);
+
+  useEffect(() => {
     if (
       canonicalGeneratedHydrationStartedRef.current ||
       (!shouldHydrateProjectGeneratedOutputs && !shouldHydratePlainSessionGeneratedOutputs)
@@ -130,19 +143,32 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     let cancelled = false;
 
     void (async () => {
-      const hydratedOutputs = await listVisibleGeneratedOutputs({
-        projectId: projectId ?? null,
-      });
-      if (cancelled || hydratedOutputs.length === 0) return;
-      setOutputsState((currentOutputs) =>
-        mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
-      );
+      try {
+        const hydratedOutputs = await listVisibleGeneratedOutputs({
+          projectId: projectId ?? null,
+        });
+        if (cancelled || hydratedOutputs.length === 0) return;
+        setOutputsState((currentOutputs) =>
+          mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
+        );
+      } catch {
+        // Preserve the current runtime collection when the canonical refresh is unavailable.
+      } finally {
+        if (!cancelled) {
+          setCanonicalGeneratedHydrationSettled(true);
+        }
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [hasPendingWorkflowRestore, projectId, projectRouteRequested, setOutputsState]);
+  }, [
+    projectId,
+    setOutputsState,
+    shouldHydratePlainSessionGeneratedOutputs,
+    shouldHydrateProjectGeneratedOutputs,
+  ]);
 
   useEffect(() => {
     if (!projectId || hasPendingWorkflowRestore) {
@@ -413,4 +439,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       cancelled = true;
     };
   }, [hasPendingWorkflowRestore, outputs, setOutputsState]);
+  return {
+    canonicalGeneratedHydrationSettled,
+  };
 };

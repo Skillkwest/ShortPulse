@@ -41,6 +41,7 @@ const createArgs = (
     activeOutputState: overrides.activeOutputState ?? createCollectionState(runningIds),
     archivedOutputState: overrides.archivedOutputState ?? createCollectionState([]),
     curatedReferenceIds: overrides.curatedReferenceIds ?? runningIds.slice(0, 3),
+    deferProjectionPrune: overrides.deferProjectionPrune ?? false,
     setActiveOutputState: overrides.setActiveOutputState ?? vi.fn(),
     setArchivedOutputState: overrides.setArchivedOutputState ?? vi.fn(),
   };
@@ -103,6 +104,49 @@ describe("useAiStudioReferenceProjectionEffects", () => {
     expect(setReferenceProjectionState).toHaveBeenCalledWith({
       quickSlotIds: ["local-1"],
       removedFromAllRefsIds: ["local-1"],
+    });
+  });
+
+  it("preserves unresolved generated quick-slot ids until canonical hydration settles", () => {
+    const setReferenceProjectionState = vi.fn();
+    const baseArgs = createArgs({
+      setReferenceProjectionState,
+      deferProjectionPrune: true,
+      referenceProjectionState: {
+        quickSlotIds: ["generated:gen-1"],
+        removedFromAllRefsIds: [],
+      },
+      activeOutputState: createCollectionState([]),
+      archivedOutputState: createCollectionState([]),
+      curatedReferenceIds: ["generated:gen-1"],
+    });
+
+    const { rerender } = renderHook(
+      (props: Parameters<typeof useAiStudioReferenceProjectionEffects>[0]) =>
+        useAiStudioReferenceProjectionEffects(props),
+      {
+        initialProps: baseArgs,
+      }
+    );
+
+    expect(setReferenceProjectionState).not.toHaveBeenCalled();
+
+    rerender({
+      ...baseArgs,
+      activeOutputState: {
+        order: ["local-1"],
+        byId: {
+          "local-1": makeOutput("local-1", {
+            generationId: "gen-1",
+            mediaSource: "generated",
+          }),
+        },
+      },
+    });
+
+    expect(setReferenceProjectionState).toHaveBeenCalledWith({
+      quickSlotIds: ["local-1"],
+      removedFromAllRefsIds: [],
     });
   });
 });

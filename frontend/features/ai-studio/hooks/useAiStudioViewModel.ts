@@ -234,8 +234,9 @@ export const useAiStudioViewModel = ({
             modelId: currentCreatePricingTarget.modelId,
             params: currentCreatePricingTarget.params,
             pricingPolicy,
+            requireExplicitBilledCreditsOverride: true,
           });
-          if (pricingGridBreakdown) return pricingGridBreakdown;
+          return pricingGridBreakdown;
         }
         return resolveClientPricingBreakdown({
           modelId: currentCreatePricingTarget.modelId,
@@ -335,6 +336,7 @@ export const useAiStudioViewModel = ({
         modelId: pricingTarget.modelId,
         params: pricingTarget.params,
         pricingPolicy,
+        requireExplicitBilledCreditsOverride: true,
       });
     }
     return resolveClientBilledCredits({
@@ -369,11 +371,15 @@ export const useAiStudioViewModel = ({
 
   const resolveModelPickerCredits = useCallback(
     (modelIdForChip: string): number | null => {
+      const candidatePricingImageResolution = normalizeImageResolutionForCanonicalBilledPricing(
+        modelIdForChip,
+        imageResolution
+      );
       if (canUseStandardCreatePricingGrid && isCreateWorkflowSelected) {
         const pricingTarget = resolveCreatePricingTarget({
           modelId: modelIdForChip,
           aspect,
-          resolution: pricingImageResolution,
+          resolution: candidatePricingImageResolution,
           isCharacterModeEnabled: isCreateCharacterModeEnabled,
           userReferenceImageUrls: createReferenceImageUrls,
           characterModeInjectionBundle: createCharacterModeInjectionBundle,
@@ -384,6 +390,7 @@ export const useAiStudioViewModel = ({
           modelId: pricingTarget.modelId,
           params: pricingTarget.params,
           pricingPolicy,
+          requireExplicitBilledCreditsOverride: true,
         });
       }
       return resolveClientBilledCredits({
@@ -392,8 +399,8 @@ export const useAiStudioViewModel = ({
           modelIdForChip,
           isVideoTool
             ? videoPricingParams
-            : isImageTool && pricingImageResolution
-              ? { resolution: pricingImageResolution }
+            : isImageTool && candidatePricingImageResolution
+              ? { resolution: candidatePricingImageResolution }
               : {}
         ),
         pricingPolicy,
@@ -411,8 +418,8 @@ export const useAiStudioViewModel = ({
       aspect,
       createCharacterModeInjectionBundle,
       createReferenceImageUrls,
+      imageResolution,
       isCreateCharacterModeEnabled,
-      pricingImageResolution,
       videoPricingParams,
     ]
   );
@@ -434,6 +441,7 @@ export const useAiStudioViewModel = ({
         modelId: pricingTarget.modelId,
         params: pricingTarget.params,
         pricingPolicy,
+        requireExplicitBilledCreditsOverride: true,
       });
     }
     return resolveClientBilledCredits({
@@ -476,6 +484,7 @@ export const useAiStudioViewModel = ({
         modelId: pricingTarget.modelId,
         params: pricingTarget.params,
         pricingPolicy,
+        requireExplicitBilledCreditsOverride: true,
       });
     }
     return resolveClientBilledCredits({
@@ -501,11 +510,29 @@ export const useAiStudioViewModel = ({
     pricingImageResolution,
     pricingPolicy,
   ]);
-  const promptReferenceGenerateCostCredits =
-    (isImageTool ? promptGenerateCostCredits : null) ??
-    (isCreateWorkflowSelected && mode === "text" ? createTextImageGenerateCostCredits : null) ??
-    modelPickerCostCredits ??
-    currentCostCredits;
+  const usesCanonicalCreatePromptPricing =
+    canUseStandardCreatePricingGrid && isCreateWorkflowSelected && (isImageTool || mode === "text");
+  const promptReferenceGenerateCostCredits = usesCanonicalCreatePromptPricing
+    ? ((isImageTool ? promptGenerateCostCredits : null) ??
+      (mode === "text" ? createTextImageGenerateCostCredits : null) ??
+      modelPickerCostCredits)
+    : ((isImageTool ? promptGenerateCostCredits : null) ??
+      (isCreateWorkflowSelected && mode === "text" ? createTextImageGenerateCostCredits : null) ??
+      modelPickerCostCredits ??
+      currentCostCredits);
+  const missingCanonicalCreateBilledCreditsGuardrail = useMemo(() => {
+    if (!canUseStandardCreatePricingGrid || !isCreateWorkflowSelected) return null;
+    if (mode !== "image" && !(mode === "text" && !isDescribeMode)) return null;
+    return promptReferenceGenerateCostCredits == null
+      ? "Pricing is unavailable for this configuration. Retry in a moment."
+      : null;
+  }, [
+    canUseStandardCreatePricingGrid,
+    isCreateWorkflowSelected,
+    isDescribeMode,
+    mode,
+    promptReferenceGenerateCostCredits,
+  ]);
   const hasSufficientCreditsForPromptReferenceGenerate =
     balanceCredits == null || promptReferenceGenerateCostCredits == null
       ? true
@@ -594,6 +621,9 @@ export const useAiStudioViewModel = ({
     if (creditStateGuardrail) {
       return creditStateGuardrail;
     }
+    if (missingCanonicalCreateBilledCreditsGuardrail) {
+      return missingCanonicalCreateBilledCreditsGuardrail;
+    }
     if (isVideoTool && isSeedance2Model) {
       if (
         hasSeedance2LinkedAssetReferences &&
@@ -642,6 +672,7 @@ export const useAiStudioViewModel = ({
     seedance2InputMode,
     videoReferenceMode,
     creditStateGuardrail,
+    missingCanonicalCreateBilledCreditsGuardrail,
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);

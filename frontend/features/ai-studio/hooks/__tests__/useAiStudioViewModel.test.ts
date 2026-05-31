@@ -16,7 +16,17 @@ import {
 } from "../../logic/inpaintSubmission";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import { getDefaultModelPricingPolicyDocument } from "../../../../lib/model-runtime/pricingPolicy";
+import { materializeImageBilledCreditPolicy } from "../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import type { CharacterModeInjectionBundle } from "../useAiStudioCharacterModeController";
+
+const pricingGridPolicy = materializeImageBilledCreditPolicy({
+  ...getDefaultModelPricingPolicyDocument(),
+  global: {
+    ...getDefaultModelPricingPolicyDocument().global,
+    creditUsdScale: 30,
+  },
+});
 
 const makeCostParamsForModel =
   (modelId: string) =>
@@ -135,6 +145,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     const expectedCost = resolvePricingGridBilledCredits({
       modelId,
       params: costParamsForModel(modelId, { aspect: "1:1", resolution: "4K" }),
+      pricingPolicy: pricingGridPolicy,
     });
 
     const { result } = renderHook(() =>
@@ -149,6 +160,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         videoReferenceMode: "standard",
         imageResolution: "4K",
         costParamsForModel,
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
@@ -171,6 +183,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     const expectedCost = resolvePricingGridBilledCredits({
       modelId,
       params: costParamsForModel(modelId, { aspect: "9:16", resolution: "auto_4K" }),
+      pricingPolicy: pricingGridPolicy,
     });
 
     const { result } = renderHook(() =>
@@ -186,13 +199,14 @@ describe("useAiStudioViewModel motion guardrails", () => {
         videoReferenceMode: "standard",
         imageResolution: "auto_4K",
         costParamsForModel,
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
-  it("uses Create Character Mode submit shape for GPT Image 2 pricing-grid costs", () => {
+  it("keeps GPT Image 2 Create Character Mode blocked when the submit variant still lacks a billed-credit row", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
@@ -213,6 +227,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
         inputImageCount: 3,
         inputFidelity: "high",
       },
+      pricingPolicy: pricingGridPolicy,
+      requireExplicitBilledCreditsOverride: true,
     });
 
     const { result } = renderHook(() =>
@@ -230,10 +246,15 @@ describe("useAiStudioViewModel motion guardrails", () => {
         isCreateCharacterModeEnabled: true,
         createCharacterModeInjectionBundle,
         costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+    expect(result.current.generationGuardrail).toBe(
+      "Pricing is unavailable for this configuration. Retry in a moment."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
   });
 
   it("maps GPT Image 2 Create UI resolution labels onto canonical quality rows", () => {
@@ -245,6 +266,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         aspect: "16:9",
         resolution: "medium",
       },
+      pricingPolicy: pricingGridPolicy,
     });
 
     const { result } = renderHook(() =>
@@ -260,6 +282,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         videoReferenceMode: "standard",
         imageResolution: "2K",
         costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
@@ -273,6 +296,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       resolvePricingGridBilledCredits({
         modelId,
         params: costParamsForModel({ aspect: "1:1", resolution: "4K" }),
+        pricingPolicy: pricingGridPolicy,
       }) ?? 0;
 
     const { result } = renderHook(() =>
@@ -289,6 +313,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         imageResolution: "4K",
         balanceCredits: Math.max(0, requiredCredits - 1),
         costParamsForModel,
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
@@ -314,6 +339,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         costParamsForModel: makeCostParamsForModel(modelId),
         balanceCredits: null,
         balanceLoading: true,
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
@@ -421,6 +447,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         motionReferenceVideoUrl: null,
         imageResolution: "4K",
         costParamsForModel,
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
@@ -430,6 +457,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       params: costParamsForModel(candidateModelId, {
         resolution: "4K",
       }),
+      pricingPolicy: pricingGridPolicy,
     });
 
     expect(result.current.resolveModelPickerCredits(candidateModelId)).toBe(expectedCredits);
@@ -451,10 +479,12 @@ describe("useAiStudioViewModel motion guardrails", () => {
     const expectedCurrentCost = resolvePricingGridBilledCredits({
       modelId,
       params: costParamsForModel(modelId, { aspect: "9:16", resolution: "4K" }),
+      pricingPolicy: pricingGridPolicy,
     });
     const expectedPromptCost = resolvePricingGridBilledCredits({
       modelId,
       params: costParamsForModel(modelId, { aspect: "9:16", resolution: "4K" }),
+      pricingPolicy: pricingGridPolicy,
     });
 
     const { result } = renderHook(() =>
@@ -469,6 +499,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         videoReferenceMode: "standard",
         imageResolution: "4K",
         costParamsForModel,
+        pricingPolicy: pricingGridPolicy,
       })
     );
 

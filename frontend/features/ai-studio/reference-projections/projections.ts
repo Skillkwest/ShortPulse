@@ -188,8 +188,10 @@ export const pruneReferenceProjectionState = (
  */
 export const resolveReferenceProjectionIds = (
   ids: Iterable<string>,
-  outputs: Iterable<StudioOutput>
+  outputs: Iterable<StudioOutput>,
+  options: { preserveUnresolved?: boolean } = {}
 ): string[] => {
+  const preserveUnresolved = options.preserveUnresolved === true;
   const validIds = new Set<string>();
   const aliases = new Map<string, string>();
 
@@ -208,7 +210,9 @@ export const resolveReferenceProjectionIds = (
   for (const rawId of ids) {
     const id = normalizeId(rawId);
     if (!id) continue;
-    const nextId = validIds.has(id) ? id : aliases.get(id);
+    const nextId = validIds.has(id)
+      ? id
+      : (aliases.get(id) ?? (preserveUnresolved ? id : undefined));
     if (!nextId || seen.has(nextId)) continue;
     seen.add(nextId);
     resolved.push(nextId);

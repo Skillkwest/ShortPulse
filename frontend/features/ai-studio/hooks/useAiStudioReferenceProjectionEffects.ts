@@ -17,6 +17,7 @@ type UseAiStudioReferenceProjectionEffectsArgs = {
   activeOutputState: StudioOutputCollectionState;
   archivedOutputState: StudioOutputCollectionState;
   curatedReferenceIds: string[];
+  deferProjectionPrune?: boolean;
   setActiveOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
   setArchivedOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
 };
@@ -31,6 +32,7 @@ export const useAiStudioReferenceProjectionEffects = ({
   activeOutputState,
   archivedOutputState,
   curatedReferenceIds,
+  deferProjectionPrune = false,
   setActiveOutputState,
   setArchivedOutputState,
 }: UseAiStudioReferenceProjectionEffectsArgs) => {
@@ -52,11 +54,13 @@ export const useAiStudioReferenceProjectionEffects = ({
     ];
     const resolvedQuickSlotIds = resolveReferenceProjectionIds(
       referenceProjectionState.quickSlotIds,
-      projectionOutputs
+      projectionOutputs,
+      { preserveUnresolved: deferProjectionPrune }
     );
     const resolvedRemovedFromAllRefsIds = resolveReferenceProjectionIds(
       referenceProjectionState.removedFromAllRefsIds,
-      projectionOutputs
+      projectionOutputs,
+      { preserveUnresolved: deferProjectionPrune }
     );
     const withResolvedIds =
       areListsEqual(resolvedQuickSlotIds, referenceProjectionState.quickSlotIds) &&
@@ -66,6 +70,12 @@ export const useAiStudioReferenceProjectionEffects = ({
             quickSlotIds: resolvedQuickSlotIds,
             removedFromAllRefsIds: resolvedRemovedFromAllRefsIds,
           };
+    if (deferProjectionPrune) {
+      if (withResolvedIds !== referenceProjectionState) {
+        setReferenceProjectionState(withResolvedIds);
+      }
+      return;
+    }
     // Keep projection ids aligned with output lifecycle transitions (active + archived stores).
     // Guard with a deterministic no-op check to prevent render loops from redundant state commits.
     const nextQuickSlotIds = pruneCuratedReferenceIds(withResolvedIds.quickSlotIds, validOutputIds);
@@ -82,6 +92,7 @@ export const useAiStudioReferenceProjectionEffects = ({
   }, [
     activeOutputState,
     archivedOutputState,
+    deferProjectionPrune,
     referenceProjectionState,
     setReferenceProjectionState,
   ]);

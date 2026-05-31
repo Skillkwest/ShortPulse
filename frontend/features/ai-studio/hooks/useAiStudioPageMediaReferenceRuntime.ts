@@ -37,11 +37,23 @@ import {
   normalizeMediaFile,
   type PastedMediaReference,
 } from "../reference-grid/controllers/referenceGridClipboard";
+import { resolveReferenceProjectionIds } from "../reference-projections";
 import type { StudioOutput } from "../types";
 import { resolveOutputAudioSourceMode } from "../logic/audioSourceMode";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
+import type { AiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
+
+const areNumberListsEqual = (
+  left: readonly number[] | null | undefined,
+  right: readonly number[] | null | undefined
+): boolean => {
+  if (left === right) return true;
+  if (!left || !right) return !left && !right;
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+};
 
 type QuickSlotDropOptions = {
   targetId: string | null;
@@ -66,6 +78,7 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
   addPastedPromptReference: (text: string) => void;
   insertPastedMediaReference: (payload: PastedMediaReference) => StudioOutput[];
   getOutputById: (outputId: string) => StudioOutput | null;
+  getOutputSnapshot: () => AiStudioOutputStoreSnapshot;
   ingestReferenceFiles: (
     files: FileList | File[],
     source?: "filePicker" | "drop"
@@ -96,6 +109,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   addPastedPromptReference,
   insertPastedMediaReference,
   getOutputById,
+  getOutputSnapshot,
   ingestReferenceFiles,
   reorderCuratedReference,
   setActiveOutputId,
@@ -587,33 +601,128 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   });
 
   useEffect(() => {
+    const outputSnapshot = getOutputSnapshot();
+    const projectionOutputs = [
+      ...outputSnapshot.outputOrder
+        .map((id) => outputSnapshot.outputById[id])
+        .filter((item): item is StudioOutput => Boolean(item)),
+      ...outputSnapshot.archivedOutputOrder
+        .map((id) => outputSnapshot.archivedOutputById[id])
+        .filter((item): item is StudioOutput => Boolean(item)),
+    ];
     let changed = false;
     const nextItems = canvasSessionState.items.map((item) => {
-      if (item.kind !== "audio" || !item.outputId) return item;
-      const output = getOutputById(item.outputId);
-      if (!output || output.mode !== "audio") return item;
-      const nextCompanionArtUrl = output.companionArtUrl ?? item.companionArtUrl ?? null;
-      const nextCompanionArtStoragePath =
-        output.companionArtStoragePath ?? item.companionArtStoragePath ?? null;
       if (
-        nextCompanionArtUrl === (item.companionArtUrl ?? null) &&
-        nextCompanionArtStoragePath === (item.companionArtStoragePath ?? null)
+        (item.kind !== "image" && item.kind !== "audio" && item.kind !== "video") ||
+        !item.outputId
       ) {
         return item;
       }
-      changed = true;
-      return {
-        ...item,
-        companionArtUrl: nextCompanionArtUrl,
-        companionArtStoragePath: nextCompanionArtStoragePath,
-      };
+      const resolvedOutputId =
+        resolveReferenceProjectionIds([item.outputId], projectionOutputs, {
+          preserveUnresolved: true,
+        })[0] ?? item.outputId;
+      const output = getOutputById(resolvedOutputId);
+      if (!output) return item;
+      const resolved = resolveCanvasResolutionFromOutput({
+        output,
+        outputId: resolvedOutputId,
+        mediaId: "mediaId" in item ? (item.mediaId ?? null) : null,
+        fallbackUrl:
+          item.kind === "image" ? item.src : item.kind === "audio" ? item.audioUrl : item.videoUrl,
+        width: "width" in item ? item.width : undefined,
+        height: "height" in item ? item.height : undefined,
+      });
+      if (!resolved || resolved.kind !== item.kind) return item;
+      if (item.kind === "image" && resolved.kind === "image") {
+        const nextMediaId = resolved.mediaId ?? item.mediaId ?? null;
+        if (
+          resolvedOutputId === item.outputId &&
+          resolved.src === item.src &&
+          resolved.alt === item.alt &&
+          nextMediaId === (item.mediaId ?? null)
+        ) {
+          return item;
+        }
+        changed = true;
+        return {
+          ...item,
+          outputId: resolvedOutputId,
+          src: resolved.src,
+          alt: resolved.alt,
+          mediaId: nextMediaId,
+        };
+      }
+      if (item.kind === "video" && resolved.kind === "video") {
+        const nextMediaId = resolved.mediaId ?? item.mediaId ?? null;
+        const nextPosterUrl = resolved.posterUrl ?? item.posterUrl ?? null;
+        const nextTitle = resolved.title ?? item.title ?? null;
+        const nextDurationMs = resolved.durationMs ?? item.durationMs ?? null;
+        if (
+          resolvedOutputId === item.outputId &&
+          resolved.videoUrl === item.videoUrl &&
+          nextPosterUrl === (item.posterUrl ?? null) &&
+          nextTitle === (item.title ?? null) &&
+          nextDurationMs === (item.durationMs ?? null) &&
+          nextMediaId === (item.mediaId ?? null)
+        ) {
+          return item;
+        }
+        changed = true;
+        return {
+          ...item,
+          outputId: resolvedOutputId,
+          mediaId: nextMediaId,
+          videoUrl: resolved.videoUrl,
+          posterUrl: nextPosterUrl,
+          title: nextTitle,
+          durationMs: nextDurationMs,
+        };
+      }
+      if (item.kind === "audio" && resolved.kind === "audio") {
+        const nextMediaId = resolved.mediaId ?? item.mediaId ?? null;
+        const nextCompanionArtUrl = resolved.companionArtUrl ?? item.companionArtUrl ?? null;
+        const nextCompanionArtStoragePath =
+          resolved.companionArtStoragePath ?? item.companionArtStoragePath ?? null;
+        const nextTitle = resolved.title ?? item.title ?? null;
+        const nextDurationMs = resolved.durationMs ?? item.durationMs ?? null;
+        const nextAudioSourceMode = resolved.audioSourceMode ?? item.audioSourceMode ?? null;
+        const nextWaveformPeaks = resolved.waveformPeaks ?? item.waveformPeaks ?? null;
+        if (
+          resolvedOutputId === item.outputId &&
+          resolved.audioUrl === item.audioUrl &&
+          nextTitle === (item.title ?? null) &&
+          nextCompanionArtUrl === (item.companionArtUrl ?? null) &&
+          nextCompanionArtStoragePath === (item.companionArtStoragePath ?? null) &&
+          nextDurationMs === (item.durationMs ?? null) &&
+          nextAudioSourceMode === (item.audioSourceMode ?? null) &&
+          nextMediaId === (item.mediaId ?? null) &&
+          areNumberListsEqual(nextWaveformPeaks, item.waveformPeaks ?? null)
+        ) {
+          return item;
+        }
+        changed = true;
+        return {
+          ...item,
+          outputId: resolvedOutputId,
+          mediaId: nextMediaId,
+          audioUrl: resolved.audioUrl,
+          title: nextTitle,
+          companionArtUrl: nextCompanionArtUrl,
+          companionArtStoragePath: nextCompanionArtStoragePath,
+          audioSourceMode: nextAudioSourceMode,
+          durationMs: nextDurationMs,
+          waveformPeaks: nextWaveformPeaks,
+        };
+      }
+      return item;
     });
     if (!changed) return;
     hydrateCanvasSessionState({
       ...canvasSessionState,
       items: nextItems,
     });
-  }, [canvasSessionState, getOutputById, hydrateCanvasSessionState]);
+  }, [canvasSessionState, getOutputById, getOutputSnapshot, hydrateCanvasSessionState]);
 
   return {
     canvasSessionState,

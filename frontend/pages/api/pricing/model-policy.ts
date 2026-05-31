@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getModelPricingPolicySnapshot } from "../../../lib/model-runtime/pricingPolicy";
+import { materializeImageBilledCreditPolicy } from "../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { resolveRuntimeModelPricingPolicy } from "../../../lib/server/api/modelPricingControlPlane";
@@ -15,13 +16,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const resolution = await resolveRuntimeModelPricingPolicy();
+    const runtimePolicy = materializeImageBilledCreditPolicy(resolution.policy);
+    const snapshot = getModelPricingPolicySnapshot(resolution.policy, {
+      activePolicyVersion: resolution.activePolicyVersion,
+      policySource: resolution.source,
+      updatedAt: resolution.updatedAt,
+      updatedByEmail: resolution.updatedByEmail,
+    });
     return res.status(200).json({
-      modelPolicy: getModelPricingPolicySnapshot(resolution.policy, {
-        activePolicyVersion: resolution.activePolicyVersion,
-        policySource: resolution.source,
-        updatedAt: resolution.updatedAt,
-        updatedByEmail: resolution.updatedByEmail,
-      }),
+      modelPolicy: {
+        ...snapshot,
+        document: runtimePolicy,
+      },
     });
   } catch (error) {
     await logApiRouteException({

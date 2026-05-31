@@ -540,7 +540,7 @@ describe("projectWorkspaceStatesService", () => {
         outputs: {
           active: [
             {
-              id: "out-1",
+              id: `generated:${GENERATION_ID_1}`,
               generationId: GENERATION_ID_1,
               promptId: PROMPT_ID_1,
               savedMediaIds: [MEDIA_ID_1],
@@ -599,7 +599,7 @@ describe("projectWorkspaceStatesService", () => {
           outputs: {
             active: [
               expect.objectContaining({
-                id: "out-1",
+                id: `generated:${GENERATION_ID_1}`,
                 generationId: GENERATION_ID_1,
                 promptId: PROMPT_ID_1,
                 savedMediaIds: [MEDIA_ID_1],
@@ -1028,11 +1028,11 @@ describe("projectWorkspaceStatesService", () => {
     expect(firstWorkspaceUpsertArg?.snapshot?.outputs).toMatchObject({
       active: [
         expect.objectContaining({
-          id: "out-projection-only-1",
+          id: `generated:${GENERATION_ID_2}`,
           generationId: GENERATION_ID_2,
         }),
       ],
-      curatedReferenceIds: ["out-projection-only-1"],
+      curatedReferenceIds: [`generated:${GENERATION_ID_2}`],
     });
     expect(generationAssociationUpsert).toHaveBeenCalledWith(
       [
@@ -1046,6 +1046,119 @@ describe("projectWorkspaceStatesService", () => {
         onConflict: "project_id,generation_id",
       }
     );
+  });
+
+  it("preserves durable canvas content while stripping transient canvas state during workspace save", async () => {
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-canvas-save",
+        updatedAt: "2026-05-31T19:00:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T19:00:00.000Z",
+          checksum: "fnv1a32:canvas-save",
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "library-1",
+              mediaSource: "library",
+              previewUrl: "https://cdn.example.com/library.png",
+              resultUrls: ["https://cdn.example.com/library.png"],
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+        canvas: {
+          scene: {
+            items: [
+              {
+                id: "canvas-image-1",
+                kind: "image",
+                x: 12,
+                y: 24,
+                z: 1,
+                selected: true,
+                outputId: "library-1",
+                sourceSurface: "curated",
+                mediaId: MEDIA_ID_1,
+                src: "https://signed.shortpulse.test/library.png",
+                alt: "Library image",
+                width: 320,
+                height: 180,
+              },
+            ],
+          },
+          viewports: {
+            main: { x: 3, y: 4, zoom: 1.2 },
+            rail: { x: -2, y: 5, zoom: 0.8 },
+          },
+          transient: {
+            draftTextEntry: { x: 10, y: 20, value: "draft" },
+            textEditSession: null,
+            draftOwnerInstanceId: "main",
+            textEditOwnerInstanceId: null,
+          },
+          meta: {
+            schemaVersion: 1,
+            itemCount: 1,
+            truncatedItemCount: 0,
+            skippedNonDurableImageCount: 0,
+          },
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(firstWorkspaceUpsertArg?.snapshot?.canvas).toMatchObject({
+      scene: {
+        items: [
+          expect.objectContaining({
+            id: "canvas-image-1",
+            selected: false,
+            outputId: "library-1",
+            mediaId: MEDIA_ID_1,
+            src: "https://signed.shortpulse.test/library.png",
+          }),
+        ],
+      },
+      transient: {
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+      },
+      viewports: {
+        main: { x: 3, y: 4, zoom: 1.2 },
+        rail: { x: -2, y: 5, zoom: 0.8 },
+      },
+    });
   });
 
   it("strips out-of-scope preview storage paths before saving project workspace snapshots", async () => {
@@ -1165,7 +1278,7 @@ describe("projectWorkspaceStatesService", () => {
           outputs: {
             active: [
               expect.objectContaining({
-                id: "out-1",
+                id: `generated:${GENERATION_ID_1}`,
                 generationId: GENERATION_ID_1,
               }),
             ],
@@ -1180,7 +1293,7 @@ describe("projectWorkspaceStatesService", () => {
         outputs: {
           active: [
             expect.objectContaining({
-              id: "out-1",
+              id: `generated:${GENERATION_ID_1}`,
               generationId: GENERATION_ID_1,
             }),
           ],
@@ -1285,7 +1398,7 @@ describe("projectWorkspaceStatesService", () => {
           outputs: {
             active: [
               expect.objectContaining({
-                id: "video-1",
+                id: `generated:${GENERATION_ID_1}`,
                 generationId: GENERATION_ID_1,
                 mode: "video",
               }),
@@ -1486,7 +1599,7 @@ describe("projectWorkspaceStatesService", () => {
         outputs: {
           active: [
             {
-              id: "out-1",
+              id: `generated:${GENERATION_ID_1}`,
               generationId: GENERATION_ID_1,
               previewUrl: "https://expired.example.com/old.png",
               resultUrls: ["https://expired.example.com/old.png"],
@@ -1563,7 +1676,7 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
-  it("returns the shape-sanitized workspace when read-time ownership sanitization fails", async () => {
+  it("drops unresolved generated rows when generation ownership resolution fails on read", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     createSupabaseMock({
       generationReadError: "generation ownership unavailable",
@@ -1591,40 +1704,116 @@ describe("projectWorkspaceStatesService", () => {
             pulseWorkflowSession: null,
           },
           outputs: {
-            active: [
-              {
-                id: "out-1",
-                generationId: GENERATION_ID_1,
-              },
-              {
-                id: "out-2",
-                generationId: GENERATION_ID_2,
-              },
-            ],
+            active: [],
             archived: [],
+            activeOutputId: null,
+            curatedReferenceIds: [],
+            removedFromAllRefsIds: [],
           },
         },
       });
       expect(result?.snapshot.agentRuntimes).toBeDefined();
       expect(warnSpy).toHaveBeenCalledWith(
-        "[project-workspace] read sanitization failed; returning shape-sanitized snapshot",
+        "[project-workspace] read sanitization degraded unresolved ownership associations",
         expect.objectContaining({
           projectId: "project-1",
-          error: "generation ownership unavailable",
+          failedAuthorities: ["generation"],
+          errors: ["generation ownership unavailable"],
         })
       );
       expect(writeAppErrorLogMock).toHaveBeenCalledWith({
         source: "telemetry.ai_studio.project_workspace.read_sanitization_fallback",
         message:
-          "Project workspace read fell back to the shape-sanitized snapshot after ownership sanitization failed.",
+          "Project workspace read degraded unresolved ownership associations after read-time ownership resolution failed.",
         userId: "user-1",
         statusCode: 200,
         metadata: {
           project_id: "project-1",
           fallback_stage: "read_sanitization",
-          error: "generation ownership unavailable",
+          failed_authorities: ["generation"],
+          errors: ["generation ownership unavailable"],
         },
       });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("preserves media-backed rows when unrelated generation ownership resolution fails on read", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    createSupabaseMock({
+      generationReadError: "generation ownership unavailable",
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-partial-degrade-read",
+        updatedAt: "2026-05-31T18:45:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T18:45:00.000Z",
+          checksum: "fnv1a32:partial-degrade-read",
+        },
+        outputs: {
+          active: [
+            {
+              id: "library-1",
+              mediaSource: "library",
+              previewUrl: "https://cdn.example.com/library.png",
+              resultUrls: ["https://cdn.example.com/library.png"],
+              savedMediaIds: [MEDIA_ID_1],
+              saveState: "saved",
+            },
+            {
+              id: "out-generated-1",
+              generationId: GENERATION_ID_1,
+              previewUrl: "https://expired.example.com/generated.png",
+              resultUrls: ["https://expired.example.com/generated.png"],
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-generated-1",
+          curatedReferenceIds: ["library-1", "out-generated-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    try {
+      const result = await getProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+
+      expect(result?.snapshot.outputs).toMatchObject({
+        active: [
+          expect.objectContaining({
+            id: "library-1",
+            mediaSource: "library",
+            savedMediaIds: [MEDIA_ID_1],
+            saveState: "saved",
+          }),
+        ],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: ["library-1"],
+        removedFromAllRefsIds: [],
+      });
+      expect(result?.snapshot.outputs).not.toMatchObject({
+        active: [expect.objectContaining({ generationId: GENERATION_ID_1 })],
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] read sanitization degraded unresolved ownership associations",
+        expect.objectContaining({
+          projectId: "project-1",
+          failedAuthorities: ["generation"],
+        })
+      );
     } finally {
       warnSpy.mockRestore();
     }
@@ -1754,7 +1943,7 @@ describe("projectWorkspaceStatesService", () => {
     expect(result?.snapshot.outputs).toMatchObject({
       active: [
         expect.objectContaining({
-          id: "generated-1",
+          id: `generated:${GENERATION_ID_1}`,
           previewUrl: "https://expired.example.com/generated.png",
         }),
         expect.objectContaining({
@@ -1835,11 +2024,121 @@ describe("projectWorkspaceStatesService", () => {
     expect(result?.snapshot.outputs).toMatchObject({
       active: [
         expect.objectContaining({
-          id: "out-projection-only-1",
+          id: `generated:${GENERATION_ID_2}`,
           generationId: GENERATION_ID_2,
         }),
       ],
-      curatedReferenceIds: ["out-projection-only-1"],
+      curatedReferenceIds: [`generated:${GENERATION_ID_2}`],
+    });
+  });
+
+  it("re-sanitizes durable canvas content during workspace read", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-canvas-read",
+        updatedAt: "2026-05-31T19:05:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T19:05:00.000Z",
+          checksum: "fnv1a32:canvas-read",
+        },
+        workspace: {},
+        outputs: {
+          active: [
+            {
+              id: "library-1",
+              mediaSource: "library",
+              previewUrl: "https://cdn.example.com/library.png",
+              resultUrls: ["https://cdn.example.com/library.png"],
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+        canvas: {
+          scene: {
+            items: [
+              {
+                id: "canvas-image-1",
+                kind: "image",
+                x: 12,
+                y: 24,
+                z: 1,
+                selected: true,
+                outputId: "library-1",
+                sourceSurface: "curated",
+                mediaId: MEDIA_ID_1,
+                src: "https://signed.shortpulse.test/library.png",
+                alt: "Library image",
+                width: 320,
+                height: 180,
+              },
+            ],
+          },
+          viewports: {
+            main: { x: 3, y: 4, zoom: 1.2 },
+            rail: { x: -2, y: 5, zoom: 0.8 },
+          },
+          transient: {
+            draftTextEntry: { x: 10, y: 20, value: "draft" },
+            textEditSession: {
+              itemId: "canvas-image-1",
+              value: "editing",
+            },
+            draftOwnerInstanceId: "main",
+            textEditOwnerInstanceId: "rail",
+          },
+          meta: {
+            schemaVersion: 1,
+            itemCount: 1,
+            truncatedItemCount: 0,
+            skippedNonDurableImageCount: 0,
+          },
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.canvas).toMatchObject({
+      scene: {
+        items: [
+          expect.objectContaining({
+            id: "canvas-image-1",
+            selected: false,
+            outputId: "library-1",
+            mediaId: MEDIA_ID_1,
+            src: "https://signed.shortpulse.test/library.png",
+          }),
+        ],
+      },
+      transient: {
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+      },
+      viewports: {
+        main: { x: 3, y: 4, zoom: 1.2 },
+        rail: { x: -2, y: 5, zoom: 0.8 },
+      },
     });
   });
 

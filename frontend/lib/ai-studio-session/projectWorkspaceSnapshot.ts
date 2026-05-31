@@ -83,6 +83,24 @@ const hasText = (value: unknown): boolean => typeof value === "string" && value.
 const hasStringEntries = (value: unknown): boolean =>
   Array.isArray(value) && value.some((entry) => hasText(entry));
 
+const asTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
+const buildCanonicalGeneratedProjectOutputId = (generationId: string | null): string | null =>
+  generationId ? `generated:${generationId}` : null;
+
+const addProjectWorkspaceOutputIdAlias = (
+  aliases: Map<string, string>,
+  alias: string | null,
+  canonicalId: string | null
+) => {
+  if (!alias || !canonicalId || alias === canonicalId || aliases.has(alias)) return;
+  aliases.set(alias, canonicalId);
+};
+
 const hasProjectRestorableOutputPayload = (output: Record<string, unknown>): boolean =>
   hasText(output.previewText) ||
   hasText(output.previewUrl) ||
@@ -187,19 +205,38 @@ const shouldPersistOutputInProjectWorkspaceSnapshot = (
   );
 };
 
-const filterProjectWorkspaceOutputIds = (
-  value: unknown,
-  persistedOutputIds: Set<string>
-): string[] =>
-  Array.isArray(value)
-    ? value
-        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-        .filter((entry) => entry.length > 0 && persistedOutputIds.has(entry))
-    : [];
+const filterProjectWorkspaceOutputIds = ({
+  value,
+  persistedOutputIds,
+  outputIdAliases,
+}: {
+  value: unknown;
+  persistedOutputIds: Set<string>;
+  outputIdAliases: Map<string, string>;
+}): string[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const filtered: string[] = [];
+  value.forEach((entry) => {
+    const outputId = asTrimmedString(entry);
+    if (!outputId) return;
+    const resolvedOutputId = outputIdAliases.get(outputId) ?? outputId;
+    if (!persistedOutputIds.has(resolvedOutputId) || seen.has(resolvedOutputId)) return;
+    seen.add(resolvedOutputId);
+    filtered.push(resolvedOutputId);
+  });
+  return filtered;
+};
+
+type CanonicalizedProjectWorkspaceOutputs = {
+  outputs: Record<string, unknown>;
+  outputIdAliases: Map<string, string>;
+  persistedOutputIds: Set<string>;
+};
 
 const stripFailedOutputsFromProjectWorkspaceOutputs = (
   outputs: unknown
-): Record<string, unknown> => {
+): CanonicalizedProjectWorkspaceOutputs => {
   const outputsRecord = asRecord(outputs);
   const persistedActiveOutputs = (Array.isArray(outputsRecord.active) ? outputsRecord.active : [])
     .map((output) => asRecord(output))
@@ -207,25 +244,60 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
   const normalizedActiveOutputs = persistedActiveOutputs.map((output) =>
     trimPromptOnlyProjectWorkspaceOutput(trimGeneratedProjectWorkspaceOutput(output))
   );
-  const persistedOutputIds = new Set<string>([
-    ...normalizedActiveOutputs
-      .map((output) => (typeof output.id === "string" ? output.id.trim() : ""))
-      .filter((id) => id.length > 0),
-  ]);
+  const outputIdAliases = new Map<string, string>();
+  const persistedOutputIds = new Set<string>();
+  const canonicalActiveOutputs: Record<string, unknown>[] = [];
 
-  return {
+  normalizedActiveOutputs.forEach((output) => {
+    const generationId = asTrimmedString(output.generationId);
+    const currentId = asTrimmedString(output.id);
+    const canonicalGeneratedId = buildCanonicalGeneratedProjectOutputId(generationId);
+    const canonicalId = canonicalGeneratedId ?? currentId;
+
+    addProjectWorkspaceOutputIdAlias(outputIdAliases, currentId, canonicalId);
+    addProjectWorkspaceOutputIdAlias(outputIdAliases, canonicalGeneratedId, canonicalId);
+    addProjectWorkspaceOutputIdAlias(outputIdAliases, generationId, canonicalId);
+    addProjectWorkspaceOutputIdAlias(outputIdAliases, asTrimmedString(output.taskId), canonicalId);
+    addProjectWorkspaceOutputIdAlias(
+      outputIdAliases,
+      asTrimmedString(output.sourceRef),
+      canonicalId
+    );
+
+    const canonicalOutput =
+      canonicalId && canonicalId !== currentId ? { ...output, id: canonicalId } : output;
+
+    if (canonicalId) {
+      if (persistedOutputIds.has(canonicalId)) {
+        return;
+      }
+      persistedOutputIds.add(canonicalId);
+    }
+
+    canonicalActiveOutputs.push(canonicalOutput);
+  });
+
+  const normalizedOutputs = {
     ...outputsRecord,
-    active: normalizedActiveOutputs,
+    active: canonicalActiveOutputs,
     archived: [],
     activeOutputId: null,
-    curatedReferenceIds: filterProjectWorkspaceOutputIds(
-      outputsRecord.curatedReferenceIds,
-      persistedOutputIds
-    ),
-    removedFromAllRefsIds: filterProjectWorkspaceOutputIds(
-      outputsRecord.removedFromAllRefsIds,
-      persistedOutputIds
-    ),
+    curatedReferenceIds: filterProjectWorkspaceOutputIds({
+      value: outputsRecord.curatedReferenceIds,
+      persistedOutputIds,
+      outputIdAliases,
+    }),
+    removedFromAllRefsIds: filterProjectWorkspaceOutputIds({
+      value: outputsRecord.removedFromAllRefsIds,
+      persistedOutputIds,
+      outputIdAliases,
+    }),
+  };
+
+  return {
+    outputs: normalizedOutputs,
+    outputIdAliases,
+    persistedOutputIds,
   };
 };
 
@@ -288,10 +360,34 @@ const resetProjectWorkspaceFields = (
   motionReferenceVideoUrl: null,
 });
 
-const normalizeProjectWorkspaceCanvas = (value: unknown) => {
+const normalizeProjectWorkspaceCanvas = (value: unknown, outputIdAliases: Map<string, string>) => {
   const parsed = parseAiStudioSessionCanvasState(value);
   const durable = createProjectDurableAiStudioSessionCanvasState(parsed);
-  return durable ? serializeAiStudioSessionCanvasState(durable) : null;
+  const serialized = durable ? serializeAiStudioSessionCanvasState(durable) : null;
+  if (!serialized) return null;
+  if (outputIdAliases.size === 0) return serialized;
+
+  const scene = asRecord(serialized.scene);
+  const items = Array.isArray(scene.items) ? scene.items : [];
+  const normalizedItems = items.map((item) => {
+    const record = asRecord(item);
+    const outputId = asTrimmedString(record.outputId);
+    if (!outputId) return item;
+    const resolvedOutputId = outputIdAliases.get(outputId) ?? outputId;
+    if (resolvedOutputId === outputId) return item;
+    return {
+      ...record,
+      outputId: resolvedOutputId,
+    };
+  });
+
+  return {
+    ...serialized,
+    scene: {
+      ...scene,
+      items: normalizedItems,
+    },
+  };
 };
 
 export const createEmptyAiStudioSessionAgentState = (): MinimalAiStudioSessionAgentState => ({
@@ -330,11 +426,17 @@ export const createAiStudioProjectWorkspaceSnapshot = <
     void expertEdit;
     const baseWorkspace = asRecord(baseSnapshot.workspace);
     const normalizedWorkspace = resetProjectWorkspaceFields(baseWorkspace);
-    const normalizedCanvas = normalizeProjectWorkspaceCanvas(canvas);
+    const canonicalizedOutputs = stripFailedOutputsFromProjectWorkspaceOutputs(
+      baseSnapshot.outputs
+    );
+    const normalizedCanvas = normalizeProjectWorkspaceCanvas(
+      canvas,
+      canonicalizedOutputs.outputIdAliases
+    );
     const normalizedSnapshot = {
       ...baseSnapshot,
       workspace: normalizedWorkspace,
-      outputs: stripFailedOutputsFromProjectWorkspaceOutputs(baseSnapshot.outputs),
+      outputs: canonicalizedOutputs.outputs,
       agent: emptyAgentRuntime,
       agentRuntimes: trimProjectWorkspaceAgentRuntimes(
         baseSnapshot.agentRuntimes,
@@ -354,7 +456,7 @@ export const createAiStudioProjectWorkspaceSnapshot = <
   return {
     ...snapshot,
     workspace: resetProjectWorkspaceFields(asRecord(snapshot.workspace)),
-    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs),
+    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs).outputs,
     agent: emptyAgentRuntime,
   } as unknown as TSnapshot;
 };

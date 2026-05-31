@@ -7,6 +7,7 @@
 import { randomUUID } from "crypto";
 import { computeCostForModel } from "../../model-runtime/pricing";
 import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGridBilledCredits";
+import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { requireApiUser } from "./auth";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveRuntimeModelPricingPolicy } from "./modelPricingControlPlane";
@@ -200,15 +201,17 @@ export const chargeGenerationRequest = async ({
     res.status(500).json({ error: "Model pricing policy is unavailable." });
     return null;
   }
+  const effectivePricingPolicy = materializeImageBilledCreditPolicy(runtimePricingPolicy.policy);
   const breakdown = isCreateImageBillingPath({
     shortpulseContext,
   })
     ? resolvePricingGridCostBreakdown({
         modelId,
         params: pricingParams,
-        pricingPolicy: runtimePricingPolicy.policy,
+        pricingPolicy: effectivePricingPolicy,
+        requireExplicitBilledCreditsOverride: true,
       })
-    : computeCostForModel(modelId, pricingParams, runtimePricingPolicy.policy);
+    : computeCostForModel(modelId, pricingParams, effectivePricingPolicy);
   if (!breakdown?.credits || breakdown.credits <= 0) {
     await logGenerationFailure({
       req,

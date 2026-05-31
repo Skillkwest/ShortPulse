@@ -586,6 +586,75 @@ const resolveOwnedSnapshotAssociationIds = async ({
   };
 };
 
+const resolveOwnedSnapshotAssociationIdsForRead = async ({
+  userId,
+  snapshot,
+}: {
+  userId: string;
+  snapshot: Record<string, unknown>;
+}): Promise<{
+  ownedMediaFileIds: string[];
+  ownedPromptIds: string[];
+  ownedGenerationIds: string[];
+  failedAuthorities: string[];
+  failureMessages: string[];
+}> => {
+  const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
+  const generationIds = collectSnapshotGenerationIds(snapshot);
+  const [mediaResult, promptResult, generationResult] = await Promise.allSettled([
+    resolveOwnedIds({
+      table: "media_files",
+      idColumn: "id",
+      userId,
+      ids: mediaFileIds,
+    }),
+    resolveOwnedIds({
+      table: "media_prompts",
+      idColumn: "id",
+      userId,
+      ids: promptIds,
+    }),
+    resolveOwnedGenerationIds({
+      userId,
+      generationIds,
+    }),
+  ]);
+
+  const failedAuthorities: string[] = [];
+  const failureMessages: string[] = [];
+  const resolveSettledIds = ({
+    result,
+    authority,
+  }: {
+    result: PromiseSettledResult<string[]>;
+    authority: string;
+  }): string[] => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    }
+    failedAuthorities.push(authority);
+    failureMessages.push(toErrorMessage(result.reason, `${authority} ownership unavailable`));
+    return [];
+  };
+
+  return {
+    ownedMediaFileIds: resolveSettledIds({
+      result: mediaResult,
+      authority: "media",
+    }),
+    ownedPromptIds: resolveSettledIds({
+      result: promptResult,
+      authority: "prompt",
+    }),
+    ownedGenerationIds: resolveSettledIds({
+      result: generationResult,
+      authority: "generation",
+    }),
+    failedAuthorities,
+    failureMessages,
+  };
+};
+
 const backfillProjectAssetAssociationsForSnapshot = async ({
   userId,
   projectId,
@@ -713,11 +782,16 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
     snapshot,
   });
   try {
-    const { ownedMediaFileIds, ownedPromptIds, ownedGenerationIds } =
-      await resolveOwnedSnapshotAssociationIds({
-        userId,
-        snapshot: baseSanitizedSnapshot,
-      });
+    const {
+      ownedMediaFileIds,
+      ownedPromptIds,
+      ownedGenerationIds,
+      failedAuthorities,
+      failureMessages,
+    } = await resolveOwnedSnapshotAssociationIdsForRead({
+      userId,
+      snapshot: baseSanitizedSnapshot,
+    });
     const sanitizedOutputsSnapshot = sanitizeProjectWorkspaceOutputs({
       userId,
       snapshot: baseSanitizedSnapshot,
@@ -725,28 +799,64 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
       ownedPromptIds,
       ownedGenerationIds,
     });
-    return sanitizedOutputsSnapshot;
-  } catch (error) {
+    const reSanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(sanitizedOutputsSnapshot);
+
+    if (failedAuthorities.length === 0) {
+      return reSanitizedSnapshot;
+    }
+
     console.warn(
-      "[project-workspace] read sanitization failed; returning shape-sanitized snapshot",
+      "[project-workspace] read sanitization degraded unresolved ownership associations",
       {
         projectId,
-        error: error instanceof Error ? error.message : "Unknown error",
+        failedAuthorities,
+        errors: failureMessages,
       }
     );
     void writeAppErrorLog({
       source: "telemetry.ai_studio.project_workspace.read_sanitization_fallback",
       message:
-        "Project workspace read fell back to the shape-sanitized snapshot after ownership sanitization failed.",
+        "Project workspace read degraded unresolved ownership associations after read-time ownership resolution failed.",
       userId,
       statusCode: 200,
       metadata: {
         project_id: projectId,
         fallback_stage: "read_sanitization",
-        error: error instanceof Error ? error.message : "Unknown error",
+        failed_authorities: failedAuthorities,
+        errors: failureMessages,
       },
     }).catch(() => undefined);
-    return baseSanitizedSnapshot;
+    return reSanitizedSnapshot;
+  } catch (error) {
+    console.warn(
+      "[project-workspace] read sanitization failed closed to an ownership-safe snapshot",
+      {
+        projectId,
+        error: toErrorMessage(error, "Unknown error"),
+      }
+    );
+    void writeAppErrorLog({
+      source: "telemetry.ai_studio.project_workspace.read_sanitization_fallback",
+      message:
+        "Project workspace read failed closed to an ownership-safe snapshot after read-time sanitization crashed.",
+      userId,
+      statusCode: 200,
+      metadata: {
+        project_id: projectId,
+        fallback_stage: "read_sanitization",
+        failed_authorities: ["media", "prompt", "generation"],
+        errors: [toErrorMessage(error, "Unknown error")],
+      },
+    }).catch(() => undefined);
+    return sanitizeProjectWorkspaceSnapshot(
+      sanitizeProjectWorkspaceOutputs({
+        userId,
+        snapshot: baseSanitizedSnapshot,
+        ownedMediaFileIds: [],
+        ownedPromptIds: [],
+        ownedGenerationIds: [],
+      })
+    );
   }
 };
 

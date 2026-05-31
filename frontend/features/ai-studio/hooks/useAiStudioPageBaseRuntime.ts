@@ -352,6 +352,7 @@ export const useAiStudioPageBaseRuntime = () => {
     addPastedPromptReference,
     insertPastedMediaReference,
     getOutputById,
+    getOutputSnapshot,
     ingestReferenceFiles,
     reorderCuratedReference,
     setActiveOutputId,

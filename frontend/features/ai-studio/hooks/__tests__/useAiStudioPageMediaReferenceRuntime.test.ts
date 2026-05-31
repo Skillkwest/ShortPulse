@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InternalReferenceDragPayload } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
+import type { AiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
 import { useAiStudioPageMediaReferenceRuntime } from "../useAiStudioPageMediaReferenceRuntime";
 
 type MockDualCanvasArgs = {
@@ -18,22 +19,24 @@ vi.mock("../../../lib/clientBreadcrumbs", () => ({
 }));
 
 let latestDualCanvasArgs: MockDualCanvasArgs | null = null;
+let mockedCanvasSessionState = {
+  items: [],
+  draftTextEntry: null,
+  textEditSession: null,
+  draftOwnerInstanceId: null,
+  textEditOwnerInstanceId: null,
+  mainCamera: { x: 0, y: 0, zoom: 1 },
+  railCamera: { x: 0, y: 0, zoom: 1 },
+};
+const hydrateCanvasSessionStateMock = vi.fn();
 
 vi.mock("../../components/canvas/useAiStudioCanvasWorkspaceState", () => ({
   useAiStudioDualCanvasWorkspaceState: (args: MockDualCanvasArgs) => {
     latestDualCanvasArgs = args;
     return {
       railCanvasProps: {},
-      sessionState: {
-        items: [],
-        draftTextEntry: null,
-        textEditSession: null,
-        draftOwnerInstanceId: null,
-        textEditOwnerInstanceId: null,
-        mainCamera: { x: 0, y: 0, zoom: 1 },
-        railCamera: { x: 0, y: 0, zoom: 1 },
-      },
-      hydrateSessionState: vi.fn(),
+      sessionState: mockedCanvasSessionState,
+      hydrateSessionState: hydrateCanvasSessionStateMock,
     };
   },
 }));
@@ -80,6 +83,22 @@ const makeFileList = (files: File[]): FileList =>
     },
   }) as unknown as FileList;
 
+const createOutputSnapshot = (
+  activeOutputs: StudioOutput[] = [],
+  archivedOutputs: StudioOutput[] = []
+): AiStudioOutputStoreSnapshot => ({
+  outputOrder: activeOutputs.map((output) => output.id),
+  outputById: Object.fromEntries(activeOutputs.map((output) => [output.id, output])),
+  archivedOutputOrder: archivedOutputs.map((output) => output.id),
+  archivedOutputById: Object.fromEntries(archivedOutputs.map((output) => [output.id, output])),
+  indexes: {
+    inFlightIds: new Set<string>(),
+    failedIds: new Set<string>(),
+    activeCount: activeOutputs.length,
+    archivedCount: archivedOutputs.length,
+  },
+});
+
 describe("useAiStudioPageMediaReferenceRuntime", () => {
   const defaultParams = {
     addCuratedReference: vi.fn(),
@@ -87,6 +106,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     addLibraryPromptReferenceToQuickSlot: vi.fn(() => null),
     addPastedPromptReference: vi.fn(),
     insertPastedMediaReference: vi.fn(() => []),
+    getOutputSnapshot: () => createOutputSnapshot(),
     ingestReferenceFiles: vi.fn(async () => []),
     reorderCuratedReference: vi.fn(),
     setActiveOutputId: vi.fn(),
@@ -98,6 +118,15 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     latestDualCanvasArgs = null;
+    mockedCanvasSessionState = {
+      items: [],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
   });
 
   afterEach(() => {
@@ -659,6 +688,124 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       posterUrl: "https://cdn.shortpulse.test/dropped-video-poster.webp",
       title: "Dropped video",
       durationMs: null,
+    });
+  });
+
+  it("reconciles restored canvas media items when output authority refreshes after restore", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-1",
+          kind: "image" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: false,
+          outputId: "output-image-refresh-1",
+          sourceSurface: "curated" as const,
+          mediaId: "saved-media-image-refresh-1",
+          src: "https://expired.shortpulse.test/image.png",
+          alt: "Old alt",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const refreshedOutput = makeOutput({
+      id: "output-image-refresh-1",
+      mode: "image",
+      prompt: "Fresh alt",
+      previewUrl: "https://signed.shortpulse.test/fresh-image.png",
+      resultUrls: ["https://signed.shortpulse.test/fresh-image.png"],
+      savedMediaIds: ["saved-media-image-refresh-1"],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === refreshedOutput.id ? refreshedOutput : null),
+      })
+    );
+
+    expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+      ...mockedCanvasSessionState,
+      items: [
+        expect.objectContaining({
+          id: "canvas-image-1",
+          outputId: "output-image-refresh-1",
+          mediaId: "saved-media-image-refresh-1",
+          src: "https://signed.shortpulse.test/fresh-image.png",
+          alt: "Fresh alt",
+          width: 320,
+          height: 180,
+        }),
+      ],
+    });
+  });
+
+  it("reconciles restored canvas output ids through generated-output aliases before refreshing media", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-legacy-1",
+          kind: "image" as const,
+          x: 40,
+          y: 50,
+          z: 2,
+          selected: false,
+          outputId: "generated:generation-refresh-1",
+          sourceSurface: "curated" as const,
+          mediaId: "saved-media-image-refresh-2",
+          src: "https://expired.shortpulse.test/legacy-image.png",
+          alt: "Legacy alt",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const refreshedOutput = makeOutput({
+      id: "local-image-refresh-1",
+      generationId: "generation-refresh-1",
+      mode: "image",
+      prompt: "Canonical alt",
+      previewUrl: "https://signed.shortpulse.test/canonical-image.png",
+      resultUrls: ["https://signed.shortpulse.test/canonical-image.png"],
+      savedMediaIds: ["saved-media-image-refresh-2"],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === refreshedOutput.id ? refreshedOutput : null),
+        getOutputSnapshot: () => createOutputSnapshot([refreshedOutput]),
+      })
+    );
+
+    expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+      ...mockedCanvasSessionState,
+      items: [
+        expect.objectContaining({
+          id: "canvas-image-legacy-1",
+          outputId: "local-image-refresh-1",
+          mediaId: "saved-media-image-refresh-2",
+          src: "https://signed.shortpulse.test/canonical-image.png",
+          alt: "Canonical alt",
+          width: 320,
+          height: 180,
+        }),
+      ],
     });
   });
 });

@@ -444,6 +444,14 @@ export const useAiStudioState = ({
     hasPendingWorkflowRestore,
   });
 
+  const { canonicalGeneratedHydrationSettled } = useAiStudioGeneratedOutputMaintenance({
+    baseRuntimeAuthorityKey,
+    hasPendingWorkflowRestore,
+    outputs,
+    projectId,
+    projectRouteRequested,
+    setOutputsState,
+  });
   useAiStudioOutputPersistenceEffects({
     outputs,
     archivedOutputs,
@@ -455,16 +463,9 @@ export const useAiStudioState = ({
     activeOutputState,
     archivedOutputState,
     curatedReferenceIds,
+    deferProjectionPrune: !canonicalGeneratedHydrationSettled,
     setActiveOutputState,
     setArchivedOutputState,
-  });
-  useAiStudioGeneratedOutputMaintenance({
-    baseRuntimeAuthorityKey,
-    hasPendingWorkflowRestore,
-    outputs,
-    projectId,
-    projectRouteRequested,
-    setOutputsState,
   });
 
   const {

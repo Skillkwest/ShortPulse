@@ -53,7 +53,7 @@ const renderMaintenanceHook = ({
   renderHook(
     (props: { hasPendingWorkflowRestore: boolean; projectId: string | null }) => {
       const [outputs, setOutputs] = useState<StudioOutput[]>([]);
-      useAiStudioGeneratedOutputMaintenance({
+      const maintenance = useAiStudioGeneratedOutputMaintenance({
         baseRuntimeAuthorityKey: props.projectId ? `project:${props.projectId}` : "plain",
         hasPendingWorkflowRestore: props.hasPendingWorkflowRestore,
         outputs,
@@ -61,7 +61,10 @@ const renderMaintenanceHook = ({
         projectRouteRequested: Boolean(props.projectId),
         setOutputsState: setOutputs,
       });
-      return outputs;
+      return {
+        outputs,
+        canonicalGeneratedHydrationSettled: maintenance.canonicalGeneratedHydrationSettled,
+      };
     },
     {
       initialProps: {
@@ -84,8 +87,11 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
 
     const { result } = renderMaintenanceHook();
 
+    expect(result.current.canonicalGeneratedHydrationSettled).toBe(false);
+
     await waitFor(() => {
-      expect(result.current).toEqual([hydratedOutput]);
+      expect(result.current.outputs).toEqual([hydratedOutput]);
+      expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
     });
     expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({ projectId: "project-1" });
   });
@@ -97,16 +103,20 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       hasPendingWorkflowRestore: true,
     });
 
-    expect(result.current).toEqual([]);
+    expect(result.current.outputs).toEqual([]);
     expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
+    expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
 
     rerender({
       hasPendingWorkflowRestore: false,
       projectId: "project-1",
     });
 
+    expect(result.current.canonicalGeneratedHydrationSettled).toBe(false);
+
     await waitFor(() => {
-      expect(result.current).toEqual([hydratedOutput]);
+      expect(result.current.outputs).toEqual([hydratedOutput]);
+      expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
     });
   });
 });

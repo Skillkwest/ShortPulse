@@ -501,7 +501,7 @@ describe("sessionSnapshot", () => {
     const payload = buildAiStudioSessionHydrationPayload(snapshot);
 
     expect(payload.outputs.active.map((output) => output.id)).toEqual([
-      "audio-newest",
+      "generated:gen-audio-newest",
       "image-middle",
       "video-oldest",
     ]);
@@ -511,7 +511,10 @@ describe("sessionSnapshot", () => {
       "2026-03-02T11:57:00.000Z",
     ]);
     expect(payload.outputs.activeOutputId).toBeNull();
-    expect(payload.outputs.curatedReferenceIds).toEqual(["video-oldest", "audio-newest"]);
+    expect(payload.outputs.curatedReferenceIds).toEqual([
+      "video-oldest",
+      "generated:gen-audio-newest",
+    ]);
   });
 
   it("keeps saved media-library Quick Slot references durable in project workspace snapshots", () => {
@@ -2016,14 +2019,16 @@ describe("sessionSnapshot", () => {
 
     expect(projectSnapshot.outputs.active.map((output) => output.id)).toEqual([
       "out-durable-upload",
-      "out-generated-pending",
+      "generated:gen-generated-pending",
     ]);
     expect(projectSnapshot.outputs.activeOutputId).toBeNull();
     expect(projectSnapshot.outputs.curatedReferenceIds).toEqual([
       "out-durable-upload",
-      "out-generated-pending",
+      "generated:gen-generated-pending",
     ]);
-    expect(projectSnapshot.outputs.removedFromAllRefsIds).toEqual(["out-generated-pending"]);
+    expect(projectSnapshot.outputs.removedFromAllRefsIds).toEqual([
+      "generated:gen-generated-pending",
+    ]);
   });
 
   it("trims duplicated settled generated-output payload from project workspace snapshots", () => {
@@ -2099,11 +2104,12 @@ describe("sessionSnapshot", () => {
     const outputRow = projectSnapshot.outputs.active[0] as Record<string, unknown>;
 
     expect(outputRow).toMatchObject({
-      id: "out-generated-ready",
+      id: "generated:gen-generated-ready",
       generationId: "gen-generated-ready",
       taskId: "task-generated-ready",
       taskState: "success",
     });
+    expect(projectSnapshot.outputs.curatedReferenceIds).toEqual(["generated:gen-generated-ready"]);
     expect(outputRow).not.toHaveProperty("prompt");
     expect(outputRow).not.toHaveProperty("transcriptText");
     expect(outputRow).not.toHaveProperty("previewUrl");
@@ -2199,13 +2205,16 @@ describe("sessionSnapshot", () => {
     const outputRow = projectSnapshot.outputs.active[0] as Record<string, unknown>;
 
     expect(outputRow).toMatchObject({
-      id: "out-generated-pending-heavy",
+      id: "generated:gen-generated-pending-heavy",
       generationId: "gen-generated-pending-heavy",
       taskId: "task-generated-pending-heavy",
       taskState: "pending",
       prompt: heavyPrompt,
       previewUrl: "https://cdn.example.com/generated-pending-heavy.png",
     });
+    expect(projectSnapshot.outputs.curatedReferenceIds).toEqual([
+      "generated:gen-generated-pending-heavy",
+    ]);
     expect(outputRow).not.toHaveProperty("generationReplay");
     expect(outputRow).not.toHaveProperty("characterContext");
     expect(outputRow).not.toHaveProperty("styleContext");
@@ -2284,8 +2293,103 @@ describe("sessionSnapshot", () => {
     expect(outputRow).not.toHaveProperty("prompt");
     expect(outputRow).not.toHaveProperty("transcriptText");
     expect(outputRow).toMatchObject({
+      id: "generated:gen-generated-preview-fallback",
+      generationId: "gen-generated-preview-fallback",
+    });
+    expect(projectSnapshot.outputs.curatedReferenceIds).toEqual([
+      "generated:gen-generated-preview-fallback",
+    ]);
+    expect(outputRow).toMatchObject({
       previewUrl: "https://cdn.example.com/generated-preview-fallback.png",
       resultUrls: ["https://cdn.example.com/generated-preview-fallback.png"],
+    });
+  });
+
+  it("rewrites generated canvas output ids through canonical project snapshot identity", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-generated-canvas-identity-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-generated-canvas",
+          mediaSource: "generated",
+          generationId: "gen-generated-canvas",
+          taskId: "task-generated-canvas",
+          taskState: "success",
+          previewUrl: "https://cdn.example.com/generated-canvas.png",
+          resultUrls: ["https://cdn.example.com/generated-canvas.png"],
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-generated-canvas",
+      curatedReferenceIds: ["out-generated-canvas"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: {
+        ...createCanvasState(),
+        items: [
+          {
+            id: "canvas-image-1",
+            kind: "image",
+            x: 12,
+            y: 24,
+            z: 1,
+            selected: true,
+            outputId: "out-generated-canvas",
+            sourceSurface: "curated",
+            mediaId: null,
+            src: "https://cdn.example.com/generated-canvas.png",
+            alt: "Generated canvas image",
+            width: 320,
+            height: 180,
+          },
+        ],
+      },
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    const canvasSnapshot = projectSnapshot.canvas as {
+      scene?: { items?: Array<Record<string, unknown>> };
+    };
+
+    expect(projectSnapshot.outputs.active.map((output) => output.id)).toEqual([
+      "generated:gen-generated-canvas",
+    ]);
+    expect(projectSnapshot.outputs.curatedReferenceIds).toEqual(["generated:gen-generated-canvas"]);
+    expect(canvasSnapshot.scene?.items?.[0]).toMatchObject({
+      id: "canvas-image-1",
+      outputId: "generated:gen-generated-canvas",
     });
   });
 

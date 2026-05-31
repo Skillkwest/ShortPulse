@@ -742,11 +742,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     expect(autosaveArgs?.enabled).toBe(true);
     expect(autosaveArgs?.snapshot?.outputs.active?.[0]).toMatchObject({
-      id: "generated-1",
+      id: "generated:generation-1",
       generationId: "generation-1",
       taskId: "task-1",
       taskState: "success",
     });
+    expect(autosaveArgs?.snapshot?.outputs.curatedReferenceIds).toEqual(["generated:generation-1"]);
     expect(autosaveArgs?.snapshot?.outputs.active?.[0]).not.toHaveProperty("prompt");
     expect(autosaveArgs?.snapshot?.outputs.active?.[0]).toHaveProperty(
       "previewUrl",

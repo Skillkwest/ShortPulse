@@ -36,6 +36,15 @@ const resolveUsageRateMultiplier = (params: Omit<PricingParams, "modelId">): num
   return null;
 };
 
+const shouldKeepAudioInPricingGridParams = (config: ReturnType<typeof getModelConfig>): boolean => {
+  if (!config) return false;
+  if (config.defaultAudio == null) return false;
+  if (!config.mediaType.toLowerCase().includes("video")) return false;
+  return !["seedance-2-per-second", "seedance-2-fast-per-second"].includes(
+    config.pricingStrategy ?? ""
+  );
+};
+
 const normalizePricingGridParams = (
   modelId: string,
   params: Omit<PricingParams, "modelId">
@@ -67,6 +76,14 @@ const normalizePricingGridParams = (
     }
   }
 
+  if (shouldKeepAudioInPricingGridParams(config)) {
+    if (normalizedParams.audio == null && config.defaultAudio != null) {
+      normalizedParams.audio = config.defaultAudio;
+    }
+  } else {
+    delete normalizedParams.audio;
+  }
+
   if (!shouldExpandVideoInputPricingVariants(config.pricingStrategy)) {
     delete normalizedParams.inputVideoCount;
   }
@@ -78,10 +95,12 @@ export const resolvePricingGridCostBreakdown = ({
   modelId,
   params = {},
   pricingPolicy = null,
+  requireExplicitBilledCreditsOverride = false,
 }: {
   modelId: string;
   params?: Omit<PricingParams, "modelId">;
   pricingPolicy?: ModelPricingPolicyDocument | null;
+  requireExplicitBilledCreditsOverride?: boolean;
 }): PricingGridCostBreakdown | null => {
   const normalizedParams = normalizePricingGridParams(modelId, params);
   const breakdown = computeCostForModel(modelId, normalizedParams, pricingPolicy);
@@ -103,6 +122,10 @@ export const resolvePricingGridCostBreakdown = ({
       usd: resolvedPolicy.billedCreditsOverride / resolvedPolicy.creditUsdScale,
       variantId,
     };
+  }
+
+  if (requireExplicitBilledCreditsOverride) {
+    return null;
   }
 
   if (pricingAuthority !== SHARED_POLICY_PRICING_AUTHORITY) {
@@ -153,4 +176,5 @@ export const resolvePricingGridBilledCredits = (input: {
   modelId: string;
   params?: Omit<PricingParams, "modelId">;
   pricingPolicy?: ModelPricingPolicyDocument | null;
+  requireExplicitBilledCreditsOverride?: boolean;
 }): number | null => resolvePricingGridCostBreakdown(input)?.credits ?? null;

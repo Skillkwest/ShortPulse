@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-05-11
+Last audited: 2026-05-30
 Status: active
 
 How to use:
@@ -8,6 +8,9 @@ How to use:
 - Keep this list execution-focused and current.
 - Start with `docs/planning/execution-authority.md` before opening a new lane.
 - Open new work only from a catalog weakness, a known issue, a failing test/live repro, or a blocker discovered inside the current lane.
+- For launch-readiness sequencing, keep this backlog aligned with the current Copperknot queue and systems catalog rather than treating it as an isolated planning surface.
+- If a newer source of truth contradicts this file, update this backlog before using the stale item to justify work.
+- In this file, "below launch-readiness target" means the current readiness docs still treat that workflow or system as not yet ready to ship with confidence.
 - Mark completed items with `[x]` and keep evidence links inline.
 - Move major outcomes into `docs/change_log.md`.
 - Keep section structure locked (no urgency/priority sub-sections).
@@ -25,7 +28,8 @@ Structure (locked):
 ## Program 0: Execution Authority
 
 - [ ] Classify legacy planning docs into `active`, `retained evidence`, `working history`, and `archive candidate` buckets, then move the clear archive candidates out of the active planning path in bounded batches.
-- [ ] Keep `docs/planning/execution-authority.md` aligned with the real active program set as lanes open, stop, or change ownership.
+- [ ] Keep `docs/planning/execution-authority.md` aligned with the actual active program set as work starts, stops, or changes owner.
+- [ ] Keep this backlog aligned with the Copperknot items that are still below launch-readiness target so active launch work is not tracked only in readiness docs.
 - [x] Define a retained validation matrix by program so closeout checks stop being chosen ad hoc from the full script corpus.
       Evidence: `docs/planning/validation-matrix-by-program-2026-05-11.md`, `docs/planning/execution-authority.md`, `docs/planning/README.md`, `docs/testing-guide.md`
 
@@ -37,68 +41,75 @@ Structure (locked):
       Evidence: `docs/planning/evidence/runtime-v2/2026-05-06-seedream-shadow-parity-report.md`, `frontend/package.json`, `docs/planning/ai-studio-runtime-v2-staging-execution-checklist.md`
 - [ ] AI Studio runtime V2 closeout: pass Seedream canary gates for 72h with no duplicate settlement or persistence regressions.
       Reference: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+- [ ] Generation recovery / settlement: recheck the current recovery and settlement path against the live runtime evidence before treating it as permanently closed.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
 - [x] AI Studio runtime V2 closeout: retire legacy HMAC webhook fallback from the active runtime contract and docs.
       Evidence: `frontend/lib/server/api/falWebhook.ts`, `frontend/pages/api/fal/webhook.ts`, `frontend/tests/api/fal-webhook-signature.test.ts`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`, `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
 - [x] AI Studio: keep server-side admission control and shared-provider rate-limit protection aligned with the live V2 docs.
       Evidence: `docs/adr/0026-ai-studio-generation-admission-control.md`, `docs/planning/ai-studio-generation-admission-rollout-plan.md`, `docs/sops/sop_provider_incident_response.md`, `docs/sops/sop_generation_recovery_diagnostics.md`, `docs/monitoring.md`, `docs/operator-map.md`
-- [ ] AI Studio: run staging smoke tests for aspect-ratio contract (verify submit payload and returned dimensions for Seedream `5:4`, `4:5`, `3:2`, `2:3`, `21:9`).
+- [ ] AI Studio project/workspace persistence: tighten restore boundaries and rerun confidence on the persistence workflow, which is still below launch-readiness target.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
+- [ ] Edit workflow: rerun the edit workflow, which is still below launch-readiness target, and decide whether it can move up or needs one more focused hardening pass.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
+- [ ] AI Studio: run staging smoke tests for the current shipped aspect-ratio contract (verify submit payload and returned dimensions for the supported Seedream aspect set plus model-default clamp behavior).
 - [x] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
       Evidence: `docs/sops/sop_model_api_contract_reverification.md`, `docs/api/README.md`, `scripts/check_model_catalog_parity.js`
-- [ ] AI Studio: alter existing e2e coverage for aspect clamping + submit-time `effective_aspect` consistency after the contract overhaul.
+- [ ] AI Studio: add dedicated e2e coverage for aspect clamping + submit-time `effective_aspect` consistency beyond the current unit/payload contract matrix.
+- [ ] Media ingest / save: audit upload, finalize, and save ownership and close the current release-path persistence gap that is still below launch-readiness target.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
+- [ ] Core data persistence: audit schema and persistence risk on release-critical paths, then define the next focused hardening pass.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
+- [ ] Storage / file delivery: audit signed delivery and original-vs-variant scope, then close the current file-delivery gap that is still below launch-readiness target.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
+- [ ] Provider integrations: rerun shared provider contract normalization and hardening for the provider work that is still below launch-readiness target.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
 - [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
 - [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
 
 ## Program 2: Media And Reference Integrity
 
-- [ ] P0 deferred incident: Reference Grid -> Styles internal image drop reliability remains unresolved; resume only with characterization-first payload capture and golden-path rebaseline.
-      Reference: `docs/known-issues.md` (P0 AI Studio Reference Grid -> Styles drop reliability remains broken, deferred March 13, 2026)
-- [ ] Media Library: make tooltip/url treatments resilient for long links (truncate/ellipsis where needed).
+- [ ] Media Library: finish the remaining long-link tooltip/url resilience gaps beyond the current truncation/ellipsis coverage.
 - [ ] Media Library: redesign the header bar and refresh small info cards to pull real account-level details.
-- [ ] Media Library: fully optimize image loading and experiment with tooling options for masonry-style display.
-- [ ] Media Library: improve pagination behavior and controls across media tabs as part of optimization.
-- [ ] Media Library: increase spacing in uploaded-images card header rows to fix cramped title/button layout.
+- [ ] Media Library: continue transform-free image-loading optimization and improve derivative/preview coverage on dense grid surfaces.
+- [ ] Media Library: resolve the remaining pagination/search trust gaps across media tabs, especially no-match image-search copy that currently reads like total data loss.
 - [ ] Media Library: restyle text prompt cards in the `Saved Prompts` tab.
 - [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
 - [ ] AI Studio: change placeholder `generating` and `loading preview` reference cards to a lighter gray background for better visual contrast.
 - [ ] AI Studio: increase normal-state color saturation for the reference-grid `Add files` and `Media library` buttons (current state appears too gray/desaturated).
 - [ ] AI Studio: remove the blue gradient overlay from the quick-slot inventory background.
-- [ ] AI Studio: fix expanded media modal labels so images imported from Media Library are consistently labeled as images (never videos).
-- [ ] AI Studio: correct local computer import media typing so uploaded images render and behave as images throughout the expanded media modal.
-- [ ] AI Studio: investigate and polish rare one-off full-grid flash in Reference Grid/Quick Slot under adaptive hydration churn (non-blocking follow-up after Adaptive Media V2 phase pass).
+- [ ] AI Studio: investigate and polish the rare one-off full-grid flash in Reference Grid/Quick Slot during adaptive hydration churn (non-blocking follow-up after the Adaptive Media V2 pass).
 
 ## Program 3: Structural Decomposition
 
-- [ ] Split oversized AI Studio orchestration surfaces after the current runtime and media contracts stabilize, starting with `frontend/pages/ai-studio.tsx` and `frontend/features/ai-studio/components/AiStudioPageContent.tsx`.
-- [ ] Split oversized AI Studio properties-panel surfaces after behavior locks hold, starting with `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx` and `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`.
-- [ ] Split oversized shared runtime modules behind smaller ownership seams after convergence behavior stabilizes, starting with `frontend/lib/server/falIntegration/recoveryExecution.ts` and `frontend/lib/server/api/falStatusProxy.ts`.
+- [ ] Split oversized AI Studio orchestration surfaces once the current runtime and media behavior is stable, starting with `frontend/pages/ai-studio.tsx` and `frontend/features/ai-studio/components/AiStudioPageContent.tsx`.
+- [ ] Split oversized AI Studio properties-panel surfaces once behavior is stable, starting with `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx` and `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`.
+- [ ] Split oversized shared runtime modules into smaller ownership seams once convergence behavior is stable, starting with `frontend/lib/server/falIntegration/recoveryExecution.ts` and `frontend/lib/server/api/falStatusProxy.ts`.
+- [ ] Revisit typography foundation cleanup after the low-risk Google Fonts import removal: decide whether system fonts should become the canonical primary stack, then normalize remaining hard-coded `Inter` / `Satoshi` references and refresh the related design inventory docs.
+      Reference: `frontend/styles/foundation.css`, `frontend/features/character-manager/components/CharacterDescriptionEditorCard.tsx`, `frontend/features/elements-manager/components/ElementsDescriptionEditorCard.tsx`, `docs/design/ai-studio-style-inventory.md`
 - [ ] Define a prefab management system to keep reusable prefabs organized, easy to find, and consistently maintained over time.
 
 ## Program 4: Workflows And Product Surfaces
 
+- [ ] Elements workflow: resolve approved-panel and runtime-health issues, then rerun confidence on the workflow, which is still below launch-readiness target.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
+- [ ] Characters workflow: reassess continuity and persistence trust, then rerun the workflow after progress on Elements and project/workspace persistence.
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
 - [ ] Build a complete, polished collection of small delete buttons.
 - [ ] Build a complete, polished collection of small download buttons.
 - [ ] Build a complete, polished collection of small save buttons.
-- [ ] Replace hard-coded usage counters with live client state (searches/storage/credits).
-- [ ] Redesign the Dashboard with a polished UI pass and thoroughly organize its styling structure for long-term maintainability.
+- [ ] Replace the remaining hard-coded Dashboard `Searches` usage counter with live client state; storage and AI credits are already live.
+- [ ] Finish the Dashboard redesign pass by retiring the remaining staged/legacy posture and tightening the long-term styling structure.
 - [ ] Align Character Manager styling with the AI Studio character workflow so the manager page and properties panel feel cohesive.
 - [ ] Redesign Character Manager with a more polished UI, modeled after the AI Studio character workflow experience.
-- [ ] AI Studio: trim the aspect-ratio dropdown by removing extraneous ratio options and keeping only supported defaults.
-- [ ] AI Studio: test header title color updates and add a sparkle icon next to the `AI Studio` title.
 - [ ] AI Studio: preload character workflow identities and saved references when entering from Dashboard so character assets are cached across workflow switches.
 - [ ] AI Studio: make `CharacterManager` open instantly (no open animation) and tune properties panel sizing.
-- [ ] AI Studio: add a `Canvas` button that opens a free-form canvas for dragging/dropping images and text prompts to visually organize ideas.
-- [ ] Add CSV import/export for saved creators.
-- [ ] Build out performance analytics.
+- [ ] Move Performance Analytics from the current staged/demo posture to a production-ready workflow that the Dashboard can point at directly.
 
 ## Program 5: Release Confidence And Research
 
-- [ ] Add targeted automated tests for saved creators critical flows (auth + media library coverage already exists).
-- [ ] Evaluate `react-masonry-css` for media library packed grid to preserve masonry visual density while restoring left-to-right reading order. Scoped spike before implementation.
-      Reference: `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`, `docs/planning/tooling-audit-2026-02-16.md` §1
-- [ ] Evaluate `next/image` with a custom Supabase loader for media gallery thumbnails (WebP/AVIF, responsive srcset, lazy loading). Pairs with ADR-0009 derivative variants.
-      Reference: `docs/planning/tooling-audit-2026-02-16.md` §2
+- [ ] Refresh production validation evidence for the workflows still below launch-readiness target before treating score movement as current (`Elements workflow`, `Project / workspace persistence`, `Characters workflow`).
+      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
 - [ ] Explore live data sources or edge functions if backend capabilities are reintroduced.
-- [ ] Run ML experiments for early performance prediction once real data is available.
 
 ## Done (verified in repo)
 
@@ -124,6 +135,14 @@ Structure (locked):
       Evidence: `frontend/tests/api/auth-helper.test.ts`, `frontend/tests/api/auth-guarded-ai-kei-routes.test.ts`, `frontend/tests/api/media-sign-batch.test.ts`, `frontend/tests/api/media-move.test.ts`
 - [x] AI Studio: add CI parity checks for model registry and submission payload contracts.
       Evidence: `frontend/features/ai-studio/logic/__tests__/modelApiContracts.test.ts`, `frontend/features/ai-studio/hooks/taskSubmission/__tests__/submissionPayloadMatrix.test.ts`
+- [x] AI Studio: resolve the historical Reference Grid -> Styles internal image-drop blocker and rerate the lane with fresh runtime evidence.
+      Evidence: `docs/known-issues.md`, `docs/systems/catalog.md`, `frontend/tests/e2e/ai-studio-style-drop.audit.js`
+- [x] AI Studio: treat Media Library imports and local uploaded image blobs as images throughout the expanded media modal, never videos.
+      Evidence: `frontend/features/ai-studio/components/__tests__/DetailModal.test.tsx`
+- [x] AI Studio: trim the global aspect-ratio dropdown to supported defaults and lock deprecated ratio removal in contract coverage.
+      Evidence: `frontend/features/ai-studio/constants.ts`, `frontend/features/ai-studio/logic/__tests__/modelApiContracts.test.ts`
+- [x] AI Studio: expose the shared right-rail `Canvas` toggle in the live header.
+      Evidence: `frontend/features/ai-studio/components/AiStudioPageContent.tsx`, `README.md`, `docs/routes.md`
 - [x] AI Studio: persist the selected character in the `Character Properties` panel across mode switches, and default back to that selected profile instead of the base default profile.
       Evidence: `frontend/features/character-manager/logic/selectedCharacterPersistence.ts`, `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`, `frontend/features/ai-studio/hooks/useAiStudioCharacterModeLifecycle.ts`, `frontend/tests/pages/ai-studio.character-mode.test.tsx`
 - [x] Add account setting: "Auto-save generated media to Media Library" toggle so users can disable automatic saves and reduce media-library bloat.

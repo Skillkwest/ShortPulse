@@ -562,39 +562,30 @@ Mitigation:
   npm run test -- useAiStudioGenerationPromptComposer.test.ts
   ```
 
-## Expert Edit inpaint generate fails before task starts
+## Expert Edit inpaint is temporarily unavailable
 
 Symptoms:
 
-- Inpaint Generate shows `Mask selection is required for inpaint.` and no task starts.
-- Generate fails quickly after clicking with `Generation failed to start. Please retry.`
-- Provider errors include download/signing failures for base image or mask URLs.
+- A stale Expert Edit session or hidden test surface attempts to enter Inpaint mode.
+- Generate fails immediately instead of starting a provider task.
 
 Checklist:
 
-- Confirm Inpaint rail is selected and a non-empty mask exists on the selected layer.
-- Confirm the inpaint submit path is active:
-  - `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts`
-  - `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`
-  - `frontend/pages/api/fal/flux-pro-fill-submit.ts`
-  - `frontend/pages/api/fal/flux-pro-fill-status.ts`
-- Verify temporary upload/signing requests succeed before submit:
-  - `POST /api/upload-image` returns `200` for transient blob refs.
-  - Signed URLs are fresh and still accessible when submit fires.
-- Verify submit payload includes both base image and mask URLs (not empty strings).
-- Verify status polling starts with a provider `request_id` after submit.
+- Confirm the current product state has inpaint disabled:
+  - `frontend/features/ai-studio/logic/inpaintSubmission.ts`
+  - `frontend/features/ai-studio/components/edit/expertEditSubmissionDispatch.ts`
+  - `frontend/lib/model-runtime/modelCatalog.ts`
+- Confirm no active Fal inpaint wrappers exist under `frontend/pages/api/fal/`.
 
 Mitigation:
 
-- Redraw the mask and retry (maskless submits are blocked by design).
-- Re-select/re-upload the layer source image when URLs expired or become inaccessible.
-- Re-run with fresh references if provider returns `file_download_error` or `Failed to download the file`.
-- If submit returns without a `request_id`, treat as start failure and inspect route logs for submit normalization errors.
+- Return to Standard Edit behavior instead of retrying Inpaint.
+- If hidden or stale state still targets Inpaint, reset the Edit submit state and verify the temporary-unavailable guard is firing.
 - Re-run targeted tests:
   ```bash
   cd frontend
-  npm run test -- flux-pro-fill-submit.test.ts
-  npm run test -- flux-pro-fill-status.test.ts
+  npx vitest run features/ai-studio/logic/__tests__/modelApiContracts.test.ts
+  npx vitest run features/ai-studio/hooks/taskSubmission/__tests__/routing.test.ts
   npm run test -- ExpertEditPanelView.test.tsx
   npm run test -- useAiStudioGenerationController.test.ts
   ```

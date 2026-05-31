@@ -16,12 +16,25 @@ Current context note:
 
 ## Report Groups
 
+### Targeted Schema And Storage Reviews
+
+- `2026-05-30-generated-image-admitted-variant-nuclo-review.md`: Nuclo-only review of Gutan's proposed `admitted_reference_25mb` variant shape, migration impact, storage-accounting posture, and stop conditions.
+- `2026-05-30-generated-image-admitted-variant-post-migration-proof.md`: hosted production proof after migration `140`, including lint, live constraint verification, storage-scope drift results, and the pre-deploy admitted-variant baseline.
+
+Load when:
+
+- you need Nuclo's scoped answer on generated-image admitted derivatives
+- you need the approved storage/schema shape for Gutan's Phase 5 review gate
+- you need the exact migration, accounting, and validation requirements before implementation
+- you need the post-migration hosted proof before Gutan deploys app code or runs production smoke
+
 ### Foundation And Environment Model
 
 - `2026-05-08-environment-separation-and-production-cutover-plan.md`: environment-separation audit, production-readiness posture, and the original cutover plan.
 - `2026-05-08-operator-runbook-and-environment-ledger.md`: approved environment ledger, value-mapping model, and execution order.
 
 Load when:
+
 - you need the original branch-to-environment-to-database model
 - you need the earliest production cutover rationale
 - you need the historical environment ledger
@@ -33,6 +46,7 @@ Load when:
 - `2026-05-09-storage-parity-and-live-drift-freeze-gate.md`: storage parity proof and the freeze-window gate created by continued live writes.
 
 Load when:
+
 - you need schema/bootstrap history
 - you need storage parity or migration-gate evidence
 - you need to explain why historical cutover required a freeze window
@@ -44,6 +58,7 @@ Load when:
 - `2026-05-09-production-cutover-execution-and-residual-risks.md`: execution record, validation evidence, deployment IDs, and residual risks after cutover.
 
 Load when:
+
 - you need the exact historical production cutover sequence
 - you need rollback-relevant facts
 - you need deployment-alias or validation evidence from the cutover run
@@ -53,6 +68,7 @@ Load when:
 - `2026-05-09-post-cutover-secret-rotation-runbook.md`: non-secret follow-on sequence for rotating credentials exposed during the cutover lane.
 
 Load when:
+
 - you need the historical secret-rotation sequence
 - you need to separate cutover validation from later credential hygiene
 

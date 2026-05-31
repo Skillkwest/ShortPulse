@@ -22,6 +22,9 @@ The agent has a durable contract, repo-visible memory, and a retained artifact a
 - `tools.md`: KPI, capture, telemetry, and audit helper inventory.
 - `training-history.md`: supervised runs, learned behavior, and next training focus.
 - `reports/`: full reports, KPI snapshots, and media-performance evidence summaries.
+- `docs/agents/holomony/media-display-command-index.md`: compact first-load map for product media grids, media-library carriages, detail modals, and double-click handoffs.
+- `docs/agents/holomony/media-display-authority-ledger.md`: current claim packet table for media-display and detail-modal authority.
+- `docs/agents/holomony/right-rail-command-index.md`: compact first-load owner/test map for Reference Grid, Quick Slot Inventory, and right-rail Canvas.
 - `docs/agents/holomony/reference-grid-ownership-map.md`: active Reference Grid ownership and owner-path map.
 - `docs/agents/holomony/reference-grid-diagnostic-sop.md`: active Reference Grid diagnostic workflow.
 
@@ -38,11 +41,13 @@ For a substantive Holomony run, the shortest high-signal path is:
 3. `docs/agents/holomony/standard-operating-procedure.md`
 4. `docs/agents/holomony/memory.md`
 5. `docs/agents/holomony/ownership-manifest.md`
-6. For Reference Grid lanes only: `docs/agents/holomony/reference-grid-ownership-map.md`
-7. For Reference Grid lanes only: `docs/agents/holomony/reference-grid-diagnostic-sop.md`
-8. `performance-scorecard.md`
-9. `media-surface-inventory.md`
-10. the one or two retained reports relevant to the current surface
+6. For media-display/detail-modal lanes: `docs/agents/holomony/media-display-command-index.md`
+7. For right-rail lanes: `docs/agents/holomony/right-rail-command-index.md`
+8. For substantive Reference Grid lanes only: `docs/agents/holomony/reference-grid-ownership-map.md`
+9. For substantive Reference Grid lanes only: `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+10. `performance-scorecard.md`
+11. `media-surface-inventory.md`
+12. the one or two retained reports relevant to the current surface
 
 Ignore by default unless the current run specifically needs them:
 
@@ -69,6 +74,9 @@ Pruning rule:
 - Local execution overlay: `docs/agents/holomony/AGENTS.md`
 - Standing SOP: `docs/agents/holomony/standard-operating-procedure.md`
 - Repo-visible memory: `docs/agents/holomony/memory.md`
+- Media-display command index: `docs/agents/holomony/media-display-command-index.md`
+- Media-display authority ledger: `docs/agents/holomony/media-display-authority-ledger.md`
+- Right-rail command index: `docs/agents/holomony/right-rail-command-index.md`
 - KPI SOP: `docs/sops/sop_media_panel_performance_kpi.md`
 - Media performance operations SOP: `docs/sops/sop_media_performance_operations.md`
 - Media checkpoint runner: `frontend/scripts/media_library_checkpoint_runner.mjs`

@@ -20,9 +20,17 @@ npm run test -- lib/server/__tests__/imageUploadNormalization.test.ts lib/adapti
 
 Add Character Manager, Elements Manager, remote URL, and generated-reference tests as the implementation migrates those surfaces.
 
+## Policy Source
+
+- `docs/records/artifacts/agent/gutan/image-admission-policy.md`
+  - Accepted Gutan policy for original preservation, derivative timing, animated image behavior, messaging, metadata, storage shape, and validation bar.
+- `docs/records/artifacts/agent/gutan/image-admission-implementation-plan.md`
+  - Phased build plan for implementation sequencing, files, tests, handoffs, and stop gates.
+
 ## Tool Rules
 
 - Do not treat inventory grep output as complete by itself.
+- Do not use or approve Supabase signed transform options or `/storage/v1/render/image/` URLs.
 - Do not run broad repo-wide commands before generated-artifact safety checks.
 - Do not use temporary env files or scratch output as source of truth.
 - Do not add tools that mutate Supabase, Vercel, GitHub, or production config without explicit user approval and the correct owner lane.

@@ -3,13 +3,15 @@
 Reference for integrating FLUX Kontext LoRA Inpaint (`fal-ai/flux-kontext-lora/inpaint`) through ShortPulse Fal proxies.
 ShortPulse catalog model id: `fal-ai/flux-kontext-lora/inpaint`.
 
+Status: temporarily disabled in ShortPulse. The historical route/payload details below remain as implementation reference only and are not active product endpoints right now.
+
 ## Authentication
 - Set `FAL_KEY` in the server runtime only.
 - Proxies attach `Authorization: Key $FAL_KEY` for upstream Fal requests.
 
 ## Submit (Reference Inpaint)
 ### Proxy endpoint
-Active client path:
+Historical client path:
 - `POST /api/fal/flux-kontext-inpaint-submit`
 
 ### Fal queue
@@ -40,13 +42,13 @@ Example payload:
 - `sync_mode` (boolean, optional)
 
 ## Status and result
-- Active client polling path:
+- Historical client polling path:
   - `POST /api/fal/flux-kontext-inpaint-status`
 - Catalog fallback base:
   - `https://queue.fal.run/fal-ai/flux-kontext-lora/inpaint/requests`
 
 ## ShortPulse defaults and wiring notes
-- Hidden internal masked-edit lane, not exposed as a normal model-picker choice.
+- Hidden internal masked-edit lane, not exposed as a normal model-picker choice, when the lane is enabled.
 - Selected only when inpaint prompt linking resolves to exactly one unique secondary reference token.
 - Polling provider token: `fal-flux-kontext-inpaint`.
 

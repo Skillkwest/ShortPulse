@@ -19,6 +19,8 @@ for path in \
   "docs/agents/gutan/memory.md" \
   "docs/records/artifacts/agent/gutan/README.md" \
   "docs/records/artifacts/agent/gutan/image-admission-surface-inventory.md" \
+  "docs/records/artifacts/agent/gutan/image-admission-policy.md" \
+  "docs/records/artifacts/agent/gutan/image-admission-implementation-plan.md" \
   "docs/records/artifacts/agent/gutan/tools.md" \
   "docs/records/artifacts/agent/gutan/training-history.md"; do
   if [[ -f "$path" ]]; then
@@ -46,3 +48,11 @@ rg -n \
   --glob '!**/node_modules/**' \
   --glob '!**/coverage/**' || true
 
+echo
+echo "Forbidden Supabase transformation sentinels"
+rg -n \
+  "createSignedUrl\\([^\\n]*transform|/storage/v1/render/image/|SUPABASE_RENDER_IMAGE_PATH" \
+  frontend/lib frontend/features frontend/pages/api \
+  --glob '!**/.next/**' \
+  --glob '!**/node_modules/**' \
+  --glob '!**/coverage/**' || true

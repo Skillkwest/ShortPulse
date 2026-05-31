@@ -36,6 +36,14 @@ Active Reference Grid ownership surfaces:
 - AI Studio right-rail `Canvas`
 - Reference Grid detail-modal handoff when opened from grid/right-rail media cards
 
+Active media-display and detail-modal ownership surfaces:
+
+- AI Studio `DetailModal` media authority for reference/grid/Quick Slot outputs
+- Media Library panel preview modal opened from media-grid double-clicks
+- AI Studio Media panel grids
+- Elements media-library carriage grids
+- Character media-library carriage grids
+
 Primary supporting code and tooling:
 
 - `frontend/features/media-library/`
@@ -45,6 +53,8 @@ Primary supporting code and tooling:
 - `frontend/scripts/media_panel_kpi_score.mjs`
 - `frontend/scripts/media_panel_kpi_capture.mjs`
 - `frontend/scripts/media_library_checkpoint_runner.mjs`
+- `docs/agents/holomony/media-display-command-index.md`
+- `docs/agents/holomony/media-display-authority-ledger.md`
 
 Out of scope unless the user explicitly reopens them:
 
@@ -72,12 +82,26 @@ For `character-panel-media-assignment`, load:
 
 For Reference Grid lanes, load:
 
+- `docs/agents/holomony/right-rail-command-index.md`
+
+Escalate only when the lane needs deeper owner-path or contract evidence:
+
 - `docs/agents/holomony/reference-grid-ownership-map.md`
 - `docs/agents/holomony/reference-grid-diagnostic-sop.md`
 - `docs/adr/0083-create-mode-global-right-rail-authority.md`
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/sops/sop_adaptive_media_change_control.md`
 - `docs/sops/sop_media_performance_operations.md`
+
+For media-grid, media-library carriage, or detail-modal lanes, load:
+
+- `docs/agents/holomony/media-display-command-index.md`
+
+Escalate only when the lane needs deeper owner-path, claim-state, or contract evidence:
+
+- `docs/agents/holomony/media-display-authority-ledger.md`
+- exact owner code paths named by the command index
+- relevant surface SOP/ADR only when the boundary is actively in question
 
 ## Operating Rules
 
@@ -131,10 +155,13 @@ For Reference Grid lanes, load:
 - and avoid blended status summaries that hide which layer is actually weak.
 
 21. When the user pastes a prompt from Gottspan's prompt library, run it on Holomony/current self by default unless the user explicitly says to run it on Gottspan.
-22. For Reference Grid work, Holomony is the owning authority for grid media-performance and display-correctness only after loading `reference-grid-ownership-map.md` and `reference-grid-diagnostic-sop.md`.
+22. For Reference Grid and right-rail work, Holomony should start with `right-rail-command-index.md` to identify the owner path, proof command, and load tier. Holomony becomes decision-grade for grid media-performance and display-correctness after loading the deeper owner files needed by that lane, usually `reference-grid-ownership-map.md` and `reference-grid-diagnostic-sop.md`.
 23. Before editing Reference Grid behavior, classify the issue as projection/state, URL authority, hydration/loading, render performance, detail handoff, ingestion/drag, or upstream. Fix only the owning path; hand off upstream failures.
 24. Do not solve Reference Grid card-preview pressure by weakening detail-modal full-quality authority, and do not solve detail-modal blank states by reintroducing Supabase image transformations.
 25. For right-rail Canvas work, Holomony owns media-display, media-drop routing, shared right-rail visibility, and project-restore trust only where the symptom touches the global right-rail media authority. Canvas scene editing behavior remains governed by the Canvas contracts and tests; upstream media, project, auth, or generation failures must be diagnosed and handed off instead of patched inside Canvas.
+26. Do not load ADRs, SOPs, retained reports, or historical packets for ordinary right-rail orientation when `right-rail-command-index.md` plus the owner code path is enough. Escalate to heavier context only for behavior edits, production-readiness claims, disputed contracts, stale-doc reconciliation, or cross-owner handoff.
+27. For media-grid, media-library carriage, or detail-modal work, Holomony should start with `media-display-command-index.md` to identify the modal authority, grid/runtime owner path, proof command, and boundary. Holomony owns media display and performance in these surfaces, not unrelated domain semantics.
+28. Before editing media display or modal behavior, classify the issue as modal-authority, modal-recovery, grid-display, grid-performance, double-click-handoff, media-identity, preview-signing, assignment-boundary, or upstream. Fix only the owning path; hand off upstream or non-media domain failures.
 
 ## Deliverable Rules
 

@@ -7,6 +7,7 @@ Purpose: repeatable workflow for Gutan image-ingestion audits, plans, and implem
 - Run the ShortPulse startup contract.
 - Confirm mode: brainstorm/no-edit, audit, or implementation.
 - Confirm branch is `production` and `shortpulse.allowedBranch` is `production`.
+- For launch-relevant work, follow `docs/agents/solo-owner-launch-trust-standard.md` and distinguish production URL evidence from local/static evidence.
 - Avoid broad commands until generated-artifact safety is checked.
 
 ## 2. Load Gutan Context
@@ -46,6 +47,8 @@ For each surface, decide:
 - which route or helper owns final enforcement;
 - which metadata proves the result is safe.
 
+Admission must not use Supabase image transformations. Do not pass signed URL `transform` options, construct `/storage/v1/render/image/` URLs, or rely on Supabase transformations as a shortcut for admitted derivatives.
+
 ## 5. Implement Canonically When Asked
 
 Implementation order:
@@ -60,6 +63,16 @@ Implementation order:
 
 Do not add a second compression system to avoid touching the canonical owner.
 
+When adding a product-image asset route:
+
+- keep the route authenticated and rate-limited;
+- accept a server-recognized intent, not arbitrary bucket names or storage paths;
+- verify caller ownership of the Character, Character Sheet, or Element target before writing storage;
+- infer the storage namespace server-side;
+- call canonical image admission before final storage;
+- return signed URL, storage path, dimensions, admitted size/MIME, and `image_admission` metadata;
+- continue to prohibit Supabase image transformations.
+
 ## 6. Validate
 
 Required validation for image-admission implementation:
@@ -69,7 +82,7 @@ Required validation for image-admission implementation:
 - animated over-cap behavior is explicit and tested;
 - original/full-quality export authority remains intact where required;
 - generation/reference submit paths receive admitted media;
-- no Supabase image transformation paths are introduced.
+- no Supabase signed transform options or `/storage/v1/render/image/` paths are introduced.
 
 ## 7. Close Out
 
@@ -77,6 +90,7 @@ Closeout must include:
 
 - touched surfaces;
 - validation run;
+- evidence freshness and production-vs-local scope for launch-relevant claims;
 - known gaps;
 - owner handoffs;
 - whether artifacts, memory, or inventories changed.

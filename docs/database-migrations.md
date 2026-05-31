@@ -258,6 +258,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 136.  `sql/migrations/137_retire_project_media_folder_authority.sql`
 137.  `sql/migrations/138_retire_character_quickswap_tip_preference.sql`
 138.  `sql/migrations/139_add_motion_reference_video_generation_leases.sql`
+139.  `sql/migrations/140_add_admitted_reference_image_variant.sql`
       Rollback files:
 
 
@@ -287,6 +288,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
     - `sql/migrations/rollback/138_retire_character_quickswap_tip_preference_rollback.sql`
     - `sql/migrations/rollback/139_add_motion_reference_video_generation_leases_rollback.sql`
+    - `sql/migrations/rollback/140_add_admitted_reference_image_variant_rollback.sql`
     - `sql/migrations/rollback/117_add_create_pulse_builtin_control_plane_rollback.sql`
     - `sql/migrations/rollback/118_canonicalize_character_metadata_media_ids_rollback.sql`
     - `sql/migrations/rollback/119_require_character_media_id_on_character_links_rollback.sql`
@@ -397,6 +399,7 @@ Billing safety note:
 - Migration `058_add_user_preferences_ai_studio_style_details_overrides.sql` adds durable per-user Styles Library metadata override persistence (`user_preferences.ai_studio_style_details_overrides`) for editing `style`, `title`, `referenceImageName`, and `stylePrompt` values.
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` added durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) before the embedded QuickSwap UX was retired.
 - Migration `138_retire_character_quickswap_tip_preference.sql` removes the now-unused `user_preferences.ai_studio_character_quickswap_tip_hidden` column from the current schema contract.
+- Migration `140_add_admitted_reference_image_variant.sql` adds the `media_asset_variants.variant_kind = 'admitted_reference_25mb'` constraint value for durable generated-image product-use admission derivatives. These derivatives do not change media storage accounting; the original `media_files` row remains the full-quality authority.
 - Migration `082_add_user_preferences_ai_studio_saved_voices.sql` adds durable per-user AI Studio saved-voice persistence (`user_preferences.ai_studio_saved_voices`) so created ElevenLabs voices survive refreshes and provider outages.
 - Migration `090_add_user_preferences_ai_studio_style_panel_ids.sql` adds durable per-user Styles Library ordering persistence (`user_preferences.ai_studio_style_panel_ids`) so the primary library panel and right-rail Styles chooser share one canonical tile order.
 - Migration `104_add_user_media_compliance_acceptances.sql` adds versioned per-user media agreement acceptance records (`user_media_compliance_acceptances`) so the protected-route compliance gate can store one-time acceptance history with the accepted timestamp, IP address, and user agent.

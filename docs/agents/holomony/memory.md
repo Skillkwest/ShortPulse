@@ -18,9 +18,12 @@ Active approved surfaces:
 
 - AI Studio `Libraries -> Media` panel.
 - Elements embedded media panel.
+- AI Studio `DetailModal` when opened from reference/grid/Quick Slot output media.
+- Media Library panel preview modal when opened from AI Studio, Elements, or Character media-grid cards.
 - Reference Grid when the user opens a Reference Grid media-performance or display-correctness lane.
 - Quick Slot Inventory when the user opens a right-rail media-performance or display-correctness lane.
 - Right-rail Canvas when the user opens a right-rail media-display, drop-routing, or restore-trust lane.
+- Character media-library carriage/grid when the user opens a media-display, media-performance, or detail-preview lane.
 
 Candidate or hybrid surfaces:
 
@@ -76,10 +79,20 @@ Excluded unless explicitly reopened:
 - Current root-cause themes to check before tuning by hunch: restore/signing/hydration hot path, stale media authority, projection/render churn, and broken/deleted reference persistence.
 - Do not cite old `no clear blocker` conclusions as present truth.
 - Holomony now has first-class Reference Grid ownership docs:
+  - `docs/agents/holomony/right-rail-command-index.md`
   - `docs/agents/holomony/reference-grid-ownership-map.md`
   - `docs/agents/holomony/reference-grid-diagnostic-sop.md`
 - Before editing grid behavior, classify the layer: projection/state, URL authority, hydration/loading, render performance, detail handoff, ingestion/drag, or upstream.
 - Supabase render-image transforms are prohibited everywhere; `/_next/image` can be a temporary preview bridge, not final full-quality authority.
+
+### Media Grids And Detail Modals
+
+- Holomony owns AI Studio `DetailModal` media authority for reference/grid/Quick Slot outputs.
+- Holomony owns the media-library panel preview modal opened by double-clicking media cards in AI Studio Media, Elements carriage, and Character carriage surfaces.
+- Treat `DetailModal` and `MediaLibraryPanelPreviewModal` as separate modal authorities: the first consumes `StudioOutput`; the second consumes `MediaFileRow`.
+- Media-library card grids share `MediaLibraryMediaGrid`, `MediaLibraryAllItemsGrid`, `useMediaLibraryPanelSelectionController`, `useMediaSurfacePreviewRuntime`, and `useMediaSurfacePreviewSigning`.
+- `/_next/image` may be card-preview bridge authority only; it must not be final full-quality modal image authority.
+- Character and Elements media carriages are Holomony-owned for media display/performance/detail-preview behavior while their non-media assignment/workflow semantics remain bounded handoffs.
 
 ### Right-Rail Canvas
 
@@ -105,10 +118,26 @@ Always load for substantive Holomony work:
 - this memory file
 - `docs/agents/holomony/ownership-manifest.md`
 
-For Reference Grid lanes, also load:
+For right-rail orientation and ordinary ownership questions, load:
+
+- `docs/agents/holomony/right-rail-command-index.md`
+
+For media-grid, media-library carriage, and detail-modal orientation, load:
+
+- `docs/agents/holomony/media-display-command-index.md`
+
+For right-rail edits, production/user-facing diagnosis, or decision-grade claims, also load the owner docs/code paths named by the command index. Common deeper Reference Grid docs:
 
 - `docs/agents/holomony/reference-grid-ownership-map.md`
 - `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+
+For media-display edits, production/user-facing diagnosis, or decision-grade claims, also load:
+
+- `docs/agents/holomony/media-display-authority-ledger.md`
+- exact owner code paths named by `media-display-command-index.md`
+
+Load contract docs only when the contract is actively in question:
+
 - `docs/adr/0083-create-mode-global-right-rail-authority.md`
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/sops/sop_adaptive_media_change_control.md`
@@ -127,6 +156,8 @@ Stop loading by default:
 - archived baseline reports as current health proof.
 - long chronological training history for ordinary implementation work.
 - old incident chains unless the current task explicitly reopens them.
+- broad ADR/SOP context for ordinary right-rail orientation when `right-rail-command-index.md` and the owner code path answer the question.
+- broad ADR/SOP/report context for ordinary media-display orientation when `media-display-command-index.md` and the owner code path answer the question.
 
 ## Memory Policy
 

@@ -17,6 +17,7 @@ Only keep durable repo-level rules here. Detailed admin-surface lessons should l
 - Default posture: preserve auditability, prefer explicit evidence over assumption, and make repo drift visible instead of normalizing it.
 - Default recurring workflow: one weekly repo-state audit that produces one concise durable report.
 - Default load rule: load contract + memory + runtime-load-policy first; load reports, prompts, KPI, training history, and auxiliary SOP surfaces only when the lane requires them.
+- New agent onboarding rule: when the user asks Gottspan to onboard, verify, or check a new agent folder, load `docs/agents/gottspan-the-admin/standard-operating-procedure.md` and use its `New Agent Onboarding Pass`.
 
 ## Durable Lessons
 

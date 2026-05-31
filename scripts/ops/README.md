@@ -12,6 +12,12 @@ Purpose: keep shared ShortPulse operations scripts and agent-specific helper aud
   - Verifies that Holomony's core media-performance docs, scripts, tests, and telemetry entrypoints still exist.
   - Checks that Holomony's indexed docs remain present.
   - Runs the standard docs link and semantic drift checks.
+- `bash scripts/ops/holomony/holomony_right_rail_command_map.sh`
+  - Verifies that Holomony's compact right-rail command index, owner docs, core owner code paths, and retained right-rail tests still exist.
+  - Prints the compact owner/test map for Reference Grid, Quick Slot Inventory, and right-rail Canvas work.
+- `bash scripts/ops/holomony/holomony_media_display_command_map.sh`
+  - Verifies that Holomony's compact media-display command index, authority ledger, owner code paths, and retained proof entrypoints still exist.
+  - Prints the compact owner/test map for media grids, media-library carriages, and detail modals.
 - `bash scripts/ops/gutan/gutan_image_admission_inventory.sh`
   - Verifies that Gutan's local operating folder and retained artifact files exist.
   - Finds current image upload, normalization, and size-limit references in likely Gutan-owned paths.

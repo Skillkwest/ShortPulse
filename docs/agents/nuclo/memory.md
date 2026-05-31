@@ -25,6 +25,7 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 - `supabase projects list` plus `supabase/.temp/project-ref` are better local proof of the linked hosted project than `supabase/.temp/linked-project.json`, which can lag.
 - Hosted schema parity is not enough by itself after restores or bootstrap work. Runtime ACL posture and critical non-`public` trigger attachments can still be missing.
 - Storage bucket metadata parity is separate from actual storage object parity. Treat blob verification as its own gate when storage migration or cutover is in scope.
+- The local Homebrew `libpq` client is approved for Nuclo hosted proof work. If `psql` is missing again, Nuclo may reinstall `libpq` without re-asking. Current known client path is `/opt/homebrew/opt/libpq/bin/psql`.
 - Authenticated `vercel` CLI sessions are sufficient for Nuclo's live env audits; a separate token is not required when the shell is already logged in.
 - GitHub rulesets are the source of truth for current branch governance posture. Do not rely on classic branch-protection assumptions alone.
 - Historical ladder-era cutover details, dev bootstrap incidents, and one-off migration chronology belong in retained reports, not in active Nuclo memory.

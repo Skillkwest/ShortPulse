@@ -4,23 +4,41 @@ Purpose: concise durable memory for Gutan's image-ingestion normalization lane.
 
 ## Current Durable Truths
 
+- Gutan's job title is `ShortPulse Media Ingestion Normalization Steward`.
+- ShortPulse is currently one human owner/operator. Gutan is a bounded AI authority surface for image-ingestion normalization, not evidence of a larger human team.
+- During the current pre-launch phase, Gutan works only on local `production`, targets GitHub `production`, keeps `shortpulse.allowedBranch=production`, and uses `https://www.shortpulse.ai` for browser/manual production validation unless the user explicitly changes the surface.
+- Launch-relevant Gutan claims must follow `docs/agents/solo-owner-launch-trust-standard.md`: name the source of truth, evidence, freshness, production-vs-local surface, unknowns, and next proof.
 - Gutan owns product image admission, resizing, and compression for media ingestion and generation functionality.
+- Gutan owns this lane because ShortPulse needs one reliable normalization gate that makes images functionally usable inside product processing and generation surfaces without duplicating compression workarounds across every surface.
 - Holomony owns media display optimization, Reference Grid adaptive preview/display compression, hydration, virtualization, and KPI work.
 - Nuclo owns Supabase project/environment/storage operations; Dave owns security signoff for RLS, auth, secrets, and privacy boundaries.
-- ShortPulse must not use Supabase image transformations on any path.
+- ShortPulse must not use Supabase image transformations on any path. For Gutan, that specifically forbids signed URL `transform` options, `/storage/v1/render/image/` URLs, adaptive preview rewrites, fallbacks, compatibility lanes, experiments, temporary mitigations, or operational exceptions.
+- Gutan admitted derivatives must be app-owned, browser-prepared, or trusted non-Supabase derivatives. They must never be Supabase Storage transformations.
 - The product-use image limit is currently 25 MB.
 - Large generated or uploaded images may need to remain available at full quality for save/export, while generation/product-use surfaces receive an admitted <=25 MB derivative.
 - Browser-side compression is helpful for UX and bandwidth, but server-side admission must remain the canonical final authority.
+- Gutan's accepted first-build policy lives at `docs/records/artifacts/agent/gutan/image-admission-policy.md`.
+- Preserve originals for generated/full-quality-authority media; otherwise store admitted user-upload/import objects as canonical durable media.
+- Create generated-image admitted derivatives lazily on first product-use need.
+- Reject over-25 MB animated images for product-use in the first system.
+- Phase 0/1 implementation has started in `frontend/lib/imageAdmissionPolicy.ts`, `frontend/lib/server/imageAdmission.ts`, and durable upload wiring in `frontend/lib/server/mediaUploadService.ts`.
+- Successful image uploads now record nested `image_admission` metadata with `supabase_transform_used: false`; under-cap uploads keep existing outer dimension behavior.
+- `/api/media/admit-image-asset` is the allowlisted server route for Character/Elements product image assets. It accepts only recognized intents, verifies caller-owned targets, infers storage paths server-side, and uses canonical admission before storage.
+- Character Manager profile, character-sheet preset, and slot image saves now use `/api/media/admit-image-asset`; the old client-side Character storage-path builders were removed so storage namespace authority stays server-owned.
+- Elements Manager profile image saves now use `/api/media/admit-image-asset`; Elements reference slots continue through the canonical AI Studio `/api/upload-image` helper path.
+- `/api/media/copy-from-url` now admits trusted remote still images through the canonical image admission helper before storing the copied object; video/audio copy behavior stays outside this still-image admission change.
+- Nuclo and Dave approved Phase 5 generated-image reuse admission in their 2026-05-30 reports, with the constraint that admitted derivatives are first-class `media_asset_variants` rows, server-authored under `<user_id>/variants/images/<media_file_id>/admitted_reference_25mb.<ext>`, fail closed, and never use Supabase transformations.
+- Phase 5 generated-image reuse admission now has initial code in `frontend/lib/server/admittedReferenceImageVariant.ts`, submit-time internal ref wiring in `frontend/lib/server/api/internalMediaRefResolution.ts`, and migration `sql/migrations/140_add_admitted_reference_image_variant.sql`.
 
 ## Current First-Job Aim
 
 Build one robust image admission system that replaces scattered image-size workarounds without breaking full-quality export/detail behavior or adjacent owner lanes.
 
-## Open Product Questions
+## Resolved First-Build Decisions
 
-- For over-cap animated images, should ShortPulse reject them for product-use admission, admit a static frame, or create a smaller animated derivative?
-- For generated images over 25 MB, should admitted derivatives be created eagerly at generation time or lazily on first product-use reference?
-- Should the UI quietly use admitted derivatives for provider submission, or should it visibly disclose that a processing-safe copy is being used?
+- Over-cap animated images are rejected in v1.
+- Generated-image admitted derivatives are created lazily on first product-use need.
+- Successful admission is quiet and uses existing UX surfaces; no visible compression banners or new loading copy without explicit approval.
 
 ## Memory Rules
 

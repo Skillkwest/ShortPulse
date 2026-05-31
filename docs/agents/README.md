@@ -74,6 +74,9 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.
   - `docs/agents/holomony/standard-operating-procedure.md`: Holomony's standing SOP for media-surface performance audits, optimization lanes, KPI discipline, and training updates.
   - `docs/agents/holomony/ownership-manifest.md`: Holomony's ownership boundary map for local instructions, artifacts, helper scripts, and shared dependencies.
+  - `docs/agents/holomony/media-display-command-index.md`: compact code-backed command index for product media grids, media-library carriages, detail modals, and double-click handoffs.
+  - `docs/agents/holomony/media-display-authority-ledger.md`: current claim packet table for Holomony media-display and detail-modal ownership.
+  - `docs/agents/holomony/right-rail-command-index.md`: compact code-backed command index for Reference Grid, Quick Slot Inventory, and right-rail Canvas ownership work.
 - `docs/agents/gutan/README.md`: Gutan media-ingestion normalization and product image admission contract and memory entrypoint.
   - `docs/agents/gutan/AGENTS.md`: Gutan-scoped execution overlay for image admission, resizing, compression, and boundary handoffs.
   - `docs/agents/gutan/standard-operating-procedure.md`: Gutan's standing SOP for image-admission audits, plans, implementation runs, and validation.

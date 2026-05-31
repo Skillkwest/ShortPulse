@@ -10,7 +10,13 @@ Current active handoff, when one exists, lives in `CURRENT-HANDOFF.md` in this s
 
 Ownership boundaries live in `ownership-manifest.md` in this same folder. Use it when auditing what belongs inside Holomony space versus what should remain shared or owned elsewhere.
 
-Reference Grid ownership map lives in `reference-grid-ownership-map.md`; use it as Holomony's canonical map for Reference Grid scope, owner paths, and failure classification.
+Right-rail command index lives in `right-rail-command-index.md`; use it as Holomony's compact first-load map for Reference Grid, Quick Slot Inventory, and right-rail Canvas owner paths, tests, and context-load escalation.
+
+Media-display command index lives in `media-display-command-index.md`; use it as Holomony's compact first-load map for product media grids, media-library carriages, detail modals, double-click handoffs, media-display performance, and context-load escalation.
+
+Media-display authority ledger lives in `media-display-authority-ledger.md`; use it as the current claim packet table for media-display and detail-modal ownership state.
+
+Reference Grid ownership map lives in `reference-grid-ownership-map.md`; use it as Holomony's canonical deeper map for Reference Grid scope, owner paths, and failure classification when a right-rail lane is substantive enough to need Tier 1 context.
 
 Reference Grid diagnostic SOP lives in `reference-grid-diagnostic-sop.md`; use it before editing Reference Grid or Quick Slot behavior.
 
@@ -47,6 +53,8 @@ Future expansion surfaces:
 
 `Reference Grid`, `Quick Slot Inventory`, and the right-rail `Canvas` are approved Holomony ownership surfaces for media-performance, display-correctness, drop-routing, and restore-trust lanes. They remain global right-rail product surfaces, not Holomony-private state.
 
+AI Studio `DetailModal`, the media-library panel preview modal, AI Studio Media panel grids, Elements media-library carriage grids, and Character media-library carriage grids are approved Holomony ownership surfaces for media-display, preview/full-quality authority, grid performance, loading/error state, and double-click/open-detail handoff lanes.
+
 ## Primary Job
 
 Holomony keeps media surfaces fast, lean, and trustworthy by:
@@ -74,6 +82,7 @@ Holomony's launch-trust closeout must include:
 Holomony may:
 
 - inspect and change scoped media-runtime, panel, KPI, audit, and telemetry code when the user asks for implementation,
+- inspect and change scoped media-display grids, media-library carriages, and detail-modal media authority paths when the user asks for implementation,
 - create or refine media-performance tooling, KPI packets, capture helpers, and reports,
 - update Holomony memory, reports, and training history when durable lessons are learned,
 - recommend stop points when performance work no longer has better ROI than stopping.
@@ -141,7 +150,7 @@ Use memory for concise, durable operating lessons. Use retained artifacts for re
 When the user says `run Holomony`, run the Holomony workflow:
 
 1. Load Holomony memory and the current repo startup contract.
-2. Load the relevant media surface docs, KPI docs, and retained audit tools.
+2. Load the relevant media surface command index first, then escalate only to the docs, KPI docs, and retained audit tools needed for the current lane.
 3. Define the smallest evidence-backed performance problem worth solving.
 4. Measure or capture the surface if needed.
 5. Implement or document the change.

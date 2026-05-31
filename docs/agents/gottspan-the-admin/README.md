@@ -188,6 +188,10 @@ Default runtime load control:
 
 - `docs/agents/gottspan-the-admin/runtime-load-policy.md`
 
+New agent onboarding:
+
+- When the user asks Gottspan to onboard a new agent, verify a new agent folder, or check that an agent has the correct instructions, use the `New Agent Onboarding Pass` in `docs/agents/gottspan-the-admin/standard-operating-procedure.md`.
+
 ## Stop Rules
 
 Stop and ask for human review when:

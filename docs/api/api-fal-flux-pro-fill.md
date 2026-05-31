@@ -3,13 +3,15 @@
 Reference for integrating FLUX Pro Fill inpaint (`fal-ai/flux-pro/v1/fill`) through ShortPulse Fal proxies.
 ShortPulse catalog model id: `fal-ai/flux-pro/v1/fill`.
 
+Status: temporarily disabled in ShortPulse. The historical route/payload details below remain as implementation reference only and are not active product endpoints right now.
+
 ## Authentication
 - Set `FAL_KEY` in the server runtime only.
 - Proxies attach `Authorization: Key $FAL_KEY` for upstream Fal requests.
 
 ## Submit (Inpaint)
 ### Proxy endpoint
-Active client path:
+Historical client path:
 - `POST /api/fal/flux-pro-fill-submit`
 
 ### Fal queue
@@ -37,7 +39,7 @@ Example payload:
 - `enhance_prompt` (boolean, optional)
 
 ## Status and result
-- Active client polling path:
+- Historical client polling path:
   - `POST /api/fal/flux-pro-fill-status`
 - Proxy checks configured status base URLs and fetches result on completion.
 - Catalog fallback bases include both:
@@ -48,7 +50,7 @@ Example payload:
 - Standard Fal image result payload (`images[]` and/or `image` URL objects depending on upstream response shape).
 
 ## ShortPulse defaults and wiring notes
-- Used as hidden internal inpaint model (not exposed in picker).
+- Used as hidden internal inpaint model (not exposed in picker) when the lane is enabled.
 - Expert Edit inpaint flow submits flattened base image + exported mask window.
 - Expert Edit inpaint currently supports only the primary base image plus mask. Secondary prompt-reference images are not transmitted to FLUX Fill.
 - When the prompt links exactly one unique `@imgN`, ShortPulse switches to the separate `fal-ai/flux-kontext-lora/inpaint` lane instead of overloading FLUX Fill.

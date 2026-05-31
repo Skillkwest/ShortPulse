@@ -93,6 +93,58 @@ Use when the issue is branch/worktree posture, environment-risk visibility, or p
 
 Use when another task-specific agent's contract, memory, artifact surface, or routing logic needs to be created, audited, or corrected.
 
+## New Agent Onboarding Pass
+
+Use this when the user adds a new named agent and asks Gottspan to onboard it or verify its folder.
+
+The goal is a quick organization and instruction-readiness pass, not a full agent-training program.
+
+### Onboarding checklist
+
+1. Confirm the agent identity and owned lane:
+
+- canonical name and common spoken aliases
+- job title or one-sentence purpose
+- what the agent owns
+- what adjacent lanes it must not absorb
+
+2. Verify folder shape:
+
+- `docs/agents/<agent-name>/README.md`
+- scoped `AGENTS.md` when the agent performs work from its folder
+- `memory.md` for concise durable truths when the agent has recurring duties
+- SOP or workflow file when the agent will run repeatable tasks
+- ownership manifest when boundaries touch other agents or shared product surfaces
+- `docs/records/artifacts/agent/<agent-name>/README.md` when retained reports, tools, training history, or templates exist
+
+3. Verify required instruction language:
+
+- inherits root `AGENTS.md`
+- states the solo-owner model: ShortPulse is one human owner/operator supported by named AI agents
+- treats the agent as a bounded AI authority surface, not evidence of a larger human team
+- follows `docs/agents/solo-owner-launch-trust-standard.md` for launch-relevant claims
+- states the current pre-launch `production` branch rule and `shortpulse.allowedBranch=production`
+- states production URL validation expectations when browser/manual validation is relevant
+- tells the agent to fix the canonical path and avoid workarounds, fallbacks, duplicate paths, or adjacent drift
+
+4. Verify organization and discoverability:
+
+- update `docs/agents/README.md` when the agent has an active contract
+- update `docs/records/artifacts/agent/README.md` when the agent has an artifact home
+- keep prompts, tools, reports, templates, and inventories inside the owning agent or artifact folder
+- do not scatter agent-specific operating material at repo root
+
+5. Validate and close:
+
+- run `npm -C frontend run docs:check`
+- run `git diff --check`
+- state what was added or corrected
+- state any missing pieces or deferred follow-up
+
+### Stop rules
+
+Stop and ask before inventing major lane authority, moving shared product ownership, creating security responsibilities, changing branch policy, or creating large new agent frameworks. For a new agent, prefer a small complete operating package over a broad speculative workspace.
+
 ## Required Workflow
 
 ### Step 1. Start with repo rules

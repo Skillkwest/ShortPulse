@@ -13,7 +13,7 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 2. The AI Studio left-rail `Projects` modal now also exposes `New Project`, asks for an initial project name, creates the same user-owned `projects` row, and switches the current studio route onto the new `projectId`.
 3. Project creation is server-authoritative through authenticated API routes; the client does not insert directly into Supabase.
 4. AI Studio currently accepts `?projectId=<uuid>` as the top-level project handoff boundary while legacy `sid` session identity still coexists during migration.
-5. When `projectId` is present, AI Studio resolves the owned project record before restore continues.
+5. When `projectId` is present, AI Studio starts project workspace bootstrap as soon as the route id is syntactically valid, but the shell still stays gated until the owned project record resolves successfully.
 6. The visible Media Library project title now reads from and writes to `projects.title`.
 7. Project routes now load and save a project-owned workspace projection derived from the shared AI Studio snapshot envelope instead of the legacy remote `sid` snapshot route.
 8. Project workspace persistence now keeps only durable project content: active output media for the shared right rail, Quick Slot Inventory and Reference Grid projection ids, durable Canvas scene items and cameras, plus the separately owned project title. The Media Library folder system remains user-global and is not project-owned workspace state. Project routes do not persist workflow shell state, typed composer text, active output focus, shared reference-selection state, Character Mode shell state, conversational runtime, or Expert Edit document state.
@@ -161,7 +161,7 @@ Behavior:
 
 1. `projectId` is now the top-level durable handoff identity for the Projects migration.
 2. `sid` still exists as a lower-level runtime/session identity during migration.
-3. When `projectId` is present, AI Studio resolves the owned project record before restore continues.
+3. When `projectId` is present, AI Studio may start project workspace bootstrap as soon as the route id is syntactically valid, but restore only becomes visible after the owned project record resolves successfully.
 4. Current shipped behavior is coexistence, not full cutover.
 5. Legacy `sid` remains the runtime identity for plain `/ai-studio` routes without `projectId`.
 

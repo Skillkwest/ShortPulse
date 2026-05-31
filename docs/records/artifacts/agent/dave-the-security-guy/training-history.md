@@ -65,3 +65,30 @@ Remaining friction:
 Next training focus:
 
 - Add or adopt a safe operator-approved helper for targeted Supabase Auth session cleanup that records only sanitized counts and never prints token/session rows.
+
+## 2026-05-30 - Generated Image Admitted Variant Security Review
+
+Prompt used:
+
+```text
+-- This is all copy and paste context from Gutan. I need you to review this document. Everything pertaining to you and what he's requesting from you, I need you to work on. Don't venture into any of the other areas that this document pertains to. Just focus on what is addressed to you only.
+```
+
+Behavior learned:
+
+- First-class `media_asset_variants` rows are a good fit for admitted generated-image derivatives only when creation stays server-authoritative and fail-closed.
+- Existing private-bucket policies and `media_asset_variants` RLS are a good base, but service-role derivative helpers must still prove original media ownership before reading, writing, upserting, or signing.
+- Signed derivative URLs must remain ephemeral output only; the durable authority is the verified original `media_files` row plus the private variant row/object, not a cached signed URL.
+
+Artifacts created:
+
+- `docs/records/artifacts/agent/dave-the-security-guy/reports/2026-05-30-generated-image-admitted-variant-security-review.md`
+
+Remaining friction:
+
+- This review does not approve any browser-direct variant write path for generated-image admitted derivatives.
+- Final safety still depends on Gutan implementing the required owner checks, cleanup behavior, and regression coverage.
+
+Next training focus:
+
+- Reuse this review pattern for future derivative/variant proposals so new media helper lanes do not quietly create raw path, signed URL, or service-role trust leaks.

@@ -32,6 +32,16 @@ Purpose: list the current retained tools Holomony uses for media optimization an
   - Reference Grid ownership map, owner-path model, failure classification, and handoff boundary
 - `docs/agents/holomony/reference-grid-diagnostic-sop.md`
   - Reference Grid diagnostic sequence, proof matrix, and anti-patch-loop rules
+- `docs/agents/holomony/right-rail-command-index.md`
+  - compact first-load owner path, load ladder, failure classifier, and test map for Reference Grid, Quick Slot Inventory, and right-rail Canvas
+- `scripts/ops/holomony/holomony_right_rail_command_map.sh`
+  - verifies the compact right-rail command index, core owner code paths, and retained test entrypoints still exist, then prints the owner/test map
+- `docs/agents/holomony/media-display-command-index.md`
+  - compact first-load owner path, load ladder, failure classifier, regression traps, and test map for product media grids, media-library carriages, and detail modals
+- `docs/agents/holomony/media-display-authority-ledger.md`
+  - current claim packet table for Holomony media-display and detail-modal authority
+- `scripts/ops/holomony/holomony_media_display_command_map.sh`
+  - verifies the compact media-display command index, authority ledger, core owner code paths, and retained proof entrypoints still exist, then prints the owner/test map
 - `docs/records/artifacts/agent/holomony/surface-onboarding-checklist.md`
   - minimum gate checklist before a new media-heavy surface becomes first-class
 - `docs/records/artifacts/agent/holomony/reports/current/2026-05-18-character-panel-media-assignment-onboarding-audit.md`
@@ -63,6 +73,12 @@ Use these existing checks selectively by owner layer:
 - Right-rail Canvas:
   - `npm run test -- canvas`
   - `npm run test -- useAiStudioPageMediaReferenceRuntime useAiStudioShellDndController useAiStudioPageProjectSessionRuntime`
+- Media display and detail modals:
+  - `npm run test -- DetailModal DetailModal.fullQuality`
+  - `npm run test -- MediaLibraryPanelPreviewModal MediaLibraryMediaGrid MediaLibraryAllItemsGrid`
+  - `npm run test -- MediaLibraryPanel`
+  - `npm run test -- ElementsPanelSplitHost CharacterPanelSplitHost CharacterEmbeddedMediaLibraryPanel`
+  - `npm run test -- useMediaLibraryPanelRuntime useMediaLibraryPanelDataController`
 
 Production behavior still requires production evidence from `https://www.shortpulse.ai` when the user-reported symptom is deployed-only.
 

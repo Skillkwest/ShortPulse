@@ -60,14 +60,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `media_file_id` (uuid): Parent media row with cascade delete.
 - `user_id` (uuid): Owner for RLS scoping and scoped FK parity with `media_files`.
-- `variant_kind` (text): `original | thumb_240 | thumb_480 | poster_720 | preview_loop_360p | playback_720p`.
+- `variant_kind` (text): `original | thumb_240 | thumb_480 | poster_720 | preview_loop_360p | playback_720p | admitted_reference_25mb`.
 - `storage_path` (text): User-scoped variant object path in `media_library`.
 - `mime_type` (text): Stored variant MIME type.
 - `width` / `height` (int, nullable): Variant dimensions.
 - `duration_seconds` (numeric, nullable): Variant duration (video variants).
 - `byte_size` (bigint, nullable): Variant file size.
 - `status` (text): pending | ready | failed.
-- `metadata` (jsonb, default `{}`): Variant generation metadata.
+- `metadata` (jsonb, default `{}`): Variant generation metadata. `admitted_reference_25mb` stores generated-image product-use admission metadata for provider/reference reuse only; the parent `media_files` row remains the full-quality authority for detail, save, download, and export behavior.
 - `created_at` / `updated_at` (timestamptz).
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 

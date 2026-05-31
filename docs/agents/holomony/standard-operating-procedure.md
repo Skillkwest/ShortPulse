@@ -34,11 +34,12 @@ Out of scope unless explicitly reopened:
 - Save/browse integrity: prove preview/readiness and reopen trust.
 - Surface onboarding: add a new media-heavy surface to Holomony scope.
 - Regression review: compare fresh evidence to retained history.
-- Reference Grid ownership run: classify and repair Reference Grid/Quick Slot projection, media authority, hydration/loading, render-performance, detail-handoff, or ingestion/drag issues.
+- Right-rail ownership run: classify and repair Reference Grid, Quick Slot Inventory, or right-rail Canvas visibility, projection, media authority, hydration/loading, render-performance, detail-handoff, ingestion/drag, drop-routing, or restore-trust issues.
+- Media-display ownership run: classify and repair product media grids, media-library carriages, detail modals, double-click handoffs, media URL authority, loading/error states, and grid performance.
 
 ## Required Workflow
 
-1. Start from repo rules. Load the root startup contract and Holomony `README.md`, `AGENTS.md`, this SOP, `memory.md`, and `ownership-manifest.md`. Load scorecards, reports, and route SOPs only when the lane needs them.
+1. Start from repo rules. Load the root startup contract and Holomony `README.md`, `AGENTS.md`, this SOP, `memory.md`, and `ownership-manifest.md`. For media-display/detail-modal work, load `media-display-command-index.md` first. For right-rail work, load `right-rail-command-index.md` first. Escalate to deeper owner maps, ADRs, SOPs, scorecards, reports, and route docs only when the lane needs them.
 2. Freeze the lane. Name the surface, environment, run type, visible problem, source of truth, out-of-scope items, and stop condition.
 3. Protect the user's bandwidth. Make the critical recommendation yourself when the evidence supports it; ask only for genuine product decisions or unsafe unknowns.
 4. Load the smallest credible context. Read owner files and only the retained reports needed for the current question.
@@ -103,13 +104,21 @@ A new surface needs:
 
 Embedded shared browse plus separate persistence authority should be treated as a hybrid candidate surface, not silently added to the panel KPI family.
 
-## Reference Grid Rule
+## Right-Rail Rule
 
-For Reference Grid work, use `reference-grid-ownership-map.md` and `reference-grid-diagnostic-sop.md` before edits.
+For Reference Grid, Quick Slot Inventory, or right-rail Canvas work, use `right-rail-command-index.md` first to choose the owner layer, code path, proof command, and load tier. Use `reference-grid-ownership-map.md` and `reference-grid-diagnostic-sop.md` before edits that change Reference Grid or Quick Slot behavior.
 
 Holomony owns Reference Grid media-performance and display-correctness only for the grid-owned layers: projection/state, URL authority, hydration/loading, render hygiene, adaptive preview delivery, detail-modal handoff, and grid intake/drag payloads.
 
 If the symptom traces to upstream auth, Supabase persistence, provider, media-library list/folder, project restore, deployment, billing, or generation failures, Holomony should stop grid edits and produce a handoff with evidence.
+
+## Media-Display Rule
+
+For product media grids, media-library carriages, and detail modals, use `media-display-command-index.md` first to choose the modal authority, grid/runtime owner path, proof command, and boundary.
+
+Holomony owns media display/performance layers: card rendering, preview/full-quality authority, signing/preview runtime, hydration/loading/error states, density, virtualization, video budget, double-click/open-detail handoff, and media modal recovery.
+
+Holomony should not absorb unrelated caller semantics. Character assignment and persistence, Elements workflow behavior, generic Canvas editing, admin reporting, provider generation quality, auth, billing, storage outages, and deployment incidents remain handoff lanes unless the concrete symptom is media display or media performance.
 
 ## Stop Conditions
 

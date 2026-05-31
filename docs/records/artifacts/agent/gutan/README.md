@@ -15,9 +15,10 @@ The first training/build lane is the ShortPulse product image admission system f
 - `image-admission-implementation-plan.md`: phased build plan for the product image admission system.
 - `generated-image-admitted-variant-review-packet.md`: Nuclo/Dave review packet and copy/paste prompts required before Phase 5 generated-image reuse implementation.
 - `generated-image-admitted-variant-post-migration-nuclo-handoff.md`: Nuclo proof packet for hosted lint, constraint verification, storage drift, and admitted-variant baseline after migration `140`.
+- `phase-6-ephemeral-provider-submit-admission-plan.md`: deferred implementation plan for local/blob/data product-use image admission before provider submit.
 - `tools.md`: helper scripts and recurring audit commands.
 - `training-history.md`: supervised runs, learned behavior, tool changes, and next training focus.
-- `reports/`: detailed audits, implementation reports, and validation packets.
+- `reports/`: detailed audits, implementation reports, and validation packets. Current key report: `2026-05-31-generated-image-admitted-variant-post-smoke-closeout.md`.
 - `templates/`: reusable report and handoff templates.
 
 Gutan-owned helper scripts live under:

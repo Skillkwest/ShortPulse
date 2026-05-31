@@ -33,6 +33,12 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/ayla/standard-operating-procedure.md`: Ayla's standing SOP for support replies, approval-sensitive outbound drafts, escalation, and retention.
   - `docs/agents/ayla/ux-playbook.md`: Ayla's applied UX lens for support trust, hesitation, auth recovery, pricing confusion, and escalation clarity.
   - `docs/agents/ayla/workspace/README.md`: Ayla's temporary workspace and intake surface.
+- `docs/agents/ako/README.md`: Ako backlog management, planning-surface reconciliation, and authorized board-sync contract and memory entrypoint.
+  - `docs/agents/ako/AGENTS.md`: Ako-scoped execution overlay for backlog, planning, and board-reconciliation work.
+  - `docs/agents/ako/memory.md`: Ako's repo-visible durable memory entrypoint.
+  - `docs/agents/ako/standard-operating-procedure.md`: Ako's standing SOP for backlog audits, planning cleanup, and authorized board reconciliation.
+  - `docs/agents/ako/ownership-manifest.md`: Ako's ownership boundary map for backlog/planning surfaces versus adjacent specialist lanes.
+  - retained artifacts live under `docs/records/artifacts/agent/ako/`.
 - `docs/agents/abismia/README.md`: Abismia UI/UX and intended runtime behavior stewardship contract and memory entrypoint.
   - `docs/agents/abismia/AGENTS.md`: Abismia-scoped execution overlay for UI/UX and visible runtime-behavior work.
   - `docs/agents/abismia/memory.md`: Abismia's repo-visible durable memory entrypoint.

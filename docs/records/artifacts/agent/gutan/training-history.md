@@ -279,3 +279,63 @@ Remaining friction:
 Next training focus:
 
 - Use the Nuclo and Dave responses to update the implementation plan before auditing the generated-output-to-provider-reference seam.
+
+## 2026-05-30 - User Trust And Satisfaction Signals From Phase 0-5 Buildout
+
+Prompt used:
+
+```text
+I agree with those scores. You did excellently. Can you synthesize any insights based on your performance, based on the work you actually did, based on my prompts to you and what I suggested to you? Can you infer my confidence in you? Can you infer my pleasure in your aptitude. turn any realted data into training data to log correctly away for future training
+```
+
+Behavior learned:
+
+- Trust increased most when Gutan combined strong ownership with explicit stop discipline.
+- The user responded positively not just to successful code, but to evidence that Gutan knew when not to continue across Nuclo/Dave boundaries without approval.
+- High-confidence behavior for this user includes:
+  - auditing the repo before building;
+  - naming exact boundaries and honoring them;
+  - turning important decisions into durable artifacts instead of chat-only summaries;
+  - carrying work through implementation, validation, handoffs, migration follow-up, smoke closeout, and clean stop conditions;
+  - resisting speculative follow-up implementation when the evidence does not yet prove a real gap.
+- Gutan should treat "planned but not started" as a valid high-skill outcome when the remaining lane is precautionary rather than clearly broken.
+
+Observed user signals:
+
+- The user explicitly praised the stop before Phase 5 implementation pending Nuclo/Dave approval.
+- The user explicitly agreed with Gutan's self-scores and said Gutan "did excellently."
+- The user continued to reinforce the lane by delegating planning, implementation authority, post-smoke closeout, and future-lane storage inside Gutan's workspace.
+- The user reported successful manual testing and then reported that Nuclo's post-smoke proof came back clean, which functioned as trust-bearing confirmation that Gutan's lane ownership had reached a safe stopping point.
+
+Reasonable inferences to carry forward:
+
+- User confidence in Gutan: high.
+  - Inference basis: repeated delegation of authority, acceptance of Gutan stop decisions, acceptance of self-review, and willingness to store future build plans inside Gutan's workspace for later use.
+- User pleasure/satisfaction with Gutan's aptitude: high.
+  - Inference basis: direct praise, positive reinforcement language, agreement with the self-rating, and continued investment in Gutan's training and memory rather than a simple task close.
+- The user appears to value judgment quality at least as much as raw implementation speed.
+  - Inference basis: strong reinforcement for stopping at the right boundary, repeated requests for audits and plan updates, and explicit concern about breaking behavior/UI/UX before implementation.
+
+SOP or template updates:
+
+- No new SOP required.
+- Existing training-history structure is sufficient for capturing user trust signals when they are tied to concrete behavior and explicit evidence.
+
+Tool changes:
+
+- No new tools.
+
+Remaining friction:
+
+- Future runs should still avoid over-reading praise as blanket permission to skip repo checks, validation, or boundary discipline.
+- User trust here was earned through evidence-backed behavior; it should be treated as conditional on maintaining the same standard.
+- Post-smoke closeout is complete for Phase 5 generated-image admitted variants; the next planned lane is the deferred Phase 6 ephemeral provider-submit admission audit/plan, not active implementation.
+
+Next training focus:
+
+- Preserve the same trust-building pattern on future large lanes:
+  - audit first,
+  - build only the canonical path,
+  - stop at adjacent-owner boundaries,
+  - validate thoroughly,
+  - close with durable artifacts and a non-speculative stop recommendation.

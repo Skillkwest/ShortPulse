@@ -28,7 +28,9 @@ Purpose: concise durable memory for Gutan's image-ingestion normalization lane.
 - Elements Manager profile image saves now use `/api/media/admit-image-asset`; Elements reference slots continue through the canonical AI Studio `/api/upload-image` helper path.
 - `/api/media/copy-from-url` now admits trusted remote still images through the canonical image admission helper before storing the copied object; video/audio copy behavior stays outside this still-image admission change.
 - Nuclo and Dave approved Phase 5 generated-image reuse admission in their 2026-05-30 reports, with the constraint that admitted derivatives are first-class `media_asset_variants` rows, server-authored under `<user_id>/variants/images/<media_file_id>/admitted_reference_25mb.<ext>`, fail closed, and never use Supabase transformations.
-- Phase 5 generated-image reuse admission now has initial code in `frontend/lib/server/admittedReferenceImageVariant.ts`, submit-time internal ref wiring in `frontend/lib/server/api/internalMediaRefResolution.ts`, and migration `sql/migrations/140_add_admitted_reference_image_variant.sql`.
+- Phase 5 generated-image reuse admission is complete after migration, deployment, user manual production smoke testing, and a clean Nuclo post-smoke proof. Closeout evidence lives at `docs/records/artifacts/agent/gutan/reports/2026-05-31-generated-image-admitted-variant-post-smoke-closeout.md`.
+- Phase 6 is planned but not started. The deferred plan lives at `docs/records/artifacts/agent/gutan/phase-6-ephemeral-provider-submit-admission-plan.md` and should begin with an audit-only covered/gap matrix before any code changes.
+- Post-smoke reporting is now the active retained state for this lane; do not treat Phase 6 as implementation-authorized until a future task explicitly opens that audit/build path.
 
 ## Current First-Job Aim
 

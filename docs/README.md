@@ -49,6 +49,11 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/product-instrumentation.md`
 - `docs/agents/README.md`
 - `docs/agents/solo-owner-launch-trust-standard.md`
+- `docs/agents/ako/README.md`
+- `docs/agents/ako/AGENTS.md`
+- `docs/agents/ako/memory.md`
+- `docs/agents/ako/standard-operating-procedure.md`
+- `docs/agents/ako/ownership-manifest.md`
 - `docs/agents/beeper/README.md`
 - `docs/agents/beeper/standard-operating-procedure.md`
 - `docs/agents/bopper/README.md`

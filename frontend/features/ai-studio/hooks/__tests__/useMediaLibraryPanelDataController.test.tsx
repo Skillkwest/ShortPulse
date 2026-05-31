@@ -297,18 +297,11 @@ describe("useMediaLibraryPanelDataController", () => {
     });
   });
 
-  it("loads media rows first and requests library total count separately", async () => {
+  it("loads the root saved-count total on the primary reset request", async () => {
     fetchMediaListPageMock.mockResolvedValueOnce({
       rows: [],
       nextCursor: "cursor-1",
       hasMore: true,
-      signedById: new Map(),
-      libraryTotalCount: null,
-    });
-    fetchMediaListPageMock.mockResolvedValueOnce({
-      rows: [],
-      nextCursor: null,
-      hasMore: false,
       signedById: new Map(),
       libraryTotalCount: 5,
     });
@@ -329,36 +322,22 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          includeLibraryTotalCount: false,
-        })
-      );
-    });
-    expect(fetchMediaListPageMock.mock.calls[0]?.[0]).not.toEqual(
-      expect.objectContaining({ countOnly: true })
-    );
-
-    await waitFor(() => {
-      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
-        expect.objectContaining({
           includeLibraryTotalCount: true,
-          countOnly: true,
         })
       );
       expect(result.current.libraryTotalCount).toBe(5);
     });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaListPageMock.mock.calls[0]?.[0]).not.toEqual(
+      expect.objectContaining({ countOnly: true })
+    );
 
     fetchMediaListPageMock.mockClear();
     fetchMediaListPageMock.mockResolvedValueOnce({
       rows: [],
       nextCursor: "cursor-2",
       hasMore: true,
-      signedById: new Map(),
-      libraryTotalCount: null,
-    });
-    fetchMediaListPageMock.mockResolvedValueOnce({
-      rows: [],
-      nextCursor: null,
-      hasMore: false,
       signedById: new Map(),
       libraryTotalCount: 6,
     });
@@ -370,16 +349,12 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          includeLibraryTotalCount: false,
-        })
-      );
-      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
-        expect.objectContaining({
           includeLibraryTotalCount: true,
-          countOnly: true,
         })
       );
     });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
   });
 
   it("derives library total count from loaded rows when the first page exhausts the scope", async () => {

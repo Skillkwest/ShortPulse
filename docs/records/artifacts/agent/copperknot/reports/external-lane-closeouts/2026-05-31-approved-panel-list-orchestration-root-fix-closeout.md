@@ -1,0 +1,80 @@
+# Approved Panel List Orchestration Root Fix Closeout
+
+- lane id: `approved-panel-list-orchestration-root-fix`
+- fix classification: `root fix`
+- source handoff path: `docs/agents/copperknot/handoffs/2026-05-31-approved-panel-list-orchestration-root-fix.md`
+- execution status: `root-fix patch complete`
+- systems touched:
+  - `ai-studio-elements-workflow`
+  - `media-delivery-signing-preview-resolution`
+- files changed:
+  - `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx`
+  - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-31-approved-panel-list-orchestration-root-fix-closeout.md`
+- summary of what changed:
+  - Removed the panel controller's follow-up count-only `/api/media/list` request during root approved-panel bootstrap.
+  - Root-scope reset loads now request `libraryTotalCount` on the primary media-list fetch instead of loading rows first and then issuing a second count-only probe.
+  - Kept the change inside the canonical data-controller seam used by both approved-panel surfaces; no UI, UX, or browse-contract changes were introduced.
+- source seam identified:
+  - `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
+  - Exact seam:
+    - `loadMediaPage({ reset: true })` requested the root page with `includeLibraryTotalCount: false`
+    - then `loadLibraryTotalCount()` issued a second count-only `/api/media/list` request when the root scope had more rows
+  - Why this matched the production signal:
+    - the extra request happened only during root approved-panel open-phase settlement
+    - it was shared by the same panel data-controller used by both `ai-studio-panel` and `elements-media-panel`
+    - it produced the exact `extraListCallsPerOpen: 1` shape Copperknot called out in the May 31 production remeasurement
+- acceptance criteria reached:
+  - named one exact state/effect seam causing the second open-phase list request
+  - replaced that seam with one canonical-source request path instead of adding fallback logic or parallel authority
+  - kept the patch inside the owned write surface with no intended behavior change
+  - added targeted regression proof for the request-shape change
+- evidence snapshot:
+  - lane authority:
+    - `docs/agents/copperknot/handoffs/2026-05-31-approved-panel-list-orchestration-root-fix.md`
+  - system row anchors:
+    - `docs/systems/catalog.md` row `ai-studio-elements-workflow`
+    - `docs/systems/catalog.md` row `media-delivery-signing-preview-resolution`
+  - production evidence anchors reviewed:
+    - `docs/records/artifacts/agent/holomony/reports/current/2026-05-21-approved-panel-runtime-check.md`
+    - `docs/records/artifacts/agent/copperknot/reports/2026-05-30-production-post-redeploy-baseline-refresh.md`
+    - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-production-remeasurement-audit.md`
+    - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-30-elements-approved-panel-runtime-hardening-closeout.md`
+  - code seams inspected:
+    - `frontend/features/ai-studio/components/EmbeddedMediaLibraryPanel.tsx`
+    - `frontend/features/ai-studio/components/ElementsEmbeddedMediaLibraryPanel.tsx`
+    - `frontend/features/elements-manager/components/ElementsPanelSplitHost.tsx`
+    - `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
+    - `frontend/features/media-library/runtime/useMediaLibraryPanelRuntime.ts`
+    - `frontend/features/media-library/runtime/surfaceConfig.ts`
+  - freshness:
+    - inspected and changed on `2026-05-31`
+  - surface type:
+    - repo/worktree inspection plus local targeted validation only
+- validation run:
+  - `npm -C frontend run test -- --run features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx features/media-library/runtime/__tests__/useMediaLibraryPanelRuntime.test.ts`
+  - `npm -C frontend run docs:check`
+- validation evidence:
+  - `features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx`: `13/13` tests passed, including the updated regression proving root reset loads now request `includeLibraryTotalCount: true` on the primary fetch and no longer issue a count-only follow-up request
+  - `features/media-library/runtime/__tests__/useMediaLibraryPanelRuntime.test.ts`: `6/6` tests passed
+  - `npm -C frontend run docs:check`: passed
+- self-audit findings:
+  - the extra open-phase list request was not coming from panel components, scroll autoload, or preview signing
+  - it was an orchestration split inside the shared data-controller: row load first, count badge second
+  - the runtime store and surface config did not need changes for the root fix once the source seam was identified
+- issues fixed during self-audit:
+  - removed the separate `loadLibraryTotalCount()` request path from the controller
+  - updated the regression to assert the count is loaded inline on the primary reset request and stays single-request on reset refresh
+- issues intentionally left out of scope:
+  - no preview-signing tuning
+  - no media-list API route changes
+  - no measurement-tool redesign
+  - no project/workspace persistence work
+  - no panel layout, copy, or interaction changes
+- blockers encountered:
+  - none
+- residual risk:
+  - this patch removes one known source of `extraListCallsPerOpen`, but it does not by itself prove the production KPI metric is now `0`; production remeasurement is still required
+  - if another list request remains in production after this patch ships, the next seam is elsewhere in approved-panel open orchestration rather than in the root saved-count bootstrap path
+- recommended next step for Copperknot review:
+  - rerun the approved-panel production capture on `https://www.shortpulse.ai` after deploy and confirm whether `extraListCallsPerOpen` drops from `1` to `0` on both approved-panel surfaces

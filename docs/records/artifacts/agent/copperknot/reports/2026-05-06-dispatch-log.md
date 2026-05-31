@@ -2,9 +2,9 @@
 
 Date: `2026-05-06`
 
-Last updated: `2026-05-30`
+Last updated: `2026-05-31`
 
-Freshness status as of `2026-05-30`: `current`
+Freshness status as of `2026-05-31`: `current`
 
 Purpose: record which handoff packets have already been dispatched to execution agents during the current production-readiness window.
 
@@ -156,7 +156,13 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - narrowed backend/runtime-only follow-up dispatched through managed Copperknot subagent execution on `2026-05-30`
   - closeout received and reviewed on `2026-05-30`
   - one exact approved-panel missing-preview seam was reduced in the shared preview-signing runtime
-  - score still held at `5/10` because production remeasurement has not yet confirmed that the broader approved-panel/runtime fragility is cleared
+  - May 31 production remeasurement confirmed that the old Elements missing-preview symptom no longer reproduced on the live surface
+  - score still held at `5/10` because both approved panels still show `extraListCallsPerOpen: 1` and the fresh production packet remains evidence-thin at `35%` coverage
+  - current exact-next follow-up packet is now:
+    - `docs/agents/copperknot/handoffs/2026-05-31-approved-panel-list-orchestration-root-fix.md`
+  - managed root-fix worker launched and reviewed on `2026-05-31`
+  - the returned patch was accepted as real source-fix evidence in the shared panel data controller
+  - score still held at `5/10` pending deploy and fresh production remeasurement
 - Closeout:
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-28-elements-workflow-hardening-closeout.md`
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-30-elements-approved-panel-runtime-hardening-closeout.md`
@@ -239,6 +245,18 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - launched a managed worker on `docs/agents/copperknot/handoffs/2026-05-30-elements-approved-panel-runtime-hardening.md`
   - preserved the no-UI, no-UX, no-intended-behavior-change constraint in the live execution packet
   - reviewed the returned patch locally, reran the targeted tests successfully, and accepted it as real shared runtime evidence without moving the score yet
+- `2026-05-31` production remeasurement audit:
+  - reran live approved-panel KPI capture on `https://www.shortpulse.ai`
+  - confirmed the old Elements missing-preview symptom no longer reproduced
+  - refused a score lift because both approved panels still make one extra list request during open-phase settlement and the fresh packet only has `35%` evidence coverage
+  - kept `Elements workflow` exact next, but narrowed the current handoff again to a source-oriented list-orchestration root fix
+- `2026-05-31` user-approved root-fix dispatch:
+  - launched a managed worker on `docs/agents/copperknot/handoffs/2026-05-31-approved-panel-list-orchestration-root-fix.md`
+  - preserved the no-UI, no-UX, no-intended-behavior-change constraint in the live execution packet
+  - accepted the returned root-fix patch after local Copperknot review
+  - reran the targeted tests successfully at `19/19`
+  - reran `npm -C frontend run docs:check` successfully
+  - current Copperknot checkpoint is deploy plus fresh production remeasurement
 
 ## Operating Note
 

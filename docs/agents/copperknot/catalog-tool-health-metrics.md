@@ -80,18 +80,18 @@ This surface answers:
 
 ## Current Snapshot
 
-Snapshot date: `2026-05-30`
+Snapshot date: `2026-05-31`
 
-| Metric                       | Current state                                           | Notes                                                                                                                                                           |
-| ---------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Closeout compliance          | `9/10 completed lanes with dedicated closeouts`         | All reviewed lanes in the current window except the first recovery lane now have dedicated closeouts on file, including the accepted Elements bounded closeout. |
-| Evidence-anchor coverage     | `strong through the May 30 post-redeploy refresh`       | The current launch-state packet names report paths, commit anchor, worktree inclusion, production parity evidence, and exact validation commands.               |
-| Rerating lead time           | `mixed but operational`                                 | The first completed lane was slow, the May 16 batch rerated quickly, Create rerated same day on May 28, and Elements was reviewed two days after closeout.      |
-| Launch-state freshness       | `current`                                               | Queue, dispatch log, scoreboard, operator brief, checklist, and retained measurement logs now reflect the May 30 post-redeploy refresh.                         |
-| Queue usefulness             | `stable after post-redeploy verification`               | Copperknot retired the stale May 19 Characters-first order on May 27, then refused to thrash the queue when the May 30 redeploy proof came back green.          |
-| Score-discipline compliance  | `100% for current-window score changes and score holds` | The May 27, May 28, and May 30 reviews corrected queue truth and accepted new evidence without forcing unsupported score lifts.                                 |
-| Weekly learning compliance   | `current`                                               | The retained weekly review cadence has been refreshed through the week ending May 30.                                                                           |
-| Production backtest coverage | `current for retained May production findings`          | The Holomony approved-panel runtime check, Holomony Reference Grid baseline, and Dave security exposure report are all now logged as explicit backtests.        |
+| Metric                       | Current state                                           | Notes                                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Closeout compliance          | `9/10 completed lanes with dedicated closeouts`         | All reviewed lanes in the current window except the first recovery lane now have dedicated closeouts on file, including both accepted Elements bounded closeouts.                        |
+| Evidence-anchor coverage     | `strong through the May 31 production remeasurement`    | The current launch-state packet names report paths, commit anchor, live production capture commands, retained comparison anchors, and the exact next root-fix handoff.                  |
+| Rerating lead time           | `mixed but operational`                                 | The first completed lane was slow, the May 16 batch rerated quickly, Create rerated same day on May 28, Elements was reviewed same day on May 30, and production was remeasured May 31. |
+| Launch-state freshness       | `current`                                               | Queue, dispatch log, scoreboard, operator brief, checklist, and retained measurement logs now reflect the May 31 production remeasurement.                                             |
+| Queue usefulness             | `stable with a narrower exact-next seam`                | Copperknot kept `Elements workflow` exact next but narrowed the reason from symptom cleanup to the shared approved-panel list-orchestration source seam.                                |
+| Score-discipline compliance  | `100% for current-window score changes and score holds` | The May 31 review recorded real production improvement without forcing an unsupported score lift.                                                                                       |
+| Weekly learning compliance   | `current`                                               | The retained weekly review cadence is still current through the active week, with the May 30 entry still covering the latest completed review cycle.                                    |
+| Production backtest coverage | `current for retained May production findings`          | The Holomony approved-panel runtime check now has a May 31 follow-up backtest showing the old symptom improved while a different shared runtime seam remained active.                   |
 
 Supporting time-series logs:
 

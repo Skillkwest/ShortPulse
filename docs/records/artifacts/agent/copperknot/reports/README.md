@@ -5,11 +5,11 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 ## Current Live Surfaces
 
 - `2026-05-06-dispatch-log.md`: current external handoff dispatch status for the active production-readiness window.
-- `2026-05-30-production-post-redeploy-baseline-refresh.md`: current post-redeploy repo-plus-production baseline refresh.
-- `2026-05-30-operator-brief.html`: current rich-format operator brief for the post-redeploy audit.
-- `2026-05-30-operator-brief.md`: source-only backing artifact for the current operator brief.
-- `2026-05-30-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the post-redeploy refresh.
-- `2026-05-30-launch-ready-checklist.html`: browser-friendly version of the current launch-ready checklist.
+- `2026-05-31-approved-panel-production-remeasurement-audit.md`: current production remeasurement audit after the accepted Elements runtime patch.
+- `2026-05-31-operator-brief.html`: current rich-format operator brief for the May 31 remeasurement.
+- `2026-05-31-operator-brief.md`: source-only backing artifact for the current operator brief.
+- `2026-05-31-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the May 31 remeasurement.
+- `2026-05-31-launch-ready-checklist.html`: browser-friendly version of the current launch-ready checklist.
 
 ## Current Intake Surfaces
 
@@ -29,6 +29,7 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-16-workspace-audit.md`: workspace-structure audit confirming the Copperknot space is self-contained and operational.
 - `2026-05-19-production-baseline-refresh.md`: dated full repo-plus-worktree baseline refresh that preserved the original May 6 baseline and updated then-current launch-control truth.
 - `2026-05-27-production-baseline-reset-audit.md`: dated repo-plus-worktree baseline reset that retired the stale May 19 queue order and moved exact-next back to Create validation convergence.
+- `2026-05-30-production-post-redeploy-baseline-refresh.md`: dated post-redeploy repo-plus-production refresh that kept Elements exact next before the May 31 remeasurement.
 
 ## Historical Operator Briefs And Checklists
 
@@ -48,6 +49,10 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-28-operator-brief.md`
 - `2026-05-28-launch-ready-checklist.md`
 - `2026-05-28-launch-ready-checklist.html`
+- `2026-05-30-operator-brief.html`
+- `2026-05-30-operator-brief.md`
+- `2026-05-30-launch-ready-checklist.md`
+- `2026-05-30-launch-ready-checklist.html`
 
 ## Historical Retained Reports
 

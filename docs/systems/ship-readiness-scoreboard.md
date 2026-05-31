@@ -4,17 +4,17 @@ Purpose: provide a fast release-control view derived from `docs/systems/catalog.
 
 ## Snapshot
 
-- Snapshot date: `2026-05-30`
-- Snapshot freshness as of `2026-05-30`: `current`
+- Snapshot date: `2026-05-31`
+- Snapshot freshness as of `2026-05-31`: `current`
 - Freshness reason:
-  - launch-state fields were refreshed against a fresh post-redeploy repo-plus-production audit on `production`
-  - the latest AI Studio/media-authority commit and the bounded Elements closeout were both reconciled into the control surface
-  - a targeted May 30 validation pass plus production route parity re-established current launch truth after redeploy
+  - launch-state fields were refreshed against a fresh production remeasurement on `production`
+  - the accepted May 30 Elements runtime patch was compared against a live May 31 rerun, not just local tests
+  - the queue and measurement surfaces were updated together so the current launch packet and retained metrics match
 - Primary sources:
   - `docs/systems/catalog.md`
   - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
   - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-30-production-post-redeploy-baseline-refresh.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-production-remeasurement-audit.md`
 
 ## Freshness Rule
 
@@ -59,13 +59,18 @@ Catalog-tool health metrics:
 
 The current product-code worktree is clean.
 
-The latest launch-relevant repo movement is committed at `755fec94b`, redeployed, and validated green:
+The latest launch-relevant repo movement is committed at `ed86fb5ce`.
 
-- `npm -C frontend run build`
-- targeted AI Studio/media-authority validation bundle at `18 passed test files` and `385 passed / 385 total tests`
-- `node scripts/verify_deployment_route_parity.mjs --base-url https://www.shortpulse.ai`
+The later `c2b127581` commit is Gear Ball evidence only and does not change the product queue.
 
-This is not a reopened blocker picture. It is a stronger green-proof snapshot that still does not justify score lifts on its own.
+Fresh May 31 production remeasurement says:
+
+- both approved-panel surfaces are faster
+- the old Elements missing-preview symptom did not reproduce
+- both approved-panel surfaces still show `extraListCallsPerOpen: 1`
+- coverage is only `35%`
+
+This is real progress, but it is not a rerate packet.
 
 ## Below-Floor Systems
 
@@ -75,7 +80,7 @@ This is not a reopened blocker picture. It is a stronger green-proof snapshot th
 | `Edit workflow`                    |       6 |          7 | `P0 ship-critical` | `edit-workflow-hardening`                  |
 | `Project / workspace persistence`  |       6 |          7 | `P0 ship-critical` | `project-workspace-persistence-hardening`  |
 | `Characters workflow`              |       5 |          6 | `P1 ship-relevant` | `characters-workflow-hardening`            |
-| `Elements workflow`                |       5 |          6 | `P1 ship-relevant` | `elements-workflow-hardening`              |
+| `Elements workflow`                |       5 |          6 | `P1 ship-relevant` | `approved-panel-list-orchestration-root-fix` |
 | `Media ingest / save`              |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
 | `Core data persistence`            |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
 | `Storage / file delivery`          |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
@@ -111,18 +116,24 @@ This is not a reopened blocker picture. It is a stronger green-proof snapshot th
   - `Create workflow`
 - score held after accepted Elements runtime closeout:
   - `Elements workflow`
+- score held after May 31 production remeasurement:
+  - `Elements workflow`
+  - `Media delivery / signing / preview resolution`
+- score held after accepted May 31 root-fix closeout review:
+  - `Elements workflow`
+  - `Media delivery / signing / preview resolution`
 - ready after that:
   - `project-workspace-persistence-hardening`
 - third lane:
   - `characters-workflow-hardening`
 
-The accepted Elements runtime patch is real repo evidence, but the next proof is production remeasurement after the patch lands on `https://www.shortpulse.ai`.
+The accepted Elements runtime patch and the accepted May 31 root-fix patch are both real repo evidence, and the May 31 production rerun says the old symptom improved. The next exact proof is deploy plus fresh production remeasurement on the shared approved-panel lane.
 
 ## Non-Blocking Production Findings
 
 - `Elements workflow`
-  - Holomony's `2026-05-21` approved-panel runtime check still rates the shared media-panel lane as `6/10 fragile`
-  - the May 30 repo/deploy refresh did not reopen `Create workflow`, so this remains the highest-ROI open workflow lane
+  - the May 31 production remeasurement removed the old visible missing-preview symptom, but both approved panels still show `extraListCallsPerOpen: 1`
+  - this remains the highest-ROI open workflow lane because the remaining source seam is shared runtime debt, not a stale doc issue
 - `Reference Grid`
   - Holomony's `2026-05-25` production baseline still says `no clear blocker`
   - the May 30 reference-card rendering changes and targeted tests did not reopen the old blocker class

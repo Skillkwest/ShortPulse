@@ -469,7 +469,10 @@ export const useAiStudioTaskSubmission = ({
             preparedImageInputs.length,
             internalMediaRefs.filter((ref) => Boolean(ref)).length
           ),
-          pricing_display_source: "shared_adapter",
+          pricing_display_source:
+            effectiveTool === "create" && outputMode === "image"
+              ? "pricing_grid"
+              : "shared_adapter",
           pricing_policy_ready: true,
           displayed_billed_credits: displayedBilledCredits,
           ...(motionReferenceAssetContext

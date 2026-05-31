@@ -15,6 +15,8 @@ import {
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
 } from "../../logic/inpaintSubmission";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
+import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import type { CharacterModeInjectionBundle } from "../useAiStudioCharacterModeController";
 
 const makeCostParamsForModel =
   (modelId: string) =>
@@ -130,10 +132,10 @@ describe("useAiStudioViewModel motion guardrails", () => {
       audio: false,
       ...overrides,
     });
-    const expectedCost = computeCostForModel(
+    const expectedCost = resolvePricingGridBilledCredits({
       modelId,
-      costParamsForModel(modelId, { aspect: "1:1", resolution: "4K" })
-    )?.credits;
+      params: costParamsForModel(modelId, { aspect: "1:1", resolution: "4K" }),
+    });
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -153,12 +155,58 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
+  it("uses Create Character Mode submit shape for GPT Image 2 pricing-grid costs", () => {
+    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+    const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Silver-haired warrior",
+      sheetReferenceStoragePaths: ["user/chars/look-1.png", "user/chars/look-2.png"],
+      sheetReferenceUrls: [
+        "https://cdn.shortpulse.test/look-1.png",
+        "https://cdn.shortpulse.test/look-2.png",
+      ],
+      loadedAtMs: Date.now(),
+    };
+    const expectedCost = resolvePricingGridBilledCredits({
+      modelId,
+      params: {
+        modelId,
+        aspect: "16:9",
+        resolution: "medium",
+        inputImageCount: 3,
+        inputFidelity: "high",
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "16:9",
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: "https://example.com/user-reference.png",
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "medium",
+        isCreateCharacterModeEnabled: true,
+        createCharacterModeInjectionBundle,
+        costParamsForModel: makeCostParamsForModel(modelId),
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+  });
+
   it("keeps create text generation enabled when output-generate cost exceeds balance", () => {
     const modelId = "fal-ai/nano-banana-2";
     const costParamsForModel = makeCostParamsForModel(modelId);
     const requiredCredits =
-      computeCostForModel(modelId, costParamsForModel({ aspect: "1:1", resolution: "4K" }))
-        ?.credits ?? 0;
+      resolvePricingGridBilledCredits({
+        modelId,
+        params: costParamsForModel({ aspect: "1:1", resolution: "4K" }),
+      }) ?? 0;
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -333,14 +381,14 @@ describe("useAiStudioViewModel motion guardrails", () => {
       audio: false,
       ...overrides,
     });
-    const expectedCurrentCost = computeCostForModel(
+    const expectedCurrentCost = resolvePricingGridBilledCredits({
       modelId,
-      costParamsForModel(modelId, { resolution: "4K" })
-    )?.credits;
-    const expectedPromptCost = computeCostForModel(
+      params: costParamsForModel(modelId, { aspect: "9:16", resolution: "4K" }),
+    });
+    const expectedPromptCost = resolvePricingGridBilledCredits({
       modelId,
-      costParamsForModel(modelId, { aspect: "9:16", resolution: "4K" })
-    )?.credits;
+      params: costParamsForModel(modelId, { aspect: "9:16", resolution: "4K" }),
+    });
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -359,7 +407,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
     expect(result.current.currentCostCredits).toBe(expectedCurrentCost);
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedPromptCost);
-    expect(result.current.promptReferenceGenerateCostCredits).not.toBe(
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(
       result.current.currentCostCredits
     );
   });

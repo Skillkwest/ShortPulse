@@ -301,4 +301,87 @@ describe("pricingCredits", () => {
       billedUsd: 0.13,
     });
   });
+
+  it("uses explicit billed-credit overrides while preserving raw cost credits", () => {
+    const modelId = "fal-ai/nano-banana-2";
+    const variantId = buildModelPricingVariantId({
+      baseVariantId: "default",
+      aspect: "auto",
+      resolution: "2K",
+    });
+    const policy = {
+      schemaVersion: 4 as const,
+      global: {
+        creditUsdScale: 100,
+        defaultRoundingMode: "ceil" as const,
+        defaultRoundingIncrement: 1,
+      },
+      perModel: {
+        [modelId]: {
+          variants: {
+            [variantId]: {
+              billedCreditsOverride: 7,
+            },
+          },
+        },
+      },
+    };
+
+    const result = convertUsdToCredits({
+      modelId,
+      usdRaw: 0.12,
+      policy,
+      variantId,
+    });
+
+    expect(result).toEqual({
+      rawCredits: 20,
+      credits: 7,
+      billedUsd: 0.07,
+    });
+  });
+
+  it("does not apply a sibling variant's explicit billed-credit override", () => {
+    const modelId = "fal-ai/nano-banana-2";
+    const oneKVariantId = buildModelPricingVariantId({
+      baseVariantId: "default",
+      aspect: "auto",
+      resolution: "1K",
+    });
+    const twoKVariantId = buildModelPricingVariantId({
+      baseVariantId: "default",
+      aspect: "auto",
+      resolution: "2K",
+    });
+    const policy = {
+      schemaVersion: 4 as const,
+      global: {
+        creditUsdScale: 100,
+        defaultRoundingMode: "ceil" as const,
+        defaultRoundingIncrement: 1,
+      },
+      perModel: {
+        [modelId]: {
+          variants: {
+            [oneKVariantId]: {
+              billedCreditsOverride: 4,
+            },
+          },
+        },
+      },
+    };
+
+    const result = convertUsdToCredits({
+      modelId,
+      usdRaw: 0.12,
+      policy,
+      variantId: twoKVariantId,
+    });
+
+    expect(result).toEqual({
+      rawCredits: 20,
+      credits: 20,
+      billedUsd: 0.2,
+    });
+  });
 });

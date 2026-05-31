@@ -159,13 +159,15 @@ describe("DetailModal full-quality media policy", () => {
             fullStoragePath: null,
             savedMediaIds: [],
           }}
+          projectId="project-1"
           onClose={vi.fn()}
           onUpdatePrompt={vi.fn()}
           onDeleteOutput={vi.fn()}
         />
       );
 
-      expect(screen.getByText("Media unavailable.")).toBeInTheDocument();
+      expect(screen.getByText("Loading media...")).toBeInTheDocument();
+      expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
 
       await waitFor(() => {
         const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
@@ -175,7 +177,11 @@ describe("DetailModal full-quality media policy", () => {
       expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
       expect(resolveSpy).toHaveBeenCalled();
       expect(supabaseSpy).toHaveBeenCalled();
-      expect(downloadTargetSpy).toHaveBeenCalled();
+      expect(downloadTargetSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: "project-1",
+        })
+      );
       expect(signedUrlSpy).toHaveBeenCalledWith({
         bucket: "media_library",
         storagePath: "user-1/generations/images/gen-2/output.png",

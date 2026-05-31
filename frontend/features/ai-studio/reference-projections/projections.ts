@@ -25,6 +25,12 @@ const uniqueIds = (ids: Iterable<string>): string[] => {
   return deduped;
 };
 
+const addAlias = (aliases: Map<string, string>, alias: string | null | undefined, id: string) => {
+  const normalizedAlias = normalizeId(alias);
+  if (!normalizedAlias || normalizedAlias === id || aliases.has(normalizedAlias)) return;
+  aliases.set(normalizedAlias, id);
+};
+
 const removeIdFromList = (ids: string[], id: string): string[] => {
   const normalizedId = normalizeId(id);
   if (!normalizedId) return ids;
@@ -173,6 +179,41 @@ export const pruneReferenceProjectionState = (
     quickSlotIds: nextQuickSlotIds,
     removedFromAllRefsIds: nextRemovedIds,
   };
+};
+
+/**
+ * Resolves stale projection ids through generated-output identity aliases before pruning.
+ * This preserves Quick Slot ownership when hydration swaps between optimistic/local ids and
+ * canonical generated ids.
+ */
+export const resolveReferenceProjectionIds = (
+  ids: Iterable<string>,
+  outputs: Iterable<StudioOutput>
+): string[] => {
+  const validIds = new Set<string>();
+  const aliases = new Map<string, string>();
+
+  for (const output of outputs) {
+    const id = normalizeId(output?.id);
+    if (!id) continue;
+    validIds.add(id);
+    addAlias(aliases, output.generationId ? `generated:${output.generationId}` : null, id);
+    addAlias(aliases, output.generationId, id);
+    addAlias(aliases, output.taskId, id);
+    addAlias(aliases, output.sourceRef, id);
+  }
+
+  const resolved: string[] = [];
+  const seen = new Set<string>();
+  for (const rawId of ids) {
+    const id = normalizeId(rawId);
+    if (!id) continue;
+    const nextId = validIds.has(id) ? id : aliases.get(id);
+    if (!nextId || seen.has(nextId)) continue;
+    seen.add(nextId);
+    resolved.push(nextId);
+  }
+  return resolved;
 };
 
 /**

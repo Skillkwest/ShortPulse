@@ -36,6 +36,7 @@ import { useExclusiveSoundMediaElement } from "./shared/exclusiveSoundPlayback";
 type DetailModalProps = {
   output: StudioOutput | null;
   context?: DetailModalContext | null;
+  projectId?: string | null;
   onClose: () => void;
   onUpdatePrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;
@@ -207,7 +208,7 @@ const resolveCanonicalDetailAuthorityUrl = async (
     | "previewUrl"
     | "resultUrls"
   >,
-  options: { forceRefresh?: boolean } = {}
+  options: { forceRefresh?: boolean; projectId?: string | null } = {}
 ): Promise<string | null> => {
   if (!shouldResolveCanonicalDetailAuthority(output)) return null;
   try {
@@ -215,6 +216,7 @@ const resolveCanonicalDetailAuthorityUrl = async (
     const resolvedTarget = await resolveReferenceDownloadTarget({
       output,
       supabase,
+      projectId: options.projectId,
     });
     const storagePath = resolvedTarget.fileRecord?.storagePath?.trim() ?? "";
     if (!storagePath) return null;
@@ -236,6 +238,7 @@ const resolveCanonicalDetailAuthorityUrl = async (
 export function DetailModal({
   output,
   context = null,
+  projectId = null,
   onClose,
   onUpdatePrompt,
   onDeleteOutput,
@@ -252,6 +255,7 @@ export function DetailModal({
     <DetailModalContent
       output={output}
       context={context}
+      projectId={projectId}
       onClose={onClose}
       onUpdatePrompt={onUpdatePrompt}
       onDeleteOutput={onDeleteOutput}
@@ -272,6 +276,7 @@ type DetailModalContentProps = Omit<DetailModalProps, "output"> & {
 function DetailModalContent({
   output,
   context = null,
+  projectId = null,
   onClose,
   onUpdatePrompt,
   onDeleteOutput,
@@ -339,6 +344,9 @@ function DetailModalContent({
     outputId: string;
     url: string | null;
   } | null>(null);
+  const [canonicalPreviewResolvingOutputId, setCanonicalPreviewResolvingOutputId] = useState<
+    string | null
+  >(null);
   const [resolvedCharacterAvatarByOutput, setResolvedCharacterAvatarByOutput] = useState<{
     outputId: string;
     url: string | null;
@@ -490,23 +498,27 @@ function DetailModalContent({
   useEffect(() => {
     if (!outputId) return;
     let cancelled = false;
-    // The detail modal intentionally clears stale authority while the next signed URL resolves.
+    // Keep the modal in a resolving state instead of showing a false unavailable verdict.
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanonicalPreviewResolvingOutputId(outputId);
     setResolvedCanonicalPreviewByOutput((current) =>
       current?.outputId === outputId ? current : { outputId, url: null }
     );
     void (async () => {
-      const nextUrl = await resolveCanonicalDetailAuthorityUrl(canonicalAuthorityInput);
+      const nextUrl = await resolveCanonicalDetailAuthorityUrl(canonicalAuthorityInput, {
+        projectId,
+      });
       if (cancelled) return;
       setResolvedCanonicalPreviewByOutput({
         outputId,
         url: nextUrl,
       });
+      setCanonicalPreviewResolvingOutputId((current) => (current === outputId ? null : current));
     })();
     return () => {
       cancelled = true;
     };
-  }, [canonicalAuthorityInput, outputId]);
+  }, [canonicalAuthorityInput, outputId, projectId]);
   useEffect(() => {
     if (!outputId || !resolvedCanonicalPreviewUrl) return;
     const hasRawStorageAuthority = Boolean(
@@ -820,9 +832,12 @@ function DetailModalContent({
 
   const refreshCanonicalPreviewCandidate = useCallback(async () => {
     if (!outputId) return null;
+    setCanonicalPreviewResolvingOutputId(outputId);
     const refreshedUrl = await resolveCanonicalDetailAuthorityUrl(canonicalAuthorityInput, {
       forceRefresh: true,
+      projectId,
     });
+    setCanonicalPreviewResolvingOutputId((current) => (current === outputId ? null : current));
     if (!refreshedUrl) return null;
     setResolvedCanonicalPreviewByOutput({
       outputId,
@@ -837,7 +852,7 @@ function DetailModalContent({
       };
     });
     return refreshedUrl;
-  }, [canonicalAuthorityInput, outputId]);
+  }, [canonicalAuthorityInput, outputId, projectId]);
 
   const handleDetailImageError = useCallback(() => {
     const advanced = tryAdvancePreviewCandidate();
@@ -1024,6 +1039,7 @@ function DetailModalContent({
     setLoadedImageNaturalSize(null);
     setLoadedPreviewAspect(null);
     setResolvedCanonicalPreviewByOutput(null);
+    setCanonicalPreviewResolvingOutputId(null);
     setPreviewSelectionByOutput(
       createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
     );
@@ -1560,7 +1576,11 @@ function DetailModalContent({
                     )
                   ) : (
                     <div className="art-text-placeholder">
-                      <p>Media unavailable.</p>
+                      <p>
+                        {canonicalPreviewResolvingOutputId === outputId
+                          ? "Loading media..."
+                          : "Media unavailable."}
+                      </p>
                     </div>
                   )}
                 </div>

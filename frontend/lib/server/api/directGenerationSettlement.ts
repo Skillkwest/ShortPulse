@@ -13,6 +13,7 @@ import {
   isGenerationAbandonedMetadata,
 } from "./generationAbandonment";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { readMediaDeliveryPathsById } from "./mediaDeliveryPaths";
 import { readMediaAutosaveEnabledForUser } from "./mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./mediaAutosavePreference";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
@@ -22,11 +23,6 @@ import { associateGenerationWithProjectForUser } from "../projectGenerationAssoc
 import { releaseMotionReferenceVideoLeasesForGeneration } from "../motionReferenceVideoAssetLease";
 
 type JsonObject = Record<string, unknown>;
-
-type MediaDeliveryPaths = {
-  previewStoragePath: string;
-  fullStoragePath: string;
-};
 
 type DirectGenerationSettlementInput = {
   generationId?: string | null;
@@ -65,18 +61,6 @@ const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
-};
-
-const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const message =
-    typeof (error as { message?: unknown }).message === "string"
-      ? (error as { message: string }).message.toLowerCase()
-      : "";
-  return (
-    message.includes("preview_storage_path") &&
-    (message.includes("schema cache") || message.includes("does not exist"))
-  );
 };
 
 const readMetadataObject = (
@@ -334,62 +318,6 @@ const updateGenerationRow = async ({
   if (error) throw error;
 };
 
-const readMediaDeliveryPathsById = async ({
-  mediaFileIds,
-  userId,
-}: {
-  mediaFileIds: string[];
-  userId: string;
-}): Promise<Map<string, MediaDeliveryPaths>> => {
-  const ids = mediaFileIds
-    .map((value) => asString(value))
-    .filter((value): value is string => Boolean(value));
-  if (!ids.length) return new Map();
-
-  const runSelect = async (
-    fields:
-      | "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
-      | "id, storage_path, file_type, poster_variant_path, preview_variant_path"
-  ) =>
-    await getSupabaseAdmin()
-      .from("media_files")
-      .select(fields)
-      .in("id", ids)
-      .eq("user_id", userId)
-      .limit(ids.length);
-
-  let { data, error } = await runSelect(
-    "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
-  );
-  if (error && isPreviewStoragePathSchemaError(error)) {
-    ({ data, error } = await runSelect(
-      "id, storage_path, file_type, poster_variant_path, preview_variant_path"
-    ));
-  }
-  if (error || !Array.isArray(data)) return new Map();
-
-  const map = new Map<string, MediaDeliveryPaths>();
-  for (const rawRow of data) {
-    const row = asObject(rawRow);
-    const mediaFileId = asString(row.id);
-    const storagePath = asString(row.storage_path);
-    if (!mediaFileId || !storagePath) continue;
-    const fileType = asString(row.file_type)?.toLowerCase() ?? "";
-    const isVideo = fileType.startsWith("video");
-    const previewVariantPath = asString(row.preview_variant_path);
-    const previewStoragePath = isVideo
-      ? (previewVariantPath ?? asString(row.preview_storage_path) ?? storagePath)
-      : (asString(row.preview_storage_path) ?? storagePath);
-    if (previewStoragePath) {
-      map.set(mediaFileId, {
-        previewStoragePath,
-        fullStoragePath: storagePath,
-      });
-    }
-  }
-  return map;
-};
-
 const readGenerationContext = async ({
   generationId,
   requestId,
@@ -574,6 +502,7 @@ export const settleDirectGenerationSuccess = async ({
       false);
   const publicationState =
     hasCanonicalStorageAuthority && !isAbandoned ? "published" : "suppressed";
+  const referenceGridVisible = !hiddenInReferenceGrid && hasCanonicalStorageAuthority;
   const projectId = readProjectIdFromMetadata(generationMetadata);
 
   const firstOwnedDeliveryPaths =
@@ -680,7 +609,7 @@ export const settleDirectGenerationSuccess = async ({
           publicationState,
           reusable: true,
           visibleInAiStudio: true,
-          visibleInReferenceGrid: !hiddenInReferenceGrid,
+          visibleInReferenceGrid: referenceGridVisible,
           ownedMediaFileId: row.mediaFileId,
           previewUrl: row.resultUrl,
           fullUrl: row.resultUrl,
@@ -737,7 +666,7 @@ export const settleDirectGenerationSuccess = async ({
       saveState: projectionSaveOutcome.saveState,
       saveError: projectionSaveOutcome.saveError,
       hiddenInReferenceGrid,
-      referenceGridVisible: !hiddenInReferenceGrid,
+      referenceGridVisible,
       publicationState,
       resultUrls: normalizedResultUrls,
       savedMediaIds: normalizedSavedMediaIds,

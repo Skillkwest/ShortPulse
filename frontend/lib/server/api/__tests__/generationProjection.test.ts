@@ -8,11 +8,13 @@ const createSupabaseAdmin = ({
   projectionRows,
   generationRows,
   outputRows = [],
+  mediaRows = [],
   upsertImpl,
 }: {
   projectionRows: Record<string, unknown>[];
   generationRows: Record<string, unknown>[];
   outputRows?: Record<string, unknown>[];
+  mediaRows?: Record<string, unknown>[];
   upsertImpl?: (
     payload: Record<string, unknown>,
     options?: Record<string, unknown>
@@ -78,6 +80,21 @@ const createSupabaseAdmin = ({
     if (table === "generation_publications") {
       return {
         upsert,
+      };
+    }
+
+    if (table === "media_files") {
+      return {
+        select: () => ({
+          in: () => ({
+            eq: () => ({
+              limit: async () => ({
+                data: mediaRows,
+                error: null,
+              }),
+            }),
+          }),
+        }),
       };
     }
 
@@ -234,6 +251,15 @@ describe("repairStaleTerminalGenerationProjections", () => {
           output_index: 0,
           result_url: "https://cdn.shortpulse.test/generated.png",
           media_file_id: "media-1",
+        },
+      ],
+      mediaRows: [
+        {
+          id: "media-1",
+          user_id: "user-3",
+          storage_path: "user-3/generations/images/gen-3/full.png",
+          preview_storage_path: "user-3/generations/images/gen-3/preview.png",
+          file_type: "image/png",
         },
       ],
     });

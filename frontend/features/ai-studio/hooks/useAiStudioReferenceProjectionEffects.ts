@@ -5,6 +5,7 @@ import {
 } from "../logic/curatedReferences";
 import {
   pruneReferenceProjectionState,
+  resolveReferenceProjectionIds,
   type ReferenceProjectionState,
 } from "../reference-projections";
 import type { StudioOutputCollectionState } from "../reference-domain";
@@ -13,19 +14,22 @@ type UseAiStudioReferenceProjectionEffectsArgs = {
   referenceProjectionState: ReferenceProjectionState;
   setReferenceProjectionState: Dispatch<SetStateAction<ReferenceProjectionState>>;
   referenceProjectionStateRef: MutableRefObject<ReferenceProjectionState>;
-  activeOutputOrder: string[];
-  archivedOutputOrder: string[];
+  activeOutputState: StudioOutputCollectionState;
+  archivedOutputState: StudioOutputCollectionState;
   curatedReferenceIds: string[];
   setActiveOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
   setArchivedOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
 };
 
+const areListsEqual = (left: string[], right: string[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
 export const useAiStudioReferenceProjectionEffects = ({
   referenceProjectionState,
   setReferenceProjectionState,
   referenceProjectionStateRef,
-  activeOutputOrder,
-  archivedOutputOrder,
+  activeOutputState,
+  archivedOutputState,
   curatedReferenceIds,
   setActiveOutputState,
   setArchivedOutputState,
@@ -35,26 +39,49 @@ export const useAiStudioReferenceProjectionEffects = ({
   }, [referenceProjectionState, referenceProjectionStateRef]);
 
   useEffect(() => {
+    const activeOutputOrder = activeOutputState.order;
+    const archivedOutputOrder = archivedOutputState.order;
     const validOutputIds = [...activeOutputOrder, ...archivedOutputOrder];
-    // Keep projection ids aligned with output lifecycle transitions (active + archived stores).
-    // Guard with a deterministic no-op check to prevent render loops from redundant state commits.
-    const nextQuickSlotIds = pruneCuratedReferenceIds(
+    const projectionOutputs = [
+      ...activeOutputOrder
+        .map((id) => activeOutputState.byId[id])
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+      ...archivedOutputOrder
+        .map((id) => archivedOutputState.byId[id])
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    ];
+    const resolvedQuickSlotIds = resolveReferenceProjectionIds(
       referenceProjectionState.quickSlotIds,
-      validOutputIds
+      projectionOutputs
     );
-    const withPrunedQuickSlots =
-      nextQuickSlotIds === referenceProjectionState.quickSlotIds
+    const resolvedRemovedFromAllRefsIds = resolveReferenceProjectionIds(
+      referenceProjectionState.removedFromAllRefsIds,
+      projectionOutputs
+    );
+    const withResolvedIds =
+      areListsEqual(resolvedQuickSlotIds, referenceProjectionState.quickSlotIds) &&
+      areListsEqual(resolvedRemovedFromAllRefsIds, referenceProjectionState.removedFromAllRefsIds)
         ? referenceProjectionState
         : {
-            ...referenceProjectionState,
+            quickSlotIds: resolvedQuickSlotIds,
+            removedFromAllRefsIds: resolvedRemovedFromAllRefsIds,
+          };
+    // Keep projection ids aligned with output lifecycle transitions (active + archived stores).
+    // Guard with a deterministic no-op check to prevent render loops from redundant state commits.
+    const nextQuickSlotIds = pruneCuratedReferenceIds(withResolvedIds.quickSlotIds, validOutputIds);
+    const withPrunedQuickSlots =
+      nextQuickSlotIds === withResolvedIds.quickSlotIds
+        ? withResolvedIds
+        : {
+            ...withResolvedIds,
             quickSlotIds: nextQuickSlotIds,
           };
     const nextProjectionState = pruneReferenceProjectionState(withPrunedQuickSlots, validOutputIds);
     if (nextProjectionState === referenceProjectionState) return;
     setReferenceProjectionState(nextProjectionState);
   }, [
-    activeOutputOrder,
-    archivedOutputOrder,
+    activeOutputState,
+    archivedOutputState,
     referenceProjectionState,
     setReferenceProjectionState,
   ]);

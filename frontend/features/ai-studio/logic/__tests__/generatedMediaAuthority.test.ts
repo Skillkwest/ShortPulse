@@ -59,8 +59,8 @@ describe("generatedMediaAuthority", () => {
       data: {
         preview_url: "https://fal.test/preview.png",
         result_urls: ["https://fal.test/full.png"],
-        preview_storage_path: null,
-        full_storage_path: null,
+        preview_storage_path: "user-1/generations/images/gen-project-1/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-1/full.png",
         task_state: "success",
         hidden_in_reference_grid: false,
         reference_grid_visible: true,
@@ -91,8 +91,8 @@ describe("generatedMediaAuthority", () => {
       companionArtStoragePath: null,
       companionArtStatus: null,
       fullUrl: "https://fal.test/full.png",
-      previewStoragePath: null,
-      fullStoragePath: null,
+      previewStoragePath: "user-1/generations/images/gen-project-1/preview.png",
+      fullStoragePath: "user-1/generations/images/gen-project-1/full.png",
     });
   });
 
@@ -101,8 +101,9 @@ describe("generatedMediaAuthority", () => {
       data: {
         preview_url: null,
         result_urls: [],
-        preview_storage_path: null,
-        full_storage_path: null,
+        preview_storage_path:
+          "user-1/generations/images/gen-project-projection-reconcile/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-projection-reconcile/full.png",
         task_state: "running",
         hidden_in_reference_grid: false,
         reference_grid_visible: true,
@@ -179,8 +180,9 @@ describe("generatedMediaAuthority", () => {
       data: {
         preview_url: "https://fal.test/request-preview.png",
         result_urls: ["https://fal.test/request-full.png"],
-        preview_storage_path: null,
-        full_storage_path: null,
+        preview_storage_path:
+          "user-1/generations/images/gen-project-projection-reconcile/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-projection-reconcile/full.png",
         task_state: "success",
         hidden_in_reference_grid: false,
         reference_grid_visible: true,
@@ -216,8 +218,8 @@ describe("generatedMediaAuthority", () => {
       companionArtUrl: null,
       companionArtStoragePath: null,
       companionArtStatus: null,
-      previewStoragePath: null,
-      fullStoragePath: null,
+      previewStoragePath: "user-1/generations/images/gen-project-projection-reconcile/preview.png",
+      fullStoragePath: "user-1/generations/images/gen-project-projection-reconcile/full.png",
       resultUrls: ["https://fal.test/request-full.png"],
     });
   });
@@ -862,8 +864,8 @@ describe("generatedMediaAuthority", () => {
           transcript_text: "A camera circles a sneaker on a floating pedestal.",
           preview_url: "https://fal.test/visible-preview.mp4",
           result_urls: ["https://fal.test/visible-full.mp4"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/videos/gen-visible-1/preview.mp4",
+          full_storage_path: "user-1/generations/videos/gen-visible-1/full.mp4",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -931,6 +933,67 @@ describe("generatedMediaAuthority", () => {
     ]);
   });
 
+  it("filters provider-url-only success rows without durable media authority", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-provider-only-1",
+          request_id: "req-provider-only-1",
+          source_ref: "source-provider-only-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "A provider-only generated output",
+          preview_url: "https://fal.test/provider-only-preview.png",
+          result_urls: ["https://fal.test/provider-only-full.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([]);
+  });
+
   it("hydrates published media dimensions onto generated outputs", async () => {
     const projectionBuilder = createAwaitableSelectBuilder({
       data: [
@@ -944,8 +1007,8 @@ describe("generatedMediaAuthority", () => {
           transcript_text: null,
           preview_url: "https://openai.test/preview.png",
           result_urls: ["https://openai.test/full.png"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/images/gen-older-touched-late/preview.png",
+          full_storage_path: "user-1/generations/images/gen-older-touched-late/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -1049,8 +1112,8 @@ describe("generatedMediaAuthority", () => {
           display_prompt: "Older generation touched later",
           preview_url: "https://fal.test/older.png",
           result_urls: ["https://fal.test/older.png"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/images/gen-newest-started/preview.png",
+          full_storage_path: "user-1/generations/images/gen-newest-started/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -1073,8 +1136,8 @@ describe("generatedMediaAuthority", () => {
           display_prompt: "Newest generation",
           preview_url: "https://fal.test/newest.png",
           result_urls: ["https://fal.test/newest.png"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/images/gen-project-visible-1/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-visible-1/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -1748,8 +1811,8 @@ describe("generatedMediaAuthority", () => {
           display_prompt: "A recovered project output",
           preview_url: "https://fal.test/project-visible-preview.png",
           result_urls: ["https://fal.test/project-visible-full.png"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/images/gen-project-projection-1/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-projection-1/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -1830,8 +1893,8 @@ describe("generatedMediaAuthority", () => {
           display_prompt: "A project image with expired provider preview",
           preview_url: "https://fal.test/project-image-canonical-preview.png",
           result_urls: ["https://fal.test/project-image-canonical-full.png"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/images/gen-started-latest/preview.png",
+          full_storage_path: "user-1/generations/images/gen-started-latest/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -2058,8 +2121,8 @@ describe("generatedMediaAuthority", () => {
           display_prompt: "Started latest",
           preview_url: "https://fal.test/started-latest.png",
           result_urls: ["https://fal.test/started-latest.png"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/images/gen-added-latest/preview.png",
+          full_storage_path: "user-1/generations/images/gen-added-latest/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -2082,8 +2145,8 @@ describe("generatedMediaAuthority", () => {
           display_prompt: "Added latest",
           preview_url: "https://fal.test/added-latest.png",
           result_urls: ["https://fal.test/added-latest.png"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/images/gen-project-projection-1/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-projection-1/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -2140,8 +2203,8 @@ describe("generatedMediaAuthority", () => {
           display_prompt: "A project output without association",
           preview_url: "https://fal.test/project-projection-preview.png",
           result_urls: ["https://fal.test/project-projection-full.png"],
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path: "user-1/generations/images/gen-project-projection-1/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-projection-1/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message_short: null,
@@ -2239,6 +2302,38 @@ describe("generatedMediaAuthority", () => {
     await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([]);
   });
 
+  it("does not reconcile provider-url-only success rows without durable media authority", async () => {
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://fal.test/provider-only-reconcile-preview.png",
+        result_urls: ["https://fal.test/provider-only-reconcile-full.png"],
+        preview_storage_path: null,
+        full_storage_path: null,
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionDeliveryBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        generationId: "gen-provider-only-reconcile",
+      })
+    ).resolves.toBeNull();
+  });
+
   it("requires project generation association before reconciling project-route outputs", async () => {
     const projectGenerationBuilder = createAwaitableSelectBuilder({
       data: {
@@ -2250,8 +2345,8 @@ describe("generatedMediaAuthority", () => {
       data: {
         preview_url: "https://fal.test/project-preview.png",
         result_urls: ["https://fal.test/project-full.png"],
-        preview_storage_path: null,
-        full_storage_path: null,
+        preview_storage_path: "user-1/generations/images/gen-project-request-reconcile/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-request-reconcile/full.png",
         task_state: "success",
         hidden_in_reference_grid: false,
         reference_grid_visible: true,
@@ -2288,8 +2383,8 @@ describe("generatedMediaAuthority", () => {
       companionArtUrl: null,
       companionArtStoragePath: null,
       companionArtStatus: null,
-      previewStoragePath: null,
-      fullStoragePath: null,
+      previewStoragePath: "user-1/generations/images/gen-project-request-reconcile/preview.png",
+      fullStoragePath: "user-1/generations/images/gen-project-request-reconcile/full.png",
       resultUrls: ["https://fal.test/project-full.png"],
     });
   });
@@ -2344,8 +2439,8 @@ describe("generatedMediaAuthority", () => {
       data: {
         preview_url: "https://fal.test/project-projection-preview.png",
         result_urls: ["https://fal.test/project-projection-full.png"],
-        preview_storage_path: null,
-        full_storage_path: null,
+        preview_storage_path: "user-1/generations/images/gen-project-source-reconcile/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-source-reconcile/full.png",
         task_state: "success",
         hidden_in_reference_grid: false,
         reference_grid_visible: true,
@@ -2386,8 +2481,8 @@ describe("generatedMediaAuthority", () => {
       companionArtUrl: null,
       companionArtStoragePath: null,
       companionArtStatus: null,
-      previewStoragePath: null,
-      fullStoragePath: null,
+      previewStoragePath: "user-1/generations/images/gen-project-source-reconcile/preview.png",
+      fullStoragePath: "user-1/generations/images/gen-project-source-reconcile/full.png",
       resultUrls: ["https://fal.test/project-projection-full.png"],
     });
   });
@@ -2414,8 +2509,8 @@ describe("generatedMediaAuthority", () => {
       data: {
         preview_url: "https://fal.test/project-request-preview.png",
         result_urls: ["https://fal.test/project-request-full.png"],
-        preview_storage_path: null,
-        full_storage_path: null,
+        preview_storage_path: "user-1/generations/images/gen-project-request-reconcile/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-request-reconcile/full.png",
         task_state: "success",
         hidden_in_reference_grid: false,
         reference_grid_visible: true,
@@ -2458,8 +2553,8 @@ describe("generatedMediaAuthority", () => {
       companionArtUrl: null,
       companionArtStoragePath: null,
       companionArtStatus: null,
-      previewStoragePath: null,
-      fullStoragePath: null,
+      previewStoragePath: "user-1/generations/images/gen-project-request-reconcile/preview.png",
+      fullStoragePath: "user-1/generations/images/gen-project-request-reconcile/full.png",
       resultUrls: ["https://fal.test/project-request-full.png"],
     });
   });
@@ -2486,8 +2581,8 @@ describe("generatedMediaAuthority", () => {
       data: {
         preview_url: "https://fal.test/project-source-preview.png",
         result_urls: ["https://fal.test/project-source-full.png"],
-        preview_storage_path: null,
-        full_storage_path: null,
+        preview_storage_path: "user-1/generations/images/gen-project-source-reconcile/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-source-reconcile/full.png",
         task_state: "success",
         hidden_in_reference_grid: false,
         reference_grid_visible: true,
@@ -2530,8 +2625,8 @@ describe("generatedMediaAuthority", () => {
       companionArtUrl: null,
       companionArtStoragePath: null,
       companionArtStatus: null,
-      previewStoragePath: null,
-      fullStoragePath: null,
+      previewStoragePath: "user-1/generations/images/gen-project-source-reconcile/preview.png",
+      fullStoragePath: "user-1/generations/images/gen-project-source-reconcile/full.png",
       resultUrls: ["https://fal.test/project-source-full.png"],
     });
   });

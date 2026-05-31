@@ -75,6 +75,7 @@ const createAiGenerationsAdmin = (
   options?: {
     mediaAutosaveEnabled?: boolean;
     userPreferenceError?: { code?: string; message?: string } | null;
+    mediaRows?: Array<Record<string, unknown>>;
   }
 ) => {
   const selectResponses = rows.map((row) => ({ data: [row], error: null }));
@@ -132,11 +133,39 @@ const createAiGenerationsAdmin = (
     }),
   };
 
+  const mediaRows = options?.mediaRows ?? [
+    {
+      id: "media-1",
+      user_id: "user-1",
+      storage_path: "user-1/generations/images/media-1/full.png",
+      preview_storage_path: "user-1/generations/images/media-1/preview.png",
+      file_type: "image/png",
+    },
+    {
+      id: "media-2",
+      user_id: "user-1",
+      storage_path: "user-1/generations/images/media-2/full.png",
+      preview_storage_path: "user-1/generations/images/media-2/preview.png",
+      file_type: "image/png",
+    },
+  ];
+
+  const mediaFilesTable = {
+    select: vi.fn(() => {
+      const builder: Record<string, unknown> = {};
+      builder.in = vi.fn(() => builder);
+      builder.eq = vi.fn(() => builder);
+      builder.limit = vi.fn(async () => ({ data: mediaRows, error: null }));
+      return builder;
+    }),
+  };
+
   const from = vi.fn((tableName: string) => {
     if (tableName === "ai_generations") return table;
     if (tableName === "user_preferences") return userPreferencesTable;
     if (tableName === "media_events") return mediaEventsTable;
     if (tableName === "generation_abandonments") return generationAbandonmentsTable;
+    if (tableName === "media_files") return mediaFilesTable;
     throw new Error(`unexpected table ${tableName}`);
   });
 

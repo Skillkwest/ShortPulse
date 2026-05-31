@@ -12,6 +12,7 @@ import {
 } from "../api/generationOutputs";
 import { upsertGenerationProjection } from "../api/generationProjection";
 import { upsertGenerationPublication } from "../api/generationPublications";
+import { readMediaDeliveryPathsById } from "../api/mediaDeliveryPaths";
 import { readGenerationAbandonmentContext } from "../api/generationAbandonment";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { writeAppErrorLog } from "../api/appErrorLogs";
@@ -331,10 +332,16 @@ const syncRecoveredGenerationProjection = async ({
   const normalizedSavedMediaIds = mediaFileIds
     .map((value) => asOptionalString(value))
     .filter((value): value is string => Boolean(value));
+  const deliveryPathsByMediaId = await readMediaDeliveryPathsById({
+    mediaFileIds: outputRows
+      .map((row) => row.mediaFileId)
+      .filter((value): value is string => Boolean(value)),
+    userId: generation.user_id,
+  });
   const hasCanonicalOwnedMedia =
     outputRows.length > 0 &&
     outputRows.every(
-      (row) => typeof row.mediaFileId === "string" && row.mediaFileId.trim().length > 0
+      (row) => typeof row.mediaFileId === "string" && deliveryPathsByMediaId.has(row.mediaFileId)
     );
   const generationMetadata = asObject(generation.metadata);
   const shortpulseContext = readMetadataObject(
@@ -357,8 +364,12 @@ const syncRecoveredGenerationProjection = async ({
       false);
   const publicationState =
     hasCanonicalOwnedMedia && !abandonment.abandoned ? "published" : "suppressed";
+  const referenceGridVisible = !hiddenInReferenceGrid && hasCanonicalOwnedMedia;
+  const verifiedSavedMediaIds = normalizedSavedMediaIds.filter((mediaFileId) =>
+    deliveryPathsByMediaId.has(mediaFileId)
+  );
   const projectionSaveOutcome = resolveAutosaveProjectionSaveOutcome({
-    savedMediaIds: normalizedSavedMediaIds,
+    savedMediaIds: verifiedSavedMediaIds,
     autosaveDecisionReason,
     autosavePreferenceLookupMessage: autosavePreferenceLookupMessage ?? null,
   });
@@ -367,6 +378,9 @@ const syncRecoveredGenerationProjection = async ({
     await Promise.all(
       outputRows.map((row) => {
         if (!row.id) return Promise.resolve();
+        const deliveryPaths = row.mediaFileId
+          ? (deliveryPathsByMediaId.get(row.mediaFileId) ?? null)
+          : null;
         return upsertGenerationPublication({
           generationId: generation.id,
           generationOutputId: row.id,
@@ -374,10 +388,12 @@ const syncRecoveredGenerationProjection = async ({
           publicationState,
           reusable: true,
           visibleInAiStudio: true,
-          visibleInReferenceGrid: !hiddenInReferenceGrid,
+          visibleInReferenceGrid: referenceGridVisible,
           ownedMediaFileId: row.mediaFileId,
           previewUrl: row.resultUrl,
           fullUrl: row.resultUrl,
+          previewStoragePath: deliveryPaths?.previewStoragePath ?? null,
+          fullStoragePath: deliveryPaths?.fullStoragePath ?? null,
           publishedAt: nowIso,
           metadata: {
             recovery_actor: actor,
@@ -409,10 +425,10 @@ const syncRecoveredGenerationProjection = async ({
     saveState: projectionSaveOutcome.saveState,
     saveError: projectionSaveOutcome.saveError,
     hiddenInReferenceGrid,
-    referenceGridVisible: !hiddenInReferenceGrid,
+    referenceGridVisible,
     publicationState,
     resultUrls: normalizedResultUrls,
-    savedMediaIds: normalizedSavedMediaIds,
+    savedMediaIds: verifiedSavedMediaIds,
     generationReplay: readMetadataObject(
       generationMetadata,
       "generation_replay",

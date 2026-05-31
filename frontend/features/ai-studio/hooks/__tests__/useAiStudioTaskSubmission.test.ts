@@ -168,7 +168,7 @@ describe("useAiStudioTaskSubmission", () => {
           project_id: "project-1",
           project_id_present: true,
           displayed_billed_credits: 11,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
           pricing_policy_ready: true,
         }),
       })
@@ -763,7 +763,7 @@ describe("useAiStudioTaskSubmission", () => {
       expect.objectContaining({
         shortpulseContext: expect.objectContaining({
           displayed_billed_credits: 2,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
           pricing_policy_ready: true,
         }),
       })

@@ -2,9 +2,24 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { MutableRefObject } from "react";
 import type { ReferenceProjectionState } from "../../reference-projections";
+import type { StudioOutput } from "../../types";
 import { useAiStudioReferenceProjectionEffects } from "../useAiStudioReferenceProjectionEffects";
 
 const runningIds = Array.from({ length: 7 }, (_, index) => `out-${index + 1}`);
+const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
+  id,
+  prompt: id,
+  mode: "image",
+  aspect: "1:1",
+  model: "Model",
+  status: "ready",
+  timestamp: "Now",
+  ...overrides,
+});
+const createCollectionState = (ids: string[]) => ({
+  order: ids,
+  byId: Object.fromEntries(ids.map((id) => [id, makeOutput(id)])),
+});
 
 const createArgs = (
   overrides: Partial<Parameters<typeof useAiStudioReferenceProjectionEffects>[0]> = {}
@@ -23,8 +38,8 @@ const createArgs = (
       ({
         current: referenceProjectionState,
       } as MutableRefObject<ReferenceProjectionState>),
-    activeOutputOrder: overrides.activeOutputOrder ?? runningIds,
-    archivedOutputOrder: overrides.archivedOutputOrder ?? [],
+    activeOutputState: overrides.activeOutputState ?? createCollectionState(runningIds),
+    archivedOutputState: overrides.archivedOutputState ?? createCollectionState([]),
     curatedReferenceIds: overrides.curatedReferenceIds ?? runningIds.slice(0, 3),
     setActiveOutputState: overrides.setActiveOutputState ?? vi.fn(),
     setArchivedOutputState: overrides.setArchivedOutputState ?? vi.fn(),
@@ -47,12 +62,47 @@ describe("useAiStudioReferenceProjectionEffects", () => {
     for (let index = 0; index < 8; index += 1) {
       rerender({
         ...args,
-        activeOutputOrder: [...runningIds],
-        archivedOutputOrder: [],
+        activeOutputState: createCollectionState([...runningIds]),
+        archivedOutputState: createCollectionState([]),
         curatedReferenceIds: [...runningIds.slice(0, 3)],
       });
     }
 
     expect(setReferenceProjectionState).not.toHaveBeenCalled();
+  });
+
+  it("migrates quick-slot ids through generated-output aliases before pruning", () => {
+    const setReferenceProjectionState = vi.fn();
+    const args = createArgs({
+      setReferenceProjectionState,
+      referenceProjectionState: {
+        quickSlotIds: ["generated:gen-1"],
+        removedFromAllRefsIds: ["source-1"],
+      },
+      activeOutputState: {
+        order: ["local-1"],
+        byId: {
+          "local-1": makeOutput("local-1", {
+            generationId: "gen-1",
+            sourceRef: "source-1",
+          }),
+        },
+      },
+      archivedOutputState: createCollectionState([]),
+      curatedReferenceIds: ["generated:gen-1"],
+    });
+
+    renderHook(
+      (props: Parameters<typeof useAiStudioReferenceProjectionEffects>[0]) =>
+        useAiStudioReferenceProjectionEffects(props),
+      {
+        initialProps: args,
+      }
+    );
+
+    expect(setReferenceProjectionState).toHaveBeenCalledWith({
+      quickSlotIds: ["local-1"],
+      removedFromAllRefsIds: ["local-1"],
+    });
   });
 });

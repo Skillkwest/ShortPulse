@@ -11,6 +11,7 @@ export type ModelPricingPerModelOverride = {
   roundingIncrement?: number;
   providerUsdOverride?: number;
   providerUsdPerSecondOverride?: number;
+  billedCreditsOverride?: number;
   variants?: Record<string, ModelPricingVariantOverride>;
 };
 
@@ -20,10 +21,11 @@ export type ModelPricingVariantOverride = {
   roundingIncrement?: number;
   providerUsdOverride?: number;
   providerUsdPerSecondOverride?: number;
+  billedCreditsOverride?: number;
 };
 
 export type ModelPricingPolicyDocument = {
-  schemaVersion: 1 | 2 | 3;
+  schemaVersion: 1 | 2 | 3 | 4;
   global: {
     creditUsdScale: number;
     defaultRoundingMode: CreditRoundingMode;
@@ -39,6 +41,7 @@ export type ResolvedModelPricingForModel = {
   roundingIncrement: number;
   providerUsdOverride: number | null;
   providerUsdPerSecondOverride: number | null;
+  billedCreditsOverride: number | null;
   variantId: string | null;
 };
 
@@ -61,7 +64,7 @@ export const USD_MICRO_SCALE = 1_000_000; // 1e-6 USD precision
 export const DEFAULT_MARKUP_BPS = 6_000;
 export const DEFAULT_CREDIT_ROUNDING_MODE: CreditRoundingMode = "ceil";
 export const DEFAULT_CREDIT_ROUNDING_INCREMENT = 1;
-export const MODEL_PRICING_POLICY_SCHEMA_VERSION = 3;
+export const MODEL_PRICING_POLICY_SCHEMA_VERSION = 4;
 export const MODEL_PRICING_POLICY_VERSION = "runtime-default-v4";
 
 const MIN_MARKUP_BPS = 0;
@@ -93,6 +96,17 @@ const asPositiveDecimal = (value: unknown): number | null => {
   return null;
 };
 
+const asNonNegativeInteger = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return Math.trunc(value);
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : null;
+  }
+  return null;
+};
+
 const normalizeModelIdList = (value: unknown, fallback: string[]): string[] => {
   if (!Array.isArray(value)) return [...fallback];
   const normalized = value
@@ -115,6 +129,7 @@ const normalizeVariantOverride = (value: unknown): ModelPricingVariantOverride |
   const roundingIncrement = asInteger(record.roundingIncrement);
   const providerUsdOverride = asPositiveDecimal(record.providerUsdOverride);
   const providerUsdPerSecondOverride = asPositiveDecimal(record.providerUsdPerSecondOverride);
+  const billedCreditsOverride = asNonNegativeInteger(record.billedCreditsOverride);
 
   const normalized: ModelPricingVariantOverride = {};
   if (creditUsdScale != null && creditUsdScale > 0) {
@@ -137,6 +152,9 @@ const normalizeVariantOverride = (value: unknown): ModelPricingVariantOverride |
   }
   if (providerUsdPerSecondOverride != null) {
     normalized.providerUsdPerSecondOverride = providerUsdPerSecondOverride;
+  }
+  if (billedCreditsOverride != null) {
+    normalized.billedCreditsOverride = billedCreditsOverride;
   }
 
   return Object.keys(normalized).length ? normalized : null;
@@ -262,6 +280,10 @@ export const compactModelPricingPolicyDocument = (value: unknown): ModelPricingP
       nextOverride.providerUsdPerSecondOverride = override.providerUsdPerSecondOverride;
     }
 
+    if (typeof override.billedCreditsOverride === "number" && override.billedCreditsOverride >= 0) {
+      nextOverride.billedCreditsOverride = override.billedCreditsOverride;
+    }
+
     const compactedVariants = Object.entries(override.variants ?? {}).reduce<
       Record<string, ModelPricingVariantOverride>
     >((variantAccumulator, [variantId, variantOverride]) => {
@@ -305,6 +327,13 @@ export const compactModelPricingPolicyDocument = (value: unknown): ModelPricingP
           variantOverride.providerUsdPerSecondOverride;
       }
 
+      if (
+        typeof variantOverride.billedCreditsOverride === "number" &&
+        variantOverride.billedCreditsOverride >= 0
+      ) {
+        nextVariantOverride.billedCreditsOverride = variantOverride.billedCreditsOverride;
+      }
+
       if (Object.keys(nextVariantOverride).length > 0) {
         variantAccumulator[variantId] = nextVariantOverride;
       }
@@ -336,6 +365,7 @@ const modelPricingOverridesEqual = (
   left.roundingIncrement === right.roundingIncrement &&
   left.providerUsdOverride === right.providerUsdOverride &&
   left.providerUsdPerSecondOverride === right.providerUsdPerSecondOverride &&
+  left.billedCreditsOverride === right.billedCreditsOverride &&
   JSON.stringify(left.variants ?? {}) === JSON.stringify(right.variants ?? {});
 
 export const modelPricingPolicyDocumentsEqual = (
@@ -396,6 +426,8 @@ export const resolveModelPricingForModel = (
       variantOverride?.providerUsdPerSecondOverride ??
       override?.providerUsdPerSecondOverride ??
       null,
+    billedCreditsOverride:
+      variantOverride?.billedCreditsOverride ?? override?.billedCreditsOverride ?? null,
     variantId,
   };
 };

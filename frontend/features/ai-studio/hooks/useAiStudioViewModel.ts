@@ -4,6 +4,10 @@
  */
 import { useCallback, useMemo } from "react";
 import { resolveRequiredAiStudioTextPromptModelId } from "../../../lib/model-runtime/modelCatalog";
+import {
+  resolvePricingGridBilledCredits,
+  resolvePricingGridCostBreakdown,
+} from "../../../lib/model-runtime/pricingGridBilledCredits";
 import { getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
@@ -31,7 +35,9 @@ import {
   resolveEffectiveEditSubmitModelId,
   type EditSubmitIntent,
 } from "../logic/editSubmitIntent";
+import { resolveCreatePricingTarget } from "../logic/createPricingTarget";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
+import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 const TEXT_PROMPT_MODEL_ID = resolveRequiredAiStudioTextPromptModelId();
@@ -62,6 +68,8 @@ type ViewModelInput = {
   seedance2ReferenceImageUrls?: string[];
   seedance2ReferenceVideoUrls?: string[];
   seedance2ReferenceAudioUrls?: string[];
+  isCreateCharacterModeEnabled?: boolean;
+  createCharacterModeInjectionBundle?: CharacterModeInjectionBundle | null;
   balanceCredits: number | null;
   balanceLoading?: boolean;
   balanceError?: string | null;
@@ -102,6 +110,8 @@ export const useAiStudioViewModel = ({
   seedance2ReferenceImageUrls = [],
   seedance2ReferenceVideoUrls = [],
   seedance2ReferenceAudioUrls = [],
+  isCreateCharacterModeEnabled = false,
+  createCharacterModeInjectionBundle = null,
   balanceCredits,
   balanceLoading = false,
   balanceError = null,
@@ -184,6 +194,33 @@ export const useAiStudioViewModel = ({
   const requiresResolvedPricingPolicy =
     isVideoTool || isEditWorkflowSelected || isCreateWorkflowSelected;
   const isPricingPolicyUnavailable = requiresResolvedPricingPolicy && !pricingPolicyReady;
+  const canUseStandardCreatePricingGrid =
+    isCreateWorkflowSelected && Boolean(model) && !isPricingPolicyUnavailable;
+  const createReferenceImageUrls = useMemo(
+    () => [referenceImageUrl, ...extraImageUrls],
+    [extraImageUrls, referenceImageUrl]
+  );
+  const currentCreatePricingTarget = useMemo(
+    () =>
+      resolveCreatePricingTarget({
+        modelId: model,
+        aspect,
+        resolution: pricingImageResolution,
+        isCharacterModeEnabled: isCreateCharacterModeEnabled,
+        userReferenceImageUrls: createReferenceImageUrls,
+        characterModeInjectionBundle: createCharacterModeInjectionBundle,
+        costParamsForModel,
+      }),
+    [
+      aspect,
+      createCharacterModeInjectionBundle,
+      costParamsForModel,
+      createReferenceImageUrls,
+      isCreateCharacterModeEnabled,
+      model,
+      pricingImageResolution,
+    ]
+  );
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
@@ -194,13 +231,18 @@ export const useAiStudioViewModel = ({
   const currentCost = useMemo(() => {
     if (isCreateWorkflowSelected) {
       if (mode === "image") {
-        if (!model) return null;
+        if (!currentCreatePricingTarget) return null;
+        if (canUseStandardCreatePricingGrid) {
+          const pricingGridBreakdown = resolvePricingGridCostBreakdown({
+            modelId: currentCreatePricingTarget.modelId,
+            params: currentCreatePricingTarget.params,
+            pricingPolicy,
+          });
+          if (pricingGridBreakdown) return pricingGridBreakdown;
+        }
         return resolveClientPricingBreakdown({
-          modelId: model,
-          params: costParamsForModel(
-            model,
-            pricingImageResolution ? { resolution: pricingImageResolution } : {}
-          ),
+          modelId: currentCreatePricingTarget.modelId,
+          params: currentCreatePricingTarget.params,
           pricingPolicy,
           pricingPolicyReady: !isPricingPolicyUnavailable,
         });
@@ -260,6 +302,8 @@ export const useAiStudioViewModel = ({
   }, [
     estimatedDescribeTokens,
     estimatedTextTokens,
+    canUseStandardCreatePricingGrid,
+    currentCreatePricingTarget,
     isDescribeMode,
     costParamsForModel,
     getDefaultDurationSeconds,
@@ -279,6 +323,23 @@ export const useAiStudioViewModel = ({
   // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
     if (!effectiveEditSubmitModelId) return null;
+    if (canUseStandardCreatePricingGrid && isCreateWorkflowSelected) {
+      const pricingTarget = resolveCreatePricingTarget({
+        modelId: effectiveEditSubmitModelId,
+        aspect,
+        resolution: pricingImageResolution,
+        isCharacterModeEnabled: isCreateCharacterModeEnabled,
+        userReferenceImageUrls: createReferenceImageUrls,
+        characterModeInjectionBundle: createCharacterModeInjectionBundle,
+        costParamsForModel,
+      });
+      if (!pricingTarget) return null;
+      return resolvePricingGridBilledCredits({
+        modelId: pricingTarget.modelId,
+        params: pricingTarget.params,
+        pricingPolicy,
+      });
+    }
     return resolveClientBilledCredits({
       modelId: effectiveEditSubmitModelId,
       params: costParamsForModel(
@@ -293,8 +354,14 @@ export const useAiStudioViewModel = ({
       pricingPolicyReady: !isPricingPolicyUnavailable,
     });
   }, [
+    aspect,
+    canUseStandardCreatePricingGrid,
+    createCharacterModeInjectionBundle,
     costParamsForModel,
+    createReferenceImageUrls,
     effectiveEditSubmitModelId,
+    isCreateCharacterModeEnabled,
+    isCreateWorkflowSelected,
     isVideoTool,
     isImageTool,
     isPricingPolicyUnavailable,
@@ -305,6 +372,23 @@ export const useAiStudioViewModel = ({
 
   const resolveModelPickerCredits = useCallback(
     (modelIdForChip: string): number | null => {
+      if (canUseStandardCreatePricingGrid && isCreateWorkflowSelected) {
+        const pricingTarget = resolveCreatePricingTarget({
+          modelId: modelIdForChip,
+          aspect,
+          resolution: pricingImageResolution,
+          isCharacterModeEnabled: isCreateCharacterModeEnabled,
+          userReferenceImageUrls: createReferenceImageUrls,
+          characterModeInjectionBundle: createCharacterModeInjectionBundle,
+          costParamsForModel,
+        });
+        if (!pricingTarget) return null;
+        return resolvePricingGridBilledCredits({
+          modelId: pricingTarget.modelId,
+          params: pricingTarget.params,
+          pricingPolicy,
+        });
+      }
       return resolveClientBilledCredits({
         modelId: modelIdForChip,
         params: costParamsForModel(
@@ -321,10 +405,16 @@ export const useAiStudioViewModel = ({
     },
     [
       costParamsForModel,
+      canUseStandardCreatePricingGrid,
+      isCreateWorkflowSelected,
       isImageTool,
       isPricingPolicyUnavailable,
       isVideoTool,
       pricingPolicy,
+      aspect,
+      createCharacterModeInjectionBundle,
+      createReferenceImageUrls,
+      isCreateCharacterModeEnabled,
       pricingImageResolution,
       videoPricingParams,
     ]
@@ -332,6 +422,23 @@ export const useAiStudioViewModel = ({
 
   const promptGenerateCostCredits = useMemo(() => {
     if (!effectiveEditSubmitModelId || !isImageTool) return null;
+    if (canUseStandardCreatePricingGrid && isCreateWorkflowSelected) {
+      const pricingTarget = resolveCreatePricingTarget({
+        modelId: effectiveEditSubmitModelId,
+        aspect,
+        resolution: pricingImageResolution,
+        isCharacterModeEnabled: isCreateCharacterModeEnabled,
+        userReferenceImageUrls: createReferenceImageUrls,
+        characterModeInjectionBundle: createCharacterModeInjectionBundle,
+        costParamsForModel,
+      });
+      if (!pricingTarget) return null;
+      return resolvePricingGridBilledCredits({
+        modelId: pricingTarget.modelId,
+        params: pricingTarget.params,
+        pricingPolicy,
+      });
+    }
     return resolveClientBilledCredits({
       modelId: effectiveEditSubmitModelId,
       params: costParamsForModel(effectiveEditSubmitModelId, {
@@ -343,8 +450,13 @@ export const useAiStudioViewModel = ({
     });
   }, [
     aspect,
+    createCharacterModeInjectionBundle,
     costParamsForModel,
+    canUseStandardCreatePricingGrid,
+    createReferenceImageUrls,
     effectiveEditSubmitModelId,
+    isCreateCharacterModeEnabled,
+    isCreateWorkflowSelected,
     isImageTool,
     isPricingPolicyUnavailable,
     pricingImageResolution,
@@ -352,6 +464,23 @@ export const useAiStudioViewModel = ({
   ]);
   const createTextImageGenerateCostCredits = useMemo(() => {
     if (!isCreateWorkflowSelected || mode !== "text" || !effectiveEditSubmitModelId) return null;
+    if (canUseStandardCreatePricingGrid) {
+      const pricingTarget = resolveCreatePricingTarget({
+        modelId: effectiveEditSubmitModelId,
+        aspect,
+        resolution: pricingImageResolution,
+        isCharacterModeEnabled: isCreateCharacterModeEnabled,
+        userReferenceImageUrls: createReferenceImageUrls,
+        characterModeInjectionBundle: createCharacterModeInjectionBundle,
+        costParamsForModel,
+      });
+      if (!pricingTarget) return null;
+      return resolvePricingGridBilledCredits({
+        modelId: pricingTarget.modelId,
+        params: pricingTarget.params,
+        pricingPolicy,
+      });
+    }
     return resolveClientBilledCredits({
       modelId: effectiveEditSubmitModelId,
       params: costParamsForModel(effectiveEditSubmitModelId, {
@@ -363,8 +492,12 @@ export const useAiStudioViewModel = ({
     });
   }, [
     aspect,
+    createCharacterModeInjectionBundle,
     costParamsForModel,
+    canUseStandardCreatePricingGrid,
+    createReferenceImageUrls,
     effectiveEditSubmitModelId,
+    isCreateCharacterModeEnabled,
     isCreateWorkflowSelected,
     isPricingPolicyUnavailable,
     mode,

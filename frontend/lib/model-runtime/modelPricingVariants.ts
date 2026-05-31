@@ -7,6 +7,9 @@ export type ModelPricingVariantParts = {
   resolution?: string | null;
   audio?: boolean | null;
   videoInput?: boolean | null;
+  inputImageCount?: number | null;
+  inputFidelity?: string | null;
+  maskPresent?: boolean | null;
 };
 
 export const buildModelPricingVariantId = ({
@@ -15,12 +18,20 @@ export const buildModelPricingVariantId = ({
   resolution,
   audio,
   videoInput,
+  inputImageCount,
+  inputFidelity,
+  maskPresent,
 }: ModelPricingVariantParts): string => {
   const idParts = [baseVariantId?.trim() || "default"];
   if (resolution) idParts.push(`res:${resolution}`);
   if (aspect) idParts.push(`aspect:${aspect}`);
   if (audio != null) idParts.push(`audio:${audio ? "on" : "off"}`);
   if (videoInput != null) idParts.push(`video_input:${videoInput ? "with" : "none"}`);
+  if (inputImageCount != null && Number.isFinite(inputImageCount)) {
+    idParts.push(`input_images:${Math.max(0, Math.trunc(inputImageCount))}`);
+  }
+  if (inputFidelity) idParts.push(`input_fidelity:${inputFidelity}`);
+  if (maskPresent != null) idParts.push(`mask:${maskPresent ? "yes" : "no"}`);
   return idParts.join("|");
 };
 
@@ -58,5 +69,11 @@ export const resolveModelPricingVariantId = (params: PricingParams): string => {
     resolution,
     audio,
     videoInput,
+    inputImageCount:
+      typeof params.inputImageCount === "number" && Number.isFinite(params.inputImageCount)
+        ? params.inputImageCount
+        : null,
+    inputFidelity: params.inputFidelity ?? null,
+    maskPresent: typeof params.maskPresent === "boolean" ? params.maskPresent : null,
   });
 };

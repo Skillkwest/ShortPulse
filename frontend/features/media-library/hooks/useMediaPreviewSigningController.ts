@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from "react";
 import { createMediaPerfTimer } from "../../../lib/mediaPerfTelemetry";
+import { MEDIA_LIBRARY_PANEL_MAX_COLUMNS } from "../logic/mediaLibraryRuntimeConfig";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import {
@@ -79,6 +80,18 @@ const VISIBLE_SCOPED_SIGN_SURFACES = new Set([
   "elements-media-panel",
   "character-media-panel",
 ]);
+const DEFAULT_BACKGROUND_HYDRATE_FALLBACK_LIMIT = 4;
+
+const resolveBackgroundHydrateFallbackLimit = (
+  surface:
+    | "media-library-modal"
+    | "media-library-panel"
+    | "elements-media-panel"
+    | "character-media-panel"
+): number =>
+  VISIBLE_SCOPED_SIGN_SURFACES.has(surface)
+    ? MEDIA_LIBRARY_PANEL_MAX_COLUMNS
+    : DEFAULT_BACKGROUND_HYDRATE_FALLBACK_LIMIT;
 
 export const useMediaPreviewSigningController = <
   TRow extends PreviewSigningRowBase,
@@ -326,7 +339,10 @@ export const useMediaPreviewSigningController = <
         const unresolvedAfterResolverCount =
           unresolvedAfterResolver.size + (unresolvedRows.length - resolverRows.length);
         if (backgroundHydrateFallbackEnabled) {
-          for (const unresolvedRow of resolverRows.slice(0, 4)) {
+          for (const unresolvedRow of resolverRows.slice(
+            0,
+            resolveBackgroundHydrateFallbackLimit(surface)
+          )) {
             if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
             void hydrateViaStorageDownload(unresolvedRow);
           }

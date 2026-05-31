@@ -416,6 +416,68 @@ describe("useMediaPreviewSigningController", () => {
     expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
   });
 
+  it("hydrates all five unresolved visible approved-panel cards during fallback recovery", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const resolveSignedUrlsByMediaIds = vi.fn(
+      async () => new Set(["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"])
+    );
+    const hydrateViaStorageDownload = vi.fn(async () => "blob://fallback");
+
+    renderHook(() => {
+      const rows = Array.from({ length: 6 }, (_, index) =>
+        makeRow({
+          id: `row-${index + 1}`,
+          storage_path: `user/images/${index + 1}.png`,
+        })
+      );
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(
+        new Set<string>(["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"])
+      );
+      const applySignedUrlsToTab = vi.fn();
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 6, prefetchWindow: 0, signBatchSize: 6 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 1,
+        surface: "elements-media-panel",
+        backgroundHydrateFallbackEnabled: true,
+      });
+    });
+
+    await waitFor(() => expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(hydrateViaStorageDownload).toHaveBeenCalledTimes(5));
+    expect(hydrateViaStorageDownload.mock.calls.map(([row]) => row.id)).toEqual([
+      "row-1",
+      "row-2",
+      "row-3",
+      "row-4",
+      "row-5",
+    ]);
+  });
+
   it("limits modal resolver escalation to visible unresolved rows", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));

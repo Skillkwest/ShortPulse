@@ -92,6 +92,14 @@ export const convertUsdToCredits = ({
   }
 
   const rawCredits = Number(ceilDiv(numerator, denominator));
+  if (applyMarkup && resolvedPolicy.billedCreditsOverride != null) {
+    const credits = resolvedPolicy.billedCreditsOverride;
+    return {
+      rawCredits,
+      credits,
+      billedUsd: credits / resolvedPolicy.creditUsdScale,
+    };
+  }
   const roundingMode = resolveModelCreditRoundingMode(modelId, policy, variantId);
   const credits =
     roundingMode === "ceil"

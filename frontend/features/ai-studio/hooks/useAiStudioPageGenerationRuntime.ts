@@ -229,7 +229,6 @@ export const useAiStudioPageGenerationRuntime = ({
   videoReferenceText,
   videoResolution,
 }: UseAiStudioPageGenerationRuntimeParams) => {
-  void createCharacterModeInjectionBundle;
   void createSelectedCharacterId;
   void isCreateCharacterBundleLoading;
   const { visibleFailures, dismissFailure, focusFailure } =
@@ -296,6 +295,8 @@ export const useAiStudioPageGenerationRuntime = ({
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,
     seedance2ReferenceAudioUrls,
+    isCreateCharacterModeEnabled,
+    createCharacterModeInjectionBundle,
     balanceCredits,
     balanceError,
     balanceLoading,

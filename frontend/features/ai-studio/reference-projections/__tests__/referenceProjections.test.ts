@@ -11,6 +11,7 @@ import {
   pruneReferenceProjectionState,
   removeQuickSlotReference,
   reorderQuickSlotReference,
+  resolveReferenceProjectionIds,
   selectAllRefsProjection,
   selectQuickSlotProjection,
   selectVisibleAllRefsProjection,
@@ -70,6 +71,25 @@ describe("reference-projections", () => {
 
     expect(pruned.quickSlotIds).toEqual(["a"]);
     expect(pruned.removedFromAllRefsIds).toEqual(["a"]);
+  });
+
+  it("resolves generated reference ids through canonical output aliases", () => {
+    const outputs = [
+      makeOutput("local-generated-1", {
+        generationId: "gen-1",
+        taskId: "req-1",
+        sourceRef: "source-1",
+        mediaSource: "generated",
+      }),
+      makeOutput("library-1"),
+    ];
+
+    expect(
+      resolveReferenceProjectionIds(
+        ["generated:gen-1", "req-1", "source-1", "library-1", "missing"],
+        outputs
+      )
+    ).toEqual(["local-generated-1", "library-1"]);
   });
 
   it("does not suppress non-quick-slot references", () => {

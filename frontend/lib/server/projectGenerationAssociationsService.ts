@@ -5,6 +5,7 @@
  */
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { chunkValues } from "./queryBatching";
+import { hasDurableGeneratedMediaDisplayAuthority } from "../generatedMediaDisplayAuthority";
 
 const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "generation_id",
@@ -945,6 +946,60 @@ const resolveSnapshotOutputMode = (projection: ProjectGenerationProjectionRow): 
   return "image";
 };
 
+const hasProjectGenerationMediaDelivery = (
+  mediaDelivery: ProjectGenerationMediaDelivery | null | undefined
+): boolean =>
+  Boolean(
+    mediaDelivery?.previewPosterStoragePath ||
+    mediaDelivery?.previewStoragePath ||
+    mediaDelivery?.fullStoragePath
+  );
+
+const hasProjectionDurableDisplayAuthority = ({
+  projection,
+  mediaDelivery,
+}: {
+  projection: ProjectGenerationProjectionRow;
+  mediaDelivery?: ProjectGenerationMediaDelivery | null;
+}): boolean =>
+  hasProjectGenerationMediaDelivery(mediaDelivery) ||
+  hasDurableGeneratedMediaDisplayAuthority({
+    savedMediaIds: asTrimmedStringArray(projection.saved_media_ids),
+    previewStoragePath: asTrimmedString(projection.preview_storage_path),
+    fullStoragePath: asTrimmedString(projection.full_storage_path),
+    companionArtStoragePath: asTrimmedString(projection.companion_art_storage_path),
+  });
+
+const hasSnapshotRowDurableDisplayAuthority = (row: SnapshotRecord): boolean =>
+  hasDurableGeneratedMediaDisplayAuthority({
+    previewText: asTrimmedString(row.previewText),
+    savedMediaIds: asTrimmedStringArray(row.savedMediaIds),
+    previewPosterStoragePath: asTrimmedString(row.previewPosterStoragePath),
+    previewStoragePath: asTrimmedString(row.previewStoragePath),
+    fullStoragePath: asTrimmedString(row.fullStoragePath),
+    companionArtStoragePath: asTrimmedString(row.companionArtStoragePath),
+  });
+
+const shouldRestoreProjectionAsDisplayRow = ({
+  projection,
+  mediaDelivery,
+  row,
+}: {
+  projection: ProjectGenerationProjectionRow;
+  mediaDelivery?: ProjectGenerationMediaDelivery | null;
+  row?: SnapshotRecord | null;
+}): boolean => {
+  if (asBoolean(projection.hidden_in_reference_grid) === true) return false;
+  if (asBoolean(projection.reference_grid_visible) === false) return false;
+  const taskState = normalizeProjectionTaskState(projection.task_state);
+  if (taskState === "fail") return false;
+  if (taskState === "pending" || taskState === "running") return true;
+  return (
+    hasProjectionDurableDisplayAuthority({ projection, mediaDelivery }) ||
+    Boolean(row && hasSnapshotRowDurableDisplayAuthority(row))
+  );
+};
+
 const shouldAppendProjectionToSnapshot = (projection: ProjectGenerationProjectionRow): boolean => {
   if (asBoolean(projection.hidden_in_reference_grid) === true) return false;
   if (asBoolean(projection.reference_grid_visible) === false) return false;
@@ -953,13 +1008,12 @@ const shouldAppendProjectionToSnapshot = (projection: ProjectGenerationProjectio
 };
 
 const shouldRetainProjectionSnapshotRow = (
-  projection: ProjectGenerationProjectionRow | null | undefined
+  projection: ProjectGenerationProjectionRow | null | undefined,
+  row: SnapshotRecord,
+  mediaDelivery?: ProjectGenerationMediaDelivery | null
 ): boolean => {
   if (!projection) return false;
-  if (asBoolean(projection.hidden_in_reference_grid) === true) return false;
-  if (asBoolean(projection.reference_grid_visible) === false) return false;
-  if (normalizeProjectionTaskState(projection.task_state) === "fail") return false;
-  return true;
+  return shouldRestoreProjectionAsDisplayRow({ projection, mediaDelivery, row });
 };
 
 const createSnapshotOutputRowFromProjection = ({
@@ -971,6 +1025,7 @@ const createSnapshotOutputRowFromProjection = ({
 }): SnapshotRecord | null => {
   const generationId = asTrimmedString(projection.generation_id);
   if (!generationId || !shouldAppendProjectionToSnapshot(projection)) return null;
+  if (!shouldRestoreProjectionAsDisplayRow({ projection, mediaDelivery })) return null;
   const mode = resolveSnapshotOutputMode(projection);
   const requestId = asTrimmedString(projection.request_id);
   const modelId = asTrimmedString(projection.model_id);
@@ -1152,7 +1207,12 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         if (!projection) {
           return normalizedRow;
         }
-        if (!shouldRetainProjectionSnapshotRow(projection)) {
+        const projectionGenerationId = asTrimmedString(projection.generation_id);
+        const mediaDeliveryGenerationId = generationId ?? projectionGenerationId;
+        const mediaDelivery = mediaDeliveryGenerationId
+          ? (mediaDeliveryByGenerationId.get(mediaDeliveryGenerationId) ?? null)
+          : null;
+        if (!shouldRetainProjectionSnapshotRow(projection, normalizedRow, mediaDelivery)) {
           changed = true;
           return null;
         }
@@ -1160,9 +1220,7 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         return patchSnapshotOutputRow({
           row: normalizedRow,
           projection,
-          mediaDelivery: generationId
-            ? (mediaDeliveryByGenerationId.get(generationId) ?? null)
-            : null,
+          mediaDelivery,
         });
       })
       .filter((row): row is SnapshotRecord => Boolean(row));

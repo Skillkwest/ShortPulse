@@ -14,8 +14,8 @@ type UseAiStudioOutputPersistenceEffectsArgs = {
   referenceProjectionState: ReferenceProjectionState;
   setReferenceProjectionState: Dispatch<SetStateAction<ReferenceProjectionState>>;
   referenceProjectionStateRef: MutableRefObject<ReferenceProjectionState>;
-  activeOutputOrder: string[];
-  archivedOutputOrder: string[];
+  activeOutputState: StudioOutputCollectionState;
+  archivedOutputState: StudioOutputCollectionState;
   curatedReferenceIds: string[];
   setActiveOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
   setArchivedOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
@@ -29,8 +29,8 @@ export const useAiStudioOutputPersistenceEffects = ({
   referenceProjectionState,
   setReferenceProjectionState,
   referenceProjectionStateRef,
-  activeOutputOrder,
-  archivedOutputOrder,
+  activeOutputState,
+  archivedOutputState,
   curatedReferenceIds,
   setActiveOutputState,
   setArchivedOutputState,
@@ -39,8 +39,8 @@ export const useAiStudioOutputPersistenceEffects = ({
     referenceProjectionState,
     setReferenceProjectionState,
     referenceProjectionStateRef,
-    activeOutputOrder,
-    archivedOutputOrder,
+    activeOutputState,
+    archivedOutputState,
     curatedReferenceIds,
     setActiveOutputState,
     setArchivedOutputState,

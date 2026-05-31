@@ -1642,6 +1642,7 @@ export function AiStudioPageContent({
         output={detailModalOutput}
         isMediaStorageFull={isMediaStorageFull}
         context={detailModalContext}
+        projectId={projectId}
         onClose={onDetailClose}
         onUpdatePrompt={onUpdateOutputPrompt}
         onDeleteOutput={onDeleteOutput}

@@ -409,8 +409,9 @@ describe("associateGenerationWithProjectForUser", () => {
           result_urls: ["https://fal.test/project-restore-full.png"],
           saved_media_ids: [],
           save_state: "idle",
-          preview_storage_path: null,
-          full_storage_path: null,
+          preview_storage_path:
+            "user-1/generations/images/gen-project-projection-restore-1/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-projection-restore-1/full.png",
           task_state: "success",
           queue_state: "dispatched",
           error_message: null,
@@ -470,6 +471,71 @@ describe("associateGenerationWithProjectForUser", () => {
     );
   });
 
+  it("does not restore provider-url-only success projections without durable media authority", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-provider-only-restore-1",
+          updated_at: "2026-04-18T16:13:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-provider-only-restore-1",
+          project_id: "project-1",
+          request_id: "req-provider-only-restore-1",
+          source_ref: "source-provider-only-restore-1",
+          provider: "fal",
+          model_id: "fal-ai/nano-banana-2",
+          display_prompt: "A provider-only restored project output",
+          preview_url: "https://fal.test/provider-only-restore-preview.png",
+          result_urls: ["https://fal.test/provider-only-restore-full.png"],
+          saved_media_ids: [],
+          save_state: "idle",
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message: null,
+          error_message_short: null,
+          error_detail: null,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockReturnValue(associationBuilder);
+    generationProjectionSelectMock
+      .mockImplementationOnce(() => recentProjectionBuilder)
+      .mockImplementationOnce(() => projectionDetailsBuilder);
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot.outputs).toMatchObject({
+      active: [],
+    });
+  });
+
   it("orders restored project generated outputs by newest project generation recency", async () => {
     const associationBuilder = createAwaitableSelectBuilder({
       data: [
@@ -525,6 +591,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Newest",
           preview_url: "https://fal.test/newest.png",
           result_urls: ["https://fal.test/newest.png"],
+          preview_storage_path: "user-1/generations/images/gen-newest/preview.png",
+          full_storage_path: "user-1/generations/images/gen-newest/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -539,6 +607,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Middle",
           preview_url: "https://fal.test/middle.png",
           result_urls: ["https://fal.test/middle.png"],
+          preview_storage_path: "user-1/generations/images/gen-middle/preview.png",
+          full_storage_path: "user-1/generations/images/gen-middle/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -553,6 +623,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Oldest",
           preview_url: "https://fal.test/oldest.png",
           result_urls: ["https://fal.test/oldest.png"],
+          preview_storage_path: "user-1/generations/images/gen-oldest/preview.png",
+          full_storage_path: "user-1/generations/images/gen-oldest/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -645,6 +717,8 @@ describe("associateGenerationWithProjectForUser", () => {
           transcript_text: "The skyline glows through a morning haze.",
           preview_url: "https://fal.test/generated.png",
           result_urls: ["https://fal.test/generated.png"],
+          preview_storage_path: "user-1/generations/images/generation-1/preview.png",
+          full_storage_path: "user-1/generations/images/generation-1/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -827,6 +901,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Newer generated",
           preview_url: "https://fal.test/newer.png",
           result_urls: ["https://fal.test/newer.png"],
+          preview_storage_path: "user-1/generations/images/gen-newer/preview.png",
+          full_storage_path: "user-1/generations/images/gen-newer/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -841,6 +917,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Older generated",
           preview_url: "https://fal.test/older.png",
           result_urls: ["https://fal.test/older.png"],
+          preview_storage_path: "user-1/generations/images/gen-older/preview.png",
+          full_storage_path: "user-1/generations/images/gen-older/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -1000,6 +1078,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Appended generated",
           preview_url: "https://fal.test/appended.png",
           result_urls: ["https://fal.test/appended.png"],
+          preview_storage_path: "user-1/generations/images/gen-appended/preview.png",
+          full_storage_path: "user-1/generations/images/gen-appended/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -1082,6 +1162,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Generated",
           preview_url: "https://fal.test/generated.png",
           result_urls: ["https://fal.test/generated.png"],
+          preview_storage_path: "user-1/generations/images/generation-1/preview.png",
+          full_storage_path: "user-1/generations/images/generation-1/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -1506,6 +1588,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Started latest",
           preview_url: "https://fal.test/started-latest.png",
           result_urls: ["https://fal.test/started-latest.png"],
+          preview_storage_path: "user-1/generations/images/gen-started-latest/preview.png",
+          full_storage_path: "user-1/generations/images/gen-started-latest/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,
@@ -1522,6 +1606,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "Added latest",
           preview_url: "https://fal.test/added-latest.png",
           result_urls: ["https://fal.test/added-latest.png"],
+          preview_storage_path: "user-1/generations/images/gen-added-latest/preview.png",
+          full_storage_path: "user-1/generations/images/gen-added-latest/full.png",
           task_state: "success",
           queue_state: "dispatched",
           hidden_in_reference_grid: false,

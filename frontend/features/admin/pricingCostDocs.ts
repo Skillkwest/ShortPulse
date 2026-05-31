@@ -369,6 +369,13 @@ export const buildDraftPricingPreviewVariants = (
                   resolution,
                   audio,
                   videoInput,
+                  ...(variant.id === "edit"
+                    ? {
+                        inputImageCount: 1,
+                        inputFidelity: "high",
+                        maskPresent: false,
+                      }
+                    : {}),
                 }),
                 label: variant.label,
                 aspect,

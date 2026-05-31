@@ -1,4 +1,5 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import { hasDurableGeneratedMediaDisplayAuthority } from "../../../lib/generatedMediaDisplayAuthority";
 import { resolveImageDimensionsFromMetadata } from "../../../lib/mediaDimensionMetadata";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
@@ -441,6 +442,23 @@ const resolveHydratedTimestamp = (taskState: StudioOutput["taskState"] | undefin
   if (taskState === "success") return "Just now";
   if (taskState === "fail") return "Failed";
   return "Processing...";
+};
+
+const hasGeneratedOutputDurableDisplayAuthority = (output: StudioOutput): boolean => {
+  if (output.taskState === "pending" || output.taskState === "running") return true;
+  if (output.taskState === "fail") return true;
+  return hasDurableGeneratedMediaDisplayAuthority(output);
+};
+
+const hasVisibleGenerationDeliveryDurableDisplayAuthority = (
+  delivery: VisibleGenerationDelivery
+): boolean => {
+  return hasDurableGeneratedMediaDisplayAuthority({
+    previewPosterStoragePath: delivery.previewPosterStoragePath,
+    previewStoragePath: delivery.previewStoragePath,
+    fullStoragePath: delivery.fullStoragePath,
+    companionArtStoragePath: delivery.companionArtStoragePath,
+  });
 };
 
 const toHydratedGeneratedOutput = (
@@ -1444,7 +1462,7 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
             userId: resolvedUserId,
           });
           if (publishedDelivery) {
-            return await signVisibleGenerationDelivery({
+            const mergedDelivery = {
               ...projectionDelivery,
               previewPosterUrl:
                 projectionDelivery.previewPosterUrl ?? publishedDelivery.previewPosterUrl,
@@ -1460,8 +1478,15 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
                 projectionDelivery.previewStoragePath ?? publishedDelivery.previewStoragePath,
               fullStoragePath:
                 projectionDelivery.fullStoragePath ?? publishedDelivery.fullStoragePath,
-            });
+            };
+            if (!hasVisibleGenerationDeliveryDurableDisplayAuthority(mergedDelivery)) {
+              return null;
+            }
+            return await signVisibleGenerationDelivery(mergedDelivery);
           }
+        }
+        if (!hasVisibleGenerationDeliveryDurableDisplayAuthority(projectionDelivery)) {
+          return null;
         }
         return await signVisibleGenerationDelivery(projectionDelivery);
       }
@@ -1768,7 +1793,10 @@ export const listVisibleGeneratedOutputs = async ({
         );
       })
       .map((output) => output.generationId as string);
-    if (!authorityRepairGenerationIds.length) return await applySignedGeneratedMediaUrls(outputs);
+    if (!authorityRepairGenerationIds.length) {
+      const signedOutputs = await applySignedGeneratedMediaUrls(outputs);
+      return signedOutputs.filter(hasGeneratedOutputDurableDisplayAuthority);
+    }
     const mediaByGenerationId = await resolveLatestPublishedGenerationMediaByGenerationIds({
       supabase,
       generationIds: authorityRepairGenerationIds,
@@ -1781,7 +1809,10 @@ export const listVisibleGeneratedOutputs = async ({
     const outputsWithSignedMediaUrls = await applySignedGeneratedMediaUrls(
       outputsWithPosterStoragePaths
     );
-    return await applySignedVideoPosterUrls(outputsWithSignedMediaUrls);
+    const outputsWithSignedVideoPosterUrls = await applySignedVideoPosterUrls(
+      outputsWithSignedMediaUrls
+    );
+    return outputsWithSignedVideoPosterUrls.filter(hasGeneratedOutputDurableDisplayAuthority);
   } catch {
     return [];
   }

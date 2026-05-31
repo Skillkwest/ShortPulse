@@ -6,6 +6,7 @@
  */
 import { randomUUID } from "crypto";
 import { computeCostForModel } from "../../model-runtime/pricing";
+import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGridBilledCredits";
 import { requireApiUser } from "./auth";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveRuntimeModelPricingPolicy } from "./modelPricingControlPlane";
@@ -116,6 +117,19 @@ const resolveAdmissionLimitedTelemetrySource = (routeLabel: string): string =>
     ? ADMISSION_LIMITED_TELEMETRY_SOURCE
     : DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE;
 
+const isCreateImageBillingPath = ({
+  shortpulseContext,
+}: {
+  shortpulseContext: JsonObject | null;
+}): boolean => {
+  const selectedTool =
+    typeof shortpulseContext?.selected_tool === "string" ? shortpulseContext.selected_tool : null;
+  if (selectedTool !== "create") return false;
+  const resolvedMode =
+    typeof shortpulseContext?.mode === "string" ? shortpulseContext.mode.trim() : null;
+  return resolvedMode === "image";
+};
+
 /**
  * Reserves credits for a model call before provider submission.
  */
@@ -186,7 +200,15 @@ export const chargeGenerationRequest = async ({
     res.status(500).json({ error: "Model pricing policy is unavailable." });
     return null;
   }
-  const breakdown = computeCostForModel(modelId, pricingParams, runtimePricingPolicy.policy);
+  const breakdown = isCreateImageBillingPath({
+    shortpulseContext,
+  })
+    ? resolvePricingGridCostBreakdown({
+        modelId,
+        params: pricingParams,
+        pricingPolicy: runtimePricingPolicy.policy,
+      })
+    : computeCostForModel(modelId, pricingParams, runtimePricingPolicy.policy);
   if (!breakdown?.credits || breakdown.credits <= 0) {
     await logGenerationFailure({
       req,

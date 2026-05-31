@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { readPersistedGenerationOutputs } from "./generationOutputs";
+import { readMediaDeliveryPathsById } from "./mediaDeliveryPaths";
 import { upsertGenerationPublication } from "./generationPublications";
 import { toErrorMessage } from "./errorMessage";
 
@@ -744,9 +745,22 @@ export const repairStaleTerminalGenerationProjections = async ({
       const savedMediaIds = outputRows
         .map((row) => asString(row.mediaFileId))
         .filter((mediaFileId): mediaFileId is string => Boolean(mediaFileId));
+      const deliveryPathsByMediaId = await readMediaDeliveryPathsById({
+        supabaseAdmin: adminClient,
+        userId: projection.userId,
+        mediaFileIds: savedMediaIds,
+      });
+      const verifiedSavedMediaIds = savedMediaIds.filter((mediaFileId) =>
+        deliveryPathsByMediaId.has(mediaFileId)
+      );
       const allOutputsOwned =
         outputRows.length > 0 &&
-        outputRows.every((row) => typeof row.mediaFileId === "string" && row.mediaFileId);
+        outputRows.every(
+          (row) =>
+            typeof row.mediaFileId === "string" && deliveryPathsByMediaId.has(row.mediaFileId)
+        );
+      const referenceGridVisible =
+        allOutputsOwned && (projection.referenceGridVisible ?? !projection.hiddenInReferenceGrid);
 
       await upsertGenerationProjection({
         supabaseAdmin: adminClient,
@@ -768,10 +782,10 @@ export const repairStaleTerminalGenerationProjections = async ({
         errorDetail: null,
         saveState: "idle",
         hiddenInReferenceGrid: projection.hiddenInReferenceGrid,
-        referenceGridVisible: projection.referenceGridVisible ?? !projection.hiddenInReferenceGrid,
+        referenceGridVisible,
         publicationState: allOutputsOwned ? "published" : "suppressed",
         resultUrls,
-        savedMediaIds: allOutputsOwned ? savedMediaIds : [],
+        savedMediaIds: allOutputsOwned ? verifiedSavedMediaIds : [],
         generationReplay: projection.generationReplay,
         characterContext: projection.characterContext,
         styleContext: projection.styleContext,
@@ -782,6 +796,9 @@ export const repairStaleTerminalGenerationProjections = async ({
       await Promise.all(
         outputRows.map(async (row) => {
           if (!row.id) return;
+          const deliveryPaths = row.mediaFileId
+            ? (deliveryPathsByMediaId.get(row.mediaFileId) ?? null)
+            : null;
           await upsertGenerationPublication({
             generationId: projection.generationId,
             generationOutputId: row.id,
@@ -792,10 +809,10 @@ export const repairStaleTerminalGenerationProjections = async ({
             ownedMediaFileId: row.mediaFileId,
             previewUrl: row.outputIndex === 0 ? row.resultUrl : null,
             fullUrl: row.resultUrl,
+            previewStoragePath: deliveryPaths?.previewStoragePath ?? null,
+            fullStoragePath: deliveryPaths?.fullStoragePath ?? null,
             publishedAt: generation.completedAt,
-            visibleInReferenceGrid:
-              publicationState === "published" &&
-              (projection.referenceGridVisible ?? !projection.hiddenInReferenceGrid),
+            visibleInReferenceGrid: publicationState === "published" && referenceGridVisible,
             metadata: {
               projection_repair: true,
               provider_request_id: projection.providerRequestId ?? generation.requestId,

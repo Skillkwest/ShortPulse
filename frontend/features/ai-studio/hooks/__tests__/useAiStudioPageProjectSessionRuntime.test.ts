@@ -384,4 +384,60 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     expect(setVoiceDesignPromptDraft).toHaveBeenCalledWith("");
     expect(setVoiceScriptDraft).toHaveBeenCalledWith("");
   });
+
+  it("forwards the bootstrap project id to page session persistence before identity finishes", () => {
+    renderHook(() =>
+      useAiStudioPageProjectSessionRuntime({
+        activeCreateAgentKind: "standard",
+        activeCreatePulsePresetId: null,
+        activeSessionPersistenceSessionId: "session-1",
+        buildProjectWorkspaceSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
+        buildSessionSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
+        canvasSessionState: null,
+        createSelectedCharacterId: "",
+        createSelectedCharacterLookId: "",
+        expertCreateMode: "standard",
+        expertEditSessionRevision: 0,
+        getExpertEditSessionState: vi.fn(() => null),
+        hasActivePulseSession: false,
+        hydrateActiveFromSessionAgentSnapshot: vi.fn(),
+        hydrateCanvasSessionState: vi.fn(),
+        hydrateFromSessionSnapshot: vi.fn((snapshot: AiStudioSessionSnapshot) =>
+          createHydrationPayload(snapshot)
+        ),
+        persistedAgentRuntime: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        projectBootstrapId: "project-route-1",
+        projectId: null,
+        projectRouteRequested: true,
+        pulseWorkflowSession: null,
+        resetActiveProjectAgentConversation: vi.fn(),
+        sessionPersistenceTitleOverride: null,
+        setCreateSelectedCharacterId: vi.fn(),
+        setCreateSelectedCharacterLookId: vi.fn(),
+        setIsCreateCharacterModeEnabled: vi.fn(),
+        setExpertEditSessionState: vi.fn(),
+        setMusicPromptDraft: createNoopDraftSetter(),
+        setMusicLyricsDraft: createNoopDraftSetter(),
+        setSoundEffectsPromptDraft: createNoopDraftSetter(),
+        setUiNotice: vi.fn(),
+        setVoiceDesignPromptDraft: createNoopDraftSetter(),
+        setVoiceScriptDraft: createNoopDraftSetter(),
+      })
+    );
+
+    expect(useAiStudioPageSessionPersistenceMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        projectId: null,
+        projectBootstrapId: "project-route-1",
+        projectRouteRequested: true,
+      })
+    );
+  });
 });

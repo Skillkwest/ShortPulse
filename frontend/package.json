@@ -41,7 +41,7 @@
     "phase12:execution-gate": "cd .. && node scripts/phase12_execution_gate.mjs",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "test:adaptive-media-runtime": "npm run lint && npm run type-check && npm run test -- ReferenceGrid.curated.test.tsx referenceGridMedia.test.ts MediaLibraryModal.test.tsx features/character-manager/components/__tests__/CharacterPanelWorkspace.test.tsx lib/adaptive-media/__tests__/policy.test.ts lib/adaptive-media/__tests__/flags.test.ts",
+    "test:adaptive-media-runtime": "npm run lint && npm run type-check && npm run test -- ReferenceGrid.curated.test.tsx referenceGridMedia.test.ts sessionRestoreMediaSigning.test.ts MediaLibraryModal.test.tsx features/character-manager/components/__tests__/CharacterPanelWorkspace.test.tsx lib/adaptive-media/__tests__/policy.test.ts lib/adaptive-media/__tests__/flags.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:pulse-custom-contract": "NODE_PATH=./node_modules node ./tests/e2e/pulse-custom-contract.audit.js",
     "test:pulse-custom-contract:release-check": "node ./scripts/pulse-custom-contract-release-check.mjs",
@@ -108,6 +108,9 @@
     "deadcode:check": "knip --production --include files --max-issues 0",
     "deadcode:check:full": "knip --production --include files,exports,dependencies --no-exit-code",
     "latency:protected-route": "cd .. && node scripts/capture_protected_route_latency.mjs",
+    "latency:ai-studio-trace": "cd .. && node scripts/capture_ai_studio_production_trace.mjs",
+    "latency:ai-studio-inventory": "cd .. && node scripts/inventory_ai_studio_latency_routes.mjs",
+    "type-check:touched": "cd .. && node scripts/typecheck_changed_files.mjs",
     "prepare": "cd .. && husky"
   },
   "dependencies": {

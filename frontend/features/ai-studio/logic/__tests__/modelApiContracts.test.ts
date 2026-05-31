@@ -86,6 +86,7 @@ describe("model API contracts", () => {
   it("keeps generation-capable catalog models registered with workflow routing metadata", () => {
     const missingWorkflowMetadata = listModelConfigs()
       .filter((config) => config.mediaType !== "text")
+      .filter((config) => config.lifecycle === "active")
       .filter(
         (config) =>
           !config.generationLanes?.length ||

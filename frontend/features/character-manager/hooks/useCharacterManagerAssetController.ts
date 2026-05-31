@@ -4,10 +4,7 @@
  */
 import React from "react";
 import { maybePreprocessLocalImageFileForUpload } from "../../../lib/adaptive-media/localTranscode";
-import {
-  CHARACTER_MANAGER_MAX_IMAGE_BYTES,
-  createEmptyCharacterSheetPresetAssignments,
-} from "../constants";
+import { createEmptyCharacterSheetPresetAssignments } from "../constants";
 import {
   clearCharacterManagerProfileImage,
   clearCharacterManagerSlot,
@@ -83,10 +80,6 @@ type UseCharacterManagerAssetControllerResult = {
     characterSheetId: string;
   }) => Promise<{ persistedAssetCount: number }>;
 };
-
-const CHARACTER_MANAGER_MAX_IMAGE_MB = Math.round(
-  CHARACTER_MANAGER_MAX_IMAGE_BYTES / (1024 * 1024)
-);
 
 const createPendingValidationNotes = (file: File): CharacterSlotValidationNotes => ({
   validatorVersion: 1,
@@ -182,10 +175,6 @@ export const useCharacterManagerAssetController = ({
         return;
       }
       const preparedFile = await maybePreprocessLocalImageFileForUpload(file);
-      if (preparedFile.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
-        setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
-        return;
-      }
       if (!characterId) {
         revokeObjectUrl(stagedProfileImagePreviewUrlRef.current);
         const previewUrl = URL.createObjectURL(preparedFile);
@@ -404,10 +393,6 @@ export const useCharacterManagerAssetController = ({
         return false;
       }
       const preparedFile = await maybePreprocessLocalImageFileForUpload(file);
-      if (preparedFile.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
-        setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
-        return false;
-      }
       if (!characterId) {
         const activePresetId = activeCharacterSheetPresetIdRef.current;
         const currentAssignments =
@@ -477,10 +462,6 @@ export const useCharacterManagerAssetController = ({
         return false;
       }
       const preparedFile = await maybePreprocessLocalImageFileForUpload(file);
-      if (preparedFile.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
-        setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
-        return false;
-      }
 
       markSlotBusy(slotKey, true);
       try {

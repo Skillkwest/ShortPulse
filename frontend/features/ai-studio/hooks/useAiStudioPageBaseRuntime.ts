@@ -101,6 +101,7 @@ export const useAiStudioPageBaseRuntime = () => {
     sessionId,
   });
   const {
+    bootstrapProjectId,
     requestedProjectId,
     verifiedProjectId,
     projectRouteRequested,
@@ -471,6 +472,7 @@ export const useAiStudioPageBaseRuntime = () => {
     balanceCredits,
     balanceError,
     balanceLoading,
+    bootstrapProjectId,
     buildProjectWorkspaceSnapshot,
     buildSessionSnapshot,
     canvasSessionState,

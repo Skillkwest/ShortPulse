@@ -35,6 +35,7 @@ type CreatePersistenceRuntime = StandardCreatePersistenceRuntime | PulseCreatePe
 
 type UseAiStudioPageSessionPersistenceParams = {
   projectId?: string | null;
+  projectBootstrapId?: string | null;
   projectRouteRequested?: boolean;
   sessionId: string | null;
   sessionTitleOverride?: string | null;
@@ -59,6 +60,7 @@ type UseAiStudioPageSessionPersistenceParams = {
  */
 export const useAiStudioPageSessionPersistence = ({
   projectId = null,
+  projectBootstrapId = projectId,
   projectRouteRequested = false,
   sessionId,
   sessionTitleOverride,
@@ -97,7 +99,7 @@ export const useAiStudioPageSessionPersistence = ({
   );
 
   const projectWorkspacePersistence = useAiStudioProjectWorkspacePersistenceController({
-    projectId,
+    projectId: projectBootstrapId,
     projectRouteRequested,
     sessionId,
     buildBaseSessionSnapshot: buildSessionSnapshotForSessionId,
@@ -111,7 +113,7 @@ export const useAiStudioPageSessionPersistence = ({
   });
 
   const inertSessionPersistence: AiStudioPersistenceController = {
-    sessionId: projectId || projectRouteRequested ? null : sessionId,
+    sessionId: projectBootstrapId || projectRouteRequested ? null : sessionId,
     sessionSnapshot: null,
     sessionRestoreCandidate: {
       status: "idle",
@@ -133,5 +135,7 @@ export const useAiStudioPageSessionPersistence = ({
   void hydrateFromSessionCanvasSnapshot;
   void handleSessionPersistenceWarning;
 
-  return projectId || projectRouteRequested ? projectWorkspacePersistence : inertSessionPersistence;
+  return projectBootstrapId || projectRouteRequested
+    ? projectWorkspacePersistence
+    : inertSessionPersistence;
 };

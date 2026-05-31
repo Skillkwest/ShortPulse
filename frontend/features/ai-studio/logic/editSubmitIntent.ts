@@ -4,6 +4,7 @@
  */
 import {
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  isInpaintGenerationEnabled,
   isMarkupModelLockEnabled,
   resolveInpaintPromptReferencePolicy,
 } from "./inpaintSubmission";
@@ -53,6 +54,9 @@ export const resolveEffectiveEditSubmitModelId = ({
   extraImageUrls?: [string | null, string | null, string | null];
 }): string | null => {
   if (isEditWorkflow(selectedTool) && editSubmitIntent === "inpaint") {
+    if (!isInpaintGenerationEnabled()) {
+      return selectedModelId;
+    }
     return resolveInpaintPromptReferencePolicy({
       promptText,
       extraImageUrls,

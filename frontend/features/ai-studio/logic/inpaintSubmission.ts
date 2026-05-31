@@ -6,6 +6,7 @@ import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import { analyzeExpertEditPromptTokens } from "./expertEditPromptReferences";
 
 const PUBLIC_ADVANCED_EXPERT_EDIT_MODES_ENABLED = false;
+const INPAINT_GENERATION_ENABLED = false;
 
 export const INPAINT_FLUX_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
 export const INPAINT_FLUX_FILL_MODEL_LABEL = "Pulse Fill v1";
@@ -24,6 +25,8 @@ export const isMarkupStrokeSecondaryReferenceEnabled = (): boolean => true;
 
 export const isEditGenerationModeToggleEnabled = (): boolean =>
   areAdvancedExpertEditModesPubliclyAccessible();
+
+export const isInpaintGenerationEnabled = (): boolean => INPAINT_GENERATION_ENABLED;
 
 export const MAX_INPAINT_SECONDARY_REFERENCE_IMAGES = 1;
 
@@ -46,6 +49,15 @@ export const resolveInpaintPromptReferencePolicy = ({
     allowSecondaryTokens: true,
     maxSecondaryReferences: MAX_INPAINT_SECONDARY_REFERENCE_IMAGES,
   });
+  if (!isInpaintGenerationEnabled()) {
+    return {
+      modelId: INPAINT_FLUX_FILL_MODEL_ID,
+      modelLabel: INPAINT_FLUX_FILL_MODEL_LABEL,
+      usesReferenceModel: false,
+      allowSecondaryReferenceTokens: false,
+      maxSecondaryReferenceTokens: 0,
+    };
+  }
   const usesReferenceModel =
     !analysis.hasInvalidTokens &&
     analysis.referencedSlotIndexes.length === MAX_INPAINT_SECONDARY_REFERENCE_IMAGES;

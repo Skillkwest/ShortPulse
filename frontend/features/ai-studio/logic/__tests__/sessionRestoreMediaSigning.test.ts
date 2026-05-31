@@ -10,6 +10,7 @@ import {
 
 const getSignedMediaUrlsBatchMock = vi.fn();
 const mediaFilesQueryMock = vi.fn();
+const generationPublicationsQueryMock = vi.fn();
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: (...args: unknown[]) => getSignedMediaUrlsBatchMock(...args),
@@ -17,11 +18,35 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: () => ({
-    from: () => ({
-      select: () => ({
+    from: (table: string) => {
+      const queryState: Record<string, unknown> = {
+        table,
+        filters: [],
+      };
+      const builder = {
+        select: (columns: string) => {
+          queryState.columns = columns;
+          return builder;
+        },
         in: (...args: unknown[]) => mediaFilesQueryMock(...args),
-      }),
-    }),
+        eq: (column: string, value: unknown) => {
+          queryState.filters = [...(queryState.filters as unknown[]), { column, value }];
+          return builder;
+        },
+        order: (column: string, options?: unknown) => {
+          queryState.order = { column, options };
+          return builder;
+        },
+        limit: (count: number) => {
+          queryState.limit = count;
+          if (table === "generation_publications") {
+            return generationPublicationsQueryMock(queryState);
+          }
+          return Promise.resolve({ data: [], error: null });
+        },
+      };
+      return builder;
+    },
   }),
 }));
 
@@ -40,6 +65,7 @@ describe("sessionRestoreMediaSigning", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mediaFilesQueryMock.mockResolvedValue({ data: [], error: null });
+    generationPublicationsQueryMock.mockResolvedValue({ data: [], error: null });
   });
 
   it("collects unique canonical signing paths", () => {
@@ -332,6 +358,58 @@ describe("sessionRestoreMediaSigning", () => {
         previewStoragePath: "user-1/images/library.png",
         fullStoragePath: "user-1/images/library.png",
         resultUrls: ["https://signed/library.png", "https://stale.example.com/library.png"],
+      })
+    );
+  });
+
+  it("recovers stripped generated storage authority from generation identity during session restore", async () => {
+    const rows = [
+      createOutput({
+        id: "generated-1",
+        mode: "image",
+        mediaSource: "generated",
+        generationId: "generation-1",
+        previewUrl: "https://stale.example.com/generated.png",
+        resultUrls: ["https://stale.example.com/generated.png"],
+        savedMediaIds: [],
+      }),
+    ];
+    generationPublicationsQueryMock.mockResolvedValueOnce({
+      data: [
+        {
+          owned_media_file_id: null,
+          preview_storage_path: null,
+          full_storage_path: "user-1/generations/images/generation-1/output.png",
+          created_at: "2026-05-30T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    getSignedMediaUrlsBatchMock.mockResolvedValueOnce(
+      new Map([
+        ["user-1/generations/images/generation-1/output.png", "https://signed/generated.png"],
+      ])
+    );
+
+    const { signedByPath, recoveredAuthorityByOutputId } =
+      await resolveSessionRestoreSignedMediaAuthority(rows);
+    const result = applySessionRestoreSignedUrls(rows, signedByPath, {
+      recoveredAuthorityById: recoveredAuthorityByOutputId,
+    });
+
+    expect(generationPublicationsQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        table: "generation_publications",
+        limit: 50,
+      })
+    );
+    expect(result.changed).toBe(true);
+    expect(result.outputs[0]).toEqual(
+      expect.objectContaining({
+        previewUrl: "https://signed/generated.png",
+        previewStoragePath: "user-1/generations/images/generation-1/output.png",
+        fullStoragePath: "user-1/generations/images/generation-1/output.png",
+        resultUrls: ["https://signed/generated.png", "https://stale.example.com/generated.png"],
       })
     );
   });

@@ -177,6 +177,11 @@ function run() {
         path.relative(REPO_ROOT, path.join(FAL_ROUTES_DIR, file)),
       ),
     );
+    if (shouldWrite) {
+      for (const file of unexpectedFiles) {
+        fs.unlinkSync(path.join(FAL_ROUTES_DIR, file));
+      }
+    }
   }
 
   if (args.check) {

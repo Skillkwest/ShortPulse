@@ -4,6 +4,7 @@
  */
 import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
+import { admitProductImageAssetFile } from "../../../lib/productImageAssetAdmissionClient";
 import {
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetPresetAssignments,
@@ -35,10 +36,7 @@ import {
   CHARACTER_SHEET_PRESETS_KEY,
   cleanupOrphanedMedia,
   createCharacterMediaAsset,
-  createCharacterSheetPresetStoragePath,
-  createCharacterProfileStoragePath,
   createDraftCharacter,
-  createStoragePath,
   DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM,
   DEFAULT_CHARACTER_NAME,
   fetchCharacterManagerList,
@@ -576,22 +574,12 @@ export const saveCharacterManagerProfileImage = async (
   }
 
   const existingProfile = getCharacterProfileImageMetadata(characterRow.metadata);
-  const mimeType = input.file.type || "image/jpeg";
-  const storagePath = createCharacterProfileStoragePath({
-    userId,
+  const admittedAsset = await admitProductImageAssetFile({
+    intent: "character_profile",
     characterId: input.characterId,
-    filename: input.file.name,
-    mimeType,
+    file: input.file,
   });
-  const { error: uploadError } = await supabase.storage
-    .from(MEDIA_BUCKET)
-    .upload(storagePath, input.file, {
-      upsert: false,
-      contentType: mimeType,
-    });
-  if (uploadError) {
-    throw new Error(asErrorMessage(uploadError, "Failed to upload profile image."));
-  }
+  const storagePath = admittedAsset.storagePath;
 
   let mediaReferenceId: string;
   try {
@@ -602,9 +590,10 @@ export const saveCharacterManagerProfileImage = async (
       storagePath,
       filename: input.file.name,
       fileType: "image",
-      fileSize: input.file.size,
+      fileSize: admittedAsset.size,
       metadata: {
         role: "character_profile",
+        image_admission: admittedAsset.admissionMetadata,
       },
     });
     mediaReferenceId = createdAsset.id;
@@ -645,11 +634,12 @@ export const saveCharacterManagerProfileImage = async (
     });
   }
 
-  const signedUrl = await getSignedMediaUrl({
-    bucket: MEDIA_BUCKET,
-    storagePath,
-    forceRefresh: true,
-  });
+  const signedUrl =
+    (await getSignedMediaUrl({
+      bucket: MEDIA_BUCKET,
+      storagePath,
+      forceRefresh: true,
+    })) ?? admittedAsset.signedUrl;
   if (!signedUrl) {
     throw new Error("Profile image saved, but preview URL could not be created.");
   }
@@ -1178,22 +1168,12 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
   input: SaveCharacterSheetPresetAssetInput
 ): Promise<CharacterSheetPresetMediaReference> => {
   const { supabase, userId } = await resolveSupabaseContext();
-  const mimeType = input.file.type || "image/jpeg";
-  const storagePath = createCharacterSheetPresetStoragePath({
-    userId,
+  const admittedAsset = await admitProductImageAssetFile({
+    intent: "character_sheet_preset",
     characterId: input.characterId,
-    filename: input.file.name,
-    mimeType,
+    file: input.file,
   });
-  const { error: uploadError } = await supabase.storage
-    .from(MEDIA_BUCKET)
-    .upload(storagePath, input.file, {
-      upsert: false,
-      contentType: mimeType,
-    });
-  if (uploadError) {
-    throw new Error(asErrorMessage(uploadError, "Failed to upload the character look image."));
-  }
+  const storagePath = admittedAsset.storagePath;
 
   let mediaReferenceId: string;
   try {
@@ -1204,9 +1184,10 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
       storagePath,
       filename: input.file.name,
       fileType: "image",
-      fileSize: input.file.size,
+      fileSize: admittedAsset.size,
       metadata: {
         role: "character_sheet_preset",
+        image_admission: admittedAsset.admissionMetadata,
       },
     });
     mediaReferenceId = createdAsset.id;
@@ -1215,11 +1196,12 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
     throw new Error(asErrorMessage(nextError, "Failed to save character look metadata."));
   }
 
-  const signedUrl = await getSignedMediaUrl({
-    bucket: MEDIA_BUCKET,
-    storagePath,
-    forceRefresh: true,
-  });
+  const signedUrl =
+    (await getSignedMediaUrl({
+      bucket: MEDIA_BUCKET,
+      storagePath,
+      forceRefresh: true,
+    })) ?? admittedAsset.signedUrl;
   if (!signedUrl) {
     throw new Error("Preset image saved, but preview URL could not be created.");
   }
@@ -1365,24 +1347,14 @@ export const saveCharacterManagerSlot = async (
     throw new Error(asErrorMessage(existingRowError, "Failed to load existing slot image."));
   }
 
-  const mimeType = input.file.type || "image/jpeg";
-  const storagePath = createStoragePath({
-    userId,
+  const admittedAsset = await admitProductImageAssetFile({
+    intent: "character_slot",
     characterId: input.characterId,
     characterSheetId: input.characterSheetId,
     slotKey: input.slotKey,
-    filename: input.file.name,
-    mimeType,
+    file: input.file,
   });
-  const { error: uploadError } = await supabase.storage
-    .from(MEDIA_BUCKET)
-    .upload(storagePath, input.file, {
-      upsert: false,
-      contentType: mimeType,
-    });
-  if (uploadError) {
-    throw new Error(asErrorMessage(uploadError, "Failed to upload reference image."));
-  }
+  const storagePath = admittedAsset.storagePath;
 
   let mediaRow: {
     id: string;
@@ -1399,18 +1371,19 @@ export const saveCharacterManagerSlot = async (
       storagePath,
       filename: input.file.name,
       fileType: "image",
-      fileSize: input.file.size,
+      fileSize: admittedAsset.size,
       metadata: {
         character_sheet_id: input.characterSheetId,
         slot_key: input.slotKey,
         role: "character_slot",
+        image_admission: admittedAsset.admissionMetadata,
       },
     });
     mediaRow = {
       id: createdAsset.id,
       filename: input.file.name,
       file_type: "image",
-      file_size: input.file.size,
+      file_size: admittedAsset.size,
       created_at: createdAsset.createdAt,
     };
   } catch (nextError) {
@@ -1453,11 +1426,12 @@ export const saveCharacterManagerSlot = async (
     });
   }
 
-  const signedUrl = await getSignedMediaUrl({
-    bucket: MEDIA_BUCKET,
-    storagePath,
-    forceRefresh: true,
-  });
+  const signedUrl =
+    (await getSignedMediaUrl({
+      bucket: MEDIA_BUCKET,
+      storagePath,
+      forceRefresh: true,
+    })) ?? admittedAsset.signedUrl;
   if (!signedUrl) {
     throw new Error("Uploaded image saved, but preview URL could not be created.");
   }

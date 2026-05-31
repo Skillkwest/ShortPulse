@@ -362,7 +362,7 @@ describe("useAiStudioPageSessionPersistence", () => {
     );
   });
 
-  it("disables the legacy session lane while a project route is still pending bootstrap", () => {
+  it("starts project workspace bootstrap as soon as a valid route project id is known", () => {
     const buildBaseSessionSnapshot = vi.fn(
       (args): AiStudioSessionSnapshotV2 =>
         ({
@@ -417,6 +417,7 @@ describe("useAiStudioPageSessionPersistence", () => {
 
     renderHook(() =>
       useAiStudioPageSessionPersistence({
+        projectBootstrapId: "project-1",
         projectRouteRequested: true,
         sessionId: "session-1",
         buildBaseSessionSnapshot,
@@ -434,7 +435,7 @@ describe("useAiStudioPageSessionPersistence", () => {
     expect(mockedUseAiStudioProjectWorkspacePersistenceController).toHaveBeenCalledTimes(1);
     expect(mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
-        projectId: null,
+        projectId: "project-1",
         sessionId: "session-1",
         resetProjectAgentConversation,
       })

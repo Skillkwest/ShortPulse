@@ -40,6 +40,7 @@ export type AiStudioProjectIdentityErrorKind =
 
 type UseAiStudioProjectIdentityResult = {
   requestedProjectId: string | null;
+  bootstrapProjectId: string | null;
   projectId: string | null;
   verifiedProjectId: string | null;
   projectRouteRequested: boolean;
@@ -130,6 +131,7 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
     [router.query?.projectId]
   );
   const requestedProjectId = routeProjectId ?? readRequestedProjectIdFromWindowSearch();
+  const bootstrapProjectId = isValidProjectId(requestedProjectId) ? requestedProjectId : null;
   const projectRouteRequested = Boolean(requestedProjectId);
   const invalidRouteProjectId = Boolean(
     router.isReady && routeProjectId && !isValidProjectId(routeProjectId)
@@ -274,6 +276,7 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
 
   return {
     requestedProjectId,
+    bootstrapProjectId,
     projectId: requestedProjectId,
     verifiedProjectId: effectiveProject?.id ?? null,
     projectRouteRequested,

@@ -7,15 +7,15 @@ import {
 const {
   resolveSupabaseContextMock,
   createCharacterMediaAssetMock,
-  createStoragePathMock,
   cleanupOrphanedMediaMock,
   getSignedMediaUrlMock,
+  admitProductImageAssetFileMock,
 } = vi.hoisted(() => ({
   resolveSupabaseContextMock: vi.fn(),
   createCharacterMediaAssetMock: vi.fn(),
-  createStoragePathMock: vi.fn(),
   cleanupOrphanedMediaMock: vi.fn(),
   getSignedMediaUrlMock: vi.fn(),
+  admitProductImageAssetFileMock: vi.fn(),
 }));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
@@ -24,13 +24,16 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   invalidateSignedMediaUrl: vi.fn(),
 }));
 
+vi.mock("../../../../lib/productImageAssetAdmissionClient", () => ({
+  admitProductImageAssetFile: admitProductImageAssetFileMock,
+}));
+
 vi.mock("../characterManagerPersistenceCore", async () => {
   const actual = await vi.importActual("../characterManagerPersistenceCore");
   return {
     ...(actual as object),
     resolveSupabaseContext: resolveSupabaseContextMock,
     createCharacterMediaAsset: createCharacterMediaAssetMock,
-    createStoragePath: createStoragePathMock,
     cleanupOrphanedMedia: cleanupOrphanedMediaMock,
   };
 });
@@ -117,12 +120,41 @@ describe("characterManagerPersistence canonical character sheet persistence", ()
       },
       userId: "user-1",
     });
-    createStoragePathMock.mockReturnValue(
-      "user-1/characters/char-1/sheet-1/front_full/uploaded-reference.png"
-    );
     createCharacterMediaAssetMock.mockResolvedValue({
       id: "media-1",
       createdAt: "2026-05-09T00:00:00.000Z",
+    });
+    admitProductImageAssetFileMock.mockResolvedValue({
+      bucket: "media_library",
+      url: "https://signed.example/admitted-reference.png",
+      signedUrl: "https://signed.example/admitted-reference.png",
+      storagePath: "user-1/characters/char-1/sheet-1/front_full/uploaded-reference.png",
+      previewStoragePath: "user-1/characters/char-1/sheet-1/front_full/uploaded-reference.png",
+      filename: "reference.png",
+      mimeType: "image/png",
+      size: 128,
+      width: 1024,
+      height: 1024,
+      admissionMetadata: {
+        version: 1,
+        status: "not_required",
+        policy: "shortpulse_image_admission_25mb",
+        max_bytes: 25 * 1024 * 1024,
+        target_bytes: 23 * 1024 * 1024,
+        original_bytes: 128,
+        admitted_bytes: 128,
+        original_mime_type: "image/png",
+        admitted_mime_type: "image/png",
+        original_width: 1024,
+        original_height: 1024,
+        admitted_width: 1024,
+        admitted_height: 1024,
+        strategy: "passthrough",
+        original_preserved: false,
+        original_storage_path: null,
+        admitted_storage_path: "user-1/characters/char-1/sheet-1/front_full/uploaded-reference.png",
+        supabase_transform_used: false,
+      },
     });
 
     const file = new File(["image"], "reference.png", { type: "image/png" });
@@ -148,11 +180,14 @@ describe("characterManagerPersistence canonical character sheet persistence", ()
 
     expect(createCharacterMediaAssetMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        metadata: {
+        metadata: expect.objectContaining({
           character_sheet_id: "sheet-1",
           slot_key: "front_full",
           role: "character_slot",
-        },
+          image_admission: expect.objectContaining({
+            supabase_transform_used: false,
+          }),
+        }),
       })
     );
     expect(upsert).toHaveBeenCalledWith(
@@ -178,7 +213,14 @@ describe("characterManagerPersistence canonical character sheet persistence", ()
       storagePath: "user-1/characters/char-1/sheet-1/front_full/uploaded-reference.png",
       forceRefresh: true,
     });
-    expect(upload).toHaveBeenCalledTimes(1);
+    expect(admitProductImageAssetFileMock).toHaveBeenCalledWith({
+      intent: "character_slot",
+      characterId: "char-1",
+      characterSheetId: "sheet-1",
+      slotKey: "front_full",
+      file,
+    });
+    expect(upload).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
     expect(cleanupOrphanedMediaMock).not.toHaveBeenCalled();
   });

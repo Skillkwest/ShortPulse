@@ -120,16 +120,6 @@ const CASES: Record<string, CaseConfig> = {
     expectedSafetyChecker: false,
     expectedReferenceField: "none",
   },
-  "fal-ai/flux-pro/v1/fill": {
-    route: "image",
-    submitName: "submitFalFluxProFill",
-    expectedReferenceField: "none",
-  },
-  "fal-ai/flux-kontext-lora/inpaint": {
-    route: "image",
-    submitName: "submitFalFluxKontextInpaint",
-    expectedReferenceField: "none",
-  },
   [FAL_NANO_BANANA_PRO_MODEL_ID]: {
     route: "default",
     submitName: "submitFalNanoBananaPro",
@@ -296,7 +286,13 @@ describe("task submission payload matrix", () => {
 
   it("keeps matrix coverage in sync with every non-text model in model registry", () => {
     const generationModelIds = listModelConfigs()
-      .filter((config) => config.mediaType !== "text" && config.provider === "fal")
+      .filter(
+        (config) =>
+          config.mediaType !== "text" &&
+          config.provider === "fal" &&
+          config.lifecycle === "active" &&
+          config.surfaces.includes("runtime")
+      )
       .map((config) => config.id)
       .sort();
     expect(Object.keys(CASES).sort()).toEqual(generationModelIds);

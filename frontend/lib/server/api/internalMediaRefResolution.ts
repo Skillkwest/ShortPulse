@@ -11,6 +11,7 @@ import {
   resolveInternalMediaRefStoragePath,
   type InternalMediaRef,
 } from "../../media/internalMediaRefs";
+import { resolveProductUseImageReferenceForMediaFile } from "../admittedReferenceImageVariant";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 const MEDIA_BUCKET = "media_library";
@@ -135,15 +136,48 @@ export const resolveSignedUrlsForInternalMediaRefs = async ({
     Boolean(ref)
   );
   if (!normalizedRefs.length) return [];
-  const storagePaths = normalizedRefs
-    .map((ref) => resolveInternalMediaRefStoragePath(ref))
-    .filter((value): value is string => Boolean(value))
-    .filter((storagePath) => isUserScopedStoragePath(storagePath, userId));
-  if (!storagePaths.length) return [];
+
+  const resolvedEntries: Array<
+    | { kind: "signed"; signedUrl: string }
+    | { kind: "storage"; storagePath: string }
+    | { kind: "empty" }
+  > = [];
+  const storagePathsToSign: string[] = [];
+
+  for (const ref of normalizedRefs) {
+    if (ref.mediaFileId) {
+      const resolved = await resolveProductUseImageReferenceForMediaFile({
+        userId,
+        mediaFileId: ref.mediaFileId,
+        sign: true,
+        expiresInSeconds,
+      });
+      if (resolved.signedUrl) {
+        resolvedEntries.push({ kind: "signed", signedUrl: resolved.signedUrl });
+      } else {
+        resolvedEntries.push({ kind: "empty" });
+      }
+      continue;
+    }
+
+    const storagePath = resolveInternalMediaRefStoragePath(ref);
+    if (!storagePath || !isUserScopedStoragePath(storagePath, userId)) {
+      resolvedEntries.push({ kind: "empty" });
+      continue;
+    }
+    storagePathsToSign.push(storagePath);
+    resolvedEntries.push({ kind: "storage", storagePath });
+  }
+
+  if (!storagePathsToSign.length) {
+    return resolvedEntries
+      .map((entry) => (entry.kind === "signed" ? entry.signedUrl : null))
+      .filter((url): url is string => Boolean(url));
+  }
 
   const supabaseAdmin = getSupabaseAdmin();
   const storage = supabaseAdmin.storage.from(MEDIA_BUCKET);
-  const { data, error } = await storage.createSignedUrls(storagePaths, expiresInSeconds);
+  const { data, error } = await storage.createSignedUrls(storagePathsToSign, expiresInSeconds);
   if (error) {
     throw new Error(`Unable to sign internal media refs: ${error.message}`);
   }
@@ -156,8 +190,12 @@ export const resolveSignedUrlsForInternalMediaRefs = async ({
     urlsByPath.set(path, signedUrl);
   });
 
-  return storagePaths
-    .map((storagePath) => urlsByPath.get(storagePath) ?? null)
+  return resolvedEntries
+    .map((entry) => {
+      if (entry.kind === "signed") return entry.signedUrl;
+      if (entry.kind === "storage") return urlsByPath.get(entry.storagePath) ?? null;
+      return null;
+    })
     .filter((url): url is string => Boolean(url));
 };
 
@@ -175,10 +213,22 @@ export const resolveOpenAiImageFilesForInternalMediaRefs = async ({
   );
   if (!normalizedRefs.length) return [];
 
-  const storagePaths = normalizedRefs
-    .map((ref) => resolveInternalMediaRefStoragePath(ref))
-    .filter((value): value is string => Boolean(value))
-    .filter((storagePath) => isUserScopedStoragePath(storagePath, userId));
+  const storagePaths: string[] = [];
+  for (const ref of normalizedRefs) {
+    if (ref.mediaFileId) {
+      const resolved = await resolveProductUseImageReferenceForMediaFile({
+        userId,
+        mediaFileId: ref.mediaFileId,
+        sign: false,
+      });
+      storagePaths.push(resolved.storagePath);
+      continue;
+    }
+    const storagePath = resolveInternalMediaRefStoragePath(ref);
+    if (storagePath && isUserScopedStoragePath(storagePath, userId)) {
+      storagePaths.push(storagePath);
+    }
+  }
   if (!storagePaths.length) return [];
 
   const storage = getSupabaseAdmin().storage.from(MEDIA_BUCKET);

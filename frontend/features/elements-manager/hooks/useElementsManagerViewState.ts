@@ -3,10 +3,7 @@
  * Owns Elements panel state transitions while persisting element data to Supabase.
  */
 import React from "react";
-import {
-  CANONICAL_IMAGE_UPLOAD_MAX_BYTES,
-  maybePreprocessLocalImageFileForUpload,
-} from "../../../lib/adaptive-media/localTranscode";
+import { maybePreprocessLocalImageFileForUpload } from "../../../lib/adaptive-media/localTranscode";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   buildInternalPayloadFromComposerDropPayload,
@@ -59,8 +56,6 @@ const SAVE_ELEMENT_REQUIRED_REFERENCES_MESSAGE =
   "Add the first two required references before saving the element.";
 const SAVE_ELEMENT_REQUIRED_VIDEO_REFERENCE_MESSAGE =
   "Add the required motion reference before saving the element.";
-const CANONICAL_IMAGE_UPLOAD_MAX_MB = Math.round(CANONICAL_IMAGE_UPLOAD_MAX_BYTES / (1024 * 1024));
-
 const sanitizeFilenameSegment = (value: string): string =>
   value
     .trim()
@@ -716,10 +711,6 @@ export const useElementsManagerViewState = ({
         return;
       }
       const preparedFile = await maybePreprocessLocalImageFileForUpload(profileFile);
-      if (preparedFile.size > CANONICAL_IMAGE_UPLOAD_MAX_BYTES) {
-        setError(`Image is too large. Maximum file size is ${CANONICAL_IMAGE_UPLOAD_MAX_MB}MB.`);
-        return;
-      }
       setError(null);
       setIsSavingProfileImage(true);
       try {

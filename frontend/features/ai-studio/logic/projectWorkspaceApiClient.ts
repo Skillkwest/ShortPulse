@@ -46,6 +46,12 @@ type ProjectWorkspaceApiResponseDetails = {
   rawErrorExcerpt: string;
 };
 
+type AiStudioProjectItemApiPayload = {
+  project?: AiStudioProjectWorkspaceApiProjectRecord | null;
+  error?: unknown;
+  details?: unknown;
+};
+
 class ProjectWorkspaceBootstrapApiError extends Error {
   readonly status: number;
 
@@ -62,7 +68,10 @@ const resolveProjectWorkspacePayloadMessage = ({
   payload,
   preferDetails,
 }: {
-  payload: AiStudioProjectWorkspaceApiPayload | null;
+  payload:
+    | Pick<AiStudioProjectWorkspaceApiPayload, "error" | "details">
+    | Pick<AiStudioProjectItemApiPayload, "error" | "details">
+    | null;
   preferDetails?: boolean;
 }): string => {
   const primary = preferDetails ? payload?.details : payload?.error;
@@ -323,24 +332,33 @@ export const getAiStudioProjectIdentityViaApi = async ({
 }: {
   projectId: string;
 }): Promise<AiStudioProjectWorkspaceApiProjectRecord | null> => {
-  try {
-    const result = await getAiStudioProjectWorkspaceBootstrapViaApi({ projectId });
-    return result.project;
-  } catch (error) {
-    if (error instanceof ProjectWorkspaceBootstrapApiError) {
-      if (error.status === 401) {
-        throw new Error("Session expired. Retry project load.");
-      }
-      if (error.status === 400) {
-        throw new Error("Invalid project link.");
-      }
-      if (error.status === 404) {
-        throw new Error("Project not found.");
-      }
-      throw new Error(error.message || "Failed to load project.");
+  const response = await fetchWithAuth(`/api/projects/${encodeURIComponent(projectId)}`, {
+    method: "GET",
+    shortpulseLogScope: "app",
+    shortpulseAuthTimeoutMs: 5000,
+    shortpulseRetryNetworkOnce: true,
+  });
+  const payload = (await response.json().catch(() => null)) as AiStudioProjectItemApiPayload | null;
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Session expired. Retry project load.");
     }
-    throw error;
+    if (response.status === 400) {
+      throw new Error("Invalid project link.");
+    }
+    if (response.status === 404) {
+      throw new Error("Project not found.");
+    }
+    throw new Error(
+      resolveProjectWorkspacePayloadMessage({
+        payload,
+        preferDetails: response.status >= 500,
+      }) || "Failed to load project."
+    );
   }
+
+  return toProjectWorkspaceBootstrapProjectRecord(payload?.project);
 };
 
 export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({

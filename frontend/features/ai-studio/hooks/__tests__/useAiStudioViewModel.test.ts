@@ -843,7 +843,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("switches edit cost and credit guardrail to FLUX Fill when inpaint intent is active", () => {
+  it("keeps standard edit pricing when inpaint intent is requested while inpaint is disabled", () => {
     const selectedModelId = "fal-ai/flux-2/klein/9b";
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const standardCostCredits = computeCostForModel(
@@ -888,10 +888,8 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     rerender({ intent: "inpaint" });
 
-    expect(result.current.currentCostCredits).toBe(inpaintCostCredits);
-    expect(result.current.isCreditGuardrail).toBe(
-      (balanceCredits ?? 0) < (inpaintCostCredits ?? 0)
-    );
+    expect(result.current.currentCostCredits).toBe(standardCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(false);
     expect(result.current.generationGuardrail).toBeNull();
 
     rerender({ intent: "markup" });
@@ -901,7 +899,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.generationGuardrail).toBeNull();
   });
 
-  it("switches inpaint cost to the reference inpaint model when exactly one linked secondary reference is active", () => {
+  it("ignores reference-inpaint pricing when inpaint is disabled", () => {
     const selectedModelId = "fal-ai/flux-2/klein/9b";
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const fillCostCredits = computeCostForModel(
@@ -917,6 +915,10 @@ describe("useAiStudioViewModel edit guardrails", () => {
         aspect: "1:1",
         resolution: "model_default",
       })
+    )?.credits;
+    const standardCostCredits = computeCostForModel(
+      selectedModelId,
+      editCostParamsForModel(selectedModelId)
     )?.credits;
 
     const { result } = renderHook(() =>
@@ -935,8 +937,8 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     expect(fillCostCredits).not.toBeNull();
     expect(referenceInpaintCostCredits).not.toBeNull();
-    expect(result.current.currentCostCredits).toBe(referenceInpaintCostCredits);
-    expect(result.current.currentCostCredits).not.toBe(fillCostCredits);
+    expect(result.current.currentCostCredits).toBe(standardCostCredits);
+    expect(result.current.currentCostCredits).not.toBe(referenceInpaintCostCredits);
   });
 
   it("switches edit cost and credit guardrail to Pulse Markup v1 for markup intent", () => {

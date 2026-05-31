@@ -10,6 +10,7 @@ const resolveMediaPreviewTrustedHostsMock = vi.fn();
 const extractImageDimensionsFromBufferMock = vi.fn();
 const detectImageMimeTypeMock = vi.fn();
 const detectVideoMimeTypeMock = vi.fn();
+const admitImageBufferForProductUseMock = vi.fn();
 const upsertVideoPosterVariantFromBufferMock = vi.fn();
 const upsertVideoPreviewVariantFromBufferMock = vi.fn();
 
@@ -38,6 +39,7 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 }));
 
 vi.mock("../../lib/mediaPreviewTrustPolicy", () => ({
+  isSupabaseRenderImageUrl: () => false,
   resolveMediaPreviewTrustedHosts: (...args: unknown[]) =>
     resolveMediaPreviewTrustedHostsMock(...args),
 }));
@@ -45,6 +47,10 @@ vi.mock("../../lib/mediaPreviewTrustPolicy", () => ({
 vi.mock("../../lib/server/imageDimensions", () => ({
   extractImageDimensionsFromBuffer: (...args: unknown[]) =>
     extractImageDimensionsFromBufferMock(...args),
+}));
+
+vi.mock("../../lib/server/imageAdmission", () => ({
+  admitImageBufferForProductUse: (...args: unknown[]) => admitImageBufferForProductUseMock(...args),
 }));
 
 vi.mock("../../lib/server/uploadSignature", () => ({
@@ -340,6 +346,34 @@ describe("POST /api/media/copy-from-url", () => {
     extractImageDimensionsFromBufferMock.mockReturnValue({ width: 1280, height: 720 });
     detectImageMimeTypeMock.mockReturnValue("image/png");
     detectVideoMimeTypeMock.mockReturnValue(null);
+    admitImageBufferForProductUseMock.mockImplementation(
+      async ({ buffer, mimeType }: { buffer: Buffer; mimeType: string }) => ({
+        status: "not_required",
+        buffer,
+        dimensions: { width: 1280, height: 720 },
+        mimeType,
+        metadata: {
+          version: 1,
+          status: "not_required",
+          policy: "shortpulse_image_admission_25mb",
+          max_bytes: 25 * 1024 * 1024,
+          target_bytes: 23 * 1024 * 1024,
+          original_bytes: buffer.byteLength,
+          admitted_bytes: buffer.byteLength,
+          original_mime_type: mimeType,
+          admitted_mime_type: mimeType,
+          original_width: 1280,
+          original_height: 720,
+          admitted_width: 1280,
+          admitted_height: 720,
+          strategy: "passthrough",
+          original_preserved: false,
+          original_storage_path: null,
+          admitted_storage_path: null,
+          supabase_transform_used: false,
+        },
+      })
+    );
   });
 
   afterEach(() => {
@@ -1280,13 +1314,103 @@ describe("POST /api/media/copy-from-url", () => {
     });
   });
 
+  it("admits an over-cap trusted still image before storage", async () => {
+    const originalByteLength = 26 * 1024 * 1024;
+    const originalBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const admittedBuffer = Buffer.from([0x52, 0x49, 0x46, 0x46]);
+    admitImageBufferForProductUseMock.mockResolvedValueOnce({
+      status: "admitted",
+      buffer: admittedBuffer,
+      dimensions: { width: 1024, height: 768 },
+      mimeType: "image/webp",
+      metadata: {
+        version: 1,
+        status: "admitted",
+        policy: "shortpulse_image_admission_25mb",
+        max_bytes: 25 * 1024 * 1024,
+        target_bytes: 23 * 1024 * 1024,
+        original_bytes: originalByteLength,
+        admitted_bytes: admittedBuffer.byteLength,
+        original_mime_type: "image/png",
+        admitted_mime_type: "image/webp",
+        original_width: 2048,
+        original_height: 1536,
+        admitted_width: 1024,
+        admitted_height: 768,
+        strategy: "server_sharp",
+        original_preserved: false,
+        original_storage_path: null,
+        admitted_storage_path: null,
+        supabase_transform_used: false,
+      },
+    });
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-admitted-1",
+        storage_path: "user-1/uploads/images/media-admitted-1.webp",
+        file_type: "image",
+        metadata: { prompt: "large reference image" },
+      },
+      signedUrls: {
+        "user-1/uploads/images/media-admitted-1.webp": "https://signed.test/media-admitted-1.webp",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(originalBuffer, {
+          status: 200,
+          headers: {
+            "Content-Type": "image/png",
+            "Content-Length": String(originalByteLength),
+          },
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/large-reference.png",
+        promptText: "large reference image",
+        mode: "image",
+        source: "upload",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(admitImageBufferForProductUseMock).toHaveBeenCalledWith({
+      buffer: originalBuffer,
+      mimeType: "image/png",
+    });
+    expect(supabase.uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/uploads\/images\/.+\.webp$/),
+      admittedBuffer,
+      expect.objectContaining({
+        contentType: "image/webp",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-admitted-1",
+        fileType: "image",
+        fileSize: admittedBuffer.byteLength,
+      })
+    );
+  });
+
   it("rejects oversized responses before buffering the full body", async () => {
     const supabase = createSupabaseAdmin();
     getSupabaseAdminMock.mockReturnValue(supabase.admin);
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
         status: 200,
-        headers: { "Content-Type": "image/png", "Content-Length": String(30 * 1024 * 1024) },
+        headers: { "Content-Type": "image/png", "Content-Length": String(130 * 1024 * 1024) },
       })
     );
     vi.stubGlobal("fetch", fetchMock);

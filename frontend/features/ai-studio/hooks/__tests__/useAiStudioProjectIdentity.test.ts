@@ -66,6 +66,7 @@ describe("useAiStudioProjectIdentity", () => {
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
     expect(result.current.projectId).toBe(PROJECT_ID);
+    expect(result.current.bootstrapProjectId).toBe(PROJECT_ID);
     expect(result.current.requestedProjectId).toBe(PROJECT_ID);
     expect(result.current.verifiedProjectId).toBeNull();
     expect(result.current.projectRouteRequested).toBe(true);
@@ -102,6 +103,7 @@ describe("useAiStudioProjectIdentity", () => {
       updatedAt: "2026-04-23T01:00:00.000Z",
     });
     expect(result.current.projectId).toBe(PROJECT_ID);
+    expect(result.current.bootstrapProjectId).toBe(PROJECT_ID);
     expect(result.current.requestedProjectId).toBe(PROJECT_ID);
     expect(result.current.verifiedProjectId).toBe(PROJECT_ID);
   });
@@ -119,6 +121,7 @@ describe("useAiStudioProjectIdentity", () => {
     expect(result.current.error).toBe("Invalid project link.");
     expect(result.current.errorKind).toBe("invalid_id");
     expect(result.current.verifiedProjectId).toBeNull();
+    expect(result.current.bootstrapProjectId).toBeNull();
     expect(result.current.project).toBeNull();
     expect(mockedGetAiStudioProjectIdentityViaApi).not.toHaveBeenCalled();
   });

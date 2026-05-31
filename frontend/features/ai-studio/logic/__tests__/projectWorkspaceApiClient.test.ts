@@ -394,7 +394,46 @@ describe("projectWorkspaceApiClient", () => {
     });
   });
 
-  it("maps workspace bootstrap auth failures to project-identity load messages", async () => {
+  it("loads project identity from the lightweight project item route", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          project: {
+            id: "project-1",
+            title: "Project One",
+            createdAt: "2026-04-25T00:00:00.000Z",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      getAiStudioProjectIdentityViaApi({
+        projectId: "project-1",
+      })
+    ).resolves.toEqual({
+      id: "project-1",
+      title: "Project One",
+      createdAt: "2026-04-25T00:00:00.000Z",
+      updatedAt: "2026-04-25T00:00:00.000Z",
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1", {
+      method: "GET",
+      shortpulseLogScope: "app",
+      shortpulseAuthTimeoutMs: 5000,
+      shortpulseRetryNetworkOnce: true,
+    });
+  });
+
+  it("maps project item auth failures to project-identity load messages", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -414,6 +453,13 @@ describe("projectWorkspaceApiClient", () => {
         projectId: "project-1",
       })
     ).rejects.toThrow("Session expired. Retry project load.");
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1", {
+      method: "GET",
+      shortpulseLogScope: "app",
+      shortpulseAuthTimeoutMs: 5000,
+      shortpulseRetryNetworkOnce: true,
+    });
   });
 
   it("dedupes overlapping workspace bootstrap reads for the same project", async () => {
@@ -434,35 +480,38 @@ describe("projectWorkspaceApiClient", () => {
 
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
 
-    resolveResponse?.(
-      new Response(
-        JSON.stringify({
-          project: {
-            id: "project-1",
-            title: "Project One",
-            createdAt: "2026-04-25T00:00:00.000Z",
-            updatedAt: "2026-04-25T00:00:00.000Z",
-          },
-          workspace: {
-            projectId: "project-1",
-            schemaVersion: 2,
-            snapshot: {
-              schemaVersion: 2,
-              sessionId: "session-1",
+    const pendingResolveResponse = resolveResponse as ((value: Response) => void) | null;
+    if (pendingResolveResponse) {
+      pendingResolveResponse(
+        new Response(
+          JSON.stringify({
+            project: {
+              id: "project-1",
+              title: "Project One",
+              createdAt: "2026-04-25T00:00:00.000Z",
               updatedAt: "2026-04-25T00:00:00.000Z",
             },
-            createdAt: "2026-04-25T00:00:00.000Z",
-            updatedAt: "2026-04-25T00:00:00.000Z",
-          },
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      )
-    );
+            workspace: {
+              projectId: "project-1",
+              schemaVersion: 2,
+              snapshot: {
+                schemaVersion: 2,
+                sessionId: "session-1",
+                updatedAt: "2026-04-25T00:00:00.000Z",
+              },
+              createdAt: "2026-04-25T00:00:00.000Z",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
+      );
+    }
 
     await expect(Promise.all([first, second])).resolves.toEqual([
       {

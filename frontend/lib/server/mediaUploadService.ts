@@ -9,11 +9,7 @@ import {
   MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
   isMediaStorageQuotaExceededError,
 } from "../mediaStorageQuota";
-import {
-  maybeNormalizeOversizedImageUpload,
-  type ImageUploadNormalizationMetadata,
-  UnsupportedOversizedAnimatedImageError,
-} from "./imageUploadNormalization";
+import { admitImageBufferForProductUse, type ImageAdmissionMetadata } from "./imageAdmission";
 import { resolveMediaPreviewStoragePath } from "../../features/media-library/logic/mediaPreviewStoragePath";
 import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
@@ -575,7 +571,7 @@ type UploadedStorageAsset = {
   parsedUpload: ParsedUpload;
   fileType: MediaLibraryFileType;
   imageDimensions: { width: number; height: number } | null;
-  normalizationMetadata: ImageUploadNormalizationMetadata | null;
+  admissionMetadata: ImageAdmissionMetadata | null;
 };
 
 type StorageUploadOptions = {
@@ -809,30 +805,28 @@ const uploadStorageAssetFromParsedUpload = async ({
     validatedUpload.fileType === "image"
       ? extractImageDimensionsFromBuffer(parsedUpload.buffer)
       : null;
-  let normalizationMetadata: ImageUploadNormalizationMetadata | null = null;
+  let admissionMetadata: ImageAdmissionMetadata | null = null;
 
   if (validatedUpload.fileType === "image") {
-    try {
-      const normalizedImage = await maybeNormalizeOversizedImageUpload({
-        buffer: parsedUpload.buffer,
-        mimeType: validatedUpload.mimeType,
-        maxBytes: MAX_IMAGE_MEDIA_BYTES,
-      });
-      uploadBuffer = normalizedImage.buffer;
-      uploadMimeType = normalizedImage.mimeType;
-      uploadSize = normalizedImage.buffer.length;
+    const admittedImage = await admitImageBufferForProductUse({
+      buffer: parsedUpload.buffer,
+      mimeType: validatedUpload.mimeType,
+      maxBytes: MAX_IMAGE_MEDIA_BYTES,
+    });
+    admissionMetadata = admittedImage.metadata;
+    if (admittedImage.status === "rejected") {
+      throw new MediaUploadServiceError(
+        413,
+        "Upload failed: file too large",
+        admittedImage.reason === "animated_over_cap" ? admittedImage.userMessage : undefined
+      );
+    }
+    uploadBuffer = admittedImage.buffer;
+    uploadMimeType = admittedImage.mimeType;
+    uploadSize = admittedImage.buffer.length;
+    if (admittedImage.status === "admitted") {
       imageDimensions =
-        normalizedImage.dimensions ?? extractImageDimensionsFromBuffer(normalizedImage.buffer);
-      normalizationMetadata = normalizedImage.metadata;
-    } catch (error) {
-      if (error instanceof UnsupportedOversizedAnimatedImageError) {
-        throw new MediaUploadServiceError(
-          413,
-          "Upload failed: file too large",
-          "Animated images over 25 MB are not auto-resized yet. Export a smaller animated file or a static frame and try again."
-        );
-      }
-      throw error;
+        admittedImage.dimensions ?? extractImageDimensionsFromBuffer(admittedImage.buffer);
     }
   }
 
@@ -863,6 +857,12 @@ const uploadStorageAssetFromParsedUpload = async ({
     mimeType: uploadMimeType,
     buffer: uploadBuffer,
   });
+  const storedAdmissionMetadata = admissionMetadata
+    ? {
+        ...admissionMetadata,
+        admitted_storage_path: uploaded.storagePath,
+      }
+    : null;
 
   return {
     storagePath: uploaded.storagePath,
@@ -871,7 +871,7 @@ const uploadStorageAssetFromParsedUpload = async ({
     parsedUpload: normalizedUpload,
     fileType: validatedUpload.fileType,
     imageDimensions,
-    normalizationMetadata,
+    admissionMetadata: storedAdmissionMetadata,
   };
 };
 
@@ -1176,9 +1176,7 @@ const persistUploadedMediaAsset = async ({
   uploaded: UploadedStorageAsset;
 }): Promise<MediaUploadResponseFile> => {
   const metadata = withCanonicalImageDimensions(
-    uploaded.normalizationMetadata
-      ? { upload_normalization: uploaded.normalizationMetadata }
-      : null,
+    uploaded.admissionMetadata ? { image_admission: uploaded.admissionMetadata } : null,
     uploaded.fileType === "image" ? uploaded.imageDimensions : null
   );
   const normalizedRow = await insertUploadedMediaRow({

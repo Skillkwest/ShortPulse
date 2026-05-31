@@ -11,6 +11,7 @@ import {
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
+import { resolveReferenceDownloadTarget } from "./referenceDownload";
 import {
   normalizeVideoPosterStoragePathCandidate,
   resolveVideoPosterStoragePath,
@@ -155,6 +156,18 @@ const areStringArraysEqual = (
 const resolveSessionRestoreRecoveredStorageAuthority = async (
   outputs: StudioOutput[]
 ): Promise<SessionRecoveredStorageAuthorityByOutputId> => {
+  const recoveredAuthorityByOutputId: SessionRecoveredStorageAuthorityByOutputId = {};
+  const generationRecoveryOutputs = outputs.filter((output) => {
+    if (
+      toCanonicalStoragePath(output.previewStoragePath) ||
+      toCanonicalStoragePath(output.fullStoragePath)
+    ) {
+      return false;
+    }
+    return Boolean(
+      output.mediaSource === "generated" || output.generationId?.trim() || output.taskId?.trim()
+    );
+  });
   const candidateEntries = outputs
     .map((output) => {
       if (
@@ -178,42 +191,67 @@ const resolveSessionRestoreRecoveredStorageAuthority = async (
         savedMediaId: string;
       } => Boolean(value)
     );
-  if (!candidateEntries.length) return {};
+  if (!candidateEntries.length && !generationRecoveryOutputs.length) return {};
 
-  const mediaIds = Array.from(new Set(candidateEntries.map((entry) => entry.savedMediaId)));
-  let data: MediaStoragePathRow[] | null = null;
-  try {
-    const supabase = ensureSupabaseQueryClient();
-    const response = await supabase
-      .from("media_files")
-      .select("id, preview_storage_path, storage_path, poster_variant_path, thumb_variant_path")
-      .in("id", mediaIds);
-    if (response.error) return {};
-    data = Array.isArray(response.data) ? (response.data as MediaStoragePathRow[]) : [];
-  } catch {
-    return {};
+  const supabase = ensureSupabaseQueryClient();
+  if (candidateEntries.length) {
+    const mediaIds = Array.from(new Set(candidateEntries.map((entry) => entry.savedMediaId)));
+    let data: MediaStoragePathRow[] | null = null;
+    try {
+      const response = await supabase
+        .from("media_files")
+        .select("id, preview_storage_path, storage_path, poster_variant_path, thumb_variant_path")
+        .in("id", mediaIds);
+      data = response.error
+        ? []
+        : Array.isArray(response.data)
+          ? (response.data as MediaStoragePathRow[])
+          : [];
+    } catch {
+      data = [];
+    }
+
+    const authorityByMediaId = new Map<string, SessionRecoveredStorageAuthority>();
+    (data ?? []).forEach((row) => {
+      const mediaId = toNormalizedNullableString(typeof row.id === "string" ? row.id : null);
+      if (!mediaId) return;
+      authorityByMediaId.set(mediaId, resolveRecoveredStorageAuthorityFromMediaRow(row));
+    });
+
+    candidateEntries.forEach(({ outputId, savedMediaId }) => {
+      const recoveredAuthority = authorityByMediaId.get(savedMediaId);
+      if (!recoveredAuthority) return;
+      if (
+        !recoveredAuthority.previewStoragePath &&
+        !recoveredAuthority.fullStoragePath &&
+        !recoveredAuthority.previewPosterStoragePath
+      ) {
+        return;
+      }
+      recoveredAuthorityByOutputId[outputId] = recoveredAuthority;
+    });
   }
 
-  const authorityByMediaId = new Map<string, SessionRecoveredStorageAuthority>();
-  (data ?? []).forEach((row) => {
-    const mediaId = toNormalizedNullableString(typeof row.id === "string" ? row.id : null);
-    if (!mediaId) return;
-    authorityByMediaId.set(mediaId, resolveRecoveredStorageAuthorityFromMediaRow(row));
-  });
-
-  const recoveredAuthorityByOutputId: SessionRecoveredStorageAuthorityByOutputId = {};
-  candidateEntries.forEach(({ outputId, savedMediaId }) => {
-    const recoveredAuthority = authorityByMediaId.get(savedMediaId);
-    if (!recoveredAuthority) return;
-    if (
-      !recoveredAuthority.previewStoragePath &&
-      !recoveredAuthority.fullStoragePath &&
-      !recoveredAuthority.previewPosterStoragePath
-    ) {
-      return;
-    }
-    recoveredAuthorityByOutputId[outputId] = recoveredAuthority;
-  });
+  await Promise.all(
+    generationRecoveryOutputs.map(async (output) => {
+      if (recoveredAuthorityByOutputId[output.id]) return;
+      try {
+        const resolvedTarget = await resolveReferenceDownloadTarget({
+          output,
+          supabase,
+        });
+        const storagePath = toCanonicalStoragePath(resolvedTarget.fileRecord?.storagePath);
+        if (!storagePath) return;
+        recoveredAuthorityByOutputId[output.id] = {
+          previewPosterStoragePath: null,
+          previewStoragePath: storagePath,
+          fullStoragePath: storagePath,
+        };
+      } catch {
+        // Generation recovery is best-effort; saved-media recovery above remains authoritative.
+      }
+    })
+  );
 
   return recoveredAuthorityByOutputId;
 };

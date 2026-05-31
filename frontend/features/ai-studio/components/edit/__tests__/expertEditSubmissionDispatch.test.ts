@@ -5,6 +5,7 @@ import { resolveExpertEditSubmissionDispatch } from "../expertEditSubmissionDisp
 vi.mock("../../../logic/inpaintSubmission", () => ({
   INPAINT_FLUX_FILL_MODEL_ID: "flux-fill",
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID: "nano-banana",
+  isInpaintGenerationEnabled: () => false,
   isMarkupModelLockEnabled: () => true,
 }));
 
@@ -28,7 +29,7 @@ describe("resolveExpertEditSubmissionDispatch", () => {
     });
   });
 
-  it("returns an error when inpaint mode lacks a mask", () => {
+  it("returns a temporary-unavailable error for inpaint mode", () => {
     expect(
       resolveExpertEditSubmissionDispatch({
         editSubmitIntent: "inpaint",
@@ -40,11 +41,11 @@ describe("resolveExpertEditSubmissionDispatch", () => {
       })
     ).toEqual({
       status: "error",
-      message: "Mask selection is required for inpaint.",
+      message: "Inpaint is temporarily unavailable.",
     });
   });
 
-  it("builds FLUX Fill options for inpaint mode", () => {
+  it("fails closed before building inpaint submit options", () => {
     expect(
       resolveExpertEditSubmissionDispatch({
         editSubmitIntent: "inpaint",
@@ -60,21 +61,8 @@ describe("resolveExpertEditSubmissionDispatch", () => {
         },
       })
     ).toEqual({
-      status: "ready",
-      referenceInputs: ["blob:flatten-1"],
-      options: {
-        inpaintOverride: {
-          modelId: "flux-fill",
-          baseImageInput: "blob:flatten-1",
-          maskInput: "blob:mask-1",
-          outputFormat: "png",
-          imageWidth: 2048,
-          imageHeight: 1024,
-        },
-        referenceInputsMode: "replace",
-        displayPromptOverride: "Use @main",
-        submissionPromptOverride: "Figure 1 = primary base image.",
-      },
+      status: "error",
+      message: "Inpaint is temporarily unavailable.",
     });
   });
 

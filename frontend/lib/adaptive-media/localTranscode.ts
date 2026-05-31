@@ -2,14 +2,15 @@
  * Local image transcode helpers for browser-only resize/compress flows.
  * Shared by adaptive preview handling and local upload preprocessing.
  */
+import { IMAGE_ADMISSION_MAX_BYTES, IMAGE_ADMISSION_TARGET_BYTES } from "../imageAdmissionPolicy";
 import type { AdaptiveDecision } from "./types";
 
 const LOCAL_IMAGE_UPLOAD_MAX_LONG_EDGE_PX = 2048;
 const LOCAL_IMAGE_UPLOAD_SIZE_THRESHOLD_BYTES = 8 * 1024 * 1024;
-const LOCAL_IMAGE_UPLOAD_TARGET_MAX_BYTES = 23 * 1024 * 1024;
+const LOCAL_IMAGE_UPLOAD_TARGET_MAX_BYTES = IMAGE_ADMISSION_TARGET_BYTES;
 const LOCAL_IMAGE_UPLOAD_WEBP_QUALITY_STEPS = [0.88, 0.76, 0.64, 0.52];
 const LOCAL_IMAGE_UPLOAD_LONG_EDGE_STEPS = [2048, 1792, 1536, 1280, 1024];
-export const CANONICAL_IMAGE_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+export const CANONICAL_IMAGE_UPLOAD_MAX_BYTES = IMAGE_ADMISSION_MAX_BYTES;
 
 const isLocalImageBlob = (blob: Blob): boolean =>
   typeof blob.type === "string" && blob.type.toLowerCase().startsWith("image/");

@@ -37,6 +37,10 @@ import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "../../../lib/server/imageDimensions";
 import {
+  admitImageBufferForProductUse,
+  type ImageAdmissionAcceptedResult,
+} from "../../../lib/server/imageAdmission";
+import {
   upsertVideoPosterVariantFromBuffer,
   upsertVideoPreviewVariantFromBuffer,
 } from "../../../lib/server/videoPosterVariant";
@@ -46,6 +50,7 @@ const MAX_REDIRECTS = 4;
 const MAX_IMAGE_BYTES = MAX_IMAGE_MEDIA_BYTES;
 const MAX_VIDEO_BYTES = maxBytesForMediaFileType("video");
 const MAX_AUDIO_BYTES = MAX_AUDIO_MEDIA_BYTES;
+const MAX_REMOTE_IMAGE_FETCH_BYTES = MAX_VIDEO_BYTES;
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   m4v: "video/x-m4v",
@@ -1148,17 +1153,34 @@ export default async function handler(
         ? MAX_VIDEO_BYTES
         : effectiveFileType === "audio"
           ? MAX_AUDIO_BYTES
-          : MAX_IMAGE_BYTES;
+          : MAX_REMOTE_IMAGE_FETCH_BYTES;
     const fetched = await fetchUrlWithRedirectValidation({
       startUrl: parsedUrl,
       maxBytes,
     });
     const fileType = resolveFileType(fetched.contentType, mode, fileTypeHint);
-    const mimeType = resolveDetectedMediaMimeType({
+    const detectedMimeType = resolveDetectedMediaMimeType({
       contentType: fetched.contentType,
       buffer: fetched.buffer,
       fileType,
     });
+
+    let storageBuffer = fetched.buffer;
+    let mimeType = detectedMimeType;
+    let admittedImage: ImageAdmissionAcceptedResult | null = null;
+    if (fileType === "image") {
+      const admission = await admitImageBufferForProductUse({
+        buffer: fetched.buffer,
+        mimeType: detectedMimeType,
+      });
+      if (admission.status === "rejected") {
+        return res.status(413).json({ error: admission.userMessage });
+      }
+      admittedImage = admission;
+      storageBuffer = admission.buffer;
+      mimeType = admission.mimeType;
+    }
+
     const extension = resolveExtension(mimeType, fetched.finalUrl.toString());
     const rootFolder = source === "ai_studio" ? "generations" : "uploads";
     const typeFolder = fileType === "video" ? "videos" : fileType === "audio" ? "audio" : "images";
@@ -1170,7 +1192,15 @@ export default async function handler(
     });
 
     const imageDimensions =
-      fileType === "image" ? extractImageDimensionsFromBuffer(fetched.buffer) : null;
+      fileType === "image"
+        ? (admittedImage?.dimensions ?? extractImageDimensionsFromBuffer(storageBuffer))
+        : null;
+    const imageAdmissionMetadata = admittedImage
+      ? {
+          ...admittedImage.metadata,
+          admitted_storage_path: storagePath,
+        }
+      : null;
     const canonicalMetadata = withCanonicalImageDimensions(
       {
         provider: provider ?? null,
@@ -1179,6 +1209,7 @@ export default async function handler(
         generation_output_index: index,
         index,
         ...metadata,
+        ...(imageAdmissionMetadata ? { image_admission: imageAdmissionMetadata } : {}),
       },
       imageDimensions
     );
@@ -1187,7 +1218,7 @@ export default async function handler(
     try {
       await uploadMediaBufferToStoragePath({
         storagePath,
-        buffer: fetched.buffer,
+        buffer: storageBuffer,
         mimeType,
       });
     } catch {
@@ -1201,7 +1232,7 @@ export default async function handler(
       filename: friendlyName,
       storagePath,
       fileType,
-      fileSize: fetched.buffer.byteLength,
+      fileSize: storageBuffer.byteLength,
       source,
       sourceRef: generationId ?? null,
       promptId: promptId ?? null,
@@ -1341,7 +1372,7 @@ export default async function handler(
             mediaFileId: existing.id,
             storagePath: existing.storagePath ?? storagePath,
             fileType: existing.fileType,
-            fileSize: fetched.buffer.byteLength,
+            fileSize: storageBuffer.byteLength,
             delivery,
           });
         }
@@ -1470,7 +1501,7 @@ export default async function handler(
       mediaFileId: insertedMediaFileId,
       storagePath,
       fileType,
-      fileSize: fetched.buffer.byteLength,
+      fileSize: storageBuffer.byteLength,
       delivery,
     });
   } catch (error) {

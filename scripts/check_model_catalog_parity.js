@@ -340,7 +340,11 @@ function run() {
         );
       } else {
         const ageDays = daysBetween(parsed, today);
-        if (ageDays > MAX_STALE_DAYS) {
+        const lifecycle = String(entry.lifecycle || "").trim();
+        const surfaces = Array.isArray(entry.surfaces) ? entry.surfaces : [];
+        const isActiveRuntimeModel =
+          lifecycle === "active" && surfaces.includes("runtime");
+        if (isActiveRuntimeModel && ageDays > MAX_STALE_DAYS) {
           const staleMessage = `Catalog verification is stale for ${modelId}: ${verifiedAt} (${ageDays} days old; max ${MAX_STALE_DAYS}).`;
           if (STALE_MODE === "enforce") {
             errors.push(staleMessage);
@@ -492,6 +496,9 @@ function run() {
     .filter(
       (entry) =>
         entry.provider === "fal" &&
+        String(entry.lifecycle || "").trim() === "active" &&
+        Array.isArray(entry.surfaces) &&
+        entry.surfaces.includes("runtime") &&
         String(entry.falSubmitUrl || "").trim().length > 0 &&
         !RETIRED_FAL_SUBMIT_ROUTE_MODEL_IDS.has(String(entry.modelId || "")),
     )

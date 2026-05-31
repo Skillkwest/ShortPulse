@@ -10,6 +10,7 @@ export type InternalMediaRefV1 = {
   kind: "storage_object";
   bucket: string;
   storagePath: string;
+  mediaFileId?: string;
 };
 
 export type InternalMediaRef = InternalMediaRefV1;
@@ -50,19 +51,26 @@ const normalizeNonEmptyString = (value: unknown): string | null => {
 export const createInternalMediaRef = ({
   bucket = INTERNAL_MEDIA_REF_BUCKET,
   storagePath,
+  mediaFileId,
 }: {
   bucket?: string | null;
   storagePath: string;
+  mediaFileId?: string | null;
 }): InternalMediaRef | null => {
   const normalizedBucket = normalizeNonEmptyString(bucket) ?? INTERNAL_MEDIA_REF_BUCKET;
   const normalizedStoragePath = normalizeNonEmptyString(storagePath);
+  const normalizedMediaFileId = normalizeNonEmptyString(mediaFileId);
   if (!normalizedStoragePath) return null;
-  return {
+  const ref: InternalMediaRef = {
     version: 1,
     kind: "storage_object",
     bucket: normalizedBucket,
     storagePath: normalizedStoragePath,
   };
+  if (normalizedMediaFileId) {
+    ref.mediaFileId = normalizedMediaFileId;
+  }
+  return ref;
 };
 
 export const normalizeInternalMediaRef = (value: unknown): InternalMediaRef | null => {
@@ -72,6 +80,7 @@ export const normalizeInternalMediaRef = (value: unknown): InternalMediaRef | nu
   return createInternalMediaRef({
     bucket: normalizeNonEmptyString(row.bucket),
     storagePath: normalizeNonEmptyString(row.storagePath) ?? "",
+    mediaFileId: normalizeNonEmptyString(row.mediaFileId),
   });
 };
 
@@ -94,7 +103,7 @@ export const dedupeInternalMediaRefs = (
       deduped.push(null);
       return;
     }
-    const key = `${ref.bucket}:${ref.storagePath}`;
+    const key = `${ref.bucket}:${ref.storagePath}:${ref.mediaFileId ?? ""}`;
     if (seen.has(key)) return;
     seen.add(key);
     deduped.push(ref);

@@ -2,6 +2,7 @@
  * Shared server-side media ingest authority.
  * Owns canonical media mime/size rules, storage writes, and media row inserts.
  */
+import { IMAGE_ADMISSION_MAX_BYTES } from "../imageAdmissionPolicy";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { detectAudioMimeType, detectImageMimeType, detectVideoMimeType } from "./uploadSignature";
@@ -25,7 +26,7 @@ export type InsertedMediaRow = {
   preview_variant_path?: string | null;
 };
 
-export const MAX_IMAGE_MEDIA_BYTES = 25 * 1024 * 1024;
+export const MAX_IMAGE_MEDIA_BYTES = IMAGE_ADMISSION_MAX_BYTES;
 export const MAX_VIDEO_MEDIA_BYTES = 100 * 1024 * 1024;
 export const MAX_AUDIO_MEDIA_BYTES = 100 * 1024 * 1024;
 

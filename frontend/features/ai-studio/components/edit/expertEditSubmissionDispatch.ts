@@ -1,5 +1,6 @@
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
+  isInpaintGenerationEnabled,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   isMarkupModelLockEnabled,
 } from "../../logic/inpaintSubmission";
@@ -50,6 +51,12 @@ export const resolveExpertEditSubmissionDispatch = ({
   const isMarkupSubmitSelected = editSubmitIntent === "markup";
 
   if (isInpaintSubmitSelected) {
+    if (!isInpaintGenerationEnabled()) {
+      return {
+        status: "error",
+        message: "Inpaint is temporarily unavailable.",
+      };
+    }
     if (!hasSubmissionHandler) {
       return {
         status: "error",

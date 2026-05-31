@@ -1011,6 +1011,15 @@ const activeHiddenPricingRuntime = (
   ...metadata,
 });
 
+const disabledHiddenCatalogRuntime = (
+  metadata: ModelCatalogRuntimeMetadata
+): ModelCatalogRuntimeMetadata => ({
+  lifecycle: "disabled",
+  surfaces: ["hidden_tool"],
+  billable: false,
+  ...metadata,
+});
+
 const activeInternalPricingRuntime = (
   metadata: ModelCatalogRuntimeMetadata
 ): ModelCatalogRuntimeMetadata => ({
@@ -1056,7 +1065,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: true,
     apiRouteSlug: "flux2klein",
   }),
-  "fal-ai/flux-pro/v1/fill": activeHiddenPricingRuntime({
+  "fal-ai/flux-pro/v1/fill": disabledHiddenCatalogRuntime({
     label: "FLUX Pro Fill",
     mediaType: "image",
     pricingStrategy: "fal-fill-per-mp",
@@ -1068,13 +1077,8 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     sizeMapId: "fal-image",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
-    executionMode: "queued",
-    submitHandler: "image",
-    submissionAdapterKey: "flux-pro-fill",
-    gridEligible: true,
-    apiRouteSlug: "flux-pro-fill",
   }),
-  "fal-ai/flux-kontext-lora/inpaint": activeHiddenPricingRuntime({
+  "fal-ai/flux-kontext-lora/inpaint": disabledHiddenCatalogRuntime({
     label: "FLUX Kontext Inpaint",
     mediaType: "image",
     pricingStrategy: "fal-flux-kontext-inpaint-per-mp",
@@ -1086,11 +1090,6 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     sizeMapId: "fal-image",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
-    executionMode: "queued",
-    submitHandler: "image",
-    submissionAdapterKey: "flux-kontext-inpaint",
-    gridEligible: true,
-    apiRouteSlug: "flux-kontext-inpaint",
   }),
   "fal-ai/bria/background/remove": activeHiddenPricingRuntime({
     label: "Bria Background Remove",

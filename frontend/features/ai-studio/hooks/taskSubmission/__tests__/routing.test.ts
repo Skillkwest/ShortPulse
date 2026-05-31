@@ -47,7 +47,11 @@ describe("resolveSubmissionHandlerRoute", () => {
     expect(resolveSubmissionHandlerRoute(FAL_NANO_BANANA_2_EDIT_MODEL_ID)).toBe("image");
     expect(resolveSubmissionHandlerRoute(FAL_NANO_BANANA_PRO_EDIT_MODEL_ID)).toBe("image");
     expect(resolveSubmissionHandlerRoute(FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID)).toBe("image");
-    expect(resolveSubmissionHandlerRoute("fal-ai/flux-pro/v1/fill")).toBe("image");
+  });
+
+  it("does not route disabled inpaint models to any submission handler", () => {
+    expect(resolveSubmissionHandlerRoute("fal-ai/flux-pro/v1/fill")).toBe("unsupported");
+    expect(resolveSubmissionHandlerRoute("fal-ai/flux-kontext-lora/inpaint")).toBe("unsupported");
   });
 
   it("only routes catalog models through supported AI Studio handlers", () => {

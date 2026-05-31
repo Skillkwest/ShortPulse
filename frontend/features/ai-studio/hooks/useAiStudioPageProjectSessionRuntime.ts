@@ -54,6 +54,7 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   persistedAgentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
   persistedPulseAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
   persistedStandardAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
+  projectBootstrapId?: string | null;
   projectId: string | null;
   projectRouteRequested: boolean;
   pulseSessionInstanceId?: string | null;
@@ -143,6 +144,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
   persistedAgentRuntime,
   persistedPulseAgentRuntime,
   persistedStandardAgentRuntime,
+  projectBootstrapId = null,
   projectId,
   projectRouteRequested,
   pulseSessionInstanceId = null,
@@ -166,6 +168,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
   void getExpertEditSessionState;
   const fallbackHydrateStandardFromSessionAgentSnapshot =
     activeCreateAgentKind === "standard" ? hydrateActiveFromSessionAgentSnapshot : undefined;
+  const effectiveProjectBootstrapId = projectBootstrapId ?? projectId;
   const fallbackHydratePulseFromSessionAgentSnapshot =
     activeCreateAgentKind === "pulse" ? hydrateActiveFromSessionAgentSnapshot : undefined;
   const resolvedHydrateStandardFromSessionAgentSnapshot =
@@ -319,6 +322,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
 
   return useAiStudioPageSessionPersistence({
     projectId,
+    projectBootstrapId: effectiveProjectBootstrapId,
     projectRouteRequested,
     sessionId: activeSessionPersistenceSessionId,
     sessionTitleOverride: sessionPersistenceTitleOverride,

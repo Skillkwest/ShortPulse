@@ -6,7 +6,6 @@ import {
   getSignedMediaUrlsBatch,
   invalidateSignedMediaUrl,
 } from "../../../lib/mediaSignedUrlCache";
-import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import {
@@ -334,32 +333,6 @@ const toValidationNotes = (value: unknown): CharacterSlotValidationNotes => {
   return notes;
 };
 
-const inferFileExtension = (filename: string, mimeType: string): string => {
-  const filenameParts = filename.trim().toLowerCase().split(".");
-  if (filenameParts.length > 1) {
-    const extension = filenameParts[filenameParts.length - 1]?.trim();
-    if (extension) return extension.replace(/[^a-z0-9]/g, "") || "jpg";
-  }
-
-  const normalizedMime = mimeType.toLowerCase();
-  if (normalizedMime.includes("png")) return "png";
-  if (normalizedMime.includes("webp")) return "webp";
-  if (normalizedMime.includes("avif")) return "avif";
-  if (normalizedMime.includes("heic")) return "heic";
-  if (normalizedMime.includes("heif")) return "heif";
-  return "jpg";
-};
-
-const sanitizeFileStem = (filename: string) => {
-  const withoutExtension = filename.replace(/\.[^.]+$/, "");
-  const sanitized = withoutExtension
-    .toLowerCase()
-    .replace(/[^a-z0-9-_]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-  return sanitized || "reference";
-};
-
 /**
  * Creates a character-owned media asset row and returns the persisted id.
  */
@@ -620,79 +593,6 @@ export const listCharacterSheetPresetMediaReferences = (
         ])
     ).values()
   );
-};
-
-/**
- * Build a user-scoped storage path for a slot image.
- */
-export const createStoragePath = ({
-  userId,
-  characterId,
-  characterSheetId,
-  slotKey,
-  filename,
-  mimeType,
-}: {
-  userId: string;
-  characterId: string;
-  characterSheetId: string;
-  slotKey: CharacterReferenceSlotKey;
-  filename: string;
-  mimeType: string;
-}) => {
-  const extension = inferFileExtension(filename, mimeType);
-  const stem = sanitizeFileStem(filename);
-  return assertUserScopedMediaStoragePath({
-    path: `${userId}/characters/${characterId}/${characterSheetId}/${slotKey}/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`,
-    userId,
-    label: "Character slot storage path",
-  });
-};
-
-/**
- * Build a user-scoped storage path for a persisted character profile image.
- */
-export const createCharacterProfileStoragePath = ({
-  userId,
-  characterId,
-  filename,
-  mimeType,
-}: {
-  userId: string;
-  characterId: string;
-  filename: string;
-  mimeType: string;
-}) => {
-  const extension = inferFileExtension(filename, mimeType);
-  const stem = sanitizeFileStem(filename);
-  return assertUserScopedMediaStoragePath({
-    path: `${userId}/characters/${characterId}/profile/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`,
-    userId,
-    label: "Character profile storage path",
-  });
-};
-
-/**
- * Build a user-scoped storage path for a persisted character-sheet look asset.
- */
-export const createCharacterSheetPresetStoragePath = ({
-  userId,
-  characterId,
-  filename,
-  mimeType,
-}: {
-  userId: string;
-  characterId: string;
-  filename: string;
-  mimeType: string;
-}) => {
-  const extension = inferFileExtension(filename, mimeType);
-  const stem = sanitizeFileStem(filename);
-  return assertUserScopedMediaStoragePath({
-    path: `${userId}/characters/${characterId}/presets/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`,
-    userId,
-    label: "Character look storage path",
-  });
 };
 
 /**

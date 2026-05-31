@@ -54,8 +54,12 @@ export const resolveInternalMediaRefsForUrls = (
   urls.slice(0, limit).map((url) => resolveInternalMediaRefForUrl(url));
 
 export const createInternalMediaRefFromResolvedSource = (
-  source: Pick<ResolvedInternalReferenceSource, "fullStoragePath" | "previewStoragePath">
+  source: Pick<
+    ResolvedInternalReferenceSource,
+    "fullStoragePath" | "mediaId" | "previewStoragePath"
+  >
 ): InternalMediaRef | null =>
   createInternalMediaRef({
     storagePath: source.fullStoragePath?.trim() || source.previewStoragePath?.trim() || "",
+    mediaFileId: source.mediaId,
   });

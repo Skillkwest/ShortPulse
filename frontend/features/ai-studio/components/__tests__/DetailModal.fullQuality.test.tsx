@@ -118,4 +118,74 @@ describe("DetailModal full-quality media policy", () => {
       signedUrlSpy.mockRestore();
     }
   });
+
+  it("recovers generated detail media when the restored output starts without preview candidates", async () => {
+    const resolveSpy = vi
+      .spyOn(referenceGridMediaModule, "resolveReferenceCardUrls")
+      .mockReturnValue({
+        previewUrl: null,
+        fullUrl: null,
+        authorityTier: "tracked",
+        previewQualityBand: "high",
+        targetLongEdgePx: 960,
+      });
+    const supabaseSpy = vi
+      .spyOn(supabaseClientModule, "ensureSupabaseQueryClient")
+      .mockReturnValue({} as ReturnType<typeof supabaseClientModule.ensureSupabaseQueryClient>);
+    const downloadTargetSpy = vi
+      .spyOn(referenceDownloadModule, "resolveReferenceDownloadTarget")
+      .mockResolvedValue({
+        fileRecord: {
+          storagePath: "user-1/generations/images/gen-2/output.png",
+          filename: "output.png",
+        },
+        generationId: "gen-2",
+        directUrl: null,
+      });
+    const signedUrlSpy = vi
+      .spyOn(mediaSignedUrlCacheModule, "getSignedMediaUrl")
+      .mockResolvedValue("https://signed.test/generated-output-2.png");
+
+    try {
+      const { baseElement } = render(
+        <DetailModal
+          output={{
+            ...baseOutput,
+            mediaSource: "generated",
+            generationId: "gen-2",
+            previewUrl: undefined,
+            resultUrls: [],
+            previewStoragePath: null,
+            fullStoragePath: null,
+            savedMediaIds: [],
+          }}
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText("Media unavailable.")).toBeInTheDocument();
+
+      await waitFor(() => {
+        const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+        expect(image).not.toBeNull();
+        expect(image?.getAttribute("src")).toBe("https://signed.test/generated-output-2.png");
+      });
+      expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
+      expect(resolveSpy).toHaveBeenCalled();
+      expect(supabaseSpy).toHaveBeenCalled();
+      expect(downloadTargetSpy).toHaveBeenCalled();
+      expect(signedUrlSpy).toHaveBeenCalledWith({
+        bucket: "media_library",
+        storagePath: "user-1/generations/images/gen-2/output.png",
+        previewProfile: "none",
+      });
+    } finally {
+      resolveSpy.mockRestore();
+      supabaseSpy.mockRestore();
+      downloadTargetSpy.mockRestore();
+      signedUrlSpy.mockRestore();
+    }
+  });
 });

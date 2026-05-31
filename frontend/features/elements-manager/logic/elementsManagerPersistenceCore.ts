@@ -4,6 +4,7 @@
  */
 import { getSignedMediaUrl, invalidateSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
+import { admitProductImageAssetFile } from "../../../lib/productImageAssetAdmissionClient";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../ai-studio/utils/imageUpload";
 import { DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM } from "../constants";
@@ -207,31 +208,6 @@ const normalizeProfileImageTransform = (
   offsetY: Math.round(clamp(transform.offsetY, -40, 40)),
 });
 
-const inferFileExtension = (filename: string, mimeType: string): string => {
-  const filenameParts = filename.trim().toLowerCase().split(".");
-  if (filenameParts.length > 1) {
-    const extension = filenameParts[filenameParts.length - 1]?.trim();
-    if (extension) return extension.replace(/[^a-z0-9]/g, "") || "jpg";
-  }
-  const normalizedMime = mimeType.toLowerCase();
-  if (normalizedMime.includes("png")) return "png";
-  if (normalizedMime.includes("webp")) return "webp";
-  if (normalizedMime.includes("avif")) return "avif";
-  if (normalizedMime.includes("heic")) return "heic";
-  if (normalizedMime.includes("heif")) return "heif";
-  return "jpg";
-};
-
-const sanitizeFileStem = (filename: string): string => {
-  const withoutExtension = filename.replace(/\.[^.]+$/, "");
-  const sanitized = withoutExtension
-    .toLowerCase()
-    .replace(/[^a-z0-9-_]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-  return sanitized || "reference";
-};
-
 const isElementReferenceSetId = (value: string): value is ElementReferenceSetId =>
   ELEMENT_REFERENCE_SET_IDS.includes(value as ElementReferenceSetId);
 
@@ -323,28 +299,6 @@ const resolveSupabaseContext = async (): Promise<ElementsContext> => {
     supabase: ensureSupabaseQueryClient(),
     userId,
   };
-};
-
-const createElementProfileStoragePath = ({
-  userId,
-  elementId,
-  filename,
-  mimeType,
-}: {
-  userId: string;
-  elementId: string;
-  filename: string;
-  mimeType: string;
-}) => {
-  const extension = inferFileExtension(filename, mimeType);
-  const fileStem = sanitizeFileStem(filename);
-  const storagePath = `${userId}/elements/${elementId}/profile/${Date.now()}-${fileStem}.${extension}`;
-  assertUserScopedMediaStoragePath({
-    path: storagePath,
-    userId,
-    label: "Element profile storage path",
-  });
-  return storagePath;
 };
 
 const createElementMediaAsset = async ({
@@ -867,22 +821,17 @@ export const uploadElementProfileImage = async ({
   const existingProfile = getElementProfileImageMetadata(
     (elementRow as { metadata: unknown }).metadata
   );
-  const mimeType = file.type || "image/jpeg";
-  const storagePath = createElementProfileStoragePath({
-    userId,
+  const admittedAsset = await admitProductImageAssetFile({
+    intent: "element_profile",
     elementId,
-    filename: file.name,
-    mimeType,
+    file,
   });
-  const { error: uploadError } = await supabase.storage
-    .from(MEDIA_BUCKET)
-    .upload(storagePath, file, {
-      upsert: false,
-      contentType: mimeType,
-    });
-  if (uploadError) {
-    throw new Error(asErrorMessage(uploadError, "Failed to upload element profile image."));
-  }
+  const storagePath = admittedAsset.storagePath;
+  assertUserScopedMediaStoragePath({
+    path: storagePath,
+    userId,
+    label: "Element profile storage path",
+  });
 
   let mediaAssetId: string;
   try {
@@ -892,9 +841,10 @@ export const uploadElementProfileImage = async ({
       storagePath,
       filename: file.name,
       fileType: "image",
-      fileSize: file.size,
+      fileSize: admittedAsset.size,
       metadata: {
         role: "element_profile",
+        image_admission: admittedAsset.admissionMetadata,
       },
     });
     mediaAssetId = createdAsset.id;
@@ -939,7 +889,7 @@ export const uploadElementProfileImage = async ({
       bucket: MEDIA_BUCKET,
       storagePath,
       forceRefresh: true,
-    })) ?? null;
+    })) ?? admittedAsset.signedUrl;
   if (!profileImageUrl) {
     throw new Error("Element profile image saved, but preview URL could not be created.");
   }

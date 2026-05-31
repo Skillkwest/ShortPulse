@@ -169,7 +169,7 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-28-elements-workflow-hardening-closeout.md`
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-30-elements-approved-panel-runtime-hardening-closeout.md`
 
-### Currently running lane
+### Awaiting production verification
 
 11. `Project / workspace persistence`
 
@@ -179,7 +179,9 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - exact next lane after the May 31 post-deploy approved-panel verification
   - dispatched through managed Copperknot subagent execution on `2026-05-31`
   - current root-seam focus is the read-time ownership-sanitization fallback in `canonicalizeProjectWorkspaceSnapshotForRead(...)`
-  - awaiting closeout review
+  - closeout received and reviewed on `2026-05-31`
+  - accepted as a local `root fix` in the canonical project-workspace read path
+  - score held pending deploy and production remeasurement
   - score still held at `6/10`
 
 ### Ready next
@@ -278,7 +280,9 @@ Purpose: record which handoff packets have already been dispatched to execution 
 - `2026-05-31` persistence follow-up dispatch:
   - launched a bounded worker on `docs/agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md`
   - current source-fix target is the read-time ownership-sanitization fallback in `projectWorkspaceStatesService`
-  - exact next open lane after this running pass is now `Characters workflow`
+  - the worker returned a bounded patch and closeout on the same day
+  - Copperknot accepted the patch as a local `root fix` after rerunning the focused tests and docs gate
+  - exact next open lane remains `Project / workspace persistence` until deploy and production remeasurement clear the row
 
 ## Operating Note
 

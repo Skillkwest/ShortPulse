@@ -105,10 +105,12 @@ As of `2026-05-31`:
 - score held after May 31 post-deploy production verification:
   - `Elements workflow`
   - `Media delivery / signing / preview resolution`
+- score held after accepted May 31 local persistence root-fix review:
+  - `Project / workspace persistence`
 - fresh queue correction after the May 27 baseline reset:
   - the May 19 `Characters workflow -> Elements workflow` exact-next order is now historical
   - the earlier Create validation-red state has now been absorbed and accepted
-  - the current product-code worktree no longer carries the May 27 active-drift contradiction
+  - the current product-code worktree now carries an accepted local persistence root fix that still needs deploy and production remeasurement before the row can be treated as cleared
 - bounded Elements execution evidence reviewed:
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-28-elements-workflow-hardening-closeout.md`
   - accepted as real repo-durable evidence for the persistence seam only
@@ -126,5 +128,5 @@ As of `2026-05-31`:
 - post-redeploy repo truth that keeps the exact top queue order stable:
   - latest launch-relevant movement is `ed86fb5ce`, which preserved canonical billed-resolution ids in Create pricing/runtime support seams
   - the later `c2b127581` commit is Gear Ball evidence only and does not change the product queue
-  - the product-code worktree is clean, so there is no active local contradiction forcing a queue reorder
+  - the accepted May 31 local persistence root fix strengthens the current exact-next row without yet clearing it for a queue reorder
   - the May 31 post-deploy rerun is fresh enough to move exact-next back to `Project / workspace persistence` without pretending `Elements workflow` is fully solved

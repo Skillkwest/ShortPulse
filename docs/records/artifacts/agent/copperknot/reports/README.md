@@ -5,7 +5,7 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 ## Current Primary Authority Surfaces
 
 - `2026-05-06-dispatch-log.md`: current external handoff dispatch status for the active production-readiness window.
-- `2026-05-31-approved-panel-post-deploy-verification.md`: current freshest retained packet explaining why the queue moved back to `Project / workspace persistence`.
+- `2026-05-31-project-workspace-persistence-closeout-review.md`: current freshest retained packet explaining why the queue stays on `Project / workspace persistence` after the accepted local root fix.
 
 ## Current Secondary Overlays
 
@@ -17,6 +17,7 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 ## Current Supporting Lane Audits
 
 - `2026-05-31-project-workspace-persistence-root-seam-audit.md`: current source-seam audit for the exact-next `Project / workspace persistence` lane.
+- `2026-05-31-approved-panel-post-deploy-verification.md`: retained production packet explaining why `Elements workflow` moved out of the exact-next slot before the persistence lane resumed control.
 
 ## Current Intake Surfaces
 

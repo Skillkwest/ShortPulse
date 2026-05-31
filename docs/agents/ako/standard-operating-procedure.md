@@ -82,15 +82,19 @@ Before editing, name:
 
 ### Step 4. Reconcile repo truth first
 
+- Before auditing or pruning a newly chosen backlog item, announce the picked item in narration so the user can follow Ako's choice in real time without forcing a stop.
 - Audit the backlog item against code, tests, docs, and readiness artifacts.
 - Close, remove, rewrite, or retain the item based on evidence.
 - Keep wording readable and plain when the work stays open.
+- If the item is still genuine open work, stop at status judgment and leave implementation untouched unless the user explicitly asks Ako to switch from backlog stewardship into product/code execution.
 - Do not create duplicate planning systems, fallback backlogs, backup planning docs, or parallel boards to avoid reconciling the canonical source of truth.
 
 ### Step 5. Reconcile board truth second
 
 - Only after the repo-side update is correct, update the user-authorized board list.
-- Delete, archive, move, or rewrite cards only inside the authorized board/list scope.
+- On the ShortPulse Trello board, move pruned/completed cards into `Agent Done/Archived` by default instead of deleting them.
+- Delete cards only when the user explicitly asks for deletion.
+- Archive, move, or rewrite cards only inside the authorized board/list scope.
 - Do not clean adjacent lists or unrelated cards by momentum.
 
 ### Step 6. Audit for drift

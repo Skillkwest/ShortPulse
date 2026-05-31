@@ -1,6 +1,6 @@
 # Money Stuff Source Of Truth Map
 
-Purpose: define where Money Stuff should look first for billing authority across subscriptions, credit packages, and recurring storage/media add-ons.
+Purpose: define where Money Stuff should look first for billing authority across subscriptions, credit packages, recurring storage/media add-ons, and active runtime pricing policy.
 
 ## Truth Layers
 
@@ -91,6 +91,29 @@ Money Stuff should reason about billing in this order:
 
 - `frontend/pages/api/billing/storage-addon/change.ts`
 - `frontend/pages/api/billing/stripe/webhook.ts`
+
+## AI Usage Pricing / Admin Pricing Authority
+
+### Primary authority input surface
+
+- `/admin/pricing`
+- `frontend/pages/admin/pricing.tsx`
+- Scott is the primary author and maintainer of this page implementation.
+
+### Shared pricing authority state
+
+- `frontend/pages/api/admin/pricing/state.ts`
+- `frontend/pages/api/pricing/model-policy.ts`
+- `frontend/lib/server/api/modelPricingControlPlane.ts`
+- `frontend/lib/model-runtime/pricingPolicy.ts`
+- `frontend/lib/model-runtime/pricingStrategies.ts`
+- `frontend/features/admin/pricingCostDocs.ts`
+
+### Money Stuff responsibility
+
+- Read `/admin/pricing` as the canonical pricing authority input surface.
+- Use that authority to decide whether product credit costs, button labels, guardrails, and billing-facing UX are aligned.
+- Do not edit or maintain the admin pricing page implementation itself unless the user explicitly reassigns that page lane.
 
 ## Annual Renewals
 

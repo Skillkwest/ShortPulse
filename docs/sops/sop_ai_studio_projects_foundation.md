@@ -23,7 +23,7 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 12. Project workspace saves now also backfill project-owned generation associations from restore-relevant `generationId` values already present in the snapshot.
 13. Project workspace saves now use a two-phase contract: the sanitized workspace snapshot is written durably first, then project asset/generation association repair runs as a follow-up stage.
 14. If that follow-up repair fails, the save returns `saved_with_repair_pending` instead of failing the durable workspace write, and the UI surfaces a warning that recent outputs may not fully restore until a later successful save.
-15. Project workspace reads now refresh generated-output delivery only from generation rows explicitly associated to that project.
+15. Project workspace reads return the sanitized saved snapshot quickly; AI Studio refreshes project-associated generated-output delivery asynchronously after workspace bootstrap.
 16. On project routes, the Media Library custom-folder area remains user-global and does not reset when the active project changes.
 17. `All Media` remains the user-global inventory even on project routes.
 18. Global folder membership continues to support saved media and saved prompts on project routes.
@@ -141,7 +141,7 @@ Behavior:
 6. Current storage contract intentionally reuses the AI Studio session snapshot envelope as a parser boundary, but project persistence sanitizes conversational runtime out of the stored payload.
 7. `PUT` writes the sanitized workspace snapshot before association repair runs, so a later backfill failure does not discard the workspace save.
 8. `PUT` may return `saveOutcome.status = "saved_with_repair_pending"` when the durable write succeeds but project association repair still needs follow-up.
-9. `GET` refreshes generated-output delivery only from generation rows explicitly associated to the active project.
+9. `GET` does not block on generated-output projection/media refresh; project-associated generated outputs refresh asynchronously after AI Studio workspace bootstrap.
 10. Returns:
 
 - `400` for invalid project id
@@ -181,7 +181,7 @@ Behavior:
 5. Project routes suppress browser-global workflow-settings session storage and selected-character local storage, and project reopen now fails closed to the shipped blank Create baseline instead of replaying workflow-shell state from the saved snapshot.
 6. Project workspace writes reset the project shell back to the shipped blank Create baseline and do not preserve Pulse shell selection, Pulse session instance ids, Character Mode shell state, or active output focus.
 7. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.
-8. Project workspace reads refresh generated-output delivery only from `project_generation_items` + project-owned generation projection rows rather than scanning all user-global generated outputs.
+8. Project workspace reads return the sanitized saved snapshot without blocking on `project_generation_items` or generation projection/media hydration; after bootstrap, AI Studio refreshes generated-output delivery from project-owned generation rows rather than scanning all user-global generated outputs.
 9. This does not change Media Library folder authority, which remains user-global across projects, and it does not yet make every live generation read path project-scoped.
 
 ## AI Studio Media Library folder authority
@@ -201,7 +201,7 @@ Behavior:
 3. Manual save, autosave, and prompt-save flows on project routes use those association tables as the current durable project-ownership seam.
 4. Re-saving an already-saved output on a project route should attach the existing media/prompt ids to that project without forcing a duplicate upload or duplicate prompt row.
 5. Project workspace writes backstop those associations by extracting restore-relevant `savedMediaIds`, `promptId`, and `generationId` values from the saved snapshot and associating only ids that the caller already owns.
-6. Project workspace reads use `project_generation_items` to refresh generated-output delivery for reopen without scanning all user-global generation rows.
+6. Project workspace reads keep the saved snapshot fast; AI Studio's post-bootstrap generated-output maintenance uses `project_generation_items` to refresh delivery for reopen without scanning all user-global generation rows.
 7. The AI Studio autosave toggle governs automatic Media Library saving only. It does not disable private restore-durability persistence used to keep local project references restorable across reload or reopen.
 8. This association layer is additive; it does not change the visibility of `All Media` or other user-global library surfaces yet.
 

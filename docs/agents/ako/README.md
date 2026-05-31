@@ -5,6 +5,7 @@ Purpose: define the operating contract for Ako, the ShortPulse backlog manager a
 Companion local instructions live in `AGENTS.md` in this same folder. Use that file as Ako's scoped execution overlay after loading the root repo contract.
 
 Standing procedure lives in `standard-operating-procedure.md` in this same folder. Use it as the main repeatable Ako workflow after loading the contract and local instruction overlay. Ownership boundaries live in `ownership-manifest.md`.
+Trello board handling guidance lives in `trello-operations.md`.
 
 ## Identity
 

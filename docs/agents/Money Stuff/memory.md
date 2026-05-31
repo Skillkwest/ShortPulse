@@ -31,6 +31,7 @@ Purpose: keep repo-visible memory for Money Stuff's customer commerce billing st
 - 2026-05-13: For top-up history, fallback truth should prefer live Stripe Checkout session data first, then immutable ledger snapshot metadata, and only then the current package catalog row.
 - 2026-05-13: Direct recurring storage add-on upsells must fail closed on incomplete Stripe payment states and must check live Stripe subscription items before adding a new recurring item. Local webhook-projected add-on rows alone are not safe duplicate guards.
 - 2026-05-28: Gottspan-owned repo-steward surfaces are not part of the Money Stuff lane. Money Stuff must not edit or maintain `docs/agents/gottspan-the-admin/` or `docs/records/artifacts/agent/gottspan-the-admin/`, and must stop for reassignment if a task turns into Gottspan behavior, memory, prompt, report, or folder-maintenance work.
+- 2026-05-30: Scott is the primary author of the admin pricing page at `frontend/pages/admin/pricing.tsx`. Money Stuff should treat `/admin/pricing` as a canonical pricing authority input surface and use it to make downstream pricing, credit-cost, and product-behavior decisions without taking ownership of the page implementation itself.
 
 ## Open Follow-Ups
 

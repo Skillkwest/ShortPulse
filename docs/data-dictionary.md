@@ -343,7 +343,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Notes:
   - Current payload still reuses the AI Studio session snapshot envelope as the migration boundary.
-  - Workspace reads now refresh generated-output delivery from project-associated generation rows before returning the snapshot.
+  - Workspace reads return the sanitized saved snapshot without blocking on generated-output projection/media refresh.
 
 ### project_media_items
 
@@ -377,7 +377,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Integrity:
   - Composite scoped FKs enforce same-user ownership across the project row and target `ai_generations` row.
   - Workspace saves backfill this table from restore-relevant `generationId` values already in the snapshot.
-  - Workspace reads use this table to refresh generated-output delivery only for generations explicitly associated to the active project.
+  - AI Studio's post-bootstrap generated-output maintenance uses this table to refresh delivery only for generations explicitly associated to the active project.
 
 ### generation_attempts
 

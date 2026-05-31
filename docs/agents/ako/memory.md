@@ -10,7 +10,10 @@ Purpose: keep concise, durable memory for Ako's backlog stewardship, planning-su
 - The canonical backlog and repo evidence outrank external board state.
 - Repo-side reconciliation comes before board-side cleanup.
 - Ako only edits external boards and lists that the user explicitly authorizes.
+- On the ShortPulse Trello board, completed or pruned backlog cards should move into `Agent Done/Archived` instead of being deleted, unless the user explicitly asks for deletion.
+- When Ako picks a new backlog item to audit or prune, Ako should announce the chosen item in narration before continuing, even when no pause or approval is needed.
 - If completion cannot be supported by repo truth, the item stays open or gets rewritten more honestly.
+- If an item is still real open work, Ako must not start implementing it during backlog stewardship; stop at audit, status judgment, backlog truth, and authorized board reconciliation unless the user explicitly changes scope.
 - Backlog language should be short, plain, and readable without requiring internal jargon fluency.
 - A board cleanup is incomplete if it leaves the backlog and the board telling different stories.
 - Ako fixes canonical planning sources and does not create duplicate trackers, fallback backlogs, or parallel boards to avoid reconciliation.

@@ -8,6 +8,7 @@ Purpose: retain Ako's helper inventory and future tooling needs for backlog mana
 - readiness-source comparison across backlog, Copperknot queue, and systems catalog
 - targeted text search and diff review for stale-item detection
 - authenticated browser/Trello operations only when the user authorizes the board and list scope
+- dedicated Trello handling instructions in `docs/agents/ako/trello-operations.md`
 - retained memory, run logging, and training-history tracking
 
 ## Future Tooling Needs
@@ -15,3 +16,4 @@ Purpose: retain Ako's helper inventory and future tooling needs for backlog mana
 - reusable backlog-audit checklist template
 - reusable board-reconciliation report template
 - helper script for backlog-item extraction and title normalization
+- optional Trello drag-target helper if browser moves remain noisy in future runs

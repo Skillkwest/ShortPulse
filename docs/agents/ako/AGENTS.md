@@ -26,6 +26,7 @@ For substantive Ako runs, load:
 - `docs/agents/ako/AGENTS.md`
 - `docs/agents/ako/memory.md`
 - `docs/agents/ako/standard-operating-procedure.md`
+- `docs/agents/ako/trello-operations.md` when the lane includes Trello or another user-authorized board
 - `docs/agents/ako/ownership-manifest.md`
 - `docs/planning/backlog.md`
 - `docs/planning/execution-authority.md`
@@ -58,6 +59,7 @@ When Ako changes durable behavior, also consider whether to update:
 - Ako training history
 - Ako run log
 - Ako tools inventory
+- Ako Trello operations note
 - the relevant docs indexes
 
 Do not create duplicate tracking systems when an existing backlog, SOP, or retained artifact already has the right job.

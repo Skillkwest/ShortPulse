@@ -39,8 +39,6 @@ Structure (locked):
       Evidence: `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`, `frontend/.env.example`, `docs/deployment.md`, `docs/local-development.md`, `docs/operator-map.md`, `docs/sops/sop_provider_incident_response.md`, `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
 - [x] AI Studio runtime V2 closeout: publish Seedream shadow parity report.
       Evidence: `docs/planning/evidence/runtime-v2/2026-05-06-seedream-shadow-parity-report.md`, `frontend/package.json`, `docs/planning/ai-studio-runtime-v2-staging-execution-checklist.md`
-- [ ] AI Studio runtime V2 closeout: pass Seedream canary gates for 72h with no duplicate settlement or persistence regressions.
-      Reference: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - [ ] Generation recovery / settlement: recheck the current recovery and settlement path against the live runtime evidence before treating it as permanently closed.
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
 - [x] AI Studio runtime V2 closeout: retire legacy HMAC webhook fallback from the active runtime contract and docs.
@@ -77,7 +75,6 @@ Structure (locked):
 - [ ] AI Studio: change placeholder `generating` and `loading preview` reference cards to a lighter gray background for better visual contrast.
 - [ ] AI Studio: increase normal-state color saturation for the reference-grid `Add files` and `Media library` buttons (current state appears too gray/desaturated).
 - [ ] AI Studio: remove the blue gradient overlay from the quick-slot inventory background.
-- [ ] AI Studio: investigate and polish the rare one-off full-grid flash in Reference Grid/Quick Slot during adaptive hydration churn (non-blocking follow-up after the Adaptive Media V2 pass).
 
 ## Program 3: Structural Decomposition
 
@@ -97,19 +94,11 @@ Structure (locked):
 - [ ] Build a complete, polished collection of small delete buttons.
 - [ ] Build a complete, polished collection of small download buttons.
 - [ ] Build a complete, polished collection of small save buttons.
-- [ ] Replace the remaining hard-coded Dashboard `Searches` usage counter with live client state; storage and AI credits are already live.
 - [ ] Finish the Dashboard redesign pass by retiring the remaining staged/legacy posture and tightening the long-term styling structure.
 - [ ] Align Character Manager styling with the AI Studio character workflow so the manager page and properties panel feel cohesive.
 - [ ] Redesign Character Manager with a more polished UI, modeled after the AI Studio character workflow experience.
-- [ ] AI Studio: preload character workflow identities and saved references when entering from Dashboard so character assets are cached across workflow switches.
-- [ ] AI Studio: make `CharacterManager` open instantly (no open animation) and tune properties panel sizing.
-- [ ] Move Performance Analytics from the current staged/demo posture to a production-ready workflow that the Dashboard can point at directly.
 
 ## Program 5: Release Confidence And Research
-
-- [ ] Refresh production validation evidence for the workflows still below launch-readiness target before treating score movement as current (`Elements workflow`, `Project / workspace persistence`, `Characters workflow`).
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
-- [ ] Explore live data sources or edge functions if backend capabilities are reintroduced.
 
 ## Done (verified in repo)
 

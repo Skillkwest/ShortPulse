@@ -518,6 +518,14 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
     companionArtUrl: output.companionArtUrl ?? null,
     companionArtStoragePath: output.companionArtStoragePath ?? null,
     companionArtStatus: output.companionArtStatus ?? null,
+    width:
+      typeof output.width === "number" && Number.isFinite(output.width) && output.width > 0
+        ? Math.max(1, Math.round(output.width))
+        : null,
+    height:
+      typeof output.height === "number" && Number.isFinite(output.height) && output.height > 0
+        ? Math.max(1, Math.round(output.height))
+        : null,
     previewStoragePath: normalizedStorageAuthority.previewStoragePath,
     fullStoragePath: normalizedStorageAuthority.fullStoragePath,
     previewTier: output.previewTier,

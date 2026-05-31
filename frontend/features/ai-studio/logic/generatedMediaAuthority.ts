@@ -1,4 +1,5 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import { resolveImageDimensionsFromMetadata } from "../../../lib/mediaDimensionMetadata";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
@@ -19,6 +20,9 @@ type MediaFileRow = {
   thumb_variant_path?: unknown;
   poster_variant_path?: unknown;
   preview_variant_path?: unknown;
+  width?: unknown;
+  height?: unknown;
+  metadata?: unknown;
 };
 
 type GenerationOutputRow = {
@@ -110,6 +114,8 @@ export type GeneratedMediaLibraryRow = GeneratedMediaFileRecord & {
   thumbVariantPath: string | null;
   posterVariantPath: string | null;
   previewVariantPath: string | null;
+  width: number | null;
+  height: number | null;
 };
 
 export type VisibleGenerationDelivery = {
@@ -157,6 +163,13 @@ const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const toPositiveInteger = (value: unknown): number | null => {
+  const numericValue = typeof value === "string" ? Number(value) : value;
+  if (typeof numericValue !== "number") return null;
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return null;
+  return Math.max(1, Math.round(numericValue));
 };
 
 const parseIsoTimestampMs = (value: unknown): number | null => {
@@ -589,6 +602,8 @@ const toGeneratedMediaLibraryRow = (
   const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
   const previewStoragePath = asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path));
   const thumbVariantPath = asCanonicalStoragePath(asTrimmedString(row?.thumb_variant_path));
+  const metadata = asObject(row?.metadata);
+  const metadataDimensions = resolveImageDimensionsFromMetadata(metadata);
   return {
     mediaFileId,
     storagePath: baseRecord.storagePath,
@@ -601,23 +616,25 @@ const toGeneratedMediaLibraryRow = (
     thumbVariantPath,
     posterVariantPath: asTrimmedString(row?.poster_variant_path),
     previewVariantPath: asTrimmedString(row?.preview_variant_path),
+    width: toPositiveInteger(row?.width) ?? metadataDimensions?.width ?? null,
+    height: toPositiveInteger(row?.height) ?? metadataDimensions?.height ?? null,
   };
 };
 
 const runMaybeSingleMediaLibraryQuery = async <TRow extends MediaFileRow>(args: {
   runSelect: (
     columns:
-      | "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
-      | "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
+      | "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
+      | "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
   ) => Promise<{ data: TRow | null; error: unknown }>;
 }): Promise<TRow | null> => {
   const primary = await args.runSelect(
-    "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
+    "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
   );
   if (!primary.error) return primary.data;
   if (!isPreviewStoragePathSchemaError(primary.error)) return null;
   const storageOnly = await args.runSelect(
-    "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
+    "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
   );
   return storageOnly.error ? null : storageOnly.data;
 };
@@ -1026,7 +1043,7 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
     const mediaResult = await supabase
       .from("media_files")
       .select(
-        "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
+        "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
       )
       .eq("user_id", userId)
       .in("id", mediaFileIds)
@@ -1115,7 +1132,9 @@ const applyPublishedGeneratedMediaAuthority = (
     if (
       output.previewPosterStoragePath === nextPreviewPosterStoragePath &&
       output.previewStoragePath === nextPreviewStoragePath &&
-      output.fullStoragePath === nextFullStoragePath
+      output.fullStoragePath === nextFullStoragePath &&
+      output.width === (mediaRow.width ?? null) &&
+      output.height === (mediaRow.height ?? null)
     ) {
       return output;
     }
@@ -1124,6 +1143,8 @@ const applyPublishedGeneratedMediaAuthority = (
       previewPosterStoragePath: nextPreviewPosterStoragePath,
       previewStoragePath: nextPreviewStoragePath,
       fullStoragePath: nextFullStoragePath,
+      width: mediaRow.width ?? output.width ?? null,
+      height: mediaRow.height ?? output.height ?? null,
     };
   });
 

@@ -268,7 +268,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         referenceImageUrl: null,
         motionReferenceVideoUrl: null,
         videoReferenceMode: "standard",
-        imageResolution: "high",
+        imageResolution: "4K",
         costParamsForModel: makeCostParamsForModel(modelId),
         pricingPolicyReady: false,
         pricingPolicyLoading: false,
@@ -329,17 +329,17 @@ describe("useAiStudioViewModel motion guardrails", () => {
       modelId: targetModelId,
       aspect: "1:1",
       durationSeconds: 8,
-      resolution: "medium",
+      resolution: "2K",
       audio: false,
       ...overrides,
     });
     const expectedCurrentCost = computeCostForModel(
       modelId,
-      costParamsForModel(modelId, { resolution: "high" })
+      costParamsForModel(modelId, { resolution: "4K" })
     )?.credits;
     const expectedPromptCost = computeCostForModel(
       modelId,
-      costParamsForModel(modelId, { aspect: "9:16", resolution: "high" })
+      costParamsForModel(modelId, { aspect: "9:16", resolution: "4K" })
     )?.credits;
 
     const { result } = renderHook(() =>
@@ -352,7 +352,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         referenceImageUrl: null,
         motionReferenceVideoUrl: null,
         videoReferenceMode: "standard",
-        imageResolution: "high",
+        imageResolution: "4K",
         costParamsForModel,
       })
     );

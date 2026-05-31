@@ -3,10 +3,28 @@
  * Owns the Standard-mode chat surface boundary without importing Pulse renderers.
  */
 import React from "react";
-import { AgentChatPanel, type AgentChatPanelProps } from "../../../../prefabs/agent";
+import {
+  AgentChatPanel,
+  type AgentChatPanelProps,
+  type AgentMessageContentProps,
+} from "../../../../prefabs/agent";
+import { CreateChatRichMessageBody } from "./CreateChatRichMessageBody";
 
 export type StandardCreateChatPanelProps = AgentChatPanelProps;
 
+const StandardAssistantMessageContent: React.FC<AgentMessageContentProps> = ({
+  message,
+  textRef,
+}) => <CreateChatRichMessageBody ref={textRef} content={message.content} tone="assistant" />;
+
+const StandardUserMessageContent: React.FC<AgentMessageContentProps> = ({ message }) => (
+  <CreateChatRichMessageBody content={message.content} tone="user" />
+);
+
 export const StandardCreateChatPanel: React.FC<StandardCreateChatPanelProps> = (props) => (
-  <AgentChatPanel {...props} />
+  <AgentChatPanel
+    {...props}
+    AssistantMessageContent={StandardAssistantMessageContent}
+    UserMessageContent={StandardUserMessageContent}
+  />
 );

@@ -1,6 +1,11 @@
 import { getModelConfig } from "../../../model-runtime/pricing";
 import type { PricingParams } from "../../../model-runtime/pricingTypes";
 import { getModelCatalogEntry } from "../../../model-runtime/modelCatalog";
+import {
+  isOpenAiGptImage2Size,
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
+  resolveOpenAiGptImage2AspectForSize,
+} from "../../../model-runtime/openAiImage2";
 import type { JsonObject } from "./types";
 import { asBoolean, asNumber, asString } from "./utils";
 
@@ -39,12 +44,8 @@ const resolveContextImageDimensions = (
 
 const resolveExplicitImageSize = (payload: JsonObject): string | undefined => {
   const directSize = asString(payload.size) ?? asString(payload.image_size);
-  if (!directSize) return undefined;
-  const normalized = directSize.trim().toLowerCase();
-  if (normalized === "1024x1024" || normalized === "1024x1536" || normalized === "1536x1024") {
-    return normalized;
-  }
-  return undefined;
+  if (!directSize || !isOpenAiGptImage2Size(directSize)) return undefined;
+  return directSize.trim().toLowerCase();
 };
 
 const resolveInputImageCount = (payload: JsonObject): number | undefined => {
@@ -89,12 +90,17 @@ const resolveMaskPresent = (payload: JsonObject): boolean | undefined => {
 
 const resolveAspectFromImageSize = (
   payload: JsonObject,
+  modelId: string,
   dimensions?: { width: number; height: number }
 ): string | undefined => {
   const directAspect = asString(payload.aspect) ?? asString(payload.aspect_ratio);
   if (directAspect) return directAspect;
 
   const explicitSize = resolveExplicitImageSize(payload);
+  if (explicitSize && modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+    const openAiAspect = resolveOpenAiGptImage2AspectForSize(explicitSize);
+    if (openAiAspect) return openAiAspect;
+  }
   if (explicitSize === "1024x1024") return "1:1";
   if (explicitSize === "1024x1536") return "9:16";
   if (explicitSize === "1536x1024") return "16:9";
@@ -310,7 +316,7 @@ export const buildPricingParams = (
   }
 
   const aspect = normalizeAspectForModel(
-    resolveAspectFromImageSize(payload, imageDimensions),
+    resolveAspectFromImageSize(payload, modelId, imageDimensions),
     modelId
   );
   if (aspect) params.aspect = aspect;

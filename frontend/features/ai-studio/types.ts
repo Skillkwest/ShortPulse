@@ -123,6 +123,8 @@ export type StudioOutput = {
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;
   mimeType?: string | null;
+  width?: number | null;
+  height?: number | null;
   audioSourceMode?: StudioAudioSourceMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;

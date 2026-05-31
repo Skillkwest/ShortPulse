@@ -14,7 +14,7 @@ import {
 import {
   normalizeOpenAiGptImage2Quality,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
-  resolveOpenAiGptImage2SizeForAspect,
+  resolveOpenAiGptImage2OutputSize,
 } from "../../../../lib/model-runtime/openAiImage2";
 import type { DefaultSubmissionAdapterKey } from "../../../../lib/model-runtime/submissionAdapterMetadata";
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
@@ -105,7 +105,10 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
       shortpulseSubmitPayload,
       completeGenerationImmediately,
     }) => {
-      const size = resolveOpenAiGptImage2SizeForAspect(aspect);
+      const size = resolveOpenAiGptImage2OutputSize({
+        aspect,
+        resolution: requestedResolution,
+      });
       const quality = normalizeOpenAiGptImage2Quality(requestedResolution);
       const openAiReferenceImages = inpaintOverride?.baseImageInput?.trim()
         ? [

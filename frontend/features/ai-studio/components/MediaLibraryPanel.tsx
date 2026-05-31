@@ -915,6 +915,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           signedUrlRetryRef.current[id] = 0;
         }}
         visibleMediaIdsRef={visibleMediaIdsRef}
+        visibleMediaVersion={previewRuntime.visibleMediaVersion}
         surface={panelListSurface}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
         preferVisualMediaFirst={shouldPreferVisualMediaFirstOnRootAll}
@@ -948,6 +949,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setPendingLibraryDelete,
       signedUrlRetryRef,
       visibleMediaIdsRef,
+      previewRuntime.visibleMediaVersion,
       visiblePromptRows,
     ]
   );

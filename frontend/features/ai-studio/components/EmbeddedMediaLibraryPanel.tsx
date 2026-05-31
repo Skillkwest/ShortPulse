@@ -736,6 +736,7 @@ export function EmbeddedMediaLibraryPanel({
           signedUrlRetryRef.current[id] = 0;
         }}
         visibleMediaIdsRef={previewRuntime.visibleMediaIdsRef}
+        visibleMediaVersion={previewRuntime.visibleMediaVersion}
         surface={surface}
         densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
         preferVisualMediaFirst={shouldPreferVisualMediaFirstOnRootAll}
@@ -770,6 +771,7 @@ export function EmbeddedMediaLibraryPanel({
       fixedVisualAspectRatio,
       visiblePromptRows,
       previewRuntime.visibleMediaIdsRef,
+      previewRuntime.visibleMediaVersion,
     ]
   );
 

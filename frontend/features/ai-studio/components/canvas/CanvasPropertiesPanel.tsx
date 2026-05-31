@@ -4,11 +4,21 @@
  */
 import React from "react";
 import { PushPinSimple } from "phosphor-react";
-import type { CanvasResizeHandle } from "./canvasTypes";
+import type { CanvasResizeHandle, CanvasSceneItem } from "./canvasTypes";
 import type { CanvasPropertiesPanelProps } from "./useAiStudioCanvasWorkspaceState";
 import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { CanvasAudioCard } from "./CanvasAudioCard";
 import { CANVAS_TEXT_ITEM_MIN_HEIGHT } from "./canvasGeometry";
+
+const resolveCanvasMediaErrorKey = (item: CanvasSceneItem): string | null => {
+  if (item.kind === "image") {
+    return `${item.id}:image:${item.src}`;
+  }
+  if (item.kind === "video") {
+    return `${item.id}:video:${item.videoUrl}:${item.posterUrl ?? ""}`;
+  }
+  return null;
+};
 
 /**
  * Renders the Canvas workspace UI and delegates all state changes to the page-owned controller.
@@ -58,6 +68,50 @@ export function CanvasPropertiesPanel({
   onTextItemEditBlur,
 }: CanvasPropertiesPanelProps) {
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
+  const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
+
+  const markCanvasMediaError = React.useCallback((errorKey: string | null) => {
+    if (!errorKey) return;
+    setMediaErrorKeys((current) => {
+      if (current.has(errorKey)) return current;
+      const next = new Set(current);
+      next.add(errorKey);
+      return next;
+    });
+  }, []);
+
+  const clearCanvasMediaError = React.useCallback((errorKey: string | null) => {
+    if (!errorKey) return;
+    setMediaErrorKeys((current) => {
+      if (!current.has(errorKey)) return current;
+      const next = new Set(current);
+      next.delete(errorKey);
+      return next;
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const currentMediaKeys = new Set<string>();
+    items.forEach((item) => {
+      const errorKey = resolveCanvasMediaErrorKey(item);
+      if (errorKey) {
+        currentMediaKeys.add(errorKey);
+      }
+    });
+    setMediaErrorKeys((current) => {
+      let changed = false;
+      const next = new Set<string>();
+      current.forEach((errorKey) => {
+        if (currentMediaKeys.has(errorKey)) {
+          next.add(errorKey);
+          return;
+        }
+        changed = true;
+      });
+      return changed ? next : current;
+    });
+  }, [items]);
+
   React.useEffect(() => {
     if (instanceId !== "rail") return;
     const viewportNode = viewportRef.current;
@@ -145,10 +199,12 @@ export function CanvasPropertiesPanel({
             const isEditingTextItem = item.kind === "text" && editingTextItemId === item.id;
             const showTextResizeHandles =
               isTextResizeEnabled && item.kind === "text" && item.selected && !isEditingTextItem;
+            const mediaErrorKey = resolveCanvasMediaErrorKey(item);
+            const hasMediaError = mediaErrorKey ? mediaErrorKeys.has(mediaErrorKey) : false;
             return (
               <article
                 key={item.id}
-                className={`canvas-scene-item canvas-scene-item--${item.kind}${item.selected ? " is-selected" : ""}`}
+                className={`canvas-scene-item canvas-scene-item--${item.kind}${item.selected ? " is-selected" : ""}${hasMediaError ? " is-media-unavailable" : ""}`}
                 data-testid={`canvas-item-${item.id}`}
                 data-kind={item.kind}
                 data-selected={item.selected ? "true" : "false"}
@@ -209,13 +265,19 @@ export function CanvasPropertiesPanel({
                   event.stopPropagation();
                 }}
               >
-                {item.kind === "image" ? (
+                {hasMediaError ? (
+                  <div className="canvas-scene-item__media-unavailable" role="status">
+                    <span>Media unavailable</span>
+                  </div>
+                ) : item.kind === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     className="canvas-scene-item__image"
                     src={item.src}
                     alt={item.alt}
                     draggable={false}
+                    onLoad={() => clearCanvasMediaError(mediaErrorKey)}
+                    onError={() => markCanvasMediaError(mediaErrorKey)}
                   />
                 ) : item.kind === "video" ? (
                   <>
@@ -230,6 +292,8 @@ export function CanvasPropertiesPanel({
                       playsInline
                       autoPlay
                       preload="metadata"
+                      onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
+                      onError={() => markCanvasMediaError(mediaErrorKey)}
                     />
                     <MediaDurationBadge
                       className="canvas-scene-item__media-duration"

@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
+  isOpenAiGptImage2Size,
   type OpenAiImage2Quality,
   type OpenAiImage2Size,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
@@ -65,10 +66,7 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
 
 const normalizeSize = (value: unknown): OpenAiImage2Size | null => {
   const normalized = normalizeRequiredString(value)?.toLowerCase();
-  if (normalized === "1024x1024" || normalized === "1024x1536" || normalized === "1536x1024") {
-    return normalized;
-  }
-  return null;
+  return normalized && isOpenAiGptImage2Size(normalized) ? normalized : null;
 };
 
 const normalizeQuality = (value: unknown): OpenAiImage2Quality | null => {

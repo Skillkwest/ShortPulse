@@ -931,6 +931,112 @@ describe("generatedMediaAuthority", () => {
     ]);
   });
 
+  it("hydrates published media dimensions onto generated outputs", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-visible-image-1",
+          request_id: "req-visible-image-1",
+          source_ref: "source-visible-image-1",
+          provider: "openai",
+          model_id: "gpt-image-2",
+          display_prompt: "Editorial product still",
+          transcript_text: null,
+          preview_url: "https://openai.test/preview.png",
+          result_urls: ["https://openai.test/full.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {
+            aspect: "16:9",
+          },
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-05-30T19:40:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-visible-image-1",
+          owned_media_file_id: "media-image-1",
+          created_at: "2026-05-30T19:40:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaFileBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-image-1",
+          preview_storage_path: "user-1/generated/preview.png",
+          storage_path: "user-1/generated/full.png",
+          filename: "preview.png",
+          file_type: "image/png",
+          thumb_variant_path: "user-1/generated/thumb.png",
+          poster_variant_path: null,
+          preview_variant_path: null,
+          width: 1792,
+          height: 1008,
+          metadata: {
+            width: 1792,
+            height: 1008,
+          },
+        },
+      ],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaFileBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-visible-image-1",
+        generationId: "gen-visible-image-1",
+        mode: "image",
+        width: 1792,
+        height: 1008,
+        previewStoragePath: "user-1/generated/thumb.png",
+        fullStoragePath: "user-1/generated/full.png",
+      }),
+    ]);
+  });
+
   it("orders generated outputs newest-first by generation recency instead of projection updated_at", async () => {
     const projectionBuilder = createAwaitableSelectBuilder({
       data: [

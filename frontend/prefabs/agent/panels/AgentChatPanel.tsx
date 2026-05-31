@@ -82,11 +82,13 @@ const createPromptDragGhost = (source: HTMLElement) => {
   };
 };
 
-export type AgentAssistantMessageContentProps = {
+export type AgentMessageContentProps = {
   message: AgentMessage;
   messageId: string;
   textRef: (node: HTMLElement | null) => void;
 };
+
+export type AgentAssistantMessageContentProps = AgentMessageContentProps;
 
 export type AgentChatPanelProps = {
   messages: AgentMessage[];
@@ -110,6 +112,7 @@ export type AgentChatPanelProps = {
   showClearAttachmentsButton?: boolean;
   assistantMessageClassName?: string;
   AssistantMessageContent?: React.ComponentType<AgentAssistantMessageContentProps>;
+  UserMessageContent?: React.ComponentType<AgentMessageContentProps>;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onMessageClick?: (message: AgentMessage) => void;
@@ -151,6 +154,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   showClearAttachmentsButton = false,
   assistantMessageClassName,
   AssistantMessageContent,
+  UserMessageContent,
   onInputChange,
   onSend,
   onMessageClick,
@@ -766,7 +770,9 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                           </div>
                         ) : null}
                         {hasMessageContent ? (
-                          message.role === "assistant" && AssistantMessageContent ? (
+                          message.role === "assistant" &&
+                          AssistantMessageContent &&
+                          !assistantPromptText ? (
                             <div
                               className={
                                 shouldUsePromptDragSurface
@@ -792,6 +798,12 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                                 }
                               />
                             </div>
+                          ) : message.role === "user" && UserMessageContent ? (
+                            <UserMessageContent
+                              message={message}
+                              messageId={resolvedMessageId}
+                              textRef={() => {}}
+                            />
                           ) : (
                             <div
                               className={

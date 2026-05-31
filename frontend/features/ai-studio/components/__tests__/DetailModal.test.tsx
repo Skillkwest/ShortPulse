@@ -708,6 +708,56 @@ describe("DetailModal", () => {
     expect(loadedImage?.getAttribute("src")).toBe("https://cdn.test/actual-3x2.png");
   });
 
+  it("updates the displayed aspect label from the actual loaded image dimensions", async () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          aspect: "16:9",
+          previewUrl: "https://cdn.test/actual-3x2-label.png",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    if (!image) return;
+
+    Object.defineProperty(image, "naturalWidth", { configurable: true, value: 1536 });
+    Object.defineProperty(image, "naturalHeight", { configurable: true, value: 1024 });
+    fireEvent.load(image);
+
+    await waitFor(() => {
+      const headerPill = baseElement.querySelector(".art-modal-meta-pill");
+      expect(headerPill?.textContent).toContain("3:2");
+      expect(headerPill?.textContent).not.toContain("16:9");
+    });
+  });
+
+  it("prefers hydrated output dimensions for the displayed aspect before the image loads", () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          aspect: "3:2",
+          width: 1792,
+          height: 1008,
+          previewUrl: "https://cdn.test/exact-16x9.png",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent).toContain("16:9");
+    expect(headerPill?.textContent).not.toContain("3:2");
+  });
+
   it("keeps the active loaded URL stable when same-output delivery candidates are reordered", async () => {
     const initialOutput = {
       ...baseOutput,
@@ -940,6 +990,70 @@ describe("DetailModal", () => {
     await waitFor(() => {
       expect(baseElement.querySelector(".art-hero-image")).toBeNull();
       expect(screen.getByText("Media unavailable.")).toBeInTheDocument();
+    });
+  });
+
+  it("advances detail video media to the next preview candidate after render failure", async () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "video",
+          previewUrl: "https://cdn.test/stale-signed-video.mp4",
+          resultUrls: [
+            "https://cdn.test/stale-signed-video.mp4",
+            "https://cdn.test/recovered-video.mp4",
+          ],
+          mimeType: "video/mp4",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const video = baseElement.querySelector("video.art-hero-image") as HTMLVideoElement | null;
+    expect(video).not.toBeNull();
+    fireEvent.error(video as HTMLVideoElement);
+
+    await waitFor(() => {
+      const recoveredVideo = baseElement.querySelector(
+        "video.art-hero-image"
+      ) as HTMLVideoElement | null;
+      expect(recoveredVideo?.getAttribute("src")).toBe("https://cdn.test/recovered-video.mp4");
+      expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
+    });
+  });
+
+  it("advances detail audio media to the next preview candidate after render failure", async () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "audio",
+          previewUrl: "https://cdn.test/stale-signed-audio.mp3",
+          resultUrls: [
+            "https://cdn.test/stale-signed-audio.mp3",
+            "https://cdn.test/recovered-audio.mp3",
+          ],
+          mimeType: "audio/mpeg",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const audio = baseElement.querySelector("audio.art-hero-audio") as HTMLAudioElement | null;
+    expect(audio).not.toBeNull();
+    fireEvent.error(audio as HTMLAudioElement);
+
+    await waitFor(() => {
+      const recoveredAudio = baseElement.querySelector(
+        "audio.art-hero-audio"
+      ) as HTMLAudioElement | null;
+      expect(recoveredAudio?.getAttribute("src")).toBe("https://cdn.test/recovered-audio.mp3");
+      expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
     });
   });
 

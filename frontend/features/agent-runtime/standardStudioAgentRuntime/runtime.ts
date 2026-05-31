@@ -56,6 +56,12 @@ const STANDARD_TELEMETRY_PATH = "standard_agent";
 const STANDARD_EXTENDED_TEXT_TIMEOUT_CHAR_THRESHOLD = 2500;
 const STANDARD_MAX_PROMPT_REFERENCE_SNIPPETS = 8;
 const STANDARD_PROMPT_REFERENCE_SNIPPET_MAX_CHARS = 320;
+const STANDARD_RESPONSE_STYLE_GUIDANCE = [
+  "Standard response formatting rules:",
+  "- For ordinary replies, prefer short paragraphs, bullets or numbered lists when helpful, and brief section labels only when they genuinely improve scanning.",
+  "- Do not flatten helpful structure into a dense text wall.",
+  "- If the user asks for a final usable prompt, final generation prompt, or direct prompt artifact, return that prompt as one plain text block paragraph with no bullets, headings, or outline formatting.",
+].join("\n");
 
 type StandardOpenAiImageDetail = "high" | "auto";
 
@@ -132,9 +138,10 @@ const buildStandardOpenAiMessages = ({
     };
   });
   const normalizedSystemPrompt = typeof systemPrompt === "string" ? systemPrompt.trim() : "";
-  return normalizedSystemPrompt.length > 0
-    ? [{ role: "system", content: normalizedSystemPrompt }, ...conversationMessages]
-    : conversationMessages;
+  const effectiveSystemPrompt = normalizedSystemPrompt.length
+    ? `${normalizedSystemPrompt}\n\n${STANDARD_RESPONSE_STYLE_GUIDANCE}`
+    : STANDARD_RESPONSE_STYLE_GUIDANCE;
+  return [{ role: "system", content: effectiveSystemPrompt }, ...conversationMessages];
 };
 
 const clipStandardPromptReferenceSnippet = (value?: string | null): string | null => {

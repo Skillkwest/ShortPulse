@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
@@ -634,6 +634,71 @@ describe("useReferenceGridCardRenderController", () => {
       container.querySelector(".reference-card")?.classList.contains("has-contain-preview")
     ).toBe(true);
     expect(container.querySelector(".reference-card-image--contain")).not.toBeNull();
+  });
+
+  it("passes hydrated image dimensions through composer drag artifacts", () => {
+    const output = createOutput({
+      id: "image-dimensions-1",
+      mode: "image",
+      previewUrl: "https://signed.test/reference-image.png",
+      previewStoragePath: "user-1/variants/images/image-1/preview.png",
+      fullStoragePath: "user-1/generations/images/image-1.png",
+      width: 1536,
+      height: 1024,
+    });
+    const onCardDragStart = vi.fn();
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: "https://signed.test/reference-image.png",
+      dragDisplayArtifactUrl: "blob:reference-image-card-artifact",
+      dragDisplayArtifactKind: "blob" as const,
+      isVideoPreview: false,
+      isImagePreview: true,
+      isPriorityHydration: true,
+      imageSrc: "https://signed.test/reference-image.png",
+    };
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: "some-other-output",
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 2,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart,
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+      })
+    );
+
+    const { container } = render(<>{result.current.allRefsCardNodes}</>);
+    const card = container.querySelector(".reference-card") as HTMLElement | null;
+    expect(card).not.toBeNull();
+    fireEvent.dragStart(card as HTMLElement);
+
+    expect(onCardDragStart.mock.calls[0]?.[3]).toMatchObject({
+      displayArtifactUrl: "blob:reference-image-card-artifact",
+      width: 1536,
+      height: 1024,
+    });
   });
 
   it("uses signed full video result urls as the hover source for poster-backed video cards", () => {

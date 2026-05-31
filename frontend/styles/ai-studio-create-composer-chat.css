@@ -609,8 +609,77 @@
 
 .create-composer-panel .create-composer-prompt-step .agent-message.agent-user,
 .create-composer-panel .create-composer-prompt-step .agent-message.agent-user p,
-.create-composer-panel .create-composer-prompt-step .agent-message.agent-user .tiny {
+.create-composer-panel .create-composer-prompt-step .agent-message.agent-user .tiny,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-heading,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-paragraph,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-hint,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-reply-intro,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-choice-chip,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-list,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-option-title,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-option-description {
   color: rgba(192, 202, 217, 0.82) !important;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-body {
+  gap: 10px;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-paragraph,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-list,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-option-description {
+  font-size: 13px;
+  line-height: 1.66;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-heading--level-1 {
+  font-size: 18px;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-user
+  .agent-message-rich-heading--level-2 {
+  font-size: 16px;
 }
 
 .create-composer-panel
@@ -688,6 +757,30 @@
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided)
+  .agent-message-rich-body,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided)
+  .agent-message-rich-hint,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided)
+  .agent-message-rich-choice-chip,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided)
+  .agent-message-rich-option-card,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided)
   .agent-message-edit-input {
   margin: 0;
   min-width: 0;
@@ -722,6 +815,18 @@
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided):hover
+  .agent-message-rich-body,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided):focus-within
+  .agent-message-rich-body,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided):hover
   .agent-message-edit-input,
 .create-composer-panel
   .create-composer-prompt-step
@@ -730,6 +835,117 @@
   ):not(.agent-message--pulse-guided):focus-within
   .agent-message-edit-input {
   border-color: rgba(94, 216, 252, 0.18);
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-body {
+  gap: 12px;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-heading,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-paragraph,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-hint,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-reply-intro,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-choice-chip,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-list,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-option-title,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-option-description {
+  color: #25a9bf !important;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-paragraph,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-list,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-option-description {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.72;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-heading--level-1 {
+  font-size: 20px;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-heading--level-2 {
+  font-size: 17px;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  )
+  .agent-message-rich-hint {
+  border-color: rgba(94, 216, 252, 0.12);
+  background: rgba(37, 169, 191, 0.06);
 }
 
 .create-composer-panel

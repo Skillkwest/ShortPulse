@@ -83,6 +83,16 @@ export function MediaLibraryPanelPreviewModal({
     onPreviewError?.(file, normalizedPreviewUrl);
   }, [file, normalizedPreviewUrl, onPreviewError]);
 
+  const handleVideoPreviewError = React.useCallback(() => {
+    videoPlayback.handleError();
+    handlePreviewError();
+  }, [handlePreviewError, videoPlayback]);
+
+  const handleAudioPreviewError = React.useCallback(() => {
+    audioPlayback.handleError();
+    handlePreviewError();
+  }, [audioPlayback, handlePreviewError]);
+
   if (!file) return null;
 
   return (
@@ -128,7 +138,7 @@ export function MediaLibraryPanelPreviewModal({
                 onPlay={videoPlayback.handlePlay}
                 onPause={videoPlayback.handlePause}
                 onEnded={videoPlayback.handleEnded}
-                onError={videoPlayback.handleError}
+                onError={handleVideoPreviewError}
                 onVolumeChange={videoPlayback.handleVolumeChange}
               />
             ) : null}
@@ -142,7 +152,7 @@ export function MediaLibraryPanelPreviewModal({
                 onPlay={audioPlayback.handlePlay}
                 onPause={audioPlayback.handlePause}
                 onEnded={audioPlayback.handleEnded}
-                onError={audioPlayback.handleError}
+                onError={handleAudioPreviewError}
                 onVolumeChange={audioPlayback.handleVolumeChange}
               />
             ) : null}

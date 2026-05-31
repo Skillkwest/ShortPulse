@@ -225,6 +225,18 @@ export const useReferenceGridCardRenderController = ({
               fullStoragePath: currentOutput.fullStoragePath?.trim() || null,
               referenceUrl: null,
               mimeType: currentOutput.mimeType?.trim() || null,
+              width:
+                typeof currentOutput.width === "number" &&
+                Number.isFinite(currentOutput.width) &&
+                currentOutput.width > 0
+                  ? Math.max(1, Math.round(currentOutput.width))
+                  : undefined,
+              height:
+                typeof currentOutput.height === "number" &&
+                Number.isFinite(currentOutput.height) &&
+                currentOutput.height > 0
+                  ? Math.max(1, Math.round(currentOutput.height))
+                  : undefined,
             }
           : null;
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;

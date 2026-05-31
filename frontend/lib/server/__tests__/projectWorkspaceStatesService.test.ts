@@ -24,7 +24,6 @@ const PROMPT_ID_1 = "33333333-3333-4333-8333-333333333333";
 const GENERATION_ID_1 = "44444444-4444-4444-8444-444444444444";
 const GENERATION_ID_2 = "55555555-5555-4555-8555-555555555555";
 const MEDIA_VIDEO_ID_1 = "66666666-6666-4666-8666-666666666666";
-const MEDIA_VIDEO_ID_2 = "77777777-7777-4777-8777-777777777777";
 
 type SupabaseMockOptions = {
   workspaceSnapshot?: Record<string, unknown>;
@@ -37,6 +36,7 @@ type SupabaseMockOptions = {
   mediaAssociationError?: string;
   promptAssociationError?: string;
   generationAssociationError?: string;
+  generationReadError?: string;
   publicationError?: string;
   mediaRowReadError?: string;
   workspaceUpsertError?: string;
@@ -69,6 +69,7 @@ const createSupabaseMock = ({
   mediaAssociationError,
   promptAssociationError,
   generationAssociationError,
+  generationReadError,
   publicationError,
   mediaRowReadError,
   workspaceUpsertError,
@@ -119,8 +120,10 @@ const createSupabaseMock = ({
     })),
   }));
   const generationIdInMock = vi.fn(async (_column: string, ids: string[]) => ({
-    data: ids.filter((id) => id === GENERATION_ID_1).map((id) => ({ id })),
-    error: null,
+    data: generationReadError
+      ? null
+      : ids.filter((id) => id === GENERATION_ID_1).map((id) => ({ id })),
+    error: generationReadError ? { message: generationReadError } : null,
   }));
   const generationSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
@@ -1366,7 +1369,7 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
-  it("refreshes generated outputs from project-associated generations on workspace read", async () => {
+  it("returns the sanitized saved snapshot without blocking on generated-output enrichment", async () => {
     createSupabaseMock();
 
     const result = await getProjectWorkspaceStateForUser({
@@ -1394,14 +1397,8 @@ describe("projectWorkspaceStatesService", () => {
             {
               id: "out-1",
               generationId: GENERATION_ID_1,
-              previewUrl: "https://cdn.example.com/project-output.png",
-              resultUrls: ["https://cdn.example.com/project-output.png"],
-              previewStoragePath: "user-1/generated/project-output-preview.png",
-              fullStoragePath: "user-1/generated/project-output-full.png",
-              taskId: "task-1",
-              taskState: "success",
-              queueState: "dispatched",
-              prompt: "Server prompt",
+              previewUrl: "https://expired.example.com/old.png",
+              resultUrls: ["https://expired.example.com/old.png"],
             },
           ],
           archived: [],
@@ -1475,10 +1472,10 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
-  it("returns the sanitized base workspace when read-time enrichment fails", async () => {
+  it("returns the shape-sanitized workspace when read-time ownership sanitization fails", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     createSupabaseMock({
-      projectionLimitError: "projection unavailable",
+      generationReadError: "generation ownership unavailable",
     });
 
     try {
@@ -1508,32 +1505,33 @@ describe("projectWorkspaceStatesService", () => {
                 id: "out-1",
                 generationId: GENERATION_ID_1,
               },
+              {
+                id: "out-2",
+                generationId: GENERATION_ID_2,
+              },
             ],
             archived: [],
           },
         },
       });
-      expect(result?.snapshot.outputs).not.toMatchObject({
-        active: [expect.objectContaining({ id: "out-2" })],
-      });
       expect(result?.snapshot.agentRuntimes).toBeDefined();
       expect(warnSpy).toHaveBeenCalledWith(
-        "[project-workspace] read enrichment failed; returning sanitized snapshot",
+        "[project-workspace] read sanitization failed; returning shape-sanitized snapshot",
         expect.objectContaining({
           projectId: "project-1",
-          error: "projection unavailable",
+          error: "generation ownership unavailable",
         })
       );
       expect(writeAppErrorLogMock).toHaveBeenCalledWith({
-        source: "telemetry.ai_studio.project_workspace.read_enrichment_fallback",
+        source: "telemetry.ai_studio.project_workspace.read_sanitization_fallback",
         message:
-          "Project workspace read enrichment fell back to the sanitized snapshot after an enrichment failure.",
+          "Project workspace read fell back to the shape-sanitized snapshot after ownership sanitization failed.",
         userId: "user-1",
         statusCode: 200,
         metadata: {
           project_id: "project-1",
-          fallback_stage: "read_enrichment",
-          error: "projection unavailable",
+          fallback_stage: "read_sanitization",
+          error: "generation ownership unavailable",
         },
       });
     } finally {
@@ -1607,7 +1605,7 @@ describe("projectWorkspaceStatesService", () => {
     expect(restoredRow).not.toHaveProperty("previewPosterStoragePath");
   });
 
-  it("preserves settled non-generated refs when project workspace reads refresh generated outputs", async () => {
+  it("preserves settled non-generated refs while leaving generated delivery refresh async", async () => {
     createSupabaseMock({
       workspaceSnapshot: {
         schemaVersion: 2,
@@ -1666,7 +1664,7 @@ describe("projectWorkspaceStatesService", () => {
       active: [
         expect.objectContaining({
           id: "generated-1",
-          previewUrl: "https://cdn.example.com/project-output.png",
+          previewUrl: "https://expired.example.com/generated.png",
         }),
         expect.objectContaining({
           id: "library-1",
@@ -1683,105 +1681,7 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
-  it("hydrates restored project video outputs with poster storage from saved media rows", async () => {
-    createSupabaseMock({
-      workspaceSnapshot: {
-        schemaVersion: 2,
-        sessionId: "session-1",
-        updatedAt: "2026-04-23T01:00:00.000Z",
-        meta: {
-          generatedAt: "2026-04-23T01:00:00.000Z",
-          checksum: "fnv1a32:video",
-        },
-        outputs: {
-          active: [
-            {
-              id: "out-1",
-              generationId: GENERATION_ID_1,
-              mode: "video",
-              previewUrl: "https://cdn.example.com/generated-video.mp4",
-              resultUrls: ["https://cdn.example.com/generated-video.mp4"],
-            },
-          ],
-          archived: [],
-          activeOutputId: null,
-          curatedReferenceIds: [],
-          removedFromAllRefsIds: [],
-        },
-        agent: {
-          messages: [],
-          input: "",
-          latestAgentPrompt: null,
-          promptOrigin: "manual",
-          chatModeEnabled: false,
-          pulseWorkflowSession: null,
-        },
-      },
-      projectionRows: [
-        {
-          generation_id: GENERATION_ID_1,
-          request_id: "task-1",
-          preview_url: "https://cdn.example.com/generated-video.mp4",
-          result_urls: ["https://cdn.example.com/generated-video.mp4"],
-          saved_media_ids: [MEDIA_VIDEO_ID_1],
-          preview_storage_path: null,
-          full_storage_path: null,
-          task_state: "success",
-          queue_state: "dispatched",
-          display_prompt: "Restored video",
-          provider: "kie",
-          model_id: "kie-ai/seedance-2-fast",
-          hidden_in_reference_grid: false,
-          reference_grid_visible: true,
-        },
-      ],
-      publicationRows: [
-        {
-          generation_id: GENERATION_ID_1,
-          owned_media_file_id: MEDIA_VIDEO_ID_1,
-          preview_storage_path: null,
-          full_storage_path: null,
-          publication_state: "published",
-          created_at: "2026-04-23T01:00:00.000Z",
-        },
-      ],
-      mediaRows: [
-        {
-          id: MEDIA_VIDEO_ID_1,
-          file_type: "video",
-          storage_path: "user-1/generations/videos/restored-video.mp4",
-          preview_storage_path: null,
-          poster_variant_path: "user-1/variants/videos/restored-video/poster_720.jpg",
-          thumb_variant_path: null,
-          preview_variant_path: null,
-        },
-      ],
-    });
-
-    const result = await getProjectWorkspaceStateForUser({
-      userId: "user-1",
-      projectId: "project-1",
-    });
-
-    expect(result?.snapshot.outputs).toMatchObject({
-      active: [
-        {
-          id: "out-1",
-          generationId: GENERATION_ID_1,
-          mode: "video",
-          previewPosterStoragePath: "user-1/variants/videos/restored-video/poster_720.jpg",
-          previewStoragePath: "user-1/generations/videos/restored-video.mp4",
-          fullStoragePath: "user-1/generations/videos/restored-video.mp4",
-          taskId: "task-1",
-          taskState: "success",
-          queueState: "dispatched",
-          prompt: "Restored video",
-        },
-      ],
-    });
-  });
-
-  it("appends project-associated generated outputs that are absent from the workspace snapshot", async () => {
+  it("does not append project-associated generated outputs during workspace read", async () => {
     createSupabaseMock({
       workspaceSnapshot: {
         schemaVersion: 2,
@@ -1808,45 +1708,6 @@ describe("projectWorkspaceStatesService", () => {
         },
       },
       recentGenerationIds: [GENERATION_ID_2],
-      projectionRows: [
-        {
-          generation_id: GENERATION_ID_2,
-          request_id: "task-2",
-          preview_url: "https://cdn.example.com/generated-video.mp4",
-          result_urls: ["https://cdn.example.com/generated-video.mp4"],
-          saved_media_ids: [MEDIA_VIDEO_ID_2],
-          preview_storage_path: null,
-          full_storage_path: null,
-          task_state: "success",
-          queue_state: "dispatched",
-          display_prompt: "Recovered video",
-          provider: "kie",
-          model_id: "kie-ai/seedance-2-fast",
-          hidden_in_reference_grid: false,
-          reference_grid_visible: true,
-        },
-      ],
-      publicationRows: [
-        {
-          generation_id: GENERATION_ID_2,
-          owned_media_file_id: MEDIA_VIDEO_ID_2,
-          preview_storage_path: null,
-          full_storage_path: null,
-          publication_state: "published",
-          created_at: "2026-04-23T01:00:00.000Z",
-        },
-      ],
-      mediaRows: [
-        {
-          id: MEDIA_VIDEO_ID_2,
-          file_type: "video",
-          storage_path: "user-1/generations/videos/generated-video.mp4",
-          preview_storage_path: null,
-          poster_variant_path: "user-1/variants/videos/generated-video/poster_720.jpg",
-          thumb_variant_path: null,
-          preview_variant_path: null,
-        },
-      ],
     });
 
     const result = await getProjectWorkspaceStateForUser({
@@ -1855,29 +1716,12 @@ describe("projectWorkspaceStatesService", () => {
     });
 
     expect(result?.snapshot.outputs).toMatchObject({
-      active: [
-        {
-          id: `generated:${GENERATION_ID_2}`,
-          generationId: GENERATION_ID_2,
-          taskId: "task-2",
-          taskState: "success",
-          queueState: "dispatched",
-          mode: "video",
-          modelId: "kie-ai/seedance-2-fast",
-          mediaSource: "generated",
-          previewTier: "preview_loop",
-          previewUrl: "https://cdn.example.com/generated-video.mp4",
-          resultUrls: ["https://cdn.example.com/generated-video.mp4"],
-          previewPosterStoragePath: "user-1/variants/videos/generated-video/poster_720.jpg",
-          previewStoragePath: "user-1/generations/videos/generated-video.mp4",
-          fullStoragePath: "user-1/generations/videos/generated-video.mp4",
-        },
-      ],
+      active: [],
       archived: [],
     });
   });
 
-  it("does not append failed project-associated generations into active outputs", async () => {
+  it("does not use project-associated failed generations during workspace read", async () => {
     createSupabaseMock({
       workspaceSnapshot: {
         schemaVersion: 2,
@@ -1937,7 +1781,7 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
-  it("drops existing snapshot rows when the associated project generation is suppressed", async () => {
+  it("drops existing snapshot rows with malformed generation ids during workspace read", async () => {
     createSupabaseMock({
       workspaceSnapshot: {
         schemaVersion: 2,

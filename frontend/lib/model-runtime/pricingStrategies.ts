@@ -5,8 +5,8 @@ import { getModelConfig } from "./modelRegistry";
 import { resolveAspectSize } from "./modelSizes";
 import {
   OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD,
-  OPENAI_GPT_IMAGE_2_DEFAULT_SIZE,
   OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS,
+  type OpenAiImage2Quality,
   resolveOpenAiGptImage2InputImageUsd,
   normalizeOpenAiGptImage2Quality,
   normalizeOpenAiGptImage2InputFidelity,
@@ -183,9 +183,7 @@ const resolveGptImage2Size = (
   return resolveOpenAiGptImage2SizeForAspect(params.aspect);
 };
 
-const resolveGptImage2Quality = (
-  params: Omit<PricingParams, "modelId">
-): keyof (typeof OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD)[typeof OPENAI_GPT_IMAGE_2_DEFAULT_SIZE] => {
+const resolveGptImage2Quality = (params: Omit<PricingParams, "modelId">): OpenAiImage2Quality => {
   return normalizeOpenAiGptImage2Quality(params.quality ?? params.resolution);
 };
 

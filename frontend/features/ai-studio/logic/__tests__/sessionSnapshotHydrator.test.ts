@@ -105,6 +105,29 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.expertEdit).toBeNull();
   });
 
+  it("restores persisted output dimensions from the session snapshot", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              ...createSnapshot().outputs.active[0],
+              width: 1792,
+              height: 1008,
+            },
+          ],
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]).toMatchObject({
+      id: "out-1",
+      width: 1792,
+      height: 1008,
+    });
+  });
+
   it("normalizes legacy image attachments into one restored preview url", () => {
     const payload = buildAiStudioSessionHydrationPayload({
       ...createSnapshot(),

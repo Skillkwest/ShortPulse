@@ -3,6 +3,11 @@
  * Keeps per-model option labeling, clamping, and normalization in one place.
  */
 import { getModelConfig } from "./modelRegistry";
+import {
+  normalizeOpenAiGptImage2ResolutionPreset,
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
+  OPENAI_GPT_IMAGE_2_UI_ALLOWED_RESOLUTIONS,
+} from "../../../lib/model-runtime/openAiImage2";
 
 export const MODEL_DEFAULT_IMAGE_RESOLUTION = "model_default";
 export const SEEDREAM_AUTO_2K_IMAGE_SIZE = "auto_2K";
@@ -30,6 +35,12 @@ export const formatImageResolutionLabel = (value: string): string => {
 };
 
 export const getImageResolutionOptions = (modelId: string | null): ImageResolutionOption[] => {
+  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+    return OPENAI_GPT_IMAGE_2_UI_ALLOWED_RESOLUTIONS.map((value) => ({
+      value,
+      label: formatImageResolutionLabel(value),
+    }));
+  }
   const config = modelId ? getModelConfig(modelId) : null;
   const values = config?.allowedResolutions?.length
     ? config.allowedResolutions
@@ -39,9 +50,12 @@ export const getImageResolutionOptions = (modelId: string | null): ImageResoluti
 
 const getImageResolutionPriority = (value: string): number => {
   const normalized = value.trim().toLowerCase();
+  if (normalized === "high") return 500;
   if (normalized === "auto_4k" || normalized === "4k") return 500;
+  if (normalized === "medium") return 400;
   if (normalized === "auto_3k" || normalized === "3k") return 450;
   if (normalized === "auto_2k" || normalized === "2k") return 400;
+  if (normalized === "low") return 200;
   if (normalized === "1080p") return 350;
   if (normalized === "720p") return 300;
   if (normalized === "1k") return 200;
@@ -77,6 +91,9 @@ export const clampImageResolutionForModel = (
   modelId: string | null,
   value: string | null | undefined
 ): string => {
+  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+    return normalizeOpenAiGptImage2ResolutionPreset(value);
+  }
   const config = modelId ? getModelConfig(modelId) : null;
   const allowed = config?.allowedResolutions;
   if (!allowed?.length) {
@@ -113,6 +130,9 @@ export const normalizeImageResolutionForPricing = (
 ): string | undefined => {
   if (!value || isModelDefaultImageResolution(value)) return undefined;
   const normalized = value.trim().toLowerCase();
+  if (normalized === "low") return "1K";
+  if (normalized === "medium") return "2K";
+  if (normalized === "high") return "4K";
   if (normalized === "auto_4k" || normalized === "4k") return "4K";
   if (normalized === "auto_3k" || normalized === "3k") return "3K";
   if (normalized === "auto_2k" || normalized === "2k") return "2K";
@@ -152,6 +172,9 @@ export const resolveImageResolutionLongestEdgePx = (
   if (!value) return null;
   const normalized = value.trim().toLowerCase();
   if (normalized === MODEL_DEFAULT_IMAGE_RESOLUTION) return null;
+  if (normalized === "low") return 1024;
+  if (normalized === "medium") return 2048;
+  if (normalized === "high") return 3840;
   if (normalized === "0.5k" || normalized === "0.5" || normalized === "half") return 512;
   if (normalized === "1k") return 1024;
   if (normalized === "auto_2k" || normalized === "2k") return 2048;

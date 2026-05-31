@@ -25,6 +25,11 @@ import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProv
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
+import {
+  parseAspectToken,
+  resolveClosestDisplayAspectToken,
+  resolveClosestDisplayAspectTokenFromDimensions,
+} from "../logic/displayAspectRatio";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { useExclusiveSoundMediaElement } from "./shared/exclusiveSoundPlayback";
 
@@ -345,17 +350,6 @@ function DetailModalContent({
   const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
     surfaceId: "detail-character-chip",
   });
-
-  const parseAspectRatio = useCallback((value?: string | null): number | null => {
-    if (!value || !value.includes(":")) return null;
-    const [wRaw, hRaw] = value.split(":");
-    const width = Number(wRaw);
-    const height = Number(hRaw);
-    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-      return null;
-    }
-    return width / height;
-  }, []);
 
   const outputId = output?.id ?? null;
   const resolvedDetailMedia = useMemo(() => {
@@ -679,11 +673,6 @@ function DetailModalContent({
   const isActiveVoiceChangerSourceVideo = Boolean(
     isVideoOutput && context?.activeVoiceChangerSourceVideo
   );
-  const displayAspect = context?.activeVoiceChangerSourceVideo?.aspect ?? output?.aspect ?? null;
-  const aspectStyle =
-    displayAspect && displayAspect.includes(":")
-      ? { aspectRatio: displayAspect.replace(":", " / ") }
-      : undefined;
   const imageNaturalSize =
     loadedImageNaturalSize &&
     outputId &&
@@ -703,14 +692,49 @@ function DetailModalContent({
     imagePanningByOutput && outputId && imagePanningByOutput.outputId === outputId
       ? imagePanningByOutput.value
       : false;
-  const outputAspectRatio = parseAspectRatio(displayAspect);
-  const previewAspectRatio =
+  const outputDimensionAspect =
+    !isActiveVoiceChangerSourceVideo && output
+      ? resolveClosestDisplayAspectTokenFromDimensions(output.width, output.height)
+      : null;
+  const outputWidth = typeof output.width === "number" && output.width > 0 ? output.width : null;
+  const outputHeight =
+    typeof output.height === "number" && output.height > 0 ? output.height : null;
+  const outputDimensionAspectRatio =
+    !isActiveVoiceChangerSourceVideo && outputWidth && outputHeight
+      ? outputWidth / outputHeight
+      : null;
+  const measuredPreviewAspectRatio =
     loadedPreviewAspect &&
     outputId &&
     loadedPreviewAspect.outputId === outputId &&
     loadedPreviewAspect.url === displayPreviewUrl
       ? loadedPreviewAspect.ratio
-      : outputAspectRatio;
+      : null;
+  const measuredPreviewAspect =
+    !isActiveVoiceChangerSourceVideo && imageNaturalSize
+      ? resolveClosestDisplayAspectTokenFromDimensions(
+          imageNaturalSize.width,
+          imageNaturalSize.height
+        )
+      : !isActiveVoiceChangerSourceVideo
+        ? resolveClosestDisplayAspectToken(measuredPreviewAspectRatio)
+        : null;
+  const displayAspect =
+    context?.activeVoiceChangerSourceVideo?.aspect ??
+    measuredPreviewAspect ??
+    outputDimensionAspect ??
+    output?.aspect ??
+    null;
+  const outputAspectRatio = parseAspectToken(displayAspect);
+  const previewAspectRatio = isActiveVoiceChangerSourceVideo
+    ? outputAspectRatio
+    : (measuredPreviewAspectRatio ?? outputDimensionAspectRatio ?? outputAspectRatio);
+  const aspectStyle =
+    previewAspectRatio && Number.isFinite(previewAspectRatio)
+      ? { aspectRatio: String(previewAspectRatio) }
+      : displayAspect && displayAspect.includes(":")
+        ? { aspectRatio: displayAspect.replace(":", " / ") }
+        : undefined;
   const displayPromptText =
     output?.generationReplay?.displayPrompt?.trim() ||
     output?.previewText?.trim() ||
@@ -820,6 +844,20 @@ function DetailModalContent({
     if (advanced) return;
     void refreshCanonicalPreviewCandidate();
   }, [refreshCanonicalPreviewCandidate, tryAdvancePreviewCandidate]);
+
+  const handleDetailVideoError = useCallback(() => {
+    videoPreviewPlayback.handleError();
+    const advanced = tryAdvancePreviewCandidate();
+    if (advanced) return;
+    void refreshCanonicalPreviewCandidate();
+  }, [refreshCanonicalPreviewCandidate, tryAdvancePreviewCandidate, videoPreviewPlayback]);
+
+  const handleDetailAudioError = useCallback(() => {
+    audioPreviewPlayback.handleError();
+    const advanced = tryAdvancePreviewCandidate();
+    if (advanced) return;
+    void refreshCanonicalPreviewCandidate();
+  }, [audioPreviewPlayback, refreshCanonicalPreviewCandidate, tryAdvancePreviewCandidate]);
 
   const refreshCharacterAvatar = useCallback(async () => {
     if (!outputId || !characterId) return null;
@@ -1488,7 +1526,7 @@ function DetailModalContent({
                         onPlay={videoPreviewPlayback.handlePlay}
                         onPause={videoPreviewPlayback.handlePause}
                         onEnded={videoPreviewPlayback.handleEnded}
-                        onError={videoPreviewPlayback.handleError}
+                        onError={handleDetailVideoError}
                         onVolumeChange={videoPreviewPlayback.handleVolumeChange}
                       />
                     ) : isAudioOutput ? (
@@ -1501,7 +1539,7 @@ function DetailModalContent({
                         onPlay={audioPreviewPlayback.handlePlay}
                         onPause={audioPreviewPlayback.handlePause}
                         onEnded={audioPreviewPlayback.handleEnded}
-                        onError={audioPreviewPlayback.handleError}
+                        onError={handleDetailAudioError}
                         onVolumeChange={audioPreviewPlayback.handleVolumeChange}
                       />
                     ) : (

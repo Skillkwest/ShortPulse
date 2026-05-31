@@ -8,6 +8,10 @@ import { clampImageResolutionForModel } from "../logic/imageResolution";
 import { CREATE_DEFAULT_MODEL_ID, EDIT_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
 import {
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
+  OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS,
+} from "../../../lib/model-runtime/openAiImage2";
+import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromFrameInputs,
 } from "../logic/referenceInputs";
@@ -161,11 +165,15 @@ export const useAiStudioStateEffects = ({
     if (hasPendingWorkflowRestore) return;
     if (!model) return;
     const config = getModelConfig(model);
-    if (!config?.allowedAspects?.length) return;
-    if (config.allowedAspects.includes(aspect)) return;
-    const fallbackAspect = config.allowedAspects.includes(config.defaultAspect)
-      ? config.defaultAspect
-      : config.allowedAspects[0];
+    const allowedAspects =
+      model === OPENAI_GPT_IMAGE_2_MODEL_ID
+        ? [...OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS]
+        : (config?.allowedAspects ?? []);
+    if (!allowedAspects.length) return;
+    if (allowedAspects.includes(aspect)) return;
+    const fallbackAspect = allowedAspects.includes(config?.defaultAspect ?? "")
+      ? config?.defaultAspect
+      : allowedAspects[0];
     if (fallbackAspect) {
       setAspect(fallbackAspect);
     }

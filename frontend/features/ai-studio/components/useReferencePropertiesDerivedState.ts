@@ -6,6 +6,10 @@ import type { AspectOption } from "../types";
 import { getModelConfig } from "../logic/modelRegistry";
 import { clampImageResolutionForModel, getImageResolutionOptions } from "../logic/imageResolution";
 import {
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
+  OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS,
+} from "../../../lib/model-runtime/openAiImage2";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -211,6 +215,13 @@ export const useReferencePropertiesDerivedState = ({
   }, [isVideoVariant, modelConfig]);
 
   const aspectOptionsForModel = useMemo(() => {
+    if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+      return aspectOptions.filter((option) =>
+        OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS.includes(
+          option.value as (typeof OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS)[number]
+        )
+      );
+    }
     if (!modelConfig) return aspectOptions;
     if (modelConfig.allowedAspects?.length) {
       return aspectOptions.filter((option) => modelConfig.allowedAspects?.includes(option.value));

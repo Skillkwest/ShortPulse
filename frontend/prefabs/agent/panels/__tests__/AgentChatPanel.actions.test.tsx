@@ -7,6 +7,7 @@ import path from "node:path";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PulseCreateChatPanel } from "../../../../features/ai-studio/components/promptStep/PulseCreateChatPanel";
+import { StandardCreateChatPanel } from "../../../../features/ai-studio/components/promptStep/StandardCreateChatPanel";
 import { AgentChatPanel } from "../AgentChatPanel";
 
 describe("AgentChatPanel prompt actions", () => {
@@ -308,6 +309,61 @@ describe("AgentChatPanel prompt actions", () => {
       "Pan - Rotates horizontally",
       "Dolly In - Moves camera closer",
     ]);
+  });
+
+  it("renders standard assistant and user messages with richer readable structure", () => {
+    const { container } = render(
+      <StandardCreateChatPanel
+        messages={[
+          {
+            id: "u-1",
+            role: "user",
+            content: "Project Notes:\n\n- Keep the tone hopeful\n- Focus on the reveal",
+          },
+          {
+            id: "a-1",
+            role: "assistant",
+            content:
+              "# Direction\n\nHere is the best next move.\n\n1. Lock the emotional tone\n2. Clarify the final reveal",
+          },
+        ]}
+        input=""
+        showInput={false}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Project Notes:")).toBeInTheDocument();
+    expect(screen.getByText("Keep the tone hopeful")).toBeInTheDocument();
+    expect(screen.getByText("Focus on the reveal")).toBeInTheDocument();
+    expect(screen.getByText("Direction")).toBeInTheDocument();
+    expect(container.querySelectorAll(".agent-message-rich-list li")).toHaveLength(4);
+  });
+
+  it("keeps final prompt artifacts on the plain text path even when standard rich rendering is enabled", () => {
+    const { container } = render(
+      <StandardCreateChatPanel
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Final prompt paragraph only.",
+            outputPrompt: "Final prompt paragraph only.",
+            canUseAsPrompt: true,
+          },
+        ]}
+        input=""
+        showInput={false}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Final prompt paragraph only.")).toBeInTheDocument();
+    expect(
+      container.querySelector(".agent-message--prompt-output .agent-message-rich-body")
+    ).toBeNull();
   });
 
   it("renders richer pulse-guided layouts with headings, reply chips, separators, and option cards", () => {

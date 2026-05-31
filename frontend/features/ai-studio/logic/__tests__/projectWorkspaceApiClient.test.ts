@@ -394,7 +394,7 @@ describe("projectWorkspaceApiClient", () => {
     });
   });
 
-  it("loads project identity from the lightweight project item route", async () => {
+  it("loads project identity from the existing project workspace bootstrap route", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -404,6 +404,7 @@ describe("projectWorkspaceApiClient", () => {
             createdAt: "2026-04-25T00:00:00.000Z",
             updatedAt: "2026-04-25T00:00:00.000Z",
           },
+          workspace: null,
         }),
         {
           status: 200,
@@ -425,7 +426,7 @@ describe("projectWorkspaceApiClient", () => {
       updatedAt: "2026-04-25T00:00:00.000Z",
     });
 
-    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1", {
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1/workspace", {
       method: "GET",
       shortpulseLogScope: "app",
       shortpulseAuthTimeoutMs: 5000,
@@ -433,11 +434,12 @@ describe("projectWorkspaceApiClient", () => {
     });
   });
 
-  it("maps project item auth failures to project-identity load messages", async () => {
+  it("maps project bootstrap auth failures to project-identity load messages", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
           error: "Unauthorized",
+          workspace: null,
         }),
         {
           status: 401,
@@ -454,7 +456,7 @@ describe("projectWorkspaceApiClient", () => {
       })
     ).rejects.toThrow("Session expired. Retry project load.");
 
-    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1", {
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1/workspace", {
       method: "GET",
       shortpulseLogScope: "app",
       shortpulseAuthTimeoutMs: 5000,
@@ -553,6 +555,82 @@ describe("projectWorkspaceApiClient", () => {
         },
       },
     ]);
+  });
+
+  it("shares one bootstrap request when project identity and workspace snapshot load together", async () => {
+    let resolveResponse: ((value: Response) => void) | null = null;
+    fetchWithAuthMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve as (value: Response) => void;
+        })
+    );
+
+    const identityPromise = getAiStudioProjectIdentityViaApi({
+      projectId: "project-1",
+    });
+    const workspacePromise = getAiStudioProjectWorkspaceSnapshotViaApi({
+      projectId: "project-1",
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1/workspace", {
+      method: "GET",
+      shortpulseLogScope: "app",
+      shortpulseAuthTimeoutMs: 5000,
+      shortpulseRetryNetworkOnce: true,
+    });
+
+    const pendingResolveResponse = resolveResponse as ((value: Response) => void) | null;
+    if (pendingResolveResponse) {
+      pendingResolveResponse(
+        new Response(
+          JSON.stringify({
+            project: {
+              id: "project-1",
+              title: "Project One",
+              createdAt: "2026-04-25T00:00:00.000Z",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+            workspace: {
+              projectId: "project-1",
+              schemaVersion: 2,
+              snapshot: {
+                schemaVersion: 2,
+                sessionId: "session-1",
+                updatedAt: "2026-04-25T00:00:00.000Z",
+              },
+              createdAt: "2026-04-25T00:00:00.000Z",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
+      );
+    }
+
+    await expect(identityPromise).resolves.toEqual({
+      id: "project-1",
+      title: "Project One",
+      createdAt: "2026-04-25T00:00:00.000Z",
+      updatedAt: "2026-04-25T00:00:00.000Z",
+    });
+    await expect(workspacePromise).resolves.toEqual({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-25T00:00:00.000Z",
+      },
+      createdAt: "2026-04-25T00:00:00.000Z",
+      updatedAt: "2026-04-25T00:00:00.000Z",
+    });
   });
 
   it("uses DELETE to reset the saved project workspace snapshot", async () => {

@@ -115,6 +115,49 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByAltText("Desktop file image")).toBeInTheDocument();
   });
 
+  it("shows controlled unavailable UI when canvas image media fails to render", async () => {
+    const resolveCanvasDropFiles = vi.fn(async () => [
+      {
+        kind: "image" as const,
+        outputId: null,
+        mediaId: "media-file-drop-1",
+        src: "https://example.com/file-drop.png",
+        alt: "Desktop file image",
+        width: 1280,
+        height: 720,
+      },
+    ]);
+
+    render(<CanvasHarness resolveCanvasDropFiles={resolveCanvasDropFiles} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const file = new File(["desktop"], "desktop-drop.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+
+    fireEvent.drop(viewport, {
+      dataTransfer: {
+        files,
+        types: ["Files"],
+        getData: () => "",
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer,
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const image = await screen.findByAltText("Desktop file image");
+    fireEvent.error(image);
+
+    expect(screen.queryByAltText("Desktop file image")).not.toBeInTheDocument();
+    expect(screen.getByText("Media unavailable")).toBeInTheDocument();
+  });
+
   it("routes media-library image drops through the async library-drop preparer when provided", async () => {
     const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
       if (payload.kind !== "libraryMedia") return null;
@@ -218,6 +261,35 @@ describe("Canvas drop behavior", () => {
       "poster",
       "https://example.com/library-video-poster.webp"
     );
+  });
+
+  it("shows controlled unavailable UI when canvas video media fails to render", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryMedia",
+        "text/shortpulse-media-library-id": "media-video-1",
+        "text/shortpulse-media-library-url": "https://example.com/library-video.mp4",
+        "text/shortpulse-media-library-file-type": "video",
+        "text/shortpulse-media-library-filename": "Library Video",
+        "text/shortpulse-media-library-preview-poster-url":
+          "https://example.com/library-video-poster.webp",
+        "text/shortpulse-media-library-width": "1920",
+        "text/shortpulse-media-library-height": "1080",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const video = (await screen.findByLabelText("Library Video")) as HTMLVideoElement;
+    fireEvent.error(video);
+
+    expect(screen.queryByLabelText("Library Video")).not.toBeInTheDocument();
+    expect(screen.getByText("Media unavailable")).toBeInTheDocument();
   });
 
   it("routes media-library prompt drops through the async library-drop preparer when provided", async () => {

@@ -10,6 +10,7 @@ import {
   type OpenAiImage2Size,
   OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
+  isOpenAiGptImage2Size,
 } from "../../../lib/model-runtime/openAiImage2";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -86,10 +87,7 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
 
 const normalizeSize = (value: unknown): OpenAiImage2Size | null => {
   const normalized = normalizeRequiredString(value)?.toLowerCase();
-  if (normalized === "1024x1024" || normalized === "1024x1536" || normalized === "1536x1024") {
-    return normalized;
-  }
-  return null;
+  return normalized && isOpenAiGptImage2Size(normalized) ? normalized : null;
 };
 
 const normalizeQuality = (value: unknown): OpenAiImage2Quality | null => {

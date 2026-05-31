@@ -56,15 +56,8 @@ export const classifyReferenceGridCardVisualState = ({
 }: ReferenceGridCardVisualInput): ReferenceGridCardVisualState => {
   const isFailing = isReferenceOutputFailing(item);
   const hasRenderablePreview = Boolean(cardPreviewUrl);
-  const hasRestoredRunningGeneratedPreview =
-    item.mediaSource === "generated" &&
-    item.taskState === "running" &&
-    item.status === "ready" &&
-    hasRenderablePreview;
   const hasLoadedGeneratedMedia =
-    item.mediaSource === "generated" &&
-    hasRenderablePreview &&
-    (isLoaded || hasRestoredRunningGeneratedPreview);
+    item.mediaSource === "generated" && hasRenderablePreview && isLoaded;
   const isGenerationLoading =
     !isFailing &&
     !hasLoadedGeneratedMedia &&
@@ -81,7 +74,6 @@ export const classifyReferenceGridCardVisualState = ({
     !isFailing &&
     !isGenerationLoading &&
     !isLocalVideoPersistenceLoading &&
-    !hasRestoredRunningGeneratedPreview &&
     hasRenderablePreview &&
     !hasPromptOnlyPreview &&
     (!isLoaded || isDecodeBudgetHydrationPending);

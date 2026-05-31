@@ -147,14 +147,14 @@ describe("model pricing coverage", () => {
     });
   });
 
-  it("uses the gpt-image-2 size matrix and quality tiers for raw pricing", () => {
+  it("maps gpt-image-2 1K/2K/4K presets onto the workbook-backed pricing matrix", () => {
     const squareLow = computeCostForModel("gpt-image-2", {
       aspect: "1:1",
-      resolution: "low",
+      resolution: "1K",
     });
     const portraitHigh = computeCostForModel("gpt-image-2", {
       aspect: "9:16",
-      resolution: "high",
+      resolution: "4K",
       generationCount: 2,
     });
     const landscapeFallback = computeCostForModel("gpt-image-2", {
@@ -184,7 +184,7 @@ describe("model pricing coverage", () => {
   it("adds deterministic GPT Image 2 edit input-image surcharges", () => {
     const editEstimate = computeCostForModel("gpt-image-2", {
       aspect: "1:1",
-      resolution: "medium",
+      resolution: "2K",
       inputImageCount: 2,
       inputFidelity: "high",
       maskPresent: true,

@@ -177,7 +177,9 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       height?: number | null;
       imageIndex?: number;
     }): CanvasDropResolution | null => {
-      const visualDimensions = normalizeCanvasVisualDimensions(width, height);
+      const visualDimensions =
+        normalizeCanvasVisualDimensions(width, height) ??
+        normalizeCanvasVisualDimensions(output.width, output.height);
       if (output.mode === "text") {
         const text = (output.prompt || output.previewText || "").trim();
         if (!text) return null;

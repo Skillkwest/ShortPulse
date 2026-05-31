@@ -2,6 +2,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StandardCreatePropertiesPanel } from "../StandardCreatePropertiesPanel";
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../../lib/model-runtime/openAiImage2";
 
 const { createCharacterModeControllerState } = vi.hoisted(() => ({
   createCharacterModeControllerState: {
@@ -18,6 +19,12 @@ const { createCharacterModeControllerState } = vi.hoisted(() => ({
   },
 }));
 
+const { standardCreatePanelViewMockState } = vi.hoisted(() => ({
+  standardCreatePanelViewMockState: {
+    latestProps: null as null | Record<string, unknown>,
+  },
+}));
+
 vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) => {
     const forwarded = { ...props };
@@ -27,41 +34,42 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("../StandardCreatePanelView", () => ({
-  StandardCreatePanelView: ({
-    createModeToggle,
-    promptStepProps,
-    onCreateModelOpen,
-    showCreateControlSet,
-  }: {
-    createModeToggle?: React.ReactNode;
-    promptStepProps: {
-      title?: string;
-      hideChatModeToggle?: boolean;
-      agentInputCollapseOnBlur?: boolean;
-      composerLeadingContent?: React.ReactNode;
-      onChatModeEnabledChange?: (value: boolean) => void;
-    };
-    onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
-    showCreateControlSet: boolean;
-  }) => (
-    <div data-testid="standard-create-panel-view">
-      <span>{promptStepProps.title}</span>
-      <span data-testid="chat-toggle-visibility">
-        {promptStepProps.hideChatModeToggle ? "hidden" : "visible"}
-      </span>
-      <span data-testid="agent-input-collapse-on-blur">
-        {String(Boolean(promptStepProps.agentInputCollapseOnBlur))}
-      </span>
-      <span data-testid="create-control-set-visibility">
-        {showCreateControlSet ? "visible" : "hidden"}
-      </span>
-      <div data-testid="composer-leading-content">{promptStepProps.composerLeadingContent}</div>
-      <button type="button" onClick={onCreateModelOpen}>
-        open-model-picker
-      </button>
-      {createModeToggle}
-    </div>
-  ),
+  StandardCreatePanelView: (
+    props: {
+      createModeToggle?: React.ReactNode;
+      promptStepProps: {
+        title?: string;
+        hideChatModeToggle?: boolean;
+        agentInputCollapseOnBlur?: boolean;
+        composerLeadingContent?: React.ReactNode;
+        onChatModeEnabledChange?: (value: boolean) => void;
+      };
+      onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
+      showCreateControlSet: boolean;
+    } & Record<string, unknown>
+  ) => {
+    standardCreatePanelViewMockState.latestProps = props;
+    const { createModeToggle, promptStepProps, onCreateModelOpen, showCreateControlSet } = props;
+    return (
+      <div data-testid="standard-create-panel-view">
+        <span>{promptStepProps.title}</span>
+        <span data-testid="chat-toggle-visibility">
+          {promptStepProps.hideChatModeToggle ? "hidden" : "visible"}
+        </span>
+        <span data-testid="agent-input-collapse-on-blur">
+          {String(Boolean(promptStepProps.agentInputCollapseOnBlur))}
+        </span>
+        <span data-testid="create-control-set-visibility">
+          {showCreateControlSet ? "visible" : "hidden"}
+        </span>
+        <div data-testid="composer-leading-content">{promptStepProps.composerLeadingContent}</div>
+        <button type="button" onClick={onCreateModelOpen}>
+          open-model-picker
+        </button>
+        {createModeToggle}
+      </div>
+    );
+  },
 }));
 
 vi.mock("../../modal-layer/AiStudioModalLayer", () => ({
@@ -88,7 +96,14 @@ vi.mock("../../../logic/createSelectorState", () => ({
 }));
 
 vi.mock("../../../logic/modelRegistry", () => ({
-  getModelConfig: () => null,
+  getModelConfig: (modelId: string | null) => {
+    if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+      return {
+        allowedAspects: ["auto", "9:16", "4:5", "1:1", "5:4", "16:9"],
+      };
+    }
+    return null;
+  },
 }));
 
 vi.mock("../useCreateCharacterModeController", async () => {
@@ -116,6 +131,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
   };
 
   beforeEach(() => {
+    standardCreatePanelViewMockState.latestProps = null;
     createCharacterModeControllerState.isCharacterPickerOpen = false;
     createCharacterModeControllerState.openCharacterPicker = vi.fn();
     createCharacterModeControllerState.closeCharacterPicker = vi.fn();
@@ -126,6 +142,24 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     createCharacterModeControllerState.selectedCharacterDisplayName = "No Characters";
     createCharacterModeControllerState.selectedCharacterProfileImageUrl = null;
     createCharacterModeControllerState.selectedCharacterInitials = null;
+  });
+
+  it("filters GPT Image 2 create aspect options down to the non-auto UI set", () => {
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        modelId={OPENAI_GPT_IMAGE_2_MODEL_ID}
+        modelLabel="ChatGPT Image 2"
+      />
+    );
+
+    const latestProps = standardCreatePanelViewMockState.latestProps;
+    expect(latestProps).not.toBeNull();
+    const aspectValues = (
+      (latestProps?.aspectOptionsForModel as Array<{ value: string }> | undefined) ?? []
+    ).map((option) => option.value);
+
+    expect(aspectValues).toEqual(["9:16", "4:5", "1:1", "5:4", "16:9"]);
   });
 
   it("always renders the standard create panel view", () => {

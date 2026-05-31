@@ -108,6 +108,8 @@ export type AiStudioSessionOutputV1 = {
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;
+  width?: number | null;
+  height?: number | null;
   mediaSource?: StudioOutputMediaSource;
   previewText?: string;
   pinned?: boolean;
@@ -570,6 +572,14 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     previewStoragePath,
     fullStoragePath,
     previewTier: output.previewTier,
+    width:
+      typeof output.width === "number" && Number.isFinite(output.width) && output.width > 0
+        ? Math.max(1, Math.round(output.width))
+        : null,
+    height:
+      typeof output.height === "number" && Number.isFinite(output.height) && output.height > 0
+        ? Math.max(1, Math.round(output.height))
+        : null,
     mediaSource: output.mediaSource,
     previewText: output.previewText,
     pinned: output.pinned,

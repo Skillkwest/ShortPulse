@@ -121,6 +121,9 @@ describe("studioAgentPulseRuntime", () => {
     expect(systemMessage).toContain(
       "Prefer markdown-like headings, short intro paragraphs, blank-line separated sections, separator lines, reply-choice rows, and numbered option cards when they improve scanability."
     );
+    expect(systemMessage).toContain(
+      "If you are delivering a final usable prompt or direct prompt artifact, return that artifact as one plain text block paragraph with no bullets, headings, or outline formatting."
+    );
     expect(systemMessage).toContain("Continue from the active workflow_session_state.");
     expect(systemMessage).toContain(
       "When asking a workflow question, prefix it with the explicit current step label in the form `Step N — Stage:`."
@@ -221,6 +224,9 @@ describe("studioAgentPulseRuntime", () => {
     );
     expect(systemMessage).toContain(
       "When you have a final generation-ready artifact, return status `ready` and put the exact artifact text into actions.applyPrompt."
+    );
+    expect(systemMessage).toContain(
+      "any final prompt or direct prompt artifact must be returned as one plain text block paragraph"
     );
     expect(systemMessage).not.toContain("runtime_mode:");
     expect(systemMessage).not.toContain("activation_mode:");

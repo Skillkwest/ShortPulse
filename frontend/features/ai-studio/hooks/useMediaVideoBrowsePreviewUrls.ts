@@ -15,6 +15,7 @@ type UseMediaVideoBrowsePreviewUrlsArgs = {
     | "character-media-panel"
     | "media-library-modal";
   visibleMediaIdsRef?: React.MutableRefObject<Set<string>>;
+  visibleMediaVersion?: number;
 };
 
 type SignedUrlMap = Record<string, string>;
@@ -35,6 +36,7 @@ export const useMediaVideoBrowsePreviewUrls = ({
   currentUserId = null,
   surface = "media-library-panel",
   visibleMediaIdsRef,
+  visibleMediaVersion = 0,
 }: UseMediaVideoBrowsePreviewUrlsArgs): {
   signedPosterUrlById: SignedUrlMap;
   signedVideoUrlById: SignedUrlMap;
@@ -126,7 +128,7 @@ export const useMediaVideoBrowsePreviewUrls = ({
     return () => {
       cancelled = true;
     };
-  }, [currentUserId, mediaRows, surface, visibleMediaIdsRef]);
+  }, [currentUserId, mediaRows, surface, visibleMediaIdsRef, visibleMediaVersion]);
 
   return {
     signedPosterUrlById,

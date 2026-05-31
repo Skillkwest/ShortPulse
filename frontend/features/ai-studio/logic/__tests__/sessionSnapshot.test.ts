@@ -207,6 +207,65 @@ describe("sessionSnapshot", () => {
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 
+  it("persists generated output dimensions in the session snapshot", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "session-width-height",
+      updatedAt: "2026-05-30T20:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Editorial portrait",
+      model: "gpt-image-2",
+      aspect: "16:9",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "2K",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-dimensions",
+          width: 1792,
+          height: 1008,
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-dimensions",
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      pulseWorkflowSession: null,
+      canvasState: createCanvasState(),
+      expertEditSessionState: createExpertEditSessionState(),
+    });
+
+    expect(snapshot.outputs.active[0]).toMatchObject({
+      id: "out-dimensions",
+      width: 1792,
+      height: 1008,
+    });
+  });
+
   it("persists canonical internal refs for signed workspace reference URLs", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

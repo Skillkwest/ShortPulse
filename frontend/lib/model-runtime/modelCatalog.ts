@@ -34,6 +34,7 @@ import {
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "./falModelIds";
+import { OPENAI_GPT_IMAGE_2_ALLOWED_SIZES } from "./openAiImage2";
 import type { ModelSubmissionAdapterKey } from "./submissionAdapterMetadata";
 export type { ModelSubmissionAdapterKey } from "./submissionAdapterMetadata";
 
@@ -329,7 +330,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     payloadValidation: {
       requiredStringFields: ["prompt"],
       enumFields: {
-        size: ["1024x1024", "1024x1536", "1536x1024"],
+        size: [...OPENAI_GPT_IMAGE_2_ALLOWED_SIZES],
         quality: ["low", "medium", "high"],
         output_format: ["png", "jpeg", "webp"],
         moderation: ["auto", "low"],

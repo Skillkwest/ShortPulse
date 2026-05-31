@@ -128,6 +128,75 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
   });
 
+  it("moves video preview failures into controlled unavailable UI", () => {
+    const onPreviewError = vi.fn();
+    const videoFile: MediaFileRow = {
+      id: "video-1",
+      filename: "clip.mp4",
+      storage_path: "user-1/uploads/clip.mp4",
+      preview_storage_path: "user-1/uploads/clip.mp4",
+      file_type: "video/mp4",
+      signedUrl: "https://cdn.example.com/clip.mp4",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        file={videoFile}
+        previewUrl="https://cdn.example.com/clip.mp4"
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onPreviewError={onPreviewError}
+      />
+    );
+
+    const video = document.querySelector(
+      "video.media-library-panel-preview-media"
+    ) as HTMLVideoElement | null;
+    expect(video).not.toBeNull();
+    fireEvent.error(video as HTMLVideoElement);
+
+    expect(onPreviewError).toHaveBeenCalledWith(videoFile, "https://cdn.example.com/clip.mp4");
+    expect(document.querySelector("video.media-library-panel-preview-media")).toBeNull();
+    expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
+  });
+
+  it("moves audio preview failures into controlled unavailable UI", () => {
+    const onPreviewError = vi.fn();
+    const audioFile: MediaFileRow = {
+      id: "audio-1",
+      filename: "voice-note.mp3",
+      storage_path: "user-1/uploads/voice-note.mp3",
+      preview_storage_path: "user-1/uploads/voice-note.mp3",
+      file_type: "audio/mpeg",
+      signedUrl: "https://cdn.example.com/voice-note.mp3",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        file={audioFile}
+        previewUrl="https://cdn.example.com/voice-note.mp3"
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onPreviewError={onPreviewError}
+      />
+    );
+
+    const audio = document.querySelector(
+      "audio.media-library-panel-preview-media"
+    ) as HTMLAudioElement | null;
+    expect(audio).not.toBeNull();
+    fireEvent.error(audio as HTMLAudioElement);
+
+    expect(onPreviewError).toHaveBeenCalledWith(
+      audioFile,
+      "https://cdn.example.com/voice-note.mp3"
+    );
+    expect(document.querySelector("audio.media-library-panel-preview-media")).toBeNull();
+    expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
+  });
+
   it("does not render transform or optimizer image urls as focused preview media", () => {
     const imageFile: MediaFileRow = {
       id: "image-1",

@@ -5,6 +5,7 @@ import type { StudioOutput } from "../../types";
 import { useAiStudioPageMediaReferenceRuntime } from "../useAiStudioPageMediaReferenceRuntime";
 
 type MockDualCanvasArgs = {
+  resolveCanvasDropReference?: (payload: InternalReferenceDragPayload) => unknown;
   resolveCanvasDroppedMediaReference?: (payload: {
     url: string;
     mimeType?: string | null;
@@ -432,6 +433,48 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
         alt: "Dropped image",
       },
     ]);
+  });
+
+  it("falls back to hydrated output dimensions when a canvas reference drag omits dimensions", () => {
+    const output = makeOutput({
+      id: "output-image-dimensions",
+      mode: "image",
+      prompt: "Exact output",
+      previewUrl: "https://cdn.shortpulse.test/exact-output.png",
+      resultUrls: ["https://cdn.shortpulse.test/exact-output.png"],
+      savedMediaIds: ["saved-media-image-1"],
+      width: 1536,
+      height: 1024,
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const resolvedItem = latestDualCanvasArgs?.resolveCanvasDropReference?.(
+      makePayload({
+        outputId: output.id,
+        referenceId: output.id,
+        mediaKind: "image",
+        referenceUrl: "https://cdn.shortpulse.test/exact-output.png",
+        width: undefined,
+        height: undefined,
+      })
+    );
+
+    expect(resolvedItem).toEqual({
+      kind: "image",
+      outputId: "output-image-dimensions",
+      mediaId: "saved-media-image-1",
+      src: "https://cdn.shortpulse.test/exact-output.png",
+      alt: "Exact output",
+      width: 1536,
+      height: 1024,
+      sourceSurface: "curated",
+    });
   });
 
   it("resolves dropped video files into canvas video items", async () => {

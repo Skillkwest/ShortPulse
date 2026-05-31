@@ -74,6 +74,8 @@ const mergeHydratedGeneratedOutput = (
   companionArtStatus: hydrated.companionArtStatus ?? existing.companionArtStatus ?? null,
   previewStoragePath: hydrated.previewStoragePath ?? existing.previewStoragePath ?? null,
   fullStoragePath: hydrated.fullStoragePath ?? existing.fullStoragePath ?? null,
+  width: hydrated.width ?? existing.width ?? null,
+  height: hydrated.height ?? existing.height ?? null,
   mediaSource: "generated",
   hiddenInReferenceGrid:
     existing.hiddenInReferenceGrid === true

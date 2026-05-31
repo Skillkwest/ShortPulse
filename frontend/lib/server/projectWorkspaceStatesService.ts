@@ -9,10 +9,7 @@ import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { writeAppErrorLog } from "./api/appErrorLogs";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
-import {
-  backfillProjectGenerationAssociationsForSnapshot,
-  hydrateProjectSnapshotGeneratedOutputs,
-} from "./projectGenerationAssociationsService";
+import { backfillProjectGenerationAssociationsForSnapshot } from "./projectGenerationAssociationsService";
 import { chunkValues } from "./queryBatching";
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
@@ -694,7 +691,6 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
     userId,
     snapshot,
   });
-  let fallbackSnapshot = baseSanitizedSnapshot;
   try {
     const { ownedMediaFileIds, ownedPromptIds, ownedGenerationIds } =
       await resolveOwnedSnapshotAssociationIds({
@@ -708,43 +704,28 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
       ownedPromptIds,
       ownedGenerationIds,
     });
-    fallbackSnapshot = sanitizedOutputsSnapshot;
-
-    const hydratedSnapshot = await hydrateProjectSnapshotGeneratedOutputs({
-      userId,
-      projectId,
-      snapshot: sanitizedOutputsSnapshot,
-    });
-    if (hydratedSnapshot === sanitizedOutputsSnapshot) {
-      return sanitizedOutputsSnapshot;
-    }
-    const hydratedGenerationIds = collectSnapshotGenerationIds(hydratedSnapshot);
-
-    return sanitizeProjectWorkspaceOutputs({
-      userId,
-      snapshot: hydratedSnapshot,
-      ownedMediaFileIds,
-      ownedPromptIds,
-      ownedGenerationIds: [...new Set([...ownedGenerationIds, ...hydratedGenerationIds])],
-    });
+    return sanitizedOutputsSnapshot;
   } catch (error) {
-    console.warn("[project-workspace] read enrichment failed; returning sanitized snapshot", {
-      projectId,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+    console.warn(
+      "[project-workspace] read sanitization failed; returning shape-sanitized snapshot",
+      {
+        projectId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      }
+    );
     void writeAppErrorLog({
-      source: "telemetry.ai_studio.project_workspace.read_enrichment_fallback",
+      source: "telemetry.ai_studio.project_workspace.read_sanitization_fallback",
       message:
-        "Project workspace read enrichment fell back to the sanitized snapshot after an enrichment failure.",
+        "Project workspace read fell back to the shape-sanitized snapshot after ownership sanitization failed.",
       userId,
       statusCode: 200,
       metadata: {
         project_id: projectId,
-        fallback_stage: "read_enrichment",
+        fallback_stage: "read_sanitization",
         error: error instanceof Error ? error.message : "Unknown error",
       },
     }).catch(() => undefined);
-    return fallbackSnapshot;
+    return baseSanitizedSnapshot;
   }
 };
 

@@ -7,7 +7,10 @@ import { resolveRequiredAiStudioTextPromptModelId } from "../../../lib/model-run
 import { getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
-import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
+import {
+  clampImageResolutionForModel,
+  normalizeImageResolutionForPricing,
+} from "../logic/imageResolution";
 import {
   resolveClientBilledCredits,
   resolveClientPricingBreakdown,
@@ -145,8 +148,8 @@ export const useAiStudioViewModel = ({
     [extraImageUrls, referenceImageUrl, videoReferenceMode]
   );
   const pricingImageResolution = useMemo(
-    () => normalizeImageResolutionForPricing(imageResolution),
-    [imageResolution]
+    () => normalizeImageResolutionForPricing(clampImageResolutionForModel(model, imageResolution)),
+    [imageResolution, model]
   );
   const isSeedance2Model =
     model === KIE_SEEDANCE_2_MODEL_ID || model === KIE_SEEDANCE_2_FAST_MODEL_ID;

@@ -270,6 +270,55 @@ describe("useMediaVideoBrowsePreviewUrls", () => {
     expect(panelStoragePaths).not.toContain("user-1/variants/videos/video-2/poster_720.jpg");
   });
 
+  it("reruns panel video signing when visible media ids change", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/video-1/poster_720.jpg",
+          "https://cdn.example.com/signed/clip-1-poster.jpg",
+        ],
+      ])
+    );
+    const visibleMediaIdsRef = {
+      current: new Set<string>(),
+    } as React.MutableRefObject<Set<string>>;
+    const mediaRows = [
+      makeVideoRow({
+        signedUrl: null,
+        poster_variant_path: "user-1/variants/videos/video-1/poster_720.jpg",
+      }),
+    ];
+
+    const { rerender } = renderHook(
+      ({ visibleMediaVersion }: { visibleMediaVersion: number }) =>
+        useMediaVideoBrowsePreviewUrls({
+          mediaRows,
+          currentUserId: "user-1",
+          surface: "media-library-panel",
+          visibleMediaIdsRef,
+          visibleMediaVersion,
+        }),
+      { initialProps: { visibleMediaVersion: 0 } }
+    );
+
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+
+    visibleMediaIdsRef.current = new Set<string>(["video-1"]);
+    rerender({ visibleMediaVersion: 1 });
+
+    await waitFor(() =>
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          storagePaths: expect.arrayContaining([
+            "user-1/uploads/clip-1.mp4",
+            "user-1/variants/videos/video-1/poster_720.jpg",
+          ]),
+          surface: "media-library-panel",
+        })
+      )
+    );
+  });
+
   it("keeps modal video signing unchanged when visible ids are provided", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([

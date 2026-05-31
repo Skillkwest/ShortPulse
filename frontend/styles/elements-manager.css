@@ -414,6 +414,21 @@
   pointer-events: auto;
 }
 
+.ai-character-list-card.ai-character-picker-card--element.is-active {
+  border-color: var(--elements-panel-accent);
+  box-shadow:
+    0 0 0 1px var(--elements-panel-accent-faint),
+    var(--ai-character-shadow-md);
+}
+
+.ai-character-list-card.ai-character-picker-card--element.is-active .ai-character-list-name {
+  color: #ffeaf1;
+}
+
+.ai-character-list-card.ai-character-picker-card--element.is-active .metric-label {
+  color: var(--elements-panel-accent-soft);
+}
+
 @media (max-width: 860px) {
   .elements-panel-profile-top-row {
     align-items: stretch;

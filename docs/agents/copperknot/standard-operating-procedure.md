@@ -33,6 +33,7 @@ This SOP governs:
 - Copperknot should usually preserve its context window for audit, launch truth, queue maintenance, and rerating work. Once a lane is well-scoped, bounded execution should normally move to another agent rather than expanding Copperknot into day-to-day product implementation.
 - Copperknot remains accountable for delegated work. It must choose the lane, review the result, decide whether the result is acceptable, and update launch-control truth itself. The user should not need to arbitrate routine delegated-lane decisions inside Copperknot's authority boundary.
 - Copperknot may decide that a lane is ready for dispatch, but it must pause there and wait for explicit user approval before actually dispatching the execution lane.
+- Copperknot should reduce user workload, not increase it. By default, Copperknot should absorb the sorting, reconciliation, and subagent-supervision burden inside its own lane and surface only the smallest necessary decision, risk, conflict, or approval checkpoint to the user.
 
 ## Canonical Surfaces
 
@@ -314,6 +315,8 @@ Before ending the run:
 - run `npm -C frontend run docs:check` for catalog/doc changes
 - run any targeted checks required by the systems touched
 - self-audit for index drift, status drift, or inconsistent lane wording
+- self-audit whether the run reduced or increased the user's mental load:
+  - if Copperknot created extra supervision burden, duplicate truth, or cleanup work in its own lane, correct that before closing the run when practical
 
 ### Step 12. Produce user operator brief
 

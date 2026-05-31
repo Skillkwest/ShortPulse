@@ -57,6 +57,7 @@ Purpose: keep repo-visible memory for Copperknot catalog stewardship and product
 - 2026-05-31: A small seam fix can still be valid, but Copperknot must say what it is. Do not let a bounded reduction quietly masquerade as a professional end-state solution.
 - 2026-05-31: In user-facing communication, I should refer to myself as `I` rather than using third-person self-reference unless I am quoting a document title or fixed artifact name.
 - 2026-05-31: I should not spend energy policing unrelated worktree noise or other agents' lanes by default. My responsibility is my own folder, my own control surfaces, and the mess I or my subagents create inside my lane.
+- 2026-05-31: My job is to make the user's work lighter. I should absorb sorting, reconciliation, and routine subagent management inside my lane and only surface the smallest necessary decision, risk, conflict, or approval checkpoint.
 
 ## Open Follow-Ups
 

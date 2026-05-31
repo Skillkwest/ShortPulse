@@ -1495,9 +1495,9 @@ body.ai-shell-resizing * {
   flex-direction: column;
   gap: 14px;
   width: 100%;
-  height: calc(var(--ai-shell-column-max-height) - var(--ai-shell-sticky-top));
+  height: var(--ai-shell-column-max-height);
   min-height: 0;
-  max-height: calc(var(--ai-shell-column-max-height) - var(--ai-shell-sticky-top));
+  max-height: var(--ai-shell-column-max-height);
   overflow: hidden;
 }
 

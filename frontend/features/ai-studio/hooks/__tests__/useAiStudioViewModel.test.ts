@@ -236,6 +236,36 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
+  it("maps GPT Image 2 Create UI resolution labels onto canonical quality rows", () => {
+    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+    const expectedCost = resolvePricingGridBilledCredits({
+      modelId,
+      params: {
+        modelId,
+        aspect: "16:9",
+        resolution: "medium",
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "16:9",
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "2K",
+        costParamsForModel: makeCostParamsForModel(modelId),
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+  });
+
   it("keeps create text generation enabled when output-generate cost exceeds balance", () => {
     const modelId = "fal-ai/nano-banana-2";
     const costParamsForModel = makeCostParamsForModel(modelId);

@@ -25,6 +25,7 @@ import {
   AiStudioPickerModalFrame,
   AiStudioPickerSection,
 } from "../../ai-studio/components/picker/AiStudioPickerPrimitives";
+import { AiStudioModalLayer } from "../../ai-studio/components/modal-layer/AiStudioModalLayer";
 import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import { hasDroppedImageReferenceTransfer } from "../../character-manager/logic/characterDropPayload";
@@ -1299,24 +1300,26 @@ export function ElementsManagerShell({
       </AiStudioPickerModalFrame>
 
       {pendingDeleteElement ? (
-        <ConfirmationModal
-          title="Delete this element?"
-          titleId="delete-element-title"
-          body={
-            <p>
-              <strong>{pendingDeleteElement.name || "Untitled element"}</strong> and its saved
-              references will be removed permanently.
-            </p>
-          }
-          confirmLabel="Delete"
-          confirmBusyLabel={isDeletingElement ? "Deleting..." : undefined}
-          confirmDisabled={isDeletingElement}
-          cancelDisabled={isDeletingElement}
-          onCancel={onCancelDeleteElement}
-          onConfirm={() => {
-            void onConfirmDeleteElement();
-          }}
-        />
+        <AiStudioModalLayer>
+          <ConfirmationModal
+            title="Delete this element?"
+            titleId="delete-element-title"
+            body={
+              <p>
+                <strong>{pendingDeleteElement.name || "Untitled element"}</strong> and its saved
+                references will be removed permanently.
+              </p>
+            }
+            confirmLabel="Delete"
+            confirmBusyLabel={isDeletingElement ? "Deleting..." : undefined}
+            confirmDisabled={isDeletingElement}
+            cancelDisabled={isDeletingElement}
+            onCancel={onCancelDeleteElement}
+            onConfirm={() => {
+              void onConfirmDeleteElement();
+            }}
+          />
+        </AiStudioModalLayer>
       ) : null}
     </div>
   );

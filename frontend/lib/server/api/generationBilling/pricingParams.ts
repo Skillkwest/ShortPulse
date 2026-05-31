@@ -5,6 +5,7 @@ import {
   isOpenAiGptImage2Size,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
   resolveOpenAiGptImage2AspectForSize,
+  normalizeOpenAiGptImage2Quality,
 } from "../../../model-runtime/openAiImage2";
 import type { JsonObject } from "./types";
 import { asBoolean, asNumber, asString } from "./utils";
@@ -182,6 +183,9 @@ const normalizeResolutionForModel = (
   modelId: string
 ): string | undefined => {
   if (!resolution) return undefined;
+  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+    return normalizeOpenAiGptImage2Quality(resolution);
+  }
   const config = getModelConfig(modelId);
   const allowed = config?.allowedResolutions ?? [];
   if (!allowed.length) return resolution;

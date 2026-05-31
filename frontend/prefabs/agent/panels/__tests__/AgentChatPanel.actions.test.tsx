@@ -341,15 +341,15 @@ describe("AgentChatPanel prompt actions", () => {
     expect(container.querySelectorAll(".agent-message-rich-list li")).toHaveLength(4);
   });
 
-  it("keeps final prompt artifacts on the plain text path even when standard rich rendering is enabled", () => {
+  it("allows prompt artifacts to use the shared rich renderer when structured content is present", () => {
     const { container } = render(
       <StandardCreateChatPanel
         messages={[
           {
             id: "a-1",
             role: "assistant",
-            content: "Final prompt paragraph only.",
-            outputPrompt: "Final prompt paragraph only.",
+            content: "# Final Prompt\n\n1. Establish the scene\n2. Introduce the reveal",
+            outputPrompt: "# Final Prompt\n\n1. Establish the scene\n2. Introduce the reveal",
             canUseAsPrompt: true,
           },
         ]}
@@ -360,10 +360,10 @@ describe("AgentChatPanel prompt actions", () => {
       />
     );
 
-    expect(screen.getByText("Final prompt paragraph only.")).toBeInTheDocument();
+    expect(screen.getByText("Final Prompt")).toBeInTheDocument();
     expect(
       container.querySelector(".agent-message--prompt-output .agent-message-rich-body")
-    ).toBeNull();
+    ).not.toBeNull();
   });
 
   it("renders richer pulse-guided layouts with headings, reply chips, separators, and option cards", () => {

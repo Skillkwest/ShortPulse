@@ -69,5 +69,8 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain(
       '.ai-studio-page[data-selected-tool="create"] {\n  --ai-page-pad-bottom: 0px;\n}'
     );
+    expect(css).toContain(".reference-column-sticky");
+    expect(css).toContain("height: var(--ai-shell-column-max-height);");
+    expect(css).toContain("max-height: var(--ai-shell-column-max-height);");
   });
 });

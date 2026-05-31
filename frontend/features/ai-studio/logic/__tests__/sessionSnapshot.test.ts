@@ -514,6 +514,88 @@ describe("sessionSnapshot", () => {
     expect(payload.outputs.curatedReferenceIds).toEqual(["video-oldest", "audio-newest"]);
   });
 
+  it("keeps saved media-library Quick Slot references durable in project workspace snapshots", () => {
+    const snapshot = createAiStudioProjectWorkspaceSnapshot(
+      buildAiStudioSessionSnapshot({
+        sessionId: "session-quick-slot-media-library",
+        updatedAt: "2026-05-31T10:00:00.000Z",
+        mode: "image",
+        selectedTool: "create",
+        prompt: "Reference setup",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        aspect: "9:16",
+        expertCreateMode: "standard",
+        activePulsePresetId: null,
+        pulseSessionInstanceId: null,
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs: [
+          createOutput({
+            id: "library-output-1",
+            mediaSource: "library",
+            savedMediaIds: ["media-library-1"],
+            previewUrl: "https://signed.example.com/preview.png",
+            resultUrls: ["https://signed.example.com/full.png"],
+            previewStoragePath: "users/user-1/library/media-library-1-preview.png",
+            fullStoragePath: "users/user-1/library/media-library-1-full.png",
+            timestamp: "Library",
+          }),
+        ],
+        archivedOutputs: [],
+        activeOutputId: "library-output-1",
+        curatedReferenceIds: ["library-output-1"],
+        removedFromAllRefsIds: [],
+        agentMessages: [],
+        agentInput: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+        canvasState: undefined,
+        expertEditSessionState: undefined,
+      })
+    );
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshot);
+
+    expect(snapshot.outputs.curatedReferenceIds).toEqual(["library-output-1"]);
+    expect(snapshot.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        id: "library-output-1",
+        mediaSource: "library",
+        savedMediaIds: ["media-library-1"],
+        previewStoragePath: "users/user-1/library/media-library-1-preview.png",
+        fullStoragePath: "users/user-1/library/media-library-1-full.png",
+      })
+    );
+    expect(payload.outputs.curatedReferenceIds).toEqual(["library-output-1"]);
+    expect(payload.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        id: "library-output-1",
+        savedMediaIds: ["media-library-1"],
+        previewStoragePath: "users/user-1/library/media-library-1-preview.png",
+        fullStoragePath: "users/user-1/library/media-library-1-full.png",
+      })
+    );
+  });
+
   it("preserves output duration metadata across session snapshot hydration", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

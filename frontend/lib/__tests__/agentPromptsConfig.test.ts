@@ -35,7 +35,7 @@ describe("agentPromptsConfig", () => {
 
     expect(standardPrompt).toContain("Respond directly to the user's request in plain text.");
     expect(standardPrompt).toContain("Prefer structured, readable writing for ordinary replies");
-    expect(standardPrompt).toContain("return that prompt as one plain text block paragraph");
+    expect(standardPrompt).not.toContain("return that prompt as one plain text block paragraph");
     expect(standardPrompt).toContain(
       "Do not rewrite the user's request into a prompt unless they explicitly ask you to do that."
     );

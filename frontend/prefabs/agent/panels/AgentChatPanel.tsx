@@ -770,9 +770,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                           </div>
                         ) : null}
                         {hasMessageContent ? (
-                          message.role === "assistant" &&
-                          AssistantMessageContent &&
-                          !assistantPromptText ? (
+                          message.role === "assistant" && AssistantMessageContent ? (
                             <div
                               className={
                                 shouldUsePromptDragSurface

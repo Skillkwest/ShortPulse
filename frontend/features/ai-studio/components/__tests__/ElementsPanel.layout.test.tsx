@@ -930,6 +930,9 @@ describe("ElementsPanel layout", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete Red Lantern" }));
 
     const dialog = screen.getByRole("dialog", { name: "Delete this element?" });
+    const modalLayerRoot = document.getElementById("ai-studio-modal-layer-root");
+    expect(modalLayerRoot).not.toBeNull();
+    expect(modalLayerRoot?.contains(dialog)).toBe(true);
     expect(within(dialog).getByText("Delete this element?")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
 

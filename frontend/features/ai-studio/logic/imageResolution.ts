@@ -4,6 +4,7 @@
  */
 import { getModelConfig } from "./modelRegistry";
 import {
+  normalizeOpenAiGptImage2Quality,
   normalizeOpenAiGptImage2ResolutionPreset,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
   OPENAI_GPT_IMAGE_2_UI_ALLOWED_RESOLUTIONS,
@@ -147,6 +148,9 @@ export const normalizeImageResolutionForCanonicalBilledPricing = (
 ): string | undefined => {
   const clampedValue = clampImageResolutionForModel(modelId, value);
   if (!clampedValue || isModelDefaultImageResolution(clampedValue)) return undefined;
+  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+    return normalizeOpenAiGptImage2Quality(clampedValue);
+  }
 
   const config = modelId ? getModelConfig(modelId) : null;
   const allowed = config?.allowedResolutions ?? [];

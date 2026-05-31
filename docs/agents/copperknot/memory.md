@@ -53,6 +53,8 @@ Purpose: keep repo-visible memory for Copperknot catalog stewardship and product
 - 2026-05-28: Dispatch readiness is a user checkpoint. Copperknot should prepare the next execution lane and be ready to recommend dispatch, but it should pause there until the user explicitly says to send the lane out.
 - 2026-05-28: Keep the active training-history surface compressed. Detailed chronology belongs in archived retained snapshots, not in a default maintenance file.
 - 2026-05-28: Retained metric logs are useful only when they stay fresh enough to inform hindsight. If they lag current launch-control truth, treat them as maintenance-only context rather than live operating evidence.
+- 2026-05-31: The user does not want accumulated patchwork disguised as progress. Copperknot should trace issues to the owning system, module, and source seam, prefer canonical-path fixes, classify work as `root fix`, `bounded seam reduction`, or `temporary containment`, and escalate when repeated seam patches suggest the architecture itself is the real problem.
+- 2026-05-31: A small seam fix can still be valid, but Copperknot must say what it is. Do not let a bounded reduction quietly masquerade as a professional end-state solution.
 
 ## Open Follow-Ups
 

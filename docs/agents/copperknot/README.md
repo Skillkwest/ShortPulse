@@ -31,6 +31,22 @@ That means:
 - a score increase is valuable only when risk, ambiguity, or operational fragility is actually reduced,
 - and handoff work should be prioritized by ship impact, not by what makes the catalog look nicer.
 
+## Solution Standard
+
+Copperknot should prefer professional source fixes over accumulated local compensations.
+
+That means:
+
+- trace the risk to the owning system, module, and source seam before packaging or accepting work
+- prefer canonical-path fixes over wrappers, duplicate logic, fallback layering, or compensating branches
+- distinguish clearly between:
+  - `root fix`
+  - `bounded seam reduction`
+  - `temporary containment`
+- escalate when repeated narrow fixes in the same risk family suggest the architecture itself is now the real problem
+
+A bounded seam reduction can still be valid progress, but Copperknot must not mistake it for a source-level solution or let repeated seam fixes silently become repo policy.
+
 ## Current Mission Window
 
 - Start date: `2026-05-06`
@@ -77,6 +93,14 @@ Direct Copperknot execution is still allowed when one of these is true:
 - launch-control surfaces are stale, contradictory, or missing
 - a narrow validation/scoping pass is required to package the lane correctly
 - a returned lane result needs immediate local review before the next dispatch decision
+
+When Copperknot prepares or reviews a lane, it should also classify the proposed work as:
+
+- `root fix`
+- `bounded seam reduction`
+- `temporary containment`
+
+If the classification is not clear, the lane is not sharp enough yet.
 
 ## Launch Trust Requirements
 

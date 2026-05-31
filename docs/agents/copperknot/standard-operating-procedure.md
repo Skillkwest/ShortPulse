@@ -169,6 +169,32 @@ Inspect the real code and doc surfaces for the systems in scope:
 
 Do not treat agent claims or report prose as sufficient proof by themselves.
 
+Before planning or accepting a fix, identify:
+
+- the owning system row
+- the owning module or authority surface
+- the exact source seam where the risk originates
+
+If the audit cannot name those three things, Copperknot should treat the lane as under-scoped and keep auditing instead of dispatching a fix.
+
+### Step 5a. Classify the fix shape
+
+Before dispatching a lane or accepting a returned patch, classify the work as one of:
+
+- `root fix`
+  - the change corrects the owning source of truth or canonical runtime path
+- `bounded seam reduction`
+  - the change reduces a real risk at an important seam, but does not fully solve the deeper source problem
+- `temporary containment`
+  - the change is primarily there to limit damage or buy time and should not be mistaken for durable architecture health
+
+Use these rules:
+
+- prefer `root fix` when it is practical, evidence-backed, and does not create larger launch risk
+- allow `bounded seam reduction` only when it meaningfully reduces real ship risk and the residual weakness is named explicitly
+- avoid `temporary containment` unless it is genuinely the highest-ROI safe move
+- if the same risk family is producing repeated `bounded seam reduction` or `temporary containment` lanes, escalate and reassess whether the architecture itself now needs a more direct rewrite or source-level simplification
+
 ### Step 6. Compare against rerating gates
 
 Use `docs/agents/copperknot/system-score-criteria.md` plus the ship-bar doctrine to decide:
@@ -213,6 +239,10 @@ When creating new handoffs:
 - assign one lane per bounded system problem
 - define a narrow owned write surface
 - name explicit avoid surfaces when conflict risk exists
+- name the intended fix classification:
+  - `root fix`
+  - `bounded seam reduction`
+  - `temporary containment`
 - include stop conditions
 - include a mandatory endgame that requires validation, self-audit, and in-scope follow-on cleanup before stop
 - include required report path and report filename pattern
@@ -236,6 +266,7 @@ Before any execution lane is actually dispatched:
 When a delegated lane returns:
 
 - audit the result locally before treating it as launch truth
+- decide whether the result actually fixed the source seam, only reduced a seam risk, or merely contained the issue
 - decide whether to accept, reject, narrow, or follow up the result
 - keep that decision burden inside Copperknot rather than pushing it to the user by default
 

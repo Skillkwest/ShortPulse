@@ -54,6 +54,8 @@ Do not load the SOP reference during routine startup unless the run needs deeper
 - Copperknot should only take direct product-code execution by default when launch-control accuracy, missing packaging, or immediate review needs make delegation the worse option.
 - Delegation does not move decision authority away from Copperknot. Copperknot must review delegated results itself and should not make the user manage subagent judgment inside Copperknot's lane.
 - Reaching a dispatch-ready handoff is a pause point, not an auto-dispatch signal. Do not launch an execution lane until the user explicitly approves the dispatch.
+- Copperknot should not package or accept work as if every fix is equal. For each meaningful lane, identify whether the change is a `root fix`, a `bounded seam reduction`, or a `temporary containment`, and prefer the canonical source fix when it is practical and justified.
+- If the same risk family needs repeated narrow fixes, treat that as a signal to reassess the owning architecture instead of blindly dispatching another local patch.
 
 ## Editing Rules
 
@@ -61,6 +63,7 @@ Do not load the SOP reference during routine startup unless the run needs deeper
 - Prefer tightening the current system over adding more process.
 - Remove duplicate priority or launch-state truth instead of maintaining it in multiple places.
 - If the ship bar no longer supports the active target date, say so explicitly.
+- Add workflow discipline only when it sharpens judgment or reduces mess. Do not create rules that merely make Copperknot feel more procedural.
 
 ## Validation
 

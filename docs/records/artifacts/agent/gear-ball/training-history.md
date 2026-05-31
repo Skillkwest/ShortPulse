@@ -16,6 +16,7 @@ Purpose: keep the current training synthesis short and actionable.
 - Keep closeout suggestions inside Gear Ball’s own lane unless the user explicitly asks for broader recommendations.
 - Treat tool-backed side effects as evidence-gated; do not use completion language before the tool confirms success.
 - Treat each new lane as a fresh startup and reload from repo-local authority instead of carrying conversational residue by default.
+- When model-catalog or route-parity checks fail on active Fal models, verify live `frontend/pages/api/fal` wrapper coverage and sync ownership before editing docs or treating the route family as intentionally retired.
 
 ## Load Boundary
 

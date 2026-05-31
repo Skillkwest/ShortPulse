@@ -141,6 +141,22 @@ export const normalizeImageResolutionForPricing = (
   return value;
 };
 
+export const normalizeImageResolutionForCanonicalBilledPricing = (
+  modelId: string | null,
+  value: string | null | undefined
+): string | undefined => {
+  const clampedValue = clampImageResolutionForModel(modelId, value);
+  if (!clampedValue || isModelDefaultImageResolution(clampedValue)) return undefined;
+
+  const config = modelId ? getModelConfig(modelId) : null;
+  const allowed = config?.allowedResolutions ?? [];
+  if (allowed.includes(clampedValue)) {
+    return clampedValue;
+  }
+
+  return normalizeImageResolutionForPricing(clampedValue);
+};
+
 export const normalizeNanoBanana2Resolution = (
   value: string | null | undefined,
   fallback: "0.5K" | "1K" | "2K" | "4K" = "1K"

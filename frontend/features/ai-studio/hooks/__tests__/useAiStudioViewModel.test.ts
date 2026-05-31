@@ -155,6 +155,43 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
+  it("preserves Seedream auto resolution ids for create pricing-grid costs", () => {
+    const modelId = "fal-ai/bytedance/seedream/v4.5/text-to-image";
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
+      aspect: "9:16",
+      durationSeconds: 8,
+      resolution: "auto_2K",
+      audio: false,
+      ...overrides,
+    });
+    const expectedCost = resolvePricingGridBilledCredits({
+      modelId,
+      params: costParamsForModel(modelId, { aspect: "9:16", resolution: "auto_4K" }),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "9:16",
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "auto_4K",
+        costParamsForModel,
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+  });
+
   it("uses Create Character Mode submit shape for GPT Image 2 pricing-grid costs", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {

@@ -11,10 +11,7 @@ import {
 import { getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
-import {
-  clampImageResolutionForModel,
-  normalizeImageResolutionForPricing,
-} from "../logic/imageResolution";
+import { normalizeImageResolutionForCanonicalBilledPricing } from "../logic/imageResolution";
 import {
   resolveClientBilledCredits,
   resolveClientPricingBreakdown,
@@ -158,7 +155,7 @@ export const useAiStudioViewModel = ({
     [extraImageUrls, referenceImageUrl, videoReferenceMode]
   );
   const pricingImageResolution = useMemo(
-    () => normalizeImageResolutionForPricing(clampImageResolutionForModel(model, imageResolution)),
+    () => normalizeImageResolutionForCanonicalBilledPricing(model, imageResolution),
     [imageResolution, model]
   );
   const isSeedance2Model =

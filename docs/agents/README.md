@@ -99,6 +99,13 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/copperknot/standard-operating-procedure-reference.md`: conditional deeper standards reference for handoff design, maintenance/pruning, status models, and output rules.
   - `docs/agents/copperknot/catalog-tool-health-metrics.md`: standing health metrics for judging whether the catalog tool itself remains trustworthy and current.
   - `docs/agents/copperknot/measurement-and-learning.md`: standing measurement framework for score history, launch-state trends, and queue-decision hindsight.
+- `docs/agents/datserok/README.md`: Datserok project persistence, project save/restore, and project-workspace authority contract and memory entrypoint.
+  - `docs/agents/datserok/AGENTS.md`: Datserok-scoped execution overlay for project persistence work.
+  - `docs/agents/datserok/memory.md`: Datserok's repo-visible durable memory entrypoint.
+  - `docs/agents/datserok/standard-operating-procedure.md`: standing SOP for project persistence audits, explanations, canonical fixes, and training updates.
+  - `docs/agents/datserok/ownership-manifest.md`: Datserok's ownership boundary map for project persistence versus adjacent AI Studio, media, environment, release, security, and readiness lanes.
+  - `docs/agents/datserok/project-persistence-source-map.md`: compact first-load owner map for project identity, project save/restore behavior, code paths, and validation anchors.
+  - retained artifacts live under `docs/records/artifacts/agent/datserok/`.
 
 ## Training Guides
 

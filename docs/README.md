@@ -121,6 +121,12 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/copperknot/standard-operating-procedure-reference.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`
 - `docs/agents/copperknot/measurement-and-learning.md`
+- `docs/agents/datserok/README.md`
+- `docs/agents/datserok/AGENTS.md`
+- `docs/agents/datserok/memory.md`
+- `docs/agents/datserok/standard-operating-procedure.md`
+- `docs/agents/datserok/ownership-manifest.md`
+- `docs/agents/datserok/project-persistence-source-map.md`
 - `docs/records/artifacts/agent/ophestivus/contract.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`

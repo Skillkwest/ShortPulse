@@ -61,6 +61,7 @@ Structure (locked):
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
 - [ ] Provider integrations: rerun shared provider contract normalization and hardening for the provider work that is still below launch-readiness target.
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
+- [ ] Add the missing authored billed-credit pricing-grid row for ChatGPT Image 2 Create Character Mode with 3 input refs, and keep runtime fail-closed until that canonical row exists.
 - [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
 - [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
 

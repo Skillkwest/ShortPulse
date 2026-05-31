@@ -5,7 +5,7 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 ## Current Live Surfaces
 
 - `2026-05-06-dispatch-log.md`: current external handoff dispatch status for the active production-readiness window.
-- `2026-05-31-approved-panel-production-remeasurement-audit.md`: current production remeasurement audit after the accepted Elements runtime patch.
+- `2026-05-31-approved-panel-post-deploy-verification.md`: current post-deploy production verification after the accepted Elements root fix.
 - `2026-05-31-operator-brief.html`: current rich-format operator brief for the May 31 remeasurement.
 - `2026-05-31-operator-brief.md`: source-only backing artifact for the current operator brief.
 - `2026-05-31-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the May 31 remeasurement.
@@ -30,6 +30,7 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-19-production-baseline-refresh.md`: dated full repo-plus-worktree baseline refresh that preserved the original May 6 baseline and updated then-current launch-control truth.
 - `2026-05-27-production-baseline-reset-audit.md`: dated repo-plus-worktree baseline reset that retired the stale May 19 queue order and moved exact-next back to Create validation convergence.
 - `2026-05-30-production-post-redeploy-baseline-refresh.md`: dated post-redeploy repo-plus-production refresh that kept Elements exact next before the May 31 remeasurement.
+- `2026-05-31-approved-panel-production-remeasurement-audit.md`: earlier same-day pre-deploy approved-panel remeasurement that kept Elements exact next before the deployed root-fix verification landed.
 
 ## Historical Operator Briefs And Checklists
 

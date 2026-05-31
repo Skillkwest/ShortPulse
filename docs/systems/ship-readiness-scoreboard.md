@@ -7,14 +7,14 @@ Purpose: provide a fast release-control view derived from `docs/systems/catalog.
 - Snapshot date: `2026-05-31`
 - Snapshot freshness as of `2026-05-31`: `current`
 - Freshness reason:
-  - launch-state fields were refreshed against a fresh production remeasurement on `production`
-  - the accepted May 30 Elements runtime patch was compared against a live May 31 rerun, not just local tests
+  - launch-state fields were refreshed against a post-deploy production verification on `production`
+  - the accepted May 31 root fix was compared against live route parity plus fresh approved-panel reruns
   - the queue and measurement surfaces were updated together so the current launch packet and retained metrics match
 - Primary sources:
   - `docs/systems/catalog.md`
   - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
   - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-production-remeasurement-audit.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-post-deploy-verification.md`
 
 ## Freshness Rule
 
@@ -63,14 +63,14 @@ The latest launch-relevant repo movement is committed at `ed86fb5ce`.
 
 The later `c2b127581` commit is Gear Ball evidence only and does not change the product queue.
 
-Fresh May 31 production remeasurement says:
+Fresh May 31 post-deploy verification says:
 
-- both approved-panel surfaces are faster
-- the old Elements missing-preview symptom did not reproduce
-- both approved-panel surfaces still show `extraListCallsPerOpen: 1`
-- coverage is only `35%`
+- both approved-panel surfaces now confirm `extraListCallsPerOpen: 0`
+- both approved-panel surfaces keep `missingPreviewRatio: 0`
+- route parity passed on the deployed commit under test
+- coverage is still only `35%`
 
-This is real progress, but it is not a rerate packet.
+This is real production improvement, but it is still not a rerate packet.
 
 ## Below-Floor Systems
 
@@ -80,7 +80,7 @@ This is real progress, but it is not a rerate packet.
 | `Edit workflow`                    |       6 |          7 | `P0 ship-critical` | `edit-workflow-hardening`                  |
 | `Project / workspace persistence`  |       6 |          7 | `P0 ship-critical` | `project-workspace-persistence-hardening`  |
 | `Characters workflow`              |       5 |          6 | `P1 ship-relevant` | `characters-workflow-hardening`            |
-| `Elements workflow`                |       5 |          6 | `P1 ship-relevant` | `approved-panel-list-orchestration-root-fix` |
+| `Elements workflow`                |       5 |          6 | `P1 ship-relevant` | `queue-only`                               |
 | `Media ingest / save`              |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
 | `Core data persistence`            |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
 | `Storage / file delivery`          |       6 |          7 | `P1 ship-relevant` | `queue-only`                               |
@@ -114,26 +114,23 @@ This is real progress, but it is not a rerate packet.
   - `edit-workflow-hardening`
 - score held after May 30 post-redeploy review:
   - `Create workflow`
-- score held after accepted Elements runtime closeout:
-  - `Elements workflow`
-- score held after May 31 production remeasurement:
+- score held after May 31 post-deploy production verification:
   - `Elements workflow`
   - `Media delivery / signing / preview resolution`
-- score held after accepted May 31 root-fix closeout review:
-  - `Elements workflow`
-  - `Media delivery / signing / preview resolution`
-- ready after that:
+- exact next:
   - `project-workspace-persistence-hardening`
-- third lane:
+- ready after that:
   - `characters-workflow-hardening`
+- follow-up hold:
+  - `Elements workflow`
 
-The accepted Elements runtime patch and the accepted May 31 root-fix patch are both real repo evidence, and the May 31 production rerun says the old symptom improved. The next exact proof is deploy plus fresh production remeasurement on the shared approved-panel lane.
+The accepted Elements runtime patch and the accepted May 31 root-fix patch are both real repo evidence, and the post-deploy production rerun says the old hotspot is materially reduced. The next exact lane is now `Project / workspace persistence`.
 
 ## Non-Blocking Production Findings
 
 - `Elements workflow`
-  - the May 31 production remeasurement removed the old visible missing-preview symptom, but both approved panels still show `extraListCallsPerOpen: 1`
-  - this remains the highest-ROI open workflow lane because the remaining source seam is shared runtime debt, not a stale doc issue
+  - the May 31 post-deploy reruns cleared the concrete approved-panel hotspot that had kept this row exact next
+  - the row stays below floor, but it moves into follow-up hold because the live production symptom is no longer the strongest open lane
 - `Reference Grid`
   - Holomony's `2026-05-25` production baseline still says `no clear blocker`
   - the May 30 reference-card rendering changes and targeted tests did not reopen the old blocker class

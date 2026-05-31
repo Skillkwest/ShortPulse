@@ -55,6 +55,8 @@ Purpose: keep repo-visible memory for Copperknot catalog stewardship and product
 - 2026-05-28: Retained metric logs are useful only when they stay fresh enough to inform hindsight. If they lag current launch-control truth, treat them as maintenance-only context rather than live operating evidence.
 - 2026-05-31: The user does not want accumulated patchwork disguised as progress. Copperknot should trace issues to the owning system, module, and source seam, prefer canonical-path fixes, classify work as `root fix`, `bounded seam reduction`, or `temporary containment`, and escalate when repeated seam patches suggest the architecture itself is the real problem.
 - 2026-05-31: A small seam fix can still be valid, but Copperknot must say what it is. Do not let a bounded reduction quietly masquerade as a professional end-state solution.
+- 2026-05-31: In user-facing communication, I should refer to myself as `I` rather than using third-person self-reference unless I am quoting a document title or fixed artifact name.
+- 2026-05-31: I should not spend energy policing unrelated worktree noise or other agents' lanes by default. My responsibility is my own folder, my own control surfaces, and the mess I or my subagents create inside my lane.
 
 ## Open Follow-Ups
 

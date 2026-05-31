@@ -162,19 +162,29 @@ Purpose: record which handoff packets have already been dispatched to execution 
     - `docs/agents/copperknot/handoffs/2026-05-31-approved-panel-list-orchestration-root-fix.md`
   - managed root-fix worker launched and reviewed on `2026-05-31`
   - the returned patch was accepted as real source-fix evidence in the shared panel data controller
-  - score still held at `5/10` pending deploy and fresh production remeasurement
+  - deployed root-fix verification later reduced the live approved-panel hotspot to `extraListCallsPerOpen: 0`
+  - score still held at `5/10`
+  - no longer the exact next lane after post-deploy verification
 - Closeout:
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-28-elements-workflow-hardening-closeout.md`
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-30-elements-approved-panel-runtime-hardening-closeout.md`
 
 ### Ready next
 
-11. `Characters workflow`
+11. `Project / workspace persistence`
+
+- Packet:
+  - `docs/agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md`
+- Status:
+  - exact next lane after the May 31 post-deploy approved-panel verification
+  - score still held at `6/10`
+
+12. `Characters workflow`
 
 - Packet:
   - `docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.md`
 - Status:
-  - no longer the exact next lane by default
+  - second lane after the current exact-next persistence follow-up
   - remains ready after the current validation-first queue is reduced
 
 ## Refresh Notes
@@ -256,7 +266,10 @@ Purpose: record which handoff packets have already been dispatched to execution 
   - accepted the returned root-fix patch after local Copperknot review
   - reran the targeted tests successfully at `19/19`
   - reran `npm -C frontend run docs:check` successfully
-  - current Copperknot checkpoint is deploy plus fresh production remeasurement
+  - pushed the accepted patch to `production` at `d7e3fa775`
+  - verified route parity on the deployed production alias
+  - post-deploy production reruns confirmed the approved-panel hotspot reduced to `extraListCallsPerOpen: 0`
+  - current Copperknot checkpoint is the next dispatch-ready lane: `Project / workspace persistence`
 
 ## Operating Note
 

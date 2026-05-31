@@ -70,7 +70,6 @@ Structure (locked):
 - [ ] Media Library: redesign the header bar and refresh small info cards to pull real account-level details.
 - [ ] Media Library: continue transform-free image-loading optimization and improve derivative/preview coverage on dense grid surfaces.
 - [ ] Media Library: resolve the remaining pagination/search trust gaps across media tabs, especially no-match image-search copy that currently reads like total data loss.
-- [ ] Media Library: restyle text prompt cards in the `Saved Prompts` tab.
 - [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
 - [ ] AI Studio: change placeholder `generating` and `loading preview` reference cards to a lighter gray background for better visual contrast.
 

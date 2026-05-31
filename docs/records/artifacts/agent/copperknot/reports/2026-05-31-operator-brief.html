@@ -129,17 +129,30 @@
       <section class="panel">
         <h1>Operator Brief</h1>
         <p>
-          May 31 production remeasurement after the accepted Elements runtime patch.
+          May 31 post-deploy verification after the accepted approved-panel root
+          fix.
         </p>
       </section>
 
       <section class="panel">
         <h2>What Changed</h2>
         <ul>
-          <li>The accepted May 30 Elements runtime patch is now live on <code>production</code>.</li>
-          <li>The old Elements missing-preview symptom did not reproduce in the May 31 production rerun.</li>
-          <li>No score lifts are justified from the May 31 production remeasurement.</li>
-          <li>The exact next lane stays <code>Elements workflow</code>, but the handoff is now a tighter root fix.</li>
+          <li>
+            The accepted May 31 root fix is now deployed on
+            <code>production</code>.
+          </li>
+          <li>
+            Confirmed post-deploy reruns now show
+            <code>extraListCallsPerOpen: 0</code> and
+            <code>missingPreviewRatio: 0</code> on both approved-panel surfaces.
+          </li>
+          <li>
+            No score lifts are justified from the post-deploy verification.
+          </li>
+          <li>
+            The exact next lane is now
+            <code>Project / workspace persistence</code>.
+          </li>
         </ul>
       </section>
 
@@ -147,24 +160,14 @@
         <h2>Ready To Paste Now</h2>
         <div class="cards">
           <article class="card">
-            <span class="badge green">Accepted Locally</span>
-            <h3>Elements workflow</h3>
-            <p>Lane: <code>approved-panel-list-orchestration-root-fix</code></p>
-            <p>
-              The remaining highest-ROI risk is the shared extra list request during approved-panel open phase.
-            </p>
-            <p>
-              <a
-                href="../../../../../agents/copperknot/handoffs/2026-05-31-approved-panel-list-orchestration-root-fix.md"
-                >Open handoff</a
-              >
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="badge blue">Second Lane</span>
+            <span class="badge green">Paste Only If Approved</span>
             <h3>Project / workspace persistence</h3>
             <p>Lane: <code>project-workspace-persistence-hardening</code></p>
+            <p>
+              The approved-panel hotspot is no longer the strongest live
+              blocker, so the queue returns to the highest-impact remaining P0
+              below-floor lane.
+            </p>
             <p>
               <a
                 href="../../../../../agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md"
@@ -174,7 +177,7 @@
           </article>
 
           <article class="card">
-            <span class="badge amber">Third Lane</span>
+            <span class="badge blue">Second Lane</span>
             <h3>Characters workflow</h3>
             <p>Lane: <code>characters-workflow-hardening</code></p>
             <p>
@@ -182,6 +185,16 @@
                 href="../../../../../agents/copperknot/handoffs/2026-05-06-characters-workflow.md"
                 >Open handoff</a
               >
+            </p>
+          </article>
+
+          <article class="card">
+            <span class="badge amber">Held Third</span>
+            <h3>Elements workflow</h3>
+            <p>Lane: <code>post-fix follow-up hold</code></p>
+            <p>
+              The row stays below floor, but it is no longer the exact next
+              dispatch lane.
             </p>
           </article>
         </div>
@@ -193,12 +206,18 @@
           <article class="card">
             <span class="badge purple">Score Held</span>
             <h3>Elements workflow</h3>
-            <p>The live rerun removed one symptom, but the broader lane still stays at <code>5/10</code>.</p>
+            <p>
+              The live hotspot is materially reduced, but the packet is still
+              too thin for a score lift.
+            </p>
           </article>
           <article class="card">
             <span class="badge purple">At Floor, Not Quiet</span>
             <h3>Media delivery / signing / preview resolution</h3>
-            <p>The shared approved-panel list-orchestration seam still needs a source fix.</p>
+            <p>
+              The live signal is healthier, but still not strong enough for a
+              maturity lift.
+            </p>
           </article>
           <article class="card">
             <span class="badge purple">At Floor, Not Quiet</span>

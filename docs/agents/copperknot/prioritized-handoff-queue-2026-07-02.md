@@ -15,9 +15,9 @@ Purpose: define the ordered execution queue the Copperknot should hand to specia
 
 | Priority | System                                          | Current | Ship floor | Lane                                | Recommended agent profile                     | Current handoff                                                                            |
 | -------- | ----------------------------------------------- | ------: | ---------: | ----------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 1        | `Elements workflow`                             |       5 |          6 | Approved panel list orchestration   | shared panel runtime root-fix discipline      | `docs/agents/copperknot/handoffs/2026-05-31-approved-panel-list-orchestration-root-fix.md` |
-| 2        | `Project / workspace persistence`               |       6 |          7 | AI Studio workflow stability        | persistence contracts + restore boundaries    | `docs/agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md`              |
-| 3        | `Characters workflow`                           |       5 |          6 | Secondary workflow confidence       | workflow modularization + persistence cleanup | `docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.md`                        |
+| 1        | `Project / workspace persistence`               |       6 |          7 | AI Studio workflow stability        | persistence contracts + restore boundaries    | `docs/agents/copperknot/handoffs/2026-05-06-project-workspace-persistence.md`              |
+| 2        | `Characters workflow`                           |       5 |          6 | Secondary workflow confidence       | workflow modularization + persistence cleanup | `docs/agents/copperknot/handoffs/2026-05-06-characters-workflow.md`                        |
+| 3        | `Elements workflow`                             |       5 |          6 | Approved panel follow-up hold       | workflow/runtime reassessment after live fix  | `queue-only`                                                                               |
 | 4        | `Create workflow`                               |       6 |          7 | AI Studio validation follow-up hold | AI Studio runtime triage + workflow steward   | `docs/agents/copperknot/handoffs/2026-05-28-create-workflow-validation-convergence.md`     |
 | 5        | `Media delivery / signing / preview resolution` |       6 |          6 | Approved panel/runtime follow-up    | preview delivery performance                  | `queue-only`                                                                               |
 | 6        | `Edit workflow`                                 |       6 |          7 | AI Studio workflow stability        | AI Studio workflow modularization             | `docs/agents/copperknot/handoffs/2026-05-06-edit-workflow.md`                              |
@@ -40,18 +40,19 @@ Purpose: define the ordered execution queue the Copperknot should hand to specia
 
 ## Queue Interpretation
 
-- Priority `1` is still `Elements workflow`, but the reason changed on May 31.
-- The accepted May 30 runtime patch appears to have removed the visible Elements missing-preview symptom on production, so the old symptom-focused framing is no longer the best description of the remaining risk.
-- Fresh May 31 production remeasurement still shows `extraListCallsPerOpen: 1` on both approved-panel surfaces, which means the remaining highest-ROI issue is the shared approved-panel open-phase list-orchestration seam.
-- The May 31 production packet is faster than the older Holomony baseline, but it is not a score-lift packet because:
-  - evidence coverage dropped to `35%`
-  - many deeper metrics were not measured
-  - the shared runtime still makes one extra list request during open-phase settlement
-- The current live Elements handoff is intentionally narrower than the May 30 runtime packet: it is now a root-fix lane on shared list orchestration under an explicit no-UI, no-UX, no-intended-behavior-change constraint.
-- Priorities `2..9` are the remaining below-floor workflow and persistence set after the heavy May 21 through May 27 repo hardening wave.
-- `Characters workflow` moved down from the May 19 exact-next slot because newer repo movement materially changed that surface's evidence base, so the old Characters-first ordering is no longer trustworthy by default.
+- Priority `1` is now `Project / workspace persistence`.
+- The deployed May 31 approved-panel root fix materially improved the live production signal:
+  - confirmed reruns now show `extraListCallsPerOpen: 0`
+  - `missingPreviewRatio: 0`
+  - `includeLibraryTotalCount=true` on the approved-panel root request shape
+- The old approved-panel hotspot is no longer the strongest open lane, so `Elements workflow` should not stay exact next by momentum alone.
+- The live May 31 post-deploy packet is still not a score-lift packet because:
+  - evidence coverage remains `35%`
+  - many deeper metrics are still not measured
+- `Elements workflow` remains below floor, but it now shifts into a held follow-up position instead of the active top slot.
+- Priorities `4..9` are the remaining below-floor workflow and persistence set after the heavy May 21 through May 27 repo hardening wave.
 - `Create workflow` stays below floor, but it remains a held follow-up state after the May 28 validation-convergence closeout and the May 30 post-redeploy review rather than returning to the exact next lane.
-- The bounded `2026-05-28` Elements closeout plus the bounded `2026-05-30` runtime closeout are both accepted as real seam evidence, but neither one clears the broader workflow/runtime lane by itself.
+- The bounded `2026-05-28` Elements closeout, the bounded `2026-05-30` runtime closeout, and the accepted `2026-05-31` root fix are all real seam evidence. Together they materially reduce the old live hotspot without justifying a score lift.
 - `Reference Grid` stays at floor and should not be reopened as a blocker lane on current evidence.
 - `Security boundaries` stays at floor, but the queue keeps an explicit follow-through slot for hosted auth-session cleanup, Git history purge judgment, and the new public-schema grant hardening posture.
 
@@ -59,9 +60,9 @@ Purpose: define the ordered execution queue the Copperknot should hand to specia
 
 The Copperknot should treat these as the current active next-work set:
 
-1. `Elements workflow`
-2. `Project / workspace persistence`
-3. `Characters workflow`
+1. `Project / workspace persistence`
+2. `Characters workflow`
+3. `Elements workflow`
 
 ## Reviewed-Complete Follow-Up Lanes
 
@@ -101,6 +102,9 @@ As of `2026-05-31`:
 - score held after accepted May 31 root-fix closeout review:
   - `Elements workflow`
   - `Media delivery / signing / preview resolution`
+- score held after May 31 post-deploy production verification:
+  - `Elements workflow`
+  - `Media delivery / signing / preview resolution`
 - fresh queue correction after the May 27 baseline reset:
   - the May 19 `Characters workflow -> Elements workflow` exact-next order is now historical
   - the earlier Create validation-red state has now been absorbed and accepted
@@ -108,20 +112,19 @@ As of `2026-05-31`:
 - bounded Elements execution evidence reviewed:
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-28-elements-workflow-hardening-closeout.md`
   - accepted as real repo-durable evidence for the persistence seam only
-  - not sufficient to clear the broader approved-panel/runtime lane
   - the narrowed May 30 runtime handoff was dispatched, returned a bounded patch, and was accepted as local shared-runtime evidence on `2026-05-30`
   - the May 31 production remeasurement then confirmed that the old Elements missing-preview symptom no longer reproduced
-  - the current accepted follow-up packet is now the root-fix list-orchestration handoff rather than the older broad workflow packet or the May 30 symptom-focused runtime packet
-  - that May 31 root-fix handoff returned a bounded patch and was accepted as local root-fix evidence in the shared data-controller seam
+  - the accepted May 31 root-fix handoff then deployed and materially reduced the remaining approved-panel hotspot on production
+  - `Elements workflow` is no longer the exact next dispatch lane after that post-deploy verification
 
 ## Fresh Production And Worktree Follow-Up Signals
 
 - production-only follow-up findings that materially changed the queue:
-  - `Elements workflow` plus approved panel runtime: the fresh `2026-05-31-approved-panel-production-remeasurement-audit.md` removed the old visible missing-preview symptom but kept the lane exact next because both approved panels still show `extraListCallsPerOpen: 1` and only `35%` evidence coverage
+  - `Elements workflow` plus approved panel runtime: the fresh `2026-05-31-approved-panel-post-deploy-verification.md` confirmed the deployed root fix reduced both approved-panel surfaces to `extraListCallsPerOpen: 0`, so the row should move out of the exact-next slot even though the score stays held
   - `Reference Grid`: Holomony's `2026-05-25-reference-grid-production-baseline.md` found `no clear blocker`, which keeps the row out of the active blocker set
   - `Security boundaries`: Dave's `2026-05-23-prod-storage-state-exposure.md` confirmed a historical production storage-state exposure and left hosted session cleanup plus history purge as open operator follow-through
 - post-redeploy repo truth that keeps the exact top queue order stable:
   - latest launch-relevant movement is `ed86fb5ce`, which preserved canonical billed-resolution ids in Create pricing/runtime support seams
   - the later `c2b127581` commit is Gear Ball evidence only and does not change the product queue
   - the product-code worktree is clean, so there is no active local contradiction forcing a queue reorder
-  - the May 31 production rerun and the accepted local root-fix patch together are fresh enough to keep `Elements workflow` exact next without pretending the lane is solved
+  - the May 31 post-deploy rerun is fresh enough to move exact-next back to `Project / workspace persistence` without pretending `Elements workflow` is fully solved

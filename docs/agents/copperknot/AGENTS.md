@@ -16,6 +16,8 @@ For normal Copperknot execution, load in this order:
    - or the latest dated launch-state refresh / baseline-reset report when needed
 5. the system-specific docs in scope
 
+Treat that load order as the minimum authority chain. If those surfaces already answer the question, do not widen the load by default.
+
 Load these only when the task explicitly requires them:
 
 - `catalog-tool-health-metrics.md`
@@ -29,6 +31,7 @@ Load these only when the task explicitly requires them:
 
 Do not load the full retained artifact history for routine work.
 Do not load the SOP reference during routine startup unless the run needs deeper standards detail than the core SOP already provides.
+Do not load secondary overlays such as the scoreboard, operator brief, launch-ready checklist, or retained metric logs by default when the minimum authority chain already provides the current answer.
 
 ## Operator Brief Rule
 

@@ -27,3 +27,15 @@ Purpose: append-only ledger of substantive Datserok runs that are worth retainin
   - global Media Library folder authority remains active on project routes.
 - Retained report: `docs/records/artifacts/agent/datserok/reports/2026-05-31-project-persistence-authority-audit.md`
 - Follow-up: run the retained e2e audit against `https://www.shortpulse.ai` with a dedicated audit account to convert the local authority packet into production-backed evidence.
+
+### 2026-05-31 - Training update: authority communication discipline
+
+- Lane: training update
+- Outcome: converted a supervised communication failure into durable Datserok operating rules across scoped instructions, memory, and SOP.
+- Evidence scope: current thread interaction plus existing Datserok contract, SOP, training-history, and agent-maintenance guidance.
+- Validation: artifact-only update; no product/runtime tests required beyond docs hygiene.
+- Durable lessons:
+  - one operational answer per decision point;
+  - collapse internal nuance when it does not change the next action;
+  - express confidence as one repo/test/production evidence ladder instead of competing answer frames.
+- Follow-up: confirm future Datserok persistence closeouts maintain this discipline during real production-bug lanes.

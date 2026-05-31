@@ -2,14 +2,21 @@
 
 Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inbound execution-lane closeouts used by the Copperknot.
 
-## Current Live Surfaces
+## Current Primary Authority Surfaces
 
 - `2026-05-06-dispatch-log.md`: current external handoff dispatch status for the active production-readiness window.
-- `2026-05-31-approved-panel-post-deploy-verification.md`: current post-deploy production verification after the accepted Elements root fix.
-- `2026-05-31-operator-brief.html`: current rich-format operator brief for the May 31 remeasurement.
+- `2026-05-31-approved-panel-post-deploy-verification.md`: current freshest retained packet explaining why the queue moved back to `Project / workspace persistence`.
+
+## Current Secondary Overlays
+
+- `2026-05-31-operator-brief.html`: current rich-format operator brief for the May 31 post-deploy state.
 - `2026-05-31-operator-brief.md`: source-only backing artifact for the current operator brief.
-- `2026-05-31-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the May 31 remeasurement.
+- `2026-05-31-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the May 31 post-deploy state.
 - `2026-05-31-launch-ready-checklist.html`: browser-friendly version of the current launch-ready checklist.
+
+## Current Supporting Lane Audits
+
+- `2026-05-31-project-workspace-persistence-root-seam-audit.md`: current source-seam audit for the exact-next `Project / workspace persistence` lane.
 
 ## Current Intake Surfaces
 
@@ -68,4 +75,6 @@ These remain preserved, but they are not part of the default Copperknot launch-r
 - External execution-agent closeouts belong under `external-lane-closeouts/`.
 - Markdown is the default source of truth for Copperknot reports.
 - Only operator briefs and launch-ready checklists should keep sibling HTML renders by default.
-- Treat this folder as a retained evidence surface, not as a default startup memory surface. Only the current live surfaces above belong in routine Copperknot load.
+- Treat this folder as a retained evidence surface, not as a default startup memory surface.
+- Routine Copperknot load should prefer the current primary authority surfaces first.
+- Secondary overlays should be opened only when they reduce user decision burden or when a richer human-facing summary is specifically useful.

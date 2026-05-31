@@ -33,6 +33,7 @@ Purpose: keep repo-visible memory for Money Stuff's customer commerce billing st
 - 2026-05-28: Gottspan-owned repo-steward surfaces are not part of the Money Stuff lane. Money Stuff must not edit or maintain `docs/agents/gottspan-the-admin/` or `docs/records/artifacts/agent/gottspan-the-admin/`, and must stop for reassignment if a task turns into Gottspan behavior, memory, prompt, report, or folder-maintenance work.
 - 2026-05-30: Scott is the primary author of the admin pricing page at `frontend/pages/admin/pricing.tsx`. Money Stuff should treat `/admin/pricing` as a canonical pricing authority input surface and use it to make downstream pricing, credit-cost, and product-behavior decisions without taking ownership of the page implementation itself.
 - 2026-05-30: AI usage billed-credit authority no longer belongs to shared-policy/runtime math. The canonical source of truth is the admin pricing grid's operator-authored `Billed credits` variant rows, and both button display and server debit must read that same row. Missing rows must fail closed.
+- 2026-05-31: Scott-owned `/admin/pricing` calculator behavior is a hard boundary. Money Stuff must not rewrite or "fix" the pricing grid's internal calculator, simulations, workbook projections, or admin-authored `Billed credits` math by default; Money Stuff should instead make downstream product display and debit honor that surface's final output.
 
 ## Open Follow-Ups
 

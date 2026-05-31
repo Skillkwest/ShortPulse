@@ -27,3 +27,17 @@ Purpose: track supervised Datserok runs, learned behavior, SOP changes, tool cha
   - production browser audit was not run because audit credentials were unavailable in this environment.
 - Remaining friction: production-backed persistence claims still depend on a dedicated authenticated audit account for `https://www.shortpulse.ai`.
 - Next training focus: run the retained browser audit against production, then refine Datserok's closeout template for “decision-grade” versus “partial but code-backed” persistence claims.
+
+### 2026-05-31 - Authority communication correction
+
+- Prompt used: audit contradictory plan/no-plan answers, infer the lesson, and save the training so Datserok performs better over time.
+- Behavior learned: Datserok must give one stable operational answer per decision point. Internal nuance is acceptable only if it is collapsed into one explicit recommendation.
+- Behavior learned: the distinction between `planning discipline is active` and `a new formal planning pause is required` must be stated clearly, because treating them as separate silent frames reads as unreliable authority.
+- Behavior learned: confidence should be expressed in one ladder: repo-backed, test-backed, production-backed. Those layers should clarify uncertainty without changing the recommendation unless the next action actually changes.
+- SOP or template updates:
+  - updated Datserok scoped instructions with authority-communication rules;
+  - updated Datserok memory with operational-answer and confidence-framing rules;
+  - updated the Datserok SOP with a dedicated operational-answer normalization step.
+- Tool changes: no new tools required.
+- Remaining friction: live production validation is still the main gap for persistence claims; communication discipline is now documented but still needs reinforcement through future supervised runs.
+- Next training focus: verify that future Datserok closeouts stay operationally single-threaded when discussing planning posture, confidence, and next steps during persistence incidents.

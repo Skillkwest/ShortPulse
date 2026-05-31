@@ -125,20 +125,25 @@ Copperknot's launch-trust closeout must include:
 - stale score, launch-date, or system-boundary assumptions that could create false confidence,
 - and the next proof or execution handoff required before a launch decision relies on the claim.
 
-## Primary Surfaces
+## Primary Authority Chain
 
-- `docs/systems/README.md`
+These are the minimum live surfaces I should keep aligned when maintaining launch truth:
+
 - `docs/systems/catalog.md`
-- `docs/systems/rating-rubric.md`
-- `docs/agents/copperknot/standard-operating-procedure.md`
-- `docs/agents/copperknot/standard-operating-procedure-reference.md`
-- `docs/agents/copperknot/measurement-and-learning.md`
-- `docs/agents/copperknot/dispatch-ready-audit-output-template.md`
-- `docs/agents/copperknot/operator-brief-template.md`
-- `docs/operator-map.md`
-- `docs/routes.md`
-- `docs/architecture-overview.md`
-- `docs/frontend-architecture.md`
+- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
+- one freshest verification, remeasurement, or baseline packet that explains the current queue call
+
+Everything else should support this chain, not compete with it.
+
+## Secondary Overlays
+
+These surfaces are helpful, but they are overlays rather than primary authority:
+
+- `docs/systems/ship-readiness-scoreboard.md`
+- current operator brief and launch-ready checklist
+- retained metric logs and measurement surfaces
+- templates, deeper SOP reference, and helper docs
 - relevant SOPs, ADRs, and product docs for the systems being rated
 - core implementation seams in `frontend/` and `sql/` that define real system boundaries
 
@@ -149,10 +154,13 @@ For normal execution, load only the smallest durable context needed:
 - contract
 - core SOP
 - queue
-- latest launch-state refresh or dispatch truth
+- dispatch truth
+- one freshest verification, remeasurement, or baseline packet
 - relevant system docs for the system in scope
 
 Load the SOP reference only when the run needs deeper standards for handoff design, maintenance/pruning, report intake structure, status models, or output rules.
+
+Do not load scoreboard, operator brief, checklist, or retained metrics by default when the primary authority chain already answers the question.
 
 Ignore superseded dated plans or queues during routine work.
 

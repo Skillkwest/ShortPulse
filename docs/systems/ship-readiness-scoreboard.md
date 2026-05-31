@@ -1,6 +1,6 @@
 # Ship-Readiness Scoreboard
 
-Purpose: provide a fast release-control view derived from `docs/systems/catalog.md` so ShortPulse can be steered toward ship readiness without rereading the full catalog table.
+Purpose: provide a fast secondary release-control overlay derived from `docs/systems/catalog.md` and the current Copperknot authority chain so ShortPulse can be steered toward ship readiness without rereading the full catalog table.
 
 ## Snapshot
 
@@ -18,7 +18,16 @@ Purpose: provide a fast release-control view derived from `docs/systems/catalog.
 
 ## Freshness Rule
 
-Treat this scoreboard as exact launch-control truth only when:
+Treat this scoreboard as a quick overlay, not the primary authority.
+
+For exact launch-control truth, defer first to:
+
+- `docs/systems/catalog.md`
+- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
+- `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-post-deploy-verification.md`
+
+This overlay is reliable only when:
 
 - the snapshot is inside the 7-day freshness window
 - and no blocker, lane, or external completion event has landed since the snapshot
@@ -55,13 +64,7 @@ Catalog-tool health metrics:
 
 - none
 
-## Current Worktree Review Note
-
-The current product-code worktree is clean.
-
-The latest launch-relevant repo movement is committed at `ed86fb5ce`.
-
-The later `c2b127581` commit is Gear Ball evidence only and does not change the product queue.
+## Current Evidence Note
 
 Fresh May 31 post-deploy verification says:
 

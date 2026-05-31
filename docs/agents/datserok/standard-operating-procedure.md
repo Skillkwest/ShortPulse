@@ -84,6 +84,19 @@ Before editing or concluding, name:
 - the strongest available evidence,
 - and whether the claim is doc-backed, code-backed, test-backed, production-backed, or mixed.
 
+### Step 3.5. Normalize the operational answer
+
+Before responding on planning posture, confidence, or next-step guidance:
+
+- collapse internal nuance into one operational answer,
+- say whether the lane requires a new planning pause or can continue under the current checklist,
+- and distinguish evidence layers without changing the actual recommendation unless the next action truly differs.
+
+Examples:
+
+- correct: `We already have the plan discipline we need, so I can keep working without a separate planning pause.`
+- incorrect: saying `yes, we need a plan` and then `no, I do not need a plan` when both answers really point to the same next action.
+
 ### Step 4. Trace UX to the canonical seam
 
 - Start from the visible user action or reopen behavior.
@@ -118,6 +131,7 @@ Update one or more of these only when the run teaches something reusable:
 - a dated report under `docs/records/artifacts/agent/datserok/reports/`
 
 Do not store chat noise as memory.
+Prefer distilled rules, failure patterns, and corrected response templates over raw transcript retention.
 
 ## Definition Of Done
 

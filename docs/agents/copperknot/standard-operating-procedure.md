@@ -43,13 +43,20 @@ This SOP governs:
 - `docs/systems/rating-rubric.md`
 - `docs/agents/copperknot/system-score-criteria.md`
 
-### Copperknot operating authority
+### Minimum launch-truth chain
 
-- `docs/agents/copperknot/README.md`
-- `docs/agents/copperknot/memory.md`
-- the current dated operating package for the active production window under `docs/agents/copperknot/`
 - the current dated handoff queue for the active production window under `docs/agents/copperknot/`
 - the current dated dispatch log for the active production window under `docs/records/artifacts/agent/copperknot/reports/`
+- one freshest verification, remeasurement, or baseline packet that explains the current queue state
+
+### Secondary overlays
+
+- `docs/systems/ship-readiness-scoreboard.md`
+- current operator brief and launch-ready checklist
+- retained metric logs and measurement surfaces
+- the current dated operating package for the active production window under `docs/agents/copperknot/`
+- `docs/agents/copperknot/README.md`
+- `docs/agents/copperknot/memory.md`
 
 ### External lane report intake
 
@@ -229,9 +236,12 @@ Only after the audit, update the relevant surfaces:
 - `docs/systems/catalog.md` when a score or rationale changes
 - queue docs when priority changes
 - dispatch log when lane state changes
-- operating package when the active lane snapshot changes
-- dated reports when the audit itself should be retained
+- one freshest retained report when the audit itself should be retained
+- secondary overlays only when they materially reduce user decision burden or when exact-next, score posture, or blocker state changed
+- operating package when the active lane snapshot changes and the queue plus dispatch log no longer communicate enough by themselves
 - superseded dated queue/plan files when a production window rolls forward
+
+Do not update every derivative surface just because a fresh audit exists. Keep the minimum authority chain correct first, then update overlays only if they add real value.
 
 ### Step 8. Generate handoffs carefully
 

@@ -1,6 +1,6 @@
 # Copperknot Operating Package
 
-Purpose: provide one entrypoint for the Copperknot's current operating system for the production-readiness window that runs from `2026-05-06` through `2026-07-02`.
+Purpose: provide a compact maintenance helper for the current production-readiness window without competing with the live authority chain.
 
 ## Core Doctrine
 
@@ -8,7 +8,20 @@ Optimize for the ship bar, not for prettier numbers.
 
 The catalog is a decision tool. It is not the mission.
 
-## Package Contents
+## Primary Authority Chain
+
+For current launch-truth decisions, use these first:
+
+- Catalog: `docs/systems/catalog.md`
+- Queue: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- Dispatch log: `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
+- Freshest retained packet explaining the current queue call
+
+If these surfaces already answer the question, do not widen the load by default.
+
+## Secondary Package Contents
+
+This package points to supporting surfaces that may be useful during maintenance, pruning, or deeper process work:
 
 - Contract: `docs/agents/copperknot/README.md`
 - Memory: `docs/agents/copperknot/memory.md`
@@ -23,17 +36,13 @@ The catalog is a decision tool. It is not the mission.
 - ADHD-friendly operator brief template: `docs/agents/copperknot/operator-brief-template.md`
 - Handoff template: `docs/agents/copperknot/handoff-template.md`
 - Detailed handoffs: `docs/agents/copperknot/handoffs/README.md`
-- Dispatch log: `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-- Latest repo-wide baseline refresh: `docs/records/artifacts/agent/copperknot/reports/2026-05-27-production-baseline-reset-audit.md`
 - External lane closeouts: `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/`
 
 ## Authority Rule
 
-For execution order, the authoritative source is:
+This package is not the first source of truth.
 
-- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
-
-If another package document summarizes priorities more loosely, the queue wins.
+If another package document summarizes priorities, lane state, or launch truth more loosely than the primary authority chain, the primary authority chain wins.
 
 If the ship bar evidence no longer supports the current `2026-07-02` target, recommend a date reassessment explicitly instead of stretching weak launch claims to fit the date.
 
@@ -54,35 +63,14 @@ The May 16 Reference Grid blocker was cleared and is now historical in `docs/kno
 
 ## Operating Rhythm
 
-- Use the production plan to decide what matters this week.
-- Use the handoff queue to decide what to hand to execution agents next.
-- Use the score-criteria doc to decide whether score changes are justified.
-- Update the catalog only when repo evidence supports the change.
-- Keep the dispatch log current so the package reflects what has already been handed to other agents.
-- After meaningful audits, produce a dispatch-ready ordered worklist with paste-ready prompts for the next external agents.
-- After meaningful runs, produce one ADHD-friendly operator brief so the next user action is obvious at a glance.
+- Use the queue to decide exact next order.
+- Use the dispatch log to decide lane state.
+- Use the freshest retained packet to explain why the current queue call is correct.
+- Use the catalog to decide ratings and boundaries.
+- Open the deeper package surfaces only when they materially reduce ambiguity or maintenance cost.
 
-## Current Lane Snapshot
+## Maintenance Note
 
-As of `2026-05-28`:
+This file should stay compact.
 
-- the May 19 baseline refresh is now historical, not current launch-control truth
-- the repo moved heavily after May 19 across:
-  - AI Studio shell/runtime
-  - panel/runtime polish
-  - workspace restore behavior
-  - media delete, motion intake, and detail authority
-  - character-mode recovery and right-rail behavior
-- the active worktree now also contains:
-  - live motion/video recorder UI work
-  - shared record-panel prefab work
-  - SQL/security grant-hardening work
-- the current validation posture for the last exact-next Create lane is now improved:
-  - `node scripts/check_secret_exposure.js` passed
-  - `npm -C frontend run build` passed
-  - the focused Create/runtime rerun is now green at `24 passed / 24 total tests`
-- the Create validation-convergence lane is now reviewed complete with no score change
-- `Elements workflow` is now the exact next launch-control lane because the approved media-panel runtime is still fragile on production
-- `Project / workspace persistence` remains the next broad below-floor restore/save lane after Elements
-- `Reference Grid` should stay closed as a blocker lane on current evidence
-- `Security boundaries` stays at floor, but hosted session cleanup plus history-purge follow-through remains open outside the code path
+Do not let it become a second live snapshot with stale queue calls, stale lane summaries, or duplicate current-truth prose. If a dated lane snapshot is needed again, retain it as a dated report instead of expanding this helper back into a competing authority surface.

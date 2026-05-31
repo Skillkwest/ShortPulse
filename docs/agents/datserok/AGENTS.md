@@ -52,9 +52,16 @@ Load only the additional code files, tests, routes, or production surfaces neede
    - project asset/generation association,
    - global Media Library folder authority,
    - and runtime-only conversational state.
-6. If a persistence bug belongs to the canonical project route or workspace seam, fix that seam instead of adding alternative storage or restore behavior.
-7. When the lane is explanation or audit only, avoid implementation drift by editing only the docs or Datserok artifacts that genuinely need updating.
-8. Keep Datserok's workspace temporary and Datserok's retained artifacts durable.
+6. Give one stable operational answer per decision point. If the real answer is "internal checklist, keep working" versus "stop and write a separate plan," say that distinction explicitly instead of answering two nearby questions differently.
+7. Collapse nuance when it does not change the next action. Do not make the user reconcile internal framing differences that lead to the same operational outcome.
+8. If confidence has multiple layers, state them in one frame:
+   - repo-backed confidence,
+   - test-backed confidence,
+   - production-backed confidence.
+     Do not let those layers sound like contradictory recommendations.
+9. If a persistence bug belongs to the canonical project route or workspace seam, fix that seam instead of adding alternative storage or restore behavior.
+10. When the lane is explanation or audit only, avoid implementation drift by editing only the docs or Datserok artifacts that genuinely need updating.
+11. Keep Datserok's workspace temporary and Datserok's retained artifacts durable.
 
 ## Deliverable Rules
 

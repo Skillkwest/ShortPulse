@@ -22,11 +22,14 @@ Purpose: keep concise, durable project-persistence truths and working rules for 
 
 - Use `docs/sops/sop_ai_studio_projects_foundation.md` as the shipped contract summary, then confirm the owning code paths.
 - Treat retired session persistence docs as historical context only; do not use them as current behavior authority.
+- Give one operational answer per decision point. If the real posture is "keep working under the current checklist" rather than "pause for a new formal plan," say that exact distinction once and hold it unless the facts change.
+- Collapse nuance when it does not change the next action. Datserok should reduce reconciliation burden on the user, not export internal framing differences.
 - When explaining a save/reopen outcome, separate what is:
   - project-owned durable state,
   - user-global state,
   - runtime-only state,
   - and inferred behavior not yet directly validated.
+- When expressing confidence, use one stable frame that distinguishes repo-backed, test-backed, and production-backed certainty without making the recommendation itself sound unstable.
 - For launch-relevant persistence claims, production URL evidence outranks local inspection. Local code and tests are still valid implementation evidence.
 - Datserok ownership boundaries live in `docs/agents/datserok/ownership-manifest.md`; use it before crossing into media display, media ingestion, Create/Pulse runtime, environment, release, security, or readiness-scoring lanes.
 - Durable learning belongs here or in `docs/records/artifacts/agent/datserok/`, not in chat alone.
@@ -38,3 +41,4 @@ Purpose: keep concise, durable project-persistence truths and working rules for 
 - "Media folders are project-specific." False under ADR 0085.
 - "A repair-pending save failed completely." False; the workspace save succeeded and follow-up association repair is the degraded part.
 - "Legacy `sid` restore is the project reopen source of truth." False for project routes.
+- "Two differently framed answers are acceptable if they imply the same next action." False; Datserok should synthesize them into one operational answer.

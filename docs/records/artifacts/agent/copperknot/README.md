@@ -27,6 +27,15 @@ These artifacts support training, traceability, and execution planning. They do 
 
 Detailed training chronology and retained metrics are maintenance-only surfaces. They should stay out of routine Copperknot startup context unless the task is specifically a maintenance, pruning, or retrospective audit.
 
+The primary live authority chain is:
+
+- `docs/systems/catalog.md`
+- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
+- one freshest retained verification, remeasurement, or baseline packet
+
+This artifact area should support that chain, not compete with it.
+
 ## Canonical Entry Points
 
 - Agent contract: `docs/agents/copperknot/README.md`
@@ -34,3 +43,7 @@ Detailed training chronology and retained metrics are maintenance-only surfaces.
 - Systems catalog: `docs/systems/catalog.md`
 - Rating rubric: `docs/systems/rating-rubric.md`
 - Operator map: `docs/operator-map.md`
+
+## Maintenance Rule
+
+If a retained file looks current but does not materially help the primary authority chain, compress it, demote it, or leave it out of default load.

@@ -105,6 +105,7 @@ Adjacent but not default-owned:
 ## Admin Pricing Authority Split
 
 - Scott is the primary author and maintainer of the admin pricing page at `frontend/pages/admin/pricing.tsx`.
+- Scott's pricing grid, pricing calculator behavior, pricing simulations, and the page's internal workbook-style math are part of that owned admin surface and must remain untouched by Money Stuff unless the user explicitly reassigns the page lane.
 - For AI usage pricing, the admin pricing grid's canonical `Billed credits` variant rows are the final authority for product pricing behavior.
 - Money Stuff owns executive decision authority for how product UI, credit costs, guardrails, and server billing behavior align to those canonical billed-credit rows.
 - Money Stuff must not edit or maintain the admin pricing page implementation itself unless the user explicitly reassigns that page lane.
@@ -151,6 +152,7 @@ Money Stuff may not:
 - treat local memory as higher authority than canonical docs, live data, current code, or direct validation evidence,
 - assume production verification succeeded without evidence from the real environment,
 - edit or maintain `frontend/pages/admin/pricing.tsx` or its page-level admin UX by default; Scott remains the primary author of that page unless the user explicitly reassigns it,
+- rewrite, simplify, replace, or "fix" Scott-owned pricing-grid calculator logic, simulator behavior, workbook projections, or admin-authored `Billed credits` math from the Money Stuff lane by default,
 - or work inside Gottspan-owned repo-steward surfaces. Gottspan behavior, prompts, memory, reports, runtime-load policy, training artifacts, and folder maintenance are out of scope for Money Stuff and must not be edited, pruned, retrained, or maintained from this lane.
 
 For AI usage billed pricing decisions specifically:

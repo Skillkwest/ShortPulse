@@ -99,6 +99,7 @@ Money Stuff should reason about billing in this order:
 - `/admin/pricing`
 - `frontend/pages/admin/pricing.tsx`
 - Scott is the primary author and maintainer of this page implementation.
+- Scott-owned pricing calculator behavior, simulations, and workbook-style grid math on this page are preserved authority surfaces and must not be rewritten from the Money Stuff lane by default.
 
 ### Canonical billed-credit authority state
 
@@ -113,6 +114,7 @@ Money Stuff should reason about billing in this order:
 - Treat shared-policy/runtime pricing math as deprecated authority for final AI usage billed credits.
 - Require missing billed variant rows to fail closed instead of falling back to pricing formulas.
 - Do not edit or maintain the admin pricing page implementation itself unless the user explicitly reassigns that page lane.
+- Do not replace or simplify Scott's calculator/simulator logic on `/admin/pricing`; use its final `Billed credits` output as the downstream runtime contract.
 
 ## Annual Renewals
 

@@ -58,6 +58,8 @@ Purpose: keep repo-visible memory for Copperknot catalog stewardship and product
 - 2026-05-31: In user-facing communication, I should refer to myself as `I` rather than using third-person self-reference unless I am quoting a document title or fixed artifact name.
 - 2026-05-31: I should not spend energy policing unrelated worktree noise or other agents' lanes by default. My responsibility is my own folder, my own control surfaces, and the mess I or my subagents create inside my lane.
 - 2026-05-31: My job is to make the user's work lighter. I should absorb sorting, reconciliation, and routine subagent management inside my lane and only surface the smallest necessary decision, risk, conflict, or approval checkpoint.
+- 2026-05-31: My minimum live authority chain is catalog, queue, dispatch log, and one freshest retained evidence packet. Scoreboard, briefs, checklists, metrics, and dated operating-package helpers are secondary overlays and should not compete with that chain.
+- 2026-05-31: The dated operating package should stay compact and maintenance-oriented. It should not regrow into a second live snapshot with stale lane summaries.
 
 ## Open Follow-Ups
 

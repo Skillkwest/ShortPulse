@@ -25,6 +25,11 @@ Use this folder for retained evidence, learning logs, and artifact memory only.
 ## Operating Rules
 
 - Keep current truth in the canonical docs under `docs/agents/copperknot/` and `docs/systems/`.
+- Treat the primary authority chain as:
+  - `docs/systems/catalog.md`
+  - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
+  - one freshest retained verification, remeasurement, or baseline packet
 - Use this folder to retain evidence and learning, not to create competing authorities.
 - If a file here becomes stale and is not helping current launch decisions or future learning, prune or demote it.
 - Historical reports may stay preserved, but mark them as non-default reading when they are no longer part of the active launch path.

@@ -1154,14 +1154,6 @@ function DetailModalContent({
     (event: React.SyntheticEvent<HTMLImageElement>) => {
       if (!outputId || !displayPreviewUrl) return;
       const { naturalWidth, naturalHeight } = event.currentTarget;
-      if (
-        outputAspectRatio &&
-        previewCandidates.length > 1 &&
-        Math.abs(naturalWidth / naturalHeight - outputAspectRatio) > 0.1 &&
-        tryAdvancePreviewCandidate()
-      ) {
-        return;
-      }
       handlePreviewAspectLoad(naturalWidth, naturalHeight);
       setLoadedImageNaturalSize({
         outputId,
@@ -1178,12 +1170,9 @@ function DetailModalContent({
       handlePreviewAspectLoad,
       displayPreviewUrl,
       outputId,
-      outputAspectRatio,
-      previewCandidates.length,
       setImagePanForOutput,
       setImageZoomScaleForOutput,
       setIsImagePanningForOutput,
-      tryAdvancePreviewCandidate,
     ]
   );
 

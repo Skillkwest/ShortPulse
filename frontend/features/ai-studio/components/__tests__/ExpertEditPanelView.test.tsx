@@ -7777,7 +7777,7 @@ describe("ExpertEditPanelView", () => {
       }
     ).mock.calls;
     const submitOptions = submissionCalls[0]?.[1];
-    expect(submitOptions?.modelIdOverride).toBe(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID);
+    expect(submitOptions?.modelIdOverride).toBeUndefined();
     expect(submitOptions?.inpaintOverride).toBeUndefined();
   });
 

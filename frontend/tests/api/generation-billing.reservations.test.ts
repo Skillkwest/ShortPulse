@@ -556,17 +556,6 @@ describe("generationBilling reservation RPC handling", () => {
         },
       },
       {
-        modelId: "fal-ai/flux-pro/v1/fill",
-        route: "/api/fal/flux-pro-fill-submit",
-        requestId: "req-flux-fill",
-        payload: {
-          prompt: "cinematic portrait",
-          image_url: "https://example.com/base.png",
-          mask_url: "https://example.com/mask.png",
-          image_size: { width: 1024, height: 1024 },
-        },
-      },
-      {
         modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
         route: "/api/fal/seedream-submit",
         requestId: "req-seedream",

@@ -894,8 +894,8 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     rerender({ intent: "markup" });
 
-    expect(result.current.currentCostCredits).toBe(markupCostCredits);
-    expect(result.current.isCreditGuardrail).toBe(true);
+    expect(result.current.currentCostCredits).toBe(standardCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(false);
     expect(result.current.generationGuardrail).toBeNull();
   });
 
@@ -941,7 +941,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.currentCostCredits).not.toBe(referenceInpaintCostCredits);
   });
 
-  it("switches edit cost and credit guardrail to Pulse Markup v1 for markup intent", () => {
+  it("keeps standard edit cost and guardrails when hidden markup intent is requested", () => {
     const selectedModelId = "fal-ai/flux-2/klein/9b";
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const standardCostCredits = computeCostForModel(
@@ -981,8 +981,8 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     rerender({ intent: "markup" });
 
-    expect(result.current.currentCostCredits).toBe(markupCostCredits);
-    expect(result.current.isCreditGuardrail).toBe((balanceCredits ?? 0) < (markupCostCredits ?? 0));
+    expect(result.current.currentCostCredits).toBe(standardCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(false);
     expect(result.current.generationGuardrail).toBeNull();
   });
 });

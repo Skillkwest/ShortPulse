@@ -6,7 +6,8 @@ vi.mock("../../../logic/inpaintSubmission", () => ({
   INPAINT_FLUX_FILL_MODEL_ID: "flux-fill",
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID: "nano-banana",
   isInpaintGenerationEnabled: () => false,
-  isMarkupModelLockEnabled: () => true,
+  isMarkupGenerationEnabled: () => false,
+  isMarkupModelLockEnabled: () => false,
 }));
 
 describe("resolveExpertEditSubmissionDispatch", () => {
@@ -29,7 +30,7 @@ describe("resolveExpertEditSubmissionDispatch", () => {
     });
   });
 
-  it("returns a temporary-unavailable error for inpaint mode", () => {
+  it("normalizes hidden inpaint intent to the standard edit submission path", () => {
     expect(
       resolveExpertEditSubmissionDispatch({
         editSubmitIntent: "inpaint",
@@ -40,12 +41,15 @@ describe("resolveExpertEditSubmissionDispatch", () => {
         referenceInputs: ["blob:flatten-1"],
       })
     ).toEqual({
-      status: "error",
-      message: "Inpaint is temporarily unavailable.",
+      status: "ready",
+      referenceInputs: ["blob:flatten-1"],
+      options: {
+        referenceInputsMode: "replace",
+      },
     });
   });
 
-  it("fails closed before building inpaint submit options", () => {
+  it("ignores hidden inpaint overrides and keeps a standard regenerate payload", () => {
     expect(
       resolveExpertEditSubmissionDispatch({
         editSubmitIntent: "inpaint",
@@ -61,12 +65,17 @@ describe("resolveExpertEditSubmissionDispatch", () => {
         },
       })
     ).toEqual({
-      status: "error",
-      message: "Inpaint is temporarily unavailable.",
+      status: "ready",
+      referenceInputs: ["blob:flatten-1"],
+      options: {
+        displayPromptOverride: "Use @main",
+        submissionPromptOverride: "Figure 1 = primary base image.",
+        referenceInputsMode: "replace",
+      },
     });
   });
 
-  it("always adds the canonical markup model override for markup submissions", () => {
+  it("normalizes hidden markup intent to standard edit submit behavior", () => {
     expect(
       resolveExpertEditSubmissionDispatch({
         editSubmitIntent: "markup",
@@ -80,7 +89,6 @@ describe("resolveExpertEditSubmissionDispatch", () => {
       status: "ready",
       referenceInputs: ["blob:flatten-1", "blob:markup-1"],
       options: {
-        modelIdOverride: "nano-banana",
         referenceInputsMode: "replace",
       },
     });

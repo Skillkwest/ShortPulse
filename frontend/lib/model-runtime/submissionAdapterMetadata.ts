@@ -14,8 +14,6 @@ export type DefaultSubmissionAdapterKey = (typeof defaultSubmissionAdapterKeys)[
 
 export const imageSubmissionAdapterKeys = [
   "bria-background-remove",
-  "flux-pro-fill",
-  "flux-kontext-inpaint",
   "nano-banana-pro-edit",
   "nano-banana-2-edit",
   "seedream-edit",

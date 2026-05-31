@@ -1,10 +1,9 @@
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
-  isInpaintGenerationEnabled,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   isMarkupModelLockEnabled,
 } from "../../logic/inpaintSubmission";
-import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
+import { normalizeEditSubmitIntent, type EditSubmitIntent } from "../../logic/editSubmitIntent";
 import type {
   ExpertEditCompiledPromptOverrides,
   ExpertEditRegenerateOptions,
@@ -47,16 +46,11 @@ export const resolveExpertEditSubmissionDispatch = ({
   referenceInputs: string[];
   promptOverrideOptions?: ExpertEditCompiledPromptOverrides;
 }): ResolveExpertEditSubmissionDispatchResult => {
-  const isInpaintSubmitSelected = editSubmitIntent === "inpaint";
-  const isMarkupSubmitSelected = editSubmitIntent === "markup";
+  const normalizedEditSubmitIntent = normalizeEditSubmitIntent(editSubmitIntent);
+  const isInpaintSubmitSelected = normalizedEditSubmitIntent === "inpaint";
+  const isMarkupSubmitSelected = normalizedEditSubmitIntent === "markup";
 
   if (isInpaintSubmitSelected) {
-    if (!isInpaintGenerationEnabled()) {
-      return {
-        status: "error",
-        message: "Inpaint is temporarily unavailable.",
-      };
-    }
     if (!hasSubmissionHandler) {
       return {
         status: "error",

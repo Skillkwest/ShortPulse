@@ -37,6 +37,10 @@ vi.mock("../expertEditSubmissionObjectUrls", () => ({
 
 vi.mock("../../../logic/inpaintSubmission", () => ({
   resolveInpaintPromptReferencePolicy: () => null,
+  isInpaintGenerationEnabled: () => false,
+  isMarkupGenerationEnabled: () => false,
+  isMarkupModelLockEnabled: () => false,
+  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID: "nano-banana",
 }));
 
 const createArgs = (
@@ -355,7 +359,7 @@ describe("useExpertEditInlineGenerate", () => {
     );
   });
 
-  it("passes markup submit intent into Expert Edit submission preparation", async () => {
+  it("normalizes hidden markup submit intent before Expert Edit submission preparation", async () => {
     const { result } = renderHook(() =>
       useExpertEditInlineGenerate(
         createArgs({
@@ -379,13 +383,13 @@ describe("useExpertEditInlineGenerate", () => {
     await waitFor(() => {
       expect(prepareExpertEditSubmissionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          editSubmitIntent: "markup",
+          editSubmitIntent: "standard",
         })
       );
     });
   });
 
-  it("threads a variant-aware cost override into inpaint regenerate submissions", async () => {
+  it("keeps hidden inpaint submissions on the standard regenerate path", async () => {
     const resolveVariantCostCredits = vi.fn(() => 9);
     const onRegenerateWithReferenceInputs = vi.fn(async () => undefined);
 
@@ -415,11 +419,6 @@ describe("useExpertEditInlineGenerate", () => {
       referenceInputs: ["blob:flattened-primary"],
       options: {
         referenceInputsMode: "replace",
-        inpaintOverride: {
-          modelId: "fal-ai/flux-pro/v1/fill",
-          baseImageInput: "blob:flattened-primary",
-          maskInput: "blob:mask",
-        },
       },
     });
 
@@ -439,19 +438,16 @@ describe("useExpertEditInlineGenerate", () => {
     });
 
     await waitFor(() => {
-      expect(resolveVariantCostCredits).toHaveBeenCalledWith({
-        modelId: "fal-ai/flux-pro/v1/fill",
-        imageWidth: 2048,
-        imageHeight: 1024,
-      });
+      expect(resolveExpertEditSubmissionDispatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          editSubmitIntent: "standard",
+        })
+      );
     });
+    expect(resolveVariantCostCredits).not.toHaveBeenCalled();
     expect(onRegenerateWithReferenceInputs).toHaveBeenCalledWith(
       ["blob:flattened-primary"],
       expect.objectContaining({
-        costOverrideCredits: 9,
-        inpaintOverride: expect.objectContaining({
-          modelId: "fal-ai/flux-pro/v1/fill",
-        }),
         outputIdOverride: "out-optimistic",
       })
     );

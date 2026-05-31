@@ -28,9 +28,7 @@ import type { ImageSubmissionArgs, VideoSubmissionArgs } from "../types";
 
 const falClientMocks = vi.hoisted(() => ({
   submitFalBriaBackgroundRemove: vi.fn(),
-  submitFalFluxKontextInpaint: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
-  submitFalFluxProFill: vi.fn(),
   submitFalNanoBanana2: vi.fn(),
   submitFalNanoBanana2Edit: vi.fn(),
   submitFalNanoBananaPro: vi.fn(),
@@ -56,10 +54,6 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitFalBriaBackgroundRemove(payload);
       case FAL_FLUX_2_KLEIN_9B_MODEL_ID:
         return falClientMocks.submitFalFlux2Klein(payload);
-      case "fal-ai/flux-pro/v1/fill":
-        return falClientMocks.submitFalFluxProFill(payload);
-      case "fal-ai/flux-kontext-lora/inpaint":
-        return falClientMocks.submitFalFluxKontextInpaint(payload);
       case FAL_SEEDREAM_45_EDIT_MODEL_ID:
         return falClientMocks.submitFalSeedreamEdit(payload);
       case FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID:
@@ -79,9 +73,7 @@ vi.mock("../../../../../lib/falClient", () => {
 
 const {
   submitFalBriaBackgroundRemove,
-  submitFalFluxKontextInpaint,
   submitFalFlux2Klein,
-  submitFalFluxProFill,
   submitFalNanoBanana2,
   submitFalNanoBanana2Edit,
   submitFalNanoBananaPro,
@@ -202,21 +194,6 @@ const makeImageArgs = (
     image_url: "https://cdn.test/ref-1.png",
     image_urls: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
   },
-  inpaintOverride:
-    modelId === "fal-ai/flux-pro/v1/fill" || modelId === "fal-ai/flux-kontext-lora/inpaint"
-      ? {
-          modelId,
-          baseImageInput: "https://cdn.test/inpaint-base.png",
-          maskInput: "https://cdn.test/inpaint-mask.png",
-          referenceImageInput:
-            modelId === "fal-ai/flux-kontext-lora/inpaint"
-              ? "https://cdn.test/inpaint-reference.png"
-              : undefined,
-          outputFormat: "png",
-          imageWidth: 2048,
-          imageHeight: 1024,
-        }
-      : undefined,
 });
 
 const makeVideoArgs = (
@@ -235,9 +212,7 @@ const makeVideoArgs = (
 
 const submitSpyByName = {
   submitFalBriaBackgroundRemove: vi.mocked(submitFalBriaBackgroundRemove),
-  submitFalFluxKontextInpaint: vi.mocked(submitFalFluxKontextInpaint),
   submitFalFlux2Klein: vi.mocked(submitFalFlux2Klein),
-  submitFalFluxProFill: vi.mocked(submitFalFluxProFill),
   submitFalNanoBanana2: vi.mocked(submitFalNanoBanana2),
   submitFalNanoBanana2Edit: vi.mocked(submitFalNanoBanana2Edit),
   submitFalNanoBananaPro: vi.mocked(submitFalNanoBananaPro),
@@ -370,25 +345,6 @@ describe("task submission payload matrix", () => {
       } else if (config.expectedReferenceField === "first_last_frame_urls") {
         expect(typeof payload.first_frame_url).toBe("string");
         expect(typeof payload.last_frame_url).toBe("string");
-      }
-      if (modelId === "fal-ai/flux-pro/v1/fill") {
-        expect(typeof payload.image_url).toBe("string");
-        expect(typeof payload.mask_url).toBe("string");
-        expect(payload.shortpulse_context).toMatchObject({
-          surface: "ai-studio-test",
-          image_width: 2048,
-          image_height: 1024,
-        });
-      }
-      if (modelId === "fal-ai/flux-kontext-lora/inpaint") {
-        expect(typeof payload.image_url).toBe("string");
-        expect(typeof payload.mask_url).toBe("string");
-        expect(typeof payload.reference_image_url).toBe("string");
-        expect(payload.shortpulse_context).toMatchObject({
-          surface: "ai-studio-test",
-          image_width: 2048,
-          image_height: 1024,
-        });
       }
       if (modelId === "fal-ai/bria/background/remove") {
         expect(typeof payload.image_url).toBe("string");

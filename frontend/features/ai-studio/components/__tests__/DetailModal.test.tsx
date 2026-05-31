@@ -677,14 +677,14 @@ describe("DetailModal", () => {
     expect(baseElement.querySelector("img.art-hero-image")).not.toBeNull();
   });
 
-  it("falls back to an alternative result URL when the first image does not match the output aspect", async () => {
+  it("keeps successfully loaded media even when actual dimensions differ from aspect metadata", async () => {
     const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
-          aspect: "5:4",
-          previewUrl: "https://cdn.test/wrong-portrait.png",
-          resultUrls: ["https://cdn.test/wrong-portrait.png", "https://cdn.test/correct-5x4.png"],
+          aspect: "16:9",
+          previewUrl: "https://cdn.test/actual-3x2.png",
+          resultUrls: ["https://cdn.test/actual-3x2.png", "https://cdn.test/alternate.png"],
         }}
         onClose={vi.fn()}
         onUpdatePrompt={vi.fn()}
@@ -696,23 +696,24 @@ describe("DetailModal", () => {
     expect(firstImage).not.toBeNull();
     if (!firstImage) return;
 
-    Object.defineProperty(firstImage, "naturalWidth", { configurable: true, value: 800 });
-    Object.defineProperty(firstImage, "naturalHeight", { configurable: true, value: 1000 });
+    Object.defineProperty(firstImage, "naturalWidth", { configurable: true, value: 1536 });
+    Object.defineProperty(firstImage, "naturalHeight", { configurable: true, value: 1024 });
     fireEvent.load(firstImage);
 
     await waitFor(() => {
-      const nextImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
-      expect(nextImage).not.toBeNull();
-      expect(nextImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
+      expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
     });
+    const loadedImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(loadedImage).not.toBeNull();
+    expect(loadedImage?.getAttribute("src")).toBe("https://cdn.test/actual-3x2.png");
   });
 
-  it("keeps the active fallback URL stable when same-output delivery candidates are reordered", async () => {
+  it("keeps the active loaded URL stable when same-output delivery candidates are reordered", async () => {
     const initialOutput = {
       ...baseOutput,
       aspect: "5:4",
-      previewUrl: "https://cdn.test/wrong-portrait.png",
-      resultUrls: ["https://cdn.test/wrong-portrait.png", "https://cdn.test/correct-5x4.png"],
+      previewUrl: "https://cdn.test/loaded-portrait.png",
+      resultUrls: ["https://cdn.test/loaded-portrait.png", "https://cdn.test/alternate-5x4.png"],
     };
     const { baseElement, rerender } = render(
       <DetailModal
@@ -733,7 +734,7 @@ describe("DetailModal", () => {
 
     await waitFor(() => {
       const nextImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
-      expect(nextImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
+      expect(nextImage?.getAttribute("src")).toBe("https://cdn.test/loaded-portrait.png");
     });
 
     rerender(
@@ -743,8 +744,8 @@ describe("DetailModal", () => {
           previewUrl: "https://cdn.test/new-transient-wrong.png",
           resultUrls: [
             "https://cdn.test/new-transient-wrong.png",
-            "https://cdn.test/wrong-portrait.png",
-            "https://cdn.test/correct-5x4.png",
+            "https://cdn.test/loaded-portrait.png",
+            "https://cdn.test/alternate-5x4.png",
           ],
         }}
         onClose={vi.fn()}
@@ -755,7 +756,7 @@ describe("DetailModal", () => {
 
     const stableImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
     expect(stableImage).not.toBeNull();
-    expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
+    expect(stableImage?.getAttribute("src")).toBe("https://cdn.test/loaded-portrait.png");
   });
 
   it("promotes the open detail image when later full delivery arrives", () => {

@@ -28,8 +28,6 @@ type ImagePollingProvider =
   | "fal-nano-banana-2-edit"
   | "fal-nano-banana-pro-edit"
   | "fal-flux2-klein"
-  | "fal-flux-pro-fill"
-  | "fal-flux-kontext-inpaint"
   | "fal-bria-background-remove";
 
 type ImageHandlerContext = {
@@ -109,73 +107,6 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         handled: true,
         response,
         pollingProvider: "fal-bria-background-remove",
-      };
-    },
-  },
-  {
-    key: "flux-pro-fill",
-    matches: (modelId) => modelId === "fal-ai/flux-pro/v1/fill",
-    submit: async ({
-      id,
-      cleanedPrompt,
-      notifyGenerationFailure,
-      inpaintOverride,
-      shortpulseSubmitPayload,
-    }) => {
-      const preparedBaseImage = inpaintOverride?.baseImageInput?.trim();
-      const preparedMaskImage = inpaintOverride?.maskInput?.trim();
-      if (!preparedBaseImage || !preparedMaskImage) {
-        notifyGenerationFailure(id, "FLUX Fill requires both a base image and mask.");
-        return { handled: true };
-      }
-      const response = await submitQueuedGenerationByModelId("fal-ai/flux-pro/v1/fill", {
-        prompt: cleanedPrompt,
-        image_url: preparedBaseImage,
-        mask_url: preparedMaskImage,
-        num_images: 1,
-        output_format: inpaintOverride?.outputFormat ?? "png",
-        ...shortpulseSubmitPayload,
-      });
-      return {
-        handled: true,
-        response,
-        pollingProvider: "fal-flux-pro-fill",
-      };
-    },
-  },
-  {
-    key: "flux-kontext-inpaint",
-    matches: (modelId) => modelId === "fal-ai/flux-kontext-lora/inpaint",
-    submit: async ({
-      id,
-      cleanedPrompt,
-      notifyGenerationFailure,
-      inpaintOverride,
-      shortpulseSubmitPayload,
-    }) => {
-      const preparedBaseImage = inpaintOverride?.baseImageInput?.trim();
-      const preparedMaskImage = inpaintOverride?.maskInput?.trim();
-      const preparedReferenceImage = inpaintOverride?.referenceImageInput?.trim();
-      if (!preparedBaseImage || !preparedMaskImage || !preparedReferenceImage) {
-        notifyGenerationFailure(
-          id,
-          "Reference inpaint requires a base image, mask, and one secondary reference image."
-        );
-        return { handled: true };
-      }
-      const response = await submitQueuedGenerationByModelId("fal-ai/flux-kontext-lora/inpaint", {
-        prompt: cleanedPrompt,
-        image_url: preparedBaseImage,
-        mask_url: preparedMaskImage,
-        reference_image_url: preparedReferenceImage,
-        num_images: 1,
-        output_format: inpaintOverride?.outputFormat ?? "png",
-        ...shortpulseSubmitPayload,
-      });
-      return {
-        handled: true,
-        response,
-        pollingProvider: "fal-flux-kontext-inpaint",
       };
     },
   },

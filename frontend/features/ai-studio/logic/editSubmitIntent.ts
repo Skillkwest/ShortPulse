@@ -5,6 +5,7 @@
 import {
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   isInpaintGenerationEnabled,
+  isMarkupGenerationEnabled,
   isMarkupModelLockEnabled,
   resolveInpaintPromptReferencePolicy,
 } from "./inpaintSubmission";
@@ -15,12 +16,25 @@ export type EditSubmitIntent = "standard" | "inpaint" | "markup";
 
 export const DEFAULT_EDIT_SUBMIT_INTENT: EditSubmitIntent = "standard";
 
+export const normalizeEditSubmitIntent = (
+  editSubmitIntent: EditSubmitIntent | null | undefined
+): EditSubmitIntent => {
+  const resolvedIntent = editSubmitIntent ?? DEFAULT_EDIT_SUBMIT_INTENT;
+  if (resolvedIntent === "inpaint" && !isInpaintGenerationEnabled()) {
+    return "standard";
+  }
+  if (resolvedIntent === "markup" && !isMarkupGenerationEnabled()) {
+    return "standard";
+  }
+  return resolvedIntent;
+};
+
 /**
  * Maps inpaint rail selection to submit intent used by orchestration.
  */
 export const resolveEditSubmitIntentFromInpaintSelection = (
   isInpaintSelected: boolean
-): EditSubmitIntent => (isInpaintSelected ? "inpaint" : "standard");
+): EditSubmitIntent => normalizeEditSubmitIntent(isInpaintSelected ? "inpaint" : "standard");
 
 /**
  * Maps rail-tool selection to submit intent used by orchestration.
@@ -32,8 +46,8 @@ export const resolveEditSubmitIntentFromRailSelection = ({
   isInpaintSelected: boolean;
   isMarkupSelected: boolean;
 }): EditSubmitIntent => {
-  if (isInpaintSelected) return "inpaint";
-  if (isMarkupSelected) return "markup";
+  if (isInpaintSelected) return normalizeEditSubmitIntent("inpaint");
+  if (isMarkupSelected) return normalizeEditSubmitIntent("markup");
   return "standard";
 };
 
@@ -53,7 +67,8 @@ export const resolveEffectiveEditSubmitModelId = ({
   promptText?: string;
   extraImageUrls?: [string | null, string | null, string | null];
 }): string | null => {
-  if (isEditWorkflow(selectedTool) && editSubmitIntent === "inpaint") {
+  const normalizedEditSubmitIntent = normalizeEditSubmitIntent(editSubmitIntent);
+  if (isEditWorkflow(selectedTool) && normalizedEditSubmitIntent === "inpaint") {
     if (!isInpaintGenerationEnabled()) {
       return selectedModelId;
     }
@@ -62,7 +77,11 @@ export const resolveEffectiveEditSubmitModelId = ({
       extraImageUrls,
     }).modelId;
   }
-  if (isEditWorkflow(selectedTool) && editSubmitIntent === "markup" && isMarkupModelLockEnabled()) {
+  if (
+    isEditWorkflow(selectedTool) &&
+    normalizedEditSubmitIntent === "markup" &&
+    isMarkupModelLockEnabled()
+  ) {
     return MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID;
   }
   return selectedModelId;

@@ -4,7 +4,7 @@ import type {
   StageFlattenCameraTransformInput,
 } from "../../logic/expertEditStageFlatten";
 import { resolveInpaintPromptReferencePolicy } from "../../logic/inpaintSubmission";
-import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
+import { normalizeEditSubmitIntent, type EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
 import type {
   ExpertEditRegenerateWithReferenceInputsHandler,
@@ -108,15 +108,19 @@ export const useExpertEditInlineGenerate = ({
   const [inlineGeneratePendingCount, setInlineGeneratePendingCount] = React.useState(0);
   const inlineGenerateInFlightRef = React.useRef(false);
   const scheduledRunTimeoutIdsRef = React.useRef<number[]>([]);
+  const normalizedEditSubmitIntent = React.useMemo(
+    () => normalizeEditSubmitIntent(editSubmitIntent),
+    [editSubmitIntent]
+  );
   const inpaintPromptReferencePolicy = React.useMemo(
     () =>
-      editSubmitIntent === "inpaint"
+      normalizedEditSubmitIntent === "inpaint"
         ? resolveInpaintPromptReferencePolicy({
             promptText,
             extraImageUrls,
           })
         : null,
-    [editSubmitIntent, extraImageUrls, promptText]
+    [extraImageUrls, normalizedEditSubmitIntent, promptText]
   );
   React.useEffect(
     () => () => {
@@ -132,11 +136,11 @@ export const useExpertEditInlineGenerate = ({
       return;
     }
     const allowSecondaryReferenceTokens =
-      editSubmitIntent === "inpaint"
+      normalizedEditSubmitIntent === "inpaint"
         ? (inpaintPromptReferencePolicy?.allowSecondaryReferenceTokens ?? false)
         : true;
     const maxSecondaryReferenceTokens =
-      editSubmitIntent === "inpaint"
+      normalizedEditSubmitIntent === "inpaint"
         ? inpaintPromptReferencePolicy?.maxSecondaryReferenceTokens
         : undefined;
     if (populatedLayerCount <= 0) {
@@ -183,7 +187,7 @@ export const useExpertEditInlineGenerate = ({
             reusablePrimarySourceUrl,
             flattenTargetLongestEdgePx,
             markupStrokes,
-            editSubmitIntent,
+            editSubmitIntent: normalizedEditSubmitIntent,
             hasSelectedLayerMask,
             exportSelectedLayerMaskBlob,
             resolveBlobDimensions,
@@ -205,7 +209,7 @@ export const useExpertEditInlineGenerate = ({
             extraImageUrls,
             flattenedPrimaryUrl: primaryReferenceUrl,
             flattenedMarkupReferenceUrl: objectUrls.flattenedMarkupReferenceUrl,
-            editSubmitIntent,
+            editSubmitIntent: normalizedEditSubmitIntent,
             allowSecondaryReferenceTokens,
             maxSecondaryReferenceTokens,
           });
@@ -217,7 +221,7 @@ export const useExpertEditInlineGenerate = ({
           const { linkedSecondaryReferenceInputs, promptOverrideOptions, referenceInputs } =
             preparedSubmission;
           submitDispatch = resolveExpertEditSubmissionDispatch({
-            editSubmitIntent,
+            editSubmitIntent: normalizedEditSubmitIntent,
             hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
             hasSelectedLayerMask,
             flattenedUrl: objectUrls.flattenedUrl,
@@ -309,7 +313,6 @@ export const useExpertEditInlineGenerate = ({
     extraImageUrls,
     exportSelectedLayerMaskBlob,
     hasSelectedLayerMask,
-    editSubmitIntent,
     inpaintPromptReferencePolicy,
     layers,
     markupStrokes,
@@ -329,6 +332,7 @@ export const useExpertEditInlineGenerate = ({
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
     notifyGenerationFailure,
+    normalizedEditSubmitIntent,
   ]);
 
   return {

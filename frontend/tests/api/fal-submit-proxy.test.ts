@@ -531,9 +531,9 @@ describe("createFalSubmitHandler", () => {
     });
 
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/flux-kontext-lora/inpaint",
-      submitUrl: "https://queue.fal.run/fal-ai/flux-kontext-lora/inpaint",
-      routeLabel: "Fal Flux Kontext Inpaint",
+      modelId: "test/internal-edit-media",
+      submitUrl: "https://queue.fal.run/test/internal-edit-media",
+      routeLabel: "Test Internal Edit Media",
     });
 
     const req = {
@@ -553,7 +553,7 @@ describe("createFalSubmitHandler", () => {
         host: "localhost:3000",
         "x-forwarded-proto": "http",
       },
-      url: "/api/fal/flux-kontext-inpaint-submit",
+      url: "/api/fal/test-internal-edit-submit",
     };
     const res = createMockResponse();
 
@@ -596,9 +596,9 @@ describe("createFalSubmitHandler", () => {
     );
 
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/flux-kontext-lora/inpaint",
-      submitUrl: "https://queue.fal.run/fal-ai/flux-kontext-lora/inpaint",
-      routeLabel: "Fal Flux Kontext Inpaint",
+      modelId: "test/internal-edit-media",
+      submitUrl: "https://queue.fal.run/test/internal-edit-media",
+      routeLabel: "Test Internal Edit Media",
     });
 
     const req = {
@@ -618,7 +618,7 @@ describe("createFalSubmitHandler", () => {
         host: "localhost:3000",
         "x-forwarded-proto": "http",
       },
-      url: "/api/fal/flux-kontext-inpaint-submit",
+      url: "/api/fal/test-internal-edit-submit",
     };
     const res = createMockResponse();
 

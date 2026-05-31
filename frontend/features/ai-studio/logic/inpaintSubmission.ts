@@ -7,6 +7,7 @@ import { analyzeExpertEditPromptTokens } from "./expertEditPromptReferences";
 
 const PUBLIC_ADVANCED_EXPERT_EDIT_MODES_ENABLED = false;
 const INPAINT_GENERATION_ENABLED = false;
+const MARKUP_GENERATION_ENABLED = false;
 
 export const INPAINT_FLUX_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
 export const INPAINT_FLUX_FILL_MODEL_LABEL = "Pulse Fill v1";
@@ -14,14 +15,15 @@ export const INPAINT_REFERENCE_MODEL_ID = "fal-ai/flux-kontext-lora/inpaint";
 export const INPAINT_REFERENCE_MODEL_LABEL = "Pulse Reference Inpaint v1";
 export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID = FAL_NANO_BANANA_PRO_EDIT_MODEL_ID;
 export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL = "Pulse Markup v1";
-export const isMarkupModelLockEnabled = (): boolean => true;
+export const isMarkupGenerationEnabled = (): boolean => MARKUP_GENERATION_ENABLED;
+export const isMarkupModelLockEnabled = (): boolean => isMarkupGenerationEnabled();
 
 export const areAdvancedExpertEditModesPubliclyAccessible = (): boolean =>
   PUBLIC_ADVANCED_EXPERT_EDIT_MODES_ENABLED;
 
 export const isMarkupCollapsedOpenModalEnabled = (): boolean => false;
 
-export const isMarkupStrokeSecondaryReferenceEnabled = (): boolean => true;
+export const isMarkupStrokeSecondaryReferenceEnabled = (): boolean => isMarkupGenerationEnabled();
 
 export const isEditGenerationModeToggleEnabled = (): boolean =>
   areAdvancedExpertEditModesPubliclyAccessible();

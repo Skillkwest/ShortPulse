@@ -7,6 +7,11 @@ import { buildDefaultPricingParams, computeCostForModel } from "../../lib/model-
 import { buildModelUsagePricingOverrides, shouldShowAudioSpecControl } from "./pricingDrafts";
 import { buildModelPricingVariantId } from "../../lib/model-runtime/modelPricingVariants";
 import { convertUsdToCredits } from "../../lib/model-runtime/pricingCredits";
+import {
+  shouldExpandAspectPricingVariants,
+  shouldExpandResolutionPricingVariants,
+  shouldExpandVideoInputPricingVariants,
+} from "../../lib/model-runtime/pricingGridVariantRules";
 
 export type CostDocsPopover = {
   x: number;
@@ -211,38 +216,13 @@ const orderWithDefaultFirst = <T extends string | boolean | null>(
   return ordered.length ? ordered : [defaultValue];
 };
 
-const shouldExpandAspectPricingVariants = (model: AdminPricingModelRow): boolean =>
-  [
-    "fal-per-mp",
-    "fal-economy-image-per-mp",
-    "fal-fill-per-mp",
-    "fal-flux-kontext-inpaint-per-mp",
-    "gpt-image-2-per-image",
-  ].includes(model.pricingStrategy);
-
-const shouldExpandResolutionPricingVariants = (model: AdminPricingModelRow): boolean =>
-  [
-    "gpt-image-2-per-image",
-    "kling-3-per-second",
-    "nano-banana-2-per-image",
-    "nano-banana-per-image",
-    "seedream-per-image",
-    "seedream-5-lite-per-image",
-    "veo-3-per-second",
-    "seedance-2-per-second",
-    "seedance-2-fast-per-second",
-  ].includes(model.pricingStrategy);
-
-const shouldExpandVideoInputPricingVariants = (model: AdminPricingModelRow): boolean =>
-  ["seedance-2-per-second", "seedance-2-fast-per-second"].includes(model.pricingStrategy);
-
 const buildAspectOptions = (
   model: AdminPricingModelRow,
   options: { aspect?: string | null }
 ): string[] => {
   const allowedAspects = model.allowedAspects ?? [];
+  if (!shouldExpandAspectPricingVariants(model.pricingStrategy)) return [model.defaultAspect];
   if (options.aspect) return [options.aspect];
-  if (!shouldExpandAspectPricingVariants(model)) return [model.defaultAspect];
   return orderWithDefaultFirst(
     allowedAspects.length ? allowedAspects : [model.defaultAspect],
     model.defaultAspect
@@ -254,8 +234,10 @@ const buildResolutionOptions = (
   options: { resolution?: string | null }
 ): Array<string | null> => {
   const allowedResolutions = model.allowedResolutions ?? [];
+  if (!shouldExpandResolutionPricingVariants(model.pricingStrategy)) {
+    return [model.defaultResolution ?? null];
+  }
   if (options.resolution !== undefined) return [options.resolution ?? null];
-  if (!shouldExpandResolutionPricingVariants(model)) return [model.defaultResolution ?? null];
   return orderWithDefaultFirst(
     allowedResolutions.length ? allowedResolutions : [model.defaultResolution ?? null],
     model.defaultResolution ?? null
@@ -275,7 +257,7 @@ const buildVideoInputOptions = (
   model: AdminPricingModelRow,
   options: { videoInput?: boolean | null }
 ): Array<boolean | null> => {
-  if (!shouldExpandVideoInputPricingVariants(model)) return [null];
+  if (!shouldExpandVideoInputPricingVariants(model.pricingStrategy)) return [null];
   if (options.videoInput !== undefined) return [options.videoInput];
   return [true, false];
 };

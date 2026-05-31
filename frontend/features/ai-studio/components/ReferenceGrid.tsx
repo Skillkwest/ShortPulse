@@ -27,6 +27,7 @@ import { useReferenceGridPreviewSwapTelemetryController } from "../reference-gri
 import { useReferenceGridAutoplaySelectionController } from "../reference-grid/controllers/useReferenceGridAutoplaySelectionController";
 import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
 import { useReferenceGridResolvedMediaController } from "../reference-grid/controllers/useReferenceGridResolvedMediaController";
+import { useReferenceGridSignedStorageUrlController } from "../reference-grid/controllers/useReferenceGridSignedStorageUrlController";
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
 import { useReferenceGridRuntimeScaffold } from "../reference-grid/controllers/useReferenceGridRuntimeScaffold";
 import { useReferenceGridSingleAudioPlaybackController } from "../reference-grid/controllers/useReferenceGridSingleAudioPlaybackController";
@@ -276,10 +277,30 @@ function ReferenceGridComponent({
     Math.max(REFERENCE_GRID_MIN_COLUMNS, curatedVirtualMetrics.columnCount) *
     baseHydrationPriorityRows;
   const quickSlotAdaptiveSurfaceEnabled = isAdaptiveSurfaceEnabled("quick-slot");
+  const storageSigningMediaOutputs = React.useMemo(
+    () => [
+      ...visibleMediaOutputs,
+      ...visibleCuratedMediaOutputs,
+      ...nearViewportMediaOutputs,
+      ...nearViewportCuratedMediaOutputs,
+      activeMediaOutput,
+    ],
+    [
+      activeMediaOutput,
+      nearViewportCuratedMediaOutputs,
+      nearViewportMediaOutputs,
+      visibleCuratedMediaOutputs,
+      visibleMediaOutputs,
+    ]
+  );
+  const { signedStorageUrlByPath } = useReferenceGridSignedStorageUrlController({
+    outputs: storageSigningMediaOutputs,
+  });
   const { resolveCardMedia } = useReferenceGridResolvedMediaController({
     previewQualityPressureLevel,
     strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
     adaptivePreviewRoutingEnabled,
+    signedStorageUrlByPath,
   });
   const { visibleQuickSlotIdSet, hydrationQuickSlotPreferredIdSet } =
     useReferenceGridSurfaceOwnershipController({

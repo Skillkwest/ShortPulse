@@ -152,4 +152,84 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.fullUrl).toBe("https://storage.example.com/generated-full.png");
     expect(resolved.fallbackUrl).toBe("https://storage.example.com/generated-full.png");
   });
+
+  it("uses signed storage urls for storage-path-only restored image cards", () => {
+    const output = {
+      ...createImageOutput("out-restored-storage-only"),
+      mediaSource: "generated",
+      generationId: "gen-1",
+      previewStoragePath: "user-1/variants/images/gen-1/preview.webp",
+      fullStoragePath: "user-1/generations/images/gen-1.png",
+      previewUrl: undefined,
+      resultUrls: undefined,
+    } as unknown as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+        signedStorageUrlByPath: new Map([
+          [
+            "user-1/variants/images/gen-1/preview.webp",
+            "https://signed.shortpulse.test/gen-1-preview.webp",
+          ],
+          ["user-1/generations/images/gen-1.png", "https://signed.shortpulse.test/gen-1-full.png"],
+        ]),
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: projectReferenceGridMediaOutput(output),
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(resolved.previewUrl).toBe("https://signed.shortpulse.test/gen-1-preview.webp");
+    expect(resolved.fullUrl).toBe("https://signed.shortpulse.test/gen-1-full.png");
+    expect(resolved.fallbackUrl).toBe("https://signed.shortpulse.test/gen-1-full.png");
+    expect(resolved.isImagePreview).toBe(true);
+  });
+
+  it("uses signed poster and full urls for storage-path-only restored video cards", () => {
+    const output = {
+      id: "out-restored-video-storage-only",
+      mode: "video",
+      mediaSource: "generated",
+      generationId: "gen-video-1",
+      previewStoragePath: null,
+      previewPosterStoragePath: "user-1/variants/videos/gen-video-1/poster.webp",
+      fullStoragePath: "user-1/generations/videos/gen-video-1.mp4",
+      previewUrl: undefined,
+      previewPosterUrl: undefined,
+      resultUrls: undefined,
+    } as unknown as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+        signedStorageUrlByPath: new Map([
+          [
+            "user-1/variants/videos/gen-video-1/poster.webp",
+            "https://signed.shortpulse.test/gen-video-1-poster.webp",
+          ],
+          [
+            "user-1/generations/videos/gen-video-1.mp4",
+            "https://signed.shortpulse.test/gen-video-1-full.mp4",
+          ],
+        ]),
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: projectReferenceGridMediaOutput(output),
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(resolved.previewUrl).toBe("https://signed.shortpulse.test/gen-video-1-poster.webp");
+    expect(resolved.fullUrl).toBe("https://signed.shortpulse.test/gen-video-1-full.mp4");
+    expect(resolved.fallbackUrl).toBe("https://signed.shortpulse.test/gen-video-1-full.mp4");
+    expect(resolved.isImagePreview).toBe(true);
+  });
 });

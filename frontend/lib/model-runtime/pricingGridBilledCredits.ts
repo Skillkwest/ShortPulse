@@ -4,6 +4,11 @@ import { resolveModelPricingForModel, type ModelPricingPolicyDocument } from "./
 import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { CostBreakdown, PricingParams } from "./pricingTypes";
 import {
+  shouldExpandAspectPricingVariants,
+  shouldExpandResolutionPricingVariants,
+  shouldExpandVideoInputPricingVariants,
+} from "./pricingGridVariantRules";
+import {
   getCreditsAtProviderCost,
   getEffectiveProviderCostUsd,
   getWorkbookBillableCredits,
@@ -14,6 +19,8 @@ import type { AdminCreditPricingBreakdown } from "../../features/admin/types";
 export type PricingGridCostBreakdown = CostBreakdown & {
   variantId: string;
 };
+
+const SHARED_POLICY_PRICING_AUTHORITY = "shared_policy";
 
 const toAdminCreditPricingBreakdown = (breakdown: CostBreakdown): AdminCreditPricingBreakdown => ({
   usdRaw: breakdown.usdRaw ?? null,
@@ -29,6 +36,44 @@ const resolveUsageRateMultiplier = (params: Omit<PricingParams, "modelId">): num
   return null;
 };
 
+const normalizePricingGridParams = (
+  modelId: string,
+  params: Omit<PricingParams, "modelId">
+): Omit<PricingParams, "modelId"> => {
+  const config = getModelConfig(modelId);
+  if (!config) return params;
+
+  const normalizedParams: Omit<PricingParams, "modelId"> = { ...params };
+
+  if (shouldExpandAspectPricingVariants(config.pricingStrategy)) {
+    if (!normalizedParams.aspect && config.defaultAspect) {
+      normalizedParams.aspect = config.defaultAspect;
+    }
+  } else {
+    delete normalizedParams.aspect;
+    if (config.defaultAspect) {
+      normalizedParams.aspect = config.defaultAspect;
+    }
+  }
+
+  if (shouldExpandResolutionPricingVariants(config.pricingStrategy)) {
+    if (normalizedParams.resolution === undefined && config.defaultResolution !== undefined) {
+      normalizedParams.resolution = config.defaultResolution ?? undefined;
+    }
+  } else {
+    delete normalizedParams.resolution;
+    if (config.defaultResolution !== undefined) {
+      normalizedParams.resolution = config.defaultResolution ?? undefined;
+    }
+  }
+
+  if (!shouldExpandVideoInputPricingVariants(config.pricingStrategy)) {
+    delete normalizedParams.inputVideoCount;
+  }
+
+  return normalizedParams;
+};
+
 export const resolvePricingGridCostBreakdown = ({
   modelId,
   params = {},
@@ -38,16 +83,18 @@ export const resolvePricingGridCostBreakdown = ({
   params?: Omit<PricingParams, "modelId">;
   pricingPolicy?: ModelPricingPolicyDocument | null;
 }): PricingGridCostBreakdown | null => {
-  const breakdown = computeCostForModel(modelId, params, pricingPolicy);
+  const normalizedParams = normalizePricingGridParams(modelId, params);
+  const breakdown = computeCostForModel(modelId, normalizedParams, pricingPolicy);
   if (!breakdown) return null;
 
   const variantId = resolveModelPricingVariantId({
     modelId,
-    ...params,
+    ...normalizedParams,
     pricingPolicy,
   });
   const config = getModelConfig(modelId);
   const resolvedPolicy = resolveModelPricingForModel(pricingPolicy, modelId, variantId);
+  const pricingAuthority = config?.pricingAuthority ?? SHARED_POLICY_PRICING_AUTHORITY;
 
   if (resolvedPolicy.billedCreditsOverride != null) {
     return {
@@ -58,7 +105,7 @@ export const resolvePricingGridCostBreakdown = ({
     };
   }
 
-  if (config?.pricingAuthority !== "shared_policy") {
+  if (pricingAuthority !== SHARED_POLICY_PRICING_AUTHORITY) {
     return {
       ...breakdown,
       variantId,
@@ -70,8 +117,8 @@ export const resolvePricingGridCostBreakdown = ({
     breakdown: workbookBreakdown,
     providerUsdOverride: resolvedPolicy.providerUsdOverride,
     providerUsdPerSecondOverride: resolvedPolicy.providerUsdPerSecondOverride,
-    durationSeconds: params.durationSeconds ?? null,
-    usageRateMultiplier: resolveUsageRateMultiplier(params),
+    durationSeconds: normalizedParams.durationSeconds ?? null,
+    usageRateMultiplier: resolveUsageRateMultiplier(normalizedParams),
   });
   const creditsAtCost = getCreditsAtProviderCost(workbookBreakdown, resolvedPolicy.creditUsdScale, {
     preferRuntimeCredits: false,
@@ -92,12 +139,7 @@ export const resolvePricingGridCostBreakdown = ({
       preferRuntimeBilledUsd: false,
     }
   );
-  if (billedCredits == null || billedUsd == null) {
-    return {
-      ...breakdown,
-      variantId,
-    };
-  }
+  if (billedCredits == null || billedUsd == null) return null;
 
   return {
     ...breakdown,

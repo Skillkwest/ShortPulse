@@ -10,7 +10,9 @@ import {
   type ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMedia";
 import { isGeneratedOutput } from "../../logic/referenceOutputAuthority";
+import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
+import { applySignedStorageUrlsToReferenceGridMediaOutput } from "./useReferenceGridSignedStorageUrlController";
 import {
   isOutputAudioPreview,
   isOutputVideoPreview,
@@ -38,6 +40,7 @@ type UseReferenceGridResolvedMediaControllerArgs = {
   previewQualityPressureLevel: 0 | 1 | 2;
   strictPreviewLadder: boolean;
   adaptivePreviewRoutingEnabled: boolean;
+  signedStorageUrlByPath?: ReadonlyMap<string, string>;
 };
 
 type ResolveReferenceGridCardMediaArgs = {
@@ -50,8 +53,22 @@ const getResolvedMediaCacheKey = ({
   item,
   mediaSurface,
   cardLongEdgePx,
-}: ResolveReferenceGridCardMediaArgs): string =>
-  [
+  signedStorageUrlByPath,
+}: ResolveReferenceGridCardMediaArgs & {
+  signedStorageUrlByPath?: ReadonlyMap<string, string>;
+}): string => {
+  const signedStorageKey = [
+    item.previewStoragePath,
+    item.previewPosterStoragePath,
+    item.fullStoragePath,
+    ...(item.resultUrls ?? []),
+  ]
+    .map((value) => {
+      const path = asCanonicalStoragePath(value);
+      return path ? (signedStorageUrlByPath?.get(path) ?? "") : "";
+    })
+    .join("||");
+  return [
     item.id,
     item.mode ?? "",
     item.previewStoragePath ?? "",
@@ -63,9 +80,11 @@ const getResolvedMediaCacheKey = ({
     item.mediaSource ?? "",
     item.generationId ?? "",
     item.savedMediaIds?.[0] ?? "",
+    signedStorageKey,
     mediaSurface,
     cardLongEdgePx,
   ].join("::");
+};
 
 /**
  * Returns a memoized card-media resolver that caches repeated output/surface derivations.
@@ -74,6 +93,7 @@ export const useReferenceGridResolvedMediaController = ({
   previewQualityPressureLevel,
   strictPreviewLadder,
   adaptivePreviewRoutingEnabled,
+  signedStorageUrlByPath,
 }: UseReferenceGridResolvedMediaControllerArgs) => {
   const devicePixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
   const cacheRef = useRef(new Map<string, ReferenceGridResolvedCardMedia>());
@@ -84,6 +104,7 @@ export const useReferenceGridResolvedMediaController = ({
     adaptivePreviewRoutingEnabled,
     devicePixelRatio,
     previewQualityPressureLevel,
+    signedStorageUrlByPath,
     strictPreviewLadder,
   ]);
 
@@ -93,13 +114,18 @@ export const useReferenceGridResolvedMediaController = ({
         item,
         mediaSurface,
         cardLongEdgePx,
+        signedStorageUrlByPath,
       });
       const cached = cacheRef.current.get(cacheKey);
       if (cached) {
         return cached;
       }
 
-      const resolvedCardUrls = resolveReferenceCardUrls(item, {
+      const mediaItem =
+        signedStorageUrlByPath && signedStorageUrlByPath.size > 0
+          ? applySignedStorageUrlsToReferenceGridMediaOutput(item, signedStorageUrlByPath)
+          : item;
+      const resolvedCardUrls = resolveReferenceCardUrls(mediaItem, {
         strictPreviewLadder,
         adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
         pressureLevel: previewQualityPressureLevel,
@@ -113,15 +139,15 @@ export const useReferenceGridResolvedMediaController = ({
         resolvedCardUrls.authorityTier === "preview-only" && isGeneratedOutput(item)
           ? (resolveFirstRenderableUrl(
               resolvedCardUrls.previewUrl ?? null,
-              item.previewUrl ?? null,
-              item.resultUrls?.[0] ?? null
+              mediaItem.previewUrl ?? null,
+              mediaItem.resultUrls?.[0] ?? null
             ) ?? null)
           : (resolveFirstRenderableUrl(
               resolvedCardUrls.fullUrl ?? null,
               resolvedCardUrls.previewUrl ?? null
             ) ?? null);
-      const isVideoPreview = isOutputVideoPreview(item, previewUrl);
-      const isAudioPreview = isOutputAudioPreview(item, previewUrl);
+      const isVideoPreview = isOutputVideoPreview(mediaItem, previewUrl);
+      const isAudioPreview = isOutputAudioPreview(mediaItem, previewUrl);
 
       const resolvedMedia: ReferenceGridResolvedCardMedia = {
         previewUrl,
@@ -145,6 +171,7 @@ export const useReferenceGridResolvedMediaController = ({
       adaptivePreviewRoutingEnabled,
       devicePixelRatio,
       previewQualityPressureLevel,
+      signedStorageUrlByPath,
       strictPreviewLadder,
     ]
   );

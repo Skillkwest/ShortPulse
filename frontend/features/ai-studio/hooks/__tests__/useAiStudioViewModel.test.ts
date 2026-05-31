@@ -358,12 +358,12 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     const candidateModelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
-    const expectedCredits = computeCostForModel(
-      candidateModelId,
-      costParamsForModel(candidateModelId, {
+    const expectedCredits = resolvePricingGridBilledCredits({
+      modelId: candidateModelId,
+      params: costParamsForModel(candidateModelId, {
         resolution: "4K",
-      })
-    )?.credits;
+      }),
+    });
 
     expect(result.current.resolveModelPickerCredits(candidateModelId)).toBe(expectedCredits);
   });

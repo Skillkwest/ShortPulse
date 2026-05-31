@@ -73,8 +73,6 @@ Structure (locked):
 - [ ] Media Library: restyle text prompt cards in the `Saved Prompts` tab.
 - [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
 - [ ] AI Studio: change placeholder `generating` and `loading preview` reference cards to a lighter gray background for better visual contrast.
-- [ ] AI Studio: increase normal-state color saturation for the reference-grid `Add files` and `Media library` buttons (current state appears too gray/desaturated).
-- [ ] AI Studio: remove the blue gradient overlay from the quick-slot inventory background.
 
 ## Program 3: Structural Decomposition
 

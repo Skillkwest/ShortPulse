@@ -17,13 +17,27 @@ describe("pricingGridBilledCredits", () => {
       resolvePricingGridCostBreakdown({
         modelId: "fal-ai/nano-banana-2",
         params: {
+          aspect: "16:9",
+          resolution: "0.5K",
+        },
+        pricingPolicy: pricingGridPolicy,
+      })
+    ).toMatchObject({
+      credits: 4,
+      variantId: "default|res:0.5K|aspect:auto",
+    });
+
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: "fal-ai/nano-banana-2",
+        params: {
           aspect: "auto",
           resolution: "1K",
         },
         pricingPolicy: pricingGridPolicy,
       })
     ).toMatchObject({
-      credits: 4,
+      credits: 5,
       variantId: "default|res:1K|aspect:auto",
     });
 
@@ -37,7 +51,7 @@ describe("pricingGridBilledCredits", () => {
         pricingPolicy: pricingGridPolicy,
       })
     ).toMatchObject({
-      credits: 6,
+      credits: 7,
       variantId: "default|res:2K|aspect:auto",
     });
   });
@@ -53,7 +67,7 @@ describe("pricingGridBilledCredits", () => {
         pricingPolicy: pricingGridPolicy,
       })
     ).toMatchObject({
-      credits: 2,
+      credits: 4,
       variantId: "create|res:medium|aspect:16:9",
     });
   });

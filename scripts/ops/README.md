@@ -75,6 +75,12 @@ Purpose: keep shared ShortPulse operations scripts and agent-specific helper aud
 - `node scripts/ops/gear_ball_status_groups.mjs`
   - Prints the current `git status --short` grouped by top-level area, preserving staged/unstaged markers.
   - Useful after each commit when Gear Ball needs to spot resurfaced lanes quickly instead of rereading a long flat status list.
+- `node scripts/ops/gear_ball_related_sweep.mjs --files <paths...>`
+  - Ranks likely sibling files across the repo for the supplied seed paths.
+  - Intended for Gear Ball's one explicit adjacent-surface sweep before the first validation pass.
+- `node scripts/ops/gear_ball_tail_check.mjs --files <paths...>`
+  - Ranks remaining `git status --short` files by likely relation to a just-validated lane.
+  - Intended for post-commit convergence so stash-restored or resurfaced tails are easier to classify as "fold back in" vs "new lane".
 
 ## Recommended Order
 

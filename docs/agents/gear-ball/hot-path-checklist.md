@@ -21,7 +21,7 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
    - ignore as temp/noise
 8. Collapse the inventory into the fewest honest lanes possible. Default target: 1 to 3 lanes total.
 9. Build the first manifest from full `git status --short`, not from tracked diffs or memory.
-10. Do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass.
+10. Do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass. Use `node scripts/ops/gear_ball_related_sweep.mjs --files <paths...>` when the lane is broad enough that a quick ranked sweep beats ad hoc rereads.
 11. If the run is large or mixed, lock a file-backed manifest before staging.
 12. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
 
@@ -67,6 +67,7 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 
 - rerun `git status --short`
 - compare the live tree to the just-validated lane manifest
+- use `node scripts/ops/gear_ball_tail_check.mjs --files <paths...>` when stash restore or mixed tails make the relation call non-obvious
 - if related tails surfaced, fold them back into the same lane before any push or score-loop writeback
 - do not treat the run as stable until this loop returns clean or only intentionally deferred unrelated work remains
 

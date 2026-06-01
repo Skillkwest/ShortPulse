@@ -68,6 +68,8 @@ Closeouts must stay explicit about:
 - `npm -C frontend run gear-ball:preflight -- --files-from <manifest> --tests-from <manifest>`
 - `npm -C frontend run gear-ball:manifest -- --batch-name "<name>" --reason "<reason>" --risk "<risk>" --validation "<checks>"`
 - `node scripts/ops/gear_ball_status_groups.mjs`
+- `node scripts/ops/gear_ball_related_sweep.mjs --files <paths...>`
+- `node scripts/ops/gear_ball_tail_check.mjs --files <paths...>`
 
 ## Stop Rule
 

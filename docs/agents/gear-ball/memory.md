@@ -38,6 +38,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Before the first Git write on a mixed or risky run, verify `production` + `shortpulse.allowedBranch=production`, lock a file-backed manifest, and run the cheapest honest preflight.
 - Do one fast whole-tree classification pass, collapse to the fewest honest lanes, and stop refining labels once the split is decision-useful.
 - Build the first manifest from full live `git status --short`, then do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass.
+- Use the lightweight helper path when it reduces rereads: `gear_ball_related_sweep.mjs` for the first sibling pass and `gear_ball_tail_check.mjs` for ambiguous post-commit tails.
 - Full-worktree accountability is part of the job: every live non-temp repo-backed change must be classified before any push-ready claim.
 - Keep Git activity serialized, inspect `git diff --cached --name-only` before every commit, and assume the index may already be dirty.
 - After every commit, stay in the convergence loop until the live tree is clean or only intentionally deferred unrelated work remains.

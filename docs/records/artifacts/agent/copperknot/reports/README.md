@@ -2,9 +2,10 @@
 
 Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inbound execution-lane closeouts used by the Copperknot.
 
-## Current Primary Authority Surface
+## Current Primary Authority Surfaces
 
-- `2026-05-31-project-workspace-persistence-closeout-review.md`: current freshest retained packet explaining why `Project / workspace persistence` still stays exact next after the accepted local root fix, with deploy plus production remeasurement now the next proof boundary.
+- `2026-05-31-project-workspace-production-verification-pass.md`: current freshest retained packet proving `Project / workspace persistence` reached ship floor after the production persistence audit passed on `https://www.shortpulse.ai`.
+- `2026-06-01-characters-workflow-measurement-refresh.md`: current retained packet proving the Character Mode model-picker audit, local Character guards, and production Character Manager save/reopen continuity are healthy enough to move `Characters workflow` to `6/10`, with a residual delete-confirmation pointer-layering finding held below the next exact lane.
 
 ## Current Secondary Overlays
 
@@ -19,7 +20,8 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 
 - `2026-05-31-project-workspace-persistence-root-seam-audit.md`: current source-seam audit for the exact-next `Project / workspace persistence` lane.
 - `2026-05-31-project-workspace-production-verification-failure.md`: live production failure packet that narrowed the orphan generated-output restore seam before the accepted local root fix landed.
-- `2026-05-31-project-workspace-production-verification-packet.md`: current exact proof packet for verifying the accepted persistence root fix on live production.
+- `2026-05-31-project-workspace-persistence-closeout-review.md`: retained closeout review explaining why the local root fix was accepted before production proof.
+- `2026-05-31-project-workspace-production-verification-packet.md`: proof packet used to verify the accepted persistence root fix on live production.
 - `2026-05-31-approved-panel-post-deploy-verification.md`: retained production packet explaining why `Elements workflow` moved out of the exact-next slot before the persistence lane resumed control.
 
 ## Current Intake Surfaces

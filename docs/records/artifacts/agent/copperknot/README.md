@@ -31,7 +31,6 @@ The primary live authority chain is:
 
 - `docs/systems/catalog.md`
 - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
-- `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
 - one freshest retained verification, remeasurement, or baseline packet
 
 This artifact area should support that chain, not compete with it.

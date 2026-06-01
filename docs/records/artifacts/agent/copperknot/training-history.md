@@ -18,7 +18,7 @@ Purpose: keep a compressed maintenance-facing summary of Copperknot's training a
   - `docs/agents/copperknot/README.md`
   - `docs/agents/copperknot/standard-operating-procedure.md`
   - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
+  - one freshest retained verification, remeasurement, baseline, or closeout-review packet that explains the current queue state
 
 ## Milestone Summary
 

@@ -14,7 +14,6 @@ For current launch-truth decisions, use these first:
 
 - Catalog: `docs/systems/catalog.md`
 - Queue: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
-- Dispatch log: `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
 - Freshest retained packet explaining the current queue call
 
 If these surfaces already answer the question, do not widen the load by default.
@@ -64,7 +63,7 @@ The May 16 Reference Grid blocker was cleared and is now historical in `docs/kno
 ## Operating Rhythm
 
 - Use the queue to decide exact next order.
-- Use the dispatch log to decide lane state.
+- Use the queue plus the freshest retained evidence packet to decide lane state.
 - Use the freshest retained packet to explain why the current queue call is correct.
 - Use the catalog to decide ratings and boundaries.
 - Open the deeper package surfaces only when they materially reduce ambiguity or maintenance cost.

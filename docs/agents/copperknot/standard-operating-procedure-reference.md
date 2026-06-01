@@ -59,7 +59,7 @@ Every execution handoff must include:
 Trim or demote anything that degrades current launch decisions:
 
 - superseded dated plan/queue files that still read like live authority
-- duplicate current-state memory that competes with queue, dispatch log, or scoreboard
+- duplicate current-state memory that competes with the queue, freshest retained evidence packet, or catalog
 - incomplete template reports that look like finished evidence
 - historical planning notes that remain on the default reading path after the lane is closed
 
@@ -138,7 +138,7 @@ Check at minimum:
 - rerating lead time:
   - how long completed lanes sat before Copperknot review
 - launch-state freshness:
-  - whether scoreboard, queue, dispatch log, and catalog launch fields still match
+  - whether the queue, freshest retained evidence packet, and catalog launch fields still match
 - queue usefulness:
   - whether recent work validated the current next-lane ordering or exposed reprioritization pressure
 

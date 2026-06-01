@@ -43,7 +43,7 @@ This surface answers:
 ### 4. Launch-state freshness
 
 - Definition:
-  - whether the catalog launch fields, scoreboard, queue snapshot, and dispatch log still describe the same operating reality
+  - whether the catalog launch fields, queue snapshot, and freshest retained evidence packet still describe the same operating reality
 - Target:
   - `current`
 
@@ -82,16 +82,16 @@ This surface answers:
 
 Snapshot date: `2026-05-31`
 
-| Metric                       | Current state                                           | Notes                                                                                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Closeout compliance          | `9/10 completed lanes with dedicated closeouts`         | All reviewed lanes in the current window except the first recovery lane now have dedicated closeouts on file, including both accepted Elements bounded closeouts.                           |
-| Evidence-anchor coverage     | `strong through the May 31 post-deploy verification`    | The current launch-state packet names report paths, commit anchor, route-parity proof, live production capture commands, retained comparison anchors, and the new exact-next lane.          |
-| Rerating lead time           | `mixed but operational`                                 | The first completed lane was slow, the May 16 batch rerated quickly, Create rerated same day on May 28, Elements was reviewed same day on May 30, and production was remeasured May 31.     |
-| Launch-state freshness       | `current`                                               | Queue, dispatch log, scoreboard, operator brief, checklist, and retained measurement logs now reflect the May 31 post-deploy verification.                                                  |
-| Queue usefulness             | `stable with evidence-backed reorder`                   | Copperknot moved `Elements workflow` out of the top slot only after the deployed root fix changed the live production signal, and returned exact-next to `Project / workspace persistence`. |
-| Score-discipline compliance  | `100% for current-window score changes and score holds` | The May 31 post-deploy verification recorded real production improvement and a queue reorder without forcing an unsupported score lift.                                                     |
-| Weekly learning compliance   | `current`                                               | The retained weekly review cadence is still current through the active week, with the May 30 entry still covering the latest completed review cycle.                                        |
-| Production backtest coverage | `current for retained May production findings`          | The Holomony approved-panel runtime check now has a full May 31 follow-up backtest showing the old hotspot materially reduced after the deployed root fix.                                  |
+| Metric                       | Current state                                                  | Notes                                                                                                                                                                                                   |
+| ---------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Closeout compliance          | `9/10 completed lanes with dedicated closeouts`                | All reviewed lanes in the current window except the first recovery lane now have dedicated closeouts on file, including both accepted Elements bounded closeouts.                                       |
+| Evidence-anchor coverage     | `strong through the May 31 post-deploy verification`           | The current launch-state packet names report paths, commit anchor, route-parity proof, live production capture commands, retained comparison anchors, and the new exact-next lane.                      |
+| Rerating lead time           | `mixed but operational`                                        | The first completed lane was slow, the May 16 batch rerated quickly, Create rerated same day on May 28, Elements was reviewed same day on May 30, and production was remeasured May 31.                 |
+| Launch-state freshness       | `current through retained packet; secondary overlays optional` | Catalog, queue, and retained evidence now carry the live launch truth. Dispatch logs, scoreboard, operator brief, checklist, and metric logs are secondary maintenance surfaces, not default authority. |
+| Queue usefulness             | `stable with evidence-backed reorder`                          | Copperknot moved `Elements workflow` out of the top slot only after the deployed root fix changed the live production signal, and returned exact-next to `Project / workspace persistence`.             |
+| Score-discipline compliance  | `100% for current-window score changes and score holds`        | The May 31 post-deploy verification recorded real production improvement and a queue reorder without forcing an unsupported score lift.                                                                 |
+| Weekly learning compliance   | `current`                                                      | The retained weekly review cadence is still current through the active week, with the May 30 entry still covering the latest completed review cycle.                                                    |
+| Production backtest coverage | `current for retained May production findings`                 | The Holomony approved-panel runtime check now has a full May 31 follow-up backtest showing the old hotspot materially reduced after the deployed root fix.                                              |
 
 Supporting time-series logs:
 

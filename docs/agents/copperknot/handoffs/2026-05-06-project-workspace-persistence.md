@@ -8,9 +8,9 @@ Purpose: harden the current project-owned save/restore authority before final sh
 
 ## Current Status
 
-This packet is retained as the source handoff for the persistence lane, but it is no longer a dispatch-ready worker packet. The current worktree has a local source fix for the generated-output restore filter: read canonicalization now resolves generated-output authority by `generationId`, `taskId`, and `sourceRef`, and fails closed when runtime identity cannot be ownership-resolved.
+This packet is retained as the source handoff for the persistence lane, but it is no longer a dispatch-ready worker packet. The generated-output restore filter fix is now production-verified: read canonicalization resolves generated-output authority by `generationId`, `taskId`, and `sourceRef`, and fails closed when runtime identity cannot be ownership-resolved.
 
-Next proof boundary: deploy the local persistence fix through the release lane, then rerun the production persistence audit. Do not dispatch this packet again unless production remeasurement or a fresh code audit reopens a smaller source problem.
+Current proof boundary: cleared by `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-production-verification-pass.md`. Do not dispatch this packet again unless fresh production evidence or a fresh code audit reopens a smaller source problem.
 
 ## Fix Classification
 
@@ -20,28 +20,29 @@ If a true source-level fix is not practical inside the bounded write surface, a 
 
 ## Copy/Paste Use
 
-- Historical packet only while the local source fix is waiting on deployment proof.
+- Historical packet only after production proof.
 - Treat it as a source context packet, not an active worker prompt.
 - Do not broaden into a full project-system redesign unless the stop rules are hit and the evidence demands it.
 
 ## Why this task
 
 - System: `Project / workspace persistence`
-- Current score: `6/10`
+- Current score: `7/10`
 - Target score: `7/10`
 - Ship floor: `7/10`
-- Queue status: exact next after the `2026-05-31` approved-panel post-deploy verification
-- This system now owns durable workspace behavior for AI Studio and cannot remain only partially trusted near ship.
-- Why the score is currently low:
-  - restore and association invariants are still not explicit enough across the full project-owned path
-  - persistence trust remains broader than the ship bar should allow
-  - the earlier bounded ownership hardening on `project_generation_items` was real progress, but it did not clear the broader row to floor
+- Queue status: reviewed complete at floor after the production persistence verification pass
+- This system owns durable workspace behavior for AI Studio and now has production proof for the known orphan generated-output restore defect.
+- Why the score is now at floor:
+  - restore authority is explicit for the known generated-output orphan class
+  - targeted local tests cover the root read path
+  - production verification proved the live restore surface strips the orphan row and does not render it after reopen
 
 ## Current Evidence
 
 - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-post-deploy-verification.md`
 - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-persistence-root-seam-audit.md`
 - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-production-verification-failure.md`
+- `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-production-verification-pass.md`
 - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-project-workspace-persistence-hardening-closeout.md`
 - `docs/records/artifacts/agent/copperknot/reports/2026-05-30-production-post-redeploy-baseline-refresh.md`
 
@@ -51,7 +52,7 @@ Current Copperknot judgment:
 - the prior persistence lane removed one eager association trust gap
 - broader trust is still too thin to claim floor-level confidence
 - the earlier May 31 ownership-resolution fix was live on production, but the first production persistence verification still reproduced the orphan generated-output class
-- the current worktree now addresses the narrower generated-output restore filter in `sanitizeProjectWorkspaceOutputs(...)`
+- the deployed production surface now addresses the narrower generated-output restore filter in `sanitizeProjectWorkspaceOutputs(...)`
 - generated rows that have lost canonical association ids now fail closed unless the read path can resolve durable or runtime-owned generated authority through `generationId`, `taskId`, or `sourceRef`
 - current repo truth distinguishes two different ideas:
   - live UI code can still treat `mediaSource === "generated"` rows as generated outputs for preview behavior
@@ -87,7 +88,7 @@ Current fixed source seam:
   - `hasProjectDurableOutputAuthority(...)`
   - `hasProjectRecoverableRuntimeIdentity(...)`
   - `isGeneratedOutput(...)`
-- production proof is still missing for the current local fix
+- production proof passed for this fix on `https://www.shortpulse.ai`
 
 ## Owned write surface
 

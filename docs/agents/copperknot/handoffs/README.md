@@ -17,10 +17,10 @@ Do not infer exact next-work order from this folder listing alone.
 The current authority chain decides whether a packet is truly live:
 
 - exact order: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
-- lane state: `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
+- lane state: the current queue row plus the freshest retained verification, remeasurement, or closeout-review packet
 - rationale for the current top call: the freshest retained verification or baseline packet
 
-If a packet exists here but the queue marks the row `queue-only` or the dispatch log marks it historical, treat the packet as retained scope history, not as a live dispatch instruction.
+If a packet exists here but the current queue does not mark it exact next or actively dispatchable, treat the packet as retained scope history, not as a live dispatch instruction.
 
 ## Working Set Expectation
 
@@ -33,11 +33,9 @@ Everything else in this folder should be treated as conditional reference, not r
 
 ## Current Dispatch State
 
-See:
+Use the current dated queue and freshest retained evidence packet for live lane state.
 
-- `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-
-Use that log to see which packets are already out with external execution agents or already reviewed.
+Older dispatch logs are historical traceability only and should not be loaded by default.
 
 ## Usage Rule
 

@@ -8,6 +8,7 @@ import { useEffect, useMemo, type ReactNode } from "react";
 import { MediaComplianceGate } from "../components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../hooks/useMediaComplianceGate";
 import { useProtectedRoute } from "../../../lib/authGuard";
+import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
 
 type ProtectedRouteBootstrapGateProps = {
   children: ReactNode;
@@ -80,5 +81,11 @@ export function ProtectedRouteBootstrapGate({ children }: ProtectedRouteBootstra
     );
   }
 
-  return <>{children}</>;
+  const resolvedUser = user ?? session.user;
+
+  return (
+    <ProtectedRouteSessionProvider session={session} user={resolvedUser}>
+      {children}
+    </ProtectedRouteSessionProvider>
+  );
 }

@@ -168,9 +168,18 @@ Reject these stale assumptions unless a newer source of truth replaces the curre
 For most Datserok runs, load:
 
 - `docs/agents/datserok/README.md`
+- `docs/agents/datserok/AGENTS.md`
 - `docs/agents/datserok/memory.md`
 - `docs/agents/datserok/standard-operating-procedure.md`
 - `docs/agents/datserok/project-persistence-source-map.md`
-- `docs/sops/sop_ai_studio_projects_foundation.md`
 
-Load the deeper ADRs, code, and tests only when the current lane needs them.
+Load conditionally:
+
+- `docs/agents/datserok/ownership-manifest.md`
+  - when the lane may cross adjacent ownership boundaries
+- `docs/sops/sop_ai_studio_projects_foundation.md`
+  - for current-contract explanations, audits, or implementation work
+- deeper ADRs, code, and tests
+  - only when the current lane needs them
+- `docs/records/artifacts/agent/datserok/training-history.md`
+  - for training or maintenance lanes

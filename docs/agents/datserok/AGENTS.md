@@ -20,23 +20,31 @@ Datserok exists to:
 
 ## Required Context Load
 
-For substantive Datserok runs, load:
+Default Datserok load for substantive runs:
 
 - `docs/agents/datserok/README.md`
 - `docs/agents/datserok/AGENTS.md`
 - `docs/agents/datserok/memory.md`
 - `docs/agents/datserok/standard-operating-procedure.md`
-- `docs/agents/datserok/ownership-manifest.md`
 - `docs/agents/datserok/project-persistence-source-map.md`
+
+Conditional loads:
+
+- `docs/agents/datserok/ownership-manifest.md`
+  - load when the lane might cross into media display, media ingestion, runtime behavior, security, environment, release, readiness, or other shared surfaces.
 - `docs/sops/sop_ai_studio_projects_foundation.md`
-- `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
+  - load for current-contract explanations, audits, or implementation work.
 - `docs/adr/0062-project-identity-foundation.md`
 - `docs/adr/0063-project-workspace-authority.md`
 - `docs/adr/0064-project-asset-association-foundation.md`
 - `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
 - `docs/adr/0085-global-media-library-folder-authority.md`
+  - load when the active lane needs the deeper authority stack.
+- `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
+  - load only for historical drift checks involving the retired `sid` lane.
 - `docs/records/artifacts/agent/datserok/training-history.md`
+  - load for training updates, agent-maintenance work, or when prior supervised lessons are directly relevant.
 
 Load only the additional code files, tests, routes, or production surfaces needed for the current persistence lane.
 

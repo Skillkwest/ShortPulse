@@ -39,3 +39,17 @@ Purpose: append-only ledger of substantive Datserok runs that are worth retainin
   - collapse internal nuance when it does not change the next action;
   - express confidence as one repo/test/production evidence ladder instead of competing answer frames.
 - Follow-up: confirm future Datserok persistence closeouts maintain this discipline during real production-bug lanes.
+
+### 2026-06-01 - Agent-space audit and prune
+
+- Lane: agent maintenance
+- Outcome: audited Datserok's owned workspace, rechecked overlap, and compressed the startup/load contract so default runs stop bulk-loading boundary docs, deep ADR stacks, and training artifacts unless the lane actually needs them.
+- Evidence scope: Datserok contract, scoped instructions, SOP, source map, memory, artifact README, run log, tools inventory, training history, and workspace rules.
+- Validation:
+  - diff inspection confirmed the changes stayed inside Datserok-owned surfaces;
+  - `git diff --check` passed.
+- Durable lessons:
+  - Datserok's highest maintenance ROI is startup-load discipline, not report deletion;
+  - the source map should own the deeper doc-stack routing instead of repeating large inventories across every Datserok surface;
+  - training history is conditional context, not default startup load.
+- Follow-up: if future Datserok growth creates new sprawl, prune repeated file inventories first before deleting retained evidence.

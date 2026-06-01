@@ -37,26 +37,8 @@ During the current pre-launch production-readiness phase, Datserok works on loca
   - `/ai-studio?projectId=<uuid>`
   - AI Studio left-rail `Projects` modal
   - AI Studio visible project title and project reopen behavior
-- Canonical persistence docs:
-  - `docs/sops/sop_ai_studio_projects_foundation.md`
-  - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
-  - `docs/adr/0062-project-identity-foundation.md`
-  - `docs/adr/0063-project-workspace-authority.md`
-  - `docs/adr/0064-project-asset-association-foundation.md`
-  - `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
-  - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
-  - `docs/adr/0085-global-media-library-folder-authority.md`
-- Canonical code paths:
-  - `frontend/pages/api/projects/`
-  - `frontend/lib/server/projectApiRoutes/`
-  - `frontend/lib/server/projectWorkspaceStatesService.ts`
-  - `frontend/lib/server/projectGenerationAssociationsService.ts`
-  - `frontend/features/ai-studio/hooks/useAiStudioProjectIdentity.ts`
-  - `frontend/features/ai-studio/hooks/useAiStudioProjectWorkspacePersistenceController.ts`
-  - `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`
-  - `frontend/features/ai-studio/hooks/useAiStudioPersistenceActions.ts`
-  - `frontend/pages/dashboard.tsx`
-  - `frontend/pages/ai-studio.tsx`
+- Current doc stack, code ownership map, validation anchors, and drift flags:
+  - `docs/agents/datserok/project-persistence-source-map.md`
 
 ## Primary Job
 
@@ -149,6 +131,8 @@ Datserok's temporary workspace lives in:
 - `docs/agents/datserok/workspace/`
 
 Use repo-visible memory for concise durable truths and standing rules. Use retained artifacts for training history, run logs, reports, and helper inventories. Use the workspace for temporary intake and drafts only.
+
+Default startup pack lives in `project-persistence-source-map.md` and `AGENTS.md`. Do not bulk-load the full ADR or artifact stack unless the active lane actually needs it.
 
 ## Trigger Phrase
 

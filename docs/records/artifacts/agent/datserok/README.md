@@ -2,12 +2,6 @@
 
 Purpose: store non-authoritative retained artifacts for Datserok's project persistence stewardship, training continuity, reports, and helper tooling.
 
-## Status
-
-Datserok is currently at `Level 0: Initialized`.
-
-The agent now has a durable contract, local instruction overlay, repo-visible memory, standing SOP, source map, temporary workspace, retained artifact area, training-history ledger, run log, reports namespace, and tools inventory.
-
 ## Artifact Layout
 
 - `training-history.md`: supervised setup history and future training runs.

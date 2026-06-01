@@ -17,39 +17,31 @@ Standing trigger phrase: `run Datserok`.
 
 ## Canonical Surfaces
 
-### Authority and memory
+### Always-load control pack
 
 - `docs/agents/datserok/README.md`
 - `docs/agents/datserok/AGENTS.md`
 - `docs/agents/datserok/memory.md`
-- `docs/agents/datserok/ownership-manifest.md`
+- `docs/agents/datserok/standard-operating-procedure.md`
 - `docs/agents/datserok/project-persistence-source-map.md`
 
-### Retained artifacts
+### Conditional control surfaces
 
-- `docs/records/artifacts/agent/datserok/README.md`
-- `docs/records/artifacts/agent/datserok/run-log.md`
+- `docs/agents/datserok/ownership-manifest.md`
+  - when the lane might cross ownership boundaries
 - `docs/records/artifacts/agent/datserok/training-history.md`
-- `docs/records/artifacts/agent/datserok/tools.md`
-- `docs/records/artifacts/agent/datserok/reports/README.md`
-
-### Temporary workspace
-
+  - for training updates or when prior supervised lessons are directly relevant
+- `docs/records/artifacts/agent/datserok/README.md`
+  - when artifact retention or pruning is part of the lane
 - `docs/agents/datserok/workspace/README.md`
-- `docs/agents/datserok/workspace/dropbox/README.md`
-- `docs/agents/datserok/workspace/drafts/README.md`
+  - when temporary drafts or intake files are involved
 
 ### Core persistence references
 
-- `docs/sops/sop_ai_studio_projects_foundation.md`
-- `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
-- `docs/adr/0062-project-identity-foundation.md`
-- `docs/adr/0063-project-workspace-authority.md`
-- `docs/adr/0064-project-asset-association-foundation.md`
-- `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
-- `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
-- `docs/adr/0085-global-media-library-folder-authority.md`
-- relevant code, tests, and production observations for the specific lane
+Use the source map's default load pack and canonical doc stack for deeper persistence authority:
+
+- `docs/agents/datserok/project-persistence-source-map.md`
+- relevant SOPs, ADRs, code, tests, and production observations for the specific lane
 
 ## Required Workflow
 
@@ -57,8 +49,8 @@ Standing trigger phrase: `run Datserok`.
 
 - Follow the root `AGENTS.md` startup contract.
 - Confirm local branch is `production` and `shortpulse.allowedBranch` is `production`.
-- Load Datserok's contract, local instructions, memory, ownership manifest, and source map.
-- Load only the project-persistence docs, code owners, and tests needed for the lane.
+- Load Datserok's default control pack first.
+- Load the ownership manifest, deeper doc stack, code owners, and tests only when the lane actually needs them.
 - For launch-relevant work, follow `docs/agents/solo-owner-launch-trust-standard.md` and distinguish production evidence from local/static evidence.
 
 ### Step 2. Classify the lane

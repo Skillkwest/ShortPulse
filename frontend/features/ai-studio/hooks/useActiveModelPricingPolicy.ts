@@ -34,6 +34,7 @@ const loadSharedModelPricingPolicySnapshot = async (): Promise<ModelPricingPolic
 
   const request = (async () => {
     const response = await fetchWithAuth("/api/pricing/model-policy", {
+      cache: "no-store",
       method: "GET",
       shortpulseRetryNetworkOnce: true,
     });
@@ -79,6 +80,7 @@ export const useActiveModelPricingPolicy = ({
     try {
       setModelPricingPolicySnapshot(await loadSharedModelPricingPolicySnapshot());
     } catch (error) {
+      setModelPricingPolicySnapshot(null);
       setModelPricingPolicyError(
         error instanceof Error ? error.message : "Failed to load model pricing policy."
       );

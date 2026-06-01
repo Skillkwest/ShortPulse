@@ -5,7 +5,10 @@ import type {
 } from "./types";
 import { buildDefaultPricingParams, computeCostForModel } from "../../lib/model-runtime/pricing";
 import { buildModelUsagePricingOverrides, shouldShowAudioSpecControl } from "./pricingDrafts";
-import { buildModelPricingVariantId } from "../../lib/model-runtime/modelPricingVariants";
+import {
+  buildModelPricingVariantId,
+  resolveModelPricingVariantId,
+} from "../../lib/model-runtime/modelPricingVariants";
 import { convertUsdToCredits } from "../../lib/model-runtime/pricingCredits";
 import {
   shouldExpandAspectPricingVariants,
@@ -345,12 +348,13 @@ export const buildDraftPricingPreviewVariants = (
                 mapDraftPricingBreakdown(model.id, params, pricingPolicy) ?? variant.breakdown;
               if (!breakdown) return null;
               return {
-                id: buildModelPricingVariantId({
-                  baseVariantId: variant.id,
-                  aspect,
-                  resolution,
-                  audio,
-                  videoInput,
+                id: resolveModelPricingVariantId({
+                  modelId: model.id,
+                  variantBaseId: variant.id,
+                  ...(aspect ? { aspect } : {}),
+                  ...(resolution ? { resolution } : {}),
+                  ...(audio != null ? { audio } : {}),
+                  ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
                   ...(variant.id === "edit"
                     ? {
                         inputImageCount: 1,

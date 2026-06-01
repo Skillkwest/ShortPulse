@@ -94,6 +94,7 @@ const createMockResponse = () => ({
 const createSupabaseAdmin = (options?: {
   existingRow?: ExistingMediaRow | null;
   generationOutputRows?: Array<Record<string, unknown>>;
+  generationProjectionRow?: Record<string, unknown> | null;
   canonicalOutputMediaFileId?: string | null;
   canonicalOutputMaybeSingleError?: { message?: string } | null;
   insertRow?: MediaInsertRow | null;
@@ -185,6 +186,10 @@ const createSupabaseAdmin = (options?: {
     });
     return { error: null };
   });
+  const generationProjectionMaybeSingle = vi.fn(async () => ({
+    data: options?.generationProjectionRow ?? null,
+    error: null,
+  }));
   const mediaUpdateEqUserMock = vi.fn(
     async (): Promise<{ error: { message: string } | null }> => ({ error: null })
   );
@@ -201,16 +206,6 @@ const createSupabaseAdmin = (options?: {
 
   const fromMock = vi.fn((table: string) => {
     if (table === "media_files") {
-      const storageLookupBuilder = {
-        eq: vi.fn(),
-        in: vi.fn(),
-        limit: vi.fn(async () => ({
-          data: [...mediaRows],
-          error: null,
-        })),
-      };
-      storageLookupBuilder.eq.mockReturnValue(storageLookupBuilder);
-      storageLookupBuilder.in.mockReturnValue(storageLookupBuilder);
       const mediaSelectBuilder = {
         eq: vi.fn(),
         contains: vi.fn(),
@@ -220,14 +215,36 @@ const createSupabaseAdmin = (options?: {
       mediaSelectBuilder.eq.mockReturnValue(mediaSelectBuilder);
       mediaSelectBuilder.contains.mockReturnValue(mediaSelectBuilder);
       mediaSelectBuilder.limit.mockReturnValue(mediaSelectBuilder);
+      const mediaListBuilder = {
+        eq: vi.fn(),
+        in: vi.fn(),
+        limit: vi.fn(async () => ({
+          data: [...mediaRows],
+          error: null,
+        })),
+      };
+      mediaListBuilder.eq.mockReturnValue(mediaListBuilder);
+      mediaListBuilder.in.mockReturnValue(mediaListBuilder);
+      const detailedSelectDispatcher = {
+        eq: vi.fn(() => mediaSelectBuilder),
+        in: vi.fn(() => mediaListBuilder),
+      };
       return {
         select: vi.fn((fields: string) => {
+          if (fields === "id, storage_path") {
+            return mediaListBuilder;
+          }
           if (
-            fields === "id, storage_path" ||
             fields ===
-              "id, storage_path, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
+            "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
           ) {
-            return storageLookupBuilder;
+            return detailedSelectDispatcher;
+          }
+          if (
+            fields ===
+            "id, storage_path, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
+          ) {
+            return mediaListBuilder;
           }
           return mediaSelectBuilder;
         }),
@@ -266,6 +283,13 @@ const createSupabaseAdmin = (options?: {
       };
     }
     if (table === "ai_generation_outputs") {
+      const generationOutputListBuilder = {
+        eq: vi.fn(),
+        order: vi.fn(),
+        limit: generationOutputLimit,
+      };
+      generationOutputListBuilder.eq.mockReturnValue(generationOutputListBuilder);
+      generationOutputListBuilder.order.mockReturnValue(generationOutputListBuilder);
       return {
         select: vi.fn((fields: string) => {
           if (fields === "media_file_id") {
@@ -278,17 +302,22 @@ const createSupabaseAdmin = (options?: {
             builder.limit.mockReturnValue(builder);
             return builder;
           }
-          const builder = {
-            eq: vi.fn(),
-            order: vi.fn(),
-            limit: generationOutputLimit,
-          };
-          builder.eq.mockReturnValue(builder);
-          builder.order.mockReturnValue(builder);
-          return builder;
+          if (
+            fields === "output_index, result_url" ||
+            fields === "id, output_index, result_url, media_file_id"
+          ) {
+            return generationOutputListBuilder;
+          }
+          return generationOutputListBuilder;
         }),
         update: generationOutputUpdateMock,
         insert: generationOutputInsertMock,
+        upsert: vi.fn(() => ({
+          select: vi.fn(async () => ({
+            data: generationOutputRows,
+            error: null,
+          })),
+        })),
       };
     }
     if (table === "generation_publications") {
@@ -298,6 +327,16 @@ const createSupabaseAdmin = (options?: {
     }
     if (table === "generation_projection") {
       return {
+        select: vi.fn(() => {
+          const builder = {
+            eq: vi.fn(),
+            limit: vi.fn(),
+            maybeSingle: generationProjectionMaybeSingle,
+          };
+          builder.eq.mockReturnValue(builder);
+          builder.limit.mockReturnValue(builder);
+          return builder;
+        }),
         upsert: generationProjectionUpsertMock,
       };
     }
@@ -432,6 +471,42 @@ describe("POST /api/media/copy-from-url", () => {
     });
   });
 
+  it("rejects ai_studio copy requests when the trusted URL does not belong to the requested generation output", async () => {
+    const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-mismatch-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/owned-reference.png",
+          media_file_id: null,
+        },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/foreign-reference.png",
+        source: "ai_studio",
+        generationId: "gen-mismatch-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "URL does not belong to the requested generation output.",
+    });
+  });
+
   it("rejects out-of-scope storage path hints before signing or persistence", async () => {
     const req = {
       method: "POST",
@@ -465,6 +540,14 @@ describe("POST /api/media/copy-from-url", () => {
     extractImageDimensionsFromBufferMock.mockReturnValue({ width: 1280, height: 720 });
 
     const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-video-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/output.mp4",
+          media_file_id: null,
+        },
+      ],
       insertRow: {
         id: "media-video-1",
         storage_path: "user-1/generations/videos/media-video-1.mp4",
@@ -544,6 +627,14 @@ describe("POST /api/media/copy-from-url", () => {
     );
 
     const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-preview-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/output.mp4",
+          media_file_id: null,
+        },
+      ],
       insertRow: {
         id: "media-video-preview-1",
         storage_path: "user-1/generations/videos/media-video-preview-1.mp4",
@@ -608,6 +699,14 @@ describe("POST /api/media/copy-from-url", () => {
     );
 
     const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-preview-failed-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/output.mp4",
+          media_file_id: null,
+        },
+      ],
       insertRow: {
         id: "media-video-preview-failed-1",
         storage_path: "user-1/generations/videos/media-video-preview-failed-1.mp4",
@@ -671,6 +770,14 @@ describe("POST /api/media/copy-from-url", () => {
     );
 
     const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-buffer-poster-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/output.mp4",
+          media_file_id: null,
+        },
+      ],
       insertRow: {
         id: "media-video-buffer-poster-1",
         storage_path: "user-1/generations/videos/media-video-buffer-poster-1.mp4",
@@ -747,6 +854,14 @@ describe("POST /api/media/copy-from-url", () => {
     );
 
     const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-buffer-preview-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/output.mp4",
+          media_file_id: null,
+        },
+      ],
       insertRow: {
         id: "media-video-buffer-preview-1",
         storage_path: "user-1/generations/videos/media-video-buffer-preview-1.mp4",
@@ -822,6 +937,14 @@ describe("POST /api/media/copy-from-url", () => {
     );
 
     const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-foreign-preview-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/output.mp4",
+          media_file_id: null,
+        },
+      ],
       insertRow: {
         id: "media-video-foreign-preview-1",
         storage_path: "user-1/generations/videos/media-video-foreign-preview-1.mp4",
@@ -887,6 +1010,14 @@ describe("POST /api/media/copy-from-url", () => {
     );
 
     const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-oversized-poster-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/output.mp4",
+          media_file_id: null,
+        },
+      ],
       insertRow: {
         id: "media-video-oversized-poster",
         storage_path: "user-1/generations/videos/media-video-oversized-poster.mp4",
@@ -1031,6 +1162,14 @@ describe("POST /api/media/copy-from-url", () => {
         preview_variant_path: null,
       },
       canonicalOutputMediaFileId: "media-existing-foreign-1",
+      generationOutputRows: [
+        {
+          id: "gen-output-foreign-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/reference.png",
+          media_file_id: null,
+        },
+      ],
       insertRow: {
         id: "media-repaired-1",
         storage_path: "user-1/generations/images/repaired.png",
@@ -1203,6 +1342,14 @@ describe("POST /api/media/copy-from-url", () => {
         preview_variant_path: null,
       },
       canonicalOutputMediaFileId: "media-duplicate-foreign-1",
+      generationOutputRows: [
+        {
+          id: "gen-output-duplicate-foreign-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/reference.png",
+          media_file_id: null,
+        },
+      ],
       insertError: {
         code: "23505",
         message: "duplicate key value violates unique constraint",
@@ -1350,6 +1497,12 @@ describe("POST /api/media/copy-from-url", () => {
 
   it("fetches, uploads, and links a trusted ai_studio image URL", async () => {
     const supabase = createSupabaseAdmin({
+      generationProjectionRow: {
+        preview_url: "https://trusted.example.com/generated-reference.png",
+        result_urls: ["https://trusted.example.com/generated-reference.png"],
+        preview_storage_path: null,
+        full_storage_path: null,
+      },
       insertRow: {
         id: "media-generated-1",
         storage_path: "user-1/generations/images/media-generated-1.png",

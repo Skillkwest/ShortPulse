@@ -61,12 +61,13 @@ describe("useActiveModelPricingPolicy", () => {
     expect(result.current.modelPricingPolicyError).toBeNull();
     expect(result.current.modelPricingPolicy?.perModel["gpt-image-2"]?.roundingIncrement).toBe(1);
     expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/pricing/model-policy", {
+      cache: "no-store",
       method: "GET",
       shortpulseRetryNetworkOnce: true,
     });
   });
 
-  it("preserves the last known good policy when refresh fails", async () => {
+  it("clears the last known policy when refresh fails", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,
       json: async () => createPolicyPayload(),
@@ -78,8 +79,7 @@ describe("useActiveModelPricingPolicy", () => {
       expect(result.current.modelPricingPolicyLoading).toBe(false);
     });
 
-    const previousPolicy = result.current.modelPricingPolicy;
-    expect(previousPolicy).not.toBeNull();
+    expect(result.current.modelPricingPolicy).not.toBeNull();
 
     fetchWithAuthMock.mockRejectedValueOnce(new Error("network down"));
 
@@ -91,8 +91,8 @@ describe("useActiveModelPricingPolicy", () => {
       expect(result.current.modelPricingPolicyLoading).toBe(false);
     });
 
-    expect(result.current.modelPricingPolicyReady).toBe(true);
-    expect(result.current.modelPricingPolicy).toEqual(previousPolicy);
+    expect(result.current.modelPricingPolicyReady).toBe(false);
+    expect(result.current.modelPricingPolicy).toBeNull();
     expect(result.current.modelPricingPolicyError).toBe("network down");
   });
 

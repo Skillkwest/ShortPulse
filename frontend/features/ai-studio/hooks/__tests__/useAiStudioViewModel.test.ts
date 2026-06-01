@@ -304,6 +304,47 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
+  it("prices Nano Banana 2 Create Character Mode from the canonical edit row even with multi-look refs", () => {
+    const modelId = "fal-ai/nano-banana-2";
+    const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Silver-haired warrior",
+      sheetReferenceStoragePaths: [
+        "user/chars/look-1.png",
+        "user/chars/look-2.png",
+        "user/chars/look-3.png",
+      ],
+      sheetReferenceUrls: [
+        "https://cdn.shortpulse.test/look-1.png",
+        "https://cdn.shortpulse.test/look-2.png",
+        "https://cdn.shortpulse.test/look-3.png",
+      ],
+      loadedAtMs: Date.now(),
+    };
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "16:9",
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "2K",
+        isCreateCharacterModeEnabled: true,
+        createCharacterModeInjectionBundle,
+        costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(7);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
   it("maps GPT Image 2 Create UI resolution labels onto canonical quality rows", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const expectedCost = resolvePricingGridBilledCredits({
@@ -444,12 +485,12 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("keeps generation enabled when model pricing policy is unavailable", () => {
+  it("fails closed when Create text-to-image pricing authority is unavailable", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
-        mode: "image",
+        mode: "text",
         selectedTool: "create",
         model: modelId,
         aspect: "1:1",
@@ -466,8 +507,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
     expect(result.current.currentCostCredits).toBeNull();
     expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
-    expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.isGenerateDisabled).toBe(false);
+    expect(result.current.generationGuardrail).toBe("Unable to load pricing. Retry in a moment.");
+    expect(result.current.isGenerateDisabled).toBe(true);
   });
 
   it("computes model-picker credits from the candidate model defaults instead of the active model", () => {

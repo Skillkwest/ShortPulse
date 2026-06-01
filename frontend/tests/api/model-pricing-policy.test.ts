@@ -62,6 +62,8 @@ describe("model pricing policy routes", () => {
 
     await userPolicyHandler(req as never, res as never);
 
+    expect(resolveRuntimeModelPricingPolicyMock).toHaveBeenCalledWith({ bypassCache: true });
+    expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "no-store, max-age=0");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       modelPolicy: expect.objectContaining({

@@ -1175,6 +1175,75 @@ describe("projectWorkspaceStatesService", () => {
     expect(generationAssociationUpsert).not.toHaveBeenCalled();
   });
 
+  it("strips foreign trusted direct preview URLs from generated rows before workspace save", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const { workspaceUpsert } = createSupabaseMock();
+    const foreignSignedUrl =
+      "https://project.supabase.co/storage/v1/object/sign/media_library/user-2/generated/foreign.png?token=test-token";
+
+    try {
+      await upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-foreign-generated-save",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+          meta: {
+            generatedAt: "2026-06-01T00:00:00.000Z",
+            checksum: "fnv1a32:foreign-generated-save",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Foreign generated preview",
+          },
+          outputs: {
+            active: [
+              {
+                id: "out-foreign-generated-save",
+                generationId: GENERATION_ID_1,
+                mediaSource: "generated",
+                previewUrl: foreignSignedUrl,
+                resultUrls: [foreignSignedUrl],
+              },
+            ],
+            archived: [],
+            activeOutputId: "out-foreign-generated-save",
+            curatedReferenceIds: ["out-foreign-generated-save"],
+            removedFromAllRefsIds: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+
+      const firstWorkspaceUpsertArg = (
+        workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+      ).at(0)?.[0];
+      const savedRow = (
+        ((firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> })
+          ?.active ?? []) as Array<Record<string, unknown>>
+      )[0];
+
+      expect(savedRow).toMatchObject({
+        id: `generated:${GENERATION_ID_1}`,
+        generationId: GENERATION_ID_1,
+        mediaSource: "generated",
+      });
+      expect(savedRow).not.toHaveProperty("previewUrl");
+      expect(savedRow).not.toHaveProperty("resultUrls");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("preserves companion-art-backed generated rows during workspace save", async () => {
     const { workspaceUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
@@ -2333,6 +2402,69 @@ describe("projectWorkspaceStatesService", () => {
     expect(restoredRow).not.toHaveProperty("previewStoragePath");
     expect(restoredRow).not.toHaveProperty("fullStoragePath");
     expect(restoredRow).not.toHaveProperty("previewPosterStoragePath");
+  });
+
+  it("strips foreign trusted direct preview URLs from generated workspace snapshots on read", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const foreignSignedUrl =
+      "https://project.supabase.co/storage/v1/object/sign/media_library/user-2/generated/foreign.png?token=test-token";
+
+    try {
+      createSupabaseMock({
+        workspaceSnapshot: {
+          schemaVersion: 2,
+          sessionId: "session-foreign-generated-read",
+          updatedAt: "2026-06-01T00:05:00.000Z",
+          meta: {
+            generatedAt: "2026-06-01T00:05:00.000Z",
+            checksum: "fnv1a32:foreign-generated-read",
+          },
+          outputs: {
+            active: [
+              {
+                id: "out-foreign-generated-read",
+                generationId: GENERATION_ID_1,
+                mediaSource: "generated",
+                previewUrl: foreignSignedUrl,
+                resultUrls: [foreignSignedUrl],
+              },
+            ],
+            archived: [],
+            activeOutputId: "out-foreign-generated-read",
+            curatedReferenceIds: ["out-foreign-generated-read"],
+            removedFromAllRefsIds: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+
+      const result = await getProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+
+      const restoredRow = (
+        ((result?.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+          []) as Array<Record<string, unknown>>
+      )[0];
+
+      expect(restoredRow).toMatchObject({
+        id: `generated:${GENERATION_ID_1}`,
+        generationId: GENERATION_ID_1,
+        mediaSource: "generated",
+      });
+      expect(restoredRow).not.toHaveProperty("previewUrl");
+      expect(restoredRow).not.toHaveProperty("resultUrls");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("preserves settled non-generated refs while leaving generated delivery refresh async", async () => {

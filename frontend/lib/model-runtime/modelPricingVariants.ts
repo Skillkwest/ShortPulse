@@ -12,6 +12,8 @@ export type ModelPricingVariantParts = {
   maskPresent?: boolean | null;
 };
 
+const INPUT_SENSITIVE_EDIT_PRICING_STRATEGIES = new Set(["gpt-image-2-per-image"]);
+
 export const buildModelPricingVariantId = ({
   baseVariantId,
   aspect,
@@ -48,6 +50,11 @@ const resolveBaseVariantId = (params: PricingParams): string => {
   return "default";
 };
 
+const shouldIncludeEditInputPricingDimensions = (modelId: string): boolean => {
+  const pricingStrategy = getModelConfig(modelId)?.pricingStrategy ?? null;
+  return pricingStrategy != null && INPUT_SENSITIVE_EDIT_PRICING_STRATEGIES.has(pricingStrategy);
+};
+
 export const resolveModelPricingVariantId = (params: PricingParams): string => {
   const config = getModelConfig(params.modelId);
   const aspect = params.aspect ?? config?.defaultAspect ?? null;
@@ -62,6 +69,7 @@ export const resolveModelPricingVariantId = (params: PricingParams): string => {
     typeof params.inputVideoCount === "number" && Number.isFinite(params.inputVideoCount)
       ? params.inputVideoCount > 0
       : null;
+  const includeEditInputPricingDimensions = shouldIncludeEditInputPricingDimensions(params.modelId);
 
   return buildModelPricingVariantId({
     baseVariantId: resolveBaseVariantId(params),
@@ -70,10 +78,15 @@ export const resolveModelPricingVariantId = (params: PricingParams): string => {
     audio,
     videoInput,
     inputImageCount:
-      typeof params.inputImageCount === "number" && Number.isFinite(params.inputImageCount)
+      includeEditInputPricingDimensions &&
+      typeof params.inputImageCount === "number" &&
+      Number.isFinite(params.inputImageCount)
         ? params.inputImageCount
         : null,
-    inputFidelity: params.inputFidelity ?? null,
-    maskPresent: typeof params.maskPresent === "boolean" ? params.maskPresent : null,
+    inputFidelity: includeEditInputPricingDimensions ? (params.inputFidelity ?? null) : null,
+    maskPresent:
+      includeEditInputPricingDimensions && typeof params.maskPresent === "boolean"
+        ? params.maskPresent
+        : null,
   });
 };

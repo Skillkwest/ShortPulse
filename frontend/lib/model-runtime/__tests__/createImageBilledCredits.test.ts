@@ -105,6 +105,39 @@ describe("createImageBilledCredits", () => {
     ).toBeNull();
   });
 
+  it("collapses Nano Banana 2 Character Mode multi-ref pricing onto the canonical edit row", () => {
+    const clientTarget = resolveCreatePricingTarget({
+      modelId: "fal-ai/nano-banana-2",
+      aspect: "16:9",
+      resolution: "2K",
+      isCharacterModeEnabled: true,
+      userReferenceImageUrls: [],
+      characterModeInjectionBundle: {
+        sheetReferenceStoragePaths: [
+          "user/chars/look-1.png",
+          "user/chars/look-2.png",
+          "user/chars/look-3.png",
+        ],
+        sheetReferenceUrls: [
+          "https://cdn.shortpulse.test/look-1.png",
+          "https://cdn.shortpulse.test/look-2.png",
+          "https://cdn.shortpulse.test/look-3.png",
+        ],
+      },
+      costParamsForModel: makeCostParamsForModel("fal-ai/nano-banana-2"),
+    });
+
+    const lookup = resolveCreateImageBilledCreditLookup({
+      modelId: clientTarget?.modelId ?? "fal-ai/nano-banana-2/edit",
+      params: clientTarget?.params,
+      pricingPolicy,
+    });
+
+    expect(clientTarget?.inputImageCount).toBe(3);
+    expect(lookup.breakdown?.variantId).toBe("edit|res:2K|aspect:auto");
+    expect(lookup.breakdown?.credits).toBe(7);
+  });
+
   it("materializes edit-only image model rows under canonical edit variant ids", () => {
     const variantIds = Object.keys(
       pricingPolicy.perModel["fal-ai/nano-banana-2/edit"]?.variants ?? {}

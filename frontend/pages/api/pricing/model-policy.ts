@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return;
 
   try {
-    const resolution = await resolveRuntimeModelPricingPolicy();
+    const resolution = await resolveRuntimeModelPricingPolicy({ bypassCache: true });
     const runtimePolicy = materializeImageBilledCreditPolicy(resolution.policy);
     const snapshot = getModelPricingPolicySnapshot(resolution.policy, {
       activePolicyVersion: resolution.activePolicyVersion,
@@ -23,6 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatedAt: resolution.updatedAt,
       updatedByEmail: resolution.updatedByEmail,
     });
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     return res.status(200).json({
       modelPolicy: {
         ...snapshot,

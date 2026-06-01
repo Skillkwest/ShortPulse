@@ -7,6 +7,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import { parseInternalMediaRefFromSupabaseSignedUrl } from "../../../lib/media/internalMediaRefs";
 import { withCanonicalImageDimensions } from "../../../lib/mediaDimensionMetadata";
 import { resolvePreviewStoragePath } from "../../../lib/mediaPreviewPath";
 import {
@@ -47,6 +48,7 @@ import {
 const FETCH_TIMEOUT_MS = 60000;
 const DNS_TIMEOUT_MS = 2500;
 const MAX_REDIRECTS = 4;
+const MEDIA_LIBRARY_BUCKET = "media_library";
 const MAX_IMAGE_BYTES = MAX_IMAGE_MEDIA_BYTES;
 const MAX_VIDEO_BYTES = maxBytesForMediaFileType("video");
 const MAX_AUDIO_BYTES = MAX_AUDIO_MEDIA_BYTES;
@@ -113,6 +115,11 @@ type ExistingMediaRow = {
   thumbVariantPath: string | null;
   posterVariantPath: string | null;
   previewVariantPath: string | null;
+};
+
+type AiStudioGenerationSourceAuthority = {
+  allowedRemoteUrls: Set<string>;
+  allowedStoragePaths: Set<string>;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -878,6 +885,143 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   return null;
 };
 
+const readAiStudioGenerationSourceAuthorityByOutputIndex = async ({
+  userId,
+  generationId,
+  index,
+}: {
+  userId: string;
+  generationId: string;
+  index: number;
+}): Promise<AiStudioGenerationSourceAuthority> => {
+  const allowedRemoteUrls = new Set<string>();
+  const allowedStoragePaths = new Set<string>();
+
+  const existing = await readExistingAiStudioMediaRowByOutputIndex({
+    userId,
+    generationId,
+    index,
+  });
+  if (existing?.storagePath) {
+    allowedStoragePaths.add(existing.storagePath);
+  }
+  if (existing?.thumbVariantPath) {
+    allowedStoragePaths.add(existing.thumbVariantPath);
+  }
+  if (existing?.posterVariantPath) {
+    allowedStoragePaths.add(existing.posterVariantPath);
+  }
+  if (existing?.previewVariantPath) {
+    allowedStoragePaths.add(existing.previewVariantPath);
+  }
+
+  const { data: outputRows, error: outputRowsError } = await getSupabaseAdmin()
+    .from("ai_generation_outputs")
+    .select("output_index, result_url")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .eq("output_index", index)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  if (!outputRowsError && Array.isArray(outputRows)) {
+    outputRows
+      .map((row) => asOptionalString((row as Record<string, unknown>).result_url))
+      .filter((value): value is string => Boolean(value))
+      .forEach((value) => allowedRemoteUrls.add(value));
+  }
+
+  const { data: projectionRow, error: projectionError } = await getSupabaseAdmin()
+    .from("generation_projection")
+    .select("preview_url, result_urls, preview_storage_path, full_storage_path")
+    .eq("generation_id", generationId)
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+  if (!projectionError && projectionRow) {
+    const record = asRecord(projectionRow);
+    const previewUrl = asOptionalString(record.preview_url);
+    if (previewUrl) {
+      allowedRemoteUrls.add(previewUrl);
+    }
+    const resultUrls = Array.isArray(record.result_urls) ? record.result_urls : [];
+    resultUrls
+      .map((value) => asOptionalString(value))
+      .filter((value): value is string => Boolean(value))
+      .forEach((value) => allowedRemoteUrls.add(value));
+    const previewStoragePath = toSafeUserScopedPath({
+      path: asOptionalString(record.preview_storage_path),
+      userId,
+      label: "Generation projection preview storage path",
+    });
+    const fullStoragePath = toSafeUserScopedPath({
+      path: asOptionalString(record.full_storage_path),
+      userId,
+      label: "Generation projection full storage path",
+    });
+    if (previewStoragePath) {
+      allowedStoragePaths.add(previewStoragePath);
+    }
+    if (fullStoragePath) {
+      allowedStoragePaths.add(fullStoragePath);
+    }
+  }
+
+  return {
+    allowedRemoteUrls,
+    allowedStoragePaths,
+  };
+};
+
+const validateAiStudioGenerationSourceUrl = async ({
+  userId,
+  generationId,
+  index,
+  candidateUrl,
+  previewStoragePathHint,
+  fullStoragePathHint,
+}: {
+  userId: string;
+  generationId: string;
+  index: number;
+  candidateUrl: URL;
+  previewStoragePathHint: string | null;
+  fullStoragePathHint: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const authority = await readAiStudioGenerationSourceAuthorityByOutputIndex({
+    userId,
+    generationId,
+    index,
+  });
+
+  if (previewStoragePathHint) {
+    authority.allowedStoragePaths.add(previewStoragePathHint);
+  }
+  if (fullStoragePathHint) {
+    authority.allowedStoragePaths.add(fullStoragePathHint);
+  }
+
+  const internalMediaRef = parseInternalMediaRefFromSupabaseSignedUrl(candidateUrl.toString());
+  if (internalMediaRef?.bucket === MEDIA_LIBRARY_BUCKET) {
+    const candidateStoragePath = toSafeUserScopedPath({
+      path: internalMediaRef.storagePath,
+      userId,
+      label: "AI Studio copied media signed URL storage path",
+    });
+    if (candidateStoragePath && authority.allowedStoragePaths.has(candidateStoragePath)) {
+      return { ok: true };
+    }
+  }
+
+  if (authority.allowedRemoteUrls.has(candidateUrl.toString())) {
+    return { ok: true };
+  }
+
+  return {
+    ok: false,
+    error: "URL does not belong to the requested generation output.",
+  };
+};
+
 const signStoragePath = async (storagePath: string | null): Promise<string | null> => {
   if (!storagePath) return null;
   try {
@@ -1229,6 +1373,20 @@ export default async function handler(
             delivery,
           });
         }
+      }
+
+      const sourceAuthority = await validateAiStudioGenerationSourceUrl({
+        userId: user.id,
+        generationId,
+        index,
+        candidateUrl: parsedUrl,
+        previewStoragePathHint,
+        fullStoragePathHint,
+      });
+      if (!sourceAuthority.ok) {
+        return res.status(422).json({
+          error: sourceAuthority.error,
+        });
       }
     }
 

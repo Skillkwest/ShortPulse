@@ -23,6 +23,32 @@ vi.mock("../ProjectsModal", () => ({
 }));
 
 describe("AiStudioPageShell", () => {
+  it("renders AI Studio content once the project bootstrap gate is open", () => {
+    render(
+      <AiStudioPageShell
+        pageContentProps={{} as React.ComponentProps<typeof AiStudioPageShell>["pageContentProps"]}
+        projectBootstrapError={null}
+        projectEntryPhase="restoring-workspace"
+        projectError={null}
+        projectId="project-1"
+        projectStatus="ready"
+        projectTitle="Project One"
+        projectsModalOpen={false}
+        referenceGridPreconnectOrigin={null}
+        retryProjectBootstrap={vi.fn()}
+        resetProjectWorkspace={vi.fn(async () => undefined)}
+        shouldGateProjectBootstrap={false}
+        onCloseProjectsModal={vi.fn()}
+        onOpenProjectsModal={vi.fn()}
+        onSelectProjectFromModal={vi.fn()}
+        onCreateProjectFromModal={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("AI Studio content")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Project restore progress")).not.toBeInTheDocument();
+  });
+
   it("opens project recovery from the gated error state", () => {
     const handleOpenProjectsModal = vi.fn();
 

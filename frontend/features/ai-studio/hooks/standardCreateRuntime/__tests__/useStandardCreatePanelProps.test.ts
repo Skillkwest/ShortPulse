@@ -74,31 +74,45 @@ describe("buildStandardCreatePanelProps", () => {
     });
 
     expect(props.isGenerateDisabled).toBe(true);
-    expect(props.guardrailReason).toBe("Enter a prompt to generate.");
   });
 
-  it("preserves existing guardrail reasons over the empty-composer hint", () => {
+  it("still disables generate when an upstream guardrail is active", () => {
     const props = buildStandardCreatePanelProps({
       ...baseParams,
       chatModeEnabled: false,
       prompt: "",
       isGenerateDisabled: true,
-      generationGuardrail: "Select a model before generating.",
     });
 
     expect(props.isGenerateDisabled).toBe(true);
-    expect(props.guardrailReason).toBe("Select a model before generating.");
   });
 
-  it("does not forward the removed Standard output-generate bridge", () => {
+  it("forwards the Standard guardrail reason without reintroducing removed output-generate bridge state", () => {
     const props = buildStandardCreatePanelProps({
       ...baseParams,
+      isGenerateDisabled: true,
+      generationGuardrail: "Pricing is unavailable for this configuration. Retry in a moment.",
     });
 
     const propsRecord = props as Record<string, unknown>;
+    expect(props.guardrailReason).toBe(
+      "Pricing is unavailable for this configuration. Retry in a moment."
+    );
     expect("onGenerateOutputPrompt" in propsRecord).toBe(false);
     expect("disableAgentOutputGenerate" in propsRecord).toBe(false);
     expect("outputGenerateCostCredits" in propsRecord).toBe(false);
+  });
+
+  it("uses the empty composer reason when the visible composer is empty", () => {
+    const props = buildStandardCreatePanelProps({
+      ...baseParams,
+      chatModeEnabled: true,
+      agentInput: "   ",
+      prompt: "hidden fallback prompt",
+    });
+
+    expect(props.isGenerateDisabled).toBe(true);
+    expect(props.guardrailReason).toBe("Enter a prompt to generate.");
   });
 
   it("blocks generate while an attached image is still preparing", () => {

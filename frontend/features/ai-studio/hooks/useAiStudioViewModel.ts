@@ -514,6 +514,11 @@ export const useAiStudioViewModel = ({
   ]);
   const usesCanonicalCreatePromptPricing =
     canUseStandardCreatePricingGrid && isCreateWorkflowSelected && (isImageTool || mode === "text");
+  const missingCanonicalCreatePricingAuthorityGuardrail = useMemo(() => {
+    if (!isCreateWorkflowSelected || !isPricingPolicyUnavailable) return null;
+    if (mode !== "image" && !(mode === "text" && !isDescribeMode)) return null;
+    return "Unable to load pricing. Retry in a moment.";
+  }, [isCreateWorkflowSelected, isDescribeMode, isPricingPolicyUnavailable, mode]);
   const promptReferenceGenerateCostCredits = usesCanonicalCreatePromptPricing
     ? ((isImageTool ? promptGenerateCostCredits : null) ??
       (mode === "text" ? createTextImageGenerateCostCredits : null) ??
@@ -623,6 +628,9 @@ export const useAiStudioViewModel = ({
     if (creditStateGuardrail) {
       return creditStateGuardrail;
     }
+    if (missingCanonicalCreatePricingAuthorityGuardrail) {
+      return missingCanonicalCreatePricingAuthorityGuardrail;
+    }
     if (missingCanonicalCreateBilledCreditsGuardrail) {
       return missingCanonicalCreateBilledCreditsGuardrail;
     }
@@ -674,6 +682,7 @@ export const useAiStudioViewModel = ({
     seedance2InputMode,
     videoReferenceMode,
     creditStateGuardrail,
+    missingCanonicalCreatePricingAuthorityGuardrail,
     missingCanonicalCreateBilledCreditsGuardrail,
   ]);
 

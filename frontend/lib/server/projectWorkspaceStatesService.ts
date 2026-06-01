@@ -9,7 +9,10 @@ import {
   hasProjectRecoverableRuntimeIdentity,
   isProjectGeneratedWorkspaceOutput,
 } from "../ai-studio-session/projectWorkspaceSnapshot";
-import { isSupabaseRenderImageUrl } from "../mediaPreviewTrustPolicy";
+import {
+  filterTrustedMediaDirectPreviewUrls,
+  isSupabaseRenderImageUrl,
+} from "../mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { writeAppErrorLog } from "./api/appErrorLogs";
@@ -81,6 +84,13 @@ const normalizeUuidList = (value: unknown): string[] =>
             .filter((entry): entry is string => Boolean(entry))
         )
       )
+    : [];
+
+const normalizeStringList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value
+        .map((entry) => normalizeOptionalString(entry))
+        .filter((entry): entry is string => Boolean(entry))
     : [];
 
 const toErrorMessage = (error: unknown, fallback: string): string =>
@@ -250,6 +260,45 @@ const sanitizeProjectWorkspaceOutputsByShape = ({
       }
     }
   };
+  const keepTrustedMediaPreviewUrlForUser = (url: string): boolean => {
+    const trustedIgnoringScope = filterTrustedMediaDirectPreviewUrls([url], {
+      userId,
+      requireUserScope: false,
+    });
+    if (trustedIgnoringScope.length === 0) {
+      return true;
+    }
+    return (
+      filterTrustedMediaDirectPreviewUrls([url], {
+        userId,
+        requireUserScope: true,
+      }).length > 0
+    );
+  };
+  const sanitizeGeneratedDirectPreviewFields = (row: Record<string, unknown>) => {
+    for (const field of ["previewUrl", "fullUrl", "previewPosterUrl", "companionArtUrl"] as const) {
+      const value = normalizeOptionalString(row[field]);
+      if (!value) {
+        if (field in row) delete row[field];
+        continue;
+      }
+      if (!keepTrustedMediaPreviewUrlForUser(value)) {
+        delete row[field];
+        continue;
+      }
+      row[field] = value;
+    }
+
+    if (!("resultUrls" in row)) return;
+    const resultUrls = normalizeStringList(row.resultUrls).filter((url) =>
+      keepTrustedMediaPreviewUrlForUser(url)
+    );
+    if (resultUrls.length === 0) {
+      delete row.resultUrls;
+      return;
+    }
+    row.resultUrls = resultUrls;
+  };
   const isFailedWorkspaceOutputRow = (row: Record<string, unknown>): boolean =>
     typeof row.taskState === "string" && row.taskState.trim() === "fail";
 
@@ -289,6 +338,9 @@ const sanitizeProjectWorkspaceOutputsByShape = ({
         }
         sanitizeScopedStoragePathFields(nextRow);
         sanitizePreviewUrlFields(nextRow);
+        if (isProjectGeneratedWorkspaceOutput(nextRow)) {
+          sanitizeGeneratedDirectPreviewFields(nextRow);
+        }
 
         return nextRow;
       })

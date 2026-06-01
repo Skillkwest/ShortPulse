@@ -28,4 +28,17 @@ describe("modelPricingVariants", () => {
       })
     ).toBe("edit|res:medium|aspect:16:9|input_images:3|input_fidelity:high|mask:no");
   });
+
+  it("collapses non-input-priced edit models onto one canonical edit row", () => {
+    expect(
+      resolveModelPricingVariantId({
+        modelId: "fal-ai/nano-banana-2/edit",
+        aspect: "16:9",
+        resolution: "2K",
+        inputImageCount: 3,
+        inputFidelity: "high",
+        maskPresent: false,
+      })
+    ).toBe("edit|res:2K|aspect:16:9");
+  });
 });

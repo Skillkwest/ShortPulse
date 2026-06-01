@@ -4,6 +4,7 @@
  * without changing the global generation inventory/read models.
  */
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
+import { filterTrustedMediaDirectPreviewUrls } from "../mediaPreviewTrustPolicy";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { chunkValues } from "./queryBatching";
 import { hasDurableGeneratedMediaDisplayAuthority } from "../generatedMediaDisplayAuthority";
@@ -151,6 +152,47 @@ const asIsoTimestampString = (value: unknown): string | null => {
 };
 
 const asBoolean = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
+
+const keepTrustedMediaPreviewUrlForUser = ({
+  userId,
+  url,
+}: {
+  userId: string;
+  url: string | null;
+}): string | null => {
+  if (!url) return null;
+  const trustedIgnoringScope = filterTrustedMediaDirectPreviewUrls([url], {
+    userId,
+    requireUserScope: false,
+  });
+  if (trustedIgnoringScope.length === 0) {
+    return url;
+  }
+  return (
+    filterTrustedMediaDirectPreviewUrls([url], {
+      userId,
+      requireUserScope: true,
+    })[0] ?? null
+  );
+};
+
+const sanitizeTrustedMediaPreviewUrlListForUser = ({
+  userId,
+  urls,
+}: {
+  userId: string;
+  urls: string[];
+}): string[] => {
+  const trusted: string[] = [];
+  const seen = new Set<string>();
+  for (const url of urls) {
+    const safeUrl = keepTrustedMediaPreviewUrlForUser({ userId, url });
+    if (!safeUrl || seen.has(safeUrl)) continue;
+    seen.add(safeUrl);
+    trusted.push(safeUrl);
+  }
+  return trusted;
+};
 
 const isLikelyImagePath = (value: string | null): boolean =>
   Boolean(value && /\.(?:avif|gif|heic|heif|jpe?g|png|webp)(?:$|[?#])/i.test(value));
@@ -925,8 +967,30 @@ const patchSnapshotOutputRow = ({
   projection: ProjectGenerationProjectionRow;
   mediaDelivery?: ProjectGenerationMediaDelivery | null;
 }): SnapshotRecord => {
-  const nextResultUrls = asTrimmedStringArray(projection.result_urls);
-  const nextPreviewUrl = asTrimmedString(projection.preview_url) ?? nextResultUrls[0] ?? null;
+  const nextResultUrls = sanitizeTrustedMediaPreviewUrlListForUser({
+    userId,
+    urls: asTrimmedStringArray(projection.result_urls),
+  });
+  const nextPreviewUrl = keepTrustedMediaPreviewUrlForUser({
+    userId,
+    url: asTrimmedString(projection.preview_url) ?? nextResultUrls[0] ?? null,
+  });
+  const safeRowResultUrls = sanitizeTrustedMediaPreviewUrlListForUser({
+    userId,
+    urls: asTrimmedStringArray(row.resultUrls),
+  });
+  const safeRowPreviewUrl = keepTrustedMediaPreviewUrlForUser({
+    userId,
+    url: asTrimmedString(row.previewUrl),
+  });
+  const safeRowPreviewPosterUrl = keepTrustedMediaPreviewUrlForUser({
+    userId,
+    url: asTrimmedString(row.previewPosterUrl),
+  });
+  const safeRowCompanionArtUrl = keepTrustedMediaPreviewUrlForUser({
+    userId,
+    url: asTrimmedString(row.companionArtUrl),
+  });
   const nextMode = asTrimmedString(row.mode) ?? resolveSnapshotOutputMode(projection);
   const projectedPreviewStoragePath = toSafeUserScopedPath(projection.preview_storage_path, userId);
   const nextPreviewStoragePath =
@@ -948,7 +1012,7 @@ const patchSnapshotOutputRow = ({
   const nextPreviewPosterUrl =
     nextMode === "video" && nextPreviewUrl && isLikelyImagePath(nextPreviewUrl)
       ? nextPreviewUrl
-      : asTrimmedString(row.previewPosterUrl);
+      : safeRowPreviewPosterUrl;
   const nextTaskState = normalizeProjectionTaskState(projection.task_state);
   const nextQueueState = normalizeProjectionQueueState(projection.queue_state);
   const nextCompanionArtStatus = asTrimmedString(projection.companion_art_status);
@@ -995,11 +1059,11 @@ const patchSnapshotOutputRow = ({
     savedMediaIds: nextSavedMediaIds.length > 0 ? nextSavedMediaIds : (row.savedMediaIds ?? []),
     saveState: nextSaveState,
     status: nextStatus,
-    resultUrls: nextResultUrls.length > 0 ? nextResultUrls : (row.resultUrls ?? []),
-    previewUrl: nextPreviewUrl ?? row.previewUrl ?? null,
+    resultUrls: nextResultUrls.length > 0 ? nextResultUrls : safeRowResultUrls,
+    previewUrl: nextPreviewUrl ?? safeRowPreviewUrl ?? null,
     previewPosterUrl: nextMode === "video" ? (nextPreviewPosterUrl ?? null) : null,
     previewPosterStoragePath: nextMode === "video" ? (nextPreviewPosterStoragePath ?? null) : null,
-    companionArtUrl: row.companionArtUrl ?? null,
+    companionArtUrl: safeRowCompanionArtUrl ?? null,
     companionArtStoragePath: nextCompanionArtStoragePath ?? row.companionArtStoragePath ?? null,
     companionArtStatus: nextCompanionArtStatus ?? row.companionArtStatus ?? null,
     previewStoragePath: nextPreviewStoragePath ?? row.previewStoragePath ?? null,

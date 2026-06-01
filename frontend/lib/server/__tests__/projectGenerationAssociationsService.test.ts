@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   associateGenerationAndMediaWithProjectForUserBestEffort,
   associateGenerationWithProjectForUserBestEffort,
@@ -160,6 +160,10 @@ describe("associateGenerationWithProjectForUser", () => {
         error: null,
       })
     );
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("upserts a project association when the project belongs to the user", async () => {
@@ -1650,6 +1654,103 @@ describe("associateGenerationWithProjectForUser", () => {
       expect.objectContaining({
         outputs: expect.objectContaining({
           active: [],
+        }),
+      })
+    );
+  });
+
+  it("strips foreign trusted direct preview urls while retaining owned project media delivery", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-image-signed-foreign-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-signed-foreign-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-signed-foreign-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const foreignTrustedPreviewUrl =
+      "https://project.supabase.co/storage/v1/object/sign/media_library/user-2/private/images/foreign.png?token=test-token";
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-signed-foreign-1",
+          request_id: "req-image-signed-foreign-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Generated image with contaminated signed preview url",
+          preview_url: foreignTrustedPreviewUrl,
+          result_urls: [foreignTrustedPreviewUrl],
+          saved_media_ids: [],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          preview_storage_path:
+            "user-1/variants/images/media-image-signed-foreign-1/thumb_720.webp",
+          full_storage_path: "user-1/generations/images/media-image-signed-foreign-1.png",
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-image-signed-foreign-1",
+              generationId: "generation-image-signed-foreign-1",
+              previewUrl: foreignTrustedPreviewUrl,
+              resultUrls: [foreignTrustedPreviewUrl],
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [
+            expect.objectContaining({
+              id: "generated-image-signed-foreign-1",
+              generationId: "generation-image-signed-foreign-1",
+              previewStoragePath:
+                "user-1/variants/images/media-image-signed-foreign-1/thumb_720.webp",
+              fullStoragePath: "user-1/generations/images/media-image-signed-foreign-1.png",
+              previewUrl: null,
+              resultUrls: [],
+            }),
+          ],
         }),
       })
     );

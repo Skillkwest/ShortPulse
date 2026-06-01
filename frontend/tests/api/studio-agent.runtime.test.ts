@@ -382,6 +382,40 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(payload).not.toHaveProperty("workflowSession");
   });
 
+  it("appends the richer Standard formatting guidance to the runtime system prompt", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "Premium product hero prompt",
+            },
+          },
+        ],
+      }),
+    });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const requestBody = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      messages?: Array<{ role?: string; content?: string }>;
+    };
+    const systemMessage = requestBody.messages?.find(
+      (message) => message.role === "system"
+    )?.content;
+
+    expect(systemMessage).toContain("Prefer a calm, editorial response shape");
+    expect(systemMessage).toContain("Good shape examples:");
+    expect(systemMessage).toContain("Bad shape examples:");
+    expect(systemMessage).toContain("Pulse-style guided formatting");
+  });
+
   it("emits Standard telemetry with pre-openai stage latencies", async () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({

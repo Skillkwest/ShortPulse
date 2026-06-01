@@ -6,6 +6,8 @@
 import React from "react";
 import styles from "../../../styles/project-entry-loading-surface.module.css";
 
+const LOADING_ENTRY_MASK_URL = 'url("/loading-entry/mask.png")';
+
 export type ProjectEntryLoadingStep = {
   id: string;
   label: string;
@@ -39,6 +41,12 @@ export function ProjectEntryLoadingSurface({
   stepsAriaLabel,
 }: ProjectEntryLoadingSurfaceProps) {
   const [isAnimatedMaskReady, setIsAnimatedMaskReady] = React.useState(false);
+  const animatedMaskStyle = isAnimatedMaskReady
+    ? {
+        WebkitMaskImage: LOADING_ENTRY_MASK_URL,
+        maskImage: LOADING_ENTRY_MASK_URL,
+      }
+    : undefined;
 
   React.useEffect(() => {
     const bgImage = new Image();
@@ -66,6 +74,7 @@ export function ProjectEntryLoadingSurface({
         <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
           <div
             className={`ai-studio-project-entry-pulse-plane${isAnimatedMaskReady ? " is-visible" : ""}`}
+            style={animatedMaskStyle}
           >
             <div className="ai-studio-project-entry-pulse-motion">
               <div className="ai-studio-project-entry-pulse-bloom" />

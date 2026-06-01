@@ -58,8 +58,17 @@ const STANDARD_MAX_PROMPT_REFERENCE_SNIPPETS = 8;
 const STANDARD_PROMPT_REFERENCE_SNIPPET_MAX_CHARS = 320;
 const STANDARD_RESPONSE_STYLE_GUIDANCE = [
   "Standard response formatting rules:",
-  "- For ordinary replies, prefer short paragraphs, bullets or numbered lists when helpful, and brief section labels only when they genuinely improve scanning.",
+  "- Prefer a calm, editorial response shape: short paragraphs first, then bullets or numbered lists only when the content is naturally grouped.",
+  "- Use at most one brief section label or heading when it genuinely improves scanning. Short answers usually do not need headings.",
+  "- A short closing note is okay when helpful, but do not turn the reply into a workflow, questionnaire, or template.",
   "- Do not flatten helpful structure into a dense text wall.",
+  "- Avoid heading spam, step labels, option-card phrasing, reply-chip phrasing, or other Pulse-style guided formatting.",
+  "Good shape examples:",
+  '- "Best direction:\\nKeep the opening visual simple and emotionally clear.\\n\\n- Lead with the product\\n- Save the reveal for the end"',
+  '- "Keep the tone grounded and the framing clean. If you want, I can turn this into a final prompt next."',
+  "Bad shape examples:",
+  '- "STEP 1 - Pick a direction"',
+  '- "Reply with: 1 2 3"',
 ].join("\n");
 
 type StandardOpenAiImageDetail = "high" | "auto";

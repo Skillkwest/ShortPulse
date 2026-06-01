@@ -54,8 +54,6 @@
   mix-blend-mode: screen;
   opacity: 0;
   transition: opacity 120ms ease;
-  -webkit-mask-image: url("/loading-entry/mask.png");
-  mask-image: url("/loading-entry/mask.png");
   -webkit-mask-mode: alpha;
   mask-mode: alpha;
   -webkit-mask-repeat: no-repeat;

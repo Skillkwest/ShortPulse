@@ -87,6 +87,33 @@ describe("supabaseClient session reads", () => {
     expect(getSessionMock).toHaveBeenCalledTimes(1);
   });
 
+  it("stays fully idle when the shared session hook is explicitly disabled", async () => {
+    const getSessionMock = vi.fn();
+    const onAuthStateChangeMock = vi.fn();
+
+    vi.doMock("@supabase/supabase-js", () => ({
+      createClient: vi.fn(() => ({
+        auth: {
+          getSession: getSessionMock,
+          onAuthStateChange: onAuthStateChangeMock,
+          refreshSession: vi.fn(),
+        },
+      })),
+    }));
+
+    const { useSupabaseSessionState } = await import("../supabaseClient");
+
+    const { result } = renderHook(() => useSupabaseSessionState({ enabled: false }));
+
+    expect(result.current).toEqual({
+      initialized: false,
+      session: null,
+      user: null,
+    });
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(onAuthStateChangeMock).not.toHaveBeenCalled();
+  });
+
   it("detects a persisted Supabase auth payload in localStorage as a bootstrap hint", async () => {
     const storageKey = ["sb", "example", "auth", "token"].join("-");
     const getItemSpy = vi
@@ -106,5 +133,27 @@ describe("supabaseClient session reads", () => {
 
     expect(readPersistedSupabaseSessionHint()).toBe(true);
     expect(getItemSpy).toHaveBeenCalledWith(storageKey);
+  });
+
+  it("treats an already-primed in-memory session as a bootstrap hint", async () => {
+    vi.doMock("@supabase/supabase-js", () => ({
+      createClient: vi.fn(() => ({
+        auth: {
+          getSession: vi.fn(),
+          onAuthStateChange: vi.fn(),
+          refreshSession: vi.fn(),
+        },
+      })),
+    }));
+
+    const { primeSupabaseSession, readSupabaseSessionBootstrapHint } =
+      await import("../supabaseClient");
+
+    primeSupabaseSession({
+      access_token: "token-1",
+      user: { id: "user-1" },
+    } as never);
+
+    expect(readSupabaseSessionBootstrapHint()).toBe(true);
   });
 });

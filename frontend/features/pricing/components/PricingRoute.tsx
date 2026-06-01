@@ -28,8 +28,10 @@ import {
   trackBillingPricingViewed,
   trackBillingUpgradeClicked,
 } from "../../../lib/growthTelemetry";
-import { useSupabaseSessionState } from "../../../lib/supabaseClient";
-import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  readSupabaseSessionBootstrapHint,
+  useSupabaseSessionState,
+} from "../../../lib/supabaseClient";
 
 type PricingRouteProps = {
   billingCatalog: BillingCatalogSnapshot;
@@ -73,7 +75,10 @@ const resolveMaxAnnualSavingsPercent = (plans: readonly BillingPlanRecord[]): nu
  */
 export function PricingRoute({ billingCatalog }: PricingRouteProps) {
   const router = useRouter();
-  const { user } = useSupabaseSessionState();
+  const shouldResolveSession = readSupabaseSessionBootstrapHint();
+  const { user } = useSupabaseSessionState({
+    enabled: shouldResolveSession,
+  });
   const isAuthenticated = Boolean(user);
   const intent = normalizePricingIntent(router.query.intent);
   const selectedPlanId = normalizePricingPlanId(router.query.plan);
@@ -141,6 +146,7 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
 
     setPlanActionLoadingId(planId);
     try {
+      const { fetchWithAuth } = await import("../../../lib/authenticatedFetch");
       const response = await fetchWithAuth("/api/billing/subscription/change", {
         method: "POST",
         headers: {

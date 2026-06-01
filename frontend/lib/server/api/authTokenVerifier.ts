@@ -19,6 +19,17 @@ export type AuthenticatedApiUser = {
   app_metadata?: Record<string, unknown>;
 };
 
+type VerifiedUserCacheEntry = {
+  user: AuthenticatedApiUser;
+  expiresAtMs: number;
+};
+
+export const SUPABASE_USER_VERIFICATION_CACHE_TTL_MS = 5_000;
+const SUPABASE_USER_VERIFICATION_CACHE_MAX_ENTRIES = 128;
+
+const verifiedUserCache = new Map<string, VerifiedUserCacheEntry>();
+const inFlightUserLookups = new Map<string, Promise<AuthenticatedApiUser | null>>();
+
 const createAuthVerificationUnavailableError = (
   message: string,
   statusCode: number | null = null
@@ -39,7 +50,7 @@ export const isAuthVerificationUnavailableError = (
 /**
  * Parses a bearer token from an Authorization header.
  */
-export const parseBearerToken = (authorizationHeader: string | undefined): string | null => {
+export const parseBearerToken = (authorizationHeader: string | null | undefined): string | null => {
   if (!authorizationHeader) return null;
   const [scheme, value] = authorizationHeader.split(" ");
   if (!scheme || !value) return null;
@@ -47,41 +58,91 @@ export const parseBearerToken = (authorizationHeader: string | undefined): strin
   return value.trim() || null;
 };
 
+const readCachedVerifiedUser = (token: string): AuthenticatedApiUser | null => {
+  const cached = verifiedUserCache.get(token);
+  if (!cached) return null;
+  if (cached.expiresAtMs <= Date.now()) {
+    verifiedUserCache.delete(token);
+    return null;
+  }
+  return cached.user;
+};
+
+const writeCachedVerifiedUser = (token: string, user: AuthenticatedApiUser): void => {
+  verifiedUserCache.delete(token);
+  verifiedUserCache.set(token, {
+    user,
+    expiresAtMs: Date.now() + SUPABASE_USER_VERIFICATION_CACHE_TTL_MS,
+  });
+
+  while (verifiedUserCache.size > SUPABASE_USER_VERIFICATION_CACHE_MAX_ENTRIES) {
+    const oldestKey = verifiedUserCache.keys().next().value;
+    if (!oldestKey) break;
+    verifiedUserCache.delete(oldestKey);
+  }
+};
+
+/**
+ * Clears verification cache state so tests can isolate auth behavior.
+ */
+export const resetSupabaseUserVerificationCache = (): void => {
+  verifiedUserCache.clear();
+  inFlightUserLookups.clear();
+};
+
 /**
  * Calls Supabase auth to verify a bearer token and resolve the authenticated principal.
  */
 export const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApiUser | null> => {
+  const cachedUser = readCachedVerifiedUser(token);
+  if (cachedUser) {
+    return cachedUser;
+  }
+
+  const inFlightLookup = inFlightUserLookups.get(token);
+  if (inFlightLookup) {
+    return await inFlightLookup;
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnonKey) {
     throw createAuthVerificationUnavailableError("Authentication verification is unavailable.");
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      method: "GET",
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  } catch {
-    throw createAuthVerificationUnavailableError(
-      "Authentication verification is temporarily unavailable."
-    );
-  }
+  const pendingLookup = (async () => {
+    let response: Response;
+    try {
+      response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        method: "GET",
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch {
+      throw createAuthVerificationUnavailableError(
+        "Authentication verification is temporarily unavailable."
+      );
+    }
 
-  if (response.status === 401 || response.status === 403) return null;
-  if (!response.ok) {
-    throw createAuthVerificationUnavailableError(
-      "Authentication verification is temporarily unavailable.",
-      response.status
-    );
-  }
-  const data = (await response.json()) as AuthenticatedApiUser;
-  if (!data?.id) return null;
-  return data;
+    if (response.status === 401 || response.status === 403) return null;
+    if (!response.ok) {
+      throw createAuthVerificationUnavailableError(
+        "Authentication verification is temporarily unavailable.",
+        response.status
+      );
+    }
+    const data = (await response.json()) as AuthenticatedApiUser;
+    if (!data?.id) return null;
+    writeCachedVerifiedUser(token, data);
+    return data;
+  })().finally(() => {
+    inFlightUserLookups.delete(token);
+  });
+
+  inFlightUserLookups.set(token, pendingLookup);
+  return await pendingLookup;
 };
 
 /**

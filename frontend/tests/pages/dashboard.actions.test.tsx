@@ -13,6 +13,7 @@ const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const signOutSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
@@ -62,6 +63,8 @@ vi.mock("../../lib/supabaseClient", () => ({
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
   readPersistedSupabaseSessionHint: (...args: unknown[]) =>
     readPersistedSupabaseSessionHintMock(...args),
+  readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
+    readSupabaseSessionBootstrapHintMock(...args),
   signOutSupabaseSession: (...args: unknown[]) => signOutSupabaseSessionMock(...args),
 }));
 
@@ -160,6 +163,7 @@ describe("Dashboard actions", () => {
       user: appUser,
     });
     readPersistedSupabaseSessionHintMock.mockReturnValue(true);
+    readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
     ensureSupabaseQueryClientMock.mockReturnValue(buildSupabaseClient());
     fetchWithAuthMock.mockImplementation(async (input: unknown) => {

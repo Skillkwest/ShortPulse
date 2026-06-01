@@ -44,6 +44,7 @@ describe("useProtectedRoute", () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.session).toBe(session);
     expect(result.current.user).toBe(user);
+    expect(useSupabaseSessionStateMock).toHaveBeenCalledWith({ enabled: false });
     expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
   });
 });

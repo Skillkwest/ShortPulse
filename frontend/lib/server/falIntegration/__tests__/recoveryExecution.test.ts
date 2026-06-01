@@ -79,6 +79,7 @@ const createAiGenerationsAdmin = (
     mediaAutosaveEnabled?: boolean;
     userPreferenceError?: { code?: string; message?: string } | null;
     mediaRows?: Array<Record<string, unknown>>;
+    abandonmentRow?: Record<string, unknown> | null;
   }
 ) => {
   const selectResponses = rows.map((row) => ({ data: [row], error: null }));
@@ -131,7 +132,10 @@ const createAiGenerationsAdmin = (
       const builder: Record<string, unknown> = {};
       builder.eq = vi.fn(() => builder);
       builder.limit = vi.fn(() => builder);
-      builder.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+      builder.maybeSingle = vi.fn(async () => ({
+        data: options?.abandonmentRow ?? null,
+        error: null,
+      }));
       return builder;
     }),
   };
@@ -972,6 +976,157 @@ describe("executeGenerationRecovery", () => {
     );
   });
 
+  it("keeps abandoned recovered success suppressed in publication and projection surfaces", async () => {
+    const scenario = createAiGenerationsAdmin(
+      [
+        {
+          ...baseGenerationRow,
+          status: "fail",
+          failure_reason_code: "terminal_success_no_media",
+          recovery_state: "queued",
+        },
+      ],
+      {
+        abandonmentRow: {
+          no_refund: true,
+        },
+      }
+    );
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+
+    const result = await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+        mediaFileIds: ["media-1"],
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        generationOutputId: "output-1",
+        publicationState: "suppressed",
+        visibleInReferenceGrid: false,
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        taskState: "success",
+        publicationState: "suppressed",
+        hiddenInReferenceGrid: true,
+        referenceGridVisible: false,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+        detail: expect.objectContaining({
+          user_abandoned: true,
+        }),
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "success",
+        recovery_state: "recovered",
+        metadata: expect.objectContaining({
+          user_abandoned: true,
+          abandoned_no_refund: true,
+          hidden_in_reference_grid: true,
+        }),
+      })
+    );
+  });
+
+  it("keeps recovered success settled when publication persistence fails", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "fail",
+        failure_reason_code: "terminal_success_no_media",
+        recovery_state: "queued",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+    upsertGenerationPublicationMock.mockRejectedValueOnce(new Error("publication failed"));
+
+    const result = await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.generation.recovery.publication_write_failed",
+        requestId: "req-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-1",
+          route_label: "test/recovery",
+          publication_error: "publication failed",
+          recovery_actor: "webhook",
+        }),
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "success",
+        recovery_state: "recovered",
+      })
+    );
+  });
+
   it("allows pending generations to recover directly to success when media is visible", async () => {
     const scenario = createAiGenerationsAdmin([
       {
@@ -1567,6 +1722,120 @@ describe("executeGenerationRecovery", () => {
         providerRequestId: "req-1",
         status: "failed",
         failureReasonCode: "provider_error",
+      })
+    );
+  });
+
+  it("does not refund abandoned provider failures during shared recovery", async () => {
+    const scenario = createAiGenerationsAdmin(
+      [
+        {
+          ...baseGenerationRow,
+          status: "running",
+        },
+      ],
+      {
+        abandonmentRow: {
+          no_refund: true,
+        },
+      }
+    );
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "failed",
+        payload: { error: "Provider failed after user clear" },
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "provider_failed",
+        processed: true,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
+        abandonedNoRefund: true,
+        detail: expect.objectContaining({
+          user_abandoned: true,
+        }),
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        taskState: "fail",
+        publicationState: "suppressed",
+        hiddenInReferenceGrid: true,
+        referenceGridVisible: false,
+      })
+    );
+    expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps provider failures settled when projection persistence fails", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    upsertGenerationProjectionMock.mockRejectedValueOnce({
+      code: "PGRST204",
+      message: "save_error missing from schema cache",
+    });
+
+    const result = await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "failed",
+        payload: { error: "Provider rejected request" },
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "provider_failed",
+        processed: true,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.generation.recovery.projection_write_failed",
+        requestId: "req-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-1",
+          route_label: "test/recovery",
+          projection_stage: "fail",
+          projection_error: "save_error missing from schema cache",
+          recovery_actor: "webhook",
+        }),
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "fail",
+        recovery_state: "exhausted",
       })
     );
   });

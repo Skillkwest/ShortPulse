@@ -9,6 +9,10 @@ import {
   requireApiUser,
   resolveAdminAccessVia,
 } from "../../lib/server/api/auth";
+import {
+  resetSupabaseUserVerificationCache,
+  SUPABASE_USER_VERIFICATION_CACHE_TTL_MS,
+} from "../../lib/server/api/authTokenVerifier";
 
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
@@ -18,6 +22,8 @@ const createMockResponse = () => ({
 describe("auth helper protected-route auth behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSupabaseUserVerificationCache();
+    vi.useRealTimers();
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
@@ -69,6 +75,82 @@ describe("auth helper protected-route auth behavior", () => {
     expect(user?.id).toBe("verified-user-id");
     expect(user?.email).toBe("verified@example.com");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("dedupes concurrent bearer verification for the same token", async () => {
+    let releaseFetch: (() => void) | undefined;
+    const fetchGate = new Promise<void>((resolve) => {
+      releaseFetch = resolve;
+    });
+    const fetchMock = vi.fn(async () => {
+      await fetchGate;
+      return {
+        ok: true,
+        json: async () => ({
+          id: "verified-user-id",
+          email: "verified@example.com",
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer valid-token",
+      },
+    };
+
+    const firstLookup = getOptionalApiUser(req as never);
+    const secondLookup = getOptionalApiUser(req as never);
+
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    releaseFetch?.();
+
+    await expect(firstLookup).resolves.toEqual(
+      expect.objectContaining({
+        id: "verified-user-id",
+        email: "verified@example.com",
+      })
+    );
+    await expect(secondLookup).resolves.toEqual(
+      expect.objectContaining({
+        id: "verified-user-id",
+        email: "verified@example.com",
+      })
+    );
+  });
+
+  it("reuses a recent verified bearer identity briefly, then revalidates after the cache window", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: "verified-user-id",
+        email: "verified@example.com",
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer valid-token",
+      },
+    };
+
+    await getOptionalApiUser(req as never);
+    await getOptionalApiUser(req as never);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(SUPABASE_USER_VERIFICATION_CACHE_TTL_MS + 1);
+
+    await getOptionalApiUser(req as never);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("rejects protected-route proxy headers when bearer token is missing", async () => {

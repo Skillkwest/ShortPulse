@@ -5,6 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireApiUser } from "../../lib/server/api/auth";
+import { resetSupabaseUserVerificationCache } from "../../lib/server/api/authTokenVerifier";
 
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
@@ -25,6 +26,7 @@ const runAuthResolution = async (options: {
 describe("auth boundary latency benchmark", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSupabaseUserVerificationCache();
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
@@ -65,6 +67,6 @@ describe("auth boundary latency benchmark", () => {
       }),
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(iterations);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

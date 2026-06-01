@@ -19,7 +19,11 @@ import { trackMarketingPageView } from "../lib/growthTelemetry";
 import { loadBillingCatalogSnapshot } from "../lib/server/api/billingCatalog";
 import { readActiveDashboardOffers, type DashboardOffer } from "../lib/server/api/dashboardOffers";
 import { getSupabaseAdmin } from "../lib/server/api/supabaseAdmin";
-import { readPersistedSupabaseSessionHint, useSupabaseSessionState } from "../lib/supabaseClient";
+import {
+  readPersistedSupabaseSessionHint,
+  readSupabaseSessionBootstrapHint,
+  useSupabaseSessionState,
+} from "../lib/supabaseClient";
 
 const DASHBOARD_BOOTSTRAP_ROUTE = "/dashboard";
 const DASHBOARD_BOOTSTRAP_TITLE = "Loading dashboard";
@@ -107,7 +111,7 @@ const loadAuthenticatedDashboardRoute = async () => {
   return loadedModule.AuthenticatedDashboardRoute;
 };
 
-if (typeof window !== "undefined" && readPersistedSupabaseSessionHint()) {
+if (typeof window !== "undefined" && readSupabaseSessionBootstrapHint()) {
   void loadAuthenticatedDashboardRoute();
 }
 
@@ -156,7 +160,10 @@ export default function DashboardPage({
   dashboardOffers = [],
 }: DashboardPageProps) {
   const router = useRouter();
-  const { initialized, user } = useSupabaseSessionState();
+  const shouldResolveSession = readSupabaseSessionBootstrapHint();
+  const { initialized, user } = useSupabaseSessionState({
+    enabled: shouldResolveSession,
+  });
   const [shouldHoldForPersistedSession, setShouldHoldForPersistedSession] = useState(false);
   const isDashboardBootstrapPending =
     router.pathname === DASHBOARD_BOOTSTRAP_ROUTE && !initialized && shouldHoldForPersistedSession;

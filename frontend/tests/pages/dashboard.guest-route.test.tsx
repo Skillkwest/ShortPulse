@@ -13,6 +13,7 @@ const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
@@ -59,6 +60,8 @@ vi.mock("../../lib/supabaseClient", () => ({
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
   readPersistedSupabaseSessionHint: (...args: unknown[]) =>
     readPersistedSupabaseSessionHintMock(...args),
+  readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
+    readSupabaseSessionBootstrapHintMock(...args),
   primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
 }));
 
@@ -85,6 +88,7 @@ describe("Dashboard guest route", () => {
       refreshQuotaSummary: vi.fn(),
     });
     readPersistedSupabaseSessionHintMock.mockReturnValue(false);
+    readSupabaseSessionBootstrapHintMock.mockReturnValue(false);
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -158,6 +162,7 @@ describe("Dashboard guest route", () => {
     ).not.toBeInTheDocument();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
+    expect(useSupabaseSessionStateMock).toHaveBeenCalledWith({ enabled: false });
   });
 
   it("renders the public dashboard immediately while anonymous session bootstrap is still unresolved", () => {
@@ -175,6 +180,6 @@ describe("Dashboard guest route", () => {
     expect(
       screen.queryByText("Checking your session before your dashboard workspace loads.")
     ).not.toBeInTheDocument();
-    expect(readPersistedSupabaseSessionHintMock).toHaveBeenCalled();
+    expect(readSupabaseSessionBootstrapHintMock).toHaveBeenCalled();
   });
 });

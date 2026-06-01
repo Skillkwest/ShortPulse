@@ -5,6 +5,7 @@ import { useAiStudioProjectWorkspaceRestoreCandidate } from "../useAiStudioProje
 import { useAiStudioProjectWorkspaceRestoreHydration } from "../useAiStudioProjectWorkspaceRestoreHydration";
 import { useAiStudioSessionAutosave } from "../useAiStudioSessionAutosave";
 import {
+  createEmptyAiStudioSessionSnapshot,
   createAiStudioProjectWorkspaceSnapshot,
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
@@ -233,6 +234,55 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(buildSessionSnapshot).not.toHaveBeenCalled();
     expect(result.current.projectBootstrapApplied).toBe(false);
     expect(result.current.projectBootstrapError).toBeNull();
+  });
+
+  it("treats the default empty canvas runtime state as matching a no-snapshot project bootstrap", async () => {
+    const liveEmptyProjectSnapshot = {
+      ...createEmptyAiStudioSessionSnapshot({
+        sessionId: "session-1",
+        updatedAt: "2026-04-24T18:00:00.000Z",
+      }),
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 0, y: 0, zoom: 1 },
+        railCamera: { x: 0, y: 0, zoom: 1 },
+      }),
+    } as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(null);
+    const buildSessionSnapshot = vi.fn(() => liveEmptyProjectSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result, rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender();
+    await flushBootstrapVisibilityLatch();
+
+    expect(result.current.projectBootstrapApplied).toBe(true);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: true,
+        snapshot: liveEmptyProjectSnapshot,
+      })
+    );
   });
 
   it("enables project autosave after bootstrap settles for the active project", async () => {

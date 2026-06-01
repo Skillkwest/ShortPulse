@@ -15,6 +15,10 @@ type SupabaseSessionSnapshot = {
   user: User | null;
 };
 
+type UseSupabaseSessionStateOptions = {
+  enabled?: boolean;
+};
+
 const EMPTY_SESSION_SNAPSHOT: SupabaseSessionSnapshot = {
   initialized: false,
   session: null,
@@ -100,9 +104,12 @@ const subscribeToSessionSnapshot = (listener: () => void) => {
   };
 };
 
+const subscribeToDisabledSessionSnapshot = () => () => {};
+
 const getSessionSnapshot = (): SupabaseSessionSnapshot => currentSessionSnapshot;
 
 const getServerSessionSnapshot = (): SupabaseSessionSnapshot => EMPTY_SESSION_SNAPSHOT;
+const getDisabledSessionSnapshot = (): SupabaseSessionSnapshot => EMPTY_SESSION_SNAPSHOT;
 
 const hasTokenCandidate = (value: unknown): boolean => {
   if (!value || typeof value !== "object") return false;
@@ -174,6 +181,17 @@ export const readPersistedSupabaseSessionHint = (): boolean => {
   }
 
   return false;
+};
+
+/**
+ * Reads whether the client has enough local auth state to justify bootstrapping
+ * the shared Supabase session store on public surfaces.
+ */
+export const readSupabaseSessionBootstrapHint = (): boolean => {
+  if (currentSessionSnapshot.session) {
+    return true;
+  }
+  return readPersistedSupabaseSessionHint();
 };
 
 const startAuthStateSubscription = () => {
@@ -318,21 +336,25 @@ export const readSupabaseAccessToken = async (options?: {
 /**
  * Subscribes to the shared client session state and starts the singleton auth listener.
  */
-export const useSupabaseSessionState = (): SupabaseSessionSnapshot => {
+export const useSupabaseSessionState = (
+  options?: UseSupabaseSessionStateOptions
+): SupabaseSessionSnapshot => {
+  const enabled = options?.enabled !== false;
   const snapshot = useSyncExternalStore(
-    subscribeToSessionSnapshot,
-    getSessionSnapshot,
+    enabled ? subscribeToSessionSnapshot : subscribeToDisabledSessionSnapshot,
+    enabled ? getSessionSnapshot : getDisabledSessionSnapshot,
     getServerSessionSnapshot
   );
 
   useEffect(() => {
+    if (!enabled) return;
     startAuthStateSubscription();
     if (!snapshot.initialized) {
       // Background bootstrap reads should never surface a global unhandled rejection.
       // Callers that need explicit auth errors perform their own awaited session reads.
       void readSupabaseSession().catch(() => undefined);
     }
-  }, [snapshot.initialized]);
+  }, [enabled, snapshot.initialized]);
 
   return snapshot;
 };

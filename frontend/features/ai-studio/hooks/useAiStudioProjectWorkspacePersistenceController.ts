@@ -243,6 +243,15 @@ const resolveProjectRestoreCanvasSignature = (
   const parsedCanvas = parseAiStudioSessionCanvasState(snapshot.canvas ?? null);
   const durableCanvas = createProjectDurableAiStudioSessionCanvasState(parsedCanvas);
   if (!durableCanvas) return null;
+  const isDefaultEmptyCanvas =
+    durableCanvas.items.length === 0 &&
+    durableCanvas.mainCamera.x === 0 &&
+    durableCanvas.mainCamera.y === 0 &&
+    durableCanvas.mainCamera.zoom === 1 &&
+    durableCanvas.railCamera.x === 0 &&
+    durableCanvas.railCamera.y === 0 &&
+    durableCanvas.railCamera.zoom === 1;
+  if (isDefaultEmptyCanvas) return null;
   return JSON.stringify(serializeAiStudioSessionCanvasState(durableCanvas));
 };
 

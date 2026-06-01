@@ -1,8 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { proxy } from "../../proxy";
+import { resetSupabaseUserVerificationCache } from "../../lib/server/api/authTokenVerifier";
 
 describe("API proxy protections", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetSupabaseUserVerificationCache();
+  });
+
   it("blocks direct /api/_utils/* access", async () => {
     const request = new NextRequest("http://localhost:3000/api/_utils/auth");
     const response = await proxy(request);
@@ -75,6 +81,38 @@ describe("API proxy protections", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(response.headers.get("x-middleware-request-x-shortpulse-authenticated")).toBe("1");
     expect(response.headers.get("x-middleware-request-x-shortpulse-user-id")).toBe("user-123");
+  });
+
+  it("reuses recent Supabase verification results across repeated protected proxy requests", async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: "user-123",
+        email: "user@example.com",
+        app_metadata: { role: "member" },
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstRequest = new NextRequest("http://localhost:3000/api/media/sign-batch", {
+      headers: {
+        authorization: "Bearer valid-token",
+      },
+    });
+    const secondRequest = new NextRequest("http://localhost:3000/api/media/sign-batch", {
+      headers: {
+        authorization: "Bearer valid-token",
+      },
+    });
+
+    const firstResponse = await proxy(firstRequest);
+    const secondResponse = await proxy(secondRequest);
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns 503 when auth verification is unavailable for a protected API request", async () => {

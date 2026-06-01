@@ -4,21 +4,11 @@ import {
   isProtectedApiPath,
   isWebhookPath,
 } from "./lib/server/api/protectedApiPaths";
-
-type SupabaseUser = {
-  id: string;
-  email?: string;
-  user_metadata?: Record<string, unknown>;
-  app_metadata?: Record<string, unknown>;
-} | null;
-
-const parseBearerToken = (authorizationHeader: string | null): string | null => {
-  if (!authorizationHeader) return null;
-  const [scheme, value] = authorizationHeader.split(" ");
-  if (!scheme || !value) return null;
-  if (scheme.toLowerCase() !== "bearer") return null;
-  return value.trim() || null;
-};
+import {
+  fetchSupabaseUser,
+  parseBearerToken,
+  type AuthenticatedApiUser,
+} from "./lib/server/api/authTokenVerifier";
 
 const unauthorized = () =>
   new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
@@ -56,40 +46,6 @@ const notFound = () =>
     headers: { "Content-Type": "application/json" },
   });
 
-const getSupabaseUser = async (token: string): Promise<SupabaseUser> => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Authentication verification is unavailable.");
-  }
-
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    method: "GET",
-    headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (response.status === 401 || response.status === 403) return null;
-  if (!response.ok) {
-    throw new Error(`Authentication verification failed with ${response.status}.`);
-  }
-  const data = (await response.json()) as {
-    id?: string;
-    email?: string;
-    user_metadata?: Record<string, unknown>;
-    app_metadata?: Record<string, unknown>;
-  };
-  if (!data?.id) return null;
-  return {
-    id: data.id,
-    email: data.email,
-    user_metadata: data.user_metadata,
-    app_metadata: data.app_metadata,
-  };
-};
-
 export async function proxy(request: NextRequest) {
   try {
     const { pathname } = request.nextUrl;
@@ -112,9 +68,9 @@ export async function proxy(request: NextRequest) {
       return unauthorized();
     }
 
-    let user: SupabaseUser = null;
+    let user: AuthenticatedApiUser | null = null;
     try {
-      user = await getSupabaseUser(token);
+      user = await fetchSupabaseUser(token);
     } catch (error) {
       console.error("[proxy] Supabase auth lookup failed", error);
       return authVerificationUnavailable();

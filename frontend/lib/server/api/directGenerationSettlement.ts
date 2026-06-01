@@ -7,7 +7,16 @@ import { applyGenerationLifecycleTransition } from "./generationLifecycleTransit
 import { upsertGenerationProjection } from "./generationProjection";
 import { upsertGenerationPublication } from "./generationPublications";
 import { writeAppErrorLog } from "./appErrorLogs";
-import { toErrorMessage } from "./errorMessage";
+import {
+  describeBestEffortWriteFailure,
+  logBestEffortGenerationProjectionWriteFailure,
+  logBestEffortGenerationPublicationWriteFailure,
+} from "./terminalConvergenceBestEffortLogging";
+import { applyTerminalAbandonmentMetadata } from "./terminalConvergenceMetadata";
+import {
+  resolveTerminalFailureVisibilityState,
+  resolveTerminalSuccessVisibilityState,
+} from "./terminalConvergenceVisibility";
 import {
   readGenerationAbandonmentContext,
   isGenerationAbandonedMetadata,
@@ -16,8 +25,8 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 import { readMediaDeliveryPathsById } from "./mediaDeliveryPaths";
 import { readMediaAutosaveEnabledForUser } from "./mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./mediaAutosavePreference";
+import { resolveAutosaveProjectionSaveOutcome } from "./terminalConvergenceProjectionState";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
-import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
 import { normalizeCustomerFacingProviderError } from "../../customerFacingProviderText";
 import { associateGenerationWithProjectForUserBestEffort } from "../projectGenerationAssociationsService";
 import { releaseMotionReferenceVideoLeasesForGeneration } from "../motionReferenceVideoAssetLease";
@@ -156,23 +165,22 @@ const logBestEffortProjectionFailure = async ({
   projectionStage: "success" | "fail";
   error: unknown;
 }): Promise<void> => {
-  await writeAppErrorLog({
+  await logBestEffortGenerationProjectionWriteFailure({
     source: "telemetry.direct_generation_settlement.projection_write_failed",
     message:
       "Direct generation settlement projection write failed after canonical settlement state succeeded.",
+    generationId,
     requestId,
+    routeLabel,
     userId,
-    statusCode: 200,
+    provider,
+    modelId,
     metadata: {
-      generation_id: generationId,
-      route_label: routeLabel,
-      provider,
-      model_id: modelId,
       provider_state: providerState,
       projection_stage: projectionStage,
-      projection_error: toErrorMessage(error, "Unknown error"),
+      projection_error: describeBestEffortWriteFailure(error),
     },
-  }).catch(() => undefined);
+  });
 };
 
 const logBestEffortPublicationFailure = async ({
@@ -194,22 +202,21 @@ const logBestEffortPublicationFailure = async ({
   providerState: string | null;
   error: unknown;
 }): Promise<void> => {
-  await writeAppErrorLog({
+  await logBestEffortGenerationPublicationWriteFailure({
     source: "telemetry.direct_generation_settlement.publication_write_failed",
     message:
       "Direct generation settlement publication write failed after canonical settlement state succeeded.",
+    generationId,
     requestId,
+    routeLabel,
     userId,
-    statusCode: 200,
+    provider,
+    modelId,
     metadata: {
-      generation_id: generationId,
-      route_label: routeLabel,
-      provider,
-      model_id: modelId,
       provider_state: providerState,
-      publication_error: toErrorMessage(error, "Unknown error"),
+      publication_error: describeBestEffortWriteFailure(error),
     },
-  }).catch(() => undefined);
+  });
 };
 
 const stringifyDetail = (value: unknown, fallback: string): string => {
@@ -250,37 +257,6 @@ const tryReleaseMotionReferenceVideoLeases = async ({
 
 const buildUnsettledBillingError = (note: string): string =>
   `Generation billing settlement did not complete: ${note}`;
-
-const resolveAutosaveProjectionSaveOutcome = ({
-  savedMediaIds,
-  autosaveDecisionReason,
-  autosavePreferenceLookupMessage,
-}: {
-  savedMediaIds: string[];
-  autosaveDecisionReason: string;
-  autosavePreferenceLookupMessage: string | null;
-}): {
-  saveState: "saved" | "idle" | "failed" | "blocked_storage";
-  saveError: string | null;
-} => {
-  if (savedMediaIds.length > 0) {
-    return {
-      saveState: "saved",
-      saveError: null,
-    };
-  }
-  if (autosavePreferenceLookupMessage) {
-    return {
-      saveState: "failed",
-      saveError: autosavePreferenceLookupMessage,
-    };
-  }
-  const saveError = resolveMediaStorageQuotaUserMessage(autosaveDecisionReason);
-  return {
-    saveState: saveError ? "blocked_storage" : "idle",
-    saveError,
-  };
-};
 
 const mergeSettlementMetadata = ({
   metadata,
@@ -378,14 +354,10 @@ export const settleDirectGenerationSuccess = async ({
   });
   const isAbandoned = abandonment.abandoned;
   const mergedMetadata = mergeSettlementMetadata({
-    metadata: isAbandoned
-      ? {
-          ...generationMetadata,
-          user_abandoned: true,
-          abandoned_no_refund: abandonment.noRefund,
-          hidden_in_reference_grid: true,
-        }
-      : generationMetadata,
+    metadata: applyTerminalAbandonmentMetadata({
+      metadata: generationMetadata,
+      abandonment,
+    }),
     nowIso,
     providerState,
     outcome: "success",
@@ -495,13 +467,18 @@ export const settleDirectGenerationSuccess = async ({
       return deliveryPathsByMediaId.has(row.mediaFileId);
     });
 
-  const hiddenInReferenceGrid =
-    isAbandoned ||
-    (readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
-      false);
-  const publicationState =
-    hasCanonicalStorageAuthority && !isAbandoned ? "published" : "suppressed";
-  const referenceGridVisible = !hiddenInReferenceGrid && hasCanonicalStorageAuthority;
+  const { hiddenInReferenceGrid, publicationState, referenceGridVisible } =
+    resolveTerminalSuccessVisibilityState({
+      metadata: {
+        hiddenInReferenceGrid: readMetadataBoolean(
+          generationMetadata,
+          "hidden_in_reference_grid",
+          "hiddenInReferenceGrid"
+        ),
+      },
+      abandoned: isAbandoned,
+      hasCanonicalOwnedMedia: hasCanonicalStorageAuthority,
+    });
   const projectId = readProjectIdFromMetadata(generationMetadata);
 
   const firstOwnedDeliveryPaths =
@@ -751,14 +728,10 @@ export const settleDirectGenerationFailure = async ({
   });
   const isAbandoned = abandonment.abandoned || isGenerationAbandonedMetadata(generationMetadata);
   const mergedMetadata = mergeSettlementMetadata({
-    metadata: isAbandoned
-      ? {
-          ...generationMetadata,
-          user_abandoned: true,
-          abandoned_no_refund: abandonment.noRefund,
-          hidden_in_reference_grid: true,
-        }
-      : generationMetadata,
+    metadata: applyTerminalAbandonmentMetadata({
+      metadata: generationMetadata,
+      abandonment,
+    }),
     nowIso,
     providerState,
     outcome: "fail",
@@ -819,10 +792,16 @@ export const settleDirectGenerationFailure = async ({
     userId: generation.user_id,
   });
 
-  const hiddenInReferenceGrid =
-    isAbandoned ||
-    (readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
-      false);
+  const { hiddenInReferenceGrid, referenceGridVisible } = resolveTerminalFailureVisibilityState({
+    metadata: {
+      hiddenInReferenceGrid: readMetadataBoolean(
+        generationMetadata,
+        "hidden_in_reference_grid",
+        "hiddenInReferenceGrid"
+      ),
+    },
+    abandoned: isAbandoned,
+  });
 
   try {
     await upsertGenerationProjection({
@@ -844,7 +823,7 @@ export const settleDirectGenerationFailure = async ({
       errorDetail: normalizedErrorDetail,
       saveState: "idle",
       hiddenInReferenceGrid,
-      referenceGridVisible: !hiddenInReferenceGrid,
+      referenceGridVisible,
       publicationState: "suppressed",
       resultUrls: [],
       savedMediaIds: [],

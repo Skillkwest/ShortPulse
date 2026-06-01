@@ -14,7 +14,9 @@ type UseProtectedRouteResult = {
 export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
   const protectedRouteSession = useProtectedRouteSessionContext();
   const router = useRouter();
-  const { initialized, session, user } = useSupabaseSessionState();
+  const { initialized, session, user } = useSupabaseSessionState({
+    enabled: !(enabled && protectedRouteSession),
+  });
   const authRedirectPath = `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`;
   const [, bumpRecoveryVersion] = useState(0);
   const recoveryAttemptedRef = useRef(false);

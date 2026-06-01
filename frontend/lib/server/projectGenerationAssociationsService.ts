@@ -89,7 +89,6 @@ type ProjectGenerationPublicationRow = {
 type ProjectGenerationMediaFileRow = {
   id?: unknown;
   storage_path?: unknown;
-  preview_storage_path?: unknown;
   file_type?: unknown;
   poster_variant_path?: unknown;
   thumb_variant_path?: unknown;
@@ -158,18 +157,6 @@ const isLikelyImagePath = (value: string | null): boolean =>
 
 const isLikelyVideoPath = (value: string | null): boolean =>
   Boolean(value && /\.(?:m4v|mov|mp4|ogv|webm)(?:$|[?#])/i.test(value));
-
-const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const message =
-    typeof (error as { message?: unknown }).message === "string"
-      ? (error as { message: string }).message.toLowerCase()
-      : "";
-  return (
-    message.includes("preview_storage_path") &&
-    (message.includes("schema cache") || message.includes("does not exist"))
-  );
-};
 
 const resolveVideoPosterStoragePath = ({
   previewStoragePath,
@@ -548,30 +535,15 @@ const readMediaFileRowsById = async ({
   if (!normalizedMediaFileIds.length) return new Map();
 
   const supabaseAdmin = getSupabaseAdmin();
-  const runSelectChunk = async (
-    mediaFileIdChunk: string[],
-    fields:
-      | "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-      | "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-  ) =>
-    await supabaseAdmin
-      .from("media_files")
-      .select(fields)
-      .eq("user_id", userId)
-      .in("id", mediaFileIdChunk);
-
   const mediaById = new Map<string, ProjectGenerationMediaFileRow>();
   for (const mediaFileIdChunk of chunkValues(normalizedMediaFileIds)) {
-    let { data, error } = await runSelectChunk(
-      mediaFileIdChunk,
-      "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-    );
-    if (error && isPreviewStoragePathSchemaError(error)) {
-      ({ data, error } = await runSelectChunk(
-        mediaFileIdChunk,
+    const { data, error } = await supabaseAdmin
+      .from("media_files")
+      .select(
         "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-      ));
-    }
+      )
+      .eq("user_id", userId)
+      .in("id", mediaFileIdChunk);
 
     if (error) {
       throw new Error(error.message || "Failed to load project generation media rows");
@@ -602,9 +574,9 @@ const resolveDeliveryFromMediaRows = ({
 }): ProjectGenerationMediaDelivery | null => {
   const fileType = asTrimmedString(mediaRow?.file_type)?.toLowerCase() ?? "";
   const mediaStoragePath = toSafeUserScopedPath(mediaRow?.storage_path, userId);
-  const mediaPreviewStoragePath = toSafeUserScopedPath(mediaRow?.preview_storage_path, userId);
   const mediaPreviewVariantPath = toSafeUserScopedPath(mediaRow?.preview_variant_path, userId);
   const mediaThumbVariantPath = toSafeUserScopedPath(mediaRow?.thumb_variant_path, userId);
+  const mediaPosterVariantPath = toSafeUserScopedPath(mediaRow?.poster_variant_path, userId);
   const publicationPreviewStoragePath = toSafeUserScopedPath(
     publicationRow?.preview_storage_path,
     userId
@@ -627,7 +599,6 @@ const resolveDeliveryFromMediaRows = ({
   if (isImage) {
     const previewStoragePath =
       publicationPreviewStoragePath ??
-      mediaPreviewStoragePath ??
       mediaPreviewVariantPath ??
       mediaThumbVariantPath ??
       fullStoragePath;
@@ -640,14 +611,10 @@ const resolveDeliveryFromMediaRows = ({
   }
 
   const previewPosterStoragePath =
-    asTrimmedString(mediaRow?.poster_variant_path) ??
+    mediaPosterVariantPath ??
     mediaThumbVariantPath ??
     resolveVideoPosterStoragePath({
       previewStoragePath: publicationPreviewStoragePath,
-      fullStoragePath,
-    }) ??
-    resolveVideoPosterStoragePath({
-      previewStoragePath: mediaPreviewStoragePath,
       fullStoragePath,
     }) ??
     resolveVideoPosterStoragePath({
@@ -655,10 +622,7 @@ const resolveDeliveryFromMediaRows = ({
       fullStoragePath,
     });
   const previewStoragePath =
-    publicationPreviewStoragePath ??
-    mediaPreviewStoragePath ??
-    mediaPreviewVariantPath ??
-    fullStoragePath;
+    publicationPreviewStoragePath ?? mediaPreviewVariantPath ?? fullStoragePath;
   if (!previewStoragePath && !fullStoragePath) return null;
 
   return {
@@ -879,6 +843,75 @@ export const associateGenerationWithProjectForUser = async ({
   }
 
   return true;
+};
+
+export const associateGenerationWithProjectForUserBestEffort = async ({
+  userId,
+  projectId,
+  generationId,
+  onError,
+}: {
+  userId: string;
+  projectId: string | null | undefined;
+  generationId: string;
+  onError?: (payload: { projectId: string; error: unknown }) => Promise<void> | void;
+}): Promise<boolean> => {
+  const normalizedProjectId = asTrimmedString(projectId);
+  if (!normalizedProjectId) return false;
+  try {
+    return await associateGenerationWithProjectForUser({
+      userId,
+      projectId: normalizedProjectId,
+      generationId,
+    });
+  } catch (error) {
+    await onError?.({
+      projectId: normalizedProjectId,
+      error,
+    });
+    return false;
+  }
+};
+
+export const associateGenerationAndMediaWithProjectForUserBestEffort = async ({
+  userId,
+  projectId,
+  generationId,
+  mediaFileIds,
+  onError,
+}: {
+  userId: string;
+  projectId: string | null | undefined;
+  generationId: string;
+  mediaFileIds?: string[] | null;
+  onError?: (payload: { projectId: string; error: unknown }) => Promise<void> | void;
+}): Promise<boolean> => {
+  const normalizedProjectId = asTrimmedString(projectId);
+  if (!normalizedProjectId) return false;
+  try {
+    const associatedGeneration = await associateGenerationWithProjectForUser({
+      userId,
+      projectId: normalizedProjectId,
+      generationId,
+    });
+    const normalizedMediaFileIds =
+      Array.isArray(mediaFileIds) && mediaFileIds.length > 0 ? mediaFileIds : [];
+    if (normalizedMediaFileIds.length === 0) {
+      return associatedGeneration;
+    }
+    const associatedMedia = await associateMediaFilesWithProjectForUser({
+      userId,
+      projectId: normalizedProjectId,
+      mediaFileIds: normalizedMediaFileIds,
+    });
+    return associatedGeneration || associatedMedia;
+  } catch (error) {
+    await onError?.({
+      projectId: normalizedProjectId,
+      error,
+    });
+    return false;
+  }
 };
 
 const patchSnapshotOutputRow = ({

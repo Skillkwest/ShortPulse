@@ -27,10 +27,7 @@ import { toErrorMessage } from "./api/errorMessage";
 import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./api/mediaAutosavePreference";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
-import {
-  associateGenerationWithProjectForUser,
-  associateMediaFilesWithProjectForUser,
-} from "./projectGenerationAssociationsService";
+import { associateGenerationAndMediaWithProjectForUserBestEffort } from "./projectGenerationAssociationsService";
 
 const DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1";
 const MEDIA_BUCKET = "media_library";
@@ -312,38 +309,30 @@ const associateGeneratedOpenAiImageWithProject = async ({
   requestId: string;
   userId: string;
 }): Promise<void> => {
-  if (!projectId) return;
-  try {
-    await associateGenerationWithProjectForUser({
-      userId,
-      projectId,
-      generationId,
-    });
-    if (mediaFileId) {
-      await associateMediaFilesWithProjectForUser({
+  await associateGenerationAndMediaWithProjectForUserBestEffort({
+    userId,
+    projectId,
+    generationId,
+    mediaFileIds: mediaFileId ? [mediaFileId] : [],
+    onError: async ({ projectId: normalizedProjectId, error }) => {
+      await writeAppErrorLog({
+        source: "telemetry.openai_image.project_association_failed",
+        message: "OpenAI image generation project association failed.",
+        requestId,
         userId,
-        projectId,
-        mediaFileIds: [mediaFileId],
-      });
-    }
-  } catch (error) {
-    await writeAppErrorLog({
-      source: "telemetry.openai_image.project_association_failed",
-      message: "OpenAI image generation project association failed.",
-      requestId,
-      userId,
-      statusCode: 200,
-      metadata: {
-        generation_id: generationId,
-        media_file_id: mediaFileId,
-        project_id: projectId,
-        provider: "openai",
-        provider_request_id: providerRequestId,
-        model_id: modelId,
-        association_error: error instanceof Error ? error.message : String(error),
-      },
-    }).catch(() => undefined);
-  }
+        statusCode: 200,
+        metadata: {
+          generation_id: generationId,
+          media_file_id: mediaFileId,
+          project_id: normalizedProjectId,
+          provider: "openai",
+          provider_request_id: providerRequestId,
+          model_id: modelId,
+          association_error: error instanceof Error ? error.message : String(error),
+        },
+      }).catch(() => undefined);
+    },
+  });
 };
 
 const logBestEffortProjectionFailure = async ({

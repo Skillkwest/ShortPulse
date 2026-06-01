@@ -332,10 +332,11 @@ describe("sessionRestoreMediaSigning", () => {
       data: [
         {
           id: "media-1",
-          preview_storage_path: null,
           storage_path: "user-1/images/library.png",
+          file_type: "image",
           poster_variant_path: null,
           thumb_variant_path: null,
+          preview_variant_path: null,
         },
       ],
       error: null,

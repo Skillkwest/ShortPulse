@@ -1,9 +1,12 @@
+.bootstrapStyleScope {
+}
+
 /**
  * AI Studio project entry state styles.
  * Owns the full-page project bootstrap/loading/error surface used before the main studio shell mounts.
  */
 
-.ai-studio-project-entry-page {
+:global(.ai-studio-project-entry-page) {
   position: relative;
   min-height: var(--app-fixed-height);
   max-width: none;
@@ -15,12 +18,12 @@
   overflow: hidden;
 }
 
-.ai-studio-project-entry-page--animated {
+:global(.ai-studio-project-entry-page--animated) {
   flex-direction: column;
   padding: 32px 24px;
 }
 
-.ai-studio-project-entry-card {
+:global(.ai-studio-project-entry-card) {
   position: relative;
   width: min(656px, 100%);
   padding: 26px;
@@ -34,11 +37,11 @@
   animation: ai-studio-project-entry-settle 220ms ease-out;
 }
 
-.ai-studio-project-entry-orb {
+:global(.ai-studio-project-entry-orb) {
   display: none;
 }
 
-.ai-studio-project-entry-visual-shell {
+:global(.ai-studio-project-entry-visual-shell) {
   position: relative;
   display: flex;
   align-items: center;
@@ -47,7 +50,7 @@
   max-width: 100%;
 }
 
-.ai-studio-project-entry-visual-fallback-copy {
+:global(.ai-studio-project-entry-visual-fallback-copy) {
   position: relative;
   z-index: 1;
   width: min(560px, calc(100vw - 48px));
@@ -55,14 +58,14 @@
   text-align: center;
 }
 
-.ai-studio-project-entry-visual-stage {
+:global(.ai-studio-project-entry-visual-stage) {
   position: relative;
   width: 100%;
   aspect-ratio: 976 / 310;
   overflow: hidden;
 }
 
-.ai-studio-project-entry-pulse-plane {
+:global(.ai-studio-project-entry-pulse-plane) {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -81,25 +84,25 @@
   mask-size: 100% 100%;
 }
 
-.ai-studio-project-entry-pulse-plane.is-visible {
+:global(.ai-studio-project-entry-pulse-plane):global(.is-visible) {
   opacity: 1;
 }
 
-.ai-studio-project-entry-pulse-motion {
+:global(.ai-studio-project-entry-pulse-motion) {
   position: absolute;
   inset: 0;
   animation: ai-studio-project-entry-pulse-run 4.4s linear infinite;
   will-change: transform, opacity;
 }
 
-.ai-studio-project-entry-pulse-bloom,
-.ai-studio-project-entry-pulse-sweep {
+:global(.ai-studio-project-entry-pulse-bloom),
+:global(.ai-studio-project-entry-pulse-sweep) {
   position: absolute;
   inset-block: 0;
   pointer-events: none;
 }
 
-.ai-studio-project-entry-pulse-bloom {
+:global(.ai-studio-project-entry-pulse-bloom) {
   left: -32.787%;
   width: 32.787%;
   opacity: 0.62;
@@ -115,7 +118,7 @@
   will-change: opacity;
 }
 
-.ai-studio-project-entry-pulse-sweep {
+:global(.ai-studio-project-entry-pulse-sweep) {
   left: -22.541%;
   width: 22.541%;
   opacity: 1;
@@ -130,18 +133,18 @@
   will-change: opacity;
 }
 
-.ai-studio-project-entry-copy,
-.ai-studio-project-entry-body,
-.ai-studio-project-entry-actions {
+:global(.ai-studio-project-entry-copy),
+:global(.ai-studio-project-entry-body),
+:global(.ai-studio-project-entry-actions) {
   position: relative;
   z-index: 1;
 }
 
-.ai-studio-project-entry-copy {
+:global(.ai-studio-project-entry-copy) {
   margin-top: 0;
 }
 
-.ai-studio-project-entry-title {
+:global(.ai-studio-project-entry-title) {
   margin: 0;
   color: #f5f9ff;
   font-size: clamp(19px, 2.35vw, 26px);
@@ -150,7 +153,7 @@
   text-align: center;
 }
 
-.ai-studio-project-entry-message {
+:global(.ai-studio-project-entry-message) {
   margin: 8px auto 0;
   max-width: 500px;
   color: rgba(201, 214, 227, 0.66);
@@ -159,7 +162,7 @@
   text-align: center;
 }
 
-.ai-studio-project-entry-body {
+:global(.ai-studio-project-entry-body) {
   margin-top: 22px;
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
@@ -167,7 +170,7 @@
   align-items: start;
 }
 
-.ai-studio-project-entry-loader {
+:global(.ai-studio-project-entry-loader) {
   min-height: 148px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -179,15 +182,15 @@
   gap: 12px;
 }
 
-.ai-studio-project-entry-loader.is-error {
+:global(.ai-studio-project-entry-loader):global(.is-error) {
   background: rgba(18, 14, 18, 0.86);
 }
 
-.ai-studio-project-entry-spinner {
+:global(.ai-studio-project-entry-spinner) {
   --reference-spinner-size: 26px;
 }
 
-.ai-studio-project-entry-loader-bar {
+:global(.ai-studio-project-entry-loader-bar) {
   width: 34px;
   height: 6px;
   border-radius: 3px;
@@ -195,12 +198,13 @@
   box-shadow: 0 0 0 1px rgba(112, 208, 255, 0.12);
 }
 
-.ai-studio-project-entry-loader.is-error .ai-studio-project-entry-loader-bar {
+:global(.ai-studio-project-entry-loader):global(.is-error)
+  :global(.ai-studio-project-entry-loader-bar) {
   background: rgba(248, 113, 113, 0.66);
   box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.14);
 }
 
-.ai-studio-project-entry-steps {
+:global(.ai-studio-project-entry-steps) {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -209,7 +213,7 @@
   gap: 10px;
 }
 
-.ai-studio-project-entry-step {
+:global(.ai-studio-project-entry-step) {
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr);
   gap: 12px;
@@ -225,18 +229,18 @@
     box-shadow 160ms ease;
 }
 
-.ai-studio-project-entry-step.is-complete {
+:global(.ai-studio-project-entry-step):global(.is-complete) {
   border-color: rgba(83, 215, 236, 0.16);
   background: rgba(13, 21, 28, 0.72);
 }
 
-.ai-studio-project-entry-step.is-active {
+:global(.ai-studio-project-entry-step):global(.is-active) {
   border-color: rgba(83, 215, 236, 0.22);
   background: rgba(15, 23, 30, 0.8);
   box-shadow: none;
 }
 
-.ai-studio-project-entry-step-marker {
+:global(.ai-studio-project-entry-step-marker) {
   margin-top: 4px;
   width: 12px;
   height: 12px;
@@ -245,32 +249,34 @@
   background: rgba(201, 205, 214, 0.1);
 }
 
-.ai-studio-project-entry-step.is-complete .ai-studio-project-entry-step-marker,
-.ai-studio-project-entry-step.is-active .ai-studio-project-entry-step-marker {
+:global(.ai-studio-project-entry-step):global(.is-complete)
+  :global(.ai-studio-project-entry-step-marker),
+:global(.ai-studio-project-entry-step):global(.is-active)
+  :global(.ai-studio-project-entry-step-marker) {
   border-color: rgba(83, 215, 236, 0.42);
   background: rgba(83, 215, 236, 0.88);
   box-shadow: 0 0 0 2px rgba(83, 215, 236, 0.1);
 }
 
-.ai-studio-project-entry-step-copy {
+:global(.ai-studio-project-entry-step-copy) {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.ai-studio-project-entry-step-label {
+:global(.ai-studio-project-entry-step-label) {
   color: #f5f9ff;
   font-size: 14px;
   font-weight: 650;
 }
 
-.ai-studio-project-entry-step-hint {
+:global(.ai-studio-project-entry-step-hint) {
   color: rgba(201, 214, 227, 0.68);
   font-size: 12px;
   line-height: 1.4;
 }
 
-.ai-studio-project-entry-actions {
+:global(.ai-studio-project-entry-actions) {
   margin-top: 20px;
   display: flex;
   gap: 10px;
@@ -317,46 +323,46 @@
 }
 
 @media (max-width: 720px) {
-  .ai-studio-project-entry-page {
+  :global(.ai-studio-project-entry-page) {
     padding: 24px 16px;
   }
 
-  .ai-studio-project-entry-page--animated {
+  :global(.ai-studio-project-entry-page--animated) {
     padding: 24px 16px;
   }
 
-  .ai-studio-project-entry-visual-fallback-copy {
+  :global(.ai-studio-project-entry-visual-fallback-copy) {
     width: min(560px, calc(100vw - 32px));
     margin-top: 16px;
   }
 
-  .ai-studio-project-entry-card {
+  :global(.ai-studio-project-entry-card) {
     padding: 20px 16px;
   }
 
-  .ai-studio-project-entry-body {
+  :global(.ai-studio-project-entry-body) {
     grid-template-columns: 1fr;
   }
 
-  .ai-studio-project-entry-loader {
+  :global(.ai-studio-project-entry-loader) {
     min-height: 104px;
   }
 
-  .ai-studio-project-entry-title {
+  :global(.ai-studio-project-entry-title) {
     font-size: clamp(18px, 5.8vw, 22px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-studio-project-entry-card,
-  .ai-studio-project-entry-step,
-  .ai-studio-project-entry-pulse-motion,
-  .ai-studio-project-entry-pulse-plane {
+  :global(.ai-studio-project-entry-card),
+  :global(.ai-studio-project-entry-step),
+  :global(.ai-studio-project-entry-pulse-motion),
+  :global(.ai-studio-project-entry-pulse-plane) {
     animation: none;
     transition: none;
   }
 
-  .ai-studio-project-entry-pulse-motion {
+  :global(.ai-studio-project-entry-pulse-motion) {
     opacity: 0;
     transform: translate3d(0, 0, 0);
   }

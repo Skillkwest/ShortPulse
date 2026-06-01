@@ -57,7 +57,7 @@ describe("GET /api/admin/pricing/state", () => {
     listModelConfigsMock.mockReturnValue([
       {
         id: "gpt-image-2",
-        label: "ChatGPT Image 2",
+        label: "GPT Image 2",
         provider: "openai",
         sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
         mediaType: "image",
@@ -177,7 +177,7 @@ describe("GET /api/admin/pricing/state", () => {
       },
       {
         id: "gpt-image-2",
-        label: "ChatGPT Image 2",
+        label: "GPT Image 2",
         provider: "openai",
         sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
         mediaType: "image",

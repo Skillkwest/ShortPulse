@@ -14,10 +14,10 @@ const SIGNED_URL_TTL_SECONDS = 3600;
 
 type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>["payload"];
 type MediaStoragePathRow = {
-  preview_storage_path?: unknown;
   storage_path?: unknown;
   poster_variant_path?: unknown;
   thumb_variant_path?: unknown;
+  preview_variant_path?: unknown;
 };
 
 const normalizeText = (value: string | null | undefined): string | null => {
@@ -26,30 +26,14 @@ const normalizeText = (value: string | null | undefined): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
-const isMediaPreviewColumnSchemaError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const message =
-    typeof (error as { message?: unknown }).message === "string"
-      ? (error as { message: string }).message.toLowerCase()
-      : "";
-  return (
-    message.includes("schema cache") &&
-    (message.includes("preview_storage_path") ||
-      message.includes("poster_variant_path") ||
-      message.includes("thumb_variant_path"))
-  );
-};
-
 const resolveStoragePathsFromRow = (
-  row: MediaStoragePathRow | null | undefined
+  row: MediaStoragePathRow | null | undefined,
+  fileType: LibraryMediaPayload["fileType"]
 ): {
   previewStoragePath: string | null;
   previewPosterStoragePath: string | null;
   fullStoragePath: string | null;
 } => {
-  const explicitPreviewStoragePath = asCanonicalStoragePath(
-    typeof row?.preview_storage_path === "string" ? row.preview_storage_path : null
-  );
   const previewPosterStoragePath =
     asCanonicalStoragePath(
       typeof row?.poster_variant_path === "string" ? row.poster_variant_path : null
@@ -57,12 +41,21 @@ const resolveStoragePathsFromRow = (
     asCanonicalStoragePath(
       typeof row?.thumb_variant_path === "string" ? row.thumb_variant_path : null
     );
-  const fullStoragePath =
-    asCanonicalStoragePath(typeof row?.storage_path === "string" ? row.storage_path : null) ??
-    explicitPreviewStoragePath ??
-    null;
+  const fullStoragePath = asCanonicalStoragePath(
+    typeof row?.storage_path === "string" ? row.storage_path : null
+  );
+  const previewVariantPath = asCanonicalStoragePath(
+    typeof row?.preview_variant_path === "string" ? row.preview_variant_path : null
+  );
+  const imageThumbStoragePath = asCanonicalStoragePath(
+    typeof row?.thumb_variant_path === "string" ? row.thumb_variant_path : null
+  );
+  const previewStoragePath =
+    fileType === "video"
+      ? (previewVariantPath ?? fullStoragePath)
+      : (imageThumbStoragePath ?? fullStoragePath);
   return {
-    previewStoragePath: explicitPreviewStoragePath ?? fullStoragePath,
+    previewStoragePath,
     previewPosterStoragePath,
     fullStoragePath,
   };
@@ -109,7 +102,8 @@ const signStoragePath = async (storagePath: string | null): Promise<string | nul
 };
 
 const resolveStoragePathsFromMediaId = async (
-  mediaId: string
+  mediaId: string,
+  fileType: LibraryMediaPayload["fileType"]
 ): Promise<{
   previewStoragePath: string | null;
   previewPosterStoragePath: string | null;
@@ -125,23 +119,12 @@ const resolveStoragePathsFromMediaId = async (
   }
   try {
     const supabase = ensureSupabaseQueryClient();
-    const readByColumns = async (
-      columns:
-        | "preview_storage_path, storage_path, poster_variant_path, thumb_variant_path"
-        | "storage_path"
-    ) =>
-      (await supabase
-        .from("media_files")
-        .select(columns)
-        .eq("id", normalizedMediaId)
-        .limit(1)
-        .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown };
-    let { data, error } = await readByColumns(
-      "preview_storage_path, storage_path, poster_variant_path, thumb_variant_path"
-    );
-    if (error && isMediaPreviewColumnSchemaError(error)) {
-      ({ data, error } = await readByColumns("storage_path"));
-    }
+    const { data, error } = (await supabase
+      .from("media_files")
+      .select("storage_path, poster_variant_path, thumb_variant_path, preview_variant_path")
+      .eq("id", normalizedMediaId)
+      .limit(1)
+      .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown };
     if (error) {
       return {
         previewStoragePath: null,
@@ -149,7 +132,7 @@ const resolveStoragePathsFromMediaId = async (
         fullStoragePath: null,
       };
     }
-    return resolveStoragePathsFromRow(data);
+    return resolveStoragePathsFromRow(data, fileType);
   } catch {
     return {
       previewStoragePath: null,
@@ -195,7 +178,7 @@ export const prepareLibraryMediaIngestionPayload = async (
     !initialFullStoragePath ||
     (payload.fileType === "video" && !initialPreviewPosterStoragePath);
   const mediaIdFallbackPaths = needsMediaIdFallback
-    ? await resolveStoragePathsFromMediaId(payload.id)
+    ? await resolveStoragePathsFromMediaId(payload.id, payload.fileType)
     : { previewStoragePath: null, previewPosterStoragePath: null, fullStoragePath: null };
   const normalizedPreviewPosterStoragePath =
     payload.fileType === "video"

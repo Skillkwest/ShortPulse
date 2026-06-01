@@ -10,6 +10,7 @@ const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const readGenerationAbandonmentContextMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
+const associateGenerationWithProjectForUserBestEffortMock = vi.fn();
 const releaseMotionReferenceVideoLeasesForGenerationMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const updateGenerationEqMock = vi.fn();
@@ -69,6 +70,8 @@ vi.mock("../appErrorLogs", () => ({
 vi.mock("../../projectGenerationAssociationsService", () => ({
   associateGenerationWithProjectForUser: (...args: unknown[]) =>
     associateGenerationWithProjectForUserMock(...args),
+  associateGenerationWithProjectForUserBestEffort: (...args: unknown[]) =>
+    associateGenerationWithProjectForUserBestEffortMock(...args),
 }));
 
 vi.mock("../../motionReferenceVideoAssetLease", () => ({
@@ -123,12 +126,10 @@ describe("directGenerationSettlement", () => {
       data: [
         {
           id: "media-1",
-          preview_storage_path: "user-1/generations/images/media-1.png",
           storage_path: "user-1/generations/images/media-1.png",
         },
         {
           id: "media-2",
-          preview_storage_path: "user-1/generations/images/media-2.png",
           storage_path: "user-1/generations/images/media-2.png",
         },
       ],
@@ -184,6 +185,33 @@ describe("directGenerationSettlement", () => {
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    associateGenerationWithProjectForUserBestEffortMock.mockImplementation(
+      async ({
+        userId,
+        projectId,
+        generationId,
+        onError,
+      }: {
+        userId: string;
+        projectId: string | null | undefined;
+        generationId: string;
+        onError?: (payload: { projectId: string; error: unknown }) => Promise<void> | void;
+      }) => {
+        try {
+          return await associateGenerationWithProjectForUserMock({
+            userId,
+            projectId,
+            generationId,
+          });
+        } catch (error) {
+          await onError?.({
+            projectId: typeof projectId === "string" ? projectId : "",
+            error,
+          });
+          return false;
+        }
+      }
+    );
     releaseMotionReferenceVideoLeasesForGenerationMock.mockResolvedValue(undefined);
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
     settleGenerationOutcomeMock.mockResolvedValue({ settled: true, note: "captured" });
@@ -436,66 +464,59 @@ describe("directGenerationSettlement", () => {
     );
   });
 
-  it("falls back when preview_storage_path is unavailable in the media_files schema", async () => {
+  it("settles video delivery from canonical media_files variant columns", async () => {
     readRecoveryGenerationRowMock.mockResolvedValueOnce({
-      id: "gen-video-fallback-1",
+      id: "gen-video-variant-1",
       user_id: "user-1",
-      request_id: "req-video-fallback-1",
+      request_id: "req-video-variant-1",
       provider: "kie",
       model_id: "kie-ai/seedance-2-fast",
-      prompt_text: "project video fallback",
+      prompt_text: "project video variant",
       created_at: "2026-04-26T00:00:00.000Z",
       metadata: {},
     });
-    persistRecoveryMediaFilesForGenerationMock.mockResolvedValueOnce(["media-video-fallback-1"]);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValueOnce(["media-video-variant-1"]);
     persistGenerationOutputRecordsMock.mockResolvedValue([
       {
-        id: "output-video-fallback-1",
-        resultUrl: "https://provider.example/project-video-fallback.mp4",
-        mediaFileId: "media-video-fallback-1",
+        id: "output-video-variant-1",
+        resultUrl: "https://provider.example/project-video-variant.mp4",
+        mediaFileId: "media-video-variant-1",
       },
     ]);
-    mediaFilesLimitMock
-      .mockResolvedValueOnce({
-        data: null,
-        error: {
-          message:
-            "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
+    mediaFilesLimitMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: "media-video-variant-1",
+          storage_path: "user-1/generations/videos/media-video-variant-1.mp4",
+          file_type: "video/mp4",
+          thumb_variant_path: null,
+          poster_variant_path: "user-1/variants/videos/media-video-variant-1/poster_720.jpg",
+          preview_variant_path:
+            "user-1/variants/videos/media-video-variant-1/preview_loop_360p.mp4",
         },
-      })
-      .mockResolvedValueOnce({
-        data: [
-          {
-            id: "media-video-fallback-1",
-            storage_path: "user-1/generations/videos/media-video-fallback-1.mp4",
-            file_type: "video/mp4",
-            poster_variant_path: "user-1/variants/videos/media-video-fallback-1/poster_720.jpg",
-            preview_variant_path:
-              "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
-          },
-        ],
-        error: null,
-      });
+      ],
+      error: null,
+    });
 
     const result = await settleDirectGenerationSuccess({
-      generationId: "gen-video-fallback-1",
-      requestId: "req-video-fallback-1",
+      generationId: "gen-video-variant-1",
+      requestId: "req-video-variant-1",
       userId: "user-1",
-      routeLabel: "test/direct-success-video-fallback",
+      routeLabel: "test/direct-success-video-variant",
       providerState: "COMPLETED",
-      resultUrls: ["https://provider.example/project-video-fallback.mp4"],
+      resultUrls: ["https://provider.example/project-video-variant.mp4"],
     });
 
     expect(result).toEqual({
       ok: true,
-      generationId: "gen-video-fallback-1",
-      requestId: "req-video-fallback-1",
+      generationId: "gen-video-variant-1",
+      requestId: "req-video-variant-1",
     });
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        generationOutputId: "output-video-fallback-1",
-        previewStoragePath: "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
-        fullStoragePath: "user-1/generations/videos/media-video-fallback-1.mp4",
+        generationOutputId: "output-video-variant-1",
+        previewStoragePath: "user-1/variants/videos/media-video-variant-1/preview_loop_360p.mp4",
+        fullStoragePath: "user-1/generations/videos/media-video-variant-1.mp4",
       })
     );
   });

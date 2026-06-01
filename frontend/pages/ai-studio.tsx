@@ -1,9 +1,8 @@
 /**
  * AI Studio route entry.
- * Keeps the page chunk thin while the full studio runtime loads from the feature module.
+ * Keeps the page chunk thin while the protected bootstrap gate resolves before
+ * the full studio runtime loads from the feature module.
  */
-import dynamic from "next/dynamic";
+import AiStudioProtectedRouteEntry from "../features/ai-studio/routes/AiStudioProtectedRouteEntry";
 
-const AiStudioRouteApp = dynamic(() => import("../features/ai-studio/routes/AiStudioRouteApp"));
-
-export default AiStudioRouteApp;
+export default AiStudioProtectedRouteEntry;

@@ -31,7 +31,7 @@ import {
 
 const createImageOptions: ModelOption[] = [
   { value: FAL_FLUX_2_KLEIN_9B_MODEL_ID, label: "FLUX.2 Lite", mediaType: "image" },
-  { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image 2", mediaType: "image" },
+  { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
   { value: FAL_NANO_BANANA_2_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
   { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2 Edit", mediaType: "image" },
   { value: FAL_NANO_BANANA_PRO_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },

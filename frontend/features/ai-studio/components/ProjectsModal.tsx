@@ -11,6 +11,7 @@ import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdro
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { ProjectNameModal } from "../../projects/components/ProjectNameModal";
 import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreationDialog";
+import styles from "../../../styles/ai-studio-projects-modal.module.css";
 
 type ProjectListRecord = {
   id: string;
@@ -293,7 +294,7 @@ export function ProjectsModal({
     <AiStudioModalLayer>
       <div className="model-modal-backdrop ai-projects-modal-backdrop" {...backdropDismiss} />
       <div
-        className="model-modal ai-projects-modal"
+        className={`model-modal ai-projects-modal ${styles.bootstrapStyleScope}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-projects-modal-title"

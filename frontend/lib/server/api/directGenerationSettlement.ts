@@ -19,7 +19,7 @@ import { resolveMediaAutosavePreferenceLookupUserMessage } from "./mediaAutosave
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
 import { normalizeCustomerFacingProviderError } from "../../customerFacingProviderText";
-import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
+import { associateGenerationWithProjectForUserBestEffort } from "../projectGenerationAssociationsService";
 import { releaseMotionReferenceVideoLeasesForGeneration } from "../motionReferenceVideoAssetLease";
 
 type JsonObject = Record<string, unknown>;
@@ -111,29 +111,28 @@ const refreshProjectGenerationAssociationFromMetadata = async ({
   const projectId = readProjectIdFromMetadata(metadata);
   if (!projectId) return;
 
-  try {
-    await associateGenerationWithProjectForUser({
-      userId,
-      projectId,
-      generationId,
-    });
-  } catch (error) {
-    await writeAppErrorLog({
-      source: "telemetry.direct_generation_settlement.project_association_failed",
-      message: "Direct generation settlement project association refresh failed.",
-      requestId,
-      userId,
-      statusCode: 200,
-      metadata: {
-        generation_id: generationId,
-        project_id: projectId,
-        provider,
-        model_id: modelId,
-        route_label: routeLabel,
-        association_error: error instanceof Error ? error.message : String(error),
-      },
-    }).catch(() => undefined);
-  }
+  await associateGenerationWithProjectForUserBestEffort({
+    userId,
+    projectId,
+    generationId,
+    onError: async ({ projectId: normalizedProjectId, error }) => {
+      await writeAppErrorLog({
+        source: "telemetry.direct_generation_settlement.project_association_failed",
+        message: "Direct generation settlement project association refresh failed.",
+        requestId,
+        userId,
+        statusCode: 200,
+        metadata: {
+          generation_id: generationId,
+          project_id: normalizedProjectId,
+          provider,
+          model_id: modelId,
+          route_label: routeLabel,
+          association_error: error instanceof Error ? error.message : String(error),
+        },
+      }).catch(() => undefined);
+    },
+  });
 };
 
 const logBestEffortProjectionFailure = async ({

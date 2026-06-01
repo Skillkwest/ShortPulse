@@ -4,16 +4,12 @@
  */
 import { useCallback, useEffect, useRef } from "react";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
-import {
-  resolveGenerationProjectionLifecycle,
-  resolveVisibleGenerationReconcile,
-  type GenerationProjectionLifecycle,
-} from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import { resolveTaskPollingProvider, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
+import { resolveVisibleGenerationSettle } from "./taskPolling/visibleGenerationSettle";
 
 type TaskSubmissionConfig = Omit<
   Parameters<typeof useAiStudioTaskSubmission>[0],
@@ -66,17 +62,6 @@ const isVisibleGenerationWatchdogEligible = (output: StudioOutput): boolean => {
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
   return generationId.length > 0 || taskId.length > 0;
-};
-
-const resolveProjectionFailureMessage = (
-  projectionLifecycle: GenerationProjectionLifecycle
-): { message: string; detail: string } => {
-  const detail = projectionLifecycle.errorDetail?.trim() || projectionLifecycle.errorMessageShort;
-  const message = projectionLifecycle.errorMessageShort?.trim() || detail || "Generation failed.";
-  return {
-    message,
-    detail: detail || message,
-  };
 };
 
 /**
@@ -195,20 +180,16 @@ export const useAiStudioTaskOrchestration = ({
 
       void (async () => {
         try {
-          const projectionLifecycle = await resolveGenerationProjectionLifecycle({
+          const settleResult = await resolveVisibleGenerationSettle({
             generationId: generationId || undefined,
             requestId: requestId || undefined,
             ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
             ...(projectId ? { projectId } : {}),
           });
-          if (
-            projectionLifecycle?.taskState === "fail" ||
-            projectionLifecycle?.hiddenInReferenceGrid === true ||
-            projectionLifecycle?.referenceGridVisible === false
-          ) {
+          if (settleResult.kind === "hidden_or_failed") {
             if (abandonedOutputIdsRef.current.has(output.id)) return;
             if (!findOutputById(output.id)) return;
-            const failure = resolveProjectionFailureMessage(projectionLifecycle);
+            const { failure, projectionLifecycle } = settleResult;
             updateOutputById(output.id, (item) => ({
               ...item,
               generationId: item.generationId ?? projectionLifecycle.generationId,
@@ -230,14 +211,7 @@ export const useAiStudioTaskOrchestration = ({
             }));
             return;
           }
-
-          const visibleGeneration = await resolveVisibleGenerationReconcile({
-            generationId: generationId || undefined,
-            requestId: requestId || undefined,
-            ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
-            ...(projectId ? { projectId } : {}),
-          });
-          if (!visibleGeneration) {
+          if (settleResult.kind !== "visible") {
             if (abandonedOutputIdsRef.current.has(output.id)) return;
             if (!findOutputById(output.id)) return;
             const provider = resolveTaskPollingProvider({
@@ -249,6 +223,7 @@ export const useAiStudioTaskOrchestration = ({
             }
             return;
           }
+          const { visibleGeneration } = settleResult;
           if (abandonedOutputIdsRef.current.has(output.id)) return;
           if (!findOutputById(output.id)) return;
           updateOutputById(output.id, (item) => {

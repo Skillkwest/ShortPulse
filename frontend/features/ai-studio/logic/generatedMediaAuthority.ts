@@ -16,7 +16,6 @@ type MediaFileRow = {
   id?: unknown;
   storage_path?: unknown;
   filename?: unknown;
-  preview_storage_path?: unknown;
   file_type?: unknown;
   thumb_variant_path?: unknown;
   poster_variant_path?: unknown;
@@ -144,6 +143,12 @@ export type VisibleGenerationReconcile = {
   previewStoragePath: string | null;
   fullStoragePath: string | null;
   resultUrls: string[];
+};
+
+export type VisibleGeneratedOutputRuntimeIdentity = {
+  generationId?: string | null;
+  requestId?: string | null;
+  sourceRef?: string | null;
 };
 
 export type GenerationProjectionLifecycle = {
@@ -574,36 +579,17 @@ const toProjectionLifecycle = (
   };
 };
 
-const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const message =
-    typeof (error as { message?: unknown }).message === "string"
-      ? (error as { message: string }).message.toLowerCase()
-      : "";
-  return (
-    message.includes("preview_storage_path") &&
-    (message.includes("schema cache") || message.includes("does not exist"))
-  );
-};
-
 const runMaybeSingleMediaStorageQuery = async <TRow extends MediaFileRow>(args: {
-  runSelect: (
-    columns: "preview_storage_path, storage_path, filename" | "storage_path, filename"
-  ) => Promise<{ data: TRow | null; error: unknown }>;
+  runSelect: (columns: "storage_path, filename") => Promise<{ data: TRow | null; error: unknown }>;
 }): Promise<TRow | null> => {
-  const primary = await args.runSelect("preview_storage_path, storage_path, filename");
-  if (!primary.error) return primary.data;
-  if (!isPreviewStoragePathSchemaError(primary.error)) return null;
-  const storageOnly = await args.runSelect("storage_path, filename");
-  return storageOnly.error ? null : storageOnly.data;
+  const result = await args.runSelect("storage_path, filename");
+  return result.error ? null : result.data;
 };
 
 const toGeneratedMediaFileRecord = (
   row: MediaFileRow | null | undefined
 ): GeneratedMediaFileRecord | null => {
-  const storagePath =
-    asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path)) ??
-    asCanonicalStoragePath(asTrimmedString(row?.storage_path));
+  const storagePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
   if (!storagePath) return null;
   return {
     storagePath,
@@ -618,22 +604,28 @@ const toGeneratedMediaLibraryRow = (
   const baseRecord = toGeneratedMediaFileRecord(row);
   if (!mediaFileId || !baseRecord) return null;
   const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
-  const previewStoragePath = asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path));
+  const fileType = asTrimmedString(row?.file_type)?.toLowerCase().startsWith("video")
+    ? "video"
+    : "image";
   const thumbVariantPath = asCanonicalStoragePath(asTrimmedString(row?.thumb_variant_path));
+  const posterVariantPath = asCanonicalStoragePath(asTrimmedString(row?.poster_variant_path));
+  const previewVariantPath = asCanonicalStoragePath(asTrimmedString(row?.preview_variant_path));
+  const previewStoragePath =
+    fileType === "video"
+      ? (previewVariantPath ?? fullStoragePath)
+      : (thumbVariantPath ?? fullStoragePath);
   const metadata = asObject(row?.metadata);
   const metadataDimensions = resolveImageDimensionsFromMetadata(metadata);
   return {
     mediaFileId,
     storagePath: baseRecord.storagePath,
     filename: baseRecord.filename,
-    fileType: asTrimmedString(row?.file_type)?.toLowerCase().startsWith("video")
-      ? "video"
-      : "image",
+    fileType,
     fullStoragePath,
     previewStoragePath,
     thumbVariantPath,
-    posterVariantPath: asTrimmedString(row?.poster_variant_path),
-    previewVariantPath: asTrimmedString(row?.preview_variant_path),
+    posterVariantPath,
+    previewVariantPath,
     width: toPositiveInteger(row?.width) ?? metadataDimensions?.width ?? null,
     height: toPositiveInteger(row?.height) ?? metadataDimensions?.height ?? null,
   };
@@ -641,20 +633,13 @@ const toGeneratedMediaLibraryRow = (
 
 const runMaybeSingleMediaLibraryQuery = async <TRow extends MediaFileRow>(args: {
   runSelect: (
-    columns:
-      | "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
-      | "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
+    columns: "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
   ) => Promise<{ data: TRow | null; error: unknown }>;
 }): Promise<TRow | null> => {
-  const primary = await args.runSelect(
-    "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
-  );
-  if (!primary.error) return primary.data;
-  if (!isPreviewStoragePathSchemaError(primary.error)) return null;
-  const storageOnly = await args.runSelect(
+  const result = await args.runSelect(
     "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
   );
-  return storageOnly.error ? null : storageOnly.data;
+  return result.error ? null : result.data;
 };
 
 export const resolveGeneratedMediaFileRecordById = async ({
@@ -1061,7 +1046,7 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
     const mediaResult = await supabase
       .from("media_files")
       .select(
-        "id, preview_storage_path, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
+        "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
       )
       .eq("user_id", userId)
       .in("id", mediaFileIds)
@@ -1635,12 +1620,56 @@ export const resolveVisibleGenerationReconcile = async ({
   };
 };
 
+const normalizeVisibleGeneratedOutputRuntimeIdentity = (
+  value: VisibleGeneratedOutputRuntimeIdentity
+): VisibleGeneratedOutputRuntimeIdentity | null => {
+  const generationId = asTrimmedString(value.generationId);
+  const requestId = asTrimmedString(value.requestId);
+  const sourceRef = asTrimmedString(value.sourceRef);
+  if (!generationId && !requestId && !sourceRef) return null;
+  return {
+    generationId,
+    requestId,
+    sourceRef,
+  };
+};
+
+const resolveCanonicalGenerationIdsForRuntimeIdentities = async ({
+  supabase,
+  userId,
+  projectId,
+  runtimeIdentities,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string | null;
+  runtimeIdentities: VisibleGeneratedOutputRuntimeIdentity[];
+}): Promise<string[]> => {
+  const generationIds = new Set<string>();
+  for (const runtimeIdentity of runtimeIdentities) {
+    const resolvedGenerationId = await resolveCanonicalGenerationIdFromRuntimeIdentity({
+      supabase,
+      userId,
+      projectId,
+      generationId: runtimeIdentity.generationId ?? null,
+      requestId: runtimeIdentity.requestId ?? null,
+      sourceRef: runtimeIdentity.sourceRef ?? null,
+    });
+    if (resolvedGenerationId) {
+      generationIds.add(resolvedGenerationId);
+    }
+  }
+  return [...generationIds];
+};
+
 export const listVisibleGeneratedOutputs = async ({
   limit = 48,
   projectId = null,
+  runtimeIdentities = null,
 }: {
   limit?: number;
   projectId?: string | null;
+  runtimeIdentities?: VisibleGeneratedOutputRuntimeIdentity[] | null;
 } = {}): Promise<StudioOutput[]> => {
   try {
     const supabase = ensureSupabaseQueryClient();
@@ -1648,16 +1677,38 @@ export const listVisibleGeneratedOutputs = async ({
     if (!userId) return [];
     const normalizedProjectId = resolveProjectId(projectId);
     const boundedLimit = Math.max(1, Math.min(limit, 100));
+    const normalizedRuntimeIdentities = Array.isArray(runtimeIdentities)
+      ? runtimeIdentities
+          .map((value) => normalizeVisibleGeneratedOutputRuntimeIdentity(value))
+          .filter((value): value is VisibleGeneratedOutputRuntimeIdentity => Boolean(value))
+      : [];
+    const scopedGenerationIds =
+      normalizedRuntimeIdentities.length > 0
+        ? await resolveCanonicalGenerationIdsForRuntimeIdentities({
+            supabase,
+            userId,
+            projectId: normalizedProjectId,
+            runtimeIdentities: normalizedRuntimeIdentities,
+          })
+        : [];
+    const hasScopedGenerationFilter = scopedGenerationIds.length > 0;
+    if (normalizedRuntimeIdentities.length > 0 && !hasScopedGenerationFilter) {
+      return [];
+    }
 
     let data: unknown[] = [];
     if (normalizedProjectId) {
-      const { data: projectGenerationData, error: projectGenerationError } = await supabase
+      let projectGenerationQuery = supabase
         .from("project_generation_items")
         .select("generation_id, updated_at")
         .eq("user_id", userId)
         .eq("project_id", normalizedProjectId)
-        .order("updated_at", { ascending: false })
-        .limit(boundedLimit);
+        .order("updated_at", { ascending: false });
+      if (hasScopedGenerationFilter) {
+        projectGenerationQuery = projectGenerationQuery.in("generation_id", scopedGenerationIds);
+      }
+      const { data: projectGenerationData, error: projectGenerationError } =
+        await projectGenerationQuery.limit(boundedLimit);
       const projectGenerationRows =
         projectGenerationError || !Array.isArray(projectGenerationData)
           ? []
@@ -1683,18 +1734,20 @@ export const listVisibleGeneratedOutputs = async ({
         ])
       );
 
-      const directProjectQuery = supabase
+      let directProjectQuery = supabase
         .from("generation_projection")
         .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
         .eq("user_id", userId)
         .eq("project_id", normalizedProjectId)
         .order("started_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
-        .order("updated_at", { ascending: false })
-        .limit(boundedLimit);
+        .order("updated_at", { ascending: false });
+      if (hasScopedGenerationFilter) {
+        directProjectQuery = directProjectQuery.in("generation_id", scopedGenerationIds);
+      }
       const [{ data: directProjectData, error: directProjectError }, associatedProjectionResult] =
         await Promise.all([
-          directProjectQuery,
+          directProjectQuery.limit(boundedLimit),
           projectGenerationIds.length
             ? supabase
                 .from("generation_projection")
@@ -1751,15 +1804,17 @@ export const listVisibleGeneratedOutputs = async ({
         })
         .slice(0, boundedLimit);
     } else {
-      const projectionQuery = supabase
+      let projectionQuery = supabase
         .from("generation_projection")
         .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
         .eq("user_id", userId)
         .order("started_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
-        .order("updated_at", { ascending: false })
-        .limit(boundedLimit);
-      const projectionResult = await projectionQuery;
+        .order("updated_at", { ascending: false });
+      if (hasScopedGenerationFilter) {
+        projectionQuery = projectionQuery.in("generation_id", scopedGenerationIds);
+      }
+      const projectionResult = await projectionQuery.limit(boundedLimit);
       if (projectionResult.error || !Array.isArray(projectionResult.data)) return [];
       data = [...projectionResult.data].sort((a, b) => {
         const aRecencyMs =

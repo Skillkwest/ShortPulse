@@ -3,20 +3,31 @@
  * Wires global CSS modules and ensures every page receives shared props.
  */
 import type { AppProps } from "next/app";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
-import { useEffect, useMemo } from "react";
-import { AiStudioProjectEntryState } from "../features/ai-studio/components/AiStudioProjectEntryState";
+import { useEffect } from "react";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
-import { MediaComplianceGate } from "../features/compliance/components/MediaComplianceGate";
-import { useMediaComplianceGate } from "../features/compliance/hooks/useMediaComplianceGate";
-import { PROTECTED_ROUTES, useProtectedRoute } from "../lib/authGuard";
 import { installGlobalAppErrorHandlers, reportAppError } from "../lib/appErrorReporter";
 import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
 import { installMediaPerfDebugHandle } from "../lib/mediaPerfTelemetry";
+import { isAiStudioRoutePath, isProtectedRoutePath } from "../lib/protectedRoutes";
 import "../styles/globals.css";
 
-const isAiStudioRoutePath = (pathname: string): boolean =>
-  pathname.startsWith("/ai-studio") || pathname.startsWith("/creator-studio");
+const SharedProtectedRouteBootstrapGate = dynamic(
+  () =>
+    import("../features/compliance/routes/ProtectedRouteBootstrapGate").then(
+      (module) => module.ProtectedRouteBootstrapGate
+    ),
+  {
+    loading: () => (
+      <main className="page page-wide">
+        <div className="panel">
+          <p className="subdued">Checking your session…</p>
+        </div>
+      </main>
+    ),
+  }
+);
 
 const toRouteLoadMessage = (value: unknown): string => {
   if (typeof value === "string") return value.trim();
@@ -45,27 +56,13 @@ const extractFailedChunk = (value: string): string | null => {
  */
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const isProtected = PROTECTED_ROUTES.some((route) => router.pathname.startsWith(route));
+  const isProtected = isProtectedRoutePath(router.pathname);
   const isAiStudioRoute = isAiStudioRoutePath(router.pathname);
-  const authRedirectPath = useMemo(
-    () => `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`,
-    [router.asPath]
-  );
-  const { loading, session, user } = useProtectedRoute(isProtected);
-  const mediaCompliance = useMediaComplianceGate({
-    enabled: isProtected && Boolean(session),
-    userId: user?.id ?? null,
-  });
+  const usesSharedProtectedBootstrap = isProtected && !isAiStudioRoute;
 
   useEffect(() => {
     return installGlobalAppErrorHandlers();
   }, []);
-
-  useEffect(() => {
-    if (!isProtected) return;
-    if (mediaCompliance.status !== "auth_recovery_required") return;
-    void router.replace(authRedirectPath);
-  }, [authRedirectPath, isProtected, mediaCompliance.status, router]);
 
   useEffect(() => {
     installMediaPerfDebugHandle();
@@ -188,96 +185,12 @@ export default function App({ Component, pageProps }: AppProps) {
     return () => document.removeEventListener("click", onClick);
   }, []);
 
-  if (isProtected && (loading || !session)) {
-    if (isAiStudioRoute) {
-      return (
-        <AiStudioProjectEntryState
-          variant="loading"
-          phase="resolving-project"
-          message="Checking your session before project restore continues."
-          activeStepIndex={0}
-          stepsAriaLabel="Project loading progress"
-        />
-      );
-    }
-    return (
-      <main className="page page-wide">
-        <div className="panel">
-          <p className="subdued">Checking your session…</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (isProtected && mediaCompliance.status === "loading") {
-    if (isAiStudioRoute) {
-      return (
-        <AiStudioProjectEntryState
-          variant="loading"
-          phase="resolving-project"
-          message="Checking your media agreement before project restore continues."
-          activeStepIndex={1}
-          stepsAriaLabel="Project loading progress"
-        />
-      );
-    }
-    return (
-      <main className="page page-wide">
-        <div className="panel">
-          <p className="subdued">Checking your media agreement…</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (isProtected && mediaCompliance.status === "auth_recovery_required") {
-    if (isAiStudioRoute) {
-      return (
-        <AiStudioProjectEntryState
-          variant="loading"
-          phase="resolving-project"
-          message="Refreshing your session before project restore continues."
-          activeStepIndex={0}
-          stepsAriaLabel="Project loading progress"
-        />
-      );
-    }
-    return (
-      <main className="page page-wide">
-        <div className="panel">
-          <p className="subdued">Refreshing your session…</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (isProtected && mediaCompliance.status === "service_unavailable") {
+  if (usesSharedProtectedBootstrap) {
     return (
       <AppErrorBoundary>
-        <MediaComplianceGate
-          mode="unavailable"
-          agreement={mediaCompliance.agreement}
-          error={mediaCompliance.error}
-          loading={mediaCompliance.loading}
-          primaryActionLabel="Retry"
-          showSecondaryAction={false}
-          onAccept={mediaCompliance.acceptAgreement}
-          onRetry={mediaCompliance.refreshStatus}
-        />
-      </AppErrorBoundary>
-    );
-  }
-
-  if (isProtected && mediaCompliance.status === "needs_consent") {
-    return (
-      <AppErrorBoundary>
-        <MediaComplianceGate
-          agreement={mediaCompliance.agreement}
-          error={mediaCompliance.error}
-          loading={mediaCompliance.loading}
-          onAccept={mediaCompliance.acceptAgreement}
-          onRetry={mediaCompliance.refreshStatus}
-        />
+        <SharedProtectedRouteBootstrapGate>
+          <Component {...pageProps} />
+        </SharedProtectedRouteBootstrapGate>
       </AppErrorBoundary>
     );
   }

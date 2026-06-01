@@ -10,7 +10,6 @@ import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { ChartBar, CloudArrowUp, ShieldCheck, Sparkle, type IconProps } from "phosphor-react";
 import { AiStudioProjectEntryState } from "../features/ai-studio/components/AiStudioProjectEntryState";
-import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import {
   buildPlanView,
@@ -26,7 +25,6 @@ import {
 } from "../features/dashboard/components/AuthenticatedDashboardView";
 import { DashboardAppBar } from "../features/dashboard/components/DashboardAppBar";
 import { GuestDashboardView } from "../features/dashboard/components/GuestDashboardView";
-import { ProjectNameModal } from "../features/projects/components/ProjectNameModal";
 import { useProjectCreationDialog } from "../features/projects/hooks/useProjectCreationDialog";
 import { buildPricingPath } from "../features/pricing/paths";
 import { ConfirmationModal } from "../components/ConfirmationModal";
@@ -72,6 +70,11 @@ type DashboardHeaderCard = {
   className?: string;
   href?: string;
 };
+
+type ProjectsModalComponent =
+  (typeof import("../features/ai-studio/components/ProjectsModal"))["ProjectsModal"];
+type ProjectNameModalComponent =
+  (typeof import("../features/projects/components/ProjectNameModal"))["ProjectNameModal"];
 
 const isSchemaCompatibilityError = (message: string) => {
   const text = message.toLowerCase();
@@ -185,6 +188,16 @@ const dashboardToolCards: DashboardToolCard[] = [
   },
 ];
 
+const loadProjectsModal = async (): Promise<ProjectsModalComponent> => {
+  const loadedModule = await import("../features/ai-studio/components/ProjectsModal");
+  return loadedModule.ProjectsModal;
+};
+
+const loadProjectNameModal = async (): Promise<ProjectNameModalComponent> => {
+  const loadedModule = await import("../features/projects/components/ProjectNameModal");
+  return loadedModule.ProjectNameModal;
+};
+
 /**
  * Loads the public billing catalog snapshot used by dashboard guest mode and the pricing route.
  */
@@ -230,12 +243,41 @@ export default function DashboardPage({
     className: string;
   } | null>(null);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+  const [ProjectsModalComponent, setProjectsModalComponent] =
+    useState<ProjectsModalComponent | null>(null);
+  const [ProjectNameModalComponent, setProjectNameModalComponent] =
+    useState<ProjectNameModalComponent | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
   );
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const guestPageViewTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setProjectsModalComponent(null);
+      setProjectNameModalComponent(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void loadProjectsModal().then((component) => {
+      if (!cancelled) {
+        setProjectsModalComponent(() => component);
+      }
+    });
+    void loadProjectNameModal().then((component) => {
+      if (!cancelled) {
+        setProjectNameModalComponent(() => component);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -589,9 +631,21 @@ export default function DashboardPage({
             projectCreateError={projectCreateError}
             toolCards={dashboardToolCards}
             onCreateProject={() => {
+              if (!ProjectNameModalComponent) {
+                void loadProjectNameModal().then((component) => {
+                  setProjectNameModalComponent(() => component);
+                });
+              }
               openProjectNameModal();
             }}
-            onOpenProjects={() => setIsProjectsModalOpen(true)}
+            onOpenProjects={() => {
+              if (!ProjectsModalComponent) {
+                void loadProjectsModal().then((component) => {
+                  setProjectsModalComponent(() => component);
+                });
+              }
+              setIsProjectsModalOpen(true);
+            }}
           />
         ) : (
           <GuestDashboardView createProjectHref={guestCreateProjectHref} />
@@ -610,8 +664,8 @@ export default function DashboardPage({
         />
       ) : null}
 
-      {isProjectNameModalOpen ? (
-        <ProjectNameModal
+      {isProjectNameModalOpen && ProjectNameModalComponent ? (
+        <ProjectNameModalComponent
           value={newProjectTitle}
           isCreating={isCreatingProject}
           error={projectCreateError}
@@ -623,8 +677,8 @@ export default function DashboardPage({
         />
       ) : null}
 
-      {isAuthenticated ? (
-        <ProjectsModal
+      {isAuthenticated && ProjectsModalComponent ? (
+        <ProjectsModalComponent
           isOpen={isProjectsModalOpen}
           onClose={() => setIsProjectsModalOpen(false)}
           onSelectProject={openProject}

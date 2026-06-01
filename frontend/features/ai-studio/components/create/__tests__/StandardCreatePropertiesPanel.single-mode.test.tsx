@@ -149,7 +149,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
       <StandardCreatePropertiesPanel
         {...baseProps}
         modelId={OPENAI_GPT_IMAGE_2_MODEL_ID}
-        modelLabel="ChatGPT Image 2"
+        modelLabel="GPT Image 2"
       />
     );
 

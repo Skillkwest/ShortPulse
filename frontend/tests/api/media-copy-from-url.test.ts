@@ -224,9 +224,8 @@ const createSupabaseAdmin = (options?: {
         select: vi.fn((fields: string) => {
           if (
             fields === "id, storage_path" ||
-            fields === "id, storage_path, file_type, poster_variant_path, preview_variant_path" ||
             fields ===
-              "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
+              "id, storage_path, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
           ) {
             return storageLookupBuilder;
           }

@@ -10,29 +10,86 @@ const asTrimmedString = (value: string | null | undefined): string | null => {
 const isInFlightTaskState = (value: StudioOutput["taskState"] | null | undefined): boolean =>
   value === "pending" || value === "running";
 
-const matchesHydratedGeneratedOutput = (
-  existing: StudioOutput,
-  hydrated: StudioOutput
-): boolean => {
-  const existingGenerationId = asTrimmedString(existing.generationId);
-  const hydratedGenerationId = asTrimmedString(hydrated.generationId);
-  if (
-    existingGenerationId &&
-    hydratedGenerationId &&
-    existingGenerationId === hydratedGenerationId
-  ) {
-    return true;
-  }
+type IndexedOutputMatchQueue = {
+  indexes: number[];
+  cursor: number;
+};
 
-  const existingTaskId = asTrimmedString(existing.taskId);
-  const hydratedTaskId = asTrimmedString(hydrated.taskId);
-  if (existingTaskId && hydratedTaskId && existingTaskId === hydratedTaskId) {
-    return true;
+const appendIndexedOutputMatch = (
+  map: Map<string, IndexedOutputMatchQueue>,
+  key: string | null,
+  index: number
+): void => {
+  if (!key) return;
+  const existing = map.get(key);
+  if (existing) {
+    existing.indexes.push(index);
+    return;
   }
+  map.set(key, {
+    indexes: [index],
+    cursor: 0,
+  });
+};
 
-  const existingSourceRef = asTrimmedString(existing.sourceRef);
-  const hydratedSourceRef = asTrimmedString(hydrated.sourceRef);
-  return Boolean(existingSourceRef && hydratedSourceRef && existingSourceRef === hydratedSourceRef);
+const buildIndexedOutputMatches = (
+  existingOutputs: StudioOutput[]
+): {
+  byGenerationId: Map<string, IndexedOutputMatchQueue>;
+  byTaskId: Map<string, IndexedOutputMatchQueue>;
+  bySourceRef: Map<string, IndexedOutputMatchQueue>;
+} => {
+  const byGenerationId = new Map<string, IndexedOutputMatchQueue>();
+  const byTaskId = new Map<string, IndexedOutputMatchQueue>();
+  const bySourceRef = new Map<string, IndexedOutputMatchQueue>();
+  existingOutputs.forEach((output, index) => {
+    appendIndexedOutputMatch(byGenerationId, asTrimmedString(output.generationId), index);
+    appendIndexedOutputMatch(byTaskId, asTrimmedString(output.taskId), index);
+    appendIndexedOutputMatch(bySourceRef, asTrimmedString(output.sourceRef), index);
+  });
+  return {
+    byGenerationId,
+    byTaskId,
+    bySourceRef,
+  };
+};
+
+const resolveFirstUnmatchedIndex = (
+  queue: IndexedOutputMatchQueue | undefined,
+  matchedExistingIndexes: Set<number>
+): number => {
+  if (!queue) return -1;
+  while (queue.cursor < queue.indexes.length) {
+    const candidateIndex = queue.indexes[queue.cursor];
+    if (!matchedExistingIndexes.has(candidateIndex)) {
+      return candidateIndex;
+    }
+    queue.cursor += 1;
+  }
+  return -1;
+};
+
+const findIndexedHydratedGeneratedOutputMatch = (
+  hydrated: StudioOutput,
+  indexedMatches: ReturnType<typeof buildIndexedOutputMatches>,
+  matchedExistingIndexes: Set<number>
+): number => {
+  const generationMatch = resolveFirstUnmatchedIndex(
+    indexedMatches.byGenerationId.get(asTrimmedString(hydrated.generationId) ?? ""),
+    matchedExistingIndexes
+  );
+  if (generationMatch >= 0) return generationMatch;
+
+  const taskMatch = resolveFirstUnmatchedIndex(
+    indexedMatches.byTaskId.get(asTrimmedString(hydrated.taskId) ?? ""),
+    matchedExistingIndexes
+  );
+  if (taskMatch >= 0) return taskMatch;
+
+  return resolveFirstUnmatchedIndex(
+    indexedMatches.bySourceRef.get(asTrimmedString(hydrated.sourceRef) ?? ""),
+    matchedExistingIndexes
+  );
 };
 
 const mergeHydratedGeneratedOutput = (
@@ -107,11 +164,13 @@ export const mergeCanonicalGeneratedOutputs = (
   hydratedOutputs: StudioOutput[]
 ): StudioOutput[] => {
   const matchedExistingIndexes = new Set<number>();
+  const indexedMatches = buildIndexedOutputMatches(existingOutputs);
   const canonicalOutputs: StudioOutput[] = [];
   for (const hydrated of hydratedOutputs) {
-    const existingIndex = existingOutputs.findIndex(
-      (item, index) =>
-        !matchedExistingIndexes.has(index) && matchesHydratedGeneratedOutput(item, hydrated)
+    const existingIndex = findIndexedHydratedGeneratedOutputMatch(
+      hydrated,
+      indexedMatches,
+      matchedExistingIndexes
     );
     if (existingIndex >= 0) {
       matchedExistingIndexes.add(existingIndex);

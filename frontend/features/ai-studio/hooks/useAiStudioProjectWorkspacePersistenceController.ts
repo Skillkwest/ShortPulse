@@ -216,6 +216,18 @@ const collectProjectSnapshotOutputIds = (snapshot: AiStudioSessionSnapshot): str
   return collected;
 };
 
+const resolveProjectRestoreVisibilityOutputIds = (
+  snapshot: AiStudioSessionSnapshot | null
+): string[] => {
+  if (!snapshot) return [];
+  const activeOutputIds = Array.isArray(snapshot.outputs?.active)
+    ? snapshot.outputs.active
+        .map((output) => (typeof output?.id === "string" ? output.id.trim() : ""))
+        .filter((id): id is string => id.length > 0)
+    : [];
+  return [...new Set(activeOutputIds)].sort((left, right) => left.localeCompare(right));
+};
+
 const normalizeProjectSnapshotStringList = (value: unknown): string[] =>
   Array.isArray(value)
     ? value
@@ -236,12 +248,7 @@ const resolveProjectRestoreCanvasSignature = (
 const resolveProjectRestoreVisibilitySignature = (
   snapshot: AiStudioSessionSnapshot | null
 ): string => {
-  const activeOutputIds =
-    snapshot && Array.isArray(snapshot.outputs?.active)
-      ? snapshot.outputs.active
-          .map((output) => (typeof output?.id === "string" ? output.id.trim() : ""))
-          .filter((id): id is string => id.length > 0)
-      : [];
+  const activeOutputIds = resolveProjectRestoreVisibilityOutputIds(snapshot);
   const curatedReferenceIds = normalizeProjectSnapshotStringList(
     snapshot?.outputs?.curatedReferenceIds
   );

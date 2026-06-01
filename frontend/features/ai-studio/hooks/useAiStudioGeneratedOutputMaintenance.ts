@@ -7,12 +7,14 @@ import type { StudioOutput } from "../types";
 import {
   listVisibleGeneratedOutputs,
   resolveVisibleGenerationReconcile,
+  type VisibleGeneratedOutputRuntimeIdentity,
 } from "../logic/generatedMediaAuthority";
 import { mergeCanonicalGeneratedOutputs } from "../logic/generatedOutputHydration";
 import { resolveVideoPosterRepairsForOutputs } from "../logic/videoPosterRepair";
 
 const CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS = 5_000;
 const CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS = 120_000;
+const CANONICAL_GENERATED_OUTPUT_SYNC_BATCH_SIZE = 6;
 const AUDIO_COMPANION_ART_SYNC_INTERVAL_MS = 5_000;
 const AUDIO_COMPANION_ART_SYNC_BATCH_SIZE = 6;
 const GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
@@ -77,6 +79,21 @@ const buildStorageVideoPosterRepairKey = (output: StudioOutput): string =>
     output.savedMediaIds?.join("|") ?? "",
   ].join("::");
 
+const toCanonicalGeneratedOutputSyncRuntimeIdentity = (
+  output: StudioOutput
+): VisibleGeneratedOutputRuntimeIdentity | null => {
+  if (!isCanonicalGeneratedOutputSyncCandidate(output)) return null;
+  const generationId = output.generationId?.trim() || null;
+  const requestId = output.taskId?.trim() || null;
+  const sourceRef = output.sourceRef?.trim() || null;
+  if (!generationId && !requestId && !sourceRef) return null;
+  return {
+    generationId,
+    requestId,
+    sourceRef,
+  };
+};
+
 type UseAiStudioGeneratedOutputMaintenanceParams = {
   baseRuntimeAuthorityKey: string;
   hasPendingWorkflowRestore: boolean;
@@ -111,6 +128,9 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   const canonicalGeneratedOutputSyncInFlightRef = useRef(false);
   const audioCompanionArtSyncInFlightRef = useRef(false);
   const canonicalGeneratedOutputSyncLastActiveAtRef = useRef<number | null>(null);
+  const canonicalGeneratedOutputSyncRuntimeIdentitiesRef = useRef<
+    VisibleGeneratedOutputRuntimeIdentity[]
+  >([]);
   const generatedVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
   const storageVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
   const activeBaseRuntimeAuthorityKeyRef = useRef(baseRuntimeAuthorityKey);
@@ -122,6 +142,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     canonicalGeneratedOutputSyncInFlightRef.current = false;
     audioCompanionArtSyncInFlightRef.current = false;
     canonicalGeneratedOutputSyncLastActiveAtRef.current = null;
+    canonicalGeneratedOutputSyncRuntimeIdentitiesRef.current = [];
     generatedVideoPosterRepairKeySetRef.current.clear();
     storageVideoPosterRepairKeySetRef.current.clear();
   }, [baseRuntimeAuthorityKey]);
@@ -173,10 +194,16 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   useEffect(() => {
     if (!projectId || hasPendingWorkflowRestore) {
       canonicalGeneratedOutputSyncLastActiveAtRef.current = null;
+      canonicalGeneratedOutputSyncRuntimeIdentitiesRef.current = [];
       return;
     }
 
-    const hasActiveGeneratedOutput = outputs.some(isCanonicalGeneratedOutputSyncCandidate);
+    const runtimeIdentities = outputs
+      .map((output) => toCanonicalGeneratedOutputSyncRuntimeIdentity(output))
+      .filter((value): value is VisibleGeneratedOutputRuntimeIdentity => Boolean(value))
+      .slice(0, CANONICAL_GENERATED_OUTPUT_SYNC_BATCH_SIZE);
+    canonicalGeneratedOutputSyncRuntimeIdentitiesRef.current = runtimeIdentities;
+    const hasActiveGeneratedOutput = runtimeIdentities.length > 0;
     if (hasActiveGeneratedOutput) {
       canonicalGeneratedOutputSyncLastActiveAtRef.current = Date.now();
     }
@@ -193,10 +220,16 @@ export const useAiStudioGeneratedOutputMaintenance = ({
         lastActiveAt != null &&
         Date.now() - lastActiveAt <= CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS;
       if (!withinIdleGrace) return;
+      const runtimeIdentities = canonicalGeneratedOutputSyncRuntimeIdentitiesRef.current;
+      if (!runtimeIdentities.length) return;
 
       canonicalGeneratedOutputSyncInFlightRef.current = true;
       try {
-        const hydratedOutputs = await listVisibleGeneratedOutputs({ projectId });
+        const hydratedOutputs = await listVisibleGeneratedOutputs({
+          projectId,
+          limit: runtimeIdentities.length,
+          runtimeIdentities,
+        });
         if (cancelled || hydratedOutputs.length === 0) return;
         setOutputsState((currentOutputs) =>
           mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)

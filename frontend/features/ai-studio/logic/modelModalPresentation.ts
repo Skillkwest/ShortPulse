@@ -68,7 +68,7 @@ const SECTION_LOGOS: Record<string, string> = {
 };
 
 export const MODEL_MODAL_FAMILY_META: Record<ModelModalFamilyKey, ModelModalFamilyMeta> = {
-  "gpt-image": { label: "ChatGPT Image" },
+  "gpt-image": { label: "GPT Image" },
   flux: { label: "FLUX", logo: FLUX_LOGO_SRC },
   kling: { label: "Kling", logo: KLING_LOGO_SRC },
   "nano-banana": { label: "Nano Banana", logo: GOOGLE_LOGO_SRC },
@@ -102,7 +102,7 @@ const MODEL_MODAL_EDIT_IMAGE_STARTUP_MODEL_ID = resolveRequiredCreateCharacterMo
 export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentationMeta> = {
   [OPENAI_GPT_IMAGE_2_MODEL_ID]: {
     provider: "OpenAI",
-    description: "ChatGPT Image 2 supports high-quality image generation and standard edits.",
+    description: "GPT Image 2 supports high-quality image generation and standard edits.",
     tags: ["Image", "Text-to-Image", "Image-to-Image"],
     verified: true,
   },

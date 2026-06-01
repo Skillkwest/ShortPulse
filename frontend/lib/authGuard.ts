@@ -2,16 +2,7 @@ import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { refreshSupabaseSession, useSupabaseSessionState } from "./supabaseClient";
-
-export const PROTECTED_ROUTES = [
-  "/performance",
-  "/saved-creators",
-  "/profile",
-  "/report-issue",
-  "/ai-studio",
-  "/creator-studio",
-  "/admin",
-];
+export { PROTECTED_ROUTES } from "./protectedRoutes";
 
 type UseProtectedRouteResult = {
   session: Session | null;

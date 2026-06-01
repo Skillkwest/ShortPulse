@@ -176,54 +176,30 @@ const asTrimmedString = (value: unknown): string | null => {
 };
 
 type MediaStoragePathRow = {
-  preview_storage_path?: unknown;
   storage_path?: unknown;
   metadata?: unknown;
   created_at?: unknown;
 };
 
-const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const message =
-    typeof (error as { message?: unknown }).message === "string"
-      ? (error as { message: string }).message.toLowerCase()
-      : "";
-  return (
-    message.includes("preview_storage_path") &&
-    (message.includes("schema cache") || message.includes("does not exist"))
-  );
-};
-
 const resolveCanonicalMediaStoragePath = (
   row: MediaStoragePathRow | null | undefined
-): string | null =>
-  asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path)) ??
-  asCanonicalStoragePath(asTrimmedString(row?.storage_path));
+): string | null => asCanonicalStoragePath(asTrimmedString(row?.storage_path));
 
 const runMaybeSingleMediaStorageQuery = async <TRow extends MediaStoragePathRow>(args: {
-  runSelect: (
-    columns: "preview_storage_path, storage_path" | "storage_path"
-  ) => Promise<{ data: TRow | null; error: unknown }>;
+  runSelect: (columns: "storage_path") => Promise<{ data: TRow | null; error: unknown }>;
 }): Promise<TRow | null> => {
-  const primary = await args.runSelect("preview_storage_path, storage_path");
-  if (!primary.error) return primary.data;
-  if (!isPreviewStoragePathSchemaError(primary.error)) return null;
-  const fallback = await args.runSelect("storage_path");
-  return fallback.error ? null : fallback.data;
+  const result = await args.runSelect("storage_path");
+  return result.error ? null : result.data;
 };
 
 const runMultiMediaStorageQuery = async <TRow extends MediaStoragePathRow>(args: {
-  runSelect: (
-    columns:
-      | "preview_storage_path, storage_path, metadata, created_at"
-      | "storage_path, metadata, created_at"
-  ) => Promise<{ data: TRow[] | null; error: unknown }>;
+  runSelect: (columns: "storage_path, metadata, created_at") => Promise<{
+    data: TRow[] | null;
+    error: unknown;
+  }>;
 }): Promise<TRow[] | null> => {
-  const primary = await args.runSelect("preview_storage_path, storage_path, metadata, created_at");
-  if (!primary.error) return primary.data;
-  if (!isPreviewStoragePathSchemaError(primary.error)) return null;
-  const fallback = await args.runSelect("storage_path, metadata, created_at");
-  return fallback.error ? null : fallback.data;
+  const result = await args.runSelect("storage_path, metadata, created_at");
+  return result.error ? null : result.data;
 };
 
 const asFiniteOutputIndex = (value: unknown): number | null => {

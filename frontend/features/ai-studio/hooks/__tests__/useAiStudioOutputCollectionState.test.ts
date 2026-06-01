@@ -102,4 +102,21 @@ describe("useAiStudioOutputCollectionState", () => {
       "older-generated",
     ]);
   });
+
+  it("preserves sequential functional updater semantics for active and archived collections", () => {
+    const { result } = renderHook(() => useAiStudioOutputCollectionState());
+
+    act(() => {
+      result.current.setOutputsState((rows) => [...rows, makeOutput("active-1")]);
+      result.current.setOutputsState((rows) => [...rows, makeOutput("active-2")]);
+      result.current.setArchivedOutputs((rows) => [...rows, makeOutput("archived-1")]);
+      result.current.setArchivedOutputs((rows) => [...rows, makeOutput("archived-2")]);
+    });
+
+    expect(result.current.outputs.map((output) => output.id)).toEqual(["active-1", "active-2"]);
+    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
+      "archived-1",
+      "archived-2",
+    ]);
+  });
 });

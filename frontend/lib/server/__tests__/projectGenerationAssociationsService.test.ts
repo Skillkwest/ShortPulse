@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  associateGenerationAndMediaWithProjectForUserBestEffort,
+  associateGenerationWithProjectForUserBestEffort,
   associateGenerationWithProjectForUser,
   associateMediaFilesWithProjectForUser,
   hydrateProjectSnapshotGeneratedOutputs,
@@ -355,6 +357,64 @@ describe("associateGenerationWithProjectForUser", () => {
 
     expect(associated).toBe(false);
     expect(associationUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("swallows eager generation association failures through the best-effort helper", async () => {
+    projectMaybeSingleMock.mockResolvedValue({
+      data: { id: "project-1" },
+      error: null,
+    });
+    ownedGenerationQueryResult = {
+      data: [{ id: "gen-1" }],
+      error: null,
+    };
+    associationUpsertMock.mockRejectedValue(new Error("association failed"));
+    const onError = vi.fn();
+
+    const associated = await associateGenerationWithProjectForUserBestEffort({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "gen-1",
+      onError,
+    });
+
+    expect(associated).toBe(false);
+    expect(onError).toHaveBeenCalledWith({
+      projectId: "project-1",
+      error: expect.any(Error),
+    });
+  });
+
+  it("swallows eager generation+media association failures through the best-effort helper", async () => {
+    projectMaybeSingleMock.mockResolvedValue({
+      data: { id: "project-1" },
+      error: null,
+    });
+    ownedGenerationQueryResult = {
+      data: [{ id: "gen-1" }],
+      error: null,
+    };
+    ownedMediaQueryResult = {
+      data: [{ id: "media-1" }],
+      error: null,
+    };
+    associationUpsertMock.mockResolvedValue({ error: null });
+    mediaAssociationUpsertMock.mockRejectedValue(new Error("media association failed"));
+    const onError = vi.fn();
+
+    const associated = await associateGenerationAndMediaWithProjectForUserBestEffort({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "gen-1",
+      mediaFileIds: ["media-1"],
+      onError,
+    });
+
+    expect(associated).toBe(false);
+    expect(onError).toHaveBeenCalledWith({
+      projectId: "project-1",
+      error: expect.any(Error),
+    });
   });
 
   it("hydrates snapshot outputs from project-scoped projections when association rows are missing", async () => {
@@ -1437,7 +1497,7 @@ describe("associateGenerationWithProjectForUser", () => {
     mediaOwnershipSelectMock.mockImplementation((columns: string) => {
       if (
         columns ===
-        "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+        "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
       ) {
         return mediaBuilder as typeof ownedMediaSelectBuilder;
       }
@@ -1538,7 +1598,6 @@ describe("associateGenerationWithProjectForUser", () => {
         {
           id: "media-image-foreign-1",
           storage_path: "user-2/generations/images/media-image-foreign-1.png",
-          preview_storage_path: null,
           file_type: "image/png",
           poster_variant_path: null,
           thumb_variant_path: "user-2/variants/images/media-image-foreign-1/thumb_720.webp",
@@ -1562,7 +1621,7 @@ describe("associateGenerationWithProjectForUser", () => {
     mediaOwnershipSelectMock.mockImplementation((columns: string) => {
       if (
         columns ===
-        "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+        "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
       ) {
         return mediaBuilder as typeof ownedMediaSelectBuilder;
       }
@@ -1596,131 +1655,112 @@ describe("associateGenerationWithProjectForUser", () => {
     );
   });
 
-  it.each([
-    "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
-    "column media_files.preview_storage_path does not exist",
-  ])(
-    "falls back when preview_storage_path is unavailable in media_files schema during project hydration (%s)",
-    async (errorMessage) => {
-      const associationBuilder = createAwaitableSelectBuilder({
-        data: [{ generation_id: "generation-video-fallback-1" }],
-        error: null,
-      });
-      const recentAssociationBuilder = createAwaitableSelectBuilder({
-        data: [
-          {
-            generation_id: "generation-video-fallback-1",
-            updated_at: "2026-04-18T16:30:00.000Z",
-          },
-        ],
-        error: null,
-      });
-      const recentProjectionBuilder = createAwaitableSelectBuilder({
-        data: [
-          {
-            generation_id: "generation-video-fallback-1",
-            updated_at: "2026-04-18T16:30:00.000Z",
-          },
-        ],
-        error: null,
-      });
-      const projectionDetailsBuilder = createAwaitableSelectBuilder({
-        data: [
-          {
-            generation_id: "generation-video-fallback-1",
-            request_id: "req-video-fallback-1",
-            provider: "kie",
-            model_id: "kie-ai/seedance-2-fast",
-            display_prompt: "Generated video fallback",
-            preview_url: "https://fal.test/generated-video-fallback.mp4",
-            result_urls: ["https://fal.test/generated-video-fallback.mp4"],
-            saved_media_ids: ["media-video-fallback-1"],
-            task_state: "success",
-            queue_state: "dispatched",
-            hidden_in_reference_grid: false,
-            reference_grid_visible: true,
-            preview_storage_path: null,
-            full_storage_path: null,
-          },
-        ],
-        error: null,
-      });
-      const mediaFallbackBuilder = createAwaitableSelectBuilder({
-        data: [
-          {
-            id: "media-video-fallback-1",
-            storage_path: "user-1/generations/videos/media-video-fallback-1.mp4",
-            file_type: "video",
-            poster_variant_path: "user-1/variants/videos/media-video-fallback-1/poster_720.jpg",
-            thumb_variant_path: null,
-            preview_variant_path:
-              "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
-          },
-        ],
-        error: null,
-      });
-      const mediaPrimaryBuilder = createAwaitableSelectBuilder({
-        data: null,
-        error: {
-          message: errorMessage,
+  it("hydrates project snapshots from canonical media_files variant columns", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-video-fallback-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-video-fallback-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
         },
-      });
-
-      projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
-        if (columns === "generation_id, updated_at") return recentAssociationBuilder;
-        return associationBuilder;
-      });
-      generationProjectionSelectMock.mockImplementation((columns: string) => {
-        if (columns === "generation_id, started_at, created_at, updated_at") {
-          return recentProjectionBuilder;
-        }
-        return projectionDetailsBuilder;
-      });
-      mediaOwnershipSelectMock.mockImplementation((columns: string) => {
-        if (
-          columns ===
-          "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-        ) {
-          return mediaPrimaryBuilder as typeof ownedMediaSelectBuilder;
-        }
-        if (
-          columns ===
-          "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-        ) {
-          return mediaFallbackBuilder as typeof ownedMediaSelectBuilder;
-        }
-        throw new Error(`Unexpected media_files fields: ${columns}`);
-      });
-
-      const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
-        userId: "user-1",
-        projectId: "project-1",
-        snapshot: {
-          outputs: {
-            active: [],
-            archived: [],
-          },
+      ],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-video-fallback-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
         },
-      });
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-video-fallback-1",
+          request_id: "req-video-fallback-1",
+          provider: "kie",
+          model_id: "kie-ai/seedance-2-fast",
+          display_prompt: "Generated video fallback",
+          preview_url: "https://fal.test/generated-video-fallback.mp4",
+          result_urls: ["https://fal.test/generated-video-fallback.mp4"],
+          saved_media_ids: ["media-video-fallback-1"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          preview_storage_path: null,
+          full_storage_path: null,
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-video-fallback-1",
+          storage_path: "user-1/generations/videos/media-video-fallback-1.mp4",
+          file_type: "video",
+          poster_variant_path: "user-1/variants/videos/media-video-fallback-1/poster_720.jpg",
+          thumb_variant_path: null,
+          preview_variant_path:
+            "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+    mediaOwnershipSelectMock.mockImplementation((columns: string) => {
+      if (
+        columns ===
+        "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+      ) {
+        return mediaBuilder as typeof ownedMediaSelectBuilder;
+      }
+      throw new Error(`Unexpected media_files fields: ${columns}`);
+    });
 
-      expect(snapshot).toEqual(
-        expect.objectContaining({
-          outputs: expect.objectContaining({
-            active: [
-              expect.objectContaining({
-                id: "generated:generation-video-fallback-1",
-                previewStoragePath:
-                  "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
-                previewPosterStoragePath:
-                  "user-1/variants/videos/media-video-fallback-1/poster_720.jpg",
-                fullStoragePath: "user-1/generations/videos/media-video-fallback-1.mp4",
-              }),
-            ],
-          }),
-        })
-      );
-    }
-  );
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [
+            expect.objectContaining({
+              id: "generated:generation-video-fallback-1",
+              previewStoragePath:
+                "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
+              previewPosterStoragePath:
+                "user-1/variants/videos/media-video-fallback-1/poster_720.jpg",
+              fullStoragePath: "user-1/generations/videos/media-video-fallback-1.mp4",
+            }),
+          ],
+        }),
+      })
+    );
+  });
 
   it("keeps project snapshot generated outputs newest-first by addition or generation recency", async () => {
     const associationBuilder = createAwaitableSelectBuilder({

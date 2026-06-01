@@ -9,6 +9,7 @@ const {
   getSignedMediaUrlMock,
   refreshSupabaseSignedUrlIfNeededMock,
   mediaFilesMaybeSingleMock,
+  mediaFilesSelectMock,
   mediaFilesFromMock,
   ensureSupabaseQueryClientMock,
 } = vi.hoisted(() => {
@@ -27,6 +28,7 @@ const {
     getSignedMediaUrlMock: vi.fn(),
     refreshSupabaseSignedUrlIfNeededMock: vi.fn(),
     mediaFilesMaybeSingleMock,
+    mediaFilesSelectMock,
     mediaFilesFromMock,
     ensureSupabaseQueryClientMock: vi.fn(() => ({
       from: mediaFilesFromMock,
@@ -145,7 +147,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
   it("falls back to media-id storage path lookup when payload path hints are missing", async () => {
     mediaFilesMaybeSingleMock.mockResolvedValue({
       data: {
-        preview_storage_path: "user-1/previews/by-id.jpg",
+        thumb_variant_path: "user-1/previews/by-id.jpg",
         storage_path: "user-1/full/by-id.jpg",
       },
       error: null,
@@ -177,21 +179,13 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.url).toBe("https://signed.example.com/full/by-id.jpg");
   });
 
-  it("falls back to storage_path-only lookup when preview_storage_path is unavailable in schema cache", async () => {
-    mediaFilesMaybeSingleMock
-      .mockResolvedValueOnce({
-        data: null,
-        error: {
-          message:
-            "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          storage_path: "user-1/full/by-storage-only.jpg",
-        },
-        error: null,
-      });
+  it("queries only canonical media_files storage and variant columns for media-id fallback", async () => {
+    mediaFilesMaybeSingleMock.mockResolvedValueOnce({
+      data: {
+        storage_path: "user-1/full/by-storage-only.jpg",
+      },
+      error: null,
+    });
     getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
       if (storagePath === "user-1/full/by-storage-only.jpg") {
         return "https://signed.example.com/full/by-storage-only.jpg";
@@ -207,6 +201,12 @@ describe("prepareLibraryMediaIngestionPayload", () => {
       fullStoragePath: null,
     });
 
+    expect(mediaFilesSelectMock).toHaveBeenCalledWith(
+      "storage_path, poster_variant_path, thumb_variant_path, preview_variant_path"
+    );
+    expect(mediaFilesSelectMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("preview_storage_path")
+    );
     expect(result.previewStoragePath).toBe("user-1/full/by-storage-only.jpg");
     expect(result.fullStoragePath).toBe("user-1/full/by-storage-only.jpg");
     expect(result.previewUrl).toBe("https://signed.example.com/full/by-storage-only.jpg");

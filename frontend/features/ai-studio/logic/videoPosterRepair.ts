@@ -14,11 +14,11 @@ import {
 
 type MediaFilePosterRow = {
   id?: unknown;
-  preview_storage_path?: unknown;
   storage_path?: unknown;
   file_type?: unknown;
   thumb_variant_path?: unknown;
   poster_variant_path?: unknown;
+  preview_variant_path?: unknown;
 };
 
 export type VideoPosterRepair = {
@@ -66,12 +66,11 @@ const resolveRowPosterStoragePath = (row: MediaFilePosterRow | null | undefined)
   asCanonicalStoragePath(maybeString(row?.thumb_variant_path));
 
 const resolveRowFullStoragePath = (row: MediaFilePosterRow | null | undefined): string | null =>
-  asCanonicalStoragePath(maybeString(row?.storage_path)) ??
-  asCanonicalStoragePath(maybeString(row?.preview_storage_path));
+  asCanonicalStoragePath(maybeString(row?.storage_path));
 
 const rowMatchesStoragePath = (row: MediaFilePosterRow, storagePath: string): boolean =>
   asCanonicalStoragePath(maybeString(row.storage_path)) === storagePath ||
-  asCanonicalStoragePath(maybeString(row.preview_storage_path)) === storagePath;
+  asCanonicalStoragePath(maybeString(row.preview_variant_path)) === storagePath;
 
 const hasPlayableVideoAuthority = (output: StudioOutput): boolean => {
   if (output.mode !== "video") return false;
@@ -97,7 +96,7 @@ const shouldRepairOutput = (output: StudioOutput): boolean => {
 };
 
 const selectMediaRows = async (
-  column: "id" | "storage_path" | "preview_storage_path",
+  column: "id" | "storage_path" | "preview_variant_path",
   values: string[]
 ): Promise<MediaFilePosterRow[]> => {
   if (!values.length) return [];
@@ -105,7 +104,7 @@ const selectMediaRows = async (
   const { data, error } = await supabase
     .from("media_files")
     .select(
-      "id, preview_storage_path, storage_path, file_type, thumb_variant_path, poster_variant_path"
+      "id, storage_path, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
     )
     .in(column, values)
     .limit(values.length);
@@ -119,7 +118,7 @@ const dedupeRows = (rows: MediaFilePosterRow[]): MediaFilePosterRow[] => {
     const key =
       maybeString(row.id) ??
       asCanonicalStoragePath(maybeString(row.storage_path)) ??
-      asCanonicalStoragePath(maybeString(row.preview_storage_path)) ??
+      asCanonicalStoragePath(maybeString(row.preview_variant_path)) ??
       `row-${index}`;
     if (!byKey.has(key)) byKey.set(key, row);
   });
@@ -176,7 +175,7 @@ export const resolveVideoPosterRepairsForOutputs = async (
     const [byId, byStoragePath, byPreviewStoragePath] = await Promise.all([
       selectMediaRows("id", mediaIds),
       selectMediaRows("storage_path", storagePaths),
-      selectMediaRows("preview_storage_path", storagePaths),
+      selectMediaRows("preview_variant_path", storagePaths),
     ]);
     mediaRows = dedupeRows([...byId, ...byStoragePath, ...byPreviewStoragePath]);
   } catch {

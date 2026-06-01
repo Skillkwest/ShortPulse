@@ -256,6 +256,46 @@ describe("generatedOutputHydration", () => {
     ]);
   });
 
+  it("matches duplicate runtime identities in existing order without reusing a row", () => {
+    const existing = [
+      createOutput({
+        id: "local-first",
+        taskId: "req-shared",
+        taskState: "running",
+      }),
+      createOutput({
+        id: "local-second",
+        taskId: "req-shared",
+        taskState: "running",
+      }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:first",
+        taskId: "req-shared",
+        generationId: "gen-first",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+      createOutput({
+        id: "generated:second",
+        taskId: "req-shared",
+        generationId: "gen-second",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated).map((output) => output.id)).toEqual([
+      "local-first",
+      "local-second",
+    ]);
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)).toEqual([
+      expect.objectContaining({ id: "local-first", generationId: "gen-first" }),
+      expect.objectContaining({ id: "local-second", generationId: "gen-second" }),
+    ]);
+  });
+
   it("prunes unmatched failed canonical generated outputs already in state", () => {
     const existing = [
       createOutput({

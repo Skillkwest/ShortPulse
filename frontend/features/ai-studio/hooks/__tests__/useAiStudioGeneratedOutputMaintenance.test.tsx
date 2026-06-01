@@ -46,13 +46,19 @@ const hydratedOutput: StudioOutput = {
 const renderMaintenanceHook = ({
   hasPendingWorkflowRestore = false,
   projectId = "project-1",
+  initialOutputs = [],
 }: {
   hasPendingWorkflowRestore?: boolean;
   projectId?: string | null;
+  initialOutputs?: StudioOutput[];
 } = {}) =>
   renderHook(
-    (props: { hasPendingWorkflowRestore: boolean; projectId: string | null }) => {
-      const [outputs, setOutputs] = useState<StudioOutput[]>([]);
+    (props: {
+      hasPendingWorkflowRestore: boolean;
+      projectId: string | null;
+      initialOutputs: StudioOutput[];
+    }) => {
+      const [outputs, setOutputs] = useState<StudioOutput[]>(props.initialOutputs);
       const maintenance = useAiStudioGeneratedOutputMaintenance({
         baseRuntimeAuthorityKey: props.projectId ? `project:${props.projectId}` : "plain",
         hasPendingWorkflowRestore: props.hasPendingWorkflowRestore,
@@ -70,6 +76,7 @@ const renderMaintenanceHook = ({
       initialProps: {
         hasPendingWorkflowRestore,
         projectId,
+        initialOutputs,
       },
     }
   );
@@ -110,6 +117,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     rerender({
       hasPendingWorkflowRestore: false,
       projectId: "project-1",
+      initialOutputs: [],
     });
 
     expect(result.current.canonicalGeneratedHydrationSettled).toBe(false);
@@ -117,6 +125,43 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     await waitFor(() => {
       expect(result.current.outputs).toEqual([hydratedOutput]);
       expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
+    });
+  });
+
+  it("scopes steady-state project generated-output sync to active runtime identities", async () => {
+    listVisibleGeneratedOutputsMock.mockResolvedValue([]);
+
+    renderMaintenanceHook({
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "pending:task-1",
+          generationId: undefined,
+          sourceRef: "source-runtime-1",
+          taskId: "task-1",
+          taskState: "running",
+          companionArtStatus: null,
+          resultUrls: [],
+          previewUrl: undefined,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(1, {
+        projectId: "project-1",
+      });
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(2, {
+        projectId: "project-1",
+        limit: 1,
+        runtimeIdentities: [
+          {
+            generationId: null,
+            requestId: "task-1",
+            sourceRef: "source-runtime-1",
+          },
+        ],
+      });
     });
   });
 });

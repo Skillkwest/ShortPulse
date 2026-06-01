@@ -28,19 +28,17 @@ vi.mock("../generationProjection", () => ({
 
 const createAdminClient = ({
   storageRows,
-  firstSelectError = null,
 }: {
   storageRows: Array<{
     id: string;
     storage_path: string;
     file_type?: string | null;
+    thumb_variant_path?: string | null;
     poster_variant_path?: string | null;
     preview_variant_path?: string | null;
   }>;
-  firstSelectError?: { message: string } | null;
 }) => ({
-  __selectCallCount: 0,
-  from: vi.fn(function (this: { __selectCallCount: number }, table: string) {
+  from: vi.fn((table: string) => {
     if (table !== "media_files") {
       throw new Error(`Unexpected table: ${table}`);
     }
@@ -48,13 +46,6 @@ const createAdminClient = ({
       eq: vi.fn(),
       in: vi.fn(),
       limit: vi.fn(async () => {
-        this.__selectCallCount += 1;
-        if (this.__selectCallCount === 1 && firstSelectError) {
-          return {
-            data: null,
-            error: firstSelectError,
-          };
-        }
         return {
           data: storageRows,
           error: null,
@@ -67,8 +58,7 @@ const createAdminClient = ({
       select: vi.fn((fields: string) => {
         if (
           fields !==
-            "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path" &&
-          fields !== "id, storage_path, file_type, poster_variant_path, preview_variant_path"
+          "id, storage_path, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
         ) {
           throw new Error(`Unexpected fields: ${fields}`);
         }
@@ -346,44 +336,41 @@ describe("generationOutputConvergence", () => {
     expect(result.fullStoragePath).toBe("user-1/generations/videos/media-video-1.mp4");
   });
 
-  it("falls back when preview_storage_path is unavailable in the media_files schema", async () => {
+  it("derives video delivery from canonical media_files variant columns", async () => {
     const adminClient = createAdminClient({
-      firstSelectError: {
-        message:
-          "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
-      },
       storageRows: [
         {
-          id: "media-video-fallback-1",
-          storage_path: "user-1/generations/videos/media-video-fallback-1.mp4",
+          id: "media-video-variant-1",
+          storage_path: "user-1/generations/videos/media-video-variant-1.mp4",
           file_type: "video/mp4",
-          poster_variant_path: "user-1/variants/videos/media-video-fallback-1/poster_720.jpg",
+          thumb_variant_path: null,
+          poster_variant_path: "user-1/variants/videos/media-video-variant-1/poster_720.jpg",
           preview_variant_path:
-            "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4",
+            "user-1/variants/videos/media-video-variant-1/preview_loop_360p.mp4",
         },
       ],
     });
     getSupabaseAdminMock.mockReturnValue(adminClient);
     readPersistedGenerationOutputsMock.mockResolvedValue([
       {
-        id: "output-video-fallback-1",
+        id: "output-video-variant-1",
         outputIndex: 0,
-        resultUrl: "https://cdn.shortpulse.test/video-fallback-1.mp4",
-        mediaFileId: "media-video-fallback-1",
+        resultUrl: "https://cdn.shortpulse.test/video-variant-1.mp4",
+        mediaFileId: "media-video-variant-1",
       },
     ]);
 
     const result = await reconcileOwnedGenerationOutputSlot({
-      generationId: "gen-video-fallback-1",
+      generationId: "gen-video-variant-1",
       userId: "user-1",
       outputIndex: 0,
-      mediaFileId: "media-video-fallback-1",
-      resultUrl: "https://cdn.shortpulse.test/video-fallback-1.mp4",
+      mediaFileId: "media-video-variant-1",
+      resultUrl: "https://cdn.shortpulse.test/video-variant-1.mp4",
     });
 
     expect(result.previewStoragePath).toBe(
-      "user-1/variants/videos/media-video-fallback-1/preview_loop_360p.mp4"
+      "user-1/variants/videos/media-video-variant-1/preview_loop_360p.mp4"
     );
-    expect(result.fullStoragePath).toBe("user-1/generations/videos/media-video-fallback-1.mp4");
+    expect(result.fullStoragePath).toBe("user-1/generations/videos/media-video-variant-1.mp4");
   });
 });

@@ -1982,6 +1982,141 @@ describe("generatedMediaAuthority", () => {
     );
   });
 
+  it("scopes project generated-output hydration to runtime identities when provided", async () => {
+    const requestLookupBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-project-runtime-1",
+      },
+      error: null,
+    });
+    const associationLookupBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-project-runtime-1",
+      },
+      error: null,
+    });
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-runtime-1",
+          updated_at: "2026-04-18T16:20:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const directProjectProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-runtime-1",
+          project_id: "project-1",
+          request_id: "req-project-runtime-1",
+          source_ref: "source-project-runtime-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "A runtime-scoped project output",
+          preview_url: "https://fal.test/project-runtime-preview.png",
+          result_urls: ["https://fal.test/project-runtime-full.png"],
+          preview_storage_path: "user-1/generations/images/gen-project-runtime-1/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-runtime-1/full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:13:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const associatedProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-runtime-1",
+          project_id: "project-1",
+          request_id: "req-project-runtime-1",
+          source_ref: "source-project-runtime-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "A runtime-scoped project output",
+          preview_url: "https://fal.test/project-runtime-preview.png",
+          result_urls: ["https://fal.test/project-runtime-full.png"],
+          preview_storage_path: "user-1/generations/images/gen-project-runtime-1/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-runtime-1/full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:13:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    const projectGenerationSelect = vi
+      .fn()
+      .mockImplementationOnce(() => associationLookupBuilder)
+      .mockImplementationOnce(() => projectGenerationBuilder);
+    const generationProjectionSelect = vi
+      .fn()
+      .mockImplementationOnce(() => requestLookupBuilder)
+      .mockImplementationOnce(() => directProjectProjectionBuilder)
+      .mockImplementationOnce(() => associatedProjectionBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: projectGenerationSelect,
+          };
+        }
+        if (table === "generation_projection") {
+          return {
+            select: generationProjectionSelect,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      listVisibleGeneratedOutputs({
+        projectId: "project-1",
+        runtimeIdentities: [
+          {
+            requestId: "req-project-runtime-1",
+            sourceRef: "source-project-runtime-1",
+          },
+        ],
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-project-runtime-1",
+        generationId: "gen-project-runtime-1",
+        taskId: "req-project-runtime-1",
+        sourceRef: "source-project-runtime-1",
+        previewUrl: "https://fal.test/project-runtime-preview.png",
+        resultUrls: ["https://fal.test/project-runtime-full.png"],
+      }),
+    ]);
+
+    expect(requestLookupBuilder.eq).toHaveBeenCalledWith("request_id", "req-project-runtime-1");
+    expect(projectGenerationBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-project-runtime-1",
+    ]);
+    expect(directProjectProjectionBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-project-runtime-1",
+    ]);
+  });
+
   it("prefers canonical media authority for project-scoped generated images with stale projection storage", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([

@@ -288,7 +288,7 @@ describe("ModelModal", () => {
   it("groups text-image chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_PRO_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       {
         value: FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
         label: "Seedream 5 Lite",
@@ -317,13 +317,13 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
-      "ChatGPT Image",
+      "GPT Image 2",
       "FLUX.2 Lite",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
-      { family: "ChatGPT Image", chips: ["ChatGPT Image"] },
+      { family: "GPT Image", chips: ["GPT Image 2"] },
       { family: "FLUX", chips: ["FLUX.2 Lite"] },
     ]);
   });
@@ -332,7 +332,7 @@ describe("ModelModal", () => {
     const startupModelId = resolveRequiredCreateStartupModelId();
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_2_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       { value: startupModelId, label: "Primary Startup", mediaType: "image" },
     ];
 
@@ -346,18 +346,14 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual([
-      "Primary Startup",
-      "Nano Banana 2",
-      "ChatGPT Image",
-    ]);
+    expect(readChipTitles(container)).toEqual(["Primary Startup", "Nano Banana 2", "GPT Image 2"]);
   });
 
   it("groups reference-image chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
       { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       {
         value: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
         label: "Seedream 5 Lite",
@@ -384,12 +380,12 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
-      "ChatGPT Image",
+      "GPT Image 2",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
-      { family: "ChatGPT Image", chips: ["ChatGPT Image"] },
+      { family: "GPT Image", chips: ["GPT Image 2"] },
     ]);
   });
 
@@ -397,7 +393,7 @@ describe("ModelModal", () => {
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
       { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       {
         value: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
         label: "Seedream 5 Lite",
@@ -426,12 +422,12 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
-      "ChatGPT Image",
+      "GPT Image 2",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
-      { family: "ChatGPT Image", chips: ["ChatGPT Image"] },
+      { family: "GPT Image", chips: ["GPT Image 2"] },
     ]);
   });
 
@@ -439,7 +435,7 @@ describe("ModelModal", () => {
     const startupEditModelId = resolveRequiredCreateCharacterModeStartupModelId();
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       { value: startupEditModelId, label: "Primary Edit Startup", mediaType: "image" },
     ];
 
@@ -456,7 +452,7 @@ describe("ModelModal", () => {
     expect(readChipTitles(container)).toEqual([
       "Primary Edit Startup",
       "Nano Banana 2",
-      "ChatGPT Image",
+      "GPT Image 2",
     ]);
   });
 

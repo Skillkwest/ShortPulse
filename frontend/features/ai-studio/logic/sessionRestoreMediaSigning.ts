@@ -49,10 +49,11 @@ type CollectSessionRestoreSigningPathsOptions = {
 
 type MediaStoragePathRow = {
   id?: unknown;
-  preview_storage_path?: unknown;
   storage_path?: unknown;
+  file_type?: unknown;
   poster_variant_path?: unknown;
   thumb_variant_path?: unknown;
+  preview_variant_path?: unknown;
 };
 
 const toNormalizedNullableString = (value: string | null | undefined): string | null => {
@@ -76,9 +77,7 @@ const resolveSavedMediaId = (output: Pick<StudioOutput, "savedMediaIds">): strin
 const resolveRecoveredStorageAuthorityFromMediaRow = (
   row: MediaStoragePathRow | null | undefined
 ): SessionRecoveredStorageAuthority => {
-  const explicitPreviewStoragePath = toCanonicalStoragePath(
-    typeof row?.preview_storage_path === "string" ? row.preview_storage_path : null
-  );
+  const fileType = typeof row?.file_type === "string" ? row.file_type.toLowerCase() : "";
   const previewPosterStoragePath =
     normalizeVideoPosterStoragePathCandidate(
       typeof row?.poster_variant_path === "string" ? row.poster_variant_path : null
@@ -86,14 +85,22 @@ const resolveRecoveredStorageAuthorityFromMediaRow = (
     normalizeVideoPosterStoragePathCandidate(
       typeof row?.thumb_variant_path === "string" ? row.thumb_variant_path : null
     );
-  const fullStoragePath =
-    toCanonicalStoragePath(typeof row?.storage_path === "string" ? row.storage_path : null) ??
-    explicitPreviewStoragePath ??
-    null;
+  const fullStoragePath = toCanonicalStoragePath(
+    typeof row?.storage_path === "string" ? row.storage_path : null
+  );
+  const previewVariantPath = toCanonicalStoragePath(
+    typeof row?.preview_variant_path === "string" ? row.preview_variant_path : null
+  );
+  const imageThumbStoragePath = toCanonicalStoragePath(
+    typeof row?.thumb_variant_path === "string" ? row.thumb_variant_path : null
+  );
+  const previewStoragePath = fileType.startsWith("video")
+    ? (previewVariantPath ?? fullStoragePath)
+    : (imageThumbStoragePath ?? fullStoragePath);
 
   return {
     previewPosterStoragePath,
-    previewStoragePath: explicitPreviewStoragePath ?? fullStoragePath,
+    previewStoragePath,
     fullStoragePath,
   };
 };
@@ -200,7 +207,9 @@ const resolveSessionRestoreRecoveredStorageAuthority = async (
     try {
       const response = await supabase
         .from("media_files")
-        .select("id, preview_storage_path, storage_path, poster_variant_path, thumb_variant_path")
+        .select(
+          "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+        )
         .in("id", mediaIds);
       data = response.error
         ? []

@@ -1,6 +1,6 @@
 /**
- * Regression coverage for internal reference source lookup when `preview_storage_path`
- * is unavailable in the PostgREST schema cache.
+ * Regression coverage for internal reference source lookup against canonical
+ * `media_files.storage_path` authority.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
@@ -66,10 +66,6 @@ const makeImageOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
     mediaSource: "generated",
     ...overrides,
   }) as StudioOutput;
-
-const schemaCacheError = {
-  message: "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
-};
 
 const createSupabaseMock = () => ({
   from: (table: string) => {
@@ -147,7 +143,7 @@ const createSupabaseMock = () => ({
   },
 });
 
-describe("resolveInternalReferenceSource schema-cache fallback", () => {
+describe("resolveInternalReferenceSource media storage lookup", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     ensureSupabaseClientMock.mockReturnValue(createSupabaseMock());
@@ -163,13 +159,11 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
     vi.unstubAllGlobals();
   });
 
-  it("falls back to storage_path-only lookup for media id resolution when preview_storage_path is unavailable", async () => {
-    mediaMaybeSingleMock
-      .mockResolvedValueOnce({ data: null, error: schemaCacheError })
-      .mockResolvedValueOnce({
-        data: { storage_path: "user-1/uploads/images/from-media-id.png" },
-        error: null,
-      });
+  it("resolves media id authority from canonical media_files storage_path", async () => {
+    mediaMaybeSingleMock.mockResolvedValueOnce({
+      data: { storage_path: "user-1/uploads/images/from-media-id.png" },
+      error: null,
+    });
 
     const resolved = await resolveInternalReferenceSource({
       payload: makePayload({
@@ -197,14 +191,12 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
     expect(resolved?.provenance.resolutionReason).toBe("saved_media_lookup");
   });
 
-  it("falls back to storage_path-only lookup for legacy generated output metadata when preview_storage_path is unavailable", async () => {
+  it("resolves legacy generated output metadata from canonical media_files storage_path", async () => {
     const output = makeImageOutput({
       generationId: "gen-1",
       taskId: "task-1",
     });
-    mediaMaybeSingleMock
-      .mockResolvedValueOnce({ data: null, error: schemaCacheError })
-      .mockResolvedValueOnce({ data: null, error: null });
+    mediaMaybeSingleMock.mockResolvedValue({ data: null, error: null });
     mediaListMock.mockResolvedValueOnce({
       data: [
         {

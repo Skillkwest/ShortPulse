@@ -12,10 +12,7 @@ import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { writeAppErrorLog } from "./api/appErrorLogs";
-import {
-  associateGenerationWithProjectForUser,
-  associateMediaFilesWithProjectForUser,
-} from "./projectGenerationAssociationsService";
+import { associateGenerationAndMediaWithProjectForUserBestEffort } from "./projectGenerationAssociationsService";
 import {
   extractAudioTrack,
   isVideoSource,
@@ -219,40 +216,32 @@ const associateGeneratedElevenLabsAssetWithProject = async ({
   sourceMode: string;
   userId: string;
 }): Promise<void> => {
-  if (!projectId) return;
-  try {
-    await associateGenerationWithProjectForUser({
-      userId,
-      projectId,
-      generationId,
-    });
-    if (mediaFileId) {
-      await associateMediaFilesWithProjectForUser({
+  await associateGenerationAndMediaWithProjectForUserBestEffort({
+    userId,
+    projectId,
+    generationId,
+    mediaFileIds: mediaFileId ? [mediaFileId] : [],
+    onError: async ({ projectId: normalizedProjectId, error }) => {
+      await writeAppErrorLog({
+        source: "telemetry.elevenlabs.project_association_failed",
+        message: "ElevenLabs generation project association failed.",
+        requestId,
         userId,
-        projectId,
-        mediaFileIds: [mediaFileId],
-      });
-    }
-  } catch (error) {
-    await writeAppErrorLog({
-      source: "telemetry.elevenlabs.project_association_failed",
-      message: "ElevenLabs generation project association failed.",
-      requestId,
-      userId,
-      statusCode: 200,
-      metadata: {
-        generation_id: generationId,
-        media_file_id: mediaFileId,
-        project_id: projectId,
-        provider: "elevenlabs",
-        provider_request_id: providerRequestId,
-        model_id: modelId,
-        media_kind: mediaKind,
-        source_mode: sourceMode,
-        association_error: error instanceof Error ? error.message : String(error),
-      },
-    }).catch(() => undefined);
-  }
+        statusCode: 200,
+        metadata: {
+          generation_id: generationId,
+          media_file_id: mediaFileId,
+          project_id: normalizedProjectId,
+          provider: "elevenlabs",
+          provider_request_id: providerRequestId,
+          model_id: modelId,
+          media_kind: mediaKind,
+          source_mode: sourceMode,
+          association_error: error instanceof Error ? error.message : String(error),
+        },
+      }).catch(() => undefined);
+    },
+  });
 };
 
 const logBestEffortProjectionFailure = async ({

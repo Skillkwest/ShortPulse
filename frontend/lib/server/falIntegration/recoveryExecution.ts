@@ -50,7 +50,7 @@ import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
 import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
 import { applyRecoveryTransition } from "./recoveryTransitionService";
-import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
+import { associateGenerationWithProjectForUserBestEffort } from "../projectGenerationAssociationsService";
 
 type JsonObject = Record<string, unknown>;
 
@@ -444,14 +444,11 @@ const syncRecoveredGenerationProjection = async ({
     completedAt: nowIso,
   });
 
-  if (projectId) {
-    try {
-      await associateGenerationWithProjectForUser({
-        userId: generation.user_id,
-        projectId,
-        generationId: generation.id,
-      });
-    } catch (error) {
+  await associateGenerationWithProjectForUserBestEffort({
+    userId: generation.user_id,
+    projectId,
+    generationId: generation.id,
+    onError: async ({ projectId: normalizedProjectId, error }) => {
       await writeAppErrorLog({
         source: "telemetry.generation.recovery.project_association_failed",
         message: "Recovered generation project association failed.",
@@ -460,15 +457,15 @@ const syncRecoveredGenerationProjection = async ({
         statusCode: 200,
         metadata: {
           generation_id: generation.id,
-          project_id: projectId,
+          project_id: normalizedProjectId,
           provider: generation.provider,
           model_id: generation.model_id,
           recovery_actor: actor,
           association_error: error instanceof Error ? error.message : String(error),
         },
       }).catch(() => undefined);
-    }
-  }
+    },
+  });
 };
 
 const syncFailedGenerationProjection = async ({

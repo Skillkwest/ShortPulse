@@ -941,7 +941,7 @@ describe("useAiStudioTaskOrchestration", () => {
 
       expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
         generationId: "gen-projection-ready",
-        requestId: undefined,
+        requestId: null,
         projectId: "project-1",
       });
       expect(outputs[0]?.taskState).toBe("success");

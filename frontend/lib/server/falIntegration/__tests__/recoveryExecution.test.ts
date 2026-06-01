@@ -14,6 +14,7 @@ const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const probeGenerationProviderResultMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
+const associateGenerationWithProjectForUserBestEffortMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -63,6 +64,8 @@ vi.mock("../../providerIntegration/recoveryProviderDispatcher", () => ({
 vi.mock("../../projectGenerationAssociationsService", () => ({
   associateGenerationWithProjectForUser: (...args: unknown[]) =>
     associateGenerationWithProjectForUserMock(...args),
+  associateGenerationWithProjectForUserBestEffort: (...args: unknown[]) =>
+    associateGenerationWithProjectForUserBestEffortMock(...args),
 }));
 
 const asObject = (value: unknown): Record<string, unknown> =>
@@ -226,6 +229,33 @@ describe("executeGenerationRecovery", () => {
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    associateGenerationWithProjectForUserBestEffortMock.mockImplementation(
+      async ({
+        userId,
+        projectId,
+        generationId,
+        onError,
+      }: {
+        userId: string;
+        projectId: string | null | undefined;
+        generationId: string;
+        onError?: (payload: { projectId: string; error: unknown }) => Promise<void> | void;
+      }) => {
+        try {
+          return await associateGenerationWithProjectForUserMock({
+            userId,
+            projectId,
+            generationId,
+          });
+        } catch (error) {
+          await onError?.({
+            projectId: typeof projectId === "string" ? projectId : "",
+            error,
+          });
+          return false;
+        }
+      }
+    );
     probeGenerationProviderResultMock.mockResolvedValue({
       state: "running",
       payload: null,

@@ -10,11 +10,6 @@ import {
   PERF_FLAG_RAF_STATUS_FLUSH,
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
-import {
-  resolveGenerationProjectionLifecycle,
-  resolveVisibleGenerationReconcile,
-  type GenerationProjectionLifecycle,
-} from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import {
   type Provider,
@@ -49,6 +44,7 @@ import {
   terminalFailureStates,
 } from "./taskPolling/providerStatusPolicy";
 import { useAiStudioTaskRecoveryController } from "./taskPolling/useAiStudioTaskRecoveryController";
+import { resolveVisibleGenerationSettle } from "./taskPolling/visibleGenerationSettle";
 import {
   incrementFreezeInvestigationCounter,
   setFreezeInvestigationGauge,
@@ -148,18 +144,6 @@ const resolveLifecycleTaskState = (
     default:
       return null;
   }
-};
-
-const resolveProjectionFailureMessage = (
-  projectionLifecycle: GenerationProjectionLifecycle
-): { message: string; detail: string; shortMessage: string } => {
-  const detail = projectionLifecycle.errorDetail?.trim() || projectionLifecycle.errorMessageShort;
-  const message = projectionLifecycle.errorMessageShort?.trim() || detail || "Generation failed.";
-  return {
-    message,
-    detail: detail || message,
-    shortMessage: createShortErrorMessage(message),
-  };
 };
 
 const stringifyLifecycleErrorDetail = (value: unknown): string | null => {
@@ -335,22 +319,18 @@ export function useAiStudioTasks({
       timestamp?: string;
     }) => {
       const existingOutput = findOutputById?.(outputId) ?? null;
-      const projectionLifecycle = await resolveGenerationProjectionLifecycle({
+      const settleResult = await resolveVisibleGenerationSettle({
         generationId: asTrimmedString(existingOutput?.generationId),
         requestId: taskId,
         ...(existingOutput?.sourceRef ? { sourceRef: existingOutput.sourceRef } : {}),
         ...(projectId ? { projectId } : {}),
-      }).catch(() => null);
-      if (
-        projectionLifecycle?.taskState === "fail" ||
-        projectionLifecycle?.hiddenInReferenceGrid === true ||
-        projectionLifecycle?.referenceGridVisible === false
-      ) {
+      });
+      if (settleResult.kind === "hidden_or_failed") {
+        const { failure, projectionLifecycle } = settleResult;
         const isVisibleFailure =
           projectionLifecycle.taskState === "fail" &&
           projectionLifecycle.hiddenInReferenceGrid !== true &&
           projectionLifecycle.referenceGridVisible !== false;
-        const failure = resolveProjectionFailureMessage(projectionLifecycle);
         if (isVisibleFailure) {
           notifyGenerationFailure(outputId, failure.message, failure.detail, {
             reasonCode: "provider_error",
@@ -389,14 +369,8 @@ export function useAiStudioTasks({
         clearPollTimer(outputId);
         return true;
       }
-
-      const visibleGeneration = await resolveVisibleGenerationReconcile({
-        generationId: asTrimmedString(existingOutput?.generationId),
-        requestId: taskId,
-        ...(existingOutput?.sourceRef ? { sourceRef: existingOutput.sourceRef } : {}),
-        ...(projectId ? { projectId } : {}),
-      }).catch(() => null);
-      if (!visibleGeneration) return false;
+      if (settleResult.kind !== "visible") return false;
+      const { visibleGeneration } = settleResult;
       queueOutputUpdate(outputId, (item) => {
         const nextResultUrls =
           visibleGeneration.resultUrls.length > 0

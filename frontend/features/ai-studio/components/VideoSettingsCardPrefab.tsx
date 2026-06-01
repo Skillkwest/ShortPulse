@@ -7,6 +7,7 @@ import Image from "next/image";
 import { stripEditLabel } from "../utils/modelLabels";
 import type { AspectOption } from "../types";
 import type { ModelModalContext } from "./ModelModal";
+import styles from "../../../styles/ai-studio-video-settings-prefab.module.css";
 
 export type VideoSettingsResolutionOption = {
   value: string;
@@ -265,7 +266,7 @@ export function VideoSettingsCardPrefab({
     : null;
 
   return (
-    <div className="video-settings-prefab">
+    <div className={`video-settings-prefab ${styles.bootstrapStyleScope}`}>
       <div className="video-settings-prefab__title">
         {isMotionMode ? "Motion Settings" : "Video Settings"}
       </div>

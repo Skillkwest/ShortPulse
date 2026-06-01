@@ -74,9 +74,8 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
 
       if (
         fields === "id, storage_path" ||
-        fields === "id, storage_path, file_type, poster_variant_path, preview_variant_path" ||
         fields ===
-          "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
+          "id, storage_path, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
       ) {
         const limit = vi.fn(async () => ({
           data: mediaStorageRows
@@ -89,6 +88,10 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
                 poster_variant_path:
                   typeof rowRecord.poster_variant_path === "string"
                     ? rowRecord.poster_variant_path
+                    : null,
+                thumb_variant_path:
+                  typeof rowRecord.thumb_variant_path === "string"
+                    ? rowRecord.thumb_variant_path
                     : null,
                 preview_variant_path:
                   typeof rowRecord.preview_variant_path === "string"
@@ -104,6 +107,7 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
                 id: string;
                 storage_path: string;
                 file_type: string;
+                thumb_variant_path: string | null;
                 poster_variant_path: string | null;
                 preview_variant_path: string | null;
                 user_id: string | null;

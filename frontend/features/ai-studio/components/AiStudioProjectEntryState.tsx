@@ -4,6 +4,7 @@
  * project-backed workspace restore are still settling before the main studio shell mounts.
  */
 import React from "react";
+import styles from "../../../styles/ai-studio-project-entry.module.css";
 
 export type AiStudioProjectEntryPhase =
   | "resolving-project"
@@ -186,7 +187,9 @@ export function AiStudioProjectEntryState({
 
   if (shouldRenderLoadingAnimation) {
     return (
-      <main className="page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--animated">
+      <main
+        className={`page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--animated ${styles.bootstrapStyleScope}`}
+      >
         <section className="ai-studio-project-entry-visual-shell" aria-hidden="true">
           <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
             <div
@@ -226,7 +229,7 @@ export function AiStudioProjectEntryState({
   }
 
   return (
-    <main className="page page-wide ai-studio-project-entry-page">
+    <main className={`page page-wide ai-studio-project-entry-page ${styles.bootstrapStyleScope}`}>
       <section className="panel ai-studio-project-entry-card">
         <div className="ai-studio-project-entry-orb" aria-hidden="true" />
         <div

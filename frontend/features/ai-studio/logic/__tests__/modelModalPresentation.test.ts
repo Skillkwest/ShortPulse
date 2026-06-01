@@ -35,7 +35,7 @@ describe("modelModalPresentation", () => {
   it("keeps the canonical family labels stable for the modal columns", () => {
     expect(MODEL_MODAL_FAMILY_META.seedream.label).toBe("Seedream");
     expect(MODEL_MODAL_FAMILY_META["nano-banana"].label).toBe("Nano Banana");
-    expect(MODEL_MODAL_FAMILY_META["gpt-image"].label).toBe("ChatGPT Image");
+    expect(MODEL_MODAL_FAMILY_META["gpt-image"].label).toBe("GPT Image");
     expect(MODEL_MODAL_FAMILY_META.flux.label).toBe("FLUX");
     expect(MODEL_MODAL_FAMILY_META.veo.label).toBe("Veo");
   });

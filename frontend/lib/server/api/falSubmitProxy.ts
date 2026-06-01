@@ -54,7 +54,7 @@ import { normalizeVideoSubmitIngressPayload } from "./videoSubmitContracts";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { applyAcceptedRunningGenerationTransition } from "./generationAcceptedTransitionService";
 import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransitions";
-import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
+import { associateGenerationWithProjectForUserBestEffort } from "../projectGenerationAssociationsService";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { createMotionReferenceVideoLeaseForGeneration } from "../motionReferenceVideoAssetLease";
 
@@ -1256,14 +1256,11 @@ export const createFalSubmitHandler = ({
             }).catch(() => undefined);
           }
 
-          if (projectId) {
-            try {
-              await associateGenerationWithProjectForUser({
-                userId: charge.userId,
-                projectId,
-                generationId,
-              });
-            } catch (projectAssociationError) {
+          await associateGenerationWithProjectForUserBestEffort({
+            userId: charge.userId,
+            projectId,
+            generationId,
+            onError: async ({ projectId: normalizedProjectId, error }) => {
               await logGenerationFailure({
                 req,
                 routeLabel,
@@ -1273,17 +1270,14 @@ export const createFalSubmitHandler = ({
                 userId: charge.userId,
                 metadata: {
                   generation_id: generationId,
-                  project_id: projectId,
+                  project_id: normalizedProjectId,
                   source_ref: charge.sourceRef,
                   provider_request_id: providerRequestId,
-                  association_error:
-                    projectAssociationError instanceof Error
-                      ? projectAssociationError.message
-                      : String(projectAssociationError),
+                  association_error: error instanceof Error ? error.message : String(error),
                 },
               }).catch(() => undefined);
-            }
-          }
+            },
+          });
 
           await logGenerationFailure({
             req,

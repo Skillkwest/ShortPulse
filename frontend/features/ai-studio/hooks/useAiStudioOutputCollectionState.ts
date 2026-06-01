@@ -70,6 +70,8 @@ export const useAiStudioOutputCollectionState = ({
     EMPTY_STUDIO_OUTPUT_COLLECTION_STATE
   );
   const activeOutputByIdRef = useRef<Record<string, StudioOutput>>({});
+  const activeOutputsRef = useRef<StudioOutput[]>([]);
+  const archivedOutputsRef = useRef<StudioOutput[]>([]);
 
   const outputStorePublishQueuedRef = useRef(false);
   const outputStorePublisherUnmountedRef = useRef(false);
@@ -126,28 +128,38 @@ export const useAiStudioOutputCollectionState = ({
 
   const setOutputsState = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
     setActiveOutputState((prevState) => {
-      const prevRows = denormalizeStudioOutputCollection(prevState);
+      const prevRows =
+        activeOutputStateRef.current === prevState
+          ? activeOutputsRef.current
+          : denormalizeStudioOutputCollection(prevState);
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
       const nextState = normalizeActiveRows(resolved);
       if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         activeOutputStateRef.current = prevState;
+        activeOutputsRef.current = prevRows;
         return prevState;
       }
       activeOutputStateRef.current = nextState;
+      activeOutputsRef.current = resolved;
       return nextState;
     });
   }, []);
 
   const setArchivedOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
     setArchivedOutputState((prevState) => {
-      const prevRows = denormalizeStudioOutputCollection(prevState);
+      const prevRows =
+        archivedOutputStateRef.current === prevState
+          ? archivedOutputsRef.current
+          : denormalizeStudioOutputCollection(prevState);
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
       const nextState = normalizeStudioOutputCollection(resolved);
       if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         archivedOutputStateRef.current = prevState;
+        archivedOutputsRef.current = prevRows;
         return prevState;
       }
       archivedOutputStateRef.current = nextState;
+      archivedOutputsRef.current = resolved;
       return nextState;
     });
   }, []);
@@ -165,6 +177,8 @@ export const useAiStudioOutputCollectionState = ({
       activeOutputStateRef.current = nextActiveState;
       archivedOutputStateRef.current = nextArchivedState;
       activeOutputByIdRef.current = nextActiveState.byId;
+      activeOutputsRef.current = activeRows;
+      archivedOutputsRef.current = archivedRows;
       setActiveOutputState(nextActiveState);
       setArchivedOutputState(nextArchivedState);
       setAiStudioOutputStoreSnapshot({
@@ -180,6 +194,11 @@ export const useAiStudioOutputCollectionState = ({
   useEffect(() => {
     activeOutputByIdRef.current = activeOutputById;
   }, [activeOutputById]);
+
+  useEffect(() => {
+    activeOutputsRef.current = outputs;
+    archivedOutputsRef.current = archivedOutputs;
+  }, [archivedOutputs, outputs]);
 
   useEffect(() => {
     activeOutputStateRef.current = activeOutputState;
@@ -220,6 +239,8 @@ export const useAiStudioOutputCollectionState = ({
     activeOutputStateRef.current = restoredState.active;
     archivedOutputStateRef.current = restoredState.archived;
     activeOutputByIdRef.current = restoredState.active.byId;
+    activeOutputsRef.current = denormalizeStudioOutputCollection(restoredState.active);
+    archivedOutputsRef.current = denormalizeStudioOutputCollection(restoredState.archived);
     /* eslint-disable react-hooks/set-state-in-effect -- authority switches must restore the selected collection immediately after React commits the new key. */
     setActiveOutputState(restoredState.active);
     setArchivedOutputState(restoredState.archived);

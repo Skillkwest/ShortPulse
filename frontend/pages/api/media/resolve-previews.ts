@@ -249,10 +249,7 @@ export default async function handler(
       .eq("user_id", user.id)
       .in("id", mediaIds);
     if (rowsError) {
-      return res.status(500).json({
-        error: "Failed to resolve media rows",
-        details: rowsError.message,
-      });
+      throw new Error(rowsError.message || "Failed to resolve media rows.");
     }
 
     const rows = (rawRows ?? []) as MediaLookupRow[];
@@ -398,7 +395,6 @@ export default async function handler(
     });
     return res.status(500).json({
       error: "Failed to resolve media previews",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

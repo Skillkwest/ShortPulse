@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user,
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unable to load billing catalog.",
+      error: "Unable to load billing catalog.",
     });
   }
 }

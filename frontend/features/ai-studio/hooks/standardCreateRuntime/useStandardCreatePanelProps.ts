@@ -57,7 +57,6 @@ type UseStandardCreatePanelPropsParams = {
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
   isGenerateDisabled: boolean;
-  generationGuardrail: string | null;
   handleClearAgentChat: () => void;
   handleStandardCreatePrimarySubmit: () => void;
   characterOptions: CreateCharacterOption[];
@@ -141,7 +140,6 @@ export const buildStandardCreatePanelProps = ({
   describeInFlightCount,
   createGenerateCostCredits,
   isGenerateDisabled,
-  generationGuardrail,
   handleClearAgentChat,
   handleStandardCreatePrimarySubmit,
   characterOptions,
@@ -169,13 +167,6 @@ export const buildStandardCreatePanelProps = ({
   const imageAttachmentGuardrail = resolveImageAttachmentGuardrail(agentAttachments);
   const isPrimaryGenerateDisabled =
     isGenerateDisabled || Boolean(imageAttachmentGuardrail) || !hasVisibleComposerPrompt;
-  const primaryGenerateGuardrailReason = imageAttachmentGuardrail
-    ? imageAttachmentGuardrail
-    : isGenerateDisabled
-      ? generationGuardrail
-      : hasVisibleComposerPrompt
-        ? generationGuardrail
-        : "Enter a prompt to generate.";
 
   return {
     mode,
@@ -213,7 +204,6 @@ export const buildStandardCreatePanelProps = ({
     isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: createGenerateCostCredits,
     isGenerateDisabled: isPrimaryGenerateDisabled,
-    guardrailReason: primaryGenerateGuardrailReason,
     onClearAgentChat: handleClearAgentChat,
     onGenerate: handleStandardCreatePrimarySubmit,
     characterOptions,

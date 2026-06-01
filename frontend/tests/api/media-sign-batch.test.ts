@@ -358,7 +358,6 @@ describe("POST /api/media/sign-batch", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Failed to sign media paths",
-      details: expect.stringContaining("JSON"),
     });
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({

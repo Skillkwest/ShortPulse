@@ -341,6 +341,43 @@ describe("POST /api/media/resolve-previews", () => {
     });
   });
 
+  it("logs and sanitizes media row lookup failures", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            in: vi.fn(async () => ({
+              data: null,
+              error: { message: "relation media_files does not exist" },
+            })),
+          })),
+        })),
+      })),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: ["media-1"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        routeLabel: "media-resolve-previews",
+        user: expect.objectContaining({ id: "user-1" }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to resolve media previews",
+    });
+  });
+
   it("rejects direct URL fallback when it resolves outside the caller namespace", async () => {
     const row = createRow({
       id: "media-3",

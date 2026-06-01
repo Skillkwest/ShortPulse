@@ -255,4 +255,102 @@ describe("GET /api/billing/catalog", () => {
       ],
     });
   });
+
+  it("logs and sanitizes backend catalog failures", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "billing_plans") {
+          return {
+            select: () => ({
+              eq: () => ({
+                data: [],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_plan_offers") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  is: () => ({
+                    order: () => ({
+                      order: async () => ({
+                        data: null,
+                        error: { message: "billing_plan_offers missing from schema cache" },
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_credit_packages") {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: async () => ({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_storage_addons") {
+          return {
+            select: () => ({
+              eq: () => ({
+                data: [],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_storage_addon_offers") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  is: () => ({
+                    order: () => ({
+                      order: async () => ({
+                        data: [],
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      },
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        routeLabel: "billing/catalog",
+        user: expect.objectContaining({ id: "user-1" }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to load billing catalog.",
+    });
+  });
 });

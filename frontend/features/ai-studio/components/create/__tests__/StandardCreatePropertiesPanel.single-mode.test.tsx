@@ -248,19 +248,14 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(button).not.toHaveAttribute("aria-busy");
   });
 
-  it("renders the inline warning bubble when generate is disabled with a guardrail reason", () => {
+  it("does not render detached warning text when generate is disabled", () => {
     const { container } = render(
-      <StandardCreatePropertiesPanel
-        {...baseProps}
-        isGenerateDisabled
-        guardrailReason="Unable to load pricing. Retry in a moment."
-      />
+      <StandardCreatePropertiesPanel {...baseProps} isGenerateDisabled />
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Unable to load pricing. Retry in a moment."
-    );
-    expect(container.querySelector(".create-composer-inline-warning-bubble")).not.toBeNull();
+    expect(screen.queryByText("Enter a prompt to generate.")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(container.querySelector(".create-composer-inline-warning-bubble")).toBeNull();
   });
 
   it("keeps the create mode toggle in the standard panel path", () => {

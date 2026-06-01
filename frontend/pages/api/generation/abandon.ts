@@ -84,7 +84,6 @@ export default async function handler(
     });
     return res.status(500).json({
       error: "Unable to abandon generation",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

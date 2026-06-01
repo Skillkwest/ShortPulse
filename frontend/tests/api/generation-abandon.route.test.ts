@@ -125,7 +125,6 @@ describe("POST /api/generation/abandon", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to abandon generation",
-      details: "Failed to settle abandoned generation before terminalizing it: charge_not_found",
     });
   });
 });

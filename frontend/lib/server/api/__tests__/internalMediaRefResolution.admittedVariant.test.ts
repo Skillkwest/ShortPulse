@@ -108,4 +108,50 @@ describe("internal media ref admitted variant resolution", () => {
       })
     );
   });
+
+  it("rejects malformed raw storage refs before signing", async () => {
+    const createSignedUrlsMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrls: createSignedUrlsMock,
+        })),
+      },
+    } as never);
+
+    const ref = createInternalMediaRef({
+      storagePath: "user-1/../user-2/private.png",
+    });
+
+    const urls = await resolveSignedUrlsForInternalMediaRefs({
+      refs: [ref],
+      userId: "user-1",
+    });
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(urls).toEqual([]);
+  });
+
+  it("rejects malformed raw storage refs before download", async () => {
+    const downloadMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          download: downloadMock,
+        })),
+      },
+    } as never);
+
+    const ref = createInternalMediaRef({
+      storagePath: "user-1\\private\\image.png",
+    });
+
+    const files = await resolveOpenAiImageFilesForInternalMediaRefs({
+      refs: [ref],
+      userId: "user-1",
+    });
+
+    expect(downloadMock).not.toHaveBeenCalled();
+    expect(files).toEqual([]);
+  });
 });

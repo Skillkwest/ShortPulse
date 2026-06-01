@@ -75,7 +75,7 @@ const fileChecks = [
     forbidIncludes: ["computeCostForModel("],
   },
   {
-    file: "frontend/pages/ai-studio.tsx",
+    file: "frontend/features/ai-studio/routes/AiStudioRouteApp.tsx",
     label: "AI Studio page wiring",
     requireRegexes: [
       {

@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .order("sort_order", { ascending: true });
 
     if (error) {
-      return res.status(500).json({ error: error.message });
+      throw new Error(error.message || "Failed to load credit packages.");
     }
 
     return res.status(200).json({ packages: (data ?? []) as PackageResponse[] });
@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user,
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unable to load credit packages.",
+      error: "Unable to load credit packages.",
     });
   }
 }

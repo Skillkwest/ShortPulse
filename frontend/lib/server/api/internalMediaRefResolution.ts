@@ -11,6 +11,7 @@ import {
   resolveInternalMediaRefStoragePath,
   type InternalMediaRef,
 } from "../../media/internalMediaRefs";
+import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { resolveProductUseImageReferenceForMediaFile } from "../admittedReferenceImageVariant";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
@@ -18,13 +19,31 @@ const MEDIA_BUCKET = "media_library";
 const MAX_OPENAI_EDIT_INPUT_BYTES = 50 * 1024 * 1024;
 const OPENAI_EDIT_ALLOWED_IMAGE_CONTENT_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
-const isUserScopedStoragePath = (storagePath: string, userId: string): boolean =>
-  storagePath.trim().startsWith(`${userId}/`);
-
 const normalizeNonEmptyString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const resolveSafeUserScopedStoragePath = ({
+  storagePath,
+  userId,
+  label,
+}: {
+  storagePath: string | null;
+  userId: string;
+  label: string;
+}): string | null => {
+  if (!storagePath) return null;
+  try {
+    return assertUserScopedMediaStoragePath({
+      path: storagePath,
+      userId,
+      label,
+    });
+  } catch {
+    return null;
+  }
 };
 
 const inferImageContentTypeFromStoragePath = (storagePath: string): string | null => {
@@ -160,8 +179,12 @@ export const resolveSignedUrlsForInternalMediaRefs = async ({
       continue;
     }
 
-    const storagePath = resolveInternalMediaRefStoragePath(ref);
-    if (!storagePath || !isUserScopedStoragePath(storagePath, userId)) {
+    const storagePath = resolveSafeUserScopedStoragePath({
+      storagePath: resolveInternalMediaRefStoragePath(ref),
+      userId,
+      label: "Internal media ref storage path",
+    });
+    if (!storagePath) {
       resolvedEntries.push({ kind: "empty" });
       continue;
     }
@@ -224,8 +247,12 @@ export const resolveOpenAiImageFilesForInternalMediaRefs = async ({
       storagePaths.push(resolved.storagePath);
       continue;
     }
-    const storagePath = resolveInternalMediaRefStoragePath(ref);
-    if (storagePath && isUserScopedStoragePath(storagePath, userId)) {
+    const storagePath = resolveSafeUserScopedStoragePath({
+      storagePath: resolveInternalMediaRefStoragePath(ref),
+      userId,
+      label: "Internal media ref storage path",
+    });
+    if (storagePath) {
       storagePaths.push(storagePath);
     }
   }

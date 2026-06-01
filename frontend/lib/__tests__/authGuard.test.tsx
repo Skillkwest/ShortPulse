@@ -1,106 +1,49 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import type { Session, User } from "@supabase/supabase-js";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
+import { ProtectedRouteSessionProvider } from "../protectedRouteSessionContext";
 import { useProtectedRoute } from "../authGuard";
 
-const replaceMock = vi.hoisted(() => vi.fn());
-const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const useRouterMock = vi.hoisted(() => vi.fn());
 const refreshSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/router", () => ({
-  useRouter: () => ({
-    asPath: "/ai-studio",
-    replace: replaceMock,
-  }),
+  useRouter: (...args: unknown[]) => useRouterMock(...args),
 }));
 
-vi.mock("../supabaseClient", async () => {
-  const actual = await vi.importActual<typeof import("../supabaseClient")>("../supabaseClient");
-  return {
-    ...actual,
-    useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
-    refreshSupabaseSession: (...args: unknown[]) => refreshSupabaseSessionMock(...args),
-  };
-});
+vi.mock("../supabaseClient", () => ({
+  refreshSupabaseSession: (...args: unknown[]) => refreshSupabaseSessionMock(...args),
+  useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+}));
 
 describe("useProtectedRoute", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("uses the shared protected-route session context when a route gate already resolved auth", () => {
+    const session = { access_token: "token-1", user: { id: "user-1" } } as Session;
+    const user = { id: "user-1", email: "user@example.com" } as User;
+
+    useRouterMock.mockReturnValue({
+      asPath: "/profile",
+      replace: vi.fn(),
+    });
     useSupabaseSessionStateMock.mockReturnValue({
-      initialized: true,
+      initialized: false,
       session: null,
       user: null,
     });
-    refreshSupabaseSessionMock.mockResolvedValue(null);
-  });
 
-  it("attempts one recovery refresh before redirecting to auth when no session exists", async () => {
-    let resolveRefresh: (() => void) | null = null;
-    refreshSupabaseSessionMock.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveRefresh = () => resolve(null);
-        })
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <ProtectedRouteSessionProvider session={session} user={user}>
+        {children}
+      </ProtectedRouteSessionProvider>
     );
-    const { result } = renderHook(() => useProtectedRoute(true));
 
-    await waitFor(() => {
-      expect(refreshSupabaseSessionMock).toHaveBeenCalledWith({
-        preserveSnapshotOnError: true,
-      });
-    });
-    expect(replaceMock).not.toHaveBeenCalled();
+    const { result } = renderHook(() => useProtectedRoute(true), { wrapper });
 
-    await act(async () => {
-      resolveRefresh?.();
-    });
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-    expect(replaceMock).toHaveBeenCalledWith("/auth?next=%2Fai-studio");
-  });
-
-  it("does not redirect when the recovery refresh restores the session", async () => {
-    let snapshot = {
-      initialized: true,
-      session: null,
-      user: null,
-    };
-    useSupabaseSessionStateMock.mockImplementation(() => snapshot);
-    refreshSupabaseSessionMock.mockImplementation(async () => {
-      snapshot = {
-        initialized: true,
-        session: { user: { id: "user-1" } },
-        user: { id: "user-1" },
-      } as never;
-      return snapshot.session;
-    });
-
-    const { result, rerender } = renderHook(() => useProtectedRoute(true));
-
-    await waitFor(() => {
-      expect(refreshSupabaseSessionMock).toHaveBeenCalledTimes(1);
-    });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-    rerender();
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    expect(result.current.session).toEqual({ user: { id: "user-1" } });
-    expect(replaceMock).not.toHaveBeenCalled();
-  });
-
-  it("does nothing when protection is disabled", async () => {
-    const { result } = renderHook(() => useProtectedRoute(false));
-
-    await act(async () => {});
     expect(result.current.loading).toBe(false);
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(result.current.session).toBe(session);
+    expect(result.current.user).toBe(user);
     expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
   });
 });

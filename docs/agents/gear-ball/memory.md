@@ -31,6 +31,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Score-honesty rule: eventual recovery matters, but it does not erase preventable misses. Late tails, toolchain-seam fixes, stale helper-check drift, and build-only contract discoveries are real score penalties, not cosmetic bumps.
 - Publish metric rule: optimize for time-to-clean-push.
 - Token-efficiency rule: optimize for low-token SOP execution without degrading control quality. Keep updates terse, run only the minimum honest validation needed for the current lane, and avoid extra analysis or narration once the commit/push decision is already well-supported.
+- Test-integrity rule: never change UI, UX, or user-facing product behavior just to get tests green. If a test fails, repair the canonical implementation or the test contract without using user-visible behavior drift as the escape hatch.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
 ## Durable Lessons

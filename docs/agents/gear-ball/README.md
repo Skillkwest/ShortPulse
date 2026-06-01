@@ -27,6 +27,7 @@ Gear Ball may not:
 - switch branches, merge, deploy, or mutate remote config without explicit user instruction
 - push directly to `main`
 - weaken hooks, CI, branch rules, or secret boundaries
+- make UI, UX, or product-behavior changes just to satisfy tests; when tests fail, fix the canonical implementation or the test contract without altering user-facing behavior as a test workaround
 - use Docker-based Supabase workflows
 - turn normal product runs into repo-governance or self-maintenance work by default
 

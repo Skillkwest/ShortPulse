@@ -9,7 +9,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { ChartBar, CloudArrowUp, ShieldCheck, Sparkle, type IconProps } from "phosphor-react";
-import { AiStudioProjectEntryState } from "../features/ai-studio/components/AiStudioProjectEntryState";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import {
   buildPlanView,
@@ -25,6 +24,7 @@ import {
 } from "../features/dashboard/components/AuthenticatedDashboardView";
 import { DashboardAppBar } from "../features/dashboard/components/DashboardAppBar";
 import { GuestDashboardView } from "../features/dashboard/components/GuestDashboardView";
+import { ProjectEntryLoadingSurface } from "../features/projects/components/ProjectEntryLoadingSurface";
 import { useProjectCreationDialog } from "../features/projects/hooks/useProjectCreationDialog";
 import { buildPricingPath } from "../features/pricing/paths";
 import { ConfirmationModal } from "../components/ConfirmationModal";
@@ -546,12 +546,11 @@ export default function DashboardPage({
             content="ShortPulse dashboard bootstrap while your authenticated workspace session resolves."
           />
         </Head>
-        <AiStudioProjectEntryState
-          variant="loading"
-          phase="resolving-project"
+        <ProjectEntryLoadingSurface
           title={DASHBOARD_BOOTSTRAP_TITLE}
           message={DASHBOARD_BOOTSTRAP_MESSAGE}
           steps={[]}
+          activeStepIndex={0}
           stepsAriaLabel="Dashboard loading progress"
         />
       </>

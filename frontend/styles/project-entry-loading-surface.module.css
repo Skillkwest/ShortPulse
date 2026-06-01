@@ -1,0 +1,193 @@
+.bootstrapStyleScope {
+}
+
+/**
+ * Shared project-entry loading surface styles.
+ * Owns the animated full-page bootstrap state used before dashboard or AI Studio continue.
+ */
+
+.bootstrapStyleScope:global(.ai-studio-project-entry-page) {
+  position: relative;
+  min-height: var(--app-fixed-height);
+  max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: #0f1115;
+  overflow: hidden;
+}
+
+.bootstrapStyleScope:global(.ai-studio-project-entry-page--animated) {
+  flex-direction: column;
+  padding: 32px 24px;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-visual-shell) {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(976px, calc(100vw - 48px));
+  max-width: 100%;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-visual-fallback-copy) {
+  position: relative;
+  z-index: 1;
+  width: min(560px, calc(100vw - 48px));
+  margin-top: 18px;
+  text-align: center;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-visual-stage) {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 976 / 310;
+  overflow: hidden;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-pulse-plane) {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  -webkit-mask-image: url("/loading-entry/mask.png");
+  mask-image: url("/loading-entry/mask.png");
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-pulse-plane):global(.is-visible) {
+  opacity: 1;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-pulse-motion) {
+  position: absolute;
+  inset: 0;
+  animation: ai-studio-project-entry-pulse-run 4.4s linear infinite;
+  will-change: transform, opacity;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-pulse-bloom),
+.bootstrapStyleScope :global(.ai-studio-project-entry-pulse-sweep) {
+  position: absolute;
+  inset-block: 0;
+  pointer-events: none;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-pulse-bloom) {
+  left: -32.787%;
+  width: 32.787%;
+  opacity: 0.62;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 2, 50, 0) 0%,
+    rgba(255, 2, 50, 0.1) 30%,
+    rgba(255, 2, 50, 0.5) 50%,
+    rgba(255, 2, 50, 0.14) 70%,
+    rgba(255, 2, 50, 0) 100%
+  );
+  filter: blur(18px);
+  will-change: opacity;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-pulse-sweep) {
+  left: -22.541%;
+  width: 22.541%;
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 2, 50, 0) 0%,
+    rgba(255, 2, 50, 0.15) 20%,
+    rgba(255, 2, 50, 0.98) 50%,
+    rgba(255, 2, 50, 0.3) 78%,
+    rgba(255, 2, 50, 0) 100%
+  );
+  will-change: opacity;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-title) {
+  margin: 0;
+  color: #f5f9ff;
+  font-size: clamp(19px, 2.35vw, 26px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.bootstrapStyleScope :global(.ai-studio-project-entry-message) {
+  margin: 8px auto 0;
+  max-width: 500px;
+  color: rgba(201, 214, 227, 0.66);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@keyframes ai-studio-project-entry-pulse-run {
+  0% {
+    opacity: 0;
+    transform: translate3d(0%, 0, 0);
+  }
+
+  6% {
+    opacity: 1;
+    transform: translate3d(5.738%, 0, 0);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translate3d(129.918%, 0, 0);
+  }
+
+  19% {
+    opacity: 0;
+    transform: translate3d(129.918%, 0, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(129.918%, 0, 0);
+  }
+}
+
+@media (max-width: 720px) {
+  .bootstrapStyleScope:global(.ai-studio-project-entry-page) {
+    padding: 24px 16px;
+  }
+
+  .bootstrapStyleScope:global(.ai-studio-project-entry-page--animated) {
+    padding: 24px 16px;
+  }
+
+  .bootstrapStyleScope :global(.ai-studio-project-entry-visual-fallback-copy) {
+    width: min(560px, calc(100vw - 32px));
+    margin-top: 16px;
+  }
+
+  .bootstrapStyleScope :global(.ai-studio-project-entry-title) {
+    font-size: clamp(18px, 5.8vw, 22px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bootstrapStyleScope :global(.ai-studio-project-entry-pulse-motion),
+  .bootstrapStyleScope :global(.ai-studio-project-entry-pulse-plane) {
+    animation: none;
+    transition: none;
+  }
+
+  .bootstrapStyleScope :global(.ai-studio-project-entry-pulse-motion) {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+}

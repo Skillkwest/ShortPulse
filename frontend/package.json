@@ -16,7 +16,7 @@
     "ophestivus:move-ticket": "node ../docs/records/artifacts/agent/ophestivus/tools/ophestivus_move_ticket.mjs",
     "ophestivus:append-ticket-note": "node ../docs/records/artifacts/agent/ophestivus/tools/ophestivus_append_ticket_note.mjs",
     "ophestivus:run-log": "node ../docs/records/artifacts/agent/ophestivus/tools/ophestivus_run_log.mjs",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

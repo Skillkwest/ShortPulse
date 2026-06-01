@@ -5,24 +5,24 @@
  * AI Studio projects picker modal styles.
  */
 
-:global(.ai-projects-modal-backdrop) {
+.bootstrapStyleScope:global(.ai-projects-modal-backdrop) {
   background:
     radial-gradient(circle at 20% 18%, rgba(37, 169, 191, 0.12), transparent 32%),
     radial-gradient(circle at 80% 22%, rgba(99, 102, 241, 0.08), transparent 38%),
     rgba(4, 7, 12, 0.68);
 }
 
-:global(.ai-projects-modal) {
+.bootstrapStyleScope:global(.ai-projects-modal) {
   width: min(1120px, 94vw);
   max-height: min(860px, 88vh);
   padding: 24px 24px 16px;
 }
 
-:global(.ai-projects-modal-header) {
+.bootstrapStyleScope :global(.ai-projects-modal-header) {
   align-items: flex-start;
 }
 
-:global(.ai-projects-modal-count-pill) {
+.bootstrapStyleScope :global(.ai-projects-modal-count-pill) {
   display: inline-flex;
   align-items: center;
   min-height: 34px;
@@ -36,32 +36,32 @@
   letter-spacing: 0.02em;
 }
 
-:global(.ai-projects-modal-create-button),
-:global(.ai-projects-modal-empty-action) {
+.bootstrapStyleScope :global(.ai-projects-modal-create-button),
+.bootstrapStyleScope :global(.ai-projects-modal-empty-action) {
   min-height: 34px;
 }
 
-:global(.ai-projects-modal-scroll) {
+.bootstrapStyleScope :global(.ai-projects-modal-scroll) {
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding-bottom: 12px;
 }
 
-:global(.ai-projects-modal-banner) {
+.bootstrapStyleScope :global(.ai-projects-modal-banner) {
   border-radius: 14px;
   padding: 12px 14px;
   font-size: 13px;
   line-height: 1.45;
 }
 
-:global(.ai-projects-modal-banner-error) {
+.bootstrapStyleScope :global(.ai-projects-modal-banner-error) {
   border: 1px solid rgba(248, 113, 113, 0.34);
   background: rgba(127, 29, 29, 0.22);
   color: #fecaca;
 }
 
-:global(.ai-projects-modal-empty-state) {
+.bootstrapStyleScope :global(.ai-projects-modal-empty-state) {
   min-height: 300px;
   border-radius: 22px;
   border: 1px dashed rgba(255, 255, 255, 0.12);
@@ -78,11 +78,11 @@
   color: rgba(226, 234, 244, 0.86);
 }
 
-:global(.ai-projects-modal-empty-state) svg {
+.bootstrapStyleScope :global(.ai-projects-modal-empty-state) svg {
   color: rgba(124, 213, 228, 0.88);
 }
 
-:global(.ai-projects-modal-loading-spinner) {
+.bootstrapStyleScope :global(.ai-projects-modal-loading-spinner) {
   width: 30px;
   height: 30px;
   border-radius: 999px;
@@ -95,14 +95,14 @@
   animation: ai-projects-modal-spinner-rotate 0.82s linear infinite;
 }
 
-:global(.ai-projects-modal-empty-state) h3 {
+.bootstrapStyleScope :global(.ai-projects-modal-empty-state) h3 {
   margin: 0;
   font-size: 22px;
   font-weight: 700;
   color: #f5f9ff;
 }
 
-:global(.ai-projects-modal-empty-state) p {
+.bootstrapStyleScope :global(.ai-projects-modal-empty-state) p {
   max-width: 420px;
   margin: 0;
   font-size: 14px;
@@ -110,7 +110,7 @@
   color: rgba(201, 214, 227, 0.72);
 }
 
-:global(.ai-projects-modal-grid) {
+.bootstrapStyleScope :global(.ai-projects-modal-grid) {
   display: grid;
   grid-template-columns: repeat(auto-fill, 278px);
   justify-content: start;
@@ -118,22 +118,22 @@
   padding-top: 8px;
 }
 
-:global(.ai-projects-modal-card-shell) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-shell) {
   position: relative;
   transition: transform 180ms ease;
 }
 
-:global(.ai-projects-modal-card-shell):hover,
-:global(.ai-projects-modal-card-shell):focus-within {
+.bootstrapStyleScope :global(.ai-projects-modal-card-shell):hover,
+.bootstrapStyleScope :global(.ai-projects-modal-card-shell):focus-within {
   transform: translateY(-2px);
 }
 
-:global(.ai-projects-modal-card-shell):global(.is-pending):hover,
-:global(.ai-projects-modal-card-shell):global(.is-pending):focus-within {
+.bootstrapStyleScope :global(.ai-projects-modal-card-shell):global(.is-pending):hover,
+.bootstrapStyleScope :global(.ai-projects-modal-card-shell):global(.is-pending):focus-within {
   transform: none;
 }
 
-:global(.ai-projects-modal-card) {
+.bootstrapStyleScope :global(.ai-projects-modal-card) {
   width: 100%;
   min-height: 148px;
   padding: 10px 12px 8px;
@@ -152,26 +152,28 @@
     box-shadow 180ms ease;
 }
 
-:global(.ai-projects-modal-card-shell):hover :global(.ai-projects-modal-card),
-:global(.ai-projects-modal-card-shell):focus-within :global(.ai-projects-modal-card) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-shell):hover :global(.ai-projects-modal-card),
+.bootstrapStyleScope
+  :global(.ai-projects-modal-card-shell):focus-within
+  :global(.ai-projects-modal-card) {
   border-color: rgba(83, 215, 236, 0.42);
   background:
     linear-gradient(180deg, rgba(20, 29, 36, 0.98), rgba(12, 18, 25, 0.98)), rgba(12, 16, 23, 0.98);
   box-shadow: 0 22px 40px rgba(0, 0, 0, 0.28);
 }
 
-:global(.ai-projects-modal-card):disabled {
+.bootstrapStyleScope :global(.ai-projects-modal-card):disabled {
   cursor: wait;
   opacity: 0.78;
 }
 
-:global(.ai-projects-modal-card):global(.is-current) {
+.bootstrapStyleScope :global(.ai-projects-modal-card):global(.is-current) {
   border-color: rgba(124, 213, 228, 0.4);
   background:
     linear-gradient(180deg, rgba(18, 33, 40, 0.98), rgba(11, 18, 24, 0.98)), rgba(12, 16, 23, 0.98);
 }
 
-:global(.ai-projects-modal-card-delete) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-delete) {
   position: absolute;
   top: 14px;
   right: 14px;
@@ -192,25 +194,27 @@
     transform 160ms ease;
 }
 
-:global(.ai-projects-modal-card-shell):hover :global(.ai-projects-modal-card-delete),
-:global(.ai-projects-modal-card-delete):focus-visible {
+.bootstrapStyleScope
+  :global(.ai-projects-modal-card-shell):hover
+  :global(.ai-projects-modal-card-delete),
+.bootstrapStyleScope :global(.ai-projects-modal-card-delete):focus-visible {
   opacity: 1;
 }
 
-:global(.ai-projects-modal-card-delete):hover:not(:disabled),
-:global(.ai-projects-modal-card-delete):focus-visible {
+.bootstrapStyleScope :global(.ai-projects-modal-card-delete):hover:not(:disabled),
+.bootstrapStyleScope :global(.ai-projects-modal-card-delete):focus-visible {
   border-color: rgba(252, 165, 165, 0.4);
   background: rgba(91, 24, 34, 0.94);
   transform: translateY(-1px);
 }
 
-:global(.ai-projects-modal-card-delete):disabled {
+.bootstrapStyleScope :global(.ai-projects-modal-card-delete):disabled {
   cursor: wait;
   opacity: 0.62;
   transform: none;
 }
 
-:global(.ai-projects-modal-card-topline) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-topline) {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -218,7 +222,7 @@
   gap: 10px;
 }
 
-:global(.ai-projects-modal-status-pill) {
+.bootstrapStyleScope :global(.ai-projects-modal-status-pill) {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
@@ -234,19 +238,19 @@
   text-transform: uppercase;
 }
 
-:global(.ai-projects-modal-status-pill):global(.is-current) {
+.bootstrapStyleScope :global(.ai-projects-modal-status-pill):global(.is-current) {
   border-color: rgba(83, 215, 236, 0.34);
   background: rgba(37, 169, 191, 0.16);
   color: #d9fbff;
 }
 
-:global(.ai-projects-modal-card-body) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-body) {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-:global(.ai-projects-modal-card-preview-grid) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-preview-grid) {
   display: flex;
   align-items: flex-end;
   width: fit-content;
@@ -255,7 +259,7 @@
   padding: 0;
 }
 
-:global(.ai-projects-modal-card-preview-tile) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-preview-tile) {
   position: relative;
   flex: 0 0 clamp(46px, 18%, 60px);
   aspect-ratio: 4 / 5;
@@ -268,24 +272,25 @@
     0 0 0 1px rgba(9, 13, 19, 0.36);
 }
 
-:global(.ai-projects-modal-card-preview-tile) img {
+.bootstrapStyleScope :global(.ai-projects-modal-card-preview-tile) img {
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
 }
 
-:global(.ai-projects-modal-card-preview-grid)[data-count="1"] {
+.bootstrapStyleScope :global(.ai-projects-modal-card-preview-grid)[data-count="1"] {
   min-height: 76px;
   padding-right: 0;
 }
 
-:global(.ai-projects-modal-card-preview-grid)[data-count="1"]
+.bootstrapStyleScope
+  :global(.ai-projects-modal-card-preview-grid)[data-count="1"]
   :global(.ai-projects-modal-card-preview-tile) {
   flex-basis: clamp(52px, 20%, 66px);
 }
 
-:global(.ai-projects-modal-card-title) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-title) {
   display: -webkit-box;
   flex: 1 1 auto;
   align-self: center;
@@ -299,14 +304,14 @@
   color: #f5f9ff;
 }
 
-:global(.ai-projects-modal-card-meta) {
+.bootstrapStyleScope :global(.ai-projects-modal-card-meta) {
   font-size: 11px;
   line-height: 1.35;
   color: rgba(201, 214, 227, 0.72);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :global(.ai-projects-modal-loading-spinner) {
+  .bootstrapStyleScope :global(.ai-projects-modal-loading-spinner) {
     animation: none;
   }
 }
@@ -318,12 +323,12 @@
 }
 
 @media (max-width: 900px) {
-  :global(.ai-projects-modal) {
+  .bootstrapStyleScope:global(.ai-projects-modal) {
     width: min(96vw, 760px);
     padding: 20px 18px 14px;
   }
 
-  :global(.ai-projects-modal-grid) {
+  .bootstrapStyleScope :global(.ai-projects-modal-grid) {
     grid-template-columns: 1fr;
   }
 }

@@ -4,7 +4,7 @@
  * Isolated video settings card prefab styles.
  * Hardcodes the current video panel skin so the card no longer depends on shared selector/toggle styles.
  */
-:global(.video-settings-prefab) {
+.bootstrapStyleScope:global(.video-settings-prefab) {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -17,14 +17,14 @@
 
 :global(.video-properties-panel)
   :global(.video-reference-card-aside)
-  :global(.video-settings-inline-aside),
+  .bootstrapStyleScope:global(.video-settings-inline-aside),
 :global(.video-properties-panel)
   :global(.video-reference-card-aside)
-  :global(.video-settings-prefab) {
+  .bootstrapStyleScope:global(.video-settings-prefab) {
   height: 100%;
 }
 
-:global(.video-settings-prefab__title) {
+.bootstrapStyleScope :global(.video-settings-prefab__title) {
   margin: 0 0 12px;
   font-size: 11px;
   font-weight: 700;
@@ -34,29 +34,29 @@
   color: rgba(201, 205, 214, 0.58);
 }
 
-:global(.video-settings-prefab__row) {
+.bootstrapStyleScope :global(.video-settings-prefab__row) {
   width: 100%;
 }
 
-:global(.video-settings-prefab__dual-row) {
+.bootstrapStyleScope :global(.video-settings-prefab__dual-row) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 9px;
   width: 100%;
 }
 
-:global(.video-settings-prefab__dual-slot) {
+.bootstrapStyleScope :global(.video-settings-prefab__dual-slot) {
   min-width: 0;
 }
 
-:global(.video-settings-prefab__dropdown) {
+.bootstrapStyleScope :global(.video-settings-prefab__dropdown) {
   position: relative;
   width: 100%;
 }
 
-:global(.video-settings-prefab__model-button),
-:global(.video-settings-prefab__aspect-trigger),
-:global(.video-settings-prefab__select-trigger) {
+.bootstrapStyleScope :global(.video-settings-prefab__model-button),
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-trigger),
+.bootstrapStyleScope :global(.video-settings-prefab__select-trigger) {
   width: 100%;
   min-height: 40px;
   height: 40px;
@@ -90,9 +90,9 @@
     background-color 0.14s ease;
 }
 
-:global(.video-settings-prefab__model-button):hover:not(:global(.is-empty)),
-:global(.video-settings-prefab__aspect-trigger):hover:not(:disabled),
-:global(.video-settings-prefab__select-trigger):hover:not(:disabled) {
+.bootstrapStyleScope :global(.video-settings-prefab__model-button):hover:not(:global(.is-empty)),
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-trigger):hover:not(:disabled),
+.bootstrapStyleScope :global(.video-settings-prefab__select-trigger):hover:not(:disabled) {
   border-color: rgba(201, 205, 214, 0.24);
   background-color: #191c20;
   box-shadow: none;
@@ -100,12 +100,14 @@
   transform: none;
 }
 
-:global(.video-settings-prefab__model-button):focus-visible:not(:global(.is-empty)),
-:global(.video-settings-prefab__model-button):global(.is-open):not(:global(.is-empty)),
-:global(.video-settings-prefab__aspect-trigger):focus-visible,
-:global(.video-settings-prefab__aspect-trigger):global(.is-open),
-:global(.video-settings-prefab__select-trigger):focus-visible,
-:global(.video-settings-prefab__select-trigger):global(.is-open) {
+.bootstrapStyleScope
+  :global(.video-settings-prefab__model-button):focus-visible:not(:global(.is-empty)),
+.bootstrapStyleScope
+  :global(.video-settings-prefab__model-button):global(.is-open):not(:global(.is-empty)),
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-trigger):focus-visible,
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-trigger):global(.is-open),
+.bootstrapStyleScope :global(.video-settings-prefab__select-trigger):focus-visible,
+.bootstrapStyleScope :global(.video-settings-prefab__select-trigger):global(.is-open) {
   border-color: rgba(201, 205, 214, 0.24);
   background-color: #0f1114;
   box-shadow: none;
@@ -113,27 +115,28 @@
   transform: none;
 }
 
-:global(.video-settings-prefab__model-button):global(.is-empty),
-:global(.video-settings-prefab__model-button):global(.is-empty):global(.is-open) {
+.bootstrapStyleScope :global(.video-settings-prefab__model-button):global(.is-empty),
+.bootstrapStyleScope
+  :global(.video-settings-prefab__model-button):global(.is-empty):global(.is-open) {
   border-color: rgba(170, 101, 239, 0.9);
 }
 
-:global(.video-settings-prefab__model-value) {
+.bootstrapStyleScope :global(.video-settings-prefab__model-value) {
   min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 10px;
 }
 
-:global(.video-settings-prefab__model-logo) {
+.bootstrapStyleScope :global(.video-settings-prefab__model-logo) {
   width: auto;
   height: 18px;
   display: block;
   object-fit: contain;
 }
 
-:global(.video-settings-prefab__model-name),
-:global(.video-settings-prefab__select-value) {
+.bootstrapStyleScope :global(.video-settings-prefab__model-name),
+.bootstrapStyleScope :global(.video-settings-prefab__select-value) {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -143,14 +146,14 @@
   line-height: 1.2;
 }
 
-:global(.video-settings-prefab__aspect-meta) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-meta) {
   min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-:global(.video-settings-prefab__aspect-ratio) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-ratio) {
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 600;
@@ -158,7 +161,7 @@
   color: #f7fafc;
 }
 
-:global(.video-settings-prefab__aspect-name) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-name) {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -169,7 +172,7 @@
   color: rgba(233, 237, 242, 0.78);
 }
 
-:global(.video-settings-prefab__aspect-shape) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape) {
   display: inline-block;
   flex: 0 0 auto;
   border: 1.8px solid rgba(231, 236, 242, 0.9);
@@ -178,47 +181,47 @@
   height: 14px;
 }
 
-:global(.video-settings-prefab__aspect-shape--horizontal) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape--horizontal) {
   width: 24px;
   height: 14px;
 }
 
-:global(.video-settings-prefab__aspect-shape--vertical) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape--vertical) {
   width: 13px;
   height: 20px;
 }
 
-:global(.video-settings-prefab__aspect-shape--ratio-1-1) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape--ratio-1-1) {
   width: 18px;
   height: 18px;
 }
 
-:global(.video-settings-prefab__aspect-shape--ratio-16-9) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape--ratio-16-9) {
   width: 30px;
   height: 17px;
 }
 
-:global(.video-settings-prefab__aspect-shape--ratio-21-9) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape--ratio-21-9) {
   width: 33px;
   height: 14px;
 }
 
-:global(.video-settings-prefab__aspect-shape--ratio-9-16) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape--ratio-9-16) {
   width: 13px;
   height: 20px;
 }
 
-:global(.video-settings-prefab__aspect-shape--ratio-2-3) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape--ratio-2-3) {
   width: 14px;
   height: 21px;
 }
 
-:global(.video-settings-prefab__aspect-shape--ratio-3-4) {
+.bootstrapStyleScope :global(.video-settings-prefab__aspect-shape--ratio-3-4) {
   width: 15px;
   height: 20px;
 }
 
-:global(.video-settings-prefab__menu) {
+.bootstrapStyleScope :global(.video-settings-prefab__menu) {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
@@ -234,7 +237,7 @@
   z-index: 30;
 }
 
-:global(.video-settings-prefab__menu-option) {
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option) {
   width: 100%;
   min-height: 34px;
   padding: 8px 10px;
@@ -252,7 +255,7 @@
   box-shadow: none;
 }
 
-:global(.video-settings-prefab__menu-option-label) {
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option-label) {
   display: block;
   width: 100%;
   font-size: 12px;
@@ -261,31 +264,31 @@
   text-align: left;
 }
 
-:global(.video-settings-prefab__menu-option):hover,
-:global(.video-settings-prefab__menu-option):focus-visible {
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option):hover,
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option):focus-visible {
   background: rgba(34, 38, 45, 0.96);
   border-color: rgba(96, 101, 111, 0.42);
 }
 
-:global(.video-settings-prefab__menu-option):global(.is-active) {
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option):global(.is-active) {
   background: rgba(170, 101, 239, 0.16);
   border-color: rgba(170, 101, 239, 0.44);
   color: #f2e9ff;
   box-shadow: inset 0 0 0 1px rgba(170, 101, 239, 0.22);
 }
 
-:global(.video-settings-prefab__menu-option--aspect) {
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option--aspect) {
   justify-content: flex-start;
 }
 
-:global(.video-settings-prefab__menu-option-text) {
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option-text) {
   min-width: 0;
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
 }
 
-:global(.video-settings-prefab__menu-option-ratio) {
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option-ratio) {
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 700;
@@ -293,7 +296,7 @@
   color: #f7fafc;
 }
 
-:global(.video-settings-prefab__menu-option-name) {
+.bootstrapStyleScope :global(.video-settings-prefab__menu-option-name) {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -304,16 +307,19 @@
   color: rgba(216, 230, 243, 0.7);
 }
 
-:global(.video-settings-prefab__menu-option--aspect):hover
+.bootstrapStyleScope
+  :global(.video-settings-prefab__menu-option--aspect):hover
   :global(.video-settings-prefab__menu-option-name),
-:global(.video-settings-prefab__menu-option--aspect):focus-visible
+.bootstrapStyleScope
+  :global(.video-settings-prefab__menu-option--aspect):focus-visible
   :global(.video-settings-prefab__menu-option-name),
-:global(.video-settings-prefab__menu-option--aspect):global(.is-active)
+.bootstrapStyleScope
+  :global(.video-settings-prefab__menu-option--aspect):global(.is-active)
   :global(.video-settings-prefab__menu-option-name) {
   color: rgba(242, 233, 255, 0.88);
 }
 
-:global(.video-settings-prefab__toggle-row) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle-row) {
   width: 100%;
   min-height: 40px;
   padding: 0 12px;
@@ -326,25 +332,25 @@
   gap: 10px;
 }
 
-:global(.video-settings-prefab__toggle-copy) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle-copy) {
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
-:global(.video-settings-prefab__toggle-label) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle-label) {
   font-size: 12px;
   line-height: 1;
   color: rgba(233, 237, 242, 0.68);
 }
 
-:global(.video-settings-prefab__toggle-helper) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle-helper) {
   font-size: 11px;
   line-height: 1.2;
   color: rgba(201, 205, 214, 0.52);
 }
 
-:global(.video-settings-prefab__toggle) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle) {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -363,29 +369,29 @@
     box-shadow 0.16s ease;
 }
 
-:global(.video-settings-prefab__toggle):hover:not(:disabled) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle):hover:not(:disabled) {
   border-color: rgba(245, 185, 66, 0.6);
 }
 
-:global(.video-settings-prefab__toggle):global(.is-active) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle):global(.is-active) {
   background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.8));
   border-color: rgba(245, 185, 66, 0.9);
   box-shadow: 0 6px 18px rgba(245, 185, 66, 0.25);
 }
 
-:global(.video-settings-prefab__toggle):disabled {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle):disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-:global(.video-settings-prefab__toggle-track) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle-track) {
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
 }
 
-:global(.video-settings-prefab__toggle-dot) {
+.bootstrapStyleScope :global(.video-settings-prefab__toggle-dot) {
   position: absolute;
   top: 50%;
   left: 3px;
@@ -399,7 +405,8 @@
     background 0.16s ease;
 }
 
-:global(.video-settings-prefab__toggle):global(.is-active)
+.bootstrapStyleScope
+  :global(.video-settings-prefab__toggle):global(.is-active)
   :global(.video-settings-prefab__toggle-dot) {
   transform: translate(22px, -50%);
   background: #1a140c;

@@ -44,9 +44,6 @@ Structure (locked):
       Evidence: `docs/adr/0026-ai-studio-generation-admission-control.md`, `docs/planning/ai-studio-generation-admission-rollout-plan.md`, `docs/sops/sop_provider_incident_response.md`, `docs/sops/sop_generation_recovery_diagnostics.md`, `docs/monitoring.md`, `docs/operator-map.md`
 - [ ] AI Studio project/workspace persistence: tighten restore boundaries and rerun confidence on the persistence workflow, which is still below launch-readiness target.
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
-- [ ] Edit workflow: rerun the edit workflow, which is still below launch-readiness target, and decide whether it can move up or needs one more focused hardening pass.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
-- [ ] AI Studio: run production validation for the current shipped aspect-ratio contract (verify submit payload and returned dimensions for the supported Seedream aspect set plus model-default clamp behavior).
 - [x] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
       Evidence: `docs/sops/sop_model_api_contract_reverification.md`, `docs/api/README.md`, `scripts/check_model_catalog_parity.js`
 - [ ] AI Studio: add dedicated e2e coverage for aspect clamping + submit-time `effective_aspect` consistency beyond the current unit/payload contract matrix.

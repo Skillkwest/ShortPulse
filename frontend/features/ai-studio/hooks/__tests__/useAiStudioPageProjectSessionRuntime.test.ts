@@ -10,10 +10,8 @@ import {
 } from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { parseAiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
-import {
-  createProjectRestoreSnapshot,
-  useAiStudioPageProjectSessionRuntime,
-} from "../useAiStudioPageProjectSessionRuntime";
+import { createProjectRestoreSnapshot } from "../../logic/projectRestoreSnapshot";
+import { useAiStudioPageProjectSessionRuntime } from "../useAiStudioPageProjectSessionRuntime";
 
 const useAiStudioPageSessionPersistenceMock = vi.fn();
 const createNoopDraftSetter = () => vi.fn();

@@ -292,7 +292,10 @@ export function ProjectsModal({
 
   return (
     <AiStudioModalLayer>
-      <div className="model-modal-backdrop ai-projects-modal-backdrop" {...backdropDismiss} />
+      <div
+        className={`model-modal-backdrop ai-projects-modal-backdrop ${styles.bootstrapStyleScope}`}
+        {...backdropDismiss}
+      />
       <div
         className={`model-modal ai-projects-modal ${styles.bootstrapStyleScope}`}
         role="dialog"

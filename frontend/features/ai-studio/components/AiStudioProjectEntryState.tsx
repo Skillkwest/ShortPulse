@@ -3,8 +3,12 @@
  * Renders the full-page loading and error experience shown while project identity and
  * project-backed workspace restore are still settling before the main studio shell mounts.
  */
-import React from "react";
 import styles from "../../../styles/ai-studio-project-entry.module.css";
+import sharedStyles from "../../../styles/project-entry-loading-surface.module.css";
+import {
+  ProjectEntryLoadingSurface,
+  type ProjectEntryLoadingStep,
+} from "../../projects/components/ProjectEntryLoadingSurface";
 
 export type AiStudioProjectEntryPhase =
   | "resolving-project"
@@ -12,11 +16,7 @@ export type AiStudioProjectEntryPhase =
   | "restoring-workspace"
   | "preparing-empty-workspace";
 
-export type AiStudioProjectEntryStep = {
-  id: string;
-  label: string;
-  hint: string;
-};
+export type AiStudioProjectEntryStep = ProjectEntryLoadingStep;
 
 type AiStudioProjectEntryStateProps = {
   variant: "loading" | "error";
@@ -159,77 +159,23 @@ export function AiStudioProjectEntryState({
   const currentStepIndex = activeStepIndex ?? getCurrentStepIndex(phase);
   const liveRole = variant === "error" ? "alert" : "status";
   const liveMode = variant === "error" ? "assertive" : "polite";
-  const shouldRenderLoadingAnimation = variant === "loading";
-  const [isAnimatedMaskReady, setIsAnimatedMaskReady] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!shouldRenderLoadingAnimation) {
-      setIsAnimatedMaskReady(false);
-      return;
-    }
-
-    const bgImage = new Image();
-    bgImage.decoding = "async";
-    bgImage.src = "/loading-entry/mask.png";
-
-    if (bgImage.complete) {
-      setIsAnimatedMaskReady(true);
-      return;
-    }
-
-    const handleLoad = () => setIsAnimatedMaskReady(true);
-    bgImage.addEventListener("load", handleLoad);
-
-    return () => {
-      bgImage.removeEventListener("load", handleLoad);
-    };
-  }, [shouldRenderLoadingAnimation]);
-
-  if (shouldRenderLoadingAnimation) {
+  if (variant === "loading") {
     return (
-      <main
-        className={`page page-wide ai-studio-project-entry-page ai-studio-project-entry-page--animated ${styles.bootstrapStyleScope}`}
-      >
-        <section className="ai-studio-project-entry-visual-shell" aria-hidden="true">
-          <div className="ai-studio-project-entry-visual-stage" data-testid="entry-animation-stage">
-            <div
-              className={`ai-studio-project-entry-pulse-plane${isAnimatedMaskReady ? " is-visible" : ""}`}
-            >
-              <div className="ai-studio-project-entry-pulse-motion">
-                <div className="ai-studio-project-entry-pulse-bloom" />
-                <div className="ai-studio-project-entry-pulse-sweep" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          className="ai-studio-project-entry-visual-fallback-copy"
-          role={liveRole}
-          aria-live={liveMode}
-          aria-atomic="true"
-        >
-          <h1 className="ai-studio-project-entry-title">{resolvedTitle}</h1>
-          <p className="ai-studio-project-entry-message">{resolvedMessage}</p>
-        </section>
-
-        <ol className="sr-only" aria-label={stepsAriaLabel ?? "Project restore progress"}>
-          {resolvedSteps.map((step, index) => {
-            const stepState = getStepState(index, currentStepIndex, variant);
-            return (
-              <li key={step.id} data-step-state={stepState}>
-                <span>{step.label}</span>
-                <span>{step.hint}</span>
-              </li>
-            );
-          })}
-        </ol>
-      </main>
+      <ProjectEntryLoadingSurface
+        title={resolvedTitle}
+        message={resolvedMessage}
+        steps={resolvedSteps}
+        activeStepIndex={currentStepIndex}
+        stepsAriaLabel={stepsAriaLabel}
+      />
     );
   }
 
   return (
-    <main className={`page page-wide ai-studio-project-entry-page ${styles.bootstrapStyleScope}`}>
+    <main
+      className={`page page-wide ai-studio-project-entry-page ${sharedStyles.bootstrapStyleScope} ${styles.bootstrapStyleScope}`}
+    >
       <section className="panel ai-studio-project-entry-card">
         <div className="ai-studio-project-entry-orb" aria-hidden="true" />
         <div
@@ -243,13 +189,6 @@ export function AiStudioProjectEntryState({
         </div>
 
         <div className="ai-studio-project-entry-body">
-          {shouldRenderLoadingAnimation ? (
-            <div className={`ai-studio-project-entry-loader is-${variant}`} aria-hidden="true">
-              <div className="reference-spinner ai-studio-project-entry-spinner" />
-              <div className="ai-studio-project-entry-loader-bar" />
-            </div>
-          ) : null}
-
           <ol
             className="ai-studio-project-entry-steps"
             aria-label={stepsAriaLabel ?? "Project restore progress"}

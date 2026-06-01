@@ -7,6 +7,7 @@ import {
   VideoSettingsCardPrefab,
   type VideoSettingsResolutionOption,
 } from "./VideoSettingsCardPrefab";
+import styles from "../../../styles/ai-studio-video-settings-prefab.module.css";
 import type { AspectOption } from "../types";
 import type { ModelModalContext } from "./ModelModal";
 
@@ -126,7 +127,11 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   );
 
   if (inlineAside) {
-    return <div className="video-settings-inline-aside">{settingsContent}</div>;
+    return (
+      <div className={`video-settings-inline-aside ${styles.bootstrapStyleScope}`}>
+        {settingsContent}
+      </div>
+    );
   }
 
   return (

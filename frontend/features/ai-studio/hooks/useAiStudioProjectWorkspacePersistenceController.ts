@@ -33,6 +33,7 @@ import {
   utf8ByteLength,
   type PreparedAiStudioSessionAutosaveSnapshot,
 } from "../logic/sessionAutosaveSerialization";
+import { createProjectRestoreSnapshot } from "../logic/projectRestoreSnapshot";
 import { recordProjectWorkspaceAutosavePerf } from "../logic/projectWorkspaceAutosavePerf";
 import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
@@ -471,7 +472,11 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const expectedProjectRestoreVisibilitySignature = useMemo(
     () =>
       projectBootstrapSettled
-        ? resolveProjectRestoreVisibilitySignature(sessionRestoreCandidate.snapshot)
+        ? resolveProjectRestoreVisibilitySignature(
+            sessionRestoreCandidate.snapshot
+              ? createProjectRestoreSnapshot(sessionRestoreCandidate.snapshot)
+              : null
+          )
         : null,
     [projectBootstrapSettled, sessionRestoreCandidate.snapshot]
   );

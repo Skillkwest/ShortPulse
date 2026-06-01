@@ -32,6 +32,21 @@ Classify the task as one or more of:
 
 State the target environment when relevant: local development, Vercel Development, Preview/staging, Production, GitHub `staging`, or GitHub `production`.
 
+## 2.5 Rank Before Edits
+
+Before changing code, prove the lane is worth doing now.
+
+Answer, briefly:
+
+- What concrete security issue exists?
+- Which trust boundary does it cross?
+- Why does it matter for launch readiness before July 7, 2026?
+- Why is this better ROI than stopping or backlogging it?
+
+If the answers are weak, do not edit by momentum.
+
+Use `docs/records/artifacts/agent/dave-the-security-guy/templates/launch-readiness-security-triage-template.md` when a finding needs a quick fix-now versus defer decision.
+
 ## 3. Load Targeted Context
 
 Always prefer local repo sources first.
@@ -87,6 +102,7 @@ For implementation work:
 2. Keep canonical docs aligned when the security contract changes.
 3. Avoid unrelated refactors.
 4. Do not weaken existing controls to satisfy convenience or test-only paths.
+5. Do not make UI, UX, or product-behavior changes unless they are the narrowest necessary way to close the verified security boundary.
 
 ## 6. Validate
 
@@ -111,6 +127,8 @@ Use:
 - `docs/records/artifacts/agent/dave-the-security-guy/training-history.md` for supervised-run learning.
 - `docs/records/artifacts/agent/dave-the-security-guy/reports/` for sanitized reports.
 - `docs/records/artifacts/agent/dave-the-security-guy/templates/` for reusable review/report templates.
+
+When a finding is real but not top-ROI for launch, record it in the backlog or a retained artifact instead of turning it into immediate code churn.
 
 Do not retain raw secrets, raw customer data, unredacted logs, or temporary environment values.
 

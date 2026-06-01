@@ -17,7 +17,21 @@ ShortPulse is a pre-launch production-readiness app that already touches:
 
 That means security work is justified when it closes a real trust-boundary flaw or meaningfully reduces user/account/business risk before launch.
 
+For the current push, "before launch" means work that materially improves launch readiness for the user-directed July 7, 2026 target without creating churn that slows the release down.
+
 Security work is **not** justified just because it sounds generally prudent.
+
+## Launch-Readiness Bar
+
+The default launch bar is strict:
+
+- one user must not be able to access another user's account;
+- one user must not be able to read, sign, restore, mutate, or reuse another user's rows, storage paths, media, or trusted preview URLs;
+- one user must not be able to spend, receive, or redirect another user's credits or billing state;
+- privileged helpers must not let contaminated local state outrun live ownership proof;
+- prompt or provider input must not become authority over account, storage, billing, or admin boundaries.
+
+If a lane does not help defend one of those outcomes, it needs a stronger-than-normal ROI case before I touch it.
 
 ## What Counts As High ROI
 
@@ -29,6 +43,7 @@ Prioritize a security change when most of these are true:
    - actual unsafe code path, exposure path, missing control on a sensitive route, or strong evidence-backed weakness
 3. The blast radius is meaningful.
    - cross-user access, account takeover leverage, billing abuse, credential/session exposure, or expensive abuse path
+   - prompt-injection or external-input leverage counts here only when it can cross a real authority boundary
 4. The fix is local and repo-sympathetic.
    - small or medium scoped, uses existing patterns, does not require a new subsystem
 5. The fix improves the default path.
@@ -44,18 +59,18 @@ These are the lanes that fit ShortPulse well right now.
 
 ### Keep doing
 
-- concrete user/account/storage boundary fixes
-- route-level abuse throttling on sensitive or costly authenticated mutation routes
-- step-up or reauth protection for sensitive account pivots
-- removal of raw internal/provider error reflection on user-facing APIs
-- promotion of already-existing secure patterns into the weaker neighboring surfaces
+- concrete user/account/row/storage/media/credit isolation fixes
+- live ownership proof on billing, credits, provider requests, and other privileged mutations
+- service-role and signing boundary hardening where row state or cached URLs can cross tenant scope
+- prompt-injection and trusted-input hardening when outside input can influence authority or privileged fetch paths
+- promotion of already-existing secure ownership patterns into weaker neighboring surfaces
 - focused regression coverage around the exact failure class we fixed
 
 ### Why these fit
 
 - They reduce real pre-launch risk.
 - They match how the app will actually be used.
-- They protect production auth, billing, and private media surfaces.
+- They protect production auth, billing, private media, and user-isolation surfaces.
 - They are small enough to validate confidently.
 
 ## What We Do Not Need Next
@@ -119,23 +134,29 @@ I must pause and re-rank when any of these happen:
 Use this order unless fresh evidence changes it.
 
 1. User/account/storage boundary flaws
-2. Sensitive account mutation protection
-3. Abuse throttling on authenticated mutation routes
-4. User-facing raw error exposure on sensitive surfaces
-5. Launch auth policy decisions
-6. Browser blast-radius hardening such as CSP tightening
+2. Cross-user row/media/storage/signing leakage
+3. Credit, billing, and provider-request ownership integrity
+4. Sensitive account mutation protection
+5. Prompt-injection or external-input paths that can cross a real authority boundary
+6. Abuse throttling on authenticated mutation routes
+7. User-facing raw error exposure on sensitive surfaces
+8. Launch auth policy decisions
+9. Browser blast-radius hardening such as CSP tightening
 
 ## Current "Do / Hold / Avoid" Table
 
 ### Do now
 
-- finish the highest-risk authenticated route throttling pass
-- continue safe error-contract cleanup on sensitive user-facing routes
+- keep auditing direct user-isolation boundaries first
 - keep fixes scoped to routes and helpers already proven risky
+- prefer authority-path fixes over downstream symptom cleanup
+- backlog real but lower-ROI findings instead of widening the lane
 - add tests when the fix changes a trust boundary
 
 ### Hold for later
 
+- authenticated-route throttling after the primary account/media/credit isolation lanes are under control
+- broad error-contract cleanup after the primary account/media/credit isolation lanes are under control
 - CSP tightening after the concrete auth/storage/billing gaps are closed
 - deeper admin-boundary redesign after the primary user-security lanes settle
 - broad telemetry expansion unless it directly supports a risky fix
@@ -182,26 +203,35 @@ Signs I am slipping:
 - I mix finished changes with merely identified issues.
 - I keep editing after the highest-ROI fix in the lane is already done.
 - I justify the next step mainly with adjacency or convenience.
+- I start hardening low-level behavior that does not materially improve launch readiness.
+- I accept product-behavior churn when the same security improvement could be made at an authority boundary.
 
-## Current Decision
+## Default Next-Lane Bias
 
-Based on the work already completed, I should:
+When fresh repo evidence does not clearly point somewhere else, I should bias toward:
 
-- continue with **targeted authenticated-route throttling**
-- continue with **safe error-contract cleanup on sensitive user-facing APIs**
-- avoid widening into broad platform-style hardening yet
+- direct cross-user isolation fixes first
+- credit, billing, provider-request, and admin ownership proof where local state can drift
+- authority-boundary fixes over downstream symptom cleanup
 
-The next recommended targets are:
+I should stay skeptical of:
 
-- subscription/storage mutation routes
-- remaining high-value billing/account mutation routes
-- project/media mutation routes with meaningful abuse cost or user-impact risk
-
-The next recommended non-targets are:
-
-- repo-wide CSP crusade
+- repo-wide hardening campaigns
 - generalized security framework work
 - low-risk cosmetic cleanup presented as security work
+- UI, UX, or product-behavior edits that do not close a verified security boundary
+- stale route or file target lists carried forward from earlier runs without fresh proof
+
+## What To Retire From Active Runtime Memory
+
+Do not carry these as active working assumptions unless the current repo state re-proves them:
+
+- old "next target" lists from earlier security passes
+- route-specific hunches that were never confirmed
+- one-off workaround ideas that never became the canonical fix
+- neighboring-lane soft spots found during a different audit
+
+Those can live in backlog, retained artifacts, or reports, but they should not quietly become startup context.
 
 ## Maintenance Rule
 

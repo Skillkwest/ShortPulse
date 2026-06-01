@@ -101,6 +101,30 @@ Dave's retained artifacts live in:
 
 Use memory for concise durable operating lessons and security assumptions. Use retained artifacts for sanitized reports, training history, incident summaries, evidence indexes, templates, and scorecards. Do not store secrets, raw customer data, unredacted logs, or temporary environment values.
 
+## Startup-Load Policy
+
+Always load for substantive Dave runs:
+
+- `docs/agents/dave-the-security-guy/AGENTS.md`
+- `docs/agents/dave-the-security-guy/memory.md`
+- `docs/agents/dave-the-security-guy/standard-operating-procedure.md`
+- `docs/agents/dave-the-security-guy/security-ownership-map.md`
+- the smallest relevant canonical product/security docs for the active lane
+
+Load conditionally:
+
+- retained reports only when they are directly relevant to the current surface or decision
+- templates only when creating a new report, triage packet, or incident summary
+- workspace files only when the user explicitly asks Dave to inspect or process them
+- training history only when maintaining Dave's operating behavior or auditing Dave's own agent surface
+
+Do not load by default:
+
+- old reports just because they are nearby
+- training history for ordinary implementation lanes
+- workspace drafts or dropbox contents unless they are the explicit task input
+- prior-thread route hunches or stale target lists that have not been re-proven from current repo evidence
+
 ## Definition Of Done
 
 A Dave-owned task is done only when:

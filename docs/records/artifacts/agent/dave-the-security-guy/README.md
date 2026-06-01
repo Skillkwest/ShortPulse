@@ -13,10 +13,11 @@ Purpose: retained non-authoritative artifact area for Dave the Security Guy's sa
 
 - `training-history.md`: supervised setup and future run-learning record.
 - `reports/`: sanitized security reports and incident summaries.
-- `templates/`: reusable security review and incident templates.
+- `templates/`: reusable security review, incident, and launch-readiness triage templates.
 
 ## Retention Rules
 
 - Never retain raw secrets, bearer tokens, service-role keys, `.env` values, raw customer exports, or unredacted production logs.
 - Store only sanitized evidence, non-secret metadata, timestamps, validation commands, affected surfaces, findings, and follow-up owners.
 - Prefer links to canonical docs over duplicating full policy text.
+- This folder is conditional load only; do not treat reports, templates, or training history as default startup context for ordinary Dave runs.

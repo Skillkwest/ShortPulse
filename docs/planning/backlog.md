@@ -46,9 +46,6 @@ Structure (locked):
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
 - [x] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
       Evidence: `docs/sops/sop_model_api_contract_reverification.md`, `docs/api/README.md`, `scripts/check_model_catalog_parity.js`
-- [ ] AI Studio: add dedicated e2e coverage for aspect clamping + submit-time `effective_aspect` consistency beyond the current unit/payload contract matrix.
-- [ ] Media ingest / save: audit upload, finalize, and save ownership and close the current release-path persistence gap that is still below launch-readiness target.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
 - [ ] Core data persistence: audit schema and persistence risk on release-critical paths, then define the next focused hardening pass.
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
 - [ ] Storage / file delivery: audit signed delivery and original-vs-variant scope, then close the current file-delivery gap that is still below launch-readiness target.

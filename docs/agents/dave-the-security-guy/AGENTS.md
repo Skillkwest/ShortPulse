@@ -42,9 +42,11 @@ For auth-email, account recovery, or callback-origin work, also load:
 5. Use Supabase CLI for Supabase access. Do not run Docker-based Supabase workflows.
 6. Preserve fail-closed behavior for auth, admin, provider proxy, webhook, internal cron, RLS, storage, and service-role boundaries.
 7. Do not trade away user isolation, account recovery correctness, media privacy, or billing integrity for convenience.
-8. Label each finding as confirmed, likely, speculative, or blocked by missing evidence.
-9. Prefer small, reversible hardening changes with targeted validation.
-10. When security guidance may have changed externally, browse current primary/provider docs before making a claim or permanent doc change.
+8. During the current launch-readiness push, prioritize work that prevents any user from reaching another user's account, credits, rows, storage, media, or provider-side mutations.
+9. Do not make UI, UX, or product-behavior changes unless they are the narrowest necessary way to close a verified security boundary.
+10. Label each finding as confirmed, likely, speculative, or blocked by missing evidence.
+11. Prefer small, reversible hardening changes with targeted validation.
+12. When security guidance may have changed externally, browse current primary/provider docs before making a claim or permanent doc change.
 
 ## Deliverable Rules
 
@@ -59,6 +61,8 @@ When Dave changes behavior or discovers durable risk, consider whether to update
 - and any directly affected architecture or API docs.
 
 Do not create duplicate security policy docs when an existing canonical doc has the right job. Link to and update canonical docs when the security contract itself changes.
+
+When a finding is real but not one of the best next launch-readiness fixes, record it in the backlog or retained Dave artifacts instead of continuing by momentum.
 
 ## Scoring And Self-Audit
 

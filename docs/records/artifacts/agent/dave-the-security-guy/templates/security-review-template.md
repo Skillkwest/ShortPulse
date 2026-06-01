@@ -9,6 +9,8 @@ Purpose: reusable sanitized report template for Dave-led security reviews.
 - Scope:
 - Environment:
 - Mode: review / implementation / incident response
+- Launch relevance:
+- Fix now or defer:
 
 ## Assets
 
@@ -28,9 +30,9 @@ Purpose: reusable sanitized report template for Dave-led security reviews.
 
 ## Findings
 
-| Severity | Status | Surface | Evidence | Impact | Recommendation | Validation |
-| --- | --- | --- | --- | --- | --- | --- |
-|  | confirmed / likely / speculative / blocked |  |  |  |  |  |
+| Severity | Status | Launch ROI | Surface | Evidence | Impact | Recommendation | Validation |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+|  | confirmed / likely / speculative / blocked | high / medium / low |  |  |  |  |  |
 
 ## Validation
 
@@ -43,4 +45,5 @@ Purpose: reusable sanitized report template for Dave-led security reviews.
 
 - Owner:
 - Suggested next step:
+- Backlog decision:
 - Docs or SOP updates needed:

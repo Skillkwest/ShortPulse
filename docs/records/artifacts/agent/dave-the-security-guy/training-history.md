@@ -92,3 +92,63 @@ Remaining friction:
 Next training focus:
 
 - Reuse this review pattern for future derivative/variant proposals so new media helper lanes do not quietly create raw path, signed URL, or service-role trust leaks.
+
+## 2026-06-01 - Launch-Readiness ROI Calibration
+
+Prompt used:
+
+```text
+Go ahead and create or update anything you see fit to continue to perform better. You need to be making high ROI changes without making a mess. I don't want any UI, UX, or behavior changes. You should be focusing on security issues in this repo with a focus on launching this product by July 7th. Everything you do must be focused on that launch date, making changes that get this repo launch ready.
+```
+
+Behavior learned:
+
+- Dave should rank launch work by the strictest user-isolation outcomes first: no cross-user account, row, storage, media, or credit leakage.
+- Real-but-lower-ROI security findings should go to backlog or retained artifacts instead of turning into immediate code churn.
+- UI, UX, and product-behavior edits are not acceptable security defaults; the preferred fix point is the authority boundary.
+- The current user-directed launch target is July 7, 2026, so Dave should optimize for concrete release blockers rather than broad hardening.
+
+Changes made:
+
+- Tightened Dave's standing instructions and decision framework to prioritize cross-account isolation, ownership proof, and launch-readiness ROI.
+- Added explicit guidance to backlog lower-ROI findings and avoid UI or behavior changes unless a verified security boundary requires them.
+- Added a reusable launch-readiness security triage template and wired it into Dave's SOP so future lanes get a stronger fix-now versus defer gate before edits.
+
+Remaining friction:
+
+- Dave still needs to keep proving this discipline in live lanes; durable guidance helps, but good re-ranking is still a per-run skill.
+- There are still partially explored security candidates in the repo that need evidence before they earn implementation time.
+
+Next training focus:
+
+- Keep re-ranking new security lanes against launch readiness, especially whether they prevent one user from reaching another user's account, credits, rows, media, or storage.
+
+## 2026-06-01 - Dave Operating-Space Audit And Prune
+
+Prompt used:
+
+```text
+/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/gottspan-the-admin/prompts/audit-and-prune-agent-prompt.md -- Run this prompt for yourself, read it, and run this for yourself in your repo.
+```
+
+Behavior learned:
+
+- The most dangerous drag in Dave's durable surface is stale specificity, especially route-level "current target" lists that can anchor future audits after the repo has changed.
+- Dave performs better when startup-load policy is explicit: contract, memory, SOP, and ownership map by default; reports, templates, training history, and workspace only when relevant.
+- Retained artifacts are useful, but they should stay conditional surfaces rather than quietly becoming default runtime context.
+
+Changes made:
+
+- Added an explicit startup-load policy to Dave's README.
+- Tightened Dave's memory so stale route targets and unproven seams are not carried forward as active memory.
+- Pruned the decision framework by replacing drift-prone "current decision / next targets" guidance with a stable default next-lane bias and a retire-from-runtime-memory section.
+- Marked Dave's retained artifacts area as conditional-load only.
+
+Remaining friction:
+
+- Dave still has a few older retained reports whose content is fine but whose specifics should only be loaded when directly relevant.
+- Good runtime discipline still depends on re-proving current repo evidence instead of leaning on memory summaries.
+
+Next training focus:
+
+- Keep future Dave runs honest about what is startup context versus conditional reference material, and prefer fresh repo proof over historical target lists.

@@ -27,7 +27,8 @@ Structure (locked):
 
 ## Program 0: Execution Authority
 
-- [ ] Classify legacy planning docs into `active`, `retained evidence`, `working history`, and `archive candidate` buckets, then move the clear archive candidates out of the active planning path in bounded batches.
+- [x] Classify legacy planning docs into `active`, `retained evidence`, `working history`, and `archive candidate` buckets, then move the clear archive candidates out of the active planning path in bounded batches.
+      Evidence: `docs/planning/README.md`, `docs/planning/execution-authority.md`, `docs/archive/planning/README.md`
 - [x] Define a retained validation matrix by program so closeout checks stop being chosen ad hoc from the full script corpus.
       Evidence: `docs/planning/validation-matrix-by-program-2026-05-11.md`, `docs/planning/execution-authority.md`, `docs/planning/README.md`, `docs/testing-guide.md`
 

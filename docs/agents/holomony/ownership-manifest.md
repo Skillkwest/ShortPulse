@@ -12,6 +12,7 @@ These are Holomony's canonical local identity, instruction, memory, and retained
 - `docs/agents/holomony/memory.md`
 - `docs/agents/holomony/media-display-command-index.md`
 - `docs/agents/holomony/media-display-authority-ledger.md`
+- `docs/agents/holomony/media-display-authority-plan.md`
 - `docs/agents/holomony/Kirk.md`
 - `docs/agents/holomony/Kirk.html`
 - `docs/agents/holomony/ownership-manifest.md`

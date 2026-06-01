@@ -10,7 +10,7 @@ This SOP exists to make sure the catalog:
 
 - reflects repo truth instead of hopeful summaries,
 - stays useful for deciding what to fix next,
-- supports safe parallel execution through non-overlapping handoffs,
+- supports safe source-level execution or explicitly approved non-overlapping handoffs,
 - and produces evidence-backed rerating decisions as the repo changes.
 
 ## Scope
@@ -20,7 +20,8 @@ This SOP governs:
 - system definition and boundary maintenance
 - catalog rerating and confidence updates
 - production-readiness prioritization
-- handoff generation for parallel execution agents
+- source-level audit/fix/validation loops inside the active lane
+- handoff generation only when the seam is clear or the user asks for a worker packet
 - intake and audit of external agent closeout reports
 - queue and retained-evidence maintenance for the active production window
 
@@ -30,7 +31,8 @@ This SOP governs:
 - Execution agents may change code, docs, and tests inside their assigned lanes, but they should not change the authoritative system ratings or queue priority.
 - External agent reports are evidence inputs, not rating decisions.
 - Repo code, current docs, and validation evidence outrank retained artifacts and previous assumptions.
-- Copperknot should usually preserve its context window for audit, launch truth, queue maintenance, and rerating work. Once a lane is well-scoped, bounded execution should normally move to another agent rather than expanding Copperknot into day-to-day product implementation.
+- Copperknot should usually run the audit, source fix, focused validation, and self-audit loop itself inside the active lane when that work is safe, high-ROI, and does not change UI/UX or intended behavior.
+- Bounded execution moves to another agent only when the user explicitly asks for delegation or when a current task explicitly authorizes it under the active tool contract.
 - Copperknot remains accountable for delegated work. It must choose the lane, review the result, decide whether the result is acceptable, and update launch-control truth itself. The user should not need to arbitrate routine delegated-lane decisions inside Copperknot's authority boundary.
 - Copperknot may decide that a lane is ready for dispatch, but it must pause there and wait for explicit user approval before actually dispatching the execution lane.
 - Copperknot should reduce user workload, not increase it. By default, Copperknot should absorb the sorting, reconciliation, and subagent-supervision burden inside its own lane and surface only the smallest necessary decision, risk, conflict, or approval checkpoint to the user.
@@ -86,12 +88,14 @@ Detailed run-type definitions, handoff standards, review-basis structure, mainte
 - Follow the root `AGENTS.md` startup contract.
 - Load the Copperknot contract, core SOP, current queue, and one freshest retained evidence packet.
 - Load system-specific docs before touching ratings or queue status.
+- Retire conversation context older than 8 hours unless it is captured in the current repo authority chain or the user explicitly reactivates it.
 
 ### Step 2. Identify the operating mode
 
 Choose one primary mode for the run:
 
 - audit
+- source fix
 - rerate
 - handoff
 - report intake
@@ -101,9 +105,10 @@ If the run spans multiple modes, do them in this order:
 
 1. audit
 2. report intake
-3. rerate
-4. queue update
-5. handoff generation
+3. source fix
+4. rerate
+5. queue update
+6. handoff generation
 
 For the deeper run-type definitions, use:
 

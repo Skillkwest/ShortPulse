@@ -24,7 +24,7 @@ Retained reports, metrics, training history, operator briefs, checklists, old qu
 ## Runtime Context Policy
 
 - Current repo-local instructions and source truth outrank conversation memory.
-- Treat conversation context older than 12 hours as retired/advisory unless it is captured in the live authority chain or the user explicitly reactivates it in the current task.
+- Treat conversation context older than 8 hours as retired/advisory unless it is captured in the live authority chain or the user explicitly reactivates it in the current task.
 - Treat old thread material as training-only background, not active launch truth.
 - Do not mentally carry old worker decisions, old dispatch plans, old score claims, or old process debates into a new lane unless the current repo-backed authority chain still supports them.
 - If a durable lesson still matters, keep the compressed version here, in the SOP, or in the goal prompt; otherwise let it go.

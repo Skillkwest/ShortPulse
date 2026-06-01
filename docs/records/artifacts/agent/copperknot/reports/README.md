@@ -6,6 +6,7 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 
 - `2026-05-31-project-workspace-production-verification-pass.md`: current freshest retained packet proving `Project / workspace persistence` reached ship floor after the production persistence audit passed on `https://www.shortpulse.ai`.
 - `2026-06-01-characters-workflow-measurement-refresh.md`: current retained packet proving the Character Mode model-picker audit, local Character guards, and production Character Manager save/reopen continuity are healthy enough to move `Characters workflow` to `6/10`, with a residual delete-confirmation pointer-layering finding held below the next exact lane.
+- `2026-06-01-elements-workflow-measurement-refresh.md`: current retained packet proving the approved-panel KPI measurement correction and production remeasurement moved `Elements workflow` to `6/10`, with evidence-depth limits keeping it at floor.
 
 ## Current Secondary Overlays
 
@@ -23,6 +24,7 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 - `2026-05-31-project-workspace-persistence-closeout-review.md`: retained closeout review explaining why the local root fix was accepted before production proof.
 - `2026-05-31-project-workspace-production-verification-packet.md`: proof packet used to verify the accepted persistence root fix on live production.
 - `2026-05-31-approved-panel-post-deploy-verification.md`: retained production packet explaining why `Elements workflow` moved out of the exact-next slot before the persistence lane resumed control.
+- `2026-06-01-elements-workflow-measurement-refresh.md`: retained production packet explaining why `Elements workflow` moved from below floor to at-floor maintenance and why `Create workflow` became exact next.
 
 ## Current Intake Surfaces
 

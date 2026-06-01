@@ -100,6 +100,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/holomony/ownership-manifest.md`
 - `docs/agents/holomony/media-display-command-index.md`
 - `docs/agents/holomony/media-display-authority-ledger.md`
+- `docs/agents/holomony/media-display-authority-plan.md`
 - `docs/agents/holomony/right-rail-command-index.md`
 - `docs/agents/holomony/reference-grid-ownership-map.md`
 - `docs/agents/holomony/reference-grid-diagnostic-sop.md`

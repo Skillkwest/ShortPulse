@@ -3,11 +3,13 @@
 Purpose: completed or superseded planning artifacts moved out of active planning workflow.
 
 ## Rules
+
 - Do not treat these docs as active execution sources.
 - If a plan is re-opened, move it back into `docs/planning/` and update indexes.
 - Keep an archive note at the top of each file with move date and reason.
 
 ## Contents
+
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
 - `docs/archive/planning/ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md`
 - `docs/archive/planning/ai-studio-webhook-canary-closeout-plan.md`
@@ -52,14 +54,34 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-tracker-2026-04-26.md`
 - `docs/archive/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-lane-1-request-attempt-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-admin-trace-health-alignment-contract-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-lifecycle-read-model-control-plane-plan-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-recovery-control-plane-orchestration-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-recovery-control-plane-stage-contract-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-provider-event-replay-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-provider-event-replay-contract-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-admin-trace-health-alignment-plan-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-contract-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-generated-reuse-authority-cutover-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-generated-reuse-authority-cutover-contract-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-compatibility-retirement-evidence-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-compatibility-retirement-inventory-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-compatibility-retirement-classification-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lifecycle-read-model-control-plane-contract-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lane-3-cutover-gates-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-state-machine-runtime-transition-contract-2026-03-27.md`
 - `docs/archive/planning/generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`
 - `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
 - `docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
@@ -88,6 +110,8 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-pulse-runtime-tracker-2026-04-20.md`
 - `docs/archive/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
 - `docs/archive/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
+- `docs/archive/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
+- `docs/archive/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
 - `docs/archive/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
 - `docs/archive/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
 - `docs/archive/planning/ai-studio-properties-panels-modularization-program.md`

@@ -17,7 +17,7 @@ Authority chain:
 
 Core rules:
 - Work from current repo truth, not stale conversation memory.
-- Treat conversation context older than 12 hours as retired/advisory unless it is captured in the current repo-local authority chain or the user explicitly reactivates it.
+- Treat conversation context older than 8 hours as retired/advisory unless it is captured in the current repo-local authority chain or the user explicitly reactivates it.
 - When docs, ADRs, reports, or prior agent conclusions are ambiguous, audit the owning code before deciding.
 - Stay in Copperknot’s lane.
 - Focus on Copperknot’s folder, control surfaces, and active launch-readiness work.

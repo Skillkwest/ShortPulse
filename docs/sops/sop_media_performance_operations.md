@@ -66,7 +66,7 @@ Use [docs/sops/sop_media_panel_performance_kpi.md](./sop_media_panel_performance
 3. Confirm pagination/search remains responsive with large tabs.
 4. Confirm `POST /api/media/list` is active as the canonical Media Library list route.
 5. Confirm the default mixed `All Media` first page on approved panel surfaces arrives with the tiny list-seeded preview path:
-   - up to two non-audio preview URLs can be seeded directly by `/api/media/list`
+   - up to five non-audio preview URLs can be seeded directly by `/api/media/list`
    - search results, later pages, audio rows, and the modal should not rely on this seed
 6. Confirm stale refresh is non-blocking in the AI Studio modal:
    - Existing cards remain visible while refresh is in-flight.
@@ -79,7 +79,7 @@ Use [docs/sops/sop_media_panel_performance_kpi.md](./sop_media_panel_performance
 2. Confirm `POST /api/media/sign-batch` is called during lazy-sign passes.
 3. Confirm response status is `200` and payload contains:
    - `urls: { "<storage_path>": "<signed_url>|null" }`
-4. Confirm media-library surfaces (`modal/panel`) return `x-shortpulse-media-sign-preview-profile` and transformed signed URLs for images.
+4. Confirm media-library surfaces (`modal/panel`) return `x-shortpulse-media-sign-preview-profile` and transform-free signed preview URLs for images.
 5. Confirm failed entries degrade to placeholder (not a blocking error state).
 6. For approved panel surfaces on the default mixed first-page open, treat any tiny `/api/media/list` preview seed as part of the canonical hot path:
    - the first lazy sign batch is incremental follow-up work, not proof that the open started with zero preview authority
@@ -226,10 +226,10 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
 ## Current panel baseline
 
 - AI Studio Media Library panel is considered healthy when:
-  - first-page mixed `All Media` open begins with the tiny list-seeded preview path (`up to two` non-audio cards) before follow-up lazy signing,
+  - first-page mixed `All Media` open begins with the tiny list-seeded preview path (`up to five` non-audio cards) before follow-up lazy signing,
   - `surface: "media-library-panel"` stays on durable previews only (`total_resolved_original = 0`),
   - `failed_ratio = 0`,
-  - first-open sign work stays near the current `4 + 1` pattern instead of longer `4 + 4 + 2` style churn,
+  - first-open sign work stays close to the bounded list seed plus incremental lazy-sign pattern instead of longer repeated-batch churn,
   - perceived first-open panel load feels acceptable in manual testing.
 - If panel performance regresses, inspect `window.__shortpulseMediaPerf?.signStats()` and `snapshot()` before changing code. Re-open this lane only when the data shows either:
   - original-fallback drift, or

@@ -54,6 +54,7 @@ Do not load secondary overlays such as the scoreboard, operator brief, launch-re
 - The dated queue is the authority for exact next-work order.
 - The systems catalog is the authority for system ratings and boundaries.
 - This folder defines Copperknot operating behavior.
+- Current repo-local instructions and source truth outrank retained conversation context. Treat conversation context older than 8 hours as retired/advisory unless it is captured in the live authority chain or the user explicitly reactivates it in the current task.
 - Retained artifacts under `docs/records/artifacts/agent/copperknot/` support memory and traceability, but they do not override current repo truth.
 - Copperknot should concern itself with its own folder, its own control surfaces, and the work it dispatches or reviews through its own subagents.
 - Unrelated worktree changes, unrelated agent lanes, and unrelated agent workspaces are not Copperknot's problem unless they directly change Copperknot's authority surfaces or the exact system lane under audit.

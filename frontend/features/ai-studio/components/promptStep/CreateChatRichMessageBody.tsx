@@ -59,8 +59,6 @@ const ORDERED_ITEM_PATTERN = /^\s*\d+[.)]\s+/;
 const BULLET_ITEM_PATTERN = /^\s*[-*•]\s+/;
 const HINT_LINE_PATTERN =
   /^(?:Reply with|Type your own|or type your own|Type one|Choose one|Pick one|You can also|If none fit|If you want)/i;
-const STANDARD_HINT_LINE_PATTERN =
-  /^(?:Tip|Note|Keep in mind|If you want|If helpful|You can also|One caution|One note)\s*:?\s*/i;
 const SEPARATOR_PATTERN = /^(?:-{3,}|\*{3,}|_{3,})$/;
 
 const normalizeText = (value: string): string =>
@@ -129,12 +127,6 @@ const isHintParagraph = (value: string): boolean => {
   const normalized = normalizeText(value);
   if (!normalized.length || normalized.length > 180) return false;
   return HINT_LINE_PATTERN.test(normalized);
-};
-
-const isStandardHintParagraph = (value: string): boolean => {
-  const normalized = normalizeText(value);
-  if (!normalized.length || normalized.length > 220) return false;
-  return STANDARD_HINT_LINE_PATTERN.test(normalized);
 };
 
 const isSeparator = (value: string): boolean => SEPARATOR_PATTERN.test(value.trim());
@@ -288,7 +280,6 @@ const parseStandardRichBlocks = (value: string): CreateChatRichMessageBlock[] =>
     if (!lines.length) continue;
 
     if (lines.length === 1 && isSeparator(lines[0] ?? "")) {
-      parsedBlocks.push({ kind: "separator" });
       continue;
     }
 
@@ -318,14 +309,10 @@ const parseStandardRichBlocks = (value: string): CreateChatRichMessageBlock[] =>
       continue;
     }
 
-    if (
-      lines.length > 1 &&
-      !QUESTION_LINE_PATTERN.test(firstLine) &&
-      (firstLine.endsWith(":") || TITLE_CASE_LINE_PATTERN.test(firstLine))
-    ) {
+    if (lines.length > 1 && !QUESTION_LINE_PATTERN.test(firstLine) && firstLine.endsWith(":")) {
       parsedBlocks.push({
         kind: "heading",
-        level: firstLine.endsWith(":") ? 3 : 2,
+        level: 3,
         text: firstLine.replace(/:\s*$/, ""),
       });
       const trailingLines = lines.slice(1);
@@ -338,28 +325,7 @@ const parseStandardRichBlocks = (value: string): CreateChatRichMessageBlock[] =>
       continue;
     }
 
-    if (
-      lines.length === 1 &&
-      !QUESTION_LINE_PATTERN.test(firstLine) &&
-      isStandaloneHeading(firstLine)
-    ) {
-      parsedBlocks.push({
-        kind: "heading",
-        level: firstLine.endsWith(":") ? 3 : 2,
-        text: firstLine.replace(/:\s*$/, ""),
-      });
-      continue;
-    }
-
     const normalizedBlock = lines.join("\n");
-    if (isStandardHintParagraph(normalizedBlock)) {
-      parsedBlocks.push({
-        kind: "hint",
-        text: normalizedBlock,
-      });
-      continue;
-    }
-
     parsedBlocks.push({
       kind: "paragraph",
       text: normalizedBlock,

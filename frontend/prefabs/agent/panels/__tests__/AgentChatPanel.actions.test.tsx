@@ -341,7 +341,7 @@ describe("AgentChatPanel prompt actions", () => {
     expect(container.querySelectorAll(".agent-message-rich-list li")).toHaveLength(4);
   });
 
-  it("gives standard assistant replies richer headings, hints, and dividers without upgrading user formatting", () => {
+  it("keeps standard assistant formatting restrained without upgrading user formatting", () => {
     const { container } = render(
       <StandardCreateChatPanel
         messages={[
@@ -370,11 +370,10 @@ describe("AgentChatPanel prompt actions", () => {
       screen.getByText("Keep the opening visual simple and emotionally clear.")
     ).toBeInTheDocument();
     expect(
-      container.querySelector(".agent-assistant .agent-message-rich-separator")
-    ).not.toBeNull();
-    expect(container.querySelector(".agent-assistant .agent-message-rich-hint")).toHaveTextContent(
-      "If you want, I can turn this into a generation-ready prompt next."
-    );
+      screen.getByText("If you want, I can turn this into a generation-ready prompt next.")
+    ).toBeInTheDocument();
+    expect(container.querySelector(".agent-assistant .agent-message-rich-separator")).toBeNull();
+    expect(container.querySelector(".agent-assistant .agent-message-rich-hint")).toBeNull();
     expect(container.querySelector(".agent-user .agent-message-rich-hint")).toBeNull();
     expect(container.querySelector(".agent-user .agent-message-rich-separator")).toBeNull();
     expect(

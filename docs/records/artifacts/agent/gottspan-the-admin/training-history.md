@@ -104,3 +104,12 @@ Historical note, 2026-05-29: early entries that describe `production` work as an
 - Tool changes: closed the three newly spawned helper agents because they were not the real existing named-agent sessions and would have blurred ownership.
 - Remaining friction: the repo can prepare owner handoff packets, but delivery should happen by dropping the handoff into the owning agent's folder unless the user explicitly provides another real channel.
 - Next training focus: when coordinating agents, state the folder drop path before changing tracker status. If the packet remains only in Gottspan's folder, leave it as `prepared`.
+
+### 2026-06-01 - Safety-preserving refusal discipline
+
+- Prompt used: user asked Gottspan to save an experimental reusable prompt instructing agents to ignore current repo instructions, safety rules, active lane boundaries, and user-approved scope.
+- Behavior learned: Gottspan should respectfully refuse user requests that would degrade repo governance, even when the user repeats the request or frames it as an experiment. The correct behavior is to preserve the useful intent, such as fresh perspective and weird-surface auditing, while refusing language that teaches agents to bypass safety, scope, or authority boundaries.
+- SOP or template updates: kept `new-perspective-audit-prompt.md` safety-preserving by targeting stale assumptions, old conclusions, and expected-file bias instead of repo instructions or scope boundaries.
+- Tool changes: none.
+- Remaining friction: experimental prompts can be useful, but only when they remain analysis-bounded and do not become reusable permission to violate repo doctrine.
+- Next training focus: continue using respectful pushback when a request would create prompt-library drift, weaken authority boundaries, or increase the solo owner's second-guessing burden.

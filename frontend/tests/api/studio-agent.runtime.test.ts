@@ -382,7 +382,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(payload).not.toHaveProperty("workflowSession");
   });
 
-  it("appends the richer Standard formatting guidance to the runtime system prompt", async () => {
+  it("appends the restrained Standard formatting guidance to the runtime system prompt", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -410,9 +410,10 @@ describe("AI Studio Create agent runtime boundaries", () => {
       (message) => message.role === "system"
     )?.content;
 
-    expect(systemMessage).toContain("Prefer a calm, editorial response shape");
+    expect(systemMessage).toContain("Prefer a calm, readable response shape");
     expect(systemMessage).toContain("Good shape examples:");
     expect(systemMessage).toContain("Bad shape examples:");
+    expect(systemMessage).toContain("Avoid visual separators");
     expect(systemMessage).toContain("Pulse-style guided formatting");
   });
 

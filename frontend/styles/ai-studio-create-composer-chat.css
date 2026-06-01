@@ -757,25 +757,11 @@
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
     .agent-thinking-message
   ):not(.agent-message--pulse-guided)
-  .agent-message-rich-body,
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
-    .agent-thinking-message
-  ):not(.agent-message--pulse-guided)
-  .agent-message-rich-hint,
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
-    .agent-thinking-message
-  ):not(.agent-message--pulse-guided)
-  .agent-message-rich-choice-chip,
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
-    .agent-thinking-message
-  ):not(.agent-message--pulse-guided)
-  .agent-message-rich-option-card,
+  .agent-message-rich-body {
+  margin: 0;
+  min-width: 0;
+}
+
 .create-composer-panel
   .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
@@ -792,36 +778,6 @@
   transition: border-color 140ms ease;
 }
 
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
-    .agent-thinking-message
-  ):not(.agent-message--pulse-guided):hover
-  p,
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
-    .agent-thinking-message
-  ):not(.agent-message--pulse-guided):hover
-  .tiny,
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
-    .agent-thinking-message
-  ):not(.agent-message--pulse-guided):focus-within
-  p,
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
-    .agent-thinking-message
-  ):not(.agent-message--pulse-guided):hover
-  .agent-message-rich-body,
-.create-composer-panel
-  .create-composer-prompt-step
-  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
-    .agent-thinking-message
-  ):not(.agent-message--pulse-guided):focus-within
-  .agent-message-rich-body,
 .create-composer-panel
   .create-composer-prompt-step
   .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(

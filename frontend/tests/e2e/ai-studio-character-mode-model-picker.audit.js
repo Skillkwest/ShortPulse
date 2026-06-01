@@ -35,15 +35,26 @@ async function ensureSignedIn(page) {
 
   await page.waitForURL((url) => !url.pathname.startsWith("/auth"), { timeout: 30_000 });
   await page.goto(`${BASE_URL}/ai-studio`, {
-    waitUntil: "domcontentloaded",
+    waitUntil: "networkidle",
   });
   await page.locator(".ai-studio-page").waitFor({ timeout: 30_000 });
 }
 
 async function ensureCreateStandard(page) {
   const createButton = page.getByRole("button", { name: /^Create$/i }).first();
-  if (await createButton.isVisible().catch(() => false)) {
-    await createButton.click();
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (
+      await page
+        .locator(".ai-character-mode-toggle")
+        .isVisible()
+        .catch(() => false)
+    ) {
+      break;
+    }
+    if (await createButton.isVisible().catch(() => false)) {
+      await createButton.click({ force: true });
+    }
+    await page.waitForTimeout(1_000);
   }
   const standardToggle = page.getByRole("button", { name: /^Standard$/i }).first();
   if (await standardToggle.isVisible().catch(() => false)) {
@@ -52,7 +63,9 @@ async function ensureCreateStandard(page) {
 }
 
 async function selectFirstCharacter(page) {
+  await page.locator(".ai-character-mode-toggle").waitFor({ timeout: 30_000 });
   await page.getByRole("button", { name: /enable character mode/i }).click();
+  await page.getByRole("button", { name: /open character picker/i }).waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: /open character picker/i }).click();
   await page.getByRole("dialog", { name: /choose character/i }).waitFor({ timeout: 15_000 });
 
@@ -73,7 +86,7 @@ async function runAudit(page) {
   await modal.waitFor({ timeout: 15_000 });
 
   const title = (await modal.locator(".model-modal-title").textContent())?.trim() ?? "";
-  const chipTitles = (await modal.locator(".model-family-chip").allTextContents()).map((value) =>
+  const chipTitles = (await modal.locator(".model-chip-title").allTextContents()).map((value) =>
     value.trim()
   );
 

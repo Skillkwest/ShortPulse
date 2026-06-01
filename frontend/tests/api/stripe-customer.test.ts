@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { syncStripeCustomerForUser } from "../../lib/server/api/stripeCustomer";
+import {
+  readVerifiedStripeSubscriptionForUser,
+  syncStripeCustomerForUser,
+} from "../../lib/server/api/stripeCustomer";
 
 const getSupabaseAdminMock = vi.fn();
 const stripePostFormMock = vi.fn();
@@ -327,6 +330,98 @@ describe("syncStripeCustomerForUser", () => {
     expect(stripePostFormMock).not.toHaveBeenCalled();
   });
 
+  it("fails closed when the stored Stripe customer belongs to a different user", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        profile: {
+          stripe_customer_id: "cus_foreign",
+          plan_id: "business",
+          subscription_status: "active",
+        },
+      })
+    );
+    stripeGetMock.mockResolvedValue({
+      id: "cus_foreign",
+      email: "other@example.com",
+      name: "Other User",
+      metadata: { user_id: "user_other" },
+    });
+
+    await expect(
+      syncStripeCustomerForUser({
+        userId: "user_1",
+        email: "user@example.com",
+        displayName: "User Example",
+      })
+    ).rejects.toThrow("Stripe customer ownership mismatch detected.");
+
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the stored Stripe customer lacks user ownership metadata", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        profile: {
+          stripe_customer_id: "cus_unverified",
+          plan_id: "business",
+          subscription_status: "active",
+        },
+      })
+    );
+    stripeGetMock.mockResolvedValue({
+      id: "cus_unverified",
+      email: "user@example.com",
+      name: "User Example",
+      metadata: {},
+    });
+
+    await expect(
+      syncStripeCustomerForUser({
+        userId: "user_1",
+        email: "user@example.com",
+        displayName: "User Example",
+      })
+    ).rejects.toThrow("Stripe customer ownership mismatch detected.");
+
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+  });
+
+  it("lets admin repair a stored Stripe customer that is missing ownership metadata", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        profile: {
+          stripe_customer_id: "cus_repairable",
+          plan_id: "business",
+          subscription_status: "active",
+        },
+      })
+    );
+    stripeGetMock.mockResolvedValue({
+      id: "cus_repairable",
+      email: "user@example.com",
+      name: "User Example",
+      metadata: {},
+    });
+    stripePostFormMock.mockResolvedValue({
+      id: "cus_repairable",
+      email: "user@example.com",
+      name: "User Example",
+      metadata: { user_id: "user_1" },
+    });
+
+    const result = await syncStripeCustomerForUser({
+      userId: "user_1",
+      email: "user@example.com",
+      displayName: "User Example",
+      allowMetadataRepair: true,
+    });
+
+    expect(stripePostFormMock).toHaveBeenCalledWith("/customers/cus_repairable", {
+      "metadata[user_id]": "user_1",
+    });
+    expect(result.updated).toBe(true);
+  });
+
   it("throws when mapping persistence fails", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
@@ -344,5 +439,58 @@ describe("syncStripeCustomerForUser", () => {
         displayName: "User Example",
       })
     ).rejects.toThrow("upsert failed");
+  });
+});
+
+describe("readVerifiedStripeSubscriptionForUser", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the Stripe subscription when its customer belongs to the caller", async () => {
+    stripeGetMock
+      .mockResolvedValueOnce({
+        id: "sub_1",
+        customer: "cus_owned",
+      })
+      .mockResolvedValueOnce({
+        id: "cus_owned",
+        email: "user@example.com",
+        name: "User Example",
+        metadata: { user_id: "user_1" },
+      });
+
+    await expect(
+      readVerifiedStripeSubscriptionForUser({
+        userId: "user_1",
+        stripeSubscriptionId: "sub_1",
+      })
+    ).resolves.toEqual({
+      id: "sub_1",
+      customer: "cus_owned",
+    });
+    expect(stripeGetMock).toHaveBeenNthCalledWith(1, "/subscriptions/sub_1");
+    expect(stripeGetMock).toHaveBeenNthCalledWith(2, "/customers/cus_owned");
+  });
+
+  it("fails closed when the Stripe subscription customer belongs to another user", async () => {
+    stripeGetMock
+      .mockResolvedValueOnce({
+        id: "sub_foreign",
+        customer: "cus_foreign",
+      })
+      .mockResolvedValueOnce({
+        id: "cus_foreign",
+        email: "other@example.com",
+        name: "Other User",
+        metadata: { user_id: "user_other" },
+      });
+
+    await expect(
+      readVerifiedStripeSubscriptionForUser({
+        userId: "user_1",
+        stripeSubscriptionId: "sub_foreign",
+      })
+    ).rejects.toThrow("Stripe subscription ownership mismatch detected.");
   });
 });

@@ -7,6 +7,7 @@ const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const stripeGetMock = vi.fn();
 const stripePostFormMock = vi.fn();
+const readVerifiedStripeSubscriptionForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -23,6 +24,11 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 vi.mock("../../lib/server/api/stripe", () => ({
   stripeGet: (...args: unknown[]) => stripeGetMock(...args),
   stripePostForm: (...args: unknown[]) => stripePostFormMock(...args),
+}));
+
+vi.mock("../../lib/server/api/stripeCustomer", () => ({
+  readVerifiedStripeSubscriptionForUser: (...args: unknown[]) =>
+    readVerifiedStripeSubscriptionForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -129,6 +135,13 @@ describe("POST /api/billing/storage-addon/change", () => {
       email: "user@example.com",
       user_metadata: {},
     });
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_123",
+      customer: "cus_123",
+      items: {
+        data: [{ id: "si_base", quantity: 1, price: { id: "price_studio" } }],
+      },
+    });
   });
 
   it("rejects non-POST methods", async () => {
@@ -179,8 +192,9 @@ describe("POST /api/billing/storage-addon/change", () => {
         activeStorageAddonRows: [],
       })
     );
-    stripeGetMock.mockResolvedValue({
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
+      customer: "cus_123",
       items: {
         data: [{ id: "si_base", quantity: 1, price: { id: "price_studio" } }],
       },
@@ -256,8 +270,9 @@ describe("POST /api/billing/storage-addon/change", () => {
         ],
       })
     );
-    stripeGetMock.mockResolvedValue({
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
+      customer: "cus_123",
       items: {
         data: [
           { id: "si_base", quantity: 1, price: { id: "price_studio" } },
@@ -281,6 +296,64 @@ describe("POST /api/billing/storage-addon/change", () => {
       "items[0][deleted]": true,
     });
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("fails closed when the stored Stripe subscription belongs to another user", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "studio",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_foreign",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "studio",
+          stripe_subscription_id: "sub_foreign",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_100gb",
+          display_name: "Extra 100 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_100gb__current",
+            storage_addon_id: "storage_100gb",
+            stripe_price_id: "price_storage_100",
+            recurring_price_cents: 1500,
+            storage_limit_bytes: 107374182400,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [],
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockRejectedValueOnce(
+      new Error("Stripe subscription ownership mismatch detected.")
+    );
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_100gb", action: "add" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to update recurring storage right now.",
+    });
+    expect(stripePostFormMock).not.toHaveBeenCalled();
   });
 
   it("blocks add-on changes for internal-comp billing", async () => {
@@ -361,8 +434,9 @@ describe("POST /api/billing/storage-addon/change", () => {
         activeStorageAddonRows: [],
       })
     );
-    stripeGetMock.mockResolvedValue({
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
+      customer: "cus_123",
       items: {
         data: [
           { id: "si_base", quantity: 1, price: { id: "price_studio" } },
@@ -424,8 +498,9 @@ describe("POST /api/billing/storage-addon/change", () => {
         activeStorageAddonRows: [],
       })
     );
-    stripeGetMock.mockResolvedValue({
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
+      customer: "cus_123",
       items: {
         data: [{ id: "si_base", quantity: 1, price: { id: "price_studio" } }],
       },
@@ -487,8 +562,9 @@ describe("POST /api/billing/storage-addon/change", () => {
         activeStorageAddonRows: [],
       })
     );
-    stripeGetMock.mockResolvedValue({
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
+      customer: "cus_123",
       items: {
         data: [{ id: "si_base", quantity: 1, price: { id: "price_studio" } }],
       },

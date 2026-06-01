@@ -69,6 +69,7 @@ describe("POST /api/admin/billing/customer-sync", () => {
       userId: "user-1",
       email: "user@example.com",
       displayName: "User Example",
+      allowMetadataRepair: true,
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({

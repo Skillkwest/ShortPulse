@@ -2,6 +2,7 @@
  * Projects persistence helpers.
  * Owns server-authoritative create/read access for user-owned project rows.
  */
+import { filterTrustedMediaDirectPreviewUrls } from "../mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
@@ -110,12 +111,16 @@ const resolveSnapshotOutputImageCandidate = (
       : output.fullStoragePath && output.fullStoragePath.length > 0
         ? output.fullStoragePath
         : null;
-  const fallbackUrl =
-    output.previewUrl && output.previewUrl.length > 0
-      ? output.previewUrl
-      : output.resultUrls?.[0] && output.resultUrls[0].length > 0
-        ? output.resultUrls[0]
-        : null;
+  const fallbackUrlCandidates = [
+    output.previewUrl && output.previewUrl.length > 0 ? output.previewUrl : null,
+    ...(output.resultUrls ?? []),
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  const fallbackUrl = userId
+    ? (filterTrustedMediaDirectPreviewUrls(fallbackUrlCandidates, {
+        userId,
+        requireUserScope: true,
+      })[0] ?? null)
+    : (fallbackUrlCandidates[0] ?? null);
   if (!storagePath && !fallbackUrl) return null;
   return {
     storagePaths: resolveProjectCardPreviewSigningStoragePaths(storagePath, userId),
@@ -215,9 +220,10 @@ const resolveProjectPreviewImageCandidatesFromSnapshot = (
 };
 
 export const resolveProjectPreviewImageUrlsFromSnapshot = (
-  snapshot: Record<string, unknown> | null | undefined
+  snapshot: Record<string, unknown> | null | undefined,
+  userId?: string | null
 ): string[] =>
-  resolveProjectPreviewImageCandidatesFromSnapshot(snapshot)
+  resolveProjectPreviewImageCandidatesFromSnapshot(snapshot, userId)
     .map((candidate) => candidate.fallbackUrl)
     .filter((value): value is string => typeof value === "string" && value.length > 0);
 

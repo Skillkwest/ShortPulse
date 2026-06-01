@@ -142,6 +142,25 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
     startFolderRename(folderId, folderName, { clearInput: true });
   };
 
+  const clearPendingFolderNameClick = () => {
+    if (folderNameClickTimeoutRef.current === null) return;
+    window.clearTimeout(folderNameClickTimeoutRef.current);
+    folderNameClickTimeoutRef.current = null;
+  };
+
+  const handleFolderReparentDragStart = (
+    event: React.DragEvent<HTMLElement>,
+    folder: FolderRow,
+    isPending: boolean
+  ) => {
+    clearPendingFolderNameClick();
+    if (isPending) {
+      event.preventDefault();
+      return;
+    }
+    onFolderReparentDragStart(event, folder);
+  };
+
   const renderBreadcrumbLabel = (label: string) => (
     <span className="media-library-panel-folders-breadcrumb-label">
       <FolderSimple
@@ -312,13 +331,9 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
                       aria-label={`${folder.name} folder`}
                       aria-disabled={isPending}
                       draggable={!isPending}
-                      onDragStart={(event) => {
-                        if (isPending) {
-                          event.preventDefault();
-                          return;
-                        }
-                        onFolderReparentDragStart(event, folder);
-                      }}
+                      onDragStart={(event) =>
+                        handleFolderReparentDragStart(event, folder, isPending)
+                      }
                       onDragEnd={onFolderReparentDragEnd}
                     >
                       {/* Decorative folder tile image; raw img preserves current chip sizing and load behavior. */}
@@ -347,6 +362,12 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
                         handleFolderNameDoubleClick(folder.id, folder.name);
                       }}
                       aria-label={`${folder.name} name`}
+                      aria-disabled={isPending}
+                      draggable={!isPending}
+                      onDragStart={(event) =>
+                        handleFolderReparentDragStart(event, folder, isPending)
+                      }
+                      onDragEnd={onFolderReparentDragEnd}
                     >
                       {folder.name}
                     </button>

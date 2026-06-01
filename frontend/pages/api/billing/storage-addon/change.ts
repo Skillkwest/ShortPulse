@@ -4,7 +4,8 @@ import { requireApiUser } from "../../../../lib/server/api/auth";
 import { BILLING_CONTRACT_SOURCE_INTERNAL_COMP } from "../../../../lib/server/api/billingContracts";
 import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
-import { stripeGet, stripePostForm } from "../../../../lib/server/api/stripe";
+import { stripePostForm } from "../../../../lib/server/api/stripe";
+import { readVerifiedStripeSubscriptionForUser } from "../../../../lib/server/api/stripeCustomer";
 
 type ChangeStorageAddonRequest = {
   storageAddonId?: string;
@@ -53,19 +54,6 @@ type BillingSubscriptionStorageAddonRow = {
   stripe_price_id: string | null;
   quantity: number | null;
   status: string | null;
-};
-
-type StripeSubscriptionResponse = {
-  id: string;
-  items?: {
-    data?: Array<{
-      id?: string;
-      quantity?: number;
-      price?: {
-        id?: string;
-      };
-    }>;
-  };
 };
 
 const BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT = {
@@ -284,9 +272,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .json({ error: `${addon.display_name} is not active on this workspace.` });
     }
 
-    const stripeSubscription = await stripeGet<StripeSubscriptionResponse>(
-      `/subscriptions/${stripeSubscriptionId}`
-    );
+    const stripeSubscription = await readVerifiedStripeSubscriptionForUser({
+      userId: user.id,
+      stripeSubscriptionId,
+    });
     const liveItems = Array.isArray(stripeSubscription.items?.data)
       ? stripeSubscription.items.data
       : [];

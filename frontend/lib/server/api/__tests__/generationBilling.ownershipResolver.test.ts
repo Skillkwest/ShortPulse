@@ -29,10 +29,10 @@ const createMaybeSingleQuery = (row: Record<string, unknown> | null) => ({
 
 const mockOwnershipTables = ({
   reservationOwner = null,
-  ledgerOwner = null,
+  generationOwner = null,
 }: {
   reservationOwner?: string | null;
-  ledgerOwner?: string | null;
+  generationOwner?: string | null;
 }) => {
   getSupabaseAdminMock.mockReturnValue({
     from: vi.fn((table: string) => {
@@ -45,11 +45,13 @@ const mockOwnershipTables = ({
             ),
         };
       }
-      if (table === "ai_credit_ledger") {
+      if (table === "ai_generations") {
         return {
           select: vi
             .fn()
-            .mockReturnValue(createMaybeSingleQuery(ledgerOwner ? { user_id: ledgerOwner } : null)),
+            .mockReturnValue(
+              createMaybeSingleQuery(generationOwner ? { user_id: generationOwner } : null)
+            ),
         };
       }
       throw new Error(`Unexpected table: ${table}`);
@@ -73,7 +75,7 @@ describe("resolveProviderRequestOwnership", () => {
       error: null,
     });
     mockOwnershipTables({
-      ledgerOwner: "user-2",
+      generationOwner: "user-2",
     });
     readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
       userIds: ["user-2"],
@@ -107,7 +109,7 @@ describe("resolveProviderRequestOwnership", () => {
     ).resolves.toBe("forbidden");
   });
 
-  it("falls back to projection ownership when no attempt row exists", async () => {
+  it("returns unknown when only projection ownership exists without canonical generation lineage", async () => {
     readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
       userIds: ["user-1"],
     });
@@ -117,7 +119,60 @@ describe("resolveProviderRequestOwnership", () => {
         userId: "user-1",
         providerRequestId: "req-projection",
       })
+    ).resolves.toBe("unknown");
+  });
+
+  it("does not let caller-owned projection rows override a foreign reservation owner", async () => {
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
+      userIds: ["user-1"],
+    });
+    mockOwnershipTables({
+      reservationOwner: "user-2",
+    });
+
+    await expect(
+      resolveProviderRequestOwnership({
+        userId: "user-1",
+        providerRequestId: "req-foreign-reservation",
+      })
+    ).resolves.toBe("forbidden");
+  });
+
+  it("uses ai_generations request ownership before projection fallback", async () => {
+    mockOwnershipTables({
+      generationOwner: "user-1",
+    });
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
+      userIds: ["user-2"],
+    });
+
+    await expect(
+      resolveProviderRequestOwnership({
+        userId: "user-1",
+        providerRequestId: "req-generation-owner",
+      })
     ).resolves.toBe("owned");
+  });
+
+  it("does not let caller-owned projection rows override a foreign generation attempt owner", async () => {
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
+      userIds: ["user-1"],
+    });
+    lookupGenerationAttemptByProviderRequestMock
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({
+        data: {
+          userId: "user-2",
+        },
+        error: null,
+      });
+
+    await expect(
+      resolveProviderRequestOwnership({
+        userId: "user-1",
+        providerRequestId: "req-foreign-attempt",
+      })
+    ).resolves.toBe("forbidden");
   });
 
   it("returns forbidden when another user owns the provider request and the caller has no scoped proof", async () => {

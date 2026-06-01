@@ -2438,6 +2438,53 @@ describe("MediaLibraryPanel", () => {
     expect(screen.queryByRole("button", { name: "Root A folder" })).not.toBeInTheDocument();
   });
 
+  it("reparents a visible root folder when dragging from the folder name", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-a",
+        name: "Root A",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-b",
+        name: "Root B",
+        parentFolderId: null,
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Root A name" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Root B folder" })).toBeInTheDocument();
+    });
+
+    const sourceButton = screen.getByRole("button", { name: "Root A name" });
+    const transfer = createTransferStore();
+    fireEvent.dragStart(sourceButton, { dataTransfer: transfer });
+
+    const targetTile = screen
+      .getByRole("button", { name: "Root B folder" })
+      .closest(".media-library-panel-folder-strip-item") as HTMLElement;
+
+    fireEvent.dragOver(targetTile, { dataTransfer: transfer });
+    expect(targetTile.classList.contains("is-drop-hover")).toBe(true);
+
+    fireEvent.drop(targetTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(moveMediaFolderMock).toHaveBeenCalledWith({
+        folderId: "folder-a",
+        parentFolderId: "folder-b",
+      });
+    });
+    expect(screen.queryByRole("button", { name: "Root A folder" })).not.toBeInTheDocument();
+  });
+
   it("reparents a visible folder to root by dropping it on the All Media breadcrumb", async () => {
     listMediaFoldersMock.mockResolvedValueOnce([
       {
@@ -2811,6 +2858,20 @@ describe("MediaLibraryPanel", () => {
     expect(screen.queryByRole("button", { name: "Delete active folder" })).not.toBeInTheDocument();
   });
 
+  it("opens a folder from a single click on the folder name", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign name" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign name" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
+    });
+  });
+
   it("opens a right-click folder menu and starts rename from menu action", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -2956,17 +3017,20 @@ describe("MediaLibraryPanel", () => {
     expect(folderTile.classList.contains("is-drop-hover")).toBe(false);
   });
 
-  it("disables native image dragging on folder artwork while keeping the folder tile draggable", async () => {
+  it("disables native image dragging on folder artwork while keeping the folder artwork and name draggable", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Campaign name" })).toBeInTheDocument();
     });
 
     const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderNameButton = screen.getByRole("button", { name: "Campaign name" });
     const folderImage = folderButton.querySelector("img");
 
     expect(folderButton).toHaveAttribute("draggable", "true");
+    expect(folderNameButton).toHaveAttribute("draggable", "true");
     expect(folderImage).toHaveAttribute("draggable", "false");
   });
 

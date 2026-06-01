@@ -8,11 +8,11 @@ import {
   addMonthsUtc,
   BILLING_INTERVAL_MONTH,
   BILLING_INTERVAL_YEAR,
-  buildAnnualContractMonthlyGrantRef,
 } from "../../../../lib/server/api/billingContracts";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { verifyStripeWebhookSignature } from "../../../../lib/server/api/stripe";
 import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
+import { readVerifiedStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 import {
   readRawRequestBody,
   RequestBodyTooLargeError,
@@ -369,6 +369,20 @@ const resolveBillingProfileByCustomer = async (
   return (data as BillingProfileProjection | null) ?? null;
 };
 
+const resolveVerifiedBillingProfileByCustomer = async (
+  stripeCustomerId: string
+): Promise<BillingProfileProjection | null> => {
+  const profile = await resolveBillingProfileByCustomer(stripeCustomerId);
+  if (!profile?.user_id) return null;
+
+  await readVerifiedStripeCustomerForUser({
+    userId: profile.user_id,
+    stripeCustomerId,
+  });
+
+  return profile;
+};
+
 const resolveCurrentContractForUser = async (
   userId: string
 ): Promise<BillingContractProjection | null> => {
@@ -418,7 +432,7 @@ const resolveCurrentStorageAddonContractsForUser = async (
 };
 
 const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) => {
-  const profile = await resolveBillingProfileByCustomer(stripeCustomerId);
+  const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
   if (!profile?.user_id) return null;
 
   const contract = await resolveCurrentContractForUser(profile.user_id);
@@ -447,7 +461,7 @@ const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) 
 };
 
 const resolveBillingContextFromInvoice = async (invoice: JsonObject, stripeCustomerId: string) => {
-  const profile = await resolveBillingProfileByCustomer(stripeCustomerId);
+  const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
   if (!profile?.user_id) return null;
 
   const lines = toRecord(invoice.lines);
@@ -800,6 +814,7 @@ const processCheckoutCompleted = async (session: JsonObject, eventId: string) =>
   const metadata = toRecord(session.metadata);
   const userIdRaw = metadata.user_id ?? session.client_reference_id;
   const userId = typeof userIdRaw === "string" ? userIdRaw : null;
+  const stripeCustomerId = typeof session.customer === "string" ? session.customer : null;
   const creditAmountRaw = metadata.credit_amount_cents;
   const packageId =
     typeof metadata.credit_package_id === "string" ? metadata.credit_package_id : null;
@@ -808,7 +823,12 @@ const processCheckoutCompleted = async (session: JsonObject, eventId: string) =>
       ? metadata.credit_package_display_name
       : null;
   const packagePriceCentsRaw = metadata.credit_package_price_cents;
-  if (!userId || !creditAmountRaw) return;
+  if (!userId || !creditAmountRaw || !stripeCustomerId) return;
+
+  await readVerifiedStripeCustomerForUser({
+    userId,
+    stripeCustomerId,
+  });
 
   const creditAmount = Number(creditAmountRaw);
   if (!Number.isFinite(creditAmount) || creditAmount <= 0) return;
@@ -822,7 +842,7 @@ const processCheckoutCompleted = async (session: JsonObject, eventId: string) =>
     reason: packageId ? `Credit purchase (${packageId})` : "Credit purchase",
     metadata: {
       checkout_session_id: session.id ?? null,
-      stripe_customer_id: session.customer ?? null,
+      stripe_customer_id: stripeCustomerId,
       credit_package_id: packageId,
       credit_package_display_name: packageDisplayName,
       credit_package_price_cents:
@@ -836,7 +856,7 @@ const processCheckoutCompleted = async (session: JsonObject, eventId: string) =>
     userId,
     metadata: {
       checkout_session_id: session.id ?? null,
-      stripe_customer_id: session.customer ?? null,
+      stripe_customer_id: stripeCustomerId,
       credit_package_id: packageId,
       stripe_event_id: eventId,
     },
@@ -848,7 +868,7 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     typeof subscription.customer === "string" ? subscription.customer : undefined;
   if (!stripeCustomerId) return;
 
-  const profile = await resolveBillingProfileByCustomer(stripeCustomerId);
+  const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
 
   const items = toRecord(subscription.items);
   const itemData = Array.isArray(items.data) ? items.data : [];

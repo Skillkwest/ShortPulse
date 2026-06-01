@@ -996,13 +996,12 @@ export const getProjectWorkspaceStateForUser = async ({
   const record = toProjectWorkspaceStateRecord({
     row: data as ProjectWorkspaceStateRow,
   });
-  const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(record.snapshot);
   return {
     ...record,
     snapshot: await canonicalizeProjectWorkspaceSnapshotForRead({
       userId,
       projectId,
-      snapshot: sanitizedSnapshot,
+      snapshot: record.snapshot,
     }),
   };
 };

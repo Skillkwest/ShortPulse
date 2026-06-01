@@ -3,6 +3,7 @@
  * Owns project-scoped association and snapshot-delivery refresh for generated outputs
  * without changing the global generation inventory/read models.
  */
+import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { chunkValues } from "./queryBatching";
 import { hasDurableGeneratedMediaDisplayAuthority } from "../generatedMediaDisplayAuthority";
@@ -108,6 +109,20 @@ const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length ? normalized : null;
+};
+
+const toSafeUserScopedPath = (value: unknown, userId: string): string | null => {
+  const candidate = asTrimmedString(value);
+  if (!candidate) return null;
+  try {
+    return assertUserScopedMediaStoragePath({
+      path: candidate,
+      userId,
+      label: "Project generation delivery path",
+    });
+  } catch {
+    return null;
+  }
 };
 
 const parseIsoTimestampMs = (value: unknown): number | null => {
@@ -577,19 +592,27 @@ const readMediaFileRowsById = async ({
 };
 
 const resolveDeliveryFromMediaRows = ({
+  userId,
   mediaRow,
   publicationRow,
 }: {
+  userId: string;
   mediaRow: ProjectGenerationMediaFileRow | null;
   publicationRow: ProjectGenerationPublicationRow | null;
 }): ProjectGenerationMediaDelivery | null => {
   const fileType = asTrimmedString(mediaRow?.file_type)?.toLowerCase() ?? "";
-  const mediaStoragePath = asTrimmedString(mediaRow?.storage_path);
-  const mediaPreviewStoragePath = asTrimmedString(mediaRow?.preview_storage_path);
-  const mediaPreviewVariantPath = asTrimmedString(mediaRow?.preview_variant_path);
-  const mediaThumbVariantPath = asTrimmedString(mediaRow?.thumb_variant_path);
-  const publicationPreviewStoragePath = asTrimmedString(publicationRow?.preview_storage_path);
-  const publicationFullStoragePath = asTrimmedString(publicationRow?.full_storage_path);
+  const mediaStoragePath = toSafeUserScopedPath(mediaRow?.storage_path, userId);
+  const mediaPreviewStoragePath = toSafeUserScopedPath(mediaRow?.preview_storage_path, userId);
+  const mediaPreviewVariantPath = toSafeUserScopedPath(mediaRow?.preview_variant_path, userId);
+  const mediaThumbVariantPath = toSafeUserScopedPath(mediaRow?.thumb_variant_path, userId);
+  const publicationPreviewStoragePath = toSafeUserScopedPath(
+    publicationRow?.preview_storage_path,
+    userId
+  );
+  const publicationFullStoragePath = toSafeUserScopedPath(
+    publicationRow?.full_storage_path,
+    userId
+  );
   const fullStoragePath = publicationFullStoragePath ?? mediaStoragePath ?? null;
   const isVideo =
     fileType.startsWith("video") ||
@@ -685,6 +708,7 @@ const buildProjectGenerationMediaDeliveryByGenerationId = async ({
       savedMediaIds.map((mediaId) => mediaById.get(mediaId)).find(Boolean) ??
       null;
     const delivery = resolveDeliveryFromMediaRows({
+      userId,
       mediaRow,
       publicationRow,
     });
@@ -858,10 +882,12 @@ export const associateGenerationWithProjectForUser = async ({
 };
 
 const patchSnapshotOutputRow = ({
+  userId,
   row,
   projection,
   mediaDelivery,
 }: {
+  userId: string;
   row: SnapshotRecord;
   projection: ProjectGenerationProjectionRow;
   mediaDelivery?: ProjectGenerationMediaDelivery | null;
@@ -869,18 +895,18 @@ const patchSnapshotOutputRow = ({
   const nextResultUrls = asTrimmedStringArray(projection.result_urls);
   const nextPreviewUrl = asTrimmedString(projection.preview_url) ?? nextResultUrls[0] ?? null;
   const nextMode = asTrimmedString(row.mode) ?? resolveSnapshotOutputMode(projection);
-  const projectedPreviewStoragePath = asTrimmedString(projection.preview_storage_path);
+  const projectedPreviewStoragePath = toSafeUserScopedPath(projection.preview_storage_path, userId);
   const nextPreviewStoragePath =
     mediaDelivery?.previewStoragePath ?? projectedPreviewStoragePath ?? null;
   const nextFullStoragePath =
     mediaDelivery?.fullStoragePath ??
-    asTrimmedString(projection.full_storage_path) ??
+    toSafeUserScopedPath(projection.full_storage_path, userId) ??
     nextPreviewStoragePath ??
     null;
   const nextPreviewPosterStoragePath =
     nextMode === "video"
       ? (mediaDelivery?.previewPosterStoragePath ??
-        asTrimmedString(row.previewPosterStoragePath) ??
+        toSafeUserScopedPath(row.previewPosterStoragePath, userId) ??
         resolveVideoPosterStoragePath({
           previewStoragePath: nextPreviewStoragePath,
           fullStoragePath: nextFullStoragePath,
@@ -893,7 +919,10 @@ const patchSnapshotOutputRow = ({
   const nextTaskState = normalizeProjectionTaskState(projection.task_state);
   const nextQueueState = normalizeProjectionQueueState(projection.queue_state);
   const nextCompanionArtStatus = asTrimmedString(projection.companion_art_status);
-  const nextCompanionArtStoragePath = asTrimmedString(projection.companion_art_storage_path);
+  const nextCompanionArtStoragePath = toSafeUserScopedPath(
+    projection.companion_art_storage_path,
+    userId
+  );
   const nextErrorMessage = asTrimmedString(projection.error_message);
   const nextErrorMessageShort = asTrimmedString(projection.error_message_short);
   const nextErrorDetail = asTrimmedString(projection.error_detail);
@@ -975,35 +1004,45 @@ const hasProjectGenerationMediaDelivery = (
   );
 
 const hasProjectionDurableDisplayAuthority = ({
+  userId,
   projection,
   mediaDelivery,
 }: {
+  userId: string;
   projection: ProjectGenerationProjectionRow;
   mediaDelivery?: ProjectGenerationMediaDelivery | null;
 }): boolean =>
   hasProjectGenerationMediaDelivery(mediaDelivery) ||
   hasDurableGeneratedMediaDisplayAuthority({
     savedMediaIds: asTrimmedStringArray(projection.saved_media_ids),
-    previewStoragePath: asTrimmedString(projection.preview_storage_path),
-    fullStoragePath: asTrimmedString(projection.full_storage_path),
-    companionArtStoragePath: asTrimmedString(projection.companion_art_storage_path),
+    previewStoragePath: toSafeUserScopedPath(projection.preview_storage_path, userId),
+    fullStoragePath: toSafeUserScopedPath(projection.full_storage_path, userId),
+    companionArtStoragePath: toSafeUserScopedPath(projection.companion_art_storage_path, userId),
   });
 
-const hasSnapshotRowDurableDisplayAuthority = (row: SnapshotRecord): boolean =>
+const hasSnapshotRowDurableDisplayAuthority = ({
+  userId,
+  row,
+}: {
+  userId: string;
+  row: SnapshotRecord;
+}): boolean =>
   hasDurableGeneratedMediaDisplayAuthority({
     previewText: asTrimmedString(row.previewText),
     savedMediaIds: asTrimmedStringArray(row.savedMediaIds),
-    previewPosterStoragePath: asTrimmedString(row.previewPosterStoragePath),
-    previewStoragePath: asTrimmedString(row.previewStoragePath),
-    fullStoragePath: asTrimmedString(row.fullStoragePath),
-    companionArtStoragePath: asTrimmedString(row.companionArtStoragePath),
+    previewPosterStoragePath: toSafeUserScopedPath(row.previewPosterStoragePath, userId),
+    previewStoragePath: toSafeUserScopedPath(row.previewStoragePath, userId),
+    fullStoragePath: toSafeUserScopedPath(row.fullStoragePath, userId),
+    companionArtStoragePath: toSafeUserScopedPath(row.companionArtStoragePath, userId),
   });
 
 const shouldRestoreProjectionAsDisplayRow = ({
+  userId,
   projection,
   mediaDelivery,
   row,
 }: {
+  userId: string;
   projection: ProjectGenerationProjectionRow;
   mediaDelivery?: ProjectGenerationMediaDelivery | null;
   row?: SnapshotRecord | null;
@@ -1014,8 +1053,8 @@ const shouldRestoreProjectionAsDisplayRow = ({
   if (taskState === "fail") return false;
   if (taskState === "pending" || taskState === "running") return true;
   return (
-    hasProjectionDurableDisplayAuthority({ projection, mediaDelivery }) ||
-    Boolean(row && hasSnapshotRowDurableDisplayAuthority(row))
+    hasProjectionDurableDisplayAuthority({ userId, projection, mediaDelivery }) ||
+    Boolean(row && hasSnapshotRowDurableDisplayAuthority({ userId, row }))
   );
 };
 
@@ -1027,24 +1066,27 @@ const shouldAppendProjectionToSnapshot = (projection: ProjectGenerationProjectio
 };
 
 const shouldRetainProjectionSnapshotRow = (
+  userId: string,
   projection: ProjectGenerationProjectionRow | null | undefined,
   row: SnapshotRecord,
   mediaDelivery?: ProjectGenerationMediaDelivery | null
 ): boolean => {
   if (!projection) return false;
-  return shouldRestoreProjectionAsDisplayRow({ projection, mediaDelivery, row });
+  return shouldRestoreProjectionAsDisplayRow({ userId, projection, mediaDelivery, row });
 };
 
 const createSnapshotOutputRowFromProjection = ({
+  userId,
   projection,
   mediaDelivery,
 }: {
+  userId: string;
   projection: ProjectGenerationProjectionRow;
   mediaDelivery?: ProjectGenerationMediaDelivery | null;
 }): SnapshotRecord | null => {
   const generationId = asTrimmedString(projection.generation_id);
   if (!generationId || !shouldAppendProjectionToSnapshot(projection)) return null;
-  if (!shouldRestoreProjectionAsDisplayRow({ projection, mediaDelivery })) return null;
+  if (!shouldRestoreProjectionAsDisplayRow({ userId, projection, mediaDelivery })) return null;
   const mode = resolveSnapshotOutputMode(projection);
   const requestId = asTrimmedString(projection.request_id);
   const modelId = asTrimmedString(projection.model_id);
@@ -1056,6 +1098,7 @@ const createSnapshotOutputRowFromProjection = ({
   const restoredStatus = restoredSaveState === "saved" ? "saved" : "ready";
 
   return patchSnapshotOutputRow({
+    userId,
     row: {
       id: `generated:${generationId}`,
       mode,
@@ -1231,12 +1274,13 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         const mediaDelivery = mediaDeliveryGenerationId
           ? (mediaDeliveryByGenerationId.get(mediaDeliveryGenerationId) ?? null)
           : null;
-        if (!shouldRetainProjectionSnapshotRow(projection, normalizedRow, mediaDelivery)) {
+        if (!shouldRetainProjectionSnapshotRow(userId, projection, normalizedRow, mediaDelivery)) {
           changed = true;
           return null;
         }
         changed = true;
         return patchSnapshotOutputRow({
+          userId,
           row: normalizedRow,
           projection,
           mediaDelivery,
@@ -1261,6 +1305,7 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
       const projection = projectionByGenerationId.get(generationId);
       return projection
         ? createSnapshotOutputRowFromProjection({
+            userId,
             projection,
             mediaDelivery: mediaDeliveryByGenerationId.get(generationId) ?? null,
           })

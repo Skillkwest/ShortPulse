@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   resolveProjectCardPreviewSigningStoragePaths,
   resolveProjectPreviewImageUrlsFromSnapshot,
 } from "../projectsService";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
   it("prefers the first four quick-slot image previews", () => {
@@ -116,6 +120,50 @@ describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
 
     expect(resolveProjectPreviewImageUrlsFromSnapshot(snapshot)).toEqual([
       "https://cdn.example.com/success-quick.png",
+    ]);
+  });
+
+  it("drops foreign direct preview urls when a caller user scope is provided", () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.test");
+
+    const snapshot = {
+      outputs: {
+        curatedReferenceIds: ["quick-1"],
+        active: [
+          {
+            id: "quick-1",
+            mode: "image",
+            previewUrl: "https://cdn.example.test/media_library/user-2/private/images/foreign.png",
+          },
+        ],
+        archived: [],
+      },
+    };
+
+    expect(resolveProjectPreviewImageUrlsFromSnapshot(snapshot, "user-1")).toEqual([]);
+  });
+
+  it("keeps trusted user-scoped direct preview urls when a caller user scope is provided", () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.test");
+
+    const snapshot = {
+      outputs: {
+        curatedReferenceIds: ["quick-1"],
+        active: [
+          {
+            id: "quick-1",
+            mode: "image",
+            previewUrl: "https://cdn.example.test/media_library/user-1/private/images/owned.png",
+          },
+        ],
+        archived: [],
+      },
+    };
+
+    expect(resolveProjectPreviewImageUrlsFromSnapshot(snapshot, "user-1")).toEqual([
+      "https://cdn.example.test/media_library/user-1/private/images/owned.png",
     ]);
   });
 });

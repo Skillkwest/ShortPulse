@@ -9,9 +9,15 @@ const settleDirectGenerationSuccessMock = vi.fn();
 const settleDirectGenerationFailureMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const executeGenerationRecoveryMock = vi.fn();
+const readMediaDeliveryPathsByIdMock = vi.fn();
+const createSignedMediaUrlMock = vi.fn();
 let persistedProjectionRows: Array<Record<string, unknown>> = [];
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
 let persistedOutputRows: Array<Record<string, unknown>> = [];
+let persistedDeliveryPathsByMediaId = new Map<
+  string,
+  { previewStoragePath: string; fullStoragePath: string }
+>();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -36,6 +42,14 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: () => getSupabaseAdminMock(),
 }));
 
+vi.mock("../../lib/server/api/mediaDeliveryPaths", () => ({
+  readMediaDeliveryPathsById: (...args: unknown[]) => readMediaDeliveryPathsByIdMock(...args),
+}));
+
+vi.mock("../../lib/server/mediaIngest", () => ({
+  createSignedMediaUrl: (...args: unknown[]) => createSignedMediaUrlMock(...args),
+}));
+
 vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
   executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
 }));
@@ -45,10 +59,14 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
+const toSignedResultUrl = (storagePath: string): string =>
+  `https://signed.shortpulse.test/${encodeURIComponent(storagePath)}`;
+
 describe("createFalStatusHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-fal-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://shortpulse.supabase.co";
     delete process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED;
     delete process.env.KIE_API_KEY;
     delete process.env.SHORTPULSE_KIE_API_KEY;
@@ -64,6 +82,24 @@ describe("createFalStatusHandler", () => {
     persistedProjectionRows = [];
     persistedGenerationRows = [];
     persistedOutputRows = [];
+    persistedDeliveryPathsByMediaId = new Map();
+    readMediaDeliveryPathsByIdMock.mockImplementation(
+      async ({ mediaFileIds }: { mediaFileIds: string[] }) =>
+        new Map(
+          mediaFileIds
+            .map((mediaFileId) => {
+              const paths = persistedDeliveryPathsByMediaId.get(mediaFileId);
+              return paths ? ([mediaFileId, paths] as const) : null;
+            })
+            .filter(
+              (entry): entry is [string, { previewStoragePath: string; fullStoragePath: string }] =>
+                Boolean(entry)
+            )
+        )
+    );
+    createSignedMediaUrlMock.mockImplementation(async (storagePath: string) => {
+      return `https://signed.shortpulse.test/${encodeURIComponent(storagePath)}`;
+    });
     executeGenerationRecoveryMock.mockReset();
     settleDirectGenerationSuccessMock.mockReset();
     settleDirectGenerationFailureMock.mockReset();
@@ -111,9 +147,24 @@ describe("createFalStatusHandler", () => {
         persistedOutputRows = resultUrls.map((resultUrl, index) => ({
           id: `out-${index + 1}`,
           generation_id: resolvedGenerationId,
+          output_index: index,
           result_url: resultUrl,
           media_file_id: `media-${index + 1}`,
         }));
+        persistedDeliveryPathsByMediaId = new Map(
+          resultUrls.map((resultUrl, index) => {
+            const extensionMatch = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(resultUrl);
+            const extension = extensionMatch?.[1]?.toLowerCase() ?? "bin";
+            const fullStoragePath = `user-1/generations/results/media-${index + 1}.${extension}`;
+            return [
+              `media-${index + 1}`,
+              {
+                previewStoragePath: fullStoragePath,
+                fullStoragePath,
+              },
+            ] as const;
+          })
+        );
         return { ok: true, generationId: resolvedGenerationId, requestId };
       }
     );
@@ -352,6 +403,24 @@ describe("createFalStatusHandler", () => {
           queue_state: "dispatched",
         },
       ];
+      persistedOutputRows = [
+        {
+          id: "out-inline-1",
+          generation_id: "gen-kie-inline-1",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/kie-inline-provider.mp4",
+          media_file_id: "media-inline-1",
+        },
+      ];
+      persistedDeliveryPathsByMediaId = new Map([
+        [
+          "media-inline-1",
+          {
+            previewStoragePath: "user-1/generations/results/media-inline-1.mp4",
+            fullStoragePath: "user-1/generations/results/media-inline-1.mp4",
+          },
+        ],
+      ]);
       return {
         ok: true,
         generationId: "gen-kie-inline-1",
@@ -413,15 +482,15 @@ describe("createFalStatusHandler", () => {
         generationId: "gen-kie-inline-1",
         status: "completed",
         state: "completed",
-        resultUrls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
-        result_urls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
-        videos: [{ url: "https://cdn.shortpulse.test/kie-inline-canonical.mp4" }],
+        resultUrls: [toSignedResultUrl("user-1/generations/results/media-inline-1.mp4")],
+        result_urls: [toSignedResultUrl("user-1/generations/results/media-inline-1.mp4")],
+        videos: [{ url: toSignedResultUrl("user-1/generations/results/media-inline-1.mp4") }],
         shortpulseLifecycle: expect.objectContaining({
           taskState: "success",
           isTerminal: true,
           deliveryState: "canonical_owned",
           providerState: "completed",
-          resultUrls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
+          resultUrls: [toSignedResultUrl("user-1/generations/results/media-inline-1.mp4")],
         }),
       })
     );
@@ -715,7 +784,7 @@ describe("createFalStatusHandler", () => {
       new Response(
         JSON.stringify({
           status: "COMPLETED",
-          images: [{ url: "https://cdn.shortpulse.test/recovered-from-provider.png" }],
+          images: [{ url: toSignedResultUrl("user-1/generations/results/media-1.png") }],
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       )
@@ -747,7 +816,7 @@ describe("createFalStatusHandler", () => {
         shortpulseLifecycle: expect.objectContaining({
           taskState: "success",
           isTerminal: true,
-          resultUrls: ["https://cdn.shortpulse.test/recovered-from-provider.png"],
+          resultUrls: [toSignedResultUrl("user-1/generations/results/media-1.png")],
           deliveryState: "canonical_owned",
         }),
       })
@@ -1167,7 +1236,7 @@ describe("createFalStatusHandler", () => {
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-terminal-media");
     expect(payload.data?.images?.[0]?.url).toBe(
-      "https://cdn.shortpulse.test/terminal-status-media.png"
+      toSignedResultUrl("user-1/generations/results/media-1.png")
     );
   });
 
@@ -1221,7 +1290,9 @@ describe("createFalStatusHandler", () => {
     expect(payload.status).toBe("completed");
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-2");
-    expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image-2.png");
+    expect(payload.data?.images?.[0]?.url).toBe(
+      toSignedResultUrl("user-1/generations/results/media-1.png")
+    );
   });
 
   it("probes alternate queue bases when the first status base misses", async () => {
@@ -1271,7 +1342,9 @@ describe("createFalStatusHandler", () => {
     };
     expect(payload.status).toBe("completed");
     expect(payload.request_id).toBe("req-alt-base");
-    expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/alt-base-success.png");
+    expect(payload.data?.images?.[0]?.url).toBe(
+      toSignedResultUrl("user-1/generations/results/media-1.png")
+    );
   });
 
   it("fails closed when the status route returns a missing-route response", async () => {
@@ -1450,7 +1523,7 @@ describe("createFalStatusHandler", () => {
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-cross-alias");
     expect(payload.data?.images?.[0]?.url).toBe(
-      "https://cdn.shortpulse.test/cross-alias-media.png"
+      toSignedResultUrl("user-1/generations/results/media-1.png")
     );
   });
 
@@ -1503,7 +1576,9 @@ describe("createFalStatusHandler", () => {
     expect(payload.status).toBe("completed");
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-3");
-    expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image-3.png");
+    expect(payload.data?.images?.[0]?.url).toBe(
+      toSignedResultUrl("user-1/generations/results/media-1.png")
+    );
   });
 
   it("uses the selected completed status base when another alias reports terminal failure", async () => {
@@ -1568,7 +1643,9 @@ describe("createFalStatusHandler", () => {
     expect(payload.status).toBe("completed");
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-veo-alias-conflict");
-    expect(payload.data?.videos?.[0]?.url).toBe("https://cdn.shortpulse.test/veo-alias-media.mp4");
+    expect(payload.data?.videos?.[0]?.url).toBe(
+      toSignedResultUrl("user-1/generations/results/media-1.mp4")
+    );
   });
 
   it("treats retryable status upstream failures as transient and keeps polling payload", async () => {
@@ -1662,12 +1739,12 @@ describe("createFalStatusHandler", () => {
         request_id: "req-status-retryable-media",
         generationId: "gen-1",
         data: expect.objectContaining({
-          images: [{ url: "https://cdn.shortpulse.test/retryable-status-image.png" }],
+          images: [{ url: toSignedResultUrl("user-1/generations/results/media-1.png") }],
         }),
         shortpulseLifecycle: expect.objectContaining({
           taskState: "success",
           isTerminal: true,
-          resultUrls: ["https://cdn.shortpulse.test/retryable-status-image.png"],
+          resultUrls: [toSignedResultUrl("user-1/generations/results/media-1.png")],
           deliveryState: "canonical_owned",
         }),
       })
@@ -1834,11 +1911,11 @@ describe("createFalStatusHandler", () => {
         state: "completed",
         request_id: "req-result-retryable-media",
         generationId: "gen-1",
-        images: [{ url: "https://cdn.shortpulse.test/retryable-result-image.png" }],
+        images: [{ url: toSignedResultUrl("user-1/generations/results/media-1.png") }],
         shortpulseLifecycle: expect.objectContaining({
           taskState: "success",
           isTerminal: true,
-          resultUrls: ["https://cdn.shortpulse.test/retryable-result-image.png"],
+          resultUrls: [toSignedResultUrl("user-1/generations/results/media-1.png")],
           deliveryState: "canonical_owned",
         }),
       })

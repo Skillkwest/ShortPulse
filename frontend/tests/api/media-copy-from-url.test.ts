@@ -817,6 +817,71 @@ describe("POST /api/media/copy-from-url", () => {
     );
   });
 
+  it("ignores foreign preview variant paths returned by the inserted media row before signing delivery URLs", async () => {
+    detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "video-buffer" ? "video/mp4" : null
+    );
+
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-video-foreign-preview-1",
+        storage_path: "user-1/generations/videos/media-video-foreign-preview-1.mp4",
+        file_type: "video",
+        preview_variant_path: "user-2/variants/videos/foreign-preview.mp4",
+      },
+      signedUrls: {
+        "user-1/generations/videos/media-video-foreign-preview-1.mp4":
+          "https://signed.test/video-foreign-preview-full.mp4",
+        "user-2/variants/videos/foreign-preview.mp4":
+          "https://signed.test/video-foreign-preview-loop.mp4",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(Buffer.from("video-buffer"), {
+          status: 200,
+          headers: { "content-type": "video/mp4" },
+        })
+      )
+    );
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/output.mp4",
+        source: "ai_studio",
+        mode: "video",
+        generationId: "gen-video-foreign-preview-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.createSignedUrlMock).not.toHaveBeenCalledWith(
+      "user-2/variants/videos/foreign-preview.mp4",
+      expect.anything()
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-video-foreign-preview-1",
+        fileType: "video",
+        delivery: expect.objectContaining({
+          previewStoragePath: "user-1/generations/videos/media-video-foreign-preview-1.mp4",
+          previewUrl: "https://signed.test/video-foreign-preview-full.mp4",
+          fullStoragePath: "user-1/generations/videos/media-video-foreign-preview-1.mp4",
+          fullUrl: "https://signed.test/video-foreign-preview-full.mp4",
+        }),
+      })
+    );
+  });
+
   it("skips oversized inline poster payloads without failing the main video save", async () => {
     detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
       buffer.toString() === "video-buffer" ? "video/mp4" : null
@@ -955,6 +1020,74 @@ describe("POST /api/media/copy-from-url", () => {
     );
   });
 
+  it("does not reuse an existing ai_studio row when its stored path falls outside the caller scope", async () => {
+    const supabase = createSupabaseAdmin({
+      existingRow: {
+        id: "media-existing-foreign-1",
+        storage_path: "user-2/generations/images/foreign.png",
+        file_type: "image",
+        metadata: { index: 0 },
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+      },
+      canonicalOutputMediaFileId: "media-existing-foreign-1",
+      insertRow: {
+        id: "media-repaired-1",
+        storage_path: "user-1/generations/images/repaired.png",
+        file_type: "image",
+        metadata: { index: 0 },
+      },
+      signedUrls: {
+        "user-1/generations/images/repaired.png": "https://signed.test/repaired.png",
+        "user-2/generations/images/foreign.png": "https://signed.test/foreign.png",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+          status: 200,
+          headers: { "Content-Type": "image/png", "Content-Length": "4" },
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.png",
+        source: "ai_studio",
+        generationId: "gen-foreign-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(supabase.uploadMock).toHaveBeenCalledTimes(1);
+    expect(supabase.createSignedUrlMock).not.toHaveBeenCalledWith(
+      "user-2/generations/images/foreign.png",
+      expect.anything()
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-repaired-1",
+        storagePath: expect.stringMatching(/^user-1\/generations\/images\//),
+        delivery: expect.objectContaining({
+          previewStoragePath: expect.stringMatching(/^user-1\/generations\/images\//),
+          fullStoragePath: expect.stringMatching(/^user-1\/generations\/images\//),
+          previewUrl: "https://signed.test/repaired.png",
+          fullUrl: "https://signed.test/repaired.png",
+        }),
+      })
+    );
+  });
+
   it("repairs an existing ai_studio video row by hydrating missing derivatives from the fetched buffer", async () => {
     detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
       buffer.toString() === "video-buffer" ? "video/mp4" : null
@@ -1056,6 +1189,64 @@ describe("POST /api/media/copy-from-url", () => {
         }),
       })
     );
+  });
+
+  it("fails closed when a duplicate ai_studio row exists but its stored paths are outside the caller scope", async () => {
+    detectImageMimeTypeMock.mockReturnValue("image/png");
+    const supabase = createSupabaseAdmin({
+      existingRow: {
+        id: "media-duplicate-foreign-1",
+        storage_path: "user-2/generations/images/foreign.png",
+        file_type: "image",
+        metadata: { index: 0 },
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+      },
+      canonicalOutputMediaFileId: "media-duplicate-foreign-1",
+      insertError: {
+        code: "23505",
+        message: "duplicate key value violates unique constraint",
+      },
+      signedUrls: {
+        "user-2/generations/images/foreign.png": "https://signed.test/foreign.png",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+          status: 200,
+          headers: { "Content-Type": "image/png", "Content-Length": "4" },
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.png",
+        source: "ai_studio",
+        generationId: "gen-duplicate-foreign-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(supabase.uploadMock).toHaveBeenCalledTimes(1);
+    expect(supabase.removeMock).toHaveBeenCalledTimes(1);
+    expect(supabase.createSignedUrlMock).not.toHaveBeenCalledWith(
+      "user-2/generations/images/foreign.png",
+      expect.anything()
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to persist media record",
+    });
   });
 
   it("falls back to legacy generation_output_index lookup when canonical output media linkage is absent", async () => {

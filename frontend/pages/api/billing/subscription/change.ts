@@ -8,12 +8,12 @@ import {
 } from "../../../../lib/server/api/billingContracts";
 import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
+import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
 import {
-  getCanonicalAppBaseUrl,
-  stripeGet,
-  stripePostForm,
-} from "../../../../lib/server/api/stripe";
-import { ensureStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
+  ensureStripeCustomerForUser,
+  readVerifiedStripeSubscriptionForUser,
+  type StripeSubscriptionResponse,
+} from "../../../../lib/server/api/stripeCustomer";
 
 type ChangeSubscriptionRequest = {
   targetPlanId?: string;
@@ -67,19 +67,6 @@ type StripePortalSession = {
 type StripeCheckoutSession = {
   id: string;
   url?: string | null;
-};
-
-type StripeSubscriptionResponse = {
-  id: string;
-  items?: {
-    data?: Array<{
-      id?: string;
-      quantity?: number;
-      price?: {
-        id?: string;
-      };
-    }>;
-  };
 };
 
 const BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT = {
@@ -203,13 +190,12 @@ const loadTargetPlan = async (targetPlanId: string, billingInterval: "month" | "
 };
 
 const resolveBaseSubscriptionItem = async (params: {
-  stripeSubscriptionId: string;
+  subscription: StripeSubscriptionResponse;
   contractStripePriceId: string | null;
 }) => {
-  const subscription = await stripeGet<StripeSubscriptionResponse>(
-    `/subscriptions/${params.stripeSubscriptionId}`
-  );
-  const items = Array.isArray(subscription.items?.data) ? subscription.items.data : [];
+  const items = Array.isArray(params.subscription.items?.data)
+    ? params.subscription.items.data
+    : [];
   if (!items.length) {
     throw new Error("Stripe subscription has no items.");
   }
@@ -368,6 +354,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!stripeSubscriptionId) {
         return res.status(409).json({ error: "No active paid subscription was found." });
       }
+      await readVerifiedStripeSubscriptionForUser({
+        userId: user.id,
+        stripeSubscriptionId,
+      });
 
       const stripeCustomerId = await ensureStripeCustomerForUser({
         userId: user.id,
@@ -424,8 +414,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       stripeSubscriptionId.length > 0
     ) {
       const returnUrl = `${getCanonicalAppBaseUrl()}/profile?section=subscription`;
-      const baseItem = await resolveBaseSubscriptionItem({
+      const verifiedSubscription = await readVerifiedStripeSubscriptionForUser({
+        userId: user.id,
         stripeSubscriptionId,
+      });
+      const baseItem = await resolveBaseSubscriptionItem({
+        subscription: verifiedSubscription,
         contractStripePriceId: billingContract?.stripe_price_id ?? null,
       });
 

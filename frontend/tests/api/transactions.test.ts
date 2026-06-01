@@ -119,6 +119,13 @@ describe("GET /api/billing/stripe/transactions", () => {
       price_cents: 2600,
     });
     stripeGetMock.mockImplementation(async (path: string) => {
+      if (path === "/customers/cus_123") {
+        return {
+          id: "cus_123",
+          email: "user@example.com",
+          metadata: { user_id: "user-1" },
+        };
+      }
       if (path === "/invoices") {
         return {
           data: [
@@ -278,6 +285,13 @@ describe("GET /api/billing/stripe/transactions", () => {
       price_cents: 3200,
     });
     stripeGetMock.mockImplementation(async (path: string) => {
+      if (path === "/customers/cus_789") {
+        return {
+          id: "cus_789",
+          email: "user@example.com",
+          metadata: { user_id: "user-1" },
+        };
+      }
       if (path === "/invoices") {
         return { data: [] };
       }
@@ -310,6 +324,33 @@ describe("GET /api/billing/stripe/transactions", () => {
           reference: "cs_archived_1",
         },
       ],
+    });
+  });
+
+  it("fails closed when the mapped Stripe customer belongs to a different user", async () => {
+    billingStateQueue.push(
+      { data: { stripe_customer_id: "cus_foreign" }, error: null },
+      { data: { contract_source: "stripe", stripe_customer_id: "cus_foreign" }, error: null }
+    );
+    stripeGetMock.mockImplementation(async (path: string) => {
+      if (path === "/customers/cus_foreign") {
+        return {
+          id: "cus_foreign",
+          email: "other@example.com",
+          metadata: { user_id: "user-other" },
+        };
+      }
+      throw new Error(`Unexpected Stripe path ${path}`);
+    });
+
+    const req = { method: "GET", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to load recent transactions.",
     });
   });
 });

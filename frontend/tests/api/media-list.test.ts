@@ -506,6 +506,68 @@ describe("POST /api/media/list", () => {
     expect(createSignedUrlMock).not.toHaveBeenCalled();
   });
 
+  it("drops contaminated rows whose primary storage path falls outside the caller scope", async () => {
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([
+      {
+        id: "media-safe-1",
+        user_id: "user-1",
+        filename: "safe.png",
+        storage_path: "user-1/upload/safe.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "media-foreign-1",
+        user_id: "user-1",
+        filename: "foreign.png",
+        storage_path: "user-2/upload/foreign.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-19T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [expect.objectContaining({ id: "media-safe-1" })],
+      })
+    );
+  });
+
   it("uses minimal profile by default and excludes metadata from rows", async () => {
     createSupabaseAdminMock([
       {
@@ -1091,6 +1153,69 @@ describe("POST /api/media/list", () => {
             "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-2-thumb.png",
           "panel-media-3":
             "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-3-thumb.png",
+        },
+      })
+    );
+  });
+
+  it("sanitizes foreign variant paths out of returned rows before seeded signing", async () => {
+    const rows = [
+      {
+        id: "panel-foreign-variant-1",
+        user_id: "user-1",
+        filename: "panel-target.png",
+        storage_path: "user-1/uploads/images/panel-target.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: "user-2/uploads/images/foreign-thumb.png",
+        poster_variant_path: "user-2/uploads/images/foreign-poster.png",
+        preview_variant_path: "user-2/uploads/images/foreign-preview.png",
+        created_at: "2026-02-20T11:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+    ];
+    const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: MediaRow) => row.thumb_variant_path ?? row.storage_path
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(
+      ["user-1/uploads/images/panel-target.png"],
+      3600
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.objectContaining({
+            id: "panel-foreign-variant-1",
+            storage_path: "user-1/uploads/images/panel-target.png",
+            thumb_variant_path: null,
+            poster_variant_path: null,
+            preview_variant_path: null,
+          }),
+        ],
+        signedById: {
+          "panel-foreign-variant-1":
+            "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target.png",
         },
       })
     );

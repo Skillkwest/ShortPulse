@@ -1477,6 +1477,125 @@ describe("associateGenerationWithProjectForUser", () => {
     );
   });
 
+  it("drops foreign-scoped media delivery paths during project snapshot hydration", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-image-foreign-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-foreign-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-foreign-1",
+          updated_at: "2026-04-18T16:30:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-foreign-1",
+          request_id: "req-image-foreign-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Generated image with contaminated media path",
+          preview_url: "https://fal.test/generated-image-foreign.png",
+          result_urls: ["https://fal.test/generated-image-foreign.png"],
+          saved_media_ids: [],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          preview_storage_path: null,
+          full_storage_path: null,
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-image-foreign-1",
+          owned_media_file_id: "media-image-foreign-1",
+          preview_storage_path: null,
+          full_storage_path: null,
+          created_at: "2026-04-18T16:30:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-image-foreign-1",
+          storage_path: "user-2/generations/images/media-image-foreign-1.png",
+          preview_storage_path: null,
+          file_type: "image/png",
+          poster_variant_path: null,
+          thumb_variant_path: "user-2/variants/images/media-image-foreign-1/thumb_720.webp",
+          preview_variant_path: null,
+        },
+      ],
+      error: null,
+    });
+
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+    generationPublicationsSelectMock.mockReturnValue(publicationBuilder);
+    mediaOwnershipSelectMock.mockImplementation((columns: string) => {
+      if (
+        columns ===
+        "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+      ) {
+        return mediaBuilder as typeof ownedMediaSelectBuilder;
+      }
+      throw new Error(`Unexpected media_files fields: ${columns}`);
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-image-foreign-1",
+              generationId: "generation-image-foreign-1",
+              previewUrl: "https://expired.example/generated-image-foreign.png",
+              resultUrls: ["https://expired.example/generated-image-foreign.png"],
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [],
+        }),
+      })
+    );
+  });
+
   it.each([
     "Could not find the 'preview_storage_path' column of 'media_files' in the schema cache",
     "column media_files.preview_storage_path does not exist",

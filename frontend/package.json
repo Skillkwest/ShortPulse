@@ -49,6 +49,8 @@
     "test:e2e:media-panel-persistence": "NODE_PATH=./node_modules node ./tests/e2e/media-panel-persistence.audit.js",
     "test:e2e:audio-exclusivity": "NODE_PATH=./node_modules node ./tests/e2e/ai-studio-audio-exclusivity.audit.js",
     "test:e2e:ai-studio-loading-gate": "NODE_PATH=./node_modules node ./tests/e2e/ai-studio-loading-gate.audit.js",
+    "test:e2e:character-mode-model-picker": "NODE_PATH=./node_modules node ./tests/e2e/ai-studio-character-mode-model-picker.audit.js",
+    "test:e2e:character-manager-save-reopen": "NODE_PATH=./node_modules node ./tests/e2e/character-manager-save-reopen.audit.js",
     "test:e2e:elements-panel-layout": "NODE_PATH=./node_modules node ./tests/e2e/elements-panel-layout.audit.js",
     "test:e2e:project-persistence": "NODE_PATH=./node_modules node ./tests/e2e/project-persistence.audit.js",
     "media:backfill-video-posters": "node ./scripts/backfill_video_posters.mjs",

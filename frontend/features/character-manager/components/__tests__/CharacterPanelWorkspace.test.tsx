@@ -358,6 +358,7 @@ describe("CharacterPanelWorkspace", () => {
     expect(confirmationDialog).toBeInTheDocument();
     expect(confirmationDialog).toHaveTextContent("Taylor");
     expect(confirmationDialog).toHaveTextContent("removed permanently");
+    expect(confirmationDialog.closest("#ai-studio-modal-layer-root")).not.toBeNull();
   });
 
   it("keeps look deletion actionable while another look image upload is still in flight", async () => {

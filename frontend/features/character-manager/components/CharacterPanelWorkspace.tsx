@@ -43,6 +43,7 @@ import {
   AiStudioPickerModalFrame,
   AiStudioPickerSection,
 } from "../../ai-studio/components/picker/AiStudioPickerPrimitives";
+import { AiStudioModalLayer } from "../../ai-studio/components/modal-layer/AiStudioModalLayer";
 
 type CharacterPanelWorkspaceProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
@@ -1522,24 +1523,26 @@ export function CharacterPanelWorkspace({
       </div>
 
       {deleteTargetCharacter ? (
-        <ConfirmationModal
-          title="Delete this character?"
-          titleId="delete-character-title"
-          body={
-            <p>
-              <strong>{deleteTargetCharacter.characterName}</strong> and its reference images will
-              be removed permanently.
-            </p>
-          }
-          confirmLabel="Delete"
-          confirmBusyLabel={isDeletingCharacter ? "Deleting..." : undefined}
-          confirmDisabled={isDeletingCharacter}
-          cancelDisabled={isDeletingCharacter}
-          onCancel={() => setDeleteTargetCharacter(null)}
-          onConfirm={() => {
-            void confirmDeleteCharacter();
-          }}
-        />
+        <AiStudioModalLayer>
+          <ConfirmationModal
+            title="Delete this character?"
+            titleId="delete-character-title"
+            body={
+              <p>
+                <strong>{deleteTargetCharacter.characterName}</strong> and its reference images will
+                be removed permanently.
+              </p>
+            }
+            confirmLabel="Delete"
+            confirmBusyLabel={isDeletingCharacter ? "Deleting..." : undefined}
+            confirmDisabled={isDeletingCharacter}
+            cancelDisabled={isDeletingCharacter}
+            onCancel={() => setDeleteTargetCharacter(null)}
+            onConfirm={() => {
+              void confirmDeleteCharacter();
+            }}
+          />
+        </AiStudioModalLayer>
       ) : null}
 
       {isDiscardUnsavedDraftConfirmOpen ? (

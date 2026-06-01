@@ -131,6 +131,28 @@ const asObjectMetadata = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 
+const toSafeUserScopedPath = ({
+  path,
+  userId,
+  label,
+}: {
+  path: string | null;
+  userId: string;
+  label: string;
+}): string | null => {
+  const canonicalPath = asCanonicalStoragePath(path);
+  if (!canonicalPath) return null;
+  try {
+    return assertUserScopedMediaStoragePath({
+      path: canonicalPath,
+      userId,
+      label,
+    });
+  } catch {
+    return null;
+  }
+};
+
 const normalizeOwnedStoragePathHint = ({
   value,
   userId,
@@ -727,6 +749,11 @@ const resolveExtension = (contentType: string | null, url: string): string =>
   extensionFromUrl(url) ||
   "bin";
 
+const hasSafeExistingDeliveryAuthority = (row: ExistingMediaRow): boolean =>
+  Boolean(
+    row.storagePath ?? row.thumbVariantPath ?? row.posterVariantPath ?? row.previewVariantPath
+  );
+
 const readExistingAiStudioMediaRowByOutputIndex = async ({
   userId,
   generationId,
@@ -761,7 +788,11 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
         if (id) {
           return {
             id,
-            storagePath: asCanonicalStoragePath(asOptionalString(canonicalMedia.storage_path)),
+            storagePath: toSafeUserScopedPath({
+              path: asOptionalString(canonicalMedia.storage_path),
+              userId,
+              label: "Existing media storage path",
+            }),
             fileType: (() => {
               const fileTypeRaw = asOptionalString(canonicalMedia.file_type)?.toLowerCase();
               if (fileTypeRaw === "video") return "video" as const;
@@ -769,15 +800,21 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
               return "image" as const;
             })(),
             metadata: asObjectMetadata(canonicalMedia.metadata),
-            thumbVariantPath: asCanonicalStoragePath(
-              asOptionalString(canonicalMedia.thumb_variant_path)
-            ),
-            posterVariantPath: asCanonicalStoragePath(
-              asOptionalString(canonicalMedia.poster_variant_path)
-            ),
-            previewVariantPath: asCanonicalStoragePath(
-              asOptionalString(canonicalMedia.preview_variant_path)
-            ),
+            thumbVariantPath: toSafeUserScopedPath({
+              path: asOptionalString(canonicalMedia.thumb_variant_path),
+              userId,
+              label: "Existing media thumb variant path",
+            }),
+            posterVariantPath: toSafeUserScopedPath({
+              path: asOptionalString(canonicalMedia.poster_variant_path),
+              userId,
+              label: "Existing media poster variant path",
+            }),
+            previewVariantPath: toSafeUserScopedPath({
+              path: asOptionalString(canonicalMedia.preview_variant_path),
+              userId,
+              label: "Existing media preview variant path",
+            }),
           };
         }
       }
@@ -803,7 +840,11 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     if (!id) return null;
     return {
       id,
-      storagePath: asCanonicalStoragePath(asOptionalString(data.storage_path)),
+      storagePath: toSafeUserScopedPath({
+        path: asOptionalString(data.storage_path),
+        userId,
+        label: "Existing legacy media storage path",
+      }),
       fileType: (() => {
         const fileTypeRaw = asOptionalString(data.file_type)?.toLowerCase();
         if (fileTypeRaw === "video") return "video" as const;
@@ -811,9 +852,21 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
         return "image" as const;
       })(),
       metadata: asObjectMetadata(data.metadata),
-      thumbVariantPath: asCanonicalStoragePath(asOptionalString(data.thumb_variant_path)),
-      posterVariantPath: asCanonicalStoragePath(asOptionalString(data.poster_variant_path)),
-      previewVariantPath: asCanonicalStoragePath(asOptionalString(data.preview_variant_path)),
+      thumbVariantPath: toSafeUserScopedPath({
+        path: asOptionalString(data.thumb_variant_path),
+        userId,
+        label: "Existing legacy media thumb variant path",
+      }),
+      posterVariantPath: toSafeUserScopedPath({
+        path: asOptionalString(data.poster_variant_path),
+        userId,
+        label: "Existing legacy media poster variant path",
+      }),
+      previewVariantPath: toSafeUserScopedPath({
+        path: asOptionalString(data.preview_variant_path),
+        userId,
+        label: "Existing legacy media preview variant path",
+      }),
     };
   };
 
@@ -840,6 +893,7 @@ const sanitizePreviewUrlHint = (value: string | null): string | null => {
 };
 
 const resolveDelivery = async ({
+  userId,
   row,
   storagePath,
   previewStoragePathHint,
@@ -847,6 +901,7 @@ const resolveDelivery = async ({
   previewUrlHint,
   fullUrlHint,
 }: {
+  userId: string;
   row?: {
     storage_path?: string | null;
     file_type?: string | null;
@@ -861,32 +916,61 @@ const resolveDelivery = async ({
   previewUrlHint: string | null;
   fullUrlHint: string | null;
 }) => {
+  const safeRowStoragePath = toSafeUserScopedPath({
+    path: row?.storage_path ?? null,
+    userId,
+    label: "Media delivery row storage path",
+  });
+  const safeRowThumbVariantPath = toSafeUserScopedPath({
+    path: row?.thumb_variant_path ?? null,
+    userId,
+    label: "Media delivery thumb variant path",
+  });
+  const safeRowPosterVariantPath = toSafeUserScopedPath({
+    path: row?.poster_variant_path ?? null,
+    userId,
+    label: "Media delivery poster variant path",
+  });
+  const safeRowPreviewVariantPath = toSafeUserScopedPath({
+    path: row?.preview_variant_path ?? null,
+    userId,
+    label: "Media delivery preview variant path",
+  });
   const authoritativeStoragePath =
-    asCanonicalStoragePath(row?.storage_path) ??
-    storagePath ??
-    asCanonicalStoragePath(fullStoragePathHint) ??
+    safeRowStoragePath ??
+    toSafeUserScopedPath({
+      path: storagePath,
+      userId,
+      label: "Media delivery storage path",
+    }) ??
+    toSafeUserScopedPath({
+      path: fullStoragePathHint,
+      userId,
+      label: "Media delivery full storage path hint",
+    }) ??
     null;
   const authoritativePreviewStoragePath =
     (row
       ? resolvePreviewStoragePath({
-          storage_path: row.storage_path ?? null,
+          storage_path: safeRowStoragePath,
           file_type: row.file_type ?? null,
           metadata: row.metadata ?? null,
-          thumb_variant_path: row.thumb_variant_path ?? null,
-          poster_variant_path: row.poster_variant_path ?? null,
-          preview_variant_path: row.preview_variant_path ?? null,
+          thumb_variant_path: safeRowThumbVariantPath,
+          poster_variant_path: safeRowPosterVariantPath,
+          preview_variant_path: safeRowPreviewVariantPath,
         })
       : null) ?? null;
   const previewStoragePath =
     authoritativePreviewStoragePath ??
-    asCanonicalStoragePath(previewStoragePathHint) ??
+    toSafeUserScopedPath({
+      path: previewStoragePathHint,
+      userId,
+      label: "Media delivery preview storage path hint",
+    }) ??
     authoritativeStoragePath ??
     null;
   const previewPosterStoragePath =
-    row?.file_type === "video"
-      ? (asCanonicalStoragePath(row.poster_variant_path) ??
-        asCanonicalStoragePath(row.thumb_variant_path))
-      : null;
+    row?.file_type === "video" ? (safeRowPosterVariantPath ?? safeRowThumbVariantPath) : null;
   const fullStoragePath = authoritativeStoragePath ?? previewStoragePath ?? null;
   const [signedPreviewUrl, signedPreviewPosterUrl, signedFullUrl] = await Promise.all([
     signStoragePath(previewStoragePath),
@@ -1044,7 +1128,7 @@ export default async function handler(
         generationId,
         index,
       });
-      if (existing) {
+      if (existing && hasSafeExistingDeliveryAuthority(existing)) {
         const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
           fileType: existing.fileType,
           previewStoragePath: previewStoragePathHint,
@@ -1122,6 +1206,7 @@ export default async function handler(
             // best-effort canonical output-slot convergence only
           }
           const delivery = await resolveDelivery({
+            userId: user.id,
             row: {
               storage_path: existing.storagePath,
               file_type: existing.fileType,
@@ -1255,7 +1340,7 @@ export default async function handler(
           generationId,
           index,
         });
-        if (existing) {
+        if (existing && hasSafeExistingDeliveryAuthority(existing)) {
           await removeScopedMediaStorageObject(storagePath);
           try {
             await reconcileOwnedGenerationOutputSlot({
@@ -1354,6 +1439,7 @@ export default async function handler(
             }
           }
           const delivery = await resolveDelivery({
+            userId: user.id,
             row: {
               storage_path: existing.storagePath,
               file_type: existing.fileType,
@@ -1376,6 +1462,10 @@ export default async function handler(
             delivery,
           });
         }
+        await removeScopedMediaStorageObject(storagePath);
+        return res.status(500).json({
+          error: "Failed to persist media record",
+        });
       }
       return res.status(500).json({
         error: "Failed to persist media record",
@@ -1465,6 +1555,7 @@ export default async function handler(
       }
     }
     const delivery = await resolveDelivery({
+      userId: user.id,
       row: {
         storage_path: asOptionalString(data?.storage_path),
         file_type: asOptionalString(data?.file_type),

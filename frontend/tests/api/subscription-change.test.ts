@@ -9,6 +9,7 @@ const stripeGetMock = vi.fn();
 const stripePostFormMock = vi.fn();
 const getCanonicalAppBaseUrlMock = vi.fn();
 const ensureStripeCustomerForUserMock = vi.fn();
+const readVerifiedStripeSubscriptionForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -30,6 +31,8 @@ vi.mock("../../lib/server/api/stripe", () => ({
 
 vi.mock("../../lib/server/api/stripeCustomer", () => ({
   ensureStripeCustomerForUser: (...args: unknown[]) => ensureStripeCustomerForUserMock(...args),
+  readVerifiedStripeSubscriptionForUser: (...args: unknown[]) =>
+    readVerifiedStripeSubscriptionForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -163,6 +166,13 @@ describe("POST /api/billing/subscription/change", () => {
       user_metadata: {},
     });
     ensureStripeCustomerForUserMock.mockResolvedValue("cus_123");
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_123",
+      customer: "cus_123",
+      items: {
+        data: [{ id: "si_base", quantity: 1, price: { id: "price_media" } }],
+      },
+    });
     getCanonicalAppBaseUrlMock.mockReturnValue("https://app.shortpulse.test");
   });
 
@@ -212,8 +222,9 @@ describe("POST /api/billing/subscription/change", () => {
         ],
       })
     );
-    stripeGetMock.mockResolvedValue({
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
+      customer: "cus_123",
       items: {
         data: [{ id: "si_base", quantity: 1, price: { id: "price_media" } }],
       },
@@ -352,8 +363,9 @@ describe("POST /api/billing/subscription/change", () => {
         ],
       })
     );
-    stripeGetMock.mockResolvedValue({
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
+      customer: "cus_123",
       items: {
         data: [
           { id: "si_base", quantity: 1, price: { id: "price_media" } },
@@ -382,6 +394,68 @@ describe("POST /api/billing/subscription/change", () => {
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("fails closed when the stored Stripe subscription belongs to another user", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "media",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_foreign",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "media",
+          stripe_subscription_id: "sub_foreign",
+          stripe_price_id: "price_media",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+        billingPlan: {
+          id: "business",
+          display_name: "Business",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            stripe_price_id: "price_business",
+            billing_interval: "month",
+            recurring_price_cents: 12900,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockRejectedValueOnce(
+      new Error("Stripe subscription ownership mismatch detected.")
+    );
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to start the subscription change.",
+    });
+    expect(stripePostFormMock).not.toHaveBeenCalledWith(
+      "/billing_portal/sessions",
+      expect.objectContaining({
+        "flow_data[subscription_update_confirm][subscription]": "sub_foreign",
+      })
+    );
   });
 
   it("creates a cancellation flow when switching a Stripe subscription to free", async () => {
@@ -416,6 +490,10 @@ describe("POST /api/billing/subscription/change", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
+    expect(readVerifiedStripeSubscriptionForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      stripeSubscriptionId: "sub_123",
+    });
     expect(stripePostFormMock).toHaveBeenCalledWith(
       "/billing_portal/sessions",
       expect.objectContaining({
@@ -424,6 +502,45 @@ describe("POST /api/billing/subscription/change", () => {
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("fails closed when the stored Stripe subscription for cancellation belongs to another user", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "media",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_foreign",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "media",
+          stripe_subscription_id: "sub_foreign",
+          stripe_price_id: "price_media",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockRejectedValueOnce(
+      new Error("Stripe subscription ownership mismatch detected.")
+    );
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "free" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to start the subscription change.",
+    });
+    expect(stripePostFormMock).not.toHaveBeenCalled();
   });
 
   it("switches an internal-comp plan to free immediately in-app", async () => {
@@ -576,8 +693,9 @@ describe("POST /api/billing/subscription/change", () => {
         ],
       })
     );
-    stripeGetMock.mockResolvedValue({
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
+      customer: "cus_123",
       items: {
         data: [{ id: "si_base", quantity: 1, price: { id: "price_media" } }],
       },

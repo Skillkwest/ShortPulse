@@ -282,6 +282,30 @@ const isSafeScopedPath = (path: string, userId: string): boolean => {
 const isAudioFileType = (value: string | null | undefined): boolean =>
   (value ?? "").toLowerCase().startsWith("audio");
 
+const sanitizeScopedPath = (path: string | null | undefined, userId: string): string | null => {
+  if (typeof path !== "string") return null;
+  return isSafeScopedPath(path, userId) ? path.trim() : null;
+};
+
+const sanitizeMediaListRowForUser = ({
+  row,
+  userId,
+}: {
+  row: MediaListRow;
+  userId: string;
+}): MediaListRow | null => {
+  const storagePath = sanitizeScopedPath(row.storage_path, userId);
+  if (!storagePath) return null;
+  return {
+    ...row,
+    storage_path: storagePath,
+    thumb_variant_path: sanitizeScopedPath(row.thumb_variant_path, userId),
+    poster_variant_path: sanitizeScopedPath(row.poster_variant_path, userId),
+    preview_variant_path: sanitizeScopedPath(row.preview_variant_path, userId),
+    companion_art_storage_path: sanitizeScopedPath(row.companion_art_storage_path, userId),
+  };
+};
+
 const enrichRowsWithAudioCompanionArt = async ({
   rows,
   userId,
@@ -631,11 +655,17 @@ export default async function handler(
         }
       }
 
-      rows = mergeUniqueRows(fetchedRows, limit);
-      rows = await enrichRowsWithAudioCompanionArt({
-        rows,
-        userId: user.id,
-      });
+      rows = mergeUniqueRows(fetchedRows, limit)
+        .map((row) => sanitizeMediaListRowForUser({ row, userId: user.id }))
+        .filter((row): row is MediaListRow => row !== null);
+      rows = (
+        await enrichRowsWithAudioCompanionArt({
+          rows,
+          userId: user.id,
+        })
+      )
+        .map((row) => sanitizeMediaListRowForUser({ row, userId: user.id }))
+        .filter((row): row is MediaListRow => row !== null);
       nextCursor = buildCursor(rows);
       hasMore = rows.length === limit && Boolean(nextCursor);
       const shouldSeedSignedUrls = shouldSeedInitialSignedUrls({

@@ -11,7 +11,7 @@ import { StandardCreatePropertiesPanel } from "../../features/ai-studio/componen
 import { createDefaultCharacterSheetPresetState } from "../../features/character-manager/constants";
 import type { CharacterManagerDraftSnapshot } from "../../features/character-manager/logic/characterManagerPersistence";
 import { readSupabaseUserId } from "../../lib/supabaseClient";
-import AiStudioPage from "../../pages/ai-studio";
+import AiStudioPage from "../../features/ai-studio/routes/AiStudioRouteApp";
 
 vi.mock("next/router", () => ({
   useRouter: () => ({
@@ -118,7 +118,11 @@ const {
         currentModelLabel: "Seedream 4.5 Edit",
         prompt: "User visible prompt",
         outputs: [] as StudioOutput[],
+        outputOrder: [] as string[],
+        outputById: {} as Record<string, StudioOutput>,
         archivedOutputs: [] as StudioOutput[],
+        archivedOutputOrder: [] as string[],
+        archivedOutputById: {} as Record<string, StudioOutput>,
         setOutputs: vi.fn(),
         resetReferenceGridState: vi.fn(),
         curatedReferenceIds: [] as string[],
@@ -185,6 +189,23 @@ const {
         saveReferenceToLibrary: vi.fn(),
         savePromptToLibrary: vi.fn(),
         addOutputsFromFiles: vi.fn(),
+        getOutputById: vi.fn(() => null),
+        getOutputSnapshot: vi.fn(() => ({
+          outputOrder: [],
+          outputById: {},
+          archivedOutputOrder: [],
+          archivedOutputById: {},
+          indexes: {
+            inFlightIds: new Set<string>(),
+            failedIds: new Set<string>(),
+            activeCount: 0,
+            archivedCount: 0,
+          },
+        })),
+        selectActiveOutputs: vi.fn(() => []),
+        selectArchivedOutputs: vi.fn(() => []),
+        selectOutputById: vi.fn(() => null),
+        subscribeOutputs: vi.fn(() => () => {}),
         addLibraryMediaReference: vi.fn(),
         addLibraryPromptReference: vi.fn(),
         toggleReferenceIndicator: vi.fn(),

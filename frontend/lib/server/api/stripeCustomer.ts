@@ -14,10 +14,25 @@ type StripeCustomerResponse = {
   metadata?: Record<string, string | null> | null;
 };
 
+export type StripeSubscriptionResponse = {
+  id: string;
+  customer?: string | { id?: string | null } | null;
+  items?: {
+    data?: Array<{
+      id?: string | null;
+      quantity?: number | null;
+      price?: {
+        id?: string | null;
+      } | null;
+    }>;
+  };
+};
+
 type EnsureStripeCustomerParams = {
   userId: string;
   email?: string | null;
   displayName?: string | null;
+  allowMetadataRepair?: boolean;
 };
 
 export type StripeCustomerSyncResult = {
@@ -42,6 +57,20 @@ type BillingContractSnapshot = {
   contract_source: "stripe" | "internal_comp" | null;
 };
 
+export class StripeCustomerOwnershipMismatchError extends Error {
+  constructor(message = "Stripe customer ownership mismatch detected.") {
+    super(message);
+    this.name = "StripeCustomerOwnershipMismatchError";
+  }
+}
+
+export class StripeSubscriptionOwnershipMismatchError extends Error {
+  constructor(message = "Stripe subscription ownership mismatch detected.") {
+    super(message);
+    this.name = "StripeSubscriptionOwnershipMismatchError";
+  }
+}
+
 const normalizeEmail = (value: string | null | undefined): string | null => {
   const normalized = value?.trim() ?? "";
   return normalized.length > 0 ? normalized : null;
@@ -50,6 +79,25 @@ const normalizeEmail = (value: string | null | undefined): string | null => {
 const normalizeDisplayName = (value: string | null | undefined): string | null => {
   const normalized = value?.trim() ?? "";
   return normalized.length > 0 ? normalized : null;
+};
+
+const normalizeMetadataUserId = (value: string | null | undefined): string | null => {
+  const normalized = value?.trim() ?? "";
+  return normalized.length > 0 ? normalized : null;
+};
+
+const normalizeStripeCustomerId = (
+  value: string | { id?: string | null } | null | undefined
+): string | null => {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+  if (value && typeof value === "object") {
+    const nested = typeof value.id === "string" ? value.id.trim() : "";
+    return nested.length > 0 ? nested : null;
+  }
+  return null;
 };
 
 const isStripeCustomerMissingError = (message: unknown): boolean => {
@@ -125,6 +173,67 @@ const syncLocalStripeCustomerMapping = async ({
   }
 };
 
+export const readVerifiedStripeCustomerForUser = async ({
+  userId,
+  stripeCustomerId,
+  allowMetadataRepair = false,
+}: {
+  userId: string;
+  stripeCustomerId: string;
+  allowMetadataRepair?: boolean;
+}): Promise<StripeCustomerResponse> => {
+  const customer = await stripeGet<StripeCustomerResponse>(`/customers/${stripeCustomerId}`);
+  if (customer.deleted) {
+    return customer;
+  }
+
+  const metadataUserId = normalizeMetadataUserId(customer.metadata?.user_id ?? null);
+  if (metadataUserId !== userId) {
+    if (allowMetadataRepair && metadataUserId === null) {
+      return customer;
+    }
+    throw new StripeCustomerOwnershipMismatchError(
+      "Stripe customer ownership mismatch detected. Repair billing mapping before continuing."
+    );
+  }
+
+  return customer;
+};
+
+export const readVerifiedStripeSubscriptionForUser = async ({
+  userId,
+  stripeSubscriptionId,
+}: {
+  userId: string;
+  stripeSubscriptionId: string;
+}): Promise<StripeSubscriptionResponse> => {
+  const subscription = await stripeGet<StripeSubscriptionResponse>(
+    `/subscriptions/${stripeSubscriptionId}`
+  );
+  const stripeCustomerId = normalizeStripeCustomerId(subscription.customer);
+  if (!stripeCustomerId) {
+    throw new StripeSubscriptionOwnershipMismatchError(
+      "Stripe subscription ownership mismatch detected. Repair billing mapping before continuing."
+    );
+  }
+
+  try {
+    await readVerifiedStripeCustomerForUser({
+      userId,
+      stripeCustomerId,
+    });
+  } catch (error) {
+    if (error instanceof StripeCustomerOwnershipMismatchError) {
+      throw new StripeSubscriptionOwnershipMismatchError(
+        "Stripe subscription ownership mismatch detected. Repair billing mapping before continuing."
+      );
+    }
+    throw error;
+  }
+
+  return subscription;
+};
+
 /**
  * Resolves, creates, or updates the Stripe customer for the given user.
  * Existing mappings are reused and repaired when Stripe customer identity drifts.
@@ -133,6 +242,7 @@ export const syncStripeCustomerForUser = async ({
   userId,
   email,
   displayName,
+  allowMetadataRepair = false,
 }: EnsureStripeCustomerParams): Promise<StripeCustomerSyncResult> => {
   const supabaseAdmin = getSupabaseAdmin();
   const [profileResult, contractResult] = await Promise.all([
@@ -192,14 +302,19 @@ export const syncStripeCustomerForUser = async ({
 
   let existingCustomer: StripeCustomerResponse;
   try {
-    existingCustomer = await stripeGet<StripeCustomerResponse>(
-      `/customers/${existingStripeCustomerId}`
-    );
+    existingCustomer = await readVerifiedStripeCustomerForUser({
+      userId,
+      stripeCustomerId: existingStripeCustomerId,
+      allowMetadataRepair,
+    });
   } catch (error) {
     if (error instanceof Error && isStripeCustomerModeMismatchError(error.message)) {
       throw new Error(
         "Stripe customer mode mismatch detected. Verify the active Stripe environment before repairing this user."
       );
+    }
+    if (error instanceof StripeCustomerOwnershipMismatchError) {
+      throw error;
     }
     if (error instanceof Error && isStripeCustomerMissingError(error.message)) {
       return await createCustomer();
@@ -211,7 +326,7 @@ export const syncStripeCustomerForUser = async ({
     return await createCustomer();
   }
 
-  const nextMetadataUserId = existingCustomer.metadata?.user_id ?? null;
+  const nextMetadataUserId = normalizeMetadataUserId(existingCustomer.metadata?.user_id ?? null);
   const updatePayload: Record<string, string> = {};
   const existingEmail = normalizeEmail(existingCustomer.email);
   const existingName = normalizeDisplayName(existingCustomer.name);

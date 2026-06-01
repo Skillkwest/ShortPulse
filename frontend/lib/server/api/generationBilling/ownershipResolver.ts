@@ -76,6 +76,42 @@ const lookupAttemptOwnerByProviderRequestId = async ({
   }
 };
 
+const lookupGenerationOwnerByProviderRequestId = async ({
+  providerRequestId,
+  userId = null,
+}: {
+  providerRequestId: string;
+  userId?: string | null;
+}): Promise<string | null> => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const query = supabaseAdmin
+      .from("ai_generations")
+      .select("user_id")
+      .eq("request_id", providerRequestId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const scopedQuery = userId ? query.eq("user_id", userId) : query;
+    const { data, error } = await scopedQuery.maybeSingle();
+    if (error) {
+      console.error("[generationBilling] lookupGenerationOwnerByProviderRequestId failed", {
+        providerRequestId,
+        userId,
+        message: error.message,
+      });
+      return null;
+    }
+    const ownerUserId = (data as { user_id?: unknown } | null)?.user_id;
+    return typeof ownerUserId === "string" && ownerUserId.trim().length ? ownerUserId : null;
+  } catch (error) {
+    console.error(
+      "[generationBilling] lookupGenerationOwnerByProviderRequestId threw",
+      String(error)
+    );
+    return null;
+  }
+};
+
 const lookupProjectionOwnersByProviderRequestId = async (
   providerRequestId: string
 ): Promise<string[]> => {
@@ -123,8 +159,11 @@ export const resolveProviderRequestOwnership = async ({
     return "owned";
   }
 
-  const projectionOwners = await lookupProjectionOwnersByProviderRequestId(normalized);
-  if (projectionOwners.includes(userId)) {
+  const generationOwnerForUser = await lookupGenerationOwnerByProviderRequestId({
+    providerRequestId: normalized,
+    userId,
+  });
+  if (generationOwnerForUser === userId) {
     return "owned";
   }
 
@@ -132,18 +171,26 @@ export const resolveProviderRequestOwnership = async ({
     providerRequestId: normalized,
   });
   if (reservationOwner) {
-    return "forbidden";
+    return reservationOwner === userId ? "owned" : "forbidden";
   }
 
   const attemptOwner = await lookupAttemptOwnerByProviderRequestId({
     providerRequestId: normalized,
   });
   if (attemptOwner) {
-    return "forbidden";
+    return attemptOwner === userId ? "owned" : "forbidden";
   }
 
+  const generationOwner = await lookupGenerationOwnerByProviderRequestId({
+    providerRequestId: normalized,
+  });
+  if (generationOwner) {
+    return generationOwner === userId ? "owned" : "forbidden";
+  }
+
+  const projectionOwners = await lookupProjectionOwnersByProviderRequestId(normalized);
   if (projectionOwners.length) {
-    return "forbidden";
+    return projectionOwners.includes(userId) ? "unknown" : "forbidden";
   }
 
   return "unknown";

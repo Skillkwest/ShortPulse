@@ -7,6 +7,7 @@ const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const verifyStripeWebhookSignatureMock = vi.fn();
 const insertCreditLedgerEntryMock = vi.fn();
+const readVerifiedStripeCustomerForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
@@ -23,6 +24,11 @@ vi.mock("../../lib/server/api/stripe", () => ({
 
 vi.mock("../../lib/server/api/creditLedger", () => ({
   insertCreditLedgerEntry: (...args: unknown[]) => insertCreditLedgerEntryMock(...args),
+}));
+
+vi.mock("../../lib/server/api/stripeCustomer", () => ({
+  readVerifiedStripeCustomerForUser: (...args: unknown[]) =>
+    readVerifiedStripeCustomerForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -220,6 +226,10 @@ describe("POST /api/billing/stripe/webhook", () => {
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
+    readVerifiedStripeCustomerForUserMock.mockResolvedValue({
+      id: "cus_verified",
+      metadata: { user_id: "user_123" },
+    });
   });
 
   it("rejects invalid signatures", async () => {
@@ -256,6 +266,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         data: {
           object: {
             id: "cs_duplicate_evt_1",
+            customer: "cus_123",
             payment_status: "paid",
             metadata: {
               user_id: "user_123",
@@ -322,6 +333,10 @@ describe("POST /api/billing/stripe/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true });
+    expect(readVerifiedStripeCustomerForUserMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      stripeCustomerId: "cus_123",
+    });
     expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
     expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -387,6 +402,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         data: {
           object: {
             id: "cs_async_1",
+            customer: "cus_123",
             payment_status: "paid",
             metadata: {
               user_id: "user_123",
@@ -402,6 +418,10 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
 
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(readVerifiedStripeCustomerForUserMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      stripeCustomerId: "cus_123",
+    });
     expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user_123",
@@ -447,6 +467,37 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(res.json).toHaveBeenCalledWith({ received: true });
   });
 
+  it("fails closed on checkout credit grants when the Stripe customer does not belong to the session user", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForWebhook());
+    readVerifiedStripeCustomerForUserMock.mockRejectedValueOnce(
+      new Error("Stripe customer ownership mismatch detected.")
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_checkout_foreign_customer",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_foreign_1",
+            customer: "cus_foreign",
+            payment_status: "paid",
+            metadata: {
+              user_id: "user_123",
+              credit_amount_cents: "1500",
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Webhook processing failed." });
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+  });
+
   it("grants monthly subscription credits only for subscription-cycle invoices", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(
@@ -481,6 +532,10 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
 
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(readVerifiedStripeCustomerForUserMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      stripeCustomerId: "cus_123",
+    });
     expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user_123",
@@ -558,6 +613,47 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
 
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed on subscription-cycle credits when the Stripe customer does not belong to the resolved local user", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingContract: {
+          id: "contract_123",
+          plan_id: "studio",
+          offer_id: "studio__current",
+          stripe_price_id: "price_studio",
+          monthly_credits_cents: 3000,
+        },
+      })
+    );
+    readVerifiedStripeCustomerForUserMock.mockRejectedValueOnce(
+      new Error("Stripe customer ownership mismatch detected.")
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_cycle_foreign_customer",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_cycle_foreign_customer",
+            customer: "cus_123",
+            billing_reason: "subscription_cycle",
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Webhook processing failed." });
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
   });
 

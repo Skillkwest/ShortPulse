@@ -1,4 +1,8 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import {
+  readVerifiedStripeCustomerForUser,
+  StripeCustomerOwnershipMismatchError,
+} from "./stripeCustomer";
 import { stripeGet } from "./stripe";
 
 type BillingProfileRow = {
@@ -158,12 +162,31 @@ export const resolveStripeCustomerBillingState = async (userId: string) => {
   const billingProfile = (billingProfileResult.data as BillingProfileRow | null) ?? null;
   const billingContract = (billingContractResult.data as BillingContractRow | null) ?? null;
 
+  const stripeCustomerId =
+    billingContract?.stripe_customer_id ?? billingProfile?.stripe_customer_id ?? null;
+
+  if (stripeCustomerId && process.env.STRIPE_SECRET_KEY) {
+    try {
+      const customer = await readVerifiedStripeCustomerForUser({
+        userId,
+        stripeCustomerId,
+      });
+      if (customer.deleted) {
+        throw new Error("Stripe customer record is deleted.");
+      }
+    } catch (error) {
+      if (error instanceof StripeCustomerOwnershipMismatchError) {
+        throw error;
+      }
+      throw error;
+    }
+  }
+
   return {
     billingProfile,
     billingContract,
     isInternalComp: billingContract?.contract_source === "internal_comp",
-    stripeCustomerId:
-      billingContract?.stripe_customer_id ?? billingProfile?.stripe_customer_id ?? null,
+    stripeCustomerId,
   };
 };
 

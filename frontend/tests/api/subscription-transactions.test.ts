@@ -74,21 +74,33 @@ describe("GET /api/billing/stripe/subscription-transactions", () => {
         error: null,
       }
     );
-    stripeGetMock.mockResolvedValue({
-      data: [
-        {
-          id: "in_123",
-          number: "9A12E1",
-          status: "paid",
-          currency: "usd",
-          amount_paid: 3900,
-          created: 1772323200,
-          paid: true,
-          billing_reason: "subscription_cycle",
-          hosted_invoice_url: "https://stripe.test/invoices/in_123",
-          status_transitions: { paid_at: 1772323200 },
-        },
-      ],
+    stripeGetMock.mockImplementation(async (path: string) => {
+      if (path === "/customers/cus_123") {
+        return {
+          id: "cus_123",
+          email: "user@example.com",
+          metadata: { user_id: "user-1" },
+        };
+      }
+      if (path === "/invoices") {
+        return {
+          data: [
+            {
+              id: "in_123",
+              number: "9A12E1",
+              status: "paid",
+              currency: "usd",
+              amount_paid: 3900,
+              created: 1772323200,
+              paid: true,
+              billing_reason: "subscription_cycle",
+              hosted_invoice_url: "https://stripe.test/invoices/in_123",
+              status_transitions: { paid_at: 1772323200 },
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected Stripe path ${path}`);
     });
 
     const req = { method: "GET", body: {} };
@@ -157,34 +169,46 @@ describe("GET /api/billing/stripe/subscription-transactions", () => {
         error: null,
       }
     );
-    stripeGetMock.mockResolvedValue({
-      data: [
-        {
-          id: "in_storage_1",
-          number: "S100GB1",
-          status: "paid",
-          currency: "usd",
-          amount_paid: 5400,
-          created: 1772323200,
-          paid: true,
-          hosted_invoice_url: "https://stripe.test/invoices/in_storage_1",
-          status_transitions: { paid_at: 1772323200 },
-          lines: {
-            data: [
-              {
-                id: "il_plan",
-                amount: 3900,
-                pricing: { price_details: { price: "price_business" } },
+    stripeGetMock.mockImplementation(async (path: string) => {
+      if (path === "/customers/cus_123") {
+        return {
+          id: "cus_123",
+          email: "user@example.com",
+          metadata: { user_id: "user-1" },
+        };
+      }
+      if (path === "/invoices") {
+        return {
+          data: [
+            {
+              id: "in_storage_1",
+              number: "S100GB1",
+              status: "paid",
+              currency: "usd",
+              amount_paid: 5400,
+              created: 1772323200,
+              paid: true,
+              hosted_invoice_url: "https://stripe.test/invoices/in_storage_1",
+              status_transitions: { paid_at: 1772323200 },
+              lines: {
+                data: [
+                  {
+                    id: "il_plan",
+                    amount: 3900,
+                    pricing: { price_details: { price: "price_business" } },
+                  },
+                  {
+                    id: "il_storage",
+                    amount: 1500,
+                    pricing: { price_details: { price: "price_storage_100" } },
+                  },
+                ],
               },
-              {
-                id: "il_storage",
-                amount: 1500,
-                pricing: { price_details: { price: "price_storage_100" } },
-              },
-            ],
-          },
-        },
-      ],
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected Stripe path ${path}`);
     });
 
     const req = { method: "GET", body: {}, query: { kind: "storage" } };
@@ -210,6 +234,36 @@ describe("GET /api/billing/stripe/subscription-transactions", () => {
           reference: "S100GB1",
         },
       ],
+    });
+  });
+
+  it("fails closed when the mapped Stripe customer belongs to a different user", async () => {
+    maybeSingleQueue.push(
+      { data: { stripe_customer_id: "cus_foreign" }, error: null },
+      {
+        data: { contract_source: "stripe", stripe_customer_id: "cus_foreign" },
+        error: null,
+      }
+    );
+    stripeGetMock.mockImplementation(async (path: string) => {
+      if (path === "/customers/cus_foreign") {
+        return {
+          id: "cus_foreign",
+          email: "other@example.com",
+          metadata: { user_id: "user-other" },
+        };
+      }
+      throw new Error(`Unexpected Stripe path ${path}`);
+    });
+
+    const req = { method: "GET", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to load recent subscription payments.",
     });
   });
 });

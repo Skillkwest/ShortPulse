@@ -54,6 +54,7 @@ export default async function handler(
       userId: targetUser.id,
       email: targetUser.email ?? null,
       displayName: resolveAuthDisplayName(targetUser),
+      allowMetadataRepair: true,
     });
 
     return res.status(200).json({

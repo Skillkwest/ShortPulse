@@ -3,6 +3,7 @@ import fs from "fs";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/upload-image";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -43,6 +44,7 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -57,6 +59,7 @@ const buildOversizedPngBuffer = async (): Promise<Buffer> =>
 describe("POST /api/upload-image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
     mockFile = {
@@ -230,5 +233,86 @@ describe("POST /api/upload-image", () => {
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
     expect(writeAppErrorLogMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a sanitized 500 when legacy image upload fails unexpectedly", async () => {
+    getSupabaseAdminMock.mockImplementationOnce(() => {
+      throw new Error("storage exploded");
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "image/png",
+        "x-shortpulse-upload-filename": "reference.png",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upload failed",
+    });
+  });
+
+  it("rate limits repeated image uploads for the same authenticated user", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(async () => ({ error: null })),
+          createSignedUrl: vi.fn(async () => ({
+            data: { signedUrl: "https://signed.example/reference-image" },
+            error: null,
+          })),
+        })),
+      },
+    });
+
+    const buildReq = () =>
+      Object.assign(new EventEmitter(), {
+        method: "POST",
+        headers: {
+          "content-type": "image/png",
+          "x-shortpulse-upload-filename": "reference.png",
+        },
+        destroy: vi.fn(),
+        socket: { remoteAddress: "127.0.0.1" },
+      });
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const req = buildReq();
+      const res = createMockResponse();
+      const handlerPromise = handler(req as never, res as never);
+      await new Promise<void>((resolve) => {
+        setImmediate(() => {
+          req.emit("data", Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+          req.emit("end");
+          resolve();
+        });
+      });
+      await handlerPromise;
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const req = buildReq();
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 });

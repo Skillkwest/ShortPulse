@@ -353,7 +353,7 @@ export type AdminCreditLedgerRow = {
   createdAt: string | null;
 };
 
-export type AdminAccessVia = "role" | "allowlist" | "none";
+export type AdminAccessVia = "role" | "none";
 
 export type AdminStatsCountWindow = {
   total: number;

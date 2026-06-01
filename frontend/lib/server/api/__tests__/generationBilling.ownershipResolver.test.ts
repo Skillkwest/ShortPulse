@@ -85,6 +85,10 @@ describe("resolveProviderRequestOwnership", () => {
         providerRequestId: "req-1",
       })
     ).resolves.toBe("owned");
+    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenCalledWith({
+      providerRequestId: "req-1",
+      userId: "user-1",
+    });
   });
 
   it("returns forbidden when the canonical generation attempt belongs to another user", async () => {
@@ -114,5 +118,31 @@ describe("resolveProviderRequestOwnership", () => {
         providerRequestId: "req-projection",
       })
     ).resolves.toBe("owned");
+  });
+
+  it("returns forbidden when another user owns the provider request and the caller has no scoped proof", async () => {
+    lookupGenerationAttemptByProviderRequestMock
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({
+        data: {
+          userId: "user-2",
+        },
+        error: null,
+      });
+
+    await expect(
+      resolveProviderRequestOwnership({
+        userId: "user-1",
+        providerRequestId: "req-foreign",
+      })
+    ).resolves.toBe("forbidden");
+    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenNthCalledWith(1, {
+      providerRequestId: "req-foreign",
+      userId: "user-1",
+    });
+    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenNthCalledWith(2, {
+      providerRequestId: "req-foreign",
+      userId: null,
+    });
   });
 });

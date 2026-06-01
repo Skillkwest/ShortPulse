@@ -74,24 +74,20 @@ describe("GET /api/admin/access", () => {
     });
   });
 
-  it("returns 200 with allowlist access when user is admin via allowlist", async () => {
+  it("returns 403 when verified user only matches a legacy allowlist email", async () => {
     requireApiUserMock.mockResolvedValue({ id: "admin-2", email: "allowlisted@example.com" });
-    resolveAdminAccessViaMock.mockReturnValue("allowlist");
+    resolveAdminAccessViaMock.mockReturnValue("none");
 
     const req = { method: "GET" };
     const res = createMockResponse();
 
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
-      isAdmin: true,
-      accessVia: "allowlist",
-      user: {
-        id: "admin-2",
-        email: "allowlisted@example.com",
-      },
+      isAdmin: false,
+      accessVia: "none",
     });
   });
 

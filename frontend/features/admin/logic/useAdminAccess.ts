@@ -133,7 +133,7 @@ export const useAdminAccess = ({
           if (hadGrantedCache) {
             setStatus("granted");
             setIsAdmin(true);
-            setAccessVia(cachedAdminAccessState?.accessVia ?? "allowlist");
+            setAccessVia(cachedAdminAccessState?.accessVia ?? "role");
             setError(
               payload && "error" in payload
                 ? (payload.error ?? "Failed to verify access.")
@@ -167,7 +167,7 @@ export const useAdminAccess = ({
         if (hadGrantedCache) {
           setStatus("granted");
           setIsAdmin(true);
-          setAccessVia(cachedAdminAccessState?.accessVia ?? "allowlist");
+          setAccessVia(cachedAdminAccessState?.accessVia ?? "role");
           setError(accessError instanceof Error ? accessError.message : "Failed to verify access.");
           return;
         }

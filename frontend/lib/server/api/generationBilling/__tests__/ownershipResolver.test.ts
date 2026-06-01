@@ -82,6 +82,21 @@ describe("resolveProviderRequestOwnership", () => {
     expect(result).toBe("owned");
   });
 
+  it("returns owned when another user's reservation exists but the caller also has a scoped reservation", async () => {
+    const admin = createMockSupabase({
+      reservationData: { user_id: "user-1" },
+    });
+    getSupabaseAdminMock.mockReturnValue(admin);
+
+    const result = await resolveProviderRequestOwnership({
+      userId: "user-1",
+      providerRequestId: "req-collision-reservation",
+    });
+
+    expect(result).toBe("owned");
+    expect(admin.from).toHaveBeenCalledWith("ai_credit_reservations");
+  });
+
   it("returns owned when projection proves ownership after reservation and attempt miss", async () => {
     const admin = createMockSupabase({
       reservationData: null,
@@ -116,6 +131,37 @@ describe("resolveProviderRequestOwnership", () => {
     });
 
     expect(result).toBe("forbidden");
+  });
+
+  it("returns owned when a scoped attempt exists even if another user would match the same provider request id globally", async () => {
+    const admin = createMockSupabase({
+      reservationData: null,
+    });
+    getSupabaseAdminMock.mockReturnValue(admin);
+    lookupGenerationAttemptByProviderRequestMock
+      .mockResolvedValueOnce({
+        data: {
+          userId: "user-1",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          userId: "user-2",
+        },
+        error: null,
+      });
+
+    const result = await resolveProviderRequestOwnership({
+      userId: "user-1",
+      providerRequestId: "req-collision-attempt",
+    });
+
+    expect(result).toBe("owned");
+    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenNthCalledWith(1, {
+      providerRequestId: "req-collision-attempt",
+      userId: "user-1",
+    });
   });
 
   it("returns unknown when only legacy ledger metadata matches after canonical lineage misses", async () => {

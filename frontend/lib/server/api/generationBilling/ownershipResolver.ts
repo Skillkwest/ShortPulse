@@ -8,22 +8,28 @@ import {
 } from "./errorGuards";
 import type { ProviderRequestOwnership } from "./types";
 
-const lookupReservationOwnerByProviderRequestId = async (
-  providerRequestId: string
-): Promise<string | null> => {
+const lookupReservationOwnerByProviderRequestId = async ({
+  providerRequestId,
+  userId = null,
+}: {
+  providerRequestId: string;
+  userId?: string | null;
+}): Promise<string | null> => {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin
+    const query = supabaseAdmin
       .from("ai_credit_reservations")
       .select("user_id")
       .eq("provider_request_id", providerRequestId)
       .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    const scopedQuery = userId ? query.eq("user_id", userId) : query;
+    const { data, error } = await scopedQuery.maybeSingle();
     if (error) {
       if (!isMissingReservationSchemaError(readErrorCode(error), error.message)) {
         console.error("[generationBilling] lookupReservationOwnerByProviderRequestId failed", {
           providerRequestId,
+          userId,
           message: error.message,
         });
       }
@@ -40,17 +46,23 @@ const lookupReservationOwnerByProviderRequestId = async (
   }
 };
 
-const lookupAttemptOwnerByProviderRequestId = async (
-  providerRequestId: string
-): Promise<string | null> => {
+const lookupAttemptOwnerByProviderRequestId = async ({
+  providerRequestId,
+  userId = null,
+}: {
+  providerRequestId: string;
+  userId?: string | null;
+}): Promise<string | null> => {
   try {
     const { data, error } = await lookupGenerationAttemptByProviderRequest({
       providerRequestId,
+      userId,
     });
     if (error) {
       if (!isMissingGenerationAttemptSchemaError(error.code ?? null, error.message ?? undefined)) {
         console.error("[generationBilling] lookupAttemptOwnerByProviderRequestId failed", {
           providerRequestId,
+          userId,
           message: error.message ?? null,
         });
       }
@@ -95,19 +107,43 @@ export const resolveProviderRequestOwnership = async ({
   const normalized = providerRequestId.trim();
   if (!normalized) return "unknown";
 
-  const reservationOwner = await lookupReservationOwnerByProviderRequestId(normalized);
-  if (reservationOwner) {
-    return reservationOwner === userId ? "owned" : "forbidden";
+  const reservationOwnerForUser = await lookupReservationOwnerByProviderRequestId({
+    providerRequestId: normalized,
+    userId,
+  });
+  if (reservationOwnerForUser === userId) {
+    return "owned";
   }
 
-  const attemptOwner = await lookupAttemptOwnerByProviderRequestId(normalized);
-  if (attemptOwner) {
-    return attemptOwner === userId ? "owned" : "forbidden";
+  const attemptOwnerForUser = await lookupAttemptOwnerByProviderRequestId({
+    providerRequestId: normalized,
+    userId,
+  });
+  if (attemptOwnerForUser === userId) {
+    return "owned";
   }
 
   const projectionOwners = await lookupProjectionOwnersByProviderRequestId(normalized);
+  if (projectionOwners.includes(userId)) {
+    return "owned";
+  }
+
+  const reservationOwner = await lookupReservationOwnerByProviderRequestId({
+    providerRequestId: normalized,
+  });
+  if (reservationOwner) {
+    return "forbidden";
+  }
+
+  const attemptOwner = await lookupAttemptOwnerByProviderRequestId({
+    providerRequestId: normalized,
+  });
+  if (attemptOwner) {
+    return "forbidden";
+  }
+
   if (projectionOwners.length) {
-    return projectionOwners.includes(userId) ? "owned" : "forbidden";
+    return "forbidden";
   }
 
   return "unknown";

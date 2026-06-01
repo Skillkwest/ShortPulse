@@ -13,7 +13,7 @@ import {
 } from "./authTokenVerifier";
 
 export type { AuthenticatedApiUser } from "./authTokenVerifier";
-export type AdminAccessVia = "role" | "allowlist" | "none";
+export type AdminAccessVia = "role" | "none";
 export type OptionalApiUserResult = {
   user: AuthenticatedApiUser | null;
   authVerificationUnavailable: boolean;
@@ -116,15 +116,6 @@ export const resolveAdminAccessVia = (user: AuthenticatedApiUser): AdminAccessVi
   const normalizedRoles = adminRolesFromAppMetadata(user);
   if (normalizedRoles.includes("admin") || normalizedRoles.includes("operator")) {
     return "role";
-  }
-
-  const configuredEmails =
-    process.env.SHORTPULSE_ADMIN_EMAILS?.split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean) ?? [];
-  const userEmail = user.email?.trim().toLowerCase();
-  if (userEmail && configuredEmails.includes(userEmail)) {
-    return "allowlist";
   }
 
   return "none";

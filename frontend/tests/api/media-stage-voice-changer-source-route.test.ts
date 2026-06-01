@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/media/stage-voice-changer-source";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -25,6 +26,7 @@ vi.mock("../../lib/server/mediaUploadService", async () => {
 });
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -32,6 +34,7 @@ const createMockResponse = () => ({
 describe("POST /api/media/stage-voice-changer-source", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     finalizeVoiceChangerSourceUploadForUserMock.mockResolvedValue({
       path: "user-1/voice-changer/source-audio/sample.wav",
@@ -157,6 +160,36 @@ describe("POST /api/media/stage-voice-changer-source", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to stage voice changer source",
+    });
+  });
+
+  it("rate limits repeated voice changer source staging for the same authenticated user", async () => {
+    const buildReq = () => ({
+      method: "POST",
+      body: {
+        sourceKind: "audio",
+        sourceMimeType: "audio/wav",
+        sourceName: "sample.wav",
+        sourceStoragePath: "user-1/voice-changer/source-audio/sample.wav",
+      },
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    });
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const res = createMockResponse();
+      await handler(buildReq() as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const res = createMockResponse();
+    await handler(buildReq() as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
     });
   });
 });

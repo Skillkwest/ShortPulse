@@ -9,7 +9,7 @@ type AdminAccessResponse =
   | {
       ok: true;
       isAdmin: true;
-      accessVia: "role" | "allowlist";
+      accessVia: "role";
       user: {
         id: string;
         email: string | null;

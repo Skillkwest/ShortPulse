@@ -1,3 +1,4 @@
+import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { asCanonicalStoragePath } from "../../adaptive-media";
 
@@ -15,6 +16,20 @@ const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const toSafeUserScopedPath = (value: unknown, userId: string): string | null => {
+  const candidate = asCanonicalStoragePath(asString(value));
+  if (!candidate) return null;
+  try {
+    return assertUserScopedMediaStoragePath({
+      path: candidate,
+      userId,
+      label: "Media delivery path",
+    });
+  } catch {
+    return null;
+  }
 };
 
 const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
@@ -70,12 +85,12 @@ export const readMediaDeliveryPathsById = async ({
   for (const rawRow of data) {
     const row = asObject(rawRow);
     const mediaFileId = asString(row.id);
-    const storagePath = asCanonicalStoragePath(asString(row.storage_path));
+    const storagePath = toSafeUserScopedPath(row.storage_path, userId);
     if (!mediaFileId || !storagePath) continue;
     const fileType = asString(row.file_type)?.toLowerCase() ?? "";
     const isVideo = fileType.startsWith("video");
-    const previewVariantPath = asCanonicalStoragePath(asString(row.preview_variant_path));
-    const previewStoragePathCandidate = asCanonicalStoragePath(asString(row.preview_storage_path));
+    const previewVariantPath = toSafeUserScopedPath(row.preview_variant_path, userId);
+    const previewStoragePathCandidate = toSafeUserScopedPath(row.preview_storage_path, userId);
     const previewStoragePath = isVideo
       ? (previewVariantPath ?? previewStoragePathCandidate ?? storagePath)
       : (previewStoragePathCandidate ?? storagePath);

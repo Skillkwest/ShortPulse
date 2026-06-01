@@ -236,6 +236,65 @@ describe("generationOutputConvergence", () => {
     });
   });
 
+  it("suppresses delivery paths when a matching user-owned row points outside the caller storage scope", async () => {
+    const adminClient = createAdminClient({
+      storageRows: [
+        { id: "media-foreign-1", storage_path: "user-2/generations/images/foreign.png" },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(adminClient);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-foreign-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/foreign.png",
+        mediaFileId: "media-foreign-1",
+      },
+    ]);
+
+    const result = await reconcileOwnedGenerationOutputSlot({
+      generationId: "gen-foreign-1",
+      userId: "user-1",
+      outputIndex: 0,
+      mediaFileId: "media-foreign-1",
+      resultUrl: "https://cdn.shortpulse.test/foreign.png",
+    });
+
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationOutputId: "output-foreign-1",
+        publicationState: "suppressed",
+        previewStoragePath: null,
+        fullStoragePath: null,
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        previewStoragePath: "user-2/generations/images/foreign.png",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-foreign-1",
+        savedMediaIds: [],
+      })
+    );
+    expect(result).toEqual({
+      persistedOutputRows: [
+        {
+          id: "output-foreign-1",
+          outputIndex: 0,
+          resultUrl: "https://cdn.shortpulse.test/foreign.png",
+          mediaFileId: "media-foreign-1",
+        },
+      ],
+      savedMediaIds: [],
+      hasCanonicalOwnedMedia: false,
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+  });
+
   it("uses video preview-loop variants for preview storage while preserving the video as full storage", async () => {
     const adminClient = createAdminClient({
       storageRows: [

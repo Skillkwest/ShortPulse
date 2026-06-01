@@ -3,6 +3,7 @@ import { resolveRequiredAudioVoiceoverModelId } from "../../../lib/model-runtime
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { listSavedVoicesForUser } from "../../../lib/server/api/userSavedVoices";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
 import {
@@ -60,6 +61,11 @@ type GenerateAudioErrorResponse = {
 
 const DEFAULT_VOICEOVER_MODEL_ID = resolveRequiredAudioVoiceoverModelId();
 const ALLOWED_MODEL_IDS = new Set([DEFAULT_VOICEOVER_MODEL_ID]);
+const ELEVENLABS_TEXT_TO_SPEECH_RATE_LIMIT = {
+  keyPrefix: "elevenlabs-text-to-speech",
+  maxRequests: 8,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -82,6 +88,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...ELEVENLABS_TEXT_TO_SPEECH_RATE_LIMIT,
+      keyPrefix: `${ELEVENLABS_TEXT_TO_SPEECH_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   try {

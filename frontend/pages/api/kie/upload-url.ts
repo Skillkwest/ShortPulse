@@ -4,6 +4,7 @@ import { isIP } from "node:net";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { readProviderApiKey } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 
 const KIE_FILE_URL_UPLOAD_ENDPOINT =
@@ -499,6 +500,12 @@ const readRawRequestBody = async (req: NextApiRequest): Promise<Buffer> =>
 const isJsonRequest = (req: NextApiRequest): boolean =>
   req.headers["content-type"]?.toLowerCase().includes("application/json") ?? false;
 
+const KIE_UPLOAD_URL_RATE_LIMIT = {
+  keyPrefix: "kie-upload-url",
+  maxRequests: 12,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SuccessResponse | ErrorResponse>
@@ -509,6 +516,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...KIE_UPLOAD_URL_RATE_LIMIT,
+      keyPrefix: `${KIE_UPLOAD_URL_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const apiKey = readProviderApiKey("kie");
@@ -621,7 +636,6 @@ export default async function handler(
     });
     return res.status(500).json({
       error: "Kie upload failed",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

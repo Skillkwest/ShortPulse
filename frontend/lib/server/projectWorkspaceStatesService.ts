@@ -3,7 +3,12 @@
  * Owns server-authoritative read/write access for user-owned project workspace snapshots.
  */
 import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
-import { createAiStudioProjectWorkspaceSnapshot } from "../ai-studio-session/projectWorkspaceSnapshot";
+import {
+  createAiStudioProjectWorkspaceSnapshot,
+  hasProjectDurableOutputAuthority,
+  hasProjectRecoverableRuntimeIdentity,
+  isProjectGeneratedWorkspaceOutput,
+} from "../ai-studio-session/projectWorkspaceSnapshot";
 import { isSupabaseRenderImageUrl } from "../mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
@@ -176,13 +181,14 @@ const collectSnapshotAssociationIds = (snapshot: Record<string, unknown>) => {
   };
 };
 
-const collectSnapshotGenerationIds = (snapshot: Record<string, unknown>): string[] => {
+const collectSnapshotGenerationAuthorityKeys = (snapshot: Record<string, unknown>) => {
   const outputsRecord = asRecord(snapshot.outputs);
   const rows = [
     ...(Array.isArray(outputsRecord.active) ? outputsRecord.active : []),
     ...(Array.isArray(outputsRecord.archived) ? outputsRecord.archived : []),
   ];
   const generationIds = new Set<string>();
+  const runtimeRequestIds = new Set<string>();
 
   rows.forEach((row) => {
     const normalizedRow = asRecord(row);
@@ -191,9 +197,20 @@ const collectSnapshotGenerationIds = (snapshot: Record<string, unknown>): string
     if (generationId) {
       generationIds.add(generationId);
     }
+    const taskId = normalizeOptionalString(normalizedRow.taskId);
+    if (taskId) {
+      runtimeRequestIds.add(taskId);
+    }
+    const sourceRef = normalizeOptionalString(normalizedRow.sourceRef);
+    if (sourceRef) {
+      runtimeRequestIds.add(sourceRef);
+    }
   });
 
-  return [...generationIds];
+  return {
+    generationIds: [...generationIds],
+    runtimeRequestIds: [...runtimeRequestIds],
+  };
 };
 
 const sanitizeProjectWorkspaceOutputsByShape = ({
@@ -333,12 +350,14 @@ const sanitizeProjectWorkspaceOutputs = ({
   ownedMediaFileIds,
   ownedPromptIds,
   ownedGenerationIds,
+  generationAuthorityResolved = true,
 }: {
   userId: string;
   snapshot: Record<string, unknown>;
   ownedMediaFileIds: readonly string[];
   ownedPromptIds: readonly string[];
   ownedGenerationIds: readonly string[];
+  generationAuthorityResolved?: boolean;
 }): Record<string, unknown> => {
   const shapeSanitizedSnapshot = sanitizeProjectWorkspaceOutputsByShape({ userId, snapshot });
   const shapeSanitizedOutputsRecord = asRecord(shapeSanitizedSnapshot.outputs);
@@ -430,6 +449,14 @@ const sanitizeProjectWorkspaceOutputs = ({
         }
         sanitizeScopedStoragePathFields(nextRow);
 
+        if (
+          isProjectGeneratedWorkspaceOutput(nextRow) &&
+          !hasProjectDurableOutputAuthority(nextRow) &&
+          (!hasProjectRecoverableRuntimeIdentity(nextRow) || !generationAuthorityResolved)
+        ) {
+          return null;
+        }
+
         return nextRow;
       })
       .filter((row): row is Record<string, unknown> => Boolean(row));
@@ -500,12 +527,21 @@ const resolveOwnedIds = async ({
 const resolveOwnedGenerationIds = async ({
   userId,
   generationIds,
+  runtimeRequestIds,
 }: {
   userId: string;
   generationIds: string[];
+  runtimeRequestIds: string[];
 }): Promise<string[]> => {
   const canonicalGenerationIds = normalizeUuidList(generationIds);
-  if (canonicalGenerationIds.length === 0) return [];
+  const canonicalRuntimeRequestIds = Array.from(
+    new Set(
+      runtimeRequestIds
+        .map((value) => normalizeOptionalString(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  if (canonicalGenerationIds.length === 0 && canonicalRuntimeRequestIds.length === 0) return [];
   const supabaseAdmin = getSupabaseAdmin();
   const ownedGenerationIds = new Set<string>();
 
@@ -549,6 +585,61 @@ const resolveOwnedGenerationIds = async ({
     });
   }
 
+  for (const requestIdChunk of chunkValues(canonicalRuntimeRequestIds)) {
+    const [
+      { data: generationData, error: generationError },
+      { data: projectionRequestData, error: projectionRequestError },
+      { data: projectionSourceRefData, error: projectionSourceRefError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("ai_generations")
+        .select("id")
+        .eq("user_id", userId)
+        .in("request_id", requestIdChunk),
+      supabaseAdmin
+        .from("generation_projection")
+        .select("generation_id")
+        .eq("user_id", userId)
+        .in("request_id", requestIdChunk),
+      supabaseAdmin
+        .from("generation_projection")
+        .select("generation_id")
+        .eq("user_id", userId)
+        .in("source_ref", requestIdChunk),
+    ]);
+
+    if (generationError) {
+      throw new Error(generationError.message || "Failed to resolve owned generation request ids");
+    }
+    if (projectionRequestError) {
+      throw new Error(
+        projectionRequestError.message ||
+          "Failed to resolve owned generation projection request ids"
+      );
+    }
+    if (projectionSourceRefError) {
+      throw new Error(
+        projectionSourceRefError.message ||
+          "Failed to resolve owned generation projection source refs"
+      );
+    }
+
+    (Array.isArray(generationData) ? generationData : []).forEach((row) => {
+      const idValue = asRecord(row).id;
+      if (typeof idValue === "string" && idValue.trim().length > 0) {
+        ownedGenerationIds.add(idValue.trim());
+      }
+    });
+    [projectionRequestData, projectionSourceRefData].forEach((data) => {
+      (Array.isArray(data) ? data : []).forEach((row) => {
+        const idValue = asRecord(row).generation_id;
+        if (typeof idValue === "string" && idValue.trim().length > 0) {
+          ownedGenerationIds.add(idValue.trim());
+        }
+      });
+    });
+  }
+
   return [...ownedGenerationIds];
 };
 
@@ -560,6 +651,7 @@ const resolveOwnedSnapshotAssociationIds = async ({
   snapshot: Record<string, unknown>;
 }) => {
   const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
+  const { generationIds, runtimeRequestIds } = collectSnapshotGenerationAuthorityKeys(snapshot);
   const [ownedMediaFileIds, ownedPromptIds, ownedGenerationIds] = await Promise.all([
     resolveOwnedIds({
       table: "media_files",
@@ -575,7 +667,8 @@ const resolveOwnedSnapshotAssociationIds = async ({
     }),
     resolveOwnedGenerationIds({
       userId,
-      generationIds: collectSnapshotGenerationIds(snapshot),
+      generationIds,
+      runtimeRequestIds,
     }),
   ]);
 
@@ -600,7 +693,7 @@ const resolveOwnedSnapshotAssociationIdsForRead = async ({
   failureMessages: string[];
 }> => {
   const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
-  const generationIds = collectSnapshotGenerationIds(snapshot);
+  const { generationIds, runtimeRequestIds } = collectSnapshotGenerationAuthorityKeys(snapshot);
   const [mediaResult, promptResult, generationResult] = await Promise.allSettled([
     resolveOwnedIds({
       table: "media_files",
@@ -617,6 +710,7 @@ const resolveOwnedSnapshotAssociationIdsForRead = async ({
     resolveOwnedGenerationIds({
       userId,
       generationIds,
+      runtimeRequestIds,
     }),
   ]);
 
@@ -798,6 +892,7 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
       ownedMediaFileIds,
       ownedPromptIds,
       ownedGenerationIds,
+      generationAuthorityResolved: !failedAuthorities.includes("generation"),
     });
     const reSanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(sanitizedOutputsSnapshot);
 
@@ -855,6 +950,7 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
         ownedMediaFileIds: [],
         ownedPromptIds: [],
         ownedGenerationIds: [],
+        generationAuthorityResolved: false,
       })
     );
   }

@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/upload-audio";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -21,6 +22,7 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -28,6 +30,7 @@ const createMockResponse = () => ({
 describe("POST /api/upload-audio", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
     getSupabaseAdminMock.mockReturnValue({
@@ -113,6 +116,76 @@ describe("POST /api/upload-audio", () => {
       path: expect.stringMatching(/^user-1\/audio\/reference-grid\//),
       size: rawBody.length,
       mimeType: "audio/wav",
+    });
+  });
+
+  it("returns a sanitized 500 when legacy audio upload fails unexpectedly", async () => {
+    getSupabaseAdminMock.mockImplementationOnce(() => {
+      throw new Error("storage exploded");
+    });
+
+    const rawBody = Buffer.from("ID3-test-audio");
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "audio/mpeg",
+        "x-shortpulse-upload-filename": "reference.mp3",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", rawBody);
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upload failed",
+    });
+  });
+
+  it("rate limits repeated audio uploads for the same authenticated user", async () => {
+    const buildReq = () =>
+      Object.assign(new EventEmitter(), {
+        method: "POST",
+        headers: {
+          "content-type": "audio/mpeg",
+          "x-shortpulse-upload-filename": "reference.mp3",
+        },
+        destroy: vi.fn(),
+        socket: { remoteAddress: "127.0.0.1" },
+      });
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const req = buildReq();
+      const res = createMockResponse();
+      const handlerPromise = handler(req as never, res as never);
+      await new Promise<void>((resolve) => {
+        setImmediate(() => {
+          req.emit("data", Buffer.from("ID3-test-audio"));
+          req.emit("end");
+          resolve();
+        });
+      });
+      await handlerPromise;
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const req = buildReq();
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
     });
   });
 });

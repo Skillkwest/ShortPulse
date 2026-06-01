@@ -29,6 +29,7 @@ type SupabaseMockOptions = {
   workspaceSnapshot?: Record<string, unknown>;
   associatedSnapshotGenerationIds?: string[];
   recentGenerationIds?: string[];
+  generationRows?: Array<Record<string, unknown>>;
   projectionRows?: Array<Record<string, unknown>>;
   publicationRows?: Array<Record<string, unknown>>;
   mediaRows?: Array<Record<string, unknown>>;
@@ -46,10 +47,17 @@ const createSupabaseMock = ({
   workspaceSnapshot,
   associatedSnapshotGenerationIds = [GENERATION_ID_1],
   recentGenerationIds = [GENERATION_ID_1],
+  generationRows = [
+    {
+      id: GENERATION_ID_1,
+      request_id: "task-1",
+    },
+  ],
   projectionRows = [
     {
       generation_id: GENERATION_ID_1,
       request_id: "task-1",
+      source_ref: "source-1",
       preview_url: "https://cdn.example.com/project-output.png",
       result_urls: ["https://cdn.example.com/project-output.png"],
       preview_storage_path: "user-1/generated/project-output-preview.png",
@@ -74,14 +82,6 @@ const createSupabaseMock = ({
   mediaRowReadError,
   workspaceUpsertError,
 }: SupabaseMockOptions = {}) => {
-  const projectionRowsById = new Map<string, Record<string, unknown>>(
-    projectionRows
-      .filter(
-        (row): row is Record<string, unknown> & { generation_id: string } =>
-          typeof row.generation_id === "string" && row.generation_id.length > 0
-      )
-      .map((row) => [row.generation_id, row])
-  );
   const mediaRowsById = new Map<string, Record<string, unknown>>(
     mediaRows
       .filter(
@@ -90,6 +90,22 @@ const createSupabaseMock = ({
       )
       .map((row) => [row.id, row])
   );
+  const selectGenerationRows = (column: string, ids: string[]) => {
+    const requestedIds = new Set(ids);
+    return generationRows.filter((row) => {
+      const record = row as Record<string, unknown>;
+      const value = record[column];
+      return typeof value === "string" && requestedIds.has(value);
+    });
+  };
+  const selectProjectionRows = (column: string, ids: string[]) => {
+    const requestedIds = new Set(ids);
+    return projectionRows.filter((row) => {
+      const record = row as Record<string, unknown>;
+      const value = record[column];
+      return typeof value === "string" && requestedIds.has(value);
+    });
+  };
   const mediaIdInMock = vi.fn(async (_column: string, ids: string[]) => ({
     data: ids
       .filter((id) => id === MEDIA_ID_1 || id === MEDIA_ID_2 || mediaRowsById.has(id))
@@ -122,7 +138,7 @@ const createSupabaseMock = ({
   const generationIdInMock = vi.fn(async (_column: string, ids: string[]) => ({
     data: generationReadError
       ? null
-      : ids.filter((id) => id === GENERATION_ID_1).map((id) => ({ id })),
+      : selectGenerationRows(_column, ids).map((row) => ({ id: row.id })),
     error: generationReadError ? { message: generationReadError } : null,
   }));
   const generationSelect = vi.fn(() => ({
@@ -162,9 +178,7 @@ const createSupabaseMock = ({
     const builder = {
       eq: vi.fn(),
       in: vi.fn(async (_column: string, ids: string[]) => ({
-        data: ids
-          .map((id) => projectionRowsById.get(id))
-          .filter((row): row is Record<string, unknown> => Boolean(row)),
+        data: selectProjectionRows(_column, ids),
         error: null,
       })),
       order: vi.fn(),
@@ -1819,6 +1833,154 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
+  it("drops generated rows that only retain task identity when generation ownership resolution fails on read", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    createSupabaseMock({
+      generationReadError: "generation ownership unavailable",
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-generated-taskid-degrade-read",
+        updatedAt: "2026-05-31T19:15:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T19:15:00.000Z",
+          checksum: "fnv1a32:generated-taskid-degrade-read",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-generated-runtime-only",
+              taskId: "task-runtime-only-1",
+              sourceRef: "source-runtime-only-1",
+              mediaSource: "generated",
+              previewUrl: "https://cdn.example.com/runtime-only.png",
+              resultUrls: ["https://cdn.example.com/runtime-only.png"],
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-generated-runtime-only",
+          curatedReferenceIds: ["out-generated-runtime-only"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    try {
+      const result = await getProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+
+      expect(result?.snapshot.outputs).toMatchObject({
+        active: [],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] read sanitization degraded unresolved ownership associations",
+        expect.objectContaining({
+          projectId: "project-1",
+          failedAuthorities: ["generation"],
+        })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("retains generated rows that only retain runtime identity when read ownership resolves by request id", async () => {
+    createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [GENERATION_ID_2],
+      generationRows: [
+        {
+          id: GENERATION_ID_2,
+          request_id: "task-runtime-owned-1",
+        },
+      ],
+      projectionRows: [
+        {
+          generation_id: GENERATION_ID_2,
+          request_id: "task-runtime-owned-1",
+          source_ref: "source-runtime-owned-1",
+          preview_url: "https://cdn.example.com/runtime-owned.png",
+          result_urls: ["https://cdn.example.com/runtime-owned.png"],
+          preview_storage_path: "user-1/generated/runtime-owned-preview.png",
+          full_storage_path: "user-1/generated/runtime-owned-full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Runtime-owned generated output",
+          provider: "fal",
+          model_id: "fal-ai/seedream",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-generated-runtime-owned-read",
+        updatedAt: "2026-05-31T19:20:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T19:20:00.000Z",
+          checksum: "fnv1a32:generated-runtime-owned-read",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-generated-runtime-owned",
+              taskId: "task-runtime-owned-1",
+              sourceRef: "source-runtime-owned-1",
+              mediaSource: "generated",
+              previewUrl: "https://cdn.example.com/runtime-owned.png",
+              resultUrls: ["https://cdn.example.com/runtime-owned.png"],
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-generated-runtime-owned",
+          curatedReferenceIds: ["out-generated-runtime-owned"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "out-generated-runtime-owned",
+          taskId: "task-runtime-owned-1",
+          sourceRef: "source-runtime-owned-1",
+          mediaSource: "generated",
+        }),
+      ],
+      archived: [],
+      activeOutputId: null,
+      curatedReferenceIds: ["out-generated-runtime-owned"],
+      removedFromAllRefsIds: [],
+    });
+  });
+
   it("strips out-of-scope preview storage paths from legacy workspace snapshots on read", async () => {
     createSupabaseMock({
       workspaceSnapshot: {
@@ -2029,6 +2191,58 @@ describe("projectWorkspaceStatesService", () => {
         }),
       ],
       curatedReferenceIds: [`generated:${GENERATION_ID_2}`],
+    });
+  });
+
+  it("drops preview-only generated rows that lost all project-owned restore authority during workspace read", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-orphan-generated-read",
+        updatedAt: "2026-05-31T18:55:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T18:55:00.000Z",
+          checksum: "fnv1a32:orphan-generated-read",
+        },
+        outputs: {
+          active: [
+            {
+              id: "legacy-orphan-output",
+              mediaSource: "generated",
+              previewUrl: "https://cdn.example.com/orphan-preview.png",
+              previewText: "Legacy orphan prompt",
+            },
+          ],
+          archived: [],
+          activeOutputId: "legacy-orphan-output",
+          curatedReferenceIds: ["legacy-orphan-output"],
+          removedFromAllRefsIds: ["legacy-orphan-output"],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [],
+      archived: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
     });
   });
 

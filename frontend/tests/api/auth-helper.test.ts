@@ -20,7 +20,6 @@ describe("auth helper protected-route auth behavior", () => {
     vi.clearAllMocks();
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
-    process.env.SHORTPULSE_ADMIN_EMAILS = "admin@example.com";
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
   });
 
@@ -115,14 +114,14 @@ describe("auth helper protected-route auth behavior", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("resolves allowlist admin access when operator role is absent", () => {
+  it("does not resolve admin access from email alone when operator role is absent", () => {
     const accessVia = resolveAdminAccessVia({
       id: "user-allowlist",
       email: "admin@example.com",
       app_metadata: {},
       user_metadata: {},
     });
-    expect(accessVia).toBe("allowlist");
+    expect(accessVia).toBe("none");
   });
 
   it("does not allow proxy-header trust even when the legacy env flag is enabled", async () => {

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   MediaUploadServiceError,
   prepareMediaUploadForUser,
@@ -40,6 +41,12 @@ const resolveDestinationTab = (value: unknown): MediaUploadDestinationTab | null
   return null;
 };
 
+const PREPARE_MEDIA_UPLOAD_RATE_LIMIT = {
+  keyPrefix: "media-prepare-upload",
+  maxRequests: 20,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<PrepareMediaUploadSuccessResponse | PrepareMediaUploadErrorResponse>
@@ -50,6 +57,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...PREPARE_MEDIA_UPLOAD_RATE_LIMIT,
+      keyPrefix: `${PREPARE_MEDIA_UPLOAD_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const body = (req.body ?? {}) as PrepareMediaUploadRequestBody;

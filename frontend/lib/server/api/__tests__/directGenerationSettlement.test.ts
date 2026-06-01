@@ -369,6 +369,73 @@ describe("directGenerationSettlement", () => {
     );
   });
 
+  it("suppresses owned-media publication when the media row storage path points outside the caller scope", async () => {
+    readRecoveryGenerationRowMock.mockResolvedValueOnce({
+      id: "gen-foreign-1",
+      user_id: "user-1",
+      request_id: "req-foreign-1",
+      provider: "fal",
+      model_id: "fal-ai/nano-banana-2",
+      prompt_text: "foreign path attempt",
+      created_at: "2026-04-26T00:00:00.000Z",
+      metadata: {},
+    });
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValueOnce(["media-foreign-1"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-foreign-1",
+        resultUrl: "https://provider.example/foreign.png",
+        mediaFileId: "media-foreign-1",
+      },
+    ]);
+    mediaFilesLimitMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: "media-foreign-1",
+          storage_path: "user-2/generations/images/foreign.png",
+          preview_storage_path: "user-2/generations/images/foreign.png",
+        },
+      ],
+      error: null,
+    });
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-foreign-1",
+      requestId: "req-foreign-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-foreign-path",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/foreign.png"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-foreign-1",
+      requestId: "req-foreign-1",
+    });
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationOutputId: "output-foreign-1",
+        publicationState: "suppressed",
+        previewStoragePath: null,
+        fullStoragePath: null,
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        previewStoragePath: "user-2/generations/images/foreign.png",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-foreign-1",
+        savedMediaIds: [],
+        previewStoragePath: null,
+        fullStoragePath: null,
+      })
+    );
+  });
+
   it("falls back when preview_storage_path is unavailable in the media_files schema", async () => {
     readRecoveryGenerationRowMock.mockResolvedValueOnce({
       id: "gen-video-fallback-1",

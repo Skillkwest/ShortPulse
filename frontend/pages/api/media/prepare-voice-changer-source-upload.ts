@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   MediaUploadServiceError,
   prepareVoiceChangerSourceUploadForUser,
@@ -43,6 +44,12 @@ const resolveRequestedKind = (value: unknown): VoiceChangerSourceKind | null => 
   return null;
 };
 
+const PREPARE_VOICE_CHANGER_SOURCE_UPLOAD_RATE_LIMIT = {
+  keyPrefix: "media-prepare-voice-changer-source-upload",
+  maxRequests: 12,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<
@@ -55,6 +62,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...PREPARE_VOICE_CHANGER_SOURCE_UPLOAD_RATE_LIMIT,
+      keyPrefix: `${PREPARE_VOICE_CHANGER_SOURCE_UPLOAD_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const body = (req.body ?? {}) as PrepareVoiceChangerSourceUploadRequestBody;

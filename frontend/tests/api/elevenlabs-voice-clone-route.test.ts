@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/voices/clone";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../lib/customVoiceName";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -53,6 +54,7 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -60,6 +62,7 @@ const createMockResponse = () => ({
 describe("POST /api/elevenlabs/voices/clone", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     readStoredMediaBufferMock.mockResolvedValue({
       buffer: Buffer.from("voice-sample"),
@@ -277,6 +280,35 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       details: "Voice clone source must be a supported audio file.",
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("rate limits repeated voice clone requests for the same authenticated user", async () => {
+    const buildReq = () => ({
+      method: "POST",
+      body: {
+        voiceName: "Cloned Narrator",
+        voiceDescription: "Warm cloned narrator",
+        sourceStoragePath: "user-1/voice-clone/source-audio/sample.mp3",
+      },
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    });
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const res = createMockResponse();
+      await handler(buildReq() as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const res = createMockResponse();
+    await handler(buildReq() as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 
   it("logs and returns a server failure when clone preparation infrastructure is unavailable", async () => {

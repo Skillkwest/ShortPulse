@@ -34,7 +34,7 @@ describe("useAdminAccess", () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       jsonResponse({
         isAdmin: true,
-        accessVia: "email_allowlist",
+        accessVia: "role",
       })
     );
 
@@ -56,7 +56,7 @@ describe("useAdminAccess", () => {
     nextResponse.resolve(
       jsonResponse({
         isAdmin: true,
-        accessVia: "email_allowlist",
+        accessVia: "role",
       })
     );
 
@@ -67,7 +67,7 @@ describe("useAdminAccess", () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       jsonResponse({
         isAdmin: true,
-        accessVia: "email_allowlist",
+        accessVia: "role",
       })
     );
 
@@ -96,7 +96,7 @@ describe("useAdminAccess", () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       jsonResponse({
         isAdmin: true,
-        accessVia: "email_allowlist",
+        accessVia: "role",
       })
     );
 

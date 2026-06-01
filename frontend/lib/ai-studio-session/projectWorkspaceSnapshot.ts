@@ -107,7 +107,7 @@ const hasProjectRestorableOutputPayload = (output: Record<string, unknown>): boo
   hasText(output.previewPosterUrl) ||
   hasStringEntries(output.resultUrls);
 
-const hasProjectDurableOutputAuthority = (output: Record<string, unknown>): boolean =>
+export const hasProjectDurableOutputAuthority = (output: Record<string, unknown>): boolean =>
   hasText(output.previewPosterStoragePath) ||
   hasText(output.previewStoragePath) ||
   hasText(output.fullStoragePath) ||
@@ -119,8 +119,14 @@ const hasProjectPersistedOutputPreviewAuthority = (output: Record<string, unknow
   hasText(output.fullStoragePath) ||
   hasText(output.companionArtStoragePath);
 
-const hasProjectRecoverableRuntimeIdentity = (output: Record<string, unknown>): boolean =>
+export const hasProjectRecoverableRuntimeIdentity = (output: Record<string, unknown>): boolean =>
   hasText(output.generationId) || hasText(output.sourceRef) || hasText(output.taskId);
+
+export const isProjectGeneratedWorkspaceOutput = (output: Record<string, unknown>): boolean => {
+  const mediaSource =
+    typeof output.mediaSource === "string" ? output.mediaSource.trim().toLowerCase() : "";
+  return mediaSource === "generated" || hasProjectRecoverableRuntimeIdentity(output);
+};
 
 const isInFlightProjectOutput = (output: Record<string, unknown>): boolean => {
   const taskState =

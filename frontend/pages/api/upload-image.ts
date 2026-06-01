@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../lib/server/api/auth";
 import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../lib/server/api/rateLimit";
 import { logLegacyUploadAdapterUsage } from "../../lib/server/mediaUploadAdapterTelemetry";
 import {
   MediaUploadServiceError,
@@ -28,6 +29,12 @@ export const config = {
   },
 };
 
+const UPLOAD_IMAGE_RATE_LIMIT = {
+  keyPrefix: "upload-image",
+  maxRequests: 12,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
 /**
  * Handles image uploads for generation references.
  */
@@ -41,6 +48,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...UPLOAD_IMAGE_RATE_LIMIT,
+      keyPrefix: `${UPLOAD_IMAGE_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const uploaded = await uploadSignedStorageAssetForUser({
@@ -60,6 +75,19 @@ export default async function handler(
     return res.status(200).json(uploaded);
   } catch (error) {
     if (error instanceof MediaUploadServiceError) {
+      if (error.status >= 500) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "upload-image",
+          user,
+        });
+
+        return res.status(500).json({
+          error: "Upload failed",
+        });
+      }
+
       return res.status(error.status).json({
         error: error.message,
         details: error.details,
@@ -75,7 +103,6 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Upload failed",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

@@ -4,6 +4,7 @@ import { resolveRequiredAudioVoiceDesignModelId } from "../../../../lib/model-ru
 import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { designElevenLabsVoice } from "../../../../lib/server/elevenlabs";
 import { issueVoiceDesignPreviewToken } from "../../../../lib/server/elevenlabsVoiceDesignTokens";
 
@@ -34,6 +35,11 @@ const DEFAULT_VOICE_DESIGN_MODEL_ID = resolveRequiredAudioVoiceDesignModelId();
 const DEFAULT_VOICE_DESIGN_OUTPUT_FORMAT = "mp3_22050_32";
 const MIN_VOICE_DESCRIPTION_CHARACTERS = 20;
 const MAX_VOICE_DESCRIPTION_CHARACTERS = 1000;
+const ELEVENLABS_VOICE_DESIGN_RATE_LIMIT = {
+  keyPrefix: "elevenlabs-text-to-voice-design",
+  maxRequests: 6,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -51,6 +57,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...ELEVENLABS_VOICE_DESIGN_RATE_LIMIT,
+      keyPrefix: `${ELEVENLABS_VOICE_DESIGN_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const body = (req.body ?? {}) as TextToVoiceDesignRequestBody;

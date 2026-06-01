@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/speech-to-speech";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -115,6 +116,7 @@ vi.mock("../../lib/server/openAiAudioTranscription", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -123,6 +125,7 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/speech-to-speech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
@@ -410,6 +413,36 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       },
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("rate limits repeated speech-to-speech generations for the same authenticated user", async () => {
+    readStoredMediaBufferMock.mockResolvedValue({
+      buffer: Buffer.from("staged-audio"),
+      contentType: "audio/wav",
+      size: 12,
+    });
+
+    const buildReq = () => ({
+      method: "POST",
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    });
+
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const res = createMockResponse();
+      await handler(buildReq() as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const res = createMockResponse();
+    await handler(buildReq() as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 
   it("rejects unsupported model ids before billing", async () => {

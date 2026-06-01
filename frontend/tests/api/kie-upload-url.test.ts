@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/kie/upload-url";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const dnsLookupMock = vi.hoisted(() => vi.fn());
 const requireApiUserMock = vi.fn();
@@ -27,6 +28,7 @@ vi.mock("../../lib/server/providerIntegration/providerRuntimeConfig", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -54,6 +56,7 @@ const createMockRequest = ({
 describe("POST /api/kie/upload-url", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     vi.unstubAllGlobals();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     readProviderApiKeyMock.mockReturnValue("kie-test-key");
@@ -376,5 +379,71 @@ describe("POST /api/kie/upload-url", () => {
         }),
       })
     );
+  });
+
+  it("returns a sanitized 500 when Kie upload setup fails unexpectedly", async () => {
+    readProviderApiKeyMock.mockImplementationOnce(() => {
+      throw new Error("kie key exploded");
+    });
+    vi.stubGlobal("fetch", vi.fn());
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "image/png",
+        "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        "x-shortpulse-upload-filename": "local-image.png",
+      },
+      body: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Kie upload failed",
+    });
+  });
+
+  it("rate limits repeated Kie upload requests for the same authenticated user", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        data: {
+          downloadUrl: "https://tempfile.redpandaai.co/files/local-image.png",
+          fileName: "local-image.png",
+          mimeType: "image/png",
+        },
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const buildReq = () =>
+      createMockRequest({
+        headers: {
+          "content-type": "image/png",
+          "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+          "x-shortpulse-upload-filename": "local-image.png",
+        },
+        body: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+      });
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const res = createMockResponse();
+      await handler(buildReq() as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const res = createMockResponse();
+    await handler(buildReq() as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 });

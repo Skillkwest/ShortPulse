@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/text-to-voice/create";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../lib/customVoiceName";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -41,6 +42,7 @@ vi.mock("../../lib/server/elevenlabsVoiceSamples", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -48,6 +50,7 @@ const createMockResponse = () => ({
 describe("POST /api/elevenlabs/text-to-voice/create", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     verifyVoiceDesignPreviewTokenMock.mockReturnValue(true);
     createElevenLabsDesignedVoiceMock.mockResolvedValue({
@@ -238,6 +241,36 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Voice preview is unavailable",
       details: "The selected voice preview is no longer available for this account.",
+    });
+  });
+
+  it("rate limits repeated voice creation requests for the same authenticated user", async () => {
+    const buildReq = () => ({
+      method: "POST",
+      body: {
+        voiceName: "Generated Narrator",
+        voiceDescription: "Measured, warm narration with a gentle documentary tone.",
+        generatedVoiceId: "preview-1",
+        generatedVoiceToken: "token-preview-1",
+      },
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    });
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const res = createMockResponse();
+      await handler(buildReq() as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const res = createMockResponse();
+    await handler(buildReq() as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
     });
   });
 });

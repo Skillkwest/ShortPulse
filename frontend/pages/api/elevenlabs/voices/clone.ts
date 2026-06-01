@@ -4,6 +4,7 @@ import { assertUserScopedMediaStoragePath } from "../../../../lib/mediaStoragePa
 import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
 import { cleanupFailedElevenLabsCustomVoice } from "../../../../lib/server/elevenlabsCustomVoiceCleanup";
 import { createElevenLabsClonedVoice } from "../../../../lib/server/elevenlabs";
@@ -37,6 +38,11 @@ type VoiceCloneErrorResponse = {
 };
 
 const MAX_VOICE_CLONE_SOURCE_BYTES = 100 * 1024 * 1024;
+const ELEVENLABS_VOICE_CLONE_RATE_LIMIT = {
+  keyPrefix: "elevenlabs-voice-clone",
+  maxRequests: 4,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -79,6 +85,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...ELEVENLABS_VOICE_CLONE_RATE_LIMIT,
+      keyPrefix: `${ELEVENLABS_VOICE_CLONE_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const body = (req.body ?? {}) as VoiceCloneRequestBody;

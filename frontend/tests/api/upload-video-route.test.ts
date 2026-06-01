@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import fs from "fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/upload-video";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -53,6 +54,7 @@ vi.mock("../../lib/server/motionReferenceVideoAssetLease", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
   end: vi.fn().mockReturnThis(),
@@ -92,6 +94,7 @@ const buildWebmTrackSignature = (trackType: number): Buffer =>
 describe("/api/upload-video", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
     retireMotionReferenceVideoStoragePathForUserMock.mockResolvedValue({
@@ -468,7 +471,6 @@ describe("/api/upload-video", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Upload failed",
-      details: "Multipart parser exploded",
     });
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -477,6 +479,48 @@ describe("/api/upload-video", () => {
       })
     );
     expect(writeAppErrorLogMock).not.toHaveBeenCalled();
+  });
+
+  it("rate limits repeated video uploads for the same authenticated user", async () => {
+    const buildReq = () =>
+      Object.assign(new EventEmitter(), {
+        method: "POST",
+        headers: {
+          "content-type": "video/mp4",
+          "x-shortpulse-upload-filename": "clip.mp4",
+        },
+        destroy: vi.fn(),
+        socket: { remoteAddress: "127.0.0.1" },
+      });
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const req = buildReq();
+      const res = createMockResponse();
+      const handlerPromise = handler(req as never, res as never);
+      await new Promise<void>((resolve) => {
+        setImmediate(() => {
+          req.emit(
+            "data",
+            Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x18]), Buffer.from("ftypmp42", "ascii")])
+          );
+          req.emit("end");
+          resolve();
+        });
+      });
+      await handlerPromise;
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const req = buildReq();
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 
   it("deletes stale motion-control uploads inside the caller namespace", async () => {

@@ -1,4 +1,5 @@
 import { upsertGenerationProjection } from "./generationProjection";
+import { readMediaDeliveryPathsById, type MediaDeliveryPaths } from "./mediaDeliveryPaths";
 import { upsertGenerationPublication } from "./generationPublications";
 import {
   attachMediaFileToGenerationOutput,
@@ -9,12 +10,6 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
 
-type MediaDeliveryPaths = {
-  storagePath: string;
-  previewStoragePath: string;
-  fullStoragePath: string;
-};
-
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -23,81 +18,6 @@ const asString = (value: unknown): string | null => {
 
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
-
-const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const message =
-    typeof (error as { message?: unknown }).message === "string"
-      ? (error as { message: string }).message.toLowerCase()
-      : "";
-  return (
-    message.includes("preview_storage_path") &&
-    (message.includes("schema cache") || message.includes("does not exist"))
-  );
-};
-
-const readMediaStoragePathById = async ({
-  supabaseAdmin,
-  userId,
-  mediaFileIds,
-}: {
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
-  userId: string;
-  mediaFileIds: string[];
-}): Promise<Map<string, MediaDeliveryPaths>> => {
-  const normalizedMediaFileIds = Array.from(
-    new Set(
-      mediaFileIds
-        .map((value) => asString(value))
-        .filter((value): value is string => Boolean(value))
-    )
-  );
-  if (!normalizedMediaFileIds.length) {
-    return new Map();
-  }
-
-  const runSelect = async (
-    fields:
-      | "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
-      | "id, storage_path, file_type, poster_variant_path, preview_variant_path"
-  ) =>
-    await supabaseAdmin
-      .from("media_files")
-      .select(fields)
-      .eq("user_id", userId)
-      .in("id", normalizedMediaFileIds)
-      .limit(normalizedMediaFileIds.length);
-
-  let { data, error } = await runSelect(
-    "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
-  );
-  if (error && isPreviewStoragePathSchemaError(error)) {
-    ({ data, error } = await runSelect(
-      "id, storage_path, file_type, poster_variant_path, preview_variant_path"
-    ));
-  }
-  if (error || !Array.isArray(data)) {
-    return new Map();
-  }
-
-  const deliveryPathsByMediaId = new Map<string, MediaDeliveryPaths>();
-  for (const item of data) {
-    const row = asObject(item);
-    const mediaFileId = asString(row.id);
-    const storagePath = asString(row.storage_path);
-    if (!mediaFileId || !storagePath) continue;
-    const fileType = asString(row.file_type)?.toLowerCase() ?? "";
-    const isVideo = fileType.startsWith("video");
-    const previewVariantPath = asString(row.preview_variant_path);
-    const previewStoragePath = isVideo ? (previewVariantPath ?? storagePath) : storagePath;
-    deliveryPathsByMediaId.set(mediaFileId, {
-      storagePath,
-      previewStoragePath,
-      fullStoragePath: storagePath,
-    });
-  }
-  return deliveryPathsByMediaId;
-};
 
 export type ReconcileOwnedGenerationOutputSlotInput = {
   generationId: string;
@@ -148,7 +68,7 @@ export const reconcileOwnedGenerationOutputSlot = async ({
     userId,
     supabaseAdmin: adminClient,
   });
-  const deliveryPathsByMediaId = await readMediaStoragePathById({
+  const deliveryPathsByMediaId = await readMediaDeliveryPathsById({
     supabaseAdmin: adminClient,
     userId,
     mediaFileIds: persistedOutputRows

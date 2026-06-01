@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/text-to-speech";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -40,6 +41,7 @@ vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -48,6 +50,7 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/text-to-speech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
@@ -263,6 +266,53 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         voiceId: "voice-1",
         voiceName: "Darian",
       },
+    });
+  });
+
+  it("rate limits repeated text-to-speech generations for the same authenticated user", async () => {
+    generateElevenLabsVoiceoverMock.mockResolvedValue({
+      buffer: Buffer.from("voice"),
+      contentType: "audio/mpeg",
+      providerRequestId: "provider-tts-1",
+    });
+    persistGeneratedAudioAssetMock.mockResolvedValue({
+      generationId: "gen-tts-1",
+      mediaFileId: "media-tts-1",
+      requestId: "billing-source-tts-1",
+      storagePath: "user-1/generations/audio/gen-tts-1/voice.mp3",
+      signedUrl: "https://signed.example/voice.mp3",
+      outputRowId: "out-tts-1",
+    });
+
+    const buildReq = () => ({
+      method: "POST",
+      body: {
+        voiceId: "voice-1",
+        voiceName: "Darian",
+        text: "Voiceover billing path verification script.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: "eleven_multilingual_v2",
+        },
+      },
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    });
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const res = createMockResponse();
+      await handler(buildReq() as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const res = createMockResponse();
+    await handler(buildReq() as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
     });
   });
 

@@ -4,6 +4,7 @@ import path from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import {
   assertTrustedRemoteMediaUrl,
@@ -57,6 +58,12 @@ const sanitizeStem = (value: string): string => {
   return sanitized || "voice_sample";
 };
 
+const EXTRACT_AUDIO_RATE_LIMIT = {
+  keyPrefix: "media-extract-audio",
+  maxRequests: 6,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ExtractAudioSuccessResponse | ExtractAudioErrorResponse>
@@ -67,6 +74,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...EXTRACT_AUDIO_RATE_LIMIT,
+      keyPrefix: `${EXTRACT_AUDIO_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const body = (req.body ?? {}) as ExtractAudioRequestBody;

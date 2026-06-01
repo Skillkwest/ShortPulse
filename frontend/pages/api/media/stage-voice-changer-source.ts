@@ -6,6 +6,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   finalizeVoiceChangerSourceUploadForUser,
   MediaUploadServiceError,
@@ -46,6 +47,12 @@ const resolveRequestedKind = (value: unknown): VoiceChangerSourceKind | null => 
   return null;
 };
 
+const STAGE_VOICE_CHANGER_SOURCE_RATE_LIMIT = {
+  keyPrefix: "media-stage-voice-changer-source",
+  maxRequests: 10,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<
@@ -58,6 +65,14 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  if (
+    !enforceApiRateLimit(req, res, {
+      ...STAGE_VOICE_CHANGER_SOURCE_RATE_LIMIT,
+      keyPrefix: `${STAGE_VOICE_CHANGER_SOURCE_RATE_LIMIT.keyPrefix}:${user.id}`,
+    })
+  ) {
+    return;
+  }
 
   try {
     const body = (req.body ?? {}) as StageVoiceChangerSourceRequestBody;

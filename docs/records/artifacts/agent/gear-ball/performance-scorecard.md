@@ -31,7 +31,7 @@ This is an execution score, not a paperwork score.
 ### 4. Time-to-clean-push efficiency (`1.5`)
 
 - `1.5`: moved from inventory to clean push with little avoidable delay.
-- `0.75`: safe but slower than necessary because of repeated rereads or preventable process friction.
+- `0.75`: safe but slower than necessary because of repeated rereads, manifest misses, or preventable process friction.
 - `0.0`: dragged materially due to avoidable workflow mistakes.
 
 ### 5. Operational judgment (`1.5`)
@@ -56,6 +56,8 @@ This is an execution score, not a paperwork score.
 
 - stale validation after a blocking fix: cap `6.9`
 - repeated unrelated-tail absorption on unstable mixed trees: cap `8.4`
+- late live-tree tail that should have been in the first manifest: cap `8.2`
+- two or more distinct preventable correction cycles across manifest, toolchain, or test-contract seams: cap `7.9`
 - `scope control + validation discipline + time-to-clean-push efficiency < 3.5`: cap `7.9`
 - false verification claim when smoke/visual QA was unavailable: cap `6.9`
 - false completion claim before tool confirmation: cap `6.4`
@@ -71,9 +73,9 @@ This is an execution score, not a paperwork score.
 
 ## Interpretation
 
-- `9.0 - 10.0`: sharp, fast, and repeatable
-- `8.0 - 8.9`: good run with one clear improvement lane
-- `7.0 - 7.9`: safe but clunky; worthwhile corrective action needed
+- `9.0 - 10.0`: very clean first-pass control; little or no tail-chasing; repeatable
+- `8.0 - 8.9`: good run with one contained correction pattern
+- `7.0 - 7.9`: successful recovery run with multiple preventable misses
 - `below 7.0`: weak run; process correction needed before repeating the pattern
 
 ## Ledger Rule
@@ -100,6 +102,8 @@ For every substantive run, record:
 When a run scores below `9.0`, also record:
 - the weakest category
 - whether the fix belongs in a helper, checklist, SOP, or training note
+
+Score based on control quality, not just eventual success. If the tree shipped correctly only after multiple preventable recoveries, the score should stay in the `7.x` band even when the final push is clean.
 
 Keep this compact. Rewrite broader training surfaces only when the lesson is new.
 If the same weakest category appears in `3` consecutive substantive runs, escalate to one concrete system fix.

@@ -5,8 +5,8 @@ Purpose: keep the current training synthesis short and actionable.
 ## Current Score Snapshot
 
 - Recent substantive-run range: `6/10` to `9.2/10`
-- Current working band: `8.4/10` to `9.0/10`
-- Main gap to `10/10`: first-pass cleanup friction, occasional stale end-of-run bookkeeping risk, rare command-shape misses on mixed manifests, tracked-diff manifests that can miss new source files, wrapper noise on ignore-matched config files, sibling source tails that surface only during the last convergence pass, and late build-only contract seams on broad shared-runtime lanes
+- Current working band: `7.9/10` to `9.0/10`
+- Main gap to `10/10`: incomplete first manifests, first-pass cleanup friction, route/helper/tooling drift that surfaces after the lane is already moving, tracked-diff manifests that can miss new source files, sibling source tails that surface only during the last convergence pass, and late build-only contract seams on broad shared-runtime lanes
 
 ## Active Synthesis
 
@@ -18,6 +18,7 @@ Purpose: keep the current training synthesis short and actionable.
 - Treat each new lane as a fresh startup and reload from repo-local authority instead of carrying conversational residue by default.
 - Treat conversational material older than the previous calendar day as cold unless the task explicitly needs that historical thread evidence.
 - When model-catalog or route-parity checks fail on active Fal models, verify live `frontend/pages/api/fal` wrapper coverage and sync ownership before editing docs or treating the route family as intentionally retired.
+- Re-rate runs based on control quality, not just eventual recovery. A run with multiple preventable correction cycles belongs in the `7.x` band even if the final tree ships cleanly.
 
 ## Load Boundary
 
@@ -36,3 +37,4 @@ Purpose: keep the current training synthesis short and actionable.
 8. When a shared-runtime lane tightens internal drag or authority behavior, sanity-check whether failing tests are asserting an old permissive fallback before reopening the runtime path.
 9. When a monolithic legacy UI suite still throws unrelated React queue noise after the modern focused seams and the final build are green, treat that suite as cold debt to reconcile later rather than letting it block the current converged publish lane.
 10. When canonical route metadata or memoization boundaries move, update repo-side drift checks and optimization-sensitive test expectations in the same first pass so the last blockers are not toolchain seams around the code change.
+11. Build the first manifest from full live status plus one sibling-surface sweep, especially around touched routes, helpers, and page entry points, so late tails do not drag an otherwise good run into recovery mode.

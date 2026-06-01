@@ -28,6 +28,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Full-worktree accountability rule: when the user says `run your SOP` or otherwise authorizes the full Gear Ball ladder, Gear Ball must classify every live non-temp worktree change before the first push-ready claim. No real repo-backed change gets ignored, hand-waved as later, or left unclassified.
 - Final-report integrity rule: do not draft or send the SOP closeout from memory. Generate it only after the last required validation, then re-run live `git status --short` and base the report on the exact commits and tree that actually reached push-ready state.
 - Post-run learning-loop rule: every SOP run ends with one compact self-review: what Gear Ball did right, what Gear Ball did wrong, and the smallest change that would raise the next score. Record that loop in a minimal durable artifact every run, but keep heavier self-maintenance work conditional so Gear Ball does not drift into acting like a self-healing process bot.
+- Score-honesty rule: eventual recovery matters, but it does not erase preventable misses. Late tails, toolchain-seam fixes, stale helper-check drift, and build-only contract discoveries are real score penalties, not cosmetic bumps.
 - Publish metric rule: optimize for time-to-clean-push.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
@@ -36,6 +37,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Treat the user prompt sequence as an authorization ladder unless the user explicitly collapses it with `run your SOP` or equivalent.
 - Before the first Git write on a mixed or risky run, verify `production` + `shortpulse.allowedBranch=production`, lock a file-backed manifest, and run the cheapest honest preflight.
 - Do one fast whole-tree classification pass, collapse to the fewest honest lanes, and stop refining labels once the split is decision-useful.
+- Build the first manifest from full live `git status --short`, then do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass.
 - Full-worktree accountability is part of the job: every live non-temp repo-backed change must be classified before any push-ready claim.
 - Keep Git activity serialized, inspect `git diff --cached --name-only` before every commit, and assume the index may already be dirty.
 - After every commit, stay in the convergence loop until the live tree is clean or only intentionally deferred unrelated work remains.
@@ -44,6 +46,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Prefer file-backed manifests and explicit local binaries on large runs. If a wrapper path or long-running validation session goes stale, rerun the required gates on the corrected final tree.
 - If the manifest includes ignore-matched config files like `frontend/next.config.js`, skip the wrapper preflight immediately and run the manual ladder so ESLint ignore noise does not steal the first pass.
 - Shared-contract changes need first-manifest fan-out; final builds should confirm, not discover, obvious downstream seam breaks.
+- When canonical helpers, route metadata, or memoization boundaries move, update the repo checks and optimization-sensitive tests that depend on them in the same first pass.
 - Optional browser smoke or visual QA is conditional. Verify the toolchain first, and report the limitation plainly when it is unavailable.
 - Treat repeated user corrections as structured training data about role fidelity, closeout discipline, and SOP scope. Keep the lesson durable without promoting all chat friction into always-loaded memory.
 - When the thread feels heavy, dump old conversational residue first and re-anchor on the repo startup spine before changing active rules or widening retained history.

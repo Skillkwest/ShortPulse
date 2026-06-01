@@ -22,8 +22,9 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 8. Collapse the inventory into the fewest honest lanes possible. Default target: 1 to 3 lanes total.
 9. Build the first manifest from full `git status --short`, not from tracked diffs or memory.
 10. Do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass. Use `node scripts/ops/gear_ball_related_sweep.mjs --files <paths...>` when the lane is broad enough that a quick ranked sweep beats ad hoc rereads.
-11. If the run is large or mixed, lock a file-backed manifest before staging.
-12. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
+11. Bias toward catching same-lane siblings early. Late manifest undercounting is usually a bigger speed loss than a slightly broader first validation pass.
+12. If the run is large or mixed, lock a file-backed manifest before staging.
+13. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
 
 ## Default Ladders
 
@@ -72,11 +73,12 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 - do not treat the run as stable until this loop returns clean or only intentionally deferred unrelated work remains
 
 12. Do not commit the score loop while any related repo-backed tail is still live. Score-loop writeback happens only after the final commit set is complete.
-13. Before push, rerun only the final required validation on the exact final tree.
+13. Before push, rerun only the final required validation on the exact final tree when the final committed content materially differs from the already-validated content. Do not duplicate the same ladder just because a commit happened.
 14. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
 15. Push only the approved branch.
 16. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool confirms success.
 17. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
+18. Treat routine progress narration as an efficiency cost. Unless blocked or asked for status, keep normal execution chatter internal.
 
 ## Closeout
 

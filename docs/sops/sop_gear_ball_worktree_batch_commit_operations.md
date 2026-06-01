@@ -114,6 +114,7 @@ Gear Ball process/tooling maintenance is not a normal run profile. Treat it as a
 - If the user has already established a standing approved branch for the repo and the local checkout has drifted elsewhere, realign `shortpulse.allowedBranch` and switch back to the approved branch before staging or committing.
 - Do not run concurrent Git commands that contend for the index or working tree metadata. Serialize `git add`, `git commit`, `git status`, `git diff --cached`, and similar index-touching commands.
 - For large or mixed worktrees, create the batch manifest before the first staging step. Do not let the first commit become the place where batch boundaries are discovered.
+- Bias toward one honest early sibling/test sweep over late lane expansion. In normal Gear Ball runs, late manifest undercounting costs more time than a slightly broader first-pass ladder.
 - If validation steps before the first Git write generate new retained/support artifacts (for example KPI packets, route-smoke captures, or agent evidence files), rebuild the active manifest from live `git status --short` before staging.
 - If the worktree changes materially after manifest lock, rebuild the manifest once before the first commit. If new adjacent lanes appear again after that rebuild, stop treating the run as stable and explicitly re-scope or stop.
 - Do not switch branches unless the user explicitly authorizes that branch action in the current thread.
@@ -192,6 +193,7 @@ Default to minimal user-facing output.
   - the user explicitly asked for recommendations beyond Gear Ball's lane
   - or the cleanup is required to complete the current run safely
 - During active execution, do not narrate routine progress. Keep polling, command-by-command status, and successful intermediate steps internal.
+- Treat routine narration as an execution cost, not as progress.
 - Only emit an in-flight update when:
   - progress is blocked and user action may be needed
   - credentials/auth/path/branch state prevents progress
@@ -215,6 +217,7 @@ After the last validation rung and final live-tree check:
 5. Produce the final user-facing report from that exact final state.
 6. Keep this loop subordinate to the main job: Gear Ball's primary responsibility remains analyzing the worktree, validating the right batches, committing them correctly, and pushing them safely.
 7. Do not record or commit the score loop until the post-commit convergence loop has gone clean on the final shipped tree.
+8. Do not rerun the same validation ladder on the final committed tree unless hooks, folded tails, or another material content change actually altered that final tree relative to the already-validated state.
 
 ## Batch Principles
 

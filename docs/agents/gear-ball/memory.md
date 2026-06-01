@@ -14,6 +14,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Main rule: never push directly to `main` unless the user explicitly changes that repo rule in the current thread.
 - Timed-task rule: when the user asks for work in some amount of time from now, default to an automation that executes the requested task at wake-up time instead of only reminding or reporting readiness, unless the user explicitly asks for reminder-only behavior.
 - Communication rule: keep execution chatter near zero unless a blocker, approval need, branch/credential issue, or material plan change appears.
+- Chatter-cost rule: routine status narration is a real speed cost. Keep normal progress internal unless the user asked for status or the run hit a blocker, approval need, or material plan change.
 - Fresh-reload rule: treat each new task or lane as a fresh startup anchored on repo-local instructions, not on conversational residue, unless the current lane explicitly needs retained historical detail.
 - Thread-history cutoff rule: conversational material older than the previous calendar day is cold by default. Do not carry it as active working context unless the current task explicitly needs that historical evidence.
 - Completion-claim rule: do not state that a timer, automation, commit, push, branch action, or similar tool-backed side effect is complete until the tool has succeeded and returned confirmation.
@@ -31,6 +32,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Score-honesty rule: eventual recovery matters, but it does not erase preventable misses. Late tails, toolchain-seam fixes, stale helper-check drift, and build-only contract discoveries are real score penalties, not cosmetic bumps.
 - Publish metric rule: optimize for time-to-clean-push.
 - Token-efficiency rule: optimize for low-token SOP execution without degrading control quality. Keep updates terse, run only the minimum honest validation needed for the current lane, and avoid extra analysis or narration once the commit/push decision is already well-supported.
+- Validation-repeat rule: do not rerun the same validation ladder just because a commit occurred. Rerun only when hooks, stash restore, folded tails, or another material change altered the final committed content relative to the already-validated tree.
 - Test-integrity rule: never change UI, UX, or user-facing product behavior just to get tests green. If a test fails, repair the canonical implementation or the test contract without using user-visible behavior drift as the escape hatch.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
@@ -40,6 +42,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Before the first Git write on a mixed or risky run, verify `production` + `shortpulse.allowedBranch=production`, lock a file-backed manifest, and run the cheapest honest preflight.
 - Do one fast whole-tree classification pass, collapse to the fewest honest lanes, and stop refining labels once the split is decision-useful.
 - Build the first manifest from full live `git status --short`, then do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass.
+- Late manifest undercounting is usually a bigger speed loss than slightly broad first-pass validation. Bias toward one harder sibling/test sweep before first staging so related tails do not surface after the lane already looked finished.
 - Use the lightweight helper path when it reduces rereads: `gear_ball_related_sweep.mjs` for the first sibling pass and `gear_ball_tail_check.mjs` for ambiguous post-commit tails.
 - Full-worktree accountability is part of the job: every live non-temp repo-backed change must be classified before any push-ready claim.
 - Keep Git activity serialized, inspect `git diff --cached --name-only` before every commit, and assume the index may already be dirty.
@@ -47,6 +50,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - A clean build is not a finished run. If repo-backed tails still exist after validation, keep classifying, validating, and committing before closeout.
 - The score loop and final report happen only after the final shipped tree is complete. Build the report from real pushed commits and fresh `git status --short`, not memory.
 - Prefer file-backed manifests and explicit local binaries on large runs. If a wrapper path or long-running validation session goes stale, rerun the required gates on the corrected final tree.
+- A clean `git status --short` is necessary but not sufficient for push confidence. What matters is whether the final committed content materially differs from the already-validated content; rerun only when that answer is yes.
 - If the manifest includes ignore-matched config files like `frontend/next.config.js`, skip the wrapper preflight immediately and run the manual ladder so ESLint ignore noise does not steal the first pass.
 - Shared-contract changes need first-manifest fan-out; final builds should confirm, not discover, obvious downstream seam breaks.
 - When canonical helpers, route metadata, or memoization boundaries move, update the repo checks and optimization-sensitive tests that depend on them in the same first pass.

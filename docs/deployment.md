@@ -46,7 +46,7 @@ Notes:
 2. Confirm no secrets are committed (`frontend/.env.local` must stay untracked).
 3. Run GitHub Actions workflow `Media Storage Deploy Gate` for the target environment (`staging`/`production`) and require `PASS` before deploy.
 4. Confirm Supabase schema/policies are up to date for production.
-5. Confirm Stripe webhook secret and admin allow-list values are prepared for production.
+5. Confirm Stripe webhook secret and admin operator-role assignments are prepared for production.
 6. Confirm deployment/release notes still distinguish current environment protection state from planned production-readiness protection state.
 7. If production storage payloads are being migrated from staging, complete `docs/sops/sop_nuclo_supabase_storage_migration.md` before any production Vercel rewiring.
 8. Confirm auth callback origin readiness:
@@ -88,7 +88,6 @@ as applicable):
   - `FAL_KEY`
 - Admin / security:
   - `SUPABASE_SERVICE_ROLE_KEY`
-  - `SHORTPULSE_ADMIN_EMAILS`
 - Billing and auth public origins:
   - `APP_BASE_URL`
   - `SHORTPULSE_PUBLIC_API_BASE_URL` only when it matches `APP_BASE_URL`

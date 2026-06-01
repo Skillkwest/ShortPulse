@@ -6,21 +6,21 @@
 - systems touched: `Project / workspace persistence`
 - files changed:
   - `frontend/lib/server/projectWorkspaceStatesService.ts`
+  - `frontend/lib/ai-studio-session/projectWorkspaceSnapshot.ts`
   - `frontend/lib/server/__tests__/projectWorkspaceStatesService.test.ts`
   - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-31-project-workspace-persistence-hardening-closeout.md`
 
 ## Summary Of What Changed
 
-- Changed `canonicalizeProjectWorkspaceSnapshotForRead(...)` to resolve media, prompt, and generation ownership independently on read instead of treating read-time ownership resolution as all-or-nothing.
-- When one ownership family fails, the read path now degrades only that unresolved authority surface instead of returning the broader shape-sanitized snapshot unchanged.
-- Added a hard fail-closed fallback for unexpected read-sanitization crashes by returning an ownership-safe snapshot with no verified media, prompt, or generation associations.
-- Expanded focused tests to prove unresolved generated rows are dropped while unrelated media-backed rows stay restorable.
+- Tightened `sanitizeProjectWorkspaceOutputs(...)` so rows that still present as generated output now fail closed when they no longer have any durable project-owned authority or recoverable runtime identity.
+- Reused shared project-workspace authority helpers from `projectWorkspaceSnapshot.ts` instead of inventing a separate restore-only definition of generated-output validity.
+- Added the exact missing regression for the production failure class: a shape-valid generated row that already lost `generationId`, `promptId`, and `savedMediaIds`.
 
 ## Acceptance Criteria Reached
 
-- One canonical persistence invariant was hardened in the owning read path.
+- One canonical persistence invariant was hardened in the owning server sanitizer used by both write preparation and read canonicalization.
 - The result stayed inside the bounded server/test surface with no UI or UX edits.
-- The read path now fails closed for unresolved generated restore authority instead of preserving those rows unchanged.
+- Orphan generated rows now fail closed once they no longer have any durable project-owned authority or recoverable runtime identity.
 
 ## Evidence Snapshot
 
@@ -35,35 +35,36 @@
   - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-persistence-root-seam-audit.md`
 - code seam changed:
   - `frontend/lib/server/projectWorkspaceStatesService.ts`
+  - `frontend/lib/ai-studio-session/projectWorkspaceSnapshot.ts`
 - focused evidence added:
   - `frontend/lib/server/__tests__/projectWorkspaceStatesService.test.ts`
 
 ## Validation Run
 
 - `npm -C frontend run test -- lib/server/__tests__/projectWorkspaceStatesService.test.ts`
-- `npm -C frontend run test -- lib/server/__tests__/projectGenerationAssociationsService.test.ts`
+- `npm -C frontend run test -- features/ai-studio/logic/__tests__/sessionSnapshot.test.ts`
 - `npm -C frontend run docs:check`
 
 ## Validation Evidence
 
-- `lib/server/__tests__/projectWorkspaceStatesService.test.ts`: passed (`24` tests)
-- `lib/server/__tests__/projectGenerationAssociationsService.test.ts`: passed (`22` tests)
+- `lib/server/__tests__/projectWorkspaceStatesService.test.ts`: passed (`25` tests)
+- `features/ai-studio/logic/__tests__/sessionSnapshot.test.ts`: passed (`41` tests)
 - `npm -C frontend run docs:check`: passed
 
 ## Self-Audit Findings
 
-- The original root seam was real: read-time ownership resolution used one `Promise.all(...)` gate, so a single generation lookup failure preserved all shape-sanitized generated rows.
-- A full blank-workspace fail-closed response would have been too blunt for this bounded lane because it would also discard unrelated durable rows.
-- The bounded source fix is to degrade unresolved ownership families independently in the canonical read path.
+- The original orphan-row seam was real: a generated-looking row could survive once `generationId`, `promptId`, and `savedMediaIds` had already been stripped away.
+- The better source fix was not a UI-level generated-row rule. It was to reuse the stricter project-workspace authority concepts already present in the canonical snapshot layer.
+- A broad blank-workspace fail-closed response would have been too blunt for this lane because unrelated durable rows should still survive.
 
 ## Issues Fixed During Self-Audit
 
-- Re-sanitized the read snapshot after ownership-based output filtering so the returned project snapshot stays on the canonical project-workspace shape after degradation.
-- Added a mixed-row regression test so the lane proves we preserve verified media-backed rows while dropping unresolved generated rows.
+- Moved the read-path decision onto shared project-workspace authority helpers instead of leaving it as an ad hoc local rule.
+- Added the exact orphan generated-row regression so the lane now proves the production failure class is filtered out.
 
 ## Issues Intentionally Left Out Of Scope
 
-- No project-system redesign beyond the read-time ownership seam.
+- No project-system redesign beyond the shared sanitize/read-write authority seam.
 - No UI/client behavior changes.
 - No migration or cleanup pass for historic `project_generation_items` rows.
 - No changes to broader generated-output hydration flows outside this canonical workspace read path.
@@ -74,9 +75,9 @@
 
 ## Residual Risk
 
-- This patch hardens the live read seam, but it does not clean historic bad association rows already stored in the database.
-- The fallback still preserves non-generated durable workspace content when that content does not depend on the failed ownership family; that is intentional, but it means this lane reduces trust broadness at the ownership seam rather than performing a broader data-repair pass.
+- This patch hardens the shared server-side sanitize seam locally, but it does not prove production is clean until the deployed restore path is rechecked.
+- Historic bad association rows may still deserve their own cleanup lane if production proof shows more than the orphan generated-row class.
 
 ## Recommended Next Step For Copperknot Review
 
-- Review whether historic `project_generation_items` cleanup or verification should become its own follow-up lane now that the live read path no longer returns unresolved generated rows unchanged.
+- Treat this as an accepted local `root fix`, hold the score, and rerun the existing project-persistence production audit after the patch is deployed.

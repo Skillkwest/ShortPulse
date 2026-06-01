@@ -1,15 +1,13 @@
 # Prioritized System-By-System Handoff Queue
 
-Purpose: define the ordered execution queue the Copperknot should hand to specialist agents during the current production-readiness window through `2026-07-02`.
+Purpose: define the ordered execution queue for the current production-readiness window through `2026-07-02`.
 
 ## Queue Rules
 
 - Higher rows should be worked before lower rows unless fresh evidence changes the order.
-- Queue position is based on ship impact, not on how easy the work looks.
-- A row can move down only when the current blocker above it is genuinely reduced.
-- After a meaningful audit, the Copperknot should turn the top actionable rows into a dispatch-ready ordered worklist with paste-ready prompts.
-- Reviewed-complete and score-held lanes should be tracked separately from undispatched next-work rows so the queue stays actionable.
-- If the active worktree introduces launch-relevant drift or a failing targeted regression test, Copperknot should absorb that local review before blindly dispatching older queued lanes.
+- Queue position is based on ship impact, not on ease.
+- Do not keep a lane exact next by momentum once its strongest live blocker is materially reduced.
+- Keep reviewed-complete and score-held lanes out of the top dispatch order unless fresh evidence reopens them.
 
 ## Queue
 
@@ -38,95 +36,24 @@ Purpose: define the ordered execution queue the Copperknot should hand to specia
 | 21       | `Pricing / entitlements`                        |       7 |          7 | Platform trust and release safety   | control-plane validation                      | `queue-only`                                                                               |
 | 22       | `Auth / identity`                               |       7 |          7 | Platform trust and release safety   | auth boundary validation                      | `queue-only`                                                                               |
 
-## Queue Interpretation
+## Current Queue Truth
 
-- Priority `1` is now `Project / workspace persistence`.
-- The deployed May 31 approved-panel root fix materially improved the live production signal:
-  - confirmed reruns now show `extraListCallsPerOpen: 0`
-  - `missingPreviewRatio: 0`
-  - `includeLibraryTotalCount=true` on the approved-panel root request shape
-- The old approved-panel hotspot is no longer the strongest open lane, so `Elements workflow` should not stay exact next by momentum alone.
-- The live May 31 post-deploy packet is still not a score-lift packet because:
-  - evidence coverage remains `35%`
-  - many deeper metrics are still not measured
-- `Elements workflow` remains below floor, but it now shifts into a held follow-up position instead of the active top slot.
-- Priorities `4..9` are the remaining below-floor workflow and persistence set after the heavy May 21 through May 27 repo hardening wave.
-- `Create workflow` stays below floor, but it remains a held follow-up state after the May 28 validation-convergence closeout and the May 30 post-redeploy review rather than returning to the exact next lane.
-- The bounded `2026-05-28` Elements closeout, the bounded `2026-05-30` runtime closeout, and the accepted `2026-05-31` root fix are all real seam evidence. Together they materially reduce the old live hotspot without justifying a score lift.
-- `Reference Grid` stays at floor and should not be reopened as a blocker lane on current evidence.
-- `Security boundaries` stays at floor, but the queue keeps an explicit follow-through slot for hosted auth-session cleanup, Git history purge judgment, and the new public-schema grant hardening posture.
+- `Project / workspace persistence` is still exact next because the newest local source fix is only `repo-durable` so far. The current worktree resolves generated-output read authority through `generationId`, `taskId`, and `sourceRef`, then fails closed when that authority cannot be resolved. The next proof is deploy plus rerunning the same production persistence audit rather than opening another adjacent lane by momentum.
+- `Characters workflow` stays second because persistence still has the stronger live ship-risk signal.
+- `Elements workflow` stays third because the live approved-panel hotspot materially improved on production and no longer justifies the top slot.
+- `Create workflow` stays below floor, but it remains held rather than returning to exact next.
+- `Reference Grid`, `Billing / credits`, `Generation submission / polling`, and `Security boundaries` remain at floor on current evidence.
 
-## Immediate Handoff Set
+## Current Lane Posture
 
-The Copperknot should treat these as the current active next-work set:
-
-1. `Project / workspace persistence`
-2. `Characters workflow`
-3. `Elements workflow`
-
-## Reviewed-Complete Follow-Up Lanes
-
-- `Generation recovery / settlement`
-  - execution-complete and reviewed on `2026-05-15`
-  - keep out of the exact next-work queue unless:
-    - broader generation-runtime rerating reopens it, or
-    - new runtime failure evidence lands
-
-## Current Dispatch Snapshot
-
-As of `2026-05-31`:
-
-- reviewed complete:
+- Exact next:
+  - `Project / workspace persistence`
+- Next proof boundary:
+  - deploy the accepted local persistence root fix and rerun the production persistence audit
+- Ready after that:
+  - `Characters workflow`
+- Follow-up hold:
+  - `Elements workflow`
+  - `Create workflow`
+- Reviewed complete but not rerated up:
   - `Generation recovery / settlement`
-- rerated to at-floor validation:
-  - `Reference Grid`
-  - `Billing / credits`
-  - `Security boundaries`
-  - `Generation submission / polling`
-- score held after bounded review:
-  - `Edit workflow`
-  - `Project / workspace persistence`
-- score held after May 28 validation convergence:
-  - `Create workflow`
-- score held after May 30 post-redeploy review:
-  - `Create workflow`
-  - `Elements workflow`
-  - `Project / workspace persistence`
-  - `Media delivery / signing / preview resolution`
-- score held after May 30 bounded runtime follow-up review:
-  - `Elements workflow`
-  - `Media delivery / signing / preview resolution`
-- score held after May 31 production remeasurement:
-  - `Elements workflow`
-  - `Media delivery / signing / preview resolution`
-- score held after accepted May 31 root-fix closeout review:
-  - `Elements workflow`
-  - `Media delivery / signing / preview resolution`
-- score held after May 31 post-deploy production verification:
-  - `Elements workflow`
-  - `Media delivery / signing / preview resolution`
-- score held after accepted May 31 local persistence root-fix review:
-  - `Project / workspace persistence`
-- fresh queue correction after the May 27 baseline reset:
-  - the May 19 `Characters workflow -> Elements workflow` exact-next order is now historical
-  - the earlier Create validation-red state has now been absorbed and accepted
-  - the current product-code worktree now carries an accepted local persistence root fix that still needs deploy and production remeasurement before the row can be treated as cleared
-- bounded Elements execution evidence reviewed:
-  - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-28-elements-workflow-hardening-closeout.md`
-  - accepted as real repo-durable evidence for the persistence seam only
-  - the narrowed May 30 runtime handoff was dispatched, returned a bounded patch, and was accepted as local shared-runtime evidence on `2026-05-30`
-  - the May 31 production remeasurement then confirmed that the old Elements missing-preview symptom no longer reproduced
-  - the accepted May 31 root-fix handoff then deployed and materially reduced the remaining approved-panel hotspot on production
-  - `Elements workflow` is no longer the exact next dispatch lane after that post-deploy verification
-
-## Fresh Production And Worktree Follow-Up Signals
-
-- production-only follow-up findings that materially changed the queue:
-  - `Elements workflow` plus approved panel runtime: the fresh `2026-05-31-approved-panel-post-deploy-verification.md` confirmed the deployed root fix reduced both approved-panel surfaces to `extraListCallsPerOpen: 0`, so the row should move out of the exact-next slot even though the score stays held
-  - `Reference Grid`: Holomony's `2026-05-25-reference-grid-production-baseline.md` found `no clear blocker`, which keeps the row out of the active blocker set
-  - `Security boundaries`: Dave's `2026-05-23-prod-storage-state-exposure.md` confirmed a historical production storage-state exposure and left hosted session cleanup plus history purge as open operator follow-through
-- post-redeploy repo truth that keeps the exact top queue order stable:
-  - latest launch-relevant movement is `ed86fb5ce`, which preserved canonical billed-resolution ids in Create pricing/runtime support seams
-  - the later `c2b127581` commit is Gear Ball evidence only and does not change the product queue
-  - the accepted May 31 local persistence root fix strengthens the current exact-next row without yet clearing it for a queue reorder
-  - the May 31 post-deploy rerun is fresh enough to move exact-next back to `Project / workspace persistence` without pretending `Elements workflow` is fully solved

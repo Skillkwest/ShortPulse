@@ -15,8 +15,9 @@ Purpose: review the returned May 31 persistence closeout against the root-seam a
 ## What Was Reviewed
 
 - `frontend/lib/server/projectWorkspaceStatesService.ts`
+- `frontend/lib/ai-studio-session/projectWorkspaceSnapshot.ts`
 - `frontend/lib/server/__tests__/projectWorkspaceStatesService.test.ts`
-- `frontend/lib/server/__tests__/projectGenerationAssociationsService.test.ts`
+- `frontend/features/ai-studio/logic/__tests__/sessionSnapshot.test.ts`
 
 Authority comparison anchors:
 
@@ -26,22 +27,29 @@ Authority comparison anchors:
 
 ## Main Outcome
 
-- The returned patch is real forward progress and should be accepted as a `root fix`.
+- The returned patch and follow-up local audit/fix are real forward progress and should be accepted as a `root fix`.
 - No score lift is justified yet.
-- `Project / workspace persistence` stays exact next until the accepted local fix is deployed and remeasured on production.
+- `Project / workspace persistence` stays exact next until the accepted local fixes are deployed and remeasured on production.
 
 ## Why I Accepted It
 
 The root-seam audit identified one canonical trust problem:
 
-- `canonicalizeProjectWorkspaceSnapshotForRead(...)` could preserve unresolved generated rows when read-time ownership resolution failed.
+- `canonicalizeProjectWorkspaceSnapshotForRead(...)` could preserve orphan generated rows that still looked shape-valid after they lost canonical association ids.
 
 The accepted patch fixes that source seam directly by:
 
-- resolving media, prompt, and generation ownership independently during read sanitization
-- degrading only the unresolved authority family instead of returning the broader shape-sanitized snapshot unchanged
-- re-sanitizing the returned snapshot after ownership-based filtering
-- failing closed to an ownership-safe snapshot if the read-time sanitization path crashes unexpectedly
+- reusing shared project-workspace authority helpers from `projectWorkspaceSnapshot.ts` instead of inventing a restore-only rule
+- treating generated-looking rows as restore-safe only when they still have durable project-owned authority or recoverable runtime identity
+- failing closed inside the shared server sanitizer when a generated-looking row has already lost `generationId`, `promptId`, and `savedMediaIds`
+- adding the exact regression for the orphan generated-output row shape seen in live production evidence
+
+Follow-up code audit found the more precise remaining source problem:
+
+- the previous read ownership resolver only collected rows that still had `generationId`
+- generated rows with recoverable runtime identity through `taskId` or `sourceRef` could therefore skip generation ownership resolution
+- the current worktree now resolves ownership by `generationId`, `taskId`, and `sourceRef`
+- read canonicalization now keeps runtime-identity generated rows only when that ownership lookup succeeds, and drops them when generation ownership resolution fails
 
 This is source-level behavior in the owning read path, not a parallel workaround.
 
@@ -58,20 +66,20 @@ The row remains `6/10` because:
 ## Validation I Re-Ran
 
 - `npm -C frontend run test -- lib/server/__tests__/projectWorkspaceStatesService.test.ts`
-- `npm -C frontend run test -- lib/server/__tests__/projectGenerationAssociationsService.test.ts`
+- `npm -C frontend run test -- features/ai-studio/logic/__tests__/sessionSnapshot.test.ts`
 - `npm -C frontend run docs:check`
 
 ## Validation Results
 
-- `projectWorkspaceStatesService.test.ts`: passed (`24` tests)
-- `projectGenerationAssociationsService.test.ts`: passed (`22` tests)
+- `projectWorkspaceStatesService.test.ts`: passed (`27` tests)
+- `sessionSnapshot.test.ts`: passed (`41` tests)
 - `docs:check`: passed
 
 ## Scope Judgment
 
 Accepted with one caveat:
 
-- the worker added a little extra focused test coverage around read/save snapshot sanitization shape, but it stayed inside the same owning test surface and did not broaden into unrelated product work
+- the worker touched the shared snapshot authority helper surface to keep read/write restore rules aligned, but it stayed inside the same owning persistence contract and did not broaden into unrelated product work
 
 I do not see UI, UX, or intended behavior drift in the accepted diff.
 

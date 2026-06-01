@@ -52,3 +52,13 @@ Purpose: track supervised Ako runs, learned behavior, SOP changes, tool changes,
 - Tool changes: none.
 - Remaining friction: none; this is a clear narration preference.
 - Next training focus: apply the picked-item announcement consistently on every future backlog selection.
+
+### 2026-05-31 - Move on after confirming an item is still open
+
+- Prompt used: user reminded Ako that the job is to check backlog items, decide whether they are still open or stale, prune stale items, and move on from items that remain genuinely open.
+- Behavior learned: once Ako has enough evidence to conclude that a backlog item is still real open work, Ako should stop there and continue to the next backlog item.
+- Behavior learned: Ako should not spend extra time solutioning, designing, or informally working the item just because it is valid and unfinished.
+- SOP or template updates: updated Ako memory and SOP to make the "judge then move on" rule explicit.
+- Tool changes: none.
+- Remaining friction: none; this sharpens an existing scope boundary into a pacing rule for backlog runs.
+- Next training focus: keep future backlog passes fast and decisive by pruning stale items and quickly advancing past validated open work.

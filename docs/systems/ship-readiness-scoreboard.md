@@ -14,7 +14,7 @@ Purpose: provide a fast secondary release-control overlay derived from `docs/sys
   - `docs/systems/catalog.md`
   - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
   - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-post-deploy-verification.md`
+  - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-production-verification-failure.md`
 
 ## Freshness Rule
 
@@ -25,7 +25,7 @@ For exact launch-control truth, defer first to:
 - `docs/systems/catalog.md`
 - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
 - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-- `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-post-deploy-verification.md`
+- `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-production-verification-failure.md`
 
 This overlay is reliable only when:
 
@@ -66,14 +66,13 @@ Catalog-tool health metrics:
 
 ## Current Evidence Note
 
-Fresh May 31 post-deploy verification says:
+Fresh May 31 persistence production verification says:
 
-- both approved-panel surfaces now confirm `extraListCallsPerOpen: 0`
-- both approved-panel surfaces keep `missingPreviewRatio: 0`
-- route parity passed on the deployed commit under test
-- coverage is still only `35%`
+- the accepted persistence patch is real local repo progress
+- the first live production rerun still failed on the orphan restore class
+- the canonicalized project workspace read still exposed the orphan generated output
 
-This is real production improvement, but it is still not a rerate packet.
+This is now a direct production contradiction, not just a missing proof packet.
 
 ## Below-Floor Systems
 
@@ -113,8 +112,11 @@ This is real production improvement, but it is still not a rerate packet.
 - reviewed complete, score unchanged pending broader runtime rerate:
   - `generation-recovery-settlement-hardening`
 - score held after bounded review:
-  - `project-workspace-persistence-hardening`
   - `edit-workflow-hardening`
+- score held after accepted local root-fix review:
+  - `project-workspace-persistence-hardening`
+- production verification failed after accepted local root-fix review:
+  - `project-workspace-persistence-hardening`
 - score held after May 30 post-redeploy review:
   - `Create workflow`
 - score held after May 31 post-deploy production verification:
@@ -127,7 +129,7 @@ This is real production improvement, but it is still not a rerate packet.
 - follow-up hold:
   - `Elements workflow`
 
-The accepted Elements runtime patch and the accepted May 31 root-fix patch are both real repo evidence, and the post-deploy production rerun says the old hotspot is materially reduced. The next exact lane is now `Project / workspace persistence`.
+The accepted Elements runtime patch is real production evidence, but the persistence lane now has a direct production failure packet. The old approved-panel hotspot is no longer the strongest open lane, and the next exact move is persistence deployment reconciliation plus rerun.
 
 ## Non-Blocking Production Findings
 

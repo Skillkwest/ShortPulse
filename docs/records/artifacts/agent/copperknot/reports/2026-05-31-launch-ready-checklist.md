@@ -23,7 +23,7 @@ Ship target: `July 2, 2026`
 
 ## Do Next
 
-- [ ] `Project / workspace persistence` — score `6/10` — ship floor `7/10` — status: exact next lane after approved-panel post-deploy verification
+- [ ] `Project / workspace persistence` — score `6/10` — ship floor `7/10` — status: failed production verification; reconcile deployment state and rerun
   - lane: `project-workspace-persistence-hardening`
 
 ## Ready After That
@@ -35,6 +35,7 @@ Ship target: `July 2, 2026`
 
 ## Held Inside Copperknot
 
+- [ ] `Project / workspace persistence` — score `6/10` — ship floor `7/10` — status: accepted local root fix reviewed, but first production verification failed
 - [ ] `Create workflow` — score `6/10` — ship floor `7/10` — status: score held after May 31 audit; no new queue pressure
 - [ ] `Elements workflow` — score `5/10` — ship floor `6/10` — status: post-deploy verification materially reduced the live hotspot, but no score lift
 - [ ] `Media delivery / signing / preview resolution` — score `6/10` — ship floor `6/10` — status: stays at floor; live signal is healthier, but still not lift-worthy
@@ -105,10 +106,10 @@ Ship target: `July 2, 2026`
 
 ## Simple Priority Order
 
-1. If approved, run `Project / workspace persistence`.
-2. Reassess `Characters workflow`.
-3. Keep `Elements workflow` in follow-up hold unless fresh evidence reopens it.
-4. Keep `Create workflow` held at `6/10` unless fresh evidence from that lane reopens it.
+1. Reconcile whether the accepted `Project / workspace persistence` fix is actually live on `production`.
+2. Rerun focused production verification for the project/workspace restore surface.
+3. Reassess `Characters workflow` only after persistence clears.
+4. Keep `Elements workflow` in follow-up hold unless fresh evidence reopens it.
 5. Keep `Reference Grid` closed and keep the at-floor rows stable.
 
 ## Simple Explanation For Me
@@ -122,8 +123,9 @@ Right now:
 - the old approved-panel hotspot is no longer the strongest open lane
 - evidence depth is still weaker than a full maturity-lift packet
 
-So the next action is still:
+So the next action is now:
 
-- move exact next back to persistence
-- then reassess Characters
+- reconcile deployment state for the accepted persistence root fix
+- rerun the live restore audit on production
+- only then reassess Characters
 - keep Elements held unless fresh evidence reopens it

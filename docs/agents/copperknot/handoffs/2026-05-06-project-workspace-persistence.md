@@ -6,6 +6,12 @@
 
 Purpose: harden the current project-owned save/restore authority before final ship evaluation.
 
+## Current Status
+
+This packet is retained as the source handoff for the persistence lane, but it is no longer a dispatch-ready worker packet. The current worktree has a local source fix for the generated-output restore filter: read canonicalization now resolves generated-output authority by `generationId`, `taskId`, and `sourceRef`, and fails closed when runtime identity cannot be ownership-resolved.
+
+Next proof boundary: deploy the local persistence fix through the release lane, then rerun the production persistence audit. Do not dispatch this packet again unless production remeasurement or a fresh code audit reopens a smaller source problem.
+
 ## Fix Classification
 
 `root fix` preferred
@@ -14,8 +20,8 @@ If a true source-level fix is not practical inside the bounded write surface, a 
 
 ## Copy/Paste Use
 
-- This packet is ready to paste into another agent.
-- Treat it as a bounded execution lane.
+- Historical packet only while the local source fix is waiting on deployment proof.
+- Treat it as a source context packet, not an active worker prompt.
 - Do not broaden into a full project-system redesign unless the stop rules are hit and the evidence demands it.
 
 ## Why this task
@@ -35,6 +41,7 @@ If a true source-level fix is not practical inside the bounded write surface, a 
 
 - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-approved-panel-post-deploy-verification.md`
 - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-persistence-root-seam-audit.md`
+- `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-production-verification-failure.md`
 - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/2026-05-16-project-workspace-persistence-hardening-closeout.md`
 - `docs/records/artifacts/agent/copperknot/reports/2026-05-30-production-post-redeploy-baseline-refresh.md`
 
@@ -43,11 +50,16 @@ Current Copperknot judgment:
 - the Elements hotspot cooled enough on production that this row returned to exact next
 - the prior persistence lane removed one eager association trust gap
 - broader trust is still too thin to claim floor-level confidence
-- the current leading root-seam candidate is the read-time ownership-sanitization fallback in `projectWorkspaceStatesService`
+- the earlier May 31 ownership-resolution fix was live on production, but the first production persistence verification still reproduced the orphan generated-output class
+- the current worktree now addresses the narrower generated-output restore filter in `sanitizeProjectWorkspaceOutputs(...)`
+- generated rows that have lost canonical association ids now fail closed unless the read path can resolve durable or runtime-owned generated authority through `generationId`, `taskId`, or `sourceRef`
+- current repo truth distinguishes two different ideas:
+  - live UI code can still treat `mediaSource === "generated"` rows as generated outputs for preview behavior
+  - project workspace persistence should only keep generated rows when they still have durable project-owned authority or ownership-resolvable runtime identity
 
 ## Recommended agent profile
 
-Persistence-contract agent with strong ownership, restore, and data-sanitization discipline.
+Persistence-contract review only if this packet is reopened after production proof.
 
 ## Scoped task
 
@@ -60,11 +72,22 @@ Investigate and harden one highest-ROI remaining persistence invariant in the ca
 
 Do not just add another local guard if the owning source seam can be fixed directly.
 
-Current first candidate source seam:
+Current fixed source seam:
 
 - `frontend/lib/server/projectWorkspaceStatesService.ts`
-- `canonicalizeProjectWorkspaceSnapshotForRead(...)`
-- current behavior logs and returns the shape-sanitized snapshot when ownership resolution fails instead of failing closed on unresolved restore authority
+- `sanitizeProjectWorkspaceOutputs(...)`
+- inner `sanitizeRows(...)`
+- previous behavior could preserve shape-valid generated rows after they lost `generationId`, `promptId`, and `savedMediaIds`
+- current local behavior fails closed when generated-looking rows lack durable project-owned authority and generation authority was not resolved
+- current local behavior also resolves generated ownership through runtime identity:
+  - `taskId`
+  - `sourceRef`
+- source references for that predicate are:
+  - `frontend/lib/ai-studio-session/projectWorkspaceSnapshot.ts`
+  - `hasProjectDurableOutputAuthority(...)`
+  - `hasProjectRecoverableRuntimeIdentity(...)`
+  - `isGeneratedOutput(...)`
+- production proof is still missing for the current local fix
 
 ## Owned write surface
 
@@ -88,6 +111,7 @@ Current first candidate source seam:
 - project identity and ownership checks
 - workspace snapshot sanitization
 - generated-output association refresh
+- generated-output orphan-row fail-closed filtering
 - restore exclusions and fail-closed behavior
 - targeted persistence tests
 
@@ -121,7 +145,10 @@ Inspect first:
 2. Which canonical source seam is still most likely to fail silently or preserve bad state?
 3. Is the right move a source fix, a bounded seam reduction, or only a findings packet?
 4. Do historical bad rows or stale persisted shapes now need a one-time cleanup or validation pass before ship?
-5. Should read-time ownership-resolution failure fail closed for generated/project-associated rows instead of returning the broader shape-sanitized snapshot?
+5. Should generated rows without canonical association ids fail closed during read canonicalization instead of surviving as shape-valid outputs?
+6. Which row traits should still count as "generated output" for fail-closed read filtering once `generationId` is already gone?
+7. Should the restore predicate key off durable authority plus recoverable runtime identity rather than the broader UI-level `mediaSource === "generated"` previewability rule?
+8. Can the read path reuse or faithfully mirror `shouldPersistOutputInProjectWorkspaceSnapshot(...)` so project-owned restore authority stays consistent on both write and read?
 
 ## Expected output
 
@@ -131,6 +158,7 @@ Inspect first:
 ## Suggested validation
 
 - targeted project workspace and association tests
+- one focused read-path regression test for a shape-valid generated row that has already lost `generationId`, `promptId`, and `savedMediaIds`
 - `npm -C frontend run docs:check` if docs change
 
 ## Done state

@@ -28,8 +28,6 @@ Structure (locked):
 ## Program 0: Execution Authority
 
 - [ ] Classify legacy planning docs into `active`, `retained evidence`, `working history`, and `archive candidate` buckets, then move the clear archive candidates out of the active planning path in bounded batches.
-- [ ] Keep `docs/planning/execution-authority.md` aligned with the actual active program set as work starts, stops, or changes owner.
-- [ ] Keep this backlog aligned with the Copperknot items that are still below launch-readiness target so active launch work is not tracked only in readiness docs.
 - [x] Define a retained validation matrix by program so closeout checks stop being chosen ad hoc from the full script corpus.
       Evidence: `docs/planning/validation-matrix-by-program-2026-05-11.md`, `docs/planning/execution-authority.md`, `docs/planning/README.md`, `docs/testing-guide.md`
 
@@ -49,7 +47,7 @@ Structure (locked):
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
 - [ ] Edit workflow: rerun the edit workflow, which is still below launch-readiness target, and decide whether it can move up or needs one more focused hardening pass.
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
-- [ ] AI Studio: run staging smoke tests for the current shipped aspect-ratio contract (verify submit payload and returned dimensions for the supported Seedream aspect set plus model-default clamp behavior).
+- [ ] AI Studio: run production validation for the current shipped aspect-ratio contract (verify submit payload and returned dimensions for the supported Seedream aspect set plus model-default clamp behavior).
 - [x] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
       Evidence: `docs/sops/sop_model_api_contract_reverification.md`, `docs/api/README.md`, `scripts/check_model_catalog_parity.js`
 - [ ] AI Studio: add dedicated e2e coverage for aspect clamping + submit-time `effective_aspect` consistency beyond the current unit/payload contract matrix.
@@ -71,17 +69,15 @@ Structure (locked):
 - [ ] Media Library: redesign the header bar and refresh small info cards to pull real account-level details.
 - [ ] Media Library: continue transform-free image-loading optimization and improve derivative/preview coverage on dense grid surfaces.
 - [ ] Media Library: resolve the remaining pagination/search trust gaps across media tabs, especially no-match image-search copy that currently reads like total data loss.
-- [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
 - [ ] AI Studio: change placeholder `generating` and `loading preview` reference cards to a lighter gray background for better visual contrast.
 
 ## Program 3: Structural Decomposition
 
-- [ ] Split oversized AI Studio orchestration surfaces once the current runtime and media behavior is stable, starting with `frontend/pages/ai-studio.tsx` and `frontend/features/ai-studio/components/AiStudioPageContent.tsx`.
+- [ ] Split oversized AI Studio orchestration surfaces once the current runtime and media behavior is stable, focusing on `frontend/features/ai-studio/routes/AiStudioRouteApp.tsx` and `frontend/features/ai-studio/components/AiStudioPageContent.tsx` now that `frontend/pages/ai-studio.tsx` is only a thin dynamic entry.
 - [ ] Split oversized AI Studio properties-panel surfaces once behavior is stable, starting with `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx` and `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`.
 - [ ] Split oversized shared runtime modules into smaller ownership seams once convergence behavior is stable, starting with `frontend/lib/server/falIntegration/recoveryExecution.ts` and `frontend/lib/server/api/falStatusProxy.ts`.
 - [ ] Revisit typography foundation cleanup after the low-risk Google Fonts import removal: decide whether system fonts should become the canonical primary stack, then normalize remaining hard-coded `Inter` / `Satoshi` references and refresh the related design inventory docs.
       Reference: `frontend/styles/foundation.css`, `frontend/features/character-manager/components/CharacterDescriptionEditorCard.tsx`, `frontend/features/elements-manager/components/ElementsDescriptionEditorCard.tsx`, `docs/design/ai-studio-style-inventory.md`
-- [ ] Define a prefab management system to keep reusable prefabs organized, easy to find, and consistently maintained over time.
 
 ## Program 4: Workflows And Product Surfaces
 
@@ -90,7 +86,6 @@ Structure (locked):
 - [ ] Characters workflow: reassess continuity and persistence trust, then rerun the workflow after progress on Elements and project/workspace persistence.
       Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
 - [ ] Build a complete, polished collection of small delete buttons.
-- [ ] Build a complete, polished collection of small download buttons.
 - [ ] Build a complete, polished collection of small save buttons.
 - [ ] Finish the Dashboard redesign pass by retiring the remaining staged/legacy posture and tightening the long-term styling structure.
 - [ ] Align Character Manager styling with the AI Studio character workflow so the manager page and properties panel feel cohesive.
@@ -99,6 +94,9 @@ Structure (locked):
 ## Program 5: Release Confidence And Research
 
 ## Done (verified in repo)
+
+- [x] Auth boundary: retire `SHORTPULSE_ADMIN_EMAILS` as admin authority and require explicit Supabase `app_metadata` admin/operator roles for privileged API access.
+      Evidence: `frontend/lib/server/api/auth.ts`, `frontend/pages/api/admin/access.ts`, `frontend/tests/api/auth-helper.test.ts`, `frontend/tests/api/admin-access.test.ts`, `docs/supabase_auth_setup.md`, `docs/security-checklist.md`
 
 - [x] AI Studio model-platform cleanup: complete the `ModelModal` shared-metadata phase and stop at the explicit product-policy boundary.
       Evidence: `docs/archive/planning/model-modal-policy-phase-plan-2026-05-10.md`, `frontend/features/ai-studio/components/ModelModal.tsx`, `frontend/features/ai-studio/logic/modelModalPresentation.ts`, `frontend/features/ai-studio/components/__tests__/ModelModal.test.tsx`, `frontend/features/ai-studio/logic/__tests__/modelModalPresentation.test.ts`, `scripts/model_doctor.js`

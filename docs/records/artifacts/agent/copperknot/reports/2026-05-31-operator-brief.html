@@ -138,35 +138,31 @@
         <h2>What Changed</h2>
         <ul>
           <li>
-            The accepted May 31 root fix is now deployed on
-            <code>production</code>.
+            The May 31 persistence lane returned a real local
+            <code>root fix</code> in the canonical project-workspace read path.
           </li>
           <li>
-            Confirmed post-deploy reruns now show
-            <code>extraListCallsPerOpen: 0</code> and
-            <code>missingPreviewRatio: 0</code> on both approved-panel surfaces.
+            I accepted that fix after rerunning the focused persistence tests
+            and the docs gate.
           </li>
+          <li>The first live production verification still failed.</li>
           <li>
-            No score lifts are justified from the post-deploy verification.
-          </li>
-          <li>
-            The exact next lane is now
-            <code>Project / workspace persistence</code>.
+            The canonicalized project workspace read on production still exposed
+            the orphan generated output class.
           </li>
         </ul>
       </section>
 
       <section class="panel">
-        <h2>Ready To Paste Now</h2>
+        <h2>Ready To Do Now</h2>
         <div class="cards">
           <article class="card">
-            <span class="badge green">Paste Only If Approved</span>
+            <span class="badge green">Next Proof</span>
             <h3>Project / workspace persistence</h3>
             <p>Lane: <code>project-workspace-persistence-hardening</code></p>
             <p>
-              The approved-panel hotspot is no longer the strongest live
-              blocker, so the queue returns to the highest-impact remaining P0
-              below-floor lane.
+              Reconcile whether the accepted fix is actually live on
+              <code>production</code>, then rerun the live restore audit.
             </p>
             <p>
               <a
@@ -203,6 +199,14 @@
       <section class="panel">
         <h2>Held Inside Copperknot</h2>
         <div class="cards">
+          <article class="card">
+            <span class="badge purple">Score Held</span>
+            <h3>Project / workspace persistence</h3>
+            <p>
+              Accepted local root fix at <code>6/10</code>, but the first live
+              production verification still failed.
+            </p>
+          </article>
           <article class="card">
             <span class="badge purple">Score Held</span>
             <h3>Elements workflow</h3>

@@ -86,7 +86,7 @@ Before editing, name:
 - Audit the backlog item against code, tests, docs, and readiness artifacts.
 - Close, remove, rewrite, or retain the item based on evidence.
 - Keep wording readable and plain when the work stays open.
-- If the item is still genuine open work, stop at status judgment and leave implementation untouched unless the user explicitly asks Ako to switch from backlog stewardship into product/code execution.
+- If the item is still genuine open work, stop at status judgment, leave implementation untouched, and move on to the next backlog item unless the user explicitly asks Ako to switch from backlog stewardship into product/code execution.
 - Do not create duplicate planning systems, fallback backlogs, backup planning docs, or parallel boards to avoid reconciling the canonical source of truth.
 
 ### Step 5. Reconcile board truth second

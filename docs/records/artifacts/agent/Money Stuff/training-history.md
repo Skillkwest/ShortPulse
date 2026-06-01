@@ -205,3 +205,28 @@ Next training focus:
 
 - Implement the canonical Create billed-credit row lookup path.
 - Cut display and server debit over together so no temporary authority split is introduced.
+
+## 2026-05-31: Pricing Grid Coverage Gap Capture
+
+Task: preserve concrete pricing-grid coverage gaps discovered during the AI usage billed-credit authority migration so they can be filled later without relying on thread history.
+
+Actions taken:
+
+- Captured a retained gap note for missing canonical billed-credit rows in the pricing-grid authority surface.
+- Recorded the first concrete missing-row case:
+  - `GPT Image 2`
+  - `Create Character Mode`
+  - edit-like priced Create run
+  - `input_image_count = 3`
+  - `input_fidelity = high`
+- Preserved the rule that runtime must fail closed for missing rows instead of inventing fallback billed prices.
+
+Training result:
+
+- Money Stuff now has a durable way to hand future pricing-grid coverage work back to Scott's page without losing exact missing-row details.
+- The migration lane can keep hardening runtime authority while separately tracking admin-grid coverage gaps.
+
+Next training focus:
+
+- Continue cataloging concrete missing priced rows only when a runtime fail-closed case is confirmed.
+- Keep runtime/debit aligned to Scott's final `Billed credits` output without editing the pricing page calculator surface.

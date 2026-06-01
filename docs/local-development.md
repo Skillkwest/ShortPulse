@@ -32,7 +32,6 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
      - Optional compatibility mirror for routes that still read the legacy public-API base.
      - When set, it must match `APP_BASE_URL` exactly.
    - `SUPABASE_SERVICE_ROLE_KEY`
-   - `SHORTPULSE_ADMIN_EMAILS`
    - `KIE_API_KEY` (or `SHORTPULSE_KIE_API_KEY`) for Kie routes
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`

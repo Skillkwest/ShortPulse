@@ -45,13 +45,7 @@ SHORTPULSE_PUBLIC_API_BASE_URL=<same value as APP_BASE_URL>
 
 When `SHORTPULSE_PUBLIC_API_BASE_URL` is set, it must match `APP_BASE_URL`.
 
-Optional admin allowlist for `/admin` APIs:
-
-```bash
-SHORTPULSE_ADMIN_EMAILS=admin@example.com,ops@example.com
-```
-
-Optional role-based admin access (without email allowlist):
+Role-based admin access for `/admin` APIs:
 
 - Set `role` to `admin` or `operator` in `raw_app_meta_data` on `auth.users`.
 - Do not use `raw_user_meta_data` for admin authorization.
@@ -78,4 +72,4 @@ Optional role-based admin access (without email allowlist):
 4. Verify email-change confirmation returns through `/auth/callback` and only then syncs downstream billing identity.
 5. Verify user-scoped data is isolated across two test users.
 6. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
-7. Verify admin access works for one operator account (`raw_app_meta_data` role or `SHORTPULSE_ADMIN_EMAILS`).
+7. Verify admin access works for one operator account with the expected `raw_app_meta_data` role.

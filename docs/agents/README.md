@@ -94,6 +94,7 @@ Use this path when setting up a new agent for a new recurring task:
   - retained artifacts live under the slugged path `docs/records/artifacts/agent/create-workflow/`.
 - `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract and memory entrypoint.
 - `docs/agents/copperknot/README.md`: systems catalog stewardship, production-readiness prioritization, and execution-handoff contract and memory entrypoint.
+  - `docs/agents/copperknot/goal-prompt.md`: concise reusable mission prompt for Copperknot's launch-readiness stewardship.
   - `docs/agents/copperknot/operating-package-2026-05-06.md`: current operating package entrypoint for the July 2 production-readiness window.
   - `docs/agents/copperknot/standard-operating-procedure.md`: core always-load SOP for catalog audits, rerating, handoff generation, and external lane report intake.
   - `docs/agents/copperknot/standard-operating-procedure-reference.md`: conditional deeper standards reference for handoff design, maintenance/pruning, status models, and output rules.

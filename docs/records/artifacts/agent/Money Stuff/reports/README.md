@@ -13,3 +13,4 @@ Current notable report:
 
 - `2026-05-30-admin-priced-billed-credit-migration-plan.md` — compact master migration plan for moving AI usage billed-credit authority onto admin-priced canonical variant rows.
 - `2026-05-30-create-admin-priced-billed-credit-implementation-plan.md` — Create-only execution plan defining the exact billed-credit lookup key, consumer cutover set, and proof gate for the first migration lane.
+- `2026-05-31-pricing-grid-gap-notes.md` — retained gap notes for pricing-grid coverage still missing canonical billed-credit rows during the migration.

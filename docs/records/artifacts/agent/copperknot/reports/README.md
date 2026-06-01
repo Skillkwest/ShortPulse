@@ -2,13 +2,14 @@
 
 Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inbound execution-lane closeouts used by the Copperknot.
 
-## Current Primary Authority Surfaces
+## Current Primary Authority Surface
 
-- `2026-05-06-dispatch-log.md`: current external handoff dispatch status for the active production-readiness window.
-- `2026-05-31-project-workspace-persistence-closeout-review.md`: current freshest retained packet explaining why the queue stays on `Project / workspace persistence` after the accepted local root fix.
+- `2026-05-31-project-workspace-persistence-closeout-review.md`: current freshest retained packet explaining why `Project / workspace persistence` still stays exact next after the accepted local root fix, with deploy plus production remeasurement now the next proof boundary.
 
 ## Current Secondary Overlays
 
+- These are optional user-facing overlays, not part of Copperknot's default thinking load.
+- Refresh them only when the user explicitly wants them or when a major launch-state correction needs a clearer human-facing checkpoint.
 - `2026-05-31-operator-brief.html`: current rich-format operator brief for the May 31 post-deploy state.
 - `2026-05-31-operator-brief.md`: source-only backing artifact for the current operator brief.
 - `2026-05-31-launch-ready-checklist.md`: current ADHD-friendly launch-ready checklist after the May 31 post-deploy state.
@@ -17,6 +18,8 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 ## Current Supporting Lane Audits
 
 - `2026-05-31-project-workspace-persistence-root-seam-audit.md`: current source-seam audit for the exact-next `Project / workspace persistence` lane.
+- `2026-05-31-project-workspace-production-verification-failure.md`: live production failure packet that narrowed the orphan generated-output restore seam before the accepted local root fix landed.
+- `2026-05-31-project-workspace-production-verification-packet.md`: current exact proof packet for verifying the accepted persistence root fix on live production.
 - `2026-05-31-approved-panel-post-deploy-verification.md`: retained production packet explaining why `Elements workflow` moved out of the exact-next slot before the persistence lane resumed control.
 
 ## Current Intake Surfaces
@@ -79,3 +82,4 @@ These remain preserved, but they are not part of the default Copperknot launch-r
 - Treat this folder as a retained evidence surface, not as a default startup memory surface.
 - Routine Copperknot load should prefer the current primary authority surfaces first.
 - Secondary overlays should be opened only when they reduce user decision burden or when a richer human-facing summary is specifically useful.
+- Retired bookkeeping surfaces should stay retired. Do not rebuild them as active launch-control layers.

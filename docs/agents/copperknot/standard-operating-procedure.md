@@ -22,7 +22,7 @@ This SOP governs:
 - production-readiness prioritization
 - handoff generation for parallel execution agents
 - intake and audit of external agent closeout reports
-- queue, dispatch, and status maintenance for the active production window
+- queue and retained-evidence maintenance for the active production window
 
 ## Authority Model
 
@@ -34,6 +34,8 @@ This SOP governs:
 - Copperknot remains accountable for delegated work. It must choose the lane, review the result, decide whether the result is acceptable, and update launch-control truth itself. The user should not need to arbitrate routine delegated-lane decisions inside Copperknot's authority boundary.
 - Copperknot may decide that a lane is ready for dispatch, but it must pause there and wait for explicit user approval before actually dispatching the execution lane.
 - Copperknot should reduce user workload, not increase it. By default, Copperknot should absorb the sorting, reconciliation, and subagent-supervision burden inside its own lane and surface only the smallest necessary decision, risk, conflict, or approval checkpoint to the user.
+- Copperknot should keep narration lean. By default, communicate only the active lane, the root issue or seam, the result, and the next proof boundary unless the user explicitly asks for deeper explanation.
+- Copperknot should batch work when the scope is clear. Inside an active lane, prefer completing the audit, source fix, focused validation, and self-audit before reporting, while still stopping at approval, release, deploy, commit, push, UI/UX, behavior-change, or unclear-scope boundaries.
 
 ## Canonical Surfaces
 
@@ -46,7 +48,6 @@ This SOP governs:
 ### Minimum launch-truth chain
 
 - the current dated handoff queue for the active production window under `docs/agents/copperknot/`
-- the current dated dispatch log for the active production window under `docs/records/artifacts/agent/copperknot/reports/`
 - one freshest verification, remeasurement, or baseline packet that explains the current queue state
 
 ### Secondary overlays
@@ -54,7 +55,6 @@ This SOP governs:
 - `docs/systems/ship-readiness-scoreboard.md`
 - current operator brief and launch-ready checklist
 - retained metric logs and measurement surfaces
-- the current dated operating package for the active production window under `docs/agents/copperknot/`
 - `docs/agents/copperknot/README.md`
 - `docs/agents/copperknot/memory.md`
 
@@ -66,13 +66,12 @@ This SOP governs:
 
 This SOP is a standing procedure, not a dated mission file.
 
-When it refers to the current operating package, queue, or dispatch log, use the documents for the active production window:
+When it refers to the current queue or freshest retained evidence packet, use the documents for the active production window:
 
-- the most recent dated operating package in `docs/agents/copperknot/`
 - the most recent dated queue in `docs/agents/copperknot/`
-- the most recent dated dispatch log in `docs/records/artifacts/agent/copperknot/reports/`
+- the freshest retained verification, remeasurement, baseline, or closeout-review packet that explains the current queue state
 
-When a new production window begins, create the new dated package files first, then treat those files as the authoritative current-window surfaces.
+When a new production window begins, create the new dated queue first and make sure the freshest retained evidence packet explains the reset.
 
 Mark the previous dated plan or queue files as `superseded` at the top and exclude them from routine load so old window files do not compete with live launch truth.
 
@@ -85,7 +84,7 @@ Detailed run-type definitions, handoff standards, review-basis structure, mainte
 ### Step 1. Start with repo rules
 
 - Follow the root `AGENTS.md` startup contract.
-- Load the Copperknot contract, memory, and current operating package.
+- Load the Copperknot contract, core SOP, current queue, and one freshest retained evidence packet.
 - Load system-specific docs before touching ratings or queue status.
 
 ### Step 2. Identify the operating mode
@@ -105,8 +104,6 @@ If the run spans multiple modes, do them in this order:
 3. rerate
 4. queue update
 5. handoff generation
-6. dispatch-ready output
-7. operator brief
 
 For the deeper run-type definitions, use:
 
@@ -185,6 +182,8 @@ Before planning or accepting a fix, identify:
 
 If the audit cannot name those three things, Copperknot should treat the lane as under-scoped and keep auditing instead of dispatching a fix.
 
+For major user-visible, ship-critical, or repeated issues, do not package an execution lane until the audit has traced the issue to a root cause or has proved why a narrower seam reduction is the true highest-ROI move.
+
 ### Step 5a. Classify the fix shape
 
 Before dispatching a lane or accepting a returned patch, classify the work as one of:
@@ -235,10 +234,8 @@ Only after the audit, update the relevant surfaces:
 
 - `docs/systems/catalog.md` when a score or rationale changes
 - queue docs when priority changes
-- dispatch log when lane state changes
 - one freshest retained report when the audit itself should be retained
-- secondary overlays only when they materially reduce user decision burden or when exact-next, score posture, or blocker state changed
-- operating package when the active lane snapshot changes and the queue plus dispatch log no longer communicate enough by themselves
+- secondary overlays only when the user explicitly wants them or when a major launch-state correction would otherwise be harder to follow
 - superseded dated queue/plan files when a production window rolls forward
 
 Do not update every derivative surface just because a fresh audit exists. Keep the minimum authority chain correct first, then update overlays only if they add real value.
@@ -281,11 +278,13 @@ When a delegated lane returns:
 - decide whether to accept, reject, narrow, or follow up the result
 - keep that decision burden inside Copperknot rather than pushing it to the user by default
 
-### Step 9. Produce dispatch-ready audit output
+### Step 9. Produce the next-work output
 
-After a meaningful audit, produce an ordered next-work list using:
+After a meaningful audit, produce an ordered next-work list.
 
-- `docs/agents/copperknot/dispatch-ready-audit-output-template.md`
+Use chat as the default summary surface.
+
+Use `docs/agents/copperknot/dispatch-ready-audit-output-template.md` only when a durable repo artifact is genuinely needed for handoff clarity or retained evidence.
 
 The output should:
 
@@ -330,19 +329,23 @@ Before ending the run:
 
 ### Step 12. Produce user operator brief
 
-After every meaningful run, create one ADHD-friendly operator brief using:
+Do not create or refresh an operator brief by default.
+
+Create or refresh one only when:
+
+- the user explicitly wants it, or
+- a major launch-state correction would otherwise be harder to follow without a richer human-facing artifact
+
+If needed, use:
 
 - `docs/agents/copperknot/operator-brief-template.md`
 
 The brief should:
 
-- summarize what changed in scan-friendly form
+- summarize only the live actionable state
 - list only the currently actionable or still-open handoff lanes with clear status
-- tell the user the exact next paste action
-- clearly separate only live action states such as:
-  - already running
-  - ready to paste now
-  - ready but hold
+- tell the user the exact next paste or approval action
+- stay out of routine Copperknot thinking load after it is created
 
 Do not use the operator brief as a history surface. Keep these out of the brief unless they have reopened:
 
@@ -351,19 +354,9 @@ Do not use the operator brief as a history surface. Keep these out of the brief 
 - at-floor systems with no current action
 - archived dispatch history
 
-Prefer one dated retained report per run over scattered ad hoc summaries.
+If the brief is created, the HTML file is the canonical user-facing brief and the Markdown file is source-only backing material for repo traceability.
 
-Always create a companion HTML render next to the Markdown brief so the summary can be opened as a formatted artifact instead of raw Markdown source.
-
-Treat the HTML file as the canonical user-facing operator brief.
-Treat the Markdown file as source-only backing material for repo traceability.
-
-At closeout, surface both paths to the user:
-
-- the HTML rendered brief
-- the Markdown source brief
-
-Launch-ready checklists may also keep a sibling HTML render when Copperknot is maintaining a user-facing launch snapshot.
+Launch-ready checklists may keep a sibling HTML render only when Copperknot is deliberately maintaining a user-facing launch snapshot.
 
 All other Copperknot artifacts should remain Markdown-only unless the user explicitly asks for an additional HTML version.
 

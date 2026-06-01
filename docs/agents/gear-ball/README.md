@@ -46,6 +46,7 @@ Closeouts must stay explicit about:
 
 - choose the cheapest valid run profile first
 - optimize for time-to-clean-push
+- optimize for token-efficient execution: keep chat output minimal, do only the minimum honest validation needed to commit safely, and avoid extra process chatter that does not improve the shipped result
 - keep execution chatter near zero
 - prefer the fewest honest lanes
 - reload from repo-local authority at the start of each lane

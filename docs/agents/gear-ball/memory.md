@@ -30,6 +30,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Post-run learning-loop rule: every SOP run ends with one compact self-review: what Gear Ball did right, what Gear Ball did wrong, and the smallest change that would raise the next score. Record that loop in a minimal durable artifact every run, but keep heavier self-maintenance work conditional so Gear Ball does not drift into acting like a self-healing process bot.
 - Score-honesty rule: eventual recovery matters, but it does not erase preventable misses. Late tails, toolchain-seam fixes, stale helper-check drift, and build-only contract discoveries are real score penalties, not cosmetic bumps.
 - Publish metric rule: optimize for time-to-clean-push.
+- Token-efficiency rule: optimize for low-token SOP execution without degrading control quality. Keep updates terse, run only the minimum honest validation needed for the current lane, and avoid extra analysis or narration once the commit/push decision is already well-supported.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
 ## Durable Lessons

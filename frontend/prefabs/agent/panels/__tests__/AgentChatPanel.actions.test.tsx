@@ -341,6 +341,47 @@ describe("AgentChatPanel prompt actions", () => {
     expect(container.querySelectorAll(".agent-message-rich-list li")).toHaveLength(4);
   });
 
+  it("gives standard assistant replies richer headings, hints, and dividers without upgrading user formatting", () => {
+    const { container } = render(
+      <StandardCreateChatPanel
+        messages={[
+          {
+            id: "u-1",
+            role: "user",
+            content:
+              "Note:\nKeep the tone grounded.\n\nIf you want, keep the reveal for the very end.",
+          },
+          {
+            id: "a-1",
+            role: "assistant",
+            content:
+              "Best Direction:\nKeep the opening visual simple and emotionally clear.\n\n---\n\nIf you want, I can turn this into a generation-ready prompt next.",
+          },
+        ]}
+        input=""
+        showInput={false}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Best Direction")).toBeInTheDocument();
+    expect(
+      screen.getByText("Keep the opening visual simple and emotionally clear.")
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(".agent-assistant .agent-message-rich-separator")
+    ).not.toBeNull();
+    expect(container.querySelector(".agent-assistant .agent-message-rich-hint")).toHaveTextContent(
+      "If you want, I can turn this into a generation-ready prompt next."
+    );
+    expect(container.querySelector(".agent-user .agent-message-rich-hint")).toBeNull();
+    expect(container.querySelector(".agent-user .agent-message-rich-separator")).toBeNull();
+    expect(
+      screen.getByText((_, node) => node?.textContent === "Note:\nKeep the tone grounded.")
+    ).toBeInTheDocument();
+  });
+
   it("allows prompt artifacts to use the shared rich renderer when structured content is present", () => {
     const { container } = render(
       <StandardCreateChatPanel

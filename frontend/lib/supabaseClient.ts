@@ -104,6 +104,78 @@ const getSessionSnapshot = (): SupabaseSessionSnapshot => currentSessionSnapshot
 
 const getServerSessionSnapshot = (): SupabaseSessionSnapshot => EMPTY_SESSION_SNAPSHOT;
 
+const hasTokenCandidate = (value: unknown): boolean => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as {
+    access_token?: unknown;
+    refresh_token?: unknown;
+  };
+  return typeof candidate.access_token === "string" || typeof candidate.refresh_token === "string";
+};
+
+const getSupabaseAuthStorageKeys = (): string[] => {
+  const keys = new Set<string>();
+
+  if (supabaseUrl) {
+    try {
+      const hostname = new URL(supabaseUrl).hostname;
+      const projectRef = hostname.split(".")[0]?.trim();
+      if (projectRef) {
+        keys.add(`sb-${projectRef}-auth-token`);
+      }
+    } catch {
+      // Ignore malformed env values and fall back to storage scanning.
+    }
+  }
+
+  return [...keys];
+};
+
+/**
+ * Reads whether browser storage contains a persisted Supabase auth payload.
+ * This is a bootstrap hint only and must never replace authoritative session reads.
+ */
+export const readPersistedSupabaseSessionHint = (): boolean => {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const storage = window.localStorage;
+    const candidateKeys = new Set<string>(getSupabaseAuthStorageKeys());
+
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key) {
+        candidateKeys.add(key);
+      }
+    }
+
+    for (const key of candidateKeys) {
+      if (!/auth-token/i.test(key)) continue;
+      const rawValue = storage.getItem(key);
+      if (!rawValue) continue;
+
+      try {
+        const parsed = JSON.parse(rawValue) as unknown;
+        const candidates = [
+          parsed,
+          (parsed as { currentSession?: unknown } | null)?.currentSession,
+          (parsed as { session?: unknown } | null)?.session,
+        ];
+
+        if (candidates.some((candidate) => hasTokenCandidate(candidate))) {
+          return true;
+        }
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+};
+
 const startAuthStateSubscription = () => {
   if (authStateSubscriptionStarted || typeof window === "undefined") return;
   authStateSubscriptionStarted = true;

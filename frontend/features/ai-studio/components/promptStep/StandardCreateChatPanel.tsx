@@ -15,7 +15,14 @@ export type StandardCreateChatPanelProps = AgentChatPanelProps;
 const StandardAssistantMessageContent: React.FC<AgentMessageContentProps> = ({
   message,
   textRef,
-}) => <CreateChatRichMessageBody ref={textRef} content={message.content} tone="assistant" />;
+}) => (
+  <CreateChatRichMessageBody
+    ref={textRef}
+    content={message.content}
+    formatMode="standard_rich"
+    tone="assistant"
+  />
+);
 
 const StandardUserMessageContent: React.FC<AgentMessageContentProps> = ({ message }) => (
   <CreateChatRichMessageBody content={message.content} tone="user" />

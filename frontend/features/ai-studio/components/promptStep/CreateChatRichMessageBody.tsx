@@ -39,7 +39,7 @@ type CreateChatRichMessageBlock =
       kind: "separator";
     };
 
-type CreateChatRichMessageFormatMode = "basic" | "guided";
+type CreateChatRichMessageFormatMode = "basic" | "guided" | "standard_rich";
 
 type CreateChatRichMessageBodyProps = {
   content: string;
@@ -59,6 +59,8 @@ const ORDERED_ITEM_PATTERN = /^\s*\d+[.)]\s+/;
 const BULLET_ITEM_PATTERN = /^\s*[-*•]\s+/;
 const HINT_LINE_PATTERN =
   /^(?:Reply with|Type your own|or type your own|Type one|Choose one|Pick one|You can also|If none fit|If you want)/i;
+const STANDARD_HINT_LINE_PATTERN =
+  /^(?:Tip|Note|Keep in mind|If you want|If helpful|You can also|One caution|One note)\s*:?\s*/i;
 const SEPARATOR_PATTERN = /^(?:-{3,}|\*{3,}|_{3,})$/;
 
 const normalizeText = (value: string): string =>
@@ -129,6 +131,12 @@ const isHintParagraph = (value: string): boolean => {
   return HINT_LINE_PATTERN.test(normalized);
 };
 
+const isStandardHintParagraph = (value: string): boolean => {
+  const normalized = normalizeText(value);
+  if (!normalized.length || normalized.length > 220) return false;
+  return STANDARD_HINT_LINE_PATTERN.test(normalized);
+};
+
 const isSeparator = (value: string): boolean => SEPARATOR_PATTERN.test(value.trim());
 
 const splitReplyChoices = (value: string): string[] | null => {
@@ -150,6 +158,41 @@ const parseOptionCard = (value: string): { number: string; title: string } | nul
   const title = match[2]?.trim() ?? "";
   if (!number || !title) return null;
   return { number, title };
+};
+
+const parseListBlock = (lines: string[]): CreateChatRichMessageBlock | null => {
+  if (!lines.length) return null;
+
+  if (lines.every((line) => ORDERED_ITEM_PATTERN.test(line) || BULLET_ITEM_PATTERN.test(line))) {
+    return {
+      kind: "list",
+      intro: null,
+      items: lines.map(stripListPrefix),
+      ordered: ORDERED_ITEM_PATTERN.test(lines[0] ?? ""),
+    };
+  }
+
+  const firstListLineIndex = lines.findIndex(
+    (line) => ORDERED_ITEM_PATTERN.test(line) || BULLET_ITEM_PATTERN.test(line)
+  );
+  if (firstListLineIndex > 0) {
+    const intro = lines.slice(0, firstListLineIndex).join("\n").trim();
+    const listLines = lines.slice(firstListLineIndex);
+    if (
+      intro.length > 0 &&
+      listLines.length > 0 &&
+      listLines.every((line) => ORDERED_ITEM_PATTERN.test(line) || BULLET_ITEM_PATTERN.test(line))
+    ) {
+      return {
+        kind: "list",
+        intro,
+        items: listLines.map(stripListPrefix),
+        ordered: ORDERED_ITEM_PATTERN.test(listLines[0] ?? ""),
+      };
+    }
+  }
+
+  return null;
 };
 
 const renderInlineText = (value: string): React.ReactNode[] => {
@@ -218,29 +261,108 @@ const parseBasicBlocks = (value: string): CreateChatRichMessageBlock[] => {
       }
     }
 
-    const listStartIndex = lines.findIndex(
-      (line) => ORDERED_ITEM_PATTERN.test(line) || BULLET_ITEM_PATTERN.test(line)
-    );
-    if (listStartIndex >= 0) {
-      const listLines = lines.slice(listStartIndex);
-      const areAllListItems = listLines.every(
-        (line) => ORDERED_ITEM_PATTERN.test(line) || BULLET_ITEM_PATTERN.test(line)
-      );
-      if (areAllListItems) {
-        parsedBlocks.push({
-          kind: "list",
-          intro:
-            listStartIndex > 0 ? lines.slice(0, listStartIndex).join("\n").trim() || null : null,
-          items: listLines.map(stripListPrefix).filter(Boolean),
-          ordered: ORDERED_ITEM_PATTERN.test(listLines[0] ?? ""),
-        });
-        continue;
-      }
+    const listBlock = parseListBlock(lines);
+    if (listBlock) {
+      parsedBlocks.push(listBlock);
+      continue;
     }
 
     parsedBlocks.push({
       kind: "paragraph",
       text: lines.join("\n"),
+    });
+  }
+
+  return parsedBlocks;
+};
+
+const parseStandardRichBlocks = (value: string): CreateChatRichMessageBlock[] => {
+  const blocks = splitParagraphBlocks(value);
+  const parsedBlocks: CreateChatRichMessageBlock[] = [];
+
+  for (const rawBlock of blocks) {
+    const lines = rawBlock
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (!lines.length) continue;
+
+    if (lines.length === 1 && isSeparator(lines[0] ?? "")) {
+      parsedBlocks.push({ kind: "separator" });
+      continue;
+    }
+
+    const firstLine = lines[0] ?? "";
+    const heading = isMarkdownHeading(firstLine);
+    if (heading) {
+      parsedBlocks.push({
+        kind: "heading",
+        level: heading.level,
+        text: heading.text,
+      });
+      const trailingLines = lines.slice(1);
+      if (trailingLines.length > 0) {
+        parsedBlocks.push(
+          parseListBlock(trailingLines) ?? {
+            kind: "paragraph",
+            text: trailingLines.join("\n"),
+          }
+        );
+      }
+      continue;
+    }
+
+    const listBlock = parseListBlock(lines);
+    if (listBlock) {
+      parsedBlocks.push(listBlock);
+      continue;
+    }
+
+    if (
+      lines.length > 1 &&
+      !QUESTION_LINE_PATTERN.test(firstLine) &&
+      (firstLine.endsWith(":") || TITLE_CASE_LINE_PATTERN.test(firstLine))
+    ) {
+      parsedBlocks.push({
+        kind: "heading",
+        level: firstLine.endsWith(":") ? 3 : 2,
+        text: firstLine.replace(/:\s*$/, ""),
+      });
+      const trailingLines = lines.slice(1);
+      parsedBlocks.push(
+        parseListBlock(trailingLines) ?? {
+          kind: "paragraph",
+          text: trailingLines.join("\n"),
+        }
+      );
+      continue;
+    }
+
+    if (
+      lines.length === 1 &&
+      !QUESTION_LINE_PATTERN.test(firstLine) &&
+      isStandaloneHeading(firstLine)
+    ) {
+      parsedBlocks.push({
+        kind: "heading",
+        level: firstLine.endsWith(":") ? 3 : 2,
+        text: firstLine.replace(/:\s*$/, ""),
+      });
+      continue;
+    }
+
+    const normalizedBlock = lines.join("\n");
+    if (isStandardHintParagraph(normalizedBlock)) {
+      parsedBlocks.push({
+        kind: "hint",
+        text: normalizedBlock,
+      });
+      continue;
+    }
+
+    parsedBlocks.push({
+      kind: "paragraph",
+      text: normalizedBlock,
     });
   }
 
@@ -327,35 +449,10 @@ const parseGuidedBlocks = (value: string): CreateChatRichMessageBlock[] => {
       continue;
     }
 
-    if (lines.every((line) => ORDERED_ITEM_PATTERN.test(line) || BULLET_ITEM_PATTERN.test(line))) {
-      parsedBlocks.push({
-        kind: "list",
-        intro: null,
-        items: lines.map(stripListPrefix),
-        ordered: ORDERED_ITEM_PATTERN.test(lines[0] ?? ""),
-      });
+    const listBlock = parseListBlock(lines);
+    if (listBlock) {
+      parsedBlocks.push(listBlock);
       continue;
-    }
-
-    const firstListLineIndex = lines.findIndex(
-      (line) => ORDERED_ITEM_PATTERN.test(line) || BULLET_ITEM_PATTERN.test(line)
-    );
-    if (firstListLineIndex > 0) {
-      const intro = lines.slice(0, firstListLineIndex).join("\n").trim();
-      const listLines = lines.slice(firstListLineIndex);
-      if (
-        intro.length > 0 &&
-        listLines.length > 0 &&
-        listLines.every((line) => ORDERED_ITEM_PATTERN.test(line) || BULLET_ITEM_PATTERN.test(line))
-      ) {
-        parsedBlocks.push({
-          kind: "list",
-          intro,
-          items: listLines.map(stripListPrefix),
-          ordered: ORDERED_ITEM_PATTERN.test(listLines[0] ?? ""),
-        });
-        continue;
-      }
     }
 
     if (lines.length === 1 && isStandaloneHeading(firstLine)) {
@@ -391,7 +488,11 @@ const parseCreateChatRichMessageBlocks = ({
   content: string;
   formatMode: CreateChatRichMessageFormatMode;
 }): CreateChatRichMessageBlock[] =>
-  formatMode === "guided" ? parseGuidedBlocks(content) : parseBasicBlocks(content);
+  formatMode === "guided"
+    ? parseGuidedBlocks(content)
+    : formatMode === "standard_rich"
+      ? parseStandardRichBlocks(content)
+      : parseBasicBlocks(content);
 
 /**
  * Renders readable Create-panel chat text while preserving the original meaning.

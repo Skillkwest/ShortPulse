@@ -12,6 +12,7 @@ const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
@@ -56,6 +57,8 @@ vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
   ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+  readPersistedSupabaseSessionHint: (...args: unknown[]) =>
+    readPersistedSupabaseSessionHintMock(...args),
   primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
 }));
 
@@ -66,7 +69,12 @@ vi.mock("../../lib/authenticatedFetch", () => ({
 describe("Dashboard guest route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useRouterMock.mockReturnValue({ push: vi.fn(), replace: vi.fn(), query: {} });
+    useRouterMock.mockReturnValue({
+      pathname: "/dashboard",
+      push: vi.fn(),
+      replace: vi.fn(),
+      query: {},
+    });
     useCreditsMock.mockReturnValue({
       balanceCents: null,
       balanceLoading: false,
@@ -76,6 +84,7 @@ describe("Dashboard guest route", () => {
       loading: false,
       refreshQuotaSummary: vi.fn(),
     });
+    readPersistedSupabaseSessionHintMock.mockReturnValue(false);
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -149,5 +158,23 @@ describe("Dashboard guest route", () => {
     ).not.toBeInTheDocument();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
+  });
+
+  it("renders the public dashboard immediately while anonymous session bootstrap is still unresolved", () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: false,
+      session: null,
+      user: null,
+    });
+
+    render(<DashboardPage />);
+
+    expect(
+      screen.getByRole("heading", { name: /build faster with shortpulse/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Checking your session before your dashboard workspace loads.")
+    ).not.toBeInTheDocument();
+    expect(readPersistedSupabaseSessionHintMock).toHaveBeenCalled();
   });
 });

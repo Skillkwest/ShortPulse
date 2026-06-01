@@ -6,6 +6,7 @@ const ORIGINAL_ENV = process.env;
 describe("supabaseClient session reads", () => {
   beforeEach(() => {
     vi.resetModules();
+    window.localStorage.clear();
     process.env = {
       ...ORIGINAL_ENV,
       NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
@@ -84,5 +85,26 @@ describe("supabaseClient session reads", () => {
     expect(result.current.session).toBeNull();
     expect(result.current.user).toBeNull();
     expect(getSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("detects a persisted Supabase auth payload in localStorage as a bootstrap hint", async () => {
+    const storageKey = ["sb", "example", "auth", "token"].join("-");
+    const getItemSpy = vi
+      .spyOn(window.localStorage.__proto__, "getItem")
+      .mockImplementation((...args: unknown[]) =>
+        args[0] === storageKey
+          ? JSON.stringify({
+              currentSession: {
+                access_token: "token-1",
+                refresh_token: "refresh-1",
+              },
+            })
+          : null
+      );
+
+    const { readPersistedSupabaseSessionHint } = await import("../supabaseClient");
+
+    expect(readPersistedSupabaseSessionHint()).toBe(true);
+    expect(getItemSpy).toHaveBeenCalledWith(storageKey);
   });
 });

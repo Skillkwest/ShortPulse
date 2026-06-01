@@ -12,6 +12,7 @@ const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
@@ -55,6 +56,8 @@ vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
   ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+  readPersistedSupabaseSessionHint: (...args: unknown[]) =>
+    readPersistedSupabaseSessionHintMock(...args),
 }));
 
 vi.mock("../../lib/authenticatedFetch", () => ({
@@ -128,6 +131,7 @@ describe("Dashboard bootstrap state", () => {
     });
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
     ensureSupabaseQueryClientMock.mockReturnValue(buildSupabaseClient());
+    readPersistedSupabaseSessionHintMock.mockReturnValue(true);
     fetchWithAuthMock.mockImplementation(async (input: unknown) => {
       if (input === "/api/announcements/active") {
         return {
@@ -145,7 +149,7 @@ describe("Dashboard bootstrap state", () => {
     });
   });
 
-  it("hides guest CTAs while the dashboard session bootstrap is still pending and then settles into the authenticated view", async () => {
+  it("keeps the dashboard loader for a persisted signed-in session until auth resolves, then settles into the authenticated view", async () => {
     const snapshot: {
       initialized: boolean;
       session: { user: typeof appUser } | null;

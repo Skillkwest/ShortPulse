@@ -9,6 +9,7 @@ import {
   createProjectDurableAiStudioSessionCanvasState,
   parseAiStudioSessionCanvasState,
 } from "./sessionSnapshotCanvas";
+import { createAiStudioProjectWorkspaceSnapshot } from "../../../lib/ai-studio-session/projectWorkspaceSnapshot";
 
 const normalizeProjectRestoreOutputIds = (
   value: string[] | undefined,
@@ -50,4 +51,16 @@ export const createProjectRestoreSnapshot = (
   return durableCanvas
     ? patchAiStudioSessionSnapshotCanvas(outputRestoredSnapshot, durableCanvas)
     : outputRestoredSnapshot;
+};
+
+export const createProjectRestoreVisibilitySnapshot = (
+  snapshot: AiStudioSessionSnapshot
+): AiStudioSessionSnapshotV2 => {
+  const restoredSnapshot = createProjectRestoreSnapshot(snapshot);
+  const canonicalProjectSnapshot = createAiStudioProjectWorkspaceSnapshot(
+    restoredSnapshot
+  ) as AiStudioSessionSnapshotV2;
+  const restoredCanvasState = parseAiStudioSessionCanvasState(restoredSnapshot.canvas ?? null);
+
+  return patchAiStudioSessionSnapshotCanvas(canonicalProjectSnapshot, restoredCanvasState);
 };

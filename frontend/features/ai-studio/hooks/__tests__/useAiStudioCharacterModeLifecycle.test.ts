@@ -16,7 +16,6 @@ import {
 } from "../../../character-manager/logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../../../character-manager/logic/characterListSyncEvents";
 import { persistSelectedCharacterId } from "../../../character-manager/logic/selectedCharacterPersistence";
-import { readSupabaseUserId } from "../../../../lib/supabaseClient";
 import type { ToolId } from "../../types";
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
@@ -30,11 +29,17 @@ vi.mock("../../../../lib/supabaseClient", async () => {
   return createSupabaseClientModuleMock();
 });
 
+const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
+  useResolvedProtectedSessionState: (...args: unknown[]) =>
+    useResolvedProtectedSessionStateMock(...args),
+}));
+
 const listCharacterManagerCharactersMock = vi.mocked(listCharacterManagerCharacters);
 const loadCharacterManagerDraftByCharacterIdMock = vi.mocked(
   loadCharacterManagerDraftByCharacterId
 );
-const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -169,7 +174,11 @@ describe("useAiStudioCharacterModeLifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
-    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } } as never,
+      user: { id: "user-1" } as never,
+    });
   });
 
   it("hydrates selected character id from persisted storage", async () => {

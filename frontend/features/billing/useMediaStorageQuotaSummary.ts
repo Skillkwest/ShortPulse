@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../lib/protectedRouteSessionContext";
 import { getDefaultPlanStorageLimitBytes, type MediaStorageQuotaSummary } from "./storage";
 
 const MEDIA_STORAGE_QUOTA_REFRESH_EVENT = "shortpulse:media-storage-quota-refresh";
@@ -54,7 +55,9 @@ export const useMediaStorageQuotaSummary = ({
   enabled?: boolean;
   fallbackPlanId?: string | null;
 }) => {
-  const { user } = useSupabaseSessionState();
+  const { user } = useResolvedProtectedSessionState({
+    enabled,
+  });
   const [quotaSummary, setQuotaSummary] = useState<MediaStorageQuotaSummary | null>(null);
   const [loading, setLoading] = useState(false);
 

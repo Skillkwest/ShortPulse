@@ -6,11 +6,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Session, User } from "@supabase/supabase-js";
 import { resetUseCreditsTestState, useCredits } from "../useCredits";
-import {
-  ensureSupabaseQueryClient,
-  readSupabaseUserId,
-  useSupabaseSessionState,
-} from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 
 vi.mock("../../../../lib/supabaseClient", async () => {
@@ -18,7 +14,6 @@ vi.mock("../../../../lib/supabaseClient", async () => {
   return {
     ...actual,
     ensureSupabaseQueryClient: vi.fn(),
-    readSupabaseUserId: vi.fn(),
     useSupabaseSessionState: vi.fn(),
   };
 });
@@ -29,7 +24,6 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 
 const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 const fetchWithAuthMock = vi.mocked(fetchWithAuth);
-const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const useSupabaseSessionStateMock = vi.mocked(useSupabaseSessionState);
 
 const createSessionState = (userId: string | null) => ({
@@ -51,7 +45,6 @@ describe("useCredits", () => {
     resetUseCreditsTestState();
     sessionState = createSessionState("user-123");
     useSupabaseSessionStateMock.mockImplementation(() => sessionState);
-    readSupabaseUserIdMock.mockResolvedValue("user-123");
   });
 
   it("loads spendable balance from the authenticated snapshot API without browser balance fallbacks", async () => {
@@ -73,6 +66,7 @@ describe("useCredits", () => {
     expect(result.current.balanceCents).toBe(900);
     expect(result.current.balanceReservedCents).toBe(120);
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
+    expect(useSupabaseSessionStateMock).toHaveBeenCalled();
   });
 
   it("preserves the last known good spendable balance when snapshot refresh fails", async () => {
@@ -136,7 +130,6 @@ describe("useCredits", () => {
     expect(result.current.balanceCents).toBe(900);
 
     sessionState = createSessionState("user-456");
-    readSupabaseUserIdMock.mockResolvedValue("user-456");
     rerender();
 
     expect(result.current.balanceCents).toBeNull();
@@ -211,7 +204,7 @@ describe("useCredits", () => {
   });
 
   it("dedupes overlapping credit snapshot refreshes into one authenticated request", async () => {
-    let resolveSnapshot: ((value: Response) => void) | null = null;
+    let resolveSnapshot!: (value: Response) => void;
     fetchWithAuthMock.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -224,7 +217,7 @@ describe("useCredits", () => {
 
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
 
-    resolveSnapshot?.({
+    resolveSnapshot({
       ok: true,
       json: async () => ({
         spendableCents: 900,

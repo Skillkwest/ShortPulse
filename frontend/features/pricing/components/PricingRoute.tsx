@@ -1,310 +1,62 @@
 /**
- * Public pricing route content.
- * Uses the live billing catalog to sell plans while keeping credits and storage add-ons informational.
+ * Public pricing route entry.
+ * Keeps anonymous pricing lightweight while loading session awareness only when local auth hints warrant it.
  */
-import Head from "next/head";
-import Link from "next/link";
-import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
-import {
-  buildPlanView,
-  filterPublicSubscriptionPlans,
-  type BillingCatalogSnapshot,
-  type BillingInterval,
-  type BillingPlanRecord,
-  resolvePlanPricingForInterval,
-} from "../../billing/catalog";
-import { BillingIntervalToggle } from "../../billing/components/BillingIntervalToggle";
-import { SubscriptionPlanCard } from "../../billing/components/SubscriptionPlanCard";
-import {
-  buildDashboardAuthPath,
-  buildPricingAuthPath,
-  buildPricingPath,
-  normalizePricingBillingInterval,
-  normalizePricingIntent,
-  normalizePricingPlanId,
-} from "../paths";
-import {
-  trackBillingPricingViewed,
-  trackBillingUpgradeClicked,
-} from "../../../lib/growthTelemetry";
-import {
-  readSupabaseSessionBootstrapHint,
-  useSupabaseSessionState,
-} from "../../../lib/supabaseClient";
+import { useEffect, useState, type ComponentType } from "react";
+import { readSupabaseSessionBootstrapHint } from "../../../lib/supabaseSessionHints";
+import { PricingRouteContent, type PricingRouteProps } from "./PricingRouteContent";
 
-type PricingRouteProps = {
-  billingCatalog: BillingCatalogSnapshot;
+type PricingRouteSessionAwareComponent = ComponentType<PricingRouteProps>;
+
+let cachedPricingRouteSessionAwareComponent: PricingRouteSessionAwareComponent | null = null;
+
+const loadPricingRouteSessionAware = async (): Promise<PricingRouteSessionAwareComponent> => {
+  if (cachedPricingRouteSessionAwareComponent) {
+    return cachedPricingRouteSessionAwareComponent;
+  }
+
+  const loadedModule = await import("./PricingRouteSessionAware");
+  cachedPricingRouteSessionAwareComponent = loadedModule.PricingRouteSessionAware;
+  return loadedModule.PricingRouteSessionAware;
 };
 
-const sortBillingPlans = (plans: readonly BillingPlanRecord[]) =>
-  [...plans].sort((left, right) => {
-    if ((left.sort_order ?? 0) === (right.sort_order ?? 0)) {
-      return left.monthly_price_cents - right.monthly_price_cents;
-    }
-    return (left.sort_order ?? 0) - (right.sort_order ?? 0);
-  });
-
-const resolvePlanActionLabel = (params: {
-  isAuthenticated: boolean;
-  monthlyPriceCents: number;
-  displayName: string;
-}) => {
-  if (!params.isAuthenticated) {
-    return params.monthlyPriceCents === 0 ? "Create account" : `Sign up for ${params.displayName}`;
-  }
-  if (params.monthlyPriceCents === 0) {
-    return "Continue to dashboard";
-  }
-  return `Choose ${params.displayName}`;
-};
-
-const resolveMaxAnnualSavingsPercent = (plans: readonly BillingPlanRecord[]): number =>
-  Math.max(
-    0,
-    ...plans.map((plan) => {
-      const pricing = resolvePlanPricingForInterval(plan, "year");
-      return pricing.hasLiveOffer && pricing.savingsAmountCents > 0
-        ? Math.round(pricing.savingsPercent)
-        : 0;
-    })
-  );
+if (typeof window !== "undefined" && readSupabaseSessionBootstrapHint()) {
+  void loadPricingRouteSessionAware();
+}
 
 /**
  * Renders the public pricing route.
  */
 export function PricingRoute({ billingCatalog }: PricingRouteProps) {
-  const router = useRouter();
   const shouldResolveSession = readSupabaseSessionBootstrapHint();
-  const { user } = useSupabaseSessionState({
-    enabled: shouldResolveSession,
-  });
-  const isAuthenticated = Boolean(user);
-  const intent = normalizePricingIntent(router.query.intent);
-  const selectedPlanId = normalizePricingPlanId(router.query.plan);
-  const selectedBillingInterval = normalizePricingBillingInterval(router.query.interval);
-  const [planActionLoadingId, setPlanActionLoadingId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [loadedSessionAwareComponent, setLoadedSessionAwareComponent] =
+    useState<PricingRouteSessionAwareComponent | null>(null);
 
   useEffect(() => {
-    trackBillingPricingViewed({
-      page_surface: "pricing",
-      pricing_intent: intent,
-      selected_plan_id: selectedPlanId,
-      is_authenticated: isAuthenticated,
-    });
-  }, [intent, isAuthenticated, selectedPlanId]);
-
-  const sortedPlans = useMemo(
-    () => sortBillingPlans(filterPublicSubscriptionPlans(billingCatalog.plans)),
-    [billingCatalog.plans]
-  );
-  const annualSavingsPercent = useMemo(
-    () => resolveMaxAnnualSavingsPercent(sortedPlans),
-    [sortedPlans]
-  );
-
-  const handleIntervalToggle = async (billingInterval: BillingInterval) => {
-    if (billingInterval === selectedBillingInterval) return;
-    await router.replace(
-      buildPricingPath({
-        intent,
-        planId: selectedPlanId,
-        billingInterval,
-      }),
-      undefined,
-      { shallow: true }
-    );
-  };
-
-  const handlePlanAction = async (planId: string) => {
-    setNotice(null);
-
-    trackBillingUpgradeClicked({
-      upgrade_surface: "pricing_page",
-      pricing_intent: intent,
-      plan_id: planId,
-      billing_interval: selectedBillingInterval,
-      is_authenticated: isAuthenticated,
-    });
-
-    if (!isAuthenticated) {
-      await router.push(
-        buildPricingAuthPath({
-          intent,
-          planId,
-          billingInterval: selectedBillingInterval,
-        })
-      );
+    if (!shouldResolveSession) return;
+    if (cachedPricingRouteSessionAwareComponent || loadedSessionAwareComponent) {
       return;
     }
 
-    if (planId === "free") {
-      await router.push("/dashboard");
-      return;
-    }
-
-    setPlanActionLoadingId(planId);
-    try {
-      const { fetchWithAuth } = await import("../../../lib/authenticatedFetch");
-      const response = await fetchWithAuth("/api/billing/subscription/change", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          targetPlanId: planId,
-          billingInterval: selectedBillingInterval,
-        }),
-      });
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        redirectUrl?: string | null;
-      };
-      if (!response.ok) {
-        throw new Error(payload.error || "Unable to start the selected plan flow.");
+    let cancelled = false;
+    void loadPricingRouteSessionAware().then((component) => {
+      if (!cancelled) {
+        setLoadedSessionAwareComponent(() => component);
       }
-      if (payload.redirectUrl) {
-        window.location.assign(payload.redirectUrl);
-        return;
-      }
-      await router.push("/dashboard");
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to start the selected plan flow.");
-    } finally {
-      setPlanActionLoadingId(null);
-    }
-  };
+    });
 
-  return (
-    <>
-      <Head>
-        <title>ShortPulse · Pricing</title>
-        <meta
-          name="description"
-          content="ShortPulse pricing for subscriptions, credit packs, and recurring storage add-ons."
-        />
-      </Head>
+    return () => {
+      cancelled = true;
+    };
+  }, [loadedSessionAwareComponent, shouldResolveSession]);
 
-      <div className="lp-shell pricing-route-shell">
-        <header className="lp-nav sticky">
-          <div className="lp-brand">
-            <Link href="/" className="lp-brand-link">
-              <img src="/small good d.png" alt="ShortPulse logo" className="lp-brand-logo" />
-              <span className="lp-brand-text">ShortPulse</span>
-            </Link>
-          </div>
+  const SessionAwareComponent = shouldResolveSession
+    ? (loadedSessionAwareComponent ?? cachedPricingRouteSessionAwareComponent)
+    : null;
 
-          <div className="lp-actions">
-            {isAuthenticated ? (
-              <Link href="/dashboard" className="primary-btn">
-                Back to dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href={buildDashboardAuthPath()} className="ghost-btn">
-                  Log in
-                </Link>
-                <Link
-                  href={buildPricingAuthPath({
-                    intent,
-                    planId: selectedPlanId,
-                    billingInterval: selectedBillingInterval,
-                    mode: "signup",
-                  })}
-                  className="primary-btn"
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
-          </div>
-        </header>
+  if (!shouldResolveSession || !SessionAwareComponent) {
+    return <PricingRouteContent billingCatalog={billingCatalog} isAuthenticated={false} />;
+  }
 
-        <main className="lp-main">
-          <section
-            className="lp-section subscription-pricing-shell"
-            aria-labelledby="pricing-plans-heading"
-          >
-            <div className="pricing-hero">
-              <h2 id="pricing-plans-heading">Subscription plans</h2>
-              <p>Start with the plan that matches your workflow. You can always upgrade later.</p>
-              {selectedPlanId ? (
-                <div className="dashboard-guest-strip pricing-route-selected-plan">
-                  <div className="dashboard-guest-strip-copy">
-                    <p className="eyebrow">Selected plan</p>
-                    <p className="dashboard-guest-strip-title">
-                      {
-                        buildPlanView({ planId: selectedPlanId, plans: billingCatalog.plans })
-                          .displayName
-                      }
-                    </p>
-                    <p className="dashboard-guest-strip-description">
-                      {selectedBillingInterval === "year"
-                        ? "Annual billing selected"
-                        : "Monthly billing selected"}
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-              {notice ? <p className="pricing-route-notice">{notice}</p> : null}
-              <BillingIntervalToggle
-                selectedBillingInterval={selectedBillingInterval}
-                annualSavingsPercent={annualSavingsPercent}
-                onChange={(billingInterval) => {
-                  void handleIntervalToggle(billingInterval);
-                }}
-              />
-              <p className="pricing-billing-helper">
-                Upgrade anytime. Downgrades apply at the next billing cycle.
-              </p>
-            </div>
-
-            <div className="lp-plan-grid pricing-plan-grid-screenshot">
-              {sortedPlans.map((plan) => {
-                const planView = buildPlanView({ planId: plan.id, plans: billingCatalog.plans });
-                const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
-                const intervalUnavailable =
-                  selectedBillingInterval === "year" &&
-                  plan.id !== "free" &&
-                  !planPricing.hasLiveOffer;
-                const isSelected = selectedPlanId === plan.id;
-                const actionLabel = intervalUnavailable
-                  ? "Annual unavailable"
-                  : resolvePlanActionLabel({
-                      isAuthenticated,
-                      monthlyPriceCents: planPricing.monthlyEquivalentCents,
-                      displayName: planView.displayName,
-                    });
-                const isLoading = planActionLoadingId === plan.id;
-
-                return (
-                  <SubscriptionPlanCard
-                    key={plan.id}
-                    plan={plan}
-                    plans={billingCatalog.plans}
-                    billingInterval={selectedBillingInterval}
-                    isSelected={isSelected}
-                    className="pricing-surface-card"
-                    actionSlot={
-                      <button
-                        type="button"
-                        className={`pricing-btn ${plan.monthly_price_cents === 0 ? "neutral" : "primary"}`}
-                        onClick={() => {
-                          void handlePlanAction(plan.id);
-                        }}
-                        disabled={isLoading || intervalUnavailable}
-                      >
-                        {isLoading ? "Starting…" : actionLabel}
-                      </button>
-                    }
-                  />
-                );
-              })}
-            </div>
-          </section>
-        </main>
-      </div>
-    </>
-  );
+  return <SessionAwareComponent billingCatalog={billingCatalog} />;
 }

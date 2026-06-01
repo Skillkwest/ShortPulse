@@ -3,7 +3,8 @@
  * Keeps a local fallback while synchronizing per-user preference when available.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 
 const DEFAULT_MEDIA_AUTOSAVE_ENABLED = true;
 const MEDIA_AUTOSAVE_STORAGE_KEY = "shortpulse.ai_studio.media_autosave_enabled";
@@ -42,7 +43,7 @@ const writeLocalMediaAutosave = (value: boolean): void => {
  * Reads and writes `user_preferences.media_autosave_enabled` with local fallback.
  */
 export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult => {
-  const sessionSnapshot = useSupabaseSessionState();
+  const sessionSnapshot = useResolvedProtectedSessionState();
   const sessionUserId = sessionSnapshot.user?.id ?? null;
   const [mediaAutosaveEnabled, setMediaAutosaveEnabledState] = useState<boolean>(
     DEFAULT_MEDIA_AUTOSAVE_ENABLED

@@ -6,7 +6,7 @@ import React from "react";
 import { Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { clampCustomVoiceNameInput } from "../../../lib/customVoiceName";
-import { useSupabaseSessionState } from "../../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import {
@@ -369,7 +369,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   voicePrompt: controlledVoicePrompt,
   voiceScript: controlledVoiceScript,
 }: VoicesPropertiesPanelProps) {
-  const sessionSnapshot = useSupabaseSessionState();
+  const sessionSnapshot = useResolvedProtectedSessionState();
   const sessionUserId = sessionSnapshot.user?.id ?? null;
   void _balanceCredits;
   const {

@@ -1,20 +1,23 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStylesLibraryStyleDetailsPreference } from "../useStylesLibraryStyleDetailsPreference";
-import { readSupabaseUserId } from "../../../../lib/supabaseClient";
 
-const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
+const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
 const supabaseQueryClientMock = vi.hoisted(() => ({ from: vi.fn() }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  readSupabaseUserId: readSupabaseUserIdMock,
   supabaseQueryClient: supabaseQueryClientMock,
+}));
+
+vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
+  useResolvedProtectedSessionState: (...args: unknown[]) =>
+    useResolvedProtectedSessionStateMock(...args),
 }));
 
 describe("useStylesLibraryStyleDetailsPreference", () => {
   beforeEach(() => {
     vi.useRealTimers();
-    vi.mocked(readSupabaseUserId).mockReset();
+    useResolvedProtectedSessionStateMock.mockReset();
     supabaseQueryClientMock.from = vi.fn();
     window.localStorage.clear();
   });
@@ -40,7 +43,11 @@ describe("useStylesLibraryStyleDetailsPreference", () => {
       })
     );
 
-    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
 
     const { result } = renderHook(() => useStylesLibraryStyleDetailsPreference());
 
@@ -77,7 +84,11 @@ describe("useStylesLibraryStyleDetailsPreference", () => {
   });
 
   it("keeps the local style when remote sync times out", async () => {
-    vi.mocked(readSupabaseUserId).mockResolvedValue("user-123");
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
     supabaseQueryClientMock.from = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -157,7 +168,11 @@ describe("useStylesLibraryStyleDetailsPreference", () => {
       })
     );
 
-    vi.mocked(readSupabaseUserId).mockResolvedValue("user-123");
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
     supabaseQueryClientMock.from = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({

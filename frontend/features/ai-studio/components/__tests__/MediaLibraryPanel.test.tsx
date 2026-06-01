@@ -26,6 +26,7 @@ const isAdaptiveSurfaceEnabledMock = vi.fn();
 const useMediaPreviewSigningControllerMock = vi.fn();
 const useMediaStorageQuotaSummaryMock = vi.fn();
 const requestMediaStorageQuotaSummaryRefreshMock = vi.fn();
+const useResolvedProtectedSessionStateMock = vi.fn();
 const mediaLibraryPanelStylesheet = readFileSync(
   "styles/ai-studio-media-library-panel.css",
   "utf8"
@@ -91,6 +92,11 @@ vi.mock("../../../../lib/supabaseClient", () => ({
     session: null,
     loading: false,
   }),
+}));
+
+vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
+  useResolvedProtectedSessionState: (...args: unknown[]) =>
+    useResolvedProtectedSessionStateMock(...args),
 }));
 
 vi.mock("../../../../lib/useVisibleErrorTelemetry", () => ({
@@ -458,6 +464,11 @@ vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
 describe("MediaLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } },
+      user: { id: "user-1" },
+    });
     mediaGridPropsSpy.mockReset();
     allItemsGridPropsSpy.mockReset();
     promptGridPropsSpy.mockReset();

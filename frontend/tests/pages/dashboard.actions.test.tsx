@@ -63,10 +63,21 @@ vi.mock("../../lib/supabaseClient", () => ({
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
   readPersistedSupabaseSessionHint: (...args: unknown[]) =>
     readPersistedSupabaseSessionHintMock(...args),
-  readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
-    readSupabaseSessionBootstrapHintMock(...args),
   signOutSupabaseSession: (...args: unknown[]) => signOutSupabaseSessionMock(...args),
 }));
+
+vi.mock("../../lib/supabaseSessionHints", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/supabaseSessionHints")>(
+    "../../lib/supabaseSessionHints"
+  );
+  return {
+    ...actual,
+    readPersistedSupabaseSessionHint: (...args: unknown[]) =>
+      readPersistedSupabaseSessionHintMock(...args),
+    readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
+      readSupabaseSessionBootstrapHintMock(...args),
+  };
+});
 
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),

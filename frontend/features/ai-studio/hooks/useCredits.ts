@@ -3,12 +3,9 @@
  * Uses direct ledger reads only when callers explicitly opt into the legacy fallback path.
  */
 import { useCallback, useEffect, useState } from "react";
-import {
-  ensureSupabaseQueryClient,
-  readSupabaseUserId,
-  useSupabaseSessionState,
-} from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import {
   incrementFreezeInvestigationCounter,
   setFreezeInvestigationGauge,
@@ -93,12 +90,6 @@ const isSchemaCompatibilityError = (message: string) => {
     text.includes("failed to parse select parameter") ||
     text.includes("column")
   );
-};
-
-const fetchUserId = async () => {
-  const userId = await readSupabaseUserId();
-  if (!userId) throw new Error("No Supabase user");
-  return userId;
 };
 
 const queryBalanceRow = async ({ userId, select }: { userId: string; select: string }) => {
@@ -295,7 +286,9 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
 
 export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
   incrementFreezeInvestigationCounter("credits.render");
-  const { initialized, user } = useSupabaseSessionState();
+  const { initialized, user } = useResolvedProtectedSessionState({
+    enabled,
+  });
   const currentUserId = enabled ? (user?.id ?? null) : null;
   const [balance, setBalance] = useState<BalanceState>(() =>
     createBalanceState(currentUserId, { loading: true })
@@ -314,7 +307,7 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
         if (!silent) {
           setBalance((prev) => ({ ...prev, loading: true, error: null }));
         }
-        const id = currentUserId ?? (initialized ? await fetchUserId() : null);
+        const id = currentUserId;
         if (!id) {
           return null;
         }
@@ -374,7 +367,7 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
         return null;
       }
     },
-    [currentUserId, enabled, initialized]
+    [currentUserId, enabled]
   );
 
   useEffect(() => {

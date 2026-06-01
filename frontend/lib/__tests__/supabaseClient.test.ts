@@ -116,10 +116,12 @@ describe("supabaseClient session reads", () => {
 
   it("detects a persisted Supabase auth payload in localStorage as a bootstrap hint", async () => {
     const storageKey = ["sb", "example", "auth", "token"].join("-");
-    const getItemSpy = vi
-      .spyOn(window.localStorage.__proto__, "getItem")
-      .mockImplementation((...args: unknown[]) =>
-        args[0] === storageKey
+    const originalLocalStorage = window.localStorage;
+    const localStorageStub = {
+      length: 1,
+      key: vi.fn((index: number) => (index === 0 ? storageKey : null)),
+      getItem: vi.fn((key: string) =>
+        key === storageKey
           ? JSON.stringify({
               currentSession: {
                 access_token: "token-1",
@@ -127,12 +129,39 @@ describe("supabaseClient session reads", () => {
               },
             })
           : null
-      );
+      ),
+      setItem: vi.fn(),
+      clear: vi.fn(),
+      removeItem: vi.fn(),
+    } satisfies Partial<Storage>;
 
-    const { readPersistedSupabaseSessionHint } = await import("../supabaseClient");
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: localStorageStub,
+    });
 
-    expect(readPersistedSupabaseSessionHint()).toBe(true);
-    expect(getItemSpy).toHaveBeenCalledWith(storageKey);
+    try {
+      vi.doMock("@supabase/supabase-js", () => ({
+        createClient: vi.fn(() => ({
+          auth: {
+            getSession: vi.fn(),
+            onAuthStateChange: vi.fn(),
+            refreshSession: vi.fn(),
+          },
+        })),
+      }));
+
+      const { readPersistedSupabaseSessionHint } = await import("../supabaseClient");
+      const { readCachedSupabaseAccessToken } = await import("../supabaseAccessTokenHints");
+
+      expect(readPersistedSupabaseSessionHint()).toBe(true);
+      expect(readCachedSupabaseAccessToken()).toBe("token-1");
+    } finally {
+      Object.defineProperty(window, "localStorage", {
+        configurable: true,
+        value: originalLocalStorage,
+      });
+    }
   });
 
   it("treats an already-primed in-memory session as a bootstrap hint", async () => {
@@ -148,6 +177,7 @@ describe("supabaseClient session reads", () => {
 
     const { primeSupabaseSession, readSupabaseSessionBootstrapHint } =
       await import("../supabaseClient");
+    const { readCachedSupabaseAccessToken } = await import("../supabaseAccessTokenHints");
 
     primeSupabaseSession({
       access_token: "token-1",
@@ -155,5 +185,6 @@ describe("supabaseClient session reads", () => {
     } as never);
 
     expect(readSupabaseSessionBootstrapHint()).toBe(true);
+    expect(readCachedSupabaseAccessToken()).toBe("token-1");
   });
 });

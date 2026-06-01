@@ -3,7 +3,8 @@
  * Keeps a local fallback while synchronizing with `user_preferences.ai_studio_style_details_overrides`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readSupabaseUserId, supabaseQueryClient } from "../../../lib/supabaseClient";
+import { supabaseQueryClient } from "../../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { buildUserScopedStorageKey } from "../../character-manager/logic/userScopedLocalStorage";
 import type { StylesLibraryStyleDetails, StylesLibraryStyleDetailsMap } from "../types";
 import {
@@ -115,6 +116,8 @@ const isMissingStyleDetailsStorageError = (error: unknown): boolean => {
  */
 export const useStylesLibraryStyleDetailsPreference =
   (): UseStylesLibraryStyleDetailsPreferenceResult => {
+    const sessionSnapshot = useResolvedProtectedSessionState();
+    const sessionUserId = sessionSnapshot.user?.id ?? null;
     const [styleDetailsById, setStyleDetailsById] = useState<StylesLibraryStyleDetailsMap>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -136,6 +139,11 @@ export const useStylesLibraryStyleDetailsPreference =
     );
 
     useEffect(() => {
+      if (!sessionSnapshot.initialized) {
+        setLoading(true);
+        setSyncState("loading");
+        return;
+      }
       let active = true;
       setLoading(true);
       setSyncState("loading");
@@ -152,8 +160,7 @@ export const useStylesLibraryStyleDetailsPreference =
             return;
           }
 
-          const id = await readSupabaseUserId();
-          if (!id) {
+          if (!sessionUserId) {
             if (!active) return;
             updateLocalValue(readLocalStyleDetails(), null);
             setUserId(null);
@@ -162,14 +169,14 @@ export const useStylesLibraryStyleDetailsPreference =
             return;
           }
           if (!active) return;
-          setUserId(id);
-          const localValue = readLocalStyleDetails(id);
-          updateLocalValue(localValue, id);
+          setUserId(sessionUserId);
+          const localValue = readLocalStyleDetails(sessionUserId);
+          updateLocalValue(localValue, sessionUserId);
 
           const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
             .from("user_preferences")
             .select("ai_studio_style_details_overrides")
-            .eq("user_id", id)
+            .eq("user_id", sessionUserId)
             .maybeSingle();
           if (preferenceError) throw preferenceError;
           if (!active) return;
@@ -179,7 +186,7 @@ export const useStylesLibraryStyleDetailsPreference =
           );
           const mergedValue = mergeStyleDetailsMaps(remoteValue, localValue);
           if (!hasLocalOverrideRef.current) {
-            updateLocalValue(mergedValue, id);
+            updateLocalValue(mergedValue, sessionUserId);
           }
 
           if (!active) return;
@@ -203,7 +210,7 @@ export const useStylesLibraryStyleDetailsPreference =
       return () => {
         active = false;
       };
-    }, [updateLocalValue]);
+    }, [sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
 
     const upsertStyleDetails = useCallback(
       async (styleId: string, details: StylesLibraryStyleDetails): Promise<boolean> => {

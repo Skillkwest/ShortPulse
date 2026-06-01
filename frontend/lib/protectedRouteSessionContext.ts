@@ -5,6 +5,8 @@
  */
 import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { useSupabaseSessionState } from "./supabaseClient";
+import type { SupabaseSessionSnapshot } from "./supabaseSessionSnapshotStore";
 
 type ProtectedRouteSessionContextValue = {
   session: Session;
@@ -43,3 +45,31 @@ export function ProtectedRouteSessionProvider({
  */
 export const useProtectedRouteSessionContext = (): ProtectedRouteSessionContextValue | null =>
   useContext(ProtectedRouteSessionContext);
+
+type UseResolvedProtectedSessionStateOptions = {
+  enabled?: boolean;
+};
+
+/**
+ * Reuses a route-owned protected session when available and only falls back to
+ * the shared Supabase bootstrap store for surfaces outside those gates.
+ */
+export const useResolvedProtectedSessionState = (
+  options?: UseResolvedProtectedSessionStateOptions
+): SupabaseSessionSnapshot => {
+  const enabled = options?.enabled !== false;
+  const protectedRouteSession = useProtectedRouteSessionContext();
+  const fallbackSnapshot = useSupabaseSessionState({
+    enabled: enabled && !protectedRouteSession,
+  });
+
+  if (!enabled || !protectedRouteSession) {
+    return fallbackSnapshot;
+  }
+
+  return {
+    initialized: true,
+    session: protectedRouteSession.session,
+    user: protectedRouteSession.user,
+  };
+};

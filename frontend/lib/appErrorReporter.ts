@@ -2,7 +2,6 @@
  * Browser-side reporter for actionable application failures.
  * Sends structured events to `/api/log/client-error` for admin triage.
  */
-import { readSupabaseAccessToken } from "./supabaseClient";
 import { getBreadcrumbsSnapshot } from "./clientBreadcrumbs";
 
 type JsonObject = Record<string, unknown>;
@@ -26,6 +25,17 @@ export type ClientAppErrorEvent = {
 
 const MAX_MESSAGE_LENGTH = 600;
 let listenersInstalled = false;
+let supabaseAccessTokenHintsPromise: Promise<typeof import("./supabaseAccessTokenHints")> | null =
+  null;
+
+const loadSupabaseAccessTokenHints = async (): Promise<
+  typeof import("./supabaseAccessTokenHints")
+> => {
+  if (!supabaseAccessTokenHintsPromise) {
+    supabaseAccessTokenHintsPromise = import("./supabaseAccessTokenHints");
+  }
+  return await supabaseAccessTokenHintsPromise;
+};
 
 const normalizeText = (value: unknown, maxLength = MAX_MESSAGE_LENGTH): string | null => {
   if (typeof value !== "string") return null;
@@ -61,7 +71,8 @@ const resolveMessageAndStack = (error: unknown): { message: string; stack: strin
 
 const readAccessToken = async (): Promise<string | null> => {
   try {
-    return await readSupabaseAccessToken();
+    const { readCachedSupabaseAccessToken } = await loadSupabaseAccessTokenHints();
+    return readCachedSupabaseAccessToken();
   } catch {
     return null;
   }

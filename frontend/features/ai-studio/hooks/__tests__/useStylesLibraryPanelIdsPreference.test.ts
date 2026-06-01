@@ -1,19 +1,22 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStylesLibraryPanelIdsPreference } from "../useStylesLibraryPanelIdsPreference";
-import { readSupabaseUserId } from "../../../../lib/supabaseClient";
 
-const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
+const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
 const supabaseQueryClientMock = vi.hoisted(() => ({ from: vi.fn() }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  readSupabaseUserId: readSupabaseUserIdMock,
   supabaseQueryClient: supabaseQueryClientMock,
+}));
+
+vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
+  useResolvedProtectedSessionState: (...args: unknown[]) =>
+    useResolvedProtectedSessionStateMock(...args),
 }));
 
 describe("useStylesLibraryPanelIdsPreference", () => {
   beforeEach(() => {
-    vi.mocked(readSupabaseUserId).mockReset();
+    useResolvedProtectedSessionStateMock.mockReset();
     supabaseQueryClientMock.from = vi.fn();
     window.localStorage.clear();
   });
@@ -24,7 +27,11 @@ describe("useStylesLibraryPanelIdsPreference", () => {
       JSON.stringify(["anime", "cinematic", "anime", 99])
     );
 
-    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
 
     const { result } = renderHook(() => useStylesLibraryPanelIdsPreference());
 
@@ -38,7 +45,11 @@ describe("useStylesLibraryPanelIdsPreference", () => {
   });
 
   it("persists reordered ids and supports removing a deleted custom style locally", async () => {
-    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
 
     const { result } = renderHook(() => useStylesLibraryPanelIdsPreference());
 
@@ -63,7 +74,11 @@ describe("useStylesLibraryPanelIdsPreference", () => {
       JSON.stringify(["anime", "cinematic"])
     );
 
-    vi.mocked(readSupabaseUserId).mockResolvedValue("user-123");
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
     supabaseQueryClientMock.from = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({

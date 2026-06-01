@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
-import { readSupabaseUserId } from "../../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMediaSurfacePreviewSigning";
@@ -128,6 +128,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   resolveInternalDropItem,
   onDeleteMediaRowsFromWorkspace,
 }: MediaLibraryPanelProps) {
+  const sessionSnapshot = useResolvedProtectedSessionState();
+  const sessionUserId = sessionSnapshot.user?.id ?? null;
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
   const panelListSurface = "media-library-panel" as const;
   const {
@@ -405,20 +407,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   }, [dataError]);
 
   useEffect(() => {
-    let cancelled = false;
-    void readSupabaseUserId()
-      .then((userId) => {
-        if (cancelled) return;
-        currentUserIdRef.current = userId;
-      })
-      .catch(() => {
-        if (cancelled) return;
-        currentUserIdRef.current = null;
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserIdRef]);
+    if (!sessionSnapshot.initialized) return;
+    currentUserIdRef.current = sessionUserId;
+  }, [currentUserIdRef, sessionSnapshot.initialized, sessionUserId]);
 
   useEffect(() => {
     signAttemptRef.current = {};

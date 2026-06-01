@@ -3,7 +3,8 @@
  * Keeps a local fallback while synchronizing with `user_preferences.ai_studio_deleted_style_ids`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readSupabaseUserId, supabaseQueryClient } from "../../../lib/supabaseClient";
+import { supabaseQueryClient } from "../../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { buildUserScopedStorageKey } from "../../character-manager/logic/userScopedLocalStorage";
 
 const DELETED_STYLE_IDS_STORAGE_KEY = "shortpulse.ai_studio.deleted_style_ids";
@@ -73,6 +74,8 @@ const isMissingDeletedStyleStorageError = (error: unknown): boolean => {
  */
 export const useStylesLibraryDeletedStyleIdsPreference =
   (): UseStylesLibraryDeletedStyleIdsPreferenceResult => {
+    const sessionSnapshot = useResolvedProtectedSessionState();
+    const sessionUserId = sessionSnapshot.user?.id ?? null;
     const [deletedStyleIds, setDeletedStyleIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -94,6 +97,11 @@ export const useStylesLibraryDeletedStyleIdsPreference =
     );
 
     useEffect(() => {
+      if (!sessionSnapshot.initialized) {
+        setLoading(true);
+        setSyncState("loading");
+        return;
+      }
       let active = true;
       setLoading(true);
       setSyncState("loading");
@@ -110,8 +118,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
             return;
           }
 
-          const id = await readSupabaseUserId();
-          if (!id) {
+          if (!sessionUserId) {
             if (!active) return;
             updateLocalValue(readLocalDeletedStyleIds(), null);
             setUserId(null);
@@ -120,14 +127,14 @@ export const useStylesLibraryDeletedStyleIdsPreference =
             return;
           }
           if (!active) return;
-          setUserId(id);
-          const localValue = readLocalDeletedStyleIds(id);
-          updateLocalValue(localValue, id);
+          setUserId(sessionUserId);
+          const localValue = readLocalDeletedStyleIds(sessionUserId);
+          updateLocalValue(localValue, sessionUserId);
 
           const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
             .from("user_preferences")
             .select("ai_studio_deleted_style_ids")
-            .eq("user_id", id)
+            .eq("user_id", sessionUserId)
             .maybeSingle();
           if (preferenceError) throw preferenceError;
           if (!active) return;
@@ -137,7 +144,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
           );
           const mergedValue = normalizeDeletedStyleIds([...remoteValue, ...localValue]);
           if (!hasLocalOverrideRef.current) {
-            updateLocalValue(mergedValue, id);
+            updateLocalValue(mergedValue, sessionUserId);
           }
 
           if (!active) return;
@@ -161,7 +168,7 @@ export const useStylesLibraryDeletedStyleIdsPreference =
       return () => {
         active = false;
       };
-    }, [updateLocalValue]);
+    }, [sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
 
     const deleteStyleId = useCallback(
       async (styleId: string): Promise<boolean> => {

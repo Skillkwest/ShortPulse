@@ -2,8 +2,6 @@
  * Browser-side growth telemetry helper.
  * Supports anonymous attribution capture plus optional authenticated stitching.
  */
-import { readSupabaseAccessToken } from "./supabaseClient";
-
 export const GROWTH_TELEMETRY_STORAGE_KEY = "sp_growth_anonymous_id";
 export const GROWTH_TELEMETRY_ENDPOINT = "/api/telemetry/growth";
 
@@ -40,6 +38,18 @@ type ReportGrowthTelemetryInput = {
   eventName: string;
   metadata?: JsonObject;
   occurredAt?: string | null;
+};
+
+let supabaseAccessTokenHintsPromise: Promise<typeof import("./supabaseAccessTokenHints")> | null =
+  null;
+
+const loadSupabaseAccessTokenHints = async (): Promise<
+  typeof import("./supabaseAccessTokenHints")
+> => {
+  if (!supabaseAccessTokenHintsPromise) {
+    supabaseAccessTokenHintsPromise = import("./supabaseAccessTokenHints");
+  }
+  return await supabaseAccessTokenHintsPromise;
 };
 
 const normalizeText = (value: unknown, maxLength = 160): string | null => {
@@ -116,7 +126,8 @@ const readGrowthAttributionPayload = (): GrowthAttributionPayload => {
 
 const readOptionalAccessToken = async (): Promise<string | null> => {
   try {
-    return await readSupabaseAccessToken();
+    const { readCachedSupabaseAccessToken } = await loadSupabaseAccessTokenHints();
+    return readCachedSupabaseAccessToken();
   } catch {
     return null;
   }

@@ -1,19 +1,22 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStylesLibraryDeletedStyleIdsPreference } from "../useStylesLibraryDeletedStyleIdsPreference";
-import { readSupabaseUserId } from "../../../../lib/supabaseClient";
 
-const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
+const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
 const supabaseQueryClientMock = vi.hoisted(() => ({ from: vi.fn() }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  readSupabaseUserId: readSupabaseUserIdMock,
   supabaseQueryClient: supabaseQueryClientMock,
+}));
+
+vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
+  useResolvedProtectedSessionState: (...args: unknown[]) =>
+    useResolvedProtectedSessionStateMock(...args),
 }));
 
 describe("useStylesLibraryDeletedStyleIdsPreference", () => {
   beforeEach(() => {
-    vi.mocked(readSupabaseUserId).mockReset();
+    useResolvedProtectedSessionStateMock.mockReset();
     supabaseQueryClientMock.from = vi.fn();
     window.localStorage.clear();
   });
@@ -24,7 +27,11 @@ describe("useStylesLibraryDeletedStyleIdsPreference", () => {
       JSON.stringify(["style-a", "style-b"])
     );
 
-    vi.mocked(readSupabaseUserId).mockResolvedValue("user-123");
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
     supabaseQueryClientMock.from = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({

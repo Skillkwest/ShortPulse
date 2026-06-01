@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reportAppError } from "../appErrorReporter";
 
-const readSupabaseAccessTokenMock = vi.fn();
+const readCachedSupabaseAccessTokenMock = vi.fn();
 
-vi.mock("../supabaseClient", () => ({
-  readSupabaseAccessToken: () => readSupabaseAccessTokenMock(),
+vi.mock("../supabaseAccessTokenHints", () => ({
+  readCachedSupabaseAccessToken: () => readCachedSupabaseAccessTokenMock(),
 }));
 
 vi.mock("../clientBreadcrumbs", () => ({
@@ -15,7 +15,7 @@ describe("appErrorReporter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
-    readSupabaseAccessTokenMock.mockResolvedValue("token");
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
   });
 
@@ -28,7 +28,7 @@ describe("appErrorReporter", () => {
       route: "/ai-studio",
     });
 
-    expect(readSupabaseAccessTokenMock).not.toHaveBeenCalled();
+    expect(readCachedSupabaseAccessTokenMock).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -41,7 +41,7 @@ describe("appErrorReporter", () => {
       route: "/ai-studio",
     });
 
-    expect(readSupabaseAccessTokenMock).toHaveBeenCalledTimes(1);
+    expect(readCachedSupabaseAccessTokenMock).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(
       "/api/log/client-error",
       expect.objectContaining({
@@ -63,7 +63,7 @@ describe("appErrorReporter", () => {
       route: "/admin/pricing",
     });
 
-    expect(readSupabaseAccessTokenMock).not.toHaveBeenCalled();
+    expect(readCachedSupabaseAccessTokenMock).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -80,7 +80,7 @@ describe("appErrorReporter", () => {
       route: "/ai-studio",
     });
 
-    expect(readSupabaseAccessTokenMock).toHaveBeenCalledTimes(1);
+    expect(readCachedSupabaseAccessTokenMock).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(
       "/api/log/client-error",
       expect.objectContaining({

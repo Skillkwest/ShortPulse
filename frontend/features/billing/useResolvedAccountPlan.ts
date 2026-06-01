@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "./catalog";
-import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../lib/protectedRouteSessionContext";
 
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;
@@ -36,7 +37,9 @@ export const useResolvedAccountPlan = ({
   defaultPlanTier = "free",
   enabled = true,
 }: UseResolvedAccountPlanParams = {}) => {
-  const { user } = useSupabaseSessionState();
+  const { user } = useResolvedProtectedSessionState({
+    enabled,
+  });
   const [resolvedPlan, setResolvedPlan] = useState<ResolvedPlanMeta | null>(null);
 
   useEffect(() => {

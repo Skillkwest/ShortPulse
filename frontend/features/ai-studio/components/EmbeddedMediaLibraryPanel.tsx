@@ -2,7 +2,8 @@ import React from "react";
 import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMediaSurfacePreviewSigning";
@@ -101,6 +102,8 @@ export function EmbeddedMediaLibraryPanel({
   onSelectMedia,
   onDeleteMediaRowsFromWorkspace,
 }: EmbeddedMediaLibraryPanelProps) {
+  const sessionSnapshot = useResolvedProtectedSessionState();
+  const sessionUserId = sessionSnapshot.user?.id ?? null;
   const activeFolderId = MEDIA_LIBRARY_ROOT_FOLDER_ID;
   const [rootTab, setRootTab] = React.useState<RootMediaLibraryTab>("all");
   const [folderError, setFolderError] = React.useState<string | null>(null);
@@ -279,20 +282,9 @@ export function EmbeddedMediaLibraryPanel({
   });
 
   React.useEffect(() => {
-    let cancelled = false;
-    void readSupabaseUserId()
-      .then((userId) => {
-        if (cancelled) return;
-        currentUserIdRef.current = userId;
-      })
-      .catch(() => {
-        if (cancelled) return;
-        currentUserIdRef.current = null;
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserIdRef]);
+    if (!sessionSnapshot.initialized) return;
+    currentUserIdRef.current = sessionUserId;
+  }, [currentUserIdRef, sessionSnapshot.initialized, sessionUserId]);
 
   React.useEffect(() => {
     signAttemptRef.current = {};

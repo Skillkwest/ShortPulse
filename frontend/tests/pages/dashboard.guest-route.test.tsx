@@ -60,10 +60,21 @@ vi.mock("../../lib/supabaseClient", () => ({
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
   readPersistedSupabaseSessionHint: (...args: unknown[]) =>
     readPersistedSupabaseSessionHintMock(...args),
-  readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
-    readSupabaseSessionBootstrapHintMock(...args),
   primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
 }));
+
+vi.mock("../../lib/supabaseSessionHints", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/supabaseSessionHints")>(
+    "../../lib/supabaseSessionHints"
+  );
+  return {
+    ...actual,
+    readPersistedSupabaseSessionHint: (...args: unknown[]) =>
+      readPersistedSupabaseSessionHintMock(...args),
+    readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
+      readSupabaseSessionBootstrapHintMock(...args),
+  };
+});
 
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
@@ -162,7 +173,7 @@ describe("Dashboard guest route", () => {
     ).not.toBeInTheDocument();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
-    expect(useSupabaseSessionStateMock).toHaveBeenCalledWith({ enabled: false });
+    expect(useSupabaseSessionStateMock).not.toHaveBeenCalled();
   });
 
   it("renders the public dashboard immediately while anonymous session bootstrap is still unresolved", () => {

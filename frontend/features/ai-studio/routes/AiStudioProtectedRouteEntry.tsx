@@ -8,6 +8,7 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, type ComponentType } from "react";
 import { AppErrorBoundary } from "../../../components/AppErrorBoundary";
 import { useProtectedRoute } from "../../../lib/authGuard";
+import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
 import { MediaComplianceGate } from "../../compliance/components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../../compliance/hooks/useMediaComplianceGate";
 import { AiStudioProjectEntryState } from "../components/AiStudioProjectEntryState";
@@ -123,5 +124,11 @@ export default function AiStudioProtectedRouteEntry({
     );
   }
 
-  return <RuntimeComponent />;
+  const resolvedUser = user ?? session.user;
+
+  return (
+    <ProtectedRouteSessionProvider session={session} user={resolvedUser}>
+      <RuntimeComponent />
+    </ProtectedRouteSessionProvider>
+  );
 }

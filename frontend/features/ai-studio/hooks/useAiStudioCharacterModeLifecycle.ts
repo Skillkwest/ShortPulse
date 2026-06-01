@@ -11,7 +11,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { readSupabaseUserId } from "../../../lib/supabaseClient";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import type { ToolId } from "../types";
 import {
   listCharacterManagerCharacters,
@@ -63,6 +63,8 @@ export const useAiStudioCharacterModeLifecycle = ({
   setCharacterModeInjectionBundle,
   setIsCharacterBundleLoading,
 }: UseAiStudioCharacterModeLifecycleParams) => {
+  const sessionSnapshot = useResolvedProtectedSessionState();
+  const sessionUserId = sessionSnapshot.user?.id?.trim() ?? null;
   const [characterOptions, setCharacterOptions] = useState<CharacterSelectOption[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [selectedCharacterStorageScope, setSelectedCharacterStorageScope] = useState<
@@ -239,20 +241,13 @@ export const useAiStudioCharacterModeLifecycle = ({
   );
 
   useEffect(() => {
-    let active = true;
-    void readSupabaseUserId().then((userId) => {
-      if (!active) return;
-      const resolvedScope = userId?.trim() ?? null;
-      setSelectedCharacterStorageScope(resolvedScope);
-      if (projectRouteRequested || projectId || !resolvedScope) return;
-      const persistedId = readPersistedSelectedCharacterId({ userId: resolvedScope });
-      if (!persistedId) return;
-      setSelectedCharacterId((current) => (current.trim().length > 0 ? current : persistedId));
-    });
-    return () => {
-      active = false;
-    };
-  }, [projectId, projectRouteRequested]);
+    if (!sessionSnapshot.initialized) return;
+    setSelectedCharacterStorageScope(sessionUserId);
+    if (projectRouteRequested || projectId || !sessionUserId) return;
+    const persistedId = readPersistedSelectedCharacterId({ userId: sessionUserId });
+    if (!persistedId) return;
+    setSelectedCharacterId((current) => (current.trim().length > 0 ? current : persistedId));
+  }, [projectId, projectRouteRequested, sessionSnapshot.initialized, sessionUserId]);
 
   useEffect(() => {
     let active = true;

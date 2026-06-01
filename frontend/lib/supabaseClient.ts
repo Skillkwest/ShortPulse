@@ -5,30 +5,30 @@
 import { useEffect, useSyncExternalStore } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getDisabledSupabaseSessionSnapshot,
+  getServerSupabaseSessionSnapshot,
+  getSupabaseSessionSnapshot,
+  replaceSupabaseSessionSnapshot,
+  setSupabaseSessionSnapshot,
+  subscribeToDisabledSupabaseSessionSnapshot,
+  subscribeToSupabaseSessionSnapshot,
+  type SupabaseSessionSnapshot,
+} from "./supabaseSessionSnapshotStore";
+
+export {
+  readPersistedSupabaseSessionHint,
+  readSupabaseSessionBootstrapHint,
+} from "./supabaseSessionHints";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-type SupabaseSessionSnapshot = {
-  initialized: boolean;
-  session: Session | null;
-  user: User | null;
-};
-
 type UseSupabaseSessionStateOptions = {
   enabled?: boolean;
 };
-
-const EMPTY_SESSION_SNAPSHOT: SupabaseSessionSnapshot = {
-  initialized: false,
-  session: null,
-  user: null,
-};
-
-let currentSessionSnapshot = EMPTY_SESSION_SNAPSHOT;
 let currentSessionReadPromise: Promise<Session | null> | null = null;
 let authStateSubscriptionStarted = false;
-const sessionSubscribers = new Set<() => void>();
 
 export const supabaseClient =
   supabaseUrl && supabaseAnonKey
@@ -48,7 +48,7 @@ export const supabaseQueryClient =
           autoRefreshToken: false,
           detectSessionInUrl: false,
         },
-        accessToken: async () => currentSessionSnapshot.session?.access_token ?? null,
+        accessToken: async () => getSupabaseSessionSnapshot().session?.access_token ?? null,
       })
     : null;
 
@@ -76,122 +76,11 @@ export const ensureSupabaseQueryClient = () => {
   return supabaseQueryClient;
 };
 
-const emitSessionSnapshot = () => {
-  sessionSubscribers.forEach((subscriber) => {
-    subscriber();
-  });
-};
-
-const setSessionSnapshot = (session: Session | null, initialized = true) => {
-  currentSessionSnapshot = {
-    initialized,
-    session,
-    user: session?.user ?? null,
-  };
-  emitSessionSnapshot();
-};
-
 const setSessionSnapshotFromError = () => {
-  if (!currentSessionSnapshot.initialized || currentSessionSnapshot.session) {
-    setSessionSnapshot(null, true);
+  const snapshot = getSupabaseSessionSnapshot();
+  if (!snapshot.initialized || snapshot.session) {
+    setSupabaseSessionSnapshot(null, true);
   }
-};
-
-const subscribeToSessionSnapshot = (listener: () => void) => {
-  sessionSubscribers.add(listener);
-  return () => {
-    sessionSubscribers.delete(listener);
-  };
-};
-
-const subscribeToDisabledSessionSnapshot = () => () => {};
-
-const getSessionSnapshot = (): SupabaseSessionSnapshot => currentSessionSnapshot;
-
-const getServerSessionSnapshot = (): SupabaseSessionSnapshot => EMPTY_SESSION_SNAPSHOT;
-const getDisabledSessionSnapshot = (): SupabaseSessionSnapshot => EMPTY_SESSION_SNAPSHOT;
-
-const hasTokenCandidate = (value: unknown): boolean => {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as {
-    access_token?: unknown;
-    refresh_token?: unknown;
-  };
-  return typeof candidate.access_token === "string" || typeof candidate.refresh_token === "string";
-};
-
-const getSupabaseAuthStorageKeys = (): string[] => {
-  const keys = new Set<string>();
-
-  if (supabaseUrl) {
-    try {
-      const hostname = new URL(supabaseUrl).hostname;
-      const projectRef = hostname.split(".")[0]?.trim();
-      if (projectRef) {
-        keys.add(`sb-${projectRef}-auth-token`);
-      }
-    } catch {
-      // Ignore malformed env values and fall back to storage scanning.
-    }
-  }
-
-  return [...keys];
-};
-
-/**
- * Reads whether browser storage contains a persisted Supabase auth payload.
- * This is a bootstrap hint only and must never replace authoritative session reads.
- */
-export const readPersistedSupabaseSessionHint = (): boolean => {
-  if (typeof window === "undefined") return false;
-
-  try {
-    const storage = window.localStorage;
-    const candidateKeys = new Set<string>(getSupabaseAuthStorageKeys());
-
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index);
-      if (key) {
-        candidateKeys.add(key);
-      }
-    }
-
-    for (const key of candidateKeys) {
-      if (!/auth-token/i.test(key)) continue;
-      const rawValue = storage.getItem(key);
-      if (!rawValue) continue;
-
-      try {
-        const parsed = JSON.parse(rawValue) as unknown;
-        const candidates = [
-          parsed,
-          (parsed as { currentSession?: unknown } | null)?.currentSession,
-          (parsed as { session?: unknown } | null)?.session,
-        ];
-
-        if (candidates.some((candidate) => hasTokenCandidate(candidate))) {
-          return true;
-        }
-      } catch {
-        continue;
-      }
-    }
-  } catch {
-    return false;
-  }
-
-  return false;
-};
-
-/**
- * Reads whether the client has enough local auth state to justify bootstrapping
- * the shared Supabase session store on public surfaces.
- */
-export const readSupabaseSessionBootstrapHint = (): boolean => {
-  if (currentSessionSnapshot.session) {
-    return true;
-  }
-  return readPersistedSupabaseSessionHint();
 };
 
 const startAuthStateSubscription = () => {
@@ -201,7 +90,7 @@ const startAuthStateSubscription = () => {
   try {
     const supabase = ensureSupabaseClient();
     supabase.auth.onAuthStateChange((_event, session) => {
-      setSessionSnapshot(session ?? null, true);
+      setSupabaseSessionSnapshot(session ?? null, true);
     });
   } catch {
     setSessionSnapshotFromError();
@@ -214,7 +103,7 @@ const readSessionFromClient = async (): Promise<Session | null> => {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
     const session = data.session ?? null;
-    setSessionSnapshot(session, true);
+    setSupabaseSessionSnapshot(session, true);
     return session;
   } catch (error) {
     setSessionSnapshotFromError();
@@ -228,7 +117,7 @@ const refreshSessionFromClient = async (): Promise<Session | null> => {
     const { data, error } = await supabase.auth.refreshSession();
     if (error) throw error;
     const session = data.session ?? null;
-    setSessionSnapshot(session, true);
+    setSupabaseSessionSnapshot(session, true);
     return session;
   } catch (error) {
     setSessionSnapshotFromError();
@@ -237,17 +126,16 @@ const refreshSessionFromClient = async (): Promise<Session | null> => {
 };
 
 const refreshSessionFromClientPreservingSnapshot = async (): Promise<Session | null> => {
-  const previousSnapshot = currentSessionSnapshot;
+  const previousSnapshot = getSupabaseSessionSnapshot();
   try {
     const supabase = ensureSupabaseClient();
     const { data, error } = await supabase.auth.refreshSession();
     if (error) throw error;
     const session = data.session ?? null;
-    setSessionSnapshot(session, true);
+    setSupabaseSessionSnapshot(session, true);
     return session;
   } catch (error) {
-    currentSessionSnapshot = previousSnapshot;
-    emitSessionSnapshot();
+    replaceSupabaseSessionSnapshot(previousSnapshot);
     throw error;
   }
 };
@@ -260,8 +148,9 @@ export const readSupabaseSession = async (options?: {
   forceRefresh?: boolean;
 }): Promise<Session | null> => {
   const forceRefresh = options?.forceRefresh === true;
-  if (!forceRefresh && currentSessionSnapshot.initialized && !currentSessionReadPromise) {
-    return currentSessionSnapshot.session;
+  const snapshot = getSupabaseSessionSnapshot();
+  if (!forceRefresh && snapshot.initialized && !currentSessionReadPromise) {
+    return snapshot.session;
   }
   if (!forceRefresh && currentSessionReadPromise) {
     return await currentSessionReadPromise;
@@ -282,7 +171,7 @@ export const readSupabaseSession = async (options?: {
  * Updates the shared session cache after an auth transition that already returned a session.
  */
 export const primeSupabaseSession = (session: Session | null) => {
-  setSessionSnapshot(session ?? null, true);
+  setSupabaseSessionSnapshot(session ?? null, true);
 };
 
 export const refreshSupabaseSession = async (options?: {
@@ -341,9 +230,9 @@ export const useSupabaseSessionState = (
 ): SupabaseSessionSnapshot => {
   const enabled = options?.enabled !== false;
   const snapshot = useSyncExternalStore(
-    enabled ? subscribeToSessionSnapshot : subscribeToDisabledSessionSnapshot,
-    enabled ? getSessionSnapshot : getDisabledSessionSnapshot,
-    getServerSessionSnapshot
+    enabled ? subscribeToSupabaseSessionSnapshot : subscribeToDisabledSupabaseSessionSnapshot,
+    enabled ? getSupabaseSessionSnapshot : getDisabledSupabaseSessionSnapshot,
+    getServerSupabaseSessionSnapshot
   );
 
   useEffect(() => {

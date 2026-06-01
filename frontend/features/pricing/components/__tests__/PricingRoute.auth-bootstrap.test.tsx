@@ -1,9 +1,9 @@
 /**
  * Pricing route auth-bootstrap tests.
- * Verifies the public pricing surface only boots the shared session store when
- * local auth hints say the visitor might already be signed in.
+ * Verifies the public pricing surface keeps the anonymous shell lightweight
+ * and only mounts the session-aware path when local auth hints warrant it.
  */
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PricingRoute } from "../PricingRoute";
@@ -11,6 +11,39 @@ import { PricingRoute } from "../PricingRoute";
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
+
+vi.mock("next/dynamic", async () => {
+  const React = await import("react");
+  return {
+    default: (
+      loader: () => Promise<unknown>,
+      options?: { loading?: (props: unknown) => ReactNode }
+    ) => {
+      return function DynamicComponent(props: Record<string, unknown>) {
+        const [ResolvedComponent, setResolvedComponent] = React.useState<React.ComponentType<
+          Record<string, unknown>
+        > | null>(null);
+
+        React.useEffect(() => {
+          let cancelled = false;
+          void loader().then((loadedModule) => {
+            if (cancelled) return;
+            const component = loadedModule as React.ComponentType<Record<string, unknown>>;
+            setResolvedComponent(() => component);
+          });
+          return () => {
+            cancelled = true;
+          };
+        }, []);
+
+        if (ResolvedComponent) {
+          return <ResolvedComponent {...props} />;
+        }
+        return options?.loading ? <>{options.loading(props)}</> : null;
+      };
+    },
+  };
+});
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -42,6 +75,9 @@ vi.mock("../../../../lib/growthTelemetry", () => ({
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+}));
+
+vi.mock("../../../../lib/supabaseSessionHints", () => ({
   readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
     readSupabaseSessionBootstrapHintMock(...args),
 }));
@@ -70,14 +106,16 @@ describe("PricingRoute auth bootstrap", () => {
 
     render(<PricingRoute billingCatalog={{ plans: [], packages: [], storageAddons: [] }} />);
 
-    expect(useSupabaseSessionStateMock).toHaveBeenCalledWith({ enabled: false });
+    expect(useSupabaseSessionStateMock).not.toHaveBeenCalled();
   });
 
-  it("boots shared session state when local auth hints exist", () => {
+  it("boots shared session state when local auth hints exist", async () => {
     readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
 
     render(<PricingRoute billingCatalog={{ plans: [], packages: [], storageAddons: [] }} />);
 
-    expect(useSupabaseSessionStateMock).toHaveBeenCalledWith({ enabled: true });
+    await waitFor(() => {
+      expect(useSupabaseSessionStateMock).toHaveBeenCalledWith({ enabled: true });
+    });
   });
 });

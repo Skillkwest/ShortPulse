@@ -8,6 +8,7 @@ import PricingPage from "../../pages/pricing";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const trackBillingPricingViewedMock = vi.hoisted(() => vi.fn());
 const trackBillingUpgradeClickedMock = vi.hoisted(() => vi.fn());
@@ -39,6 +40,17 @@ vi.mock("../../lib/supabaseClient", () => ({
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
 }));
 
+vi.mock("../../lib/supabaseSessionHints", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/supabaseSessionHints")>(
+    "../../lib/supabaseSessionHints"
+  );
+  return {
+    ...actual,
+    readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
+      readSupabaseSessionBootstrapHintMock(...args),
+  };
+});
+
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
@@ -56,6 +68,7 @@ describe("Pricing route behavior", () => {
     vi.clearAllMocks();
     routerPushMock.mockReset();
     routerReplaceMock.mockReset();
+    readSupabaseSessionBootstrapHintMock.mockReturnValue(false);
     useRouterMock.mockReturnValue({
       query: {
         intent: "create-project",
@@ -122,15 +135,17 @@ describe("Pricing route behavior", () => {
     expect(routerPushMock).toHaveBeenCalledWith(
       "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
     );
-    expect(trackBillingUpgradeClickedMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        upgrade_surface: "pricing_page",
-        pricing_intent: "create-project",
-        plan_id: "studio",
-        billing_interval: "year",
-        is_authenticated: false,
-      })
-    );
+    await waitFor(() => {
+      expect(trackBillingUpgradeClickedMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          upgrade_surface: "pricing_page",
+          pricing_intent: "create-project",
+          plan_id: "studio",
+          billing_interval: "year",
+          is_authenticated: false,
+        })
+      );
+    });
   });
 
   it("shows top-right login and signup actions for guests", () => {
@@ -259,6 +274,7 @@ describe("Pricing route behavior", () => {
 
   it("starts the authenticated paid-plan flow through the existing subscription endpoint", async () => {
     const assignMock = vi.fn();
+    readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: { user: { id: "user-1" } },
@@ -320,7 +336,7 @@ describe("Pricing route behavior", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Choose Studio" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Choose Studio" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith(
@@ -366,6 +382,7 @@ describe("Pricing route behavior", () => {
       session: { user: { id: "user-1" } },
       user: { id: "user-1", email: "user@example.com" },
     });
+    readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
 
     render(
       <PricingPage

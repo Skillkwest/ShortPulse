@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Runs a methodical generation drain loop against /api/internal/generation-recovery/run.
- * Uses convergence thresholds to stop automatically when active recovery/queue work is drained.
+ * Uses convergence thresholds to stop automatically when active recovery/control-plane work is drained.
  */
 
 const DEFAULT_INTERVAL_MS = 60_000;
@@ -126,17 +126,15 @@ for (let run = 1; run <= maxRuns; run += 1) {
     }
 
     const claimed = asCount(payload.claimed);
+    const observationClaimed = asCount(payload.observationClaimed);
     const requeued = asCount(payload.requeued);
     const exhausted = asCount(payload.exhausted);
-    const queueClaimed = asCount(payload.queueClaimed);
-    const queueDispatchErrors = asCount(payload.queueDispatchErrors);
     const errors = asCount(payload.errors);
-    const queueRequeuedNoCapacity = asCount(payload.queueRequeuedNoCapacity);
-    const queueSubmitted = asCount(payload.queueSubmitted);
+    const reservationCleanupReleased = asCount(payload.reservationCleanupReleased);
 
-    const hasErrors = errors > 0 || queueDispatchErrors > 0;
+    const hasErrors = errors > 0;
     const hasActiveWork =
-      claimed > 0 || requeued > 0 || queueClaimed > 0 || queueRequeuedNoCapacity > 0 || queueSubmitted > 0;
+      claimed > 0 || observationClaimed > 0 || requeued > 0 || reservationCleanupReleased > 0;
 
     if (!hasActiveWork && !hasErrors) {
       convergedStreak += 1;
@@ -146,7 +144,7 @@ for (let run = 1; run <= maxRuns; run += 1) {
     consecutiveErrors = 0;
 
     console.log(
-      `[generation-drain] run=${run} duration_ms=${Date.now() - startedAt} claimed=${claimed} requeued=${requeued} exhausted=${exhausted} queueClaimed=${queueClaimed} queueDispatchErrors=${queueDispatchErrors} errors=${errors} converged_streak=${convergedStreak}`
+      `[generation-drain] run=${run} duration_ms=${Date.now() - startedAt} observationClaimed=${observationClaimed} claimed=${claimed} requeued=${requeued} exhausted=${exhausted} reservationCleanupReleased=${reservationCleanupReleased} errors=${errors} converged_streak=${convergedStreak}`
     );
 
     if (convergedStreak >= convergedRunsRequired) {

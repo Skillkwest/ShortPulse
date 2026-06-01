@@ -42,7 +42,21 @@ describe("POST /api/internal/generation-recovery/run", () => {
       reservationCleanupScanned: 0,
       reservationCleanupReleased: 0,
       reservationCleanupErrors: 0,
-      stageTimings: {},
+      audioCompanionArtClaimed: 0,
+      audioCompanionArtProcessed: 0,
+      audioCompanionArtReady: 0,
+      audioCompanionArtFailed: 0,
+      audioCompanionArtSkipped: 0,
+      audioCompanionArtErrors: 0,
+      stageTimings: {
+        reservationCleanup: { durationMs: 0 },
+        providerAttachedReservationCleanup: { durationMs: 0 },
+        observationInboxProcessing: { durationMs: 0 },
+        recoveryClaim: { durationMs: 0 },
+        recoveryExecution: { durationMs: 0 },
+        projectionRepair: { durationMs: 0 },
+        audioCompanionArtProcessing: { durationMs: 0 },
+      },
     });
   });
 

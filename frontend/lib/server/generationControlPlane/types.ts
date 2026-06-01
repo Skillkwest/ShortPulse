@@ -15,6 +15,7 @@ export type GenerationControlPlaneStageTimings = {
   observationInboxProcessing: GenerationControlPlaneStageTiming;
   recoveryClaim: GenerationControlPlaneStageTiming;
   recoveryExecution: GenerationControlPlaneStageTiming;
+  projectionRepair: GenerationControlPlaneStageTiming;
   audioCompanionArtProcessing: GenerationControlPlaneStageTiming;
 };
 

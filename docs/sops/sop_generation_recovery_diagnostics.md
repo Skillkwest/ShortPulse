@@ -68,6 +68,14 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
 5. Integrity invariant:
    - non-waived released->success convergence must end with exactly one `generation_charge` for the same `source_ref`.
 
+## Behavior-Preserving Cleanup Guardrails
+Treat these as protected runtime invariants during cleanup or refactor work:
+1. Poll with canonical media uses direct terminal settlement, while poll with terminal-no-media uses shared recovery.
+2. Webhook ingress attempts immediate convergence first, then falls back to observation inbox persistence plus a best-effort control-plane wake when convergence is still pending.
+3. `/api/internal/generation-recovery/run` remains the operator-facing control-plane surface for accepted-job recovery, reservation cleanup, observation replay, projection repair, and audio companion art follow-up.
+4. `requestGenerationControlPlaneWake(...)` is an optimization hint only; scheduler/worker execution remains authoritative if wake delivery fails or is unavailable.
+5. Terminal convergence must preserve billing settlement, publication/projection visibility rules, abandonment handling, autosave-skipped success behavior, and motion-reference lease cleanup.
+
 ## Windows And Limits (Current Defaults)
 | Control | Source | Current default |
 | --- | --- | --- |
@@ -124,9 +132,11 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - Default/hosted invocation is primary mode for accepted-job recovery.
    - Use explicit `{"runMode":"rescue"}` only for bounded/manual recovery-only passes.
 2. Monitor response metrics per pass:
+   - observation inbox: `observationClaimed`, `observationProcessed`, `observationIgnored`, `observationFailed`, `observationErrors`
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
    - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
-   - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`.
+   - audio companion art: `audioCompanionArtClaimed`, `audioCompanionArtProcessed`, `audioCompanionArtReady`, `audioCompanionArtFailed`, `audioCompanionArtSkipped`, `audioCompanionArtErrors`
+   - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`, `stageTimings.projectionRepair.durationMs`, `stageTimings.audioCompanionArtProcessing.durationMs`.
 3. Treat the control-plane stage ownership as:
    - `runCycle.ts` decides stage order,
    - `recoveryBatchAcquisition.ts` owns RPC claim semantics,

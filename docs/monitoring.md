@@ -171,8 +171,10 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - recovery batch execution: `frontend/lib/server/generationControlPlane/recoveryBatchExecution.ts`
 - Treat these response fields as hard health signals during drain:
   - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
+  - observation inbox: `observationClaimed`, `observationProcessed`, `observationIgnored`, `observationFailed`, `observationErrors`
   - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
-  - stage timings: `stageTimings.queueDispatch.durationMs`, `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.requestIdRepair.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`
+  - audio companion art: `audioCompanionArtClaimed`, `audioCompanionArtProcessed`, `audioCompanionArtReady`, `audioCompanionArtFailed`, `audioCompanionArtSkipped`, `audioCompanionArtErrors`
+  - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`, `stageTimings.projectionRepair.durationMs`, `stageTimings.audioCompanionArtProcessing.durationMs`
 - Convergence target:
   - no sustained active workload (`claimed`, `requeued` no longer persistently elevated),
   - `errors = 0` across the configured convergence window.

@@ -191,6 +191,9 @@ describe("runGenerationControlPlaneCycle", () => {
           recoveryExecution: expect.objectContaining({
             durationMs: expect.any(Number),
           }),
+          projectionRepair: expect.objectContaining({
+            durationMs: expect.any(Number),
+          }),
           audioCompanionArtProcessing: expect.objectContaining({
             durationMs: expect.any(Number),
           }),

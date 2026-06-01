@@ -85,6 +85,7 @@ export const runGenerationControlPlaneCycle = async ({
     observationInboxProcessing: { durationMs: 0 },
     recoveryClaim: { durationMs: 0 },
     recoveryExecution: { durationMs: 0 },
+    projectionRepair: { durationMs: 0 },
     audioCompanionArtProcessing: { durationMs: 0 },
   };
   const measureStage = async <T>(
@@ -226,20 +227,22 @@ export const runGenerationControlPlaneCycle = async ({
       })
     );
 
-  try {
-    await repairStaleTerminalGenerationProjections({
-      supabaseAdmin,
-      limit: Math.max(effectiveReconcilerBatchSize, 10),
-    });
-  } catch (error) {
-    await logControlPlaneException({
-      context,
-      error,
-      metadata: {
-        stage: "projection_repair",
-      },
-    });
-  }
+  await measureStage("projectionRepair", async () => {
+    try {
+      await repairStaleTerminalGenerationProjections({
+        supabaseAdmin,
+        limit: Math.max(effectiveReconcilerBatchSize, 10),
+      });
+    } catch (error) {
+      await logControlPlaneException({
+        context,
+        error,
+        metadata: {
+          stage: "projection_repair",
+        },
+      });
+    }
+  });
 
   await measureStage("audioCompanionArtProcessing", async () => {
     try {

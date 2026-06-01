@@ -26,6 +26,8 @@ describe("generationControlPlane/workerLoop", () => {
         observationInboxProcessing: { durationMs: 5 },
         recoveryClaim: { durationMs: 4 },
         recoveryExecution: { durationMs: 8 },
+        projectionRepair: { durationMs: 2 },
+        audioCompanionArtProcessing: { durationMs: 1 },
       },
     });
     const writeHeartbeat = vi.fn();
@@ -92,6 +94,8 @@ describe("generationControlPlane/workerLoop", () => {
         observationInboxProcessing: { durationMs: 0 },
         recoveryClaim: { durationMs: 0 },
         recoveryExecution: { durationMs: 0 },
+        projectionRepair: { durationMs: 0 },
+        audioCompanionArtProcessing: { durationMs: 0 },
       },
     });
     const writeHeartbeat = vi.fn();
@@ -223,6 +227,8 @@ describe("generationControlPlane/workerLoop", () => {
           observationInboxProcessing: { durationMs: 0 },
           recoveryClaim: { durationMs: 0 },
           recoveryExecution: { durationMs: 0 },
+          projectionRepair: { durationMs: 0 },
+          audioCompanionArtProcessing: { durationMs: 0 },
         },
       })
       .mockResolvedValueOnce({
@@ -249,6 +255,8 @@ describe("generationControlPlane/workerLoop", () => {
           observationInboxProcessing: { durationMs: 0 },
           recoveryClaim: { durationMs: 0 },
           recoveryExecution: { durationMs: 0 },
+          projectionRepair: { durationMs: 0 },
+          audioCompanionArtProcessing: { durationMs: 0 },
         },
       });
     const sleep = vi.fn().mockResolvedValue(undefined);

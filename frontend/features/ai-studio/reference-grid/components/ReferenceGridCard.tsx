@@ -520,9 +520,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         />
       ) : null}
       {shouldShowMediaUnavailable ? (
-        <div className="reference-card-media-unavailable" aria-label="Preview unavailable">
-          <span>Preview unavailable</span>
-        </div>
+        <div className="reference-card-media-unavailable" aria-label="Preview unavailable" />
       ) : null}
       {isFailing ? (
         <div className="reference-fail-overlay">

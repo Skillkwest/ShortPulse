@@ -496,7 +496,8 @@ describe("ReferenceGridCard", () => {
 
     fireEvent.error(image as HTMLImageElement);
 
-    expect(screen.getByText("Preview unavailable")).toBeInTheDocument();
+    expect(container.querySelector(".reference-card-media-unavailable")).not.toBeNull();
+    expect(screen.queryByText("Preview unavailable")).toBeNull();
     expect(container.querySelector(".reference-card-image")).toBeNull();
     expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
   });

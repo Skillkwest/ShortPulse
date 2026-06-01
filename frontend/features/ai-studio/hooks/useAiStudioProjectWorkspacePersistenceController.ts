@@ -300,6 +300,11 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     projectId: string;
     revision: number;
   } | null>(null);
+  const [bootstrapVisibilityApplied, setBootstrapVisibilityApplied] = useState<{
+    projectId: string;
+    revision: number;
+    restoreVisibilitySignature: string;
+  } | null>(null);
   const [bootstrapError, setBootstrapError] = useState<{
     projectId: string;
     revision: number;
@@ -468,9 +473,45 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       projectBootstrapSettled ? resolveProjectRestoreVisibilitySignature(sessionSnapshot) : null,
     [projectBootstrapSettled, sessionSnapshot]
   );
-  const projectBootstrapReady =
-    projectBootstrapSettled &&
-    expectedProjectRestoreVisibilitySignature === actualProjectRestoreVisibilitySignature;
+  const activeBootstrapVisibilityApplied =
+    bootstrapVisibilityApplied?.projectId === projectId &&
+    bootstrapVisibilityApplied.revision === projectRuntimeRevision &&
+    bootstrapVisibilityApplied.restoreVisibilitySignature ===
+      expectedProjectRestoreVisibilitySignature;
+  useEffect(() => {
+    if (!projectId || !projectBootstrapSettled) return;
+    if (!expectedProjectRestoreVisibilitySignature) return;
+    if (expectedProjectRestoreVisibilitySignature !== actualProjectRestoreVisibilitySignature)
+      return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setBootstrapVisibilityApplied((current) => {
+        if (
+          current?.projectId === projectId &&
+          current.revision === projectRuntimeRevision &&
+          current.restoreVisibilitySignature === expectedProjectRestoreVisibilitySignature
+        ) {
+          return current;
+        }
+        return {
+          projectId,
+          revision: projectRuntimeRevision,
+          restoreVisibilitySignature: expectedProjectRestoreVisibilitySignature,
+        };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    actualProjectRestoreVisibilitySignature,
+    expectedProjectRestoreVisibilitySignature,
+    projectBootstrapSettled,
+    projectId,
+    projectRuntimeRevision,
+  ]);
+  const projectBootstrapReady = projectBootstrapSettled && activeBootstrapVisibilityApplied;
 
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
   const repairPendingNoticeKeyRef = useRef<string | null>(null);

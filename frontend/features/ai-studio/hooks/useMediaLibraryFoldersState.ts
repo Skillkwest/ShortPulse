@@ -95,6 +95,22 @@ const collectFolderSubtreeIds = (folders: MediaFolder[], rootFolderId: string): 
   return subtreeIds;
 };
 
+const adjustFolderItemCount = (
+  folders: MediaFolder[],
+  folderId: string | null,
+  delta: number
+): MediaFolder[] => {
+  if (!folderId || delta === 0) return folders;
+  return folders.map((folder) =>
+    folder.id === folderId
+      ? {
+          ...folder,
+          itemCount: Math.max(0, (folder.itemCount ?? 0) + delta),
+        }
+      : folder
+  );
+};
+
 type UseMediaLibraryFoldersStateResult = {
   folders: MediaFolder[];
   customFolders: MediaFolder[];
@@ -266,17 +282,23 @@ export const useMediaLibraryFoldersState = (
         folders.filter((folder) => folder.parentFolderId === nextParentFolderId)
       );
       let nextName = resolveNextFolderNameFromNames(knownFolderNames);
-      setFolders((previous) => [
-        ...previous,
-        {
-          id: pendingFolderId,
-          name: nextName,
-          parentFolderId: nextParentFolderId,
-          createdAt: "",
-          updatedAt: "",
-          itemCount: 0,
-        },
-      ]);
+      setFolders((previous) =>
+        adjustFolderItemCount(
+          [
+            ...previous,
+            {
+              id: pendingFolderId,
+              name: nextName,
+              parentFolderId: nextParentFolderId,
+              createdAt: "",
+              updatedAt: "",
+              itemCount: 0,
+            },
+          ],
+          nextParentFolderId,
+          1
+        )
+      );
 
       try {
         for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
@@ -318,7 +340,13 @@ export const useMediaLibraryFoldersState = (
         if (scopeTokenRef.current !== scopeToken) {
           return;
         }
-        setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
+        setFolders((previous) =>
+          adjustFolderItemCount(
+            previous.filter((row) => row.id !== pendingFolderId),
+            nextParentFolderId,
+            -1
+          )
+        );
         setActiveFolderIdState((previous) =>
           previous === pendingFolderId ? MEDIA_LIBRARY_ROOT_FOLDER_ID : previous
         );
@@ -397,7 +425,15 @@ export const useMediaLibraryFoldersState = (
           return;
         }
         const deletedFolderIds = collectFolderSubtreeIds(foldersRef.current, normalizedFolderId);
-        setFolders((previous) => previous.filter((folder) => !deletedFolderIds.has(folder.id)));
+        const deletedFolder =
+          foldersRef.current.find((folder) => folder.id === normalizedFolderId) ?? null;
+        setFolders((previous) =>
+          adjustFolderItemCount(
+            previous.filter((folder) => !deletedFolderIds.has(folder.id)),
+            deletedFolder?.parentFolderId ?? null,
+            -1
+          )
+        );
         if (deletedFolderIds.has(activeFolderId)) {
           setActiveFolderIdState(MEDIA_LIBRARY_ROOT_FOLDER_ID);
         }
@@ -439,8 +475,10 @@ export const useMediaLibraryFoldersState = (
         if (scopeTokenRef.current !== scopeToken) {
           return false;
         }
-        setFolders((previous) =>
-          previous.map((folder) =>
+        setFolders((previous) => {
+          const movingFolder = previous.find((folder) => folder.id === normalizedFolderId) ?? null;
+          const priorParentFolderId = movingFolder?.parentFolderId ?? null;
+          let nextFolders = previous.map((folder) =>
             folder.id === normalizedFolderId
               ? {
                   ...folder,
@@ -448,8 +486,13 @@ export const useMediaLibraryFoldersState = (
                   itemCount: moved.itemCount ?? folder.itemCount ?? 0,
                 }
               : folder
-          )
-        );
+          );
+          if (priorParentFolderId !== parentFolderId) {
+            nextFolders = adjustFolderItemCount(nextFolders, priorParentFolderId, -1);
+            nextFolders = adjustFolderItemCount(nextFolders, parentFolderId, 1);
+          }
+          return nextFolders;
+        });
         return true;
       } catch (moveError) {
         if (scopeTokenRef.current !== scopeToken) {

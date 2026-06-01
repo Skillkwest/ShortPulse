@@ -1,26 +1,19 @@
 /* global require, process, Buffer, console, __dirname */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * Expert Edit coordinate parity audit runner.
+ * Expert Edit launch-surface browser audit.
  *
  * Purpose:
- * 1. Provide a browser-backed baseline capture path for CP-004 matrix slices.
- * 2. Exercise real pointer interactions under DPR profiles and 4:3 viewport.
- * 3. Emit machine-readable JSON evidence for docs packets.
+ * 1. Verify the deployed/browser Expert Edit surface matches the active launch lock.
+ * 2. Keep DPR coverage for the visible Standard-only edit stage.
+ * 3. Avoid provider submit, generation, or server-mutating actions.
  */
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
 
 const BASE_URL = (process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000").trim();
-const PAN_TARGETS = [
-  { x: 0, y: 0 },
-  { x: 37, y: -19 },
-  { x: -120, y: 80 },
-];
 const DPR_PROFILES = [1, 2, 3];
-const TARGET_ZOOM = 4;
-
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7ZlJ0AAAAASUVORK5CYII=";
 const PNG_BUFFER = Buffer.from(PNG_BASE64, "base64");
@@ -34,8 +27,7 @@ function loadEnvFromFileIfNeeded(filePath) {
     const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(trimmed);
     if (!match) continue;
     const key = match[1];
-    if (!key) continue;
-    if (process.env[key] != null && process.env[key] !== "") continue;
+    if (!key || (process.env[key] ?? "") !== "") continue;
     let value = match[2] ?? "";
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
@@ -48,7 +40,7 @@ function loadEnvFromFileIfNeeded(filePath) {
 }
 
 function loadAuditCredentials() {
-  const frontendRoot = path.resolve(__dirname, "..", "..", "..");
+  const frontendRoot = path.resolve(__dirname, "..", "..");
   const repoRoot = path.resolve(frontendRoot, "..");
   loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
@@ -79,301 +71,139 @@ async function waitForNonAuthRoute(page, timeoutMs) {
   }
 }
 
-async function ensureExpertEditMarkupStage(page) {
+async function ensureExpertEditLaunchSurface(page) {
   await page.goto(`${BASE_URL}/ai-studio`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
 
-  const maybeClickByName = async (nameRegex) => {
-    const button = page.getByRole("button", { name: nameRegex }).first();
-    if (await button.isVisible().catch(() => false)) {
-      await button.click();
-      await page.waitForTimeout(250);
-      return true;
-    }
-    return false;
-  };
+  await page.locator(".ai-studio-page").waitFor({ timeout: 45_000 });
+  const editButton = page.getByRole("button", { name: /^Edit$/i }).first();
+  await editButton.waitFor({ timeout: 20_000 });
+  await editButton.click();
 
-  if (!(await page.getByRole("button", { name: /expand inpaint controls/i }).first().isVisible().catch(() => false))) {
-    await maybeClickByName(/^Edit$/i);
-    await maybeClickByName(/^Image$/i);
-  }
-
-  const expandInpaint = page.getByRole("button", { name: /expand inpaint controls/i }).first();
-  await expandInpaint.waitFor({ timeout: 20_000 });
-  await expandInpaint.click();
-
-  const rail = page.getByLabel("Inpaint action tools");
-  await rail.waitFor({ timeout: 20_000 });
-  await rail.getByRole("button", { name: /^markup$/i }).click();
-
-  const primaryDropzone = page.getByLabel("Primary composition surface").first();
-  await primaryDropzone.waitFor({ timeout: 20_000 });
+  const primaryStage = page.getByLabel("Primary edit stage").first();
+  await primaryStage.waitFor({ timeout: 20_000 });
 
   const fileInput = page.locator('input[type="file"][accept="image/*"]').first();
-  if (await fileInput.isVisible().catch(() => true)) {
+  if (await fileInput.count()) {
     await fileInput.setInputFiles({
-      name: "cp004-audit-reference.png",
+      name: "expert-edit-launch-audit-reference.png",
       mimeType: "image/png",
       buffer: PNG_BUFFER,
     });
     await page.waitForTimeout(300);
   }
 
-  const penButton = page.getByRole("button", { name: /^pen$/i }).first();
-  if (await penButton.isVisible().catch(() => false)) {
-    await penButton.click();
-  }
-
-  return { primaryDropzone };
+  return { primaryStage };
 }
 
-async function readViewportState(page) {
+async function readLaunchSurfaceSnapshot(page) {
   return page.evaluate(() => {
     const doc = globalThis.document;
     const HTMLElementCtor = globalThis.HTMLElement;
-    const stage = doc.querySelector('[aria-label="Primary composition surface"]');
-    if (!(stage instanceof HTMLElementCtor)) {
-      return null;
-    }
-    const stageRect = stage.getBoundingClientRect();
-    const stageShell = doc.querySelector(".edit-expert-primary-stage-shell");
-    const viewport = doc.querySelector(".edit-expert-markup-viewport");
-    const viewportTransform = viewport instanceof HTMLElementCtor ? viewport.style.transform : "";
-    const stageShellTransform =
-      stageShell instanceof HTMLElementCtor ? stageShell.style.transform : "";
-    const transform = viewportTransform.trim() || stageShellTransform.trim() || "";
-    const match = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px,\s*0\)\s*scale\(([-\d.]+)\)/.exec(
-      transform
-    );
+    const ElementCtor = globalThis.Element;
+    const visible = (element) => {
+      if (!(element instanceof HTMLElementCtor)) return false;
+      const style = globalThis.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const textOf = (element) =>
+      (element.getAttribute("aria-label") || element.textContent || "").replace(/\s+/g, " ").trim();
+
+    const primaryStage =
+      doc.querySelector('[aria-label="Primary edit stage"]') ||
+      doc.querySelector(".edit-expert-primary-stage-shell") ||
+      doc.querySelector(".edit-expert-primary-column");
+    const stageRect = primaryStage instanceof ElementCtor ? primaryStage.getBoundingClientRect() : null;
+    const visibleButtons = Array.from(doc.querySelectorAll("button"))
+      .filter(visible)
+      .map(textOf)
+      .filter(Boolean);
+    const bodyText = doc.body.innerText.replace(/\s+/g, " ").trim();
+
     return {
-      transform,
-      offsetX: Number(match?.[1] ?? "0"),
-      offsetY: Number(match?.[2] ?? "0"),
-      scale: Number(match?.[3] ?? "1"),
-      stageRect: {
-        left: stageRect.left,
-        top: stageRect.top,
-        width: stageRect.width,
-        height: stageRect.height,
+      url: globalThis.location.href,
+      hasAiStudioPage: Boolean(doc.querySelector(".ai-studio-page")),
+      hasPrimaryEditStage: primaryStage instanceof ElementCtor,
+      primaryStageSelector:
+        primaryStage instanceof ElementCtor
+          ? primaryStage.getAttribute("aria-label") || primaryStage.className || primaryStage.tagName
+          : null,
+      stageRect: stageRect
+        ? {
+            width: Math.round(stageRect.width * 100) / 100,
+            height: Math.round(stageRect.height * 100) / 100,
+            aspect: stageRect.height > 0 ? Math.round((stageRect.width / stageRect.height) * 10000) / 10000 : null,
+          }
+        : null,
+      launchLock: {
+        hidesSelectEditMode: !bodyText.includes("Select Edit Mode"),
+        hidesGenerationModeTablist: !doc.querySelector(
+          '[role="tablist"][aria-label*="generation" i]'
+        ),
+        hidesInpaintActionTools: !doc.querySelector('[aria-label="Inpaint action tools"]'),
       },
+      controls: {
+        hasGenerate: visibleButtons.some((label) => /^Generate$/i.test(label)),
+        hasUndoMove: visibleButtons.some((label) => /undo move action/i.test(label)),
+        hasRedoMove: visibleButtons.some((label) => /redo move action/i.test(label)),
+        hasFlattenLayers: visibleButtons.some((label) => /flatten layers/i.test(label)),
+        hasRemoveBackground: visibleButtons.some((label) => /remove background/i.test(label)),
+      },
+      visibleButtons: visibleButtons.slice(0, 60),
     };
   });
 }
 
-async function clearMarkupStrokesIfAvailable(page) {
-  const clearButton = page.getByRole("button", { name: /clear markup strokes/i }).first();
-  if (await clearButton.isVisible().catch(() => false)) {
-    await clearButton.click();
-    await page.waitForTimeout(120);
-  }
-}
-
-async function recenterStage(page, stageBox) {
-  const centerX = stageBox.x + stageBox.width / 2;
-  const centerY = stageBox.y + stageBox.height / 2;
-
-  await page.mouse.click(centerX, centerY, { button: "right" });
-  const recenterItem = page.getByRole("menuitem", { name: /^recenter$/i }).first();
-  if (await recenterItem.isVisible().catch(() => false)) {
-    await recenterItem.click();
-    await page.waitForTimeout(120);
-    return;
-  }
-
-  const moveButton = page.getByRole("button", { name: /^move$/i }).first();
-  if (await moveButton.isVisible().catch(() => false)) {
-    await moveButton.click();
-    const centerButton = page.getByRole("button", { name: /center move action/i }).first();
-    if (await centerButton.isVisible().catch(() => false)) {
-      await centerButton.click();
-      await page.waitForTimeout(120);
-    }
-    const markupButton = page.getByRole("button", { name: /^markup$/i }).first();
-    if (await markupButton.isVisible().catch(() => false)) {
-      await markupButton.click();
-      await page.waitForTimeout(120);
-    }
-  }
-}
-
-async function zoomToTarget(page, stageBox, targetScale) {
-  const centerX = stageBox.x + stageBox.width / 2;
-  const centerY = stageBox.y + stageBox.height / 2;
-
-  for (let i = 0; i < 35; i += 1) {
-    const state = await readViewportState(page);
-    if (!state) return state;
-    if (state.scale >= targetScale - 0.02) return state;
-    await page.mouse.move(centerX, centerY);
-    await page.mouse.wheel(0, -220);
-    await page.waitForTimeout(30);
-  }
-  return readViewportState(page);
-}
-
-async function panToTargetOffset(page, stageBox, target) {
-  const centerX = stageBox.x + stageBox.width / 2;
-  const centerY = stageBox.y + stageBox.height / 2;
-
-  for (let i = 0; i < 14; i += 1) {
-    const state = await readViewportState(page);
-    if (!state) return null;
-    const dx = target.x - state.offsetX;
-    const dy = target.y - state.offsetY;
-    if (Math.abs(dx) <= 2 && Math.abs(dy) <= 2) {
-      return state;
-    }
-
-    const stepX = Math.max(-120, Math.min(120, dx));
-    const stepY = Math.max(-120, Math.min(120, dy));
-    await page.mouse.move(centerX, centerY);
-    await page.mouse.down({ button: "middle" });
-    await page.mouse.move(centerX + stepX, centerY + stepY, { steps: 4 });
-    await page.mouse.up({ button: "middle" });
-    await page.waitForTimeout(40);
-  }
-  return readViewportState(page);
-}
-
-async function drawAndMeasurePointerToStroke(page, stageBox) {
-  const targetClientX = stageBox.x + stageBox.width * 0.55;
-  const targetClientY = stageBox.y + stageBox.height * 0.48;
-
-  await page.mouse.move(targetClientX, targetClientY);
-  await page.mouse.down({ button: "left" });
-  await page.mouse.move(targetClientX + 1, targetClientY + 1, { steps: 2 });
-  await page.mouse.up({ button: "left" });
-  await page.waitForTimeout(120);
-
-  return page.evaluate(({ targetClientX: cx, targetClientY: cy }) => {
-    const doc = globalThis.document;
-    const HTMLElementCtor = globalThis.HTMLElement;
-    const SVGPolylineCtor = globalThis.SVGPolylineElement;
-    const stage = doc.querySelector('[aria-label="Primary composition surface"]');
-    if (!(stage instanceof HTMLElementCtor)) return { ok: false, reason: "missing_stage" };
-    const stageRect = stage.getBoundingClientRect();
-
-    const stageShell = doc.querySelector(".edit-expert-primary-stage-shell");
-    const viewport = doc.querySelector(".edit-expert-markup-viewport");
-    const transform =
-      (viewport instanceof HTMLElementCtor ? viewport.style.transform : "").trim() ||
-      (stageShell instanceof HTMLElementCtor ? stageShell.style.transform : "").trim() ||
-      "translate3d(0px, 0px, 0) scale(1)";
-    const match = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px,\s*0\)\s*scale\(([-\d.]+)\)/.exec(
-      transform
-    );
-    const offsetX = Number(match?.[1] ?? "0");
-    const offsetY = Number(match?.[2] ?? "0");
-    const scale = Number(match?.[3] ?? "1");
-
-    const polylines = Array.from(
-      doc.querySelectorAll(".edit-expert-markup-strokes-overlay polyline")
-    );
-    const lastPolyline = polylines.at(-1);
-    if (!(lastPolyline instanceof SVGPolylineCtor)) {
-      return { ok: false, reason: "missing_polyline" };
-    }
-    const rawPoints = (lastPolyline.getAttribute("points") || "")
-      .split(/\s+/)
-      .map((pair) => pair.trim())
-      .filter(Boolean);
-    const tailPair = rawPoints.at(-1);
-    if (!tailPair) {
-      return { ok: false, reason: "missing_polyline_points" };
-    }
-    const [xRaw, yRaw] = tailPair.split(",");
-    const scenePointX = Number.parseFloat(xRaw || "0");
-    const scenePointY = Number.parseFloat(yRaw || "0");
-
-    const targetX = cx - stageRect.left;
-    const targetY = cy - stageRect.top;
-    const paintedVisibleX = scenePointX * scale + offsetX;
-    const paintedVisibleY = scenePointY * scale + offsetY;
-    const dx = paintedVisibleX - targetX;
-    const dy = paintedVisibleY - targetY;
-    const errorPx = Math.sqrt(dx * dx + dy * dy);
-
-    return {
-      ok: true,
-      scale,
-      offsetX,
-      offsetY,
-      targetX,
-      targetY,
-      paintedVisibleX,
-      paintedVisibleY,
-      dx,
-      dy,
-      errorPx,
-    };
-  }, { targetClientX, targetClientY });
-}
-
-async function runProfile(browser, storageState, profile) {
+async function runProfile(browser, storageState, dpr) {
   const context = await browser.newContext({
     viewport: { width: 1200, height: 900 },
-    deviceScaleFactor: profile,
+    deviceScaleFactor: dpr,
     storageState,
   });
   const page = await context.newPage();
+  const errors = [];
 
-  const result = {
-    dpr: profile,
-    viewport: { width: 1200, height: 900 },
-    stageAspectTarget: "4:3",
-    startedAt: new Date().toISOString(),
-    zoomTarget: TARGET_ZOOM,
-    zoomReached: null,
-    stageRect: null,
-    panResults: [],
-    errors: [],
-  };
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(`console:${message.text()}`);
+  });
+  page.on("pageerror", (error) => errors.push(`pageerror:${error.message}`));
 
   try {
-    const { primaryDropzone } = await ensureExpertEditMarkupStage(page);
-    const stageBox = await primaryDropzone.boundingBox();
-    if (!stageBox) {
-      result.errors.push("missing_primary_dropzone_bounding_box");
-      return result;
-    }
-    result.stageRect = {
-      x: stageBox.x,
-      y: stageBox.y,
-      width: stageBox.width,
-      height: stageBox.height,
-      aspect: stageBox.height > 0 ? Number((stageBox.width / stageBox.height).toFixed(4)) : null,
+    await ensureExpertEditLaunchSurface(page);
+    const snapshot = await readLaunchSurfaceSnapshot(page);
+    const requiredSignals = [
+      snapshot.hasAiStudioPage,
+      snapshot.hasPrimaryEditStage,
+      snapshot.stageRect?.width > 0,
+      snapshot.stageRect?.height > 0,
+      snapshot.launchLock.hidesSelectEditMode,
+      snapshot.launchLock.hidesGenerationModeTablist,
+      snapshot.launchLock.hidesInpaintActionTools,
+      snapshot.controls.hasGenerate,
+      snapshot.controls.hasUndoMove,
+      snapshot.controls.hasRedoMove,
+    ];
+    return {
+      dpr,
+      viewport: { width: 1200, height: 900 },
+      ok: requiredSignals.every(Boolean) && errors.length === 0,
+      errors,
+      snapshot,
     };
-
-    await recenterStage(page, stageBox);
-    const zoomState = await zoomToTarget(page, stageBox, TARGET_ZOOM);
-    result.zoomReached = zoomState?.scale ?? null;
-
-    for (const target of PAN_TARGETS) {
-      await recenterStage(page, stageBox);
-      const panState = await panToTargetOffset(page, stageBox, target);
-      await clearMarkupStrokesIfAvailable(page);
-      const draw = await drawAndMeasurePointerToStroke(page, stageBox);
-      result.panResults.push({
-        target,
-        observed: panState
-          ? {
-              offsetX: Number((panState.offsetX || 0).toFixed(3)),
-              offsetY: Number((panState.offsetY || 0).toFixed(3)),
-              scale: Number((panState.scale || 0).toFixed(4)),
-            }
-          : null,
-        draw,
-      });
-    }
   } catch (error) {
-    result.errors.push(String(error?.message || error));
+    return {
+      dpr,
+      viewport: { width: 1200, height: 900 },
+      ok: false,
+      errors: [...errors, String(error?.message || error)],
+      snapshot: null,
+    };
   } finally {
     await context.close();
   }
-
-  return result;
 }
 
 async function main() {
@@ -396,7 +226,6 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const authContext = await browser.newContext({ viewport: { width: 1200, height: 900 } });
   const authPage = await authContext.newPage();
-
   const output = {
     ok: false,
     generatedAt: new Date().toISOString(),
@@ -430,14 +259,12 @@ async function main() {
     const storageState = await authContext.storageState();
 
     for (const dpr of DPR_PROFILES) {
-      const profileResult = await runProfile(browser, storageState, dpr);
-      output.profiles.push(profileResult);
+      output.profiles.push(await runProfile(browser, storageState, dpr));
     }
 
-    output.ok = output.profiles.every(
-      (profile) => (profile.errors?.length ?? 0) === 0 && Number.isFinite(profile.zoomReached ?? NaN)
-    );
+    output.ok = output.profiles.every((profile) => profile.ok);
     console.log(JSON.stringify(output, null, 2));
+    if (!output.ok) process.exitCode = 1;
   } catch (error) {
     console.error("[expert-edit-coordinate-parity.audit] fatal:", error);
     process.exitCode = 1;

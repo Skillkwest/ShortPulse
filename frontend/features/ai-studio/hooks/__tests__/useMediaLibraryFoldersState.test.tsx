@@ -257,6 +257,41 @@ describe("useMediaLibraryFoldersState", () => {
     });
   });
 
+  it("increments the parent folder badge when creating a subfolder", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-parent",
+        name: "Parent",
+        parentFolderId: null,
+        createdAt: "2026-03-29T00:00:00.000Z",
+        updatedAt: "2026-03-29T00:00:00.000Z",
+        itemCount: 0,
+      },
+    ]);
+    createMediaFolderMock.mockResolvedValueOnce({
+      id: "folder-child",
+      name: "New Folder",
+      parentFolderId: "folder-parent",
+      createdAt: "2026-03-31T00:00:00.000Z",
+      updatedAt: "2026-03-31T00:00:00.000Z",
+      itemCount: 0,
+    });
+
+    const { result } = renderHook(() => useMediaLibraryFoldersState());
+
+    await waitFor(() => {
+      expect(result.current.folders).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.createFolder("folder-parent");
+    });
+
+    expect(result.current.folders.find((folder) => folder.id === "folder-parent")?.itemCount).toBe(
+      1
+    );
+  });
+
   it("preserves visible folder state when the project changes", async () => {
     listMediaFoldersMock.mockResolvedValueOnce([
       {
@@ -353,6 +388,83 @@ describe("useMediaLibraryFoldersState", () => {
         message: "media_library_folder_move_failed",
         level: "error",
       })
+    );
+  });
+
+  it("updates parent folder badges when moving a folder into another folder", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-1",
+        name: "Campaign",
+        parentFolderId: null,
+        createdAt: "2026-03-29T00:00:00.000Z",
+        updatedAt: "2026-03-29T00:00:00.000Z",
+        itemCount: 0,
+      },
+      {
+        id: "folder-2",
+        name: "Archive",
+        parentFolderId: null,
+        createdAt: "2026-03-29T00:01:00.000Z",
+        updatedAt: "2026-03-29T00:01:00.000Z",
+        itemCount: 0,
+      },
+    ]);
+    moveMediaFolderMock.mockResolvedValueOnce({
+      id: "folder-1",
+      name: "Campaign",
+      parentFolderId: "folder-2",
+      createdAt: "2026-03-29T00:00:00.000Z",
+      updatedAt: "2026-03-29T00:02:00.000Z",
+      itemCount: 0,
+    });
+
+    const { result } = renderHook(() => useMediaLibraryFoldersState());
+
+    await waitFor(() => {
+      expect(result.current.folders).toHaveLength(2);
+    });
+
+    await act(async () => {
+      await result.current.moveFolder("folder-1", "folder-2");
+    });
+
+    expect(result.current.folders.find((folder) => folder.id === "folder-2")?.itemCount).toBe(1);
+  });
+
+  it("decrements the parent folder badge when deleting a direct child folder", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-parent",
+        name: "Parent",
+        parentFolderId: null,
+        createdAt: "2026-03-29T00:00:00.000Z",
+        updatedAt: "2026-03-29T00:00:00.000Z",
+        itemCount: 1,
+      },
+      {
+        id: "folder-child",
+        name: "Child",
+        parentFolderId: "folder-parent",
+        createdAt: "2026-03-29T00:01:00.000Z",
+        updatedAt: "2026-03-29T00:01:00.000Z",
+        itemCount: 0,
+      },
+    ]);
+    deleteMediaFolderMock.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useMediaLibraryFoldersState());
+
+    await waitFor(() => {
+      expect(result.current.folders).toHaveLength(2);
+    });
+
+    await act(async () => {
+      await result.current.deleteFolder("folder-child");
+    });
+
+    expect(result.current.folders.find((folder) => folder.id === "folder-parent")?.itemCount).toBe(
+      0
     );
   });
 });

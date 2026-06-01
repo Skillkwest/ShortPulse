@@ -195,6 +195,44 @@ const withFolderItemCount = (
   item_count: Math.max(0, Math.trunc(itemCount)),
 });
 
+const addDirectChildFolderCounts = ({
+  counts,
+  folders,
+}: {
+  counts: Map<string, number>;
+  folders: Array<Pick<MediaFolderRow, "id" | "parent_folder_id">>;
+}): Map<string, number> => {
+  const nextCounts = new Map(counts);
+  for (const folder of folders) {
+    if (!folder.parent_folder_id) continue;
+    nextCounts.set(folder.parent_folder_id, (nextCounts.get(folder.parent_folder_id) ?? 0) + 1);
+  }
+  return nextCounts;
+};
+
+const countDirectChildFoldersForUser = async ({
+  supabaseAdmin,
+  userId,
+  folderId,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+  folderId: string;
+}): Promise<number> => {
+  const { count, error } = await supabaseAdmin
+    .from("media_folders")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("parent_folder_id", folderId);
+  if (error) {
+    if (isMissingParentFolderColumnError(error)) {
+      return 0;
+    }
+    throw new Error(error.message || "Failed to load child folder counts");
+  }
+  return Math.max(0, Math.trunc(count ?? 0));
+};
+
 const assertOwnedFolderExists = async ({
   supabaseAdmin,
   userId,
@@ -320,11 +358,12 @@ export const listMediaFoldersForUser = async (userId: string): Promise<MediaFold
   }
   if (!error) {
     const rows = (data ?? []) as Array<Omit<MediaFolderRow, "item_count">>;
-    const counts = await toFolderItemCountMap({
+    const membershipCounts = await toFolderItemCountMap({
       supabaseAdmin,
       userId,
       folderIds: rows.map((row) => row.id),
     });
+    const counts = addDirectChildFolderCounts({ counts: membershipCounts, folders: rows });
     return rows.map((row) => withFolderItemCount(row, counts.get(row.id) ?? 0));
   }
 
@@ -477,9 +516,14 @@ export const renameMediaFolderForUser = async ({
       userId,
       folderIds: [folderId],
     });
+    const directChildFolderCount = await countDirectChildFoldersForUser({
+      supabaseAdmin,
+      userId,
+      folderId,
+    });
     return withFolderItemCount(
       data as Omit<MediaFolderRow, "item_count">,
-      counts.get(folderId) ?? 0
+      (counts.get(folderId) ?? 0) + directChildFolderCount
     );
   }
   const { data: legacyData, error: legacyError } = await supabaseAdmin
@@ -559,9 +603,14 @@ export const moveMediaFolderForUser = async ({
       userId,
       folderIds: [folderId],
     });
+    const directChildFolderCount = await countDirectChildFoldersForUser({
+      supabaseAdmin,
+      userId,
+      folderId,
+    });
     return withFolderItemCount(
       existingRow as Omit<MediaFolderRow, "item_count">,
-      counts.get(folderId) ?? 0
+      (counts.get(folderId) ?? 0) + directChildFolderCount
     );
   }
 
@@ -601,7 +650,15 @@ export const moveMediaFolderForUser = async ({
     userId,
     folderIds: [folderId],
   });
-  return withFolderItemCount(data as Omit<MediaFolderRow, "item_count">, counts.get(folderId) ?? 0);
+  const directChildFolderCount = await countDirectChildFoldersForUser({
+    supabaseAdmin,
+    userId,
+    folderId,
+  });
+  return withFolderItemCount(
+    data as Omit<MediaFolderRow, "item_count">,
+    (counts.get(folderId) ?? 0) + directChildFolderCount
+  );
 };
 
 /**

@@ -248,16 +248,16 @@ const createSupabaseMoveMock = ({
   updateError = null as { message?: string | null; code?: string | null } | null,
   updatedParentFolderId = TARGET_FOLDER_ID,
 } = {}) => {
-  const selectMaybeSingleMock = vi
-    .fn()
-    .mockResolvedValueOnce({
+  const ownedFolderSelections = [
+    {
       data: folderExists ? { id: SOURCE_FOLDER_ID, parent_folder_id: currentParentFolderId } : null,
       error: null,
-    })
-    .mockResolvedValueOnce({
+    },
+    {
       data: parentExists ? { id: updatedParentFolderId } : null,
       error: null,
-    });
+    },
+  ];
   const updateMaybeSingleMock = vi.fn().mockResolvedValue({
     data: updateError
       ? null
@@ -280,13 +280,27 @@ const createSupabaseMoveMock = ({
     from: vi.fn((table: string) => {
       if (table === "media_folders") {
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                maybeSingle: selectMaybeSingleMock,
-              })),
-            })),
-          })),
+          select: vi.fn(() => {
+            let firstEqColumn = "";
+            return {
+              eq: vi.fn((column: string) => {
+                firstEqColumn = column;
+                return {
+                  eq: vi.fn((secondColumn: string) => {
+                    if (firstEqColumn === "user_id" && secondColumn === "parent_folder_id") {
+                      return Promise.resolve({
+                        count: 0,
+                        error: null,
+                      });
+                    }
+                    return {
+                      maybeSingle: vi.fn().mockResolvedValue(ownedFolderSelections.shift() ?? null),
+                    };
+                  }),
+                };
+              }),
+            };
+          }),
           update: vi.fn(() => ({
             eq: vi.fn(() => ({
               eq: vi.fn(() => ({
@@ -400,6 +414,70 @@ describe("mediaFoldersService helpers", () => {
         parent_folder_id: null,
         created_at: "2026-03-01T00:00:00.000Z",
         updated_at: "2026-03-02T00:00:00.000Z",
+        item_count: 0,
+      },
+    ]);
+  });
+
+  it("includes direct child folders in listed folder item counts", async () => {
+    const listSelectMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: SOURCE_FOLDER_ID,
+          user_id: "user-1",
+          name: "Parent",
+          parent_folder_id: null,
+          created_at: "2026-03-01T00:00:00.000Z",
+          updated_at: "2026-03-02T00:00:00.000Z",
+        },
+        {
+          id: TARGET_FOLDER_ID,
+          user_id: "user-1",
+          name: "Child",
+          parent_folder_id: SOURCE_FOLDER_ID,
+          created_at: "2026-03-03T00:00:00.000Z",
+          updated_at: "2026-03-04T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const listQuery = {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => ({
+            order: listSelectMock,
+          })),
+        })),
+      })),
+    };
+    const supabaseMock = {
+      from: vi.fn().mockReturnValue(listQuery),
+      rpc: vi.fn(async () => ({
+        data: [{ folder_id: SOURCE_FOLDER_ID, item_count: "0" }],
+        error: null,
+      })),
+    };
+    getSupabaseAdminMock.mockReturnValue(
+      supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
+    );
+
+    await expect(listMediaFoldersForUser("user-1")).resolves.toEqual([
+      {
+        id: SOURCE_FOLDER_ID,
+        user_id: "user-1",
+        name: "Parent",
+        parent_folder_id: null,
+        created_at: "2026-03-01T00:00:00.000Z",
+        updated_at: "2026-03-02T00:00:00.000Z",
+        item_count: 1,
+      },
+      {
+        id: TARGET_FOLDER_ID,
+        user_id: "user-1",
+        name: "Child",
+        parent_folder_id: SOURCE_FOLDER_ID,
+        created_at: "2026-03-03T00:00:00.000Z",
+        updated_at: "2026-03-04T00:00:00.000Z",
         item_count: 0,
       },
     ]);

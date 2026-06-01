@@ -124,6 +124,7 @@ export const useAiStudioPageSessionPersistence = ({
       retry: () => undefined,
     },
     setSkipRestoreApplyForSessionId: () => undefined,
+    projectBootstrapSettled: true,
     projectBootstrapApplied: true,
     projectBootstrapError: null,
     retryProjectBootstrap: () => undefined,

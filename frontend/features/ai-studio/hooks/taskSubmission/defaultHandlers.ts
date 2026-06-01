@@ -1,5 +1,5 @@
 /**
- * Default image submission handlers (OpenAI GPT Image 2, Seedream, and Nano Banana) for AI Studio.
+ * Default image submission handlers (GPT Image 2, Seedream, and Nano Banana) for AI Studio.
  */
 import {
   submitOpenAiGptImage2,

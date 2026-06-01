@@ -11,6 +11,7 @@ import {
 } from "./persistenceOutputSaveUtils";
 
 type UseAiStudioOutputSaveShortCircuitRuntimeArgs = {
+  currentUserId?: string | null;
   projectId?: string | null;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   persistPromptSave: (input: {
@@ -34,6 +35,7 @@ type UseAiStudioOutputSaveShortCircuitRuntimeArgs = {
  * Handles output-save branches that do not require media persistence.
  */
 export const useAiStudioOutputSaveShortCircuitRuntime = ({
+  currentUserId = null,
   projectId = null,
   updateOutputById,
   persistPromptSave,
@@ -77,6 +79,7 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
             await associateMediaFilesWithProject({
               projectId,
               mediaFileIds: savedMediaIdsForRequest,
+              userId: currentUserId,
             });
           } catch (error) {
             logProjectAssociationWarning("media", savedMediaIdsForRequest, error);
@@ -131,6 +134,7 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
             await associatePromptWithProject({
               projectId,
               promptId: output.promptId,
+              userId: currentUserId,
             });
           } catch (error) {
             logProjectAssociationWarning("prompt", [output.promptId], error);
@@ -195,6 +199,7 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
       };
     },
     [
+      currentUserId,
       logProjectAssociationWarning,
       markOutputSaveFailed,
       markOutputSaved,

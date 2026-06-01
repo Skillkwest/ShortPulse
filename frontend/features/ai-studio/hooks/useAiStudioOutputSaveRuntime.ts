@@ -20,6 +20,7 @@ import {
 import { useAiStudioOutputSaveShortCircuitRuntime } from "./useAiStudioOutputSaveShortCircuitRuntime";
 
 type UseAiStudioOutputSaveRuntimeArgs = {
+  currentUserId?: string | null;
   projectId?: string | null;
   findOutputById: (id: string) => StudioOutput | null;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
@@ -92,6 +93,7 @@ type InFlightSaveEntry = {
 };
 
 export const useAiStudioOutputSaveRuntime = ({
+  currentUserId = null,
   projectId = null,
   findOutputById,
   updateOutputById,
@@ -106,6 +108,7 @@ export const useAiStudioOutputSaveRuntime = ({
   const lastLibrarySaveUiErrorRef = useRef<string | null>(null);
   const lastLibrarySaveTelemetrySignatureByKeyRef = useRef<Map<string, string>>(new Map());
   const { resolveShortCircuitSave } = useAiStudioOutputSaveShortCircuitRuntime({
+    currentUserId,
     projectId,
     updateOutputById,
     persistPromptSave,
@@ -156,6 +159,7 @@ export const useAiStudioOutputSaveRuntime = ({
             metadata: {
               output_id: output.id,
               project_id: projectId,
+              user_id: currentUserId,
               persist_intent: persistIntent,
               save_key: saveKey,
               image_index:
@@ -329,6 +333,7 @@ export const useAiStudioOutputSaveRuntime = ({
       findOutputById,
       markOutputSaveFailed,
       markOutputSaved,
+      currentUserId,
       persistMediaUrls,
       projectId,
       resolveShortCircuitSave,

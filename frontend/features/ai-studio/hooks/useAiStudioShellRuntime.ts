@@ -13,6 +13,7 @@ type ModelModalState = AiStudioPageContentProps["modelModalState"];
 type UseAiStudioShellRuntimeParams = {
   base: AiStudioPageBaseRuntime;
   sessionRestoreCandidate: AiStudioPersistenceController["sessionRestoreCandidate"];
+  projectBootstrapSettled: boolean;
   projectBootstrapApplied: boolean;
   filteredModelOptions: AiStudioPageContentProps["modelModalState"]["options"];
   resolveModelPickerCredits: AiStudioPageContentProps["modelModalState"]["resolveCreditsForModel"];
@@ -25,7 +26,7 @@ type UseAiStudioShellRuntimeParams = {
 export const useAiStudioShellRuntime = ({
   base,
   sessionRestoreCandidate,
-  projectBootstrapApplied,
+  projectBootstrapSettled,
   filteredModelOptions,
   resolveModelPickerCredits,
   handleSelectModelFromModal,
@@ -135,11 +136,11 @@ export const useAiStudioShellRuntime = ({
 
   const shouldGateProjectBootstrap =
     projectRouteRequested &&
-    (projectStatus !== "ready" || (Boolean(projectId) && !projectBootstrapApplied));
+    (projectStatus !== "ready" || (Boolean(projectId) && !projectBootstrapSettled));
   const projectEntryPhase = resolveProjectEntryPhase({
     projectStatus,
     projectRouteRequested,
-    projectBootstrapApplied,
+    projectBootstrapSettled,
     workspaceRestoreCandidate: sessionRestoreCandidate,
   });
 

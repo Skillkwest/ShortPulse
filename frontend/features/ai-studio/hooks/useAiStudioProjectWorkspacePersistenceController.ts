@@ -875,6 +875,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     sessionSnapshot,
     sessionRestoreCandidate,
     setSkipRestoreApplyForSessionId: () => undefined,
+    projectBootstrapSettled,
     projectBootstrapApplied: projectBootstrapReady,
     projectBootstrapError:
       activeBootstrapError?.message ??

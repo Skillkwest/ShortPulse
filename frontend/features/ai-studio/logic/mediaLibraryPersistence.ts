@@ -147,9 +147,9 @@ const buildFilename = (promptText: string | null | undefined, extension: string,
   return `${base}-${index + 1}.${extension}`;
 };
 
-const resolveSupabaseContext = async () => {
+const resolveSupabaseContext = async (userIdHint?: string | null) => {
   const supabase = ensureSupabaseQueryClient();
-  const userId = await readSupabaseUserId();
+  const userId = userIdHint?.trim() ? userIdHint.trim() : await readSupabaseUserId();
   if (!userId) {
     throw new Error("Not signed in");
   }
@@ -300,6 +300,7 @@ export type PromptRecordInput = {
   title?: string | null;
   source?: "manual" | "ai_studio" | "agent";
   projectId?: string | null;
+  userId?: string | null;
 };
 
 export type MediaEventInput = {
@@ -307,6 +308,7 @@ export type MediaEventInput = {
   entityType: string;
   entityId: string;
   metadata?: Record<string, unknown>;
+  userId?: string | null;
 };
 
 export type SaveMediaUrlInput = {
@@ -327,6 +329,7 @@ export type SaveMediaUrlInput = {
   posterUrlHint?: string | null;
   metadata?: Record<string, unknown>;
   projectId?: string | null;
+  userId?: string | null;
 };
 
 export type SaveMediaUrlResult = {
@@ -346,13 +349,14 @@ export type SaveMediaUrlResult = {
 
 export const resolveGenerationIdForRequestId = async (
   requestId: string | null | undefined,
-  projectId?: string | null
+  projectId?: string | null,
+  userId?: string | null
 ): Promise<string | null> => {
-  const { supabase, userId } = await resolveSupabaseContext();
+  const { supabase, userId: resolvedUserId } = await resolveSupabaseContext(userId);
   return await resolveGenerationIdForRequestIdFromAuthority({
     supabase,
     requestId,
-    userId,
+    userId: resolvedUserId,
     projectId,
   });
 };
@@ -366,9 +370,11 @@ const normalizeProjectId = (value: string | null | undefined): string | null => 
 export const associateMediaFilesWithProject = async ({
   projectId,
   mediaFileIds,
+  userId,
 }: {
   projectId: string;
   mediaFileIds: string[];
+  userId?: string | null;
 }): Promise<void> => {
   const normalizedProjectId = normalizeProjectId(projectId);
   const normalizedMediaFileIds = Array.from(
@@ -379,13 +385,13 @@ export const associateMediaFilesWithProject = async ({
     )
   );
   if (!normalizedProjectId || normalizedMediaFileIds.length === 0) return;
-  const { supabase, userId } = await resolveSupabaseContext();
+  const { supabase, userId: resolvedUserId } = await resolveSupabaseContext(userId);
   const nowIso = new Date().toISOString();
   const { error } = await supabase.from("project_media_items").upsert(
     normalizedMediaFileIds.map((mediaFileId) => ({
       project_id: normalizedProjectId,
       media_file_id: mediaFileId,
-      user_id: userId,
+      user_id: resolvedUserId,
       updated_at: nowIso,
     })),
     {
@@ -400,19 +406,21 @@ export const associateMediaFilesWithProject = async ({
 export const associatePromptWithProject = async ({
   projectId,
   promptId,
+  userId,
 }: {
   projectId: string;
   promptId: string;
+  userId?: string | null;
 }): Promise<void> => {
   const normalizedProjectId = normalizeProjectId(projectId);
   const normalizedPromptId = typeof promptId === "string" ? promptId.trim() : "";
   if (!normalizedProjectId || !normalizedPromptId) return;
-  const { supabase, userId } = await resolveSupabaseContext();
+  const { supabase, userId: resolvedUserId } = await resolveSupabaseContext(userId);
   const { error } = await supabase.from("project_prompt_items").upsert(
     {
       project_id: normalizedProjectId,
       prompt_id: normalizedPromptId,
-      user_id: userId,
+      user_id: resolvedUserId,
       updated_at: new Date().toISOString(),
     },
     {
@@ -427,19 +435,21 @@ export const associatePromptWithProject = async ({
 export const associateGenerationWithProject = async ({
   projectId,
   generationId,
+  userId,
 }: {
   projectId: string;
   generationId: string;
+  userId?: string | null;
 }): Promise<void> => {
   const normalizedProjectId = normalizeProjectId(projectId);
   const normalizedGenerationId = typeof generationId === "string" ? generationId.trim() : "";
   if (!normalizedProjectId || !normalizedGenerationId) return;
-  const { supabase, userId } = await resolveSupabaseContext();
+  const { supabase, userId: resolvedUserId } = await resolveSupabaseContext(userId);
   const { error } = await supabase.from("project_generation_items").upsert(
     {
       project_id: normalizedProjectId,
       generation_id: normalizedGenerationId,
-      user_id: userId,
+      user_id: resolvedUserId,
       updated_at: new Date().toISOString(),
     },
     {
@@ -513,6 +523,7 @@ const saveMediaUrlToLibraryViaServerCopy = async (
       await associateMediaFilesWithProject({
         projectId,
         mediaFileIds: [parsed.mediaFileId],
+        userId: input.userId ?? null,
       });
     } catch (error) {
       logProjectAssociationWarning({
@@ -1069,7 +1080,7 @@ const attachMediaFileToAiStudioGenerationOutput = async ({
  * Save a prompt record to the media library.
  */
 export const savePromptRecord = async (input: PromptRecordInput) => {
-  const { supabase, userId } = await resolveSupabaseContext();
+  const { supabase, userId } = await resolveSupabaseContext(input.userId);
   const { data, error } = await supabase
     .from("media_prompts")
     .insert({
@@ -1092,6 +1103,7 @@ export const savePromptRecord = async (input: PromptRecordInput) => {
       await associatePromptWithProject({
         projectId,
         promptId,
+        userId,
       });
     } catch (error) {
       logProjectAssociationWarning({
@@ -1109,7 +1121,7 @@ export const savePromptRecord = async (input: PromptRecordInput) => {
  * Insert a media event row (best-effort).
  */
 export const logMediaEvent = async (input: MediaEventInput) => {
-  const { supabase, userId } = await resolveSupabaseContext();
+  const { supabase, userId } = await resolveSupabaseContext(input.userId);
   const { error } = await supabase.from("media_events").insert({
     user_id: userId,
     event_type: input.eventType,
@@ -1172,7 +1184,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   if (input.source === "ai_studio" && !input.generationId) {
     throw new Error(GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
   }
-  const { supabase, userId } = await resolveSupabaseContext();
+  const { supabase, userId } = await resolveSupabaseContext(input.userId);
   if (input.source === "ai_studio" && input.generationId) {
     const existingRow = await readExistingAiStudioMediaRowByOutputIndexWithRetry({
       supabase,
@@ -1187,6 +1199,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
           await associateMediaFilesWithProject({
             projectId,
             mediaFileIds: [existingRow.id],
+            userId,
           });
         } catch (error) {
           logProjectAssociationWarning({
@@ -1378,6 +1391,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
             await associateMediaFilesWithProject({
               projectId,
               mediaFileIds: [existingRow.id],
+              userId,
             });
           } catch (associationError) {
             logProjectAssociationWarning({
@@ -1529,6 +1543,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       await associateMediaFilesWithProject({
         projectId,
         mediaFileIds: [mediaFileId],
+        userId,
       });
     } catch (error) {
       logProjectAssociationWarning({

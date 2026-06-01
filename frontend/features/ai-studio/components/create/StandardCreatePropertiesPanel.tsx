@@ -145,6 +145,7 @@ export function StandardCreatePropertiesPanel({
   onAssistantMessageEdit,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  guardrailReason = null,
   onClearAgentChat,
   imageResolution,
   onImageResolutionChange,
@@ -381,6 +382,11 @@ export function StandardCreatePropertiesPanel({
             costCredits={costCredits}
             disabled={isGenerateDisabled}
           />
+          {isGenerateDisabled && guardrailReason ? (
+            <div className="create-composer-inline-warning-bubble" role="status" aria-live="polite">
+              {guardrailReason}
+            </div>
+          ) : null}
         </div>
       </div>
     ),

@@ -22,9 +22,11 @@ vi.mock("../useAiStudioProjectWorkspacePersistenceController", () => ({
       retry: vi.fn(),
     },
     setSkipRestoreApplyForSessionId: vi.fn(),
+    projectBootstrapSettled: false,
     projectBootstrapApplied: false,
     projectBootstrapError: null,
     retryProjectBootstrap: vi.fn(),
+    resetProjectWorkspace: vi.fn(async () => undefined),
   })),
 }));
 

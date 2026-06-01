@@ -6,7 +6,7 @@
  */
 import { randomUUID } from "crypto";
 import { computeCostForModel } from "../../model-runtime/pricing";
-import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGridBilledCredits";
+import { resolveCreateImageBilledCreditLookup } from "../../model-runtime/createImageBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { requireApiUser } from "./auth";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
@@ -202,16 +202,19 @@ export const chargeGenerationRequest = async ({
     return null;
   }
   const effectivePricingPolicy = materializeImageBilledCreditPolicy(runtimePricingPolicy.policy);
-  const breakdown = isCreateImageBillingPath({
+  const createImagePricingLookup = isCreateImageBillingPath({
     shortpulseContext,
   })
-    ? resolvePricingGridCostBreakdown({
+    ? resolveCreateImageBilledCreditLookup({
         modelId,
         params: pricingParams,
         pricingPolicy: effectivePricingPolicy,
-        requireExplicitBilledCreditsOverride: true,
       })
-    : computeCostForModel(modelId, pricingParams, effectivePricingPolicy);
+    : null;
+  const effectivePricingParams = createImagePricingLookup?.params ?? pricingParams;
+  const breakdown =
+    createImagePricingLookup?.breakdown ??
+    computeCostForModel(modelId, effectivePricingParams, effectivePricingPolicy);
   if (!breakdown?.credits || breakdown.credits <= 0) {
     await logGenerationFailure({
       req,
@@ -240,12 +243,15 @@ export const chargeGenerationRequest = async ({
     model_id: modelId,
     route: req.url ?? null,
     params: summarizePayload(payload),
-    pricing_params: pricingParams,
+    pricing_params: effectivePricingParams,
     pricing_breakdown: {
       usd_raw: breakdown.usdRaw,
       raw_credits: breakdown.rawCredits,
       billed_credits: breakdown.credits,
       billed_usd: breakdown.usd,
+      ...(createImagePricingLookup?.breakdown?.variantId
+        ? { variant_id: createImagePricingLookup.breakdown.variantId }
+        : {}),
       pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
       pricing_policy_source: runtimePricingPolicy.source,
     },
@@ -294,6 +300,9 @@ export const chargeGenerationRequest = async ({
     rawCredits: breakdown.rawCredits,
     billedCredits: breakdown.credits,
     billedUsd: breakdown.usd,
+    ...(createImagePricingLookup?.breakdown?.variantId
+      ? { variantId: createImagePricingLookup.breakdown.variantId }
+      : {}),
     pricingPolicyVersion: runtimePricingPolicy.activePolicyVersion,
     pricingPolicySource: runtimePricingPolicy.source,
   };

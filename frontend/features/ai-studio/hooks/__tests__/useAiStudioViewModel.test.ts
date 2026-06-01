@@ -257,6 +257,53 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(true);
   });
 
+  it("prices GPT Image 2 Create Character Mode when the effective submit variant has a canonical row", () => {
+    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+    const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Silver-haired warrior",
+      sheetReferenceStoragePaths: ["user/chars/look-1.png"],
+      sheetReferenceUrls: ["https://cdn.shortpulse.test/look-1.png"],
+      loadedAtMs: Date.now(),
+    };
+    const expectedCost = resolvePricingGridBilledCredits({
+      modelId,
+      params: {
+        modelId,
+        aspect: "16:9",
+        resolution: "medium",
+        inputImageCount: 1,
+        inputFidelity: "high",
+        maskPresent: false,
+      },
+      pricingPolicy: pricingGridPolicy,
+      requireExplicitBilledCreditsOverride: true,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "16:9",
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "medium",
+        isCreateCharacterModeEnabled: true,
+        createCharacterModeInjectionBundle,
+        costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
   it("maps GPT Image 2 Create UI resolution labels onto canonical quality rows", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const expectedCost = resolvePricingGridBilledCredits({

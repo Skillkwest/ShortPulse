@@ -2,6 +2,7 @@ import {
   OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
 } from "../../../lib/model-runtime/openAiImage2";
+import { normalizeCreateImageBilledPricingParams } from "../../../lib/model-runtime/createImageBilledCredits";
 import type { PricingParams } from "../../../lib/model-runtime/pricingTypes";
 import { mergeCharacterAndUserReferences } from "./characterModePayload";
 import { resolveCreateCharacterModeSubmitModel } from "./createCharacterModeModelMapping";
@@ -27,7 +28,7 @@ type ResolveCreatePricingTargetArgs = {
 
 type CreatePricingTarget = {
   modelId: string;
-  params: PricingParams;
+  params: Omit<PricingParams, "modelId">;
   inputImageCount: number;
 };
 
@@ -90,14 +91,17 @@ export const resolveCreatePricingTarget = ({
           maxInputImages
         ).length;
 
-  const params = costParamsForModel(effectiveModelId, {
-    aspect,
-    ...(resolution ? { resolution } : {}),
-    ...(inputImageCount > 0 ? { inputImageCount } : {}),
-    ...(effectiveModelId === OPENAI_GPT_IMAGE_2_MODEL_ID && inputImageCount > 0
-      ? { inputFidelity: OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY }
-      : {}),
-  });
+  const params = normalizeCreateImageBilledPricingParams(
+    effectiveModelId,
+    costParamsForModel(effectiveModelId, {
+      aspect,
+      ...(resolution ? { resolution } : {}),
+      ...(inputImageCount > 0 ? { inputImageCount } : {}),
+      ...(effectiveModelId === OPENAI_GPT_IMAGE_2_MODEL_ID && inputImageCount > 0
+        ? { inputFidelity: OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY }
+        : {}),
+    })
+  );
 
   return {
     modelId: effectiveModelId,

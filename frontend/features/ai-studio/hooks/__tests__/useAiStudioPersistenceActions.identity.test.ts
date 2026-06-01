@@ -9,6 +9,7 @@ const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const associatePromptWithProjectMock = vi.hoisted(() => vi.fn());
 const reportAppErrorMock = vi.hoisted(() => vi.fn());
 const saveMediaUrlToLibraryMock = vi.hoisted(() => vi.fn());
+const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../logic/mediaLibraryPersistence", async () => {
   const actual = await vi.importActual("../../logic/mediaLibraryPersistence");
@@ -26,11 +27,17 @@ vi.mock("../../../../lib/appErrorReporter", () => ({
   reportAppError: reportAppErrorMock,
 }));
 
+vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
+  useResolvedProtectedSessionState: (...args: unknown[]) =>
+    useResolvedProtectedSessionStateMock(...args),
+}));
+
 import { useAiStudioPersistenceActions } from "../useAiStudioPersistenceActions";
 
 const RESOLVED_GENERATION_ID = "11111111-1111-4111-8111-111111111111";
 const PROJECT_GENERATION_ID = "22222222-2222-4222-8222-222222222222";
 const EXISTING_GENERATION_ID = "33333333-3333-4333-8333-333333333333";
+const CURRENT_USER_ID = "user-1";
 
 const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
   ({
@@ -49,6 +56,11 @@ const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
 describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: CURRENT_USER_ID } } as never,
+      user: { id: CURRENT_USER_ID } as never,
+    });
     saveMediaUrlToLibraryMock.mockResolvedValue({
       mediaFileId: "media-new",
       storagePath: "user-1/generations/images/out-1.png",
@@ -89,7 +101,11 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     });
 
     expect(resolvedGenerationId).toBe(RESOLVED_GENERATION_ID);
-    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", null);
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith(
+      "req-1",
+      null,
+      CURRENT_USER_ID
+    );
     expect(outputs.get("out-1")?.generationId).toBe(RESOLVED_GENERATION_ID);
     expect(updateOutputById).toHaveBeenCalled();
   });
@@ -126,10 +142,15 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       });
     });
 
-    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", "project-1");
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith(
+      "req-1",
+      "project-1",
+      CURRENT_USER_ID
+    );
     expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       generationId: PROJECT_GENERATION_ID,
+      userId: CURRENT_USER_ID,
     });
   });
 
@@ -172,6 +193,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       generationId: EXISTING_GENERATION_ID,
+      userId: CURRENT_USER_ID,
     });
   });
 
@@ -211,11 +233,16 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     });
 
     expect(resolvedGenerationId).toBe(PROJECT_GENERATION_ID);
-    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", "project-1");
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith(
+      "req-1",
+      "project-1",
+      CURRENT_USER_ID
+    );
     expect(outputs.get("out-1")?.generationId).toBe(PROJECT_GENERATION_ID);
     expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       generationId: PROJECT_GENERATION_ID,
+      userId: CURRENT_USER_ID,
     });
   });
 
@@ -256,10 +283,15 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       await result.current.persistOutputSave("out-1");
     });
 
-    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", "project-1");
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith(
+      "req-1",
+      "project-1",
+      CURRENT_USER_ID
+    );
     expect(saveMediaUrlToLibraryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: PROJECT_GENERATION_ID,
+        userId: CURRENT_USER_ID,
       })
     );
     expect(outputs.get("out-1")?.generationId).toBe(PROJECT_GENERATION_ID);
@@ -302,6 +334,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       mediaFileIds: ["media-1", "media-2"],
+      userId: CURRENT_USER_ID,
     });
     expect(outputs.get("out-1")?.saveState).toBe("saved");
   });
@@ -392,6 +425,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       mediaFileIds: ["media-2"],
+      userId: CURRENT_USER_ID,
     });
     expect(saveMediaUrlToLibraryMock).not.toHaveBeenCalled();
     expect(outputs.get("out-1")?.savedMediaIds).toEqual(["media-1", "media-2"]);
@@ -437,6 +471,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(associatePromptWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       promptId: "prompt-1",
+      userId: CURRENT_USER_ID,
     });
     expect(outputs.get("out-1")?.saveState).toBe("saved");
   });

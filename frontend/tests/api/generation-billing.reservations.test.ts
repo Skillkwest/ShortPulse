@@ -234,7 +234,7 @@ describe("generationBilling reservation RPC handling", () => {
         quality: "medium",
         n: 1,
       },
-      reason: "OpenAI GPT Image 2 generation",
+      reason: "GPT Image 2 generation",
     });
 
     const expectedPricingParams = buildPricingParams("gpt-image-2", {
@@ -308,7 +308,7 @@ describe("generationBilling reservation RPC handling", () => {
       res: res as never,
       modelId: "gpt-image-2",
       payload,
-      reason: "OpenAI GPT Image 2 edit",
+      reason: "GPT Image 2 edit",
     });
 
     const expectedPricingParams = buildPricingParams("gpt-image-2", payload);
@@ -368,7 +368,7 @@ describe("generationBilling reservation RPC handling", () => {
         quality: "medium",
         n: 1,
       },
-      reason: "OpenAI GPT Image 2 generation",
+      reason: "GPT Image 2 generation",
     });
 
     const expectedPricingParams = buildPricingParams("gpt-image-2", {

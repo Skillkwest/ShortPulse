@@ -22,6 +22,7 @@ export type ChargeResult = {
   pricingBreakdown: {
     billedCredits: number;
     billedUsd: number;
+    variantId?: string | null;
     pricingPolicySource: string | null;
     pricingPolicyVersion: number | null;
     rawCredits: number;

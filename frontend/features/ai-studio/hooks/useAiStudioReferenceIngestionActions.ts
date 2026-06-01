@@ -3,6 +3,7 @@
  * Centralizes agent/paste/library/file ingestion callbacks and agent-context projection.
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import type { AgentContext } from "../../ai-agent/types";
 import { randomId } from "../logic/ids";
 import {
@@ -132,6 +133,8 @@ export const useAiStudioReferenceIngestionActions = ({
   updateOutputById,
   setUiError,
 }: UseAiStudioReferenceIngestionActionsArgs): UseAiStudioReferenceIngestionActionsResult => {
+  const sessionSnapshot = useResolvedProtectedSessionState();
+  const currentUserId = sessionSnapshot.user?.id ?? null;
   const libraryMediaIngestionErrorMessage =
     "Unable to add that media from Media Library right now. Please try again.";
   const buildLibraryMediaOutputWithId = useCallback(
@@ -204,6 +207,7 @@ export const useAiStudioReferenceIngestionActions = ({
           await associateMediaFilesWithProject({
             projectId,
             mediaFileIds: [payload.id],
+            userId: currentUserId,
           });
         } catch {
           // Continue hydration even if project association fails transiently.
@@ -251,6 +255,7 @@ export const useAiStudioReferenceIngestionActions = ({
     [
       buildLibraryMediaOutputWithId,
       libraryMediaIngestionErrorMessage,
+      currentUserId,
       projectId,
       setOutputs,
       setUiError,

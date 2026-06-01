@@ -1,5 +1,5 @@
 /**
- * OpenAI GPT Image 2 generation and persistence helpers.
+ * GPT Image 2 generation and persistence helpers.
  * Owns the direct-response provider call plus normalized AI Studio media/output persistence.
  */
 import { randomUUID } from "crypto";

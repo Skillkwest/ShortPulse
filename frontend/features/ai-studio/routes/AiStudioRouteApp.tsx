@@ -346,6 +346,7 @@ const AiStudioPageRuntimeBody = ({
   );
   const {
     sessionRestoreCandidate,
+    projectBootstrapSettled,
     projectBootstrapApplied,
     projectBootstrapError,
     retryProjectBootstrap,
@@ -618,6 +619,7 @@ const AiStudioPageRuntimeBody = ({
   } = useAiStudioShellRuntime({
     base,
     sessionRestoreCandidate,
+    projectBootstrapSettled,
     projectBootstrapApplied,
     filteredModelOptions,
     resolveModelPickerCredits,

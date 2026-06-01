@@ -1,5 +1,5 @@
 /**
- * Helper-level persistence coverage for OpenAI GPT Image 2 autosave behavior.
+ * Helper-level persistence coverage for GPT Image 2 autosave behavior.
  * Verifies the Media Library autosave contract independently from the route handlers.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -102,6 +102,36 @@ vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
     associateGenerationWithProjectForUserMock(...args),
   associateMediaFilesWithProjectForUser: (...args: unknown[]) =>
     associateMediaFilesWithProjectForUserMock(...args),
+  associateGenerationAndMediaWithProjectForUserBestEffort: async ({
+    userId,
+    projectId,
+    generationId,
+    mediaFileIds,
+  }: {
+    userId: string;
+    projectId: string | null | undefined;
+    generationId: string;
+    mediaFileIds?: string[] | null;
+  }) => {
+    const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : "";
+    if (!normalizedProjectId) return false;
+    const associatedGeneration = await associateGenerationWithProjectForUserMock({
+      userId,
+      projectId: normalizedProjectId,
+      generationId,
+    });
+    const normalizedMediaFileIds =
+      Array.isArray(mediaFileIds) && mediaFileIds.length > 0 ? mediaFileIds : [];
+    if (normalizedMediaFileIds.length === 0) {
+      return associatedGeneration;
+    }
+    const associatedMedia = await associateMediaFilesWithProjectForUserMock({
+      userId,
+      projectId: normalizedProjectId,
+      mediaFileIds: normalizedMediaFileIds,
+    });
+    return Boolean(associatedGeneration || associatedMedia);
+  },
 }));
 
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "../../lib/server/api/mediaAutosavePreference";

@@ -65,9 +65,11 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         retry: vi.fn(),
       },
       sessionSnapshot: null,
+      projectBootstrapSettled: false,
       projectBootstrapApplied: false,
       projectBootstrapError: null,
       retryProjectBootstrap: vi.fn(),
+      resetProjectWorkspace: vi.fn(async () => undefined),
       __capturedArgs: args,
     }));
   });

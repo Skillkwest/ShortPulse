@@ -1,5 +1,5 @@
 /**
- * Authenticated client for the ShortPulse OpenAI GPT Image 2 route.
+ * Authenticated client for the ShortPulse GPT Image 2 route.
  * Keeps provider submit logic out of UI hooks while preserving server-owned credentials.
  */
 import { fetchWithAuth } from "./authenticatedFetch";

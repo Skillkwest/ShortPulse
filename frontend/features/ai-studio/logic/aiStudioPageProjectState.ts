@@ -9,19 +9,19 @@ export const normalizeAiStudioProjectName = (value: string | null | undefined): 
 export const resolveProjectEntryPhase = ({
   projectStatus,
   projectRouteRequested,
-  projectBootstrapApplied,
+  projectBootstrapSettled,
   workspaceRestoreCandidate,
 }: {
   projectStatus: "idle" | "loading" | "ready" | "error";
   projectRouteRequested: boolean;
-  projectBootstrapApplied: boolean;
+  projectBootstrapSettled: boolean;
   workspaceRestoreCandidate: {
     status: "idle" | "loading" | "ready" | "error";
     result?: "idle" | "loading" | "found_snapshot" | "no_snapshot" | "load_failed";
   };
 }): AiStudioProjectEntryPhase => {
   if (projectStatus !== "ready") return "resolving-project";
-  if (projectBootstrapApplied) return "restoring-workspace";
+  if (projectBootstrapSettled) return "restoring-workspace";
   if (workspaceRestoreCandidate.status !== "ready") return "loading-workspace";
   if (workspaceRestoreCandidate.result === "no_snapshot") return "preparing-empty-workspace";
   if (

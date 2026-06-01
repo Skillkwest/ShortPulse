@@ -2,6 +2,7 @@
  * Persistence and save-action callbacks for AI Studio outputs and prompts.
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { isVideoUrl, type Provider } from "../logic/stateParsers";
 import type { StudioOutput, StudioOutputSaveState } from "../types";
 import {
@@ -81,6 +82,8 @@ export const useAiStudioPersistenceActions = ({
   aspect,
   prompt,
 }: UseAiStudioPersistenceActionsArgs) => {
+  const sessionSnapshot = useResolvedProtectedSessionState();
+  const currentUserId = sessionSnapshot.user?.id ?? null;
   void setOutputs;
   void aspect;
   const markOutputSaved = useCallback(
@@ -145,6 +148,7 @@ export const useAiStudioPersistenceActions = ({
             await associateGenerationWithProject({
               projectId,
               generationId: existingGenerationId,
+              userId: currentUserId,
             });
           } catch {
             // Project association is best-effort here; direct polling remains authoritative.
@@ -160,7 +164,7 @@ export const useAiStudioPersistenceActions = ({
         return existingGenerationId;
       }
       const resolvedGenerationId = resolvedTaskId
-        ? await resolveGenerationIdForRequestId(resolvedTaskId, projectId)
+        ? await resolveGenerationIdForRequestId(resolvedTaskId, projectId, currentUserId)
         : null;
       if (resolvedGenerationId) {
         if (projectId) {
@@ -168,6 +172,7 @@ export const useAiStudioPersistenceActions = ({
             await associateGenerationWithProject({
               projectId,
               generationId: resolvedGenerationId,
+              userId: currentUserId,
             });
           } catch {
             // Project association is best-effort here; direct polling remains authoritative.
@@ -182,7 +187,7 @@ export const useAiStudioPersistenceActions = ({
       }
       return null;
     },
-    [findOutputById, projectId, updateOutputById]
+    [currentUserId, findOutputById, projectId, updateOutputById]
   );
 
   const persistPromptSave = useCallback(
@@ -202,6 +207,7 @@ export const useAiStudioPersistenceActions = ({
           modelId: modelId ?? null,
           source: source ?? "manual",
           projectId,
+          userId: currentUserId,
         });
         if (promptId) {
           try {
@@ -209,6 +215,7 @@ export const useAiStudioPersistenceActions = ({
               eventType: "prompt_saved",
               entityType: "media_prompt",
               entityId: promptId,
+              userId: currentUserId,
             });
           } catch {
             // best-effort logging only
@@ -221,7 +228,7 @@ export const useAiStudioPersistenceActions = ({
         return null;
       }
     },
-    [projectId, setUiError]
+    [currentUserId, projectId, setUiError]
   );
 
   const persistMediaUrls = useCallback(
@@ -280,6 +287,7 @@ export const useAiStudioPersistenceActions = ({
             },
             posterUrlHint: resolvePersistedPosterUrlHint(output),
             projectId,
+            userId: currentUserId,
           });
           if (!delivery) {
             delivery = result.delivery;
@@ -292,6 +300,7 @@ export const useAiStudioPersistenceActions = ({
                 eventType,
                 entityType: "media_file",
                 entityId: result.mediaFileId,
+                userId: currentUserId,
                 metadata: {
                   output_id: output.id,
                   provider,
@@ -314,6 +323,7 @@ export const useAiStudioPersistenceActions = ({
             eventType: "generation_failed",
             entityType: "ai_generation",
             entityId: generationId,
+            userId: currentUserId,
             metadata: {
               stage: "storage_upload",
               errors,
@@ -326,10 +336,11 @@ export const useAiStudioPersistenceActions = ({
 
       return { mediaFileIds, errors, delivery };
     },
-    [findOutputById, projectId]
+    [currentUserId, findOutputById, projectId]
   );
 
   const { persistOutputSave } = useAiStudioOutputSaveRuntime({
+    currentUserId,
     projectId,
     findOutputById,
     updateOutputById,

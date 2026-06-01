@@ -553,9 +553,11 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioPageSessionPersistence", () =
       retry: vi.fn(),
     },
     sessionSnapshot: null,
+    projectBootstrapSettled: false,
     projectBootstrapApplied: false,
     projectBootstrapError: null,
     retryProjectBootstrap: vi.fn(),
+    resetProjectWorkspace: vi.fn(async () => undefined),
   }),
 }));
 

@@ -4,6 +4,7 @@ import { useAiStudioReferenceIngestionActions } from "../useAiStudioReferenceIng
 import type { StudioOutput } from "../../types";
 
 const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
+const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
 const prepareLibraryMediaIngestionPayloadMock = vi.hoisted(() => vi.fn(async (payload) => payload));
 const uploadMediaFileMock = vi.hoisted(() => vi.fn());
 const uploadImageAssetToStorageMock = vi.hoisted(() => vi.fn());
@@ -16,6 +17,11 @@ vi.mock("../../logic/mediaLibraryPanelApi", () => ({
 
 vi.mock("../../logic/mediaLibraryPersistence", () => ({
   associateMediaFilesWithProject: associateMediaFilesWithProjectMock,
+}));
+
+vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
+  useResolvedProtectedSessionState: (...args: unknown[]) =>
+    useResolvedProtectedSessionStateMock(...args),
 }));
 
 vi.mock("../../reference-ingestion/prepareLibraryMediaIngestionPayload", () => ({
@@ -73,9 +79,16 @@ const makeUploadRow = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const CURRENT_USER_ID = "user-1";
+
 describe("useAiStudioReferenceIngestionActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: CURRENT_USER_ID } } as never,
+      user: { id: CURRENT_USER_ID } as never,
+    });
     prepareLibraryMediaIngestionPayloadMock.mockImplementation(async (payload) => payload);
     uploadMediaFileMock.mockImplementation(async ({ file }: { file: File }) =>
       makeUploadRow({
@@ -189,6 +202,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       mediaFileIds: ["media-1"],
+      userId: CURRENT_USER_ID,
     });
     expect(setOutputs).toHaveBeenCalled();
   });
@@ -297,6 +311,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       mediaFileIds: ["media-reference.png"],
+      userId: CURRENT_USER_ID,
     });
     expect(nextOutputs[0]).toEqual(
       expect.objectContaining({

@@ -5,9 +5,9 @@
 import { useCallback, useMemo } from "react";
 import { resolveRequiredAiStudioTextPromptModelId } from "../../../lib/model-runtime/modelCatalog";
 import {
-  resolvePricingGridBilledCredits,
-  resolvePricingGridCostBreakdown,
-} from "../../../lib/model-runtime/pricingGridBilledCredits";
+  resolveCreateImageBilledCreditLookup,
+  resolveCreateImageBilledCredits,
+} from "../../../lib/model-runtime/createImageBilledCredits";
 import { getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
@@ -218,6 +218,17 @@ export const useAiStudioViewModel = ({
       pricingImageResolution,
     ]
   );
+  const currentCreatePricingLookup = useMemo(
+    () =>
+      currentCreatePricingTarget
+        ? resolveCreateImageBilledCreditLookup({
+            modelId: currentCreatePricingTarget.modelId,
+            params: currentCreatePricingTarget.params,
+            pricingPolicy,
+          })
+        : null,
+    [currentCreatePricingTarget, pricingPolicy]
+  );
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
@@ -230,13 +241,7 @@ export const useAiStudioViewModel = ({
       if (mode === "image") {
         if (!currentCreatePricingTarget) return null;
         if (canUseStandardCreatePricingGrid) {
-          const pricingGridBreakdown = resolvePricingGridCostBreakdown({
-            modelId: currentCreatePricingTarget.modelId,
-            params: currentCreatePricingTarget.params,
-            pricingPolicy,
-            requireExplicitBilledCreditsOverride: true,
-          });
-          return pricingGridBreakdown;
+          return currentCreatePricingLookup?.breakdown ?? null;
         }
         return resolveClientPricingBreakdown({
           modelId: currentCreatePricingTarget.modelId,
@@ -311,6 +316,7 @@ export const useAiStudioViewModel = ({
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
     isVideoTool,
+    currentCreatePricingLookup,
     pricingPolicy,
     videoPricingParams,
     pricingImageResolution,
@@ -332,11 +338,10 @@ export const useAiStudioViewModel = ({
         costParamsForModel,
       });
       if (!pricingTarget) return null;
-      return resolvePricingGridBilledCredits({
+      return resolveCreateImageBilledCredits({
         modelId: pricingTarget.modelId,
         params: pricingTarget.params,
         pricingPolicy,
-        requireExplicitBilledCreditsOverride: true,
       });
     }
     return resolveClientBilledCredits({
@@ -386,11 +391,10 @@ export const useAiStudioViewModel = ({
           costParamsForModel,
         });
         if (!pricingTarget) return null;
-        return resolvePricingGridBilledCredits({
+        return resolveCreateImageBilledCredits({
           modelId: pricingTarget.modelId,
           params: pricingTarget.params,
           pricingPolicy,
-          requireExplicitBilledCreditsOverride: true,
         });
       }
       return resolveClientBilledCredits({
@@ -437,11 +441,10 @@ export const useAiStudioViewModel = ({
         costParamsForModel,
       });
       if (!pricingTarget) return null;
-      return resolvePricingGridBilledCredits({
+      return resolveCreateImageBilledCredits({
         modelId: pricingTarget.modelId,
         params: pricingTarget.params,
         pricingPolicy,
-        requireExplicitBilledCreditsOverride: true,
       });
     }
     return resolveClientBilledCredits({
@@ -480,11 +483,10 @@ export const useAiStudioViewModel = ({
         costParamsForModel,
       });
       if (!pricingTarget) return null;
-      return resolvePricingGridBilledCredits({
+      return resolveCreateImageBilledCredits({
         modelId: pricingTarget.modelId,
         params: pricingTarget.params,
         pricingPolicy,
-        requireExplicitBilledCreditsOverride: true,
       });
     }
     return resolveClientBilledCredits({

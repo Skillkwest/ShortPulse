@@ -16,6 +16,9 @@ export type AiStudioPersistenceController = {
   sessionSnapshot: AiStudioSessionSnapshot | null;
   sessionRestoreCandidate: AiStudioPersistenceRestoreCandidateState;
   setSkipRestoreApplyForSessionId: (sessionId: string | null) => void;
+  // Restore/apply has settled enough for the studio shell to open.
+  projectBootstrapSettled: boolean;
+  // Stricter restore-visibility proof used to unlock autosave-safe persistence work.
   projectBootstrapApplied: boolean;
   projectBootstrapError: string | null;
   retryProjectBootstrap: () => void;

@@ -4,8 +4,6 @@ import { settleGenerationOutcome } from "./generationBilling";
 import { lookupGenerationAttemptByProviderRequest } from "./generationAttempts";
 import { persistGenerationOutputRecords } from "./generationOutputs";
 import { applyGenerationLifecycleTransition } from "./generationLifecycleTransitionService";
-import { upsertGenerationProjection } from "./generationProjection";
-import { upsertGenerationPublication } from "./generationPublications";
 import { writeAppErrorLog } from "./appErrorLogs";
 import {
   describeBestEffortWriteFailure,
@@ -14,18 +12,17 @@ import {
 } from "./terminalConvergenceBestEffortLogging";
 import { applyTerminalAbandonmentMetadata } from "./terminalConvergenceMetadata";
 import {
-  resolveTerminalFailureVisibilityState,
-  resolveTerminalSuccessVisibilityState,
-} from "./terminalConvergenceVisibility";
+  readTerminalConvergenceProjectIdFromMetadata,
+  syncTerminalFailureViewState,
+  syncTerminalSuccessViewState,
+} from "./terminalConvergenceViewSync";
 import {
   readGenerationAbandonmentContext,
   isGenerationAbandonedMetadata,
 } from "./generationAbandonment";
 import { getSupabaseAdmin } from "./supabaseAdmin";
-import { readMediaDeliveryPathsById } from "./mediaDeliveryPaths";
 import { readMediaAutosaveEnabledForUser } from "./mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./mediaAutosavePreference";
-import { resolveAutosaveProjectionSaveOutcome } from "./terminalConvergenceProjectionState";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { normalizeCustomerFacingProviderError } from "../../customerFacingProviderText";
 import { associateGenerationWithProjectForUserBestEffort } from "../projectGenerationAssociationsService";
@@ -72,34 +69,6 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
-const readMetadataObject = (
-  metadata: JsonObject,
-  snakeCaseKey: string,
-  camelCaseKey?: string
-): JsonObject => {
-  const primary = asObject(metadata[snakeCaseKey]);
-  if (Object.keys(primary).length > 0) return primary;
-  if (!camelCaseKey) return {};
-  return asObject(metadata[camelCaseKey]);
-};
-
-const readMetadataBoolean = (
-  metadata: JsonObject,
-  snakeCaseKey: string,
-  camelCaseKey?: string
-): boolean | null => {
-  if (typeof metadata[snakeCaseKey] === "boolean") return metadata[snakeCaseKey] as boolean;
-  if (camelCaseKey && typeof metadata[camelCaseKey] === "boolean") {
-    return metadata[camelCaseKey] as boolean;
-  }
-  return null;
-};
-
-const readProjectIdFromMetadata = (metadata: JsonObject): string | null => {
-  const shortpulseContext = readMetadataObject(metadata, "shortpulse_context", "shortpulseContext");
-  return asString(shortpulseContext.project_id) ?? asString(shortpulseContext.projectId);
-};
-
 const refreshProjectGenerationAssociationFromMetadata = async ({
   generationId,
   metadata,
@@ -113,11 +82,11 @@ const refreshProjectGenerationAssociationFromMetadata = async ({
   metadata: JsonObject;
   modelId: string | null;
   provider: string | null;
-  requestId: string;
+  requestId: string | null;
   routeLabel: string;
   userId: string;
 }): Promise<void> => {
-  const projectId = readProjectIdFromMetadata(metadata);
+  const projectId = readTerminalConvergenceProjectIdFromMetadata(metadata);
   if (!projectId) return;
 
   await associateGenerationWithProjectForUserBestEffort({
@@ -156,7 +125,7 @@ const logBestEffortProjectionFailure = async ({
   error,
 }: {
   generationId: string;
-  requestId: string;
+  requestId: string | null;
   routeLabel: string;
   userId: string;
   provider: string | null;
@@ -194,7 +163,7 @@ const logBestEffortPublicationFailure = async ({
   error,
 }: {
   generationId: string;
-  requestId: string;
+  requestId: string | null;
   routeLabel: string;
   userId: string;
   provider: string | null;
@@ -230,7 +199,7 @@ const tryReleaseMotionReferenceVideoLeases = async ({
   userId,
 }: {
   generationId: string;
-  requestId: string;
+  requestId: string | null;
   routeLabel: string;
   userId: string;
 }): Promise<void> => {
@@ -414,7 +383,7 @@ export const settleDirectGenerationSuccess = async ({
           metadata: generationMetadata,
         },
         mediaUrls: normalizedResultUrls,
-        projectId: readProjectIdFromMetadata(generationMetadata),
+        projectId: readTerminalConvergenceProjectIdFromMetadata(generationMetadata),
       });
       persistedOutputRows = await persistGenerationOutputRecords({
         generationId: generation.id,
@@ -454,44 +423,6 @@ export const settleDirectGenerationSuccess = async ({
       }).catch(() => undefined);
     }
   }
-  const deliveryPathsByMediaId = await readMediaDeliveryPathsById({
-    mediaFileIds: persistedOutputRows
-      .map((row) => row.mediaFileId)
-      .filter((value): value is string => Boolean(value)),
-    userId: generation.user_id,
-  });
-  const hasCanonicalStorageAuthority =
-    persistedOutputRows.length > 0 &&
-    persistedOutputRows.every((row) => {
-      if (!row.mediaFileId) return false;
-      return deliveryPathsByMediaId.has(row.mediaFileId);
-    });
-
-  const { hiddenInReferenceGrid, publicationState, referenceGridVisible } =
-    resolveTerminalSuccessVisibilityState({
-      metadata: {
-        hiddenInReferenceGrid: readMetadataBoolean(
-          generationMetadata,
-          "hidden_in_reference_grid",
-          "hiddenInReferenceGrid"
-        ),
-      },
-      abandoned: isAbandoned,
-      hasCanonicalOwnedMedia: hasCanonicalStorageAuthority,
-    });
-  const projectId = readProjectIdFromMetadata(generationMetadata);
-
-  const firstOwnedDeliveryPaths =
-    persistedOutputRows.length > 0 && persistedOutputRows[0]?.mediaFileId
-      ? (deliveryPathsByMediaId.get(persistedOutputRows[0].mediaFileId) ?? null)
-      : null;
-  const normalizedSavedMediaIds = hasCanonicalStorageAuthority ? mediaFileIds : [];
-  const projectionSaveOutcome = resolveAutosaveProjectionSaveOutcome({
-    savedMediaIds: normalizedSavedMediaIds,
-    autosaveDecisionReason,
-    autosavePreferenceLookupMessage,
-  });
-
   const transition = await applyGenerationLifecycleTransition({
     intent: "provider_completed_observed",
     applyGenerationMutation: async () => {
@@ -570,109 +501,66 @@ export const settleDirectGenerationSuccess = async ({
     };
   }
 
-  try {
-    await Promise.all(
-      persistedOutputRows.map((row) => {
-        if (!row.id) return Promise.resolve();
-        const deliveryPaths = row.mediaFileId
-          ? (deliveryPathsByMediaId.get(row.mediaFileId) ?? null)
-          : null;
-        return upsertGenerationPublication({
-          generationId: generation.id,
-          generationOutputId: row.id,
-          userId: generation.user_id,
-          generationAttemptId: attempt?.id ?? null,
-          publicationState,
-          reusable: true,
-          visibleInAiStudio: true,
-          visibleInReferenceGrid: referenceGridVisible,
-          ownedMediaFileId: row.mediaFileId,
-          previewUrl: row.resultUrl,
-          fullUrl: row.resultUrl,
-          previewStoragePath: deliveryPaths?.previewStoragePath ?? null,
-          fullStoragePath: deliveryPaths?.fullStoragePath ?? null,
-          publishedAt: nowIso,
-          metadata: {
-            direct_terminal_settlement: true,
-            direct_terminal_settlement_outcome: "success",
-            direct_terminal_provider_state: providerState,
-            user_abandoned: isAbandoned,
-            autosave_enabled: mediaAutosaveEnabled,
-            autosave_preference_source: mediaAutosavePreference.source,
-            autosave_decision: autosaveDecision,
-            autosave_decision_reason: autosaveDecisionReason,
-          },
-        });
-      })
-    );
-  } catch (error) {
-    await logBestEffortPublicationFailure({
-      generationId: generation.id,
-      requestId: generation.request_id,
-      routeLabel,
-      userId: generation.user_id,
+  await syncTerminalSuccessViewState({
+    generation: {
+      id: generation.id,
+      user_id: generation.user_id,
+      request_id: generation.request_id,
       provider: generation.provider,
-      modelId: generation.model_id,
-      providerState,
-      error,
-    });
-  }
-
-  try {
-    await upsertGenerationProjection({
-      generationId: generation.id,
-      userId: generation.user_id,
-      projectId,
-      sourceRef: asString(generationMetadata.source_ref),
-      requestId: generation.request_id,
-      provider: generation.provider,
-      providerRequestId: generation.request_id,
-      latestAttemptId: attempt?.id ?? null,
-      status: "ready",
-      taskState: "success",
-      queueState: "dispatched",
-      displayPrompt: generation.prompt_text,
-      modelId: generation.model_id,
-      previewUrl: normalizedResultUrls[0] ?? null,
-      previewStoragePath: firstOwnedDeliveryPaths?.previewStoragePath ?? null,
-      fullStoragePath: firstOwnedDeliveryPaths?.fullStoragePath ?? null,
-      errorMessage: null,
-      errorMessageShort: null,
-      errorDetail: null,
-      saveState: projectionSaveOutcome.saveState,
-      saveError: projectionSaveOutcome.saveError,
-      hiddenInReferenceGrid,
-      referenceGridVisible,
-      publicationState,
-      resultUrls: normalizedResultUrls,
-      savedMediaIds: normalizedSavedMediaIds,
-      generationReplay: readMetadataObject(
-        generationMetadata,
-        "generation_replay",
-        "generationReplay"
-      ),
-      characterContext: readMetadataObject(
-        generationMetadata,
-        "character_context",
-        "characterContext"
-      ),
-      styleContext: readMetadataObject(generationMetadata, "style_context", "styleContext"),
-      startedAt: generation.created_at,
-      completedAt: nowIso,
-    });
-  } catch (error) {
-    await logBestEffortProjectionFailure({
-      generationId: generation.id,
-      requestId: generation.request_id,
-      routeLabel,
-      userId: generation.user_id,
-      provider: generation.provider,
-      modelId: generation.model_id,
-      providerState,
-      projectionStage: "success",
-      error,
-    });
-  }
+      model_id: generation.model_id,
+      prompt_text: generation.prompt_text,
+      created_at: generation.created_at,
+      metadata: generationMetadata,
+    },
+    abandoned: isAbandoned,
+    autosaveDecisionReason,
+    autosavePreferenceLookupMessage,
+    mediaFileIds,
+    nowIso,
+    persistedOutputRows,
+    publicationGenerationAttemptId: attempt?.id ?? null,
+    publicationMetadata: {
+      direct_terminal_settlement: true,
+      direct_terminal_settlement_outcome: "success",
+      direct_terminal_provider_state: providerState,
+      user_abandoned: isAbandoned,
+      autosave_enabled: mediaAutosaveEnabled,
+      autosave_preference_source: mediaAutosavePreference.source,
+      autosave_decision: autosaveDecision,
+      autosave_decision_reason: autosaveDecisionReason,
+    },
+    publicationWritePolicy: "always",
+    projectionLatestAttemptId: attempt?.id ?? null,
+    projectionQueueState: "dispatched",
+    resultUrls: normalizedResultUrls,
+    savedMediaIdsPolicy: "all_if_canonical",
+    includeProjectionStoragePaths: true,
+    onPublicationFailure: async (error) => {
+      await logBestEffortPublicationFailure({
+        generationId: generation.id,
+        requestId: generation.request_id,
+        routeLabel,
+        userId: generation.user_id,
+        provider: generation.provider,
+        modelId: generation.model_id,
+        providerState,
+        error,
+      });
+    },
+    onProjectionFailure: async (error) => {
+      await logBestEffortProjectionFailure({
+        generationId: generation.id,
+        requestId: generation.request_id,
+        routeLabel,
+        userId: generation.user_id,
+        provider: generation.provider,
+        modelId: generation.model_id,
+        providerState,
+        projectionStage: "success",
+        error,
+      });
+    },
+  });
 
   await refreshProjectGenerationAssociationFromMetadata({
     generationId: generation.id,
@@ -792,68 +680,38 @@ export const settleDirectGenerationFailure = async ({
     userId: generation.user_id,
   });
 
-  const { hiddenInReferenceGrid, referenceGridVisible } = resolveTerminalFailureVisibilityState({
-    metadata: {
-      hiddenInReferenceGrid: readMetadataBoolean(
-        generationMetadata,
-        "hidden_in_reference_grid",
-        "hiddenInReferenceGrid"
-      ),
+  await syncTerminalFailureViewState({
+    generation: {
+      id: generation.id,
+      user_id: generation.user_id,
+      request_id: generation.request_id,
+      provider: generation.provider,
+      model_id: generation.model_id,
+      prompt_text: generation.prompt_text,
+      created_at: generation.created_at,
+      metadata: generationMetadata,
     },
     abandoned: isAbandoned,
+    completedAt: nowIso,
+    errorDetail: normalizedErrorDetail,
+    errorMessage: normalizedErrorMessage,
+    errorMessageShort: normalizedErrorMessage,
+    projectionLatestAttemptId: attempt?.id ?? null,
+    projectionQueueState: "failed",
+    onProjectionFailure: async (error) => {
+      await logBestEffortProjectionFailure({
+        generationId: generation.id,
+        requestId: generation.request_id,
+        routeLabel,
+        userId: generation.user_id,
+        provider: generation.provider,
+        modelId: generation.model_id,
+        providerState,
+        projectionStage: "fail",
+        error,
+      });
+    },
   });
-
-  try {
-    await upsertGenerationProjection({
-      generationId: generation.id,
-      userId: generation.user_id,
-      projectId: readProjectIdFromMetadata(generationMetadata),
-      sourceRef: asString(generationMetadata.source_ref),
-      requestId: generation.request_id,
-      provider: generation.provider,
-      providerRequestId: generation.request_id,
-      latestAttemptId: attempt?.id ?? null,
-      status: "ready",
-      taskState: "fail",
-      queueState: "failed",
-      displayPrompt: generation.prompt_text,
-      modelId: generation.model_id,
-      errorMessage: normalizedErrorMessage,
-      errorMessageShort: normalizedErrorMessage,
-      errorDetail: normalizedErrorDetail,
-      saveState: "idle",
-      hiddenInReferenceGrid,
-      referenceGridVisible,
-      publicationState: "suppressed",
-      resultUrls: [],
-      savedMediaIds: [],
-      generationReplay: readMetadataObject(
-        generationMetadata,
-        "generation_replay",
-        "generationReplay"
-      ),
-      characterContext: readMetadataObject(
-        generationMetadata,
-        "character_context",
-        "characterContext"
-      ),
-      styleContext: readMetadataObject(generationMetadata, "style_context", "styleContext"),
-      startedAt: generation.created_at,
-      completedAt: nowIso,
-    });
-  } catch (error) {
-    await logBestEffortProjectionFailure({
-      generationId: generation.id,
-      requestId: generation.request_id,
-      routeLabel,
-      userId: generation.user_id,
-      provider: generation.provider,
-      modelId: generation.model_id,
-      providerState,
-      projectionStage: "fail",
-      error,
-    });
-  }
 
   const billingSettlement = await settleGenerationOutcome({
     userId: generation.user_id,

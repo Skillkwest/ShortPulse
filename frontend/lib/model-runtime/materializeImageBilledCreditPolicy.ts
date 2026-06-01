@@ -1,6 +1,7 @@
 import { buildDefaultPricingParams, listPricingModelConfigs } from "./pricing";
-import { buildModelPricingVariantId } from "./modelPricingVariants";
+import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { ModelConfig } from "./modelRegistry";
+import { normalizeCreateImageBilledPricingParams } from "./createImageBilledCredits";
 import {
   compactModelPricingPolicyDocument,
   type ModelPricingPerModelOverride,
@@ -13,10 +14,7 @@ import {
   shouldExpandResolutionPricingVariants,
 } from "./pricingGridVariantRules";
 
-type ImageVariantBase = {
-  baseVariantId: string;
-  editLike: boolean;
-};
+type ImageVariantBase = { editLike: boolean };
 
 const orderWithDefaultFirst = <T extends string | null>(values: T[], defaultValue: T): T[] => {
   const ordered: T[] = [];
@@ -55,16 +53,14 @@ const buildResolutionOptions = (model: ModelConfig): Array<string | null> => {
 
 const buildImageVariantBases = (model: ModelConfig): ImageVariantBase[] => {
   if (model.mediaType !== "image") return [];
-  if (model.supportsTextToImage && model.supportsImageToImage) {
-    return [
-      { baseVariantId: "create", editLike: false },
-      { baseVariantId: "edit", editLike: true },
-    ];
+  const variantBases: ImageVariantBase[] = [];
+  if (model.supportsTextToImage) {
+    variantBases.push({ editLike: false });
   }
   if (model.supportsImageToImage) {
-    return [{ baseVariantId: "default", editLike: true }];
+    variantBases.push({ editLike: true });
   }
-  return [{ baseVariantId: "default", editLike: false }];
+  return variantBases;
 };
 
 const mergeVariantOverride = (
@@ -113,16 +109,19 @@ export const materializeImageBilledCreditPolicy = (
     variantBases.forEach((variantBase) => {
       aspects.forEach((aspect) => {
         resolutions.forEach((resolution) => {
-          const params = buildDefaultPricingParams(model.id, {
-            ...(aspect ? { aspect } : {}),
-            ...(resolution ? { resolution } : {}),
-            ...(variantBase.editLike
-              ? {
-                  inputImageCount: 1,
-                  inputFidelity: "high" as const,
-                }
-              : {}),
-          });
+          const params = normalizeCreateImageBilledPricingParams(
+            model.id,
+            buildDefaultPricingParams(model.id, {
+              ...(aspect ? { aspect } : {}),
+              ...(resolution ? { resolution } : {}),
+              ...(variantBase.editLike
+                ? {
+                    inputImageCount: 1,
+                    inputFidelity: "high" as const,
+                  }
+                : {}),
+            })
+          );
 
           const breakdown = resolvePricingGridCostBreakdown({
             modelId: model.id,
@@ -131,17 +130,9 @@ export const materializeImageBilledCreditPolicy = (
           });
           if (!breakdown?.credits || breakdown.credits <= 0) return;
 
-          const variantId = buildModelPricingVariantId({
-            baseVariantId: variantBase.baseVariantId,
-            aspect: aspect ?? null,
-            resolution,
-            ...(variantBase.editLike
-              ? {
-                  inputImageCount: 1,
-                  inputFidelity: "high" as const,
-                  maskPresent: false,
-                }
-              : {}),
+          const variantId = resolveModelPricingVariantId({
+            modelId: model.id,
+            ...params,
           });
 
           nextPolicy.perModel[model.id] = mergeVariantOverride(

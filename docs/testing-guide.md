@@ -40,9 +40,10 @@ For default closeout selection by planning program, see:
   - Lane C style-drop characterization capture:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:style-drop`
     - Uses the authenticated AI Studio runtime plus audit-only `window.__shortpulseAiStudioPerf` helpers to print one passing and one failing Reference Grid -> Styles packet summary.
-  - Expert Edit coordinate parity matrix capture (CP-004 baseline harness):
+  - Expert Edit launch-surface browser audit:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:expert-edit-parity`
-    - Uses real pointer interactions in Expert Edit markup mode across DPR profiles (`1`, `2`, `3`) with a `4:3` viewport baseline.
+    - Verifies the authenticated production/browser Standard-only Edit launch surface across DPR profiles (`1`, `2`, `3`): AI Studio route reachability, visible Edit stage shell, hidden Inpaint/Markup launch-locked controls, and non-generative Edit controls.
+    - Safety: this audit does not click Generate or submit provider work.
     - Safety: this audit refuses `@example.com` addresses and requires a dedicated real test account.
   - AI Studio production perf release check:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run perf:ai-studio:release-check`

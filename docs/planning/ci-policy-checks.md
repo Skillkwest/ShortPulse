@@ -173,6 +173,7 @@ Mode policy:
 - Gate job ID: `expert_edit_coordinate_parity`
 - Command: `npm run test:expert-edit:coordinate-parity:gate`
 - Optional browser audit command: `npm run test:expert-edit:coordinate-parity:browser-audit`
+  - Despite the legacy script name, this optional browser audit verifies the active Standard-only Expert Edit launch surface rather than parked Inpaint/Markup pointer interactions.
 - Trigger policy:
   - Always on non-PR runs (`push`, `workflow_dispatch`)
   - PR runs only when Expert Edit coordinate-parity-impacting files change

@@ -27,8 +27,6 @@ Structure (locked):
 
 ## Program 0: Execution Authority
 
-- [x] Classify legacy planning docs into `active`, `retained evidence`, `working history`, and `archive candidate` buckets, then move the clear archive candidates out of the active planning path in bounded batches.
-      Evidence: `docs/planning/README.md`, `docs/planning/execution-authority.md`, `docs/archive/planning/README.md`
 - [x] Define a retained validation matrix by program so closeout checks stop being chosen ad hoc from the full script corpus.
       Evidence: `docs/planning/validation-matrix-by-program-2026-05-11.md`, `docs/planning/execution-authority.md`, `docs/planning/README.md`, `docs/testing-guide.md`
 
@@ -96,6 +94,8 @@ Structure (locked):
 
 ## Done (verified in repo)
 
+- [x] Classify legacy planning docs into `active`, `retained evidence`, `working history`, and `archive candidate` buckets, then move the clear archive candidates out of the active planning path in bounded batches.
+      Evidence: `docs/planning/README.md`, `docs/planning/execution-authority.md`, `docs/archive/planning/README.md`
 - [x] Auth boundary: retire `SHORTPULSE_ADMIN_EMAILS` as admin authority and require explicit Supabase `app_metadata` admin/operator roles for privileged API access.
       Evidence: `frontend/lib/server/api/auth.ts`, `frontend/pages/api/admin/access.ts`, `frontend/tests/api/auth-helper.test.ts`, `frontend/tests/api/admin-access.test.ts`, `docs/supabase_auth_setup.md`, `docs/security-checklist.md`
 

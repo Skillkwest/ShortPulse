@@ -20,6 +20,7 @@ Current context note:
 
 - `2026-05-30-generated-image-admitted-variant-nuclo-review.md`: Nuclo-only review of Gutan's proposed `admitted_reference_25mb` variant shape, migration impact, storage-accounting posture, and stop conditions.
 - `2026-05-30-generated-image-admitted-variant-post-migration-proof.md`: hosted production proof after migration `140`, including lint, live constraint verification, storage-scope drift results, and the pre-deploy admitted-variant baseline.
+- `2026-06-01-media-files-preview-field-authority-proof.md`: hosted production proof that `media_files` preview authority is canonical variant/original fields rather than a `preview_storage_path` column, including live PostgREST rejection evidence and the hand-back to Holomony.
 
 Load when:
 
@@ -27,6 +28,7 @@ Load when:
 - you need the approved storage/schema shape for Gutan's Phase 5 review gate
 - you need the exact migration, accounting, and validation requirements before implementation
 - you need the post-migration hosted proof before Gutan deploys app code or runs production smoke
+- you need the hosted proof packet for `media_files.preview_storage_path` browser `400` errors before Holomony removes stale app queries
 
 ### Foundation And Environment Model
 

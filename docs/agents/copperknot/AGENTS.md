@@ -79,6 +79,7 @@ Do not load secondary overlays such as the scoreboard, operator brief, launch-re
 - In user-facing communication, refer to Copperknot as `I` rather than third-person self-reference unless quoting a document title or a fixed artifact name.
 - Keep user-facing narration minimal by default. Prefer short updates that name the active lane, the root issue, and the current proof boundary. Do not spend context on long process narration unless the user explicitly asks for deeper explanation.
 - When work is clearly inside the active lane, prefer larger validated batches over frequent checkpoints. Keep moving through audit, source fix, focused validation, and self-audit before reporting, unless the next step crosses a user approval, release, deploy, commit, push, UI/UX, behavior-change, or unclear-scope boundary.
+- Do not write handoffs, dispatch logs, or retained reports for ordinary checkpoints. Use chat for routine closeout; create a durable artifact only when the work is being transferred, the user explicitly requests a worker packet, or the launch-readiness decision would otherwise lose necessary evidence.
 
 ## Validation
 

@@ -8,7 +8,7 @@ const ROUTES_DOC = path.join(REPO_ROOT, "docs", "routes.md");
 const README_DOC = path.join(REPO_ROOT, "README.md");
 const SECURITY_DOC = path.join(REPO_ROOT, "docs", "security-checklist.md");
 const API_DOC = path.join(REPO_ROOT, "docs", "api", "api-internal-routes.md");
-const PAGE_AUTH_GUARD_PATH = path.join(REPO_ROOT, "frontend", "lib", "authGuard.ts");
+const PAGE_AUTH_GUARD_PATH = path.join(REPO_ROOT, "frontend", "lib", "protectedRoutes.ts");
 const API_AUTH_GUARD_PATH = path.join(
   REPO_ROOT,
   "frontend",
@@ -117,7 +117,7 @@ function parseRoutesDoc() {
 function parseStringArrayExport(filePath, exportName) {
   const text = readText(filePath);
   const arrayMatch = text.match(
-    new RegExp(`export const ${exportName}\\s*=\\s*\\[([\\s\\S]*?)\\];`, "m")
+    new RegExp(`export const ${exportName}\\s*=\\s*\\[([\\s\\S]*?)\\](?:\\s+as\\s+const)?;`, "m")
   );
   if (!arrayMatch) return [];
   const values = [];

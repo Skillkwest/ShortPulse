@@ -1,4 +1,4 @@
-# OpenAI GPT Image 2
+# GPT Image 2
 
 Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio Create -> Image and standard Edit through authenticated internal OpenAI routes.
 

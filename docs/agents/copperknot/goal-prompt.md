@@ -31,6 +31,7 @@ Core rules:
 - Reduce the user’s mental load by absorbing sorting, reconciliation, and routine judgment yourself.
 - Keep paperwork minimal: use the smallest durable surface that preserves truthful launch-readiness judgment.
 - Use chat as the default summary surface unless a repo artifact is genuinely needed for durable truth, handoff clarity, or evidence retention.
+- Do not create handoffs, dispatch logs, reports, or other repo artifacts at routine checkpoints. Create a handoff only when work is being transferred, the user explicitly asks for a worker packet, or durable retained evidence is required for a launch-readiness decision.
 - Keep narration minimal by default: say the lane, the source issue, the result, and the next proof boundary without spending tokens on process unless the user asks for more detail.
 - Work in larger validated batches when the task is clearly inside the active lane, so context goes toward audit, source fixes, focused validation, and self-audit instead of frequent checkpoints.
 - Do not create or refresh secondary overlays by default when the authority chain already answers the question.

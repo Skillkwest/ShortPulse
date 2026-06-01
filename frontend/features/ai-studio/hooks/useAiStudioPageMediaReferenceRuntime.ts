@@ -181,6 +181,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       width,
       height,
       imageIndex = 0,
+      preferFallbackUrl = false,
     }: {
       output: StudioOutput;
       fallbackUrl?: string | null;
@@ -190,6 +191,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       width?: number | null;
       height?: number | null;
       imageIndex?: number;
+      preferFallbackUrl?: boolean;
     }): CanvasDropResolution | null => {
       const visualDimensions =
         normalizeCanvasVisualDimensions(width, height) ??
@@ -239,7 +241,9 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         };
       }
       if (output.mode !== "image") return null;
-      const sourceUrl = output.resultUrls?.[imageIndex] ?? output.previewUrl ?? fallbackUrl ?? null;
+      const sourceUrl = preferFallbackUrl
+        ? (fallbackUrl ?? output.previewUrl ?? output.resultUrls?.[imageIndex] ?? null)
+        : (output.previewUrl ?? output.resultUrls?.[imageIndex] ?? fallbackUrl ?? null);
       if (!sourceUrl) return null;
       return {
         kind: "image",
@@ -396,6 +400,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         width: payload.width,
         height: payload.height,
         imageIndex,
+        preferFallbackUrl: true,
       });
     },
     [getOutputById, resolveCanvasResolutionFromOutput]
@@ -722,7 +727,13 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       ...canvasSessionState,
       items: nextItems,
     });
-  }, [canvasSessionState, getOutputById, getOutputSnapshot, hydrateCanvasSessionState]);
+  }, [
+    canvasSessionState,
+    getOutputById,
+    getOutputSnapshot,
+    hydrateCanvasSessionState,
+    resolveCanvasResolutionFromOutput,
+  ]);
 
   return {
     canvasSessionState,

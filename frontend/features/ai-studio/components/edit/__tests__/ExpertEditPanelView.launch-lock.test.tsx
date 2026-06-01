@@ -41,7 +41,8 @@ describe("ExpertEditPanelView launch lock", () => {
     expect(screen.queryByText("Select Edit Mode")).not.toBeInTheDocument();
     expect(screen.queryByRole("tablist", { name: /generation mode/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Inpaint action tools")).not.toBeInTheDocument();
-    expect(screen.getByRole("group", { name: /move tools/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /undo move action/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /redo move action/i })).toBeInTheDocument();
   });
 
   it("removes the context-menu expand entry while launch lock is active", () => {

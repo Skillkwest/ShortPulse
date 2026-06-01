@@ -218,6 +218,17 @@ describe("create composer layout contract", () => {
     expect(latestAssistantOnly).toContain("font-weight: 400;");
   });
 
+  it("keeps user bubble body copy at the same font size as Standard assistant replies", () => {
+    const css = fs.readFileSync(createComposerChatCssPath, "utf8");
+    const userBodyCopyPattern =
+      /\.create-composer-panel\s+\.create-composer-prompt-step\s+\.agent-message\.agent-user\s+\.agent-message-rich-option-description\s*\{[\s\S]*?font-size:\s*14px;/m;
+    const assistantBodyCopyPattern =
+      /\.create-composer-panel\s+\.create-composer-prompt-step\s+\.agent-message\.agent-assistant:not\(\.agent-intro\):not\(\.agent-thinking-message\):not\(\s*\.agent-message--pulse-guided\s*\)\s+\.agent-message-rich-option-description\s*\{[\s\S]*?font-size:\s*14px;/m;
+
+    expect(css).toMatch(userBodyCopyPattern);
+    expect(css).toMatch(assistantBodyCopyPattern);
+  });
+
   it("matches the collapsed empty prompt height to the adjacent create control columns", () => {
     const composerCss = fs.readFileSync(createComposerLayoutCssPath, "utf8");
     const controlsCss = fs.readFileSync(createComposerControlsCssPath, "utf8");

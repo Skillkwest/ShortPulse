@@ -122,7 +122,7 @@ describe("media_panel_kpi_capture", () => {
     expect(packet.surface).toBe("ai-studio-panel");
     expect(packet.sampleCount).toBe(5);
     expect(packet.metrics.firstMediaPaintP95Ms).toBe(1668);
-    expect(packet.metrics.openToFirstMediaP95Ms).toBeNull();
+    expect(packet.metrics.openToFirstMediaP95Ms).toBe(1668);
     expect(packet.metrics.loadingStateVisibleMsP95).toBe(1162);
     expect(packet.metrics.stableContentSettleMsP95).toBe(1872);
     expect(packet.metrics.stateFlipCountPerOpen).toBe(2);
@@ -196,6 +196,26 @@ describe("media_panel_kpi_capture", () => {
         canonicalPreviewCoverageRatio: 1,
       },
     ]);
+  });
+
+  it("treats missing loading copy as measured zero once runs reach terminal open state", () => {
+    const packet = buildPacketFromPanelCapture(
+      {
+        captures: Array.from({ length: 5 }, () =>
+          createCaptureSample({
+            loadingStateVisibleMs: null,
+          })
+        ),
+      },
+      {
+        environment: "production",
+      }
+    );
+
+    expect(packet.metrics.loadingStateVisibleMsP95).toBe(0);
+    expect(packet.notes).toContain(
+      "Runs that reached a terminal media or empty state without observing loading copy count loading-state visible time as 0ms."
+    );
   });
 
   it("keeps direct timing p95 fields null when fewer than five runs were captured", () => {

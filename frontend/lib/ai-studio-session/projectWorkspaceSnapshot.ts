@@ -111,6 +111,7 @@ export const hasProjectDurableOutputAuthority = (output: Record<string, unknown>
   hasText(output.previewPosterStoragePath) ||
   hasText(output.previewStoragePath) ||
   hasText(output.fullStoragePath) ||
+  hasText(output.companionArtStoragePath) ||
   hasStringEntries(output.savedMediaIds);
 
 const hasProjectPersistedOutputPreviewAuthority = (output: Record<string, unknown>): boolean =>

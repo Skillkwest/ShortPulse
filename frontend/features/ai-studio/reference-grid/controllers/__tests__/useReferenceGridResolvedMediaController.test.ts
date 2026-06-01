@@ -153,7 +153,7 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.fallbackUrl).toBe("https://storage.example.com/generated-full.png");
   });
 
-  it("uses signed storage urls for storage-path-only restored image cards", () => {
+  it("uses signed preview storage urls for storage-path-only restored image cards without full fallback", () => {
     const output = {
       ...createImageOutput("out-restored-storage-only"),
       mediaSource: "generated",
@@ -173,7 +173,6 @@ describe("useReferenceGridResolvedMediaController", () => {
             "user-1/variants/images/gen-1/preview.webp",
             "https://signed.shortpulse.test/gen-1-preview.webp",
           ],
-          ["user-1/generations/images/gen-1.png", "https://signed.shortpulse.test/gen-1-full.png"],
         ]),
       })
     );
@@ -185,12 +184,12 @@ describe("useReferenceGridResolvedMediaController", () => {
     });
 
     expect(resolved.previewUrl).toBe("https://signed.shortpulse.test/gen-1-preview.webp");
-    expect(resolved.fullUrl).toBe("https://signed.shortpulse.test/gen-1-full.png");
-    expect(resolved.fallbackUrl).toBe("https://signed.shortpulse.test/gen-1-full.png");
+    expect(resolved.fullUrl).toBeNull();
+    expect(resolved.fallbackUrl).toBe("https://signed.shortpulse.test/gen-1-preview.webp");
     expect(resolved.isImagePreview).toBe(true);
   });
 
-  it("uses signed poster and full urls for storage-path-only restored video cards", () => {
+  it("uses signed poster urls for storage-path-only restored video cards without full fallback", () => {
     const output = {
       id: "out-restored-video-storage-only",
       mode: "video",
@@ -213,10 +212,6 @@ describe("useReferenceGridResolvedMediaController", () => {
             "user-1/variants/videos/gen-video-1/poster.webp",
             "https://signed.shortpulse.test/gen-video-1-poster.webp",
           ],
-          [
-            "user-1/generations/videos/gen-video-1.mp4",
-            "https://signed.shortpulse.test/gen-video-1-full.mp4",
-          ],
         ]),
       })
     );
@@ -228,8 +223,8 @@ describe("useReferenceGridResolvedMediaController", () => {
     });
 
     expect(resolved.previewUrl).toBe("https://signed.shortpulse.test/gen-video-1-poster.webp");
-    expect(resolved.fullUrl).toBe("https://signed.shortpulse.test/gen-video-1-full.mp4");
-    expect(resolved.fallbackUrl).toBe("https://signed.shortpulse.test/gen-video-1-full.mp4");
+    expect(resolved.fullUrl).toBeNull();
+    expect(resolved.fallbackUrl).toBe("https://signed.shortpulse.test/gen-video-1-poster.webp");
     expect(resolved.isImagePreview).toBe(true);
   });
 });

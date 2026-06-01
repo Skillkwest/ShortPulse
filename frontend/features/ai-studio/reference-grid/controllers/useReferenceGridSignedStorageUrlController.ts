@@ -9,17 +9,28 @@ import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput
 
 const REFERENCE_GRID_MEDIA_BUCKET = "media_library";
 
-const collectOutputStoragePaths = (output: ReferenceGridMediaOutput): string[] => {
+export type ReferenceGridStorageSigningMode = "card-preview" | "full-authority";
+
+const collectOutputStoragePaths = (
+  output: ReferenceGridMediaOutput,
+  signingMode: ReferenceGridStorageSigningMode
+): string[] => {
   const paths: string[] = [];
   const pushPath = (value: string | null | undefined) => {
     const path = asCanonicalStoragePath(value);
     if (path) paths.push(path);
+    return path;
   };
 
   pushPath(output.previewStoragePath);
   pushPath(output.previewPosterStoragePath);
-  pushPath(output.fullStoragePath);
-  output.resultUrls?.forEach(pushPath);
+
+  if (signingMode === "full-authority") {
+    pushPath(output.fullStoragePath);
+    output.resultUrls?.forEach(pushPath);
+    return paths;
+  }
+
   return paths;
 };
 
@@ -36,13 +47,18 @@ const areSignedUrlMapsEqual = (
 };
 
 export const collectReferenceGridStoragePaths = (
-  outputs: readonly (ReferenceGridMediaOutput | null | undefined)[]
+  outputs: readonly (ReferenceGridMediaOutput | null | undefined)[],
+  {
+    signingMode = "card-preview",
+  }: {
+    signingMode?: ReferenceGridStorageSigningMode;
+  } = {}
 ): string[] => {
   const seen = new Set<string>();
   const paths: string[] = [];
   outputs.forEach((output) => {
     if (!output) return;
-    collectOutputStoragePaths(output).forEach((path) => {
+    collectOutputStoragePaths(output, signingMode).forEach((path) => {
       if (seen.has(path)) return;
       seen.add(path);
       paths.push(path);
@@ -97,31 +113,38 @@ export const applySignedStorageUrlsToReferenceGridMediaOutput = (
 
 export const useReferenceGridSignedStorageUrlController = ({
   outputs,
+  signingMode = "card-preview",
 }: {
   outputs: readonly (ReferenceGridMediaOutput | null | undefined)[];
+  signingMode?: ReferenceGridStorageSigningMode;
 }) => {
-  const storagePaths = useMemo(() => collectReferenceGridStoragePaths(outputs), [outputs]);
+  const storagePaths = useMemo(
+    () => collectReferenceGridStoragePaths(outputs, { signingMode }),
+    [outputs, signingMode]
+  );
   const storagePathKey = useMemo(() => storagePaths.join("\n"), [storagePaths]);
   const [signedStorageUrlByPath, setSignedStorageUrlByPath] = useState<Map<string, string>>(
     () => new Map()
   );
 
   useEffect(() => {
-    if (!storagePaths.length) {
+    const pathsForRequest = storagePathKey ? storagePathKey.split("\n") : [];
+
+    if (!pathsForRequest.length) {
       return;
     }
 
     let cancelled = false;
     void getSignedMediaUrlsBatch({
       bucket: REFERENCE_GRID_MEDIA_BUCKET,
-      storagePaths,
+      storagePaths: pathsForRequest,
       surface: "reference-grid",
       queryMode: "default",
     }).then((resolvedUrls) => {
       if (cancelled) return;
       setSignedStorageUrlByPath((previous) => {
         const next = new Map<string, string>();
-        storagePaths.forEach((path) => {
+        pathsForRequest.forEach((path) => {
           const signedUrl = resolvedUrls.get(path) ?? previous.get(path) ?? null;
           if (signedUrl) next.set(path, signedUrl);
         });
@@ -132,7 +155,7 @@ export const useReferenceGridSignedStorageUrlController = ({
     return () => {
       cancelled = true;
     };
-  }, [storagePathKey, storagePaths]);
+  }, [storagePathKey]);
 
   return {
     signedStorageUrlByPath,

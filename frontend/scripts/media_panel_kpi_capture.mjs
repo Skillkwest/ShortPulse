@@ -676,7 +676,13 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
   const firstVisibleMediaSamples = captureSamples
     .filter((sample) => sample?.firstVisibleKind === "media")
     .map((sample) => sample?.firstVisibleMs);
-  const loadingStateSamples = captureSamples.map((sample) => sample?.loadingStateVisibleMs);
+  const loadingStateSamples = captureSamples.map((sample) => {
+    const observedLoadingMs = toFiniteNumber(sample?.loadingStateVisibleMs);
+    if (observedLoadingMs != null) return observedLoadingMs;
+    const reachedTerminalOpenState =
+      sample?.firstVisibleKind === "media" || sample?.firstVisibleKind === "empty";
+    return reachedTerminalOpenState ? 0 : null;
+  });
   const stableSettleSamples = captureSamples.map((sample) => sample?.stableContentSettleMs);
   const stateFlipCount = average(captureSamples.map((sample) => sample?.stateFlipCount));
   const extraListCallsPerOpen = average(
@@ -697,6 +703,10 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
   const resolveAggregate = aggregateResolveStats(capture);
   const fallbackAggregate = aggregateFallbackStats(capture);
   const firstMediaPaintP95Ms =
+    firstVisibleMediaSamples.length >= minimumRunsForDerivedP95
+      ? percentile(firstVisibleMediaSamples, 0.95)
+      : null;
+  const openToFirstMediaP95Ms =
     firstVisibleMediaSamples.length >= minimumRunsForDerivedP95
       ? percentile(firstVisibleMediaSamples, 0.95)
       : null;
@@ -745,6 +755,12 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
       firstVisibleMediaSamples.length > 0
         ? `${firstVisibleMediaSamples.length} of ${sampleCount} capture runs reached a visible media card during the open-phase measurement.`
         : "No capture run reached a visible media card during the open-phase measurement.",
+      loadingStateSamples.some((value) => value === 0)
+        ? "Runs that reached a terminal media or empty state without observing loading copy count loading-state visible time as 0ms."
+        : "Loading-state visible time was derived from observed loading copy during the open-phase measurement.",
+      openToFirstMediaP95Ms == null
+        ? "Open-to-first-media p95 was not derivable because too few runs reached visible media."
+        : "Open-to-first-media p95 was derived from repeated open-phase visible-media observations.",
       signAggregate?.canonicalPreviewCoverageRatio == null
         ? "Canonical preview coverage was not derivable from open-phase panel sign stats in this run."
         : "Canonical preview coverage was derived from open-phase panel sign stats using resolved durable vs resolved original counts when available.",
@@ -769,7 +785,8 @@ export const buildPacketFromPanelCapture = (capture, options = {}) => {
       firstMediaPaintP95Ms: firstMediaPaintP95Ms == null ? null : Math.round(firstMediaPaintP95Ms),
       loadingStateVisibleMsP95:
         loadingStateVisibleMsP95 == null ? null : Math.round(loadingStateVisibleMsP95),
-      openToFirstMediaP95Ms: null,
+      openToFirstMediaP95Ms:
+        openToFirstMediaP95Ms == null ? null : Math.round(openToFirstMediaP95Ms),
       stableContentSettleMsP95:
         stableContentSettleMsP95 == null ? null : Math.round(stableContentSettleMsP95),
       signBatchP95Ms: signAggregate?.signBatchP95Ms ?? null,

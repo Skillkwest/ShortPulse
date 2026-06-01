@@ -9,6 +9,8 @@ const GHOST_MAX_TEXT_LENGTH = 180;
 const DRAG_GHOST_ASPECT_RATIO = 4 / 5;
 const DRAG_GHOST_HEIGHT_PX = 120;
 const DRAG_GHOST_WIDTH_PX = Math.round(DRAG_GHOST_HEIGHT_PX * DRAG_GHOST_ASPECT_RATIO);
+const FOLDER_GHOST_WIDTH_PX = 118;
+const FOLDER_GHOST_HEIGHT_PX = 104;
 const GHOST_SNAPSHOT_WIDTH = 384;
 const GHOST_SNAPSHOT_HEIGHT = 480;
 const GHOST_SNAPSHOT_QUALITY = 0.08;
@@ -57,10 +59,28 @@ const createGhostSnapshotSrc = (imageNode: HTMLImageElement | null): string | nu
 
 const resolveGhostPreviewUrl = (
   node: HTMLElement,
-  previewKind: "image" | "video" | "text" | undefined,
+  previewKind: "image" | "video" | "text" | "folder" | undefined,
   providedPreviewUrl: string | null | undefined
 ): string | null => {
   if (previewKind === "video" || previewKind === "text") {
+    const normalized = (providedPreviewUrl ?? "").trim();
+    return normalized || null;
+  }
+  if (previewKind === "folder") {
+    const folderImageNode =
+      node.querySelector("img.media-library-panel-folder-chip-image") ??
+      node
+        .closest(".media-library-panel-folder-strip-item")
+        ?.querySelector("img.media-library-panel-folder-chip-image");
+    if (folderImageNode instanceof HTMLImageElement) {
+      const renderedSrc =
+        folderImageNode.currentSrc ||
+        folderImageNode.getAttribute("src") ||
+        folderImageNode.dataset.src ||
+        "";
+      const normalizedRenderedSrc = renderedSrc.trim();
+      if (normalizedRenderedSrc) return normalizedRenderedSrc;
+    }
     const normalized = (providedPreviewUrl ?? "").trim();
     return normalized || null;
   }
@@ -117,28 +137,63 @@ const buildGhostNode = ({
   label: string;
   detail?: string | null;
   previewUrl?: string | null;
-  previewKind?: "image" | "video" | "text";
+  previewKind?: "image" | "video" | "text" | "folder";
 }): HTMLDivElement => {
   const ghost = document.createElement("div");
-  ghost.className = "media-library-drag-ghost reference-drag-ghost";
+  ghost.className =
+    previewKind === "folder"
+      ? "media-library-drag-ghost media-library-drag-ghost--folder"
+      : "media-library-drag-ghost reference-drag-ghost";
   ghost.style.width = `${ghostWidth}px`;
   ghost.style.height = `${ghostHeight}px`;
-  ghost.style.aspectRatio = "4 / 5";
+  ghost.style.aspectRatio = previewKind === "folder" ? "118 / 104" : "4 / 5";
   ghost.style.boxSizing = "border-box";
   ghost.style.position = "absolute";
   ghost.style.top = "-9999px";
   ghost.style.left = "-9999px";
   ghost.style.overflow = "hidden";
-  ghost.style.borderRadius = "6px";
+  ghost.style.borderRadius = previewKind === "folder" ? "0" : "6px";
   ghost.style.border = "none";
-  ghost.style.background = TEXT_REFERENCE_GHOST_BACKGROUND;
+  ghost.style.background =
+    previewKind === "folder" ? "transparent" : TEXT_REFERENCE_GHOST_BACKGROUND;
   ghost.style.pointerEvents = "none";
   ghost.style.display = "flex";
   ghost.style.flexDirection = "column";
-  ghost.style.justifyContent = "space-between";
-  ghost.style.boxShadow = "0 12px 30px rgba(0,0,0,0.45)";
+  ghost.style.justifyContent = previewKind === "folder" ? "flex-start" : "space-between";
+  ghost.style.alignItems = previewKind === "folder" ? "center" : "";
+  ghost.style.gap = previewKind === "folder" ? "6px" : "";
+  ghost.style.boxShadow = previewKind === "folder" ? "none" : "0 12px 30px rgba(0,0,0,0.45)";
 
   const safePreviewUrl = (previewUrl ?? "").trim();
+  if (previewKind === "folder") {
+    if (safePreviewUrl) {
+      const image = document.createElement("img");
+      image.src = safePreviewUrl;
+      image.alt = "";
+      image.draggable = false;
+      image.style.width = "104px";
+      image.style.height = "72px";
+      image.style.objectFit = "contain";
+      image.style.display = "block";
+      ghost.appendChild(image);
+    }
+
+    const textLabel = document.createElement("div");
+    textLabel.style.maxWidth = "118px";
+    textLabel.style.textAlign = "center";
+    textLabel.style.fontSize = "12px";
+    textLabel.style.lineHeight = "1.15";
+    textLabel.style.color = "#edf4ff";
+    textLabel.style.display = "-webkit-box";
+    textLabel.style.setProperty("-webkit-line-clamp", "2");
+    textLabel.style.setProperty("-webkit-box-orient", "vertical");
+    textLabel.style.overflow = "hidden";
+    textLabel.style.setProperty("text-wrap", "pretty");
+    textLabel.textContent = trimGhostText(label) || "Folder";
+    ghost.appendChild(textLabel);
+    return ghost;
+  }
+
   if (safePreviewUrl && previewKind !== "video") {
     const image = document.createElement("img");
     image.src = safePreviewUrl;
@@ -188,14 +243,16 @@ export const attachMediaLibraryDragGhost = (
     label: string;
     detail?: string | null;
     previewUrl?: string | null;
-    previewKind?: "image" | "video" | "text";
+    previewKind?: "image" | "video" | "text" | "folder";
   }
 ): void => {
   const node = event.currentTarget as HTMLElement;
   removeExistingGhost(node);
   try {
-    const ghostWidth = DRAG_GHOST_WIDTH_PX;
-    const ghostHeight = DRAG_GHOST_HEIGHT_PX;
+    const ghostWidth =
+      options.previewKind === "folder" ? FOLDER_GHOST_WIDTH_PX : DRAG_GHOST_WIDTH_PX;
+    const ghostHeight =
+      options.previewKind === "folder" ? FOLDER_GHOST_HEIGHT_PX : DRAG_GHOST_HEIGHT_PX;
     const resolvedPreviewUrl = resolveGhostPreviewUrl(
       node,
       options.previewKind,

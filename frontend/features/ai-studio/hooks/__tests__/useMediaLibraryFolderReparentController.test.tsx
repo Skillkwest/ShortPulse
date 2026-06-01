@@ -34,6 +34,24 @@ const createDropEvent = (transfer: DataTransfer): React.DragEvent<HTMLElement> =
     stopPropagation: vi.fn(),
   }) as unknown as React.DragEvent<HTMLElement>;
 
+const createDragEvent = (
+  transfer: DataTransfer,
+  currentTarget?: { classList: { add: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> } }
+): React.DragEvent<HTMLElement> =>
+  ({
+    dataTransfer: transfer,
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+    currentTarget:
+      currentTarget ??
+      ({
+        classList: {
+          add: vi.fn(),
+          remove: vi.fn(),
+        },
+      } as unknown as HTMLElement),
+  }) as unknown as React.DragEvent<HTMLElement>;
+
 describe("useMediaLibraryFolderReparentController", () => {
   beforeEach(() => {
     vi.mocked(addBreadcrumb).mockReset();
@@ -134,5 +152,59 @@ describe("useMediaLibraryFolderReparentController", () => {
         }),
       })
     );
+  });
+
+  it("keeps same-window folder drops working when dragover packets expose no transfer types", async () => {
+    const moveFolder = vi.fn().mockResolvedValue(true);
+    const { result } = renderHook(() =>
+      useMediaLibraryFolderReparentController({
+        folders: [
+          {
+            id: "folder-1",
+            name: "Campaign",
+            parentFolderId: null,
+            createdAt: "2026-03-01T00:00:00.000Z",
+            updatedAt: "2026-03-01T00:00:00.000Z",
+            itemCount: 0,
+          },
+          {
+            id: "folder-2",
+            name: "Archive",
+            parentFolderId: null,
+            createdAt: "2026-03-02T00:00:00.000Z",
+            updatedAt: "2026-03-02T00:00:00.000Z",
+            itemCount: 0,
+          },
+        ],
+        moveFolder,
+      })
+    );
+    const dragStartTransfer = createTransfer();
+    const unreadableTransfer = {
+      types: [],
+      getData: () => "",
+      dropEffect: "none",
+      effectAllowed: "move",
+    } as unknown as DataTransfer;
+
+    act(() => {
+      result.current.handleFolderDragStart(createDragEvent(dragStartTransfer), {
+        id: "folder-1",
+        name: "Campaign",
+        parentFolderId: null,
+      });
+    });
+
+    act(() => {
+      result.current.handleFolderDragOver("folder-2", createDropEvent(unreadableTransfer));
+    });
+
+    expect(result.current.hoveredFolderId).toBe("folder-2");
+
+    await act(async () => {
+      await result.current.handleFolderDrop("folder-2", createDropEvent(unreadableTransfer));
+    });
+
+    expect(moveFolder).toHaveBeenCalledWith("folder-1", "folder-2");
   });
 });

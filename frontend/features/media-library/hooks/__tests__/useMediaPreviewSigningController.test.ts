@@ -421,7 +421,9 @@ describe("useMediaPreviewSigningController", () => {
     const resolveSignedUrlsByMediaIds = vi.fn(
       async () => new Set(["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"])
     );
-    const hydrateViaStorageDownload = vi.fn(async () => "blob://fallback");
+    const hydrateViaStorageDownload = vi.fn<(row: Row) => Promise<string>>(
+      async () => "blob://fallback"
+    );
 
     renderHook(() => {
       const rows = Array.from({ length: 6 }, (_, index) =>

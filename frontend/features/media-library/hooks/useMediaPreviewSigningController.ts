@@ -333,35 +333,42 @@ export const useMediaPreviewSigningController = <
         applySignedUrlsToTab(tabForBatch, signedById);
         const unresolvedRows = signBatch.filter((row) => !signedById.has(row.id));
         const resolverRows = unresolvedRows.filter((row) => visibleMediaIdsRef.current.has(row.id));
-        const unresolvedAfterResolver = resolverRows.length
-          ? await resolveSignedUrlsByMediaIds(tabForBatch, resolverRows)
-          : new Set<string>();
-        const unresolvedAfterResolverCount =
-          unresolvedAfterResolver.size + (unresolvedRows.length - resolverRows.length);
-        if (backgroundHydrateFallbackEnabled) {
-          for (const unresolvedRow of resolverRows.slice(
-            0,
-            resolveBackgroundHydrateFallbackLimit(surface)
-          )) {
-            if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
-            void hydrateViaStorageDownload(unresolvedRow);
+        void (async () => {
+          let unresolvedAfterResolver: Set<string>;
+          try {
+            unresolvedAfterResolver = resolverRows.length
+              ? await resolveSignedUrlsByMediaIds(tabForBatch, resolverRows)
+              : new Set<string>();
+          } catch {
+            unresolvedAfterResolver = new Set(resolverRows.map((row) => row.id));
           }
-        }
-        finalizeMediaSignCompletion({
-          results,
-          signedById,
-          finishSignBatch,
-          surface,
-          tab: tabForBatch,
-          pageIndex: activeMediaCachePagesLoaded,
-          queryMode: queryForBatch ? "search" : "default",
-          signPrefetchEnabled: isSignPrefetchEnabled,
-          sourceClass,
-          previewDeliveryMode,
-          optimizerBypassed,
-          unresolvedAfterResolverCount,
-          unresolvedWarningPrefix,
-        });
+          const unresolvedAfterResolverCount =
+            unresolvedAfterResolver.size + (unresolvedRows.length - resolverRows.length);
+          if (backgroundHydrateFallbackEnabled) {
+            for (const unresolvedRow of resolverRows.slice(
+              0,
+              resolveBackgroundHydrateFallbackLimit(surface)
+            )) {
+              if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
+              void hydrateViaStorageDownload(unresolvedRow);
+            }
+          }
+          finalizeMediaSignCompletion({
+            results,
+            signedById,
+            finishSignBatch,
+            surface,
+            tab: tabForBatch,
+            pageIndex: activeMediaCachePagesLoaded,
+            queryMode: queryForBatch ? "search" : "default",
+            signPrefetchEnabled: isSignPrefetchEnabled,
+            sourceClass,
+            previewDeliveryMode,
+            optimizerBypassed,
+            unresolvedAfterResolverCount,
+            unresolvedWarningPrefix,
+          });
+        })();
       })
       .finally(() => {
         for (const rowId of scheduledIds) {

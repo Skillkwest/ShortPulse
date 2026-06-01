@@ -114,6 +114,38 @@ describe("mediaLibraryDragGhost", () => {
     node.remove();
   });
 
+  it("builds a folder ghost using the folder artwork and label instead of the reference-card shell", () => {
+    const node = document.createElement("button");
+    const folderImage = document.createElement("img");
+    folderImage.className = "media-library-panel-folder-chip-image";
+    folderImage.setAttribute("src", "/Folder 1.png");
+    node.appendChild(folderImage);
+    document.body.appendChild(node);
+    setNodeRect(node, 118, 104);
+    const setDragImage = vi.fn();
+    const event = createDragEvent(node, setDragImage);
+
+    attachMediaLibraryDragGhost(event, {
+      label: "The Witch",
+      previewKind: "folder",
+    });
+
+    expect(setDragImage).toHaveBeenCalledTimes(1);
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement;
+    expect(ghost.classList.contains("media-library-drag-ghost")).toBe(true);
+    expect(ghost.classList.contains("reference-drag-ghost")).toBe(false);
+    expect(ghost.classList.contains("media-library-drag-ghost--folder")).toBe(true);
+    expect(ghost.style.background).toBe("transparent");
+    expect(ghost.style.width).toBe("118px");
+    expect(ghost.style.height).toBe("104px");
+    expect(ghost.querySelector("img")?.getAttribute("src")).toBe("/Folder 1.png");
+    expect(ghost.textContent).toContain("The Witch");
+
+    clearMediaLibraryDragGhost(node);
+    expect(document.body.contains(ghost)).toBe(false);
+    node.remove();
+  });
+
   it("uses a fixed 4:5 ghost size regardless of source card dimensions", () => {
     const node = document.createElement("button");
     document.body.appendChild(node);

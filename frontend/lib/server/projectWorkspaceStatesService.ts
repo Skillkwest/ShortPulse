@@ -226,6 +226,7 @@ const sanitizeProjectWorkspaceOutputsByShape = ({
       "previewStoragePath",
       "fullStoragePath",
       "previewPosterStoragePath",
+      "companionArtStoragePath",
     ] as const) {
       const value = row[field];
       if (value == null) continue;
@@ -422,23 +423,24 @@ const sanitizeProjectWorkspaceOutputs = ({
     return value
       .map((row) => {
         const normalizedRow = asRecord(row);
+        const generatedWorkspaceOutput = isProjectGeneratedWorkspaceOutput(normalizedRow);
         const generationId = normalizeUuid(normalizedRow.generationId) ?? "";
         const promptId = normalizeUuid(normalizedRow.promptId) ?? "";
         const savedMediaIds = normalizeUuidList(normalizedRow.savedMediaIds).filter((entry) =>
           allowedMediaFileIds.has(entry)
         );
-
-        if (generationId && !allowedGenerationIds.has(generationId)) {
-          return null;
-        }
+        const generationOwned = generationId ? allowedGenerationIds.has(generationId) : false;
+        const preserveGenerationId = Boolean(
+          generationId && (generationOwned || !generationAuthorityResolved)
+        );
         const nextRow: Record<string, unknown> = {
           ...normalizedRow,
-          ...(generationId ? { generationId } : {}),
+          ...(preserveGenerationId ? { generationId } : {}),
           ...(promptId && allowedPromptIds.has(promptId) ? { promptId } : {}),
           ...(savedMediaIds.length > 0 ? { savedMediaIds } : {}),
         };
 
-        if (!generationId && "generationId" in nextRow) {
+        if (!preserveGenerationId && "generationId" in nextRow) {
           delete nextRow.generationId;
         }
         if ((!promptId || !allowedPromptIds.has(promptId)) && "promptId" in nextRow) {
@@ -449,12 +451,23 @@ const sanitizeProjectWorkspaceOutputs = ({
         }
         sanitizeScopedStoragePathFields(nextRow);
 
-        if (
-          isProjectGeneratedWorkspaceOutput(nextRow) &&
-          !hasProjectDurableOutputAuthority(nextRow) &&
-          (!hasProjectRecoverableRuntimeIdentity(nextRow) || !generationAuthorityResolved)
-        ) {
-          return null;
+        if (generatedWorkspaceOutput) {
+          if (hasProjectDurableOutputAuthority(nextRow)) {
+            return nextRow;
+          }
+          if (!generationAuthorityResolved) {
+            return null;
+          }
+          const hasRecoverableRuntimeIdentity =
+            hasProjectRecoverableRuntimeIdentity(nextRow) &&
+            (preserveGenerationId ||
+              Boolean(
+                normalizeOptionalString(nextRow.taskId) ??
+                normalizeOptionalString(nextRow.sourceRef)
+              ));
+          if (!hasRecoverableRuntimeIdentity) {
+            return null;
+          }
         }
 
         return nextRow;

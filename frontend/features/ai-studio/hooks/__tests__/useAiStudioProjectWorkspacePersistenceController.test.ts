@@ -10,6 +10,7 @@ import {
   type AiStudioSessionSnapshotV2,
 } from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
+import { serializeAiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
 import { resetAiStudioOutputStore } from "../aiStudioOutputStore";
 import {
   resetAiStudioProjectWorkspaceSnapshotViaApi,
@@ -62,6 +63,15 @@ const mockedResetAiStudioOutputStore = vi.mocked(resetAiStudioOutputStore);
 const mockedSaveProjectWorkspaceViaApi = vi.mocked(saveAiStudioProjectWorkspaceSnapshotViaApi);
 const mockedResetProjectWorkspaceViaApi = vi.mocked(resetAiStudioProjectWorkspaceSnapshotViaApi);
 const mockedAddBreadcrumb = vi.mocked(addBreadcrumb);
+
+const createDefaultRestoreCandidate = () => ({
+  status: "ready" as const,
+  result: "no_snapshot" as const,
+  snapshot: null,
+  source: "none" as const,
+  error: null,
+  retry: vi.fn(),
+});
 
 const createSnapshot = (): AiStudioSessionSnapshot =>
   ({
@@ -160,8 +170,22 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload =>
     expertEdit: null,
   }) as AiStudioSessionHydrationPayload;
 
+const mockReadyRestoreCandidate = (snapshot: AiStudioSessionSnapshot | null) => {
+  mockedUseAiStudioProjectWorkspaceRestoreCandidate.mockImplementation(() => ({
+    status: "ready",
+    result: snapshot ? "found_snapshot" : "no_snapshot",
+    snapshot,
+    source: "project",
+    error: null,
+    retry: vi.fn(),
+  }));
+};
+
 describe("useAiStudioProjectWorkspacePersistenceController", () => {
   beforeEach(() => {
+    mockedUseAiStudioProjectWorkspaceRestoreCandidate.mockImplementation(
+      createDefaultRestoreCandidate
+    );
     mockedUseAiStudioProjectWorkspaceRestoreCandidate.mockClear();
     mockedUseAiStudioProjectWorkspaceRestoreHydration.mockClear();
     mockedUseAiStudioSessionAutosave.mockClear();
@@ -266,6 +290,146 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         runtime_revision: 0,
       },
     });
+  });
+
+  it("keeps autosave disabled until the built project snapshot reflects restored quick slots and full durable canvas state", () => {
+    const restoredSnapshot = {
+      ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),
+      outputs: {
+        active: [
+          {
+            id: "out-1",
+            prompt: "Restored image",
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "Just now",
+            previewUrl: "https://cdn.example.com/out-1.png",
+            resultUrls: ["https://cdn.example.com/out-1.png"],
+          },
+        ],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: ["out-1"],
+        removedFromAllRefsIds: [],
+      },
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [
+          {
+            id: "canvas-image-1",
+            kind: "image",
+            x: 120,
+            y: 240,
+            z: 3,
+            selected: false,
+            outputId: "out-1",
+            sourceSurface: "curated",
+            mediaId: "media-1",
+            src: "https://cdn.example.com/out-1.png",
+            alt: "Restored image",
+            width: 512,
+            height: 512,
+          },
+        ],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 40, y: -18, zoom: 1.45 },
+        railCamera: { x: -10, y: 12, zoom: 0.8 },
+      }),
+    } as unknown as AiStudioSessionSnapshot;
+    const pendingShellSnapshot = {
+      ...restoredSnapshot,
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [
+          {
+            id: "canvas-image-1",
+            kind: "image",
+            x: 0,
+            y: 0,
+            z: 0,
+            selected: false,
+            outputId: "out-1",
+            sourceSurface: "curated",
+            mediaId: "media-1",
+            src: "https://cdn.example.com/out-1.png",
+            alt: "Restored image",
+            width: 256,
+            height: 256,
+          },
+        ],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 0, y: 0, zoom: 1 },
+        railCamera: { x: 0, y: 0, zoom: 1 },
+      }),
+    } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const pendingBuildSessionSnapshot = vi.fn(() => pendingShellSnapshot);
+    const restoredBuildSessionSnapshot = vi.fn(() => restoredSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result, rerender } = renderHook(
+      ({
+        buildBaseSessionSnapshot,
+      }: {
+        buildBaseSessionSnapshot: (sessionId: string) => AiStudioSessionSnapshot;
+      }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          buildBaseSessionSnapshot: pendingBuildSessionSnapshot as (
+            sessionId: string
+          ) => AiStudioSessionSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({
+      buildBaseSessionSnapshot: pendingBuildSessionSnapshot as (
+        sessionId: string
+      ) => AiStudioSessionSnapshot,
+    });
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: false,
+        snapshot: pendingShellSnapshot,
+      })
+    );
+
+    rerender({
+      buildBaseSessionSnapshot: restoredBuildSessionSnapshot as (
+        sessionId: string
+      ) => AiStudioSessionSnapshot,
+    });
+    expect(result.current.projectBootstrapApplied).toBe(true);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: true,
+        snapshot: restoredSnapshot,
+      })
+    );
+    expect(pendingBuildSessionSnapshot).toHaveBeenCalledTimes(1);
+    expect(restoredBuildSessionSnapshot).toHaveBeenCalledTimes(1);
   });
 
   it("invalidates project-owned workspace state immediately when a project route is entered", () => {
@@ -668,6 +832,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         removedFromAllRefsIds: ["archived-1"],
       },
     } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(oversizedSnapshot);
     const buildSessionSnapshot = vi.fn(() => oversizedSnapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
 
@@ -717,7 +882,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         removedFromAllRefsIds: [],
       },
     } as unknown as AiStudioSessionSnapshot;
-    const buildSessionSnapshot = vi.fn(() => createAiStudioProjectWorkspaceSnapshot(snapshot));
+    const projectWorkspaceSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    mockReadyRestoreCandidate(projectWorkspaceSnapshot);
+    const buildSessionSnapshot = vi.fn(() => projectWorkspaceSnapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const onPersistenceWarning = vi.fn();
 
@@ -932,6 +1099,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         removedFromAllRefsIds: [],
       },
     } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(snapshot);
     const buildSessionSnapshot = vi.fn(() => snapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const onPersistenceWarning = vi.fn();

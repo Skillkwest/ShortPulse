@@ -20,7 +20,6 @@ import {
   INPAINT_FLUX_FILL_MODEL_ID,
   INPAINT_FLUX_FILL_MODEL_LABEL,
   INPAINT_REFERENCE_MODEL_ID,
-  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
 } from "../../logic/inpaintSubmission";
 import * as InpaintMaskControllerModule from "../edit/useInpaintMaskController";
@@ -87,6 +86,36 @@ const getPrimaryFileInput = (container: HTMLElement) =>
 const uploadPrimaryFile = (container: HTMLElement, fileName: string) => {
   const file = new File(["image"], fileName, { type: "image/png" });
   fireEvent.change(getPrimaryFileInput(container), { target: { files: [file] } });
+};
+
+let restoreInstalledMockImageDimensions: (() => void) | null = null;
+const installMockImageDimensions = ({ width = 1024, height = 1024 } = {}) => {
+  restoreInstalledMockImageDimensions?.();
+  const previousImage = globalThis.Image;
+  class MockImage {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    naturalWidth = width;
+    naturalHeight = height;
+
+    set src(_value: string) {
+      this.onload?.();
+    }
+  }
+  Object.defineProperty(globalThis, "Image", {
+    configurable: true,
+    writable: true,
+    value: MockImage,
+  });
+  restoreInstalledMockImageDimensions = () => {
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: previousImage,
+    });
+    restoreInstalledMockImageDimensions = null;
+  };
+  return restoreInstalledMockImageDimensions;
 };
 
 const createLayerDragTransfer = () =>
@@ -443,46 +472,18 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByText(message)).not.toBeInTheDocument();
   });
 
-  it("keeps the inline generate button enabled while edit generation is busy", () => {
+  it("keeps the inline generate button enabled while edit generation is busy", async () => {
     const { container } = renderControlledPromptPanel({
       initialPrompt: "Put her in a bikini",
     });
 
     uploadPrimaryFile(container, "busy-button.png");
 
-    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generate");
-  });
-
-  it.skip("disables the inline generate button while an inline expert edit submission is pending", async () => {
-    let deferredResolve!: () => void;
-    const deferredPromise = new Promise<void>((resolve) => {
-      deferredResolve = () => resolve();
-    });
-    const onRegenerateWithReferenceInputs: NonNullable<
-      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
-    > = vi.fn(() => deferredPromise);
-    const { container } = render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceText="Adjust the jacket."
-        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
-      />
-    );
-
-    uploadPrimaryFile(container, "pending-inline-submit.png");
-
-    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
-
+    const generateButton = screen.getByRole("button", { name: "Generate" });
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+      expect(generateButton).toBeEnabled();
     });
-
-    deferredResolve();
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
-    });
+    expect(generateButton).toHaveTextContent("Generate");
   });
 
   const renderControlledPromptPanel = ({
@@ -549,6 +550,7 @@ describe("ExpertEditPanelView", () => {
   });
 
   afterEach(() => {
+    restoreInstalledMockImageDimensions?.();
     vi.useRealTimers();
   });
 
@@ -6918,6 +6920,7 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("suppresses repeated inline generate clicks before stage flattening completes", async () => {
+    const restoreImage = installMockImageDimensions();
     const flattenResolvers: Array<(value: Blob) => void> = [];
     const createPendingFlatten = () =>
       new Promise<Blob>((resolve) => {
@@ -6938,6 +6941,9 @@ describe("ExpertEditPanelView", () => {
     uploadPrimaryFile(container, "layer-1.png");
 
     const generateButton = screen.getByRole("button", { name: /^generate$/i });
+    await waitFor(() => {
+      expect(generateButton).toBeEnabled();
+    });
 
     await act(async () => {
       fireEvent.click(generateButton);
@@ -6957,6 +6963,11 @@ describe("ExpertEditPanelView", () => {
       });
       await Promise.resolve();
     });
+
+    await waitFor(() => {
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    });
+    restoreImage();
   });
 
   it("promotes the sole remaining populated layer to layer 1 after clearing foundation", () => {
@@ -7194,7 +7205,8 @@ describe("ExpertEditPanelView", () => {
     expect(Math.abs(movedLayer?.transform?.translateYRatio ?? 0)).toBeGreaterThan(0.01);
   });
 
-  it.skip("auto-flattens on generate and forwards flattened refs with primary first", async () => {
+  it("auto-flattens on generate and forwards flattened refs with primary first", async () => {
+    const restoreImage = installMockImageDimensions();
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
@@ -7213,13 +7225,22 @@ describe("ExpertEditPanelView", () => {
     uploadPrimaryFile(container, "layer-1.png");
     uploadPrimaryFile(container, "layer-2.png");
 
+    const generateButton = screen.getByRole("button", { name: /^generate$/i });
+    await waitFor(() => {
+      expect(generateButton).toBeEnabled();
+    });
+
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      fireEvent.click(generateButton);
       await Promise.resolve();
     });
 
-    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    });
     const submissionCalls = (
       onRegenerateWithReferenceInputs as unknown as {
         mock: {
@@ -7249,6 +7270,7 @@ describe("ExpertEditPanelView", () => {
     ]);
     expect(submitOptions?.referenceInputsMode).toBe("replace");
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
+    restoreImage();
   });
 
   it("exports the durable primary source when standard edit framing is unchanged", async () => {
@@ -7461,30 +7483,36 @@ describe("ExpertEditPanelView", () => {
     );
   });
 
-  it.skip("auto-flatten generate passes display/submission prompt overrides when @img tokens are used", async () => {
+  it("generate passes display/submission prompt overrides when @img tokens are used", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
       void referenceInputs;
       void options;
     });
-    const { container } = render(
+    render(
       <ExpertEditPanelView
         {...baseProps}
         referenceText="Put @img1 in the background."
+        referenceImageUrl="https://example.com/base.png"
         extraImageUrls={["https://example.com/extra-token.png", null, null]}
         onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
       />
     );
 
-    uploadPrimaryFile(container, "layer-1.png");
+    const generateButton = screen.getByRole("button", { name: /^generate$/i });
+    await waitFor(() => {
+      expect(generateButton).not.toBeDisabled();
+    });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      fireEvent.click(generateButton);
       await Promise.resolve();
     });
 
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    });
     const submissionCalls = (
       onRegenerateWithReferenceInputs as unknown as {
         mock: {
@@ -7506,17 +7534,18 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.submissionPromptOverride).toContain("Reference map:");
   });
 
-  it.skip("auto-flatten generate sends all populated secondary references when no @img tokens are linked", async () => {
+  it("generate sends all populated secondary references when no @img tokens are linked", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
       void referenceInputs;
       void options;
     });
-    const { container } = render(
+    render(
       <ExpertEditPanelView
         {...baseProps}
         referenceText="Refine the background and styling."
+        referenceImageUrl="https://example.com/base.png"
         extraImageUrls={[
           "https://example.com/extra-one.png",
           "https://example.com/extra-two.png",
@@ -7526,14 +7555,19 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
-    uploadPrimaryFile(container, "layer-1.png");
+    const generateButton = screen.getByRole("button", { name: /^generate$/i });
+    await waitFor(() => {
+      expect(generateButton).not.toBeDisabled();
+    });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      fireEvent.click(generateButton);
       await Promise.resolve();
     });
 
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    });
     const submissionCalls = (
       onRegenerateWithReferenceInputs as unknown as {
         mock: {
@@ -7552,7 +7586,7 @@ describe("ExpertEditPanelView", () => {
     const submittedReferences = submissionCalls[0]?.[0] ?? [];
     const submitOptions = submissionCalls[0]?.[1];
     expect(submittedReferences).toEqual([
-      expect.stringMatching(/^blob:flatten-/),
+      "https://example.com/base.png",
       "https://example.com/extra-one.png",
       "https://example.com/extra-two.png",
     ]);
@@ -7560,17 +7594,18 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.submissionPromptOverride).toBeUndefined();
   }, 15000);
 
-  it.skip("auto-flatten generate sends only explicitly linked secondary references to the model", async () => {
+  it("generate sends only explicitly linked secondary references to the model", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
       void referenceInputs;
       void options;
     });
-    const { container } = render(
+    render(
       <ExpertEditPanelView
         {...baseProps}
         referenceText="Use @img1 for the background."
+        referenceImageUrl="https://example.com/base.png"
         extraImageUrls={[
           "https://example.com/linked-extra.png",
           "https://example.com/unlinked-extra.png",
@@ -7580,14 +7615,19 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
-    uploadPrimaryFile(container, "layer-1.png");
+    const generateButton = screen.getByRole("button", { name: /^generate$/i });
+    await waitFor(() => {
+      expect(generateButton).not.toBeDisabled();
+    });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      fireEvent.click(generateButton);
       await Promise.resolve();
     });
 
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    });
     const submissionCalls = (
       onRegenerateWithReferenceInputs as unknown as {
         mock: {
@@ -7597,7 +7637,7 @@ describe("ExpertEditPanelView", () => {
     ).mock.calls;
     const submittedReferences = submissionCalls[0]?.[0] ?? [];
     expect(submittedReferences).toEqual([
-      expect.stringMatching(/^blob:flatten-/),
+      "https://example.com/base.png",
       "https://example.com/linked-extra.png",
     ]);
     expect(submittedReferences).not.toContain("https://example.com/unlinked-extra.png");

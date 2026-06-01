@@ -193,17 +193,16 @@ describe("useReferenceGridCardItemsController", () => {
     });
   });
 
-  it("keeps generated cards loading until preview media renders", () => {
+  it("separates generated waiting state from imported hydration state", () => {
     const pendingItem = output({
       id: "pending-1",
       taskState: "pending",
       mediaSource: "generated",
-      previewUrl: "https://provider.example.com/pending-preview.png",
     });
     const hydratedItem = output({
       id: "hydrating-1",
       taskState: "success",
-      mediaSource: "generated",
+      mediaSource: "library",
       previewUrl: "https://provider.example.com/hydrating-preview.png",
     });
 

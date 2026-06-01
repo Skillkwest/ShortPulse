@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
@@ -56,6 +56,7 @@ export const useMediaLibraryFolderReparentController = ({
 }: UseMediaLibraryFolderReparentControllerArgs): UseMediaLibraryFolderReparentControllerResult => {
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   const [isRootDropHover, setIsRootDropHover] = useState(false);
+  const activeDragFolderRef = useRef<FolderDragSource | null>(null);
 
   const clearHoverState = useCallback(() => {
     setHoveredFolderId(null);
@@ -64,6 +65,7 @@ export const useMediaLibraryFolderReparentController = ({
 
   const handleFolderDragStart = useCallback(
     (event: DragEvent<HTMLElement>, folder: FolderDragSource) => {
+      activeDragFolderRef.current = folder;
       writeMediaLibraryFolderDragPayload(event.dataTransfer, {
         source: "mediaLibraryFolder",
         payload: {
@@ -77,7 +79,7 @@ export const useMediaLibraryFolderReparentController = ({
       attachMediaLibraryDragGhost(event, {
         label: folder.name,
         detail: "Folder",
-        previewKind: "text",
+        previewKind: "folder",
       });
       addBreadcrumb({
         type: "ui",
@@ -92,6 +94,7 @@ export const useMediaLibraryFolderReparentController = ({
 
   const handleFolderDragEnd = useCallback(
     (event: DragEvent<HTMLElement>) => {
+      activeDragFolderRef.current = null;
       event.currentTarget.classList.remove("is-dragging");
       clearHoverState();
       clearMediaLibraryDragGhost(event);
@@ -102,8 +105,15 @@ export const useMediaLibraryFolderReparentController = ({
   const handleFolderDragOver = useCallback(
     (folderId: string | null, event: DragEvent<HTMLElement>) => {
       const transfer = event.dataTransfer;
-      if (!hasFolderTransferHints(transfer)) return;
-      const payload = readMediaLibraryFolderDragPayload(transfer);
+      if (!hasFolderTransferHints(transfer) && !activeDragFolderRef.current) return;
+      const payload = readMediaLibraryFolderDragPayload(transfer) ?? {
+        source: "mediaLibraryFolder" as const,
+        payload: {
+          id: activeDragFolderRef.current?.id ?? "",
+          name: activeDragFolderRef.current?.name ?? "",
+          parentFolderId: activeDragFolderRef.current?.parentFolderId ?? null,
+        },
+      };
       if (!payload) return;
       const intent = resolveMediaLibraryFolderReparentIntent({
         folders,
@@ -134,11 +144,18 @@ export const useMediaLibraryFolderReparentController = ({
   const handleFolderDrop = useCallback(
     async (folderId: string | null, event: DragEvent<HTMLElement>): Promise<boolean> => {
       const transfer = event.dataTransfer;
-      if (!hasFolderTransferHints(transfer)) return false;
+      if (!hasFolderTransferHints(transfer) && !activeDragFolderRef.current) return false;
       event.preventDefault();
       event.stopPropagation();
       clearHoverState();
-      const payload = readMediaLibraryFolderDragPayload(transfer);
+      const payload = readMediaLibraryFolderDragPayload(transfer) ?? {
+        source: "mediaLibraryFolder" as const,
+        payload: {
+          id: activeDragFolderRef.current?.id ?? "",
+          name: activeDragFolderRef.current?.name ?? "",
+          parentFolderId: activeDragFolderRef.current?.parentFolderId ?? null,
+        },
+      };
       if (!payload) return false;
       const intent = resolveMediaLibraryFolderReparentIntent({
         folders,
@@ -159,6 +176,7 @@ export const useMediaLibraryFolderReparentController = ({
         return true;
       }
       const moved = await moveFolder(payload.payload.id, folderId);
+      activeDragFolderRef.current = null;
       if (!moved) {
         return true;
       }

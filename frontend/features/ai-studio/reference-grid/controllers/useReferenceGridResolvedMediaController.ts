@@ -134,7 +134,10 @@ export const useReferenceGridResolvedMediaController = ({
         devicePixelRatio,
       });
       const previewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
-      const fullUrl = resolvedCardUrls.fullUrl ?? null;
+      const fullUrl =
+        resolvedCardUrls.fullUrl && resolvedCardUrls.fullUrl !== resolvedCardUrls.previewUrl
+          ? resolvedCardUrls.fullUrl
+          : null;
       const fallbackUrl =
         resolvedCardUrls.authorityTier === "preview-only" && isGeneratedOutput(item)
           ? (resolveFirstRenderableUrl(

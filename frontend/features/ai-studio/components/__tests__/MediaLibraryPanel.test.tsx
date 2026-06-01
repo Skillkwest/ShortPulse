@@ -63,6 +63,15 @@ const createTransferStore = () => {
   return transfer as unknown as DataTransfer;
 };
 
+const createUnreadableTransfer = () =>
+  ({
+    files: { length: 0, item: () => null } as unknown as FileList,
+    types: [] as string[],
+    getData: () => "",
+    dropEffect: "none",
+    effectAllowed: "none",
+  }) as unknown as DataTransfer;
+
 vi.mock("../../../../lib/adaptive-media", () => ({
   isAdaptiveSurfaceEnabled: (...args: unknown[]) => isAdaptiveSurfaceEnabledMock(...args),
 }));
@@ -2483,6 +2492,52 @@ describe("MediaLibraryPanel", () => {
       });
     });
     expect(screen.queryByRole("button", { name: "Root A folder" })).not.toBeInTheDocument();
+  });
+
+  it("reparents a visible root folder even when dragover transfer data is unreadable after drag start", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-a",
+        name: "Root A",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-b",
+        name: "Root B",
+        parentFolderId: null,
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Root A folder" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Root B folder" })).toBeInTheDocument();
+    });
+
+    const sourceButton = screen.getByRole("button", { name: "Root A folder" });
+    fireEvent.dragStart(sourceButton, { dataTransfer: createTransferStore() });
+
+    const degradedTransfer = createUnreadableTransfer();
+    const targetTile = screen
+      .getByRole("button", { name: "Root B folder" })
+      .closest(".media-library-panel-folder-strip-item") as HTMLElement;
+
+    fireEvent.dragOver(targetTile, { dataTransfer: degradedTransfer });
+    expect(targetTile.classList.contains("is-drop-hover")).toBe(true);
+
+    fireEvent.drop(targetTile, { dataTransfer: degradedTransfer });
+
+    await waitFor(() => {
+      expect(moveMediaFolderMock).toHaveBeenCalledWith({
+        folderId: "folder-a",
+        parentFolderId: "folder-b",
+      });
+    });
   });
 
   it("reparents a visible folder to root by dropping it on the All Media breadcrumb", async () => {

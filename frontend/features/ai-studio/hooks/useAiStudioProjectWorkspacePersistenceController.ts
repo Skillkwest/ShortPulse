@@ -23,6 +23,9 @@ import { useAiStudioProjectWorkspaceRestoreHydration } from "./useAiStudioProjec
 import { resetAiStudioOutputStore } from "./aiStudioOutputStore";
 import {
   AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
+  createProjectDurableAiStudioSessionCanvasState,
+  parseAiStudioSessionCanvasState,
+  serializeAiStudioSessionCanvasState,
   type AiStudioSessionCanvasState,
 } from "../logic/sessionSnapshotCanvas";
 import {
@@ -213,6 +216,47 @@ const collectProjectSnapshotOutputIds = (snapshot: AiStudioSessionSnapshot): str
   return collected;
 };
 
+const normalizeProjectSnapshotStringList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry): entry is string => entry.length > 0)
+    : [];
+
+const resolveProjectRestoreCanvasSignature = (
+  snapshot: AiStudioSessionSnapshot | null
+): string | null => {
+  if (!snapshot || !("canvas" in snapshot)) return null;
+  const parsedCanvas = parseAiStudioSessionCanvasState(snapshot.canvas ?? null);
+  const durableCanvas = createProjectDurableAiStudioSessionCanvasState(parsedCanvas);
+  if (!durableCanvas) return null;
+  return JSON.stringify(serializeAiStudioSessionCanvasState(durableCanvas));
+};
+
+const resolveProjectRestoreVisibilitySignature = (
+  snapshot: AiStudioSessionSnapshot | null
+): string => {
+  const activeOutputIds =
+    snapshot && Array.isArray(snapshot.outputs?.active)
+      ? snapshot.outputs.active
+          .map((output) => (typeof output?.id === "string" ? output.id.trim() : ""))
+          .filter((id): id is string => id.length > 0)
+      : [];
+  const curatedReferenceIds = normalizeProjectSnapshotStringList(
+    snapshot?.outputs?.curatedReferenceIds
+  );
+  const removedFromAllRefsIds = normalizeProjectSnapshotStringList(
+    snapshot?.outputs?.removedFromAllRefsIds
+  );
+  const canvasSignature = resolveProjectRestoreCanvasSignature(snapshot);
+  return JSON.stringify({
+    activeOutputIds,
+    curatedReferenceIds,
+    removedFromAllRefsIds,
+    canvasSignature,
+  });
+};
+
 const areStringListsEqual = (left: readonly string[], right: readonly string[]): boolean =>
   left.length === right.length && left.every((value, index) => value === right[index]);
 
@@ -288,7 +332,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     projectId,
     enabled: Boolean(projectId),
   });
-  const projectBootstrapReady =
+  const projectBootstrapSettled =
     Boolean(projectId) &&
     sessionRestoreCandidate.status === "ready" &&
     bootstrappedProject?.projectId === projectId &&
@@ -324,7 +368,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       snapshot: AiStudioSessionSnapshot | null;
       fallbackKind?: AiStudioProjectWorkspaceAutosaveCandidateKind;
     }) => {
-      if (!projectId || !projectBootstrapReady) return;
+      if (!projectId || !projectBootstrapSettled) return;
       if (!Number.isFinite(durationMs)) return;
       const thresholdMs = PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS[phase];
       if (durationMs < thresholdMs) return;
@@ -350,10 +394,10 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         },
       });
     },
-    [projectBootstrapReady, projectId, resolveCachedSnapshotByteBreakdown]
+    [projectBootstrapSettled, projectId, resolveCachedSnapshotByteBreakdown]
   );
   const baseSessionSnapshotComputation = useMemo(() => {
-    if (!sessionId || !projectBootstrapReady) {
+    if (!sessionId || !projectBootstrapSettled) {
       return {
         snapshot: null as AiStudioSessionSnapshot | null,
         durationMs: null as number | null,
@@ -365,7 +409,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       snapshot: nextSnapshot,
       durationMs: resolvePerfNow() - startedAt,
     };
-  }, [buildBaseSessionSnapshot, projectBootstrapReady, sessionId]);
+  }, [buildBaseSessionSnapshot, projectBootstrapSettled, sessionId]);
   const baseSessionSnapshot = baseSessionSnapshotComputation.snapshot;
 
   useEffect(() => {
@@ -411,6 +455,22 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       snapshot: sessionSnapshotComputation.snapshot,
     });
   }, [maybeReportSlowProjectWorkspacePhase, sessionSnapshotComputation]);
+
+  const expectedProjectRestoreVisibilitySignature = useMemo(
+    () =>
+      projectBootstrapSettled
+        ? resolveProjectRestoreVisibilitySignature(sessionRestoreCandidate.snapshot)
+        : null,
+    [projectBootstrapSettled, sessionRestoreCandidate.snapshot]
+  );
+  const actualProjectRestoreVisibilitySignature = useMemo(
+    () =>
+      projectBootstrapSettled ? resolveProjectRestoreVisibilitySignature(sessionSnapshot) : null,
+    [projectBootstrapSettled, sessionSnapshot]
+  );
+  const projectBootstrapReady =
+    projectBootstrapSettled &&
+    expectedProjectRestoreVisibilitySignature === actualProjectRestoreVisibilitySignature;
 
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
   const repairPendingNoticeKeyRef = useRef<string | null>(null);

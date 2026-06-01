@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InternalReferenceDragPayload } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 import type { AiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
+import type { AiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
 import { useAiStudioPageMediaReferenceRuntime } from "../useAiStudioPageMediaReferenceRuntime";
 
 type MockDualCanvasArgs = {
@@ -19,7 +20,7 @@ vi.mock("../../../lib/clientBreadcrumbs", () => ({
 }));
 
 let latestDualCanvasArgs: MockDualCanvasArgs | null = null;
-let mockedCanvasSessionState = {
+let mockedCanvasSessionState: AiStudioSessionCanvasState = {
   items: [],
   draftTextEntry: null,
   textEditSession: null,
@@ -502,6 +503,44 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       alt: "Exact output",
       width: 1536,
       height: 1024,
+      sourceSurface: "curated",
+    });
+  });
+
+  it("uses the active card preview authority for image canvas drops before result urls", () => {
+    const output = makeOutput({
+      id: "output-image-card-preview-authority",
+      mode: "image",
+      prompt: "Preview authority",
+      previewUrl: "https://provider.shortpulse.test/stale-preview.png",
+      resultUrls: ["https://provider.shortpulse.test/full-result.png"],
+      previewStoragePath: "user-1/variants/images/output-image-card-preview-authority.webp",
+      fullStoragePath: "user-1/generations/images/output-image-card-preview-authority.png",
+      savedMediaIds: ["saved-media-image-preview-authority"],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const resolvedItem = latestDualCanvasArgs?.resolveCanvasDropReference?.(
+      makePayload({
+        outputId: output.id,
+        referenceId: output.id,
+        mediaKind: "image",
+        referenceUrl: "https://signed.shortpulse.test/card-preview.webp",
+      })
+    );
+
+    expect(resolvedItem).toMatchObject({
+      kind: "image",
+      outputId: "output-image-card-preview-authority",
+      mediaId: "saved-media-image-preview-authority",
+      src: "https://signed.shortpulse.test/card-preview.webp",
+      alt: "Preview authority",
       sourceSurface: "curated",
     });
   });

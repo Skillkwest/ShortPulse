@@ -59,4 +59,30 @@ describe("resolveMediaLibraryAdaptiveCardPreviewUrl", () => {
 
     expect(resolved).toBe(signedImageUrl);
   });
+
+  it("rejects Supabase render-image URLs even when adaptive preview is bypassed", () => {
+    const renderImageUrl =
+      "https://example.supabase.co/storage/v1/render/image/sign/media_library/user-1/upload/cat.jpg?token=abc&width=320&quality=28";
+
+    expect(
+      resolveMediaLibraryAdaptiveCardPreviewUrl({
+        surface: "media-library-panel-grid",
+        signedUrl: renderImageUrl,
+        fileType: "image/jpeg",
+        pressureLevel: 1,
+        adaptivePreviewQualityEnabled: true,
+      })
+    ).toBeNull();
+
+    expect(
+      resolveMediaLibraryAdaptiveCardPreviewUrl({
+        surface: "media-library-panel-grid",
+        signedUrl: renderImageUrl,
+        fileType: "image/jpeg",
+        pressureLevel: 1,
+        adaptivePreviewQualityEnabled: true,
+        shouldBypassAdaptivePreview: true,
+      })
+    ).toBeNull();
+  });
 });

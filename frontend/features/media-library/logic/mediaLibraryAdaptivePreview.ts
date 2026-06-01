@@ -7,6 +7,7 @@ import {
   resolveAdaptiveSourceKind,
   type AdaptiveSurface,
 } from "../../../lib/adaptive-media";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 
 type MediaLibraryAdaptiveSurface = Extract<
   AdaptiveSurface,
@@ -32,12 +33,12 @@ const isVideoFile = (fileType?: string | null): boolean =>
 const isAudioFile = (fileType?: string | null): boolean =>
   (fileType ?? "").toLowerCase().startsWith("audio");
 
-const SUPABASE_SIGNED_STORAGE_PATH_PATTERN = /\/storage\/v1\/(?:object|render\/image)\/sign\//i;
+const SUPABASE_OBJECT_SIGNED_STORAGE_PATH_PATTERN = /\/storage\/v1\/object\/sign\//i;
 
-const isSupabaseSignedStorageUrl = (value: string): boolean => {
+const isSupabaseObjectSignedStorageUrl = (value: string): boolean => {
   const trimmed = value.trim();
   if (!trimmed) return false;
-  return SUPABASE_SIGNED_STORAGE_PATH_PATTERN.test(trimmed);
+  return SUPABASE_OBJECT_SIGNED_STORAGE_PATH_PATTERN.test(trimmed);
 };
 
 /**
@@ -54,8 +55,9 @@ export const resolveMediaLibraryAdaptiveCardPreviewUrl = ({
   devicePixelRatio = 1,
 }: ResolveMediaLibraryAdaptiveCardPreviewArgs): string | null => {
   if (!signedUrl) return null;
+  if (isSupabaseRenderImageUrl(signedUrl)) return null;
   if (shouldBypassAdaptivePreview) return signedUrl;
-  if (isSupabaseSignedStorageUrl(signedUrl)) return signedUrl;
+  if (isSupabaseObjectSignedStorageUrl(signedUrl)) return signedUrl;
   if (isAudioFile(fileType)) return signedUrl;
 
   const adaptiveResult = resolveAdaptiveMedia({

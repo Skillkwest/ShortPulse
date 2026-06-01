@@ -1062,6 +1062,183 @@ describe("projectWorkspaceStatesService", () => {
     );
   });
 
+  it("preserves durable generated rows during workspace save even when generation ownership resolves unowned", async () => {
+    const { generationAssociationUpsert, workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      generationRows: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-durable-generated-save",
+        updatedAt: "2026-05-31T20:15:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T20:15:00.000Z",
+          checksum: "fnv1a32:durable-generated-save",
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-durable-generated-1",
+              generationId: GENERATION_ID_2,
+              mediaSource: "generated",
+              previewStoragePath: "user-1/generated/durable-generated-preview.png",
+              fullStoragePath: "user-1/generated/durable-generated-full.png",
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-durable-generated-1",
+          curatedReferenceIds: ["out-durable-generated-1"],
+          removedFromAllRefsIds: ["out-durable-generated-1"],
+        },
+        canvas: {
+          scene: {
+            items: [
+              {
+                id: "canvas-generated-1",
+                kind: "image",
+                x: 18,
+                y: 24,
+                z: 1,
+                selected: false,
+                outputId: "out-durable-generated-1",
+                sourceSurface: "curated",
+                src: "https://signed.shortpulse.test/generated.png",
+                alt: "Durable generated image",
+                width: 320,
+                height: 180,
+              },
+            ],
+          },
+          viewports: {
+            main: { x: 0, y: 0, zoom: 1 },
+            rail: { x: 0, y: 0, zoom: 1 },
+          },
+          transient: {
+            draftTextEntry: null,
+            textEditSession: null,
+            draftOwnerInstanceId: null,
+            textEditOwnerInstanceId: null,
+          },
+          meta: {
+            schemaVersion: 1,
+            itemCount: 1,
+            truncatedItemCount: 0,
+            skippedNonDurableImageCount: 0,
+          },
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(firstWorkspaceUpsertArg?.snapshot?.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: `generated:${GENERATION_ID_2}`,
+          mediaSource: "generated",
+          previewStoragePath: "user-1/generated/durable-generated-preview.png",
+          fullStoragePath: "user-1/generated/durable-generated-full.png",
+        }),
+      ],
+      activeOutputId: null,
+      curatedReferenceIds: [`generated:${GENERATION_ID_2}`],
+      removedFromAllRefsIds: [`generated:${GENERATION_ID_2}`],
+    });
+    expect(
+      (firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> })
+        ?.active?.[0]
+    ).not.toHaveProperty("generationId");
+    expect(firstWorkspaceUpsertArg?.snapshot?.canvas).toMatchObject({
+      scene: {
+        items: [expect.objectContaining({ outputId: `generated:${GENERATION_ID_2}` })],
+      },
+    });
+    expect(generationAssociationUpsert).not.toHaveBeenCalled();
+  });
+
+  it("preserves companion-art-backed generated rows during workspace save", async () => {
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      generationRows: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-companion-art-save",
+        updatedAt: "2026-05-31T20:20:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T20:20:00.000Z",
+          checksum: "fnv1a32:companion-art-save",
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-companion-art-1",
+              generationId: GENERATION_ID_2,
+              mediaSource: "generated",
+              companionArtStoragePath: "user-1/generated/companion-art-1.png",
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-companion-art-1",
+          curatedReferenceIds: ["out-companion-art-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(firstWorkspaceUpsertArg?.snapshot?.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: `generated:${GENERATION_ID_2}`,
+          mediaSource: "generated",
+          companionArtStoragePath: "user-1/generated/companion-art-1.png",
+        }),
+      ],
+      activeOutputId: null,
+      curatedReferenceIds: [`generated:${GENERATION_ID_2}`],
+    });
+  });
+
   it("preserves durable canvas content while stripping transient canvas state during workspace save", async () => {
     const { workspaceUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
@@ -1820,6 +1997,117 @@ describe("projectWorkspaceStatesService", () => {
       });
       expect(result?.snapshot.outputs).not.toMatchObject({
         active: [expect.objectContaining({ generationId: GENERATION_ID_1 })],
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] read sanitization degraded unresolved ownership associations",
+        expect.objectContaining({
+          projectId: "project-1",
+          failedAuthorities: ["generation"],
+        })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("preserves durable generated rows and dependent references when generation ownership resolution fails on read", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    createSupabaseMock({
+      generationReadError: "generation ownership unavailable",
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-durable-generated-read",
+        updatedAt: "2026-05-31T20:25:00.000Z",
+        meta: {
+          generatedAt: "2026-05-31T20:25:00.000Z",
+          checksum: "fnv1a32:durable-generated-read",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-durable-generated-read-1",
+              generationId: GENERATION_ID_1,
+              mediaSource: "generated",
+              previewStoragePath: "user-1/generated/durable-generated-read-preview.png",
+              fullStoragePath: "user-1/generated/durable-generated-read-full.png",
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-durable-generated-read-1",
+          curatedReferenceIds: ["out-durable-generated-read-1"],
+          removedFromAllRefsIds: ["out-durable-generated-read-1"],
+        },
+        canvas: {
+          scene: {
+            items: [
+              {
+                id: "canvas-generated-read-1",
+                kind: "image",
+                x: 10,
+                y: 12,
+                z: 1,
+                selected: false,
+                outputId: "out-durable-generated-read-1",
+                sourceSurface: "curated",
+                src: "https://signed.shortpulse.test/generated-read.png",
+                alt: "Durable generated image",
+                width: 320,
+                height: 180,
+              },
+            ],
+          },
+          viewports: {
+            main: { x: 0, y: 0, zoom: 1 },
+            rail: { x: 0, y: 0, zoom: 1 },
+          },
+          transient: {
+            draftTextEntry: null,
+            textEditSession: null,
+            draftOwnerInstanceId: null,
+            textEditOwnerInstanceId: null,
+          },
+          meta: {
+            schemaVersion: 1,
+            itemCount: 1,
+            truncatedItemCount: 0,
+            skippedNonDurableImageCount: 0,
+          },
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    try {
+      const result = await getProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+
+      expect(result?.snapshot.outputs).toMatchObject({
+        active: [
+          expect.objectContaining({
+            id: `generated:${GENERATION_ID_1}`,
+            generationId: GENERATION_ID_1,
+            mediaSource: "generated",
+            previewStoragePath: "user-1/generated/durable-generated-read-preview.png",
+            fullStoragePath: "user-1/generated/durable-generated-read-full.png",
+          }),
+        ],
+        activeOutputId: null,
+        curatedReferenceIds: [`generated:${GENERATION_ID_1}`],
+        removedFromAllRefsIds: [`generated:${GENERATION_ID_1}`],
+      });
+      expect(result?.snapshot.canvas).toMatchObject({
+        scene: {
+          items: [expect.objectContaining({ outputId: `generated:${GENERATION_ID_1}` })],
+        },
       });
       expect(warnSpy).toHaveBeenCalledWith(
         "[project-workspace] read sanitization degraded unresolved ownership associations",

@@ -1,13 +1,13 @@
 # Pulse Training Memory
 
-Purpose: retain non-authoritative training notes for Pulse's Create panel and agent-runtime workflow.
+Purpose: retain non-authoritative training notes for Pulse's Standard-mode and Pulse-mode agent behavior workflow.
 
 ## Current Training State
 
 - Maturity: `Level 1: Supervised`.
 - Contract created: 2026-05-01.
-- First durable scope: AI Studio Create panel ownership plus Standard/Pulse agent-runtime inner workings.
-- First task surface: Create panel and mode-owned agent runtime docs/code referenced by `docs/agents/pulse/README.md`.
+- First durable scope: AI Studio Standard-mode and Pulse-mode agent behavior ownership plus the runtime boundary between them.
+- First task surface: mode-owned agent runtime docs/code referenced by `docs/agents/Pulse/README.md`.
 
 ## Guardrail Summary
 
@@ -19,6 +19,5 @@ Purpose: retain non-authoritative training notes for Pulse's Create panel and ag
 
 ## Notes
 
-- Keep durable operating preferences in `docs/agents/pulse/memory.md`.
+- Keep durable operating preferences in `docs/agents/Pulse/memory.md`.
 - Keep run-specific evidence and lessons in this artifact namespace.
-

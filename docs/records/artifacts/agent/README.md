@@ -41,7 +41,7 @@ Not every agent needs every file.
 - `docs/records/artifacts/agent/Money Stuff/`
 - `docs/records/artifacts/agent/nuclo/`
 - `docs/records/artifacts/agent/ophestivus/`
-- `docs/records/artifacts/agent/pulse/`
+- `docs/records/artifacts/agent/Pulse/`
 - `docs/records/artifacts/agent/Babineaux the Engineer/`
 
 Use the folder directly when you need that agent's retained state. This active list should stay explicit so retained agents are discoverable from the index.

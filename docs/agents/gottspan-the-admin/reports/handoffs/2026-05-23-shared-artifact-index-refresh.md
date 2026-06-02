@@ -16,7 +16,7 @@ The shared artifact index is intentionally not a complete inventory, but it now 
   - `docs/records/artifacts/agent/holomony/`
   - `docs/records/artifacts/agent/ayla/`
   - `docs/records/artifacts/agent/lever/`
-  - `docs/records/artifacts/agent/pulse/`
+  - `docs/records/artifacts/agent/Pulse/`
 
 ## Requested Cleanup
 

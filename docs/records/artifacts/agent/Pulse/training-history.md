@@ -4,7 +4,7 @@ Purpose: record supervised Pulse training runs, prompt patterns, lessons, SOP/te
 
 ## 2026-05-01: Agent Setup
 
-Task: establish Pulse as the Create panel and AI Studio agent-runtime steward.
+Task: establish Pulse as the Standard-mode and Pulse-mode agent behavior owner.
 
 Prompt summary:
 
@@ -53,3 +53,19 @@ Training result:
 
 - Pulse completed its first supervised Create panel / agent-runtime implementation run.
 - Durable lesson added: active Create agent traffic has exactly two valid routes, Standard and Pulse.
+
+## 2026-06-01: Ownership And Naming Realignment
+
+Task: make Pulse the explicit owner of both Standard-mode and Pulse-mode agent behaviors, add a Pulse workspace surface, and rename Pulse's repo folders from the generic lowercase slug to the proper Pulse identity.
+
+Actions taken:
+
+- Renamed the contract folder from `docs/agents/pulse/` to `docs/agents/Pulse/`.
+- Renamed the retained artifact folder from `docs/records/artifacts/agent/pulse/` to `docs/records/artifacts/agent/Pulse/`.
+- Added `docs/agents/Pulse/workspace/` as Pulse's owned temporary workspace surface with `dropbox/` and `drafts/` lanes.
+- Updated Pulse's contract, memory, artifact docs, and index references to state that Pulse owns Standard-mode and Pulse-mode agent behaviors entirely, not just the visible Create panel.
+
+Training result:
+
+- Pulse now has an explicit local workspace surface in addition to the contract and retained artifact surfaces.
+- Pulse's repo identity now reads as `Pulse` across the active contract and artifact paths.

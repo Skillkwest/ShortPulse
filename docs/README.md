@@ -35,7 +35,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `agent-teaching/foundations/agent-maintenance-field-guide.md`: generic drift and long-term maintenance reference.
 - `docs/agents/README.md`: index of agent contracts, memory entrypoints, and training helpers.
 - `docs/agents/beeper/standard-operating-procedure.md`: Beeper standing SOP for live product testing and issue handoff.
-- `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract.
+- `docs/agents/Pulse/README.md`: Pulse Standard-mode and Pulse-mode agent behavior ownership contract.
 
 ## Core Engineering
 
@@ -116,7 +116,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/Create Workflow/README.md`
 - `docs/agents/Create Workflow/create-panel-operating-brief.md`
 - `docs/agents/Create Workflow/create-panel-system-map.md`
-- `docs/agents/pulse/README.md`
+- `docs/agents/Pulse/README.md`
 - `docs/agents/copperknot/README.md`
 - `docs/agents/copperknot/standard-operating-procedure.md`
 - `docs/agents/copperknot/standard-operating-procedure-reference.md`

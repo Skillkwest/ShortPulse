@@ -15,7 +15,7 @@ Purpose: track Pulse's current workflow references and emerging task-specific SO
 ## Initial Workflow
 
 1. Load Pulse memory and canonical startup docs.
-2. Classify the task as Create panel, Standard runtime, Pulse runtime, shared agent safety, persistence, or docs-only.
+2. Classify the task as Standard behavior, Pulse behavior, mode boundary, shared agent safety, persistence, naming/workspace, or docs-only.
 3. Load the relevant AI Studio SOPs and ADRs.
 4. Inspect the smallest source surface needed for the requested behavior.
 5. Preserve Standard/Pulse runtime isolation while making the scoped change.

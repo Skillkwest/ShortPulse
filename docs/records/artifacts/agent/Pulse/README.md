@@ -1,12 +1,12 @@
 # Pulse Agent Artifacts
 
-Purpose: store non-authoritative retained artifacts for Pulse's AI Studio Create panel and agent-runtime training.
+Purpose: store non-authoritative retained artifacts for Pulse's Standard-mode and Pulse-mode agent behavior training.
 
 ## Status
 
 Pulse is currently at `Level 1: Supervised`.
 
-The agent has a durable contract and memory area, and has completed one supervised Create panel / agent-runtime implementation run.
+The agent has a durable contract, workspace, and memory area, and has completed one supervised Standard/Pulse agent-runtime implementation run.
 
 ## Artifact Layout
 
@@ -22,8 +22,9 @@ These artifacts support Pulse training and traceability. They do not override ca
 
 ## Canonical Entry Points
 
-- Agent contract: `docs/agents/pulse/README.md`
-- Repo-visible memory: `docs/agents/pulse/memory.md`
+- Agent contract: `docs/agents/Pulse/README.md`
+- Repo-visible memory: `docs/agents/Pulse/memory.md`
+- Workspace: `docs/agents/Pulse/workspace/`
 - Create wiring SOP: `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`
 - Agent SOP: `docs/sops/sop_ai_studio_agent.md`
 - Pulse mode SOP: `docs/sops/sop_ai_studio_pulse_mode.md`

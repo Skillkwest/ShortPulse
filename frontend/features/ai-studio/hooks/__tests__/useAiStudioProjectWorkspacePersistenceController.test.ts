@@ -286,7 +286,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
   });
 
   it("marks bootstrap settled before the stricter visibility proof matches", async () => {
-    const restoreSnapshot = createAiStudioProjectWorkspaceSnapshot(createSnapshot());
+    const restoreSnapshot = createAiStudioProjectWorkspaceSnapshot(
+      createSnapshot()
+    ) as AiStudioSessionSnapshotV2;
     const mismatchedLiveSnapshot = createAiStudioProjectWorkspaceSnapshot({
       ...restoreSnapshot,
       canvas: serializeAiStudioSessionCanvasState({
@@ -297,18 +299,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
             text: "draft",
             x: 16,
             y: 24,
+            z: 1,
+            selected: false,
+            outputId: null,
+            sourceSurface: null,
             width: 180,
             height: 48,
-            rotation: 0,
-            scale: 1,
-            opacity: 1,
-            locked: false,
-            zIndex: 1,
-            fontSize: 20,
-            fontFamily: "Arial",
-            fontWeight: 400,
-            color: "#ffffff",
-            align: "left",
           },
         ],
         draftTextEntry: null,
@@ -318,7 +314,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         mainCamera: { x: 0, y: 0, zoom: 1 },
         railCamera: { x: 0, y: 0, zoom: 1 },
       }),
-    });
+    }) as AiStudioSessionSnapshotV2;
     const userEditedLiveSnapshot = createAiStudioProjectWorkspaceSnapshot({
       ...mismatchedLiveSnapshot,
       canvas: serializeAiStudioSessionCanvasState({
@@ -329,18 +325,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
             text: "draft after user edit",
             x: 32,
             y: 40,
+            z: 1,
+            selected: false,
+            outputId: null,
+            sourceSurface: null,
             width: 220,
             height: 60,
-            rotation: 0,
-            scale: 1,
-            opacity: 1,
-            locked: false,
-            zIndex: 1,
-            fontSize: 20,
-            fontFamily: "Arial",
-            fontWeight: 400,
-            color: "#ffffff",
-            align: "left",
           },
         ],
         draftTextEntry: null,
@@ -350,7 +340,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         mainCamera: { x: 0, y: 0, zoom: 1 },
         railCamera: { x: 0, y: 0, zoom: 1 },
       }),
-    });
+    }) as AiStudioSessionSnapshotV2;
     mockReadyRestoreCandidate(restoreSnapshot);
     const buildSessionSnapshot = vi.fn(() => mismatchedLiveSnapshot);
     const buildEditedSessionSnapshot = vi.fn(() => userEditedLiveSnapshot);
@@ -437,18 +427,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
             text: "draft",
             x: 16,
             y: 24,
+            z: 1,
+            selected: false,
+            outputId: null,
+            sourceSurface: null,
             width: 180,
             height: 48,
-            rotation: 0,
-            scale: 1,
-            opacity: 1,
-            locked: false,
-            zIndex: 1,
-            fontSize: 20,
-            fontFamily: "Arial",
-            fontWeight: 400,
-            color: "#ffffff",
-            align: "left",
           },
         ],
         draftTextEntry: null,
@@ -564,18 +548,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
             text: "draft",
             x: 16,
             y: 24,
+            z: 1,
+            selected: false,
+            outputId: null,
+            sourceSurface: null,
             width: 180,
             height: 48,
-            rotation: 0,
-            scale: 1,
-            opacity: 1,
-            locked: false,
-            zIndex: 1,
-            fontSize: 20,
-            fontFamily: "Arial",
-            fontWeight: 400,
-            color: "#ffffff",
-            align: "left",
           },
         ],
         draftTextEntry: null,
@@ -641,6 +619,124 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("treats media-backed canvas signed URL refreshes as matching restore visibility", async () => {
+    const restoredSnapshot = {
+      ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),
+      outputs: {
+        active: [
+          {
+            id: "out-restored-canvas-1",
+            prompt: "Restored canvas image",
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "Just now",
+            previewUrl: "https://cdn.example.com/restored-canvas.png?token=old",
+            resultUrls: ["https://cdn.example.com/restored-canvas.png?token=old"],
+            savedMediaIds: ["media-canvas-1"],
+          },
+        ],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: ["out-restored-canvas-1"],
+        removedFromAllRefsIds: [],
+      },
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [
+          {
+            id: "canvas-image-1",
+            kind: "image",
+            x: 120,
+            y: 240,
+            z: 3,
+            selected: false,
+            outputId: "out-restored-canvas-1",
+            sourceSurface: "curated",
+            mediaId: "media-canvas-1",
+            src: "https://cdn.example.com/restored-canvas.png?token=old",
+            alt: "Restored canvas image",
+            width: 512,
+            height: 512,
+          },
+        ],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 40, y: -18, zoom: 1.45 },
+        railCamera: { x: -10, y: 12, zoom: 0.8 },
+      }),
+    } as unknown as AiStudioSessionSnapshot;
+    const refreshedCanvasSnapshot = {
+      ...restoredSnapshot,
+      outputs: {
+        ...restoredSnapshot.outputs,
+        active: (restoredSnapshot.outputs?.active ?? []).map((output) => ({
+          ...output,
+          previewUrl: "https://cdn.example.com/restored-canvas.png?token=fresh",
+          resultUrls: ["https://cdn.example.com/restored-canvas.png?token=fresh"],
+        })),
+      },
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [
+          {
+            id: "canvas-image-1",
+            kind: "image",
+            x: 120,
+            y: 240,
+            z: 3,
+            selected: false,
+            outputId: "out-restored-canvas-1",
+            sourceSurface: "curated",
+            mediaId: "media-canvas-1",
+            src: "https://cdn.example.com/restored-canvas.png?token=fresh",
+            alt: "Restored canvas image",
+            width: 512,
+            height: 512,
+          },
+        ],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 40, y: -18, zoom: 1.45 },
+        railCamera: { x: -10, y: 12, zoom: 0.8 },
+      }),
+    } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const buildSessionSnapshot = vi.fn(() => refreshedCanvasSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    await act(async () => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+      await Promise.resolve();
+    });
+    await flushBootstrapVisibilityLatch();
+
+    expect(result.current.projectBootstrapSettled).toBe(true);
+    expect(result.current.projectBootstrapApplied).toBe(true);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        snapshot: refreshedCanvasSnapshot,
+        enabled: true,
+      })
+    );
+  });
+
   it("enables project autosave for immediate quick-slot and canvas edits after bootstrap settles", async () => {
     const restoredSnapshot = {
       ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),
@@ -690,18 +786,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
             text: "fast edit",
             x: 20,
             y: 30,
+            z: 1,
+            selected: false,
+            outputId: null,
+            sourceSurface: null,
             width: 180,
             height: 48,
-            rotation: 0,
-            scale: 1,
-            opacity: 1,
-            locked: false,
-            zIndex: 1,
-            fontSize: 20,
-            fontFamily: "Arial",
-            fontWeight: 400,
-            color: "#ffffff",
-            align: "left",
           },
         ],
         draftTextEntry: null,
@@ -1353,7 +1443,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
             z: 1,
             selected: true,
             outputId: "out-generated-legacy",
-            sourceSurface: "reference-grid",
+            sourceSurface: "curated",
             mediaId: null,
             src: "https://cdn.example.com/out-generated-legacy.png",
             alt: "Generated image",

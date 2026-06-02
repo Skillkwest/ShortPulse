@@ -1,10 +1,14 @@
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InternalReferenceDragPayload } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 import type { AiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
 import type { AiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
 import { useAiStudioPageMediaReferenceRuntime } from "../useAiStudioPageMediaReferenceRuntime";
+
+const restoreSigningMocks = vi.hoisted(() => ({
+  resolveSessionRestoreSignedMediaAuthorityByMediaId: vi.fn(),
+}));
 
 type MockDualCanvasArgs = {
   resolveCanvasDropReference?: (payload: InternalReferenceDragPayload) => unknown;
@@ -17,6 +21,11 @@ type MockDualCanvasArgs = {
 
 vi.mock("../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),
+}));
+
+vi.mock("../../logic/sessionRestoreMediaSigning", () => ({
+  resolveSessionRestoreSignedMediaAuthorityByMediaId: (...args: unknown[]) =>
+    restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId(...args),
 }));
 
 let latestDualCanvasArgs: MockDualCanvasArgs | null = null;
@@ -118,6 +127,9 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId.mockResolvedValue(
+      new Map()
+    );
     latestDualCanvasArgs = null;
     mockedCanvasSessionState = {
       items: [],
@@ -846,5 +858,75 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
         }),
       ],
     });
+  });
+
+  it("refreshes restored canvas media from media id when output authority is unavailable", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-media-id-1",
+          kind: "image" as const,
+          x: 12,
+          y: 24,
+          z: 1,
+          selected: false,
+          outputId: "missing-output-1",
+          sourceSurface: "curated" as const,
+          mediaId: "saved-media-direct-1",
+          src: "https://expired.shortpulse.test/canvas-image.png",
+          alt: "Canvas image",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId.mockResolvedValueOnce(
+      new Map([
+        [
+          "saved-media-direct-1",
+          {
+            mediaId: "saved-media-direct-1",
+            fileType: "image",
+            previewStoragePath: "user-1/images/direct-thumb.png",
+            fullStoragePath: "user-1/images/direct-full.png",
+            previewPosterStoragePath: null,
+            signedPreviewUrl: "https://signed.shortpulse.test/direct-thumb.png",
+            signedFullUrl: "https://signed.shortpulse.test/direct-full.png",
+            signedPreviewPosterUrl: null,
+          },
+        ],
+      ])
+    );
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        getOutputSnapshot: () => createOutputSnapshot(),
+      })
+    );
+
+    await waitFor(() => {
+      expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+        ...mockedCanvasSessionState,
+        items: [
+          expect.objectContaining({
+            id: "canvas-image-media-id-1",
+            outputId: "missing-output-1",
+            mediaId: "saved-media-direct-1",
+            src: "https://signed.shortpulse.test/direct-thumb.png",
+          }),
+        ],
+      });
+    });
+    expect(
+      restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId
+    ).toHaveBeenCalledWith(["saved-media-direct-1"]);
   });
 });

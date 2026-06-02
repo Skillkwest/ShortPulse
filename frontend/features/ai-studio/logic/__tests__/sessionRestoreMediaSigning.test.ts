@@ -5,6 +5,7 @@ import {
   buildSessionOutputSigningFingerprintById,
   collectSessionRestoreSigningPaths,
   resolveSessionRestoreSignedMediaAuthority,
+  resolveSessionRestoreSignedMediaAuthorityByMediaId,
   resolveSessionRestoreSignedUrls,
 } from "../sessionRestoreMediaSigning";
 
@@ -359,6 +360,50 @@ describe("sessionRestoreMediaSigning", () => {
         previewStoragePath: "user-1/images/library.png",
         fullStoragePath: "user-1/images/library.png",
         resultUrls: ["https://signed/library.png", "https://stale.example.com/library.png"],
+      })
+    );
+  });
+
+  it("resolves signed restore authority directly from media ids", async () => {
+    mediaFilesQueryMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: "media-canvas-1",
+          storage_path: "user-1/images/canvas-full.png",
+          file_type: "image",
+          poster_variant_path: null,
+          thumb_variant_path: "user-1/images/canvas-thumb.png",
+          preview_variant_path: null,
+        },
+      ],
+      error: null,
+    });
+    getSignedMediaUrlsBatchMock.mockResolvedValueOnce(
+      new Map([
+        ["user-1/images/canvas-thumb.png", "https://signed/canvas-thumb.png"],
+        ["user-1/images/canvas-full.png", "https://signed/canvas-full.png"],
+      ])
+    );
+
+    const authorityByMediaId = await resolveSessionRestoreSignedMediaAuthorityByMediaId([
+      "media-canvas-1",
+    ]);
+
+    expect(mediaFilesQueryMock).toHaveBeenCalledWith("id", ["media-canvas-1"]);
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePaths: ["user-1/images/canvas-thumb.png", "user-1/images/canvas-full.png"],
+      })
+    );
+    expect(authorityByMediaId.get("media-canvas-1")).toEqual(
+      expect.objectContaining({
+        mediaId: "media-canvas-1",
+        fileType: "image",
+        previewStoragePath: "user-1/images/canvas-thumb.png",
+        fullStoragePath: "user-1/images/canvas-full.png",
+        signedPreviewUrl: "https://signed/canvas-thumb.png",
+        signedFullUrl: "https://signed/canvas-full.png",
       })
     );
   });

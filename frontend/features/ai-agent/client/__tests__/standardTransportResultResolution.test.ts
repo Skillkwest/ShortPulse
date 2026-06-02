@@ -65,4 +65,22 @@ describe("resolveStandardCreateAgentTransportSuccess", () => {
     expect(result.assistantContent).toBe("Hello. How can I help?");
     expect(result.assistantOutputPrompt).toBeNull();
   });
+
+  it("does not expose prompt artifacts for Standard message-success replies", () => {
+    const result = resolveStandardCreateAgentTransportSuccess({
+      message: "Hello. How can I help?",
+      actions: {
+        applyPrompt: "This should stay hidden as a prompt artifact.",
+      },
+      outcome_class: "success_message",
+      reason_code: "SUCCESS_MESSAGE",
+    });
+
+    expect(result.assistantReply).toEqual({
+      text: "Hello. How can I help?",
+      source: "message",
+    });
+    expect(result.promptArtifact).toBeNull();
+    expect(result.assistantOutputPrompt).toBeNull();
+  });
 });

@@ -11,19 +11,33 @@ import type {
 } from "../../prefabs/agent";
 import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
 
+export type CreateAgentAssistantReply = {
+  text: string;
+  source?: string;
+};
+
+export type CreateAgentPromptArtifact = {
+  text: string;
+  source?: string;
+} | null;
+
+export type CreateAgentTransportSuccess = {
+  actions: AgentActions | undefined;
+  workflowSession: AgentPulseWorkflowSession | null;
+  canonicalPrompt: string | null;
+  assistantReply?: CreateAgentAssistantReply;
+  promptArtifact?: CreateAgentPromptArtifact;
+  assistantContent: string;
+  assistantOutputPrompt: string | null;
+};
+
 export type CreateAgentStateOptions = {
   initialMessages?: AgentMessage[];
   enabled?: boolean;
   conversationId?: string;
   sessionNamespace?: string;
   sendAgentTurn?: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
-  resolveTransportSuccess?: (response: AgentResponse) => {
-    actions: AgentActions | undefined;
-    workflowSession: AgentPulseWorkflowSession | null;
-    canonicalPrompt: string | null;
-    assistantContent: string;
-    assistantOutputPrompt: string | null;
-  };
+  resolveTransportSuccess?: (response: AgentResponse) => CreateAgentTransportSuccess;
 };
 
 export type SendParams = {

@@ -248,6 +248,55 @@ const normalizeProjectAutosaveUnlockString = (value: unknown): string | null => 
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const asSnapshotRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const normalizeCanvasSceneItemForRestoreSignature = (item: unknown): Record<string, unknown> => {
+  const record = asSnapshotRecord(item);
+  const mediaId = normalizeProjectAutosaveUnlockString(record.mediaId);
+  const outputId = normalizeProjectAutosaveUnlockString(record.outputId);
+  const hasDurableMediaAuthority = Boolean(mediaId || outputId);
+  if (!hasDurableMediaAuthority) return record;
+
+  if (record.kind === "image") {
+    return {
+      ...record,
+      src: null,
+    };
+  }
+  if (record.kind === "video") {
+    return {
+      ...record,
+      videoUrl: null,
+      posterUrl: null,
+    };
+  }
+  if (record.kind === "audio") {
+    return {
+      ...record,
+      audioUrl: null,
+      companionArtUrl: null,
+    };
+  }
+  return record;
+};
+
+const normalizeCanvasSnapshotForRestoreSignature = (
+  canvas: ReturnType<typeof serializeAiStudioSessionCanvasState>
+): Record<string, unknown> => {
+  const scene = asSnapshotRecord(canvas.scene);
+  const items = Array.isArray(scene.items) ? scene.items : [];
+  return {
+    ...canvas,
+    scene: {
+      ...scene,
+      items: items.map(normalizeCanvasSceneItemForRestoreSignature),
+    },
+  };
+};
+
 const resolveProjectRestoreCanvasSignature = (
   snapshot: AiStudioSessionSnapshot | null
 ): string | null => {
@@ -264,7 +313,9 @@ const resolveProjectRestoreCanvasSignature = (
     durableCanvas.railCamera.y === 0 &&
     durableCanvas.railCamera.zoom === 1;
   if (isDefaultEmptyCanvas) return null;
-  return JSON.stringify(serializeAiStudioSessionCanvasState(durableCanvas));
+  return JSON.stringify(
+    normalizeCanvasSnapshotForRestoreSignature(serializeAiStudioSessionCanvasState(durableCanvas))
+  );
 };
 
 const resolveProjectAutosaveUnlockSignature = (

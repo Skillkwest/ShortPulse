@@ -5,7 +5,6 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
-  AgentActions,
   AgentApiContext,
   AgentApiRequest,
   AgentAttachment,
@@ -36,17 +35,30 @@ import {
 } from "./client/messageStore";
 import { resolveStudioAgentTransportFailure } from "./client/transportFailureResolution";
 import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionController";
-import { EMPTY_MESSAGES, type SendParams, type SendResult } from "./createAgentStateTypes";
+import {
+  EMPTY_MESSAGES,
+  type CreateAgentTransportSuccess,
+  type SendParams,
+  type SendResult,
+} from "./createAgentStateTypes";
 import { resolveOutboundAgentContext } from "./logic/pulseContextPreservation";
 import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
 
-type CreateAgentTransportSuccess = {
-  actions: AgentActions | undefined;
-  workflowSession?: SendResult["workflowSession"];
-  canonicalPrompt: string | null;
-  assistantContent: string;
-  assistantOutputPrompt: string | null;
-};
+const resolveAssistantMessagePayload = ({
+  assistantReply,
+  promptArtifact,
+  assistantContent,
+  assistantOutputPrompt,
+}: Pick<
+  CreateAgentTransportSuccess,
+  "assistantReply" | "promptArtifact" | "assistantContent" | "assistantOutputPrompt"
+>): {
+  content: string;
+  outputPrompt: string | null;
+} => ({
+  content: assistantReply?.text ?? assistantContent,
+  outputPrompt: promptArtifact?.text ?? assistantOutputPrompt,
+});
 
 type UseCreateAgentStateCoreOptions = {
   initialMessages?: AgentMessage[];
@@ -388,6 +400,8 @@ export const useCreateAgentStateCore = ({
           actions,
           workflowSession = null,
           canonicalPrompt,
+          assistantReply,
+          promptArtifact,
           assistantContent,
           assistantOutputPrompt,
         } = await resolveTransportSuccess(data);
@@ -395,16 +409,23 @@ export const useCreateAgentStateCore = ({
           canonicalPromptBySessionIdentityRef.current.set(requestSessionIdentity, canonicalPrompt);
         }
 
-        if (assistantContent) {
+        const assistantMessagePayload = resolveAssistantMessagePayload({
+          assistantReply,
+          promptArtifact,
+          assistantContent,
+          assistantOutputPrompt,
+        });
+
+        if (assistantMessagePayload.content) {
           const canUseAssistantMessageAsPrompt =
-            Boolean(assistantOutputPrompt) &&
+            Boolean(assistantMessagePayload.outputPrompt) &&
             data.decision !== "refuse" &&
             data.outcome_class !== "refusal_safety" &&
             data.outcome_class !== "refusal_model";
           const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
             id: createAgentMessageId("assistant"),
-            content: assistantContent,
-            outputPrompt: assistantOutputPrompt,
+            content: assistantMessagePayload.content,
+            outputPrompt: assistantMessagePayload.outputPrompt,
             canUseAsPrompt: canUseAssistantMessageAsPrompt,
             outcomeClass: data.outcome_class ?? null,
             reasonCode: data.reason_code ?? null,

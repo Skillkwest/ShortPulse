@@ -3,7 +3,7 @@
  * Owns quick-slot drop handling, canvas reference resolution, voice-changer internal references,
  * and dual-canvas workspace wiring for the page shell.
  */
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { useAiStudioDualCanvasWorkspaceState } from "../components/canvas/useAiStudioCanvasWorkspaceState";
 import type {
@@ -39,6 +39,10 @@ import {
 } from "../reference-grid/controllers/referenceGridClipboard";
 import { resolveReferenceProjectionIds } from "../reference-projections";
 import type { StudioOutput } from "../types";
+import {
+  resolveSessionRestoreSignedMediaAuthorityByMediaId,
+  type SessionSignedMediaRestoreAuthority,
+} from "../logic/sessionRestoreMediaSigning";
 import { resolveOutputAudioSourceMode } from "../logic/audioSourceMode";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 import type { AiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
@@ -115,6 +119,9 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   setActiveOutputId,
   setUiError,
 }: UseAiStudioPageMediaReferenceRuntimeParams) => {
+  const canvasMediaRestoreAuthorityCacheRef = useRef(
+    new Map<string, SessionSignedMediaRestoreAuthority>()
+  );
   const resolveDirectDroppedMediaFiles = useCallback(
     (files: FileList | File[]): DirectDroppedMediaFiles => {
       const droppedFiles = Array.from(files);
@@ -734,6 +741,111 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     hydrateCanvasSessionState,
     resolveCanvasResolutionFromOutput,
   ]);
+
+  useEffect(() => {
+    const mediaIds = Array.from(
+      new Set(
+        canvasSessionState.items
+          .map((item) =>
+            (item.kind === "image" || item.kind === "audio" || item.kind === "video") &&
+            item.mediaId
+              ? item.mediaId.trim()
+              : ""
+          )
+          .filter((mediaId): mediaId is string => mediaId.length > 0)
+      )
+    );
+    if (mediaIds.length === 0) return;
+
+    const applyCachedAuthority = (): boolean => {
+      let changed = false;
+      const nextItems = canvasSessionState.items.map((item) => {
+        if (
+          (item.kind !== "image" && item.kind !== "audio" && item.kind !== "video") ||
+          !item.mediaId
+        ) {
+          return item;
+        }
+        const authority = canvasMediaRestoreAuthorityCacheRef.current.get(item.mediaId);
+        if (!authority) return item;
+
+        if (item.kind === "image") {
+          const nextSrc = authority.signedPreviewUrl ?? authority.signedFullUrl;
+          if (!nextSrc || nextSrc === item.src) return item;
+          changed = true;
+          return {
+            ...item,
+            src: nextSrc,
+          };
+        }
+
+        if (item.kind === "video") {
+          const nextVideoUrl = authority.signedFullUrl ?? authority.signedPreviewUrl;
+          const nextPosterUrl = authority.signedPreviewPosterUrl ?? item.posterUrl ?? null;
+          if (
+            (!nextVideoUrl || nextVideoUrl === item.videoUrl) &&
+            nextPosterUrl === (item.posterUrl ?? null)
+          ) {
+            return item;
+          }
+          changed = true;
+          return {
+            ...item,
+            videoUrl: nextVideoUrl ?? item.videoUrl,
+            posterUrl: nextPosterUrl,
+          };
+        }
+
+        const nextAudioUrl = authority.signedFullUrl ?? authority.signedPreviewUrl;
+        if (!nextAudioUrl || nextAudioUrl === item.audioUrl) return item;
+        changed = true;
+        return {
+          ...item,
+          audioUrl: nextAudioUrl,
+        };
+      });
+
+      if (!changed) return false;
+      hydrateCanvasSessionState({
+        ...canvasSessionState,
+        items: nextItems,
+      });
+      return true;
+    };
+
+    if (applyCachedAuthority()) return;
+
+    const missingMediaIds = mediaIds.filter(
+      (mediaId) => !canvasMediaRestoreAuthorityCacheRef.current.has(mediaId)
+    );
+    if (missingMediaIds.length === 0) return;
+
+    let cancelled = false;
+    void resolveSessionRestoreSignedMediaAuthorityByMediaId(missingMediaIds)
+      .then((authorityByMediaId) => {
+        if (cancelled) return;
+        authorityByMediaId.forEach((authority, mediaId) => {
+          canvasMediaRestoreAuthorityCacheRef.current.set(mediaId, authority);
+        });
+        applyCachedAuthority();
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "ai_studio_canvas_media_restore_signing_failed",
+          data: {
+            media_id_count: missingMediaIds.length,
+            error: error instanceof Error ? error.message : "unknown_error",
+          },
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canvasSessionState, hydrateCanvasSessionState]);
 
   return {
     canvasSessionState,

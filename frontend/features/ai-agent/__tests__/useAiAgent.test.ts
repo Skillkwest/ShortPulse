@@ -1665,6 +1665,61 @@ describe("useCreateAgentStateCore", () => {
     );
   });
 
+  it("prefers the explicit Standard reply and prompt artifact contract when present", async () => {
+    const sendAgentTurn = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        message: "legacy compatibility message",
+        actions: {
+          applyPrompt: "legacy compatibility prompt",
+        },
+        outcome_class: "success_prompt",
+        reason_code: "SUCCESS_PROMPT",
+      },
+    });
+    const resolveTransportSuccess = vi.fn(() => ({
+      actions: {
+        applyPrompt: "legacy compatibility prompt",
+      },
+      workflowSession: null,
+      canonicalPrompt: null,
+      assistantReply: {
+        text: "Preferred Standard reply",
+      },
+      promptArtifact: {
+        text: "Preferred Standard prompt artifact",
+      },
+      assistantContent: "legacy compatibility message",
+      assistantOutputPrompt: "legacy compatibility prompt",
+    }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        runtimeMode: "standard",
+        sendAgentTurn,
+        resolveTransportSuccess,
+      })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "make a portrait prompt",
+        payloadText: "make a portrait prompt",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Preferred Standard reply",
+        outputPrompt: "Preferred Standard prompt artifact",
+        canUseAsPrompt: true,
+        outcomeClass: "success_prompt",
+      })
+    );
+  });
+
   it("prioritizes machine refusal fields over legacy string heuristics", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(

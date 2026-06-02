@@ -37,6 +37,13 @@ export type SessionRecoveredStorageAuthorityByOutputId = Record<
   string,
   SessionRecoveredStorageAuthority
 >;
+export type SessionSignedMediaRestoreAuthority = SessionRecoveredStorageAuthority & {
+  mediaId: string;
+  fileType: string | null;
+  signedPreviewUrl: string | null;
+  signedFullUrl: string | null;
+  signedPreviewPosterUrl: string | null;
+};
 
 type ApplySessionRestoreSignedUrlsOptions = {
   baselineById?: SessionOutputSigningFingerprintById;
@@ -74,6 +81,15 @@ const resolveSavedMediaId = (output: Pick<StudioOutput, "savedMediaIds">): strin
   return null;
 };
 
+const normalizeMediaIds = (mediaIds: readonly string[]): string[] =>
+  Array.from(
+    new Set(
+      mediaIds
+        .map((mediaId) => toNormalizedNullableString(mediaId))
+        .filter((mediaId): mediaId is string => Boolean(mediaId))
+    )
+  );
+
 const resolveRecoveredStorageAuthorityFromMediaRow = (
   row: MediaStoragePathRow | null | undefined
 ): SessionRecoveredStorageAuthority => {
@@ -103,6 +119,47 @@ const resolveRecoveredStorageAuthorityFromMediaRow = (
     previewStoragePath,
     fullStoragePath,
   };
+};
+
+const resolveMediaStorageAuthorityByMediaId = async (
+  mediaIds: readonly string[]
+): Promise<Map<string, SessionRecoveredStorageAuthority & { fileType: string | null }>> => {
+  const normalizedMediaIds = normalizeMediaIds(mediaIds);
+  const authorityByMediaId = new Map<
+    string,
+    SessionRecoveredStorageAuthority & { fileType: string | null }
+  >();
+  if (normalizedMediaIds.length === 0) return authorityByMediaId;
+
+  const supabase = ensureSupabaseQueryClient();
+  let data: MediaStoragePathRow[] | null = null;
+  try {
+    const response = await supabase
+      .from("media_files")
+      .select(
+        "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+      )
+      .in("id", normalizedMediaIds);
+    data = response.error
+      ? []
+      : Array.isArray(response.data)
+        ? (response.data as MediaStoragePathRow[])
+        : [];
+  } catch {
+    data = [];
+  }
+
+  (data ?? []).forEach((row) => {
+    const mediaId = toNormalizedNullableString(typeof row.id === "string" ? row.id : null);
+    if (!mediaId) return;
+    const fileType = typeof row.file_type === "string" ? row.file_type.toLowerCase() : null;
+    authorityByMediaId.set(mediaId, {
+      ...resolveRecoveredStorageAuthorityFromMediaRow(row),
+      fileType,
+    });
+  });
+
+  return authorityByMediaId;
 };
 
 const resolveFingerprintForOutput = (output: StudioOutput): SessionOutputSigningFingerprint => ({
@@ -200,32 +257,9 @@ const resolveSessionRestoreRecoveredStorageAuthority = async (
     );
   if (!candidateEntries.length && !generationRecoveryOutputs.length) return {};
 
-  const supabase = ensureSupabaseQueryClient();
   if (candidateEntries.length) {
     const mediaIds = Array.from(new Set(candidateEntries.map((entry) => entry.savedMediaId)));
-    let data: MediaStoragePathRow[] | null = null;
-    try {
-      const response = await supabase
-        .from("media_files")
-        .select(
-          "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-        )
-        .in("id", mediaIds);
-      data = response.error
-        ? []
-        : Array.isArray(response.data)
-          ? (response.data as MediaStoragePathRow[])
-          : [];
-    } catch {
-      data = [];
-    }
-
-    const authorityByMediaId = new Map<string, SessionRecoveredStorageAuthority>();
-    (data ?? []).forEach((row) => {
-      const mediaId = toNormalizedNullableString(typeof row.id === "string" ? row.id : null);
-      if (!mediaId) return;
-      authorityByMediaId.set(mediaId, resolveRecoveredStorageAuthorityFromMediaRow(row));
-    });
+    const authorityByMediaId = await resolveMediaStorageAuthorityByMediaId(mediaIds);
 
     candidateEntries.forEach(({ outputId, savedMediaId }) => {
       const recoveredAuthority = authorityByMediaId.get(savedMediaId);
@@ -241,6 +275,7 @@ const resolveSessionRestoreRecoveredStorageAuthority = async (
     });
   }
 
+  const supabase = ensureSupabaseQueryClient();
   await Promise.all(
     generationRecoveryOutputs.map(async (output) => {
       if (recoveredAuthorityByOutputId[output.id]) return;
@@ -263,6 +298,50 @@ const resolveSessionRestoreRecoveredStorageAuthority = async (
   );
 
   return recoveredAuthorityByOutputId;
+};
+
+/**
+ * Resolves signed restore authority directly from durable media ids.
+ */
+export const resolveSessionRestoreSignedMediaAuthorityByMediaId = async (
+  mediaIds: readonly string[]
+): Promise<Map<string, SessionSignedMediaRestoreAuthority>> => {
+  const authorityByMediaId = await resolveMediaStorageAuthorityByMediaId(mediaIds);
+  const storagePaths = new Set<string>();
+  authorityByMediaId.forEach((authority) => {
+    if (authority.previewStoragePath) storagePaths.add(authority.previewStoragePath);
+    if (authority.fullStoragePath) storagePaths.add(authority.fullStoragePath);
+    if (authority.previewPosterStoragePath) storagePaths.add(authority.previewPosterStoragePath);
+  });
+
+  const signedByPath = await getSignedMediaUrlsBatch({
+    bucket: "media_library",
+    storagePaths: [...storagePaths],
+    surface: "reference-grid",
+    queryMode: "default",
+  });
+
+  const signedAuthorityByMediaId = new Map<string, SessionSignedMediaRestoreAuthority>();
+  authorityByMediaId.forEach((authority, mediaId) => {
+    signedAuthorityByMediaId.set(mediaId, {
+      mediaId,
+      fileType: authority.fileType,
+      previewPosterStoragePath: authority.previewPosterStoragePath,
+      previewStoragePath: authority.previewStoragePath,
+      fullStoragePath: authority.fullStoragePath,
+      signedPreviewUrl: authority.previewStoragePath
+        ? (signedByPath.get(authority.previewStoragePath) ?? null)
+        : null,
+      signedFullUrl: authority.fullStoragePath
+        ? (signedByPath.get(authority.fullStoragePath) ?? null)
+        : null,
+      signedPreviewPosterUrl: authority.previewPosterStoragePath
+        ? (signedByPath.get(authority.previewPosterStoragePath) ?? null)
+        : null,
+    });
+  });
+
+  return signedAuthorityByMediaId;
 };
 
 const resolveSessionRestoreSigningOutputs = (

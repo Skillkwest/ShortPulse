@@ -28,6 +28,11 @@ export type ProjectWorkspaceQuickSlotDiagnostics = {
   quick_slot_saved_media_count: number;
   quick_slot_saved_media_ids_total: number;
   canvas_item_count: number;
+  canvas_media_item_count: number;
+  canvas_media_id_count: number;
+  canvas_output_id_count: number;
+  canvas_missing_media_authority_count: number;
+  canvas_url_count: number;
 };
 
 const MAX_ID_SAMPLE = 8;
@@ -56,11 +61,50 @@ const compactId = (value: string): string => {
 const sampleIds = (ids: readonly string[]): string =>
   ids.slice(0, MAX_ID_SAMPLE).map(compactId).join("|");
 
-const resolveCanvasItemCount = (snapshot: SnapshotLike): number => {
+const resolveCanvasMediaDiagnostics = (
+  snapshot: SnapshotLike
+): Pick<
+  ProjectWorkspaceQuickSlotDiagnostics,
+  | "canvas_item_count"
+  | "canvas_media_item_count"
+  | "canvas_media_id_count"
+  | "canvas_output_id_count"
+  | "canvas_missing_media_authority_count"
+  | "canvas_url_count"
+> => {
   const canvas = asRecord(snapshot.canvas);
   const scene = asRecord(canvas.scene);
-  const items = scene.items;
-  return Array.isArray(items) ? items.length : 0;
+  const items = Array.isArray(scene.items) ? scene.items.map(asRecord) : [];
+  let mediaItemCount = 0;
+  let mediaIdCount = 0;
+  let outputIdCount = 0;
+  let missingMediaAuthorityCount = 0;
+  let urlCount = 0;
+
+  items.forEach((item) => {
+    const kind = typeof item.kind === "string" ? item.kind.trim().toLowerCase() : "";
+    const isMediaItem = kind === "image" || kind === "audio" || kind === "video";
+    if (!isMediaItem) return;
+    mediaItemCount += 1;
+    const mediaId = typeof item.mediaId === "string" ? item.mediaId.trim() : "";
+    const outputId = typeof item.outputId === "string" ? item.outputId.trim() : "";
+    const src = typeof item.src === "string" ? item.src.trim() : "";
+    const audioUrl = typeof item.audioUrl === "string" ? item.audioUrl.trim() : "";
+    const videoUrl = typeof item.videoUrl === "string" ? item.videoUrl.trim() : "";
+    if (mediaId) mediaIdCount += 1;
+    if (outputId) outputIdCount += 1;
+    if (src || audioUrl || videoUrl) urlCount += 1;
+    if (!mediaId && !outputId) missingMediaAuthorityCount += 1;
+  });
+
+  return {
+    canvas_item_count: items.length,
+    canvas_media_item_count: mediaItemCount,
+    canvas_media_id_count: mediaIdCount,
+    canvas_output_id_count: outputIdCount,
+    canvas_missing_media_authority_count: missingMediaAuthorityCount,
+    canvas_url_count: urlCount,
+  };
 };
 
 /**
@@ -88,6 +132,16 @@ export const buildProjectWorkspaceQuickSlotDiagnostics = (
   let generatedCount = 0;
   let quickSlotSavedMediaCount = 0;
   let quickSlotSavedMediaIdsTotal = 0;
+  const canvasDiagnostics = snapshot
+    ? resolveCanvasMediaDiagnostics(snapshot)
+    : {
+        canvas_item_count: 0,
+        canvas_media_item_count: 0,
+        canvas_media_id_count: 0,
+        canvas_output_id_count: 0,
+        canvas_missing_media_authority_count: 0,
+        canvas_url_count: 0,
+      };
 
   quickSlotIds.forEach((id) => {
     const row = rowById.get(id);
@@ -116,7 +170,7 @@ export const buildProjectWorkspaceQuickSlotDiagnostics = (
     quick_slot_generated_count: generatedCount,
     quick_slot_saved_media_count: quickSlotSavedMediaCount,
     quick_slot_saved_media_ids_total: quickSlotSavedMediaIdsTotal,
-    canvas_item_count: snapshot ? resolveCanvasItemCount(snapshot) : 0,
+    ...canvasDiagnostics,
   };
 };
 

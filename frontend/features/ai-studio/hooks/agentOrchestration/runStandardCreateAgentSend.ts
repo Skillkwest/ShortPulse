@@ -14,6 +14,7 @@ import {
 } from "./ephemeralAttachmentSend";
 import type { AgentSendOptions, UseAiStudioAgentOrchestrationParams } from "./types";
 import {
+  buildStandardSessionMemoryMessages,
   resolveStandardPreviousPromptFromMemory,
   type StandardSessionMemory,
 } from "../../createRuntime/standardMemory/standardSessionMemory";
@@ -310,6 +311,10 @@ export const runStandardCreateAgentSend = async ({
         standardSessionMemory != null
           ? resolveStandardPreviousPromptFromMemory(standardSessionMemory)
           : latestAgentPrompt,
+      memoryMessages:
+        standardSessionMemory != null
+          ? buildStandardSessionMemoryMessages(standardSessionMemory)
+          : [],
       context: requestContext,
       skipUserEcho: true,
       optimisticUserMessageId,

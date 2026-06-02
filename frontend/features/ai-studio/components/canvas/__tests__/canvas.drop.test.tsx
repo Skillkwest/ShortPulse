@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { clearBreadcrumbs, getBreadcrumbsSnapshot } from "../../../../../lib/clientBreadcrumbs";
 import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../../logic/sessionSnapshotCanvas";
@@ -13,6 +13,33 @@ import {
   mockViewportRect,
   SeededCanvasHarness,
 } from "./canvasTestHarness";
+
+const dispatchDropAtPoint = ({
+  viewport,
+  dataTransfer,
+  clientX,
+  clientY,
+}: {
+  viewport: HTMLElement;
+  dataTransfer: DataTransfer;
+  clientX: number;
+  clientY: number;
+}) => {
+  const event = createEvent.drop(viewport);
+  Object.defineProperty(event, "dataTransfer", {
+    configurable: true,
+    value: dataTransfer,
+  });
+  Object.defineProperty(event, "clientX", {
+    configurable: true,
+    value: clientX,
+  });
+  Object.defineProperty(event, "clientY", {
+    configurable: true,
+    value: clientY,
+  });
+  fireEvent(viewport, event);
+};
 
 describe("Canvas drop behavior", () => {
   it("activates drop state during dragover for media-library type hints without reading payload data", () => {
@@ -768,7 +795,8 @@ describe("Canvas drop behavior", () => {
       const viewport = screen.getByTestId("canvas-viewport");
       mockViewportRect(viewport);
 
-      fireEvent.drop(viewport, {
+      dispatchDropAtPoint({
+        viewport,
         dataTransfer: createTransfer({
           "text/reference-origin": "ai-studio-reference-grid",
           "text/reference-version": "1",
@@ -782,10 +810,18 @@ describe("Canvas drop behavior", () => {
 
       expect(screen.getByTestId("canvas-loading-spinner")).toBeInTheDocument();
       expect(screen.queryByText("Prompt reference")).not.toBeInTheDocument();
+      const pendingItem = screen.getByTestId(/canvas-pending-item-/);
+      expect(Number(pendingItem.getAttribute("style")?.match(/left:\s*([0-9.]+)px/)?.[1])).toBe(
+        240
+      );
+      expect(Number(pendingItem.getAttribute("style")?.match(/top:\s*([0-9.]+)px/)?.[1])).toBe(160);
       act(() => {
         pendingFrameCallback?.(16);
       });
       expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
+      const finalItem = await screen.findByTestId(/canvas-item-/);
+      expect(Number(finalItem.getAttribute("data-x"))).toBe(240);
+      expect(Number(finalItem.getAttribute("data-y"))).toBe(160);
       await waitFor(() => {
         expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
       });
@@ -799,7 +835,8 @@ describe("Canvas drop behavior", () => {
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
 
-    fireEvent.drop(viewport, {
+    dispatchDropAtPoint({
+      viewport,
       dataTransfer: createTransfer({
         "text/reference-origin": "ai-studio-reference-grid",
         "text/reference-version": "1",
@@ -812,7 +849,10 @@ describe("Canvas drop behavior", () => {
     });
 
     expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
-    expect(await screen.findByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "text");
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(item).toHaveAttribute("data-kind", "text");
+    expect(Number(item.getAttribute("data-x"))).toBe(240);
+    expect(Number(item.getAttribute("data-y"))).toBe(160);
   });
 
   it("creates a text item from an external plain-text drop", async () => {
@@ -820,7 +860,8 @@ describe("Canvas drop behavior", () => {
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
 
-    fireEvent.drop(viewport, {
+    dispatchDropAtPoint({
+      viewport,
       dataTransfer: createTransfer({
         "text/plain": "External note",
       }),
@@ -829,6 +870,44 @@ describe("Canvas drop behavior", () => {
     });
 
     expect(await screen.findByText("External note")).toBeInTheDocument();
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(Number(item.getAttribute("data-x"))).toBe(220);
+    expect(Number(item.getAttribute("data-y"))).toBe(140);
+  });
+
+  it("anchors media-library prompt drops to the release point after camera transforms", async () => {
+    render(
+      <SeededCanvasHarness
+        initialSessionState={{
+          items: [],
+          draftTextEntry: null,
+          textEditSession: null,
+          draftOwnerInstanceId: null,
+          textEditOwnerInstanceId: null,
+          mainCamera: { x: 40, y: 20, zoom: 2 },
+          railCamera: { x: 0, y: 0, zoom: 1 },
+        }}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryPrompt",
+        "text/shortpulse-media-library-id": "prompt-lib-zoomed",
+        "text/shortpulse-media-library-prompt": "Zoomed prompt",
+      }),
+      clientX: 300,
+      clientY: 220,
+    });
+
+    expect(await screen.findByText("Zoomed prompt")).toBeInTheDocument();
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(Number(item.getAttribute("data-x"))).toBe(130);
+    expect(Number(item.getAttribute("data-y"))).toBe(100);
   });
 
   it("creates an image item from a media-library drag payload", async () => {

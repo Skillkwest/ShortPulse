@@ -3,6 +3,7 @@
  */
 import type {
   AgentActions,
+  AgentApiMessage,
   AgentApiRequest,
   AgentContext,
   AgentMessage,
@@ -45,6 +46,7 @@ export type SendParams = {
   text: string;
   payloadText?: string;
   previousPrompt?: string | null;
+  memoryMessages?: AgentApiMessage[];
   context?: AgentContext;
   sessionNamespaceOverride?: string;
   isolateHistory?: boolean;

@@ -73,12 +73,14 @@ export const removeUiMessageById = (
 export const buildApiMessagesForTurn = ({
   previousMessages,
   userPayloadForApi,
+  memoryMessages = [],
   skipUserEcho,
   optimisticUserMessageId,
   excludeNonPromptAssistantHistory = true,
 }: {
   previousMessages: AgentMessage[];
   userPayloadForApi: string;
+  memoryMessages?: AgentApiMessage[];
   skipUserEcho: boolean;
   optimisticUserMessageId: string | null;
   excludeNonPromptAssistantHistory?: boolean;
@@ -109,10 +111,24 @@ export const buildApiMessagesForTurn = ({
     }
     return acc;
   }, []);
+  const normalizedMemoryMessages = memoryMessages.reduce<AgentApiMessage[]>((acc, message) => {
+    const normalizedContent = message.content.trim();
+    if (!normalizedContent) {
+      return acc;
+    }
+    if (message.role === "user" || message.role === "assistant") {
+      acc.push({ role: message.role, content: normalizedContent });
+    }
+    return acc;
+  }, []);
 
   if (!userPayloadForApi.length) {
-    return normalizedHistory;
+    return [...normalizedMemoryMessages, ...normalizedHistory];
   }
 
-  return [...normalizedHistory, { role: "user", content: userPayloadForApi }];
+  return [
+    ...normalizedMemoryMessages,
+    ...normalizedHistory,
+    { role: "user", content: userPayloadForApi },
+  ];
 };

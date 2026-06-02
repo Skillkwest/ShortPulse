@@ -111,9 +111,7 @@ export const useAiStudioRuntimeAuthorityUiState = ({
       activeBaseRuntimeAuthorityKeyRef.current = baseRuntimeAuthorityKey;
     }
     activeRuntimeAuthorityKeyRef.current = runtimeAuthorityKey;
-    const restoredState = baseAuthorityChanged
-      ? null
-      : (runtimeUiStateByAuthorityKeyRef.current[runtimeAuthorityKey] ?? null);
+    const restoredState = runtimeUiStateByAuthorityKeyRef.current[runtimeAuthorityKey] ?? null;
 
     setActiveOutputId(restoredState?.activeOutputId ?? null);
     setReferenceProjectionState(

@@ -5,6 +5,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type {
   AgentActions,
+  AgentApiMessage,
   AgentAttachment,
   AgentContext,
   AgentMessage,
@@ -27,6 +28,7 @@ export type AgentSendToAgent = (params: {
   text: string;
   payloadText?: string;
   previousPrompt?: string | null;
+  memoryMessages?: AgentApiMessage[];
   context?: AgentContext;
   sessionNamespaceOverride?: string;
   isolateHistory?: boolean;

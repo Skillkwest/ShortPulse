@@ -69,6 +69,49 @@ describe("standardCreatePrimaryActionPolicy", () => {
       })
     ).toEqual({
       kind: "noop",
+      reason: "empty_visible_prompt",
+    });
+  });
+
+  it("returns a no-op while Standard image attachments are still preparing", () => {
+    expect(
+      resolveStandardCreatePrimaryActionDecision({
+        selectedTool: "create",
+        chatModeEnabled: true,
+        agentInput: "visible chat draft",
+        prompt: "hidden fallback prompt",
+        createGenerateCostCredits: 3,
+        agentAttachments: [
+          {
+            id: "image-1",
+            kind: "image",
+            imageUrl: "data:image/png;base64,preview",
+            submissionImageUrl: null,
+            text: null,
+            deliveryStatus: "preparing",
+            deliveryError: null,
+          },
+        ],
+      })
+    ).toEqual({
+      kind: "noop",
+      reason: "image_attachment_preparing",
+    });
+  });
+
+  it("returns a no-op when an upstream generate guardrail is active", () => {
+    expect(
+      resolveStandardCreatePrimaryActionDecision({
+        selectedTool: "create",
+        chatModeEnabled: false,
+        agentInput: "chat draft",
+        prompt: "authored prompt",
+        createGenerateCostCredits: 3,
+        isGenerateDisabled: true,
+      })
+    ).toEqual({
+      kind: "noop",
+      reason: "upstream_disabled",
     });
   });
 });

@@ -7,7 +7,7 @@ import type { PromptOrigin } from "../../logic/agentPromptOwnership";
 
 export type StandardSessionMemorySummary = {
   text: string | null;
-  source: "not_computed";
+  source: "derived_working_state" | "empty";
 };
 
 export type StandardAttachedReferenceIntent = {
@@ -61,10 +61,13 @@ const resolveAttachedReferenceIntent = (
   hasImageAttachment: attachments.some((attachment) => attachment.kind === "image"),
 });
 
-export const buildStandardMemorySummary = (): StandardSessionMemorySummary => ({
-  text: null,
-  source: "not_computed",
-});
+const clipSummaryField = (value: string | null, maxLength = 220): string | null => {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized.length) return null;
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+};
 
 export const buildStandardSessionWorkingState = ({
   transcriptWindow,
@@ -83,3 +86,51 @@ export const buildStandardSessionWorkingState = ({
   promptOrigin,
   attachedReferenceIntent: resolveAttachedReferenceIntent(attachments),
 });
+
+/**
+ * Builds the compact Standard memory summary injected into outbound Standard turns.
+ */
+export const buildStandardMemorySummary = ({
+  workingState,
+}: {
+  workingState: StandardSessionWorkingState;
+}): StandardSessionMemorySummary => {
+  const lines: string[] = [];
+  const latestUserIntent = clipSummaryField(workingState.latestUserIntent);
+  const latestAssistantCommitment = clipSummaryField(workingState.latestAssistantCommitment);
+  const latestPromptArtifact = clipSummaryField(workingState.latestPromptArtifact);
+  const attachedPromptText = clipSummaryField(workingState.attachedReferenceIntent.promptText, 160);
+
+  if (latestUserIntent) {
+    lines.push(`Latest user intent: ${latestUserIntent}`);
+  }
+  if (latestAssistantCommitment) {
+    lines.push(`Latest assistant commitment: ${latestAssistantCommitment}`);
+  }
+  if (latestPromptArtifact) {
+    lines.push(`Latest reusable prompt artifact: ${latestPromptArtifact}`);
+  }
+  if (attachedPromptText) {
+    lines.push(`Attached prompt references: ${attachedPromptText}`);
+  }
+  if (workingState.attachedReferenceIntent.referenceIds.length > 0) {
+    lines.push(
+      `Attached reference count: ${workingState.attachedReferenceIntent.referenceIds.length}`
+    );
+  }
+  if (workingState.attachedReferenceIntent.hasImageAttachment) {
+    lines.push("Image attachments are present in this turn.");
+  }
+
+  if (!lines.length) {
+    return {
+      text: null,
+      source: "empty",
+    };
+  }
+
+  return {
+    text: `Standard session memory:\n${lines.join("\n")}`,
+    source: "derived_working_state",
+  };
+};

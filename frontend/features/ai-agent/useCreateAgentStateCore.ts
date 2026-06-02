@@ -182,6 +182,7 @@ export const useCreateAgentStateCore = ({
       text,
       payloadText,
       previousPrompt,
+      memoryMessages = [],
       context,
       sessionNamespaceOverride,
       isolateHistory = false,
@@ -280,6 +281,7 @@ export const useCreateAgentStateCore = ({
         const apiMessages = buildApiMessagesForTurn({
           previousMessages: requestHistoryMessages,
           userPayloadForApi,
+          memoryMessages,
           skipUserEcho,
           optimisticUserMessageId,
           // Pulse follow-up turns need the prior assistant step/question in history.

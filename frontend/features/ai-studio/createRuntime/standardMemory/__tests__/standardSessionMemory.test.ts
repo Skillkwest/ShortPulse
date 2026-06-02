@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentMessage } from "../../../../../prefabs/agent";
 import {
   buildStandardSessionMemory,
+  buildStandardSessionMemoryMessages,
   createPersistedStandardAgentRuntime,
   resolveRestoredStandardComposerState,
   resolveStandardPreviousPromptFromMemory,
@@ -45,8 +46,15 @@ describe("standardSessionMemory", () => {
 
     expect(memory.transcriptWindow).toEqual(messages);
     expect(memory.summary).toEqual({
-      text: null,
-      source: "not_computed",
+      text: [
+        "Standard session memory:",
+        "Latest user intent: Need a moody portrait.",
+        "Latest assistant commitment: Here is a first direction.",
+        "Latest reusable prompt artifact: moody portrait with film grain",
+        "Attached prompt references: keep the lighting dramatic",
+        "Attached reference count: 1",
+      ].join("\n"),
+      source: "derived_working_state",
     });
     expect(memory.workingState).toEqual({
       latestUserIntent: "Need a moody portrait.",
@@ -129,5 +137,24 @@ describe("standardSessionMemory", () => {
     });
 
     expect(resolveStandardPreviousPromptFromMemory(memory)).toBe("Cinematic portrait prompt");
+  });
+
+  it("builds a single outbound Standard memory message when summary text exists", () => {
+    const memory = buildStandardSessionMemory({
+      messages: [createMessage({ role: "user", content: "Need a cinematic portrait." })],
+      latestPromptArtifact: "Cinematic portrait prompt",
+      promptOrigin: "agent",
+    });
+
+    expect(buildStandardSessionMemoryMessages(memory)).toEqual([
+      {
+        role: "assistant",
+        content: [
+          "Standard session memory:",
+          "Latest user intent: Need a cinematic portrait.",
+          "Latest reusable prompt artifact: Cinematic portrait prompt",
+        ].join("\n"),
+      },
+    ]);
   });
 });

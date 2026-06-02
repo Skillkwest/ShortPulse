@@ -17,11 +17,12 @@ import type {
 } from "../../components/create/useCreateCharacterModeController";
 import type { StandardCreatePropertiesPanelProps } from "../../components/create/StandardCreatePropertiesPanel";
 import type { ExpertEditStyleTile } from "../../components/edit/expertEditStyles";
-import type { StudioMode } from "../../types";
-import { hasVisibleStandardComposerPrompt } from "./standardCreateComposerState";
+import type { StudioMode, ToolId } from "../../types";
+import { resolveStandardCreatePrimaryActionDecision } from "./standardCreatePrimaryActionPolicy";
 
 export type BuildStandardCreatePanelPropsParams = {
   mode: StudioMode;
+  selectedTool: ToolId | null;
   aspect: string;
   model: string | null;
   currentModelLabel: string;
@@ -88,26 +89,12 @@ export type BuildStandardCreatePanelPropsParams = {
   onOpenPresetsLibrary?: () => void;
 };
 
-const resolveImageAttachmentGuardrail = (attachments: AgentAttachment[]): string | null => {
-  const imageAttachments = attachments.filter((attachment) => attachment.kind === "image");
-  if (
-    imageAttachments.some((attachment) => (attachment.deliveryStatus ?? "pending") === "failed")
-  ) {
-    return "Resolve failed image attachments before generating.";
-  }
-  if (
-    imageAttachments.some((attachment) => (attachment.deliveryStatus ?? "pending") === "preparing")
-  ) {
-    return "Wait for attached images to finish preparing.";
-  }
-  return null;
-};
-
 /**
  * Builds Standard Create panel props from Standard-owned runtime state.
  */
 export const buildStandardCreatePanelProps = ({
   mode,
+  selectedTool,
   aspect,
   model,
   currentModelLabel,
@@ -167,15 +154,17 @@ export const buildStandardCreatePanelProps = ({
   stylesCatalog,
   onOpenPresetsLibrary,
 }: BuildStandardCreatePanelPropsParams): StandardCreatePropertiesPanelProps => {
-  const imageAttachmentGuardrail = resolveImageAttachmentGuardrail(agentAttachments);
-  const isPrimaryGenerateDisabled =
-    isGenerateDisabled ||
-    Boolean(imageAttachmentGuardrail) ||
-    !hasVisibleStandardComposerPrompt({
-      prompt,
-      agentInput,
-      chatModeEnabled,
-    });
+  const primaryActionDecision = resolveStandardCreatePrimaryActionDecision({
+    enabled: true,
+    isGenerateDisabled,
+    selectedTool,
+    chatModeEnabled,
+    agentInput,
+    prompt,
+    createGenerateCostCredits,
+    agentAttachments,
+  });
+  const isPrimaryGenerateDisabled = primaryActionDecision.kind === "noop";
 
   return {
     mode,

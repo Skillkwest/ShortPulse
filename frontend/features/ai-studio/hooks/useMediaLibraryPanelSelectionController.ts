@@ -1,7 +1,6 @@
 import React from "react";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
-import type { StudioAudioSourceMode } from "../types";
 import {
   isAudioFile,
   isVideoFile,
@@ -13,29 +12,19 @@ import {
   type MediaFileRow,
 } from "../logic/mediaLibraryModalModel";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
+import {
+  createMediaLibraryDetailModalItem,
+  createMediaLibraryDetailSelectionPayload,
+  type MediaLibraryDetailModalItem,
+  type MediaLibraryDetailModalSurface,
+  type MediaLibraryDetailSelectionPayload,
+} from "../logic/mediaLibraryDetailModal";
 
-export type MediaLibrarySelectionPayload = {
-  id: string;
-  url: string;
-  fileType: "image" | "video" | "audio";
-  createdAt?: string | null;
-  filename?: string | null;
-  promptText?: string | null;
-  transcriptText?: string | null;
-  source?: string | null;
-  previewStoragePath?: string | null;
-  fullStoragePath?: string | null;
-  previewUrl?: string | null;
-  previewPosterUrl?: string | null;
-  previewPosterStoragePath?: string | null;
-  fullUrl?: string | null;
-  audioSourceMode?: StudioAudioSourceMode | null;
-  durationMs?: number | null;
-  waveformPeaks?: number[] | null;
-};
+export type MediaLibrarySelectionPayload = MediaLibraryDetailSelectionPayload;
 
 type UseMediaLibraryPanelSelectionControllerParams = {
   activeFolderId: string;
+  detailSurface: MediaLibraryDetailModalSurface;
   currentUserIdRef: React.MutableRefObject<string | null>;
   onSelectMedia: (payload: MediaLibrarySelectionPayload) => void;
   refreshSignedUrl: (row: MediaFileRow) => Promise<string | null>;
@@ -46,28 +35,29 @@ type UseMediaLibraryPanelSelectionControllerParams = {
 };
 
 type UseMediaLibraryPanelSelectionControllerResult = {
-  previewModalFile: MediaFileRow | null;
-  previewModalUrl: string | null;
-  previewModalLoading: boolean;
-  previewModalError: string | null;
+  detailModalItem: MediaLibraryDetailModalItem | null;
+  detailModalLoading: boolean;
+  detailModalError: string | null;
   handleSelectMediaFile: (file: MediaFileRow) => void;
   handleMediaCardDoubleClick: (file: MediaFileRow) => void;
   handleMediaCardContextMenu: (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => void;
-  handlePreviewModalMediaError: (file: MediaFileRow, failedUrl: string) => void;
-  closePreviewModal: () => void;
+  handleDetailModalMediaError: (item: MediaLibraryDetailModalItem, failedUrl: string) => void;
+  closeDetailModal: () => void;
 };
 
 export const useMediaLibraryPanelSelectionController = ({
   activeFolderId,
+  detailSurface,
   currentUserIdRef,
   onSelectMedia,
   refreshSignedUrl,
   signStoragePath,
 }: UseMediaLibraryPanelSelectionControllerParams): UseMediaLibraryPanelSelectionControllerResult => {
-  const [previewModalFile, setPreviewModalFile] = React.useState<MediaFileRow | null>(null);
-  const [previewModalUrl, setPreviewModalUrl] = React.useState<string | null>(null);
-  const [previewModalLoading, setPreviewModalLoading] = React.useState(false);
-  const [previewModalError, setPreviewModalError] = React.useState<string | null>(null);
+  const [detailModalItem, setDetailModalItem] = React.useState<MediaLibraryDetailModalItem | null>(
+    null
+  );
+  const [detailModalLoading, setDetailModalLoading] = React.useState(false);
+  const [detailModalError, setDetailModalError] = React.useState<string | null>(null);
   const previewResolveTokenRef = React.useRef(0);
 
   const addMediaReferenceFromFile = React.useCallback(
@@ -95,29 +85,30 @@ export const useMediaLibraryPanelSelectionController = ({
         (fullStoragePath && fullStoragePath !== previewStoragePath
           ? await signStoragePath(fullStoragePath, { forceRefresh: true })
           : null) ?? nextUrl;
-      onSelectMedia({
-        id: file.id,
-        url: nextUrl,
-        fileType: isAudioFile(file.file_type) ? "audio" : isVideo ? "video" : "image",
-        createdAt: file.created_at ?? null,
-        filename: file.filename,
-        promptText: resolveMediaMetadataPromptText(file.metadata),
-        transcriptText: resolveMediaMetadataTranscriptText(file.metadata),
-        source: file.source ?? "upload",
-        previewStoragePath,
-        previewPosterStoragePath,
-        fullStoragePath,
-        previewUrl,
-        previewPosterUrl,
-        fullUrl,
-        audioSourceMode: isAudioFile(file.file_type)
-          ? resolveMediaMetadataAudioSourceMode(file.metadata)
-          : null,
-        durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
-        waveformPeaks: isAudioFile(file.file_type)
-          ? resolveMediaMetadataWaveformPeaks(file.metadata)
-          : null,
-      });
+      onSelectMedia(
+        createMediaLibraryDetailSelectionPayload(file.id, {
+          url: nextUrl,
+          fileType: isAudioFile(file.file_type) ? "audio" : isVideo ? "video" : "image",
+          createdAt: file.created_at ?? null,
+          filename: file.filename,
+          promptText: resolveMediaMetadataPromptText(file.metadata),
+          transcriptText: resolveMediaMetadataTranscriptText(file.metadata),
+          source: file.source ?? "upload",
+          previewStoragePath,
+          previewPosterStoragePath,
+          fullStoragePath,
+          previewUrl,
+          previewPosterUrl,
+          fullUrl,
+          audioSourceMode: isAudioFile(file.file_type)
+            ? resolveMediaMetadataAudioSourceMode(file.metadata)
+            : null,
+          durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
+          waveformPeaks: isAudioFile(file.file_type)
+            ? resolveMediaMetadataWaveformPeaks(file.metadata)
+            : null,
+        })
+      );
       return true;
     },
     [currentUserIdRef, onSelectMedia, refreshSignedUrl, signStoragePath]
@@ -157,12 +148,11 @@ export const useMediaLibraryPanelSelectionController = ({
     [signStoragePath]
   );
 
-  const closePreviewModal = React.useCallback(() => {
+  const closeDetailModal = React.useCallback(() => {
     previewResolveTokenRef.current += 1;
-    setPreviewModalFile(null);
-    setPreviewModalUrl(null);
-    setPreviewModalLoading(false);
-    setPreviewModalError(null);
+    setDetailModalItem(null);
+    setDetailModalLoading(false);
+    setDetailModalError(null);
   }, []);
 
   const handleMediaCardDoubleClick = React.useCallback(
@@ -171,10 +161,41 @@ export const useMediaLibraryPanelSelectionController = ({
       const nextToken = previewResolveTokenRef.current + 1;
       previewResolveTokenRef.current = nextToken;
       const immediatePreviewUrl = (file.signedUrl ?? "").trim() || null;
-      setPreviewModalFile(file);
-      setPreviewModalUrl(immediatePreviewUrl);
-      setPreviewModalLoading(true);
-      setPreviewModalError(null);
+      const isVideo = isVideoFile(file.file_type);
+      const previewStoragePath = file.preview_storage_path ?? file.storage_path;
+      const previewPosterStoragePath = isVideo
+        ? (file.poster_variant_path ?? file.thumb_variant_path ?? null)
+        : null;
+      setDetailModalItem(
+        createMediaLibraryDetailModalItem({
+          file,
+          surface: detailSurface,
+          fields: {
+            url: immediatePreviewUrl ?? "",
+            fileType: isAudioFile(file.file_type) ? "audio" : isVideo ? "video" : "image",
+            createdAt: file.created_at ?? null,
+            filename: file.filename,
+            promptText: resolveMediaMetadataPromptText(file.metadata),
+            transcriptText: resolveMediaMetadataTranscriptText(file.metadata),
+            source: file.source ?? "upload",
+            previewStoragePath,
+            previewPosterStoragePath,
+            fullStoragePath: file.storage_path,
+            previewUrl: immediatePreviewUrl,
+            previewPosterUrl: null,
+            fullUrl: null,
+            audioSourceMode: isAudioFile(file.file_type)
+              ? resolveMediaMetadataAudioSourceMode(file.metadata)
+              : null,
+            durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
+            waveformPeaks: isAudioFile(file.file_type)
+              ? resolveMediaMetadataWaveformPeaks(file.metadata)
+              : null,
+          },
+        })
+      );
+      setDetailModalLoading(true);
+      setDetailModalError(null);
       // Open quickly on the current browse preview when available, then promote
       // the focused modal render to the signed original asset once it resolves.
       void (async () => {
@@ -189,41 +210,62 @@ export const useMediaLibraryPanelSelectionController = ({
           if (previewResolveTokenRef.current !== nextToken) return;
           const resolvedUrl = resolvedFullUrl ?? resolvedPreviewUrl ?? null;
           if (resolvedUrl) {
-            setPreviewModalUrl(resolvedUrl);
+            setDetailModalItem((current) => {
+              if (!current || current.file.id !== file.id) return current;
+              return {
+                ...current,
+                url: resolvedUrl,
+                previewUrl: resolvedPreviewUrl ?? current.previewUrl ?? null,
+                fullUrl: resolvedFullUrl ?? current.fullUrl ?? null,
+              };
+            });
             return;
           }
-          setPreviewModalError("Failed to load preview.");
+          setDetailModalError("Failed to load preview.");
         } finally {
           if (previewResolveTokenRef.current === nextToken) {
-            setPreviewModalLoading(false);
+            setDetailModalLoading(false);
           }
         }
       })();
     },
-    [activeFolderId, resolvePreviewModalFullUrl, resolvePreviewModalUrl]
+    [activeFolderId, detailSurface, resolvePreviewModalFullUrl, resolvePreviewModalUrl]
   );
 
-  const handlePreviewModalMediaError = React.useCallback(
-    (file: MediaFileRow, failedUrl: string) => {
+  const handleDetailModalMediaError = React.useCallback(
+    (item: MediaLibraryDetailModalItem, failedUrl: string) => {
       const nextToken = previewResolveTokenRef.current + 1;
       previewResolveTokenRef.current = nextToken;
-      setPreviewModalLoading(true);
-      setPreviewModalError(null);
+      setDetailModalLoading(true);
+      setDetailModalError(null);
       void (async () => {
         try {
-          const refreshedFullUrl = await resolvePreviewModalFullUrl(file).catch(() => null);
+          const refreshedFullUrl = await resolvePreviewModalFullUrl(item.file).catch(() => null);
           if (previewResolveTokenRef.current !== nextToken) return;
           const normalizedFailedUrl = failedUrl.trim();
           const normalizedRefreshedUrl = refreshedFullUrl?.trim() ?? "";
           if (normalizedRefreshedUrl && normalizedRefreshedUrl !== normalizedFailedUrl) {
-            setPreviewModalUrl(normalizedRefreshedUrl);
+            setDetailModalItem((current) => {
+              if (!current || current.file.id !== item.file.id) return current;
+              return {
+                ...current,
+                url: normalizedRefreshedUrl,
+                fullUrl: normalizedRefreshedUrl,
+              };
+            });
             return;
           }
-          setPreviewModalUrl(null);
-          setPreviewModalError("Preview unavailable.");
+          setDetailModalItem((current) => {
+            if (!current || current.file.id !== item.file.id) return current;
+            return {
+              ...current,
+              url: "",
+            };
+          });
+          setDetailModalError("Preview unavailable.");
         } finally {
           if (previewResolveTokenRef.current === nextToken) {
-            setPreviewModalLoading(false);
+            setDetailModalLoading(false);
           }
         }
       })();
@@ -242,14 +284,13 @@ export const useMediaLibraryPanelSelectionController = ({
   );
 
   return {
-    previewModalFile,
-    previewModalUrl,
-    previewModalLoading,
-    previewModalError,
+    detailModalItem,
+    detailModalLoading,
+    detailModalError,
     handleSelectMediaFile,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
-    handlePreviewModalMediaError,
-    closePreviewModal,
+    handleDetailModalMediaError,
+    closeDetailModal,
   };
 };

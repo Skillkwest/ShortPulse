@@ -182,11 +182,14 @@ export const useAiStudioCreatePanelRuntime = ({
     void handleGenerate();
   }, [handleGenerate]);
   const handleStandardCreatePrimarySubmit = useStandardCreatePrimarySubmit({
+    enabled: true,
+    isGenerateDisabled: effectiveIsGenerateDisabled,
     selectedTool,
     chatModeEnabled,
     agentInput,
     prompt: standardPrompt,
     createGenerateCostCredits,
+    agentAttachments,
     handleGenerate,
     handleProviderPrimarySubmit,
     setVisibleCreatePrompt: setStandardCreatePrompt,

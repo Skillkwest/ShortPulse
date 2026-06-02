@@ -318,17 +318,17 @@ export function EmbeddedMediaLibraryPanel({
 
   const handleNoopMediaSelect = React.useCallback(() => undefined, []);
   const {
-    previewModalFile,
-    previewModalUrl,
-    previewModalLoading,
-    previewModalError,
+    detailModalItem,
+    detailModalLoading,
+    detailModalError,
     handleSelectMediaFile,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
-    handlePreviewModalMediaError,
-    closePreviewModal,
+    handleDetailModalMediaError,
+    closeDetailModal,
   } = useMediaLibraryPanelSelectionController({
     activeFolderId,
+    detailSurface: surface,
     currentUserIdRef,
     onSelectMedia: onSelectMedia ?? handleNoopMediaSelect,
     refreshSignedUrl,
@@ -338,8 +338,8 @@ export function EmbeddedMediaLibraryPanel({
   const activeSelectedMediaIds = mediaCardUsesAssignment ? EMPTY_SET : selectedIds;
 
   React.useEffect(() => {
-    closePreviewModal();
-  }, [closePreviewModal, itemType]);
+    closeDetailModal();
+  }, [closeDetailModal, itemType]);
 
   const handleToggleSelectedPrompt = React.useCallback((prompt: PromptRow) => {
     setPendingBulkDeleteIds(null);
@@ -1036,12 +1036,11 @@ export function EmbeddedMediaLibraryPanel({
       </div>
 
       <MediaLibraryPanelPreviewModal
-        file={previewModalFile}
-        previewUrl={previewModalUrl}
-        isLoading={previewModalLoading}
-        error={previewModalError}
-        onClose={closePreviewModal}
-        onPreviewError={handlePreviewModalMediaError}
+        item={detailModalItem}
+        isLoading={detailModalLoading}
+        error={detailModalError}
+        onClose={closeDetailModal}
+        onPreviewError={handleDetailModalMediaError}
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}

@@ -5,18 +5,17 @@
 import React from "react";
 import { X } from "phosphor-react";
 import { isSupabaseRenderImageUrl } from "../../../../lib/mediaPreviewTrustPolicy";
-import { isAudioFile, isVideoFile, type MediaFileRow } from "../../logic/mediaLibraryModalModel";
-import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
-import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
+import type { MediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
+import { SharedMediaDetailPreviewMedia } from "../detail-modal/SharedMediaDetailPreviewMedia";
 import { useExclusiveSoundMediaElement } from "../shared/exclusiveSoundPlayback";
+import { SharedMediaDetailModalShell } from "../detail-modal/SharedMediaDetailModalShell";
 
 type MediaLibraryPanelPreviewModalProps = {
-  file: MediaFileRow | null;
-  previewUrl: string | null;
+  item: MediaLibraryDetailModalItem | null;
   isLoading: boolean;
   error: string | null;
   onClose: () => void;
-  onPreviewError?: (file: MediaFileRow, failedUrl: string) => void;
+  onPreviewError?: (item: MediaLibraryDetailModalItem, failedUrl: string) => void;
 };
 
 /**
@@ -26,44 +25,27 @@ type MediaLibraryPanelPreviewModalProps = {
  * Side effects: closes on Escape key.
  */
 export function MediaLibraryPanelPreviewModal({
-  file,
-  previewUrl,
+  item,
   isLoading,
   error,
   onClose,
   onPreviewError,
 }: MediaLibraryPanelPreviewModalProps) {
-  useAiStudioModalActivity("media-library-panel-preview-modal", Boolean(file));
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const videoPlayback = useExclusiveSoundMediaElement(
-    `media-library-preview-video:${file?.id ?? "none"}`,
+    `media-library-preview-video:${item?.file.id ?? "none"}`,
     videoRef
   );
   const audioPlayback = useExclusiveSoundMediaElement(
-    `media-library-preview-audio:${file?.id ?? "none"}`,
+    `media-library-preview-audio:${item?.file.id ?? "none"}`,
     audioRef
   );
   const [failedPreviewUrl, setFailedPreviewUrl] = React.useState<string | null>(null);
-  React.useEffect(() => {
-    if (!file || typeof document === "undefined") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [file, onClose]);
-  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
-    disabled: !file,
-  });
-
-  const isVideo = Boolean(file && isVideoFile(file.file_type));
-  const isAudio = Boolean(file && isAudioFile(file.file_type));
-  const title = (file?.filename ?? "").trim() || "Media preview";
-  const normalizedPreviewUrl = previewUrl?.trim() ?? "";
+  const isVideo = item?.fileType === "video";
+  const isAudio = item?.fileType === "audio";
+  const title = (item?.filename ?? "").trim() || "Media preview";
+  const normalizedPreviewUrl = item?.url?.trim() ?? "";
   const isForbiddenImagePreviewUrl =
     !isVideo &&
     !isAudio &&
@@ -75,13 +57,13 @@ export function MediaLibraryPanelPreviewModal({
 
   React.useEffect(() => {
     setFailedPreviewUrl(null);
-  }, [file?.id, normalizedPreviewUrl]);
+  }, [item?.file.id, normalizedPreviewUrl]);
 
   const handlePreviewError = React.useCallback(() => {
-    if (!file || !normalizedPreviewUrl) return;
+    if (!item || !normalizedPreviewUrl) return;
     setFailedPreviewUrl(normalizedPreviewUrl);
-    onPreviewError?.(file, normalizedPreviewUrl);
-  }, [file, normalizedPreviewUrl, onPreviewError]);
+    onPreviewError?.(item, normalizedPreviewUrl);
+  }, [item, normalizedPreviewUrl, onPreviewError]);
 
   const handleVideoPreviewError = React.useCallback(() => {
     videoPlayback.handleError();
@@ -93,84 +75,58 @@ export function MediaLibraryPanelPreviewModal({
     handlePreviewError();
   }, [audioPlayback, handlePreviewError]);
 
-  if (!file) return null;
+  if (!item) return null;
 
   return (
-    <AiStudioModalLayer>
-      <div
-        {...backdropDismiss}
-        className="media-library-panel-preview-backdrop"
-        role="presentation"
-        data-testid="media-library-panel-preview-backdrop"
-      >
-        <div
-          className="media-library-panel-preview-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Preview ${title}`}
-          onClick={(event) => event.stopPropagation()}
+    <SharedMediaDetailModalShell
+      isOpen={Boolean(item)}
+      modalActivityId="media-library-panel-preview-modal"
+      onClose={onClose}
+      ariaLabel={`Preview ${title}`}
+      backdropClassName="media-library-panel-preview-backdrop"
+      dialogClassName="media-library-panel-preview-modal"
+      backdropDataTestId="media-library-panel-preview-backdrop"
+      closeOnEscape
+    >
+      <header className="media-library-panel-preview-head">
+        <p className="tiny subdued media-library-panel-preview-title">{title}</p>
+        <button
+          type="button"
+          className="reference-card-action-btn media-library-panel-preview-close"
+          aria-label="Close media preview"
+          onClick={onClose}
         >
-          <header className="media-library-panel-preview-head">
-            <p className="tiny subdued media-library-panel-preview-title">{title}</p>
-            <button
-              type="button"
-              className="reference-card-action-btn media-library-panel-preview-close"
-              aria-label="Close media preview"
-              onClick={onClose}
-            >
-              <X size={16} weight="bold" aria-hidden />
-            </button>
-          </header>
+          <X size={16} weight="bold" aria-hidden />
+        </button>
+      </header>
 
-          <div className="media-library-panel-preview-body">
-            {isLoading && !canRenderMedia ? <p className="tiny subdued">Loading preview…</p> : null}
-            {!isLoading && !canRenderMedia ? (
-              <p className="tiny subdued">{error || "Preview unavailable."}</p>
-            ) : null}
-            {canRenderMedia && isVideo ? (
-              <video
-                className="media-library-panel-preview-media"
-                src={previewUrl ?? undefined}
-                ref={videoRef}
-                controls
-                autoPlay
-                playsInline
-                onPlay={videoPlayback.handlePlay}
-                onPause={videoPlayback.handlePause}
-                onEnded={videoPlayback.handleEnded}
-                onError={handleVideoPreviewError}
-                onVolumeChange={videoPlayback.handleVolumeChange}
-              />
-            ) : null}
-            {canRenderMedia && isAudio ? (
-              <audio
-                className="media-library-panel-preview-media"
-                src={previewUrl ?? undefined}
-                ref={audioRef}
-                controls
-                autoPlay
-                onPlay={audioPlayback.handlePlay}
-                onPause={audioPlayback.handlePause}
-                onEnded={audioPlayback.handleEnded}
-                onError={handleAudioPreviewError}
-                onVolumeChange={audioPlayback.handleVolumeChange}
-              />
-            ) : null}
-            {canRenderMedia && !isVideo && !isAudio ? (
-              <>
-                {/* Signed URLs are generated dynamically at runtime. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className="media-library-panel-preview-media"
-                  src={normalizedPreviewUrl}
-                  alt={title}
-                  onError={handlePreviewError}
-                />
-              </>
-            ) : null}
-          </div>
-        </div>
+      <div className="media-library-panel-preview-body">
+        <SharedMediaDetailPreviewMedia
+          mediaUrl={canRenderMedia ? normalizedPreviewUrl : null}
+          mediaKind={canRenderMedia ? (isVideo ? "video" : isAudio ? "audio" : "image") : null}
+          altText={title}
+          isLoading={isLoading}
+          loadingMessage="Loading preview..."
+          unavailableMessage={error || "Preview unavailable."}
+          placeholderClassName="tiny subdued"
+          imageClassName="media-library-panel-preview-media"
+          videoClassName="media-library-panel-preview-media"
+          audioClassName="media-library-panel-preview-media"
+          videoRef={videoRef}
+          audioRef={audioRef}
+          onImageError={handlePreviewError}
+          onVideoPlay={videoPlayback.handlePlay}
+          onVideoPause={videoPlayback.handlePause}
+          onVideoEnded={videoPlayback.handleEnded}
+          onVideoError={handleVideoPreviewError}
+          onVideoVolumeChange={videoPlayback.handleVolumeChange}
+          onAudioPlay={audioPlayback.handlePlay}
+          onAudioPause={audioPlayback.handlePause}
+          onAudioEnded={audioPlayback.handleEnded}
+          onAudioError={handleAudioPreviewError}
+          onAudioVolumeChange={audioPlayback.handleVolumeChange}
+        />
       </div>
-    </AiStudioModalLayer>
+    </SharedMediaDetailModalShell>
   );
 }

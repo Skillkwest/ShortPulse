@@ -66,4 +66,19 @@ describe("resolveStandardCreateResponseContract", () => {
     expect(result.promptArtifact).toBeNull();
     expect(result.assistantOutputPrompt).toBeNull();
   });
+
+  it("does not synthesize a prompt artifact from the reply text when applyPrompt is missing", () => {
+    const result = resolveStandardCreateResponseContract({
+      message: "Here is a conversational answer without a reusable prompt.",
+      outcome_class: "success_prompt",
+      reason_code: "SUCCESS_PROMPT",
+    });
+
+    expect(result.assistantReply).toEqual({
+      text: "Here is a conversational answer without a reusable prompt.",
+      source: "message",
+    });
+    expect(result.promptArtifact).toBeNull();
+    expect(result.assistantOutputPrompt).toBeNull();
+  });
 });

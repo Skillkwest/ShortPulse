@@ -431,6 +431,13 @@ export const useCanvasSharedSceneState = ({
         resolved.kind === "video" ? resolveCanvasVideoDimensions(resolved) : null;
       const audioDimensions =
         resolved.kind === "audio" ? resolveCanvasAudioDimensions(resolved) : null;
+      const textDimensions =
+        resolved.kind === "text"
+          ? {
+              width: CANVAS_TEXT_ITEM_WIDTH,
+              height: CANVAS_TEXT_ITEM_MIN_HEIGHT,
+            }
+          : null;
       const imageDimensions =
         resolved.kind === "image"
           ? (preResolvedImageDimensions ?? (await resolveCanvasImageDimensions(resolved)))
@@ -442,7 +449,7 @@ export const useCanvasSharedSceneState = ({
             ? (videoDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH)
             : resolved.kind === "audio"
               ? (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH)
-              : CANVAS_TEXT_ITEM_WIDTH;
+              : (textDimensions?.width ?? CANVAS_TEXT_ITEM_WIDTH);
       const pendingHeight =
         resolved.kind === "image"
           ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT)
@@ -450,12 +457,15 @@ export const useCanvasSharedSceneState = ({
             ? (videoDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT)
             : resolved.kind === "audio"
               ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT)
-              : CANVAS_TEXT_ITEM_MIN_HEIGHT;
-      const pendingX = Math.round((worldX - pendingWidth / 2) * 100) / 100;
+              : (textDimensions?.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT);
+      const pendingX =
+        resolved.kind === "text"
+          ? Math.round(worldX * 100) / 100
+          : Math.round((worldX - pendingWidth / 2) * 100) / 100;
       const pendingY =
-        resolved.kind === "image" || resolved.kind === "video" || resolved.kind === "audio"
-          ? Math.round((worldY - pendingHeight / 2) * 100) / 100
-          : Math.round((worldY - 36) * 100) / 100;
+        resolved.kind === "text"
+          ? Math.round(worldY * 100) / 100
+          : Math.round((worldY - pendingHeight / 2) * 100) / 100;
 
       if (pendingId) {
         setPendingItems((currentPendingItems) => [
@@ -489,21 +499,21 @@ export const useCanvasSharedSceneState = ({
           const highestZ = getHighestCanvasZIndex(currentItems) + 1;
           const nextItems = clearCanvasSceneSelection(currentItems);
           const offsetX =
-            resolved.kind === "image"
-              ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
-              : resolved.kind === "video"
-                ? (videoDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
-                : resolved.kind === "audio"
-                  ? (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH) / 2
-                  : CANVAS_TEXT_ITEM_WIDTH / 2;
+            resolved.kind === "text"
+              ? 0
+              : resolved.kind === "image"
+                ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
+                : resolved.kind === "video"
+                  ? (videoDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
+                  : (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH) / 2;
           const offsetY =
-            resolved.kind === "image"
-              ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
-              : resolved.kind === "video"
-                ? (videoDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
-                : resolved.kind === "audio"
-                  ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT) / 2
-                  : 36;
+            resolved.kind === "text"
+              ? 0
+              : resolved.kind === "image"
+                ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
+                : resolved.kind === "video"
+                  ? (videoDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
+                  : (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT) / 2;
           return [
             ...nextItems,
             buildCanvasSceneItem({

@@ -484,16 +484,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   }, [folderContextMenu]);
 
   const {
-    previewModalFile,
-    previewModalUrl,
-    previewModalLoading,
-    previewModalError,
+    detailModalItem,
+    detailModalLoading,
+    detailModalError,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
-    handlePreviewModalMediaError,
-    closePreviewModal,
+    handleDetailModalMediaError,
+    closeDetailModal,
   } = useMediaLibraryPanelSelectionController({
     activeFolderId,
+    detailSurface: "media-library-panel",
     currentUserIdRef,
     onSelectMedia,
     refreshSignedUrl,
@@ -597,8 +597,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   useEffect(() => {
     resetDeleteConfirmState();
-    closePreviewModal();
-  }, [activeFolderId, closePreviewModal, resetDeleteConfirmState]);
+    closeDetailModal();
+  }, [activeFolderId, closeDetailModal, resetDeleteConfirmState]);
 
   const foldersDropController = useMediaLibraryFolderDropController({
     projectId,
@@ -1414,12 +1414,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         </div>
       </div>
       <MediaLibraryPanelPreviewModal
-        file={previewModalFile}
-        previewUrl={previewModalUrl}
-        isLoading={previewModalLoading}
-        error={previewModalError}
-        onClose={closePreviewModal}
-        onPreviewError={handlePreviewModalMediaError}
+        item={detailModalItem}
+        isLoading={detailModalLoading}
+        error={detailModalError}
+        onClose={closeDetailModal}
+        onPreviewError={handleDetailModalMediaError}
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}

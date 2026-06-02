@@ -37,6 +37,25 @@ describe("messageStore", () => {
     ]);
   });
 
+  it("prepends normalized Standard memory messages ahead of local history", () => {
+    const previousMessages: AgentMessage[] = [{ role: "assistant", content: "prior assistant" }];
+    const apiMessages = buildApiMessagesForTurn({
+      previousMessages,
+      userPayloadForApi: "final",
+      memoryMessages: [
+        { role: "assistant", content: "  Standard session memory: latest prompt artifact  " },
+      ],
+      skipUserEcho: false,
+      optimisticUserMessageId: null,
+    });
+
+    expect(apiMessages).toEqual([
+      { role: "assistant", content: "Standard session memory: latest prompt artifact" },
+      { role: "assistant", content: "prior assistant" },
+      { role: "user", content: "final" },
+    ]);
+  });
+
   it("appends assistant message with reserved slot window behavior", () => {
     const previous: AgentMessage[] = Array.from({ length: 24 }, (_, index) => ({
       role: "user",

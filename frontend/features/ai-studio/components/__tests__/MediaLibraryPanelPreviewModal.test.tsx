@@ -2,6 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MediaFileRow } from "../../logic/mediaLibraryModalModel";
+import { createMediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
 import { MediaLibraryPanelPreviewModal } from "../media-library-modal/MediaLibraryPanelPreviewModal";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import { __resetExclusiveSoundPlaybackForTests } from "../shared/exclusiveSoundPlayback";
@@ -18,6 +19,31 @@ describe("MediaLibraryPanelPreviewModal", () => {
       value: vi.fn(),
     });
   });
+
+  const createPreviewItem = (
+    file: MediaFileRow,
+    url: string,
+    overrides: Partial<Parameters<typeof createMediaLibraryDetailModalItem>[0]["fields"]> = {}
+  ) =>
+    createMediaLibraryDetailModalItem({
+      file,
+      surface: "media-library-panel",
+      fields: {
+        url,
+        fileType: file.file_type.startsWith("audio/")
+          ? "audio"
+          : file.file_type.startsWith("video/")
+            ? "video"
+            : "image",
+        filename: file.filename ?? null,
+        source: "upload",
+        previewStoragePath: file.preview_storage_path ?? file.storage_path,
+        fullStoragePath: file.storage_path,
+        previewUrl: url,
+        fullUrl: url,
+        ...overrides,
+      },
+    });
 
   it("pauses an existing inline audio preview when modal audio starts playing", () => {
     const pauseSpy = HTMLMediaElement.prototype.pause as ReturnType<typeof vi.fn>;
@@ -41,8 +67,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
           />
         </div>
         <MediaLibraryPanelPreviewModal
-          file={audioFile}
-          previewUrl="https://cdn.example.com/voice-note-1.mp3"
+          item={createPreviewItem(audioFile, "https://cdn.example.com/voice-note-1.mp3")}
           isLoading={false}
           error={null}
           onClose={vi.fn()}
@@ -81,8 +106,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     render(
       <MediaLibraryPanelPreviewModal
-        file={imageFile}
-        previewUrl="https://cdn.example.com/thumb-portrait.png"
+        item={createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png")}
         isLoading
         error={null}
         onClose={vi.fn()}
@@ -108,8 +132,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     render(
       <MediaLibraryPanelPreviewModal
-        file={imageFile}
-        previewUrl="https://cdn.example.com/thumb-portrait.png"
+        item={createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png")}
         isLoading={false}
         error={null}
         onClose={vi.fn()}
@@ -121,7 +144,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
     fireEvent.error(image);
 
     expect(onPreviewError).toHaveBeenCalledWith(
-      imageFile,
+      expect.objectContaining({ file: imageFile }),
       "https://cdn.example.com/thumb-portrait.png"
     );
     expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
@@ -141,8 +164,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     render(
       <MediaLibraryPanelPreviewModal
-        file={videoFile}
-        previewUrl="https://cdn.example.com/clip.mp4"
+        item={createPreviewItem(videoFile, "https://cdn.example.com/clip.mp4")}
         isLoading={false}
         error={null}
         onClose={vi.fn()}
@@ -156,7 +178,10 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(video).not.toBeNull();
     fireEvent.error(video as HTMLVideoElement);
 
-    expect(onPreviewError).toHaveBeenCalledWith(videoFile, "https://cdn.example.com/clip.mp4");
+    expect(onPreviewError).toHaveBeenCalledWith(
+      expect.objectContaining({ file: videoFile }),
+      "https://cdn.example.com/clip.mp4"
+    );
     expect(document.querySelector("video.media-library-panel-preview-media")).toBeNull();
     expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
   });
@@ -174,8 +199,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     render(
       <MediaLibraryPanelPreviewModal
-        file={audioFile}
-        previewUrl="https://cdn.example.com/voice-note.mp3"
+        item={createPreviewItem(audioFile, "https://cdn.example.com/voice-note.mp3")}
         isLoading={false}
         error={null}
         onClose={vi.fn()}
@@ -190,7 +214,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
     fireEvent.error(audio as HTMLAudioElement);
 
     expect(onPreviewError).toHaveBeenCalledWith(
-      audioFile,
+      expect.objectContaining({ file: audioFile }),
       "https://cdn.example.com/voice-note.mp3"
     );
     expect(document.querySelector("audio.media-library-panel-preview-media")).toBeNull();
@@ -209,8 +233,10 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     const { rerender } = render(
       <MediaLibraryPanelPreviewModal
-        file={imageFile}
-        previewUrl="https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/image.png?token=abc&width=320&quality=28"
+        item={createPreviewItem(
+          imageFile,
+          "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/image.png?token=abc&width=320&quality=28"
+        )}
         isLoading={false}
         error={null}
         onClose={vi.fn()}
@@ -222,8 +248,10 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     rerender(
       <MediaLibraryPanelPreviewModal
-        file={imageFile}
-        previewUrl="/_next/image?url=https%3A%2F%2Fcdn.example.com%2Fsmall.jpg&w=384&q=28"
+        item={createPreviewItem(
+          imageFile,
+          "/_next/image?url=https%3A%2F%2Fcdn.example.com%2Fsmall.jpg&w=384&q=28"
+        )}
         isLoading={false}
         error={null}
         onClose={vi.fn()}

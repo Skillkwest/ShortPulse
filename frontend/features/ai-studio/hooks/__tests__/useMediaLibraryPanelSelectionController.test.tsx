@@ -18,6 +18,7 @@ describe("useMediaLibraryPanelSelectionController", () => {
     const { result } = renderHook(() =>
       useMediaLibraryPanelSelectionController({
         activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
         currentUserIdRef: { current: "user-1" },
         onSelectMedia: vi.fn(),
         refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
@@ -40,13 +41,14 @@ describe("useMediaLibraryPanelSelectionController", () => {
       result.current.handleMediaCardDoubleClick(file);
     });
 
-    expect(result.current.previewModalFile?.id).toBe("file-1");
-    expect(result.current.previewModalUrl).toBe("https://signed.example.com/preview.png");
-    expect(result.current.previewModalLoading).toBe(true);
+    expect(result.current.detailModalItem?.file.id).toBe("file-1");
+    expect(result.current.detailModalItem?.selectionTarget.surface).toBe("media-library-panel");
+    expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/preview.png");
+    expect(result.current.detailModalLoading).toBe(true);
 
     await waitFor(() => {
-      expect(result.current.previewModalUrl).toBe("https://signed.example.com/full.png");
-      expect(result.current.previewModalLoading).toBe(false);
+      expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/full.png");
+      expect(result.current.detailModalLoading).toBe(false);
     });
     expect(signStoragePath).toHaveBeenCalledWith("user-1/media/original.png", {
       forceRefresh: true,
@@ -60,6 +62,7 @@ describe("useMediaLibraryPanelSelectionController", () => {
     const { result } = renderHook(() =>
       useMediaLibraryPanelSelectionController({
         activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
         currentUserIdRef: { current: "user-1" },
         onSelectMedia: vi.fn(),
         refreshSignedUrl: vi.fn(async () => null),
@@ -80,8 +83,8 @@ describe("useMediaLibraryPanelSelectionController", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.previewModalError).toBe("Failed to load preview.");
-      expect(result.current.previewModalLoading).toBe(false);
+      expect(result.current.detailModalError).toBe("Failed to load preview.");
+      expect(result.current.detailModalLoading).toBe(false);
     });
   });
 });

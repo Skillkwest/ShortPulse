@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import type { AgentAttachment } from "../../../../prefabs/agent";
 import type { StudioMode, ToolId } from "../../types";
 import {
   resolveStandardCreatePrimaryActionDecision,
@@ -17,11 +18,13 @@ type GenerateStandardCreateOutput = (
 
 type UseStandardCreatePrimarySubmitParams = {
   enabled?: boolean;
+  isGenerateDisabled?: boolean;
   selectedTool: ToolId | null;
   chatModeEnabled: boolean;
   agentInput: string;
   prompt: string;
   createGenerateCostCredits: number | null;
+  agentAttachments?: AgentAttachment[];
   handleGenerate: GenerateStandardCreateOutput;
   handleProviderPrimarySubmit: () => void;
   setVisibleCreatePrompt: (value: string) => void;
@@ -33,11 +36,13 @@ type UseStandardCreatePrimarySubmitParams = {
  */
 export const useStandardCreatePrimarySubmit = ({
   enabled = true,
+  isGenerateDisabled = false,
   selectedTool,
   chatModeEnabled,
   agentInput,
   prompt,
   createGenerateCostCredits,
+  agentAttachments = [],
   handleGenerate,
   handleProviderPrimarySubmit,
   setVisibleCreatePrompt = () => undefined,
@@ -46,11 +51,13 @@ export const useStandardCreatePrimarySubmit = ({
     const decision: StandardCreatePrimaryActionDecision =
       resolveStandardCreatePrimaryActionDecision({
         enabled,
+        isGenerateDisabled,
         selectedTool,
         chatModeEnabled,
         agentInput,
         prompt,
         createGenerateCostCredits,
+        agentAttachments,
       });
 
     if (decision.kind === "noop") {
@@ -71,10 +78,12 @@ export const useStandardCreatePrimarySubmit = ({
     chatModeEnabled,
     createGenerateCostCredits,
     enabled,
+    isGenerateDisabled,
     handleGenerate,
     handleProviderPrimarySubmit,
     prompt,
     selectedTool,
+    agentAttachments,
     setVisibleCreatePrompt,
   ]);
 

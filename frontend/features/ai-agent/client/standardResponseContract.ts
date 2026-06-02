@@ -13,7 +13,7 @@ export type StandardCreateAssistantReply = {
 
 export type StandardCreatePromptArtifact = {
   text: string;
-  source: "apply_prompt" | "message_fallback";
+  source: "apply_prompt";
 };
 
 export type StandardCreateResponseContract = {
@@ -31,14 +31,15 @@ const normalizeMessageText = (value: unknown): string =>
 
 const shouldExposePromptArtifact = ({
   response,
-  actions,
+  normalizedApplyPrompt,
 }: {
   response: AgentResponse;
-  actions: AgentActions | undefined;
+  normalizedApplyPrompt: string;
 }): boolean =>
-  response.outcome_class === "success_prompt" ||
-  response.reason_code === "SUCCESS_PROMPT" ||
-  (response.outcome_class == null && Boolean(actions?.applyPrompt?.trim()));
+  normalizedApplyPrompt.length > 0 &&
+  (response.outcome_class === "success_prompt" ||
+    response.reason_code === "SUCCESS_PROMPT" ||
+    response.outcome_class == null);
 
 /**
  * Resolve the Standard assistant reply and optional prompt artifact from one transport payload.
@@ -49,8 +50,8 @@ export const resolveStandardCreateResponseContract = (
   const actions = normalizeActions(response.actions);
   const messageText = normalizeMessageText(response.message);
   const normalizedApplyPrompt = actions?.applyPrompt?.trim() ?? "";
-  const promptArtifactText = shouldExposePromptArtifact({ response, actions })
-    ? normalizedApplyPrompt || messageText
+  const promptArtifactText = shouldExposePromptArtifact({ response, normalizedApplyPrompt })
+    ? normalizedApplyPrompt
     : "";
 
   const assistantReply =
@@ -68,10 +69,7 @@ export const resolveStandardCreateResponseContract = (
     promptArtifactText.length > 0
       ? {
           text: promptArtifactText,
-          source:
-            normalizedApplyPrompt.length > 0 && promptArtifactText === normalizedApplyPrompt
-              ? ("apply_prompt" as const)
-              : ("message_fallback" as const),
+          source: "apply_prompt" as const,
         }
       : null;
 

@@ -28,6 +28,7 @@ export const buildStandardCreateRuntimeResult = ({
   actions,
   panelProps: buildStandardCreatePanelProps({
     mode: props.mode,
+    selectedTool: props.selectedTool,
     aspect: props.aspect,
     model: props.model,
     currentModelLabel: props.currentModelLabel,

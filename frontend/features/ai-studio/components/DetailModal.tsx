@@ -8,21 +8,14 @@ import {
   asCanonicalStoragePath,
   logAdaptiveDetailFullQualityUsed,
 } from "../../../lib/adaptive-media";
-import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { StudioOutput } from "../types";
 import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
-import {
-  canDownloadReferenceOutput,
-  canSaveReferenceOutput,
-} from "../logic/referenceActionAvailability";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
-import { downloadUrlToFile, resolveReferenceDownloadTarget } from "../logic/referenceDownload";
+import { downloadUrlToFile } from "../logic/referenceDownload";
+import { createStudioOutputDetailModalItem } from "../logic/studioOutputDetailModal";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
-import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
-import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import {
@@ -30,8 +23,19 @@ import {
   resolveClosestDisplayAspectToken,
   resolveClosestDisplayAspectTokenFromDimensions,
 } from "../logic/displayAspectRatio";
-import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { useExclusiveSoundMediaElement } from "./shared/exclusiveSoundPlayback";
+import { DetailModalContext } from "./detail-modal/detailModalPlatformTypes";
+import {
+  buildUniquePreviewCandidates,
+  createPreviewSelectionState,
+  type DetailPreviewSelectionState,
+  isFullQualityDetailImageUrl,
+  resolveCanonicalDetailAuthorityUrl,
+  resolveDetailPreviewCandidates,
+  resolveNextPreviewCandidateUrl,
+} from "./detail-modal/detailModalPreviewAuthority";
+import { SharedMediaDetailPreviewMedia } from "./detail-modal/SharedMediaDetailPreviewMedia";
+import { SharedMediaDetailModalShell } from "./detail-modal/SharedMediaDetailModalShell";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -48,188 +52,6 @@ type DetailModalProps = {
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
-};
-
-export type DetailModalContext = {
-  activeVoiceChangerSourceVideo?: {
-    aspect: string | null;
-  } | null;
-};
-
-type PreviewSelectionState = {
-  outputId: string;
-  currentUrl: string | null;
-  rejectedUrls: string[];
-};
-
-const isNextImageOptimizerUrl = (value: string | null | undefined): boolean => {
-  const trimmed = value?.trim();
-  if (!trimmed) return false;
-  if (trimmed.startsWith("/_next/image")) return true;
-  try {
-    return new URL(trimmed).pathname.startsWith("/_next/image");
-  } catch {
-    return false;
-  }
-};
-
-const isForbiddenDetailImageUrl = (value: string | null | undefined): boolean => {
-  const trimmed = value?.trim();
-  if (!trimmed) return false;
-  return isSupabaseRenderImageUrl(trimmed);
-};
-
-const isFullQualityDetailImageUrl = (value: string | null | undefined): boolean => {
-  const trimmed = value?.trim();
-  if (!trimmed) return false;
-  return !isForbiddenDetailImageUrl(trimmed) && !isNextImageOptimizerUrl(trimmed);
-};
-
-const buildUniquePreviewCandidates = (urls: Array<string | null | undefined>): string[] => {
-  const uniqueUrls = new Set<string>();
-  const directPreviewUrls: string[] = [];
-  const optimizerPreviewUrls: string[] = [];
-  urls.forEach((url) => {
-    const trimmed = url?.trim();
-    if (!trimmed) return;
-    if (isForbiddenDetailImageUrl(trimmed)) return;
-    if (uniqueUrls.has(trimmed)) return;
-    uniqueUrls.add(trimmed);
-    if (isNextImageOptimizerUrl(trimmed)) {
-      optimizerPreviewUrls.push(trimmed);
-      return;
-    }
-    directPreviewUrls.push(trimmed);
-  });
-  return [...directPreviewUrls, ...optimizerPreviewUrls];
-};
-
-const resolveNextPreviewCandidateUrl = ({
-  currentUrl,
-  previewCandidates,
-  rejectedUrls,
-}: {
-  currentUrl: string | null;
-  previewCandidates: string[];
-  rejectedUrls: string[];
-}): string | null => {
-  const rejectedUrlSet = new Set(rejectedUrls);
-  return (
-    previewCandidates.find((candidateUrl) => {
-      if (candidateUrl === currentUrl) return false;
-      return !rejectedUrlSet.has(candidateUrl);
-    }) ?? null
-  );
-};
-
-const resolveDetailPreviewCandidates = (
-  output: Pick<
-    StudioOutput,
-    | "previewStoragePath"
-    | "fullStoragePath"
-    | "mediaSource"
-    | "generationId"
-    | "savedMediaIds"
-    | "mode"
-    | "previewUrl"
-    | "resultUrls"
-  >
-): string[] => {
-  const resolvedDetailMedia = resolveReferenceCardUrls(
-    {
-      previewStoragePath: output.previewStoragePath,
-      fullStoragePath: output.fullStoragePath,
-      mediaSource: output.mediaSource,
-      generationId: output.generationId,
-      savedMediaIds: output.savedMediaIds,
-      mode: output.mode,
-      previewUrl: output.previewUrl,
-      resultUrls: output.resultUrls,
-    },
-    {
-      strictPreviewLadder: true,
-      adaptivePreviewQuality: false,
-      surface: "detail-modal",
-    }
-  );
-  const preferredDetailMediaUrl =
-    resolvedDetailMedia.fullUrl ?? resolvedDetailMedia.previewUrl ?? null;
-  return buildUniquePreviewCandidates([
-    preferredDetailMediaUrl,
-    resolvedDetailMedia.previewUrl ?? null,
-    output.previewUrl,
-    ...(output.resultUrls ?? []),
-  ]);
-};
-
-const createPreviewSelectionState = (
-  outputId: string,
-  previewCandidates: string[],
-  rejectedUrls: string[] = []
-): PreviewSelectionState => ({
-  outputId,
-  currentUrl: resolveNextPreviewCandidateUrl({
-    currentUrl: null,
-    previewCandidates,
-    rejectedUrls,
-  }),
-  rejectedUrls,
-});
-
-const shouldResolveCanonicalDetailAuthority = (
-  output: Pick<
-    StudioOutput,
-    | "previewStoragePath"
-    | "fullStoragePath"
-    | "savedMediaIds"
-    | "generationId"
-    | "taskId"
-    | "mediaSource"
-  >
-): boolean => {
-  if (asCanonicalStoragePath(output.previewStoragePath)) return true;
-  if (asCanonicalStoragePath(output.fullStoragePath)) return true;
-  if (Array.isArray(output.savedMediaIds) && output.savedMediaIds.some((value) => value?.trim())) {
-    return true;
-  }
-  if (output.mediaSource === "generated") return true;
-  return Boolean(output.generationId?.trim() || output.taskId?.trim());
-};
-
-const resolveCanonicalDetailAuthorityUrl = async (
-  output: Pick<
-    StudioOutput,
-    | "savedMediaIds"
-    | "generationId"
-    | "taskId"
-    | "mediaSource"
-    | "previewStoragePath"
-    | "fullStoragePath"
-    | "previewUrl"
-    | "resultUrls"
-  >,
-  options: { forceRefresh?: boolean; projectId?: string | null } = {}
-): Promise<string | null> => {
-  if (!shouldResolveCanonicalDetailAuthority(output)) return null;
-  try {
-    const supabase = ensureSupabaseQueryClient();
-    const resolvedTarget = await resolveReferenceDownloadTarget({
-      output,
-      supabase,
-      projectId: options.projectId,
-    });
-    const storagePath = resolvedTarget.fileRecord?.storagePath?.trim() ?? "";
-    if (!storagePath) return null;
-    const signedUrl = await getSignedMediaUrl({
-      bucket: "media_library",
-      storagePath,
-      previewProfile: "none",
-      ...(options.forceRefresh === true ? { forceRefresh: true } : {}),
-    });
-    return isFullQualityDetailImageUrl(signedUrl) ? signedUrl : null;
-  } catch {
-    return null;
-  }
 };
 
 /**
@@ -249,7 +71,6 @@ export function DetailModal({
   refreshCharacterOptions,
   resolveCharacterAvatarUrlById,
 }: DetailModalProps) {
-  useAiStudioModalActivity("detail-modal", Boolean(output));
   if (!output) return null;
   return (
     <DetailModalContent
@@ -337,9 +158,10 @@ function DetailModalContent({
     outputId: string;
     value: boolean;
   } | null>(null);
-  const [previewSelectionByOutput, setPreviewSelectionByOutput] = useState<PreviewSelectionState>(
-    () => createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
-  );
+  const [previewSelectionByOutput, setPreviewSelectionByOutput] =
+    useState<DetailPreviewSelectionState>(() =>
+      createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
+    );
   const [resolvedCanonicalPreviewByOutput, setResolvedCanonicalPreviewByOutput] = useState<{
     outputId: string;
     url: string | null;
@@ -559,6 +381,13 @@ function DetailModalContent({
     !isAudioOutput && output?.mode !== "image" && displayPreviewUrl && isVideoUrl(displayPreviewUrl)
   );
   const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput && !isAudioOutput;
+  const detailPreviewKind = displayPreviewUrl
+    ? isVideoOutput
+      ? "video"
+      : isAudioOutput
+        ? "audio"
+        : "image"
+    : null;
   const mediaType = displayPreviewUrl
     ? isAudioOutput
       ? "Audio"
@@ -567,8 +396,16 @@ function DetailModalContent({
         : "Image"
     : "Prompt";
   const isPromptOnly = output?.mode === "text" && !displayPreviewUrl;
+  const detailModalItem = useMemo(
+    () =>
+      createStudioOutputDetailModalItem({
+        output,
+        canSavePrompt: Boolean(onSavePrompt),
+      }),
+    [onSavePrompt, output]
+  );
   const characterContext = output?.characterContext;
-  const hasCharacterContext = Boolean(characterContext?.applied);
+  const hasCharacterContext = detailModalItem.capabilities.canShowCharacterContext;
   const characterName =
     characterContext?.characterName?.trim() ||
     characterContext?.characterId?.trim() ||
@@ -576,7 +413,7 @@ function DetailModalContent({
   const characterLookName =
     characterContext?.lookName?.trim() || characterContext?.lookId?.trim() || "";
   const styleContext = output?.styleContext;
-  const hasStyleContext = Boolean(styleContext?.applied);
+  const hasStyleContext = detailModalItem.capabilities.canShowStyleContext;
   const styleName =
     styleContext?.styleName?.trim() ||
     styleContext?.styleId?.trim() ||
@@ -758,8 +595,8 @@ function DetailModalContent({
   const isPromptOnlySaved = Boolean(outputId && promptOnlySavedOutputId === outputId);
   const isPromptLibrarySaved = Boolean(outputId && promptLibrarySavedOutputId === outputId);
   const mediaSaveState = output?.saveState ?? "idle";
-  const canSaveReferenceMedia = output ? canSaveReferenceOutput(output) : false;
-  const canDownloadReferenceMedia = output ? canDownloadReferenceOutput(output) : false;
+  const canSaveReferenceMedia = detailModalItem.capabilities.canSaveToLibrary;
+  const canDownloadReferenceMedia = detailModalItem.capabilities.canDownload;
   const isMediaSaveButtonVisible = Boolean(
     !isPromptOnly && displayPreviewUrl && outputId && onSaveReference && canSaveReferenceMedia
   );
@@ -776,7 +613,7 @@ function DetailModalContent({
           ? "Retry Save"
           : "Save";
 
-  const isPromptEditable = Boolean(isPromptOnly);
+  const isPromptEditable = detailModalItem.capabilities.canEditPrompt;
   const trimmedPrompt = draftPrompt.trim();
   const hasPromptEdits = trimmedPrompt !== displayPromptText.trim();
   const canSave = useMemo(
@@ -1046,8 +883,6 @@ function DetailModalContent({
     imagePanDragRef.current = null;
     onClose();
   }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer, onClose, output]);
-  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(handleCloseModal);
-
   const looksLikeFilename = (value?: string | null) => {
     const candidate = value?.trim();
     if (!candidate) return false;
@@ -1367,314 +1202,280 @@ function DetailModalContent({
   };
 
   return (
-    <AiStudioModalLayer>
-      <div className="reference-modal-backdrop" {...backdropDismiss}>
-        {/* Background blurred reflect */}
-        {displayPreviewUrl && (
+    <SharedMediaDetailModalShell
+      isOpen={Boolean(output)}
+      modalActivityId="detail-modal"
+      onClose={handleCloseModal}
+      ariaLabel="Reference details"
+      backdropClassName="reference-modal-backdrop"
+      dialogClassName={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
+      dialogStyle={detailModalStyle}
+      backdropDecoration={
+        displayPreviewUrl ? (
           <div
             className="reference-modal-bg-reflect"
             style={{ backgroundImage: `url(${displayPreviewUrl})` }}
           />
-        )}
-
-        <div
-          className={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Reference details"
-          style={detailModalStyle}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {/* Floating Top Bar (Controls) */}
-          {!isPromptOnly && (
-            <div className="art-modal-top-controls">
-              <div className="art-modal-meta-pill">
-                {metaPillItems.map((item, index) => (
-                  <React.Fragment key={`${item}-${index}`}>
-                    {index > 0 ? <span className="art-meta-divider">/</span> : null}
-                    <span
-                      className={`art-meta-item ${
-                        !isGeneratedPureAudioOutput &&
-                        !isGeneratedVoiceChangerVideoOutput &&
-                        item === uploadedHeaderFilename
-                          ? "art-meta-filename"
-                          : !isGeneratedPureAudioOutput &&
-                              !isGeneratedVoiceChangerVideoOutput &&
-                              item === displayModelLabel
-                            ? "truncate-model"
-                            : ""
-                      }`.trim()}
-                      title={item === uploadedHeaderFilename ? uploadedHeaderFilename : undefined}
-                    >
-                      {item}
-                    </span>
-                  </React.Fragment>
-                ))}
-              </div>
-
-              <div className="art-modal-action-row">
-                {isMediaSaveButtonVisible ? (
-                  <button
-                    type="button"
-                    className={`art-action-btn art-action-btn-save ${isMediaSaved ? "is-saved" : ""}`}
-                    onClick={handleSaveMediaReference}
-                    disabled={isMediaSaveDisabled}
-                    title="Save to media library"
-                  >
-                    {mediaSaveLabel}
-                  </button>
-                ) : null}
-                {isMediaStorageFull && isMediaSaveButtonVisible ? (
-                  <p className="tiny subdued">{MEDIA_STORAGE_FULL_USER_MESSAGE}</p>
-                ) : null}
-                {displayPreviewUrl && canDownloadReferenceMedia && (
-                  <button
-                    type="button"
-                    className="art-action-btn"
-                    onClick={handleDownload}
-                    title="Download"
-                  >
-                    Download
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="art-action-btn art-action-btn-danger"
-                  onClick={handleRequestDelete}
+        ) : null
+      }
+    >
+      {/* Floating Top Bar (Controls) */}
+      {!isPromptOnly && (
+        <div className="art-modal-top-controls">
+          <div className="art-modal-meta-pill">
+            {metaPillItems.map((item, index) => (
+              <React.Fragment key={`${item}-${index}`}>
+                {index > 0 ? <span className="art-meta-divider">/</span> : null}
+                <span
+                  className={`art-meta-item ${
+                    !isGeneratedPureAudioOutput &&
+                    !isGeneratedVoiceChangerVideoOutput &&
+                    item === uploadedHeaderFilename
+                      ? "art-meta-filename"
+                      : !isGeneratedPureAudioOutput &&
+                          !isGeneratedVoiceChangerVideoOutput &&
+                          item === displayModelLabel
+                        ? "truncate-model"
+                        : ""
+                  }`.trim()}
+                  title={item === uploadedHeaderFilename ? uploadedHeaderFilename : undefined}
                 >
-                  <TrashSimple size={16} weight="bold" aria-hidden />
-                  Delete
-                </button>
-                <button type="button" className="art-close-btn" onClick={handleCloseModal}>
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
+                  {item}
+                </span>
+              </React.Fragment>
+            ))}
+          </div>
 
-          {isPromptOnly && (
-            <div className="art-prompt-only-header">
-              <span className="reference-filename">Prompt</span>
-              <div className="art-modal-action-row">
-                {onSavePrompt ? (
-                  <button
-                    type="button"
-                    className={`art-action-btn prompt-save-modal-btn ${isPromptLibrarySaved ? "is-saved" : ""}`}
-                    onClick={handleSavePromptToLibrary}
-                    disabled={!trimmedPrompt || isPromptLibrarySaved}
-                  >
-                    {isPromptLibrarySaved ? "Saved" : "Save Prompt"}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="art-action-btn art-action-btn-danger"
-                  onClick={handleRequestDelete}
-                >
-                  <TrashSimple size={16} weight="bold" aria-hidden />
-                  Delete
-                </button>
-                <button type="button" className="art-close-btn" onClick={handleCloseModal}>
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="art-modal-main-content">
-            {isPromptOnly ? (
-              <div className="art-prompt-only-container">
-                <textarea
-                  className="art-prompt-textarea large"
-                  ref={promptOnlyTextareaRef}
-                  value={draftPrompt}
-                  onChange={handlePromptChange}
-                  readOnly={!isPromptEditable}
-                  rows={12}
-                  placeholder="Describe your adjustments..."
-                />
-                <div className="art-modal-footer">
-                  <button
-                    type="button"
-                    className={`primary-btn wide art-prompt-save-btn ${isPromptOnlySaved ? "is-saved" : ""}`}
-                    onClick={handlePromptOnlySaveAndClose}
-                    disabled={!canSave || !isPromptEditable || isPromptOnlySaved}
-                  >
-                    {isPromptOnlySaved ? "Saved. Closing..." : "Save & Apply Changes"}
-                  </button>
-                  {isPromptOnlySaved ? (
-                    <p className="art-save-feedback" role="status" aria-live="polite">
-                      Changes saved successfully.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div
-                  ref={imageVesselRef}
-                  className={imageVesselClassName}
-                  onWheel={isImageOutput ? handleImageWheel : undefined}
-                  onDoubleClick={isImageOutput ? handleImageDoubleClick : undefined}
-                  onPointerDown={isImageOutput ? handleImagePointerDown : undefined}
-                  onPointerMove={isImageOutput ? handleImagePointerMove : undefined}
-                  onPointerUp={isImageOutput ? handleImagePointerUp : undefined}
-                  onPointerCancel={isImageOutput ? handleImagePointerUp : undefined}
-                >
-                  {displayPreviewUrl ? (
-                    isVideoOutput ? (
-                      <video
-                        className="art-hero-image"
-                        src={displayPreviewUrl}
-                        ref={videoPreviewRef}
-                        controls
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        style={aspectStyle}
-                        onLoadedMetadata={(event) => {
-                          handlePreviewAspectLoad(
-                            event.currentTarget.videoWidth,
-                            event.currentTarget.videoHeight
-                          );
-                        }}
-                        onPlay={videoPreviewPlayback.handlePlay}
-                        onPause={videoPreviewPlayback.handlePause}
-                        onEnded={videoPreviewPlayback.handleEnded}
-                        onError={handleDetailVideoError}
-                        onVolumeChange={videoPreviewPlayback.handleVolumeChange}
-                      />
-                    ) : isAudioOutput ? (
-                      <audio
-                        className="art-hero-audio"
-                        src={displayPreviewUrl}
-                        ref={audioPreviewRef}
-                        controls
-                        preload="metadata"
-                        onPlay={audioPreviewPlayback.handlePlay}
-                        onPause={audioPreviewPlayback.handlePause}
-                        onEnded={audioPreviewPlayback.handleEnded}
-                        onError={handleDetailAudioError}
-                        onVolumeChange={audioPreviewPlayback.handleVolumeChange}
-                      />
-                    ) : (
-                      <>
-                        {/* Generated media URL can be provider-specific and not allowlisted. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          className="art-hero-image"
-                          src={displayPreviewUrl}
-                          alt={displayPromptText}
-                          style={imageStyle}
-                          draggable={false}
-                          onDragStart={(event) => event.preventDefault()}
-                          onLoad={handleImageLoad}
-                          onError={handleDetailImageError}
-                        />
-                      </>
-                    )
-                  ) : (
-                    <div className="art-text-placeholder">
-                      <p>
-                        {canonicalPreviewResolvingOutputId === outputId
-                          ? "Loading media..."
-                          : "Media unavailable."}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Floating Prompt Blade */}
-                <div className="art-prompt-blade">
-                  <div className="art-blade-inner">
-                    {hasCharacterContext ? (
-                      <div
-                        className="art-character-chip"
-                        aria-label="Character used for generation"
-                      >
-                        {shouldRenderCharacterAvatar ? (
-                          // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            className="art-character-chip-avatar"
-                            src={characterAvatarUrl ?? ""}
-                            alt={`${characterName} profile`}
-                            onLoad={() => {
-                              clearAvatarFailure(characterAvatarRecoveryId);
-                            }}
-                            onError={() => {
-                              void handleAvatarError({
-                                avatarId: characterAvatarRecoveryId,
-                                recoverAvatarUrl: refreshCharacterAvatar,
-                              });
-                            }}
-                          />
-                        ) : (
-                          <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
-                            {characterInitials}
-                          </span>
-                        )}
-                        <div className="art-character-chip-copy">
-                          <span className="art-character-chip-label">
-                            {characterLookName ? `Character · ${characterLookName}` : "Character"}
-                          </span>
-                          <span className="art-character-chip-name">{characterName}</span>
-                        </div>
-                      </div>
-                    ) : null}
-                    {hasStyleContext ? (
-                      <div className="art-character-chip" aria-label="Style used for generation">
-                        {shouldRenderStyleAvatar ? (
-                          // Style previews can point to external URLs and signed Supabase assets.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            className="art-character-chip-avatar"
-                            src={stylePreviewImageUrl ?? ""}
-                            alt={`${styleName} style`}
-                            onError={() => {
-                              if (!outputId) return;
-                              setStyleAvatarLoadErrorByOutput({ outputId, value: true });
-                            }}
-                          />
-                        ) : (
-                          <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
-                            {styleInitials}
-                          </span>
-                        )}
-                        <div className="art-character-chip-copy">
-                          <span className="art-character-chip-label">Style</span>
-                          <span className="art-character-chip-name">{styleName}</span>
-                        </div>
-                      </div>
-                    ) : null}
-                    <div className="art-blade-header">
-                      <span className="art-label">{detailBladeLabel}</span>
-                    </div>
-                    <textarea
-                      className="art-blade-textarea"
-                      ref={promptTextareaRef}
-                      value={detailBladeValue}
-                      onChange={handlePromptChange}
-                      readOnly={!isPromptEditable}
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              </>
+          <div className="art-modal-action-row">
+            {isMediaSaveButtonVisible ? (
+              <button
+                type="button"
+                className={`art-action-btn art-action-btn-save ${isMediaSaved ? "is-saved" : ""}`}
+                onClick={handleSaveMediaReference}
+                disabled={isMediaSaveDisabled}
+                title="Save to media library"
+              >
+                {mediaSaveLabel}
+              </button>
+            ) : null}
+            {isMediaStorageFull && isMediaSaveButtonVisible ? (
+              <p className="tiny subdued">{MEDIA_STORAGE_FULL_USER_MESSAGE}</p>
+            ) : null}
+            {displayPreviewUrl && canDownloadReferenceMedia && (
+              <button
+                type="button"
+                className="art-action-btn"
+                onClick={handleDownload}
+                title="Download"
+              >
+                Download
+              </button>
             )}
+            <button
+              type="button"
+              className="art-action-btn art-action-btn-danger"
+              onClick={handleRequestDelete}
+            >
+              <TrashSimple size={16} weight="bold" aria-hidden />
+              Delete
+            </button>
+            <button type="button" className="art-close-btn" onClick={handleCloseModal}>
+              ×
+            </button>
           </div>
         </div>
-        {isDeleteConfirmOpen ? (
-          <ConfirmationModal
-            title="Delete this reference?"
-            body={<p>This reference will be removed permanently.</p>}
-            confirmLabel="Delete"
-            onCancel={handleCancelDelete}
-            onConfirm={handleConfirmDelete}
-          />
-        ) : null}
+      )}
+
+      {isPromptOnly && (
+        <div className="art-prompt-only-header">
+          <span className="reference-filename">Prompt</span>
+          <div className="art-modal-action-row">
+            {detailModalItem.capabilities.canSavePrompt && onSavePrompt ? (
+              <button
+                type="button"
+                className={`art-action-btn prompt-save-modal-btn ${isPromptLibrarySaved ? "is-saved" : ""}`}
+                onClick={handleSavePromptToLibrary}
+                disabled={!trimmedPrompt || isPromptLibrarySaved}
+              >
+                {isPromptLibrarySaved ? "Saved" : "Save Prompt"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="art-action-btn art-action-btn-danger"
+              onClick={handleRequestDelete}
+            >
+              <TrashSimple size={16} weight="bold" aria-hidden />
+              Delete
+            </button>
+            <button type="button" className="art-close-btn" onClick={handleCloseModal}>
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="art-modal-main-content">
+        {isPromptOnly ? (
+          <div className="art-prompt-only-container">
+            <textarea
+              className="art-prompt-textarea large"
+              ref={promptOnlyTextareaRef}
+              value={draftPrompt}
+              onChange={handlePromptChange}
+              readOnly={!isPromptEditable}
+              rows={12}
+              placeholder="Describe your adjustments..."
+            />
+            <div className="art-modal-footer">
+              <button
+                type="button"
+                className={`primary-btn wide art-prompt-save-btn ${isPromptOnlySaved ? "is-saved" : ""}`}
+                onClick={handlePromptOnlySaveAndClose}
+                disabled={!canSave || !isPromptEditable || isPromptOnlySaved}
+              >
+                {isPromptOnlySaved ? "Saved. Closing..." : "Save & Apply Changes"}
+              </button>
+              {isPromptOnlySaved ? (
+                <p className="art-save-feedback" role="status" aria-live="polite">
+                  Changes saved successfully.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div
+              ref={imageVesselRef}
+              className={imageVesselClassName}
+              onWheel={isImageOutput ? handleImageWheel : undefined}
+              onDoubleClick={isImageOutput ? handleImageDoubleClick : undefined}
+              onPointerDown={isImageOutput ? handleImagePointerDown : undefined}
+              onPointerMove={isImageOutput ? handleImagePointerMove : undefined}
+              onPointerUp={isImageOutput ? handleImagePointerUp : undefined}
+              onPointerCancel={isImageOutput ? handleImagePointerUp : undefined}
+            >
+              <SharedMediaDetailPreviewMedia
+                mediaUrl={displayPreviewUrl}
+                mediaKind={detailPreviewKind}
+                altText={displayPromptText}
+                isLoading={canonicalPreviewResolvingOutputId === outputId}
+                imageClassName="art-hero-image"
+                videoClassName="art-hero-image"
+                audioClassName="art-hero-audio"
+                imageStyle={imageStyle}
+                videoStyle={aspectStyle}
+                videoRef={videoPreviewRef}
+                audioRef={audioPreviewRef}
+                videoLoop
+                videoMuted
+                onImageDragStart={(event) => event.preventDefault()}
+                onImageLoad={handleImageLoad}
+                onImageError={handleDetailImageError}
+                onVideoLoadedMetadata={(event) => {
+                  handlePreviewAspectLoad(
+                    event.currentTarget.videoWidth,
+                    event.currentTarget.videoHeight
+                  );
+                }}
+                onVideoPlay={videoPreviewPlayback.handlePlay}
+                onVideoPause={videoPreviewPlayback.handlePause}
+                onVideoEnded={videoPreviewPlayback.handleEnded}
+                onVideoError={handleDetailVideoError}
+                onVideoVolumeChange={videoPreviewPlayback.handleVolumeChange}
+                onAudioPlay={audioPreviewPlayback.handlePlay}
+                onAudioPause={audioPreviewPlayback.handlePause}
+                onAudioEnded={audioPreviewPlayback.handleEnded}
+                onAudioError={handleDetailAudioError}
+                onAudioVolumeChange={audioPreviewPlayback.handleVolumeChange}
+              />
+            </div>
+
+            {/* Floating Prompt Blade */}
+            <div className="art-prompt-blade">
+              <div className="art-blade-inner">
+                {hasCharacterContext ? (
+                  <div className="art-character-chip" aria-label="Character used for generation">
+                    {shouldRenderCharacterAvatar ? (
+                      // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        className="art-character-chip-avatar"
+                        src={characterAvatarUrl ?? ""}
+                        alt={`${characterName} profile`}
+                        onLoad={() => {
+                          clearAvatarFailure(characterAvatarRecoveryId);
+                        }}
+                        onError={() => {
+                          void handleAvatarError({
+                            avatarId: characterAvatarRecoveryId,
+                            recoverAvatarUrl: refreshCharacterAvatar,
+                          });
+                        }}
+                      />
+                    ) : (
+                      <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
+                        {characterInitials}
+                      </span>
+                    )}
+                    <div className="art-character-chip-copy">
+                      <span className="art-character-chip-label">
+                        {characterLookName ? `Character · ${characterLookName}` : "Character"}
+                      </span>
+                      <span className="art-character-chip-name">{characterName}</span>
+                    </div>
+                  </div>
+                ) : null}
+                {hasStyleContext ? (
+                  <div className="art-character-chip" aria-label="Style used for generation">
+                    {shouldRenderStyleAvatar ? (
+                      // Style previews can point to external URLs and signed Supabase assets.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        className="art-character-chip-avatar"
+                        src={stylePreviewImageUrl ?? ""}
+                        alt={`${styleName} style`}
+                        onError={() => {
+                          if (!outputId) return;
+                          setStyleAvatarLoadErrorByOutput({ outputId, value: true });
+                        }}
+                      />
+                    ) : (
+                      <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
+                        {styleInitials}
+                      </span>
+                    )}
+                    <div className="art-character-chip-copy">
+                      <span className="art-character-chip-label">Style</span>
+                      <span className="art-character-chip-name">{styleName}</span>
+                    </div>
+                  </div>
+                ) : null}
+                <div className="art-blade-header">
+                  <span className="art-label">{detailBladeLabel}</span>
+                </div>
+                <textarea
+                  className="art-blade-textarea"
+                  ref={promptTextareaRef}
+                  value={detailBladeValue}
+                  onChange={handlePromptChange}
+                  readOnly={!isPromptEditable}
+                  rows={3}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
-    </AiStudioModalLayer>
+      {isDeleteConfirmOpen ? (
+        <ConfirmationModal
+          title="Delete this reference?"
+          body={<p>This reference will be removed permanently.</p>}
+          confirmLabel="Delete"
+          onCancel={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+        />
+      ) : null}
+    </SharedMediaDetailModalShell>
   );
 }

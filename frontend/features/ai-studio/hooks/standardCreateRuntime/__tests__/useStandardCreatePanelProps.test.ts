@@ -4,6 +4,7 @@ import { buildStandardCreatePanelProps } from "../useStandardCreatePanelProps";
 describe("buildStandardCreatePanelProps", () => {
   const baseParams = {
     mode: "text" as const,
+    selectedTool: "create" as const,
     aspect: "9:16",
     model: "seedream",
     currentModelLabel: "Seedream 4.5",

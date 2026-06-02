@@ -738,6 +738,76 @@ describe("useAiStudioState output store bridge", () => {
     });
   });
 
+  it("keeps restored quick slots when a pending project route resolves and hydrates before authority effects settle", async () => {
+    const source = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      source.result.current.setOutputs([
+        makeOutput("project-restored-out", {
+          previewUrl: "https://example.com/project-restored.png",
+        }),
+      ]);
+      source.result.current.setActiveOutputId("project-restored-out");
+      source.result.current.addCuratedReference("project-restored-out");
+    });
+
+    const snapshot = source.result.current.buildSessionSnapshot({
+      sessionId: "session-project-restore",
+      agentRuntime: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
+    });
+
+    const restored = renderHook(
+      ({ projectId, hydrate }) => {
+        const studio = useAiStudioState({
+          projectRouteRequested: true,
+          projectId,
+        });
+        const didHydrateRef = React.useRef(false);
+        const { hydrateFromSessionSnapshot } = studio;
+        React.useLayoutEffect(() => {
+          if (!hydrate || !projectId || didHydrateRef.current) return;
+          didHydrateRef.current = true;
+          hydrateFromSessionSnapshot(snapshot);
+        }, [hydrate, hydrateFromSessionSnapshot, projectId]);
+        return studio;
+      },
+      {
+        wrapper: strictWrapper,
+        initialProps: {
+          projectId: null as string | null,
+          hydrate: false,
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(restored.result.current.curatedReferenceIds).toEqual([]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual([]);
+    });
+
+    restored.rerender({
+      projectId: "project-restore-1",
+      hydrate: true,
+    });
+
+    await waitFor(() => {
+      expect(restored.result.current.outputs.map((item) => item.id)).toEqual([
+        "project-restored-out",
+      ]);
+      expect(restored.result.current.activeOutputId).toBe("project-restored-out");
+      expect(restored.result.current.curatedReferenceIds).toEqual(["project-restored-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["project-restored-out"]);
+      expect(getAiStudioOutputSnapshot().outputById["project-restored-out"]?.pinned).toBe(true);
+    });
+  });
+
   it("allows plain-session generated-output hydration when explicitly enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED", "true");
     renderHook(() => useAiStudioState(), { wrapper: strictWrapper });

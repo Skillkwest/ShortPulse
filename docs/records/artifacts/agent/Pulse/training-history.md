@@ -69,3 +69,33 @@ Training result:
 
 - Pulse now has an explicit local workspace surface in addition to the contract and retained artifact surfaces.
 - Pulse's repo identity now reads as `Pulse` across the active contract and artifact paths.
+
+## 2026-06-01: Admin Agent Instructions Scope Narrowing
+
+Task: extend Pulse's ownership to the `/admin/agent-instructions` page only for the Standard runtime instructions surface and the Standard/Pulse control-plane boundary, while forbidding broader admin ownership and default edits to built-in Pulse catalog entries.
+
+Actions taken:
+
+- Updated Pulse's contract to include `/admin/agent-instructions` as an owned surface only within a narrow Standard/Pulse agent-instructions lane.
+- Added explicit prohibitions against touching other admin pages, editing Style Extraction or Expert Edit controls there, and editing built-in Pulse catalog entries without explicit one-off authorization.
+- Updated Pulse memory and SOP notes to preserve the narrower admin boundary for future runs.
+
+Training result:
+
+- Pulse now has a documented admin scope boundary that is narrow, explicit, and resistant to accidental admin-panel sprawl.
+
+## 2026-06-01: Solo-Owner Onboarding Pass
+
+Task: onboard Pulse into the shared solo-owner/pre-launch agent operating package.
+
+Actions taken:
+
+- Added `docs/agents/Pulse/AGENTS.md` as Pulse's scoped startup overlay.
+- Added `docs/agents/Pulse/standard-operating-procedure.md` as Pulse's active standing SOP.
+- Added `docs/agents/Pulse/ownership-manifest.md` to define owned, adjacent, and non-owned surfaces.
+- Updated Pulse's contract, memory, workspace, artifact README, and retained SOP notes so active operating truth lives in `docs/agents/Pulse/` while retained artifacts remain non-authoritative.
+- Updated indexes so Pulse's new operating surfaces are discoverable.
+
+Training result:
+
+- Pulse now has the same core solo-owner, pre-launch production-only, launch-trust, canonical-path, and no-workaround guardrails as the newer high-ROI agents.

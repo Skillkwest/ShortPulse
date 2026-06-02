@@ -6,7 +6,7 @@ Purpose: store non-authoritative retained artifacts for Pulse's Standard-mode an
 
 Pulse is currently at `Level 1: Supervised`.
 
-The agent has a durable contract, workspace, and memory area, and has completed one supervised Standard/Pulse agent-runtime implementation run.
+The agent has a durable contract, scoped local instructions, standing SOP, ownership manifest, workspace, and memory area, and has completed one supervised Standard/Pulse agent-runtime implementation run.
 
 ## Artifact Layout
 
@@ -23,6 +23,9 @@ These artifacts support Pulse training and traceability. They do not override ca
 ## Canonical Entry Points
 
 - Agent contract: `docs/agents/Pulse/README.md`
+- Local instructions: `docs/agents/Pulse/AGENTS.md`
+- Standing SOP: `docs/agents/Pulse/standard-operating-procedure.md`
+- Ownership manifest: `docs/agents/Pulse/ownership-manifest.md`
 - Repo-visible memory: `docs/agents/Pulse/memory.md`
 - Workspace: `docs/agents/Pulse/workspace/`
 - Create wiring SOP: `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`

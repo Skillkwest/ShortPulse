@@ -4,5 +4,4 @@ Purpose: index retained Pulse run reports for Create panel and agent-runtime wor
 
 ## Current Reports
 
-- None yet.
-
+- [2026-06-01 Standard Mode Modularization Blueprint](./2026-06-01-standard-mode-modularization-blueprint.md)

@@ -10,6 +10,7 @@ Use this folder for Pulse-owned temporary drafts, handoff packets, notes, and wo
 
 - This folder is not the source of truth for Standard-mode behavior, Pulse-mode behavior, route contracts, persistence rules, or runtime isolation policy.
 - Durable contract and memory live under `docs/agents/Pulse/`.
+- Pulse's scoped startup overlay, SOP, and ownership manifest live under `docs/agents/Pulse/`.
 - Durable retained artifacts live under `docs/records/artifacts/agent/Pulse/`.
 - Do not place secrets, provider keys, service-role keys, raw user-private data, or production credentials in this folder.
 - Review temporary material here, extract only reusable lessons into the documented memory or retained artifact surfaces, then remove temporary inputs when they are no longer needed.
@@ -22,5 +23,8 @@ Use this folder for Pulse-owned temporary drafts, handoff packets, notes, and wo
 ## Canonical Entry Points
 
 - Agent contract: `docs/agents/Pulse/README.md`
+- Local instructions: `docs/agents/Pulse/AGENTS.md`
+- Standing SOP: `docs/agents/Pulse/standard-operating-procedure.md`
+- Ownership manifest: `docs/agents/Pulse/ownership-manifest.md`
 - Repo-visible memory: `docs/agents/Pulse/memory.md`
 - Retained artifacts: `docs/records/artifacts/agent/Pulse/`

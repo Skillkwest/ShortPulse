@@ -117,6 +117,11 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/Create Workflow/create-panel-operating-brief.md`
 - `docs/agents/Create Workflow/create-panel-system-map.md`
 - `docs/agents/Pulse/README.md`
+- `docs/agents/Pulse/AGENTS.md`
+- `docs/agents/Pulse/memory.md`
+- `docs/agents/Pulse/standard-operating-procedure.md`
+- `docs/agents/Pulse/ownership-manifest.md`
+- `docs/agents/Pulse/workspace/README.md`
 - `docs/agents/copperknot/README.md`
 - `docs/agents/copperknot/standard-operating-procedure.md`
 - `docs/agents/copperknot/standard-operating-procedure-reference.md`

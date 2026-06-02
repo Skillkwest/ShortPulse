@@ -93,6 +93,11 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/Create Workflow/standard-operating-procedure.md`: standing SOP for Create-panel attachment/composer incident handling and training-data capture.
   - retained artifacts live under the slugged path `docs/records/artifacts/agent/create-workflow/`.
 - `docs/agents/Pulse/README.md`: Pulse Standard-mode and Pulse-mode agent behavior ownership contract, memory entrypoint, and workspace home.
+  - `docs/agents/Pulse/AGENTS.md`: Pulse-scoped execution overlay for Standard/Pulse agent behavior work.
+  - `docs/agents/Pulse/memory.md`: Pulse's repo-visible durable memory entrypoint.
+  - `docs/agents/Pulse/standard-operating-procedure.md`: Pulse's standing SOP for Standard/Pulse agent behavior, boundary, and `/admin/agent-instructions` Standard control-plane work.
+  - `docs/agents/Pulse/ownership-manifest.md`: Pulse's ownership boundary map for Standard/Pulse runtime behavior versus adjacent specialist lanes.
+  - `docs/agents/Pulse/workspace/README.md`: Pulse-owned temporary workspace for handoff files, drafts, and implementation prep material.
 - `docs/agents/copperknot/README.md`: systems catalog stewardship, production-readiness prioritization, and execution-handoff contract and memory entrypoint.
   - `docs/agents/copperknot/goal-prompt.md`: concise reusable mission prompt for Copperknot's launch-readiness stewardship.
   - `docs/agents/copperknot/operating-package-2026-05-06.md`: current operating package entrypoint for the July 2 production-readiness window.

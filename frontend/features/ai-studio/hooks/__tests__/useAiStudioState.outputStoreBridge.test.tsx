@@ -1005,6 +1005,48 @@ describe("useAiStudioState output store bridge", () => {
     prepareSpy.mockRestore();
   });
 
+  it("persists direct media-library quick-slot drops into the project workspace snapshot", async () => {
+    const { result } = renderHook(() => useAiStudioState({ projectId: "project-quick-slot" }), {
+      wrapper: strictWrapper,
+    });
+
+    let insertedId: string | null = null;
+    await act(async () => {
+      insertedId = await result.current.addLibraryMediaReferenceToQuickSlot({
+        id: "77777777-7777-4777-8777-777777777777",
+        url: "https://signed.example.com/quick-slot.png",
+        fileType: "image",
+        filename: "quick-slot.png",
+        promptText: "Quick slot reference",
+        source: "ai_studio",
+      });
+      if (insertedId) {
+        result.current.addCuratedReference(insertedId);
+      }
+    });
+
+    expect(insertedId).toEqual(expect.stringMatching(/^library-/));
+    await waitFor(() => {
+      expect(result.current.outputs.map((output) => output.id)).toContain(insertedId);
+      expect(result.current.curatedReferenceIds).toEqual([insertedId]);
+    });
+
+    const snapshot = result.current.buildProjectWorkspaceSnapshot({
+      sessionId: "project-quick-slot",
+      updatedAt: "2026-06-01T18:00:00.000Z",
+    });
+
+    expect(snapshot.outputs.active).toEqual([
+      expect.objectContaining({
+        id: insertedId,
+        prompt: "Quick slot reference",
+        mediaSource: "library",
+        savedMediaIds: ["77777777-7777-4777-8777-777777777777"],
+      }),
+    ]);
+    expect(snapshot.outputs.curatedReferenceIds).toEqual([insertedId]);
+  });
+
   it("supports media-library add -> quick-slot reorder/remove while large all-refs collections stay active", async () => {
     const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 

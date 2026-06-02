@@ -740,6 +740,88 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
+  it("preserves saved media-library quick-slot rows through workspace writes", async () => {
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-library-quick-slot-save",
+        updatedAt: "2026-06-01T18:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-01T18:00:00.000Z",
+          checksum: "fnv1a32:library-quick-slot-save",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Project prompt",
+        },
+        outputs: {
+          active: [
+            {
+              id: "library-quick-slot-1",
+              mediaSource: "library",
+              savedMediaIds: [MEDIA_ID_1],
+              previewUrl: "https://cdn.example.com/library-quick-slot.png",
+              resultUrls: ["https://cdn.example.com/library-quick-slot.png"],
+              prompt: "Quick slot reference",
+              status: "ready",
+              mode: "image",
+            },
+          ],
+          archived: [],
+          activeOutputId: "library-quick-slot-1",
+          curatedReferenceIds: ["library-quick-slot-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(result.snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "library-quick-slot-1",
+          mediaSource: "library",
+          savedMediaIds: [MEDIA_ID_1],
+        }),
+      ],
+      archived: [],
+      activeOutputId: null,
+      curatedReferenceIds: ["library-quick-slot-1"],
+      removedFromAllRefsIds: [],
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(firstWorkspaceUpsertArg?.snapshot?.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "library-quick-slot-1",
+          mediaSource: "library",
+          savedMediaIds: [MEDIA_ID_1],
+        }),
+      ],
+      activeOutputId: null,
+      curatedReferenceIds: ["library-quick-slot-1"],
+    });
+  });
+
   it("removes failed outputs from project workspace snapshots before saving", async () => {
     createSupabaseMock({
       associatedSnapshotGenerationIds: [],

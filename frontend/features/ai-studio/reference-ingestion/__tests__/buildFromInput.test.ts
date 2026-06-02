@@ -233,7 +233,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     const [output] = result.outputs;
     expect(output?.id).toBe("library-id-1");
     expect(output?.timestamp).toBe("Generation");
-    expect(output?.mediaSource).toBe("generated");
+    expect(output?.mediaSource).toBe("library");
     expect(output?.createdAt).toBe("2026-05-25T12:34:56.000Z");
     expect(output?.previewStoragePath).toBe("user/preview.jpg");
     expect(output?.fullStoragePath).toBe("user/full.jpg");
@@ -296,7 +296,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
       expect.objectContaining({
         prompt: "clip.mp4 -> Narrator video",
         transcriptText: "I can hear the city waking up below us.",
-        mediaSource: "generated",
+        mediaSource: "library",
       })
     );
   });

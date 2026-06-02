@@ -164,7 +164,9 @@ const buildLibraryMediaOutput = ({
     audioSourceMode: payload.fileType === "audio" ? (payload.audioSourceMode ?? null) : null,
     durationMs: payload.durationMs ?? null,
     waveformPeaks: Array.isArray(payload.waveformPeaks) ? payload.waveformPeaks : null,
-    mediaSource: payload.source === "ai_studio" ? "generated" : "library",
+    // Media Library drag source is durable media-file authority even when the row
+    // originally came from an AI Studio generation.
+    mediaSource: "library",
     previewTier:
       payload.fileType === "video"
         ? "preview_loop"

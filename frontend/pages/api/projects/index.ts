@@ -64,7 +64,6 @@ export default async function handler(
     });
     return res.status(500).json({
       error: "Failed to list projects",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

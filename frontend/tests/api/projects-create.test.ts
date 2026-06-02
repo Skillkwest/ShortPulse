@@ -266,6 +266,28 @@ describe("projects routes", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid project list limit" });
   });
 
+  it("does not expose internal project list errors to callers", async () => {
+    listProjectsForUserMock.mockRejectedValueOnce(new Error("project list relation leaked"));
+    const req = { method: "GET", query: { limit: "3" } };
+    const res = createMockResponse();
+
+    await collectionHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "projects-list",
+      user: { id: "user-1" },
+      metadata: {
+        source: "api.projects.list",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to list projects",
+    });
+  });
+
   it("reads one caller-owned project", async () => {
     const req = { method: "GET", query: { projectId: "project-1" } };
     const res = createMockResponse();
@@ -326,6 +348,28 @@ describe("projects routes", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid project id" });
+  });
+
+  it("does not expose internal project item errors to callers", async () => {
+    getProjectForUserMock.mockRejectedValueOnce(new Error("project row internals leaked"));
+    const req = { method: "GET", query: { projectId: "project-1" } };
+    const res = createMockResponse();
+
+    await itemHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "projects-read",
+      user: { id: "user-1" },
+      metadata: {
+        source: "api.projects.read",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to load project",
+    });
   });
 
   it("dispatches dynamic project item routes through the catch-all route", async () => {
@@ -675,7 +719,7 @@ describe("projects routes", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Failed to save project workspace",
-      details: "Failed to save project workspace during auth resolution: auth bootstrap failed",
+      details: "Failed to save project workspace during auth resolution.",
       failureStage: "auth resolution",
     });
   });
@@ -717,7 +761,7 @@ describe("projects routes", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Failed to save project workspace",
-      details: "Failed to save project workspace during project lookup: project query unavailable",
+      details: "Failed to save project workspace during project lookup.",
       failureStage: "project lookup",
     });
   });

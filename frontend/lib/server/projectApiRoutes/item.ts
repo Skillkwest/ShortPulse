@@ -126,7 +126,6 @@ export default async function handler(
           : req.method === "PATCH"
             ? "Failed to update project"
             : "Failed to load project",
-      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

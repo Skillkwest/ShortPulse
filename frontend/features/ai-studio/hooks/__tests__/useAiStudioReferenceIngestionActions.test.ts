@@ -61,7 +61,6 @@ const createParams = (
   aspect: "1:1",
   model: "fal-ai/flux/dev",
   setOutputs: vi.fn(),
-  updateOutputById: vi.fn(),
   setUiError: vi.fn(),
   ...overrides,
 });
@@ -207,9 +206,24 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(setOutputs).toHaveBeenCalled();
   });
 
-  it("returns a quick-slot library output id before project association settles", async () => {
-    const setOutputs = vi.fn();
+  it("prepares quick-slot library media before returning even when project association is still pending", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
     associateMediaFilesWithProjectMock.mockReturnValueOnce(new Promise(() => undefined));
+    prepareLibraryMediaIngestionPayloadMock.mockResolvedValueOnce({
+      id: "media-1",
+      url: "https://cdn.test/media-1-prepared.png",
+      previewUrl: "https://cdn.test/media-1-preview-prepared.png",
+      fullUrl: "https://cdn.test/media-1-full-prepared.png",
+      fileType: "image",
+      filename: "Reference 1",
+      previewStoragePath: "user-1/library/media-1-preview.png",
+      fullStoragePath: "user-1/library/media-1-full.png",
+    });
     const { result } = renderHook(() =>
       useAiStudioReferenceIngestionActions(
         createParams({
@@ -221,17 +235,12 @@ describe("useAiStudioReferenceIngestionActions", () => {
 
     let insertedId: string | null | undefined;
     await act(async () => {
-      void result.current
-        .addLibraryMediaReferenceToQuickSlot({
-          id: "media-1",
-          url: "https://cdn.test/media-1.png",
-          fileType: "image",
-          filename: "Reference 1",
-        })
-        .then((value) => {
-          insertedId = value;
-        });
-      await Promise.resolve();
+      insertedId = await result.current.addLibraryMediaReferenceToQuickSlot({
+        id: "media-1",
+        url: "https://cdn.test/media-1.png",
+        fileType: "image",
+        filename: "Reference 1",
+      });
     });
 
     expect(insertedId).toEqual(expect.stringMatching(/^library-/));
@@ -241,12 +250,25 @@ describe("useAiStudioReferenceIngestionActions", () => {
       mediaFileIds: ["media-1"],
       userId: CURRENT_USER_ID,
     });
-    expect(prepareLibraryMediaIngestionPayloadMock).not.toHaveBeenCalled();
+    expect(prepareLibraryMediaIngestionPayloadMock).toHaveBeenCalledTimes(1);
+    expect(nextOutputs[0]).toEqual(
+      expect.objectContaining({
+        previewUrl: "https://cdn.test/media-1-preview-prepared.png",
+        resultUrls: ["https://cdn.test/media-1-full-prepared.png"],
+        previewStoragePath: "user-1/library/media-1-preview.png",
+        fullStoragePath: "user-1/library/media-1-full.png",
+        savedMediaIds: ["media-1"],
+      })
+    );
   });
 
   it("still refreshes the optimistic card when project association fails", async () => {
-    const setOutputs = vi.fn();
-    const updateOutputById = vi.fn();
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
     associateMediaFilesWithProjectMock.mockRejectedValueOnce(new Error("association failed"));
     prepareLibraryMediaIngestionPayloadMock.mockResolvedValueOnce({
       id: "media-1",
@@ -259,23 +281,31 @@ describe("useAiStudioReferenceIngestionActions", () => {
         createParams({
           projectId: "project-1",
           setOutputs,
-          updateOutputById,
         })
       )
     );
 
     await act(async () => {
-      await result.current.addLibraryMediaReferenceToQuickSlot({
+      result.current.addLibraryMediaReference({
         id: "media-1",
         url: "https://cdn.test/media-1.png",
         fileType: "image",
         filename: "Reference 1",
       });
+      await Promise.resolve();
     });
 
     expect(associateMediaFilesWithProjectMock).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(prepareLibraryMediaIngestionPayloadMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(updateOutputById).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(nextOutputs[0]).toEqual(
+        expect.objectContaining({
+          previewUrl: "https://cdn.test/media-1-refreshed.png",
+          resultUrls: ["https://cdn.test/media-1-refreshed.png"],
+          savedMediaIds: ["media-1"],
+        })
+      )
+    );
   });
 
   it("inserts pasted local project media immediately and lets background durability handle uploads", async () => {

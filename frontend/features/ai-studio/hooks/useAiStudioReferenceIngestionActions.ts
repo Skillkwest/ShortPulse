@@ -30,7 +30,6 @@ type UseAiStudioReferenceIngestionActionsArgs = {
   aspect: string;
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
-  updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   setUiError?: Dispatch<SetStateAction<string | null>>;
 };
 
@@ -56,6 +55,10 @@ type IngestedReferenceMediaResult = {
   outputId: string;
   payload: LibraryMediaReferencePayload;
   output: StudioOutput;
+};
+
+type InsertLibraryMediaReferenceOptions = {
+  waitForPreparedPayload?: boolean;
 };
 
 type IngestedReferenceFileResult = IngestedReferenceMediaResult & {
@@ -130,7 +133,6 @@ export const useAiStudioReferenceIngestionActions = ({
   aspect,
   model,
   setOutputs,
-  updateOutputById,
   setUiError,
 }: UseAiStudioReferenceIngestionActionsArgs): UseAiStudioReferenceIngestionActionsResult => {
   const sessionSnapshot = useResolvedProtectedSessionState();
@@ -192,8 +194,56 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const insertLibraryMediaReference = useCallback(
-    async (payload: LibraryMediaReferencePayload): Promise<IngestedReferenceMediaResult | null> => {
+    async (
+      payload: LibraryMediaReferencePayload,
+      options: InsertLibraryMediaReferenceOptions = {}
+    ): Promise<IngestedReferenceMediaResult | null> => {
       const outputId = `library-${randomId()}`;
+
+      const associateWithProject = () => {
+        if (!payload.id || !projectId) return;
+        void (async () => {
+          try {
+            await associateMediaFilesWithProject({
+              projectId,
+              mediaFileIds: [payload.id],
+              userId: currentUserId,
+            });
+          } catch {
+            // Project membership should not block media authority hydration.
+          }
+        })();
+      };
+
+      const buildPreparedOutput = async (): Promise<IngestedReferenceMediaResult | null> => {
+        try {
+          const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
+          const preparedOutput = buildLibraryMediaOutputWithId(preparedPayload, outputId);
+          return preparedOutput
+            ? {
+                outputId,
+                payload: preparedPayload,
+                output: preparedOutput,
+              }
+            : null;
+        } catch {
+          return null;
+        }
+      };
+
+      associateWithProject();
+
+      if (options.waitForPreparedPayload) {
+        const prepared = await buildPreparedOutput();
+        const output = prepared?.output ?? buildLibraryMediaOutputWithId(payload, outputId);
+        if (!output) {
+          setUiError?.(libraryMediaIngestionErrorMessage);
+          return null;
+        }
+        setOutputs((prev) => [output, ...prev]);
+        return prepared ?? { outputId, payload, output };
+      }
+
       const optimisticOutput = buildLibraryMediaOutputWithId(payload, outputId);
       if (!optimisticOutput) {
         setUiError?.(libraryMediaIngestionErrorMessage);
@@ -203,41 +253,33 @@ export const useAiStudioReferenceIngestionActions = ({
       setOutputs((prev) => [optimisticOutput, ...prev]);
 
       void (async () => {
-        if (payload.id && projectId) {
-          try {
-            await associateMediaFilesWithProject({
-              projectId,
-              mediaFileIds: [payload.id],
-              userId: currentUserId,
-            });
-          } catch {
-            // Continue hydration even if project association fails transiently.
-          }
-        }
-
+        const prepared = await buildPreparedOutput();
+        if (!prepared) return;
         try {
-          const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
-          const refreshedOutput = buildLibraryMediaOutputWithId(preparedPayload, outputId);
-          if (refreshedOutput) {
-            updateOutputById(outputId, (item) => ({
-              ...item,
-              prompt: refreshedOutput.prompt,
-              model: refreshedOutput.model,
-              status: refreshedOutput.status,
-              timestamp: refreshedOutput.timestamp,
-              resultUrls: refreshedOutput.resultUrls,
-              previewUrl: refreshedOutput.previewUrl,
-              previewPosterUrl: refreshedOutput.previewPosterUrl,
-              previewPosterStoragePath: refreshedOutput.previewPosterStoragePath,
-              companionArtUrl: refreshedOutput.companionArtUrl,
-              companionArtStoragePath: refreshedOutput.companionArtStoragePath,
-              previewStoragePath: refreshedOutput.previewStoragePath,
-              fullStoragePath: refreshedOutput.fullStoragePath,
-              mediaSource: refreshedOutput.mediaSource,
-              previewTier: refreshedOutput.previewTier,
-              savedMediaIds: refreshedOutput.savedMediaIds,
-            }));
-          }
+          setOutputs((prev) =>
+            prev.map((item) =>
+              item.id === outputId
+                ? {
+                    ...item,
+                    prompt: prepared.output.prompt,
+                    model: prepared.output.model,
+                    status: prepared.output.status,
+                    timestamp: prepared.output.timestamp,
+                    resultUrls: prepared.output.resultUrls,
+                    previewUrl: prepared.output.previewUrl,
+                    previewPosterUrl: prepared.output.previewPosterUrl,
+                    previewPosterStoragePath: prepared.output.previewPosterStoragePath,
+                    companionArtUrl: prepared.output.companionArtUrl,
+                    companionArtStoragePath: prepared.output.companionArtStoragePath,
+                    previewStoragePath: prepared.output.previewStoragePath,
+                    fullStoragePath: prepared.output.fullStoragePath,
+                    mediaSource: prepared.output.mediaSource,
+                    previewTier: prepared.output.previewTier,
+                    savedMediaIds: prepared.output.savedMediaIds,
+                  }
+                : item
+            )
+          );
         } catch {
           // Keep the optimistic card visible. The current drag payload already contains
           // a renderable preview candidate for right-rail insertion.
@@ -257,7 +299,6 @@ export const useAiStudioReferenceIngestionActions = ({
       projectId,
       setOutputs,
       setUiError,
-      updateOutputById,
     ]
   );
 
@@ -366,7 +407,9 @@ export const useAiStudioReferenceIngestionActions = ({
 
   const addLibraryMediaReferenceToQuickSlot = useCallback(
     async (payload: LibraryMediaReferencePayload): Promise<string | null> => {
-      const inserted = await insertLibraryMediaReference(payload);
+      const inserted = await insertLibraryMediaReference(payload, {
+        waitForPreparedPayload: true,
+      });
       return inserted?.outputId ?? null;
     },
     [insertLibraryMediaReference]

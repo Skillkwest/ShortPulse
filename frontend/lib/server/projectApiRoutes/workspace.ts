@@ -136,27 +136,15 @@ const resolveWorkspaceErrorMessage = (method: NextApiRequest["method"]): string 
   return "Failed to load project workspace";
 };
 
-const hasStructuredWorkspaceFailureDetail = (message: string): boolean =>
-  /^Failed to (?:save|load|reset) project workspace(?: snapshot)?(?: during |: )/i.test(message) ||
-  /^Project workspace save failed during /i.test(message);
-
 const resolveWorkspaceFailureDetails = ({
   method,
   stage,
-  error,
 }: {
   method: NextApiRequest["method"];
   stage: WorkspaceFailureStage | null;
-  error: unknown;
 }): string => {
-  const rawMessage =
-    error instanceof Error && error.message.trim().length > 0
-      ? error.message.trim()
-      : "Unknown error";
-  if (!stage || hasStructuredWorkspaceFailureDetail(rawMessage)) {
-    return rawMessage;
-  }
-  return `${resolveWorkspaceErrorMessage(method)} during ${stage}: ${rawMessage}`;
+  if (!stage) return `${resolveWorkspaceErrorMessage(method)}.`;
+  return `${resolveWorkspaceErrorMessage(method)} during ${stage}.`;
 };
 
 export default async function handler(
@@ -265,7 +253,6 @@ export default async function handler(
       details: resolveWorkspaceFailureDetails({
         method: req.method,
         stage: failureStage,
-        error,
       }),
       ...(failureStage ? { failureStage } : {}),
     });

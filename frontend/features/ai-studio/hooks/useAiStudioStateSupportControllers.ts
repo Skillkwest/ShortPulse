@@ -1,6 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../types";
-import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelectors";
 import { useAiStudioReferenceIngestionActions } from "./useAiStudioReferenceIngestionActions";
 
@@ -14,7 +13,6 @@ type UseAiStudioStateSupportControllersParams = {
   projectId?: string | null;
   setOutputs: (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
-  updateOutputById: ReturnType<typeof useAiStudioOutputLifecycle>["updateOutputById"];
 };
 
 export const useAiStudioStateSupportControllers = ({
@@ -27,7 +25,6 @@ export const useAiStudioStateSupportControllers = ({
   projectId = null,
   setOutputs,
   setUiError,
-  updateOutputById,
 }: UseAiStudioStateSupportControllersParams) => {
   const referenceIngestion = useAiStudioReferenceIngestionActions({
     activeOutput,
@@ -36,7 +33,6 @@ export const useAiStudioStateSupportControllers = ({
     aspect,
     model,
     setOutputs,
-    updateOutputById,
     setUiError,
   });
 

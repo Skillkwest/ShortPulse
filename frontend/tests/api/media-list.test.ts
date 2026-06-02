@@ -793,6 +793,70 @@ describe("POST /api/media/list", () => {
     );
   });
 
+  it("does not sign or return out-of-scope companion art storage paths", async () => {
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock(
+      [
+        {
+          id: "audio-foreign-companion-1",
+          user_id: "user-1",
+          filename: "voice-note.wav",
+          storage_path: "user-1/generations/audio/voice-note.wav",
+          file_type: "audio/wav",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: "gen-audio-foreign-companion-1",
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+      ],
+      {
+        generationProjectionRows: [
+          {
+            generation_id: "gen-audio-foreign-companion-1",
+            user_id: "user-1",
+            companion_art_status: "ready",
+            companion_art_storage_path: "user-2/generations/audio/victim/cover.webp",
+          },
+        ],
+      }
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "audio",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.objectContaining({
+            id: "audio-foreign-companion-1",
+            companion_art_status: "ready",
+            companion_art_storage_path: null,
+            companion_art_url: null,
+          }),
+        ],
+      })
+    );
+  });
+
   it("does not perform initial image signing for modal list hydration even when transform flags are enabled", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");
     vi.stubEnv("NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED", "true");

@@ -2,7 +2,7 @@
  * AI Studio project-workspace persistence controller.
  * Orchestrates project-owned restore/apply and debounced autosave against project workspace authority.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
   createAiStudioProjectWorkspaceAutosaveCandidates,
@@ -659,6 +659,53 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     pendingVisibilityAutosaveBaseline.autosaveUnlockSignature !== autosaveUnlockSignature;
   const projectAutosaveReady = projectBootstrapReady || projectAutosaveReadyAfterUserEdit;
 
+  useLayoutEffect(() => {
+    let cancelled = false;
+    if (
+      !projectId ||
+      !projectBootstrapSettled ||
+      !expectedProjectRestoreVisibilitySignature ||
+      activeBootstrapVisibilityApplied ||
+      !autosaveUnlockSignature
+    ) {
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setPendingVisibilityAutosaveBaseline((current) => (current === null ? current : null));
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setPendingVisibilityAutosaveBaseline((current) => {
+        if (
+          current?.projectId === projectId &&
+          current.revision === projectRuntimeRevision &&
+          current.restoreVisibilitySignature === expectedProjectRestoreVisibilitySignature
+        ) {
+          return current;
+        }
+        return {
+          projectId,
+          revision: projectRuntimeRevision,
+          restoreVisibilitySignature: expectedProjectRestoreVisibilitySignature,
+          autosaveUnlockSignature,
+        };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeBootstrapVisibilityApplied,
+    autosaveUnlockSignature,
+    expectedProjectRestoreVisibilitySignature,
+    projectBootstrapSettled,
+    projectId,
+    projectRuntimeRevision,
+  ]);
+
   useEffect(() => {
     recordProjectWorkspaceAutosavePerf(
       "candidateSelection",
@@ -671,55 +718,6 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       fallbackKind: autosaveSnapshotSelectionComputation.reportFallbackKind,
     });
   }, [autosaveSnapshotSelectionComputation, maybeReportSlowProjectWorkspacePhase]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (
-      !projectId ||
-      !projectBootstrapSettled ||
-      !expectedProjectRestoreVisibilitySignature ||
-      activeBootstrapVisibilityApplied ||
-      !autosaveUnlockSignature
-    ) {
-      queueMicrotask(() => {
-        if (cancelled) return;
-        setPendingVisibilityAutosaveBaseline(null);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-    if (
-      pendingVisibilityAutosaveBaseline?.projectId === projectId &&
-      pendingVisibilityAutosaveBaseline.revision === projectRuntimeRevision &&
-      pendingVisibilityAutosaveBaseline.restoreVisibilitySignature ===
-        expectedProjectRestoreVisibilitySignature
-    ) {
-      return () => {
-        cancelled = true;
-      };
-    }
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setPendingVisibilityAutosaveBaseline({
-        projectId,
-        revision: projectRuntimeRevision,
-        restoreVisibilitySignature: expectedProjectRestoreVisibilitySignature,
-        autosaveUnlockSignature,
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    activeBootstrapVisibilityApplied,
-    autosaveUnlockSignature,
-    expectedProjectRestoreVisibilitySignature,
-    pendingVisibilityAutosaveBaseline,
-    projectBootstrapSettled,
-    projectId,
-    projectRuntimeRevision,
-  ]);
 
   useEffect(() => {
     if (!projectRuntimeAuthority) {

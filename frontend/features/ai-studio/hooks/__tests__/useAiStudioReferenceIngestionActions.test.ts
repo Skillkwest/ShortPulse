@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioReferenceIngestionActions } from "../useAiStudioReferenceIngestionActions";
 import type { StudioOutput } from "../../types";
@@ -207,6 +207,43 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(setOutputs).toHaveBeenCalled();
   });
 
+  it("returns a quick-slot library output id before project association settles", async () => {
+    const setOutputs = vi.fn();
+    associateMediaFilesWithProjectMock.mockReturnValueOnce(new Promise(() => undefined));
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
+
+    let insertedId: string | null | undefined;
+    await act(async () => {
+      void result.current
+        .addLibraryMediaReferenceToQuickSlot({
+          id: "media-1",
+          url: "https://cdn.test/media-1.png",
+          fileType: "image",
+          filename: "Reference 1",
+        })
+        .then((value) => {
+          insertedId = value;
+        });
+      await Promise.resolve();
+    });
+
+    expect(insertedId).toEqual(expect.stringMatching(/^library-/));
+    expect(setOutputs).toHaveBeenCalledTimes(1);
+    expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      mediaFileIds: ["media-1"],
+      userId: CURRENT_USER_ID,
+    });
+    expect(prepareLibraryMediaIngestionPayloadMock).not.toHaveBeenCalled();
+  });
+
   it("still refreshes the optimistic card when project association fails", async () => {
     const setOutputs = vi.fn();
     const updateOutputById = vi.fn();
@@ -237,8 +274,8 @@ describe("useAiStudioReferenceIngestionActions", () => {
     });
 
     expect(associateMediaFilesWithProjectMock).toHaveBeenCalledTimes(1);
-    expect(prepareLibraryMediaIngestionPayloadMock).toHaveBeenCalledTimes(1);
-    expect(updateOutputById).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(prepareLibraryMediaIngestionPayloadMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(updateOutputById).toHaveBeenCalledTimes(1));
   });
 
   it("inserts pasted local project media immediately and lets background durability handle uploads", async () => {

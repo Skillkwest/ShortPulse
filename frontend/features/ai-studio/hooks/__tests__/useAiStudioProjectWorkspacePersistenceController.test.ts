@@ -641,6 +641,116 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("enables project autosave for immediate quick-slot and canvas edits after bootstrap settles", async () => {
+    const restoredSnapshot = {
+      ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),
+      outputs: {
+        active: [
+          {
+            id: "out-1",
+            prompt: "Restored image",
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "Just now",
+            previewUrl: "https://cdn.example.com/out-1.png",
+            resultUrls: ["https://cdn.example.com/out-1.png"],
+          },
+        ],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+      },
+    } as unknown as AiStudioSessionSnapshot;
+    const pendingLiveSnapshot = {
+      ...restoredSnapshot,
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 0, y: 0, zoom: 1 },
+        railCamera: { x: 0, y: 0, zoom: 1 },
+      }),
+    } as unknown as AiStudioSessionSnapshot;
+    const quickSlotAndCanvasEditedSnapshot = {
+      ...pendingLiveSnapshot,
+      outputs: {
+        ...pendingLiveSnapshot.outputs,
+        curatedReferenceIds: ["out-1"],
+      },
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [
+          {
+            id: "canvas-text-1",
+            kind: "text",
+            text: "fast edit",
+            x: 20,
+            y: 30,
+            width: 180,
+            height: 48,
+            rotation: 0,
+            scale: 1,
+            opacity: 1,
+            locked: false,
+            zIndex: 1,
+            fontSize: 20,
+            fontFamily: "Arial",
+            fontWeight: 400,
+            color: "#ffffff",
+            align: "left",
+          },
+        ],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 0, y: 0, zoom: 1 },
+        railCamera: { x: 0, y: 0, zoom: 1 },
+      }),
+    } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const buildSessionSnapshot = vi.fn(() => pendingLiveSnapshot);
+    const buildEditedSessionSnapshot = vi.fn(() => quickSlotAndCanvasEditedSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    await act(async () => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+      await Promise.resolve();
+    });
+
+    rerender({ buildSnapshot: buildEditedSessionSnapshot });
+
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        snapshot: quickSlotAndCanvasEditedSnapshot,
+        enabled: true,
+      })
+    );
+  });
+
   it("enables project autosave after bootstrap settles for the active project", async () => {
     const snapshot = createAiStudioProjectWorkspaceSnapshot(createSnapshot());
     const buildSessionSnapshot = vi.fn(() => snapshot);

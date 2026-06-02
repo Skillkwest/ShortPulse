@@ -202,54 +202,52 @@ export const useAiStudioReferenceIngestionActions = ({
 
       setOutputs((prev) => [optimisticOutput, ...prev]);
 
-      if (payload.id && projectId) {
-        try {
-          await associateMediaFilesWithProject({
-            projectId,
-            mediaFileIds: [payload.id],
-            userId: currentUserId,
-          });
-        } catch {
-          // Continue hydration even if project association fails transiently.
+      void (async () => {
+        if (payload.id && projectId) {
+          try {
+            await associateMediaFilesWithProject({
+              projectId,
+              mediaFileIds: [payload.id],
+              userId: currentUserId,
+            });
+          } catch {
+            // Continue hydration even if project association fails transiently.
+          }
         }
-      }
 
-      let resolvedPayload = payload;
-      let resolvedOutput = optimisticOutput;
-      try {
-        const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
-        const refreshedOutput = buildLibraryMediaOutputWithId(preparedPayload, outputId);
-        resolvedPayload = preparedPayload;
-        if (refreshedOutput) {
-          resolvedOutput = refreshedOutput;
-          updateOutputById(outputId, (item) => ({
-            ...item,
-            prompt: refreshedOutput.prompt,
-            model: refreshedOutput.model,
-            status: refreshedOutput.status,
-            timestamp: refreshedOutput.timestamp,
-            resultUrls: refreshedOutput.resultUrls,
-            previewUrl: refreshedOutput.previewUrl,
-            previewPosterUrl: refreshedOutput.previewPosterUrl,
-            previewPosterStoragePath: refreshedOutput.previewPosterStoragePath,
-            companionArtUrl: refreshedOutput.companionArtUrl,
-            companionArtStoragePath: refreshedOutput.companionArtStoragePath,
-            previewStoragePath: refreshedOutput.previewStoragePath,
-            fullStoragePath: refreshedOutput.fullStoragePath,
-            mediaSource: refreshedOutput.mediaSource,
-            previewTier: refreshedOutput.previewTier,
-            savedMediaIds: refreshedOutput.savedMediaIds,
-          }));
+        try {
+          const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
+          const refreshedOutput = buildLibraryMediaOutputWithId(preparedPayload, outputId);
+          if (refreshedOutput) {
+            updateOutputById(outputId, (item) => ({
+              ...item,
+              prompt: refreshedOutput.prompt,
+              model: refreshedOutput.model,
+              status: refreshedOutput.status,
+              timestamp: refreshedOutput.timestamp,
+              resultUrls: refreshedOutput.resultUrls,
+              previewUrl: refreshedOutput.previewUrl,
+              previewPosterUrl: refreshedOutput.previewPosterUrl,
+              previewPosterStoragePath: refreshedOutput.previewPosterStoragePath,
+              companionArtUrl: refreshedOutput.companionArtUrl,
+              companionArtStoragePath: refreshedOutput.companionArtStoragePath,
+              previewStoragePath: refreshedOutput.previewStoragePath,
+              fullStoragePath: refreshedOutput.fullStoragePath,
+              mediaSource: refreshedOutput.mediaSource,
+              previewTier: refreshedOutput.previewTier,
+              savedMediaIds: refreshedOutput.savedMediaIds,
+            }));
+          }
+        } catch {
+          // Keep the optimistic card visible. The current drag payload already contains
+          // a renderable preview candidate for right-rail insertion.
         }
-      } catch {
-        // Keep the optimistic card visible. The current drag payload already contains
-        // a renderable preview candidate for right-rail insertion.
-      }
+      })();
 
       return {
         outputId,
-        payload: resolvedPayload,
-        output: resolvedOutput,
+        payload,
+        output: optimisticOutput,
       };
     },
     [

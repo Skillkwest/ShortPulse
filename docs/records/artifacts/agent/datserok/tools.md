@@ -4,14 +4,9 @@ Purpose: retain Datserok's helper inventory and future tooling needs for project
 
 ## Current Tools
 
-- project-persistence contract docs:
-  - `docs/sops/sop_ai_studio_projects_foundation.md`
-  - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
-  - ADRs `0062`, `0063`, `0064`, `0065`, `0070`, and `0085`
-- targeted repo inspection across project API routes, server helpers, AI Studio hooks, and dashboard/AI Studio entrypoints
-- targeted persistence tests and the e2e project-persistence audit path documented in `docs/testing-guide.md`
-- Datserok source map for first-load owner routing
-- Datserok memory, run logging, and training-history tracking
+- `docs/agents/datserok/project-persistence-source-map.md` owns the current doc stack, code-owner map, validation anchors, and drift flags.
+- Targeted repo inspection uses the source map first, then only the specific project API route, server helper, AI Studio hook, or test needed for the lane.
+- Retained artifact surfaces are support tools only: memory, run log, training history, reports, and this inventory. They are not default startup context.
 
 ## Future Tooling Needs
 

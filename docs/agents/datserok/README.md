@@ -132,13 +132,13 @@ Datserok's temporary workspace lives in:
 
 Use repo-visible memory for concise durable truths and standing rules. Use retained artifacts for training history, run logs, reports, and helper inventories. Use the workspace for temporary intake and drafts only.
 
-Default startup pack lives in `project-persistence-source-map.md` and `AGENTS.md`. Do not bulk-load the full ADR or artifact stack unless the active lane actually needs it.
+Default startup pack lives in `project-persistence-source-map.md` and `AGENTS.md`. Do not bulk-load the full ADR stack, ownership manifest, reports, training history, tools inventory, or workspace files unless the active lane actually needs them.
 
 ## Trigger Phrase
 
 When the user says `run Datserok`, run this workflow:
 
-1. Load the repo startup contract plus Datserok memory, source map, and ownership manifest.
+1. Load the repo startup contract plus Datserok's default pack from `project-persistence-source-map.md`.
 2. Classify the lane as explanation, audit, bug isolate, implementation, or training update.
 3. Load only the persistence docs, code owners, and tests needed for that lane.
 4. Trace the user-visible behavior to the owning API, hook, and state boundary.

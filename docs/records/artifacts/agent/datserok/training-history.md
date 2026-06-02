@@ -42,16 +42,22 @@ Purpose: track supervised Datserok runs, learned behavior, SOP changes, tool cha
 - Remaining friction: live production validation is still the main gap for persistence claims; communication discipline is now documented but still needs reinforcement through future supervised runs.
 - Next training focus: verify that future Datserok closeouts stay operationally single-threaded when discussing planning posture, confidence, and next steps during persistence incidents.
 
-### 2026-06-01 - Agent-space audit and prune
+### 2026-06-01/02 - Agent-space maintenance: load discipline
 
-- Prompt used: read Gottspan's reusable audit-and-prune prompt, then run it against Datserok's own workspace.
+- Prompt used: run the audit/prune workflow against Datserok's own workspace, not Gottspan or another agent.
 - Behavior learned: Datserok's main performance risk is not artifact bulk; it is repeated startup/load language across the contract, SOP, and source-map surfaces.
 - Behavior learned: default startup should load Datserok's compact control pack first, then add ownership docs, deeper persistence docs, and training artifacts only when the lane actually needs them.
+- Behavior learned: Datserok's active context should not inherit prior incident narratives by momentum. Each persistence lane starts from current project evidence, current code, and the source map; old handoffs are conditional lookup material.
+- Behavior learned: repeated self-audits should not automatically create new retained-history entries. Update one controlling policy surface unless the run teaches a genuinely new reusable lesson.
 - SOP or template updates:
   - compressed Datserok's scoped instructions to distinguish default versus conditional loads;
   - compressed the SOP's surface inventory to point at the source map instead of repeating the full doc stack;
   - compressed the source map's default load pack;
-  - removed a stale status block from the Datserok artifact README.
+  - removed a stale status block from the Datserok artifact README;
+  - updated README trigger behavior to load the source-map default pack rather than ownership manifest by default;
+  - added source-map guidance excluding reports, tools, run logs, workspace scratch, and prior-thread handoffs from default startup;
+  - compressed tools inventory to route through the source map;
+  - added a rule against retained-history entries for repeated maintenance runs with no new durable lesson.
 - Tool changes: no new tools required.
-- Remaining friction: Datserok's README, SOP, and source map are now leaner, but future persistence expansions could still reintroduce repeated file inventories if not watched.
-- Next training focus: keep future Datserok maintenance runs focused on load discipline and boundary clarity before considering deletion of durable evidence.
+- Remaining friction: retained reports remain small and useful, but future report growth needs a lightweight index before any deletion decision.
+- Next training focus: enforce the new habit during the next Datserok production incident by proving the current seam before relying on any previous handoff.

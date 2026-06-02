@@ -29,7 +29,6 @@ Structure (locked):
 
 ## Program 2: Media And Reference Integrity
 
-- [ ] AI Studio: change placeholder `generating` and `loading preview` reference cards to a lighter gray background for better visual contrast.
 - [ ] Audit and resolve the AI Studio passive wheel runtime warning at the canonical gesture-plumbing seam, treating it as a separate lane from the signed-media preview failures.
       Reference: `docs/records/evidence/ux/2026-06-02-ai-studio-passive-wheel-warning-audit.md`
       Restart scope: production `https://www.shortpulse.ai`, compare fresh project open versus same-session project switching before editing gesture or restore code.
@@ -47,7 +46,5 @@ Structure (locked):
 - [ ] Build a complete, polished collection of small delete buttons.
 - [ ] Build a complete, polished collection of small save buttons.
 - [ ] Finish the Dashboard redesign pass by retiring the remaining staged/legacy posture and tightening the long-term styling structure.
-- [ ] Align Character Manager styling with the AI Studio character workflow so the manager page and properties panel feel cohesive.
-- [ ] Redesign Character Manager with a more polished UI, modeled after the AI Studio character workflow experience.
 
 ## Program 5: Release Confidence And Research

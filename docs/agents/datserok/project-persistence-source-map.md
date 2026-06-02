@@ -183,3 +183,5 @@ Load conditionally:
   - only when the current lane needs them
 - `docs/records/artifacts/agent/datserok/training-history.md`
   - for training or maintenance lanes
+
+Do not load retained reports, run logs, tools inventory, workspace scratch areas, or prior-thread handoffs by default. They are lookup surfaces for artifact maintenance, historical comparison, or a named incident that explicitly needs them.

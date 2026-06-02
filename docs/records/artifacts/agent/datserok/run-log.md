@@ -40,16 +40,19 @@ Purpose: append-only ledger of substantive Datserok runs that are worth retainin
   - express confidence as one repo/test/production evidence ladder instead of competing answer frames.
 - Follow-up: confirm future Datserok persistence closeouts maintain this discipline during real production-bug lanes.
 
-### 2026-06-01 - Agent-space audit and prune
+### 2026-06-01/02 - Agent-space maintenance: load discipline
 
 - Lane: agent maintenance
-- Outcome: audited Datserok's owned workspace, rechecked overlap, and compressed the startup/load contract so default runs stop bulk-loading boundary docs, deep ADR stacks, and training artifacts unless the lane actually needs them.
-- Evidence scope: Datserok contract, scoped instructions, SOP, source map, memory, artifact README, run log, tools inventory, training history, and workspace rules.
+- Outcome: audited Datserok's owned workspace, compressed default-load routing, and clarified that prior incident narratives are lookup history rather than active startup truth.
+- Evidence scope: Datserok contract, scoped instructions, SOP, source map, memory, artifact README, run log, tools inventory, training history, workspace guards, and retained reports.
 - Validation:
-  - diff inspection confirmed the changes stayed inside Datserok-owned surfaces;
-  - `git diff --check` passed.
+  - changes stayed inside Datserok-owned surfaces;
+  - `git diff --check` passed during the first pass;
+  - no product UI, UX, behavior, launch posture, security posture, branch, or other agent workspace was intentionally changed.
 - Durable lessons:
   - Datserok's highest maintenance ROI is startup-load discipline, not report deletion;
-  - the source map should own the deeper doc-stack routing instead of repeating large inventories across every Datserok surface;
-  - training history is conditional context, not default startup load.
-- Follow-up: if future Datserok growth creates new sprawl, prune repeated file inventories first before deleting retained evidence.
+  - the source map should own deeper doc-stack routing instead of repeated file inventories;
+  - training history, reports, tools, run logs, workspace scratch, and old handoffs are conditional lookup surfaces, not default startup context;
+  - old incident handoffs and prior-thread narratives are lookup history, not active truth for new persistence lanes;
+  - repeated self-audits should update a controlling policy surface instead of appending retained-history noise by reflex.
+- Follow-up: if Datserok accumulates multiple incident reports, add a tiny report index before deleting any retained evidence.

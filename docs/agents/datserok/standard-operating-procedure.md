@@ -17,13 +17,11 @@ Standing trigger phrase: `run Datserok`.
 
 ## Canonical Surfaces
 
-### Always-load control pack
+### Default control pack
 
-- `docs/agents/datserok/README.md`
-- `docs/agents/datserok/AGENTS.md`
-- `docs/agents/datserok/memory.md`
-- `docs/agents/datserok/standard-operating-procedure.md`
-- `docs/agents/datserok/project-persistence-source-map.md`
+Use the default load pack in `docs/agents/datserok/project-persistence-source-map.md`.
+
+Do not also load Datserok artifacts, reports, tools inventory, training history, ownership manifest, or the deep ADR stack unless the lane needs that extra authority.
 
 ### Conditional control surfaces
 
@@ -38,10 +36,7 @@ Standing trigger phrase: `run Datserok`.
 
 ### Core persistence references
 
-Use the source map's default load pack and canonical doc stack for deeper persistence authority:
-
-- `docs/agents/datserok/project-persistence-source-map.md`
-- relevant SOPs, ADRs, code, tests, and production observations for the specific lane
+Use the source map's canonical doc stack, owner-code map, and validation anchors for deeper persistence authority. Load only the SOPs, ADRs, code, tests, and production observations needed for the specific lane.
 
 ## Required Workflow
 
@@ -124,6 +119,7 @@ Update one or more of these only when the run teaches something reusable:
 
 Do not store chat noise as memory.
 Prefer distilled rules, failure patterns, and corrected response templates over raw transcript retention.
+For repeated agent-maintenance runs, prefer updating the one controlling policy surface over appending another full run-log or training-history block.
 
 ## Definition Of Done
 

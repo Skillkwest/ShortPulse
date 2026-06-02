@@ -135,7 +135,7 @@ describe("generationBilling reservation RPC handling", () => {
     );
   });
 
-  it("bypasses reservation blocking when the reservation RPC has a recoverable failure", async () => {
+  it("fails closed when the reservation RPC has a recoverable failure", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: null,
       error: { code: "42702", message: 'column reference "source_ref" is ambiguous' },
@@ -163,18 +163,23 @@ describe("generationBilling reservation RPC handling", () => {
       reason: "Fal Seedream edit generation",
     });
 
-    expect(result).not.toBeNull();
+    expect(result).toBeNull();
     expect(rpcMock).toHaveBeenCalledTimes(1);
     expect(rpcMock).toHaveBeenCalledWith(
       "admit_and_reserve_generation_credits",
       expect.any(Object)
     );
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
-    expect(result?.billingMode).toBe("bypass");
-    expect(res.status).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Generation admission is temporarily unavailable. Please retry shortly.",
+      code: "GENERATION_ADMISSION_UNAVAILABLE",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 
-  it("bypasses reservation blocking when reservation RPC fails with an unexpected SQL error", async () => {
+  it("fails closed when reservation RPC fails with an unexpected SQL error", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: null,
       error: { code: "42704", message: "undefined object" },
@@ -202,11 +207,16 @@ describe("generationBilling reservation RPC handling", () => {
       reason: "Fal Seedream edit generation",
     });
 
-    expect(result).not.toBeNull();
+    expect(result).toBeNull();
     expect(rpcMock).toHaveBeenCalledTimes(1);
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
-    expect(result?.billingMode).toBe("bypass");
-    expect(res.status).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Generation admission is temporarily unavailable. Please retry shortly.",
+      code: "GENERATION_ADMISSION_UNAVAILABLE",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 
   it("reserves gpt-image-2 requests through the canonical reservation RPC", async () => {
@@ -721,7 +731,7 @@ describe("generationBilling reservation RPC handling", () => {
     expect(atomicPayload.p_metadata.admission_tier).toBe("image_heavy");
   });
 
-  it("bypasses blocking when the canonical admit+reserve RPC is unavailable", async () => {
+  it("fails closed when the canonical admit+reserve RPC is unavailable", async () => {
     process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: null,
@@ -747,12 +757,17 @@ describe("generationBilling reservation RPC handling", () => {
       reason: "Fal Seedream generation",
     });
 
-    expect(charge).not.toBeNull();
+    expect(charge).toBeNull();
     expect(rpcMock).toHaveBeenCalledTimes(1);
     expect(rpcMock.mock.calls[0]?.[0]).toBe("admit_and_reserve_generation_credits");
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
-    expect(charge?.billingMode).toBe("bypass");
-    expect(res.status).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Generation admission is temporarily unavailable. Please retry shortly.",
+      code: "GENERATION_ADMISSION_UNAVAILABLE",
+      retryAfterSeconds: expect.any(Number),
+    });
   });
 
   it("fails closed when the reservation RPC reports insufficient credits", async () => {

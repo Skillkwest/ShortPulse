@@ -259,6 +259,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 137.  `sql/migrations/138_retire_character_quickswap_tip_preference.sql`
 138.  `sql/migrations/139_add_motion_reference_video_generation_leases.sql`
 139.  `sql/migrations/140_add_admitted_reference_image_variant.sql`
+140.  `sql/migrations/141_harden_storage_entitlement_helper_grants.sql`
       Rollback files:
 
 
@@ -400,6 +401,7 @@ Billing safety note:
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` added durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) before the embedded QuickSwap UX was retired.
 - Migration `138_retire_character_quickswap_tip_preference.sql` removes the now-unused `user_preferences.ai_studio_character_quickswap_tip_hidden` column from the current schema contract.
 - Migration `140_add_admitted_reference_image_variant.sql` adds the `media_asset_variants.variant_kind = 'admitted_reference_25mb'` constraint value for durable generated-image product-use admission derivatives. These derivatives do not change media storage accounting; the original `media_files` row remains the full-quality authority.
+- Migration `141_harden_storage_entitlement_helper_grants.sql` revokes direct customer execute grants on `resolve_media_storage_base_limit_bytes(uuid)` and `resolve_media_storage_addon_limit_bytes(uuid)` so only `service_role` can call the arbitrary-user entitlement helpers. Authenticated clients must continue using `get_media_storage_quota_summary()`.
 - Migration `082_add_user_preferences_ai_studio_saved_voices.sql` adds durable per-user AI Studio saved-voice persistence (`user_preferences.ai_studio_saved_voices`) so created ElevenLabs voices survive refreshes and provider outages.
 - Migration `090_add_user_preferences_ai_studio_style_panel_ids.sql` adds durable per-user Styles Library ordering persistence (`user_preferences.ai_studio_style_panel_ids`) so the primary library panel and right-rail Styles chooser share one canonical tile order.
 - Migration `104_add_user_media_compliance_acceptances.sql` adds versioned per-user media agreement acceptance records (`user_media_compliance_acceptances`) so the protected-route compliance gate can store one-time acceptance history with the accepted timestamp, IP address, and user agent.

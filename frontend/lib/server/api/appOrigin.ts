@@ -79,6 +79,9 @@ const readRuntimeEnvironment = (options: {
   ) {
     return vercelEnvironment;
   }
+  if (process.env.NODE_ENV === "production") {
+    return "production";
+  }
 
   const requestHostname = options.requestOrigin ? new URL(options.requestOrigin).hostname : null;
   if (requestHostname && isApprovedProductionHostname(requestHostname)) {

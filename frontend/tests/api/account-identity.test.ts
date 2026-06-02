@@ -217,6 +217,27 @@ describe("account identity routes", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Unable to update your email." });
   });
 
+  it("fails the email change request in production-built runtimes with unapproved forwarded hosts", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const req = {
+      method: "POST",
+      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      headers: {
+        authorization: "Bearer token",
+        host: "internal.shortpulse.test",
+        "x-forwarded-host": "evil.example",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await emailHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to update your email." });
+  });
+
   it("fails the email change request when APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL disagree", async () => {
     process.env.APP_BASE_URL = "https://canonical.shortpulse.test";
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://preview.shortpulse.test";

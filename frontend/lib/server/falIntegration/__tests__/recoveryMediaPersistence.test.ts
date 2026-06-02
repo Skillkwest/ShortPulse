@@ -43,6 +43,12 @@ const shiftOrReuseLast = <T>(queue: T[], fallback: T): T => {
   return cloneResponse(fallback);
 };
 
+type QueryBuilderStub = {
+  eq: ReturnType<typeof vi.fn>;
+  order?: ReturnType<typeof vi.fn>;
+  contains?: ReturnType<typeof vi.fn>;
+};
+
 const createSupabaseScenario = (scenario: SupabaseScenario) => {
   const listResponses = [...(scenario.listResponses ?? [])];
   const insertResponses = [...(scenario.insertResponses ?? [])];
@@ -57,6 +63,8 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
   const generationOutputUpdatePayloads: Record<string, unknown>[] = [];
   const generationPublicationUpsertPayloads: Record<string, unknown>[] = [];
   const generationProjectionUpsertPayloads: Record<string, unknown>[] = [];
+  const mediaFileListFilters: Array<{ column: string; value: unknown }> = [];
+  const duplicateLookupFilters: Array<{ column: string; value: unknown }> = [];
   const generationOutputRows = Array.isArray(scenario.generationOutputListResponses?.[0]?.data)
     ? structuredClone(scenario.generationOutputListResponses?.[0]?.data)
     : [];
@@ -69,9 +77,15 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
     select: vi.fn((fields: string) => {
       if (fields === "id, metadata") {
         const limit = vi.fn(async () => shiftOrReuseLast(listResponses, { data: [], error: null }));
-        const order = vi.fn(() => ({ limit }));
-        const secondEq = vi.fn(() => ({ order }));
-        return { eq: vi.fn(() => ({ eq: secondEq })) };
+        const builder: QueryBuilderStub = {
+          eq: vi.fn(),
+          order: vi.fn(() => ({ limit })),
+        };
+        builder.eq.mockImplementation((column: string, value: unknown) => {
+          mediaFileListFilters.push({ column, value });
+          return builder;
+        });
+        return builder;
       }
 
       if (
@@ -132,9 +146,15 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
           shiftOrReuseLast(duplicateLookupResponses, { data: null, error: null })
         );
         const limit = vi.fn(() => ({ maybeSingle }));
-        const contains = vi.fn(() => ({ limit }));
-        const secondEq = vi.fn(() => ({ contains }));
-        return { eq: vi.fn(() => ({ eq: secondEq })) };
+        const builder: QueryBuilderStub = {
+          eq: vi.fn(),
+          contains: vi.fn(() => ({ limit })),
+        };
+        builder.eq.mockImplementation((column: string, value: unknown) => {
+          duplicateLookupFilters.push({ column, value });
+          return builder;
+        });
+        return builder;
       }
 
       throw new Error(`Unexpected select fields: ${fields}`);
@@ -266,6 +286,8 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
     generationOutputUpdatePayloads,
     generationPublicationUpsertPayloads,
     generationProjectionUpsertPayloads,
+    mediaFileListFilters,
+    duplicateLookupFilters,
     mediaStorageRows,
     mediaFilesTable,
     mediaEventsTable,
@@ -327,6 +349,20 @@ describe("recoveryMediaPersistence", () => {
       { id: "media-2", index: 2 },
       { id: "media-3", index: null },
     ]);
+    expect(scenario.mediaFileListFilters).toEqual(
+      expect.arrayContaining([
+        { column: "source_ref", value: "gen-1" },
+        { column: "user_id", value: "user-1" },
+        { column: "source", value: "ai_studio" },
+      ])
+    );
+  });
+
+  it("fails closed when existing recovery media lookup has no user scope", async () => {
+    await expect(readExistingRecoveryMediaRows("gen-1", " ")).rejects.toThrow(
+      "Recovery media lookup requires a user scope."
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
   it("returns already-persisted canonical media ids without fetch/upload when coverage is complete", async () => {
@@ -564,6 +600,13 @@ describe("recoveryMediaPersistence", () => {
     expect(scenario.upload).toHaveBeenCalledTimes(2);
     expect(scenario.remove).toHaveBeenCalledTimes(1);
     expect(mediaFileIds).toEqual(["media-new-1", "media-existing-2"]);
+    expect(scenario.duplicateLookupFilters).toEqual(
+      expect.arrayContaining([
+        { column: "source_ref", value: "gen-1" },
+        { column: "user_id", value: "user-1" },
+        { column: "source", value: "ai_studio" },
+      ])
+    );
     expect(scenario.mediaFileInsertPayloads).toHaveLength(2);
     expect(scenario.generationOutputInsertPayloads).toEqual([]);
     expect(scenario.generationOutputUpdatePayloads).toEqual([

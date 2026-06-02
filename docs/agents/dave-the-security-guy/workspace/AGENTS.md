@@ -19,6 +19,8 @@ Canonical Dave references live under:
 ## Workspace Rules
 
 - Do not store raw secrets, bearer tokens, Supabase storage-state files, `.env` values, service-role keys, customer-private exports, or unredacted production logs here.
+- Use this workspace only for real security-threat work. Do not create scratch notes or implementation plans for code cleanup, generic error cleanup, broad hardening, route polish, logging cleanup, throttling sweeps, or "security-shaped" bugs unless current repo evidence proves a concrete attacker path across a protected boundary.
+- Before any Dave implementation plan leaves this workspace, state the threat as: attacker can do X, crossing Y boundary, causing Z security impact. If that statement is weak, stop or backlog the finding instead of editing.
 - Use `dropbox/` only for user-provided security material that Dave is explicitly asked to inspect.
 - Use `drafts/` only for temporary sanitized working notes.
 - Promote durable, sanitized lessons to Dave memory or retained reports instead of letting scratch notes become source of truth.

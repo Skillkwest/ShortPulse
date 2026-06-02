@@ -571,7 +571,7 @@ export const executeGenerationRecovery = async ({
   };
 
   if (generation.status.toLowerCase() === "success") {
-    const existingRows = await readExistingRecoveryMediaRows(generation.id);
+    const existingRows = await readExistingRecoveryMediaRows(generation.id, generation.user_id);
     if (existingRows.length) {
       const persistedOutputRows = await readPersistedGenerationOutputs({
         generationId: generation.id,
@@ -647,7 +647,7 @@ export const executeGenerationRecovery = async ({
     };
   }
 
-  const existingRows = await readExistingRecoveryMediaRows(generation.id);
+  const existingRows = await readExistingRecoveryMediaRows(generation.id, generation.user_id);
   if (existingRows.length) {
     const persistedOutputRows = await readPersistedGenerationOutputs({
       generationId: generation.id,

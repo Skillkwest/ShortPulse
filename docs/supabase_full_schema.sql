@@ -1336,8 +1336,16 @@ begin
 end;
 $$;
 
-grant execute on function resolve_media_storage_base_limit_bytes(uuid) to authenticated, service_role;
-grant execute on function resolve_media_storage_addon_limit_bytes(uuid) to authenticated, service_role;
+revoke all on function resolve_media_storage_base_limit_bytes(uuid) from public;
+revoke all on function resolve_media_storage_base_limit_bytes(uuid) from anon;
+revoke all on function resolve_media_storage_base_limit_bytes(uuid) from authenticated;
+grant execute on function resolve_media_storage_base_limit_bytes(uuid) to service_role;
+
+revoke all on function resolve_media_storage_addon_limit_bytes(uuid) from public;
+revoke all on function resolve_media_storage_addon_limit_bytes(uuid) from anon;
+revoke all on function resolve_media_storage_addon_limit_bytes(uuid) from authenticated;
+grant execute on function resolve_media_storage_addon_limit_bytes(uuid) to service_role;
+
 grant execute on function get_media_storage_quota_summary() to authenticated, service_role;
 
 create or replace function enforce_media_storage_quota()

@@ -130,6 +130,32 @@ describe("auth callback url route", () => {
     );
   });
 
+  it("fails closed in production-built runtimes when forwarded host is unapproved", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const req = {
+      method: "GET",
+      query: { flow: "recovery", next: "/dashboard" },
+      headers: {
+        host: "internal.shortpulse.test",
+        "x-forwarded-host": "evil.example",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to resolve app origin." });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        routeLabel: "auth/callback-url",
+        metadata: { auth_flow: "recovery" },
+      })
+    );
+  });
+
   it("fails when APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL disagree", async () => {
     process.env.APP_BASE_URL = "https://app.shortpulse.test";
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://preview.shortpulse.test";

@@ -26,6 +26,8 @@ with expected_functions as (
             ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'),
             ('public.release_stale_generation_reservations(integer,integer)'),
             ('public.release_stale_provider_attached_generation_reservations(integer,integer,integer)'),
+            ('public.resolve_media_storage_base_limit_bytes(uuid)'),
+            ('public.resolve_media_storage_addon_limit_bytes(uuid)'),
             ('public.upsert_ai_agent_conversation_state(uuid,text,text,interval,integer)'),
             ('public.prune_ai_agent_conversation_state_expired(integer)'),
             ('public.upsert_ai_studio_session_snapshot(uuid,uuid,jsonb,integer,text,interval,integer)'),

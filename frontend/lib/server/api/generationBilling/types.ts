@@ -17,7 +17,7 @@ export type ChargeResult = {
   modelId: string;
   credits: number;
   sourceRef: string;
-  billingMode: "reservation" | "bypass";
+  billingMode: "reservation";
   chargeMetadata: JsonObject;
   pricingBreakdown: {
     billedCredits: number;

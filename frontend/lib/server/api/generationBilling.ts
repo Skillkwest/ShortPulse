@@ -261,42 +261,6 @@ export const chargeGenerationRequest = async ({
     debited_credits: breakdown.credits,
     ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
   };
-  const buildBypassCharge = (reason: string): ChargeResult => {
-    console.warn("[generationBilling] bypassing reservation gate", {
-      modelId,
-      route: req.url ?? null,
-      sourceRef,
-      reason,
-    });
-    return {
-      userId: user.id,
-      modelId,
-      credits: breakdown.credits,
-      sourceRef,
-      billingMode: "bypass",
-      chargeMetadata: {
-        ...chargeMetadata,
-        reservation_bypass_reason: reason,
-      },
-      pricingBreakdown: {
-        billedCredits: breakdown.credits,
-        billedUsd: breakdown.usd,
-        pricingPolicySource: runtimePricingPolicy.source,
-        pricingPolicyVersion: runtimePricingPolicy.activePolicyVersion,
-        rawCredits: breakdown.rawCredits,
-        usdRaw: breakdown.usdRaw,
-      },
-      pricingParams,
-      markSubmitted: async () => ({
-        ok: true,
-        status: "bypass",
-        sourceRef,
-        message: reason,
-        code: null,
-      }),
-      refund: async () => undefined,
-    };
-  };
   const pricingBreakdown = {
     usdRaw: breakdown.usdRaw,
     rawCredits: breakdown.rawCredits,
@@ -378,17 +342,32 @@ export const chargeGenerationRequest = async ({
         },
       });
     }
-    const reservationFailureReason = isRecoverableReservationFailure(reserveResult)
-      ? "reservation_rpc_unavailable"
-      : "reservation_failed";
-    console.error("[generationBilling] reservation gate bypassed", {
+    console.error("[generationBilling] reservation gate failed closed", {
       modelId,
       route: req.url ?? null,
       sourceRef,
       code: reserveResult.code ?? null,
       message: reserveResult.message ?? null,
     });
-    return buildBypassCharge(reservationFailureReason);
+    const retryAfterSeconds = Math.max(1, runtimeFlags.admission.retryAfterSeconds);
+    res.setHeader("Retry-After", String(retryAfterSeconds));
+    return respondChargeFailure({
+      statusCode: 503,
+      message: "Generation admission is temporarily unavailable. Please retry shortly.",
+      source: "api.generation_billing_reservation_unavailable",
+      metadata: {
+        reservation_mode: true,
+        reservation_status: reserveResult.status,
+        reservation_message: reserveResult.message ?? null,
+        reservation_code: reserveResult.code ?? null,
+        reservation_recoverable: isRecoverableReservationFailure(reserveResult),
+        retry_after_seconds: retryAfterSeconds,
+      },
+      responseBody: {
+        code: "GENERATION_ADMISSION_UNAVAILABLE",
+        retryAfterSeconds,
+      },
+    });
   }
   if (reserveResult.status === "admission_limited") {
     const retryAfterSeconds = Math.max(

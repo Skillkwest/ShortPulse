@@ -159,15 +159,17 @@ const fetchBufferWithRetry = async (
 
 export const readExistingRecoveryMediaRows = async (
   generationId: string,
-  userId?: string
+  userId: string
 ): Promise<ExistingRecoveryMediaRow[]> => {
-  const canonicalRows =
-    userId && userId.trim().length
-      ? await readPersistedGenerationOutputs({
-          generationId,
-          userId,
-        }).catch(() => [])
-      : [];
+  const ownerUserId = asString(userId);
+  if (!ownerUserId) {
+    throw new Error("Recovery media lookup requires a user scope.");
+  }
+
+  const canonicalRows = await readPersistedGenerationOutputs({
+    generationId,
+    userId: ownerUserId,
+  }).catch(() => []);
   const rowsByIndex = new Map<number, ExistingRecoveryMediaRow>();
   for (const row of canonicalRows) {
     if (!row.mediaFileId) continue;
@@ -181,6 +183,7 @@ export const readExistingRecoveryMediaRows = async (
     .from("media_files")
     .select("id, metadata")
     .eq("source_ref", generationId)
+    .eq("user_id", ownerUserId)
     .eq("source", "ai_studio")
     .order("created_at", { ascending: true })
     .limit(50);
@@ -342,6 +345,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
             .from("media_files")
             .select("id")
             .eq("source_ref", generation.id)
+            .eq("user_id", generation.user_id)
             .eq("source", "ai_studio")
             .contains("metadata", { [metadataField]: index })
             .limit(1)

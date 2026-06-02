@@ -319,18 +319,57 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         railCamera: { x: 0, y: 0, zoom: 1 },
       }),
     });
+    const userEditedLiveSnapshot = createAiStudioProjectWorkspaceSnapshot({
+      ...mismatchedLiveSnapshot,
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [
+          {
+            id: "canvas-text-1",
+            kind: "text",
+            text: "draft after user edit",
+            x: 32,
+            y: 40,
+            width: 220,
+            height: 60,
+            rotation: 0,
+            scale: 1,
+            opacity: 1,
+            locked: false,
+            zIndex: 1,
+            fontSize: 20,
+            fontFamily: "Arial",
+            fontWeight: 400,
+            color: "#ffffff",
+            align: "left",
+          },
+        ],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 0, y: 0, zoom: 1 },
+        railCamera: { x: 0, y: 0, zoom: 1 },
+      }),
+    });
     mockReadyRestoreCandidate(restoreSnapshot);
     const buildSessionSnapshot = vi.fn(() => mismatchedLiveSnapshot);
+    const buildEditedSessionSnapshot = vi.fn(() => userEditedLiveSnapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
 
-    const { result } = renderHook(() =>
-      useAiStudioProjectWorkspacePersistenceController({
-        projectId: "project-1",
-        projectRouteRequested: true,
-        sessionId: "session-1",
-        buildBaseSessionSnapshot: buildSessionSnapshot,
-        hydrateFromSessionSnapshot,
-      })
+    const { result, rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot,
+        },
+      }
     );
 
     const restoreHydrationArgs =
@@ -346,6 +385,21 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       expect.objectContaining({
         sessionId: "project-1",
         enabled: false,
+      })
+    );
+
+    await act(async () => {
+      rerender({ buildSnapshot: buildEditedSessionSnapshot });
+      await Promise.resolve();
+    });
+
+    expect(result.current.projectBootstrapSettled).toBe(true);
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        snapshot: userEditedLiveSnapshot,
+        enabled: true,
       })
     );
   });

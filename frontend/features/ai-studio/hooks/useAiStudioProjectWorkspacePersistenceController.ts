@@ -327,6 +327,12 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     revision: number;
     message: string;
   } | null>(null);
+  const [pendingVisibilityAutosaveBaseline, setPendingVisibilityAutosaveBaseline] = useState<{
+    projectId: string;
+    revision: number;
+    restoreVisibilitySignature: string;
+    snapshotHash: string;
+  } | null>(null);
   const projectRuntimeAuthority = projectRouteRequested
     ? projectId
       ? `project:${projectId}`
@@ -591,6 +597,19 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     };
   })();
   const autosaveSnapshotSelection = autosaveSnapshotSelectionComputation.selection;
+  const autosavePreparedHash = autosaveSnapshotSelection.preparedSnapshot?.hash ?? null;
+  const projectAutosaveReadyAfterUserEdit =
+    Boolean(projectId) &&
+    projectBootstrapSettled &&
+    !activeBootstrapVisibilityApplied &&
+    Boolean(expectedProjectRestoreVisibilitySignature) &&
+    Boolean(autosavePreparedHash) &&
+    pendingVisibilityAutosaveBaseline?.projectId === projectId &&
+    pendingVisibilityAutosaveBaseline.revision === projectRuntimeRevision &&
+    pendingVisibilityAutosaveBaseline.restoreVisibilitySignature ===
+      expectedProjectRestoreVisibilitySignature &&
+    pendingVisibilityAutosaveBaseline.snapshotHash !== autosavePreparedHash;
+  const projectAutosaveReady = projectBootstrapReady || projectAutosaveReadyAfterUserEdit;
 
   useEffect(() => {
     recordProjectWorkspaceAutosavePerf(
@@ -604,6 +623,55 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       fallbackKind: autosaveSnapshotSelectionComputation.reportFallbackKind,
     });
   }, [autosaveSnapshotSelectionComputation, maybeReportSlowProjectWorkspacePhase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      !projectId ||
+      !projectBootstrapSettled ||
+      !expectedProjectRestoreVisibilitySignature ||
+      activeBootstrapVisibilityApplied ||
+      !autosavePreparedHash
+    ) {
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setPendingVisibilityAutosaveBaseline(null);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (
+      pendingVisibilityAutosaveBaseline?.projectId === projectId &&
+      pendingVisibilityAutosaveBaseline.revision === projectRuntimeRevision &&
+      pendingVisibilityAutosaveBaseline.restoreVisibilitySignature ===
+        expectedProjectRestoreVisibilitySignature
+    ) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setPendingVisibilityAutosaveBaseline({
+        projectId,
+        revision: projectRuntimeRevision,
+        restoreVisibilitySignature: expectedProjectRestoreVisibilitySignature,
+        snapshotHash: autosavePreparedHash,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeBootstrapVisibilityApplied,
+    autosavePreparedHash,
+    expectedProjectRestoreVisibilitySignature,
+    pendingVisibilityAutosaveBaseline,
+    projectBootstrapSettled,
+    projectId,
+    projectRuntimeRevision,
+  ]);
 
   useEffect(() => {
     if (!projectRuntimeAuthority) {
@@ -841,7 +909,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   useAiStudioSessionAutosave({
     sessionId: projectId,
     snapshot: autosaveSnapshotSelection.snapshot,
-    enabled: projectBootstrapReady && !activeBootstrapError,
+    enabled: projectAutosaveReady && !activeBootstrapError,
     persistSnapshot: writeProjectWorkspaceSnapshot,
     resolveSnapshotTitle: resolveProjectSnapshotTitle,
     preparedSnapshot: autosaveSnapshotSelection.preparedSnapshot,

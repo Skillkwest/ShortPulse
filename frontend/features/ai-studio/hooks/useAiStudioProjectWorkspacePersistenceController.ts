@@ -236,6 +236,12 @@ const normalizeProjectSnapshotStringList = (value: unknown): string[] =>
         .filter((entry): entry is string => entry.length > 0)
     : [];
 
+const normalizeProjectAutosaveUnlockString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const resolveProjectRestoreCanvasSignature = (
   snapshot: AiStudioSessionSnapshot | null
 ): string | null => {
@@ -253,6 +259,45 @@ const resolveProjectRestoreCanvasSignature = (
     durableCanvas.railCamera.zoom === 1;
   if (isDefaultEmptyCanvas) return null;
   return JSON.stringify(serializeAiStudioSessionCanvasState(durableCanvas));
+};
+
+const resolveProjectAutosaveUnlockSignature = (
+  snapshot: AiStudioSessionSnapshot | null
+): string | null => {
+  if (!snapshot) return null;
+  const activeOutputs = Array.isArray(snapshot.outputs?.active)
+    ? snapshot.outputs.active.map((output) => {
+        const row = output as Record<string, unknown>;
+        return {
+          id: normalizeProjectAutosaveUnlockString(row.id),
+          mode: normalizeProjectAutosaveUnlockString(row.mode),
+          mediaSource: normalizeProjectAutosaveUnlockString(row.mediaSource),
+          generationId: normalizeProjectAutosaveUnlockString(row.generationId),
+          promptId: normalizeProjectAutosaveUnlockString(row.promptId),
+          taskId: normalizeProjectAutosaveUnlockString(row.taskId),
+          sourceRef: normalizeProjectAutosaveUnlockString(row.sourceRef),
+          previewStoragePath: normalizeProjectAutosaveUnlockString(row.previewStoragePath),
+          fullStoragePath: normalizeProjectAutosaveUnlockString(row.fullStoragePath),
+          previewPosterStoragePath: normalizeProjectAutosaveUnlockString(
+            row.previewPosterStoragePath
+          ),
+          companionArtStoragePath: normalizeProjectAutosaveUnlockString(
+            row.companionArtStoragePath
+          ),
+          savedMediaIds: normalizeProjectSnapshotStringList(row.savedMediaIds),
+          resultStoragePaths: normalizeProjectSnapshotStringList(row.resultStoragePaths),
+          previewText: normalizeProjectAutosaveUnlockString(row.previewText),
+        };
+      })
+    : [];
+  return JSON.stringify({
+    activeOutputs,
+    curatedReferenceIds: normalizeProjectSnapshotStringList(snapshot.outputs?.curatedReferenceIds),
+    removedFromAllRefsIds: normalizeProjectSnapshotStringList(
+      snapshot.outputs?.removedFromAllRefsIds
+    ),
+    canvasSignature: resolveProjectRestoreCanvasSignature(snapshot),
+  });
 };
 
 const resolveProjectRestoreVisibilitySignature = (
@@ -331,7 +376,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     projectId: string;
     revision: number;
     restoreVisibilitySignature: string;
-    snapshotHash: string;
+    autosaveUnlockSignature: string;
   } | null>(null);
   const projectRuntimeAuthority = projectRouteRequested
     ? projectId
@@ -597,18 +642,21 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     };
   })();
   const autosaveSnapshotSelection = autosaveSnapshotSelectionComputation.selection;
-  const autosavePreparedHash = autosaveSnapshotSelection.preparedSnapshot?.hash ?? null;
+  const autosaveUnlockSignature = useMemo(
+    () => resolveProjectAutosaveUnlockSignature(autosaveSnapshotSelection.snapshot),
+    [autosaveSnapshotSelection.snapshot]
+  );
   const projectAutosaveReadyAfterUserEdit =
     Boolean(projectId) &&
     projectBootstrapSettled &&
     !activeBootstrapVisibilityApplied &&
     Boolean(expectedProjectRestoreVisibilitySignature) &&
-    Boolean(autosavePreparedHash) &&
+    Boolean(autosaveUnlockSignature) &&
     pendingVisibilityAutosaveBaseline?.projectId === projectId &&
     pendingVisibilityAutosaveBaseline.revision === projectRuntimeRevision &&
     pendingVisibilityAutosaveBaseline.restoreVisibilitySignature ===
       expectedProjectRestoreVisibilitySignature &&
-    pendingVisibilityAutosaveBaseline.snapshotHash !== autosavePreparedHash;
+    pendingVisibilityAutosaveBaseline.autosaveUnlockSignature !== autosaveUnlockSignature;
   const projectAutosaveReady = projectBootstrapReady || projectAutosaveReadyAfterUserEdit;
 
   useEffect(() => {
@@ -631,7 +679,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       !projectBootstrapSettled ||
       !expectedProjectRestoreVisibilitySignature ||
       activeBootstrapVisibilityApplied ||
-      !autosavePreparedHash
+      !autosaveUnlockSignature
     ) {
       queueMicrotask(() => {
         if (cancelled) return;
@@ -657,7 +705,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         projectId,
         revision: projectRuntimeRevision,
         restoreVisibilitySignature: expectedProjectRestoreVisibilitySignature,
-        snapshotHash: autosavePreparedHash,
+        autosaveUnlockSignature,
       });
     });
     return () => {
@@ -665,7 +713,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     };
   }, [
     activeBootstrapVisibilityApplied,
-    autosavePreparedHash,
+    autosaveUnlockSignature,
     expectedProjectRestoreVisibilitySignature,
     pendingVisibilityAutosaveBaseline,
     projectBootstrapSettled,

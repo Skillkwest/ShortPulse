@@ -6,6 +6,7 @@ import React, { useCallback } from "react";
 import { AiStudioPageShell } from "../components/AiStudioPageShell";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import { buildDefaultPricingParams } from "../logic/pricing";
+import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
 import { useAiStudioPageUiNotices } from "../hooks/useAiStudioPageUiNotices";
 import {
   useAiStudioPageBaseRuntime,
@@ -394,7 +395,11 @@ const AiStudioPageRuntimeBody = ({
     setVoiceScriptDraft: base.setVoiceScriptDraft,
   });
   useAiStudioMediaAutosaveOrchestrator({
-    enabled: !projectRouteRequested || (projectStatus === "ready" && projectBootstrapApplied),
+    enabled: resolveAiStudioMediaAutosaveRouteEnabled({
+      projectRouteRequested,
+      projectStatus,
+      projectBootstrapSettled,
+    }),
     isMediaStorageFull,
     outputs,
     mediaAutosaveEnabled,

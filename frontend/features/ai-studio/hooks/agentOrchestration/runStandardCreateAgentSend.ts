@@ -13,6 +13,10 @@ import {
   splitAgentImageAttachmentsForSend,
 } from "./ephemeralAttachmentSend";
 import type { AgentSendOptions, UseAiStudioAgentOrchestrationParams } from "./types";
+import {
+  resolveStandardPreviousPromptFromMemory,
+  type StandardSessionMemory,
+} from "../../createRuntime/standardMemory/standardSessionMemory";
 
 const STANDARD_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
@@ -32,7 +36,6 @@ export type RunStandardCreateAgentSendParams = Pick<
   | "setAgentAttachments"
   | "setAgentAttachmentError"
   | "prompt"
-  | "latestAgentPrompt"
   | "setLatestAgentPrompt"
   | "sendToAgent"
   | "appendUserMessage"
@@ -42,6 +45,8 @@ export type RunStandardCreateAgentSendParams = Pick<
   | "trackAgentUiEvent"
   | "lastAssistantMessage"
 > & {
+  latestAgentPrompt?: string | null;
+  standardSessionMemory?: StandardSessionMemory;
   notifyBootstrapPending: () => void;
   preparedImageUrlCacheRef: MutableRefObject<PreparedImageUrlCache>;
   textOverride?: string;
@@ -82,6 +87,7 @@ export const runStandardCreateAgentSend = async ({
   updateMessageById,
   removeMessageById,
   getAgentContext,
+  standardSessionMemory,
   trackAgentUiEvent,
   lastAssistantMessage,
   notifyBootstrapPending,
@@ -300,7 +306,10 @@ export const runStandardCreateAgentSend = async ({
     const { response, actions, discarded } = await sendToAgent({
       text: outboundText,
       payloadText: outboundText,
-      previousPrompt: latestAgentPrompt ?? null,
+      previousPrompt:
+        standardSessionMemory != null
+          ? resolveStandardPreviousPromptFromMemory(standardSessionMemory)
+          : latestAgentPrompt,
       context: requestContext,
       skipUserEcho: true,
       optimisticUserMessageId,

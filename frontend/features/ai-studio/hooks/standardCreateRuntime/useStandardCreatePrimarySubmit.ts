@@ -1,5 +1,9 @@
 import { useCallback } from "react";
 import type { StudioMode, ToolId } from "../../types";
+import {
+  resolveStandardCreatePrimaryActionDecision,
+  type StandardCreatePrimaryActionDecision,
+} from "../../createRuntime/standardPanel/standardCreatePrimaryActionPolicy";
 import { useAiStudioCreateSubmitSingleFlight } from "../useAiStudioCreateSubmitSingleFlight";
 
 type GenerateStandardCreateOutput = (
@@ -23,9 +27,6 @@ type UseStandardCreatePrimarySubmitParams = {
   setVisibleCreatePrompt: (value: string) => void;
 };
 
-const isStandardCreateTextTool = (tool: ToolId | null): boolean =>
-  tool === "create" || tool === "text";
-
 /**
  * Standard Create primary submit command.
  * Uses the visible composer text as the only generation prompt in Standard Create.
@@ -42,20 +43,29 @@ export const useStandardCreatePrimarySubmit = ({
   setVisibleCreatePrompt = () => undefined,
 }: UseStandardCreatePrimarySubmitParams) => {
   const handlePrimarySubmit = useCallback(() => {
-    if (!enabled) return;
-    if (isStandardCreateTextTool(selectedTool)) {
-      const visibleComposerPrompt = (chatModeEnabled ? agentInput : prompt).trim();
-      if (!visibleComposerPrompt) return;
-      if (chatModeEnabled) {
-        setVisibleCreatePrompt(visibleComposerPrompt);
-      }
-      return handleGenerate(visibleComposerPrompt, {
-        modeOverride: "image",
-        toolOverride: "create",
-        costOverrideCredits: createGenerateCostCredits,
+    const decision: StandardCreatePrimaryActionDecision =
+      resolveStandardCreatePrimaryActionDecision({
+        enabled,
+        selectedTool,
+        chatModeEnabled,
+        agentInput,
+        prompt,
+        createGenerateCostCredits,
       });
+
+    if (decision.kind === "noop") {
+      return;
     }
-    return handleProviderPrimarySubmit();
+
+    if (decision.kind === "provider_submit") {
+      return handleProviderPrimarySubmit();
+    }
+
+    if (decision.mirrorPromptToVisibleComposer) {
+      setVisibleCreatePrompt(decision.prompt);
+    }
+
+    return handleGenerate(decision.prompt, decision.options);
   }, [
     agentInput,
     chatModeEnabled,

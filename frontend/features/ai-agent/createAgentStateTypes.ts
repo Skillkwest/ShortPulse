@@ -36,6 +36,7 @@ export type CreateAgentStateOptions = {
   enabled?: boolean;
   conversationId?: string;
   sessionNamespace?: string;
+  resolveRequestHistory?: (messages: AgentMessage[]) => AgentMessage[];
   sendAgentTurn?: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
   resolveTransportSuccess?: (response: AgentResponse) => CreateAgentTransportSuccess;
 };

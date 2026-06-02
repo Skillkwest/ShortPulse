@@ -914,6 +914,49 @@ describe("useCreateAgentStateCore", () => {
     );
   });
 
+  it("uses the runtime-owned request history resolver without changing visible transcript state", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "ok" }),
+    } as Response);
+    const initialMessages = [
+      { id: "assistant-1", role: "assistant" as const, content: "Older assistant context" },
+      { id: "user-1", role: "user" as const, content: "Latest user context" },
+    ];
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        runtimeMode: "standard",
+        initialMessages,
+        resolveRequestHistory: (messages) => messages.slice(-1),
+      })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "current turn",
+        payloadText: "current turn",
+      });
+    });
+
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
+    expect(body.messages).toEqual([
+      { role: "user", content: "Latest user context" },
+      { role: "user", content: "current turn" },
+    ]);
+    expect(result.current.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "assistant",
+          content: "Older assistant context",
+        }),
+      ])
+    );
+  });
+
   it("reuses stored clientSessionKey across hook remounts and rotates on reset", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,

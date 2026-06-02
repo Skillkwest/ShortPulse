@@ -71,6 +71,7 @@ type UseCreateAgentStateCoreOptions = {
   buildAgentContext: (
     context: NonNullable<SendParams["context"]>
   ) => AgentApiContext | Promise<AgentApiContext>;
+  resolveRequestHistory?: (messages: AgentMessage[]) => AgentMessage[];
   sendAgentTurn: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
   resolveTransportSuccess: (
     response: AgentResponse
@@ -124,6 +125,7 @@ export const useCreateAgentStateCore = ({
   allowSessionNamespaceOverride,
   sessionNamespaceOverrideErrorText = "Agent cannot send to an override session namespace.",
   buildAgentContext,
+  resolveRequestHistory,
   sendAgentTurn,
   resolveTransportSuccess,
 }: UseCreateAgentStateCoreOptions) => {
@@ -235,6 +237,9 @@ export const useCreateAgentStateCore = ({
 
       const originalSessionMessages = messagesRef.current;
       const previousMessages = isolateHistory ? EMPTY_MESSAGES : originalSessionMessages;
+      const requestHistoryMessages = resolveRequestHistory
+        ? resolveRequestHistory(previousMessages)
+        : previousMessages;
       const getResponseBaseMessages = ({
         restoreFallback = false,
       }: {
@@ -273,7 +278,7 @@ export const useCreateAgentStateCore = ({
         // Canonical prompt is sent separately; avoid duplicating assistant content in the message list.
         void previousPrompt;
         const apiMessages = buildApiMessagesForTurn({
-          previousMessages,
+          previousMessages: requestHistoryMessages,
           userPayloadForApi,
           skipUserEcho,
           optimisticUserMessageId,
@@ -468,6 +473,7 @@ export const useCreateAgentStateCore = ({
       allowSessionNamespaceOverride,
       buildAgentContext,
       requestRuntimeMode,
+      resolveRequestHistory,
       resolveTransportSuccess,
       sendAgentTurn,
       sessionNamespaceOverrideErrorText,

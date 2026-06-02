@@ -9,7 +9,7 @@ import type {
   StandardCreateRuntimeProps,
   StandardCreateRuntimeResult,
 } from "./contracts";
-import { buildStandardCreatePanelProps } from "../hooks/standardCreateRuntime/useStandardCreatePanelProps";
+import { buildStandardCreatePanelProps } from "./standardPanel/standardCreatePanelContract";
 
 /**
  * Builds the Standard Create runtime result from Standard-only inputs.

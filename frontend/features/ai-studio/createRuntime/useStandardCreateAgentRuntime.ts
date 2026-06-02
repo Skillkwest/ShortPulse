@@ -28,10 +28,18 @@ import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHy
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { StandardCreatePageAgentRuntime } from "./contracts";
 import {
+  buildStandardSessionMemory,
+  createPersistedStandardAgentRuntime,
+} from "./standardMemory/standardSessionMemory";
+import { resolveStandardTranscriptWindow } from "./standardMemory/standardTranscriptWindow";
+import {
   canUseAssistantMessageAsPrompt,
   resolveLinkedPromptReferenceIds,
-  serializeAgentMessageForSnapshot,
 } from "./agentRuntimeShared";
+import {
+  resolveRestoredStandardComposerState,
+  resolveStandardChatModeTransition,
+} from "./standardPanel/standardCreateComposerState";
 
 type StandardCreateAgentContextResolver = (params: {
   lastAssistantMessage: string | null;
@@ -51,38 +59,6 @@ type UseStandardCreateAgentRuntimeParams = {
   resolveInternalImageDropSource?: ResolveInternalReferenceDrop;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
-};
-
-const resolveRestoredStandardComposerPrompt = ({
-  workspacePrompt,
-  runtimeInput,
-  chatModeEnabled,
-}: {
-  workspacePrompt: string;
-  runtimeInput: string;
-  chatModeEnabled: boolean;
-}): { prompt: string; agentInput: string; promptOriginFallback: boolean } => {
-  if (!chatModeEnabled) {
-    return {
-      prompt: workspacePrompt,
-      agentInput: runtimeInput,
-      promptOriginFallback: false,
-    };
-  }
-
-  if (runtimeInput.trim().length > 0) {
-    return {
-      prompt: runtimeInput,
-      agentInput: runtimeInput,
-      promptOriginFallback: false,
-    };
-  }
-
-  return {
-    prompt: workspacePrompt,
-    agentInput: workspacePrompt,
-    promptOriginFallback: workspacePrompt.trim().length > 0,
-  };
 };
 
 /**
@@ -127,6 +103,7 @@ export const useStandardCreateAgentRuntime = ({
     sessionNamespaceOverrideErrorText:
       "Standard agent cannot send to an override session namespace.",
     buildAgentContext: standardCreateAgentRuntimeBinding.buildAgentContext,
+    resolveRequestHistory: resolveStandardTranscriptWindow,
     sendAgentTurn: standardCreateAgentRuntimeBinding.sendAgentTurn,
     resolveTransportSuccess: standardCreateAgentRuntimeBinding.resolveTransportSuccess,
   });
@@ -172,11 +149,17 @@ export const useStandardCreateAgentRuntime = ({
   });
   const handleChatModeChange = useCallback(
     (value: boolean) => {
-      if (value === chatModeEnabled) return;
+      const transition = resolveStandardChatModeTransition({
+        currentChatModeEnabled: chatModeEnabled,
+        nextChatModeEnabled: value,
+        prompt,
+        agentInput,
+      });
+      if (!transition) return;
       if (value) {
-        setAgentInput(prompt);
+        setAgentInput(transition.nextAgentInput);
       } else {
-        setStandardCreatePrompt(agentInput);
+        setStandardCreatePrompt(transition.nextPrompt);
       }
       setChatModeEnabled(value);
     },
@@ -206,6 +189,16 @@ export const useStandardCreateAgentRuntime = ({
     () => resolveLinkedPromptReferenceIds(agentAttachments),
     [agentAttachments]
   );
+  const standardSessionMemory = useMemo(
+    () =>
+      buildStandardSessionMemory({
+        messages: agentMessages,
+        latestPromptArtifact: latestAgentPrompt,
+        promptOrigin,
+        attachments: agentAttachments,
+      }),
+    [agentAttachments, agentMessages, latestAgentPrompt, promptOrigin]
+  );
   const stagedAgentPrompt = getStagedAgentPrompt(promptOrigin, latestAgentPrompt);
   const notifyBootstrapPending = useCallback(() => {
     setUiNotice("Agent is still starting. Try again in a moment.");
@@ -227,13 +220,13 @@ export const useStandardCreateAgentRuntime = ({
         setAgentAttachments,
         setAgentAttachmentError,
         prompt,
-        latestAgentPrompt,
         setLatestAgentPrompt,
         sendToAgent,
         appendUserMessage,
         updateMessageById,
         removeMessageById,
         getAgentContext,
+        standardSessionMemory,
         trackAgentUiEvent,
         lastAssistantMessage: latestAssistantMessage,
         notifyBootstrapPending,
@@ -249,7 +242,6 @@ export const useStandardCreateAgentRuntime = ({
       agentSessionEnabled,
       appendUserMessage,
       getAgentContext,
-      latestAgentPrompt,
       latestAssistantMessage,
       notifyBootstrapPending,
       prompt,
@@ -260,6 +252,7 @@ export const useStandardCreateAgentRuntime = ({
       setAgentInput,
       trackAgentUiEvent,
       updateMessageById,
+      standardSessionMemory,
     ]
   );
 
@@ -311,13 +304,14 @@ export const useStandardCreateAgentRuntime = ({
     [agentMessages, trackAgentUiEvent, updateMessageById]
   );
   const persistedAgentRuntime = useMemo<AiStudioSessionAgentV1>(
-    () => ({
-      messages: agentMessages.map(serializeAgentMessageForSnapshot),
-      input: agentInput,
-      latestAgentPrompt,
-      promptOrigin,
-      chatModeEnabled,
-    }),
+    () =>
+      createPersistedStandardAgentRuntime({
+        messages: agentMessages,
+        input: agentInput,
+        latestPromptArtifact: latestAgentPrompt,
+        promptOrigin,
+        chatModeEnabled,
+      }),
     [agentInput, agentMessages, chatModeEnabled, latestAgentPrompt, promptOrigin]
   );
 
@@ -327,7 +321,7 @@ export const useStandardCreateAgentRuntime = ({
       agentRuntimes,
     }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
       const standardRuntime = agentRuntimes.standard;
-      const restoredComposerState = resolveRestoredStandardComposerPrompt({
+      const restoredComposerState = resolveRestoredStandardComposerState({
         workspacePrompt: workspace.standardPrompt,
         runtimeInput: standardRuntime.input,
         chatModeEnabled: standardRuntime.chatModeEnabled,

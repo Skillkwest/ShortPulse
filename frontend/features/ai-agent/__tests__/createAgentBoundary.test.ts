@@ -185,7 +185,7 @@ describe("Create agent mode boundaries", () => {
   });
 
   it("keeps Standard page context handoff on the neutral context resolver", () => {
-    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const pageSource = readFrontendFile("features/ai-studio/routes/AiStudioRouteApp.tsx");
     const pulsePageRuntimeSource = readFrontendFile(
       "features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime.ts"
     );
@@ -417,7 +417,7 @@ describe("Create agent mode boundaries", () => {
     const sessionSnapshotControllerSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioSessionSnapshotController.ts"
     );
-    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const pageSource = readFrontendFile("features/ai-studio/routes/AiStudioRouteApp.tsx");
     const createPanelRuntimeSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioCreatePanelRuntime.ts"
     );
@@ -504,9 +504,7 @@ describe("Create agent mode boundaries", () => {
     expect(standardPrimarySubmitSource).not.toContain("pulseWorkflowSession");
     expect(standardPrimarySubmitSource).not.toContain("pulseCompletedArtifactPrompt");
     expect(standardPrimarySubmitSource).not.toContain("resolveChatOffCreatePrompt");
-    expect(standardPrimarySubmitSource).toContain(
-      "const visibleComposerPrompt = (chatModeEnabled ? agentInput : prompt).trim();"
-    );
+    expect(standardPrimarySubmitSource).toContain("resolveStandardCreatePrimaryActionDecision");
   });
 
   it("keeps Pulse workflow helpers out of shared orchestration static imports", () => {
@@ -673,7 +671,7 @@ describe("Create agent mode boundaries", () => {
   });
 
   it("keeps page persistence from accepting loose active agent fields", () => {
-    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const pageSource = readFrontendFile("features/ai-studio/routes/AiStudioRouteApp.tsx");
     const pagePersistenceSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioPageSessionPersistence.ts"
     );
@@ -725,7 +723,7 @@ describe("Create agent mode boundaries", () => {
   });
 
   it("keeps Standard and Pulse Create props from cloning one shared prop bag", () => {
-    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const pageSource = readFrontendFile("features/ai-studio/routes/AiStudioRouteApp.tsx");
     const createPanelRuntimeSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioCreatePanelRuntime.ts"
     );

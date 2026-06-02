@@ -52,6 +52,17 @@ export const useAiStudioReferenceProjectionEffects = ({
         .map((id) => archivedOutputState.byId[id])
         .filter((item): item is NonNullable<typeof item> => Boolean(item)),
     ];
+    const hasProjectionStateToValidate =
+      referenceProjectionState.quickSlotIds.length > 0 ||
+      referenceProjectionState.removedFromAllRefsIds.length > 0;
+    const hasOutputAuthorityToValidateAgainst = validOutputIds.length > 0;
+    if (
+      !deferProjectionPrune &&
+      hasProjectionStateToValidate &&
+      !hasOutputAuthorityToValidateAgainst
+    ) {
+      return;
+    }
     const resolvedQuickSlotIds = resolveReferenceProjectionIds(
       referenceProjectionState.quickSlotIds,
       projectionOutputs,

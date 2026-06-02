@@ -149,4 +149,35 @@ describe("useAiStudioReferenceProjectionEffects", () => {
       removedFromAllRefsIds: [],
     });
   });
+
+  it("does not prune restored quick-slot ids while output authority is temporarily empty", () => {
+    const setReferenceProjectionState = vi.fn();
+    const baseArgs = createArgs({
+      setReferenceProjectionState,
+      referenceProjectionState: {
+        quickSlotIds: ["out-restored-1"],
+        removedFromAllRefsIds: [],
+      },
+      activeOutputState: createCollectionState([]),
+      archivedOutputState: createCollectionState([]),
+      curatedReferenceIds: ["out-restored-1"],
+    });
+
+    const { rerender } = renderHook(
+      (props: Parameters<typeof useAiStudioReferenceProjectionEffects>[0]) =>
+        useAiStudioReferenceProjectionEffects(props),
+      {
+        initialProps: baseArgs,
+      }
+    );
+
+    expect(setReferenceProjectionState).not.toHaveBeenCalled();
+
+    rerender({
+      ...baseArgs,
+      activeOutputState: createCollectionState(["out-restored-1"]),
+    });
+
+    expect(setReferenceProjectionState).not.toHaveBeenCalled();
+  });
 });

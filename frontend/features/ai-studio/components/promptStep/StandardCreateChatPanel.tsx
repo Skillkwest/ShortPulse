@@ -8,24 +8,17 @@ import {
   type AgentChatPanelProps,
   type AgentMessageContentProps,
 } from "../../../../prefabs/agent";
-import { CreateChatRichMessageBody } from "./CreateChatRichMessageBody";
+import { StandardMessageRenderer } from "./standardPresentation/standardMessageRenderer";
 
 export type StandardCreateChatPanelProps = AgentChatPanelProps;
 
 const StandardAssistantMessageContent: React.FC<AgentMessageContentProps> = ({
   message,
   textRef,
-}) => (
-  <CreateChatRichMessageBody
-    ref={textRef}
-    content={message.content}
-    formatMode="standard_rich"
-    tone="assistant"
-  />
-);
+}) => <StandardMessageRenderer ref={textRef} content={message.content} tone="assistant" />;
 
 const StandardUserMessageContent: React.FC<AgentMessageContentProps> = ({ message }) => (
-  <CreateChatRichMessageBody content={message.content} tone="user" />
+  <StandardMessageRenderer content={message.content} tone="user" />
 );
 
 export const StandardCreateChatPanel: React.FC<StandardCreateChatPanelProps> = (props) => (

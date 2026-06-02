@@ -192,6 +192,13 @@ describe("POST /api/media/extract-audio", () => {
 
     await handler(req as never, res as never);
 
+    expect(assertTrustedRemoteMediaUrlMock).toHaveBeenCalledWith({
+      rawUrl: "https://untrusted.example/clip.mp4",
+      req,
+      userId: "user-1",
+      requireUserScope: true,
+      label: "Voice changer source URL",
+    });
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",

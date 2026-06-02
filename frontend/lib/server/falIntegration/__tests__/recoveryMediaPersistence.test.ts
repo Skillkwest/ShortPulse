@@ -17,6 +17,8 @@ import {
 
 const getSupabaseAdminMock = vi.fn();
 const ORIGINAL_ENV = { ...process.env };
+const trustedUserPreviewUrl = (userId: string, filename: string): string =>
+  `https://cdn.shortpulse.test/${userId}/${filename}`;
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -297,7 +299,7 @@ describe("recoveryMediaPersistence", () => {
             {
               id: "output-1",
               output_index: 0,
-              result_url: "https://cdn.shortpulse.test/generated-a.png",
+              result_url: trustedUserPreviewUrl("user-1", "generated-a.png"),
               media_file_id: "canonical-media-1",
             },
           ],
@@ -341,13 +343,13 @@ describe("recoveryMediaPersistence", () => {
             {
               id: "output-1",
               output_index: 0,
-              result_url: "https://cdn.shortpulse.test/a.png",
+              result_url: trustedUserPreviewUrl("user-1", "a.png"),
               media_file_id: "media-1",
             },
             {
               id: "output-2",
               output_index: 1,
-              result_url: "https://cdn.shortpulse.test/b.png",
+              result_url: trustedUserPreviewUrl("user-1", "b.png"),
               media_file_id: "media-2",
             },
           ],
@@ -369,7 +371,10 @@ describe("recoveryMediaPersistence", () => {
         prompt_text: "cinematic portrait",
         metadata: {},
       },
-      mediaUrls: ["https://cdn.shortpulse.test/a.png", "https://cdn.shortpulse.test/b.png"],
+      mediaUrls: [
+        trustedUserPreviewUrl("user-1", "a.png"),
+        trustedUserPreviewUrl("user-1", "b.png"),
+      ],
     });
 
     expect(ids).toEqual(["media-1", "media-2"]);
@@ -383,7 +388,10 @@ describe("recoveryMediaPersistence", () => {
       expect.objectContaining({
         generation_id: "gen-1",
         user_id: "user-1",
-        result_urls: ["https://cdn.shortpulse.test/a.png", "https://cdn.shortpulse.test/b.png"],
+        result_urls: [
+          trustedUserPreviewUrl("user-1", "a.png"),
+          trustedUserPreviewUrl("user-1", "b.png"),
+        ],
       })
     );
   });
@@ -428,7 +436,10 @@ describe("recoveryMediaPersistence", () => {
         prompt_text: "cinematic portrait",
         metadata: {},
       },
-      mediaUrls: ["https://cdn.shortpulse.test/a.png", "https://cdn.shortpulse.test/b.png"],
+      mediaUrls: [
+        trustedUserPreviewUrl("user-1", "a.png"),
+        trustedUserPreviewUrl("user-1", "b.png"),
+      ],
     });
 
     expect(ids).toEqual(["media-existing-0", "media-new-1"]);
@@ -438,12 +449,12 @@ describe("recoveryMediaPersistence", () => {
     expect(scenario.generationOutputInsertPayloads).toEqual([
       expect.objectContaining({
         output_index: 0,
-        result_url: "https://cdn.shortpulse.test/a.png",
+        result_url: trustedUserPreviewUrl("user-1", "a.png"),
         media_file_id: "media-existing-0",
       }),
       expect.objectContaining({
         output_index: 1,
-        result_url: "https://cdn.shortpulse.test/b.png",
+        result_url: trustedUserPreviewUrl("user-1", "b.png"),
         media_file_id: "media-new-1",
       }),
     ]);
@@ -457,13 +468,13 @@ describe("recoveryMediaPersistence", () => {
             {
               id: "output-1",
               output_index: 0,
-              result_url: "https://cdn.shortpulse.test/frame-a.png",
+              result_url: trustedUserPreviewUrl("user-1", "frame-a.png"),
               media_file_id: null,
             },
             {
               id: "output-2",
               output_index: 1,
-              result_url: "https://cdn.shortpulse.test/frame-b.mp4",
+              result_url: trustedUserPreviewUrl("user-1", "frame-b.mp4"),
               media_file_id: null,
             },
           ],
@@ -474,13 +485,13 @@ describe("recoveryMediaPersistence", () => {
             {
               id: "output-1",
               output_index: 0,
-              result_url: "https://cdn.shortpulse.test/frame-a.png",
+              result_url: trustedUserPreviewUrl("user-1", "frame-a.png"),
               media_file_id: null,
             },
             {
               id: "output-2",
               output_index: 1,
-              result_url: "https://cdn.shortpulse.test/frame-b.mp4",
+              result_url: trustedUserPreviewUrl("user-1", "frame-b.mp4"),
               media_file_id: null,
             },
           ],
@@ -491,13 +502,13 @@ describe("recoveryMediaPersistence", () => {
             {
               id: "output-1",
               output_index: 0,
-              result_url: "https://cdn.shortpulse.test/frame-a.png",
+              result_url: trustedUserPreviewUrl("user-1", "frame-a.png"),
               media_file_id: null,
             },
             {
               id: "output-2",
               output_index: 1,
-              result_url: "https://cdn.shortpulse.test/frame-b.mp4",
+              result_url: trustedUserPreviewUrl("user-1", "frame-b.mp4"),
               media_file_id: null,
             },
           ],
@@ -544,8 +555,8 @@ describe("recoveryMediaPersistence", () => {
         },
       },
       mediaUrls: [
-        "https://cdn.shortpulse.test/frame-a.png",
-        "https://cdn.shortpulse.test/frame-b.mp4",
+        trustedUserPreviewUrl("user-1", "frame-a.png"),
+        trustedUserPreviewUrl("user-1", "frame-b.mp4"),
       ],
     });
 
@@ -570,8 +581,8 @@ describe("recoveryMediaPersistence", () => {
         generation_id: "gen-1",
         user_id: "user-1",
         result_urls: [
-          "https://cdn.shortpulse.test/frame-a.png",
-          "https://cdn.shortpulse.test/frame-b.mp4",
+          trustedUserPreviewUrl("user-1", "frame-a.png"),
+          trustedUserPreviewUrl("user-1", "frame-b.mp4"),
         ],
         preview_storage_path: expect.any(String),
       })
@@ -617,7 +628,7 @@ describe("recoveryMediaPersistence", () => {
             {
               id: "output-1",
               output_index: 0,
-              result_url: "https://cdn.shortpulse.test/frame-b.mp4",
+              result_url: trustedUserPreviewUrl("user-1", "frame-b.mp4"),
               media_file_id: null,
             },
           ],
@@ -665,7 +676,7 @@ describe("recoveryMediaPersistence", () => {
         prompt_text: "Animate stills",
         metadata: {},
       },
-      mediaUrls: ["https://cdn.shortpulse.test/frame-b.mp4"],
+      mediaUrls: [trustedUserPreviewUrl("user-1", "frame-b.mp4")],
     });
 
     expect(mediaFileIds).toEqual(["media-video-1"]);
@@ -744,8 +755,8 @@ describe("recoveryMediaPersistence", () => {
         metadata: {},
       },
       mediaUrls: [
-        "https://cdn.shortpulse.test/parallel-a.png",
-        "https://cdn.shortpulse.test/parallel-b.png",
+        trustedUserPreviewUrl("user-1", "parallel-a.png"),
+        trustedUserPreviewUrl("user-1", "parallel-b.png"),
       ],
     });
 
@@ -808,6 +819,34 @@ describe("recoveryMediaPersistence", () => {
           metadata: {},
         },
         mediaUrls: ["https://malicious.example.com/frame-a.png"],
+      })
+    ).rejects.toThrow("Untrusted recovery media URL blocked");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(scenario.upload).not.toHaveBeenCalled();
+  });
+
+  it("rejects trusted direct preview urls that are scoped to another user", async () => {
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [{ data: [], error: null }],
+      listResponses: [{ data: [], error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      persistRecoveryMediaFilesForGeneration({
+        generation: {
+          id: "gen-1",
+          user_id: "user-1",
+          request_id: "req-1",
+          model_id: "fal-ai/nano-banana-pro",
+          provider: "fal",
+          prompt_text: "cinematic portrait",
+          metadata: {},
+        },
+        mediaUrls: [trustedUserPreviewUrl("user-2", "foreign-frame.png")],
       })
     ).rejects.toThrow("Untrusted recovery media URL blocked");
 
@@ -891,7 +930,7 @@ describe("recoveryMediaPersistence", () => {
           prompt_text: "cinematic portrait",
           metadata: {},
         },
-        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        mediaUrls: [trustedUserPreviewUrl("user-1", "recovered.png")],
       })
     ).rejects.toThrow("media_files insert failed");
 

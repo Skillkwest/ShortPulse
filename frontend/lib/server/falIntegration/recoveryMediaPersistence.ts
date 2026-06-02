@@ -79,9 +79,11 @@ const runWithConcurrency = async <TItem>(
 const isTrustedRecoveryMediaUrl = ({
   url,
   provider,
+  userId,
 }: {
   url: string;
   provider: string;
+  userId: string;
 }): boolean => {
   const normalizedProvider = provider.trim().toLowerCase();
   if (normalizedProvider === "fal" && isTrustedFalProviderUrl(url)) {
@@ -91,18 +93,21 @@ const isTrustedRecoveryMediaUrl = ({
     return true;
   }
   return isTrustedMediaDirectPreviewUrl(url, {
-    requireUserScope: false,
+    userId,
+    requireUserScope: true,
   });
 };
 
 const assertTrustedRecoveryMediaUrl = ({
   url,
   provider,
+  userId,
 }: {
   url: string;
   provider: string;
+  userId: string;
 }): void => {
-  if (!isTrustedRecoveryMediaUrl({ url, provider })) {
+  if (!isTrustedRecoveryMediaUrl({ url, provider, userId })) {
     throw new Error(`Untrusted recovery media URL blocked (${provider}): ${url}`);
   }
 };
@@ -111,11 +116,13 @@ const fetchBufferWithRetry = async (
   url: string,
   options: {
     provider: string;
+    userId: string;
   }
 ): Promise<{ buffer: Buffer; contentType: string | null }> => {
   assertTrustedRecoveryMediaUrl({
     url,
     provider: options.provider,
+    userId: options.userId,
   });
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= FETCH_RETRY_ATTEMPTS; attempt += 1) {
@@ -269,6 +276,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
   }): Promise<void> => {
     const { buffer, contentType } = await fetchBufferWithRetry(mediaUrl, {
       provider: generation.provider,
+      userId: generation.user_id,
     });
     const fileType = resolveFileType(contentType, mediaUrl);
     const extension = resolveExtension(contentType, mediaUrl);

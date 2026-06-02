@@ -1,7 +1,7 @@
 /**
  * Server-side route-auth orchestration.
- * Protected API routes should prefer the already-authenticated proxy context and
- * fall back to bearer verification only when that context is unavailable.
+ * Protected API routes must verify bearer identity server-side and may use
+ * matching proxy headers only as advisory metadata after verification.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { readProxyAuthenticatedUser } from "./authProxyContext";
@@ -25,13 +25,18 @@ const resolveVerifiedApiUser = async (
   const token = parseBearerToken(req.headers.authorization);
   if (!token) return null;
 
-  const proxyUser = readProxyAuthenticatedUser(req);
-  if (proxyUser) {
-    return proxyUser;
-  }
-
   const verifiedUser = await verifyBearerRequestUser(req);
   if (!verifiedUser) return null;
+
+  const proxyUser = readProxyAuthenticatedUser(req);
+  if (proxyUser && proxyUser.id === verifiedUser.id) {
+    return {
+      ...verifiedUser,
+      email: verifiedUser.email ?? proxyUser.email,
+      app_metadata: verifiedUser.app_metadata ?? proxyUser.app_metadata,
+      user_metadata: verifiedUser.user_metadata ?? proxyUser.user_metadata,
+    };
+  }
 
   return verifiedUser;
 };

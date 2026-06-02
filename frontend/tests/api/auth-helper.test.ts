@@ -29,8 +29,15 @@ describe("auth helper protected-route auth behavior", () => {
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
   });
 
-  it("reuses proxy-authenticated context on protected routes without re-verifying the bearer", async () => {
-    const fetchMock = vi.fn();
+  it("verifies bearer identity before reusing matching proxy-authenticated context", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: "verified-user-id",
+        email: "verified@example.com",
+        app_metadata: { role: "member" },
+      }),
+    }));
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
@@ -49,7 +56,41 @@ describe("auth helper protected-route auth behavior", () => {
     expect(user?.id).toBe("verified-user-id");
     expect(user?.email).toBe("verified@example.com");
     expect(user?.app_metadata).toEqual({ role: "member" });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores spoofed proxy-authenticated identity when bearer verification resolves a different user", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: "actual-user-id",
+        email: "actual@example.com",
+        app_metadata: { role: "member" },
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer valid-token",
+        "x-shortpulse-authenticated": "1",
+        "x-shortpulse-user-id": "spoofed-user-id",
+        "x-shortpulse-user-email": "spoofed@example.com",
+        "x-shortpulse-user-app-metadata": encodeURIComponent('{"role":"admin"}'),
+      },
+    };
+    const res = createMockResponse();
+
+    const user = await requireApiUser(req as never, res as never);
+
+    expect(user).toEqual({
+      id: "actual-user-id",
+      email: "actual@example.com",
+      app_metadata: { role: "member" },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
   });
 
   it("falls back to bearer verification when proxy context is unavailable", async () => {
@@ -172,8 +213,15 @@ describe("auth helper protected-route auth behavior", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("authorizes admin users from proxy-authenticated identity context", async () => {
-    const fetchMock = vi.fn();
+  it("authorizes admin users only after bearer verification confirms the proxy-authenticated identity", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: "admin-1",
+        email: "admin@example.com",
+        app_metadata: { role: "admin", roles: ["operator"] },
+      }),
+    }));
     vi.stubGlobal("fetch", fetchMock);
     const req = {
       url: "/api/admin/users",
@@ -192,7 +240,7 @@ describe("auth helper protected-route auth behavior", () => {
     const adminUser = await requireAdminUser(req as never, res as never);
 
     expect(adminUser?.id).toBe("admin-1");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
   });
 

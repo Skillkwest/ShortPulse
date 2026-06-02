@@ -86,7 +86,6 @@ export default async function handler(
   try {
     const body = (req.body ?? {}) as ExtractAudioRequestBody;
     const sourceName = normalizeOptionalString(body.sourceName) ?? "Voice changer source";
-    const sourceOrigin = normalizeOptionalString(body.sourceOrigin) ?? "local";
     const sourceMimeType = normalizeOptionalString(body.sourceMimeType);
     const sourceStoragePath = normalizeOptionalString(body.sourceStoragePath);
     const sourceUrl = normalizeOptionalString(body.sourceUrl);
@@ -120,7 +119,7 @@ export default async function handler(
         rawUrl: sourceUrl!,
         req,
         userId: user.id,
-        requireUserScope: sourceOrigin === "reference-grid",
+        requireUserScope: true,
         label: "Voice changer source URL",
       });
       const remote = await readRemoteMediaBuffer({

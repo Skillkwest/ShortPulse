@@ -3,6 +3,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/seedream-status";
+import { resetSupabaseUserVerificationCache } from "../../lib/server/api/authTokenVerifier";
 
 const resolveProviderRequestOwnershipMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
@@ -34,9 +35,21 @@ const mockFetchResponse = ({
   text: async () => JSON.stringify(body),
 });
 
+const mockAuthFetchResponse = () =>
+  mockFetchResponse({
+    status: 200,
+    body: {
+      id: "user-ctx",
+      email: "user@example.com",
+      app_metadata: {},
+      user_metadata: {},
+    },
+  });
+
 describe("POST /api/fal/seedream-status middleware auth-context ownership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSupabaseUserVerificationCache();
     process.env.FAL_KEY = "test-key";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
@@ -46,6 +59,7 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
   it("keeps ownership enforcement with middleware-authenticated user context", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("forbidden");
     const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(mockAuthFetchResponse());
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
@@ -69,12 +83,13 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
       providerRequestId: "foreign-request-id",
     });
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("still proxies status when middleware-authenticated ownership is confirmed", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(mockAuthFetchResponse());
     fetchMock.mockResolvedValueOnce(
       mockFetchResponse({
         status: 200,
@@ -134,12 +149,13 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
         }),
       })
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("surfaces non-JSON completed result probes as status errors", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(mockAuthFetchResponse());
     fetchMock.mockResolvedValueOnce(
       mockFetchResponse({
         status: 200,
@@ -192,6 +208,6 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
       })
     );
     expect(logGenerationFailureMock).toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

@@ -125,15 +125,6 @@ const parseBooleanField = (value: string | string[] | undefined): boolean => {
   return normalized === "true";
 };
 
-const parseSourceOrigin = (
-  value: string | string[] | undefined
-): "local" | "reference-grid" | "url" => {
-  const normalized = readFieldString(value)?.toLowerCase();
-  if (normalized === "reference-grid") return "reference-grid";
-  if (normalized === "url") return "url";
-  return "local";
-};
-
 const parseMultipart = async (req: NextApiRequest): Promise<ParsedMultipart> => {
   const form = formidable({
     maxFileSize: 100 * 1024 * 1024,
@@ -186,7 +177,6 @@ export default async function handler(
     const inputFormat = readFieldString(fields.inputFormat);
     const sourceUrl = readFieldString(fields.sourceUrl);
     const sourceStoragePath = readFieldString(fields.sourceStoragePath);
-    const sourceOrigin = parseSourceOrigin(fields.sourceOrigin);
     const sourceName = readFieldString(fields.sourceName) ?? "Voice changer source";
     const originalVideoSourceUrl = readFieldString(fields.originalVideoSourceUrl);
     const originalVideoStoragePath = readFieldString(fields.originalVideoStoragePath);
@@ -269,7 +259,7 @@ export default async function handler(
         rawUrl: sourceUrl,
         req,
         userId: user.id,
-        requireUserScope: sourceOrigin === "reference-grid",
+        requireUserScope: true,
         label: "Voice changer source URL",
       });
       const remoteSource = await readRemoteSourceBuffer({ sourceUrl: trustedSourceUrl.toString() });
@@ -328,7 +318,7 @@ export default async function handler(
         rawUrl: originalVideoSourceUrl,
         req,
         userId: user.id,
-        requireUserScope: sourceOrigin === "reference-grid",
+        requireUserScope: true,
         label: "Voice changer source video URL",
       });
       const remoteVideo = await readRemoteMediaBuffer({

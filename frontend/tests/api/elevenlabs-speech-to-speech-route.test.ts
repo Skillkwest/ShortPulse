@@ -5,6 +5,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
+const assertTrustedRemoteMediaUrlMock = vi.fn();
 const listSavedVoicesForUserMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
@@ -15,6 +16,7 @@ const persistGeneratedAudioAssetMock = vi.fn();
 const persistGeneratedVideoAssetMock = vi.fn();
 const probeMediaDurationSecondsMock = vi.fn();
 const readRemoteSourceBufferMock = vi.fn();
+const readRemoteMediaBufferMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
 const markAudioCompanionArtPendingMock = vi.fn();
 const transcribeAudioBufferMock = vi.fn();
@@ -84,7 +86,7 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 }));
 
 vi.mock("../../lib/server/api/trustedRemoteMediaUrl", () => ({
-  assertTrustedRemoteMediaUrl: vi.fn(),
+  assertTrustedRemoteMediaUrl: (...args: unknown[]) => assertTrustedRemoteMediaUrlMock(...args),
   TrustedRemoteMediaUrlError: MockTrustedRemoteMediaUrlError,
 }));
 
@@ -102,7 +104,7 @@ vi.mock("../../lib/server/elevenlabs", () => ({
 vi.mock("../../lib/server/mediaAudioExtraction", () => ({
   probeMediaDurationSeconds: (...args: unknown[]) => probeMediaDurationSecondsMock(...args),
   readStoredMediaBuffer: (...args: unknown[]) => readStoredMediaBufferMock(...args),
-  readRemoteMediaBuffer: vi.fn(),
+  readRemoteMediaBuffer: (...args: unknown[]) => readRemoteMediaBufferMock(...args),
   MAX_VOICE_CHANGER_SOURCE_BYTES: 40 * 1024 * 1024,
   MediaAudioExtractionInputError: MockMediaAudioExtractionInputError,
 }));
@@ -128,6 +130,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     listSavedVoicesForUserMock.mockResolvedValue([]);
+    assertTrustedRemoteMediaUrlMock.mockReset();
     listElevenLabsVoicesMock.mockResolvedValue([
       {
         voiceId: "voice-1",
@@ -162,6 +165,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       }),
     };
     readRemoteSourceBufferMock.mockReset();
+    readRemoteMediaBufferMock.mockReset();
     readStoredMediaBufferMock.mockReset();
     probeMediaDurationSecondsMock.mockReset();
     markAudioCompanionArtPendingMock.mockReset();
@@ -200,6 +204,17 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     });
     createRemuxedVoiceChangerVideoMock.mockResolvedValue({
       buffer: Buffer.from("remuxed-video"),
+      contentType: "video/mp4",
+    });
+    assertTrustedRemoteMediaUrlMock.mockImplementation(
+      async ({ rawUrl }: { rawUrl: string }) => new URL(rawUrl)
+    );
+    readRemoteSourceBufferMock.mockResolvedValue({
+      buffer: Buffer.from("remote-audio"),
+      contentType: "audio/wav",
+    });
+    readRemoteMediaBufferMock.mockResolvedValue({
+      buffer: Buffer.from("remote-video"),
       contentType: "video/mp4",
     });
     persistGeneratedAudioAssetMock.mockResolvedValue({
@@ -413,6 +428,54 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       },
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("requires user-scoped trusted media urls for remote source and remux video inputs", async () => {
+    mockFields = {
+      ...mockFields,
+      sourceStoragePath: undefined,
+      sourceUrl: "https://cdn.shortpulse.test/user-1/staged-audio/source.wav",
+      sourceOrigin: "local",
+      originalVideoStoragePath: undefined,
+      originalVideoSourceUrl: "https://cdn.shortpulse.test/user-1/source-video/source.mp4",
+      originalVideoName: "source.mp4",
+      originalVideoMimeType: "video/mp4",
+      originalVideoAspect: "9:16",
+    };
+
+    const req = { method: "POST", headers: { host: "www.shortpulse.ai" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(assertTrustedRemoteMediaUrlMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        rawUrl: "https://cdn.shortpulse.test/user-1/staged-audio/source.wav",
+        req,
+        userId: "user-1",
+        requireUserScope: true,
+        label: "Voice changer source URL",
+      })
+    );
+    expect(assertTrustedRemoteMediaUrlMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        rawUrl: "https://cdn.shortpulse.test/user-1/source-video/source.mp4",
+        req,
+        userId: "user-1",
+        requireUserScope: true,
+        label: "Voice changer source video URL",
+      })
+    );
+    expect(readRemoteSourceBufferMock).toHaveBeenCalledWith({
+      sourceUrl: "https://cdn.shortpulse.test/user-1/staged-audio/source.wav",
+    });
+    expect(readRemoteMediaBufferMock).toHaveBeenCalledWith({
+      sourceUrl: "https://cdn.shortpulse.test/user-1/source-video/source.mp4",
+      maxBytes: 40 * 1024 * 1024,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("rate limits repeated speech-to-speech generations for the same authenticated user", async () => {

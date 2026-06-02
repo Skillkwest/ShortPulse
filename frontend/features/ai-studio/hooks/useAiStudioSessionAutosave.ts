@@ -38,6 +38,7 @@ type UseAiStudioSessionAutosaveArgs = {
   debounceMs?: number;
   maxDirtyMs?: number;
   maxSnapshotBytes?: number;
+  maxKeepaliveSnapshotBytes?: number;
   maxPersistRetries?: number;
   resolveSnapshotTitle?: (snapshot: AiStudioSessionSnapshot) => string | null;
   preparedSnapshot?: PreparedAiStudioSessionAutosaveSnapshot | null;
@@ -69,6 +70,7 @@ export const useAiStudioSessionAutosave = ({
   debounceMs = DEFAULT_DEBOUNCE_MS,
   maxDirtyMs = DEFAULT_MAX_DIRTY_MS,
   maxSnapshotBytes = AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
+  maxKeepaliveSnapshotBytes = Number.POSITIVE_INFINITY,
   maxPersistRetries = DEFAULT_MAX_PERSIST_RETRIES,
   resolveSnapshotTitle = () => null,
   preparedSnapshot = null,
@@ -81,6 +83,9 @@ export const useAiStudioSessionAutosave = ({
   const lastSizeErrorRef = useRef<Pick<SnapshotPersistIdentity, "sessionId" | "hash"> | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const keepaliveSnapshotBytesLimit = Number.isFinite(maxKeepaliveSnapshotBytes)
+    ? Math.max(0, Math.trunc(maxKeepaliveSnapshotBytes))
+    : Number.POSITIVE_INFINITY;
 
   const reportPersistError = useCallback(
     (error: Error, details: AiStudioSessionAutosaveError) => {
@@ -112,10 +117,12 @@ export const useAiStudioSessionAutosave = ({
           hash: pending.hash,
           title: pending.title,
         };
+        const shouldUseKeepalive =
+          options?.keepalive === true && pending.snapshotBytes <= keepaliveSnapshotBytesLimit;
         try {
           await Promise.resolve(
             persistSnapshot(pending.sessionId, pending.snapshot, {
-              keepalive: options?.keepalive === true,
+              keepalive: shouldUseKeepalive,
               title: pending.title,
             })
           );
@@ -150,7 +157,7 @@ export const useAiStudioSessionAutosave = ({
               sessionId: pending.sessionId,
               snapshotBytes: pending.snapshotBytes,
               maxSnapshotBytes: maxSnapshotBytes,
-              keepalive: options?.keepalive === true,
+              keepalive: shouldUseKeepalive,
               attempt: nextFailureCount,
               maxAttempts: maxPersistRetries + 1,
               willRetry,
@@ -177,6 +184,7 @@ export const useAiStudioSessionAutosave = ({
     [
       clearTimers,
       debounceMs,
+      keepaliveSnapshotBytesLimit,
       maxPersistRetries,
       maxSnapshotBytes,
       persistSnapshot,

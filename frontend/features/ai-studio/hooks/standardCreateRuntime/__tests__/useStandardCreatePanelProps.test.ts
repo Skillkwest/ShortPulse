@@ -42,6 +42,7 @@ describe("buildStandardCreatePanelProps", () => {
     describeInFlightCount: 0,
     createGenerateCostCredits: 2,
     isGenerateDisabled: false,
+    generationGuardrail: null,
     handleClearAgentChat: vi.fn(),
     handleStandardCreatePrimarySubmit: vi.fn(),
     characterOptions: [],
@@ -87,19 +88,23 @@ describe("buildStandardCreatePanelProps", () => {
     expect(props.isGenerateDisabled).toBe(true);
   });
 
-  it("does not forward removed Standard warning props or output-generate bridge state", () => {
+  it("forwards visible Standard guardrail state and still omits removed output-generate bridge state", () => {
     const props = buildStandardCreatePanelProps({
       ...baseParams,
+      isGenerateDisabled: true,
+      generationGuardrail: "Pricing is unavailable for this configuration. Retry in a moment.",
     });
 
     const propsRecord = props as Record<string, unknown>;
-    expect("guardrailReason" in propsRecord).toBe(false);
+    expect(propsRecord.guardrailReason).toBe(
+      "Pricing is unavailable for this configuration. Retry in a moment."
+    );
     expect("onGenerateOutputPrompt" in propsRecord).toBe(false);
     expect("disableAgentOutputGenerate" in propsRecord).toBe(false);
     expect("outputGenerateCostCredits" in propsRecord).toBe(false);
   });
 
-  it("does not emit detached warning text when the visible composer is empty", () => {
+  it("emits the visible empty-prompt guardrail when the visible composer is empty", () => {
     const props = buildStandardCreatePanelProps({
       ...baseParams,
       chatModeEnabled: true,
@@ -109,7 +114,7 @@ describe("buildStandardCreatePanelProps", () => {
 
     const propsRecord = props as Record<string, unknown>;
     expect(props.isGenerateDisabled).toBe(true);
-    expect("guardrailReason" in propsRecord).toBe(false);
+    expect(propsRecord.guardrailReason).toBe("Enter a prompt to generate.");
   });
 
   it("blocks generate while an attached image is still preparing", () => {
@@ -130,7 +135,9 @@ describe("buildStandardCreatePanelProps", () => {
 
     const propsRecord = props as Record<string, unknown>;
     expect(props.isGenerateDisabled).toBe(true);
-    expect("guardrailReason" in propsRecord).toBe(false);
+    expect(propsRecord.guardrailReason).toBe(
+      "Attached image is still preparing. Retry in a moment."
+    );
   });
 
   it("blocks generate when an attached image has failed", () => {
@@ -151,6 +158,8 @@ describe("buildStandardCreatePanelProps", () => {
 
     const propsRecord = props as Record<string, unknown>;
     expect(props.isGenerateDisabled).toBe(true);
-    expect("guardrailReason" in propsRecord).toBe(false);
+    expect(propsRecord.guardrailReason).toBe(
+      "Attached image failed to prepare. Remove it or retry the attachment."
+    );
   });
 });

@@ -9,11 +9,13 @@ import {
 } from "../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { maybeTranscodeLocalImageBlobForUpload } from "../../../lib/adaptive-media";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   FETCH_LOCAL_IMAGE_TIMEOUT_MS,
   SIGNED_URL_REFRESH_TIMEOUT_MS,
   UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
 } from "./imageUploadTimeouts";
+import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
 import { readRememberedObjectUrlBlob } from "./objectUrlBlobRegistry";
 
@@ -27,6 +29,27 @@ type ImageUploadCacheEntry = {
   asset: ImageUploadResponse;
   expiresAt: number;
 };
+
+type PrepareReferenceImageUploadPayload = {
+  target?: {
+    storagePath?: unknown;
+    uploadToken?: unknown;
+    mimeType?: unknown;
+    name?: unknown;
+  };
+  error?: unknown;
+  details?: unknown;
+} | null;
+
+type StageReferenceImagePayload = {
+  url?: unknown;
+  path?: unknown;
+  size?: unknown;
+  mimeType?: unknown;
+  name?: unknown;
+  error?: unknown;
+  details?: unknown;
+} | null;
 
 type PrepareImageSourceKind = "blob" | "data-url" | "supabase-signed" | "remote";
 
@@ -272,6 +295,19 @@ const buildUploadFilename = (blob: Blob): string => {
   return `reference-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 };
 
+const resolveUploadPipelineError = (
+  payload: { error?: unknown; details?: unknown } | null,
+  fallbackMessage: string
+): string => {
+  if (typeof payload?.details === "string" && payload.details.trim()) {
+    return payload.details.trim();
+  }
+  if (typeof payload?.error === "string" && payload.error.trim()) {
+    return payload.error.trim();
+  }
+  return fallbackMessage;
+};
+
 const uploadPreparedImageBlobToStorage = async ({
   blob,
   sourceKind,
@@ -287,27 +323,120 @@ const uploadPreparedImageBlobToStorage = async ({
     ? await maybeTranscodeLocalImageBlobForUpload(normalizedBlob)
     : normalizedBlob;
   const filename = buildUploadFilename(preparedBlob);
+  const supabase = ensureSupabaseQueryClient();
 
-  let uploadResponse: Response;
+  let uploadResult: ImageUploadResponse;
   try {
-    uploadResponse = await runAbortableStep({
+    uploadResult = await runAbortableStep({
       stage: "upload_image_route",
       timeoutMs: UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
       sourceKind,
       options,
-      run: async (signal) =>
-        await fetchWithAuth("/api/upload-image", {
+      run: async (signal) => {
+        const prepareResponse = await fetchWithAuth("/api/media/prepare-reference-image-upload", {
           method: "POST",
           headers: {
-            "Content-Type": preparedBlob.type,
-            "x-shortpulse-upload-filename": filename,
+            "Content-Type": "application/json",
           },
-          body: preparedBlob,
+          body: JSON.stringify({
+            sourceMimeType: preparedBlob.type,
+            sourceName: filename,
+          }),
           signal,
           shortpulseLogScope: "generation",
           shortpulseAuthTimeoutMs: UPLOAD_IMAGE_AUTH_TIMEOUT_MS,
           shortpulseRetryNetworkOnce: true,
-        }),
+        });
+        const preparePayload = (await prepareResponse
+          .json()
+          .catch(() => null)) as PrepareReferenceImageUploadPayload | null;
+        const storagePath =
+          typeof preparePayload?.target?.storagePath === "string"
+            ? preparePayload.target.storagePath.trim()
+            : "";
+        const uploadToken =
+          typeof preparePayload?.target?.uploadToken === "string"
+            ? preparePayload.target.uploadToken.trim()
+            : "";
+        const preparedMimeType =
+          typeof preparePayload?.target?.mimeType === "string"
+            ? preparePayload.target.mimeType.trim()
+            : preparedBlob.type;
+        const preparedName =
+          typeof preparePayload?.target?.name === "string"
+            ? preparePayload.target.name.trim()
+            : filename;
+
+        if (!prepareResponse.ok || !storagePath || !uploadToken) {
+          if (prepareResponse.status === 413) {
+            throw new Error(resolve413UploadErrorMessage(preparePayload));
+          }
+          const error = resolveUploadPipelineError(
+            preparePayload,
+            "Unable to prepare reference image upload."
+          );
+          throw new Error(error);
+        }
+
+        const uploadToSignedUrlResult = await supabase.storage
+          .from(BUCKET)
+          .uploadToSignedUrl(storagePath, uploadToken, preparedBlob, {
+            contentType: preparedMimeType,
+            upsert: false,
+          });
+        if (uploadToSignedUrlResult.error) {
+          throw new Error(
+            uploadToSignedUrlResult.error.message || "Unable to upload the reference image."
+          );
+        }
+
+        const finalizeResponse = await fetchWithAuth("/api/media/stage-reference-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sourceMimeType: preparedMimeType,
+            sourceName: preparedName,
+            sourceStoragePath: storagePath,
+          }),
+          signal,
+          shortpulseLogScope: "generation",
+          shortpulseAuthTimeoutMs: UPLOAD_IMAGE_AUTH_TIMEOUT_MS,
+          shortpulseRetryNetworkOnce: true,
+        });
+        const stagePayload = (await finalizeResponse
+          .json()
+          .catch(() => null)) as StageReferenceImagePayload | null;
+
+        if (!finalizeResponse.ok) {
+          if (finalizeResponse.status === 413) {
+            throw new Error(resolve413UploadErrorMessage(stagePayload));
+          }
+          const error = resolveUploadPipelineError(
+            stagePayload,
+            `Image upload failed (${finalizeResponse.status})`
+          );
+          throw new Error(error);
+        }
+
+        const url = typeof stagePayload?.url === "string" ? stagePayload.url.trim() : "";
+        const path = typeof stagePayload?.path === "string" ? stagePayload.path.trim() : "";
+        const size = typeof stagePayload?.size === "number" ? stagePayload.size : preparedBlob.size;
+
+        if (!url) {
+          throw new Error("Image upload failed: missing signed URL.");
+        }
+        if (!path) {
+          throw new Error("Image upload failed: missing storage path.");
+        }
+
+        return {
+          url,
+          path,
+          size,
+        };
+      },
     });
   } catch (error) {
     throw normalizeImagePreparationError({
@@ -316,32 +445,7 @@ const uploadPreparedImageBlobToStorage = async ({
       error,
     });
   }
-
-  if (!uploadResponse.ok) {
-    const payload = await uploadResponse.json().catch(() => ({}));
-    if (uploadResponse.status === 413) {
-      throw new Error(resolve413UploadErrorMessage(payload));
-    }
-    const error =
-      typeof payload?.error === "string" && payload.error.trim().length
-        ? payload.error
-        : `Image upload failed (${uploadResponse.status})`;
-    const details =
-      typeof payload?.details === "string" && payload.details.trim().length
-        ? payload.details
-        : null;
-    throw new Error(details ? `${error}: ${details}` : error);
-  }
-
-  const data = (await uploadResponse.json()) as ImageUploadResponse;
-  if (!data?.url) {
-    throw new Error("Image upload failed: missing signed URL.");
-  }
-  if (!data?.path) {
-    throw new Error("Image upload failed: missing storage path.");
-  }
-
-  return data;
+  return uploadResult;
 };
 
 const resolve413UploadErrorMessage = (payload: unknown): string => {

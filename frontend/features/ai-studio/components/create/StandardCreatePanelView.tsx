@@ -36,6 +36,7 @@ type StandardCreatePanelViewProps = {
   imageResolutionValue: string;
   imageResolutionOptions: Array<{ value: string; label: string }>;
   onImageResolutionChange?: (value: string) => void;
+  guardrailReason?: string | null;
   createModeToggle?: React.ReactNode;
 };
 
@@ -67,6 +68,7 @@ export function StandardCreatePanelView({
   imageResolutionValue,
   imageResolutionOptions,
   onImageResolutionChange,
+  guardrailReason = null,
   createModeToggle = null,
 }: StandardCreatePanelViewProps) {
   const resolvedSelectedCharacterDisplayName =
@@ -147,6 +149,15 @@ export function StandardCreatePanelView({
             <div className="create-composer-lower-preview-frame" aria-hidden="true" />
             <div className="create-composer-bottom-block">
               <PromptStep {...promptStepLayoutProps} />
+              {showCreateControlSet && guardrailReason ? (
+                <div
+                  className="create-composer-inline-warning-bubble"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {guardrailReason}
+                </div>
+              ) : null}
               {showCreateControlSet ? (
                 <div className="create-composer-secondary-row create-composer-controls-row">
                   <div className="create-composer-controls">

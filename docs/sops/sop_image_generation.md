@@ -144,7 +144,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Defaults: `gpt-5.4-nano` for text/vision calls (prompt refinement/describe); image models are chosen from the picker (Fal) and submit through provider-specific handler routes.
 - Aspect normalization is provider/model-specific (see `pricing.ts` and `hooks/taskSubmission/{imageHandlers,defaultHandlers}.ts`).
 - Cost computation: `computeCostForModel` uses aspect + selected image resolution where applicable (Nano Banana 2/Pro + Seedream tiers) for estimate display; generation charging happens server-side in submit APIs.
-- Local reference ingestion: blob/data image inputs are uploaded through `/api/upload-image` and replaced with signed HTTPS URLs before submit; provider submit routes should receive URL payloads, not base64 bodies.
+- Local reference ingestion: blob/data image inputs now stage through `/api/media/prepare-reference-image-upload`, browser-direct upload to storage, and `/api/media/stage-reference-image` before submit; provider submit routes should receive signed HTTPS URLs, not base64 bodies.
 
 ## Image resolution controls
 

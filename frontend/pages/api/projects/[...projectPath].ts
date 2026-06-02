@@ -10,6 +10,7 @@ import { RequestBodyTooLargeError, readRawRequestBody } from "../../../lib/serve
 import { logApiRouteException, writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
 import itemHandler from "../../../lib/server/projectApiRoutes/item";
 import workspaceHandler from "../../../lib/server/projectApiRoutes/workspace";
+import { PROJECT_WORKSPACE_ROUTE_BODY_LIMIT_BYTES } from "../../../lib/ai-studio-session/projectWorkspaceLimits";
 
 type ProjectDynamicRouteHandler = (req: NextApiRequest, res: NextApiResponse) => unknown;
 
@@ -18,8 +19,6 @@ type ResolvedProjectDynamicRoute = {
   handler: ProjectDynamicRouteHandler;
   query: Record<string, string>;
 };
-
-const DYNAMIC_PROJECT_ROUTE_BODY_LIMIT_BYTES = 1024 * 1024;
 
 class InvalidDynamicProjectRouteBodyError extends Error {
   constructor(message: string) {
@@ -95,7 +94,7 @@ const hydrateDynamicProjectRouteBody = async (req: NextApiRequest): Promise<void
   }
 
   const rawBody = await readRawRequestBody(req, {
-    maxBytes: DYNAMIC_PROJECT_ROUTE_BODY_LIMIT_BYTES,
+    maxBytes: PROJECT_WORKSPACE_ROUTE_BODY_LIMIT_BYTES,
   });
   req.body = parseDynamicProjectRouteBody({
     rawBody,

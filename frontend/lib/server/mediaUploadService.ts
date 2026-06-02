@@ -114,6 +114,14 @@ export type MediaUploadResponseFile = {
   signedUrl: string;
 };
 
+export type SignedStorageUploadResponse = {
+  url: string;
+  path: string;
+  size: number;
+  mimeType: string;
+  name: string;
+};
+
 type ParsedUpload = {
   buffer: Buffer;
   declaredMimeType: string;
@@ -405,6 +413,9 @@ const resolveUploadSource = (destinationTab: MediaUploadDestinationTab): string 
 
 const resolveMediaDirectUploadStagingFolder = (destinationTab: MediaUploadDestinationTab): string =>
   `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/${destinationTab}`;
+
+const REFERENCE_IMAGE_STAGING_FOLDER = `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/images/reference`;
+const REFERENCE_IMAGE_STORAGE_FOLDER = "images/reference";
 
 const resolveVoiceChangerSourceStorageFolder = (kind: VoiceChangerSourceKind): string =>
   kind === "video" ? "voice-changer/source-video" : "voice-changer/source-audio";
@@ -973,6 +984,52 @@ export const prepareMediaUploadForUser = async ({
   }
 };
 
+export const prepareReferenceImageUploadForUser = async ({
+  userId,
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<{
+  path: string;
+  token: string;
+  mimeType: string;
+  name: string;
+}> => {
+  const normalizedFilename = filename.trim() || "reference-image";
+  const normalizedMimeType = resolvePreparedMediaUploadMimeType({
+    destinationTab: "private",
+    declaredMimeType,
+  });
+  const storagePath = buildScopedMediaStoragePath({
+    userId,
+    storageFolder: REFERENCE_IMAGE_STAGING_FOLDER,
+    storedFileName: resolvePreparedMediaUploadStoredFileName({
+      filename: normalizedFilename,
+      mimeType: normalizedMimeType,
+    }),
+    label: "Prepared reference image storage path",
+  });
+
+  try {
+    const target = await createSignedUploadTarget({ storagePath });
+    return {
+      path: target.path,
+      token: target.token,
+      mimeType: normalizedMimeType,
+      name: normalizedFilename,
+    };
+  } catch (error) {
+    throw new MediaUploadServiceError(
+      500,
+      "Unable to prepare reference image upload",
+      error instanceof Error ? error.message : "Unable to prepare reference image upload."
+    );
+  }
+};
+
 export const finalizeVoiceChangerSourceUploadForUser = async ({
   userId,
   kind,
@@ -1270,6 +1327,73 @@ export const finalizePreparedMediaUploadForUser = async ({
       userId,
       uploaded,
     });
+  } finally {
+    await removeScopedMediaStorageObject(safeStoragePath);
+  }
+};
+
+export const finalizeReferenceImageUploadForUser = async ({
+  userId,
+  storagePath,
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  storagePath: string;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<SignedStorageUploadResponse> => {
+  const safeStoragePath = assertUserScopedMediaStoragePath({
+    path: storagePath,
+    userId,
+    label: "Prepared reference image storage path",
+  });
+  const expectedFolderPrefix = `${userId}/${REFERENCE_IMAGE_STAGING_FOLDER}/`;
+  if (!safeStoragePath.startsWith(expectedFolderPrefix)) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Prepared reference image storage path is outside the expected namespace."
+    );
+  }
+
+  let uploaded: UploadedStorageAsset | null = null;
+  try {
+    let stored;
+    try {
+      stored = await readStoredMediaBuffer({
+        storagePath: safeStoragePath,
+        maxBytes: MAX_UPLOAD_BYTES,
+      });
+    } catch (error) {
+      if (error instanceof MediaAudioExtractionInputError && error.statusCode === 413) {
+        throw new MediaUploadServiceError(413, "Upload failed: file too large");
+      }
+      throw error;
+    }
+    const parsedUpload: ParsedUpload = {
+      buffer: stored.buffer,
+      declaredMimeType:
+        resolvePreparedMediaUploadMimeType({
+          destinationTab: "private",
+          declaredMimeType: declaredMimeType || stored.contentType || "",
+        }) || normalizeContentType(stored.contentType ?? undefined),
+      size: stored.size,
+      filename: filename.trim() || safeStoragePath.split("/").filter(Boolean).pop() || "upload",
+      destinationTab: "private",
+    };
+    uploaded = await uploadStorageAssetFromParsedUpload({
+      parsedUpload,
+      userId,
+      storageFolderOverride: REFERENCE_IMAGE_STORAGE_FOLDER,
+    });
+    return {
+      url: uploaded.signedUrl,
+      path: uploaded.storagePath,
+      size: uploaded.size,
+      mimeType: uploaded.parsedUpload.declaredMimeType,
+      name: uploaded.parsedUpload.filename,
+    };
   } finally {
     await removeScopedMediaStorageObject(safeStoragePath);
   }

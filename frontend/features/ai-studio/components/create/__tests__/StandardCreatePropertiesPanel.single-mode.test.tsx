@@ -37,6 +37,7 @@ vi.mock("../StandardCreatePanelView", () => ({
   StandardCreatePanelView: (
     props: {
       createModeToggle?: React.ReactNode;
+      guardrailReason?: string | null;
       promptStepProps: {
         title?: string;
         hideChatModeToggle?: boolean;
@@ -62,6 +63,11 @@ vi.mock("../StandardCreatePanelView", () => ({
         <span data-testid="create-control-set-visibility">
           {showCreateControlSet ? "visible" : "hidden"}
         </span>
+        {props.guardrailReason ? (
+          <div className="create-composer-inline-warning-bubble" role="status">
+            {props.guardrailReason}
+          </div>
+        ) : null}
         <div data-testid="composer-leading-content">{promptStepProps.composerLeadingContent}</div>
         <button type="button" onClick={onCreateModelOpen}>
           open-model-picker
@@ -248,14 +254,20 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(button).not.toHaveAttribute("aria-busy");
   });
 
-  it("does not render detached warning text when generate is disabled", () => {
+  it("renders the visible guardrail reason when generate is disabled", () => {
     const { container } = render(
-      <StandardCreatePropertiesPanel {...baseProps} isGenerateDisabled />
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        isGenerateDisabled
+        guardrailReason="Pricing is unavailable for this configuration. Retry in a moment."
+      />
     );
 
-    expect(screen.queryByText("Enter a prompt to generate.")).toBeNull();
-    expect(screen.queryByRole("status")).toBeNull();
-    expect(container.querySelector(".create-composer-inline-warning-bubble")).toBeNull();
+    expect(
+      screen.getByText("Pricing is unavailable for this configuration. Retry in a moment.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(container.querySelector(".create-composer-inline-warning-bubble")).not.toBeNull();
   });
 
   it("keeps the create mode toggle in the standard panel path", () => {

@@ -18,7 +18,10 @@ import type {
 import type { StandardCreatePropertiesPanelProps } from "../../components/create/StandardCreatePropertiesPanel";
 import type { ExpertEditStyleTile } from "../../components/edit/expertEditStyles";
 import type { StudioMode, ToolId } from "../../types";
-import { resolveStandardCreatePrimaryActionDecision } from "./standardCreatePrimaryActionPolicy";
+import {
+  resolveStandardCreatePrimaryActionDecision,
+  type StandardCreatePrimaryActionNoopReason,
+} from "./standardCreatePrimaryActionPolicy";
 
 export type BuildStandardCreatePanelPropsParams = {
   mode: StudioMode;
@@ -64,6 +67,7 @@ export type BuildStandardCreatePanelPropsParams = {
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
   isGenerateDisabled: boolean;
+  generationGuardrail: string | null;
   handleClearAgentChat: () => void;
   handleStandardCreatePrimarySubmit: () => void;
   characterOptions: CreateCharacterOption[];
@@ -132,6 +136,7 @@ export const buildStandardCreatePanelProps = ({
   describeInFlightCount,
   createGenerateCostCredits,
   isGenerateDisabled,
+  generationGuardrail,
   handleClearAgentChat,
   handleStandardCreatePrimarySubmit,
   characterOptions,
@@ -165,6 +170,27 @@ export const buildStandardCreatePanelProps = ({
     agentAttachments,
   });
   const isPrimaryGenerateDisabled = primaryActionDecision.kind === "noop";
+  const resolvePrimaryGuardrailReason = (
+    reason: StandardCreatePrimaryActionNoopReason
+  ): string | null => {
+    switch (reason) {
+      case "upstream_disabled":
+        return generationGuardrail;
+      case "image_attachment_failed":
+        return "Attached image failed to prepare. Remove it or retry the attachment.";
+      case "image_attachment_preparing":
+        return "Attached image is still preparing. Retry in a moment.";
+      case "empty_visible_prompt":
+        return "Enter a prompt to generate.";
+      case "disabled":
+      default:
+        return generationGuardrail;
+    }
+  };
+  const guardrailReason =
+    primaryActionDecision.kind === "noop"
+      ? resolvePrimaryGuardrailReason(primaryActionDecision.reason)
+      : generationGuardrail;
 
   return {
     mode,
@@ -202,6 +228,7 @@ export const buildStandardCreatePanelProps = ({
     isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: createGenerateCostCredits,
     isGenerateDisabled: isPrimaryGenerateDisabled,
+    guardrailReason,
     onClearAgentChat: handleClearAgentChat,
     onGenerate: handleStandardCreatePrimarySubmit,
     characterOptions,

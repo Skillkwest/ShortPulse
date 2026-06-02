@@ -65,6 +65,7 @@ export type StandardCreatePropertiesPanelProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
+  guardrailReason?: string | null;
   onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
   onAgentInputChange?: (value: string) => void;
   onChatModeEnabledChange?: (value: boolean) => void;
@@ -144,6 +145,7 @@ export function StandardCreatePropertiesPanel({
   onAssistantMessageEdit,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  guardrailReason = null,
   onClearAgentChat,
   imageResolution,
   onImageResolutionChange,
@@ -418,6 +420,7 @@ export function StandardCreatePropertiesPanel({
           onImageResolutionChange?.(value);
           onStepActionClick?.("imageSettings");
         }}
+        guardrailReason={guardrailReason}
         createModeToggle={createModeToggle}
       />
       <CreateCharacterPickerModal

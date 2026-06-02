@@ -11,11 +11,18 @@ import {
   type AiStudioSessionSnapshotV2,
 } from "../../logic/sessionSnapshot";
 import {
+  PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
+  PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
+} from "../../../../lib/ai-studio-session/projectWorkspaceLimits";
+import {
   createProjectRestoreSnapshot,
   createProjectRestoreVisibilitySnapshot,
 } from "../../logic/projectRestoreSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
-import { serializeAiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
+import {
+  AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
+  serializeAiStudioSessionCanvasState,
+} from "../../logic/sessionSnapshotCanvas";
 import { resetAiStudioOutputStore } from "../aiStudioOutputStore";
 import {
   resetAiStudioProjectWorkspaceSnapshotViaApi,
@@ -2156,6 +2163,66 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("keeps near-route-limit project snapshots eligible for autosave", async () => {
+    const snapshot = {
+      ...createSnapshot(),
+      outputs: {
+        active: [
+          {
+            id: "near-route-limit-1",
+            prompt: "x".repeat(930_000),
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "Just now",
+            previewText: "near route limit",
+          },
+        ],
+        archived: [],
+        activeOutputId: "near-route-limit-1",
+        curatedReferenceIds: ["near-route-limit-1"],
+        removedFromAllRefsIds: [],
+      },
+    } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(snapshot);
+    const buildSessionSnapshot = vi.fn(() => snapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    await act(async () => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+      await Promise.resolve();
+    });
+    rerender();
+
+    const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(autosaveArgs?.preparedSnapshot?.bytes).toBeGreaterThan(
+      AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES
+    );
+    expect(autosaveArgs?.preparedSnapshot?.bytes).toBeLessThanOrEqual(
+      PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES
+    );
+    expect(autosaveArgs).toEqual(
+      expect.objectContaining({
+        snapshot,
+        maxSnapshotBytes: PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
+        maxKeepaliveSnapshotBytes: PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
+      })
+    );
+  });
+
   it("records byte breakdown telemetry when project autosave skips an oversized snapshot", () => {
     const snapshot = {
       ...createSnapshot(),
@@ -2205,13 +2272,13 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       autosaveArgs?.onPersistError?.(new Error("Session snapshot exceeds maximum size."), {
         reason: "snapshot_too_large",
         sessionId: "project-1",
-        snapshotBytes: 950_000,
-        maxSnapshotBytes: 900_000,
+        snapshotBytes: 1_010_000,
+        maxSnapshotBytes: PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
       });
     });
 
     expect(onPersistenceWarning).toHaveBeenCalledWith(
-      "Project autosave skipped because workspace size (928KB) exceeded the 879KB limit."
+      "Project autosave skipped because workspace size (987KB) exceeded the 977KB limit."
     );
     expect(mockedAddBreadcrumb).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2221,8 +2288,8 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         data: expect.objectContaining({
           project_id: "project-1",
           reason: "snapshot_too_large",
-          snapshot_bytes: 950_000,
-          max_snapshot_bytes: 900_000,
+          snapshot_bytes: 1_010_000,
+          max_snapshot_bytes: PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
           fallback_kind: "full",
           selected_total_b: expect.any(Number),
         }),

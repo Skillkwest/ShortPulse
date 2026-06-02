@@ -6,6 +6,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import {
+  PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
+  PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
+} from "../../../lib/ai-studio-session/projectWorkspaceLimits";
+import {
   createAiStudioProjectWorkspaceAutosaveCandidates,
   type AiStudioProjectWorkspaceAutosaveCandidateKind,
   type AiStudioSessionSnapshot,
@@ -23,7 +27,6 @@ import { useAiStudioProjectWorkspaceRestoreCandidate } from "./useAiStudioProjec
 import { useAiStudioProjectWorkspaceRestoreHydration } from "./useAiStudioProjectWorkspaceRestoreHydration";
 import { resetAiStudioOutputStore } from "./aiStudioOutputStore";
 import {
-  AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
   createProjectDurableAiStudioSessionCanvasState,
   parseAiStudioSessionCanvasState,
   serializeAiStudioSessionCanvasState,
@@ -670,7 +673,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       if (
         preparedSnapshot.hash &&
         Number.isFinite(preparedSnapshot.bytes) &&
-        preparedSnapshot.bytes <= AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES
+        preparedSnapshot.bytes <= PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES
       ) {
         return {
           selection: {
@@ -1092,6 +1095,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     persistSnapshot: writeProjectWorkspaceSnapshot,
     resolveSnapshotTitle: resolveProjectSnapshotTitle,
     preparedSnapshot: autosaveSnapshotSelection.preparedSnapshot,
+    maxSnapshotBytes: PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
+    maxKeepaliveSnapshotBytes: PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
     onPersistError: handleProjectPersistError,
   });
 

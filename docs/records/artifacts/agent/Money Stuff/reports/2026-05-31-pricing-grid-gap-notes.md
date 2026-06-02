@@ -2,6 +2,21 @@
 
 Purpose: preserve concrete missing-row follow-ups discovered during the AI usage billed-credit authority migration, without changing Scott's pricing page implementation.
 
+## Scott To-Do
+
+### GPT Image 2 Multi-Ref Create
+
+- Add pricing-grid `Billed credits` rows for `GPT Image 2` Create when total refs are more than `1`.
+- Start with this exact row:
+  - `Create`
+  - `GPT Image 2`
+  - `16:9`
+  - `medium`
+  - `3 refs`
+  - `high fidelity`
+  - `no mask`
+- Then add the other intended aspect / quality combinations for GPT multi-ref Create.
+
 ## Confirmed Gap
 
 ### GPT Image 2 Create Character Mode with 3 input refs
@@ -18,6 +33,9 @@ Purpose: preserve concrete missing-row follow-ups discovered during the AI usage
 - Current state:
   - no authored canonical `Billed credits` row exists for this configuration in the pricing grid/runtime-authority path
   - runtime must fail closed for this configuration instead of inventing a fallback billed price
+- Decision update:
+  - this is now confirmed as an intentional distinct priced variant, not a runtime over-specific lookup bug
+  - runtime should stay strict and fail closed until Scott authors this billed-row family
 
 ## Why This Matters
 
@@ -35,8 +53,44 @@ Add canonical `Billed credits` coverage for GPT Image 2 Create Character Mode ro
 - `aspect = 16:9`
 - `input_image_count = 3`
 - `input_fidelity = high`
+- `mask_present = false`
 
 Then expand coverage to the other intended aspect / quality combinations if product wants those configurations billable.
+
+### GPT Image 2 Distinct Multi-Ref Create Variant Family
+
+- Confirmed authority decision:
+  - GPT multi-ref Create is a distinct variant family and should not collapse onto the base GPT edit row
+- Repo-backed runtime finding:
+  - current runtime authority materializes GPT edit-like Create rows only for `input_image_count = 1`
+  - any intended billable GPT Create variant with `input_image_count > 1` currently has no canonical authored billed row to match
+  - Character Mode naturally reaches this family because its canonical look payload is ordered around up to three look zones (`portrait`, `close_up`, `front_shot`)
+- Canonical row family to author:
+  - `model_id = gpt-image-2`
+  - Create / edit-like priced lane
+  - `input_image_count > 1`
+  - `input_fidelity = high`
+  - `mask_present = false` unless masked Create is intentionally billable as a separate row family
+- Highest-priority confirmed runtime block:
+  - `aspect = 16:9`
+  - `resolution = medium`
+  - `input_image_count = 3`
+- Expansion guidance for Scott later:
+  - add the intended aspect combinations
+  - add the intended quality combinations (`low`, `medium`, `high`)
+  - add the intended multi-ref counts if product wants more than one billed tier inside the multi-ref family
+  - keep this as a pricing-grid coverage lane, not a runtime fallback lane
+
+### GPT Image 2 Create Coverage Boundary (Current Runtime Behavior)
+
+- Safe/covered today:
+  - plain GPT Create text-to-image rows
+  - GPT Create edit-like rows where the effective canonical variant stays at `input_image_count = 1`
+- Fail-closed today:
+  - GPT Create distinct multi-ref variants where `input_image_count > 1`
+- Interpretation:
+  - this is expected fail-closed behavior under the admin-priced billed-credit authority contract
+  - do not loosen runtime to guess or collapse these rows unless Scott explicitly changes the pricing-authority decision
 
 ## Pricing Grid Review Notes For Scott
 

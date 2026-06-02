@@ -1,6 +1,6 @@
 /**
  * Upload helper tests for AI Studio image references.
- * Ensures local images are sent as raw image bytes with explicit content type.
+ * Ensures local images are staged through browser-direct upload while preserving the caller contract.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ShortPulseFetchInit } from "../../../../lib/authenticatedFetch";
@@ -8,6 +8,7 @@ import type { ShortPulseFetchInit } from "../../../../lib/authenticatedFetch";
 const fetchWithAuthMock = vi.fn();
 const getSignedMediaUrlMock = vi.fn();
 const maybeTranscodeLocalImageBlobForUploadMock = vi.fn();
+const uploadToSignedUrlMock = vi.fn();
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
@@ -26,6 +27,15 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
 vi.mock("../../../../lib/adaptive-media", () => ({
   maybeTranscodeLocalImageBlobForUpload: (...args: unknown[]) =>
     maybeTranscodeLocalImageBlobForUploadMock(...args),
+}));
+vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseQueryClient: () => ({
+    storage: {
+      from: vi.fn(() => ({
+        uploadToSignedUrl: (...args: unknown[]) => uploadToSignedUrlMock(...args),
+      })),
+    },
+  }),
 }));
 
 import {
@@ -49,6 +59,7 @@ describe("imageUpload", () => {
     vi.resetAllMocks();
     getSignedMediaUrlMock.mockResolvedValue("https://example.com/signed/refreshed.png");
     maybeTranscodeLocalImageBlobForUploadMock.mockImplementation(async (blob: Blob) => blob);
+    uploadToSignedUrlMock.mockResolvedValue({ error: null });
     forgetObjectUrlBlob("blob:expert-edit-flattened");
   });
 
@@ -65,13 +76,24 @@ describe("imageUpload", () => {
       .mockResolvedValue(
         new Response(imageBlob, { headers: { "Content-Type": "image/png" } })
       ) as typeof fetch;
-    fetchWithAuthMock.mockResolvedValue(
-      jsonResponse({
-        url: "https://example.com/signed/reference-1.png",
-        path: "user/images/reference-1.png",
-        size: imageBlob.size,
-      })
-    );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/reference-1.png",
+            uploadToken: "upload-token-1",
+            mimeType: "image/png",
+            name: "reference-1.png",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://example.com/signed/reference-1.png",
+          path: "user/images/reference-1.png",
+          size: imageBlob.size,
+        })
+      );
 
     const signedUrl = await uploadImageToStorage(localUrl);
 
@@ -82,37 +104,67 @@ describe("imageUpload", () => {
         signal: expect.any(Object),
       })
     );
-    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
-    expect(options.method).toBe("POST");
-    expect(options.headers).toMatchObject({
-      "Content-Type": "image/png",
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/media/prepare-reference-image-upload",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+    const [, prepareOptions] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
+    expect(JSON.parse(String(prepareOptions.body))).toMatchObject({
+      sourceMimeType: "image/png",
     });
-    expect(options.shortpulseRetryNetworkOnce).toBe(true);
-    expect(options.body).toBeTruthy();
-    expect((options.body as Blob).constructor?.name).toBe("Blob");
-    expect((options.body as Blob).type).toBe("image/png");
+    expect(uploadToSignedUrlMock).toHaveBeenCalledTimes(1);
+    const [storagePath, uploadToken, uploadedBlob, uploadOptions] = uploadToSignedUrlMock.mock
+      .calls[0] as [string, string, Blob, { contentType: string; upsert: boolean }];
+    expect(storagePath).toBe("user/upload-staging/images/reference/reference-1.png");
+    expect(uploadToken).toBe("upload-token-1");
+    expect(uploadedBlob.constructor?.name).toBe("Blob");
+    expect(uploadedBlob.type).toBe("image/png");
+    expect(uploadOptions).toMatchObject({ contentType: "image/png", upsert: false });
+    const [, finalizeOptions] = fetchWithAuthMock.mock.calls[1] as [string, ShortPulseFetchInit];
+    expect(finalizeOptions.method).toBe("POST");
+    expect(JSON.parse(String(finalizeOptions.body))).toMatchObject({
+      sourceMimeType: "image/png",
+      sourceStoragePath: "user/upload-staging/images/reference/reference-1.png",
+    });
   });
 
   it("uploads in-memory image blobs without fetching a temporary object url", async () => {
     const imageBlob = new Blob(["image-data"], { type: "image/png" });
     global.fetch = vi.fn() as typeof fetch;
-    fetchWithAuthMock.mockResolvedValue(
-      jsonResponse({
-        url: "https://example.com/signed/reference-direct.png",
-        path: "user/images/reference-direct.png",
-        size: imageBlob.size,
-      })
-    );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/reference-direct.png",
+            uploadToken: "upload-token-direct",
+            mimeType: "image/png",
+            name: "reference-direct.png",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://example.com/signed/reference-direct.png",
+          path: "user/images/reference-direct.png",
+          size: imageBlob.size,
+        })
+      );
 
     const signedUrl = await uploadImageBlobToStorage(imageBlob);
 
     expect(signedUrl).toBe("https://example.com/signed/reference-direct.png");
     expect(global.fetch).not.toHaveBeenCalled();
     expect(maybeTranscodeLocalImageBlobForUploadMock).toHaveBeenCalledTimes(1);
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
-    expect((options.body as Blob).size).toBe(imageBlob.size);
-    expect((options.body as Blob).type).toBe("image/png");
+    expect(uploadToSignedUrlMock).toHaveBeenCalledTimes(1);
+    const [, , uploadedBlob] = uploadToSignedUrlMock.mock.calls[0] as [string, string, Blob];
+    expect(uploadedBlob.size).toBe(imageBlob.size);
+    expect(uploadedBlob.type).toBe("image/png");
   });
 
   it("reuses remembered expert edit blobs without re-fetching the object url", async () => {
@@ -120,20 +172,31 @@ describe("imageUpload", () => {
     const rememberedBlob = new Blob(["flattened"], { type: "image/png" });
     rememberObjectUrlBlob(localUrl, rememberedBlob);
     global.fetch = vi.fn() as typeof fetch;
-    fetchWithAuthMock.mockResolvedValue(
-      jsonResponse({
-        url: "https://example.com/signed/reference-flattened.png",
-        path: "user/images/reference-flattened.png",
-        size: rememberedBlob.size,
-      })
-    );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/reference-flattened.png",
+            uploadToken: "upload-token-flattened",
+            mimeType: "image/png",
+            name: "reference-flattened.png",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://example.com/signed/reference-flattened.png",
+          path: "user/images/reference-flattened.png",
+          size: rememberedBlob.size,
+        })
+      );
 
     const signedUrl = await uploadImageToStorage(localUrl);
 
     expect(signedUrl).toBe("https://example.com/signed/reference-flattened.png");
     expect(global.fetch).not.toHaveBeenCalled();
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
-    expect((options.body as Blob).size).toBe(rememberedBlob.size);
+    const [, , uploadedBlob] = uploadToSignedUrlMock.mock.calls[0] as [string, string, Blob];
+    expect(uploadedBlob.size).toBe(rememberedBlob.size);
   });
 
   it("uploads the transcode result when local preprocessing returns a resized blob", async () => {
@@ -146,56 +209,95 @@ describe("imageUpload", () => {
         new Response(imageBlob, { headers: { "Content-Type": "image/png" } })
       ) as typeof fetch;
     maybeTranscodeLocalImageBlobForUploadMock.mockResolvedValueOnce(transcodedBlob);
-    fetchWithAuthMock.mockResolvedValue(
-      jsonResponse({
-        url: "https://example.com/signed/reference-1.webp",
-        path: "user/images/reference-1.webp",
-        size: transcodedBlob.size,
-      })
-    );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/reference-1.webp",
+            uploadToken: "upload-token-webp",
+            mimeType: "image/webp",
+            name: "reference-1.webp",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://example.com/signed/reference-1.webp",
+          path: "user/images/reference-1.webp",
+          size: transcodedBlob.size,
+        })
+      );
 
     const signedUrl = await uploadImageToStorage(localUrl);
 
     expect(signedUrl).toBe("https://example.com/signed/reference-1.webp");
     expect(maybeTranscodeLocalImageBlobForUploadMock).toHaveBeenCalledTimes(1);
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
-    expect(options.headers).toMatchObject({
-      "Content-Type": "image/webp",
-    });
-    expect((options.body as Blob).type).toBe("image/webp");
+    const [, , uploadedBlob, uploadOptions] = uploadToSignedUrlMock.mock.calls[0] as [
+      string,
+      string,
+      Blob,
+      { contentType: string },
+    ];
+    expect(uploadOptions.contentType).toBe("image/webp");
+    expect(uploadedBlob.type).toBe("image/webp");
   });
 
   it("falls back to image/jpeg when source blob has no image mime type", async () => {
     const localUrl = "blob:reference-2";
     const unknownBlob = new Blob(["binary-data"]);
     global.fetch = vi.fn().mockResolvedValue(new Response(unknownBlob)) as typeof fetch;
-    fetchWithAuthMock.mockResolvedValue(
-      jsonResponse({
-        url: "https://example.com/signed/reference-2.jpg",
-        path: "user/images/reference-2.jpg",
-        size: unknownBlob.size,
-      })
-    );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/reference-2.jpg",
+            uploadToken: "upload-token-jpg",
+            mimeType: "image/jpeg",
+            name: "reference-2.jpg",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://example.com/signed/reference-2.jpg",
+          path: "user/images/reference-2.jpg",
+          size: unknownBlob.size,
+        })
+      );
 
     await uploadImageToStorage(localUrl);
 
-    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
-    expect(options.headers).toMatchObject({
-      "Content-Type": "image/jpeg",
-    });
+    const [, , , uploadOptions] = uploadToSignedUrlMock.mock.calls[0] as [
+      string,
+      string,
+      Blob,
+      { contentType: string },
+    ];
+    expect(uploadOptions.contentType).toBe("image/jpeg");
   });
 
   it("reuses cached signed URLs for blob references", async () => {
     const localUrl = "blob:cached-reference";
     const imageBlob = new Blob(["cached-data"], { type: "image/webp" });
     global.fetch = vi.fn().mockResolvedValue(new Response(imageBlob)) as typeof fetch;
-    fetchWithAuthMock.mockResolvedValue(
-      jsonResponse({
-        url: "https://example.com/signed/cached.webp",
-        path: "user/images/cached.webp",
-        size: imageBlob.size,
-      })
-    );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/cached.webp",
+            uploadToken: "upload-token-cached",
+            mimeType: "image/webp",
+            name: "cached.webp",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://example.com/signed/cached.webp",
+          path: "user/images/cached.webp",
+          size: imageBlob.size,
+        })
+      );
 
     const first = await uploadImageToStorage(localUrl);
     const second = await uploadImageToStorage(localUrl);
@@ -203,7 +305,8 @@ describe("imageUpload", () => {
     expect(first).toBe("https://example.com/signed/cached.webp");
     expect(second).toBe(first);
     expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    expect(uploadToSignedUrlMock).toHaveBeenCalledTimes(1);
   });
 
   it("uploads local/provider-inaccessible image urls and passes through public urls", async () => {
@@ -335,14 +438,25 @@ describe("imageUpload", () => {
       .mockResolvedValue(
         new Response(imageBlob, { headers: { "Content-Type": "image/png" } })
       ) as typeof fetch;
-    fetchWithAuthMock.mockResolvedValue(
-      jsonResponse(
-        {
-          error: "Upload failed: file too large",
-        },
-        413
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/oversized-reference.png",
+            uploadToken: "upload-token-oversized",
+            mimeType: "image/png",
+            name: "oversized-reference.png",
+          },
+        })
       )
-    );
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: "Upload failed: file too large",
+          },
+          413
+        )
+      );
 
     await expect(uploadImageToStorage(localUrl)).rejects.toThrow(
       "Reference image is too large. ShortPulse accepts reference images up to 25 MB."
@@ -357,21 +471,32 @@ describe("imageUpload", () => {
       .mockResolvedValue(
         new Response(imageBlob, { headers: { "Content-Type": "image/png" } })
       ) as typeof fetch;
-    fetchWithAuthMock.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          error: "Upload failed: file too large",
-          details:
-            "Animated images over 25 MB are not auto-resized yet. Export a smaller animated file or a static frame and try again.",
-        }),
-        {
-          status: 413,
-          headers: {
-            "Content-Type": "application/json",
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/animated-reference.png",
+            uploadToken: "upload-token-animated",
+            mimeType: "image/png",
+            name: "animated-reference.png",
           },
-        }
+        })
       )
-    );
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "Upload failed: file too large",
+            details:
+              "Animated images over 25 MB are not auto-resized yet. Export a smaller animated file or a static frame and try again.",
+          }),
+          {
+            status: 413,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
+      );
 
     await expect(uploadImageToStorage(localUrl)).rejects.toThrow(
       "Animated images over 25 MB are not auto-resized yet. Export a smaller animated file or a static frame and try again."

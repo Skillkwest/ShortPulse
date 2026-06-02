@@ -49,7 +49,7 @@ Checklist:
 - The canonical server upload path now also auto-normalizes oversized still images before the final 25 MB image cap is enforced.
 - Treat this as a reference-image upload size limit, not a model/reference token error.
 - The Reference Grid `Add files` lane and AI Studio Media Library upload lane now use the canonical `POST /api/media/upload` path.
-- Legacy generation-submit image preflight still uses `POST /api/upload-image` for local/blob/data reference conversion before provider submit.
+- AI Studio local/blob/data still-image preflight now uses the staged `POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image` contract before provider submit.
 - Confirm the reference image is under the 25 MB image upload cap enforced by the canonical upload service.
 - Oversized animated images are still not auto-resized server-side; export a smaller animated file or a static frame and try again.
 - If the UI only shows `Unable to upload media.`, capture the failing upload response because that usually means the request was rejected before the app could return its normal structured JSON error.
@@ -57,7 +57,7 @@ Checklist:
 Mitigation:
 
 - Re-upload a smaller reference image and retry the generation.
-- If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the active route (`media-upload` for Reference Grid / Media Library intake, `upload-image` for legacy local reference preflight).
+- If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the active route (`media-upload` for Reference Grid / Media Library intake, `media-stage-reference-image` for staged local reference preflight, or `upload-image` for legacy compatibility callers).
 
 ## Admin runtime/API error handoff workflow
 
@@ -1068,7 +1068,7 @@ Symptoms:
 Cause:
 
 - Pre-submit media preparation exceeded the dynamic deadline budget before provider handoff.
-- Common stages: local reference fetch, `/api/upload-image` roundtrip, or signed URL refresh.
+- Common stages: local reference fetch, staged reference-image upload/finalize, or signed URL refresh.
 
 Checklist:
 
@@ -1081,7 +1081,7 @@ Checklist:
   - `fetch_local_image`
   - `upload_image_route`
   - `refresh_signed_url`
-- If `upload_image_route` is timing out, verify auth/session health and `/api/upload-image` latency.
+- If `upload_image_route` is timing out, verify auth/session health plus `/api/media/prepare-reference-image-upload` and `/api/media/stage-reference-image` latency. Legacy callers may still surface `/api/upload-image`.
 - If `refresh_signed_url` is failing, reselect references to mint fresh signed URLs.
 
 Mitigation:

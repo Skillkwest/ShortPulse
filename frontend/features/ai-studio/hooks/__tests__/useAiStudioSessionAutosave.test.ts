@@ -138,6 +138,38 @@ describe("useAiStudioSessionAutosave", () => {
     );
   });
 
+  it("does not use keepalive when the pending snapshot exceeds the keepalive budget", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const snapshot = createSnapshot();
+    renderHook(() =>
+      useAiStudioSessionAutosave({
+        sessionId: snapshot.sessionId,
+        snapshot,
+        enabled: true,
+        persistSnapshot,
+        maxKeepaliveSnapshotBytes: 1,
+      })
+    );
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.runAllTimersAsync();
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({
+        keepalive: false,
+      })
+    );
+  });
+
   it("flushes on pagehide event", async () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshot();

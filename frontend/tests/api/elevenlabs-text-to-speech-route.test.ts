@@ -389,4 +389,42 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
   });
+
+  it("rejects unowned provider voices with missing ownership metadata before billing", async () => {
+    listElevenLabsVoicesMock.mockResolvedValueOnce([
+      {
+        voiceId: "unknown-provider-1",
+        name: "Unknown Provider Voice",
+        previewUrl: null,
+        description: "Provider voice without reliable shared catalog metadata",
+        isFallback: false,
+        providerCategory: null,
+        providerVoiceType: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        voiceId: "unknown-provider-1",
+        voiceName: "Unknown Provider Voice",
+        text: "Nope.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: "eleven_multilingual_v2",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Voice is unavailable",
+      details: "The selected voice is not available for this account.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
+  });
 });

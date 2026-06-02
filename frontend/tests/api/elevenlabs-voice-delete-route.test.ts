@@ -198,4 +198,35 @@ describe("DELETE /api/elevenlabs/voices/[voiceId]", () => {
       details: "The selected voice could not be found.",
     });
   });
+
+  it("does not allow deleting unowned provider voices with missing ownership metadata", async () => {
+    listSavedVoicesForUserMock.mockResolvedValue([]);
+    listElevenLabsVoicesMock.mockResolvedValue([
+      {
+        voiceId: "unknown-provider-1",
+        name: "Unknown Provider Voice",
+        previewUrl: null,
+        description: "Provider voice without reliable shared catalog metadata",
+        isFallback: false,
+        providerCategory: null,
+        providerVoiceType: null,
+      },
+    ]);
+
+    const req = {
+      method: "DELETE",
+      query: { voiceId: "unknown-provider-1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(deleteElevenLabsVoiceMock).not.toHaveBeenCalled();
+    expect(deleteSavedVoiceForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Voice not found",
+      details: "The selected voice could not be found.",
+    });
+  });
 });

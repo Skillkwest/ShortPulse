@@ -52,6 +52,11 @@ const shouldExcludeResolvedVoiceEntry = (entry: ResolvedVoiceLibraryEntry): bool
 const providerCategoryImpliesUserCreated = (category: string | null): boolean =>
   category === "cloned" || category === "generated";
 
+const isSharedProviderCatalogVoice = (providerVoice: ElevenLabsVoice): boolean =>
+  providerVoice.isFallback ||
+  providerVoice.providerCategory === "premade" ||
+  providerVoice.providerVoiceType === "default";
+
 const shouldHideUnownedProviderVoice = ({
   providerVoice,
   savedVoice,
@@ -59,11 +64,7 @@ const shouldHideUnownedProviderVoice = ({
   providerVoice: ElevenLabsVoice | null;
   savedVoice: SavedAiStudioVoice | null;
 }): boolean =>
-  Boolean(
-    providerVoice &&
-    !savedVoice &&
-    providerCategoryImpliesUserCreated(providerVoice.providerCategory)
-  );
+  Boolean(providerVoice && !savedVoice && !isSharedProviderCatalogVoice(providerVoice));
 
 const resolveOriginKind = ({
   providerVoice,

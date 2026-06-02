@@ -144,6 +144,38 @@ describe("GET /api/elevenlabs/voices", () => {
     );
   });
 
+  it("does not expose unowned provider voices when provider ownership metadata is missing", async () => {
+    listElevenLabsVoicesMock.mockResolvedValue([
+      {
+        voiceId: "voice-unknown-1",
+        name: "Unknown Provider Voice",
+        previewUrl: "https://example.com/unknown.mp3",
+        description: "Provider voice without a reliable shared catalog marker",
+        isFallback: false,
+        providerCategory: null,
+        providerVoiceType: null,
+      },
+    ]);
+    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+
+    const req = {
+      method: "GET",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      source: "api" | "fallback";
+      voices: Array<{ voiceId: string }>;
+    };
+    expect(payload.source).toBe("api");
+    expect(payload.voices).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ voiceId: "voice-unknown-1" })])
+    );
+  });
+
   it("keeps the saved sample preview when a matching live provider voice has no preview", async () => {
     listSavedVoicesForUserWithDiagnosticsMock.mockResolvedValue({
       voices: [

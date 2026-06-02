@@ -570,6 +570,43 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
   });
 
+  it("rejects unowned provider voices with missing ownership metadata before billing", async () => {
+    mockFields = {
+      ...mockFields,
+      voiceId: "unknown-provider-1",
+      voiceName: "Unknown Provider Voice",
+    };
+    listElevenLabsVoicesMock.mockResolvedValueOnce([
+      {
+        voiceId: "unknown-provider-1",
+        name: "Unknown Provider Voice",
+        previewUrl: null,
+        description: "Provider voice without reliable shared catalog metadata",
+        isFallback: false,
+        providerCategory: null,
+        providerVoiceType: null,
+      },
+    ]);
+    readStoredMediaBufferMock.mockResolvedValueOnce({
+      buffer: Buffer.from("staged-audio"),
+      contentType: "audio/wav",
+      size: 12,
+    });
+
+    const req = { method: "POST" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Voice is unavailable",
+      details: "The selected voice is not available for this account.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
+  });
+
   it("returns the remux source size error as a client-visible 413", async () => {
     mockFields = {
       ...mockFields,

@@ -710,6 +710,7 @@ const AiStudioPageRuntimeBody = ({
     referenceGridProps,
     studioPreviewProps,
     detailModalOutput,
+    sharedDetailModalItem: base.sharedDetailModalItem,
     isMediaStorageFull,
     onDetailClose,
     onUpdateOutputPrompt,
@@ -722,7 +723,9 @@ const AiStudioPageRuntimeBody = ({
     onDeleteMediaRowsFromWorkspace: handleDeleteMediaRowsFromWorkspace,
     mediaLibraryDetailSelectionTarget:
       base.detailSelectionTarget?.kind === "media-file" &&
-      base.detailSelectionTarget.surface === "media-library-panel"
+      (base.detailSelectionTarget.surface === "media-library-panel" ||
+        base.detailSelectionTarget.surface === "character-media-panel" ||
+        base.detailSelectionTarget.surface === "elements-media-panel")
         ? base.detailSelectionTarget
         : null,
     onMediaLibraryDetailSelectionTargetChange: base.setDetailSelectionTarget,

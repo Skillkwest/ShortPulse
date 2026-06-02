@@ -20,6 +20,8 @@ import { StandardCreatePropertiesPanel } from "./create/StandardCreateProperties
 import { PulseCreatePropertiesPanel } from "./create/PulseCreatePropertiesPanel";
 import { CreateModeToggle } from "./create/CreateModeToggle";
 import { DetailModal } from "./DetailModal";
+import { SharedMediaDetailPreviewModal } from "./detail-modal/SharedMediaDetailPreviewModal";
+import type { SharedMediaDetailItemBase } from "./detail-modal/detailModalPlatformTypes";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { ExpertEditPanelView } from "./edit/ExpertEditPanelView";
@@ -559,6 +561,7 @@ export type AiStudioPageContentProps = {
   referenceGridProps: AiStudioReferenceGridContract;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
   detailModalOutput: StudioOutput | null;
+  sharedDetailModalItem?: SharedMediaDetailItemBase | null;
   isMediaStorageFull?: boolean;
   onDetailClose: () => void;
   onUpdateOutputPrompt: (id: string, prompt: string) => void;
@@ -640,6 +643,7 @@ export function AiStudioPageContent({
   referenceGridProps,
   studioPreviewProps,
   detailModalOutput,
+  sharedDetailModalItem = null,
   isMediaStorageFull = false,
   onDetailClose,
   onUpdateOutputPrompt,
@@ -1260,6 +1264,8 @@ export function AiStudioPageContent({
         onSelectedCharacterIdChange={onCreateSelectedCharacterIdChange}
         resolveCharacterDropReference={resolveCharacterDropReference}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
+        detailSelectionTarget={mediaLibraryDetailSelectionTarget}
+        onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
       />
     ),
     [
@@ -1268,6 +1274,8 @@ export function AiStudioPageContent({
       onCharacterUploadRequestHandled,
       onCreateSelectedCharacterIdChange,
       pendingCharacterUploadRequest,
+      mediaLibraryDetailSelectionTarget,
+      onMediaLibraryDetailSelectionTargetChange,
       projectId,
       projectRouteRequested,
       resolveCharacterDropReference,
@@ -1300,10 +1308,14 @@ export function AiStudioPageContent({
         projectId={projectId}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveProfileImageDropSource={resolveElementProfileImageDropSource}
+        detailSelectionTarget={mediaLibraryDetailSelectionTarget}
+        onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
       />
     ),
     [
       elementCreateRequestKey,
+      mediaLibraryDetailSelectionTarget,
+      onMediaLibraryDetailSelectionTargetChange,
       projectId,
       resolveElementProfileImageDropSource,
       resolveMediaLibraryInternalDropItem,
@@ -1675,6 +1687,13 @@ export function AiStudioPageContent({
         onSavePrompt={onDetailSavePrompt}
         refreshCharacterOptions={refreshCharacterOptions}
         resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
+      />
+      <SharedMediaDetailPreviewModal
+        item={sharedDetailModalItem}
+        onClose={onDetailClose}
+        modalActivityId="ai-studio-shared-detail-preview-modal"
+        backdropDataTestId="ai-studio-shared-detail-preview-backdrop"
+        closeLabel="Close media detail"
       />
     </>
   );

@@ -1,5 +1,6 @@
 import React from "react";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
+import type { SharedMediaDetailSelectionTarget } from "../../ai-studio/components/detail-modal/detailModalPlatformTypes";
 import type { ResolveCharacterDropReference } from "../hooks/useCharacterManagerDroppedReferenceController";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { CharacterEmbeddedMediaLibraryPanel } from "./CharacterEmbeddedMediaLibraryPanel";
@@ -18,6 +19,8 @@ type CharacterPanelSplitHostProps = {
   preferredCharacterId?: string | null;
   suppressSelectedCharacterPersistence?: boolean;
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
+  onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
 
 const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 336;
@@ -37,6 +40,8 @@ export function CharacterPanelSplitHost({
   preferredCharacterId = null,
   suppressSelectedCharacterPersistence = false,
   onSelectedCharacterIdChange,
+  detailSelectionTarget = null,
+  onDetailSelectionTargetChange,
 }: CharacterPanelSplitHostProps) {
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
@@ -70,6 +75,8 @@ export function CharacterPanelSplitHost({
           fixedVisualAspectRatio={null}
           projectId={projectId}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
+          detailSelectionTarget={detailSelectionTarget}
+          onDetailSelectionTargetChange={onDetailSelectionTargetChange}
         />
       </div>
     </div>

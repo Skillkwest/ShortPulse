@@ -30,6 +30,7 @@ import {
 import { resolveCanvasDropClientPoint } from "./canvasDropController";
 import {
   CANVAS_DOUBLE_TAP_MAX_DISTANCE_PX,
+  isCanvasEmptySpaceEventTarget,
   shouldCreateDraftFromPointerDetail,
   shouldSuppressDraftCreation,
   resolveViewportTapState,
@@ -44,6 +45,7 @@ import {
 } from "./canvasSceneState";
 import type {
   CanvasCamera,
+  CanvasSceneItem,
   CanvasResizeHandle,
   PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
@@ -109,6 +111,7 @@ type UseCanvasViewportInstanceStateParams = {
   resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
+  onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
   isSpacePanActiveRef: MutableRefObject<boolean>;
   draftOwnerInstanceId: CanvasWorkspaceInstanceId | null;
   textEditOwnerInstanceId: CanvasWorkspaceInstanceId | null;
@@ -131,6 +134,7 @@ export const useCanvasViewportInstanceState = ({
   resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   onPinTextReference,
+  onOpenMediaDetail,
   isSpacePanActiveRef,
   draftOwnerInstanceId,
   textEditOwnerInstanceId,
@@ -231,11 +235,32 @@ export const useCanvasViewportInstanceState = ({
 
   const onItemDoubleClick = useCallback(
     (id: string, event: MouseEvent<HTMLElement>) => {
+      const item = items.find((candidate) => candidate.id === id);
+      if (!item) return;
+      if (item.kind !== "text") {
+        event.stopPropagation();
+        clearDraftTextEntry();
+        clearTextEditSession();
+        setItems((currentItems) => selectCanvasSceneItem(currentItems, id));
+        onOpenMediaDetail?.(item, instanceId);
+        return;
+      }
+
       setDraftOwnerInstanceId(null);
       setTextEditOwnerInstanceId(instanceId);
       onItemDoubleClickBase(id, event);
     },
-    [instanceId, onItemDoubleClickBase, setDraftOwnerInstanceId, setTextEditOwnerInstanceId]
+    [
+      clearDraftTextEntry,
+      clearTextEditSession,
+      instanceId,
+      items,
+      onItemDoubleClickBase,
+      onOpenMediaDetail,
+      setDraftOwnerInstanceId,
+      setItems,
+      setTextEditOwnerInstanceId,
+    ]
   );
 
   const isDraftTextEditable =
@@ -298,6 +323,10 @@ export const useCanvasViewportInstanceState = ({
   const handleViewportPointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       if (
+        isCanvasEmptySpaceEventTarget({
+          target: event.target,
+          currentTarget: event.currentTarget,
+        }) &&
         shouldCreateDraftFromPointerDetail({
           button: event.button,
           detail: event.detail,
@@ -406,6 +435,14 @@ export const useCanvasViewportInstanceState = ({
 
   const handleViewportDoubleClick = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
+      if (
+        !isCanvasEmptySpaceEventTarget({
+          target: event.target,
+          currentTarget: event.currentTarget,
+        })
+      ) {
+        return;
+      }
       const nextPoint = {
         timeStamp: event.timeStamp,
         clientX: event.clientX,
@@ -433,6 +470,14 @@ export const useCanvasViewportInstanceState = ({
   const handleViewportClick = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       if (event.button !== 0 || event.detail < 2) return;
+      if (
+        !isCanvasEmptySpaceEventTarget({
+          target: event.target,
+          currentTarget: event.currentTarget,
+        })
+      ) {
+        return;
+      }
       const nextPoint = {
         timeStamp: event.timeStamp,
         clientX: event.clientX,

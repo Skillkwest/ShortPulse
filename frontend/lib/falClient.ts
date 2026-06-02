@@ -2,7 +2,7 @@
  * Registry-driven client for Fal.ai submit/status interactions.
  * Proxies through Next API routes to keep provider keys server-side.
  */
-import { fetchWithAuth } from "./authenticatedFetch";
+import { fetchWithAuth, type ShortPulseFetchInit } from "./authenticatedFetch";
 import { normalizeExplicitContentFailure } from "./explicitContentFailure";
 import { readGenerationAdmissionErrorMessage } from "./generationAdmissionErrors";
 import { getModelConfig } from "./model-runtime/modelRegistry";
@@ -165,7 +165,7 @@ const SUBMIT_AUTH_TIMEOUT_MS = 4_000;
 
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
-  init?: RequestInit & { timeoutMs?: number; shortpulseAuthTimeoutMs?: number }
+  init?: ShortPulseFetchInit & { timeoutMs?: number }
 ) => {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? 60000);
@@ -345,6 +345,7 @@ export const submitQueuedGenerationByModelId = async <TPayload>(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     shortpulseAuthTimeoutMs: SUBMIT_AUTH_TIMEOUT_MS,
+    shortpulseRetryAuth401: false,
   });
   const data = await handleJson<Record<string, unknown>>(response);
   const requestId = readRequestId(data as { request_id?: string; requestId?: string });

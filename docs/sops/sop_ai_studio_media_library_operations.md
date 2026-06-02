@@ -113,13 +113,13 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 1. Right-clicking media (image/video/audio) in `All Media` sends that media to the Reference Grid.
 2. For folder-canvas spaces, right-clicking media sends a copy to Reference Grid (source item remains in the folder canvas).
-3. Double-clicking media (image/video/audio) in `All Media` opens a preview-only detail modal (no ingest side effects), and audible previews follow the shared exclusive-sound rule so only one sound plays at a time across AI Studio and Media Library surfaces.
+3. Double-clicking media (image/video/audio) in `All Media` opens the shared media detail modal without Reference Grid ingest side effects; library-owned items show persisted-library `Saved` state plus `Download` and `Delete` actions, and audible previews follow the shared exclusive-sound rule so only one sound plays at a time across AI Studio and Media Library surfaces.
 
 ### 7) Bulk selection and action semantics
 
 1. Bulk media actions are panel-first and media-only in v1; prompt bulk actions remain out of scope.
 2. Card click in the panel toggles selected state for both media and prompt cards and must not ingest that item into Reference Grid.
-3. Right-click and double-click preserve their dedicated gesture contracts: root `All Media` right-click sends media to Reference Grid, and root `All Media` double-click opens a preview-only modal for media.
+3. Right-click and double-click preserve their dedicated gesture contracts: root `All Media` right-click sends media to Reference Grid, and root `All Media` double-click opens the shared media detail modal for media without ingesting it.
 4. Media cards expose a dedicated selection affordance in addition to card-click toggle behavior; prompt cards use card-click toggle behavior only.
 5. The bulk action bar appears only when one or more visible media rows are selected and must show the selected count plus `Clear`.
 6. In `All Media`, bulk actions allow:
@@ -192,9 +192,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 3. Right-click media in `All Media` -> Reference Grid:
    - Status: Aligned.
    - Current: Right-click on media cards dispatches media ingestion to Reference Grid.
-4. Double-click media in `All Media` -> preview modal:
+4. Double-click media in `All Media` -> shared detail modal:
    - Status: Aligned.
-   - Current: Double-click opens preview-only modal for image/video/audio cards, does not dispatch ingestion, and respects the shared exclusive-sound playback rule for audible previews.
+   - Current: Double-click opens the shared media detail modal for image/video/audio cards, does not dispatch ingestion, surfaces persisted-library `Saved` state plus `Download` and `Delete` actions, and respects the shared exclusive-sound playback rule for audible previews.
 5. Drag ghost visibility for Media Library drags:
    - Status: Aligned.
    - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.
@@ -203,7 +203,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Media Library media and prompt payloads route directly into Reference Grid and Quick Slot Inventory without shell fallback stealing the interaction. Dedicated canvas surfaces continue to own their own drops when mounted explicitly. Desktop image drops into Quick Slot Inventory and Canvas are also surface-owned and must proxy through canonical Reference Grid ingestion before projecting onto the owning surface. Local Media Library / Reference Grid file adds now prepare a signed storage upload target first, upload browser-normalized files directly into storage, and then finalize server-side so production no longer depends on Vercel function body limits. The canonical upload service still auto-normalizes oversized still images before the final 25 MB image cap is enforced; oversized animated images still require manual downsizing.
 7. Panel bulk media actions:
    - Status: Aligned.
-   - Current: `All Media` exposes per-card media selection plus a bulk action bar with `Clear`, `Move to folder`, and `Delete from library`. Custom folders expose `Clear`, `Move to folder`, and `Remove from folder`. Panel card click toggles selected state for media and prompt cards without ingesting them into Reference Grid, while root `All Media` right-click still ingests media and root `All Media` double-click still opens preview-only modal behavior.
+   - Current: `All Media` exposes per-card media selection plus a bulk action bar with `Clear`, `Move to folder`, and `Delete from library`. Custom folders expose `Clear`, `Move to folder`, and `Remove from folder`. Panel card click toggles selected state for media and prompt cards without ingesting them into Reference Grid, while root `All Media` right-click still ingests media and root `All Media` double-click still opens the shared media detail modal behavior.
 8. Delete from `All Media` permanent remove:
    - Status: Aligned.
    - Current: Root-level delete action permanently removes media/prompt rows from library (including best-effort storage cleanup for media after metadata delete succeeds).

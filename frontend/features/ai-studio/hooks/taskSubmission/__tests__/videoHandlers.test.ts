@@ -284,6 +284,7 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -310,10 +311,7 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
       requestedDurationSeconds: 8,
       requestedResolution: "1080p",
       requestedAudio: false,
-      preparedImageInputs: [
-        "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
-        "https://example.supabase.co/storage/v1/object/sign/media_library/user/last.png?token=def",
-      ],
+      preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -351,9 +349,7 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
         videoReferenceMode: "standard",
         requestedDurationSeconds: 4,
         requestedResolution: "720p",
-        preparedImageInputs: [
-          "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
-        ],
+        preparedImageInputs: ["https://example.com/first.png"],
       })
     );
 
@@ -391,10 +387,7 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
         finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
         modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
         videoReferenceMode: "standard",
-        preparedImageInputs: [
-          "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
-          "https://example.supabase.co/storage/v1/object/sign/media_library/user/last.png?token=def",
-        ],
+        preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
       })
     );
 
@@ -466,13 +459,32 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            blob: async () =>
+              new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: "image/png" }),
+          }) as Response
+      )
+    );
     vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+      const headers = new Headers(init?.headers);
       const payload =
         typeof init?.body === "string" ? (JSON.parse(init.body) as { fileUrl?: string }) : {};
+      const uploadPath = headers.get("x-shortpulse-upload-path")?.trim();
+      const uploadFileName = headers.get("x-shortpulse-upload-filename")?.trim();
       return {
         ok: true,
         json: async () => ({
-          url: payload.fileUrl ?? "",
+          url:
+            payload.fileUrl ??
+            (uploadPath
+              ? `https://tempfile.aiquickdraw.com/${uploadPath}/${uploadFileName ?? "upload.png"}`
+              : ""),
         }),
       } as Response;
     });
@@ -481,6 +493,7 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -502,10 +515,7 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
       modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
-      preparedImageInputs: [
-        "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
-        "https://example.supabase.co/storage/v1/object/sign/media_library/user/last.png?token=def",
-      ],
+      preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
       requestedDurationSeconds: 10,
       requestedResolution: "720p",
       aspect: "9:16",
@@ -712,19 +722,39 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(submitKieKlingImageToVideo).mockResolvedValue({ request_id: "kie-kling-std-1" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            blob: async () =>
+              new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: "image/png" }),
+          }) as Response
+      )
+    );
     vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+      const headers = new Headers(init?.headers);
       const payload =
         typeof init?.body === "string" ? (JSON.parse(init.body) as { fileUrl?: string }) : {};
+      const uploadPath = headers.get("x-shortpulse-upload-path")?.trim();
+      const uploadFileName = headers.get("x-shortpulse-upload-filename")?.trim();
       return {
         ok: true,
         json: async () => ({
-          url: payload.fileUrl ?? "",
+          url:
+            payload.fileUrl ??
+            (uploadPath
+              ? `https://tempfile.aiquickdraw.com/${uploadPath}/${uploadFileName ?? "upload.png"}`
+              : ""),
         }),
       } as Response;
     });
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -1022,8 +1052,9 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/elements/taylor/front.png" +
       `?token=${token}`;
     vi.mocked(getSignedMediaUrl).mockResolvedValueOnce(
-      "https://example.com/refreshed-taylor-front.png"
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/elements/taylor/front.png?token=fresh"
     );
+    const fetchMock = vi.mocked(fetch);
     vi.mocked(fetchWithAuth).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -1058,10 +1089,17 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       storagePath: "user-1/elements/taylor/front.png",
       forceRefresh: true,
     });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/elements/taylor/front.png?token=fresh"
+    );
     expect(fetchWithAuth).toHaveBeenCalledWith(
       "/api/kie/upload-url",
       expect.objectContaining({
         method: "POST",
+        body: expect.any(Blob),
+        headers: expect.objectContaining({
+          "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        }),
       })
     );
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
@@ -1074,6 +1112,100 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
               "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-front.png",
             ],
           },
+        ],
+      })
+    );
+  });
+
+  it("uploads signed Seedance multimodal reference images through the binary Kie path", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const expSoon = Math.floor(Date.now() / 1000) + 60;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/references/red-lantern-front.png",
+        exp: expSoon,
+      })
+    ).toString("base64url");
+    const token = `header.${payload}.sig`;
+    const signedReferenceUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/red-lantern-front.png" +
+      `?token=${token}`;
+    const fetchMock = vi.mocked(fetch);
+
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Direct @redlantern through the square",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 15,
+      requestedResolution: "1080p",
+      requestedAudio: true,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      seedance2ReferenceImageUrls: [signedReferenceUrl],
+      klingElements: [],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(signedReferenceUrl);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(Blob),
+        headers: expect.objectContaining({
+          "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        }),
+      })
+    );
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference_image_urls: [
+          expect.stringContaining("https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/"),
+        ],
+      })
+    );
+  });
+
+  it("uploads non-Supabase signed Seedance references through the binary Kie path", async () => {
+    const signedReferenceUrl =
+      "https://cdn.example.com/red-lantern-front.png?X-Amz-Signature=test-signature&X-Amz-Security-Token=session-token";
+    const fetchMock = vi.mocked(fetch);
+
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Direct @redlantern through the square",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 15,
+      requestedResolution: "1080p",
+      requestedAudio: true,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      seedance2ReferenceImageUrls: [signedReferenceUrl],
+      klingElements: [],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(signedReferenceUrl);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(Blob),
+        headers: expect.objectContaining({
+          "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        }),
+      })
+    );
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference_image_urls: [
+          expect.stringContaining("https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/"),
         ],
       })
     );

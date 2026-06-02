@@ -293,7 +293,10 @@ const readReferenceDragPreviewDataset = (
 ): ReferenceDragPreviewDataset => {
   const previewKindRaw = node?.dataset.dragPreviewKind?.trim().toLowerCase() ?? "";
   const previewKind: ReferenceDragPreviewKind | null =
-    previewKindRaw === "image" || previewKindRaw === "video" || previewKindRaw === "text"
+    previewKindRaw === "image" ||
+    previewKindRaw === "video" ||
+    previewKindRaw === "audio" ||
+    previewKindRaw === "text"
       ? previewKindRaw
       : null;
   const renderedImageNode = node?.querySelector("img.reference-card-image");
@@ -327,6 +330,7 @@ const resolveGhostImageUrl = ({
     previewDataset.snapshotSrc,
     previewDataset.imageSrc,
     previewDataset.previewUrl,
+    output.mode === "audio" ? (output.companionArtUrl ?? null) : null,
     resolveReferenceTransferUrl(output, "image"),
   ];
   for (const candidate of candidates) {
@@ -379,7 +383,7 @@ const buildReferenceDragGhost = ({
   const promptText = trimDragGhostText(dedupeText(output.prompt ?? output.previewText) || null);
   const isMediaGhost = Boolean(imageUrl || videoUrl);
 
-  if (!isMediaGhost && promptText) {
+  if (previewKind === "text" && !isMediaGhost && promptText) {
     return buildCanvasPromptDragGhost({
       detail: promptText,
       className: "reference-drag-ghost",
@@ -403,6 +407,32 @@ const buildReferenceDragGhost = ({
     videoPlaceholder.style.background =
       "linear-gradient(160deg, rgba(24,31,45,0.95), rgba(10,14,22,0.85))";
     ghost.appendChild(videoPlaceholder);
+  } else if (previewKind === "audio") {
+    const textBody = document.createElement("div");
+    textBody.style.flex = "1";
+    textBody.style.padding = "10px";
+    textBody.style.fontSize = "11px";
+    textBody.style.lineHeight = "1.3";
+    textBody.style.color = "rgba(229, 238, 255, 0.92)";
+    textBody.style.overflow = "hidden";
+    textBody.style.display = "-webkit-box";
+    textBody.style.setProperty("-webkit-line-clamp", "5");
+    textBody.style.setProperty("-webkit-box-orient", "vertical");
+    textBody.textContent = promptText || "Audio";
+    ghost.appendChild(textBody);
+  } else if (promptText) {
+    const textBody = document.createElement("div");
+    textBody.style.flex = "1";
+    textBody.style.padding = "10px";
+    textBody.style.fontSize = "11px";
+    textBody.style.lineHeight = "1.3";
+    textBody.style.color = "rgba(229, 238, 255, 0.92)";
+    textBody.style.overflow = "hidden";
+    textBody.style.display = "-webkit-box";
+    textBody.style.setProperty("-webkit-line-clamp", "5");
+    textBody.style.setProperty("-webkit-box-orient", "vertical");
+    textBody.textContent = promptText;
+    ghost.appendChild(textBody);
   }
   return ghost;
 };

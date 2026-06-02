@@ -74,6 +74,81 @@ const STANDARD_RESPONSE_STYLE_GUIDANCE = [
 
 type StandardOpenAiImageDetail = "high" | "auto";
 
+const STANDARD_DIRECTIVE_SHIFT_VERBS = new Set([
+  "add",
+  "change",
+  "focus",
+  "keep",
+  "make",
+  "move",
+  "remove",
+  "rewrite",
+  "shift",
+  "show",
+  "switch",
+  "turn",
+  "use",
+]);
+
+const isLikelyStandardDirectiveShift = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.length || normalized.includes("?")) {
+    return false;
+  }
+  const firstWord = normalized.match(/[a-z]+/)?.[0] ?? "";
+  return STANDARD_DIRECTIVE_SHIFT_VERBS.has(firstWord);
+};
+
+const STANDARD_NUMBER_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+};
+
+const resolveRequestedStandardOptionCount = (value: string): number | null => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.length) {
+    return null;
+  }
+  const numericMatch = normalized.match(/\b([2-9]|10)\b/);
+  if (numericMatch) {
+    return Number(numericMatch[1]);
+  }
+  for (const [word, count] of Object.entries(STANDARD_NUMBER_WORDS)) {
+    if (normalized.includes(word)) {
+      return count;
+    }
+  }
+  return null;
+};
+
+const isLikelyStandardBrainstormRequest = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.length) {
+    return false;
+  }
+  return /(brainstorm|ideas|hooks|options|directions|variations|versions|alternatives|ways)\b/.test(
+    normalized
+  );
+};
+
+const isLikelyStandardEvaluationRequest = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.length) {
+    return false;
+  }
+  return /(too generic|what('|’)s weak|what is weak|what works|what('|’)s working|how would you improve|how can i improve|is this working|does this work|evaluate|critique|what('|’)s off|what is off|what('|’)s wrong|what is wrong)\b/.test(
+    normalized
+  );
+};
+
 const clipStandardSystemContextField = (value?: string | null): string | null => {
   if (!value) return null;
   const normalized = value.replace(/\s+/g, " ").trim();
@@ -140,11 +215,38 @@ const buildStandardReplyBehaviorBlock = ({
   const lines: string[] = [
     "Standard reply behavior:",
     "- Answer the user's latest message directly before offering optional next help.",
+    "- Use the conversation's Standard session memory to preserve active goals, constraints, and accepted prompt direction, but do not quote that memory block verbatim.",
+    "- When the latest user turn already gives enough direction to continue, prefer a concrete refinement over another clarifying question.",
   ];
 
   if (context.lastAssistantMessage?.includes("?") && latestUserText.trim().length > 0) {
+    if (isLikelyStandardDirectiveShift(latestUserText)) {
+      lines.push(
+        "- The previous assistant turn ended with a question, but the latest user turn is a direct revision request. Apply that revision to the current direction instead of treating it like a short answer."
+      );
+    } else {
+      lines.push(
+        "- The previous assistant turn ended with a question. Treat the latest user turn as a likely answer and continue from it instead of restarting the conversation."
+      );
+    }
+  }
+
+  if (isLikelyStandardBrainstormRequest(latestUserText)) {
+    const requestedCount = resolveRequestedStandardOptionCount(latestUserText);
+    if (requestedCount) {
+      lines.push(
+        `- The user asked for multiple options. Provide ${requestedCount} distinct options or directions before offering any follow-up question.`
+      );
+    } else {
+      lines.push(
+        "- The user is brainstorming. Offer multiple distinct options or directions before asking a follow-up question."
+      );
+    }
+  }
+
+  if (isLikelyStandardEvaluationRequest(latestUserText)) {
     lines.push(
-      "- The previous assistant turn ended with a question. Treat the latest user turn as a likely answer and continue from it instead of restarting the conversation."
+      "- The user is asking for evaluation or critique. Give a direct judgment first, then explain the strongest reasons, then offer the most useful improvement."
     );
   }
 

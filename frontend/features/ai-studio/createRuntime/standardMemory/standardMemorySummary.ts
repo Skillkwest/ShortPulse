@@ -21,6 +21,7 @@ export type StandardSessionWorkingState = {
   latestUserIntent: string | null;
   latestAssistantCommitment: string | null;
   currentTask: string | null;
+  historicalUserGoals: string[];
   constraints: string[];
   decisionsMade: string[];
   openQuestions: string[];
@@ -74,6 +75,42 @@ const resolvePreviousUserIntent = (messages: AgentMessage[]): string | null => {
     return trimmed;
   }
   return null;
+};
+
+const isLikelyFollowUpAnswer = (value: string): boolean => {
+  const normalized = value.trim();
+  if (!normalized.length) return false;
+  if (normalized.includes("?")) return false;
+  const normalizedLower = normalized.toLowerCase();
+  if (["yes", "yes.", "no", "no."].includes(normalizedLower)) {
+    return true;
+  }
+
+  const firstWord = normalizedLower.match(/[a-z]+/)?.[0] ?? "";
+  const likelyTaskShiftVerbs = new Set([
+    "add",
+    "change",
+    "focus",
+    "keep",
+    "make",
+    "move",
+    "remove",
+    "rewrite",
+    "shift",
+    "show",
+    "switch",
+    "turn",
+    "use",
+  ]);
+  if (likelyTaskShiftVerbs.has(firstWord)) {
+    return false;
+  }
+
+  const wordCount = normalized
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean).length;
+  return normalized.length <= 40 && wordCount <= 3;
 };
 
 const resolveAttachedPromptText = (attachments: AgentAttachment[]): string | null => {
@@ -145,26 +182,62 @@ const resolveOpenQuestions = (latestAssistantCommitment: string | null): string[
   );
 };
 
+const resolveHistoricalUserGoals = ({
+  allMessages,
+  transcriptWindow,
+}: {
+  allMessages: AgentMessage[];
+  transcriptWindow: AgentMessage[];
+}): string[] => {
+  const transcriptWindowIds = new Set(
+    transcriptWindow.map((message) => message.id).filter((value): value is string => Boolean(value))
+  );
+  const candidates: string[] = [];
+
+  for (let index = allMessages.length - 1; index >= 0; index -= 1) {
+    const message = allMessages[index];
+    if (!message || message.role !== "user") continue;
+    if (message.id && transcriptWindowIds.has(message.id)) continue;
+    const trimmed = message.content.trim();
+    if (!trimmed.length) continue;
+    if (isLikelyFollowUpAnswer(trimmed)) continue;
+    candidates.push(trimmed);
+  }
+
+  return uniqueLimited(
+    candidates.map((value) => normalizeListItem(value, 180)),
+    2
+  );
+};
+
 const resolveCurrentTask = ({
   latestUserIntent,
   previousUserIntent,
+  historicalUserGoals,
   latestAssistantCommitment,
   latestRoleContent,
 }: {
   latestUserIntent: string | null;
   previousUserIntent: string | null;
+  historicalUserGoals: string[];
   latestAssistantCommitment: string | null;
   latestRoleContent: LatestRoleContent | null;
 }): string | null => {
   if (!latestUserIntent) {
     return null;
   }
+  if (!isLikelyFollowUpAnswer(latestUserIntent)) {
+    return latestUserIntent;
+  }
   if (
     latestRoleContent?.role === "user" &&
-    previousUserIntent &&
+    (previousUserIntent || historicalUserGoals[0]) &&
     latestAssistantCommitment?.includes("?")
   ) {
-    return previousUserIntent;
+    if (previousUserIntent && !isLikelyFollowUpAnswer(previousUserIntent)) {
+      return previousUserIntent;
+    }
+    return historicalUserGoals[0] ?? previousUserIntent ?? null;
   }
   return latestUserIntent;
 };
@@ -242,26 +315,34 @@ const resolveNextBestAction = ({
 };
 
 export const buildStandardSessionWorkingState = ({
+  allMessages,
   transcriptWindow,
   latestPromptArtifact,
   promptOrigin,
   attachments = [],
 }: {
+  allMessages?: AgentMessage[];
   transcriptWindow: AgentMessage[];
   latestPromptArtifact: string | null;
   promptOrigin: PromptOrigin;
   attachments?: AgentAttachment[];
 }): StandardSessionWorkingState => {
+  const fullMessageHistory = allMessages ?? transcriptWindow;
   const latestRoleContent = resolveLatestRoleContent(transcriptWindow);
   const latestUserIntent = resolveLatestMessageContent(transcriptWindow, "user");
   const latestAssistantCommitment = resolveLatestMessageContent(transcriptWindow, "assistant");
   const previousUserIntent = resolvePreviousUserIntent(transcriptWindow);
+  const historicalUserGoals = resolveHistoricalUserGoals({
+    allMessages: fullMessageHistory,
+    transcriptWindow,
+  });
   const lastAcceptedPrompt =
     latestPromptArtifact?.trim() || resolveTranscriptAcceptedPrompt(transcriptWindow);
   const attachedReferenceIntent = resolveAttachedReferenceIntent(attachments);
   const currentTask = resolveCurrentTask({
     latestUserIntent,
     previousUserIntent,
+    historicalUserGoals,
     latestAssistantCommitment,
     latestRoleContent,
   });
@@ -283,6 +364,7 @@ export const buildStandardSessionWorkingState = ({
     latestUserIntent,
     latestAssistantCommitment,
     currentTask,
+    historicalUserGoals,
     constraints,
     decisionsMade,
     openQuestions,
@@ -311,6 +393,10 @@ export const buildStandardMemorySummary = ({
   const latestUserIntent = clipSummaryField(workingState.latestUserIntent);
   const latestAssistantCommitment = clipSummaryField(workingState.latestAssistantCommitment);
   const latestPromptArtifact = clipSummaryField(workingState.lastAcceptedPrompt);
+  const historicalUserGoals =
+    workingState.historicalUserGoals.length > 0
+      ? workingState.historicalUserGoals.join(" | ")
+      : null;
   const attachedPromptText = clipSummaryField(workingState.attachedReferenceIntent.promptText, 160);
   const activeConstraints =
     workingState.constraints.length > 0 ? workingState.constraints.join(" | ") : null;
@@ -330,6 +416,9 @@ export const buildStandardMemorySummary = ({
   }
   if (latestPromptArtifact) {
     lines.push(`Latest reusable prompt artifact: ${latestPromptArtifact}`);
+  }
+  if (historicalUserGoals) {
+    lines.push(`Earlier user goals to consider: ${historicalUserGoals}`);
   }
   if (activeConstraints) {
     lines.push(`Active constraints: ${activeConstraints}`);

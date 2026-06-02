@@ -812,7 +812,7 @@ describe("Canvas drop behavior", () => {
       expect(screen.queryByText("Prompt reference")).not.toBeInTheDocument();
       const pendingItem = screen.getByTestId(/canvas-pending-item-/);
       expect(Number(pendingItem.getAttribute("style")?.match(/left:\s*([0-9.]+)px/)?.[1])).toBe(
-        240
+        110
       );
       expect(Number(pendingItem.getAttribute("style")?.match(/top:\s*([0-9.]+)px/)?.[1])).toBe(160);
       act(() => {
@@ -820,7 +820,7 @@ describe("Canvas drop behavior", () => {
       });
       expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
       const finalItem = await screen.findByTestId(/canvas-item-/);
-      expect(Number(finalItem.getAttribute("data-x"))).toBe(240);
+      expect(Number(finalItem.getAttribute("data-x"))).toBe(110);
       expect(Number(finalItem.getAttribute("data-y"))).toBe(160);
       await waitFor(() => {
         expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
@@ -851,7 +851,7 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "text");
-    expect(Number(item.getAttribute("data-x"))).toBe(240);
+    expect(Number(item.getAttribute("data-x"))).toBe(110);
     expect(Number(item.getAttribute("data-y"))).toBe(160);
   });
 
@@ -871,7 +871,7 @@ describe("Canvas drop behavior", () => {
 
     expect(await screen.findByText("External note")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
-    expect(Number(item.getAttribute("data-x"))).toBe(220);
+    expect(Number(item.getAttribute("data-x"))).toBe(90);
     expect(Number(item.getAttribute("data-y"))).toBe(140);
   });
 
@@ -906,7 +906,7 @@ describe("Canvas drop behavior", () => {
 
     expect(await screen.findByText("Zoomed prompt")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
-    expect(Number(item.getAttribute("data-x"))).toBe(130);
+    expect(Number(item.getAttribute("data-x"))).toBe(0);
     expect(Number(item.getAttribute("data-y"))).toBe(100);
   });
 

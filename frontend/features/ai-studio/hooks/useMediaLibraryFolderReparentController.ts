@@ -79,7 +79,7 @@ export const useMediaLibraryFolderReparentController = ({
       attachMediaLibraryDragGhost(event, {
         label: folder.name,
         detail: "Folder",
-        previewKind: "folder",
+        template: "folder",
       });
       addBreadcrumb({
         type: "ui",

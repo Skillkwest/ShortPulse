@@ -4,6 +4,7 @@
  */
 import type { CanvasWorkspaceInstanceId } from "../canvas/canvasWorkspaceContracts";
 import type { StudioAudioSourceMode } from "../../types";
+import type { ReactNode } from "react";
 
 export type SharedMediaDetailSurface =
   | "reference-grid"
@@ -66,11 +67,47 @@ export type SharedMediaDetailMedia = {
   waveformPeaks?: number[] | null;
 };
 
+export type SharedMediaDetailTopBarItem = {
+  label: string;
+  className?: string;
+  title?: string;
+};
+
+export type SharedMediaDetailPresentation = {
+  title?: string | null;
+  kindLabel?: string | null;
+  topBarItems?: SharedMediaDetailTopBarItem[] | null;
+  bladePlaceholder?: string | null;
+};
+
+export type SharedMediaDetailActionIntent = "default" | "save" | "danger";
+
+export type SharedMediaDetailActionItem = {
+  id: string;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  intent?: SharedMediaDetailActionIntent;
+  state?: "default" | "saved";
+  icon?: ReactNode;
+  className?: string;
+};
+
+export type SharedMediaDetailSaveActionState =
+  | "hidden"
+  | "idle"
+  | "saving"
+  | "saved"
+  | "failed"
+  | "blocked_storage";
+
 export type SharedMediaDetailItemBase = {
   surface: SharedMediaDetailSurface;
   selectionTarget: SharedMediaDetailSelectionTarget;
   capabilities: SharedMediaDetailCapabilities;
   media: SharedMediaDetailMedia;
+  presentation?: SharedMediaDetailPresentation | null;
 };
 
 export type DetailModalContext = {

@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { ElementsPanelSplitHost } from "../../elements-manager/components/ElementsPanelSplitHost";
+import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
 import { useElementsPanelPropertiesScrollLock } from "../hooks/useElementsPanelPropertiesScrollLock";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
@@ -16,6 +17,8 @@ type ElementsPanelProps = {
   } | null>;
   createRequestKey?: number;
   projectId?: string | null;
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
+  onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
 
 const ELEMENTS_PANEL_SIDE_GUTTER_REDUCTION_PX = 8;
@@ -31,6 +34,8 @@ export function ElementsPanel({
   resolveMediaLibraryInternalDropItem,
   createRequestKey = 0,
   projectId = null,
+  detailSelectionTarget = null,
+  onDetailSelectionTargetChange,
 }: ElementsPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -49,6 +54,8 @@ export function ElementsPanel({
         projectId={projectId}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveProfileImageDropSource={resolveProfileImageDropSource}
+        detailSelectionTarget={detailSelectionTarget}
+        onDetailSelectionTargetChange={onDetailSelectionTargetChange}
       />
     </div>
   );

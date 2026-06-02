@@ -219,6 +219,48 @@ describe("resolveReferenceDownloadTarget", () => {
     });
   });
 
+  it("matches the clicked generated output against publication URLs before falling back generation-wide", async () => {
+    const target = await resolveReferenceDownloadTarget({
+      output: {
+        savedMediaIds: [],
+        generationId: "gen-1",
+        mediaSource: "generated",
+        taskId: "task-1",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        previewUrl: "https://cdn.example.com/current-preview.png",
+        resultUrls: ["https://cdn.example.com/current-preview.png"],
+      },
+      supabase: createSupabaseMock({
+        publicationRows: [
+          {
+            owned_media_file_id: null,
+            preview_storage_path: "user-1/generations/images/sibling-preview.png",
+            full_storage_path: "user-1/generations/images/sibling-full.png",
+            preview_url: "https://cdn.example.com/sibling-preview.png",
+            full_url: "https://cdn.example.com/sibling-full.png",
+          },
+          {
+            owned_media_file_id: null,
+            preview_storage_path: "user-1/generations/images/current-preview.png",
+            full_storage_path: "user-1/generations/images/current-full.png",
+            preview_url: "https://cdn.example.com/current-preview.png",
+            full_url: "https://cdn.example.com/current-full.png",
+          },
+        ],
+      }) as never,
+    });
+
+    expect(target).toEqual({
+      fileRecord: {
+        storagePath: "user-1/generations/images/current-full.png",
+        filename: null,
+      },
+      generationId: "gen-1",
+      directUrl: "https://cdn.example.com/current-preview.png",
+    });
+  });
+
   it("uses canonical storage_path for saved media downloads instead of preview storage paths", async () => {
     const target = await resolveReferenceDownloadTarget({
       output: {

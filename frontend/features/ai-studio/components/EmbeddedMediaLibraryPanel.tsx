@@ -57,6 +57,7 @@ import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGr
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 
 export type EmbeddedMediaLibraryPanelSurface = "elements-media-panel" | "character-media-panel";
@@ -78,6 +79,8 @@ type EmbeddedMediaLibraryPanelProps = {
   fixedVisualAspectRatio?: number | null;
   onSelectMedia?: (payload: MediaLibrarySelectionPayload) => void;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
+  onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
 
 const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
@@ -101,6 +104,8 @@ export function EmbeddedMediaLibraryPanel({
   fixedVisualAspectRatio = null,
   onSelectMedia,
   onDeleteMediaRowsFromWorkspace,
+  detailSelectionTarget = null,
+  onDetailSelectionTargetChange,
 }: EmbeddedMediaLibraryPanelProps) {
   const sessionSnapshot = useResolvedProtectedSessionState();
   const sessionUserId = sessionSnapshot.user?.id ?? null;
@@ -331,6 +336,8 @@ export function EmbeddedMediaLibraryPanel({
     detailSurface: surface,
     currentUserIdRef,
     mediaRows,
+    detailSelectionTarget,
+    setDetailSelectionTarget: onDetailSelectionTargetChange,
     onSelectMedia: onSelectMedia ?? handleNoopMediaSelect,
     refreshSignedUrl,
     signStoragePath,
@@ -472,11 +479,11 @@ export function EmbeddedMediaLibraryPanel({
       attachMediaLibraryDragGhost(event, {
         label: file.filename || "Media",
         detail: promptText,
-        previewUrl: signedUrl,
+        previewUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : signedUrl,
         previewKind: isVideoFile(file.file_type)
           ? "video"
           : isAudioFile(file.file_type)
-            ? "text"
+            ? "audio"
             : "image",
       });
     },
@@ -512,7 +519,7 @@ export function EmbeddedMediaLibraryPanel({
       attachMediaLibraryDragGhost(event, {
         label: prompt.title || "Prompt",
         detail: promptText,
-        previewKind: "text",
+        template: "prompt",
       });
     },
     [activeFolderId]
@@ -1042,6 +1049,15 @@ export function EmbeddedMediaLibraryPanel({
         error={detailModalError}
         onClose={closeDetailModal}
         onPreviewError={handleDetailModalMediaError}
+        onDownloadItem={(item) => {
+          handleDownloadMediaFile(item.file);
+        }}
+        onDeleteItem={(item) => {
+          setPendingLibraryDelete({
+            kind: "media",
+            file: item.file,
+          });
+        }}
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}

@@ -158,4 +158,28 @@ describe("fetchWithAuth auth-session timeout", () => {
       fetchSpy.mockRestore();
     }
   });
+
+  it("supports opting out of 401 auth refresh retries", async () => {
+    readSupabaseAccessTokenMock.mockResolvedValueOnce("token-stale");
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("{}", {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    try {
+      const response = await fetchWithAuth("/api/test-auth-no-retry", {
+        method: "POST",
+        shortpulseRetryAuth401: false,
+      });
+
+      expect(response.status).toBe(401);
+      expect(readSupabaseAccessTokenMock).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });

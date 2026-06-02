@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useCanvasSharedSceneState } from "./canvasSceneState";
 import type {
   PrepareCanvasMediaLibraryDrop,
+  CanvasSceneItem,
   PrepareResolvedInternalCanvasDrop,
   ResolveCanvasDroppedMediaReference,
   ResolveCanvasDropFiles,
@@ -37,6 +38,7 @@ export const useAiStudioCanvasWorkspaceState = ({
   resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   onPinTextReference,
+  onOpenMediaDetail,
   onItemLimitReached,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
@@ -45,6 +47,7 @@ export const useAiStudioCanvasWorkspaceState = ({
   resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
+  onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
   onItemLimitReached?: () => void;
 } = {}): CanvasPropertiesPanelProps => {
   const sharedScene = useCanvasSharedSceneState({ onItemLimitReached });
@@ -64,6 +67,7 @@ export const useAiStudioCanvasWorkspaceState = ({
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
+    onOpenMediaDetail,
     isSpacePanActiveRef,
     draftOwnerInstanceId,
     textEditOwnerInstanceId,
@@ -86,6 +90,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
   resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   onPinTextReference,
+  onOpenMediaDetail,
   onItemLimitReached,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
@@ -94,6 +99,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
   resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
+  onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
   onItemLimitReached?: () => void;
 } = {}): AiStudioDualCanvasWorkspaceState => {
   const sharedScene = useCanvasSharedSceneState({ onItemLimitReached });
@@ -116,6 +122,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
+    onOpenMediaDetail,
     isSpacePanActiveRef,
     draftOwnerInstanceId,
     textEditOwnerInstanceId,
@@ -136,6 +143,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
+    onOpenMediaDetail,
     isSpacePanActiveRef,
     draftOwnerInstanceId,
     textEditOwnerInstanceId,

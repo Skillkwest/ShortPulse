@@ -115,6 +115,30 @@ describe("Canvas text behavior", () => {
     expect(screen.getByTestId("canvas-draft-text-input")).toBeInTheDocument();
   });
 
+  it("does not create a manual text reference when a double-click detail event comes from an existing item", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Existing note",
+      }),
+      clientX: 260,
+      clientY: 170,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    fireEvent.click(item, {
+      button: 0,
+      detail: 2,
+      clientX: 260,
+      clientY: 170,
+    });
+
+    expect(screen.queryByTestId("canvas-draft-text-input")).toBeNull();
+  });
+
   it("dedupes detail fallback and native dblclick into a single draft", () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

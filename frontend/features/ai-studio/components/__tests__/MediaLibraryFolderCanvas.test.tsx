@@ -125,7 +125,7 @@ describe("MediaLibraryFolderCanvas", () => {
     expect(screen.queryAllByTestId(/canvas-item-/)).toHaveLength(0);
   });
 
-  it("places folder-canvas prompt drops at the cursor release point", async () => {
+  it("places folder-canvas prompt drops with top-center anchored at the cursor release point", async () => {
     const onAssignDroppedItem = vi.fn(async () => true);
 
     function FolderPromptDropHarness() {
@@ -187,7 +187,7 @@ describe("MediaLibraryFolderCanvas", () => {
       const items = screen.getAllByTestId(/canvas-item-/);
       const matchingItem = items.find((item) => item.getAttribute("data-kind") === "text");
       expect(matchingItem).toBeTruthy();
-      expect(matchingItem?.getAttribute("data-x")).toBe("280");
+      expect(matchingItem?.getAttribute("data-x")).toBe("150");
       expect(matchingItem?.getAttribute("data-y")).toBe("190");
     });
     expect(onAssignDroppedItem).toHaveBeenCalledWith({ kind: "prompt", id: "prompt-1" });

@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
+import { prefersKieRemoteStreamUpload } from "../../../lib/kieUploadSourceUrl";
 import { readProviderApiKey } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 
 const KIE_FILE_URL_UPLOAD_ENDPOINT =
@@ -170,14 +171,6 @@ const parseSafeHttpUrl = async (value: string): Promise<URL> => {
 const inferFileNameFromUrl = (sourceUrl: URL): string | null => {
   const lastSegment = sourceUrl.pathname.split("/").filter(Boolean).pop() ?? "";
   return asNonEmptyString(lastSegment);
-};
-
-const prefersStreamUpload = (sourceUrl: URL): boolean => {
-  const pathname = sourceUrl.pathname.toLowerCase();
-  if (pathname.includes("/storage/v1/object/sign/")) return true;
-
-  const signedQueryKeys = ["token", "x-amz-signature", "x-amz-security-token", "signature", "sig"];
-  return signedQueryKeys.some((key) => sourceUrl.searchParams.has(key));
 };
 
 const readUploadPayload = (
@@ -538,7 +531,7 @@ export default async function handler(
             throw new KieUploadRequestError("fileUrl and uploadPath are required.");
           }
           const sourceUrl = await parseSafeHttpUrl(fileUrl);
-          return prefersStreamUpload(sourceUrl)
+          return prefersKieRemoteStreamUpload(sourceUrl)
             ? await uploadFileStreamToKie({
                 apiKey,
                 sourceUrl,

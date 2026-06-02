@@ -1,5 +1,6 @@
 import React from "react";
 import { ElementsEmbeddedMediaLibraryPanel } from "../../ai-studio/components/ElementsEmbeddedMediaLibraryPanel";
+import type { SharedMediaDetailSelectionTarget } from "../../ai-studio/components/detail-modal/detailModalPlatformTypes";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { ElementsManagerShell } from "./ElementsManagerShell";
@@ -12,6 +13,8 @@ type ElementsPanelSplitHostProps = {
   } | null>;
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
   externalCreateRequestKey?: number;
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
+  onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
 
 const ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX = 336;
@@ -26,6 +29,8 @@ export function ElementsPanelSplitHost({
   resolveMediaLibraryInternalDropItem,
   resolveProfileImageDropSource,
   externalCreateRequestKey = 0,
+  detailSelectionTarget = null,
+  onDetailSelectionTargetChange,
 }: ElementsPanelSplitHostProps) {
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
@@ -55,6 +60,8 @@ export function ElementsPanelSplitHost({
           fixedVisualAspectRatio={null}
           projectId={projectId}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
+          detailSelectionTarget={detailSelectionTarget}
+          onDetailSelectionTargetChange={onDetailSelectionTargetChange}
         />
       </div>
     </div>

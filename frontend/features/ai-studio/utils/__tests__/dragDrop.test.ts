@@ -1648,6 +1648,56 @@ describe("dragDrop payload extraction", () => {
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
 
+  it("keeps audio drag ghosts on the media template instead of the prompt template", () => {
+    const { event, dragNode, setDragImage } = makeDragEvent();
+    Object.defineProperty(dragNode, "getBoundingClientRect", {
+      configurable: true,
+      value: () =>
+        ({
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: 200,
+          bottom: 250,
+          width: 200,
+          height: 250,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    });
+    Object.defineProperty(dragNode, "offsetWidth", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(dragNode, "offsetHeight", {
+      configurable: true,
+      value: 250,
+    });
+
+    prepareReferenceDrag(event, {
+      id: "ref-audio-cover",
+      prompt: "Audio drag ghost text",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-audio.mp3",
+      companionArtUrl: "https://example.com/ref-audio-cover.webp",
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    expect(ghost?.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/ref-audio-cover.webp"
+    );
+    expect(ghost?.style.width).not.toBe(`${CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX}px`);
+    expect(ghost?.style.height).not.toBe(`${CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX}px`);
+    expect(setDragImage).toHaveBeenCalledWith(ghost, 100, 125);
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
   it("removes selected-card action controls from the drag ghost preview", () => {
     const dragNode = document.createElement("div");
     dragNode.className = "reference-card is-active";

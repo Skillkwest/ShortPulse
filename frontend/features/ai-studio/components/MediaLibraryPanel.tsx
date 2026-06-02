@@ -1427,6 +1427,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         error={detailModalError}
         onClose={closeDetailModal}
         onPreviewError={handleDetailModalMediaError}
+        onDownloadItem={(item) => {
+          handleDownloadMediaFile(item.file);
+        }}
+        onDeleteItem={(item) => {
+          setPendingLibraryDelete({
+            kind: "media",
+            file: item.file,
+          });
+        }}
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}

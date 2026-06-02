@@ -8,10 +8,13 @@ import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { useAiStudioDualCanvasWorkspaceState } from "../components/canvas/useAiStudioCanvasWorkspaceState";
 import type {
   CanvasDropResolution,
+  CanvasSceneItem,
   PrepareCanvasMediaLibraryDrop,
   ResolveCanvasDroppedMediaReference,
   ResolveCanvasDropReference,
 } from "../components/canvas/canvasTypes";
+import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
+import type { CanvasWorkspaceInstanceId } from "../components/canvas/canvasWorkspaceContracts";
 import {
   CANVAS_AUDIO_ITEM_HEIGHT,
   CANVAS_AUDIO_ITEM_WIDTH,
@@ -100,6 +103,7 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
     placement: "start" | "before" | "after" | "end"
   ) => void;
   setActiveOutputId: (outputId: string | null) => void;
+  setDetailSelectionTarget: (target: SharedMediaDetailSelectionTarget | null) => void;
   setUiError?: (message: string | null) => void;
 };
 
@@ -117,6 +121,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   ingestReferenceFiles,
   reorderCuratedReference,
   setActiveOutputId,
+  setDetailSelectionTarget,
   setUiError,
 }: UseAiStudioPageMediaReferenceRuntimeParams) => {
   const canvasMediaRestoreAuthorityCacheRef = useRef(
@@ -600,6 +605,31 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     [ensureDroppedMediaFiles, ingestReferenceFiles, resolveCanvasResolutionFromOutput, setUiError]
   );
 
+  const handleOpenCanvasMediaDetail = useCallback(
+    (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => {
+      if (item.kind === "text") return;
+      const outputId = item.outputId?.trim() || "";
+      if (outputId) {
+        const output = getOutputById(outputId);
+        if (output) {
+          setDetailSelectionTarget({
+            kind: "studio-output",
+            outputId: output.id,
+            surface: "right-rail-canvas",
+          });
+          return;
+        }
+      }
+      setDetailSelectionTarget({
+        kind: "canvas-item",
+        itemId: item.id,
+        surface: "right-rail-canvas",
+        instanceId,
+      });
+    },
+    [getOutputById, setDetailSelectionTarget]
+  );
+
   const {
     railCanvasProps,
     sessionState: canvasSessionState,
@@ -610,6 +640,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference: addPastedPromptReference,
+    onOpenMediaDetail: handleOpenCanvasMediaDetail,
   });
 
   useEffect(() => {

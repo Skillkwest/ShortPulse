@@ -717,12 +717,14 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-hero .ai-hero-project-name {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: calc(50vw - var(--ai-rail-width));
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 0;
   pointer-events: none;
+  transform: translate(-50%, -50%);
   padding-inline: clamp(180px, 18vw, 320px);
 }
 

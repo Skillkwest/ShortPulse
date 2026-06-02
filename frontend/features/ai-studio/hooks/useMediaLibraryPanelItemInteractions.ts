@@ -124,11 +124,11 @@ export const useMediaLibraryPanelItemInteractions = ({
       attachMediaLibraryDragGhost(event, {
         label: file.filename || "Media",
         detail: promptText,
-        previewUrl,
+        previewUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : previewUrl,
         previewKind: isVideoFile(file.file_type)
           ? "video"
           : isAudioFile(file.file_type)
-            ? "text"
+            ? "audio"
             : "image",
       });
     },
@@ -160,7 +160,7 @@ export const useMediaLibraryPanelItemInteractions = ({
       attachMediaLibraryDragGhost(event, {
         label: prompt.title || "Prompt",
         detail: promptText,
-        previewKind: "text",
+        template: "prompt",
       });
     },
     [activeFolderId]

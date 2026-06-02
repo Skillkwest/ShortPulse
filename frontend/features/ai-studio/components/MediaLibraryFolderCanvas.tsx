@@ -764,8 +764,13 @@ export function MediaLibraryFolderCanvas({
         attachMediaLibraryDragGhost(event, {
           label: mediaRow?.filename || item.alt || "Media",
           detail: mediaRow ? resolveMediaMetadataPromptText(mediaRow.metadata) : null,
-          previewUrl: item.src,
-          previewKind: mediaRow && isVideoFile(mediaRow.file_type) ? "video" : "image",
+          previewUrl: mediaRow && isAudioFile(mediaRow.file_type) ? null : item.src,
+          previewKind:
+            mediaRow && isVideoFile(mediaRow.file_type)
+              ? "video"
+              : mediaRow && isAudioFile(mediaRow.file_type)
+                ? "audio"
+                : "image",
         });
       } else {
         if (item.kind !== "text") {
@@ -796,7 +801,7 @@ export function MediaLibraryFolderCanvas({
         attachMediaLibraryDragGhost(event, {
           label: promptRow?.title || "Prompt",
           detail: promptText,
-          previewKind: "text",
+          template: "prompt",
         });
       }
       event.currentTarget.classList.add("is-dragging");

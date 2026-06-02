@@ -34,6 +34,7 @@ export const buildStandardSessionMemory = ({
 }): StandardSessionMemory => {
   const transcriptWindow = resolveStandardTranscriptWindow(messages);
   const workingState = buildStandardSessionWorkingState({
+    allMessages: messages,
     transcriptWindow,
     latestPromptArtifact,
     promptOrigin,

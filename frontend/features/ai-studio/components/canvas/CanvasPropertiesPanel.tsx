@@ -258,11 +258,7 @@ export function CanvasPropertiesPanel({
                     : undefined
                 }
                 onDoubleClick={(event) => {
-                  if (item.kind === "text") {
-                    onItemDoubleClick(item.id, event);
-                    return;
-                  }
-                  event.stopPropagation();
+                  onItemDoubleClick(item.id, event);
                 }}
               >
                 {hasMediaError ? (

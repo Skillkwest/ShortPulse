@@ -3,6 +3,7 @@
  */
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
+import { prefersKieRemoteStreamUpload } from "../../../../lib/kieUploadSourceUrl";
 import { isCharacterScopedMediaUrl } from "../../../../lib/mediaStoragePath";
 import {
   KIE_KLING_30_MODEL_ID,
@@ -98,6 +99,21 @@ const uploadUrlToKieTemporaryFile = async ({
 
   const cached = cache.get(normalizedUrl);
   if (cached) return await cached;
+
+  if (prefersKieRemoteStreamUpload(normalizedUrl)) {
+    const uploadPromise = uploadSourceUrlToKieTemporaryFile({
+      sourceUrl: normalizedUrl,
+      mediaKind,
+      cache,
+    });
+    cache.set(normalizedUrl, uploadPromise);
+    try {
+      return await uploadPromise;
+    } catch (error) {
+      cache.delete(normalizedUrl);
+      throw error;
+    }
+  }
 
   const uploadPromise = (async () => {
     const response = await fetchWithAuth(KIE_UPLOAD_ROUTE, {
@@ -233,7 +249,7 @@ const uploadSourceUrlToKieTemporaryFile = async ({
     return await uploadBlobToKieTemporaryFile({
       blob,
       mediaKind,
-      cacheKey,
+      cacheKey: `${cacheKey}:blob`,
       cache,
     });
   })();
@@ -339,16 +355,20 @@ const prepareKieInputUrl = async ({
 }): Promise<string> => {
   const normalizedRawUrl = rawUrl?.trim() ?? "";
   const normalizedPreparedUrl = preparedUrl?.trim() ?? "";
-  if (
+  const browserUploadSourceUrl =
     normalizedRawUrl &&
     (mediaKind === "image"
       ? needsImageUpload(normalizedRawUrl)
       : mediaKind === "video"
         ? needsVideoUpload(normalizedRawUrl)
         : false)
-  ) {
+      ? normalizedRawUrl
+      : normalizedPreparedUrl && prefersKieRemoteStreamUpload(normalizedPreparedUrl)
+        ? normalizedPreparedUrl
+        : "";
+  if (browserUploadSourceUrl) {
     return await uploadSourceUrlToKieTemporaryFile({
-      sourceUrl: normalizedRawUrl,
+      sourceUrl: browserUploadSourceUrl,
       mediaKind,
       cache,
     });

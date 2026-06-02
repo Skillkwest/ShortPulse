@@ -329,7 +329,7 @@ describe("useAiStudioReferenceAssetActions", () => {
     expect(click).toHaveBeenCalledTimes(1);
   });
 
-  it("preserves canonical output ordering when resolving generated download media", async () => {
+  it("matches the clicked generated output by exact result URL before choosing durable media", async () => {
     const { supabase, storageDownload } = createSupabaseMock({
       generationOutputResults: [
         {
@@ -337,10 +337,12 @@ describe("useAiStudioReferenceAssetActions", () => {
             {
               media_file_id: "media-output-0",
               output_index: 0,
+              result_url: "https://cdn.test/generated-order-preview.png",
             },
             {
               media_file_id: "media-output-1",
               output_index: 1,
+              result_url: "https://cdn.test/generated-sibling-preview.png",
             },
           ],
           error: null,
@@ -350,8 +352,8 @@ describe("useAiStudioReferenceAssetActions", () => {
         {
           data: [
             {
-              storage_path: "user-1/generations/images/output-index-1.png",
-              filename: "output-index-1.png",
+              storage_path: "user-1/generations/images/output-index-0.png",
+              filename: "output-index-0.png",
             },
           ],
           error: null,
@@ -379,7 +381,66 @@ describe("useAiStudioReferenceAssetActions", () => {
       await result.current.handleDownloadReference("out-generated-order");
     });
 
-    expect(storageDownload).toHaveBeenCalledWith("user-1/generations/images/output-index-1.png");
+    expect(storageDownload).toHaveBeenCalledWith("user-1/generations/images/output-index-0.png");
+  });
+
+  it("falls back to provider download instead of a sibling generation file when multiple canonical outputs exist without an exact URL match", async () => {
+    const { supabase, storageDownload } = createSupabaseMock({
+      generationOutputResults: [
+        {
+          data: [
+            {
+              media_file_id: "media-output-0",
+              output_index: 0,
+              result_url: "https://cdn.test/generated-sibling-a.png",
+            },
+            {
+              media_file_id: "media-output-1",
+              output_index: 1,
+              result_url: "https://cdn.test/generated-sibling-b.png",
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
+    const { click, link } = installDownloadDomMocks();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(new Blob(["remote"], { type: "image/png" }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const output = {
+      ...makeOutput("out-generated-ambiguous", "Ambiguous generated prompt"),
+      mediaSource: "generated",
+      generationId: "gen-order-ambiguous",
+      previewUrl: "https://cdn.test/generated-current-preview.png",
+    } satisfies StudioOutput;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          findOutputById: (id) => (id === "out-generated-ambiguous" ? output : null),
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.handleDownloadReference("out-generated-ambiguous");
+    });
+
+    expect(storageDownload).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://cdn.test/generated-current-preview.png",
+      expect.objectContaining({
+        cache: "no-store",
+        signal: expect.any(AbortSignal),
+      })
+    );
+    expect(link.download).toBe("Ambiguous generated prompt.png");
+    expect(click).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when generated download is missing durable generation identity", async () => {

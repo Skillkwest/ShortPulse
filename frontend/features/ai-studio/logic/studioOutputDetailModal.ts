@@ -1,6 +1,7 @@
 import type {
   SharedMediaDetailCapabilities,
   SharedMediaDetailItemBase,
+  SharedMediaDetailPresentation,
   SharedMediaDetailSelectionTarget,
 } from "../components/detail-modal/detailModalPlatformTypes";
 import { canDownloadReferenceOutput, canSaveReferenceOutput } from "./referenceActionAvailability";
@@ -19,9 +20,11 @@ export type StudioOutputDetailModalItem = SharedMediaDetailItemBase & {
 export const createStudioOutputDetailModalItem = ({
   output,
   canSavePrompt,
+  presentation = null,
 }: {
   output: StudioOutput;
   canSavePrompt: boolean;
+  presentation?: SharedMediaDetailPresentation | null;
 }): StudioOutputDetailModalItem => ({
   output,
   selectionTarget: {
@@ -70,4 +73,5 @@ export const createStudioOutputDetailModalItem = ({
     durationMs: output.durationMs ?? null,
     waveformPeaks: output.waveformPeaks ?? null,
   },
+  presentation,
 });

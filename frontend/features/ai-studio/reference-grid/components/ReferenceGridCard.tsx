@@ -221,7 +221,13 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const canDragReference =
     Boolean(item.previewText) ||
     (!hasMediaRenderError && !!cardPreviewUrl && canDragReferenceOutput(item));
-  const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
+  const dragPreviewKind = isImagePreview
+    ? "image"
+    : isVideoPreview
+      ? "video"
+      : isAudioPreview
+        ? "audio"
+        : "text";
   const resolvedVideoPosterUrl = videoPosterUrl?.trim() || null;
   const resolvedHoverVideoUrl =
     hoverVideoUrl?.trim() || (isVideoPreview ? cardPreviewUrl?.trim() : "") || null;

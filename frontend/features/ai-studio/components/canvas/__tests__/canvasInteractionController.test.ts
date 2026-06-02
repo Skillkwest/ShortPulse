@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isCanvasEmptySpaceEventTarget,
   resolveViewportTapState,
   shouldCreateDraftFromPointerDetail,
   shouldSuppressDraftCreation,
@@ -73,5 +74,41 @@ describe("canvasInteractionController", () => {
     });
     expect(second.shouldCreateDraft).toBe(true);
     expect(second.nextStoredTap).toBeNull();
+  });
+
+  it("treats only blank viewport targets as empty canvas space", () => {
+    const viewport = document.createElement("div");
+    const world = document.createElement("div");
+    const item = document.createElement("article");
+    item.className = "canvas-scene-item";
+    const nestedButton = document.createElement("button");
+    item.appendChild(nestedButton);
+    world.appendChild(item);
+    viewport.appendChild(world);
+
+    expect(
+      isCanvasEmptySpaceEventTarget({
+        target: viewport,
+        currentTarget: viewport,
+      })
+    ).toBe(true);
+    expect(
+      isCanvasEmptySpaceEventTarget({
+        target: world,
+        currentTarget: viewport,
+      })
+    ).toBe(true);
+    expect(
+      isCanvasEmptySpaceEventTarget({
+        target: item,
+        currentTarget: viewport,
+      })
+    ).toBe(false);
+    expect(
+      isCanvasEmptySpaceEventTarget({
+        target: nestedButton,
+        currentTarget: viewport,
+      })
+    ).toBe(false);
   });
 });

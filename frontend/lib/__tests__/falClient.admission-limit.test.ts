@@ -151,4 +151,25 @@ describe("falClient generation admission error handling", () => {
       "This request was blocked for explicit or unsafe content. Try revising the prompt or references."
     );
   });
+
+  it("disables auth-refresh replays for generation submit routes", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          request_id: "req-123",
+        },
+        200
+      )
+    );
+
+    await submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/fal/nano-banana-2-submit",
+      expect.objectContaining({
+        method: "POST",
+        shortpulseRetryAuth401: false,
+      })
+    );
+  });
 });

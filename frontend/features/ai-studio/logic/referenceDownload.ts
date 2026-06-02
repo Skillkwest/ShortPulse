@@ -14,14 +14,24 @@ import type { StudioOutput } from "../types";
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
 type GenerationOutputRow = {
+  id?: unknown;
   media_file_id?: unknown;
   output_index?: unknown;
+  result_url?: unknown;
 };
 
 type MediaFileRow = {
   storage_path?: unknown;
   filename?: unknown;
   preview_storage_path?: unknown;
+};
+
+type GenerationPublicationRow = {
+  owned_media_file_id?: unknown;
+  preview_storage_path?: unknown;
+  full_storage_path?: unknown;
+  preview_url?: unknown;
+  full_url?: unknown;
 };
 
 export type ResolvedReferenceDownloadTarget = {
@@ -156,17 +166,21 @@ const toMediaFileRecord = (
   };
 };
 
-const resolveDirectDownloadUrl = (
+const resolveDirectDownloadUrlCandidates = (
   output: Pick<StudioOutput, "resultUrls" | "previewUrl" | "fullStoragePath" | "previewStoragePath">
-): string | null => {
+): string[] => {
   const resultUrls = Array.isArray(output.resultUrls) ? output.resultUrls : [];
-  const candidates = [
+  const dedupedCandidates = new Set<string>();
+  [
     ...resultUrls.map((value) => resolveDownloadUrlCandidate(value)),
     resolveDownloadUrlCandidate(output.previewUrl),
     resolveDownloadUrlCandidate(output.fullStoragePath),
     resolveDownloadUrlCandidate(output.previewStoragePath),
-  ];
-  return candidates.find((value): value is string => Boolean(value)) ?? null;
+  ].forEach((candidate) => {
+    if (!candidate) return;
+    dedupedCandidates.add(candidate);
+  });
+  return [...dedupedCandidates];
 };
 
 const resolveLatestMediaFileBySavedIds = async (
@@ -244,6 +258,94 @@ const resolveLatestMediaFileByCanonicalGenerationOutputs = async (
   return await resolveMediaFileById(supabase, mediaId);
 };
 
+const toPublicationFileRecord = async (
+  supabase: SupabaseClient,
+  row: GenerationPublicationRow | null | undefined
+): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
+  const storagePath =
+    asCanonicalStoragePath(asTrimmedString(row?.full_storage_path)) ??
+    asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path));
+  if (storagePath) {
+    return {
+      storagePath,
+      filename: null,
+    };
+  }
+  const mediaFileId = asTrimmedString(row?.owned_media_file_id);
+  if (!mediaFileId) return null;
+  return await resolveMediaFileById(supabase, mediaFileId);
+};
+
+const resolvePublishedGenerationMediaFileByUrlCandidates = async ({
+  supabase,
+  generationId,
+  urlCandidates,
+}: {
+  supabase: SupabaseClient;
+  generationId: string;
+  urlCandidates: string[];
+}): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
+  const { data, error } = await supabase
+    .from("generation_publications")
+    .select("owned_media_file_id, preview_storage_path, full_storage_path, preview_url, full_url")
+    .eq("generation_id", generationId)
+    .eq("publication_state", "published")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) {
+    throw new Error(error.message || "Failed to resolve published generation media.");
+  }
+  const rows = (Array.isArray(data) ? data : []) as GenerationPublicationRow[];
+  if (!rows.length) return null;
+  const candidateSet = new Set(urlCandidates);
+  for (const row of rows) {
+    const previewUrl = asTrimmedString(row.preview_url);
+    const fullUrl = asTrimmedString(row.full_url);
+    if (!candidateSet.has(previewUrl ?? "") && !candidateSet.has(fullUrl ?? "")) continue;
+    return await toPublicationFileRecord(supabase, row);
+  }
+  if (rows.length === 1) {
+    return await toPublicationFileRecord(supabase, rows[0]);
+  }
+  return null;
+};
+
+const resolveCanonicalGeneratedFileRecordByUrlCandidates = async ({
+  supabase,
+  generationId,
+  urlCandidates,
+}: {
+  supabase: SupabaseClient;
+  generationId: string;
+  urlCandidates: string[];
+}): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
+  const { data, error } = await supabase
+    .from("ai_generation_outputs")
+    .select("media_file_id, output_index, result_url")
+    .eq("generation_id", generationId)
+    .order("output_index", { ascending: true })
+    .limit(50);
+  if (error) {
+    throw new Error(error.message || "Failed to resolve canonical generated media output.");
+  }
+  const rows = (Array.isArray(data) ? data : []) as GenerationOutputRow[];
+  if (!rows.length) return null;
+  const candidateSet = new Set(urlCandidates);
+  for (const row of rows) {
+    const resultUrl = asTrimmedString(row.result_url);
+    if (!candidateSet.has(resultUrl ?? "")) continue;
+    const mediaId = asTrimmedString(row.media_file_id);
+    if (!mediaId) return null;
+    return await resolveMediaFileById(supabase, mediaId);
+  }
+  if (rows.length === 1) {
+    const mediaId = asTrimmedString(rows[0]?.media_file_id);
+    if (!mediaId) return null;
+    return await resolveMediaFileById(supabase, mediaId);
+  }
+  return null;
+};
+
 /**
  * Resolve the best available storage-backed download target for a reference output.
  */
@@ -266,7 +368,8 @@ export const resolveReferenceDownloadTarget = async ({
   supabase: SupabaseClient;
   projectId?: string | null;
 }): Promise<ResolvedReferenceDownloadTarget> => {
-  const directUrl = resolveDirectDownloadUrl(output);
+  const directUrlCandidates = resolveDirectDownloadUrlCandidates(output);
+  const directUrl = directUrlCandidates[0] ?? null;
   const generationId =
     asTrimmedString(output.generationId) ??
     (await resolveGenerationIdForRequestId({
@@ -280,10 +383,16 @@ export const resolveReferenceDownloadTarget = async ({
   if (shouldPreferCanonicalGeneratedOutputs && generationId) {
     let publicationFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
     try {
-      publicationFileRecord = await resolveLatestPublishedGenerationMediaFile({
-        supabase,
-        generationId,
-      });
+      publicationFileRecord = directUrlCandidates.length
+        ? await resolvePublishedGenerationMediaFileByUrlCandidates({
+            supabase,
+            generationId,
+            urlCandidates: directUrlCandidates,
+          })
+        : await resolveLatestPublishedGenerationMediaFile({
+            supabase,
+            generationId,
+          });
     } catch {
       publicationFileRecord = null;
     }
@@ -297,10 +406,13 @@ export const resolveReferenceDownloadTarget = async ({
 
     let canonicalGeneratedFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
     try {
-      canonicalGeneratedFileRecord = await resolveLatestMediaFileByCanonicalGenerationOutputs(
-        supabase,
-        generationId
-      );
+      canonicalGeneratedFileRecord = directUrlCandidates.length
+        ? await resolveCanonicalGeneratedFileRecordByUrlCandidates({
+            supabase,
+            generationId,
+            urlCandidates: directUrlCandidates,
+          })
+        : await resolveLatestMediaFileByCanonicalGenerationOutputs(supabase, generationId);
     } catch {
       canonicalGeneratedFileRecord = null;
     }
@@ -345,10 +457,16 @@ export const resolveReferenceDownloadTarget = async ({
   if (!shouldPreferCanonicalGeneratedOutputs) {
     let publicationFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
     try {
-      publicationFileRecord = await resolveLatestPublishedGenerationMediaFile({
-        supabase,
-        generationId,
-      });
+      publicationFileRecord = directUrlCandidates.length
+        ? await resolvePublishedGenerationMediaFileByUrlCandidates({
+            supabase,
+            generationId,
+            urlCandidates: directUrlCandidates,
+          })
+        : await resolveLatestPublishedGenerationMediaFile({
+            supabase,
+            generationId,
+          });
     } catch {
       publicationFileRecord = null;
     }
@@ -362,10 +480,13 @@ export const resolveReferenceDownloadTarget = async ({
 
     let canonicalGeneratedFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
     try {
-      canonicalGeneratedFileRecord = await resolveLatestMediaFileByCanonicalGenerationOutputs(
-        supabase,
-        generationId
-      );
+      canonicalGeneratedFileRecord = directUrlCandidates.length
+        ? await resolveCanonicalGeneratedFileRecordByUrlCandidates({
+            supabase,
+            generationId,
+            urlCandidates: directUrlCandidates,
+          })
+        : await resolveLatestMediaFileByCanonicalGenerationOutputs(supabase, generationId);
     } catch {
       canonicalGeneratedFileRecord = null;
     }

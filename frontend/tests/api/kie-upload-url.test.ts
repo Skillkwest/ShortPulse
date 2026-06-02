@@ -168,6 +168,52 @@ describe("POST /api/kie/upload-url", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("treats uppercase signed-query URLs as stream uploads", async () => {
+    const sourceBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+        arrayBuffer: async () => sourceBytes.buffer,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          msg: "File uploaded successfully",
+          data: {
+            downloadUrl: "https://tempfile.redpandaai.co/files/streamed-aws-image.png",
+            fileName: "streamed-aws-image.png",
+            mimeType: "image/png",
+          },
+        }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl:
+          "https://cdn.example.com/ref.png?X-Amz-Signature=abc123&X-Amz-Security-Token=session-token",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://cdn.example.com/ref.png?X-Amz-Signature=abc123&X-Amz-Security-Token=session-token"
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("returns the Kie URL upload failure without trying a secondary upload route", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: false,

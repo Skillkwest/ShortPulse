@@ -261,4 +261,37 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
     expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
   });
+
+  it("renders and routes richer detail actions for library media", () => {
+    const onDownloadItem = vi.fn();
+    const onDeleteItem = vi.fn();
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+    };
+    const item = createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png");
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={item}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onDownloadItem={onDownloadItem}
+        onDeleteItem={onDeleteItem}
+      />
+    );
+
+    const savedButton = screen.getByRole("button", { name: "Saved" });
+    expect(savedButton).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(onDownloadItem).toHaveBeenCalledWith(item);
+    expect(onDeleteItem).toHaveBeenCalledWith(item);
+  });
 });

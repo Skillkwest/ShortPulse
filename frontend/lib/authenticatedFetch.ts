@@ -11,6 +11,7 @@ export type ShortPulseFetchInit = RequestInit & {
   shortpulseSkipErrorLogging?: boolean;
   shortpulseAuthTimeoutMs?: number;
   shortpulseRetryNetworkOnce?: boolean;
+  shortpulseRetryAuth401?: boolean;
 };
 
 export const AUTH_SESSION_TIMEOUT_CODE = "AUTH_SESSION_TIMEOUT" as const;
@@ -152,6 +153,7 @@ export const fetchWithAuth = async (
   const scope = init?.shortpulseLogScope ?? "app";
   const skipErrorLogging = Boolean(init?.shortpulseSkipErrorLogging);
   const retryNetworkOnce = Boolean(init?.shortpulseRetryNetworkOnce);
+  const retryAuth401 = init?.shortpulseRetryAuth401 !== false;
 
   const headers = asHeaders(init?.headers);
   const callerProvidedAuthorization = headers.has("Authorization");
@@ -168,6 +170,7 @@ export const fetchWithAuth = async (
   delete (requestInit as ShortPulseFetchInit).shortpulseSkipErrorLogging;
   delete (requestInit as ShortPulseFetchInit).shortpulseAuthTimeoutMs;
   delete (requestInit as ShortPulseFetchInit).shortpulseRetryNetworkOnce;
+  delete (requestInit as ShortPulseFetchInit).shortpulseRetryAuth401;
   const startedAt = Date.now();
   const method = (requestInit.method ?? "GET").toString().toUpperCase();
   const breadcrumbEndpoint = redactUrlForTelemetry(endpoint);
@@ -180,7 +183,7 @@ export const fetchWithAuth = async (
 
   const executeWithAuthRefresh = async (): Promise<Response> => {
     let response = await executeRequest(headers);
-    if (response.status === 401 && !callerProvidedAuthorization) {
+    if (response.status === 401 && retryAuth401 && !callerProvidedAuthorization) {
       const refreshedToken = await readAccessToken({ timeoutMs, forceRefresh: true });
       if (refreshedToken) {
         const retryHeaders = new Headers(headers);

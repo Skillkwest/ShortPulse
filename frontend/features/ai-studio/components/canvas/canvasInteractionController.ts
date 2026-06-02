@@ -24,6 +24,20 @@ export const shouldCreateDraftFromPointerDetail = ({
   isSpacePanActive: boolean;
 }): boolean => button === 0 && !isSpacePanActive && detail >= 2;
 
+export const isCanvasEmptySpaceEventTarget = ({
+  target,
+  currentTarget,
+}: {
+  target: EventTarget | null;
+  currentTarget: EventTarget | null;
+}): boolean => {
+  if (!(currentTarget instanceof HTMLElement)) return false;
+  if (target === currentTarget) return true;
+  if (!(target instanceof Element)) return false;
+  if (!currentTarget.contains(target)) return false;
+  return target.closest(".canvas-scene-item") == null;
+};
+
 export const shouldSuppressDraftCreation = ({
   lastCreation,
   nextPoint,

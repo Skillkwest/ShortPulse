@@ -2,6 +2,7 @@ import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-l
 import { describe, expect, it, vi } from "vitest";
 import {
   CanvasHarness,
+  SeededCanvasHarness,
   DualCanvasHarness,
   createTransfer,
   mockViewportRect,
@@ -218,6 +219,69 @@ describe("Canvas interaction behavior", () => {
 
     expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
     expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+  });
+
+  it("opens shared media detail for non-text canvas items on double click", async () => {
+    const onOpenMediaDetail = vi.fn();
+    render(<CanvasHarness onOpenMediaDetail={onOpenMediaDetail} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "img-1",
+        "text/reference-output-id": "img-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    fireEvent.doubleClick(item);
+
+    expect(onOpenMediaDetail).toHaveBeenCalledTimes(1);
+    expect(onOpenMediaDetail.mock.calls[0]?.[0]).toMatchObject({
+      kind: "image",
+      outputId: "img-1",
+    });
+    expect(onOpenMediaDetail.mock.calls[0]?.[1]).toBe("main");
+  });
+
+  it("keeps text double click in text-edit mode", async () => {
+    render(
+      <SeededCanvasHarness
+        initialSessionState={{
+          items: [
+            {
+              id: "text-1",
+              kind: "text",
+              text: "Editable note",
+              x: 120,
+              y: 80,
+              z: 1,
+              selected: false,
+              outputId: null,
+              width: 220,
+              height: 72,
+            },
+          ],
+          draftTextEntry: null,
+          textEditSession: null,
+          draftOwnerInstanceId: null,
+          textEditOwnerInstanceId: null,
+          mainCamera: { x: 0, y: 0, zoom: 1 },
+          railCamera: { x: 0, y: 0, zoom: 1 },
+        }}
+      />
+    );
+
+    const item = await screen.findByTestId("canvas-item-text-1");
+    fireEvent.doubleClick(item);
+
+    expect(screen.getByTestId("canvas-text-edit-input")).toBeInTheDocument();
   });
 
   it("pans instead of dragging when Space is held while dragging over an item", async () => {
@@ -902,9 +966,9 @@ describe("Canvas interaction behavior", () => {
     const railItem = (railViewport as HTMLElement).querySelector('[data-testid^="canvas-item-"]');
     expect(mainItem).toBeTruthy();
     expect(railItem).toBeTruthy();
-    expect(mainItem?.getAttribute("data-x")).toBe("220");
+    expect(mainItem?.getAttribute("data-x")).toBe("90");
     expect(mainItem?.getAttribute("data-y")).toBe("140");
-    expect(railItem?.getAttribute("data-x")).toBe("220");
+    expect(railItem?.getAttribute("data-x")).toBe("90");
     expect(railItem?.getAttribute("data-y")).toBe("140");
 
     fireEvent.wheel(mainViewport as HTMLElement, {

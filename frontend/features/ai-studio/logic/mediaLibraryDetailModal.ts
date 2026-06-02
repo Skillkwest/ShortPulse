@@ -40,10 +40,10 @@ export type MediaLibraryDetailModalItem = SharedMediaDetailItemBase &
     capabilities: SharedMediaDetailCapabilities;
   };
 
-const MEDIA_LIBRARY_PREVIEW_ONLY_CAPABILITIES: SharedMediaDetailCapabilities = {
+const MEDIA_LIBRARY_DETAIL_CAPABILITIES: SharedMediaDetailCapabilities = {
   canSaveToLibrary: false,
-  canDownload: false,
-  canDelete: false,
+  canDownload: true,
+  canDelete: true,
   canEditPrompt: false,
   canSavePrompt: false,
   canShowCharacterContext: false,
@@ -94,10 +94,23 @@ export const createMediaLibraryDetailModalItem = ({
     fileId: file.id,
     surface,
   },
-  capabilities: MEDIA_LIBRARY_PREVIEW_ONLY_CAPABILITIES,
+  capabilities: MEDIA_LIBRARY_DETAIL_CAPABILITIES,
   media: {
     id: file.id,
     kind: fields.fileType === "audio" ? "audio" : fields.fileType === "video" ? "video" : "image",
     ...fields,
+  },
+  presentation: {
+    title: fields.filename?.trim() || file.filename || file.id,
+    kindLabel: fields.fileType,
+    topBarItems: [
+      { label: fields.fileType, className: "art-meta-item" },
+      {
+        label: fields.filename?.trim() || file.filename || file.id,
+        className: "art-meta-item art-meta-filename",
+        title: fields.filename?.trim() || file.filename || file.id,
+      },
+    ],
+    bladePlaceholder: "No prompt metadata available.",
   },
 });

@@ -1,11 +1,6 @@
 import React from "react";
 import { X } from "phosphor-react";
-
-export type SharedMediaDetailTopBarItem = {
-  label: string;
-  className?: string;
-  title?: string;
-};
+import type { SharedMediaDetailTopBarItem } from "./detailModalPlatformTypes";
 
 type SharedMediaDetailTopBarProps = {
   items: SharedMediaDetailTopBarItem[];

@@ -36,13 +36,20 @@ import {
 } from "./detail-modal/detailModalPreviewAuthority";
 import { SharedMediaDetailPreviewMedia } from "./detail-modal/SharedMediaDetailPreviewMedia";
 import { SharedMediaDetailContentLayout } from "./detail-modal/SharedMediaDetailContentLayout";
+import { SharedMediaDetailActionBar } from "./detail-modal/SharedMediaDetailActionBar";
 import { SharedMediaDetailInfoPanel } from "./detail-modal/SharedMediaDetailInfoPanel";
 import { SharedMediaDetailModalShell } from "./detail-modal/SharedMediaDetailModalShell";
+import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedMediaDetailActions";
+import { SharedMediaDetailTopBar } from "./detail-modal/SharedMediaDetailTopBar";
+import type {
+  SharedMediaDetailActionItem,
+  SharedMediaDetailTopBarItem,
+} from "./detail-modal/detailModalPlatformTypes";
 import {
-  SharedMediaDetailTopBar,
-  type SharedMediaDetailTopBarItem,
-} from "./detail-modal/SharedMediaDetailTopBar";
-import { resolveSharedMediaDetailBladeContent } from "./detail-modal/sharedMediaDetailPresentation";
+  resolveSharedMediaDetailBladeContent,
+  resolveSharedMediaDetailBladePlaceholder,
+  resolveSharedMediaDetailTopBarItems,
+} from "./detail-modal/sharedMediaDetailPresentation";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -403,7 +410,7 @@ function DetailModalContent({
         : "Image"
     : "Prompt";
   const isPromptOnly = output?.mode === "text" && !displayPreviewUrl;
-  const detailModalItem = useMemo(
+  const baseDetailModalItem = useMemo(
     () =>
       createStudioOutputDetailModalItem({
         output,
@@ -412,7 +419,7 @@ function DetailModalContent({
     [onSavePrompt, output]
   );
   const characterContext = output?.characterContext;
-  const hasCharacterContext = detailModalItem.capabilities.canShowCharacterContext;
+  const hasCharacterContext = baseDetailModalItem.capabilities.canShowCharacterContext;
   const characterName =
     characterContext?.characterName?.trim() ||
     characterContext?.characterId?.trim() ||
@@ -420,7 +427,7 @@ function DetailModalContent({
   const characterLookName =
     characterContext?.lookName?.trim() || characterContext?.lookId?.trim() || "";
   const styleContext = output?.styleContext;
-  const hasStyleContext = detailModalItem.capabilities.canShowStyleContext;
+  const hasStyleContext = baseDetailModalItem.capabilities.canShowStyleContext;
   const styleName =
     styleContext?.styleName?.trim() ||
     styleContext?.styleId?.trim() ||
@@ -602,25 +609,15 @@ function DetailModalContent({
   const isPromptOnlySaved = Boolean(outputId && promptOnlySavedOutputId === outputId);
   const isPromptLibrarySaved = Boolean(outputId && promptLibrarySavedOutputId === outputId);
   const mediaSaveState = output?.saveState ?? "idle";
-  const canSaveReferenceMedia = detailModalItem.capabilities.canSaveToLibrary;
-  const canDownloadReferenceMedia = detailModalItem.capabilities.canDownload;
+  const canSaveReferenceMedia = baseDetailModalItem.capabilities.canSaveToLibrary;
+  const canDownloadReferenceMedia = baseDetailModalItem.capabilities.canDownload;
   const isMediaSaveButtonVisible = Boolean(
     !isPromptOnly && displayPreviewUrl && outputId && onSaveReference && canSaveReferenceMedia
   );
-  const isMediaSaved = mediaSaveState === "saved";
   const isMediaSaveDisabled =
     isMediaStorageFull || mediaSaveState === "saving" || mediaSaveState === "saved";
-  const mediaSaveLabel = isMediaStorageFull
-    ? "Storage Full"
-    : mediaSaveState === "saving"
-      ? "Saving..."
-      : mediaSaveState === "saved"
-        ? "Saved"
-        : mediaSaveState === "blocked_storage" || mediaSaveState === "failed"
-          ? "Retry Save"
-          : "Save";
 
-  const isPromptEditable = detailModalItem.capabilities.canEditPrompt;
+  const isPromptEditable = baseDetailModalItem.capabilities.canEditPrompt;
   const trimmedPrompt = draftPrompt.trim();
   const hasPromptEdits = trimmedPrompt !== displayPromptText.trim();
   const canSave = useMemo(
@@ -922,11 +919,11 @@ function DetailModalContent({
   const bladeContent = useMemo(
     () =>
       resolveSharedMediaDetailBladeContent({
-        item: detailModalItem,
+        item: baseDetailModalItem,
         promptTextOverride: draftPrompt,
         transcriptTextOverride: generatedVoiceChangerTranscript,
       }),
-    [detailModalItem, draftPrompt, generatedVoiceChangerTranscript]
+    [baseDetailModalItem, draftPrompt, generatedVoiceChangerTranscript]
   );
   const displayModelLabel = useMemo(() => {
     if (isUploadedReference) return null;
@@ -998,8 +995,36 @@ function DetailModalContent({
       uploadedHeaderFilename,
     ]
   );
+  const detailModalItem = useMemo(
+    () =>
+      createStudioOutputDetailModalItem({
+        output,
+        canSavePrompt: Boolean(onSavePrompt),
+        presentation: {
+          title:
+            uploadedHeaderFilename ??
+            displayPromptText.trim() ??
+            output.previewText?.trim() ??
+            output.id,
+          kindLabel: mediaType.toLowerCase(),
+          topBarItems: sharedTopBarItems,
+          bladePlaceholder: generatedVoiceChangerTranscript
+            ? "No transcript metadata available."
+            : "No prompt metadata available.",
+        },
+      }),
+    [
+      displayPromptText,
+      generatedVoiceChangerTranscript,
+      mediaType,
+      onSavePrompt,
+      output,
+      sharedTopBarItems,
+      uploadedHeaderFilename,
+    ]
+  );
 
-  const handleSavePrompt = () => {
+  const handleSavePrompt = useCallback(() => {
     if (!trimmedPrompt) return;
     if (isPromptEditable && output?.id && hasPromptEdits) {
       onUpdatePrompt(output.id, draftPrompt);
@@ -1008,9 +1033,17 @@ function DetailModalContent({
     if (onSavePrompt) {
       onSavePrompt(draftPrompt);
     }
-  };
+  }, [
+    draftPrompt,
+    hasPromptEdits,
+    isPromptEditable,
+    onSavePrompt,
+    onUpdatePrompt,
+    output,
+    trimmedPrompt,
+  ]);
 
-  const handleSavePromptToLibrary = () => {
+  const handleSavePromptToLibrary = useCallback(() => {
     if (!trimmedPrompt || !onSavePrompt) return;
     onSavePrompt(draftPrompt);
     if (!outputId) return;
@@ -1021,7 +1054,7 @@ function DetailModalContent({
       setPromptLibrarySavedOutputId((current) => (current === outputId ? null : current));
       promptLibrarySavedTimerRef.current = null;
     }, 1400);
-  };
+  }, [clearPromptLibrarySavedTimer, draftPrompt, onSavePrompt, outputId, trimmedPrompt]);
 
   const handlePromptOnlySaveAndClose = () => {
     if (!canSave || !isPromptEditable || isPromptOnlySaved) return;
@@ -1054,19 +1087,19 @@ function DetailModalContent({
     }));
   };
 
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
     if (output?.id && onDownloadReference) {
       onDownloadReference(output.id);
       return;
     }
     if (!displayPreviewUrl || typeof window === "undefined") return;
     downloadUrlToFile(displayPreviewUrl, downloadFilename);
-  };
+  }, [displayPreviewUrl, downloadFilename, onDownloadReference, output]);
 
-  const handleSaveMediaReference = () => {
+  const handleSaveMediaReference = useCallback(() => {
     if (!outputId || !onSaveReference || isMediaSaveDisabled) return;
     onSaveReference(outputId);
-  };
+  }, [isMediaSaveDisabled, onSaveReference, outputId]);
 
   const handlePreviewAspectLoad = useCallback(
     (width: number, height: number) => {
@@ -1225,9 +1258,9 @@ function DetailModalContent({
       } as React.CSSProperties)
     : undefined;
 
-  const handleRequestDelete = () => {
+  const handleRequestDelete = useCallback(() => {
     setDeleteConfirmOutputId(outputId);
-  };
+  }, [outputId]);
 
   const handleCancelDelete = () => {
     setDeleteConfirmOutputId(null);
@@ -1238,6 +1271,62 @@ function DetailModalContent({
     setDeleteConfirmOutputId(null);
     handleCloseModal();
   };
+
+  const sharedMediaActionItems = useMemo<SharedMediaDetailActionItem[]>(
+    () =>
+      resolveSharedMediaDetailMediaActionItems({
+        saveState: isMediaSaveButtonVisible ? mediaSaveState : "hidden",
+        isStorageFull: isMediaStorageFull,
+        onSaveToLibrary: handleSaveMediaReference,
+        canDownload: Boolean(displayPreviewUrl && canDownloadReferenceMedia),
+        onDownload: handleDownload,
+        canDelete: true,
+        onDelete: handleRequestDelete,
+        deleteIcon: <TrashSimple size={16} weight="bold" aria-hidden />,
+      }),
+    [
+      canDownloadReferenceMedia,
+      displayPreviewUrl,
+      handleDownload,
+      handleRequestDelete,
+      handleSaveMediaReference,
+      isMediaSaveButtonVisible,
+      isMediaStorageFull,
+      mediaSaveState,
+    ]
+  );
+
+  const sharedPromptActionItems = useMemo<SharedMediaDetailActionItem[]>(
+    () => [
+      ...(detailModalItem.capabilities.canSavePrompt && onSavePrompt
+        ? [
+            {
+              id: "save-prompt",
+              label: isPromptLibrarySaved ? "Saved" : "Save Prompt",
+              onClick: handleSavePromptToLibrary,
+              disabled: !trimmedPrompt || isPromptLibrarySaved,
+              intent: "save" as const,
+              state: isPromptLibrarySaved ? ("saved" as const) : ("default" as const),
+            },
+          ]
+        : []),
+      {
+        id: "delete-prompt-output",
+        label: "Delete",
+        onClick: handleRequestDelete,
+        intent: "danger",
+        icon: <TrashSimple size={16} weight="bold" aria-hidden />,
+      },
+    ],
+    [
+      detailModalItem.capabilities.canSavePrompt,
+      handleRequestDelete,
+      handleSavePromptToLibrary,
+      isPromptLibrarySaved,
+      onSavePrompt,
+      trimmedPrompt,
+    ]
+  );
 
   return (
     <SharedMediaDetailModalShell
@@ -1262,42 +1351,16 @@ function DetailModalContent({
         <SharedMediaDetailContentLayout
           topBar={
             <SharedMediaDetailTopBar
-              items={sharedTopBarItems}
+              items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
               actions={
-                <>
-                  {isMediaSaveButtonVisible ? (
-                    <button
-                      type="button"
-                      className={`art-action-btn art-action-btn-save ${isMediaSaved ? "is-saved" : ""}`}
-                      onClick={handleSaveMediaReference}
-                      disabled={isMediaSaveDisabled}
-                      title="Save to media library"
-                    >
-                      {mediaSaveLabel}
-                    </button>
-                  ) : null}
-                  {isMediaStorageFull && isMediaSaveButtonVisible ? (
-                    <p className="tiny subdued">{MEDIA_STORAGE_FULL_USER_MESSAGE}</p>
-                  ) : null}
-                  {displayPreviewUrl && canDownloadReferenceMedia ? (
-                    <button
-                      type="button"
-                      className="art-action-btn"
-                      onClick={handleDownload}
-                      title="Download"
-                    >
-                      Download
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="art-action-btn art-action-btn-danger"
-                    onClick={handleRequestDelete}
-                  >
-                    <TrashSimple size={16} weight="bold" aria-hidden />
-                    Delete
-                  </button>
-                </>
+                <SharedMediaDetailActionBar
+                  items={sharedMediaActionItems}
+                  notice={
+                    isMediaStorageFull && isMediaSaveButtonVisible ? (
+                      <p className="tiny subdued">{MEDIA_STORAGE_FULL_USER_MESSAGE}</p>
+                    ) : null
+                  }
+                />
               }
               onClose={handleCloseModal}
             />
@@ -1414,6 +1477,7 @@ function DetailModalContent({
               readOnly={!isPromptEditable}
               rows={3}
               textareaRef={promptTextareaRef}
+              placeholder={resolveSharedMediaDetailBladePlaceholder(detailModalItem)}
               onChange={handlePromptChange}
             />
           }
@@ -1424,24 +1488,7 @@ function DetailModalContent({
         <div className="art-prompt-only-header">
           <span className="reference-filename">Prompt</span>
           <div className="art-modal-action-row">
-            {detailModalItem.capabilities.canSavePrompt && onSavePrompt ? (
-              <button
-                type="button"
-                className={`art-action-btn prompt-save-modal-btn ${isPromptLibrarySaved ? "is-saved" : ""}`}
-                onClick={handleSavePromptToLibrary}
-                disabled={!trimmedPrompt || isPromptLibrarySaved}
-              >
-                {isPromptLibrarySaved ? "Saved" : "Save Prompt"}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="art-action-btn art-action-btn-danger"
-              onClick={handleRequestDelete}
-            >
-              <TrashSimple size={16} weight="bold" aria-hidden />
-              Delete
-            </button>
+            <SharedMediaDetailActionBar items={sharedPromptActionItems} />
             <button type="button" className="art-close-btn" onClick={handleCloseModal}>
               ×
             </button>

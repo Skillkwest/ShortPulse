@@ -485,7 +485,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(systemMessage).toContain("Current model id: gpt-image-2");
   });
 
-  it("adds Standard reply-behavior guidance for follow-up and prompt-focused turns", async () => {
+  it("adds Standard reply-behavior guidance for follow-up and assistant-output-focused turns", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -506,7 +506,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         context: {
           activePrompt: "Premium editorial portrait in soft golden-hour light.",
           modeHint: "reference",
-          focusedSource: "prompt",
+          focusedSource: "agent-output",
           lastAssistantMessage: "Would you like this to feel softer or more dramatic?",
         },
       },
@@ -527,7 +527,13 @@ describe("AI Studio Create agent runtime boundaries", () => {
 
     expect(systemMessage).toContain("Standard reply behavior:");
     expect(systemMessage).toContain(
-      "Treat the latest user turn as a likely answer and continue from it instead of restarting the conversation."
+      "Use the conversation's Standard session memory to preserve active goals, constraints, and accepted prompt direction, but do not quote that memory block verbatim."
+    );
+    expect(systemMessage).toContain(
+      "When the latest user turn already gives enough direction to continue, prefer a concrete refinement over another clarifying question."
+    );
+    expect(systemMessage).toContain(
+      "The previous assistant turn ended with a question, but the latest user turn is a direct revision request. Apply that revision to the current direction instead of treating it like a short answer."
     );
     expect(systemMessage).toContain(
       "Reference mode is active. Use the referenced prompts or images when they are relevant"

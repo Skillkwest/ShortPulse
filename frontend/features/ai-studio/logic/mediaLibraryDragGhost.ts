@@ -21,6 +21,12 @@ const FOLDER_GHOST_HEIGHT_PX = 104;
 const GHOST_SNAPSHOT_WIDTH = 384;
 const GHOST_SNAPSHOT_HEIGHT = 480;
 const GHOST_SNAPSHOT_QUALITY = 0.08;
+type MediaLibraryDragGhostTemplate = "media" | "prompt" | "folder";
+type MediaLibraryDragGhostPreviewKind = "image" | "video" | "audio";
+
+const LIKELY_IMAGE_URL_PATTERN =
+  /^(?:data:image\/|blob:|https?:\/\/.*\.(?:avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:$|[?#]))/i;
+
 const trimGhostText = (value: string | null | undefined): string => {
   const normalized = (value ?? "").trim();
   if (!normalized) return "";
@@ -62,16 +68,21 @@ const createGhostSnapshotSrc = (imageNode: HTMLImageElement | null): string | nu
   }
 };
 
-const resolveGhostPreviewUrl = (
-  node: HTMLElement,
-  previewKind: "image" | "video" | "text" | "folder" | undefined,
-  providedPreviewUrl: string | null | undefined
-): string | null => {
-  if (previewKind === "video" || previewKind === "text") {
-    const normalized = (providedPreviewUrl ?? "").trim();
-    return normalized || null;
+const resolveGhostPreviewUrl = ({
+  node,
+  template,
+  previewKind,
+  providedPreviewUrl,
+}: {
+  node: HTMLElement;
+  template: MediaLibraryDragGhostTemplate;
+  previewKind?: MediaLibraryDragGhostPreviewKind;
+  providedPreviewUrl?: string | null;
+}): string | null => {
+  if (template === "prompt") {
+    return null;
   }
-  if (previewKind === "folder") {
+  if (template === "folder") {
     const folderImageNode =
       node.querySelector("img.media-library-panel-folder-chip-image") ??
       node
@@ -86,6 +97,10 @@ const resolveGhostPreviewUrl = (
       const normalizedRenderedSrc = renderedSrc.trim();
       if (normalizedRenderedSrc) return normalizedRenderedSrc;
     }
+    const normalized = (providedPreviewUrl ?? "").trim();
+    return normalized || null;
+  }
+  if (previewKind === "video") {
     const normalized = (providedPreviewUrl ?? "").trim();
     return normalized || null;
   }
@@ -104,6 +119,9 @@ const resolveGhostPreviewUrl = (
   const normalized = (providedPreviewUrl ?? "").trim();
   return normalized || null;
 };
+
+const isLikelyImagePreviewUrl = (value: string | null | undefined): boolean =>
+  Boolean(value && LIKELY_IMAGE_URL_PATTERN.test(value.trim()));
 
 const removeExistingGhost = (node: HTMLElement | null | undefined): void => {
   if (!node) return;
@@ -135,6 +153,7 @@ const buildGhostNode = ({
   label,
   detail,
   previewUrl,
+  template,
   previewKind,
 }: {
   ghostWidth: number;
@@ -142,34 +161,35 @@ const buildGhostNode = ({
   label: string;
   detail?: string | null;
   previewUrl?: string | null;
-  previewKind?: "image" | "video" | "text" | "folder";
+  template: MediaLibraryDragGhostTemplate;
+  previewKind?: MediaLibraryDragGhostPreviewKind;
 }): HTMLDivElement => {
   const ghost = document.createElement("div");
   ghost.className =
-    previewKind === "folder"
+    template === "folder"
       ? "media-library-drag-ghost media-library-drag-ghost--folder"
       : "media-library-drag-ghost reference-drag-ghost";
   ghost.style.width = `${ghostWidth}px`;
   ghost.style.height = `${ghostHeight}px`;
-  ghost.style.aspectRatio = previewKind === "folder" ? "118 / 104" : "4 / 5";
+  ghost.style.aspectRatio = template === "folder" ? "118 / 104" : "4 / 5";
   ghost.style.boxSizing = "border-box";
   ghost.style.position = "absolute";
   ghost.style.top = "-9999px";
   ghost.style.left = "-9999px";
   ghost.style.overflow = "hidden";
-  ghost.style.borderRadius = previewKind === "folder" ? "0" : "6px";
+  ghost.style.borderRadius = template === "folder" ? "0" : "6px";
   ghost.style.border = "none";
-  ghost.style.background = previewKind === "folder" ? "transparent" : "rgba(37, 41, 47, 0.64)";
+  ghost.style.background = template === "folder" ? "transparent" : "rgba(37, 41, 47, 0.64)";
   ghost.style.pointerEvents = "none";
   ghost.style.display = "flex";
   ghost.style.flexDirection = "column";
-  ghost.style.justifyContent = previewKind === "folder" ? "flex-start" : "space-between";
-  ghost.style.alignItems = previewKind === "folder" ? "center" : "";
-  ghost.style.gap = previewKind === "folder" ? "6px" : "";
-  ghost.style.boxShadow = previewKind === "folder" ? "none" : "0 12px 30px rgba(0,0,0,0.45)";
+  ghost.style.justifyContent = template === "folder" ? "flex-start" : "space-between";
+  ghost.style.alignItems = template === "folder" ? "center" : "";
+  ghost.style.gap = template === "folder" ? "6px" : "";
+  ghost.style.boxShadow = template === "folder" ? "none" : "0 12px 30px rgba(0,0,0,0.45)";
 
   const safePreviewUrl = (previewUrl ?? "").trim();
-  if (previewKind === "folder") {
+  if (template === "folder") {
     if (safePreviewUrl) {
       const image = document.createElement("img");
       image.src = safePreviewUrl;
@@ -198,7 +218,20 @@ const buildGhostNode = ({
     return ghost;
   }
 
-  if (safePreviewUrl && previewKind !== "video") {
+  if (safePreviewUrl && previewKind === "image") {
+    const image = document.createElement("img");
+    image.src = safePreviewUrl;
+    image.alt = "";
+    image.draggable = false;
+    image.style.width = "100%";
+    image.style.height = "100%";
+    image.style.objectFit = "cover";
+    image.style.display = "block";
+    ghost.appendChild(image);
+    return ghost;
+  }
+
+  if (safePreviewUrl && previewKind === "audio" && isLikelyImagePreviewUrl(safePreviewUrl)) {
     const image = document.createElement("img");
     image.src = safePreviewUrl;
     image.alt = "";
@@ -247,31 +280,34 @@ export const attachMediaLibraryDragGhost = (
     label: string;
     detail?: string | null;
     previewUrl?: string | null;
-    previewKind?: "image" | "video" | "text" | "folder";
+    previewKind?: MediaLibraryDragGhostPreviewKind;
+    template?: MediaLibraryDragGhostTemplate;
   }
 ): void => {
   const node = event.currentTarget as HTMLElement;
   removeExistingGhost(node);
   try {
+    const template = options.template ?? "media";
     const ghostWidth =
-      options.previewKind === "folder"
+      template === "folder"
         ? FOLDER_GHOST_WIDTH_PX
-        : options.previewKind === "text"
+        : template === "prompt"
           ? CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX
           : DRAG_GHOST_WIDTH_PX;
     const ghostHeight =
-      options.previewKind === "folder"
+      template === "folder"
         ? FOLDER_GHOST_HEIGHT_PX
-        : options.previewKind === "text"
+        : template === "prompt"
           ? CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX
           : DRAG_GHOST_HEIGHT_PX;
-    const resolvedPreviewUrl = resolveGhostPreviewUrl(
+    const resolvedPreviewUrl = resolveGhostPreviewUrl({
       node,
-      options.previewKind,
-      options.previewUrl
-    );
+      template,
+      previewKind: options.previewKind,
+      providedPreviewUrl: options.previewUrl,
+    });
     const ghost =
-      options.previewKind === "text"
+      template === "prompt"
         ? buildCanvasPromptDragGhost({
             label: options.label,
             detail: options.detail,
@@ -279,13 +315,14 @@ export const attachMediaLibraryDragGhost = (
           })
         : buildGhostNode({
             ...options,
+            template,
             previewUrl: resolvedPreviewUrl,
             ghostWidth,
             ghostHeight,
           });
     document.body.appendChild(ghost);
-    const dragImageOffsetX = options.previewKind === "text" ? CANVAS_PROMPT_DRAG_HOTSPOT_X : 12;
-    const dragImageOffsetY = options.previewKind === "text" ? CANVAS_PROMPT_DRAG_HOTSPOT_Y : 12;
+    const dragImageOffsetX = template === "prompt" ? CANVAS_PROMPT_DRAG_HOTSPOT_X : 12;
+    const dragImageOffsetY = template === "prompt" ? CANVAS_PROMPT_DRAG_HOTSPOT_Y : 12;
     if (safeSetDragImage(event.dataTransfer, ghost, dragImageOffsetX, dragImageOffsetY)) {
       dragGhostMap.set(node, ghost);
       return;
@@ -294,7 +331,7 @@ export const attachMediaLibraryDragGhost = (
       ghost.parentNode.removeChild(ghost);
     }
     const fallbackGhost =
-      options.previewKind === "text"
+      template === "prompt"
         ? buildCanvasPromptDragGhost({
             label: options.label,
             detail: options.detail,
@@ -302,6 +339,7 @@ export const attachMediaLibraryDragGhost = (
           })
         : buildGhostNode({
             ...options,
+            template,
             previewUrl: null,
             ghostWidth,
             ghostHeight,

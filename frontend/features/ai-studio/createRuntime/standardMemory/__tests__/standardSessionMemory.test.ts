@@ -64,6 +64,7 @@ describe("standardSessionMemory", () => {
       latestUserIntent: "Need a moody portrait.",
       latestAssistantCommitment: "Here is a first direction.",
       currentTask: "Need a moody portrait.",
+      historicalUserGoals: [],
       constraints: ["keep the lighting dramatic"],
       decisionsMade: [
         "A reusable prompt is available.",
@@ -293,6 +294,7 @@ describe("standardSessionMemory", () => {
     });
 
     expect(memory.workingState.openQuestions).toEqual(["Which audience should this target first?"]);
+    expect(memory.workingState.historicalUserGoals).toEqual([]);
     expect(memory.workingState.referencesInPlay).toEqual([
       "image attachments",
       "reference-authored prompt",
@@ -325,8 +327,86 @@ describe("standardSessionMemory", () => {
 
     expect(memory.workingState.latestUserIntent).toBe("Adults 25-34.");
     expect(memory.workingState.currentTask).toBe("Help me shape this ad concept.");
+    expect(memory.workingState.historicalUserGoals).toEqual([]);
     expect(memory.workingState.openQuestions).toEqual([]);
     expect(memory.workingState.nextBestAction).toBe("Refine or generate from the accepted prompt.");
     expect(memory.summary.text).not.toContain("Open questions:");
+  });
+
+  it("recalls older substantive user goals when the bounded transcript window mostly contains short follow-up answers", () => {
+    const memory = buildStandardSessionMemory({
+      messages: [
+        createMessage({
+          id: "user-goal-1",
+          role: "user",
+          content: "Help me shape a premium skincare launch campaign for adults 25-34.",
+        }),
+        createMessage({
+          id: "assistant-1",
+          role: "assistant",
+          content: "Should the tone feel more clinical or more luxurious?",
+        }),
+        createMessage({ id: "user-2", role: "user", content: "More luxurious." }),
+        createMessage({
+          id: "assistant-2",
+          role: "assistant",
+          content: "What should the hero visual emphasize?",
+        }),
+        createMessage({ id: "user-3", role: "user", content: "Texture." }),
+        createMessage({ id: "assistant-3", role: "assistant", content: "Any color direction?" }),
+        createMessage({ id: "user-4", role: "user", content: "Warm neutrals." }),
+        createMessage({
+          id: "assistant-4",
+          role: "assistant",
+          content: "Should copy be minimal?",
+        }),
+        createMessage({ id: "user-5", role: "user", content: "Yes." }),
+        createMessage({
+          id: "assistant-5",
+          role: "assistant",
+          content: "What audience should this target first?",
+        }),
+        createMessage({ id: "user-6", role: "user", content: "Adults 25-34." }),
+      ],
+      latestPromptArtifact:
+        "Luxury skincare launch campaign with warm neutral palette and tactile product textures",
+      promptOrigin: "reference",
+    });
+
+    expect(memory.workingState.currentTask).toBe(
+      "Help me shape a premium skincare launch campaign for adults 25-34."
+    );
+    expect(memory.workingState.historicalUserGoals).toEqual([
+      "Help me shape a premium skincare launch campaign for adults 25-34.",
+    ]);
+    expect(memory.summary.text).toContain(
+      "Earlier user goals to consider: Help me shape a premium skincare launch campaign for adults 25-34."
+    );
+  });
+
+  it("keeps short imperative pivots as the active task instead of treating them like answered follow-ups", () => {
+    const memory = buildStandardSessionMemory({
+      messages: [
+        createMessage({
+          id: "user-1",
+          role: "user",
+          content: "Help me shape a premium skincare launch campaign for adults 25-34.",
+        }),
+        createMessage({
+          id: "assistant-1",
+          role: "assistant",
+          content: "What audience should this target first?",
+        }),
+        createMessage({ id: "user-2", role: "user", content: "Make it darker." }),
+      ],
+      latestPromptArtifact:
+        "Luxury skincare launch campaign with warm neutral palette and tactile product textures",
+      promptOrigin: "reference",
+    });
+
+    expect(memory.workingState.latestUserIntent).toBe("Make it darker.");
+    expect(memory.workingState.currentTask).toBe("Make it darker.");
+    expect(memory.workingState.historicalUserGoals).toEqual([]);
+    expect(memory.summary.text).not.toContain("Earlier user goals to consider:");
   });
 });

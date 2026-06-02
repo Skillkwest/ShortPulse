@@ -460,7 +460,7 @@ export const useCanvasSharedSceneState = ({
               : (textDimensions?.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT);
       const pendingX =
         resolved.kind === "text"
-          ? Math.round(worldX * 100) / 100
+          ? Math.round((worldX - pendingWidth / 2) * 100) / 100
           : Math.round((worldX - pendingWidth / 2) * 100) / 100;
       const pendingY =
         resolved.kind === "text"
@@ -500,7 +500,7 @@ export const useCanvasSharedSceneState = ({
           const nextItems = clearCanvasSceneSelection(currentItems);
           const offsetX =
             resolved.kind === "text"
-              ? 0
+              ? (textDimensions?.width ?? CANVAS_TEXT_ITEM_WIDTH) / 2
               : resolved.kind === "image"
                 ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
                 : resolved.kind === "video"

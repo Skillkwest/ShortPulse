@@ -25,6 +25,10 @@ describe("Standard memory eval cases", () => {
         expect(memory.workingState.currentTask).toBe(testCase.expect.currentTask ?? null);
       }
 
+      for (const item of testCase.expect.historicalUserGoalsIncludes ?? []) {
+        expect(memory.workingState.historicalUserGoals).toContain(item);
+      }
+
       if (testCase.expect.openQuestions) {
         expect(memory.workingState.openQuestions).toEqual(testCase.expect.openQuestions);
       }

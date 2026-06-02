@@ -107,7 +107,7 @@ describe("mediaLibraryDragGhost", () => {
     attachMediaLibraryDragGhost(event, {
       label: "Prompt One",
       detail: "A cinematic, dramatic low-key studio portrait.",
-      previewKind: "text",
+      template: "prompt",
     });
 
     expect(setDragImage).toHaveBeenCalledTimes(1);
@@ -126,6 +126,33 @@ describe("mediaLibraryDragGhost", () => {
     node.remove();
   });
 
+  it("keeps audio ghosts on the shared media-card template instead of the prompt template", () => {
+    const node = document.createElement("button");
+    document.body.appendChild(node);
+    setNodeRect(node, 220, 260);
+    const setDragImage = vi.fn();
+    const event = createDragEvent(node, setDragImage);
+
+    attachMediaLibraryDragGhost(event, {
+      label: "Audio One",
+      detail: "Warm analog synth loop",
+      previewUrl: "https://cdn.example.com/audio-cover.webp",
+      previewKind: "audio",
+    });
+
+    expect(setDragImage).toHaveBeenCalledTimes(1);
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement;
+    expect(ghost.querySelector("img")?.getAttribute("src")).toBe(
+      "https://cdn.example.com/audio-cover.webp"
+    );
+    expect(ghost.style.width).toBe("96px");
+    expect(ghost.style.height).toBe("120px");
+    expect(setDragImage).toHaveBeenCalledWith(ghost, 12, 12);
+
+    clearMediaLibraryDragGhost(node);
+    node.remove();
+  });
+
   it("builds a folder ghost using the folder artwork and label instead of the reference-card shell", () => {
     const node = document.createElement("button");
     const folderImage = document.createElement("img");
@@ -139,7 +166,7 @@ describe("mediaLibraryDragGhost", () => {
 
     attachMediaLibraryDragGhost(event, {
       label: "The Witch",
-      previewKind: "folder",
+      template: "folder",
     });
 
     expect(setDragImage).toHaveBeenCalledTimes(1);

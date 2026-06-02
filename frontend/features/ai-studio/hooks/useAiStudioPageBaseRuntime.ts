@@ -20,6 +20,7 @@ import { useAiStudioSessionIdentity } from "./useAiStudioSessionIdentity";
 import { useActiveModelPricingPolicy } from "./useActiveModelPricingPolicy";
 import { useAiStudioCharacterPanelUploadBridge } from "./useAiStudioCharacterPanelUploadBridge";
 import { isEditWorkflow } from "../logic/workflowIdentity";
+import { createCanvasDetailModalItem } from "../logic/canvasDetailModal";
 import {
   PERF_FLAG_AUDIT_RUNTIME,
   PERF_FLAG_OUTPUT_SELECTOR_STORE,
@@ -358,8 +359,20 @@ export const useAiStudioPageBaseRuntime = () => {
     ingestReferenceFiles,
     reorderCuratedReference,
     setActiveOutputId,
+    setDetailSelectionTarget,
     setUiError,
   });
+  const sharedDetailModalItem = useMemo(() => {
+    if (detailSelectionTarget?.kind !== "canvas-item") return null;
+    const item = canvasSessionState.items.find(
+      (candidate) => candidate.id === detailSelectionTarget.itemId
+    );
+    if (!item) return null;
+    return createCanvasDetailModalItem({
+      item,
+      instanceId: detailSelectionTarget.instanceId,
+    });
+  }, [canvasSessionState.items, detailSelectionTarget]);
   const {
     inFlightOutputIds,
     resolvePanelOutputPreviewUrl,
@@ -494,6 +507,7 @@ export const useAiStudioPageBaseRuntime = () => {
     currentModelLabel,
     deleteOutput,
     detailOutput,
+    sharedDetailModalItem,
     detailSelectionTarget,
     editIsGenerating,
     editReferenceText,

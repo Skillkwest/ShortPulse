@@ -21,6 +21,7 @@ export type StandardMemoryEvalCase = {
     lastAcceptedPrompt: string | null;
     nextBestAction: string | null;
     currentTask?: string | null;
+    historicalUserGoalsIncludes?: string[];
     openQuestions?: string[];
     constraintsIncludes?: string[];
     referencesInPlayIncludes?: string[];
@@ -155,6 +156,91 @@ export const STANDARD_MEMORY_EVAL_CASES: StandardMemoryEvalCase[] = [
       ],
     },
   },
+  {
+    id: "historical-goal-recall-across-window",
+    goal: "Recall an older substantive user goal when the recent transcript window mostly contains follow-up answers.",
+    input: {
+      messages: [
+        createMessage({
+          id: "user-goal-1",
+          role: "user",
+          content: "Help me shape a premium skincare launch campaign for adults 25-34.",
+        }),
+        createMessage({
+          id: "assistant-1",
+          role: "assistant",
+          content: "Should the tone feel more clinical or more luxurious?",
+        }),
+        createMessage({ id: "user-2", role: "user", content: "More luxurious." }),
+        createMessage({
+          id: "assistant-2",
+          role: "assistant",
+          content: "What should the hero visual emphasize?",
+        }),
+        createMessage({ id: "user-3", role: "user", content: "Texture." }),
+        createMessage({ id: "assistant-3", role: "assistant", content: "Any color direction?" }),
+        createMessage({ id: "user-4", role: "user", content: "Warm neutrals." }),
+        createMessage({ id: "assistant-4", role: "assistant", content: "Should copy be minimal?" }),
+        createMessage({ id: "user-5", role: "user", content: "Yes." }),
+        createMessage({
+          id: "assistant-5",
+          role: "assistant",
+          content: "What audience should this target first?",
+        }),
+        createMessage({ id: "user-6", role: "user", content: "Adults 25-34." }),
+      ],
+      latestPromptArtifact:
+        "Luxury skincare launch campaign with warm neutral palette and tactile product textures",
+      promptOrigin: "reference",
+    },
+    expect: {
+      lastAcceptedPrompt:
+        "Luxury skincare launch campaign with warm neutral palette and tactile product textures",
+      nextBestAction: "Refine or generate from the accepted prompt.",
+      currentTask: "Help me shape a premium skincare launch campaign for adults 25-34.",
+      historicalUserGoalsIncludes: [
+        "Help me shape a premium skincare launch campaign for adults 25-34.",
+      ],
+      openQuestions: [],
+      decisionsMadeIncludes: [
+        "A reusable prompt is available.",
+        "The current prompt source is references.",
+      ],
+    },
+  },
+  {
+    id: "short-imperative-pivot-stays-active",
+    goal: "Keep a short imperative pivot as the active task instead of collapsing back to older goals.",
+    input: {
+      messages: [
+        createMessage({
+          id: "user-1",
+          role: "user",
+          content: "Help me shape a premium skincare launch campaign for adults 25-34.",
+        }),
+        createMessage({
+          id: "assistant-1",
+          role: "assistant",
+          content: "What audience should this target first?",
+        }),
+        createMessage({ id: "user-2", role: "user", content: "Make it darker." }),
+      ],
+      latestPromptArtifact:
+        "Luxury skincare launch campaign with warm neutral palette and tactile product textures",
+      promptOrigin: "reference",
+    },
+    expect: {
+      lastAcceptedPrompt:
+        "Luxury skincare launch campaign with warm neutral palette and tactile product textures",
+      nextBestAction: "Refine or generate from the accepted prompt.",
+      currentTask: "Make it darker.",
+      openQuestions: [],
+      decisionsMadeIncludes: [
+        "A reusable prompt is available.",
+        "The current prompt source is references.",
+      ],
+    },
+  },
 ];
 
 /**
@@ -173,7 +259,9 @@ export const STANDARD_RUNTIME_EVAL_CASES: StandardRuntimeEvalCase[] = [
     },
     expectedSystemPromptSnippets: [
       "Standard reply behavior:",
-      "Treat the latest user turn as a likely answer and continue from it instead of restarting the conversation.",
+      "Use the conversation's Standard session memory to preserve active goals, constraints, and accepted prompt direction, but do not quote that memory block verbatim.",
+      "When the latest user turn already gives enough direction to continue, prefer a concrete refinement over another clarifying question.",
+      "The previous assistant turn ended with a question, but the latest user turn is a direct revision request. Apply that revision to the current direction instead of treating it like a short answer.",
       "Reference mode is active. Use the referenced prompts or images when they are relevant",
       "The user is focused on prior assistant output. Build on that output directly instead of starting a new direction unless the latest user turn asks for one.",
       "A visible composer prompt already exists. If you improve it, preserve its core intent unless the user asks to change direction.",
@@ -206,8 +294,31 @@ export const STANDARD_RUNTIME_EVAL_CASES: StandardRuntimeEvalCase[] = [
       "Mode hint: describe",
       "Focused source: image",
       "Image reference count: 1",
+      "Use the conversation's Standard session memory to preserve active goals, constraints, and accepted prompt direction, but do not quote that memory block verbatim.",
       "The user is focused on image material. Ground the reply in what the image references imply for composition, style, or subject treatment.",
       "The user likely wants descriptive help, not an automatic rewrite into a generation prompt.",
+    ],
+  },
+  {
+    id: "short-directive-pivot-refinement",
+    goal: "Treat a short directive pivot as a real revision request even when the prior assistant turn asked a question.",
+    messages: [createMessage({ role: "user", content: "Make it darker." })],
+    context: {
+      activePrompt:
+        "Luxury skincare launch campaign with warm neutral palette and tactile product textures.",
+      modeHint: "reference",
+      focusedSource: "agent-output",
+      lastAssistantMessage: "What audience should this target first?",
+    },
+    expectedSystemPromptSnippets: [
+      "Standard runtime context:",
+      "Mode hint: reference",
+      "Focused source: agent-output",
+      "Most recent assistant reply: What audience should this target first?",
+      "When the latest user turn already gives enough direction to continue, prefer a concrete refinement over another clarifying question.",
+      "The previous assistant turn ended with a question, but the latest user turn is a direct revision request. Apply that revision to the current direction instead of treating it like a short answer.",
+      "The user is focused on prior assistant output. Build on that output directly instead of starting a new direction unless the latest user turn asks for one.",
+      "A visible composer prompt already exists. If you improve it, preserve its core intent unless the user asks to change direction.",
     ],
   },
   {
@@ -225,7 +336,31 @@ export const STANDARD_RUNTIME_EVAL_CASES: StandardRuntimeEvalCase[] = [
       "Mode hint: chat",
       "Most recent assistant reply: Do you want this to feel more playful or more serious?",
       "Standard reply behavior:",
+      "Use the conversation's Standard session memory to preserve active goals, constraints, and accepted prompt direction, but do not quote that memory block verbatim.",
+      "The user asked for multiple options. Provide 3 distinct options or directions before offering any follow-up question.",
       "Keep the turn conversational. Do not force the reply into a reusable prompt unless the user explicitly asks for one.",
+    ],
+  },
+  {
+    id: "prompt-critique-direct-judgment",
+    goal: "Give a direct judgment first when the user asks for critique of prompt material already in play.",
+    messages: [
+      createMessage({ role: "user", content: "Is this too generic? How would you improve it?" }),
+    ],
+    context: {
+      activePrompt: "Premium skincare campaign with elegant lighting and elevated copy.",
+      modeHint: "reference",
+      focusedSource: "agent-output",
+      lastAssistantMessage: "Here is a first pass prompt direction.",
+    },
+    expectedSystemPromptSnippets: [
+      "Standard runtime context:",
+      "Mode hint: reference",
+      "Focused source: agent-output",
+      "Visible composer prompt: Premium skincare campaign with elegant lighting and elevated copy.",
+      "The user is asking for evaluation or critique. Give a direct judgment first, then explain the strongest reasons, then offer the most useful improvement.",
+      "The user is focused on prior assistant output. Build on that output directly instead of starting a new direction unless the latest user turn asks for one.",
+      "A visible composer prompt already exists. If you improve it, preserve its core intent unless the user asks to change direction.",
     ],
   },
 ];

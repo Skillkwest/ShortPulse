@@ -138,10 +138,10 @@ Use this order unless fresh evidence changes it.
 3. Credit, billing, and provider-request ownership integrity
 4. Sensitive account mutation protection
 5. Prompt-injection or external-input paths that can cross a real authority boundary
-6. Abuse throttling on authenticated mutation routes
-7. User-facing raw error exposure on sensitive surfaces
-8. Launch auth policy decisions
-9. Browser blast-radius hardening such as CSP tightening
+6. Launch auth policy decisions with concrete account-security impact
+7. Abuse throttling only when a concrete expensive mutation abuse path is proven
+8. Raw error exposure only when it leaks secrets, session artifacts, signed URLs, customer-private data, or usable attack detail
+9. Browser blast-radius hardening such as CSP tightening only when tied to an active XSS-adjacent threat
 
 ## Current "Do / Hold / Avoid" Table
 
@@ -155,15 +155,16 @@ Use this order unless fresh evidence changes it.
 
 ### Hold for later
 
-- authenticated-route throttling after the primary account/media/credit isolation lanes are under control
-- broad error-contract cleanup after the primary account/media/credit isolation lanes are under control
-- CSP tightening after the concrete auth/storage/billing gaps are closed
+- authenticated-route throttling unless a concrete expensive mutation abuse path is proven
+- raw error exposure unless it leaks secrets, session artifacts, signed URLs, customer-private data, or usable attack detail
+- CSP tightening unless tied to an active XSS-adjacent threat
 - deeper admin-boundary redesign after the primary user-security lanes settle
 - broad telemetry expansion unless it directly supports a risky fix
 
 ### Avoid
 
 - opening new security lanes just because they are adjacent
+- code cleanup, route polish, logging cleanup, generic error cleanup, or broad hardening framed as security work
 - building abstractions before repeated pain clearly justifies them
 - widening a pass from "high-risk routes" to "all routes" without re-ranking
 

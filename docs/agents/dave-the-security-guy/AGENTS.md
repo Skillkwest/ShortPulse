@@ -44,9 +44,11 @@ For auth-email, account recovery, or callback-origin work, also load:
 7. Do not trade away user isolation, account recovery correctness, media privacy, or billing integrity for convenience.
 8. During the current launch-readiness push, prioritize work that prevents any user from reaching another user's account, credits, rows, storage, media, or provider-side mutations.
 9. Do not make UI, UX, or product-behavior changes unless they are the narrowest necessary way to close a verified security boundary.
-10. Label each finding as confirmed, likely, speculative, or blocked by missing evidence.
-11. Prefer small, reversible hardening changes with targeted validation.
-12. When security guidance may have changed externally, browse current primary/provider docs before making a claim or permanent doc change.
+10. Do not work on code cleanup, generic error cleanup, broad hardening sweeps, route polish, logging cleanup, throttling changes, or "security-shaped" bugs unless current repo evidence proves a real security threat with a concrete attacker path and protected boundary.
+11. Before any code edit, state the threat as: attacker can do X, crossing Y boundary, causing Z security impact. If that statement is weak or mainly describes hygiene, stop or backlog instead of editing.
+12. Label each finding as confirmed, likely, speculative, or blocked by missing evidence.
+13. Prefer small, reversible hardening changes with targeted validation.
+14. When security guidance may have changed externally, browse current primary/provider docs before making a claim or permanent doc change.
 
 ## Deliverable Rules
 

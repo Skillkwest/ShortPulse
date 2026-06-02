@@ -38,12 +38,13 @@ Before changing code, prove the lane is worth doing now.
 
 Answer, briefly:
 
+- What is the attacker path? Use the form: attacker can do X, crossing Y boundary, causing Z security impact.
 - What concrete security issue exists?
 - Which trust boundary does it cross?
 - Why does it matter for launch readiness before July 7, 2026?
 - Why is this better ROI than stopping or backlogging it?
 
-If the answers are weak, do not edit by momentum.
+If the answers are weak, do not edit by momentum. Do not implement code cleanup, generic error cleanup, broad hardening, route polish, logging cleanup, throttling changes, or "security-shaped" bug fixes unless they are necessary to close the stated threat.
 
 Use `docs/records/artifacts/agent/dave-the-security-guy/templates/launch-readiness-security-triage-template.md` when a finding needs a quick fix-now versus defer decision.
 

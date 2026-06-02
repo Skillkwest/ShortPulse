@@ -56,6 +56,7 @@ const STANDARD_TELEMETRY_PATH = "standard_agent";
 const STANDARD_EXTENDED_TEXT_TIMEOUT_CHAR_THRESHOLD = 2500;
 const STANDARD_MAX_PROMPT_REFERENCE_SNIPPETS = 8;
 const STANDARD_PROMPT_REFERENCE_SNIPPET_MAX_CHARS = 320;
+const STANDARD_SYSTEM_CONTEXT_FIELD_MAX_CHARS = 220;
 const STANDARD_RESPONSE_STYLE_GUIDANCE = [
   "Standard response formatting rules:",
   "- Prefer a calm, readable response shape: short paragraphs first, then bullets or numbered lists only when the content is naturally grouped.",
@@ -72,6 +73,125 @@ const STANDARD_RESPONSE_STYLE_GUIDANCE = [
 ].join("\n");
 
 type StandardOpenAiImageDetail = "high" | "auto";
+
+const clipStandardSystemContextField = (value?: string | null): string | null => {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+  if (normalized.length <= STANDARD_SYSTEM_CONTEXT_FIELD_MAX_CHARS) {
+    return normalized;
+  }
+  return `${normalized.slice(0, STANDARD_SYSTEM_CONTEXT_FIELD_MAX_CHARS - 1).trimEnd()}...`;
+};
+
+const buildStandardRuntimeContextBlock = (context: AgentContext): string => {
+  const lines: string[] = [];
+  const activePrompt = clipStandardSystemContextField(context.activePrompt);
+  const lastAssistantMessage = clipStandardSystemContextField(context.lastAssistantMessage);
+  const selectedReferenceCount = Array.isArray(context.selectedReferenceIds)
+    ? context.selectedReferenceIds.length
+    : 0;
+  const promptReferenceCount =
+    context.references?.filter((reference) => reference.kind === "prompt").length ?? 0;
+  const imageReferenceCount =
+    context.references?.filter(
+      (reference) => reference.kind === "image" || reference.kind === "video"
+    ).length ?? 0;
+
+  if (context.modeHint) {
+    lines.push(`Mode hint: ${context.modeHint}`);
+  }
+  if (context.focusedSource) {
+    lines.push(`Focused source: ${context.focusedSource}`);
+  }
+  if (activePrompt) {
+    lines.push(`Visible composer prompt: ${activePrompt}`);
+  }
+  if (lastAssistantMessage) {
+    lines.push(`Most recent assistant reply: ${lastAssistantMessage}`);
+  }
+  if (selectedReferenceCount > 0) {
+    lines.push(`Selected reference count: ${selectedReferenceCount}`);
+  }
+  if (promptReferenceCount > 0) {
+    lines.push(`Prompt reference count: ${promptReferenceCount}`);
+  }
+  if (imageReferenceCount > 0) {
+    lines.push(`Image reference count: ${imageReferenceCount}`);
+  }
+  if (context.modelId) {
+    lines.push(`Current model id: ${context.modelId}`);
+  }
+
+  if (!lines.length) {
+    return "";
+  }
+
+  return ["Standard runtime context:", ...lines].join("\n");
+};
+
+const buildStandardReplyBehaviorBlock = ({
+  context,
+  latestUserText,
+}: {
+  context: AgentContext;
+  latestUserText: string;
+}): string => {
+  const lines: string[] = [
+    "Standard reply behavior:",
+    "- Answer the user's latest message directly before offering optional next help.",
+  ];
+
+  if (context.lastAssistantMessage?.includes("?") && latestUserText.trim().length > 0) {
+    lines.push(
+      "- The previous assistant turn ended with a question. Treat the latest user turn as a likely answer and continue from it instead of restarting the conversation."
+    );
+  }
+
+  if (context.modeHint === "reference") {
+    lines.push(
+      "- Reference mode is active. Use the referenced prompts or images when they are relevant, but keep the reply conversational unless the user explicitly asks for a final prompt."
+    );
+  }
+
+  if (context.focusedSource === "prompt") {
+    lines.push(
+      "- The user is focused on prompt material. Prefer refining or evaluating the prompt content that is already in play."
+    );
+  }
+
+  if (context.focusedSource === "image") {
+    lines.push(
+      "- The user is focused on image material. Ground the reply in what the image references imply for composition, style, or subject treatment."
+    );
+  }
+
+  if (context.focusedSource === "agent-output") {
+    lines.push(
+      "- The user is focused on prior assistant output. Build on that output directly instead of starting a new direction unless the latest user turn asks for one."
+    );
+  }
+
+  if (context.activePrompt?.trim().length) {
+    lines.push(
+      "- A visible composer prompt already exists. If you improve it, preserve its core intent unless the user asks to change direction."
+    );
+  }
+
+  if (context.modeHint === "describe") {
+    lines.push(
+      "- The user likely wants descriptive help, not an automatic rewrite into a generation prompt."
+    );
+  }
+
+  if (context.modeHint === "chat") {
+    lines.push(
+      "- Keep the turn conversational. Do not force the reply into a reusable prompt unless the user explicitly asks for one."
+    );
+  }
+
+  return lines.join("\n");
+};
 
 const resolveStandardFlow = (
   context: {
@@ -101,6 +221,10 @@ const buildStandardOpenAiMessages = ({
 }): OpenAiChatMessage[] => {
   const latestUserText = resolveLatestStandardUserText(messages);
   const promptReferenceSnippets = resolveStandardPromptReferenceSnippets({
+    context,
+    latestUserText,
+  });
+  const replyBehaviorBlock = buildStandardReplyBehaviorBlock({
     context,
     latestUserText,
   });
@@ -146,9 +270,19 @@ const buildStandardOpenAiMessages = ({
     };
   });
   const normalizedSystemPrompt = typeof systemPrompt === "string" ? systemPrompt.trim() : "";
+  const runtimeContextBlock = buildStandardRuntimeContextBlock(context);
   const effectiveSystemPrompt = normalizedSystemPrompt.length
-    ? `${normalizedSystemPrompt}\n\n${STANDARD_RESPONSE_STYLE_GUIDANCE}`
-    : STANDARD_RESPONSE_STYLE_GUIDANCE;
+    ? [
+        normalizedSystemPrompt,
+        runtimeContextBlock,
+        replyBehaviorBlock,
+        STANDARD_RESPONSE_STYLE_GUIDANCE,
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    : [runtimeContextBlock, replyBehaviorBlock, STANDARD_RESPONSE_STYLE_GUIDANCE]
+        .filter(Boolean)
+        .join("\n\n");
   return [{ role: "system", content: effectiveSystemPrompt }, ...conversationMessages];
 };
 

@@ -63,6 +63,37 @@ const AuthorityProbe = ({
 };
 
 describe("useAiStudioRuntimeAuthorityUiState", () => {
+  it("clears Quick Slot state when a new project authority has no queued restore", async () => {
+    const states: ProbeState[] = [];
+    const onState = vi.fn((state: ProbeState) => {
+      states.push(state);
+    });
+
+    const { rerender } = render(
+      <AuthorityProbe authorityKey="session:active" onState={onState} restoreDuringLayout={true} />
+    );
+
+    await waitFor(() => {
+      expect(states.at(-1)).toEqual({
+        activeOutputId: "out-1",
+        quickSlotIds: ["out-1"],
+        saved: true,
+      });
+    });
+
+    rerender(
+      <AuthorityProbe authorityKey="project:empty" onState={onState} restoreDuringLayout={false} />
+    );
+
+    await waitFor(() => {
+      expect(states.at(-1)).toEqual({
+        activeOutputId: null,
+        quickSlotIds: [],
+        saved: false,
+      });
+    });
+  });
+
   it("keeps restored Quick Slot state queued during project authority activation", async () => {
     const states: ProbeState[] = [];
     const onState = vi.fn((state: ProbeState) => {

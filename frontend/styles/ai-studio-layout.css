@@ -468,9 +468,9 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-amber-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 520px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   padding: 4px 8px;
   min-height: 35px;
   background: rgba(20, 22, 28, 0.95);
@@ -484,7 +484,6 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   justify-content: flex-end;
   gap: 12px;
   justify-self: end;
-  grid-column: 3;
 }
 
 .ai-hero-shortcut-cluster {
@@ -687,7 +686,6 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   gap: 12px;
   min-height: 100%;
   justify-self: start;
-  grid-column: 1;
 }
 
 .ai-hero-title {
@@ -718,18 +716,19 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-hero .ai-hero-project-name {
-  grid-column: 2;
-  min-width: 0;
-  width: 100%;
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  justify-self: center;
+  min-width: 0;
+  pointer-events: none;
+  padding-inline: clamp(180px, 18vw, 320px);
 }
 
 .ai-hero-project-name-text {
   display: block;
-  max-width: 100%;
+  max-width: min(560px, 100%);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -740,23 +739,8 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 @media (max-width: 960px) {
-  .ai-amber-hero {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px 16px;
-  }
-
-  .ai-hero .hero-text {
-    grid-column: 1;
-  }
-
-  .ai-hero .hero-right {
-    grid-column: 2;
-  }
-
   .ai-hero .ai-hero-project-name {
-    grid-column: 1 / -1;
-    justify-self: stretch;
-    padding-bottom: 2px;
+    padding-inline: clamp(140px, 12vw, 220px);
   }
 }
 

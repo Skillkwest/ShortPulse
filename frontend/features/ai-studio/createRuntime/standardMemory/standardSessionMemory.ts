@@ -65,9 +65,9 @@ export const createPersistedStandardAgentRuntime = ({
     promptOrigin,
   });
   return {
-    messages: sessionMemory.transcriptWindow.map(serializeAgentMessageForSnapshot),
+    messages: messages.map(serializeAgentMessageForSnapshot),
     input,
-    latestAgentPrompt: latestPromptArtifact,
+    latestAgentPrompt: sessionMemory.workingState.lastAcceptedPrompt,
     promptOrigin,
     chatModeEnabled,
   };
@@ -75,7 +75,7 @@ export const createPersistedStandardAgentRuntime = ({
 
 export const resolveStandardPreviousPromptFromMemory = (
   memory: StandardSessionMemory
-): string | null => memory.workingState.latestPromptArtifact;
+): string | null => memory.workingState.lastAcceptedPrompt;
 
 /**
  * Builds the synthetic Standard memory message prepended to outbound Standard turns.

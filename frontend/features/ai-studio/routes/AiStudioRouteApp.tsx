@@ -720,6 +720,12 @@ const AiStudioPageRuntimeBody = ({
     onAddLibraryMediaReference: addLibraryMediaReference,
     onAddLibraryPromptReference: addLibraryPromptReference,
     onDeleteMediaRowsFromWorkspace: handleDeleteMediaRowsFromWorkspace,
+    mediaLibraryDetailSelectionTarget:
+      base.detailSelectionTarget?.kind === "media-file" &&
+      base.detailSelectionTarget.surface === "media-library-panel"
+        ? base.detailSelectionTarget
+        : null,
+    onMediaLibraryDetailSelectionTargetChange: base.setDetailSelectionTarget,
     projectId,
     projectRouteRequested,
     projectName: effectiveProjectName,

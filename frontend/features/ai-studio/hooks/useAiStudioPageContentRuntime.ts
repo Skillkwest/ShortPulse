@@ -48,6 +48,8 @@ type UseAiStudioPageContentRuntimeParams = {
   onAddLibraryMediaReference: AiStudioPageContentProps["onAddLibraryMediaReference"];
   onAddLibraryPromptReference: AiStudioPageContentProps["onAddLibraryPromptReference"];
   onDeleteMediaRowsFromWorkspace: AiStudioPageContentProps["onDeleteMediaRowsFromWorkspace"];
+  mediaLibraryDetailSelectionTarget: AiStudioPageContentProps["mediaLibraryDetailSelectionTarget"];
+  onMediaLibraryDetailSelectionTargetChange: AiStudioPageContentProps["onMediaLibraryDetailSelectionTargetChange"];
   projectId: AiStudioPageContentProps["projectId"];
   projectRouteRequested: AiStudioPageContentProps["projectRouteRequested"];
   projectName: AiStudioPageContentProps["projectName"];
@@ -115,6 +117,8 @@ export const useAiStudioPageContentRuntime = ({
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
   onDeleteMediaRowsFromWorkspace,
+  mediaLibraryDetailSelectionTarget,
+  onMediaLibraryDetailSelectionTargetChange,
   projectId,
   projectRouteRequested,
   projectName,
@@ -179,6 +183,8 @@ export const useAiStudioPageContentRuntime = ({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       onDeleteMediaRowsFromWorkspace,
+      mediaLibraryDetailSelectionTarget,
+      onMediaLibraryDetailSelectionTargetChange,
       projectId,
       projectRouteRequested,
       projectName,
@@ -242,6 +248,8 @@ export const useAiStudioPageContentRuntime = ({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       onDeleteMediaRowsFromWorkspace,
+      mediaLibraryDetailSelectionTarget,
+      onMediaLibraryDetailSelectionTargetChange,
       projectId,
       projectRouteRequested,
       projectName,

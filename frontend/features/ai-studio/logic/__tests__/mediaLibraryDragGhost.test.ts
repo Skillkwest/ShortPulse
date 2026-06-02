@@ -3,6 +3,12 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { attachMediaLibraryDragGhost, clearMediaLibraryDragGhost } from "../mediaLibraryDragGhost";
+import {
+  CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX,
+  CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX,
+  CANVAS_PROMPT_DRAG_HOTSPOT_X,
+  CANVAS_PROMPT_DRAG_HOTSPOT_Y,
+} from "../canvasPromptDragGhost";
 
 const setNodeRect = (node: HTMLElement, width: number, height: number) => {
   Object.defineProperty(node, "getBoundingClientRect", {
@@ -107,8 +113,14 @@ describe("mediaLibraryDragGhost", () => {
     expect(setDragImage).toHaveBeenCalledTimes(1);
     const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement;
     expect(ghost.querySelector("img")).toBeNull();
-    expect(ghost.style.background).toBe("rgba(37, 41, 47, 0.64)");
+    expect(ghost.style.width).toBe(`${CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX}px`);
+    expect(ghost.style.height).toBe(`${CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX}px`);
     expect(ghost.textContent).toContain("cinematic");
+    expect(setDragImage).toHaveBeenCalledWith(
+      ghost,
+      CANVAS_PROMPT_DRAG_HOTSPOT_X,
+      CANVAS_PROMPT_DRAG_HOTSPOT_Y
+    );
 
     clearMediaLibraryDragGhost(node);
     node.remove();

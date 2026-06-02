@@ -3,6 +3,7 @@
  * Defines the future cross-surface selection and capability model for media details.
  */
 import type { CanvasWorkspaceInstanceId } from "../canvas/canvasWorkspaceContracts";
+import type { StudioAudioSourceMode } from "../../types";
 
 export type SharedMediaDetailSurface =
   | "reference-grid"
@@ -31,6 +32,8 @@ export type SharedMediaDetailSelectionTarget =
       instanceId?: CanvasWorkspaceInstanceId;
     };
 
+export type SharedMediaDetailSelection = SharedMediaDetailSelectionTarget | null;
+
 export type SharedMediaDetailCapabilities = {
   canSaveToLibrary: boolean;
   canDownload: boolean;
@@ -39,6 +42,35 @@ export type SharedMediaDetailCapabilities = {
   canSavePrompt: boolean;
   canShowCharacterContext: boolean;
   canShowStyleContext: boolean;
+};
+
+export type SharedMediaDetailContentKind = "image" | "video" | "audio" | "prompt";
+
+export type SharedMediaDetailMedia = {
+  id: string;
+  kind: SharedMediaDetailContentKind;
+  url: string;
+  createdAt?: string | null;
+  filename?: string | null;
+  promptText?: string | null;
+  transcriptText?: string | null;
+  source?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  previewUrl?: string | null;
+  previewPosterUrl?: string | null;
+  previewPosterStoragePath?: string | null;
+  fullUrl?: string | null;
+  audioSourceMode?: StudioAudioSourceMode | null;
+  durationMs?: number | null;
+  waveformPeaks?: number[] | null;
+};
+
+export type SharedMediaDetailItemBase = {
+  surface: SharedMediaDetailSurface;
+  selectionTarget: SharedMediaDetailSelectionTarget;
+  capabilities: SharedMediaDetailCapabilities;
+  media: SharedMediaDetailMedia;
 };
 
 export type DetailModalContext = {

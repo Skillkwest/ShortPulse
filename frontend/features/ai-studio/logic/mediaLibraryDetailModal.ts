@@ -1,6 +1,7 @@
 import type { StudioAudioSourceMode } from "../types";
 import type {
   SharedMediaDetailCapabilities,
+  SharedMediaDetailItemBase,
   SharedMediaDetailSelectionTarget,
   SharedMediaDetailSurface,
 } from "../components/detail-modal/detailModalPlatformTypes";
@@ -31,12 +32,13 @@ export type MediaLibraryDetailSelectionPayload = {
   waveformPeaks?: number[] | null;
 };
 
-export type MediaLibraryDetailModalItem = MediaLibraryDetailSelectionPayload & {
-  file: MediaFileRow;
-  surface: MediaLibraryDetailModalSurface;
-  selectionTarget: Extract<SharedMediaDetailSelectionTarget, { kind: "media-file" }>;
-  capabilities: SharedMediaDetailCapabilities;
-};
+export type MediaLibraryDetailModalItem = SharedMediaDetailItemBase &
+  MediaLibraryDetailSelectionPayload & {
+    file: MediaFileRow;
+    surface: MediaLibraryDetailModalSurface;
+    selectionTarget: Extract<SharedMediaDetailSelectionTarget, { kind: "media-file" }>;
+    capabilities: SharedMediaDetailCapabilities;
+  };
 
 const MEDIA_LIBRARY_PREVIEW_ONLY_CAPABILITIES: SharedMediaDetailCapabilities = {
   canSaveToLibrary: false,
@@ -93,4 +95,9 @@ export const createMediaLibraryDetailModalItem = ({
     surface,
   },
   capabilities: MEDIA_LIBRARY_PREVIEW_ONLY_CAPABILITIES,
+  media: {
+    id: file.id,
+    kind: fields.fileType === "audio" ? "audio" : fields.fileType === "video" ? "video" : "image",
+    ...fields,
+  },
 });

@@ -5,11 +5,13 @@
 import { useMemo } from "react";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { resolveModelLabel } from "../logic/stateParsers";
+import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
 import type { StudioOutput } from "../types";
 
 type UseAiStudioOutputDerivationsParams = {
   outputs: StudioOutput[];
   activeOutputById: Record<string, StudioOutput>;
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   detailOutputId: string | null;
   model: string | null;
 };
@@ -20,13 +22,17 @@ type UseAiStudioOutputDerivationsParams = {
 export const useAiStudioOutputDerivations = ({
   outputs,
   activeOutputById,
+  detailSelectionTarget = null,
   detailOutputId,
   model,
 }: UseAiStudioOutputDerivationsParams) => {
-  const detailOutput = useMemo(
-    () => (detailOutputId ? (activeOutputById[detailOutputId] ?? null) : null),
-    [activeOutputById, detailOutputId]
-  );
+  const detailOutput = useMemo(() => {
+    const resolvedDetailOutputId =
+      detailSelectionTarget?.kind === "studio-output"
+        ? detailSelectionTarget.outputId
+        : detailOutputId;
+    return resolvedDetailOutputId ? (activeOutputById[resolvedDetailOutputId] ?? null) : null;
+  }, [activeOutputById, detailOutputId, detailSelectionTarget]);
   const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
   const isPrimaryEditStageGenerating = useMemo(
     () =>

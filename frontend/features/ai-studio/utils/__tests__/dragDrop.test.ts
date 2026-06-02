@@ -28,6 +28,12 @@ import {
   prepareReferenceDrag,
   resolveReferenceTransferUrl,
 } from "../dragDrop";
+import {
+  CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX,
+  CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX,
+  CANVAS_PROMPT_DRAG_HOTSPOT_X,
+  CANVAS_PROMPT_DRAG_HOTSPOT_Y,
+} from "../../logic/canvasPromptDragGhost";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
@@ -1631,6 +1637,13 @@ describe("dragDrop payload extraction", () => {
     expect(ghost).toBeInstanceOf(HTMLElement);
     expect(ghost?.querySelector("img")).toBeNull();
     expect(ghost?.textContent).toContain("Prompt-only ghost text");
+    expect(ghost?.style.width).toBe(`${CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX}px`);
+    expect(ghost?.style.height).toBe(`${CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX}px`);
+    expect(setDragImage).toHaveBeenCalledWith(
+      ghost,
+      CANVAS_PROMPT_DRAG_HOTSPOT_X,
+      CANVAS_PROMPT_DRAG_HOTSPOT_Y
+    );
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });

@@ -43,6 +43,7 @@ import type {
   VoicesPropertiesPanelProps,
 } from "./VoicesPropertiesPanel";
 import type { ResolveVoiceChangerInternalReferenceSource } from "./VoiceChangerSourceDropzone";
+import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useVoiceChangerSourceController } from "../hooks/useVoiceChangerSourceController";
@@ -568,6 +569,10 @@ export type AiStudioPageContentProps = {
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
+  mediaLibraryDetailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
+  onMediaLibraryDetailSelectionTargetChange?: (
+    target: SharedMediaDetailSelectionTarget | null
+  ) => void;
   projectId?: string | null;
   projectRouteRequested?: boolean;
   projectName?: string | null;
@@ -645,6 +650,8 @@ export function AiStudioPageContent({
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
   onDeleteMediaRowsFromWorkspace,
+  mediaLibraryDetailSelectionTarget = null,
+  onMediaLibraryDetailSelectionTargetChange,
   projectId = null,
   projectRouteRequested = false,
   projectName,
@@ -1339,6 +1346,8 @@ export function AiStudioPageContent({
           onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           onDeleteMediaRowsFromWorkspace={onDeleteMediaRowsFromWorkspace}
+          detailSelectionTarget={mediaLibraryDetailSelectionTarget}
+          onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
         />
       ) : (
         <p className="tiny subdued">Media Library panel is unavailable.</p>
@@ -1347,6 +1356,8 @@ export function AiStudioPageContent({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       onDeleteMediaRowsFromWorkspace,
+      mediaLibraryDetailSelectionTarget,
+      onMediaLibraryDetailSelectionTargetChange,
       projectId,
       handleCollapseMediaLibraryPanel,
       handleExpandMediaLibraryPanel,

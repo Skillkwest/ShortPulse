@@ -3,6 +3,7 @@
  * Keeps reference grid action wiring out of the page orchestrator.
  */
 import { useMemo } from "react";
+import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
 import type { StudioOutput } from "../types";
 import type { AiStudioReferenceGridContract } from "./contracts/pageContentContracts";
 import type {
@@ -23,6 +24,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   onReferenceOutputMediaLoaded: (id: string) => void;
   linkedPromptReferenceIds: string[];
   handleSelectOutput: (id: string) => void;
+  openDetailSelectionTarget: (target: SharedMediaDetailSelectionTarget | null) => void;
   setDetailOutputId: (id: string | null) => void;
   handleSaveReference: (id: string) => void;
   handleDownloadReference: (id: string) => void;
@@ -60,6 +62,7 @@ export const useAiStudioReferenceGridProps = ({
   onReferenceOutputMediaLoaded,
   linkedPromptReferenceIds,
   handleSelectOutput,
+  openDetailSelectionTarget,
   setDetailOutputId,
   handleSaveReference,
   handleDownloadReference,
@@ -98,7 +101,14 @@ export const useAiStudioReferenceGridProps = ({
       onOutputMediaLoaded: onReferenceOutputMediaLoaded,
       linkedPromptReferenceIds,
       onSelectOutput: handleSelectOutput,
-      onOpenDetails: setDetailOutputId,
+      onOpenDetails: (id) => {
+        openDetailSelectionTarget({
+          kind: "studio-output",
+          outputId: id,
+          surface: "reference-grid",
+        });
+        setDetailOutputId(id);
+      },
       onSaveToLibrary: (output) => handleSaveReference(output.id),
       onDownload: (output) => handleDownloadReference(output.id),
       onPasteTextReference: handlePasteTextReference,
@@ -139,6 +149,7 @@ export const useAiStudioReferenceGridProps = ({
       handleSelectOutput,
       isMediaStorageFull,
       linkedPromptReferenceIds,
+      openDetailSelectionTarget,
       onReferenceOutputMediaLoaded,
       removeCuratedReference,
       reorderCuratedReference,

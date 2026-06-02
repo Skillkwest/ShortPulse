@@ -9,6 +9,17 @@ vi.mock("../../../media-library/logic/mediaPreviewResolver", () => ({
 }));
 
 describe("useMediaLibraryPanelSelectionController", () => {
+  const imageFile = {
+    id: "file-1",
+    filename: "first.png",
+    file_type: "image/png",
+    storage_path: "user-1/media/original.png",
+    preview_storage_path: "user-1/media/variants/thumb.png",
+    signedUrl: "https://signed.example.com/preview.png",
+    metadata: null,
+    source: "upload",
+  };
+
   it("opens on the current preview url and promotes to the signed original url when available", async () => {
     resolveSignedSelectionUrlMock.mockResolvedValueOnce("https://signed.example.com/fallback.png");
     const signStoragePath = vi.fn(async (storagePath: string) =>
@@ -20,25 +31,15 @@ describe("useMediaLibraryPanelSelectionController", () => {
         activeFolderId: "all_items",
         detailSurface: "media-library-panel",
         currentUserIdRef: { current: "user-1" },
+        mediaRows: [imageFile],
         onSelectMedia: vi.fn(),
         refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
         signStoragePath,
       })
     );
 
-    const file = {
-      id: "file-1",
-      filename: "first.png",
-      file_type: "image/png",
-      storage_path: "user-1/media/original.png",
-      preview_storage_path: "user-1/media/variants/thumb.png",
-      signedUrl: "https://signed.example.com/preview.png",
-      metadata: null,
-      source: "upload",
-    };
-
     act(() => {
-      result.current.handleMediaCardDoubleClick(file);
+      result.current.handleMediaCardDoubleClick(imageFile);
     });
 
     expect(result.current.detailModalItem?.file.id).toBe("file-1");
@@ -64,6 +65,7 @@ describe("useMediaLibraryPanelSelectionController", () => {
         activeFolderId: "all_items",
         detailSurface: "media-library-panel",
         currentUserIdRef: { current: "user-1" },
+        mediaRows: [],
         onSelectMedia: vi.fn(),
         refreshSignedUrl: vi.fn(async () => null),
         signStoragePath: vi.fn(async () => null),
@@ -86,5 +88,70 @@ describe("useMediaLibraryPanelSelectionController", () => {
       expect(result.current.detailModalError).toBe("Failed to load preview.");
       expect(result.current.detailModalLoading).toBe(false);
     });
+  });
+
+  it("opens through a controlled shared detail-selection target when a matching row is available", async () => {
+    resolveSignedSelectionUrlMock.mockReset();
+    const signStoragePath = vi.fn(async (storagePath: string) =>
+      storagePath === "user-1/media/original.png" ? "https://signed.example.com/full.png" : null
+    );
+    const setDetailSelectionTarget = vi.fn();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [imageFile],
+        detailSelectionTarget: {
+          kind: "media-file",
+          fileId: imageFile.id,
+          surface: "media-library-panel",
+        },
+        setDetailSelectionTarget,
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
+        signStoragePath,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.detailModalItem?.file.id).toBe(imageFile.id);
+      expect(result.current.detailModalLoading).toBe(false);
+      expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/full.png");
+    });
+
+    act(() => {
+      result.current.closeDetailModal();
+    });
+
+    expect(setDetailSelectionTarget).toHaveBeenCalledWith(null);
+  });
+
+  it("publishes a shared detail-selection target instead of opening local state when externally controlled", () => {
+    const setDetailSelectionTarget = vi.fn();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [imageFile],
+        detailSelectionTarget: null,
+        setDetailSelectionTarget,
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
+        signStoragePath: vi.fn(async () => null),
+      })
+    );
+
+    act(() => {
+      result.current.handleMediaCardDoubleClick(imageFile);
+    });
+
+    expect(setDetailSelectionTarget).toHaveBeenCalledWith({
+      kind: "media-file",
+      fileId: imageFile.id,
+      surface: "media-library-panel",
+    });
+    expect(result.current.detailModalItem).toBeNull();
   });
 });

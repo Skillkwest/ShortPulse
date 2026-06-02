@@ -417,6 +417,129 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(systemMessage).toContain("Pulse-style guided formatting");
   });
 
+  it("adds compact Standard runtime context to the system prompt when Standard context is present", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "Thanks, I used the Standard runtime context.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        context: {
+          activePrompt: "Golden-hour portrait with premium editorial styling.",
+          modelId: "gpt-image-2",
+          modeHint: "reference",
+          focusedSource: "prompt",
+          lastAssistantMessage: "Would you like this to feel softer or more dramatic?",
+          references: [
+            {
+              id: "ref-prompt-1",
+              kind: "prompt",
+              promptSnippet: "Golden-hour portrait with soft rim light.",
+            },
+            {
+              id: "ref-image-1",
+              kind: "image",
+              caption: "Editorial portrait reference",
+            },
+          ],
+          selectedReferenceIds: ["ref-prompt-1"],
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const requestBody = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      messages?: Array<{ role?: string; content?: string }>;
+    };
+    const systemMessage = requestBody.messages?.find(
+      (message) => message.role === "system"
+    )?.content;
+
+    expect(systemMessage).toContain("Standard runtime context:");
+    expect(systemMessage).toContain("Mode hint: reference");
+    expect(systemMessage).toContain("Focused source:");
+    expect(systemMessage).toContain(
+      "Visible composer prompt: Golden-hour portrait with premium editorial styling."
+    );
+    expect(systemMessage).toContain(
+      "Most recent assistant reply: Would you like this to feel softer or more dramatic?"
+    );
+    expect(systemMessage).toContain("Selected reference count: 1");
+    expect(systemMessage).toContain("Prompt reference count: 1");
+    expect(systemMessage).toContain("Image reference count: 1");
+    expect(systemMessage).toContain("Current model id: gpt-image-2");
+  });
+
+  it("adds Standard reply-behavior guidance for follow-up and prompt-focused turns", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "I continued the prompt refinement.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [{ role: "user", content: "Make it feel warmer and more premium." }],
+        context: {
+          activePrompt: "Premium editorial portrait in soft golden-hour light.",
+          modeHint: "reference",
+          focusedSource: "prompt",
+          lastAssistantMessage: "Would you like this to feel softer or more dramatic?",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const requestBody = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      messages?: Array<{ role?: string; content?: string }>;
+    };
+    const systemMessage = requestBody.messages?.find(
+      (message) => message.role === "system"
+    )?.content;
+
+    expect(systemMessage).toContain("Standard reply behavior:");
+    expect(systemMessage).toContain(
+      "Treat the latest user turn as a likely answer and continue from it instead of restarting the conversation."
+    );
+    expect(systemMessage).toContain(
+      "Reference mode is active. Use the referenced prompts or images when they are relevant"
+    );
+    expect(systemMessage).toContain(
+      "The user is focused on prior assistant output. Build on that output directly instead of starting a new direction unless the latest user turn asks for one."
+    );
+    expect(systemMessage).toContain(
+      "A visible composer prompt already exists. If you improve it, preserve its core intent unless the user asks to change direction."
+    );
+  });
+
   it("emits Standard telemetry with pre-openai stage latencies", async () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({

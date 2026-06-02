@@ -23,6 +23,11 @@ import {
   scheduleClearComposerImageDropSession,
   scheduleClearInternalReferenceDragSession,
 } from "../../../lib/internalReferenceDragSession";
+import {
+  buildCanvasPromptDragGhost,
+  CANVAS_PROMPT_DRAG_HOTSPOT_X,
+  CANVAS_PROMPT_DRAG_HOTSPOT_Y,
+} from "../logic/canvasPromptDragGhost";
 import type { ReferenceDragSourceSurface } from "../../../lib/internalReferenceDragPayload";
 export {
   COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
@@ -374,6 +379,13 @@ const buildReferenceDragGhost = ({
   const promptText = trimDragGhostText(dedupeText(output.prompt ?? output.previewText) || null);
   const isMediaGhost = Boolean(imageUrl || videoUrl);
 
+  if (!isMediaGhost && promptText) {
+    return buildCanvasPromptDragGhost({
+      detail: promptText,
+      className: "reference-drag-ghost",
+    });
+  }
+
   if (imageUrl) {
     const image = document.createElement("img");
     image.src = imageUrl;
@@ -391,21 +403,7 @@ const buildReferenceDragGhost = ({
     videoPlaceholder.style.background =
       "linear-gradient(160deg, rgba(24,31,45,0.95), rgba(10,14,22,0.85))";
     ghost.appendChild(videoPlaceholder);
-  } else if (!isMediaGhost && promptText) {
-    const textOnlyBody = document.createElement("div");
-    textOnlyBody.style.flex = "1";
-    textOnlyBody.style.padding = "10px";
-    textOnlyBody.style.fontSize = "11px";
-    textOnlyBody.style.lineHeight = "1.3";
-    textOnlyBody.style.color = "rgba(229, 238, 255, 0.92)";
-    textOnlyBody.style.overflow = "hidden";
-    textOnlyBody.style.display = "-webkit-box";
-    textOnlyBody.style.setProperty("-webkit-line-clamp", "5");
-    textOnlyBody.style.setProperty("-webkit-box-orient", "vertical");
-    textOnlyBody.textContent = promptText;
-    ghost.appendChild(textOnlyBody);
   }
-
   return ghost;
 };
 
@@ -1167,8 +1165,12 @@ export const prepareReferenceDrag = (
       safeSetDragImage(
         transfer,
         ghost,
-        Math.round((rect.width || dragNode.offsetWidth) / 2),
-        Math.round((rect.height || dragNode.offsetHeight) / 2)
+        output.mode === "text"
+          ? CANVAS_PROMPT_DRAG_HOTSPOT_X
+          : Math.round((rect.width || dragNode.offsetWidth) / 2),
+        output.mode === "text"
+          ? CANVAS_PROMPT_DRAG_HOTSPOT_Y
+          : Math.round((rect.height || dragNode.offsetHeight) / 2)
       );
     } catch {
       // Keep drag payload semantics even if ghost construction fails.

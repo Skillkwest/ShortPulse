@@ -120,7 +120,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
   selectedStyleContext: StudioOutput["styleContext"] | null;
   selectedTool: ToolId | null;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
-  setDetailOutputId: Dispatch<SetStateAction<string | null>>;
+  setDetailOutputId: (value: string | null) => void;
   setEditReferenceText: (value: string) => void;
   setMode: Dispatch<SetStateAction<StudioMode>>;
   setModel: (value: string | null) => void;

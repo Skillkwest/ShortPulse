@@ -7,6 +7,33 @@ import {
   mockViewportRect,
 } from "./canvasTestHarness";
 
+const dispatchDropAtPoint = ({
+  viewport,
+  dataTransfer,
+  clientX,
+  clientY,
+}: {
+  viewport: HTMLElement;
+  dataTransfer: DataTransfer;
+  clientX: number;
+  clientY: number;
+}) => {
+  const event = createEvent.drop(viewport);
+  Object.defineProperty(event, "dataTransfer", {
+    configurable: true,
+    value: dataTransfer,
+  });
+  Object.defineProperty(event, "clientX", {
+    configurable: true,
+    value: clientX,
+  });
+  Object.defineProperty(event, "clientY", {
+    configurable: true,
+    value: clientY,
+  });
+  fireEvent(viewport, event);
+};
+
 const dragMarquee = ({
   viewport,
   startX,
@@ -859,7 +886,8 @@ describe("Canvas interaction behavior", () => {
     mockViewportRect(mainViewport as HTMLElement);
     mockViewportRect(railViewport as HTMLElement);
 
-    fireEvent.drop(mainViewport as HTMLElement, {
+    dispatchDropAtPoint({
+      viewport: mainViewport as HTMLElement,
       dataTransfer: createTransfer({
         "text/plain": "Shared note",
       }),
@@ -870,6 +898,14 @@ describe("Canvas interaction behavior", () => {
     await waitFor(() => {
       expect(screen.getAllByText("Shared note")).toHaveLength(2);
     });
+    const mainItem = (mainViewport as HTMLElement).querySelector('[data-testid^="canvas-item-"]');
+    const railItem = (railViewport as HTMLElement).querySelector('[data-testid^="canvas-item-"]');
+    expect(mainItem).toBeTruthy();
+    expect(railItem).toBeTruthy();
+    expect(mainItem?.getAttribute("data-x")).toBe("220");
+    expect(mainItem?.getAttribute("data-y")).toBe("140");
+    expect(railItem?.getAttribute("data-x")).toBe("220");
+    expect(railItem?.getAttribute("data-y")).toBe("140");
 
     fireEvent.wheel(mainViewport as HTMLElement, {
       deltaY: -100,

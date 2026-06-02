@@ -29,7 +29,7 @@ type UseAiStudioOptimisticDebitReconciliationParams = {
       source?: "snapshot" | "fallback";
     }) => void;
   }) => Promise<number | null>;
-  setDetailOutputId: Dispatch<SetStateAction<string | null>>;
+  setDetailOutputId: (value: string | null) => void;
 };
 
 type FailureCard = Pick<

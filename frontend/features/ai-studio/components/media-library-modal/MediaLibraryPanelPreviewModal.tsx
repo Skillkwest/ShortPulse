@@ -3,10 +3,17 @@
  * Renders image/video detail previews without triggering reference ingest side effects.
  */
 import React from "react";
-import { X } from "phosphor-react";
 import { isSupabaseRenderImageUrl } from "../../../../lib/mediaPreviewTrustPolicy";
 import type { MediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
+import { SharedMediaDetailContentLayout } from "../detail-modal/SharedMediaDetailContentLayout";
+import { SharedMediaDetailInfoPanel } from "../detail-modal/SharedMediaDetailInfoPanel";
 import { SharedMediaDetailPreviewMedia } from "../detail-modal/SharedMediaDetailPreviewMedia";
+import { SharedMediaDetailTopBar } from "../detail-modal/SharedMediaDetailTopBar";
+import {
+  resolveSharedMediaDetailBladeContent,
+  resolveSharedMediaDetailKindLabel,
+  resolveSharedMediaDetailTitle,
+} from "../detail-modal/sharedMediaDetailPresentation";
 import { useExclusiveSoundMediaElement } from "../shared/exclusiveSoundPlayback";
 import { SharedMediaDetailModalShell } from "../detail-modal/SharedMediaDetailModalShell";
 
@@ -42,10 +49,16 @@ export function MediaLibraryPanelPreviewModal({
     audioRef
   );
   const [failedPreviewUrl, setFailedPreviewUrl] = React.useState<string | null>(null);
-  const isVideo = item?.fileType === "video";
-  const isAudio = item?.fileType === "audio";
-  const title = (item?.filename ?? "").trim() || "Media preview";
-  const normalizedPreviewUrl = item?.url?.trim() ?? "";
+  const isVideo = item?.media.kind === "video";
+  const isAudio = item?.media.kind === "audio";
+  const title = item ? resolveSharedMediaDetailTitle(item) : "Media preview";
+  const mediaTypeLabel = item ? resolveSharedMediaDetailKindLabel(item) : "image";
+  const bladeContent = item
+    ? resolveSharedMediaDetailBladeContent({
+        item,
+      })
+    : { label: "PROMPT" as const, value: "" };
+  const normalizedPreviewUrl = item?.media.url?.trim() ?? "";
   const isForbiddenImagePreviewUrl =
     !isVideo &&
     !isAudio &&
@@ -83,50 +96,58 @@ export function MediaLibraryPanelPreviewModal({
       modalActivityId="media-library-panel-preview-modal"
       onClose={onClose}
       ariaLabel={`Preview ${title}`}
-      backdropClassName="media-library-panel-preview-backdrop"
-      dialogClassName="media-library-panel-preview-modal"
+      backdropClassName="reference-modal-backdrop media-library-panel-preview-backdrop"
+      dialogClassName={`reference-modal-new ${isAudio ? "is-audio-modal" : ""}`}
       backdropDataTestId="media-library-panel-preview-backdrop"
       closeOnEscape
     >
-      <header className="media-library-panel-preview-head">
-        <p className="tiny subdued media-library-panel-preview-title">{title}</p>
-        <button
-          type="button"
-          className="reference-card-action-btn media-library-panel-preview-close"
-          aria-label="Close media preview"
-          onClick={onClose}
-        >
-          <X size={16} weight="bold" aria-hidden />
-        </button>
-      </header>
-
-      <div className="media-library-panel-preview-body">
-        <SharedMediaDetailPreviewMedia
-          mediaUrl={canRenderMedia ? normalizedPreviewUrl : null}
-          mediaKind={canRenderMedia ? (isVideo ? "video" : isAudio ? "audio" : "image") : null}
-          altText={title}
-          isLoading={isLoading}
-          loadingMessage="Loading preview..."
-          unavailableMessage={error || "Preview unavailable."}
-          placeholderClassName="tiny subdued"
-          imageClassName="media-library-panel-preview-media"
-          videoClassName="media-library-panel-preview-media"
-          audioClassName="media-library-panel-preview-media"
-          videoRef={videoRef}
-          audioRef={audioRef}
-          onImageError={handlePreviewError}
-          onVideoPlay={videoPlayback.handlePlay}
-          onVideoPause={videoPlayback.handlePause}
-          onVideoEnded={videoPlayback.handleEnded}
-          onVideoError={handleVideoPreviewError}
-          onVideoVolumeChange={videoPlayback.handleVolumeChange}
-          onAudioPlay={audioPlayback.handlePlay}
-          onAudioPause={audioPlayback.handlePause}
-          onAudioEnded={audioPlayback.handleEnded}
-          onAudioError={handleAudioPreviewError}
-          onAudioVolumeChange={audioPlayback.handleVolumeChange}
-        />
-      </div>
+      <SharedMediaDetailContentLayout
+        topBar={
+          <SharedMediaDetailTopBar
+            items={[
+              { label: mediaTypeLabel, className: "art-meta-item" },
+              { label: title, className: "art-meta-item art-meta-filename", title },
+            ]}
+            onClose={onClose}
+            closeLabel="Close media preview"
+          />
+        }
+        stageClassName="art-image-vessel media-library-panel-preview-body"
+        stage={
+          <SharedMediaDetailPreviewMedia
+            mediaUrl={canRenderMedia ? normalizedPreviewUrl : null}
+            mediaKind={canRenderMedia ? (isVideo ? "video" : isAudio ? "audio" : "image") : null}
+            altText={title}
+            isLoading={isLoading}
+            loadingMessage="Loading preview..."
+            unavailableMessage={error || "Preview unavailable."}
+            placeholderClassName="art-text-placeholder media-library-panel-preview-placeholder"
+            imageClassName="art-hero-image media-library-panel-preview-media"
+            videoClassName="art-hero-image media-library-panel-preview-media"
+            audioClassName="art-hero-audio media-library-panel-preview-media"
+            videoRef={videoRef}
+            audioRef={audioRef}
+            onImageError={handlePreviewError}
+            onVideoPlay={videoPlayback.handlePlay}
+            onVideoPause={videoPlayback.handlePause}
+            onVideoEnded={videoPlayback.handleEnded}
+            onVideoError={handleVideoPreviewError}
+            onVideoVolumeChange={videoPlayback.handleVolumeChange}
+            onAudioPlay={audioPlayback.handlePlay}
+            onAudioPause={audioPlayback.handlePause}
+            onAudioEnded={audioPlayback.handleEnded}
+            onAudioError={handleAudioPreviewError}
+            onAudioVolumeChange={audioPlayback.handleVolumeChange}
+          />
+        }
+        sidePanel={
+          <SharedMediaDetailInfoPanel
+            label={bladeContent.label}
+            value={bladeContent.value}
+            placeholder="No prompt metadata available."
+          />
+        }
+      />
     </SharedMediaDetailModalShell>
   );
 }

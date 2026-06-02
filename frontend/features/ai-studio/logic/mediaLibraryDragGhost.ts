@@ -3,6 +3,13 @@
  * Mirrors Reference Grid drag-ghost visual contract while preserving media-library drag payload semantics.
  */
 import type React from "react";
+import {
+  buildCanvasPromptDragGhost,
+  CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX,
+  CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX,
+  CANVAS_PROMPT_DRAG_HOTSPOT_X,
+  CANVAS_PROMPT_DRAG_HOTSPOT_Y,
+} from "./canvasPromptDragGhost";
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 const GHOST_MAX_TEXT_LENGTH = 180;
@@ -14,8 +21,6 @@ const FOLDER_GHOST_HEIGHT_PX = 104;
 const GHOST_SNAPSHOT_WIDTH = 384;
 const GHOST_SNAPSHOT_HEIGHT = 480;
 const GHOST_SNAPSHOT_QUALITY = 0.08;
-const TEXT_REFERENCE_GHOST_BACKGROUND = "rgba(37, 41, 47, 0.64)";
-
 const trimGhostText = (value: string | null | undefined): string => {
   const normalized = (value ?? "").trim();
   if (!normalized) return "";
@@ -154,8 +159,7 @@ const buildGhostNode = ({
   ghost.style.overflow = "hidden";
   ghost.style.borderRadius = previewKind === "folder" ? "0" : "6px";
   ghost.style.border = "none";
-  ghost.style.background =
-    previewKind === "folder" ? "transparent" : TEXT_REFERENCE_GHOST_BACKGROUND;
+  ghost.style.background = previewKind === "folder" ? "transparent" : "rgba(37, 41, 47, 0.64)";
   ghost.style.pointerEvents = "none";
   ghost.style.display = "flex";
   ghost.style.flexDirection = "column";
@@ -250,23 +254,38 @@ export const attachMediaLibraryDragGhost = (
   removeExistingGhost(node);
   try {
     const ghostWidth =
-      options.previewKind === "folder" ? FOLDER_GHOST_WIDTH_PX : DRAG_GHOST_WIDTH_PX;
+      options.previewKind === "folder"
+        ? FOLDER_GHOST_WIDTH_PX
+        : options.previewKind === "text"
+          ? CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX
+          : DRAG_GHOST_WIDTH_PX;
     const ghostHeight =
-      options.previewKind === "folder" ? FOLDER_GHOST_HEIGHT_PX : DRAG_GHOST_HEIGHT_PX;
+      options.previewKind === "folder"
+        ? FOLDER_GHOST_HEIGHT_PX
+        : options.previewKind === "text"
+          ? CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX
+          : DRAG_GHOST_HEIGHT_PX;
     const resolvedPreviewUrl = resolveGhostPreviewUrl(
       node,
       options.previewKind,
       options.previewUrl
     );
-    const ghost = buildGhostNode({
-      ...options,
-      previewUrl: resolvedPreviewUrl,
-      ghostWidth,
-      ghostHeight,
-    });
+    const ghost =
+      options.previewKind === "text"
+        ? buildCanvasPromptDragGhost({
+            label: options.label,
+            detail: options.detail,
+            className: "media-library-drag-ghost",
+          })
+        : buildGhostNode({
+            ...options,
+            previewUrl: resolvedPreviewUrl,
+            ghostWidth,
+            ghostHeight,
+          });
     document.body.appendChild(ghost);
-    const dragImageOffsetX = 12;
-    const dragImageOffsetY = 12;
+    const dragImageOffsetX = options.previewKind === "text" ? CANVAS_PROMPT_DRAG_HOTSPOT_X : 12;
+    const dragImageOffsetY = options.previewKind === "text" ? CANVAS_PROMPT_DRAG_HOTSPOT_Y : 12;
     if (safeSetDragImage(event.dataTransfer, ghost, dragImageOffsetX, dragImageOffsetY)) {
       dragGhostMap.set(node, ghost);
       return;
@@ -274,12 +293,19 @@ export const attachMediaLibraryDragGhost = (
     if (ghost.parentNode) {
       ghost.parentNode.removeChild(ghost);
     }
-    const fallbackGhost = buildGhostNode({
-      ...options,
-      previewUrl: null,
-      ghostWidth,
-      ghostHeight,
-    });
+    const fallbackGhost =
+      options.previewKind === "text"
+        ? buildCanvasPromptDragGhost({
+            label: options.label,
+            detail: options.detail,
+            className: "media-library-drag-ghost",
+          })
+        : buildGhostNode({
+            ...options,
+            previewUrl: null,
+            ghostWidth,
+            ghostHeight,
+          });
     document.body.appendChild(fallbackGhost);
     if (safeSetDragImage(event.dataTransfer, fallbackGhost, dragImageOffsetX, dragImageOffsetY)) {
       dragGhostMap.set(node, fallbackGhost);

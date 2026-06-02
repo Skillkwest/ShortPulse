@@ -330,6 +330,7 @@ export function EmbeddedMediaLibraryPanel({
     activeFolderId,
     detailSurface: surface,
     currentUserIdRef,
+    mediaRows,
     onSelectMedia: onSelectMedia ?? handleNoopMediaSelect,
     refreshSignedUrl,
     signStoragePath,

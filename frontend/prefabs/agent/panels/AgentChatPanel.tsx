@@ -9,6 +9,11 @@ import { AgentInputBar } from "../inputs/AgentInputBar";
 import { AgentImageAttachmentPreview } from "../components/AgentImageAttachmentPreview";
 import { projectAgentAttachmentToComposerImageAttachment } from "../../../features/ai-studio/logic/composerImageAttachment";
 import {
+  buildCanvasPromptDragGhost,
+  CANVAS_PROMPT_DRAG_HOTSPOT_X,
+  CANVAS_PROMPT_DRAG_HOTSPOT_Y,
+} from "../../../features/ai-studio/logic/canvasPromptDragGhost";
+import {
   captureAssistantInlineEditPresentation,
   resolveAssistantInlineEditStyle,
   type AssistantInlineEditPresentation,
@@ -21,9 +26,6 @@ import type {
   AgentOutputGenerateRequest,
 } from "../types";
 
-const PROMPT_DRAG_GHOST_MIN_WIDTH_PX = 220;
-const PROMPT_DRAG_GHOST_MAX_WIDTH_PX = 360;
-const PROMPT_DRAG_GHOST_MAX_HEIGHT_PX = 220;
 const STAGED_AGENT_OUTPUT_MESSAGE_ID = "staged-agent-output";
 const CHAT_HISTORY_FOLLOW_THRESHOLD_PX = 24;
 const CHAT_HISTORY_SCROLLBAR_INTENT_GUTTER_PX = 24;
@@ -48,37 +50,18 @@ const clearPromptDragGhost = (source: HTMLElement) => {
   promptDragGhostMap.delete(source);
 };
 
-const createPromptDragGhost = (source: HTMLElement) => {
+const createPromptDragGhost = (source: HTMLElement, promptText: string) => {
   clearPromptDragGhost(source);
-  const rect = source.getBoundingClientRect();
-  const preferredWidth = rect.width * 0.84;
-  const width = Math.min(
-    PROMPT_DRAG_GHOST_MAX_WIDTH_PX,
-    Math.max(PROMPT_DRAG_GHOST_MIN_WIDTH_PX, preferredWidth)
-  );
-  const height = Math.min(PROMPT_DRAG_GHOST_MAX_HEIGHT_PX, rect.height);
-  const ghost = source.cloneNode(true) as HTMLElement;
-  ghost.classList.add("agent-message-drag-ghost");
-  ghost.classList.remove("is-clickable", "is-draggable", "is-dragging");
-  ghost.classList.remove(
-    "agent-message--with-output-generate",
-    "agent-message--with-output-thumbnail"
-  );
-  ghost.querySelectorAll(".agent-output-bubble-controls").forEach((node) => {
-    node.remove();
+  const ghost = buildCanvasPromptDragGhost({
+    detail: promptText,
+    className: "agent-message-drag-ghost",
   });
-  ghost.style.width = `${width}px`;
-  ghost.style.maxHeight = `${PROMPT_DRAG_GHOST_MAX_HEIGHT_PX}px`;
-  ghost.style.position = "fixed";
-  ghost.style.top = "-9999px";
-  ghost.style.left = "-9999px";
-  ghost.style.pointerEvents = "none";
   document.body.appendChild(ghost);
   promptDragGhostMap.set(source, ghost);
   return {
     ghost,
-    offsetX: Math.round(width * 0.5),
-    offsetY: Math.round(height * 0.5),
+    offsetX: CANVAS_PROMPT_DRAG_HOTSPOT_X,
+    offsetY: CANVAS_PROMPT_DRAG_HOTSPOT_Y,
   };
 };
 
@@ -334,10 +317,14 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       const dragBubble = resolvePromptDragBubble(source);
       if (typeof event.dataTransfer.setDragImage === "function") {
         try {
-          const { ghost, offsetX, offsetY } = createPromptDragGhost(source);
+          const { ghost, offsetX, offsetY } = createPromptDragGhost(source, normalizedPrompt);
           event.dataTransfer.setDragImage(ghost, offsetX, offsetY);
         } catch {
-          event.dataTransfer.setDragImage(source, source.offsetWidth / 2, source.offsetHeight / 2);
+          event.dataTransfer.setDragImage(
+            source,
+            CANVAS_PROMPT_DRAG_HOTSPOT_X,
+            CANVAS_PROMPT_DRAG_HOTSPOT_Y
+          );
         }
       }
       dragBubble.classList.add("is-dragging");

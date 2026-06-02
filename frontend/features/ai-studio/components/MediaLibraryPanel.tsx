@@ -51,6 +51,7 @@ import { MediaLibraryPanelFolderContent } from "./MediaLibraryPanelFolderContent
 import { MediaLibraryPanelHeader } from "./MediaLibraryPanelHeader";
 import { MediaLibraryPanelRootContent } from "./MediaLibraryPanelRootContent";
 import { MediaLibraryPanelStatusArea } from "./MediaLibraryPanelStatusArea";
+import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
 import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllItemsGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
@@ -100,6 +101,8 @@ type MediaLibraryPanelProps = {
     id: string;
   } | null>;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
+  onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
 
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
@@ -127,6 +130,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onCollapseMediaLibraryPanel,
   resolveInternalDropItem,
   onDeleteMediaRowsFromWorkspace,
+  detailSelectionTarget = null,
+  onDetailSelectionTargetChange,
 }: MediaLibraryPanelProps) {
   const sessionSnapshot = useResolvedProtectedSessionState();
   const sessionUserId = sessionSnapshot.user?.id ?? null;
@@ -495,6 +500,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     activeFolderId,
     detailSurface: "media-library-panel",
     currentUserIdRef,
+    mediaRows,
+    detailSelectionTarget,
+    setDetailSelectionTarget: onDetailSelectionTargetChange,
     onSelectMedia,
     refreshSignedUrl,
     signStoragePath,

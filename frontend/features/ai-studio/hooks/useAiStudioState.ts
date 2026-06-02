@@ -245,6 +245,8 @@ export const useAiStudioState = ({
     clearMotionVideoSelection,
     useReferenceImageIndicator,
     setUseReferenceImageIndicator,
+    detailSelectionTarget,
+    setDetailSelectionTarget,
     detailOutputId,
     setDetailOutputId,
     referenceImageUrl,
@@ -301,7 +303,13 @@ export const useAiStudioState = ({
   );
 
   const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =
-    useAiStudioOutputDerivations({ outputs, activeOutputById, detailOutputId, model });
+    useAiStudioOutputDerivations({
+      outputs,
+      activeOutputById,
+      detailSelectionTarget,
+      detailOutputId,
+      model,
+    });
   const { hasPendingWorkflowRestore } = useAiStudioWorkflowSettings({
     projectId,
     projectRouteRequested,
@@ -782,6 +790,8 @@ export const useAiStudioState = ({
     resolvePreviewUrlById,
     useReferenceImageIndicator,
     detailOutput,
+    detailSelectionTarget,
+    setDetailSelectionTarget,
     detailOutputId,
     setDetailOutputId,
     isModelModalOpen,

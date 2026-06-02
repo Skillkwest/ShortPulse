@@ -3,6 +3,7 @@
  * Centralizes preview text routing and detail action wiring for page orchestration.
  */
 import { useMemo } from "react";
+import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
 import type { StudioOutput, ToolId } from "../types";
 import { resolveActiveOutputPreviewUrl } from "../logic/activeOutputPreviewAuthority";
 import type { AiStudioPreviewDetailContracts } from "./contracts/pageContentContracts";
@@ -18,6 +19,7 @@ type UseAiStudioPreviewDetailPropsParams = {
   handleManualPromptChange: (value: string) => void;
   handleRegenerateWithDebit: () => void;
   detailOutput: StudioOutput | null;
+  setDetailSelectionTarget?: (target: SharedMediaDetailSelectionTarget | null) => void;
   setDetailOutputId: (id: string | null) => void;
   updateOutputPrompt: (id: string, prompt: string) => void;
   deleteOutput: (id: string) => void;
@@ -42,6 +44,7 @@ export const useAiStudioPreviewDetailProps = ({
   handleManualPromptChange,
   handleRegenerateWithDebit,
   detailOutput,
+  setDetailSelectionTarget,
   setDetailOutputId,
   updateOutputPrompt,
   deleteOutput,
@@ -71,7 +74,10 @@ export const useAiStudioPreviewDetailProps = ({
         onRegenerate: handleRegenerateWithDebit,
       },
       detailModalOutput: detailOutput,
-      onDetailClose: () => setDetailOutputId(null),
+      onDetailClose: () => {
+        setDetailSelectionTarget?.(null);
+        setDetailOutputId(null);
+      },
       onUpdateOutputPrompt: updateOutputPrompt,
       onDeleteOutput: deleteOutput,
       onDetailDownload: handleDownloadReference,
@@ -95,6 +101,7 @@ export const useAiStudioPreviewDetailProps = ({
     referenceImageUrl,
     savePromptToLibrary,
     selectedTool,
+    setDetailSelectionTarget,
     setDetailOutputId,
     setReferenceImageUrl,
     updateOutputPrompt,

@@ -18,6 +18,7 @@ import {
   normalizeSelectedToolForAuthorityKey,
 } from "../logic/pulseToolInvariant";
 import { resolveInternalMediaRefsForUrls } from "../logic/referenceInputInternalMediaRegistry";
+import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
 
 type UseAiStudioReferenceSelectionStateParams = {
   activeOutputPreviewUrl: string | null;
@@ -36,6 +37,7 @@ type ReferenceSelectionAuthorityState = {
   motionReferenceVideoUrl: string | null;
   useReferenceImageIndicator: boolean;
   detailOutputId: string | null;
+  detailSelectionTarget: SharedMediaDetailSelectionTarget | null;
 };
 
 type MotionReferenceUploadUiState = {
@@ -53,6 +55,19 @@ export type ReferenceSelectionAuthorityStateSeed = {
   motionReferenceVideoUrl: string | null;
   useReferenceImageIndicator?: boolean;
   detailOutputId?: string | null;
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
+};
+
+const createDetailSelectionTargetFromOutputId = (
+  outputId: string | null | undefined
+): SharedMediaDetailSelectionTarget | null => {
+  const normalizedOutputId = outputId?.trim() ?? "";
+  if (!normalizedOutputId) return null;
+  return {
+    kind: "studio-output",
+    outputId: normalizedOutputId,
+    surface: "reference-grid",
+  };
 };
 
 const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthorityState => ({
@@ -67,6 +82,7 @@ const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthor
   motionReferenceVideoUrl: null,
   useReferenceImageIndicator: false,
   detailOutputId: null,
+  detailSelectionTarget: null,
 });
 
 const createEmptyMotionReferenceUploadUiState = (): MotionReferenceUploadUiState => ({
@@ -84,11 +100,18 @@ const buildReferenceSelectionAuthorityStateFromSeed = ({
   motionReferenceVideoUrl,
   useReferenceImageIndicator = false,
   detailOutputId = null,
+  detailSelectionTarget,
 }: ReferenceSelectionAuthorityStateSeed): ReferenceSelectionAuthorityState => {
   const isVideoReferenceTool = selectedTool === "video" || selectedTool === "kling";
   const resolvedInternalMediaRefs =
     referenceImageInternalMediaRefs ??
     resolveInternalMediaRefsForUrls([referenceImageUrl, ...extraImageUrls], 4);
+  const resolvedDetailSelectionTarget =
+    detailSelectionTarget ?? createDetailSelectionTargetFromOutputId(detailOutputId);
+  const resolvedDetailOutputId =
+    resolvedDetailSelectionTarget?.kind === "studio-output"
+      ? resolvedDetailSelectionTarget.outputId
+      : null;
   return {
     selectedTool,
     showCreateTools,
@@ -100,7 +123,8 @@ const buildReferenceSelectionAuthorityStateFromSeed = ({
     videoReferenceImageInternalMediaRefs: isVideoReferenceTool ? resolvedInternalMediaRefs : [],
     motionReferenceVideoUrl,
     useReferenceImageIndicator,
-    detailOutputId,
+    detailOutputId: resolvedDetailOutputId,
+    detailSelectionTarget: resolvedDetailSelectionTarget,
   };
 };
 
@@ -125,7 +149,8 @@ export const useAiStudioReferenceSelectionState = ({
   const [motionReferenceVideoPending, setMotionReferenceVideoPending] = useState(false);
   const [motionReferenceVideoError, setMotionReferenceVideoError] = useState<string | null>(null);
   const [useReferenceImageIndicator, setUseReferenceImageIndicator] = useState<boolean>(false);
-  const [detailOutputId, setDetailOutputId] = useState<string | null>(null);
+  const [detailSelectionTarget, setDetailSelectionTargetState] =
+    useState<SharedMediaDetailSelectionTarget | null>(null);
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
   const [modelModalAnchor, setModelModalAnchor] = useState<string | null>(null);
   const [modelModalContext, setModelModalContext] = useState<ModelModalContext | null>(null);
@@ -188,7 +213,9 @@ export const useAiStudioReferenceSelectionState = ({
       videoReferenceImageInternalMediaRefs: currentVideoInternalMediaRefs,
       motionReferenceVideoUrl,
       useReferenceImageIndicator,
-      detailOutputId,
+      detailOutputId:
+        detailSelectionTarget?.kind === "studio-output" ? detailSelectionTarget.outputId : null,
+      detailSelectionTarget,
     };
     updateMotionReferenceUploadUiStateForAuthority(previousAuthorityKey, (current) => ({
       ...current,
@@ -219,13 +246,13 @@ export const useAiStudioReferenceSelectionState = ({
     setMotionReferenceVideoPending(restoredMotionReferenceUploadUiState.pending);
     setMotionReferenceVideoError(restoredMotionReferenceUploadUiState.error);
     setUseReferenceImageIndicator(restoredState.useReferenceImageIndicator);
-    setDetailOutputId(restoredState.detailOutputId);
+    setDetailSelectionTargetState(restoredState.detailSelectionTarget);
     setIsModelModalOpen(false);
     setModelModalAnchor(null);
     setModelModalContext(null);
   }, [
     authorityKey,
-    detailOutputId,
+    detailSelectionTarget,
     imageExtraImageUrls,
     imageReferenceImageUrl,
     motionReferenceVideoError,
@@ -241,8 +268,30 @@ export const useAiStudioReferenceSelectionState = ({
   ]);
 
   const isVideoReferenceTool = selectedTool === "video" || selectedTool === "kling";
+  const detailOutputId =
+    detailSelectionTarget?.kind === "studio-output" ? detailSelectionTarget.outputId : null;
   const referenceImageUrl = isVideoReferenceTool ? videoReferenceImageUrl : imageReferenceImageUrl;
   const extraImageUrls = isVideoReferenceTool ? videoExtraImageUrls : imageExtraImageUrls;
+
+  const setDetailSelectionTarget = useCallback(
+    (
+      value:
+        | SharedMediaDetailSelectionTarget
+        | null
+        | ((
+            current: SharedMediaDetailSelectionTarget | null
+          ) => SharedMediaDetailSelectionTarget | null)
+    ) => {
+      setDetailSelectionTargetState((current) =>
+        typeof value === "function" ? value(current) : value
+      );
+    },
+    []
+  );
+
+  const setDetailOutputId = useCallback((value: string | null) => {
+    setDetailSelectionTargetState(createDetailSelectionTargetFromOutputId(value));
+  }, []);
 
   const resolveReferenceInputsForTool = useCallback(
     (tool: ToolId | null) => {
@@ -352,7 +401,7 @@ export const useAiStudioReferenceSelectionState = ({
       setVideoExtraImageUrls(resolvedState.videoExtraImageUrls);
       setMotionReferenceVideoUrlState(resolvedState.motionReferenceVideoUrl);
       setUseReferenceImageIndicator(resolvedState.useReferenceImageIndicator);
-      setDetailOutputId(resolvedState.detailOutputId);
+      setDetailSelectionTargetState(resolvedState.detailSelectionTarget);
     },
     []
   );
@@ -373,6 +422,7 @@ export const useAiStudioReferenceSelectionState = ({
           motionReferenceVideoUrl,
           useReferenceImageIndicator,
           detailOutputId,
+          detailSelectionTarget,
         };
       }
       const restoredState =
@@ -403,9 +453,11 @@ export const useAiStudioReferenceSelectionState = ({
         motionReferenceVideoUrl: restoredState.motionReferenceVideoUrl,
         useReferenceImageIndicator: restoredState.useReferenceImageIndicator,
         detailOutputId: restoredState.detailOutputId,
+        detailSelectionTarget: restoredState.detailSelectionTarget,
       };
     },
     [
+      detailSelectionTarget,
       detailOutputId,
       extraImageUrls,
       imageExtraImageUrls,
@@ -543,6 +595,8 @@ export const useAiStudioReferenceSelectionState = ({
     clearMotionVideoSelection,
     useReferenceImageIndicator,
     setUseReferenceImageIndicator,
+    detailSelectionTarget,
+    setDetailSelectionTarget,
     detailOutputId,
     setDetailOutputId,
     isVideoReferenceTool,

@@ -1,6 +1,7 @@
 import React from "react";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
+import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
 import {
   isAudioFile,
   isVideoFile,
@@ -26,6 +27,9 @@ type UseMediaLibraryPanelSelectionControllerParams = {
   activeFolderId: string;
   detailSurface: MediaLibraryDetailModalSurface;
   currentUserIdRef: React.MutableRefObject<string | null>;
+  mediaRows: MediaFileRow[];
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
+  setDetailSelectionTarget?: (target: SharedMediaDetailSelectionTarget | null) => void;
   onSelectMedia: (payload: MediaLibrarySelectionPayload) => void;
   refreshSignedUrl: (row: MediaFileRow) => Promise<string | null>;
   signStoragePath: (
@@ -49,6 +53,9 @@ export const useMediaLibraryPanelSelectionController = ({
   activeFolderId,
   detailSurface,
   currentUserIdRef,
+  mediaRows,
+  detailSelectionTarget,
+  setDetailSelectionTarget,
   onSelectMedia,
   refreshSignedUrl,
   signStoragePath,
@@ -59,6 +66,11 @@ export const useMediaLibraryPanelSelectionController = ({
   const [detailModalLoading, setDetailModalLoading] = React.useState(false);
   const [detailModalError, setDetailModalError] = React.useState<string | null>(null);
   const previewResolveTokenRef = React.useRef(0);
+  const isExternallyControlled = typeof setDetailSelectionTarget === "function";
+  const controlledSelectionTarget =
+    detailSelectionTarget?.kind === "media-file" && detailSelectionTarget.surface === detailSurface
+      ? detailSelectionTarget
+      : null;
 
   const addMediaReferenceFromFile = React.useCallback(
     async (file: MediaFileRow) => {
@@ -148,16 +160,15 @@ export const useMediaLibraryPanelSelectionController = ({
     [signStoragePath]
   );
 
-  const closeDetailModal = React.useCallback(() => {
+  const resetDetailModalState = React.useCallback(() => {
     previewResolveTokenRef.current += 1;
     setDetailModalItem(null);
     setDetailModalLoading(false);
     setDetailModalError(null);
   }, []);
 
-  const handleMediaCardDoubleClick = React.useCallback(
+  const openDetailModalForFile = React.useCallback(
     (file: MediaFileRow) => {
-      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
       const nextToken = previewResolveTokenRef.current + 1;
       previewResolveTokenRef.current = nextToken;
       const immediatePreviewUrl = (file.signedUrl ?? "").trim() || null;
@@ -229,7 +240,61 @@ export const useMediaLibraryPanelSelectionController = ({
         }
       })();
     },
-    [activeFolderId, detailSurface, resolvePreviewModalFullUrl, resolvePreviewModalUrl]
+    [detailSurface, resolvePreviewModalFullUrl, resolvePreviewModalUrl]
+  );
+
+  React.useEffect(() => {
+    if (!isExternallyControlled) return;
+    if (!controlledSelectionTarget || activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) {
+      resetDetailModalState();
+      return;
+    }
+    const matchingFile =
+      mediaRows.find((row) => row.id === controlledSelectionTarget.fileId) ?? null;
+    if (!matchingFile) {
+      resetDetailModalState();
+      return;
+    }
+    if (detailModalItem?.file.id === matchingFile.id) return;
+    openDetailModalForFile(matchingFile);
+  }, [
+    activeFolderId,
+    controlledSelectionTarget,
+    detailModalItem?.file.id,
+    isExternallyControlled,
+    mediaRows,
+    openDetailModalForFile,
+    resetDetailModalState,
+  ]);
+
+  const closeDetailModal = React.useCallback(() => {
+    if (isExternallyControlled) {
+      setDetailSelectionTarget?.(null);
+      return;
+    }
+    resetDetailModalState();
+  }, [isExternallyControlled, resetDetailModalState, setDetailSelectionTarget]);
+
+  const handleMediaCardDoubleClick = React.useCallback(
+    (file: MediaFileRow) => {
+      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+      if (isExternallyControlled) {
+        setDetailSelectionTarget?.({
+          kind: "media-file",
+          fileId: file.id,
+          surface: detailSurface,
+        });
+        return;
+      }
+      openDetailModalForFile(file);
+    },
+    [
+      activeFolderId,
+      detailSurface,
+      isExternallyControlled,
+      openDetailModalForFile,
+      setDetailSelectionTarget,
+    ]
   );
 
   const handleDetailModalMediaError = React.useCallback(

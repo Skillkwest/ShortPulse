@@ -74,6 +74,14 @@
   );
 }
 
+.reference-modal-new.is-stage-only:not(.is-prompt-only) {
+  width: min(1180px, calc(var(--app-fixed-width) * 0.9));
+}
+
+.reference-modal-new.is-stage-only.is-audio-modal:not(.is-prompt-only) {
+  width: min(920px, calc(var(--app-fixed-width) * 0.72));
+}
+
 @keyframes modal-art-in {
   from {
     opacity: 0;
@@ -467,6 +475,10 @@
   overflow: hidden;
   position: relative;
   min-height: 0;
+}
+
+.reference-modal-new.is-stage-only .art-modal-main-content {
+  justify-content: center;
 }
 
 /* Image Section (Left) */

@@ -20,6 +20,12 @@ Start here for all repository documentation.
 - Historical/deprecated docs live in `docs/archive/`.
 - Early non-authoritative ideas live in `docs/brainstorming/`.
 
+## Records And Evidence
+
+- `docs/records/README.md`
+- `docs/records/evidence/README.md`
+- `docs/records/evidence/ux/README.md`
+
 ## Agent Training Quick Start
 
 Use these docs when creating, nurturing, or training a new task-specific agent:

@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
@@ -6,6 +6,11 @@ import {
   setAiStudioOutputStoreSnapshot,
 } from "../../hooks/aiStudioOutputStore";
 import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
+import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrlsBatch: vi.fn(),
+}));
 
 class MockResizeObserver {
   observe() {
@@ -59,6 +64,7 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 describe("ReferenceGrid selector-store bridge", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.mocked(getSignedMediaUrlsBatch).mockResolvedValue(new Map());
     resetAiStudioOutputStore();
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
@@ -87,6 +93,7 @@ describe("ReferenceGrid selector-store bridge", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -211,6 +218,63 @@ describe("ReferenceGrid selector-store bridge", () => {
     expect(curatedQueries.getByText("Suppressed quick-slot ref")).toBeInTheDocument();
     expect(allRefsQueries.queryByText("Suppressed quick-slot ref")).toBeNull();
     expect(allRefsQueries.getByText("Visible all-refs ref")).toBeInTheDocument();
+  });
+
+  it("renders restored quick-slot media from selector snapshot storage paths", async () => {
+    vi.useRealTimers();
+    vi.mocked(getSignedMediaUrlsBatch).mockResolvedValue(
+      new Map([
+        ["user-1/restored-preview.webp", "https://signed.example.com/restored-preview.webp"],
+      ])
+    );
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        curatedReferenceIds={["restored-media-1"]}
+        onAddCuratedReference={() => undefined}
+        onRemoveCuratedReference={() => undefined}
+        onReorderCuratedReference={() => undefined}
+      />
+    );
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["restored-media-1"],
+        outputById: {
+          "restored-media-1": makeOutput("restored-media-1", {
+            mode: "image",
+            previewText: undefined,
+            previewUrl: undefined,
+            resultUrls: [],
+            mediaSource: "generated",
+            savedMediaIds: ["media-restored-1"],
+            previewStoragePath: "user-1/restored-preview.webp",
+            fullStoragePath: "user-1/restored-full.png",
+          }),
+        },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    await waitFor(() => {
+      expect(getSignedMediaUrlsBatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bucket: "media_library",
+          storagePaths: ["user-1/restored-preview.webp"],
+        })
+      );
+      const image = curatedSection.querySelector(
+        ".reference-card-image"
+      ) as HTMLImageElement | null;
+      expect(image?.getAttribute("data-src")).toBe(
+        "https://signed.example.com/restored-preview.webp"
+      );
+    });
+    expect(within(curatedSection).queryByText(/Drag & drop references here/i)).toBeNull();
   });
 
   it("keeps hidden outputs out of all refs even when explicit suppression is active elsewhere", () => {

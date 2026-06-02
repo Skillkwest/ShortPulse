@@ -105,6 +105,67 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.expertEdit).toBeNull();
   });
 
+  it("recovers quick-slot membership from pinned restored outputs when projection ids are absent", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          active: [
+            {
+              ...createSnapshot().outputs.active[0],
+              pinned: true,
+            },
+            {
+              id: "out-unpinned",
+              prompt: "unpinned",
+              mode: "image",
+              aspect: "1:1",
+              model: "fal:foo",
+              status: "ready",
+              timestamp: "t3",
+            },
+          ],
+          archived: [
+            {
+              ...createSnapshot().outputs.archived[0],
+              pinned: true,
+            },
+          ],
+          activeOutputId: "out-1",
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+      })
+    );
+
+    expect(payload.outputs.curatedReferenceIds).toEqual(["out-1", "out-2"]);
+  });
+
+  it("keeps explicit quick-slot projection ids authoritative over pinned restore hints", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          active: [
+            {
+              ...createSnapshot().outputs.active[0],
+              pinned: true,
+            },
+          ],
+          archived: [
+            {
+              ...createSnapshot().outputs.archived[0],
+              pinned: true,
+            },
+          ],
+          activeOutputId: "out-1",
+          curatedReferenceIds: ["out-1"],
+          removedFromAllRefsIds: [],
+        },
+      })
+    );
+
+    expect(payload.outputs.curatedReferenceIds).toEqual(["out-1"]);
+  });
+
   it("restores persisted output dimensions from the session snapshot", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

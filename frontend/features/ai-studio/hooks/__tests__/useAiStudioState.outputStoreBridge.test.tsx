@@ -672,6 +672,9 @@ describe("useAiStudioState output store bridge", () => {
         "pulse-restored-out",
       ]);
       expect(restored.result.current.activeOutputId).toBe("pulse-restored-out");
+      expect(restored.result.current.curatedReferenceIds).toEqual(["pulse-restored-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-restored-out"]);
+      expect(getAiStudioOutputSnapshot().outputById["pulse-restored-out"]?.pinned).toBe(true);
     });
 
     act(() => {
@@ -683,6 +686,7 @@ describe("useAiStudioState output store bridge", () => {
     expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
     expect(restored.result.current.outputs.map((item) => item.id)).toEqual(["pulse-restored-out"]);
     expect(restored.result.current.activeOutputId).toBe("pulse-restored-out");
+    expect(restored.result.current.curatedReferenceIds).toEqual(["pulse-restored-out"]);
 
     act(() => {
       restored.result.current.setExpertCreateMode("pulse");
@@ -693,6 +697,7 @@ describe("useAiStudioState output store bridge", () => {
     expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
     expect(restored.result.current.outputs.map((item) => item.id)).toEqual(["pulse-restored-out"]);
     expect(restored.result.current.activeOutputId).toBe("pulse-restored-out");
+    expect(restored.result.current.curatedReferenceIds).toEqual(["pulse-restored-out"]);
   });
 
   it("clears outputs, active selection, and quick slots when runtime authority changes to a pending project route", async () => {

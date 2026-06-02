@@ -556,6 +556,24 @@ const dedupeOutputs = (rows: StudioOutput[]): StudioOutput[] => {
   return [...byId.values()];
 };
 
+const resolveHydratedCuratedReferenceIds = ({
+  rawCuratedReferenceIds,
+  activeOutputs,
+  archivedOutputs,
+  allOutputIds,
+}: {
+  rawCuratedReferenceIds: unknown;
+  activeOutputs: StudioOutput[];
+  archivedOutputs: StudioOutput[];
+  allOutputIds: Set<string>;
+}): string[] => {
+  const explicitIds = asStringArray(rawCuratedReferenceIds).filter((id) => allOutputIds.has(id));
+  if (explicitIds.length > 0) return explicitIds;
+  return [...activeOutputs, ...archivedOutputs]
+    .filter((output) => output.pinned === true && allOutputIds.has(output.id))
+    .map((output) => output.id);
+};
+
 const normalizeAgentAttachments = (value: unknown): AgentAttachment[] => {
   if (!Array.isArray(value)) return [];
   const seenIds = new Set<string>();
@@ -1085,9 +1103,12 @@ export const buildAiStudioSessionHydrationPayload = (
       active: activeOutputs,
       archived: archivedOutputs,
       activeOutputId,
-      curatedReferenceIds: asStringArray(outputs.curatedReferenceIds).filter((id) =>
-        allOutputIds.has(id)
-      ),
+      curatedReferenceIds: resolveHydratedCuratedReferenceIds({
+        rawCuratedReferenceIds: outputs.curatedReferenceIds,
+        activeOutputs,
+        archivedOutputs,
+        allOutputIds,
+      }),
       removedFromAllRefsIds: asStringArray(outputs.removedFromAllRefsIds).filter((id) =>
         allOutputIds.has(id)
       ),

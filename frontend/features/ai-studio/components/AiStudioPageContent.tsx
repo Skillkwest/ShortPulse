@@ -665,6 +665,8 @@ export function AiStudioPageContent({
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
+  const visibleProjectName =
+    typeof projectName === "string" && projectName.trim().length > 0 ? projectName.trim() : null;
   const resolvedReferenceGridFileInputRef = referenceGridFileInputRef;
   const resolvedCreateProperties = propertiesCreate;
   const resolvedStandardCreateProperties =
@@ -1510,6 +1512,17 @@ export function AiStudioPageContent({
               </span>
             </div>
           </div>
+          {visibleProjectName ? (
+            <div
+              className="ai-hero-project-name"
+              role="status"
+              aria-live="polite"
+              aria-label={`Current project: ${visibleProjectName}`}
+              title={visibleProjectName}
+            >
+              <span className="ai-hero-project-name-text">{visibleProjectName}</span>
+            </div>
+          ) : null}
           <div className="hero-right">
             <div className="ai-hero-shortcut-cluster">
               <div className="ai-hero-shortcut-buttons" aria-label="AI Studio header shortcuts">

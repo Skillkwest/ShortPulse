@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
+import { reportAppError } from "../../../lib/appErrorReporter";
 import {
   createAiStudioProjectWorkspaceAutosaveCandidates,
   type AiStudioProjectWorkspaceAutosaveCandidateKind,
@@ -35,6 +36,11 @@ import {
 } from "../logic/sessionAutosaveSerialization";
 import { createProjectRestoreVisibilitySnapshot } from "../logic/projectRestoreSnapshot";
 import { recordProjectWorkspaceAutosavePerf } from "../logic/projectWorkspaceAutosavePerf";
+import {
+  buildProjectWorkspaceQuickSlotDiagnostics,
+  prefixProjectWorkspaceQuickSlotDiagnostics,
+  shouldReportProjectWorkspaceQuickSlotDiagnostics,
+} from "../logic/projectWorkspaceQuickSlotDiagnostics";
 import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
@@ -416,6 +422,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const slowPhaseTelemetryRef = useRef<
     Partial<Record<keyof typeof PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS, number>>
   >({});
+  const quickSlotAutosaveCandidateTelemetryKeyRef = useRef<string | null>(null);
   const resolveCachedSnapshotByteBreakdown = useCallback(
     (snapshot: AiStudioSessionSnapshot | null): ProjectSnapshotByteBreakdown => {
       if (!snapshot) {
@@ -854,6 +861,34 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         savedWorkspace.snapshot && typeof savedWorkspace.snapshot === "object"
           ? (savedWorkspace.snapshot as AiStudioSessionSnapshot)
           : null;
+      const localQuickSlotDiagnostics = buildProjectWorkspaceQuickSlotDiagnostics(snapshot);
+      const savedQuickSlotDiagnostics = buildProjectWorkspaceQuickSlotDiagnostics(savedSnapshot);
+      if (
+        shouldReportProjectWorkspaceQuickSlotDiagnostics(localQuickSlotDiagnostics) ||
+        shouldReportProjectWorkspaceQuickSlotDiagnostics(savedQuickSlotDiagnostics)
+      ) {
+        void reportAppError({
+          source: "telemetry.ai_studio.project_workspace.quick_slot_save_result",
+          scope: "app",
+          severity: "low",
+          message: "Project workspace save returned Quick Slot diagnostics.",
+          metadata: {
+            project_id: activeProjectId,
+            keepalive: options?.keepalive === true,
+            snapshot_updated_at: snapshot.updatedAt,
+            saved_snapshot_updated_at: savedSnapshot?.updatedAt ?? null,
+            save_outcome: savedWorkspace.saveOutcome?.status ?? "saved",
+            quick_slot_count_changed:
+              localQuickSlotDiagnostics.quick_slot_count !==
+              savedQuickSlotDiagnostics.quick_slot_count,
+            quick_slot_missing_changed:
+              localQuickSlotDiagnostics.quick_slot_missing_count !==
+              savedQuickSlotDiagnostics.quick_slot_missing_count,
+            ...prefixProjectWorkspaceQuickSlotDiagnostics("local", localQuickSlotDiagnostics),
+            ...prefixProjectWorkspaceQuickSlotDiagnostics("saved", savedQuickSlotDiagnostics),
+          },
+        });
+      }
       const savedOutputIds = savedSnapshot ? collectProjectSnapshotOutputIds(savedSnapshot) : [];
       if (savedSnapshot && !areStringListsEqual(localOutputIds, savedOutputIds)) {
         addBreadcrumb({
@@ -951,6 +986,53 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     bootstrapError?.projectId === projectId && bootstrapError.revision === projectRuntimeRevision
       ? bootstrapError
       : null;
+
+  useEffect(() => {
+    if (!projectId) {
+      quickSlotAutosaveCandidateTelemetryKeyRef.current = null;
+      return;
+    }
+    const diagnostics = buildProjectWorkspaceQuickSlotDiagnostics(
+      autosaveSnapshotSelection.snapshot
+    );
+    if (!shouldReportProjectWorkspaceQuickSlotDiagnostics(diagnostics)) return;
+    const telemetryKey = [
+      projectId,
+      autosaveSnapshotSelection.preparedSnapshot?.hash ?? "no-hash",
+      autosaveSnapshotSelection.fallbackKind,
+      projectAutosaveReady ? "ready" : "not-ready",
+      activeBootstrapError ? "bootstrap-error" : "bootstrap-ok",
+      diagnostics.quick_slot_ids,
+    ].join("|");
+    if (quickSlotAutosaveCandidateTelemetryKeyRef.current === telemetryKey) return;
+    quickSlotAutosaveCandidateTelemetryKeyRef.current = telemetryKey;
+    void reportAppError({
+      source: "telemetry.ai_studio.project_workspace.quick_slot_autosave_candidate",
+      scope: "app",
+      severity: "low",
+      message: "Project workspace autosave candidate contains Quick Slot state.",
+      metadata: {
+        project_id: projectId,
+        runtime_revision: projectRuntimeRevision,
+        autosave_enabled: projectAutosaveReady && !activeBootstrapError,
+        project_autosave_ready: projectAutosaveReady,
+        bootstrap_error_active: Boolean(activeBootstrapError),
+        fallback_kind: autosaveSnapshotSelection.fallbackKind,
+        snapshot_updated_at: autosaveSnapshotSelection.snapshot?.updatedAt ?? null,
+        prepared_snapshot_bytes: autosaveSnapshotSelection.preparedSnapshot?.bytes ?? null,
+        ...prefixProjectWorkspaceQuickSlotDiagnostics("candidate", diagnostics),
+      },
+    });
+  }, [
+    activeBootstrapError,
+    autosaveSnapshotSelection.fallbackKind,
+    autosaveSnapshotSelection.preparedSnapshot?.bytes,
+    autosaveSnapshotSelection.preparedSnapshot?.hash,
+    autosaveSnapshotSelection.snapshot,
+    projectAutosaveReady,
+    projectId,
+    projectRuntimeRevision,
+  ]);
 
   useAiStudioSessionAutosave({
     sessionId: projectId,

@@ -4,8 +4,14 @@
  */
 import { useEffect, useRef } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
+import { reportAppError } from "../../../lib/appErrorReporter";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
+import {
+  buildProjectWorkspaceQuickSlotDiagnostics,
+  prefixProjectWorkspaceQuickSlotDiagnostics,
+  shouldReportProjectWorkspaceQuickSlotDiagnostics,
+} from "../logic/projectWorkspaceQuickSlotDiagnostics";
 import type { AiStudioProjectWorkspaceRestoreCandidateState } from "./useAiStudioProjectWorkspaceRestoreCandidate";
 import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 
@@ -112,6 +118,35 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
         const payload = hydrateFromSessionSnapshot(snapshot);
         hydrateFromSessionAgentSnapshot?.(payload);
         hydrateFromSessionCanvasSnapshot?.(payload.canvas);
+        const snapshotQuickSlotDiagnostics = buildProjectWorkspaceQuickSlotDiagnostics(snapshot);
+        const payloadQuickSlotDiagnostics = buildProjectWorkspaceQuickSlotDiagnostics(payload);
+        if (
+          shouldReportProjectWorkspaceQuickSlotDiagnostics(snapshotQuickSlotDiagnostics) ||
+          shouldReportProjectWorkspaceQuickSlotDiagnostics(payloadQuickSlotDiagnostics)
+        ) {
+          void reportAppError({
+            source: "telemetry.ai_studio.project_workspace.quick_slot_restore_apply",
+            scope: "app",
+            severity: "low",
+            message: "Project workspace restore applied Quick Slot diagnostics.",
+            metadata: {
+              project_id: projectId,
+              source: projectWorkspaceRestoreCandidate.source,
+              snapshot_updated_at: snapshot.updatedAt,
+              quick_slot_count_changed:
+                snapshotQuickSlotDiagnostics.quick_slot_count !==
+                payloadQuickSlotDiagnostics.quick_slot_count,
+              quick_slot_missing_changed:
+                snapshotQuickSlotDiagnostics.quick_slot_missing_count !==
+                payloadQuickSlotDiagnostics.quick_slot_missing_count,
+              ...prefixProjectWorkspaceQuickSlotDiagnostics(
+                "snapshot",
+                snapshotQuickSlotDiagnostics
+              ),
+              ...prefixProjectWorkspaceQuickSlotDiagnostics("payload", payloadQuickSlotDiagnostics),
+            },
+          });
+        }
       } else {
         applyEmptyProjectState?.();
       }

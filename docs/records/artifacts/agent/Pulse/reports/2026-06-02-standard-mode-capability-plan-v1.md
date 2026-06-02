@@ -107,6 +107,21 @@ These compatibility rules are mandatory for early phases:
 - preserve the current Standard route contract unless a later phase explicitly proves that a route-payload expansion is required
 - preserve current `/api/admin/agent-instructions/standard-system-prompt` behavior and authority model
 - prefer internal refactors and internal Standard-owned derived state over schema, persistence, or route migrations
+- do not revive generic `canonicalPrompt` continuity for Standard in early phases; keep Standard continuity inside the current Standard-owned memory/send lane unless a later replan explicitly changes that contract
+
+## Current Continuity Constraint
+
+Early Standard memory work must respect the current runtime truth:
+
+- `runStandardCreateAgentSend.ts` already passes `previousPrompt` and `memoryMessages`
+- `useCreateAgentStateCore.ts` currently bypasses generic `canonicalPrompt` handling for Standard
+- the Standard route rejects inbound `canonicalPrompt`
+
+That means the early high-ROI path is:
+
+- strengthen Standard-owned working state
+- improve how Standard continuity is derived and injected
+- avoid turning Phase 1 into a route-contract or transport-contract redesign
 
 ## Product Contract Decisions
 
@@ -195,6 +210,17 @@ Implementation targets:
 - keep a compact session summary for earlier relevant context
 - support selective retrieval of older session facts only when relevant
 
+Recommended execution order inside Phase 1:
+
+1. `Phase 1A. Prompt continuity`
+   - make `lastAcceptedPrompt` explicit and authoritative in Standard working state
+   - preserve the current Standard route contract
+   - avoid any `canonicalPrompt` revival
+2. `Phase 1B. Structured memory`
+   - enrich working-state fields
+   - improve summary quality
+   - tighten transcript-window and retrieval policy
+
 Suggested working-state fields:
 
 - `userGoal`
@@ -222,6 +248,8 @@ Out of scope:
 - third-party memory tools
 - project-workspace persistence changes
 - session snapshot schema redesign
+- Standard route-payload redesign
+- generic `canonicalPrompt` restoration for Standard
 - UI redesign
 
 Proof gate:
@@ -379,6 +407,7 @@ Target outcome:
 - preserve all visible Standard behavior
 - make `lastAcceptedPrompt` explicit Standard working state
 - stop losing prompt continuity in the Standard send/core path
+- do so without changing the Standard route contract
 
 Preferred file lane for the first slice:
 
@@ -403,6 +432,7 @@ First-slice stop gate:
 - Standard prompt continuity no longer depends on summary fallback alone
 - tests in the first-slice proof surface pass
 - current snapshot compatibility remains intact
+- current Standard route compatibility remains intact
 - no intentional UI, UX, or generation-semantics drift is introduced
 - Standard/Pulse boundary behavior remains intact
 

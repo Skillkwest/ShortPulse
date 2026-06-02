@@ -11,3 +11,4 @@ Use this folder for compact report indexes or summaries that are useful from the
 ## Current Reports
 
 - [2026-06-01 Standard Mode Modularization Blueprint](../../../records/artifacts/agent/Pulse/reports/2026-06-01-standard-mode-modularization-blueprint.md)
+- [2026-06-02 Standard Mode Capability Plan V1](../../../records/artifacts/agent/Pulse/reports/2026-06-02-standard-mode-capability-plan-v1.md)

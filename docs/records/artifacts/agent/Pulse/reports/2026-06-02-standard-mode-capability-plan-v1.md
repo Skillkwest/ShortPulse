@@ -63,6 +63,9 @@ These rules apply to all phases in this plan unless the user explicitly rewrites
 - no Standard chat-mode semantic changes
 - no change to visible-composer generation ownership
 - no silent assistant-to-composer prompt replacement
+- no snapshot-envelope redesign in early phases
+- no new database or SQL migration work for `v1`
+- no new public API route surface unless a later phase explicitly requires it
 - no Pulse runtime changes
 - no Pulse parking, restore, preset, or hidden-context changes
 - no right-rail ownership changes
@@ -95,6 +98,15 @@ That is allowed only when the change is:
 - proven not to change Pulse behavior or non-Standard Create behavior
 
 If a shared-core change cannot meet those conditions, stop and redesign the slice at the Standard-owned boundary instead of pushing deeper into shared code.
+
+## Compatibility Constraints
+
+These compatibility rules are mandatory for early phases:
+
+- preserve the current Standard session snapshot shape unless a tiny internal adapter is enough to carry richer Standard memory without changing the saved envelope contract
+- preserve the current Standard route contract unless a later phase explicitly proves that a route-payload expansion is required
+- preserve current `/api/admin/agent-instructions/standard-system-prompt` behavior and authority model
+- prefer internal refactors and internal Standard-owned derived state over schema, persistence, or route migrations
 
 ## Product Contract Decisions
 
@@ -208,12 +220,15 @@ Out of scope:
 - cross-session durable memory
 - vector databases
 - third-party memory tools
+- project-workspace persistence changes
+- session snapshot schema redesign
 - UI redesign
 
 Proof gate:
 
 - Standard outbound turns include explicit working-state memory, not recap text alone
 - prompt continuity no longer depends on indirect summary fallback
+- current Standard session snapshot compatibility still holds
 - longer chats keep the right constraints and decisions more reliably
 - no Create UI or generation-semantics drift
 
@@ -248,6 +263,8 @@ Out of scope:
 
 - admin UI redesign
 - Pulse instruction changes
+- control-plane availability-model changes
+- new admin route behavior
 - tool-calling loops
 - hidden multi-step autonomous workflows
 
@@ -278,6 +295,7 @@ Out of scope:
 
 - broad markdown renderer work
 - major panel interaction changes
+- response-contract churn outside Standard-owned modules
 - hidden autonomous tool loops
 
 Proof gate:
@@ -330,6 +348,11 @@ For minimal mess and highest ROI, execute in this exact order:
 
 Do not start renderer expansion, durable memory, or broader Create-panel behavior work unless this plan is complete and the eval results point there.
 
+Phase handoff rule:
+
+- do not start the next phase until the current phase proof gate is explicitly satisfied
+- if the current phase appears to require UI redesign, persistence redesign, or new public API surface, stop and replan instead of widening the phase in place
+
 ## Suggested First Implementation Slice
 
 Start with:
@@ -379,6 +402,7 @@ First-slice stop gate:
 
 - Standard prompt continuity no longer depends on summary fallback alone
 - tests in the first-slice proof surface pass
+- current snapshot compatibility remains intact
 - no intentional UI, UX, or generation-semantics drift is introduced
 - Standard/Pulse boundary behavior remains intact
 

@@ -17,7 +17,8 @@ Purpose: concise durable memory for my ShortPulse security stewardship. This fil
 - Treat the current user-directed launch target as July 7, 2026, while still honoring stricter repo-local readiness and branch policies.
 - Treat Vercel project settings and provider consoles as deployed source of truth; local temp exports are non-authoritative.
 - Preserve Supabase RLS, private storage, service-role-only RPCs, admin-only APIs, route-level auth, webhook signature/idempotency, and cron-secret gates.
-- Prioritize proof that one user cannot reach another user's account, credits, rows, storage, media, or provider-side mutations.
+- Prioritize proof that one user cannot reach another user's account, credits, billing/customer state, rows, storage, media, projects, preferences, or provider-side mutations.
+- Treat credit-card and payment-method details as Stripe-owned sensitive data: ShortPulse must not store raw card data, expose another user's Stripe customer/session, or let one account open/alter another account's billing surface.
 - Do not work on code cleanup, generic error cleanup, broad hardening sweeps, route polish, logging cleanup, throttling changes, or "security-shaped" bugs unless current repo evidence proves a real security threat with a concrete attacker path and protected boundary.
 - Before any code edit, I must be able to say: attacker can do X, crossing Y boundary, causing Z security impact. If the statement is weak, I stop or backlog the finding.
 - Use Supabase CLI and avoid Docker-based Supabase workflows.

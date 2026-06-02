@@ -36,32 +36,15 @@ Structure (locked):
       Evidence: `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`, `frontend/.env.example`, `docs/deployment.md`, `docs/local-development.md`, `docs/operator-map.md`, `docs/sops/sop_provider_incident_response.md`, `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
 - [x] AI Studio runtime V2 closeout: publish Seedream shadow parity report.
       Evidence: `docs/planning/evidence/runtime-v2/2026-05-06-seedream-shadow-parity-report.md`, `frontend/package.json`, `docs/planning/ai-studio-runtime-v2-staging-execution-checklist.md`
-- [ ] Generation recovery / settlement: recheck the current recovery and settlement path against the live runtime evidence before treating it as permanently closed.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
 - [x] AI Studio runtime V2 closeout: retire legacy HMAC webhook fallback from the active runtime contract and docs.
       Evidence: `frontend/lib/server/api/falWebhook.ts`, `frontend/pages/api/fal/webhook.ts`, `frontend/tests/api/fal-webhook-signature.test.ts`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`, `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
 - [x] AI Studio: keep server-side admission control and shared-provider rate-limit protection aligned with the live V2 docs.
       Evidence: `docs/adr/0026-ai-studio-generation-admission-control.md`, `docs/planning/ai-studio-generation-admission-rollout-plan.md`, `docs/sops/sop_provider_incident_response.md`, `docs/sops/sop_generation_recovery_diagnostics.md`, `docs/monitoring.md`, `docs/operator-map.md`
-- [ ] AI Studio project/workspace persistence: tighten restore boundaries and rerun confidence on the persistence workflow, which is still below launch-readiness target.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
 - [x] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
       Evidence: `docs/sops/sop_model_api_contract_reverification.md`, `docs/api/README.md`, `scripts/check_model_catalog_parity.js`
-- [ ] Core data persistence: audit schema and persistence risk on release-critical paths, then define the next focused hardening pass.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
-- [ ] Storage / file delivery: audit signed delivery and original-vs-variant scope, then close the current file-delivery gap that is still below launch-readiness target.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
-- [ ] Provider integrations: rerun shared provider contract normalization and hardening for the provider work that is still below launch-readiness target.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/ship-readiness-scoreboard.md`
-- [ ] Add the missing authored billed-credit pricing-grid row for GPT Image 2 Create Character Mode with 3 input refs, and keep runtime fail-closed until that canonical row exists.
-- [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
-- [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
 
 ## Program 2: Media And Reference Integrity
 
-- [ ] Media Library: finish the remaining long-link tooltip/url resilience gaps beyond the current truncation/ellipsis coverage.
-- [ ] Media Library: redesign the header bar and refresh small info cards to pull real account-level details.
-- [ ] Media Library: continue transform-free image-loading optimization and improve derivative/preview coverage on dense grid surfaces.
-- [ ] Media Library: resolve the remaining pagination/search trust gaps across media tabs, especially no-match image-search copy that currently reads like total data loss.
 - [ ] AI Studio: change placeholder `generating` and `loading preview` reference cards to a lighter gray background for better visual contrast.
 
 ## Program 3: Structural Decomposition
@@ -74,10 +57,6 @@ Structure (locked):
 
 ## Program 4: Workflows And Product Surfaces
 
-- [ ] Elements workflow: resolve approved-panel and runtime-health issues, then rerun confidence on the workflow, which is still below launch-readiness target.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
-- [ ] Characters workflow: reassess continuity and persistence trust, then rerun the workflow after progress on Elements and project/workspace persistence.
-      Reference: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`, `docs/systems/catalog.md`
 - [ ] Build a complete, polished collection of small delete buttons.
 - [ ] Build a complete, polished collection of small save buttons.
 - [ ] Finish the Dashboard redesign pass by retiring the remaining staged/legacy posture and tightening the long-term styling structure.

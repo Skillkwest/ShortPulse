@@ -46,6 +46,16 @@ describe("Seedance runtime pricing", () => {
     expect(breakdown480?.usdRaw).toBeCloseTo(0.2875, 6);
   });
 
+  it("keeps intermediate Seedance durations linear instead of snapping them to 5/10/15", () => {
+    const breakdown12 = computeCostForModel("kie-ai/seedance-2", {
+      durationSeconds: 12,
+      resolution: "1080p",
+      inputVideoCount: 0,
+    });
+
+    expect(breakdown12?.usdRaw).toBeCloseTo(6.12, 6);
+  });
+
   it("uses Kie's live Seedance 2 Fast per-second table", () => {
     const breakdown720NoInput = computeCostForModel("kie-ai/seedance-2-fast", {
       durationSeconds: 5,

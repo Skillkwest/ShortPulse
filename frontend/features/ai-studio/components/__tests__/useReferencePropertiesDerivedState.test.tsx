@@ -72,6 +72,17 @@ describe("useReferencePropertiesDerivedState", () => {
     ]);
   });
 
+  it("returns the refreshed Veo duration options from the model contract", () => {
+    const { result } = renderHook(() =>
+      useReferencePropertiesDerivedState({
+        ...baseArgs,
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      })
+    );
+
+    expect(result.current.durationOptions).toEqual([4, 6, 8]);
+  });
+
   it("summarizes KIE Kling assets with prompt-token readiness instead of voice counts", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesDerivedState({
@@ -125,6 +136,7 @@ describe("useReferencePropertiesDerivedState", () => {
     expect(result.current.isKlingPatternMode).toBe(true);
     expect(result.current.isSeedance2FamilyModel).toBe(true);
     expect(result.current.referenceStepTitle).toBe("Add Seedance 2.0 Frames");
+    expect(result.current.durationOptions).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
     expect(result.current.klingAssetsSummary).toBe("1 element · Prompt tokens ready");
     expect(result.current.klingGuidanceSummary).toBe("Storyboard + linked refs");
   });

@@ -464,12 +464,7 @@ export const useCanvasSharedSceneState = ({
               ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT)
               : (textDimensions?.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT);
       const pendingX = Math.round((worldX - pendingWidth / 2) * 100) / 100;
-      const pendingY =
-        resolved.kind === "text"
-          ? Math.round(worldY * 100) / 100
-          : Math.round((worldY - pendingHeight / 2) * 100) / 100;
-      const normalizedPendingX =
-        resolved.kind === "text" ? Math.round(worldX * 100) / 100 : pendingX;
+      const pendingY = Math.round((worldY - pendingHeight / 2) * 100) / 100;
 
       if (pendingId) {
         setPendingItems((currentPendingItems) => [
@@ -477,7 +472,7 @@ export const useCanvasSharedSceneState = ({
           {
             id: pendingId,
             kind: resolved.kind,
-            x: normalizedPendingX,
+            x: pendingX,
             y: pendingY,
             z: CANVAS_PENDING_BASE_Z_INDEX + currentPendingItems.length + 1,
             width: pendingWidth,
@@ -511,7 +506,7 @@ export const useCanvasSharedSceneState = ({
             resolved.kind === "image"
               ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
               : resolved.kind === "text"
-                ? 0
+                ? (textDimensions?.width ?? CANVAS_TEXT_ITEM_WIDTH) / 2
                 : resolved.kind === "video"
                   ? (videoDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
                   : (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH) / 2;
@@ -519,7 +514,7 @@ export const useCanvasSharedSceneState = ({
             resolved.kind === "image"
               ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
               : resolved.kind === "text"
-                ? 0
+                ? (textDimensions?.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) / 2
                 : resolved.kind === "video"
                   ? (videoDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
                   : (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT) / 2;

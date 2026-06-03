@@ -10,6 +10,7 @@ import {
   resolveKlingShotType,
   resolveSeedanceI2VAspect,
   resolveSeedanceTextAspect,
+  resolveVeoDuration,
   resolveVeoResolution,
 } from "../videoPayloads";
 import type { SubmissionModelConfig } from "../types";
@@ -36,6 +37,18 @@ describe("resolveVeoResolution", () => {
 
   it("supports a custom fallback for text-to-video flow", () => {
     expect(resolveVeoResolution(undefined, "1080p")).toBe("1080p");
+  });
+});
+
+describe("resolveVeoDuration", () => {
+  it("keeps supported Veo durations unchanged", () => {
+    expect(resolveVeoDuration(4)).toBe("4s");
+    expect(resolveVeoDuration(6)).toBe("6s");
+    expect(resolveVeoDuration(8)).toBe("8s");
+  });
+
+  it("promotes stale Veo 5-second requests to 6 seconds", () => {
+    expect(resolveVeoDuration(5)).toBe("6s");
   });
 });
 

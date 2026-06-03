@@ -1,6 +1,7 @@
 import { getModelConfig } from "../../../model-runtime/pricing";
 import type { PricingParams } from "../../../model-runtime/pricingTypes";
 import { getModelCatalogEntry } from "../../../model-runtime/modelCatalog";
+import { normalizeDurationForModel as normalizeSharedDurationForModel } from "../../../model-runtime/modelDurationConstraints";
 import {
   isOpenAiGptImage2Size,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
@@ -217,29 +218,7 @@ const normalizeResolutionForModel = (
 const normalizeDurationForModel = (
   duration: number | undefined,
   modelId: string
-): number | undefined => {
-  if (!duration || !Number.isFinite(duration)) return undefined;
-  const config = getModelConfig(modelId);
-  const isAudioModel = config?.mediaType === "audio";
-  let normalizedDuration = isAudioModel ? duration : Math.max(1, Math.round(duration));
-
-  const allowedDurations = [...(config?.allowedDurations ?? [])]
-    .filter((value) => Number.isFinite(value))
-    .sort((left, right) => left - right);
-  if (allowedDurations.length > 0) {
-    if (allowedDurations.includes(normalizedDuration)) return normalizedDuration;
-    const nextHighest = allowedDurations.find((value) => value >= normalizedDuration);
-    return nextHighest ?? allowedDurations[allowedDurations.length - 1];
-  }
-
-  if (typeof config?.minDurationSeconds === "number") {
-    normalizedDuration = Math.max(config.minDurationSeconds, normalizedDuration);
-  }
-  if (typeof config?.maxDurationSeconds === "number") {
-    normalizedDuration = Math.min(config.maxDurationSeconds, normalizedDuration);
-  }
-  return isAudioModel ? Number(normalizedDuration.toFixed(3)) : normalizedDuration;
-};
+): number | undefined => normalizeSharedDurationForModel(duration, modelId);
 
 const resolveBooleanAlias = (payload: JsonObject, aliases: string[]): boolean | undefined => {
   for (const alias of aliases) {

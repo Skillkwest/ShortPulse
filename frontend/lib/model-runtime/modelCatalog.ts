@@ -183,6 +183,7 @@ const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
 const OPENAI_TEXT_VERIFIED_AT = "2026-05-07";
 const ELEVENLABS_VERIFIED_AT = "2026-05-01";
+const SEEDANCE_ALLOWED_DURATIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
 type ModelCatalogRuntimeMetadata = Pick<
   ModelCatalogEntry,
   | "apiDocFile"
@@ -642,8 +643,8 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     submitAspectField: "aspect_ratio",
     defaultAspect: "16:9",
     allowedAspects: ["16:9", "9:16"],
-    defaultDurationSeconds: 5,
-    allowedDurations: [5, 8],
+    defaultDurationSeconds: 6,
+    allowedDurations: [4, 6, 8],
     defaultResolution: "720p",
     allowedResolutions: ["720p", "1080p"],
     kieSubmitUrl: "https://api.kie.ai/api/v1/veo/generate",
@@ -740,7 +741,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultAspect: "16:9",
     allowedAspects: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
     defaultDurationSeconds: 5,
-    allowedDurations: [5, 10, 15],
+    allowedDurations: [...SEEDANCE_ALLOWED_DURATIONS],
     defaultResolution: "1080p",
     allowedResolutions: ["1080p", "720p", "480p"],
     kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
@@ -790,7 +791,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultAspect: "16:9",
     allowedAspects: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
     defaultDurationSeconds: 5,
-    allowedDurations: [5, 10, 15],
+    allowedDurations: [...SEEDANCE_ALLOWED_DURATIONS],
     defaultResolution: "720p",
     allowedResolutions: ["720p", "480p"],
     kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
@@ -1285,7 +1286,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 10,
     pricingFamily: "Video",
     logoKey: "google",
-    minDurationSeconds: 5,
+    minDurationSeconds: 4,
     maxDurationSeconds: 8,
     defaultAudio: true,
     supportsImageToVideo: true,

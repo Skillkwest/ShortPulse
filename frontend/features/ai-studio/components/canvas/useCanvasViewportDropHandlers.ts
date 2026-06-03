@@ -262,9 +262,7 @@ export const useCanvasViewportDropHandlers = ({
                   if (!promptText) return null;
                   return {
                     kind: "text" as const,
-                    outputId: mediaLibraryPayload.payload.id
-                      ? `prompt:${mediaLibraryPayload.payload.id}`
-                      : null,
+                    outputId: null,
                     text: promptText,
                   };
                 })()

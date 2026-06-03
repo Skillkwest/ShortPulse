@@ -10,6 +10,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import { normalizeDurationForModel } from "../../../../lib/model-runtime/modelDurationConstraints";
 import type { VideoSubmissionAdapterKey } from "../../../../lib/model-runtime/submissionAdapterMetadata";
 import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
 import type { VideoSubmissionArgs } from "./types";
@@ -521,15 +522,40 @@ const rewritePromptWithSeedanceEntityContext = (
   return `${rewrittenPrompt}\n\nLinked reference subjects: ${entityContextLine}.`;
 };
 
+type HiddenShotModePromptCompositionMode = "single" | "multi";
+
+const composeHiddenShotModePrompt = ({
+  prompt,
+  mode,
+}: {
+  prompt: string;
+  mode: HiddenShotModePromptCompositionMode;
+}): string => {
+  const trimmedPrompt = prompt.trim();
+  if (!trimmedPrompt) return trimmedPrompt;
+
+  const hiddenInstruction =
+    mode === "multi"
+      ? "Create this as a multi-shot sequence with multiple distinct shots or scene beats. Use cuts or shot changes as needed to cover the described action while preserving continuity."
+      : "Create this as one continuous uninterrupted shot only. Do not introduce cuts, shot changes, montage beats, or separate camera setups. If multiple actions are described, stage them inside the same continuous shot.";
+
+  return `${hiddenInstruction}\n\n${trimmedPrompt}`;
+};
+
 const buildSeedancePromptPayload = ({
   cleanedPrompt,
+  klingWorkflowMode,
   preparedKlingElements,
 }: {
   cleanedPrompt: string;
+  klingWorkflowMode: VideoSubmissionArgs["klingWorkflowMode"];
   preparedKlingElements: AiStudioKlingElement[];
 }): { prompt: string } | { error: string } => {
   return {
-    prompt: rewritePromptWithSeedanceEntityContext(cleanedPrompt, preparedKlingElements),
+    prompt: composeHiddenShotModePrompt({
+      prompt: rewritePromptWithSeedanceEntityContext(cleanedPrompt, preparedKlingElements),
+      mode: klingWorkflowMode === "multi" || klingWorkflowMode === "custom" ? "multi" : "single",
+    }),
   };
 };
 
@@ -597,7 +623,10 @@ const resolveKieKlingShotModePayload = ({
   }
 
   return {
-    prompt: rewritePromptWithKieElementTokens(cleanedPrompt, preparedKlingElements),
+    prompt: composeHiddenShotModePrompt({
+      prompt: rewritePromptWithKieElementTokens(cleanedPrompt, preparedKlingElements),
+      mode: normalizedMode === "multi" ? "multi" : "single",
+    }),
     imageUrls:
       preparedImageInputs.length >= 2
         ? preparedImageInputs.slice(0, 2)
@@ -710,7 +739,10 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         cache: kieUploadCache,
       });
       const aspectRatio = resolveVeoTextAspect(aspect, modelConfig);
-      const duration = requestedDurationSeconds <= 5 ? 5 : 8;
+      const duration =
+        normalizeDurationForModel(requestedDurationSeconds, finalModel) ??
+        modelConfig?.defaultDurationSeconds ??
+        6;
       const resolution = resolveVeoResolution(requestedResolution);
       const response = await submitQueuedGenerationByModelId(finalModel, {
         prompt: cleanedPrompt,
@@ -746,6 +778,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       rawImageInputs,
       modelConfig,
       notifyGenerationFailure,
+      klingWorkflowMode,
       seedance2InputMode = "text",
       seedance2ReferenceImageUrls,
       seedance2ReferenceVideoUrls,
@@ -812,6 +845,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
               : "text";
       const promptPayload = buildSeedancePromptPayload({
         cleanedPrompt,
+        klingWorkflowMode,
         preparedKlingElements: preparedSeedanceLinkedElements,
       });
       if ("error" in promptPayload) {

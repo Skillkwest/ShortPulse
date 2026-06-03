@@ -63,6 +63,8 @@
 
 .canvas-scene-item {
   position: absolute;
+  left: 0;
+  top: 0;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -74,6 +76,10 @@
   cursor: grab;
   user-select: none;
   touch-action: none;
+  transform: translate3d(var(--canvas-item-x, 0px), var(--canvas-item-y, 0px), 0)
+    translateY(var(--canvas-item-lift-y, 0px));
+  transform-origin: top left;
+  will-change: transform;
 }
 
 .canvas-scene-item:active {
@@ -114,7 +120,7 @@
   box-shadow:
     0 0 0 2px var(--reference-selection-active-outline),
     0 22px 34px rgba(0, 0, 0, 0.34);
-  transform: translateY(-1px);
+  --canvas-item-lift-y: -1px;
   z-index: 1;
 }
 

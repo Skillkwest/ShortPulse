@@ -1008,6 +1008,12 @@
   overflow: hidden;
 }
 
+.video-properties-panel .video-shot-mode-tabs--compact {
+  min-height: 36px;
+  height: 36px;
+  border-radius: 7px;
+}
+
 .video-properties-panel .video-shot-mode-indicator {
   position: absolute;
   top: var(--video-shot-mode-pad);
@@ -1022,6 +1028,10 @@
   transition: transform 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
   pointer-events: none;
   z-index: 0;
+}
+
+.video-properties-panel .video-shot-mode-tabs--compact .video-shot-mode-indicator {
+  border-radius: 7px;
 }
 
 .video-properties-panel .video-shot-mode-tab {
@@ -1048,6 +1058,11 @@
   justify-content: center;
   text-align: center;
   white-space: nowrap;
+}
+
+.video-properties-panel .video-shot-mode-tabs--compact .video-shot-mode-tab {
+  font-size: 12px;
+  padding: 5px 4px;
 }
 
 .video-properties-panel .video-shot-mode-section {

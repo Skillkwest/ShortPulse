@@ -2,13 +2,19 @@
  * Constraint synchronization effects for reference properties panel model settings.
  */
 import { useEffect } from "react";
+import { normalizeDurationForModelConfig } from "../../../lib/model-runtime/modelDurationConstraints";
+import type { ModelConfig } from "../logic/modelRegistry";
 
-type ModelConstraintConfig = {
-  mediaType?: "image" | "video" | "image-to-video" | "multi" | "text" | "audio";
-  allowedDurations?: number[];
-  allowedResolutions?: string[];
-  defaultResolution?: string;
-} | null;
+type ModelConstraintConfig = Pick<
+  ModelConfig,
+  | "allowedDurations"
+  | "allowedResolutions"
+  | "defaultDurationSeconds"
+  | "defaultResolution"
+  | "maxDurationSeconds"
+  | "mediaType"
+  | "minDurationSeconds"
+> | null;
 
 type UseReferencePropertiesConstraintEffectsArgs = {
   modelConfig: ModelConstraintConfig;
@@ -46,15 +52,9 @@ export const useReferencePropertiesConstraintEffects = ({
   useEffect(() => {
     if (isVideoVariant && !modelSupportsVideoConstraints) return;
     if (!modelConfig || !onVideoDurationChange) return;
-    if (modelConfig.allowedDurations?.includes(videoDurationValue)) return;
-    if (!modelConfig.allowedDurations?.length) return;
-
-    const closestDuration = modelConfig.allowedDurations.reduce((previous, current) =>
-      Math.abs(current - videoDurationValue) < Math.abs(previous - videoDurationValue)
-        ? current
-        : previous
-    );
-    onVideoDurationChange(closestDuration);
+    const normalizedDuration = normalizeDurationForModelConfig(videoDurationValue, modelConfig);
+    if (normalizedDuration == null || normalizedDuration === videoDurationValue) return;
+    onVideoDurationChange(normalizedDuration);
   }, [
     isVideoVariant,
     modelConfig,

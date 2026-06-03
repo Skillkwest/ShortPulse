@@ -105,7 +105,7 @@ describe("computeCostForModel (GPT-5.4 Nano helper lane)", () => {
 describe("computeCostForModel (Veo 3.1)", () => {
   it("uses fixed per-video pricing for kie-ai/veo-3.1-fast-i2v", () => {
     const cost = computeCostForModel(KIE_VEO_31_FAST_I2V_MODEL_ID, {
-      durationSeconds: 5,
+      durationSeconds: 6,
       resolution: "720p",
       audio: true,
     });
@@ -114,9 +114,10 @@ describe("computeCostForModel (Veo 3.1)", () => {
 
   it("keeps kie-ai/veo-3.1-fast-i2v pricing invariant across duration/resolution/audio inputs", () => {
     const cases = [
-      { durationSeconds: 5, resolution: "720p", audio: true },
+      { durationSeconds: 4, resolution: "720p", audio: true },
+      { durationSeconds: 6, resolution: "720p", audio: false },
       { durationSeconds: 8, resolution: "720p", audio: false },
-      { durationSeconds: 5, resolution: "1080p", audio: true },
+      { durationSeconds: 4, resolution: "1080p", audio: true },
       { durationSeconds: 8, resolution: "1080p", audio: false },
     ] as const;
 

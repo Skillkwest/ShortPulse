@@ -2,6 +2,8 @@
  * Shared payload normalization helpers for video model submission handlers.
  */
 import { resolveKlingV3Duration } from "../../logic/stateParsers";
+import { normalizeDurationForModel } from "../../../../lib/model-runtime/modelDurationConstraints";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import {
   getAiStudioKlingElementReferenceUrls,
   resolveKieKlingElementToken,
@@ -53,7 +55,10 @@ export const resolveVeoAspect = (aspect: string): "16:9" | "9:16" | "auto" =>
  * Maps duration seconds to VEO-supported duration labels.
  */
 export const resolveVeoDuration = (requestedDurationSeconds: number): "4s" | "6s" | "8s" =>
-  requestedDurationSeconds <= 4 ? "4s" : requestedDurationSeconds <= 6 ? "6s" : "8s";
+  `${normalizeDurationForModel(requestedDurationSeconds, KIE_VEO_31_FAST_I2V_MODEL_ID) ?? 6}s` as
+    | "4s"
+    | "6s"
+    | "8s";
 
 /**
  * Normalizes Kling 3.0 resolution choices.
@@ -163,10 +168,15 @@ export const resolveSeedanceTextResolution = (
 };
 
 /**
- * Maps Seedance 2.x duration to the documented 5s/10s/15s contract.
+ * Clamps Seedance 2.x duration to the documented 4-15 second contract.
  */
-export const resolveSeedance2Duration = (requestedDurationSeconds: number): string =>
-  requestedDurationSeconds <= 5 ? "5" : requestedDurationSeconds <= 10 ? "10" : "15";
+export const resolveSeedance2Duration = (requestedDurationSeconds: number): string => {
+  if (!Number.isFinite(requestedDurationSeconds)) return "5";
+  const normalized = Math.round(requestedDurationSeconds);
+  if (normalized < 4) return "4";
+  if (normalized > 15) return "15";
+  return String(normalized);
+};
 
 /**
  * Resolves Seedance 2.x resolution against the model-declared contract.

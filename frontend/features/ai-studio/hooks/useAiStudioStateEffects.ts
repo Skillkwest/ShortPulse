@@ -19,6 +19,7 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { normalizeDurationForModel } from "../../../lib/model-runtime/modelDurationConstraints";
 import {
   isCreateWorkflow,
   isEditWorkflow,
@@ -190,6 +191,21 @@ export const useAiStudioStateEffects = ({
     window.sessionStorage.setItem(videoResolutionStorageKey, videoResolution);
     setHasUserVideoPrefs(true);
   }, [setHasUserVideoPrefs, videoResolution, videoResolutionStorageKey]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    if (!isVideoWorkflow(selectedTool)) return;
+    if (!model) return;
+    const normalizedDuration = normalizeDurationForModel(videoDurationSeconds, model);
+    if (normalizedDuration == null || normalizedDuration === videoDurationSeconds) return;
+    setVideoDurationSeconds(normalizedDuration);
+  }, [
+    hasPendingWorkflowRestore,
+    model,
+    selectedTool,
+    setVideoDurationSeconds,
+    videoDurationSeconds,
+  ]);
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;

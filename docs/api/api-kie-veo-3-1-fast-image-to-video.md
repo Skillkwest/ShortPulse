@@ -7,7 +7,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
 - Model id: `kie-ai/veo-3.1-fast-i2v`
 - Canonical source reference: `https://api.kie.ai/api/v1/veo/generate` (Veo 3.1 API docs)
 - Runtime status: runtime-gated (selectable when Kie integration is enabled and model allowlist gates pass; fail-closed otherwise)
-- Primary-source snapshot: captured from Kie docs + pricing evidence on `2026-04-09`
+- Primary-source snapshot: refreshed from Kie docs, pricing evidence, and live provider validation on `2026-06-03`
 
 ## Current Runtime Contract
 - Endpoint: `POST /api/v1/veo/generate`
@@ -18,7 +18,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
   - status routes fail closed when the configured endpoint shape is invalid.
 - Submit aspect field: `aspect_ratio`
 - Allowed aspects: `16:9`, `9:16`
-- Allowed durations: `5`, `8` (seconds)
+- Allowed durations: `4`, `6`, `8` (seconds)
 - Allowed resolutions: `720p`, `1080p`
 - Canonical ingress fields (strict):
   - `prompt`, `image_url|image_urls`, `aspect_ratio`, `duration|duration_seconds`, `resolution`, `generate_audio`

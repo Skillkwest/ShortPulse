@@ -380,6 +380,33 @@ function KlingPromptDropHarness() {
   );
 }
 
+function SeedanceReferenceModeHarness({
+  referenceImageUrl = null,
+  extraImageUrls = [null, null, null] as [string | null, string | null, string | null],
+  initialInputMode = "text" as "text" | "first-frame" | "first-last" | "multimodal",
+}: {
+  referenceImageUrl?: string | null;
+  extraImageUrls?: [string | null, string | null, string | null];
+  initialInputMode?: "text" | "first-frame" | "first-last" | "multimodal";
+}) {
+  const [seedance2InputMode, setSeedance2InputMode] = React.useState(initialInputMode);
+
+  return (
+    <>
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2.0"
+        referenceImageUrl={referenceImageUrl}
+        extraImageUrls={extraImageUrls}
+        seedance2InputMode={seedance2InputMode}
+        onSeedance2InputModeChange={setSeedance2InputMode}
+      />
+      <div data-testid="seedance-input-mode">{seedance2InputMode}</div>
+    </>
+  );
+}
+
 function KlingSparseSlotHarness() {
   const [klingElements, setKlingElements] = React.useState<AiStudioKlingElement[]>([
     {
@@ -713,6 +740,53 @@ describe("VideoPropertiesPanel", () => {
     );
     expect(screen.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();
     expect(screen.queryByText("Shot 2")).toBeNull();
+  });
+
+  it("renders the compact Seedance reference toggle and defaults it to keyframes", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2.0"
+      />
+    );
+
+    expect(screen.getByRole("tab", { name: "Keyframes" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Elements" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Element reference slots")).not.toBeInTheDocument();
+  });
+
+  it("switches Seedance reference mode between keyframes and elements", () => {
+    render(<SeedanceReferenceModeHarness />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Elements" }));
+
+    expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("multimodal");
+    expect(screen.getByRole("tab", { name: "Elements" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByTestId("reference-media-step")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Element reference slots")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Add element to slot/i })).toHaveLength(6);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Keyframes" }));
+
+    expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("text");
+    expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Element reference slots")).not.toBeInTheDocument();
+  });
+
+  it("returns Seedance to first-last mode when keyframes are reselected with both frames present", () => {
+    render(
+      <SeedanceReferenceModeHarness
+        initialInputMode="multimodal"
+        referenceImageUrl="https://example.com/first-frame.jpg"
+        extraImageUrls={["https://example.com/last-frame.jpg", null, null]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Keyframes" }));
+
+    expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("first-last");
   });
 
   it("keeps both create buttons visible when both libraries are empty", async () => {

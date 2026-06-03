@@ -806,17 +806,17 @@ describe("Canvas drop behavior", () => {
       expect(screen.getByTestId("canvas-loading-spinner")).toBeInTheDocument();
       expect(screen.queryByText("Prompt reference")).not.toBeInTheDocument();
       const pendingItem = screen.getByTestId(/canvas-pending-item-/);
-      expect(Number(pendingItem.getAttribute("style")?.match(/left:\s*([0-9.]+)px/)?.[1])).toBe(
-        240
-      );
-      expect(Number(pendingItem.getAttribute("style")?.match(/top:\s*([0-9.]+)px/)?.[1])).toBe(160);
+      expect(pendingItem).toHaveStyle({
+        "--canvas-item-x": "110px",
+        "--canvas-item-y": "100px",
+      });
       act(() => {
         pendingFrameCallback?.(16);
       });
       expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
       const finalItem = await screen.findByTestId(/canvas-item-/);
-      expect(Number(finalItem.getAttribute("data-x"))).toBe(240);
-      expect(Number(finalItem.getAttribute("data-y"))).toBe(160);
+      expect(Number(finalItem.getAttribute("data-x"))).toBe(110);
+      expect(Number(finalItem.getAttribute("data-y"))).toBe(100);
       await waitFor(() => {
         expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
       });
@@ -846,8 +846,8 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "text");
-    expect(Number(item.getAttribute("data-x"))).toBe(240);
-    expect(Number(item.getAttribute("data-y"))).toBe(160);
+    expect(Number(item.getAttribute("data-x"))).toBe(110);
+    expect(Number(item.getAttribute("data-y"))).toBe(100);
   });
 
   it("creates a text item from an external plain-text drop", async () => {
@@ -866,11 +866,11 @@ describe("Canvas drop behavior", () => {
 
     expect(await screen.findByText("External note")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
-    expect(Number(item.getAttribute("data-x"))).toBe(220);
-    expect(Number(item.getAttribute("data-y"))).toBe(140);
+    expect(Number(item.getAttribute("data-x"))).toBe(90);
+    expect(Number(item.getAttribute("data-y"))).toBe(80);
   });
 
-  it("anchors media-library prompt drops to the release point after camera transforms", async () => {
+  it("anchors media-library prompt drops like image drops after camera transforms", async () => {
     render(
       <SeededCanvasHarness
         initialSessionState={{
@@ -901,8 +901,8 @@ describe("Canvas drop behavior", () => {
 
     expect(await screen.findByText("Zoomed prompt")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
-    expect(Number(item.getAttribute("data-x"))).toBe(130);
-    expect(Number(item.getAttribute("data-y"))).toBe(100);
+    expect(Number(item.getAttribute("data-x"))).toBe(0);
+    expect(Number(item.getAttribute("data-y"))).toBe(40);
   });
 
   it("does not change stored geometry of existing items when a text item is dropped", async () => {
@@ -951,6 +951,54 @@ describe("Canvas drop behavior", () => {
     expect(existingItem).toHaveAttribute("data-y", "70");
     expect(existingItem).toHaveAttribute("data-width", "260");
     expect(existingItem).toHaveAttribute("data-height", "120");
+  });
+
+  it("keeps repeated internal prompt drops as independent text bubbles", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const internalTransfer = createTransfer({
+      "text/reference-origin": "ai-studio-reference-grid",
+      "text/reference-version": "1",
+      "text/reference-id": "txt-1",
+      "text/reference-output-id": "txt-1",
+      "text/reference-source-surface": "all-refs",
+    });
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: internalTransfer,
+      clientX: 240,
+      clientY: 160,
+    });
+
+    await screen.findByText("Prompt reference");
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: internalTransfer,
+      clientX: 320,
+      clientY: 220,
+    });
+
+    await waitFor(() => {
+      const items = screen.getAllByTestId(/canvas-item-/);
+      expect(items).toHaveLength(2);
+    });
+    const items = screen.getAllByTestId(/canvas-item-/);
+    const promptItems = items.filter((item) => item.getAttribute("data-kind") === "text");
+    expect(promptItems).toHaveLength(2);
+    const positions = promptItems.map((item) => ({
+      x: Number(item.getAttribute("data-x")),
+      y: Number(item.getAttribute("data-y")),
+    }));
+    expect(positions).toEqual(
+      expect.arrayContaining([
+        { x: 110, y: 100 },
+        { x: 190, y: 160 },
+      ])
+    );
   });
 
   it("creates an image item from a media-library drag payload", async () => {

@@ -88,11 +88,11 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
         item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height
       }
       style={{
-        left: `${item.x}px`,
-        top: `${item.y}px`,
         zIndex: item.z,
         width: `${item.width}px`,
         height: `${item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height}px`,
+        ["--canvas-item-x" as string]: `${item.x}px`,
+        ["--canvas-item-y" as string]: `${item.y}px`,
       }}
       draggable={isItemDraggable}
       onPointerDown={
@@ -265,6 +265,16 @@ export function CanvasPropertiesPanel({
 }: CanvasPropertiesPanelProps) {
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
+  const activeMediaErrorKeys = React.useMemo(() => {
+    const nextKeys = new Set<string>();
+    items.forEach((item) => {
+      const errorKey = resolveCanvasMediaErrorKey(item);
+      if (errorKey) {
+        nextKeys.add(errorKey);
+      }
+    });
+    return nextKeys;
+  }, [items]);
 
   const markCanvasMediaError = React.useCallback((errorKey: string | null) => {
     if (!errorKey) return;
@@ -285,28 +295,6 @@ export function CanvasPropertiesPanel({
       return next;
     });
   }, []);
-
-  React.useEffect(() => {
-    const currentMediaKeys = new Set<string>();
-    items.forEach((item) => {
-      const errorKey = resolveCanvasMediaErrorKey(item);
-      if (errorKey) {
-        currentMediaKeys.add(errorKey);
-      }
-    });
-    setMediaErrorKeys((current) => {
-      let changed = false;
-      const next = new Set<string>();
-      current.forEach((errorKey) => {
-        if (currentMediaKeys.has(errorKey)) {
-          next.add(errorKey);
-          return;
-        }
-        changed = true;
-      });
-      return changed ? next : current;
-    });
-  }, [items]);
 
   React.useEffect(() => {
     if (instanceId !== "rail") return;
@@ -371,11 +359,11 @@ export function CanvasPropertiesPanel({
               className={`canvas-scene-item canvas-scene-item--${item.kind} canvas-scene-item--pending`}
               data-testid={`canvas-pending-item-${item.id}`}
               style={{
-                left: `${item.x}px`,
-                top: `${item.y}px`,
                 zIndex: item.z,
                 width: `${item.width}px`,
                 height: `${item.height}px`,
+                ["--canvas-item-x" as string]: `${item.x}px`,
+                ["--canvas-item-y" as string]: `${item.y}px`,
               }}
             >
               <div
@@ -396,7 +384,10 @@ export function CanvasPropertiesPanel({
             const showTextResizeHandles =
               isTextResizeEnabled && item.kind === "text" && item.selected && !isEditingTextItem;
             const mediaErrorKey = resolveCanvasMediaErrorKey(item);
-            const hasMediaError = mediaErrorKey ? mediaErrorKeys.has(mediaErrorKey) : false;
+            const hasMediaError =
+              mediaErrorKey != null &&
+              activeMediaErrorKeys.has(mediaErrorKey) &&
+              mediaErrorKeys.has(mediaErrorKey);
             return (
               <CanvasSceneItemView
                 key={item.id}
@@ -432,11 +423,11 @@ export function CanvasPropertiesPanel({
               className="canvas-scene-item canvas-scene-item--text canvas-scene-item--draft is-selected"
               data-testid="canvas-draft-text-item"
               style={{
-                left: `${draftTextEntry.x}px`,
-                top: `${draftTextEntry.y}px`,
                 zIndex: items.length + 1,
                 width: "260px",
                 height: `${CANVAS_TEXT_ITEM_MIN_HEIGHT}px`,
+                ["--canvas-item-x" as string]: `${draftTextEntry.x}px`,
+                ["--canvas-item-y" as string]: `${draftTextEntry.y}px`,
               }}
             >
               {isDraftTextEditable ? (

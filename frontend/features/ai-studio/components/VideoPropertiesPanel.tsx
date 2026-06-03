@@ -48,9 +48,17 @@ import { syncTextareaMirrorScroll } from "./edit/expertEditInteractionUtils";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
+const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 6;
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
 const KLING_SINGLE_PROMPT_MAX_CHARACTERS = 2500;
 const KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS = 500;
+
+function isSeedance2FamilyModelId(modelId: string | null): boolean {
+  return (
+    isSeedance2UiEnabled() &&
+    (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID)
+  );
+}
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -171,11 +179,13 @@ export function VideoPropertiesPanel({
   videoGenerateAudio,
   videoCameraFixed = false,
   videoAutoFix = false,
+  seedance2InputMode = "text",
   onVideoDurationChange,
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
   onVideoCameraFixedChange,
   onVideoAutoFixChange,
+  onSeedance2InputModeChange,
   aspectOptions,
   isModelModalOpen,
   modelModalAnchor,
@@ -277,6 +287,9 @@ export function VideoPropertiesPanel({
     klingElements,
     onKlingElementsChange,
   });
+  const klingElementSlotCount = isSeedance2FamilyModelId(modelId)
+    ? VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT
+    : VIDEO_KLING_ELEMENT_SLOT_COUNT;
 
   const commitSelectedKlingElements = React.useCallback(
     (elements: Array<AiStudioKlingElement | null>) => {
@@ -295,7 +308,7 @@ export function VideoPropertiesPanel({
 
   const selectedKlingElements = React.useMemo(() => {
     const slots = Array.from(
-      { length: VIDEO_KLING_ELEMENT_SLOT_COUNT },
+      { length: klingElementSlotCount },
       () => null as AiStudioKlingElement | null
     );
     const legacyElements: AiStudioKlingElement[] = [];
@@ -305,7 +318,7 @@ export function VideoPropertiesPanel({
         typeof element.slotIndex === "number" &&
         Number.isInteger(element.slotIndex) &&
         element.slotIndex >= 0 &&
-        element.slotIndex < VIDEO_KLING_ELEMENT_SLOT_COUNT
+        element.slotIndex < klingElementSlotCount
           ? element.slotIndex
           : null;
 
@@ -329,7 +342,7 @@ export function VideoPropertiesPanel({
     });
 
     return slots;
-  }, [klingElements]);
+  }, [klingElementSlotCount, klingElements]);
 
   React.useEffect(() => {
     if (!onKlingElementsChange) return;
@@ -466,7 +479,7 @@ export function VideoPropertiesPanel({
       try {
         const selectedElement = await loadSavedKlingEntityBySource({ sourceKind, sourceId });
         const next = Array.from(
-          { length: VIDEO_KLING_ELEMENT_SLOT_COUNT },
+          { length: klingElementSlotCount },
           (_, index) => selectedKlingElements[index] ?? null
         );
         next[elementPickerSlotIndex] = { ...selectedElement, slotIndex: elementPickerSlotIndex };
@@ -478,19 +491,25 @@ export function VideoPropertiesPanel({
         closeElementPicker();
       }
     },
-    [commitSelectedKlingElements, closeElementPicker, elementPickerSlotIndex, selectedKlingElements]
+    [
+      commitSelectedKlingElements,
+      closeElementPicker,
+      elementPickerSlotIndex,
+      klingElementSlotCount,
+      selectedKlingElements,
+    ]
   );
 
   const removeSelectedElement = React.useCallback(
     (slotIndex: number) => {
       const next = Array.from(
-        { length: VIDEO_KLING_ELEMENT_SLOT_COUNT },
+        { length: klingElementSlotCount },
         (_, index) => selectedKlingElements[index] ?? null
       );
       next[slotIndex] = null;
       commitSelectedKlingElements(next);
     },
-    [commitSelectedKlingElements, selectedKlingElements]
+    [commitSelectedKlingElements, klingElementSlotCount, selectedKlingElements]
   );
 
   const {
@@ -600,6 +619,10 @@ export function VideoPropertiesPanel({
     isKlingPatternModelSelected && !isSeedance2FamilyModelSelected && klingMode === "custom";
   const isCustomKlingWorkflow =
     isKlingPatternModelSelected && !isSeedance2FamilyModelSelected && klingMode === "custom";
+  const seedanceReferenceMode =
+    isSeedance2FamilyModelSelected && seedance2InputMode === "multimodal"
+      ? "elements"
+      : "keyframes";
   const visibleShotMode =
     isSeedance2FamilyModelSelected && klingMode === "custom" ? "multi" : klingMode;
   const shotModeTabCount = isSeedance2FamilyModelSelected ? 2 : 3;
@@ -678,6 +701,121 @@ export function VideoPropertiesPanel({
     ensureCustomKlingShots();
     addKlingShot();
   };
+  const handleSetSeedanceReferenceMode = React.useCallback(
+    (nextMode: "keyframes" | "elements") => {
+      if (!onSeedance2InputModeChange) return;
+      if (nextMode === "elements") {
+        onSeedance2InputModeChange("multimodal");
+        return;
+      }
+      const hasFirstFrame = Boolean(referenceImageUrl);
+      const hasLastFrame = Boolean(extraImageUrls[0]);
+      onSeedance2InputModeChange(
+        hasFirstFrame && hasLastFrame ? "first-last" : hasFirstFrame ? "first-frame" : "text"
+      );
+    },
+    [extraImageUrls, onSeedance2InputModeChange, referenceImageUrl]
+  );
+  const renderReferenceMediaStep = React.useCallback(
+    () => (
+      <ReferenceMediaStep
+        referenceOrder={referenceOrder}
+        collapsedReference={collapsedSteps.reference}
+        onExpandReference={() => expandIfCollapsed("reference")}
+        onToggleReference={() => toggleStep("reference")}
+        isVideoVariant={true}
+        referenceStepTitle={referenceStepTitle}
+        referenceStepSubtitle={referenceStepSubtitle}
+        isMotionMode={isMotionMode}
+        isKling3Mode={isKlingPatternMode}
+        isStandardMode={isStandardMode}
+        isKeyframesMode={isKeyframesMode}
+        primaryImageRequired={standardVideoRequiresReferenceImage}
+        referenceImageUrl={referenceImageUrl}
+        extraImageUrls={extraImageUrls}
+        motionVideoUrl={motionVideoUrl}
+        primaryDragActive={primaryDragActive}
+        extraDragActive={extraDragActive}
+        primaryImageLoading={primaryImageLoading}
+        extraImageLoading={extraImageLoading}
+        motionVideoLoading={motionVideoLoading}
+        motionVideoError={motionVideoError}
+        motionVideoDragActive={motionVideoDragActive}
+        setMotionVideoDragActive={setMotionVideoDragActive}
+        handlePrimaryDrop={handlePrimaryDrop}
+        handlePrimaryDragEnter={handlePrimaryDragEnter}
+        handlePrimaryDragOver={handlePrimaryDragOver}
+        handlePrimaryDragLeave={handlePrimaryDragLeave}
+        handleExtraDrop={handleExtraDrop}
+        handleExtraDragEnter={handleExtraDragEnter}
+        handleExtraDragOver={handleExtraDragOver}
+        handleExtraDragLeave={handleExtraDragLeave}
+        allowVideoDrag={allowVideoDrag}
+        handleMotionVideoDrop={handleMotionVideoDrop}
+        primaryInputRef={primaryInputRef}
+        extraOneInputRef={extraOneInputRef}
+        extraTwoInputRef={extraTwoInputRef}
+        extraThreeInputRef={extraThreeInputRef}
+        motionVideoInputRef={motionVideoInputRef}
+        onPrimaryImageChange={onPrimaryImageChange}
+        onExtraImageChange={onExtraImageChange}
+        onMotionVideoChange={onMotionVideoChange}
+        onClearMotionVideo={onClearMotionVideo}
+        handleFileSelection={handleFileSelection}
+        handleMotionVideoSelection={handleMotionVideoSelection}
+        topContent={
+          <div className="video-reference-card-title">
+            {isMotionMode ? "Add Motion Inputs" : "Add References"}
+          </div>
+        }
+      />
+    ),
+    [
+      allowVideoDrag,
+      collapsedSteps.reference,
+      expandIfCollapsed,
+      extraDragActive,
+      extraImageLoading,
+      extraImageUrls,
+      handleExtraDragEnter,
+      handleExtraDragLeave,
+      handleExtraDragOver,
+      handleExtraDrop,
+      handleFileSelection,
+      handleMotionVideoDrop,
+      handleMotionVideoSelection,
+      extraOneInputRef,
+      extraThreeInputRef,
+      extraTwoInputRef,
+      handlePrimaryDragEnter,
+      handlePrimaryDragLeave,
+      handlePrimaryDragOver,
+      handlePrimaryDrop,
+      isKeyframesMode,
+      isKlingPatternMode,
+      isMotionMode,
+      isStandardMode,
+      motionVideoDragActive,
+      motionVideoError,
+      motionVideoLoading,
+      motionVideoInputRef,
+      motionVideoUrl,
+      onClearMotionVideo,
+      onExtraImageChange,
+      onMotionVideoChange,
+      onPrimaryImageChange,
+      primaryDragActive,
+      primaryImageLoading,
+      primaryInputRef,
+      referenceImageUrl,
+      referenceOrder,
+      referenceStepSubtitle,
+      referenceStepTitle,
+      setMotionVideoDragActive,
+      standardVideoRequiresReferenceImage,
+      toggleStep,
+    ]
+  );
   const shouldShowAddCustomShotButton =
     isKieKlingModelSelected && klingMode === "custom" && Boolean(onKlingMultiPromptsChange);
   const isCustomMultiShotWorkspace = shouldShowAddCustomShotButton;
@@ -1316,59 +1454,9 @@ export function VideoPropertiesPanel({
                         Motion Control
                       </button>
                     </div>
-                    <div className="video-setup-reference-slot">
-                      <ReferenceMediaStep
-                        referenceOrder={referenceOrder}
-                        collapsedReference={collapsedSteps.reference}
-                        onExpandReference={() => expandIfCollapsed("reference")}
-                        onToggleReference={() => toggleStep("reference")}
-                        isVideoVariant={true}
-                        referenceStepTitle={referenceStepTitle}
-                        referenceStepSubtitle={referenceStepSubtitle}
-                        isMotionMode={isMotionMode}
-                        isKling3Mode={isKlingPatternMode}
-                        isStandardMode={isStandardMode}
-                        isKeyframesMode={isKeyframesMode}
-                        primaryImageRequired={standardVideoRequiresReferenceImage}
-                        referenceImageUrl={referenceImageUrl}
-                        extraImageUrls={extraImageUrls}
-                        motionVideoUrl={motionVideoUrl}
-                        primaryDragActive={primaryDragActive}
-                        extraDragActive={extraDragActive}
-                        primaryImageLoading={primaryImageLoading}
-                        extraImageLoading={extraImageLoading}
-                        motionVideoLoading={motionVideoLoading}
-                        motionVideoError={motionVideoError}
-                        motionVideoDragActive={motionVideoDragActive}
-                        setMotionVideoDragActive={setMotionVideoDragActive}
-                        handlePrimaryDrop={handlePrimaryDrop}
-                        handlePrimaryDragEnter={handlePrimaryDragEnter}
-                        handlePrimaryDragOver={handlePrimaryDragOver}
-                        handlePrimaryDragLeave={handlePrimaryDragLeave}
-                        handleExtraDrop={handleExtraDrop}
-                        handleExtraDragEnter={handleExtraDragEnter}
-                        handleExtraDragOver={handleExtraDragOver}
-                        handleExtraDragLeave={handleExtraDragLeave}
-                        allowVideoDrag={allowVideoDrag}
-                        handleMotionVideoDrop={handleMotionVideoDrop}
-                        primaryInputRef={primaryInputRef}
-                        extraOneInputRef={extraOneInputRef}
-                        extraTwoInputRef={extraTwoInputRef}
-                        extraThreeInputRef={extraThreeInputRef}
-                        motionVideoInputRef={motionVideoInputRef}
-                        onPrimaryImageChange={onPrimaryImageChange}
-                        onExtraImageChange={onExtraImageChange}
-                        onMotionVideoChange={onMotionVideoChange}
-                        onClearMotionVideo={onClearMotionVideo}
-                        handleFileSelection={handleFileSelection}
-                        handleMotionVideoSelection={handleMotionVideoSelection}
-                        topContent={
-                          <div className="video-reference-card-title">
-                            {isMotionMode ? "Add Motion Inputs" : "Add References"}
-                          </div>
-                        }
-                      />
-                    </div>
+                    {!isSeedance2FamilyModelSelected || isMotionMode ? (
+                      <div className="video-setup-reference-slot">{renderReferenceMediaStep()}</div>
+                    ) : null}
                     {isMotionMode && !motionVideoUrl ? (
                       <div className="video-setup-recorder-slot">
                         <div className="reference-dropzone-block motion-recorder-launch-block">
@@ -1443,7 +1531,11 @@ export function VideoPropertiesPanel({
                             <div className="video-shot-mode-section video-elements-shot-mode-section">
                               <span className="input-label video-shot-mode-label">Shot mode</span>
                               <div
-                                className="video-shot-mode-tabs"
+                                className={`video-shot-mode-tabs ${
+                                  isSeedance2FamilyModelSelected
+                                    ? "video-shot-mode-tabs--compact"
+                                    : ""
+                                }`.trim()}
                                 role="tablist"
                                 aria-label="Shot structure mode"
                                 style={
@@ -1494,17 +1586,69 @@ export function VideoPropertiesPanel({
                               </div>
                             </div>
                           ) : null}
-                          <div className="video-kling-elements-picker-anchor">
-                            {renderPromptTokenPicker(activePromptTargetRef.current)}
-                            <div className="video-elements-card-title video-elements-card-title--sub">
-                              Add Characters / @Elements
+                          {isSeedance2FamilyModelSelected ? (
+                            <div className="video-shot-mode-section video-elements-shot-mode-section">
+                              <span className="input-label video-shot-mode-label">
+                                Reference mode
+                              </span>
+                              <div
+                                className="video-shot-mode-tabs video-shot-mode-tabs--compact"
+                                role="tablist"
+                                aria-label="Seedance reference mode"
+                                style={
+                                  {
+                                    "--video-shot-mode-slots": 2,
+                                    "--video-shot-mode-index":
+                                      seedanceReferenceMode === "elements" ? 1 : 0,
+                                  } as React.CSSProperties
+                                }
+                              >
+                                <span className="video-shot-mode-indicator" aria-hidden="true" />
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={seedanceReferenceMode === "keyframes"}
+                                  aria-label="Keyframes"
+                                  className={`video-shot-mode-tab ${
+                                    seedanceReferenceMode === "keyframes" ? "is-active" : ""
+                                  }`}
+                                  onClick={() => handleSetSeedanceReferenceMode("keyframes")}
+                                >
+                                  Keyframes
+                                </button>
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={seedanceReferenceMode === "elements"}
+                                  aria-label="Elements"
+                                  className={`video-shot-mode-tab ${
+                                    seedanceReferenceMode === "elements" ? "is-active" : ""
+                                  }`}
+                                  onClick={() => handleSetSeedanceReferenceMode("elements")}
+                                >
+                                  Elements
+                                </button>
+                              </div>
                             </div>
-                            <div
-                              className="video-elements-placeholder-grid"
-                              aria-label="Element reference slots"
-                            >
-                              {Array.from({ length: VIDEO_KLING_ELEMENT_SLOT_COUNT }).map(
-                                (_, index) => {
+                          ) : null}
+                          {isSeedance2FamilyModelSelected &&
+                          seedanceReferenceMode === "keyframes" ? (
+                            <div className="video-setup-reference-slot video-setup-reference-slot--seedance">
+                              {renderReferenceMediaStep()}
+                            </div>
+                          ) : null}
+                          {!isSeedance2FamilyModelSelected ||
+                          seedanceReferenceMode === "elements" ? (
+                            <div className="video-kling-elements-picker-anchor">
+                              {renderPromptTokenPicker(activePromptTargetRef.current)}
+                              <div className="video-elements-card-title video-elements-card-title--sub">
+                                Add Characters / @Elements
+                              </div>
+                              <div
+                                className="video-elements-placeholder-grid"
+                                aria-label="Element reference slots"
+                              >
+                                {Array.from({ length: klingElementSlotCount }).map((_, index) => {
                                   const selectedElement = selectedKlingElements[index] ?? null;
                                   const previewUrl =
                                     selectedElement?.profileImageUrl ??
@@ -1595,10 +1739,10 @@ export function VideoPropertiesPanel({
                                       </span>
                                     </div>
                                   );
-                                }
-                              )}
+                                })}
+                              </div>
                             </div>
-                          </div>
+                          ) : null}
                           {elementPickerError ? (
                             <p className="tiny helper-text">{elementPickerError}</p>
                           ) : null}

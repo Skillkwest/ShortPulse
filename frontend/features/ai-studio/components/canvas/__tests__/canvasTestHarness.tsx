@@ -80,7 +80,7 @@ export const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (pa
   if (payload.outputId === "txt-1") {
     return {
       kind: "text",
-      outputId: "txt-1",
+      outputId: null,
       text: "Prompt reference",
       sourceSurface: payload.sourceSurface ?? null,
     };
@@ -96,7 +96,7 @@ export const defaultPrepareCanvasMediaLibraryDrop: PrepareCanvasMediaLibraryDrop
     if (!promptText) return null;
     return {
       kind: "text",
-      outputId: payload.payload.id ? `prompt:${payload.payload.id}` : null,
+      outputId: null,
       text: promptText,
     };
   }

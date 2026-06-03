@@ -277,6 +277,24 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
+  it("normalizes stale Veo 5-second state to the next supported duration", async () => {
+    const setVideoDurationSeconds = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: KIE_VEO_31_FAST_I2V_MODEL_ID,
+          videoDurationSeconds: 5,
+          setVideoDurationSeconds,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setVideoDurationSeconds).toHaveBeenCalledWith(6);
+    });
+  });
+
   it("defaults edit workflow to Seedream edit when model is null", async () => {
     const setModel = vi.fn();
     renderHook(() =>

@@ -43,7 +43,7 @@ describe("kieModelContracts", () => {
           prompt: "make a short clip",
           imageUrls: ["https://example.com/ref.png"],
           aspect: "16:9",
-          duration: "5",
+          duration: "6",
         },
       })
     ).toEqual(
@@ -52,8 +52,8 @@ describe("kieModelContracts", () => {
         image_url: "https://example.com/ref.png",
         imageUrls: ["https://example.com/ref.png"],
         aspect_ratio: "16:9",
-        duration: 5,
-        duration_seconds: 5,
+        duration: 6,
+        duration_seconds: 6,
         generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
         model: "veo3_fast",
       })
@@ -114,6 +114,17 @@ describe("kieModelContracts", () => {
         aspect_ratio: "9:16",
       })
     );
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        payload: {
+          prompt: "clip",
+          image_url: "https://example.com/ref.png",
+          duration: 5,
+        },
+      })
+    ).toThrow("Kie VEO 3.1 Fast I2V submit uses unsupported duration: 5. Allowed: 4, 6, 8");
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({

@@ -360,10 +360,37 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
       image_urls: ["https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-single.png"],
       generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
       aspect_ratio: "16:9",
-      duration: 5,
+      duration: 4,
       resolution: "720p",
       generate_audio: true,
     });
+  });
+
+  it("normalizes stale Veo 5-second selections to the next supported duration", async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-legacy-five.png",
+      }),
+    } as Response);
+
+    const handled = await handleVideoModelSubmission(
+      makeArgs({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        videoReferenceMode: "standard",
+        requestedDurationSeconds: 5,
+        requestedResolution: "720p",
+        preparedImageInputs: ["https://example.com/legacy-five.png"],
+      })
+    );
+
+    expect(handled).toBe(true);
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duration: 6,
+      })
+    );
   });
 
   it("promotes Kie Veo standard mode to first+last when two frames are present", async () => {
@@ -651,9 +678,35 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     expect(handled).toBe(true);
     expect(submitKieSeedance2Video).toHaveBeenCalledWith(
       expect.objectContaining({
+        prompt: expect.stringContaining("A dancer twirls"),
         resolution: "480p",
         duration: "15",
         generate_audio: true,
+      })
+    );
+    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toContain(
+      "Create this as one continuous uninterrupted shot only."
+    );
+  });
+
+  it("preserves intermediate Seedance durations instead of snapping them to 5/10/15", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      preparedImageInputs: [],
+      requestedDurationSeconds: 12,
+      requestedResolution: "720p",
+      requestedAudio: true,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "text",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duration: "12",
       })
     );
   });
@@ -744,6 +797,9 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
       return_last_frame: false,
       web_search: false,
     });
+    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toMatch(
+      /^Create this as a multi-shot sequence with multiple distinct shots or scene beats\./
+    );
     expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toContain(
       "Linked reference subjects: Red Lantern: Warm lacquered lantern."
     );
@@ -945,11 +1001,14 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "One clean single-shot prompt",
+        prompt: expect.stringContaining("One clean single-shot prompt"),
         image_urls: ["https://example.com/start.png", "https://example.com/end.png"],
         multi_shots: false,
         multi_prompt: undefined,
       })
+    );
+    expect(vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt).toMatch(
+      /^Create this as one continuous uninterrupted shot only\./
     );
   });
 
@@ -978,7 +1037,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "the woman walks into the scene @element1",
+        prompt: expect.stringContaining("the woman walks into the scene @element1"),
         kling_elements: [
           {
             name: "element1",
@@ -1019,7 +1078,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "the woman walks into the scene with @element1",
+        prompt: expect.stringContaining("the woman walks into the scene with @element1"),
         kling_elements: [
           {
             name: "element1",
@@ -1031,6 +1090,9 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           },
         ],
       })
+    );
+    expect(vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt).toMatch(
+      /^Create this as one continuous uninterrupted shot only\./
     );
   });
 
@@ -1061,7 +1123,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "the woman walks into the scene @element1",
+        prompt: expect.stringContaining("the woman walks into the scene @element1"),
         kling_elements: [
           {
             name: "element1",
@@ -1073,6 +1135,9 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           },
         ],
       })
+    );
+    expect(vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt).toMatch(
+      /^Create this as one continuous uninterrupted shot only\./
     );
   });
 
@@ -1375,7 +1440,9 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "Scene one shifts into scene two with @element1 throughout.",
+        prompt: expect.stringContaining(
+          "Scene one shifts into scene two with @element1 throughout."
+        ),
         image_urls: ["https://example.com/start.png", "https://example.com/end.png"],
         multi_shots: false,
         multi_prompt: undefined,
@@ -1387,6 +1454,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           },
         ],
       })
+    );
+    expect(vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt).toMatch(
+      /^Create this as a multi-shot sequence with multiple distinct shots or scene beats\./
+    );
+    expect(vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt).toContain(
+      "Create this as a multi-shot sequence with multiple distinct shots or scene beats."
     );
   });
 });

@@ -20,8 +20,8 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
     - root: `model="kling-3.0/video"`, optional `callBackUrl`
     - payload body under `input`
     - product-level shot modes:
-      - `Single`: top-level `prompt`, first frame required, optional last frame accepted
-      - `Multi`: top-level `prompt`, first frame required, optional last frame accepted, element references allowed via `@ElementName` + `kling_elements`
+      - `Single`: top-level `prompt`, first frame required, optional last frame accepted, hidden prompt composition enforces one continuous shot
+      - `Multi`: top-level `prompt`, first frame required, optional last frame accepted, hidden prompt composition directs a multi-shot sequence, element references allowed via `@ElementName` + `kling_elements`
       - `Custom`: `multi_prompt[]`, first frame required, last frame not sent
   - Motion Control:
     - root: `model="kling-3.0/motion-control"`, optional `callBackUrl`
@@ -61,11 +61,12 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - submits top-level `prompt`
   - sends first frame and optional last frame
   - keeps `multi_shots=false`
+  - applies hidden prompt composition that enforces one continuous shot with no cuts or extra shot setups
 - `Multi`
   - submits top-level `prompt`
   - sends first frame and optional last frame
   - keeps `multi_shots=false`
-  - currently behaves exactly like `Single` in product UX; it is not a separate provider route or prompt-shaping mode
+  - applies hidden prompt composition that directs the provider to treat the prompt as a multi-shot sequence
 - `Custom`
   - submits `multi_prompt[]`
   - sends first frame only

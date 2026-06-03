@@ -214,7 +214,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         if (!text) return null;
         return {
           kind: "text",
-          outputId,
+          outputId: null,
           text,
           ...(sourceSurface ? { sourceSurface } : {}),
         };
@@ -555,7 +555,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       if (!outputId) return null;
       return {
         kind: "text",
-        outputId,
+        outputId: null,
         text: promptText,
       };
     },

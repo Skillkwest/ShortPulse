@@ -334,6 +334,7 @@ const normalizeOptionalNumberField = ({
 
 type KieCatalogContract = {
   defaultAspect: string;
+  defaultDurationSeconds: number | null;
   defaultResolution: string | null;
   allowedAspects: string[];
   allowedDurations: number[];
@@ -359,6 +360,8 @@ const readRequiredKieCatalogContract = ({
   }
   return {
     defaultAspect: entry.defaultAspect,
+    defaultDurationSeconds:
+      typeof entry.defaultDurationSeconds === "number" ? entry.defaultDurationSeconds : null,
     defaultResolution: entry.defaultResolution ?? null,
     allowedAspects: entry.allowedAspects,
     allowedDurations: entry.allowedDurations,
@@ -677,6 +680,7 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
   const durationValue =
     asPositiveInteger(source.duration) ??
     asPositiveInteger(source.duration_seconds) ??
+    contract.defaultDurationSeconds ??
     contract.allowedDurations[0];
   if (!durationValue || !contract.allowedDurations.includes(durationValue)) {
     throw new Error(
@@ -790,6 +794,7 @@ const normalizeKieSeedance2Payload = ({
   const durationValue =
     asPositiveInteger(source.duration) ??
     asPositiveInteger(source.duration_seconds) ??
+    contract.defaultDurationSeconds ??
     contract.allowedDurations[0];
   if (!durationValue || !contract.allowedDurations.includes(durationValue)) {
     throw new Error(

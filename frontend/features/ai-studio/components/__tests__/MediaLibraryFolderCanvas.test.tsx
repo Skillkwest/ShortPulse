@@ -126,7 +126,7 @@ describe("MediaLibraryFolderCanvas", () => {
     expect(screen.queryAllByTestId(/canvas-item-/)).toHaveLength(0);
   });
 
-  it("places folder-canvas prompt drops with the bubble top-left anchored at the cursor release point", async () => {
+  it("places folder-canvas prompt drops with the same center-on-release anchor as images", async () => {
     const onAssignDroppedItem = vi.fn(async () => true);
 
     function FolderPromptDropHarness() {
@@ -188,8 +188,8 @@ describe("MediaLibraryFolderCanvas", () => {
       const items = screen.getAllByTestId(/canvas-item-/);
       const matchingItem = items.find((item) => item.getAttribute("data-kind") === "text");
       expect(matchingItem).toBeTruthy();
-      expect(matchingItem?.getAttribute("data-x")).toBe("280");
-      expect(matchingItem?.getAttribute("data-y")).toBe("190");
+      expect(matchingItem?.getAttribute("data-x")).toBe("150");
+      expect(matchingItem?.getAttribute("data-y")).toBe("130");
     });
     expect(onAssignDroppedItem).toHaveBeenCalledWith({ kind: "prompt", id: "prompt-1" });
   });
@@ -275,8 +275,8 @@ describe("MediaLibraryFolderCanvas", () => {
       const items = screen.getAllByTestId(/canvas-item-/);
       const matchingItem = items.find((item) => item.getAttribute("data-kind") === "text");
       expect(matchingItem).toBeTruthy();
-      expect(matchingItem?.getAttribute("data-x")).toBe("280");
-      expect(matchingItem?.getAttribute("data-y")).toBe("190");
+      expect(matchingItem?.getAttribute("data-x")).toBe("150");
+      expect(matchingItem?.getAttribute("data-y")).toBe("130");
       expect(items).toHaveLength(1);
     } finally {
       window.requestAnimationFrame = originalRequestAnimationFrame;
@@ -344,8 +344,8 @@ describe("MediaLibraryFolderCanvas", () => {
         .getAllByTestId(/canvas-item-/)
         .filter((item) => item.getAttribute("data-kind") === "text");
       expect(textItems).toHaveLength(1);
-      expect(textItems[0]).toHaveAttribute("data-x", "280");
-      expect(textItems[0]).toHaveAttribute("data-y", "190");
+      expect(textItems[0]).toHaveAttribute("data-x", "150");
+      expect(textItems[0]).toHaveAttribute("data-y", "130");
     });
 
     dispatchDropAtPoint({
@@ -368,8 +368,8 @@ describe("MediaLibraryFolderCanvas", () => {
       const positions = textItems.map(
         (item) => `${item.getAttribute("data-x")},${item.getAttribute("data-y")}`
       );
-      expect(positions).toContain("280,190");
-      expect(positions).toContain("360,250");
+      expect(positions).toContain("150,130");
+      expect(positions).toContain("230,190");
     });
   });
 
@@ -611,8 +611,8 @@ describe("MediaLibraryFolderCanvas", () => {
         candidate.textContent?.includes("Internal prompt text")
     );
     expect(item).toBeTruthy();
-    expect(item).toHaveAttribute("data-x", "240");
-    expect(item).toHaveAttribute("data-y", "160");
+    expect(item).toHaveAttribute("data-x", "110");
+    expect(item).toHaveAttribute("data-y", "100");
   });
 
   it("does not assign folder membership when a prompt drop is blocked by the canvas item cap", async () => {

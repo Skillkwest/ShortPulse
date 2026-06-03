@@ -70,7 +70,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Standard Video mode is Kie-only.
 - With no frame references present, Standard mode defaults to Kie Veo text-to-video behavior.
 - The modal still allows manual selection of `kie-ai/kling-3.0`, `kie-ai/seedance-2`, and `kie-ai/seedance-2-fast` in that state; once Kling is selected, the first-frame dropzone becomes required and Generate remains disabled until the first frame is populated.
-- Keyframe-style generation is handled through `kie-ai/veo-3.1-fast-i2v` by switching Kie generation type based on the number of frame references.
+- Adding a last frame inside Standard Video must not force a model switch. Standard keeps the user-selected compatible model (`kie-ai/veo-3.1-fast-i2v`, `kie-ai/kling-3.0`, `kie-ai/seedance-2`, or `kie-ai/seedance-2-fast`) and submission derives the correct first-frame / first-last payload shape from the prepared inputs.
+- Keyframe-style Veo generation is handled through `kie-ai/veo-3.1-fast-i2v` by switching Kie generation type based on the number of prepared frame references, not by forcing Standard into a separate hidden Veo-only mode.
 - Kie Seedance 2 and 2 Fast use the Kling-pattern panel shell for `Single`, `Multi`, and `Custom` prompt authoring plus linked Character/Element slots, but compile into Seedance-native prompt, frame, and multimodal reference fields.
 
 ### Kling 3.0 Standard shot modes

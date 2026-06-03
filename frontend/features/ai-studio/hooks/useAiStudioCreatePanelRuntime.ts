@@ -2,7 +2,7 @@
  * Create-panel runtime assembly for AI Studio.
  * Keeps Standard and Pulse create panel wiring out of the page composition root while preserving the same panel contract.
  */
-import { useCallback, useMemo, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import type { ModelModalContext } from "../components/ModelModal";
 import { useAiStudioAgentOutputGenerationBridge } from "./useAiStudioAgentOutputGenerationBridge";
@@ -14,7 +14,13 @@ import type {
   CreatePageAgentRuntime,
   PulseCreatePageAgentRuntime,
 } from "../createRuntime/contracts";
+import { usePulseChatThreads } from "./usePulseChatThreads";
 import { useStandardCreatePrimarySubmit } from "./standardCreateRuntime/useStandardCreatePrimarySubmit";
+import {
+  buildPulseChatHydrationPayload,
+  type PulseChatProjectState,
+  type PulseChatThreadSnapshot,
+} from "../pulseChats/pulseChatThread";
 import type { StudioMode, ToolId } from "../types";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
 
@@ -45,7 +51,10 @@ type CreatePanelHandlePulsePresetRestart = NonNullable<
 type UseAiStudioCreatePanelRuntimeParams = {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
+  projectPulseChatState: PulseChatProjectState;
+  setProjectPulseChatState: Dispatch<SetStateAction<PulseChatProjectState>>;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
+  pulseCreateAgentRuntime: PulseCreatePageAgentRuntime;
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits: number | null;
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
@@ -87,7 +96,10 @@ export const resolveStandardCreatePrimaryCostCredits = ({
 export const useAiStudioCreatePanelRuntime = ({
   base,
   createPulsePageRuntime,
+  projectPulseChatState,
+  setProjectPulseChatState,
   activeCreateAgentRuntime,
+  pulseCreateAgentRuntime,
   currentCostCredits,
   promptReferenceGenerateCostCredits,
   hasSufficientCreditsForPromptReferenceGenerate,
@@ -225,6 +237,115 @@ export const useAiStudioCreatePanelRuntime = ({
     () => handleCreatePulsePresetRestart ?? (async () => undefined),
     [handleCreatePulsePresetRestart]
   );
+  const pendingPulseChatOpenRef = useRef<{
+    snapshot: PulseChatThreadSnapshot;
+    resolve: () => void;
+    reject: (error: Error) => void;
+  } | null>(null);
+  const pendingPulseChatOpenTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(
+    null
+  );
+  const openPulseChatSnapshot = useCallback(
+    async ({ snapshot }: { snapshot: PulseChatThreadSnapshot }) => {
+      const isAlreadyActive =
+        base.expertCreateMode === "pulse" &&
+        base.activeCreatePulsePresetId === snapshot.workspace.activePulsePresetId &&
+        base.pulseSessionInstanceId === snapshot.workspace.pulseSessionInstanceId;
+      if (isAlreadyActive) {
+        base.setPulseCreatePrompt(snapshot.workspace.pulsePrompt);
+        pulseCreateAgentRuntime.hydrateFromSessionAgentSnapshot(
+          buildPulseChatHydrationPayload(snapshot)
+        );
+        return;
+      }
+      await new Promise<void>((resolve, reject) => {
+        if (pendingPulseChatOpenTimerRef.current) {
+          globalThis.clearTimeout(pendingPulseChatOpenTimerRef.current);
+          pendingPulseChatOpenTimerRef.current = null;
+        }
+        pendingPulseChatOpenRef.current = {
+          snapshot,
+          resolve,
+          reject,
+        };
+        pendingPulseChatOpenTimerRef.current = globalThis.setTimeout(() => {
+          if (pendingPulseChatOpenRef.current?.snapshot !== snapshot) return;
+          pendingPulseChatOpenRef.current = null;
+          pendingPulseChatOpenTimerRef.current = null;
+          reject(new Error("Saved Pulse chat could not be restored."));
+        }, 8000);
+        base.setPulseCreatePrompt(snapshot.workspace.pulsePrompt);
+        handleActiveCreatePulsePresetIdChangeForPage(snapshot.workspace.activePulsePresetId, {
+          sessionInstanceIdOverride: snapshot.workspace.pulseSessionInstanceId,
+          workflowSessionOverride: snapshot.runtime.pulseWorkflowSession ?? null,
+        });
+      });
+    },
+    [
+      base,
+      handleActiveCreatePulsePresetIdChangeForPage,
+      pendingPulseChatOpenTimerRef,
+      pulseCreateAgentRuntime,
+    ]
+  );
+  useEffect(() => {
+    const pending = pendingPulseChatOpenRef.current;
+    if (!pending) return;
+    if (
+      base.expertCreateMode !== "pulse" ||
+      base.activeCreatePulsePresetId !== pending.snapshot.workspace.activePulsePresetId ||
+      base.pulseSessionInstanceId !== pending.snapshot.workspace.pulseSessionInstanceId
+    ) {
+      return;
+    }
+    pendingPulseChatOpenRef.current = null;
+    if (pendingPulseChatOpenTimerRef.current) {
+      globalThis.clearTimeout(pendingPulseChatOpenTimerRef.current);
+      pendingPulseChatOpenTimerRef.current = null;
+    }
+    try {
+      pulseCreateAgentRuntime.hydrateFromSessionAgentSnapshot(
+        buildPulseChatHydrationPayload(pending.snapshot)
+      );
+      pending.resolve();
+    } catch (error) {
+      pending.reject(
+        error instanceof Error ? error : new Error("Failed to restore the saved Pulse chat.")
+      );
+    }
+  }, [
+    base.activeCreatePulsePresetId,
+    base.expertCreateMode,
+    base.pulseSessionInstanceId,
+    pendingPulseChatOpenTimerRef,
+    pulseCreateAgentRuntime,
+  ]);
+  useEffect(
+    () => () => {
+      if (pendingPulseChatOpenTimerRef.current) {
+        globalThis.clearTimeout(pendingPulseChatOpenTimerRef.current);
+      }
+    },
+    []
+  );
+  const pulseChatHistory = usePulseChatThreads({
+    enabled: base.projectRouteRequested,
+    projectPulseChatState,
+    setProjectPulseChatState,
+    expertCreateMode: base.expertCreateMode,
+    activePresetId: base.activeCreatePulsePresetId,
+    activePresetLabel: displayCreatePulsePresetSnapshot?.label ?? null,
+    pulseSessionInstanceId: base.pulseSessionInstanceId,
+    pulsePrompt: base.pulsePrompt,
+    persistedAgentRuntime: pulseCreateAgentRuntime.persistedAgentRuntime,
+    openThreadSnapshot: openPulseChatSnapshot,
+    restartCurrentPulse: async () => {
+      if (!displayCreatePulsePresetSnapshot) return false;
+      await handlePulsePresetRestart(displayCreatePulsePresetSnapshot);
+      return true;
+    },
+    setUiNotice: base.setUiNotice,
+  });
 
   return useMemo<CreatePanelProps>(() => {
     if (expertCreateMode === "pulse") {
@@ -240,6 +361,20 @@ export const useAiStudioCreatePanelRuntime = ({
           onPulsePromptChange: handlePulseCreatePromptChange,
           onActivePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
           pulsePreferenceRuntime,
+          pulseChatHistory: base.projectRouteRequested
+            ? {
+                threads: pulseChatHistory.threads,
+                activeThreadId: pulseChatHistory.activeThreadId,
+                loading: pulseChatHistory.loading,
+                error: pulseChatHistory.error,
+                openingThreadId: pulseChatHistory.openingThreadId,
+                creatingNewChat: pulseChatHistory.creatingNewChat,
+                newChatDisabled:
+                  !displayCreatePulsePresetSnapshot || isPulseStartupPending || createIsGenerating,
+                onOpenThread: pulseChatHistory.openThread,
+                onCreateNewChat: pulseChatHistory.createNewChat,
+              }
+            : undefined,
         },
         agentRuntime: {
           agentEnabled,
@@ -385,8 +520,7 @@ export const useAiStudioCreatePanelRuntime = ({
     createSelectedCharacterLookId,
     currentModelLabel,
     displayCreatePulsePresetId,
-    displayCreatePulsePresetSnapshot?.label,
-    displayCreatePulsePresetSnapshot?.pulseKind,
+    displayCreatePulsePresetSnapshot,
     describeInFlightCount,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
@@ -423,6 +557,14 @@ export const useAiStudioCreatePanelRuntime = ({
     modelModalAnchor,
     persistedAgentRuntime,
     pulsePreferenceRuntime,
+    pulseChatHistory.activeThreadId,
+    pulseChatHistory.createNewChat,
+    pulseChatHistory.creatingNewChat,
+    pulseChatHistory.error,
+    pulseChatHistory.loading,
+    pulseChatHistory.openThread,
+    pulseChatHistory.openingThreadId,
+    pulseChatHistory.threads,
     pulsePrompt,
     refreshCharacterOptions,
     resolveCharacterAvatarUrlById,

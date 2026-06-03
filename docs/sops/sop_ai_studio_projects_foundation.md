@@ -16,8 +16,8 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 5. When `projectId` is present, AI Studio starts project workspace bootstrap as soon as the route id is syntactically valid, but the shell still stays gated until the owned project record resolves successfully.
 6. The visible Media Library project title now reads from and writes to `projects.title`.
 7. Project routes now load and save a project-owned workspace projection derived from the shared AI Studio snapshot envelope instead of the legacy remote `sid` snapshot route.
-8. Project workspace persistence now keeps only durable project content: active output media for the shared right rail, Quick Slot Inventory and Reference Grid projection ids, durable Canvas scene items and cameras, plus the separately owned project title. The Media Library folder system remains user-global and is not project-owned workspace state. Project routes do not persist workflow shell state, typed composer text, active output focus, shared reference-selection state, Character Mode shell state, conversational runtime, or Expert Edit document state.
-9. Opening or switching a project resets the project-visible agent conversation lane instead of restoring it from project workspace state.
+8. Project workspace persistence now keeps only durable project content: active output media for the shared right rail, Quick Slot Inventory and Reference Grid projection ids, durable Canvas scene items and cameras, the project-owned Pulse `Chats` library, plus the separately owned project title. The Media Library folder system remains user-global and is not project-owned workspace state. Project routes do not persist workflow shell state, typed composer text, active output focus, shared reference-selection state, Character Mode shell state, automatic conversational replay, or Expert Edit document state.
+9. Opening or switching a project resets the project-visible agent conversation lane instead of restoring it from project workspace state. Saved Pulse chats remain explicit reopen affordances inside that project rather than automatic visible replay on bootstrap.
 10. Media and prompt saves that happen from a project route now attach those saved assets to the active project through project association tables.
 11. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
 12. Project workspace saves now also backfill project-owned generation associations from restore-relevant `generationId` values already present in the snapshot.
@@ -139,11 +139,12 @@ Behavior:
 4. `GET` returns the current caller-owned project workspace snapshot or `workspace: null` when none exists yet.
 5. `PUT` validates the posted snapshot through the shared AI Studio snapshot parser before upsert.
 6. Current storage contract intentionally reuses the AI Studio session snapshot envelope as a parser boundary, but project persistence sanitizes conversational runtime out of the stored payload.
-7. `PUT` writes the sanitized workspace snapshot before association repair runs, so a later backfill failure does not discard the workspace save.
-8. `PUT` may return `saveOutcome.status = "saved_with_repair_pending"` when the durable write succeeds but project association repair still needs follow-up.
-9. Out-of-order autosave completions must not overwrite a newer durable workspace row; stale saves degrade to a successful no-op that returns the current canonical workspace state.
-10. `GET` does not block on generated-output projection/media refresh; project-associated generated outputs refresh asynchronously after AI Studio workspace bootstrap.
-11. Returns:
+7. The same sanitized project snapshot now also carries the project-owned Pulse `Chats` library so saved Pulse threads stay scoped to that project.
+8. `PUT` writes the sanitized workspace snapshot before association repair runs, so a later backfill failure does not discard the workspace save.
+9. `PUT` may return `saveOutcome.status = "saved_with_repair_pending"` when the durable write succeeds but project association repair still needs follow-up.
+10. Out-of-order autosave completions must not overwrite a newer durable workspace row; stale saves degrade to a successful no-op that returns the current canonical workspace state.
+11. `GET` does not block on generated-output projection/media refresh; project-associated generated outputs refresh asynchronously after AI Studio workspace bootstrap.
+12. Returns:
 
 - `400` for invalid project id
 - `404` for missing or non-owned project
@@ -182,8 +183,9 @@ Behavior:
 5. Project routes suppress browser-global workflow-settings session storage and selected-character local storage, and project reopen now fails closed to the shipped blank Create baseline instead of replaying workflow-shell state from the saved snapshot.
 6. Project workspace writes reset the project shell back to the shipped blank Create baseline and do not preserve Pulse shell selection, Pulse session instance ids, Character Mode shell state, or active output focus.
 7. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.
-8. Project workspace reads return the sanitized saved snapshot without blocking on `project_generation_items` or generation projection/media hydration; after bootstrap, AI Studio refreshes generated-output delivery from project-owned generation rows rather than scanning all user-global generated outputs.
-9. This does not change Media Library folder authority, which remains user-global across projects, and it does not yet make every live generation read path project-scoped.
+8. Project workspace snapshots may carry the project-owned Pulse `Chats` library, but project bootstrap still reopens to the blank Create shell and never auto-hydrates visible chat history from that library.
+9. Project workspace reads return the sanitized saved snapshot without blocking on `project_generation_items` or generation projection/media hydration; after bootstrap, AI Studio refreshes generated-output delivery from project-owned generation rows rather than scanning all user-global generated outputs.
+10. This does not change Media Library folder authority, which remains user-global across projects, and it does not yet make every live generation read path project-scoped.
 
 ## AI Studio Media Library folder authority
 

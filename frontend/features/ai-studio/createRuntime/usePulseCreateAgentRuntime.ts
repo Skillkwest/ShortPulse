@@ -34,6 +34,7 @@ import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHy
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { resolvePulseWorkflowArtifactPrompt } from "../hooks/createAgentRuntime/pulseRuntimeState";
 import type { PulseCreatePageAgentRuntime } from "./contracts";
+import type { CreateRuntimeAgentHydrationPayload } from "./sessionAgentHydrationBoundary";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import {
   canUseAssistantMessageAsPrompt,
@@ -438,10 +439,7 @@ export const usePulseCreateAgentRuntime = ({
   );
 
   const hydrateFromSessionAgentSnapshot = useCallback(
-    ({
-      workspace,
-      agentRuntimes,
-    }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
+    ({ workspace, agentRuntimes }: CreateRuntimeAgentHydrationPayload) => {
       const workspacePresetId = workspace.activePulsePresetId ?? null;
       const runtimePresetId = agentRuntimes.pulsePresetId ?? null;
       const hasAuthorizedPulseRuntime =

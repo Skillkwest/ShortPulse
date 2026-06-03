@@ -55,5 +55,6 @@ export const buildPulseCreateRuntimeResult = ({
     handleClearAgentChat: actions.onClearAgentChat,
     handlePulsePresetRestart: actions.onPresetRestart,
     pulsePreferenceRuntime: props.pulsePreferenceRuntime,
+    pulseChatHistory: props.pulseChatHistory,
   }),
 });

@@ -8,6 +8,7 @@ import type {
   CreatePulsePresetKind,
   CreatePulseResolvedPreset,
 } from "../../components/create/createPulsePresets";
+import type { PulseChatHistoryPanelProps } from "../../components/create/PulseChatHistoryPanel";
 import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/createPulsePreferenceRuntime";
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
 
@@ -40,6 +41,7 @@ type UsePulseCreatePanelPropsParams = {
   handleClearAgentChat: () => void;
   handlePulsePresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
+  pulseChatHistory?: PulseChatHistoryPanelProps;
 };
 
 /**
@@ -75,6 +77,7 @@ export const buildPulseCreatePanelProps = ({
   handleClearAgentChat,
   handlePulsePresetRestart,
   pulsePreferenceRuntime,
+  pulseChatHistory,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => {
   return {
     pulsePrompt,
@@ -104,5 +107,6 @@ export const buildPulseCreatePanelProps = ({
     onClearAgentChat: handleClearAgentChat,
     onPulsePresetRestart: handlePulsePresetRestart,
     pulsePreferenceRuntime,
+    pulseChatHistory,
   };
 };

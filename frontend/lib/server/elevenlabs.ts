@@ -6,6 +6,7 @@ import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { resolveMediaStorageQuotaUserMessage } from "../mediaStorageQuota";
 import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./api/mediaAutosavePreference";
+import { ElevenLabsProviderError } from "./api/elevenlabsProviderError";
 import { toErrorMessage } from "./api/errorMessage";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { persistGenerationOutputRecords } from "./api/generationOutputs";
@@ -51,6 +52,7 @@ const OUTPUT_CONTENT_TYPE_BY_FORMAT_PREFIX: Record<string, string> = {
   ulaw: "audio/basic",
 };
 const ELEVENLABS_TRANSIENT_UPSTREAM_STATUSES = new Set([502, 503, 504]);
+const ELEVENLABS_TRANSIENT_UPSTREAM_CODES = new Set(["rate_limit_exceeded", "system_busy"]);
 const ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS = 2;
 
 export type ElevenLabsVoice = {
@@ -295,6 +297,12 @@ const parseOptionalNumber = (value: string | null): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const parseRetryAfterSeconds = (value: string | null): number | null => {
+  const parsed = parseOptionalNumber(value);
+  if (parsed === null) return null;
+  return Math.max(1, Math.trunc(parsed));
+};
+
 const normalizeOptionalFiniteNumber = (value: unknown): number | null => {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return value;
@@ -315,17 +323,46 @@ const buildElevenLabsHeaders = (): HeadersInit => ({
 const isTransientElevenLabsUpstreamResponse = (response: Response): boolean =>
   ELEVENLABS_TRANSIENT_UPSTREAM_STATUSES.has(response.status);
 
-const readElevenLabsErrorMessage = async (
+const buildElevenLabsProviderError = async (
   response: Response,
   fallbackMessage: string
-): Promise<string> => {
+): Promise<ElevenLabsProviderError> => {
   const payload = await response.json().catch(() => null);
-  return (
+  const detailRecord =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>).detail &&
+        typeof (payload as Record<string, unknown>).detail === "object" &&
+        !Array.isArray((payload as Record<string, unknown>).detail)
+        ? ((payload as Record<string, unknown>).detail as Record<string, unknown>)
+        : (payload as Record<string, unknown>)
+      : null;
+  const message =
     normalizeProviderErrorMessage((payload as { detail?: unknown } | null)?.detail) ??
     normalizeProviderErrorMessage((payload as { error?: unknown } | null)?.error) ??
     normalizeProviderErrorMessage(payload) ??
-    fallbackMessage
-  );
+    fallbackMessage;
+  return new ElevenLabsProviderError(message, {
+    status: response.status,
+    retryAfterSeconds: parseRetryAfterSeconds(response.headers.get("retry-after")),
+    code:
+      normalizeOptionalString(detailRecord?.code) ??
+      normalizeOptionalString((payload as { code?: unknown } | null)?.code),
+    type:
+      normalizeOptionalString(detailRecord?.type) ??
+      normalizeOptionalString((payload as { type?: unknown } | null)?.type),
+    requestId:
+      normalizeOptionalString(detailRecord?.request_id) ??
+      normalizeOptionalString((payload as { request_id?: unknown } | null)?.request_id) ??
+      readProviderRequestId(response.headers),
+  });
+};
+
+const shouldRetryElevenLabsProviderError = (error: ElevenLabsProviderError): boolean => {
+  if (isTransientElevenLabsUpstreamResponse({ status: error.status } as Response)) {
+    return true;
+  }
+  if (error.status !== 429) return false;
+  return error.code !== null && ELEVENLABS_TRANSIENT_UPSTREAM_CODES.has(error.code.toLowerCase());
 };
 
 const readProviderRequestId = (headers: Headers): string | null =>
@@ -692,12 +729,7 @@ export const generateElevenLabsVoiceover = async ({
     }
   );
   if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    const message =
-      normalizeOptionalString((payload as { detail?: unknown } | null)?.detail) ??
-      normalizeOptionalString((payload as { error?: unknown } | null)?.error) ??
-      "ElevenLabs voiceover request failed.";
-    throw new Error(message);
+    throw await buildElevenLabsProviderError(response, "ElevenLabs voiceover request failed.");
   }
   const arrayBuffer = await response.arrayBuffer();
   return {
@@ -721,7 +753,7 @@ export const generateElevenLabsSoundEffect = async ({
   contentType: string;
   providerRequestId: string | null;
 }> => {
-  let lastErrorMessage = "ElevenLabs sound effects request failed.";
+  let lastError: ElevenLabsProviderError | null = null;
   for (let attempt = 1; attempt <= ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS; attempt += 1) {
     const response = await fetch(
       `${ELEVENLABS_BASE_URL}/v1/sound-generation?output_format=${encodeURIComponent(outputFormat)}`,
@@ -747,20 +779,20 @@ export const generateElevenLabsSoundEffect = async ({
       };
     }
 
-    lastErrorMessage = await readElevenLabsErrorMessage(
+    lastError = await buildElevenLabsProviderError(
       response,
       "ElevenLabs sound effects request failed."
     );
     if (
       attempt < ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS &&
-      isTransientElevenLabsUpstreamResponse(response)
+      shouldRetryElevenLabsProviderError(lastError)
     ) {
       continue;
     }
-    throw new Error(lastErrorMessage);
+    throw lastError;
   }
 
-  throw new Error(lastErrorMessage);
+  throw lastError ?? new Error("ElevenLabs sound effects request failed.");
 };
 
 export const generateElevenLabsMusic = async ({
@@ -792,13 +824,7 @@ export const generateElevenLabsMusic = async ({
     }
   );
   if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    const message =
-      normalizeProviderErrorMessage((payload as { detail?: unknown } | null)?.detail) ??
-      normalizeProviderErrorMessage((payload as { error?: unknown } | null)?.error) ??
-      normalizeProviderErrorMessage(payload) ??
-      "ElevenLabs music request failed.";
-    throw new Error(message);
+    throw await buildElevenLabsProviderError(response, "ElevenLabs music request failed.");
   }
   const arrayBuffer = await response.arrayBuffer();
   return {
@@ -865,12 +891,10 @@ export const generateElevenLabsVoiceChanger = async ({
       }
     );
     if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      const message =
-        normalizeOptionalString((payload as { detail?: unknown } | null)?.detail) ??
-        normalizeOptionalString((payload as { error?: unknown } | null)?.error) ??
-        "ElevenLabs voice changer request failed.";
-      throw new Error(message);
+      throw await buildElevenLabsProviderError(
+        response,
+        "ElevenLabs voice changer request failed."
+      );
     }
     const arrayBuffer = await response.arrayBuffer();
     return {

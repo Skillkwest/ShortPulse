@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/sound-effects";
-import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -48,7 +47,6 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/sound-effects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetApiRateLimitForTests();
     process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     chargeGenerationRequestMock.mockResolvedValue({
@@ -255,58 +253,63 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     });
   });
 
-  it("rate limits repeated sound-effects generations for the same authenticated user", async () => {
-    generateElevenLabsSoundEffectMock.mockResolvedValue({
-      buffer: Buffer.from("sfx"),
-      characterCost: 100,
-      contentType: "audio/mpeg",
-      providerRequestId: "provider-sfx-rate-limit",
-    });
-    persistGeneratedAudioAssetMock.mockResolvedValue({
-      generationId: "gen-sfx-rate-limit",
-      mediaFileId: "media-sfx-rate-limit",
-      requestId: "billing-source-sfx-1",
-      storagePath: "user-1/generations/audio/gen-sfx-rate-limit/effect.mp3",
-      signedUrl: "https://signed.example/effect-rate-limit.mp3",
-      outputRowId: "out-sfx-rate-limit",
-    });
+  it("passes through provider concurrency responses with retry guidance", async () => {
+    const charge = {
+      userId: "user-1",
+      modelId: "eleven_text_to_sound_v2",
+      credits: 15,
+      sourceRef: "billing-source-sfx-1",
+      billingMode: "reservation",
+      chargeMetadata: { debited_credits: 15 },
+      pricingBreakdown: {
+        billedCredits: 15,
+        billedUsd: 0.15,
+        pricingPolicySource: "control_plane",
+        pricingPolicyVersion: 3,
+        rawCredits: 13,
+        usdRaw: 0.12,
+      },
+      pricingParams: { generationCount: 1 },
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    };
+    chargeGenerationRequestMock.mockResolvedValueOnce(charge);
+    generateElevenLabsSoundEffectMock.mockRejectedValueOnce(
+      Object.assign(new Error("too_many_concurrent_requests"), {
+        status: 429,
+        retryAfterSeconds: 12,
+        code: "concurrent_limit_exceeded",
+      })
+    );
 
-    for (let index = 0; index < 8; index += 1) {
-      const req = {
-        method: "POST",
-        body: {
-          text: `Huge downlift boom ${index}`,
-          durationSeconds: null,
-          loop: false,
-          outputFormat: "mp3_44100_128",
-          modelId: "eleven_text_to_sound_v2",
-        },
-        socket: { remoteAddress: "127.0.0.1" },
-      };
-      const res = createMockResponse();
-      await handler(req as never, res as never);
-      expect(res.status).toHaveBeenCalledWith(200);
-    }
-
-    const blockedReq = {
+    const req = {
       method: "POST",
       body: {
-        text: "Blocked request",
+        text: "Huge downlift boom.",
         durationSeconds: null,
         loop: false,
         outputFormat: "mp3_44100_128",
         modelId: "eleven_text_to_sound_v2",
       },
-      socket: { remoteAddress: "127.0.0.1" },
     };
-    const blockedRes = createMockResponse();
+    const res = createMockResponse();
 
-    await handler(blockedReq as never, blockedRes as never);
+    await handler(req as never, res as never);
 
-    expect(blockedRes.status).toHaveBeenCalledWith(429);
-    expect(blockedRes.json).toHaveBeenCalledWith({
-      error: "Too many requests",
-      retryAfterSeconds: expect.any(Number),
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-refund: audio sound effect generation failed.",
+      {
+        source_mode: "sound-effects",
+      }
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "12");
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate sound effect",
+      details:
+        "The audio provider is at its concurrency limit right now. Please retry in 12 seconds.",
+      code: "concurrent_limit_exceeded",
+      retryAfterSeconds: 12,
     });
   });
 });

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/speech-to-speech";
-import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -127,7 +126,6 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/speech-to-speech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     listSavedVoicesForUserMock.mockResolvedValue([]);
     assertTrustedRemoteMediaUrlMock.mockReset();
@@ -478,33 +476,59 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("rate limits repeated speech-to-speech generations for the same authenticated user", async () => {
+  it("passes through provider rate-limit responses with retry guidance", async () => {
     readStoredMediaBufferMock.mockResolvedValue({
       buffer: Buffer.from("staged-audio"),
       contentType: "audio/wav",
       size: 12,
     });
+    const charge = {
+      userId: "user-1",
+      modelId: "eleven_multilingual_sts_v2",
+      credits: 15,
+      sourceRef: "billing-source-voice-1",
+      billingMode: "reservation",
+      chargeMetadata: { debited_credits: 15 },
+      pricingBreakdown: {
+        billedCredits: 15,
+        billedUsd: 0.15,
+        pricingPolicySource: "control_plane",
+        pricingPolicyVersion: 3,
+        rawCredits: 13,
+        usdRaw: 0.12,
+      },
+      pricingParams: { sourceDurationSeconds: 12 },
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    };
+    chargeGenerationRequestMock.mockResolvedValueOnce(charge);
+    generateElevenLabsVoiceChangerMock.mockRejectedValueOnce(
+      Object.assign(new Error("rate_limit_exceeded"), {
+        status: 429,
+        retryAfterSeconds: 7,
+        code: "rate_limit_exceeded",
+      })
+    );
 
-    const buildReq = () => ({
+    const req = {
       method: "POST",
-      headers: {},
-      socket: { remoteAddress: "127.0.0.1" },
-    });
-
-    for (let attempt = 0; attempt < 6; attempt += 1) {
-      const res = createMockResponse();
-      await handler(buildReq() as never, res as never);
-      expect(res.status).toHaveBeenCalledWith(200);
-    }
-
+    };
     const res = createMockResponse();
-    await handler(buildReq() as never, res as never);
+    await handler(req as never, res as never);
 
-    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-refund: audio voice changer generation failed.",
+      {
+        source_mode: "voice-changer",
+      }
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "7");
     expect(res.status).toHaveBeenCalledWith(429);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Too many requests",
-      retryAfterSeconds: expect.any(Number),
+      error: "Unable to convert voice",
+      details: "The audio provider is rate limiting requests right now. Please retry in 7 seconds.",
+      code: "rate_limit_exceeded",
+      retryAfterSeconds: 7,
     });
   });
 

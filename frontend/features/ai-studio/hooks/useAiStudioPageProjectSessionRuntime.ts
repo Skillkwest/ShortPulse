@@ -2,7 +2,7 @@
  * AI Studio page project/session runtime.
  * Owns project-aware session snapshot patching, agent hydration bridging, and project bootstrap restore wiring.
  */
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from "react";
 import {
   createEmptyAiStudioSessionAgentState,
   createEmptyAiStudioSessionSnapshot,
@@ -18,6 +18,7 @@ import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import { type CreateRuntimeAgentHydrationPayload } from "../createRuntime/sessionAgentHydrationBoundary";
 import { useAiStudioPageSessionPersistence } from "./useAiStudioPageSessionPersistence";
+import type { PulseChatProjectState } from "../pulseChats/pulseChatThread";
 
 type UseAiStudioPageProjectSessionRuntimeParams = {
   activeCreateAgentKind: CreatePageAgentRuntime["kind"];
@@ -47,12 +48,14 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
+  patchProjectWorkspaceSnapshot?: (snapshot: AiStudioSessionSnapshot) => AiStudioSessionSnapshot;
   persistedAgentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
   persistedPulseAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
   persistedStandardAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
   projectBootstrapId?: string | null;
   projectId: string | null;
   projectRouteRequested: boolean;
+  setProjectPulseChatState?: Dispatch<SetStateAction<PulseChatProjectState>>;
   pulseSessionInstanceId?: string | null;
   pulseWorkflowSession:
     | CreatePageAgentRuntime["persistedAgentRuntime"]["pulseWorkflowSession"]
@@ -95,12 +98,14 @@ export const useAiStudioPageProjectSessionRuntime = ({
   hydrateStandardFromSessionAgentSnapshot,
   hydrateCanvasSessionState,
   hydrateFromSessionSnapshot,
+  patchProjectWorkspaceSnapshot,
   persistedAgentRuntime,
   persistedPulseAgentRuntime,
   persistedStandardAgentRuntime,
   projectBootstrapId = null,
   projectId,
   projectRouteRequested,
+  setProjectPulseChatState,
   pulseSessionInstanceId = null,
   pulseWorkflowSession,
   resetActiveProjectAgentConversation,
@@ -197,6 +202,10 @@ export const useAiStudioPageProjectSessionRuntime = ({
       setCreateSelectedCharacterId("");
       setCreateSelectedCharacterLookId("");
       setIsCreateCharacterModeEnabled(false);
+      setProjectPulseChatState?.({
+        ...payload.pulseChats,
+        activeThreadId: null,
+      });
       return payload;
     },
     [
@@ -204,6 +213,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
       setCreateSelectedCharacterId,
       setCreateSelectedCharacterLookId,
       setIsCreateCharacterModeEnabled,
+      setProjectPulseChatState,
     ]
   );
 
@@ -217,6 +227,10 @@ export const useAiStudioPageProjectSessionRuntime = ({
     setVoiceScriptDraft("");
     setExpertEditSessionState(payload.expertEdit);
     hydrateCanvasSessionState(payload.canvas);
+    setProjectPulseChatState?.({
+      ...payload.pulseChats,
+      activeThreadId: null,
+    });
   }, [
     hydrateCanvasSessionState,
     hydrateProjectAwareSessionSnapshot,
@@ -224,6 +238,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
     setExpertEditSessionState,
     setMusicLyricsDraft,
     setMusicPromptDraft,
+    setProjectPulseChatState,
     setSoundEffectsPromptDraft,
     setVoiceDesignPromptDraft,
     setVoiceScriptDraft,
@@ -281,6 +296,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
     sessionId: activeSessionPersistenceSessionId,
     sessionTitleOverride: sessionPersistenceTitleOverride,
     buildBaseSessionSnapshot: buildProjectAwareBaseSessionSnapshot,
+    patchSessionSnapshot: patchProjectWorkspaceSnapshot,
     createPersistenceRuntime,
     hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
     hydrateFromSessionAgentSnapshot,

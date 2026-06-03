@@ -75,11 +75,34 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
   markCanvasMediaError,
   clearCanvasMediaError,
 }: CanvasSceneItemViewProps) {
+  const dragPreviewKind =
+    item.kind === "image" || item.kind === "video" || item.kind === "audio" || item.kind === "text"
+      ? item.kind
+      : undefined;
+  const dragPreviewUrl =
+    item.kind === "image"
+      ? item.src
+      : item.kind === "video"
+        ? (item.posterUrl ?? item.videoUrl)
+        : item.kind === "audio"
+          ? (item.companionArtUrl ?? item.audioUrl)
+          : undefined;
+  const dragImageSrc =
+    item.kind === "image"
+      ? item.src
+      : item.kind === "video"
+        ? (item.posterUrl ?? undefined)
+        : item.kind === "audio"
+          ? (item.companionArtUrl ?? undefined)
+          : undefined;
   return (
     <article
       className={`canvas-scene-item canvas-scene-item--${item.kind}${item.selected ? " is-selected" : ""}${hasMediaError ? " is-media-unavailable" : ""}`}
       data-testid={`canvas-item-${item.id}`}
       data-kind={item.kind}
+      data-drag-preview-kind={dragPreviewKind}
+      data-drag-preview-url={dragPreviewUrl}
+      data-drag-image-src={dragImageSrc}
       data-selected={item.selected ? "true" : "false"}
       data-x={item.x}
       data-y={item.y}

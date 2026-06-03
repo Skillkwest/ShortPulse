@@ -100,6 +100,7 @@ sequenceDiagram
 6. Guard effects:
 
 - `useAiStudioStateEffects` clamps invalid aspect/resolution combinations and enforces video reference-mode/model compatibility transitions.
+- In the Video Standard lane, adding a second frame must not auto-promote the workflow into hidden `keyframes` mode or force a compatible explicit model selection over to Veo. First/last-frame behavior stays Standard-owned for Veo, Kling 3.0, and Seedance 2, while legacy hidden `keyframes` snapshots are normalized back onto the visible Standard lane during restore.
 
 ## Generation pipeline (Create CTA to provider polling)
 

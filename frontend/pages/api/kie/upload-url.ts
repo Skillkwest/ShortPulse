@@ -56,6 +56,8 @@ type UploadDiagnostics = {
   hasMimeType: boolean;
 };
 
+type UploadAttemptResult = Awaited<ReturnType<typeof readUploadResponse>>;
+
 type KieUploadDiagnosticsMetadata = {
   kie_upload_transport: UploadTransport;
   kie_upstream_status: number;
@@ -200,8 +202,12 @@ const readUploadPayload = (
   detail: string | null;
 } => {
   const responsePayload = payload as {
+    url?: unknown;
+    downloadUrl?: unknown;
+    fileUrl?: unknown;
     msg?: unknown;
     data?: {
+      url?: unknown;
       downloadUrl?: unknown;
       fileUrl?: unknown;
       fileName?: unknown;
@@ -211,12 +217,131 @@ const readUploadPayload = (
   return {
     uploadedUrl:
       asNonEmptyString(responsePayload?.data?.downloadUrl) ??
-      asNonEmptyString(responsePayload?.data?.fileUrl),
-    fileName: asNonEmptyString(responsePayload?.data?.fileName),
-    mimeType: asNonEmptyString(responsePayload?.data?.mimeType),
+      asNonEmptyString(responsePayload?.data?.fileUrl) ??
+      asNonEmptyString(responsePayload?.data?.url) ??
+      asNonEmptyString(responsePayload?.downloadUrl) ??
+      asNonEmptyString(responsePayload?.fileUrl) ??
+      asNonEmptyString(responsePayload?.url),
+    fileName:
+      asNonEmptyString(responsePayload?.data?.fileName) ??
+      asNonEmptyString((responsePayload as { fileName?: unknown })?.fileName),
+    mimeType:
+      asNonEmptyString(responsePayload?.data?.mimeType) ??
+      asNonEmptyString((responsePayload as { mimeType?: unknown })?.mimeType),
     detail: asNonEmptyString(responsePayload?.msg),
   };
 };
+
+const shouldFallbackUrlUploadToRemoteStream = (result: UploadAttemptResult): boolean => {
+  if (result.diagnostics.transport !== "url_upload") return false;
+  if (!result.upstream.ok) return result.upstream.status !== 401;
+  return result.parsed.uploadedUrl === null;
+};
+
+const attemptKieUploadWithFallback = async ({
+  apiKey,
+  sourceUrl,
+  uploadPath,
+  fileName,
+}: {
+  apiKey: string;
+  sourceUrl: URL;
+  uploadPath: string;
+  fileName: string | null;
+}): Promise<{
+  result: UploadAttemptResult;
+  primaryResult: UploadAttemptResult;
+  fallbackResult: UploadAttemptResult | null;
+}> => {
+  const prefersStreamUpload = prefersKieRemoteStreamUpload(sourceUrl);
+  const primaryResult = prefersStreamUpload
+    ? await uploadFileStreamToKie({
+        apiKey,
+        sourceUrl,
+        uploadPath,
+        fileName,
+      })
+    : await uploadFileUrlToKie({
+        apiKey,
+        fileUrl: sourceUrl.toString(),
+        uploadPath,
+        fileName,
+      });
+
+  if (!shouldFallbackUrlUploadToRemoteStream(primaryResult)) {
+    return {
+      result: primaryResult,
+      primaryResult,
+      fallbackResult: null,
+    };
+  }
+
+  const fallbackResult = await uploadFileStreamToKie({
+    apiKey,
+    sourceUrl,
+    uploadPath,
+    fileName,
+  });
+
+  if (fallbackResult.upstream.ok && fallbackResult.parsed.uploadedUrl) {
+    return {
+      result: fallbackResult,
+      primaryResult,
+      fallbackResult,
+    };
+  }
+
+  return {
+    result: primaryResult,
+    primaryResult,
+    fallbackResult,
+  };
+};
+
+const buildKieUploadFallbackMetadata = ({
+  primaryResult,
+  fallbackResult,
+}: {
+  primaryResult: UploadAttemptResult;
+  fallbackResult: UploadAttemptResult | null;
+}) =>
+  fallbackResult
+    ? {
+        kie_upload_fallback_attempted: true,
+        kie_upload_primary_transport: primaryResult.diagnostics.transport,
+        kie_upload_primary_status: primaryResult.upstream.status,
+        kie_upload_primary_has_uploaded_url: primaryResult.parsed.uploadedUrl !== null,
+        kie_upload_fallback_transport: fallbackResult.diagnostics.transport,
+        kie_upload_fallback_status: fallbackResult.upstream.status,
+        kie_upload_fallback_has_uploaded_url: fallbackResult.parsed.uploadedUrl !== null,
+      }
+    : {
+        kie_upload_fallback_attempted: false,
+      };
+
+const buildKieUploadDiagnosticsMetadata = ({
+  upstreamStatus,
+  diagnostics,
+}: {
+  upstreamStatus: number;
+  diagnostics: UploadDiagnostics;
+}): KieUploadDiagnosticsMetadata => ({
+  kie_upload_transport: diagnostics.transport,
+  kie_upstream_status: upstreamStatus,
+  kie_upstream_content_type: diagnostics.contentType,
+  kie_upstream_body_format: diagnostics.bodyFormat,
+  kie_upstream_body_length: diagnostics.bodyLength,
+  kie_upstream_parse_source: diagnostics.parseSource,
+  kie_upstream_json_parsed: diagnostics.jsonParsed,
+  kie_upstream_top_level_keys: diagnostics.topLevelKeys,
+  kie_upstream_data_keys: diagnostics.dataKeys,
+  kie_upstream_has_message: diagnostics.hasMessage,
+  kie_upstream_has_data: diagnostics.hasData,
+  kie_upstream_has_download_url: diagnostics.hasDownloadUrl,
+  kie_upstream_has_file_url: diagnostics.hasFileUrl,
+  kie_upstream_has_file_name: diagnostics.hasFileName,
+  kie_upstream_has_mime_type: diagnostics.hasMimeType,
+});
 
 const responseHeaderValue = (headers: Response["headers"], name: string): string | null => {
   if (!headers || typeof headers.get !== "function") return null;
@@ -312,30 +437,6 @@ const readUploadResponse = async ({
     },
   };
 };
-
-const buildKieUploadDiagnosticsMetadata = ({
-  upstreamStatus,
-  diagnostics,
-}: {
-  upstreamStatus: number;
-  diagnostics: UploadDiagnostics;
-}): KieUploadDiagnosticsMetadata => ({
-  kie_upload_transport: diagnostics.transport,
-  kie_upstream_status: upstreamStatus,
-  kie_upstream_content_type: diagnostics.contentType,
-  kie_upstream_body_format: diagnostics.bodyFormat,
-  kie_upstream_body_length: diagnostics.bodyLength,
-  kie_upstream_parse_source: diagnostics.parseSource,
-  kie_upstream_json_parsed: diagnostics.jsonParsed,
-  kie_upstream_top_level_keys: diagnostics.topLevelKeys,
-  kie_upstream_data_keys: diagnostics.dataKeys,
-  kie_upstream_has_message: diagnostics.hasMessage,
-  kie_upstream_has_data: diagnostics.hasData,
-  kie_upstream_has_download_url: diagnostics.hasDownloadUrl,
-  kie_upstream_has_file_url: diagnostics.hasFileUrl,
-  kie_upstream_has_file_name: diagnostics.hasFileName,
-  kie_upstream_has_mime_type: diagnostics.hasMimeType,
-});
 
 const resolveUpstreamFailureDetail = ({
   status,
@@ -586,7 +687,7 @@ export default async function handler(
   try {
     const apiKey = readProviderApiKey("kie");
     const bodyBuffer = await readRawRequestBody(req);
-    const result = isJsonRequest(req)
+    const { result, primaryResult, fallbackResult } = isJsonRequest(req)
       ? await (async () => {
           const payload = JSON.parse(bodyBuffer.toString("utf8")) as Record<string, unknown>;
           const fileUrl = asNonEmptyString(payload.fileUrl);
@@ -596,19 +697,12 @@ export default async function handler(
             throw new KieUploadRequestError("fileUrl and uploadPath are required.");
           }
           const sourceUrl = await parseSafeHttpUrl(fileUrl);
-          return prefersKieRemoteStreamUpload(sourceUrl)
-            ? await uploadFileStreamToKie({
-                apiKey,
-                sourceUrl,
-                uploadPath,
-                fileName,
-              })
-            : await uploadFileUrlToKie({
-                apiKey,
-                fileUrl: sourceUrl.toString(),
-                uploadPath,
-                fileName,
-              });
+          return await attemptKieUploadWithFallback({
+            apiKey,
+            sourceUrl,
+            uploadPath,
+            fileName,
+          });
         })()
       : await (async () => {
           const uploadPath = asNonEmptyString(req.headers["x-shortpulse-upload-path"]);
@@ -627,7 +721,11 @@ export default async function handler(
             fileName,
             mimeType,
           });
-        })();
+        })().then((uploadResult) => ({
+          result: uploadResult,
+          primaryResult: uploadResult,
+          fallbackResult: null,
+        }));
 
     if (!result.upstream.ok) {
       await logApiRouteException({
@@ -637,6 +735,10 @@ export default async function handler(
         user,
         metadata: {
           kie_upload_failure: "upstream_non_ok",
+          ...buildKieUploadFallbackMetadata({
+            primaryResult,
+            fallbackResult,
+          }),
           ...buildKieUploadDiagnosticsMetadata({
             upstreamStatus: result.upstream.status,
             diagnostics: result.diagnostics,
@@ -662,6 +764,10 @@ export default async function handler(
         user,
         metadata: {
           kie_upload_failure: "missing_uploaded_url",
+          ...buildKieUploadFallbackMetadata({
+            primaryResult,
+            fallbackResult,
+          }),
           ...buildKieUploadDiagnosticsMetadata({
             upstreamStatus: result.upstream.status,
             diagnostics: result.diagnostics,

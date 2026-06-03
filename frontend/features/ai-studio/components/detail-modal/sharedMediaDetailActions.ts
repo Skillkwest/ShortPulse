@@ -3,7 +3,8 @@
  * Centralizes save/download/delete action-state resolution so all media detail surfaces
  * can present the same customer-facing action contract.
  */
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
+import { Check, DownloadSimple } from "phosphor-react";
 import type {
   SharedMediaDetailActionItem,
   SharedMediaDetailSaveActionState,
@@ -38,6 +39,19 @@ export const resolveSharedMediaDetailMediaActionItems = ({
 }: ResolveSharedMediaDetailMediaActionsOptions): SharedMediaDetailActionItem[] => {
   const items: SharedMediaDetailActionItem[] = [];
 
+  if (canDelete && typeof onDelete === "function") {
+    items.push({
+      id: "delete-media",
+      label: "",
+      onClick: onDelete,
+      ariaLabel: "Delete",
+      title: "Delete",
+      intent: "danger",
+      icon: deleteIcon,
+      className: "is-icon-only",
+    });
+  }
+
   if (saveState !== "hidden") {
     const label = isStorageFull
       ? "Storage Full"
@@ -56,31 +70,30 @@ export const resolveSharedMediaDetailMediaActionItems = ({
 
     items.push({
       id: "save-media",
-      label,
+      label: saveState === "saved" ? "" : label,
       onClick: onSaveToLibrary ?? (() => {}),
+      ariaLabel: saveState === "saved" ? "Saved" : undefined,
       disabled,
       title: saveState === "saved" ? "Already saved to media library" : "Save to media library",
       intent: "save",
       state: saveState === "saved" ? "saved" : "default",
+      icon:
+        saveState === "saved"
+          ? React.createElement(Check, { size: 16, weight: "bold", "aria-hidden": true })
+          : undefined,
+      className: saveState === "saved" ? "is-icon-only" : undefined,
     });
   }
 
   if (canDownload && typeof onDownload === "function") {
     items.push({
       id: "download-media",
-      label: "Download",
+      label: "",
       onClick: onDownload,
+      ariaLabel: "Download",
       title: "Download",
-    });
-  }
-
-  if (canDelete && typeof onDelete === "function") {
-    items.push({
-      id: "delete-media",
-      label: "Delete",
-      onClick: onDelete,
-      intent: "danger",
-      icon: deleteIcon,
+      icon: React.createElement(DownloadSimple, { size: 16, weight: "bold", "aria-hidden": true }),
+      className: "is-icon-only",
     });
   }
 

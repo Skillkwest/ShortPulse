@@ -5,6 +5,7 @@ import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCr
 import { PulsePromptStep } from "../PulsePromptStep";
 import { resolveAgentComposerPanelDropKind } from "../promptStep/agentComposerDrop";
 import { CreatePulsePresetPanel } from "./CreatePulsePresetPanel";
+import { PulseChatHistoryPanel, type PulseChatHistoryPanelProps } from "./PulseChatHistoryPanel";
 import {
   CreatePulsePreferenceProvider,
   useCreatePulsePreferenceRuntime,
@@ -40,6 +41,7 @@ type PulseCreatePanelViewProps = {
   isPulseActivationBusy?: boolean;
   onOpenPresetsLibrary?: () => void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
+  pulseChatHistory?: PulseChatHistoryPanelProps;
 };
 
 const PulseCreatePanelViewContent = ({
@@ -53,6 +55,7 @@ const PulseCreatePanelViewContent = ({
   isPulseActivationBusy = false,
   onOpenPresetsLibrary,
   pulsePreferenceRuntime,
+  pulseChatHistory,
 }: PulseCreatePanelViewProps & {
   pulsePreferenceRuntime: CreatePulsePreferenceRuntimeValue;
 }) => {
@@ -209,6 +212,7 @@ const PulseCreatePanelViewContent = ({
               onOpenPresetsLibrary={onOpenPresetsLibrary}
               shouldRestartActivePreset={shouldRestartActivePreset}
             />
+            {pulseChatHistory ? <PulseChatHistoryPanel {...pulseChatHistory} /> : null}
           </div>
         </div>
         <div className="create-composer-right-panel">

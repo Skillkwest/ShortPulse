@@ -2105,6 +2105,7 @@ describe("ReferenceGrid curated split", () => {
 
   it("hides save action when prompt references are already saved", () => {
     const onSaveToLibrary = vi.fn();
+    const onDeleteOutput = vi.fn();
     const savedPromptReference: StudioOutput = {
       id: "prompt-ref-saved-1",
       prompt: "Saved prompt reference",
@@ -2124,12 +2125,15 @@ describe("ReferenceGrid curated split", () => {
           outputs: [savedPromptReference],
           activeOutputId: savedPromptReference.id,
           onSaveToLibrary,
+          onDeleteOutput,
         })}
       />
     );
 
     expect(getByLabelText("Saved")).toBeInTheDocument();
     expect(queryByLabelText("Save to media library")).toBeNull();
+    fireEvent.click(getByLabelText("Remove reference from grid"));
+    expect(onDeleteOutput).toHaveBeenCalledWith(savedPromptReference.id);
   });
 
   it("keeps save action for uploaded image references", () => {

@@ -3,6 +3,7 @@ import { KIE_SEEDANCE_2_MODEL_ID } from "../../../../lib/model-runtime/providerM
 import { buildAiStudioSessionSnapshot } from "../sessionSnapshot";
 import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
 import type { AiStudioSessionSnapshot, AiStudioSessionSnapshotV1 } from "../sessionSnapshot";
+import { buildPulseChatThreadSnapshot } from "../../pulseChats/pulseChatThread";
 
 const createSnapshot = (
   overrides: Partial<AiStudioSessionSnapshotV1> = {}
@@ -103,6 +104,19 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.activePulsePresetId).toBeNull();
     expect(payload.canvas).toBeNull();
     expect(payload.expertEdit).toBeNull();
+  });
+
+  it("canonicalizes hidden keyframes snapshot values onto the visible standard video lane", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          videoReferenceMode: "keyframes",
+        },
+      })
+    );
+
+    expect(payload.workspace.videoReferenceMode).toBe("standard");
   });
 
   it("recovers quick-slot membership from pinned restored outputs when projection ids are absent", () => {
@@ -1716,5 +1730,90 @@ describe("sessionSnapshotHydrator", () => {
 
     expect(payload.outputs.active).toEqual([]);
     expect(payload.outputs.activeOutputId).toBeNull();
+  });
+
+  it("hydrates project-owned Pulse chats without replaying them into the visible agent lane", () => {
+    const threadSnapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "pulse-session-1",
+      pulsePrompt: "Build the next scene",
+      updatedAt: "2026-06-03T16:00:00.000Z",
+      runtime: {
+        messages: [{ id: "pulse-msg-1", role: "assistant", content: "Saved Pulse reply" }],
+        input: "Saved draft input",
+        latestAgentPrompt: "Saved Pulse reply",
+        promptOrigin: "agent",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
+    });
+    const snapshot = {
+      ...buildAiStudioSessionSnapshot({
+        sessionId: "project-session-1",
+        updatedAt: "2026-06-03T16:00:00.000Z",
+        mode: "text",
+        selectedTool: "create",
+        prompt: "",
+        standardCreatePrompt: "",
+        pulseCreatePrompt: "",
+        model: null,
+        aspect: "9:16",
+        expertCreateMode: "standard",
+        activePulsePresetId: null,
+        pulseSessionInstanceId: null,
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs: [],
+        archivedOutputs: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+        agentMessages: [],
+        agentInput: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      }),
+      pulseChats: {
+        schemaVersion: 1,
+        activeThreadId: "thread-1",
+        threads: [
+          {
+            threadId: "thread-1",
+            title: "My saved Pulse chat",
+            presetId: "preset-1",
+            presetLabel: "Story Builder",
+            updatedAt: "2026-06-03T16:00:00.000Z",
+            snapshot: threadSnapshot,
+          },
+        ],
+      },
+    } as AiStudioSessionSnapshot;
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshot);
+
+    expect(payload.agent.messages).toEqual([]);
+    expect(payload.pulseChats.activeThreadId).toBe("thread-1");
+    expect(payload.pulseChats.threads).toHaveLength(1);
+    expect(payload.pulseChats.threads[0]?.snapshot.workspace.activePulsePresetId).toBe("preset-1");
   });
 });

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/music";
-import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -48,7 +47,6 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/music", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetApiRateLimitForTests();
     process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     chargeGenerationRequestMock.mockResolvedValue({
@@ -262,44 +260,39 @@ describe("POST /api/elevenlabs/music", () => {
     });
   });
 
-  it("rate limits repeated music generations for the same authenticated user", async () => {
-    generateElevenLabsMusicMock.mockResolvedValue({
-      buffer: Buffer.from("music"),
-      contentType: "audio/mpeg",
-      providerRequestId: "provider-music-rate-limit",
-    });
-    persistGeneratedAudioAssetMock.mockResolvedValue({
-      generationId: "gen-music-rate-limit",
-      mediaFileId: "media-music-rate-limit",
-      requestId: "billing-source-music-1",
-      storagePath: "user-1/generations/audio/gen-music-rate-limit/song.mp3",
-      signedUrl: "https://signed.example/song-rate-limit.mp3",
-      outputRowId: "out-music-rate-limit",
-    });
+  it("passes through provider busy responses with retry guidance", async () => {
+    const charge = {
+      userId: "user-1",
+      modelId: "music_v1",
+      credits: 20,
+      sourceRef: "billing-source-music-1",
+      billingMode: "reservation",
+      chargeMetadata: { debited_credits: 20 },
+      pricingBreakdown: {
+        billedCredits: 20,
+        billedUsd: 0.2,
+        pricingPolicySource: "control_plane",
+        pricingPolicyVersion: 3,
+        rawCredits: 18,
+        usdRaw: 0.18,
+      },
+      pricingParams: { durationSeconds: 30 },
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    };
+    chargeGenerationRequestMock.mockResolvedValueOnce(charge);
+    generateElevenLabsMusicMock.mockRejectedValueOnce(
+      Object.assign(new Error("system_busy"), {
+        status: 429,
+        retryAfterSeconds: 9,
+        code: "system_busy",
+      })
+    );
 
-    for (let index = 0; index < 6; index += 1) {
-      const req = {
-        method: "POST",
-        body: {
-          text: `Night-drive synth anthem ${index}`,
-          durationSeconds: null,
-          bpm: 112,
-          mode: "instrumental",
-          structure: "loop",
-          energyPercent: 58,
-          outputFormat: "mp3_44100_128",
-        },
-        socket: { remoteAddress: "127.0.0.1" },
-      };
-      const res = createMockResponse();
-      await handler(req as never, res as never);
-      expect(res.status).toHaveBeenCalledWith(200);
-    }
-
-    const blockedReq = {
+    const req = {
       method: "POST",
       body: {
-        text: "Blocked request",
+        text: "Night-drive synth anthem",
         durationSeconds: null,
         bpm: 112,
         mode: "instrumental",
@@ -307,16 +300,21 @@ describe("POST /api/elevenlabs/music", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
       },
-      socket: { remoteAddress: "127.0.0.1" },
     };
-    const blockedRes = createMockResponse();
+    const res = createMockResponse();
 
-    await handler(blockedReq as never, blockedRes as never);
+    await handler(req as never, res as never);
 
-    expect(blockedRes.status).toHaveBeenCalledWith(429);
-    expect(blockedRes.json).toHaveBeenCalledWith({
-      error: "Too many requests",
-      retryAfterSeconds: expect.any(Number),
+    expect(charge.refund).toHaveBeenCalledWith("Auto-refund: audio music generation failed.", {
+      source_mode: "music",
+    });
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "9");
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate music",
+      details: "The audio provider is busy right now. Please retry in 9 seconds.",
+      code: "system_busy",
+      retryAfterSeconds: 9,
     });
   });
 });

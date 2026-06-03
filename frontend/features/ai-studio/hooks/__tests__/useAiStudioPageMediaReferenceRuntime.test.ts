@@ -1,6 +1,10 @@
+import type React from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InternalReferenceDragPayload } from "../../utils/dragDrop";
+import {
+  extractInternalReferenceDragPayload,
+  type InternalReferenceDragPayload,
+} from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 import type { AiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
 import type { AiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
@@ -94,6 +98,22 @@ const makeFileList = (files: File[]): FileList =>
     },
   }) as unknown as FileList;
 
+const createMutableTransfer = () => {
+  const store = new Map<string, string>();
+  return {
+    files: { length: 0, item: () => null },
+    get types() {
+      return Array.from(store.keys());
+    },
+    getData: (type: string) => store.get(type) ?? "",
+    setData: (type: string, value: string) => {
+      store.set(type, value);
+    },
+    setDragImage: vi.fn(),
+    effectAllowed: "all",
+  } as unknown as DataTransfer;
+};
+
 const createOutputSnapshot = (
   activeOutputs: StudioOutput[] = [],
   archivedOutputs: StudioOutput[] = []
@@ -147,6 +167,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    document.body.innerHTML = "";
   });
 
   it("resolves a storage-backed reference-grid video for the voice changer pipeline", async () => {
@@ -237,6 +258,178 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     expect(resolved?.file).toBeInstanceOf(File);
     expect(resolved?.file?.name).toBe("Local clip.mp4");
     expect(resolved?.file?.type).toBe("video/mp4");
+  });
+
+  it("marks the right-rail canvas draggable and exports text notes as prompt drags on Shift drag", () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-text-export-1",
+          kind: "text" as const,
+          x: 24,
+          y: 48,
+          z: 1,
+          selected: false,
+          outputId: null,
+          sourceSurface: null,
+          text: "Dragged canvas prompt",
+          width: 260,
+          height: 88,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+      })
+    );
+
+    expect(result.current.railCanvasProps.isItemDraggable).toBe(true);
+    expect(result.current.railCanvasProps.onItemDragStart).toBeTypeOf("function");
+    expect(result.current.railCanvasProps.onItemDragEnd).toBeTypeOf("function");
+
+    const currentTarget = document.createElement("article");
+    document.body.appendChild(currentTarget);
+    const dataTransfer = createMutableTransfer();
+
+    result.current.railCanvasProps.onItemDragStart?.("canvas-text-export-1", {
+      shiftKey: true,
+      currentTarget,
+      dataTransfer,
+    } as unknown as React.DragEvent<HTMLElement>);
+
+    expect(dataTransfer.getData("text/prompt")).toBe("Dragged canvas prompt");
+    expect(dataTransfer.getData("text/plain")).toBe("Dragged canvas prompt");
+    expect(dataTransfer.effectAllowed).toBe("copy");
+    expect(currentTarget.classList.contains("is-dragging")).toBe(true);
+
+    result.current.railCanvasProps.onItemDragEnd?.("canvas-text-export-1", {
+      currentTarget,
+      dataTransfer,
+    } as unknown as React.DragEvent<HTMLElement>);
+
+    expect(currentTarget.classList.contains("is-dragging")).toBe(false);
+  });
+
+  it("exports right-rail canvas media as internal reference drags on Shift drag with copy semantics", () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-export-1",
+          kind: "image" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: false,
+          outputId: "output-image-export-1",
+          sourceSurface: "curated" as const,
+          mediaId: "saved-media-image-export-1",
+          src: "https://cdn.shortpulse.test/canvas-export.png",
+          alt: "Canvas export image",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const output = makeOutput({
+      id: "output-image-export-1",
+      mode: "image",
+      prompt: "Canvas export image",
+      previewUrl: "https://cdn.shortpulse.test/canvas-export.png",
+      resultUrls: ["https://cdn.shortpulse.test/canvas-export.png"],
+      savedMediaIds: ["saved-media-image-export-1"],
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const currentTarget = document.createElement("article");
+    document.body.appendChild(currentTarget);
+    const dataTransfer = createMutableTransfer();
+
+    result.current.railCanvasProps.onItemDragStart?.("canvas-image-export-1", {
+      shiftKey: true,
+      currentTarget,
+      dataTransfer,
+    } as unknown as React.DragEvent<HTMLElement>);
+
+    const payload = extractInternalReferenceDragPayload(dataTransfer);
+    expect(payload).toMatchObject({
+      outputId: "output-image-export-1",
+      referenceId: "output-image-export-1",
+      mediaId: "saved-media-image-export-1",
+      mediaKind: "image",
+      sourceSurface: "all-refs",
+    });
+    expect(dataTransfer.effectAllowed).toBe("copy");
+
+    result.current.railCanvasProps.onItemDragEnd?.("canvas-image-export-1", {
+      currentTarget,
+      dataTransfer,
+    } as unknown as React.DragEvent<HTMLElement>);
+  });
+
+  it("rejects right-rail canvas drag export when Shift is not held", () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-text-export-blocked-1",
+          kind: "text" as const,
+          x: 0,
+          y: 0,
+          z: 1,
+          selected: false,
+          outputId: null,
+          sourceSurface: null,
+          text: "Blocked",
+          width: 260,
+          height: 88,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+      })
+    );
+
+    const currentTarget = document.createElement("article");
+    const dataTransfer = createMutableTransfer();
+    const preventDefault = vi.fn();
+
+    result.current.railCanvasProps.onItemDragStart?.("canvas-text-export-blocked-1", {
+      shiftKey: false,
+      currentTarget,
+      dataTransfer,
+      preventDefault,
+    } as unknown as React.DragEvent<HTMLElement>);
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(dataTransfer.getData("text/prompt")).toBe("");
   });
 
   it("projects direct dropped images into quick slot in target order", async () => {

@@ -267,7 +267,7 @@ describe("DetailModal", () => {
     expect(onDownloadReference).toHaveBeenCalledWith("out-1");
   });
 
-  it("renders a Save button before Download for media and routes clicks through the save callback", () => {
+  it("renders Delete first, then Save before Download in the media action bar, and routes clicks through the save callback", () => {
     const onSaveReference = vi.fn();
     render(
       <DetailModal
@@ -281,8 +281,14 @@ describe("DetailModal", () => {
 
     const actionButtons = screen
       .getAllByRole("button")
-      .filter((button) => button.textContent === "Save" || button.textContent === "Download");
-    expect(actionButtons.map((button) => button.textContent)).toEqual(["Save", "Download"]);
+      .filter((button) =>
+        ["Delete", "Save", "Download"].includes(
+          button.getAttribute("aria-label") ?? button.textContent ?? ""
+        )
+      );
+    expect(
+      actionButtons.map((button) => button.getAttribute("aria-label") ?? button.textContent)
+    ).toEqual(["Delete", "Save", "Download"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSaveReference).toHaveBeenCalledWith("out-1");

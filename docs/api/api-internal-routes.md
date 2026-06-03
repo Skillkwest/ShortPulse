@@ -182,6 +182,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `sid` remains runtime identity only.
   - Legacy AI Studio session-persistence env flags are ignored by current client runtime policy.
   - `/api/ai/sessions/*` remains auth-guarded but returns retired responses instead of saving/restoring/listing snapshots.
+  - Project-owned Pulse `Chats` persist inside `/api/projects/[projectId]/workspace` as part of the sanitized project workspace snapshot; they are not a separate generic session-restore lane.
 - Media preview trust policy:
   - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts; extends built-in trusted provider result hosts such as `tempfile.redpandaai.co` and legacy `tempfile.aiquickdraw.com`)
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; when `true`, allowlisted external direct preview hosts are allowed)

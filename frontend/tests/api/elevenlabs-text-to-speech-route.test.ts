@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/text-to-speech";
-import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -50,7 +49,6 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/text-to-speech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
@@ -269,22 +267,36 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     });
   });
 
-  it("rate limits repeated text-to-speech generations for the same authenticated user", async () => {
-    generateElevenLabsVoiceoverMock.mockResolvedValue({
-      buffer: Buffer.from("voice"),
-      contentType: "audio/mpeg",
-      providerRequestId: "provider-tts-1",
-    });
-    persistGeneratedAudioAssetMock.mockResolvedValue({
-      generationId: "gen-tts-1",
-      mediaFileId: "media-tts-1",
-      requestId: "billing-source-tts-1",
-      storagePath: "user-1/generations/audio/gen-tts-1/voice.mp3",
-      signedUrl: "https://signed.example/voice.mp3",
-      outputRowId: "out-tts-1",
-    });
+  it("passes through provider concurrency responses with retry guidance", async () => {
+    const charge = {
+      userId: "user-1",
+      modelId: "eleven_multilingual_v2",
+      credits: 15,
+      sourceRef: "billing-source-tts-1",
+      billingMode: "reservation",
+      chargeMetadata: { debited_credits: 15 },
+      pricingBreakdown: {
+        billedCredits: 15,
+        billedUsd: 0.15,
+        pricingPolicySource: "control_plane",
+        pricingPolicyVersion: 3,
+        rawCredits: 11,
+        usdRaw: 0.1,
+      },
+      pricingParams: { textCharacters: 1000 },
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    };
+    chargeGenerationRequestMock.mockResolvedValueOnce(charge);
+    generateElevenLabsVoiceoverMock.mockRejectedValueOnce(
+      Object.assign(new Error("too_many_concurrent_requests"), {
+        status: 429,
+        retryAfterSeconds: 12,
+        code: "concurrent_limit_exceeded",
+      })
+    );
 
-    const buildReq = () => ({
+    const req = {
       method: "POST",
       body: {
         voiceId: "voice-1",
@@ -295,24 +307,21 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
           model_id: "eleven_multilingual_v2",
         },
       },
-      headers: {},
-      socket: { remoteAddress: "127.0.0.1" },
-    });
-
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      const res = createMockResponse();
-      await handler(buildReq() as never, res as never);
-      expect(res.status).toHaveBeenCalledWith(200);
-    }
-
+    };
     const res = createMockResponse();
-    await handler(buildReq() as never, res as never);
+    await handler(req as never, res as never);
 
-    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(charge.refund).toHaveBeenCalledWith("Auto-refund: audio voiceover generation failed.", {
+      source_mode: "voiceover",
+    });
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "12");
     expect(res.status).toHaveBeenCalledWith(429);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Too many requests",
-      retryAfterSeconds: expect.any(Number),
+      error: "Unable to generate speech",
+      details:
+        "The audio provider is at its concurrency limit right now. Please retry in 12 seconds.",
+      code: "concurrent_limit_exceeded",
+      retryAfterSeconds: 12,
     });
   });
 

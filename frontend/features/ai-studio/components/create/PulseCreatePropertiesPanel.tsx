@@ -14,6 +14,7 @@ import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulseCreatePanelView } from "./PulseCreatePanelView";
+import type { PulseChatHistoryPanelProps } from "./PulseChatHistoryPanel";
 import type { CreatePulsePreferenceRuntimeValue } from "./createPulsePreferenceRuntime";
 import type {
   CreatePulsePresetKind,
@@ -72,6 +73,7 @@ export type PulseCreatePropertiesPanelProps = {
   onPulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   onOpenPresetsLibrary?: () => void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
+  pulseChatHistory?: PulseChatHistoryPanelProps;
 };
 
 export function PulseCreatePropertiesPanel({
@@ -109,6 +111,7 @@ export function PulseCreatePropertiesPanel({
   onPulsePresetRestart,
   onOpenPresetsLibrary,
   pulsePreferenceRuntime,
+  pulseChatHistory,
 }: PulseCreatePropertiesPanelProps) {
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
     if (!activePulsePresetId) {
@@ -210,6 +213,7 @@ export function PulseCreatePropertiesPanel({
       isPulseActivationBusy={agentIsSending}
       onOpenPresetsLibrary={onOpenPresetsLibrary}
       pulsePreferenceRuntime={pulsePreferenceRuntime}
+      pulseChatHistory={pulseChatHistory}
     />
   );
 }

@@ -214,7 +214,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
   const shouldShowReferenceActionRow = Boolean(
     shouldShowSaveAction ||
-    (onDownload && canDownloadReference && (isImagePreview || isVideoPreview || isAudioPreview))
+    (onDownload && canDownloadReference && (isImagePreview || isVideoPreview || isAudioPreview)) ||
+    onDeleteOutput
   );
   const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
   const resolvedFailureSubtitle = isFailing ? resolveReferenceFailureSubtitle(item) : null;

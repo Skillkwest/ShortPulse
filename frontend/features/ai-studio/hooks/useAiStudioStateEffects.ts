@@ -218,12 +218,6 @@ export const useAiStudioStateEffects = ({
       referenceMode: videoReferenceMode,
     });
 
-    if (resolvedVideoLane === "first-last") {
-      setVideoReferenceModeIfChanged("keyframes");
-    } else if (videoReferenceMode === "keyframes") {
-      setVideoReferenceModeIfChanged("standard");
-    }
-
     const nextModel = resolveAutoVideoModelForLane({
       currentModel: model,
       lane: resolvedVideoLane,

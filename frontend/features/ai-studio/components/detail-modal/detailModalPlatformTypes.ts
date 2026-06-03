@@ -86,6 +86,7 @@ export type SharedMediaDetailActionItem = {
   id: string;
   label: string;
   onClick: () => void;
+  ariaLabel?: string;
   disabled?: boolean;
   title?: string;
   intent?: SharedMediaDetailActionIntent;

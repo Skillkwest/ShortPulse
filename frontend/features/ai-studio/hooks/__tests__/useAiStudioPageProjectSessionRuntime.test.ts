@@ -48,6 +48,11 @@ const createHydrationPayload = (
   outputs: null as never,
   agent: null as never,
   agentRuntimes: null as never,
+  pulseChats: {
+    schemaVersion: 1,
+    activeThreadId: null,
+    threads: [],
+  },
   canvas: null,
   expertEdit: null,
 });
@@ -166,6 +171,7 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     const setCreateSelectedCharacterId = vi.fn();
     const setCreateSelectedCharacterLookId = vi.fn();
     const setIsCreateCharacterModeEnabled = vi.fn();
+    const setProjectPulseChatState = vi.fn();
 
     renderHook(() =>
       useAiStudioPageProjectSessionRuntime({
@@ -194,6 +200,7 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         },
         projectId: "project-1",
         projectRouteRequested: false,
+        setProjectPulseChatState,
         pulseWorkflowSession: null,
         resetActiveProjectAgentConversation: vi.fn(),
         sessionPersistenceTitleOverride: null,
@@ -336,6 +343,11 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     expect(setCreateSelectedCharacterId).toHaveBeenCalledWith("");
     expect(setCreateSelectedCharacterLookId).toHaveBeenCalledWith("");
     expect(setIsCreateCharacterModeEnabled).toHaveBeenCalledWith(false);
+    expect(setProjectPulseChatState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeThreadId: null,
+      })
+    );
   });
 
   it("patches the live canvas session state into project workspace snapshots for save", () => {
@@ -510,6 +522,7 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     const setSoundEffectsPromptDraft = vi.fn();
     const setVoiceDesignPromptDraft = vi.fn();
     const setVoiceScriptDraft = vi.fn();
+    const setProjectPulseChatState = vi.fn();
 
     renderHook(() =>
       useAiStudioPageProjectSessionRuntime({
@@ -540,6 +553,7 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         },
         projectId: "project-1",
         projectRouteRequested: true,
+        setProjectPulseChatState,
         pulseWorkflowSession: null,
         resetActiveProjectAgentConversation: vi.fn(),
         sessionPersistenceTitleOverride: null,
@@ -569,6 +583,11 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     expect(setSoundEffectsPromptDraft).toHaveBeenCalledWith("");
     expect(setVoiceDesignPromptDraft).toHaveBeenCalledWith("");
     expect(setVoiceScriptDraft).toHaveBeenCalledWith("");
+    expect(setProjectPulseChatState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeThreadId: null,
+      })
+    );
   });
 
   it("forwards the bootstrap project id to page session persistence before identity finishes", () => {

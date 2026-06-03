@@ -134,6 +134,11 @@ const createHydrationPayload = (active: StudioOutput[]): AiStudioSessionHydratio
       pulseWorkflowSession: null,
     },
   },
+  pulseChats: {
+    schemaVersion: 1,
+    activeThreadId: null,
+    threads: [],
+  },
   canvas: null,
   expertEdit: null,
 });

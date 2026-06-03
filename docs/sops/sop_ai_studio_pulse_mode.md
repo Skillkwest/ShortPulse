@@ -134,10 +134,33 @@ behave like guided workflow tools.
   active Pulse state and return a retryable user-facing status rather than
   silently clearing the active Pulse.
 
+### 3A. Saved Chats
+
+- On project routes, Pulse mode owns a separate left-rail `Chats` panel below
+  the Pulse preset rail.
+- `Chats` is Pulse-only. It must not appear in Standard mode and must not
+  restore Standard transcript state, Standard draft input, Standard hidden
+  continuity, or Standard route payloads.
+- Pulse chat persistence is project-owned. It lives inside the sanitized
+  project workspace snapshot and must not be implemented as a hidden revival of
+  the retired generic `/api/ai/sessions/*` restore contract.
+- Autosave should persist only Pulse-owned continuity for the active Pulse
+  thread: transcript/messages, draft input, active preset id, Pulse session
+  instance id, `pulseWorkflowSession`, title, and timestamps.
+- Reopening a saved Chat should restore the saved Pulse thread cleanly inside
+  Pulse mode, including transcript continuity and workflow continuity when the
+  saved thread came from a built-in guided workflow.
+- Opening or switching a project must still fail closed to the blank Create
+  shell. Saved Chats are explicit reopen affordances, not automatic visible
+  chat replay on project bootstrap.
+
 ### 4. Switching, restarting, clearing, deactivating
 
 - Switching to a different Pulse starts a fresh Pulse session.
 - Restarting the active Pulse preserves the selected Pulse id but clears the active session state and starts fresh.
+- `New chat` in the `Chats` panel is a Pulse-only restart action: it preserves
+  the selected Pulse id, clears the active Pulse thread state, and starts a new
+  saved Chat binding.
 - Clearing in Pulse mode deactivates the Pulse and clears its runtime state.
 - Deactivating a Pulse leaves the user in Pulse mode with the rail visible and no active Pulse runtime.
 
@@ -147,6 +170,8 @@ behave like guided workflow tools.
 - The Standard chat-mode preference is restored.
 - Standard-owned prompt/chat state remains Standard-owned.
 - Active Pulse ownership, transcript state, draft input, workflow session state, and Pulse-only prompt state stay hidden from visible Standard agent surfaces.
+- Saved Pulse Chats stay Pulse-owned while the lane is parked. Standard mode
+  must not list, hydrate, or reuse Pulse `Chats` state.
 - The right rail remains global: `Reference Grid`, `Quick Slot Inventory`, and `Canvas` keep their current workspace state across `Standard` and `Pulse`.
 - Hidden Pulse runtime must not leak into Standard surfaces.
 - Leaving the Create tool for another workflow keeps the active Pulse runtime alive in the background.
@@ -238,6 +263,10 @@ Lifecycle rules:
 - `failed_retryable` is a status overlay, not a destructive state reset.
 - `deactivated` is user-initiated only. Provider failures, schema repair failures,
   and kickoff timeouts must not silently become deactivation.
+- Saved-chat reopen must also fail closed: if a saved Chat cannot restore valid
+  Pulse preset/session authority, Pulse should fall back to a fresh Pulse
+  runtime rather than mixing saved state into Standard mode or reviving the
+  wrong Pulse session.
 - Switching `Pulse -> Standard` hides the active Pulse runtime without clearing
   its authoritative parked session state.
 

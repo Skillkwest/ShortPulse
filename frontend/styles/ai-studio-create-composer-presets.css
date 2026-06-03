@@ -430,6 +430,58 @@
   text-transform: uppercase;
 }
 
+.create-composer-chats-card {
+  min-height: 0;
+}
+
+.create-composer-chats-new-btn {
+  justify-content: center;
+}
+
+.create-composer-chats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.create-composer-chats-empty {
+  margin: 0;
+  padding: 10px 8px;
+  color: rgba(168, 179, 193, 0.82);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.create-composer-chats-thread-btn {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.create-composer-chats-thread-title,
+.create-composer-chats-thread-meta {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.create-composer-chats-thread-title {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.create-composer-chats-thread-meta {
+  color: rgba(168, 179, 193, 0.78);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
 .create-composer-presets-chip-badge.is-active {
   border-color: rgba(100, 209, 230, 0.38);
   background: rgba(100, 209, 230, 0.14);

@@ -44,6 +44,7 @@ import {
   prefixProjectWorkspaceQuickSlotDiagnostics,
   shouldReportProjectWorkspaceQuickSlotDiagnostics,
 } from "../logic/projectWorkspaceQuickSlotDiagnostics";
+import { parsePulseChatProjectState } from "../pulseChats/pulseChatThread";
 import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
@@ -357,6 +358,12 @@ const resolveProjectAutosaveUnlockSignature = (
       snapshot.outputs?.removedFromAllRefsIds
     ),
     canvasSignature: resolveProjectRestoreCanvasSignature(snapshot),
+    pulseChats:
+      snapshot.schemaVersion >= 2
+        ? parsePulseChatProjectState(
+            (snapshot as AiStudioSessionSnapshot & { pulseChats?: unknown }).pulseChats ?? null
+          )
+        : null,
   });
 };
 

@@ -33,6 +33,7 @@ export function SharedMediaDetailActionBar({
             type="button"
             className={className}
             onClick={item.onClick}
+            aria-label={item.ariaLabel}
             disabled={item.disabled}
             title={item.title}
           >

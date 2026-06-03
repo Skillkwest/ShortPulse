@@ -3,7 +3,7 @@
  * Owns quick-slot drop handling, canvas reference resolution, voice-changer internal references,
  * and dual-canvas workspace wiring for the page shell.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type DragEvent } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { useAiStudioDualCanvasWorkspaceState } from "../components/canvas/useAiStudioCanvasWorkspaceState";
 import type {
@@ -14,7 +14,10 @@ import type {
   ResolveCanvasDropReference,
 } from "../components/canvas/canvasTypes";
 import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
-import type { CanvasWorkspaceInstanceId } from "../components/canvas/canvasWorkspaceContracts";
+import type {
+  CanvasPropertiesPanelProps,
+  CanvasWorkspaceInstanceId,
+} from "../components/canvas/canvasWorkspaceContracts";
 import {
   CANVAS_AUDIO_ITEM_HEIGHT,
   CANVAS_AUDIO_ITEM_WIDTH,
@@ -50,6 +53,11 @@ import { resolveOutputAudioSourceMode } from "../logic/audioSourceMode";
 import { resolveCanvasLibraryMediaDisplayAuthority } from "../logic/canvasMediaDisplayAuthority";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 import type { AiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
+import {
+  attachMediaLibraryDragGhost,
+  clearMediaLibraryDragGhost,
+} from "../logic/mediaLibraryDragGhost";
+import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
 
@@ -633,7 +641,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   );
 
   const {
-    railCanvasProps,
+    railCanvasProps: baseRailCanvasProps,
     sessionState: canvasSessionState,
     hydrateSessionState: hydrateCanvasSessionState,
   } = useAiStudioDualCanvasWorkspaceState({
@@ -644,6 +652,71 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     onPinTextReference: addPastedPromptReference,
     onOpenMediaDetail: handleOpenCanvasMediaDetail,
   });
+
+  const handleRailCanvasItemDragStart = useCallback(
+    (id: string, event: DragEvent<HTMLElement>) => {
+      if (!event.shiftKey) {
+        event.preventDefault();
+        return;
+      }
+      const item = canvasSessionState.items.find((candidate) => candidate.id === id);
+      if (!item) {
+        event.preventDefault();
+        return;
+      }
+
+      if (item.kind === "text") {
+        const promptText = item.text.trim();
+        if (!promptText) {
+          event.preventDefault();
+          return;
+        }
+        event.dataTransfer.effectAllowed = "copy";
+        event.dataTransfer.setData("text/plain", promptText);
+        event.dataTransfer.setData("text/prompt", promptText);
+        event.currentTarget.classList.add("is-dragging");
+        attachMediaLibraryDragGhost(event, {
+          label: "Prompt",
+          detail: promptText,
+          template: "prompt",
+        });
+        return;
+      }
+
+      const outputId = item.outputId?.trim() || "";
+      if (!outputId) {
+        event.preventDefault();
+        return;
+      }
+      const output = getOutputById(outputId);
+      if (!output) {
+        event.preventDefault();
+        return;
+      }
+
+      prepareReferenceDrag(event, output, {
+        dragImage: event.currentTarget as HTMLElement,
+        sourceSurface: "all-refs",
+      });
+    },
+    [canvasSessionState.items, getOutputById]
+  );
+
+  const handleRailCanvasItemDragEnd = useCallback((_: string, event: DragEvent<HTMLElement>) => {
+    event.currentTarget.classList.remove("is-dragging");
+    clearDragState(event);
+    clearMediaLibraryDragGhost(event);
+  }, []);
+
+  const railCanvasProps: CanvasPropertiesPanelProps = useMemo(
+    () => ({
+      ...baseRailCanvasProps,
+      isItemDraggable: true,
+      onItemDragStart: handleRailCanvasItemDragStart,
+      onItemDragEnd: handleRailCanvasItemDragEnd,
+    }),
+    [baseRailCanvasProps, handleRailCanvasItemDragEnd, handleRailCanvasItemDragStart]
+  );
 
   useEffect(() => {
     const outputSnapshot = getOutputSnapshot();

@@ -24,6 +24,11 @@ import { resolveComposerImageAttachmentPreview } from "./composerImageAttachment
 import { normalizeAiStudioRestoredModelId } from "./modelRestorePolicy";
 import { normalizeSelectedToolForExpertCreateMode } from "./pulseToolInvariant";
 import {
+  createEmptyPulseChatProjectState,
+  parsePulseChatProjectState,
+  type PulseChatProjectState,
+} from "../pulseChats/pulseChatThread";
+import {
   parseAiStudioSessionCanvasState,
   type AiStudioSessionCanvasState,
 } from "./sessionSnapshotCanvas";
@@ -172,13 +177,14 @@ const asToolId = (value: unknown): ToolId | null => {
 const asVideoReferenceMode = (
   value: unknown
 ): "standard" | "modify" | "keyframes" | "kling3" | "motion" => {
-  return value === "standard" ||
-    value === "modify" ||
-    value === "keyframes" ||
-    value === "kling3" ||
-    value === "motion"
-    ? value
-    : FALLBACK_VIDEO_REFERENCE_MODE;
+  if (value === "standard" || value === "modify" || value === "kling3" || value === "motion") {
+    return value;
+  }
+  // Hidden keyframes snapshot values should reopen on the visible Standard lane.
+  if (value === "keyframes") {
+    return "standard";
+  }
+  return FALLBACK_VIDEO_REFERENCE_MODE;
 };
 
 const asExpertCreateMode = (value: unknown): "standard" | "pulse" => {
@@ -788,6 +794,7 @@ export type AiStudioSessionHydrationPayload = {
       pulseWorkflowSession: AgentPulseWorkflowSession | null;
     };
   };
+  pulseChats: PulseChatProjectState;
   canvas: AiStudioSessionCanvasState | null;
   expertEdit: ExpertEditSessionState | null;
 };
@@ -823,7 +830,7 @@ const asPulseWorkflowSession = (value: unknown): AgentPulseWorkflowSession | nul
   };
 };
 
-const buildHydratedAgentRuntime = (value: unknown) => {
+export const buildHydratedAgentRuntime = (value: unknown) => {
   const runtime = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   return {
     messages: normalizeAgentMessages(runtime.messages),
@@ -887,6 +894,10 @@ export const buildAiStudioSessionHydrationPayload = (
           (snapshot as Record<string, unknown>).expertEdit ?? null
         )
       : null;
+  const pulseChats =
+    snapshot.schemaVersion >= 2
+      ? parsePulseChatProjectState((snapshot as Record<string, unknown>).pulseChats ?? null)
+      : createEmptyPulseChatProjectState();
 
   const activeOutputs = dedupeOutputs(
     (outputs.active ?? []).map(hydrateOutput).filter((row): row is StudioOutput => Boolean(row))
@@ -1115,6 +1126,7 @@ export const buildAiStudioSessionHydrationPayload = (
     },
     agent: activeAgentRuntime,
     agentRuntimes: hydratedAgentRuntimes,
+    pulseChats,
     canvas,
     expertEdit,
   };

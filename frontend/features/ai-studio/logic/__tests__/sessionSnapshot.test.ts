@@ -17,6 +17,7 @@ import {
   type AiStudioSessionCanvasState,
 } from "../sessionSnapshotCanvas";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
+import { buildPulseChatThreadSnapshot } from "../../pulseChats/pulseChatThread";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../chatModeDefaults";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -207,6 +208,53 @@ describe("sessionSnapshot", () => {
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 
+  it("canonicalizes hidden keyframes workspace state onto standard before persistence", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2b",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "video",
+      selectedTool: "video",
+      prompt: "Bridge shot morphing between frames",
+      model: "kie-ai/veo-3.1-fast-i2v",
+      aspect: "16:9",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: "https://example.com/first.png",
+      extraImageUrls: ["https://example.com/last.png", null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "keyframes",
+      videoDurationSeconds: 8,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: true,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    });
+
+    expect(snapshot.workspace.videoReferenceMode).toBe("standard");
+  });
+
   it("persists generated output dimensions in the session snapshot", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "session-width-height",
@@ -264,6 +312,92 @@ describe("sessionSnapshot", () => {
       width: 1792,
       height: 1008,
     });
+  });
+
+  it("keeps project-owned Pulse chats in sanitized project workspace snapshots", () => {
+    const threadSnapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "pulse-session-1",
+      pulsePrompt: "Build the next scene",
+      updatedAt: "2026-06-03T16:00:00.000Z",
+      runtime: {
+        messages: [{ id: "pulse-msg-1", role: "assistant", content: "Saved Pulse reply" }],
+        input: "Saved draft input",
+        latestAgentPrompt: "Saved Pulse reply",
+        promptOrigin: "agent",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
+    });
+    const snapshot = {
+      ...buildAiStudioSessionSnapshot({
+        sessionId: "project-session-1",
+        updatedAt: "2026-06-03T16:00:00.000Z",
+        mode: "text",
+        selectedTool: "create",
+        prompt: "",
+        standardCreatePrompt: "",
+        pulseCreatePrompt: "",
+        model: null,
+        aspect: "9:16",
+        expertCreateMode: "pulse",
+        activePulsePresetId: "preset-1",
+        pulseSessionInstanceId: "pulse-session-1",
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs: [],
+        archivedOutputs: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+        agentMessages: [{ id: "visible-msg-1", role: "assistant", content: "Visible reply" }],
+        agentInput: "Visible draft",
+        latestAgentPrompt: "Visible reply",
+        promptOrigin: "agent",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      }),
+      pulseChats: {
+        schemaVersion: 1,
+        activeThreadId: "thread-1",
+        threads: [
+          {
+            threadId: "thread-1",
+            title: "My saved Pulse chat",
+            presetId: "preset-1",
+            presetLabel: "Story Builder",
+            updatedAt: "2026-06-03T16:00:00.000Z",
+            snapshot: threadSnapshot,
+          },
+        ],
+      },
+    } as AiStudioSessionSnapshotV2;
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(
+      snapshot
+    ) as AiStudioSessionSnapshotV2;
+
+    expect(projectSnapshot.agent.messages).toEqual([]);
+    expect(projectSnapshot.workspace.expertCreateMode).toBe("standard");
+    expect(projectSnapshot.pulseChats).toEqual(snapshot.pulseChats);
   });
 
   it("persists canonical internal refs for signed workspace reference URLs", () => {

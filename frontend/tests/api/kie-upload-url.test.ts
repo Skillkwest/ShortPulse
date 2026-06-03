@@ -114,6 +114,41 @@ describe("POST /api/kie/upload-url", () => {
     });
   });
 
+  it("accepts top-level upload URLs when Kie omits the data wrapper", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        downloadUrl: "https://tempfile.redpandaai.co/files/public-image-top-level.jpg",
+        fileName: "public-image-top-level.jpg",
+        mimeType: "image/jpeg",
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://example.com/public-image-top-level.jpg",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/public-image-top-level.jpg",
+      fileName: "public-image-top-level.jpg",
+      mimeType: "image/jpeg",
+    });
+  });
+
   it("uses Kie stream upload directly for Supabase signed URLs", async () => {
     const sourceBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
     const fetchMock = vi
@@ -214,13 +249,123 @@ describe("POST /api/kie/upload-url", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("returns the Kie URL upload failure without trying a secondary upload route", async () => {
+  it("falls back to stream upload when Kie URL upload rejects the remote URL", async () => {
+    const sourceBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xdb]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({
+          msg: "Forbidden",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/jpeg" }),
+        arrayBuffer: async () => sourceBytes.buffer,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          msg: "File uploaded successfully",
+          data: {
+            downloadUrl: "https://tempfile.redpandaai.co/files/fallback-image.jpg",
+            fileName: "fallback-image.jpg",
+            mimeType: "image/jpeg",
+          },
+        }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://cdn.example.com/fallback-image.jpg",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-url-upload");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://cdn.example.com/fallback-image.jpg");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/fallback-image.jpg",
+      fileName: "fallback-image.jpg",
+      mimeType: "image/jpeg",
+    });
+  });
+
+  it("falls back to stream upload when Kie success returns no file URL", async () => {
+    const sourceBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xdb]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () => "<html><body>temporary upstream response</body></html>",
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/jpeg" }),
+        arrayBuffer: async () => sourceBytes.buffer,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          msg: "File uploaded successfully",
+          data: {
+            downloadUrl: "https://tempfile.redpandaai.co/files/recovered-image.jpg",
+            fileName: "recovered-image.jpg",
+            mimeType: "image/jpeg",
+          },
+        }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://cdn.example.com/recovered-image.jpg",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-url-upload");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://cdn.example.com/recovered-image.jpg");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/recovered-image.jpg",
+      fileName: "recovered-image.jpg",
+      mimeType: "image/jpeg",
+    });
+  });
+
+  it("logs and classifies non-JSON upstream failures from Kie", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: false,
-      status: 403,
-      json: async () => ({
-        msg: "Forbidden",
-      }),
+      status: 401,
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      text: async () => "<html><body>Unauthorized</body></html>",
     } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
@@ -238,40 +383,10 @@ describe("POST /api/kie/upload-url", () => {
     await handler(req as never, res as never);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-url-upload");
-    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       error: "Kie upload failed",
-      details: "Forbidden",
-    });
-  });
-
-  it("logs and classifies non-JSON upstream failures from Kie", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce({
-      ok: false,
-      status: 502,
-      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
-      text: async () => "<html><body>Bad gateway</body></html>",
-    } as Response);
-    vi.stubGlobal("fetch", fetchMock);
-
-    const req = createMockRequest({
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        fileUrl: "https://cdn.example.com/fallback-image.jpg",
-        uploadPath: "shortpulse/kie-video/images",
-      }),
-    });
-    const res = createMockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(res.status).toHaveBeenCalledWith(502);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Kie upload failed",
-      details: "Upstream upload failed with status 502 and returned an HTML response.",
+      details: "Upstream upload failed with status 401 and returned an HTML response.",
     });
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -280,11 +395,12 @@ describe("POST /api/kie/upload-url", () => {
         metadata: expect.objectContaining({
           kie_upload_failure: "upstream_non_ok",
           kie_upload_transport: "url_upload",
-          kie_upstream_status: 502,
+          kie_upstream_status: 401,
           kie_upstream_content_type: "text/html; charset=utf-8",
           kie_upstream_body_format: "html_like",
           kie_upstream_parse_source: "text",
           kie_upstream_json_parsed: false,
+          kie_upload_fallback_attempted: false,
         }),
       })
     );

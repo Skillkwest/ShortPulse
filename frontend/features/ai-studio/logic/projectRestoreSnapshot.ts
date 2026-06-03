@@ -2,6 +2,7 @@ import {
   createEmptyAiStudioSessionSnapshot,
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotOutputs,
+  patchAiStudioSessionSnapshotPulseChats,
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
 } from "./sessionSnapshot";
@@ -42,15 +43,22 @@ export const createProjectRestoreSnapshot = (
       activeOutputIds
     ),
   });
+  const pulseChats =
+    snapshot.schemaVersion >= 2 && "pulseChats" in snapshot
+      ? (snapshot as AiStudioSessionSnapshotV2).pulseChats
+      : undefined;
   if (snapshot.schemaVersion < 2) return outputRestoredSnapshot;
 
   const parsedCanvas = parseAiStudioSessionCanvasState(
     (snapshot as AiStudioSessionSnapshotV2).canvas ?? null
   );
   const durableCanvas = createProjectDurableAiStudioSessionCanvasState(parsedCanvas);
-  return durableCanvas
+  const canvasRestoredSnapshot = durableCanvas
     ? patchAiStudioSessionSnapshotCanvas(outputRestoredSnapshot, durableCanvas)
     : outputRestoredSnapshot;
+  return pulseChats !== undefined
+    ? patchAiStudioSessionSnapshotPulseChats(canvasRestoredSnapshot, pulseChats)
+    : canvasRestoredSnapshot;
 };
 
 export const createProjectRestoreVisibilitySnapshot = (

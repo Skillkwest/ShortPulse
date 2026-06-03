@@ -51,6 +51,11 @@ const normalizeArchiveReason = (value: unknown): StudioOutput["archiveReason"] =
   return null;
 };
 
+const canonicalizeDurableVideoReferenceMode = (
+  value: "standard" | "modify" | "keyframes" | "kling3" | "motion"
+): "standard" | "modify" | "keyframes" | "kling3" | "motion" =>
+  value === "keyframes" ? "standard" : value;
+
 export type AiStudioSessionSnapshotSchemaVersion = 1 | 2;
 export type AiStudioSessionExpertCreateMode = "standard" | "pulse";
 export type AiStudioSessionCreateModeReferenceStateV1 = {
@@ -237,6 +242,7 @@ export type AiStudioSessionSnapshotV2 = {
   outputs: AiStudioSessionOutputsV1;
   agent: AiStudioSessionAgentV1;
   agentRuntimes?: AiStudioSessionAgentRuntimesV2;
+  pulseChats?: unknown;
   // Legacy compatibility extension for older canvas sessions. Canonical /ai-studio writes omit this.
   canvas?: AiStudioSessionCanvasSnapshotV1;
   expertEdit?: AiStudioSessionExpertEditSnapshotV1;
@@ -899,7 +905,7 @@ export const buildAiStudioSessionSnapshot = (
       ),
       editReferenceText: input.editReferenceText,
       videoReferenceText: input.videoReferenceText,
-      videoReferenceMode: input.videoReferenceMode,
+      videoReferenceMode: canonicalizeDurableVideoReferenceMode(input.videoReferenceMode),
       videoDurationSeconds: input.videoDurationSeconds,
       videoResolution: input.videoResolution,
       imageResolution: input.imageResolution,
@@ -1192,6 +1198,36 @@ export const patchAiStudioSessionSnapshotCanvas = (
 
   if (!canvasState && "canvas" in patchedSnapshot) {
     delete (patchedSnapshot as Partial<AiStudioSessionSnapshotV2>).canvas;
+  }
+
+  return {
+    ...patchedSnapshot,
+    meta: {
+      generatedAt: snapshot.updatedAt,
+      checksum: computeChecksum(patchedSnapshot),
+    },
+  };
+};
+
+/**
+ * Applies or removes project-owned Pulse chat state on a v2 snapshot and recomputes metadata.
+ * Project routes use this to persist the project-scoped `Chats` library without reviving
+ * conversational auto-restore on project open.
+ */
+export const patchAiStudioSessionSnapshotPulseChats = (
+  snapshot: AiStudioSessionSnapshotV2,
+  pulseChats: unknown | null | undefined
+): AiStudioSessionSnapshotV2 => {
+  const { meta, ...baseSnapshot } = snapshot;
+  void meta;
+
+  const patchedSnapshot = {
+    ...baseSnapshot,
+    ...(pulseChats ? { pulseChats } : {}),
+  };
+
+  if (!pulseChats && "pulseChats" in patchedSnapshot) {
+    delete (patchedSnapshot as Partial<AiStudioSessionSnapshotV2>).pulseChats;
   }
 
   return {

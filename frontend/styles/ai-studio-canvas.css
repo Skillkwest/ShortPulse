@@ -810,6 +810,10 @@
   text-transform: uppercase;
 }
 
+.reference-card-audio-time-row--duration-only {
+  justify-content: flex-end;
+}
+
 .reference-card-audio-time-current,
 .reference-card-audio-time-total {
   min-width: 0;

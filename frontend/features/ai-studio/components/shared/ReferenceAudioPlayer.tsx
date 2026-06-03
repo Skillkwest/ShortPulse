@@ -15,14 +15,6 @@ import type { StudioAudioSourceMode } from "../../types";
 
 const AUDIO_WAVEFORM_BAR_COUNT = 28;
 
-const formatPlaybackClock = (valueMs: number | null): string => {
-  if (!Number.isFinite(valueMs) || valueMs == null || valueMs <= 0) return "0:00";
-  const totalSeconds = Math.max(0, Math.round(valueMs / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
-
 export type ReferenceAudioPlayerProps = {
   audioId: string;
   audioUrl: string;
@@ -68,7 +60,6 @@ export function ReferenceAudioPlayer({
   const clearPlayback = onPlaybackStopped ?? clearExclusiveSoundPlayback;
   const [isAudioPlaying, setIsAudioPlaying] = React.useState(false);
   const [audioProgressRatio, setAudioProgressRatio] = React.useState(0);
-  const [currentAudioTimeMs, setCurrentAudioTimeMs] = React.useState(0);
   const [resolvedAudioDurationMs, setResolvedAudioDurationMs] = React.useState<number | null>(
     durationMs
   );
@@ -134,7 +125,6 @@ export function ReferenceAudioPlayer({
   React.useEffect(() => {
     setIsAudioPlaying(false);
     setAudioProgressRatio(0);
-    setCurrentAudioTimeMs(0);
     setShouldDecodeWaveform(eagerWaveformDecode);
     readyNotifiedRef.current = false;
     audioNodeRef.current?.pause();
@@ -208,7 +198,6 @@ export function ReferenceAudioPlayer({
       ) {
         node.currentTime = 0;
         setAudioProgressRatio(0);
-        setCurrentAudioTimeMs(0);
       }
       try {
         requestPlayback({
@@ -276,10 +265,7 @@ export function ReferenceAudioPlayer({
                   </span>
                 ))}
               </div>
-              <div className="reference-card-audio-time-row">
-                <span className="reference-card-audio-time-current">
-                  {formatPlaybackClock(currentAudioTimeMs)}
-                </span>
+              <div className="reference-card-audio-time-row reference-card-audio-time-row--duration-only">
                 <MediaDurationBadge
                   className="reference-card-audio-duration-badge"
                   durationMs={resolvedAudioDurationMs ?? 0}
@@ -300,7 +286,6 @@ export function ReferenceAudioPlayer({
             if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
               setResolvedAudioDurationMs(Math.round(durationSeconds * 1000));
             }
-            setCurrentAudioTimeMs(0);
             setAudioProgressRatio(0);
             notifyReady();
           }}
@@ -328,7 +313,6 @@ export function ReferenceAudioPlayer({
           onTimeUpdate={(event) => {
             const durationSeconds = event.currentTarget.duration;
             const currentTimeSeconds = event.currentTarget.currentTime;
-            setCurrentAudioTimeMs(Math.round(Math.max(0, currentTimeSeconds) * 1000));
             if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
               setAudioProgressRatio(0);
               return;
@@ -339,7 +323,6 @@ export function ReferenceAudioPlayer({
           onEnded={() => {
             clearPlayback(resolvedAudioInstanceKey);
             setIsAudioPlaying(false);
-            setCurrentAudioTimeMs(resolvedAudioDurationMs ?? currentAudioTimeMs);
             setAudioProgressRatio(1);
           }}
         />

@@ -34,6 +34,10 @@ import {
   resolveAiStudioKlingElementTokens,
   resolveKieKlingElementTokens,
 } from "../logic/klingElements";
+import {
+  KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS,
+  resolveKlingSinglePromptEffectiveVisibleCharacterLimit,
+} from "../logic/klingShotModePromptComposition";
 import { loadSavedKlingEntityBySource } from "../logic/klingEntityAdapters";
 import {
   analyzeKlingPromptTokens,
@@ -50,8 +54,32 @@ import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/inte
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
 const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 6;
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
-const KLING_SINGLE_PROMPT_MAX_CHARACTERS = 2500;
-const KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS = 500;
+
+type KlingPromptCharacterCounterProps = {
+  count: number;
+  limit: number;
+  overLimit: boolean;
+  ariaLabel: string;
+};
+
+function KlingPromptCharacterCounter({
+  count,
+  limit,
+  overLimit,
+  ariaLabel,
+}: KlingPromptCharacterCounterProps) {
+  return (
+    <div
+      className={`video-prompt-character-meta ${overLimit ? "is-over-limit" : ""}`.trim()}
+      aria-label={ariaLabel}
+      title={ariaLabel}
+    >
+      <span className="video-prompt-character-meta-value">
+        {`${count.toLocaleString()} / ${limit.toLocaleString()}`}
+      </span>
+    </div>
+  );
+}
 
 function isSeedance2FamilyModelId(modelId: string | null): boolean {
   return (
@@ -597,15 +625,15 @@ export function VideoPropertiesPanel({
     referenceMode: activeVideoMode,
   });
   const modelPickerContext: ModelModalContext =
-    resolvedVideoLane === "text"
-      ? "text-video"
-      : resolvedVideoLane === "first-last"
-        ? "reference-keyframes"
+    activeVideoMode === "keyframes"
+      ? "reference-keyframes"
+      : resolvedVideoLane === "text"
+        ? "text-video"
         : "reference-video";
   const standardVideoRequiresReferenceImage =
     activeVideoMode === "standard" && modelId === KIE_KLING_30_MODEL_ID;
   const shouldShowKlingReferenceImageWarning =
-    standardVideoRequiresReferenceImage && !referenceImageUrl && !extraImageUrls[0];
+    standardVideoRequiresReferenceImage && !referenceImageUrl;
   const videoModeIndex = visibleVideoMode === "motion" ? 1 : 0;
   const videoModeTabsStyle = React.useMemo(
     () =>
@@ -900,12 +928,29 @@ export function VideoPropertiesPanel({
     isKieKlingModelSelected && !isSeedance2FamilyModelSelected
       ? isCustomKlingWorkflow
         ? KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
-        : KLING_SINGLE_PROMPT_MAX_CHARACTERS
+        : resolveKlingSinglePromptEffectiveVisibleCharacterLimit({
+            prompt: primaryPromptValue,
+            mode: klingMode === "multi" ? "multi" : "single",
+            klingElements: selectedKlingElements.filter(
+              (element): element is AiStudioKlingElement => Boolean(element)
+            ),
+          })
       : null;
   const primaryPromptCharacterCount = primaryPromptValue.length;
   const isPrimaryPromptOverKlingLimit =
     klingPrimaryPromptCharacterLimit != null &&
     primaryPromptCharacterCount > klingPrimaryPromptCharacterLimit;
+  const primaryPromptCharacterCounter =
+    klingPrimaryPromptCharacterLimit != null ? (
+      <KlingPromptCharacterCounter
+        count={primaryPromptCharacterCount}
+        limit={klingPrimaryPromptCharacterLimit}
+        overLimit={isPrimaryPromptOverKlingLimit}
+        ariaLabel={`${
+          isCustomKlingWorkflow ? "Kling shot prompt" : "Kling prompt"
+        } character count: ${primaryPromptCharacterCount.toLocaleString()} / ${klingPrimaryPromptCharacterLimit.toLocaleString()}`}
+      />
+    ) : null;
   const customKlingPromptOverLimitShots = React.useMemo(
     () =>
       isKieKlingModelSelected && !isSeedance2FamilyModelSelected && isCustomKlingWorkflow
@@ -930,7 +975,7 @@ export function VideoPropertiesPanel({
       return `Multiple shot prompts exceed Kling's ${KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS.toLocaleString()} character limit.`;
     }
     if (isPrimaryPromptOverKlingLimit) {
-      return `Prompt exceeds Kling's ${KLING_SINGLE_PROMPT_MAX_CHARACTERS.toLocaleString()} character limit.`;
+      return `Prompt exceeds Kling's effective ${klingPrimaryPromptCharacterLimit?.toLocaleString()} character limit after hidden shot-mode direction is applied.`;
     }
     return null;
   }, [
@@ -939,6 +984,7 @@ export function VideoPropertiesPanel({
     isKieKlingModelSelected,
     isPrimaryPromptOverKlingLimit,
     isSeedance2FamilyModelSelected,
+    klingPrimaryPromptCharacterLimit,
   ]);
   const primaryPromptTokenDiagnostics = React.useMemo(
     () => analyzeKlingPromptTokens(primaryPromptValue, klingPromptAttachedSlots),
@@ -1796,25 +1842,13 @@ export function VideoPropertiesPanel({
                                   promptHelperText={primaryPromptHelperText}
                                   promptTextareaRef={primaryPromptTextareaRef}
                                   promptHighlightSegments={primaryPromptHighlightSegments}
+                                  promptInlineAction={primaryPromptCharacterCounter}
+                                  promptInlineActionClassName="video-prompt-character-inline-slot"
                                   onPromptFocus={() => handlePromptSelection("primary")}
                                   onPromptBlur={handlePromptBlur}
                                   onPromptSelect={() => handlePromptSelection("primary")}
                                   onPromptKeyDown={handlePromptKeyDown}
                                 />
-                                {klingPrimaryPromptCharacterLimit != null ? (
-                                  <div
-                                    className={`video-prompt-character-meta ${
-                                      isPrimaryPromptOverKlingLimit ? "is-over-limit" : ""
-                                    }`.trim()}
-                                  >
-                                    <span className="video-prompt-character-meta-label">
-                                      {isCustomKlingWorkflow ? "Kling shot prompt" : "Kling prompt"}
-                                    </span>
-                                    <span className="video-prompt-character-meta-value">
-                                      {`${primaryPromptCharacterCount.toLocaleString()} / ${klingPrimaryPromptCharacterLimit.toLocaleString()} characters`}
-                                    </span>
-                                  </div>
-                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -1896,20 +1930,16 @@ export function VideoPropertiesPanel({
                                 rows={4}
                                 placeholder={`Describe shot ${index + 2}.`}
                               />
-                            </div>
-                            <div
-                              className={`video-prompt-character-meta ${
-                                shot.prompt.length > KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
-                                  ? "is-over-limit"
-                                  : ""
-                              }`.trim()}
-                            >
-                              <span className="video-prompt-character-meta-label">
-                                Kling shot prompt
-                              </span>
-                              <span className="video-prompt-character-meta-value">
-                                {`${shot.prompt.length.toLocaleString()} / ${KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS.toLocaleString()} characters`}
-                              </span>
+                              <div className="prompt-inline-action-slot video-prompt-character-inline-slot">
+                                <KlingPromptCharacterCounter
+                                  count={shot.prompt.length}
+                                  limit={KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS}
+                                  overLimit={
+                                    shot.prompt.length > KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
+                                  }
+                                  ariaLabel={`Kling shot prompt character count: ${shot.prompt.length.toLocaleString()} / ${KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS.toLocaleString()}`}
+                                />
+                              </div>
                             </div>
                           </div>
                         ))}

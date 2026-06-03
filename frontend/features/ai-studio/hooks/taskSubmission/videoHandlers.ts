@@ -35,6 +35,11 @@ import {
   resolveVeoResolution,
   resolveVeoTextAspect,
 } from "./videoPayloads";
+import {
+  composeHiddenShotModePrompt,
+  isKlingSinglePromptOverComposedLimit,
+  rewritePromptWithKieElementTokens,
+} from "../../logic/klingShotModePromptComposition";
 
 const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
 const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
@@ -434,52 +439,6 @@ const prepareKieInputUrl = async ({
   });
 };
 
-const rewritePromptWithKieElementTokens = (
-  prompt: string,
-  klingElements: AiStudioKlingElement[]
-): string => {
-  const trimmedPrompt = prompt.trim();
-  const availableTokenPairs = klingElements.reduce<
-    Array<{ canonicalToken: string; legacyTokens: string[] }>
-  >((accumulator, element, index) => {
-    if (!hasKlingElementMedia(element)) return accumulator;
-    const canonicalToken = resolveKieKlingElementToken(element, index, klingElements).trim();
-    const legacyTokens = resolveAiStudioKlingElementLegacyTokens(
-      element,
-      index,
-      klingElements
-    ).filter((token) => token.toLowerCase() !== canonicalToken.toLowerCase());
-    if (!canonicalToken) return accumulator;
-    if (accumulator.some((pair) => pair.canonicalToken === canonicalToken)) return accumulator;
-    accumulator.push({ canonicalToken, legacyTokens });
-    return accumulator;
-  }, []);
-
-  if (!availableTokenPairs.length) return trimmedPrompt;
-
-  let rewrittenPrompt = trimmedPrompt;
-  for (const { canonicalToken, legacyTokens } of availableTokenPairs) {
-    for (const legacyToken of legacyTokens) {
-      const legacyTokenPattern = new RegExp(
-        `(^|\\s)@${escapeRegExp(legacyToken)}(?=$|[\\s,.;:!?])`,
-        "g"
-      );
-      rewrittenPrompt = rewrittenPrompt.replace(legacyTokenPattern, `$1@${canonicalToken}`);
-    }
-  }
-
-  const missingTokens = availableTokenPairs
-    .map((pair) => pair.canonicalToken)
-    .filter((token) => {
-      const tokenPattern = new RegExp(`(^|\\s)@${escapeRegExp(token)}(?=$|[\\s,.;:!?])`);
-      return !tokenPattern.test(rewrittenPrompt);
-    });
-
-  if (!missingTokens.length) return rewrittenPrompt;
-  const suffix = missingTokens.map((token) => `@${token}`).join(" ");
-  return rewrittenPrompt ? `${rewrittenPrompt} ${suffix}` : suffix;
-};
-
 const rewritePromptWithSeedanceEntityContext = (
   prompt: string,
   klingElements: AiStudioKlingElement[]
@@ -520,26 +479,6 @@ const rewritePromptWithSeedanceEntityContext = (
   if (!entityContextLine) return rewrittenPrompt;
   if (!rewrittenPrompt) return `Linked reference subjects: ${entityContextLine}.`;
   return `${rewrittenPrompt}\n\nLinked reference subjects: ${entityContextLine}.`;
-};
-
-type HiddenShotModePromptCompositionMode = "single" | "multi";
-
-const composeHiddenShotModePrompt = ({
-  prompt,
-  mode,
-}: {
-  prompt: string;
-  mode: HiddenShotModePromptCompositionMode;
-}): string => {
-  const trimmedPrompt = prompt.trim();
-  if (!trimmedPrompt) return trimmedPrompt;
-
-  const hiddenInstruction =
-    mode === "multi"
-      ? "Create this as a multi-shot sequence with multiple distinct shots or scene beats. Use cuts or shot changes as needed to cover the described action while preserving continuity."
-      : "Create this as one continuous uninterrupted shot only. Do not introduce cuts, shot changes, montage beats, or separate camera setups. If multiple actions are described, stage them inside the same continuous shot.";
-
-  return `${hiddenInstruction}\n\n${trimmedPrompt}`;
 };
 
 const buildSeedancePromptPayload = ({
@@ -622,11 +561,26 @@ const resolveKieKlingShotModePayload = ({
     };
   }
 
+  const promptWithElementTokens = rewritePromptWithKieElementTokens(
+    cleanedPrompt,
+    preparedKlingElements
+  );
+  const hiddenPromptMode = normalizedMode === "multi" ? "multi" : "single";
+  if (
+    isKlingSinglePromptOverComposedLimit({
+      prompt: promptWithElementTokens,
+      mode: hiddenPromptMode,
+    })
+  ) {
+    return { error: "Prompt exceeds Kling's 2,500 character limit." };
+  }
+  const composedPrompt = composeHiddenShotModePrompt({
+    prompt: promptWithElementTokens,
+    mode: hiddenPromptMode,
+  });
+
   return {
-    prompt: composeHiddenShotModePrompt({
-      prompt: rewritePromptWithKieElementTokens(cleanedPrompt, preparedKlingElements),
-      mode: normalizedMode === "multi" ? "multi" : "single",
-    }),
+    prompt: composedPrompt,
     imageUrls:
       preparedImageInputs.length >= 2
         ? preparedImageInputs.slice(0, 2)

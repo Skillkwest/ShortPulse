@@ -611,8 +611,7 @@ export const useAiStudioViewModel = ({
       isVideoTool &&
       videoReferenceMode === "standard" &&
       model === KIE_KLING_30_MODEL_ID &&
-      !referenceImageUrl &&
-      !extraImageUrls[0]
+      !referenceImageUrl
     ) {
       return "Add a first frame image before generating with Kling 3.0.";
     }
@@ -719,12 +718,7 @@ export const useAiStudioViewModel = ({
           return "Motion Control requires a motion reference video.";
         }
       }
-      if (
-        model === KIE_KLING_30_MODEL_ID &&
-        videoReferenceMode === "standard" &&
-        !hasReference &&
-        !extraImageUrls[0]
-      ) {
+      if (model === KIE_KLING_30_MODEL_ID && videoReferenceMode === "standard" && !hasReference) {
         return "Kling 3.0 requires a first frame image in Standard mode.";
       }
       if (isSeedance2Model) {

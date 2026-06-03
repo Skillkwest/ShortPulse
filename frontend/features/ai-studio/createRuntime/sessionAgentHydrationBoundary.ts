@@ -3,10 +3,14 @@ import type { CreatePageAgentRuntime } from "./contracts";
 
 export type CreateRuntimeHydrationMode = CreatePageAgentRuntime["kind"];
 
-export type CreateRuntimeAgentHydrationPayload = Pick<
-  AiStudioSessionHydrationPayload,
-  "workspace" | "agent" | "agentRuntimes"
->;
+export type CreateRuntimeAgentHydrationPayload = {
+  workspace: Pick<
+    AiStudioSessionHydrationPayload["workspace"],
+    "expertCreateMode" | "standardPrompt" | "activePulsePresetId" | "pulseSessionInstanceId"
+  >;
+  agent: AiStudioSessionHydrationPayload["agent"];
+  agentRuntimes: AiStudioSessionHydrationPayload["agentRuntimes"];
+};
 
 export const shouldApplySessionAgentHydrationToRuntime = (
   payload: CreateRuntimeAgentHydrationPayload,

@@ -2,7 +2,7 @@
  * AI Studio workspace page.
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { AiStudioPageShell } from "../components/AiStudioPageShell";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import { buildDefaultPricingParams } from "../logic/pricing";
@@ -26,6 +26,16 @@ import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
 import { usePulseCreateAgentRuntime } from "../createRuntime/usePulseCreateAgentRuntime";
 import { useStandardCreateAgentRuntime } from "../createRuntime/useStandardCreateAgentRuntime";
 import type { MediaFileRow } from "../logic/mediaLibraryModalModel";
+import {
+  createEmptyPulseChatProjectState,
+  parsePulseChatProjectState,
+  type PulseChatProjectState,
+} from "../pulseChats/pulseChatThread";
+import {
+  patchAiStudioSessionSnapshotPulseChats,
+  type AiStudioSessionSnapshot,
+  type AiStudioSessionSnapshotV2,
+} from "../logic/sessionSnapshot";
 import { PERF_FLAG_PAGE_OUTPUT_DECOUPLE } from "../logic/perfProfileFlags";
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
@@ -56,10 +66,22 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
     handleExpertCreateModeChange: base.handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange: base.handleActiveCreatePulsePresetIdChange,
   });
-  return <CreateAgentRuntimeHost base={base} createPulsePageRuntime={createPulsePageRuntime} />;
+  const projectScopeKey = base.projectRouteRequested
+    ? `project:${base.projectId ?? "__pending__"}`
+    : "standalone";
+  return (
+    <CreateAgentRuntimeHost
+      key={projectScopeKey}
+      base={base}
+      createPulsePageRuntime={createPulsePageRuntime}
+    />
+  );
 };
 
 const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeRootSharedProps) => {
+  const [projectPulseChatState, setProjectPulseChatState] = useState(() =>
+    createEmptyPulseChatProjectState()
+  );
   const standardCreateAgentRuntime = useStandardCreateAgentRuntime({
     sessionId: base.sessionId,
     mode: base.mode,
@@ -100,6 +122,8 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
     <AiStudioPageRuntimeBody
       base={base}
       createPulsePageRuntime={createPulsePageRuntime}
+      projectPulseChatState={projectPulseChatState}
+      setProjectPulseChatState={setProjectPulseChatState}
       standardCreateAgentRuntime={standardCreateAgentRuntime}
       pulseCreateAgentRuntime={pulseCreateAgentRuntime}
       activeCreateAgentRuntime={activeCreateAgentRuntime}
@@ -110,12 +134,16 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
 const AiStudioPageRuntimeBody = ({
   base,
   createPulsePageRuntime,
+  projectPulseChatState,
+  setProjectPulseChatState,
   standardCreateAgentRuntime,
   pulseCreateAgentRuntime,
   activeCreateAgentRuntime,
 }: {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
+  projectPulseChatState: PulseChatProjectState;
+  setProjectPulseChatState: React.Dispatch<React.SetStateAction<PulseChatProjectState>>;
   standardCreateAgentRuntime: ReturnType<typeof useStandardCreateAgentRuntime>;
   pulseCreateAgentRuntime: ReturnType<typeof usePulseCreateAgentRuntime>;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
@@ -267,6 +295,10 @@ const AiStudioPageRuntimeBody = ({
     activeCreateAgentRuntime.kind === "pulse" ? activeCreateAgentRuntime : null;
   const handlePulsePresetStart = visiblePulseCreateAgentRuntime?.handlePulsePresetStart;
   const handlePulsePresetRestartRuntime = visiblePulseCreateAgentRuntime?.handlePulsePresetRestart;
+  const parsedProjectPulseChatState = useMemo(
+    () => parsePulseChatProjectState(projectPulseChatState),
+    [projectPulseChatState]
+  );
   const handleStandardCreatePromptChange = useCallback(
     (value: string) => {
       setStandardCreatePrompt(value);
@@ -345,6 +377,18 @@ const AiStudioPageRuntimeBody = ({
     },
     [activeCreatePulsePresetSnapshot, beginPulseActivation, handlePulsePresetRestartRuntime]
   );
+  const patchProjectWorkspaceSnapshot = useCallback(
+    (snapshot: AiStudioSessionSnapshot) => {
+      if (snapshot.schemaVersion < 2) {
+        return snapshot;
+      }
+      return patchAiStudioSessionSnapshotPulseChats(
+        snapshot as AiStudioSessionSnapshotV2,
+        parsedProjectPulseChatState.threads.length > 0 ? parsedProjectPulseChatState : null
+      );
+    },
+    [parsedProjectPulseChatState]
+  );
   const {
     sessionRestoreCandidate,
     projectBootstrapSettled,
@@ -372,11 +416,13 @@ const AiStudioPageRuntimeBody = ({
       standardCreateAgentRuntime.hydrateFromSessionAgentSnapshot,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
+    patchProjectWorkspaceSnapshot,
     persistedAgentRuntime,
     persistedPulseAgentRuntime: pulseCreateAgentRuntime.persistedAgentRuntime,
     persistedStandardAgentRuntime: standardCreateAgentRuntime.persistedAgentRuntime,
     projectId,
     projectRouteRequested,
+    setProjectPulseChatState,
     pulseSessionInstanceId: base.pulseSessionInstanceId,
     pulseWorkflowSession,
     resetActiveProjectAgentConversation,
@@ -569,7 +615,10 @@ const AiStudioPageRuntimeBody = ({
   const propertiesCreate = useAiStudioCreatePanelRuntime({
     base,
     createPulsePageRuntime,
+    projectPulseChatState,
+    setProjectPulseChatState,
     activeCreateAgentRuntime,
+    pulseCreateAgentRuntime,
     currentCostCredits,
     promptReferenceGenerateCostCredits,
     hasSufficientCreditsForPromptReferenceGenerate,

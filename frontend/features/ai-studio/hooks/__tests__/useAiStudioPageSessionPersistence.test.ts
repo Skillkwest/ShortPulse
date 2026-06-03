@@ -96,6 +96,11 @@ describe("useAiStudioPageSessionPersistence", () => {
             pulseWorkflowSession: null,
           },
         },
+        pulseChats: {
+          schemaVersion: 1,
+          activeThreadId: null,
+          threads: [],
+        },
         canvas: null,
         expertEdit: null,
       })
@@ -187,6 +192,11 @@ describe("useAiStudioPageSessionPersistence", () => {
             chatModeEnabled: true,
             pulseWorkflowSession: null,
           },
+        },
+        pulseChats: {
+          schemaVersion: 1,
+          activeThreadId: null,
+          threads: [],
         },
         canvas: null,
         expertEdit: null,
@@ -330,6 +340,11 @@ describe("useAiStudioPageSessionPersistence", () => {
             pulseWorkflowSession: null,
           },
         },
+        pulseChats: {
+          schemaVersion: 1,
+          activeThreadId: null,
+          threads: [],
+        },
         canvas: null,
         expertEdit: null,
       })
@@ -408,6 +423,11 @@ describe("useAiStudioPageSessionPersistence", () => {
             chatModeEnabled: true,
             pulseWorkflowSession: null,
           },
+        },
+        pulseChats: {
+          schemaVersion: 1,
+          activeThreadId: null,
+          threads: [],
         },
         canvas: null,
         expertEdit: null,

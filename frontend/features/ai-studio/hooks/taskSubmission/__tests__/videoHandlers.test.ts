@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VideoSubmissionArgs } from "../types";
+import {
+  resolveKlingSinglePromptEffectiveVisibleCharacterLimit,
+  resolveKlingSinglePromptVisibleCharacterLimit,
+} from "../../../logic/klingShotModePromptComposition";
 import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
@@ -1012,6 +1016,26 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
+  it("fails closed when hidden shot-mode composition pushes a Kling single prompt over the provider limit", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      klingWorkflowMode: "single",
+      cleanedPrompt: "A".repeat(resolveKlingSinglePromptVisibleCharacterLimit("single") + 1),
+      preparedImageInputs: ["https://example.com/start.png"],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Prompt exceeds Kling's 2,500 character limit."
+    );
+    expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
+  });
+
   it("auto-appends attached saved element name tokens to single-shot Kling prompts", async () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
@@ -1050,6 +1074,43 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
         ],
       })
     );
+  });
+
+  it("fails closed when auto-appended Kling element tokens push a prompt over the provider limit", async () => {
+    const klingElements = [
+      {
+        id: "element-1",
+        slotIndex: 0,
+        name: "Taylor",
+        alias: "taylor",
+        frontalImageUrl: "https://example.com/taylor-front.png",
+        referenceImageUrls: "https://example.com/taylor-side.png",
+        videoUrl: "",
+      },
+    ];
+    const effectiveLimit = resolveKlingSinglePromptEffectiveVisibleCharacterLimit({
+      prompt: "A",
+      mode: "single",
+      klingElements,
+    });
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      klingWorkflowMode: "single",
+      cleanedPrompt: "A".repeat(effectiveLimit + 1),
+      preparedImageInputs: ["https://example.com/start.png"],
+      klingElements,
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Prompt exceeds Kling's 2,500 character limit."
+    );
+    expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
   });
 
   it("rewrites legacy element aliases to canonical slot tokens for Kling prompts", async () => {

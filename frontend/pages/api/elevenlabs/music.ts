@@ -7,8 +7,11 @@ import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/mod
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import {
+  readElevenLabsProviderError,
+  resolveElevenLabsProviderUserMessage,
+} from "../../../lib/server/api/elevenlabsProviderError";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
-import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
@@ -60,6 +63,8 @@ type GenerateMusicSuccessResponse = {
 type GenerateMusicErrorResponse = {
   error: string;
   details?: string;
+  code?: string;
+  retryAfterSeconds?: number;
 };
 
 const DEFAULT_MUSIC_MODEL_ID = resolveRequiredAudioMusicModelId();
@@ -70,11 +75,6 @@ const MAX_BPM = 180;
 const MAX_TEXT_LENGTH = 2000;
 const ALLOWED_OUTPUT_FORMATS = new Set(["mp3_44100_128", "wav_48000"]);
 const ALLOWED_MODEL_IDS = new Set([DEFAULT_MUSIC_MODEL_ID]);
-const ELEVENLABS_MUSIC_RATE_LIMIT = {
-  keyPrefix: "elevenlabs-music",
-  maxRequests: 6,
-  windowMs: 10 * 60 * 1000,
-} as const;
 
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -127,14 +127,6 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
-  if (
-    !enforceApiRateLimit(req, res, {
-      ...ELEVENLABS_MUSIC_RATE_LIMIT,
-      keyPrefix: `${ELEVENLABS_MUSIC_RATE_LIMIT.keyPrefix}:${user.id}`,
-    })
-  ) {
-    return;
-  }
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
@@ -365,6 +357,22 @@ export default async function handler(
       scope: "generation",
       user,
     });
+
+    const providerError = readElevenLabsProviderError(error);
+    if (providerError && (providerError.status === 429 || providerError.status === 503)) {
+      if (providerError.retryAfterSeconds !== null) {
+        res.setHeader("Retry-After", String(providerError.retryAfterSeconds));
+      }
+      return res.status(providerError.status).json({
+        error: "Unable to generate music",
+        details: sanitizeCustomerFacingProviderText(
+          resolveElevenLabsProviderUserMessage(providerError),
+          "Unable to generate music."
+        ),
+        code: providerError.code ?? undefined,
+        retryAfterSeconds: providerError.retryAfterSeconds ?? undefined,
+      });
+    }
 
     return res.status(500).json({
       error: "Unable to generate music",

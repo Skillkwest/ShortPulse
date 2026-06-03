@@ -131,6 +131,8 @@ const useHarness = (
     imageResolution,
     setAspect,
     setImageResolution,
+    videoReferenceMode,
+    setVideoReferenceMode,
     videoResolution,
     setVideoResolution,
     klingWorkflowMode,
@@ -202,6 +204,46 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.aspect).toBe("16:9");
     expect(result.current.videoResolution).toBe("4k");
     expect(result.current.klingElements).toEqual([]);
+  });
+
+  it("canonicalizes hidden keyframes snapshot values onto the visible standard video lane", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        video: {
+          mode: "video",
+          model: KIE_KLING_30_MODEL_ID,
+          aspect: "16:9",
+          imageResolution: "model_default",
+          videoReferenceMode: "keyframes",
+          videoDurationSeconds: 8,
+          videoResolution: "1080p",
+          videoGenerateAudio: true,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "noise",
+          klingCfgScale: 0.8,
+          klingWorkflowMode: "single",
+          seedance2InputMode: "text",
+          seedance2ReferenceImageUrls: [],
+          seedance2ReferenceVideoUrls: [],
+          seedance2ReferenceAudioUrls: [],
+          seedance2ReturnLastFrame: false,
+          seedance2WebSearch: false,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("video"));
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    await waitFor(() => expect(result.current.videoReferenceMode).toBe("standard"));
+    expect(result.current.model).toBe(KIE_KLING_30_MODEL_ID);
   });
 
   it("does not restore workflow settings from session storage while a project route is pending", async () => {

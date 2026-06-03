@@ -24,12 +24,13 @@ import type {
 } from "../components/create/useCreateCharacterModeController";
 import type { PulseCreatePropertiesPanelProps } from "../components/create/PulseCreatePropertiesPanel";
 import type { StandardCreatePropertiesPanelProps } from "../components/create/StandardCreatePropertiesPanel";
+import type { PulseChatHistoryPanelProps } from "../components/create/PulseChatHistoryPanel";
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
-import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import type { AiStudioPulsePresetChangeOptions } from "../hooks/useAiStudioCreateModeRuntime";
+import type { CreateRuntimeAgentHydrationPayload } from "./sessionAgentHydrationBoundary";
 
 export type NeutralCreateGenerationServices = {
   handleGenerate: (
@@ -154,9 +155,7 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
   handleClearAgentChat: () => void;
-  hydrateFromSessionAgentSnapshot: (
-    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
-  ) => void;
+  hydrateFromSessionAgentSnapshot: (payload: CreateRuntimeAgentHydrationPayload) => void;
   resetProjectAgentConversation: () => void;
 };
 
@@ -214,6 +213,7 @@ export type PulseCreateRuntimeProps = {
     options?: AiStudioPulsePresetChangeOptions
   ) => string | null | void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
+  pulseChatHistory?: PulseChatHistoryPanelProps;
 };
 
 export type PulseCreateRuntimeResult = {
@@ -258,9 +258,7 @@ export type PulseCreatePageAgentRuntime = PulseCreateAgentRuntimeState & {
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
   handleClearAgentChat: () => void;
-  hydrateFromSessionAgentSnapshot: (
-    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
-  ) => void;
+  hydrateFromSessionAgentSnapshot: (payload: CreateRuntimeAgentHydrationPayload) => void;
   resetProjectAgentConversation: () => void;
 };
 

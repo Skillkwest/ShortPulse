@@ -633,7 +633,7 @@ describe("ReferenceGridCard", () => {
 
     expect(audioNode).not.toBeNull();
     expect(document.querySelector(".reference-card-audio-time-row")).not.toBeNull();
-    expect(screen.getByText("0:00")).toBeInTheDocument();
+    expect(screen.queryByText("0:00")).toBeNull();
     expect(screen.getByText("0:02")).toBeInTheDocument();
     expect(document.querySelector('[data-media-duration-kind="music"]')).not.toBeNull();
     expect(waveformBars.length).toBeGreaterThan(10);

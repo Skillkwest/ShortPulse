@@ -74,4 +74,54 @@ describe("generateElevenLabsSoundEffect", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("retries one transient upstream 429 before succeeding", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: {
+              message: "system_busy",
+              code: "system_busy",
+            },
+          }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "retry-after": "6",
+            },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(new Uint8Array([4, 5, 6]), {
+          status: 200,
+          headers: {
+            "content-type": "audio/mpeg",
+            "character-cost": "18",
+            "request-id": "provider-sfx-2",
+          },
+        })
+      );
+    global.fetch = fetchMock;
+
+    const result = await generateElevenLabsSoundEffect({
+      text: "heavy metal gate slam",
+      outputFormat: "mp3_44100_128",
+      body: {
+        model_id: "eleven_text_to_sound_v2",
+        loop: false,
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({
+      contentType: "audio/mpeg",
+      characterCost: 18,
+      providerRequestId: "provider-sfx-2",
+    });
+    expect(Array.from(result.buffer)).toEqual([4, 5, 6]);
+  });
 });

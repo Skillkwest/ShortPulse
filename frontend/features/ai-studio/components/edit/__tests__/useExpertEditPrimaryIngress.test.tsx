@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useExpertEditPrimaryIngress } from "../useExpertEditPrimaryIngress";
 import type { ExpertEditLayer } from "../expertEditLayerSessionUtils";
 import { readRememberedObjectUrlBlob } from "../../../utils/objectUrlBlobRegistry";
+import { prepareReferenceDrag } from "../../../utils/dragDrop";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
@@ -93,6 +94,61 @@ const makeImageDropEvent = (imageUrl: string) =>
   }) as unknown as Parameters<
     ReturnType<typeof useExpertEditPrimaryIngress>["handlePrimaryDrop"]
   >[0];
+
+const makePreparedInternalImageDropEvent = () => {
+  const transferData = new Map<string, string>();
+  const currentTarget = document.createElement("article");
+  const image = document.createElement("img");
+  image.className = "reference-card-image";
+  image.setAttribute("src", "https://cdn.shortpulse.test/canvas-export.png");
+  currentTarget.appendChild(image);
+  const dataTransfer = {
+    files: emptyFileList,
+    get types() {
+      return Array.from(transferData.keys());
+    },
+    getData: (type: string) => transferData.get(type) ?? "",
+    setData: (type: string, value: string) => {
+      transferData.set(type, value);
+    },
+    setDragImage: vi.fn(),
+    effectAllowed: "all",
+  } as unknown as DataTransfer;
+
+  prepareReferenceDrag(
+    {
+      currentTarget,
+      dataTransfer,
+    } as unknown as React.DragEvent<HTMLElement>,
+    {
+      id: "out-image-1",
+      prompt: "Canvas export image",
+      previewText: "Canvas export image",
+      mode: "image",
+      aspect: "16:9",
+      model: "Test model",
+      status: "ready",
+      timestamp: "now",
+      taskState: "success",
+      mediaSource: "generated",
+      previewUrl: "https://cdn.shortpulse.test/canvas-export.png",
+      resultUrls: ["https://cdn.shortpulse.test/canvas-export.png"],
+      savedMediaIds: ["media-1"],
+    } as never,
+    {
+      dragImage: currentTarget,
+      sourceSurface: "all-refs",
+    }
+  );
+
+  return {
+    preventDefault: vi.fn(),
+    currentTarget,
+    dataTransfer,
+  } as unknown as Parameters<
+    ReturnType<typeof useExpertEditPrimaryIngress>["handlePrimaryDrop"]
+  >[0];
+};
 
 describe("useExpertEditPrimaryIngress", () => {
   const originalFetch = global.fetch;
@@ -268,6 +324,76 @@ describe("useExpertEditPrimaryIngress", () => {
     expect(resolvePreviewUrlById).not.toHaveBeenCalled();
     expect(createLayer).not.toHaveBeenCalled();
     expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/durable-signed.png");
+    expect(result.current.layers[0]?.ownsImageUrl).toBe(false);
+  });
+
+  it("accepts canvas-exported internal reference drags through the real transfer payload shape", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-image-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-image-1",
+      mediaId: "media-1",
+      mediaSource: "generated" as const,
+      preview: { url: "https://cdn.shortpulse.test/canvas-export.png" },
+      previewStoragePath: "user/images/canvas-export-preview.png",
+      fullStoragePath: "user/images/canvas-export-full.png",
+      promptText: "Canvas export image",
+      preparedImageUrl: "https://cdn.shortpulse.test/canvas-export-durable.png",
+      loadBlob: async () => new Blob(["durable"], { type: "image/png" }),
+    }));
+    const event = makePreparedInternalImageDropEvent();
+
+    const { result } = renderHook(() => {
+      const [layers, setHookLayers] = React.useState<ExpertEditLayer[]>([
+        createLayerFixture("layer-1"),
+      ]);
+
+      const ingress = useExpertEditPrimaryIngress({
+        layers,
+        selectedLayerIndex: 0,
+        foundationLayerId: "layer-1",
+        isMorePresetsSurfaceOpen: false,
+        createLayer,
+        queuePanelHistoryBaselineFromCurrent: vi.fn(),
+        setLayers: setHookLayers,
+        setSelectedLayerIndex: vi.fn(),
+        setEditingLayerIndex: vi.fn(),
+        setEditingLayerValue: vi.fn(),
+        revokeObjectUrlSafe: vi.fn(),
+        resolvePreviewUrlById: vi.fn(() => "https://example.com/weak-preview.png"),
+        resolveInternalReferenceImageDropSource,
+      });
+
+      return {
+        ingress,
+        layers,
+      };
+    });
+
+    await act(async () => {
+      result.current.ingress.handlePrimaryDrop(event);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(createLayer).not.toHaveBeenCalled();
+    expect(result.current.layers[0]?.imageUrl).toBe(
+      "https://cdn.shortpulse.test/canvas-export-durable.png"
+    );
     expect(result.current.layers[0]?.ownsImageUrl).toBe(false);
   });
 

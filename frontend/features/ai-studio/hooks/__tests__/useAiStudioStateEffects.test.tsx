@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { MutableRefObject } from "react";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import { useAiStudioStateEffects } from "../useAiStudioStateEffects";
@@ -176,6 +178,62 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
+  it("preserves an explicit Kie Kling selection when both frames are present in standard video", async () => {
+    const setModel = vi.fn();
+    const setVideoReferenceMode = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: KIE_KLING_30_MODEL_ID,
+          referenceImageUrl: "https://example.com/first.png",
+          extraImageUrls: ["https://example.com/last.png", null, null],
+          allowedModelValues: [
+            KIE_VEO_31_FAST_I2V_MODEL_ID,
+            KIE_KLING_30_MODEL_ID,
+            KIE_SEEDANCE_2_MODEL_ID,
+            KIE_SEEDANCE_2_FAST_MODEL_ID,
+          ],
+          setModel,
+          setVideoReferenceMode,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).not.toHaveBeenCalled();
+      expect(setVideoReferenceMode).not.toHaveBeenCalled();
+    });
+  });
+
+  it("preserves an explicit Seedance 2 selection when both frames are present in standard video", async () => {
+    const setModel = vi.fn();
+    const setVideoReferenceMode = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: KIE_SEEDANCE_2_MODEL_ID,
+          referenceImageUrl: "https://example.com/first.png",
+          extraImageUrls: ["https://example.com/last.png", null, null],
+          allowedModelValues: [
+            KIE_VEO_31_FAST_I2V_MODEL_ID,
+            KIE_KLING_30_MODEL_ID,
+            KIE_SEEDANCE_2_MODEL_ID,
+            KIE_SEEDANCE_2_FAST_MODEL_ID,
+          ],
+          setModel,
+          setVideoReferenceMode,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).not.toHaveBeenCalled();
+      expect(setVideoReferenceMode).not.toHaveBeenCalled();
+    });
+  });
+
   it("locks motion mode to Kie Kling model", async () => {
     const setModel = vi.fn();
     renderHook(() =>
@@ -214,7 +272,7 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
-  it("switches unsupported video models to Kie Veo when both frame images are present", async () => {
+  it("switches unsupported video models to Kie Veo when both frame images are present without mutating the visible video mode", async () => {
     const setModel = vi.fn();
     const setVideoReferenceMode = vi.fn();
     renderHook(() =>
@@ -233,7 +291,7 @@ describe("useAiStudioStateEffects", () => {
 
     await waitFor(() => {
       expect(setModel).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
-      expect(setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
+      expect(setVideoReferenceMode).not.toHaveBeenCalled();
     });
   });
 

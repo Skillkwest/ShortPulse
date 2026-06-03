@@ -98,6 +98,20 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
 const resolveDefaultWorkflowSettingsForKey = (): WorkflowSettingsSnapshot =>
   DEFAULT_WORKFLOW_SETTINGS;
 
+const normalizeRestoredVideoReferenceMode = (
+  value: Partial<WorkflowSettingsSnapshot>["videoReferenceMode"],
+  fallback: VideoReferenceMode
+): VideoReferenceMode => {
+  if (value === "standard" || value === "modify" || value === "kling3" || value === "motion") {
+    return value;
+  }
+  // Hidden keyframes snapshot values should reopen on the visible Standard lane.
+  if (value === "keyframes") {
+    return "standard";
+  }
+  return fallback;
+};
+
 const resolveWorkflowSettingsKey = (tool: ToolId | null): WorkflowSettingsKey | null => {
   const workflowId = resolveWorkflowId(tool);
   if (workflowId === "create") return "create";
@@ -124,14 +138,10 @@ const cloneWorkflowSettingsSnapshot = (
     typeof snapshot?.imageResolution === "string"
       ? snapshot.imageResolution
       : defaults.imageResolution,
-  videoReferenceMode:
-    snapshot?.videoReferenceMode === "standard" ||
-    snapshot?.videoReferenceMode === "modify" ||
-    snapshot?.videoReferenceMode === "keyframes" ||
-    snapshot?.videoReferenceMode === "kling3" ||
-    snapshot?.videoReferenceMode === "motion"
-      ? snapshot.videoReferenceMode
-      : defaults.videoReferenceMode,
+  videoReferenceMode: normalizeRestoredVideoReferenceMode(
+    snapshot?.videoReferenceMode,
+    defaults.videoReferenceMode
+  ),
   videoDurationSeconds:
     typeof snapshot?.videoDurationSeconds === "number" &&
     Number.isFinite(snapshot.videoDurationSeconds)
@@ -424,7 +434,10 @@ export const useAiStudioWorkflowSettings = ({
       model,
       aspect,
       imageResolution,
-      videoReferenceMode,
+      videoReferenceMode: normalizeRestoredVideoReferenceMode(
+        videoReferenceMode,
+        DEFAULT_WORKFLOW_SETTINGS.videoReferenceMode
+      ),
       videoDurationSeconds,
       videoResolution,
       videoGenerateAudio,

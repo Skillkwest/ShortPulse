@@ -4,7 +4,7 @@
  */
 import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { VideoPropertiesPanel } from "../VideoPropertiesPanel";
 import {
   listCharacterManagerCharacters,
@@ -23,6 +23,10 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  resolveKlingSinglePromptEffectiveVisibleCharacterLimit,
+  resolveKlingSinglePromptVisibleCharacterLimit,
+} from "../../logic/klingShotModePromptComposition";
 
 type ReferencePromptStepMockProps = {
   referenceText?: string | null;
@@ -32,14 +36,24 @@ type ReferencePromptStepMockProps = {
   promptTextareaRef?: React.Ref<HTMLTextAreaElement>;
   promptPlaceholder?: string;
   promptHelperText?: string;
+  promptInlineAction?: React.ReactNode;
   agentIsSending?: boolean;
   agentError?: string;
   onAgentEnhanceSend?: unknown;
 };
 
 const referencePromptStepMock = vi.fn((props: ReferencePromptStepMockProps) => {
+  return (
+    <div data-testid="reference-prompt-step">
+      {props.promptInlineAction ? (
+        <div data-testid="reference-prompt-inline-action">{props.promptInlineAction}</div>
+      ) : null}
+    </div>
+  );
+});
+const referenceVideoSettingsStepMock = vi.fn((props: { modelModalContext?: string | null }) => {
   void props;
-  return <div data-testid="reference-prompt-step" />;
+  return <div data-testid="reference-video-settings-step" />;
 });
 
 const defaultDerivedState = {
@@ -210,20 +224,26 @@ vi.mock("../ReferencePromptStep", () => ({
   ReferencePromptStep: (props: ReferencePromptStepMockProps) => {
     referencePromptStepMock(props);
     return (
-      <textarea
-        aria-label="Video prompt"
-        ref={props.promptTextareaRef}
-        value={props.referenceText ?? ""}
-        onChange={(event) => props.onPromptTextChange?.(event.target.value)}
-        onDrop={(event) => props.onDrop?.(event)}
-        onDragOver={(event) => event.preventDefault()}
-      />
+      <div>
+        <textarea
+          aria-label="Video prompt"
+          ref={props.promptTextareaRef}
+          value={props.referenceText ?? ""}
+          onChange={(event) => props.onPromptTextChange?.(event.target.value)}
+          onDrop={(event) => props.onDrop?.(event)}
+          onDragOver={(event) => event.preventDefault()}
+        />
+        {props.promptInlineAction ? (
+          <div data-testid="reference-prompt-inline-action">{props.promptInlineAction}</div>
+        ) : null}
+      </div>
     );
   },
 }));
 
 vi.mock("../ReferenceVideoSettingsStep", () => ({
-  ReferenceVideoSettingsStep: () => <div data-testid="reference-video-settings-step" />,
+  ReferenceVideoSettingsStep: (props: { modelModalContext?: string | null }) =>
+    referenceVideoSettingsStepMock(props),
 }));
 
 vi.mock("../ReferenceKlingAdvancedSteps", () => ({
@@ -451,6 +471,7 @@ function KlingSparseSlotHarness() {
 describe("VideoPropertiesPanel", () => {
   beforeEach(() => {
     referencePromptStepMock.mockClear();
+    referenceVideoSettingsStepMock.mockClear();
     useReferencePropertiesDerivedStateMock.mockReset();
     useReferencePropertiesDerivedStateMock.mockReturnValue(defaultDerivedState);
     vi.mocked(listCharacterManagerCharacters).mockClear();
@@ -465,7 +486,7 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByText("Reference image required for generation")).toBeInTheDocument();
   });
 
-  it("hides the Kling reference image warning once either standard frame slot has an image", () => {
+  it("keeps the Kling reference image warning visible when only the last-frame slot has an image", () => {
     const { rerender } = render(<VideoPropertiesPanel {...baseProps} />);
 
     rerender(
@@ -475,7 +496,40 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
+    expect(screen.getByText("Reference image required for generation")).toBeInTheDocument();
+  });
+
+  it("hides the Kling reference image warning once the first frame is populated", () => {
+    const { rerender } = render(<VideoPropertiesPanel {...baseProps} />);
+
+    rerender(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceImageUrl="https://example.com/first-frame.jpg"
+      />
+    );
+
     expect(screen.queryByText("Reference image required for generation")).toBeNull();
+  });
+
+  it("keeps the model picker in reference-video context when Standard mode has both frames populated", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        videoReferenceMode="standard"
+        referenceImageUrl="https://example.com/first.png"
+        extraImageUrls={["https://example.com/last.png", null, null]}
+        modelId={KIE_KLING_30_MODEL_ID}
+        modelLabel="Kling 3.0"
+      />
+    );
+
+    expect(referenceVideoSettingsStepMock).toHaveBeenCalled();
+    const latestProps =
+      referenceVideoSettingsStepMock.mock.calls[
+        referenceVideoSettingsStepMock.mock.calls.length - 1
+      ]?.[0];
+    expect(latestProps?.modelModalContext).toBe("reference-video");
   });
 
   it("renders the recorder in its own left-column panel for Motion Control", () => {
@@ -578,20 +632,83 @@ describe("VideoPropertiesPanel", () => {
   it("shows the live Kling single-shot character counter", () => {
     render(<VideoPropertiesPanel {...baseProps} referenceText={"A".repeat(1250)} />);
 
-    expect(screen.getByText("Kling prompt")).toBeInTheDocument();
-    expect(screen.getByText("1,250 / 2,500 characters")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        `1,250 / ${resolveKlingSinglePromptVisibleCharacterLimit("single").toLocaleString()}`
+      )
+    ).toBeInTheDocument();
   });
 
-  it("blocks generate when the Kling single-shot prompt exceeds the provider limit", () => {
+  it("blocks generate when the Kling single-shot prompt exceeds the effective visible limit", () => {
+    const effectiveLimit = resolveKlingSinglePromptVisibleCharacterLimit("single");
     render(
       <VideoPropertiesPanel
         {...baseProps}
         referenceImageUrl="https://example.com/first-frame.jpg"
-        referenceText={"A".repeat(2501)}
+        referenceText={"A".repeat(effectiveLimit + 1)}
       />
     );
 
-    expect(screen.getByText("Prompt exceeds Kling's 2,500 character limit.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        `Prompt exceeds Kling's effective ${effectiveLimit.toLocaleString()} character limit after hidden shot-mode direction is applied.`
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /generate/i })).toBeDisabled();
+  });
+
+  it("uses the stricter effective visible limit for Kling Multi mode", () => {
+    const effectiveLimit = resolveKlingSinglePromptVisibleCharacterLimit("multi");
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceImageUrl="https://example.com/first-frame.jpg"
+        klingWorkflowMode="multi"
+        referenceText={"A".repeat(effectiveLimit + 1)}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        `Prompt exceeds Kling's effective ${effectiveLimit.toLocaleString()} character limit after hidden shot-mode direction is applied.`
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /generate/i })).toBeDisabled();
+  });
+
+  it("shrinks the effective visible limit when attached Kling elements will be auto-appended", () => {
+    const klingElements: AiStudioKlingElement[] = [
+      {
+        id: "element-01",
+        slotIndex: 0,
+        name: "Taylor",
+        alias: "taylor",
+        profileImageUrl: "https://example.com/taylor-profile.jpg",
+        frontalImageUrl: "https://example.com/taylor-01.jpg",
+        referenceImageUrls: "https://example.com/taylor-02.jpg",
+        videoUrl: "",
+      },
+    ];
+    const effectiveLimit = resolveKlingSinglePromptEffectiveVisibleCharacterLimit({
+      prompt: "A",
+      mode: "single",
+      klingElements,
+    });
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceImageUrl="https://example.com/first-frame.jpg"
+        referenceText={"A".repeat(effectiveLimit + 1)}
+        klingElements={klingElements}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        `Prompt exceeds Kling's effective ${effectiveLimit.toLocaleString()} character limit after hidden shot-mode direction is applied.`
+      )
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /generate/i })).toBeDisabled();
   });
 
@@ -609,9 +726,8 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(screen.getAllByText("Kling shot prompt")).toHaveLength(2);
-    expect(screen.getByText("120 / 500 characters")).toBeInTheDocument();
-    expect(screen.getByText("220 / 500 characters")).toBeInTheDocument();
+    expect(screen.getByText("120 / 500")).toBeInTheDocument();
+    expect(screen.getByText("220 / 500")).toBeInTheDocument();
   });
 
   it("blocks generate when any custom Kling shot exceeds the documented per-shot limit", () => {

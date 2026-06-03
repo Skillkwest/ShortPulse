@@ -778,7 +778,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.modelPickerCostCredits).toBe(expectedCost);
   });
 
-  it("allows Kling 3.0 standard generation when only the optional last-frame slot is populated", () => {
+  it("requires a first frame for Kling 3.0 standard generation even when the last-frame slot is populated", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -790,8 +790,12 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.referenceImageWarning).toBeNull();
+    expect(result.current.generationGuardrail).toBe(
+      "Add a first frame image before generating with Kling 3.0."
+    );
+    expect(result.current.referenceImageWarning).toBe(
+      "Kling 3.0 requires a first frame image in Standard mode."
+    );
   });
 
   it("requires at least one custom Kling shot prompt in custom mode", () => {

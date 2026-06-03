@@ -24,9 +24,9 @@ import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwn
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
-import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { StandardCreatePageAgentRuntime } from "./contracts";
+import type { CreateRuntimeAgentHydrationPayload } from "./sessionAgentHydrationBoundary";
 import {
   buildStandardSessionMemory,
   createPersistedStandardAgentRuntime,
@@ -316,10 +316,7 @@ export const useStandardCreateAgentRuntime = ({
   );
 
   const hydrateFromSessionAgentSnapshot = useCallback(
-    ({
-      workspace,
-      agentRuntimes,
-    }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
+    ({ workspace, agentRuntimes }: CreateRuntimeAgentHydrationPayload) => {
       const standardRuntime = agentRuntimes.standard;
       const restoredComposerState = resolveRestoredStandardComposerState({
         workspacePrompt: workspace.standardPrompt,

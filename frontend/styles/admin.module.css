@@ -2513,15 +2513,16 @@
 
 .pricingSheetInputWrap {
   display: grid;
-  grid-template-columns: minmax(0, 60px) auto;
-  gap: 4px;
+  grid-template-columns: minmax(0, 84px) auto;
+  gap: 6px;
   align-items: center;
-  max-width: 84px;
+  width: 100%;
+  max-width: 124px;
   margin-left: auto;
-  padding: 2px 4px 2px 6px;
-  border: 1px solid rgba(218, 227, 236, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .pricingRoundInputWrap {
@@ -2575,8 +2576,11 @@
 }
 
 .pricingSheetInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   min-height: 32px;
-  padding: 5px 8px;
+  padding: 5px 10px;
   text-align: right;
   border-radius: 10px;
   font-variant-numeric: tabular-nums;

@@ -1094,6 +1094,92 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
   });
 
+  it("keeps a brainstorming Standard reply conversational while returning multiple visible options", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                "1. The crown emerges from darkness before the face does.\n2. Let the silhouette read first, then reveal the cheekbone and eyes.\n3. Keep the light ceremonial and withheld until the final beat.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [{ role: "user", content: "Give me 3 stronger hooks." }],
+        context: {
+          modeHint: "chat",
+          lastAssistantMessage: "The current opening feels too generic.",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message:
+          "1. The crown emerges from darkness before the face does.\n2. Let the silhouette read first, then reveal the cheekbone and eyes.\n3. Keep the light ceremonial and withheld until the final beat.",
+        actions: undefined,
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
+      })
+    );
+  });
+
+  it("keeps a critique Standard reply on the direct judgment lane before improvement advice", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                "Yes, it still feels too generic because the mood words are broad and the visual hierarchy is not specific enough. I would tighten the opening composition, the reveal order, and the exact lighting constraints.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [{ role: "user", content: "Is this too generic? How would you improve it?" }],
+        context: {
+          modeHint: "chat",
+          focusedSource: "agent-output",
+          lastAssistantMessage:
+            "Create a visually stunning cinematic fantasy portrait with dramatic lighting.",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message:
+          "Yes, it still feels too generic because the mood words are broad and the visual hierarchy is not specific enough. I would tighten the opening composition, the reveal order, and the exact lighting constraints.",
+        actions: undefined,
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
+      })
+    );
+  });
+
   it("serializes explicit Standard prompt attachments into the latest user turn", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

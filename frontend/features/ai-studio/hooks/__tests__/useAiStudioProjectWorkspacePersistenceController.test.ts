@@ -2111,7 +2111,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
-  it("pauses the project autosave warning after repeated persistence failures exhaust retries", () => {
+  it("pauses the project autosave warning after repeated persistence failures exhaust retries", async () => {
     const snapshot = createSnapshot();
     const buildSessionSnapshot = vi.fn(() => snapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
@@ -2134,6 +2134,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
     rerender();
+    await flushBootstrapVisibilityLatch();
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     act(() => {
@@ -2223,7 +2224,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
-  it("records byte breakdown telemetry when project autosave skips an oversized snapshot", () => {
+  it("records byte breakdown telemetry when project autosave skips an oversized snapshot", async () => {
     const snapshot = {
       ...createSnapshot(),
       outputs: {
@@ -2266,6 +2267,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
     rerender();
+    await flushBootstrapVisibilityLatch();
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     act(() => {

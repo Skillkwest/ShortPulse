@@ -31,10 +31,18 @@ const CHAT_HISTORY_FOLLOW_THRESHOLD_PX = 24;
 const CHAT_HISTORY_SCROLLBAR_INTENT_GUTTER_PX = 24;
 const promptDragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 
-const resolveAssistantPromptText = (message: AgentMessage): string | null => {
+const resolveAssistantPromptArtifactText = (message: AgentMessage): string | null => {
   if (message.role !== "assistant" || message.canUseAsPrompt !== true) return null;
   const outputPrompt = typeof message.outputPrompt === "string" ? message.outputPrompt.trim() : "";
   return outputPrompt.length > 0 ? outputPrompt : null;
+};
+
+const resolveAssistantDraggableText = (message: AgentMessage): string | null => {
+  if (message.role !== "assistant") return null;
+  const promptArtifactText = resolveAssistantPromptArtifactText(message);
+  if (promptArtifactText) return promptArtifactText;
+  const visibleMessageText = typeof message.content === "string" ? message.content.trim() : "";
+  return visibleMessageText.length > 0 ? visibleMessageText : null;
 };
 
 const resolvePromptDragBubble = (source: HTMLElement): HTMLElement =>
@@ -643,16 +651,16 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 const resolvedMessageId = message.id?.trim() || `history-agent-output-${index}`;
                 const isEditingMessage =
                   Boolean(editingMessageId) && editingMessageId === resolvedMessageId;
-                const assistantPromptText = resolveAssistantPromptText(message);
+                const assistantPromptText = resolveAssistantPromptArtifactText(message);
+                const assistantDraggableText = resolveAssistantDraggableText(message);
                 const isAssistantPromptOutput = Boolean(assistantPromptText);
                 const canUseMessageAsPrompt =
                   message.role === "assistant" ? Boolean(assistantPromptText) : true;
                 const draggablePromptText =
-                  message.role === "assistant" ? assistantPromptText : message.content.trim();
+                  message.role === "assistant" ? assistantDraggableText : message.content.trim();
                 const isDraggable =
                   (message.role === "assistant" || message.role === "user") &&
                   Boolean(draggablePromptText) &&
-                  (message.role !== "assistant" || canUseMessageAsPrompt) &&
                   !isEditingMessage;
                 const bubbleMedia = resolveBubbleMediaState(resolvedMessageId);
                 const showOutputGenerateButton =
@@ -685,7 +693,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 const key =
                   message.id || `${message.role}-${index}-${message.content.slice(0, 12)}`;
                 const shouldUsePromptDragSurface =
-                  message.role === "assistant" && Boolean(assistantPromptText);
+                  message.role === "assistant" && Boolean(assistantDraggableText);
                 return (
                   <div
                     key={key}

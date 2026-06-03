@@ -18,7 +18,7 @@ The target is a Standard-mode agent that feels much closer to ChatGPT in the way
 - direct, adaptive, high-judgment conversational help
 - useful session memory
 - strong image understanding
-- file reading and grounded response behavior
+- grounded image-question answering
 - better clarification discipline
 - better refusal accuracy
 - less prompt-specialist bias when the user simply wants help
@@ -36,7 +36,7 @@ Recommended strategy:
 1. research and upgrade Standard's default model policy
 2. shift Standard from pass-through chat-completions behavior toward a real assistant runtime
 3. add stronger conversation state and session memory
-4. add file-input support
+4. harden image-grounded multimodal understanding
 5. harden behavior quality with evals
 
 ## Chosen Approach
@@ -122,7 +122,7 @@ Current Standard shape:
 - Standard runtime config still resolves through `frontend/features/agent-runtime/studioAgentOpenAiGateway.ts`
 - Standard memory is still session-scoped and synthetic, built from transcript-window plus derived working state in `frontend/features/ai-studio/createRuntime/standardMemory/`
 - Standard still returns through a prompt-capable response contract in `frontend/features/ai-agent/client/standardResponseContract.ts`
-- Standard already supports image-grounded turns in a partial form, but not general file-reading as a first-class assistant capability
+- Standard already supports image-grounded turns in a partial form, but not a fuller stateful image-question assistant experience
 
 This means the repo does not need a from-scratch rebuild, but it does need a runtime and capability modernization program.
 
@@ -134,7 +134,7 @@ For this plan, `ChatGPT-like` means:
 
 - direct and adaptive conversational help
 - strong image understanding
-- grounded file-question answering for supported file types
+- grounded image-question answering
 - useful per-session memory
 - good clarification judgment
 - strong critique, rewrite, summarize, and explain behavior
@@ -503,30 +503,27 @@ Checkpoint note from 2026-06-02 continuation:
   - for the current plan scope, Phase 3 is complete
   - the remaining possible work in this lane is incremental retrieval-policy tuning, not a blocking architecture gap for assistant parity
 
-### Phase 4. File And Multimodal Understanding
+### Phase 4. Image-Grounded Multimodal Understanding
 
 Goal:
-Enable Standard to read attached files and respond to them as a real assistant, not just handle images and prompt references.
+Enable Standard to answer questions about uploaded images more like a real assistant, not just handle prompt references and basic image context.
 
 Chosen direction:
 
-- add file-reading capability in the Standard lane
-- start with the most valuable and supportable file classes first
+- deepen image-grounded capability in the Standard lane
+- keep the scope image-only unless the user explicitly reopens broader file support
 
 Current-state delta this phase must close:
 
 - Standard already handles image-grounded context in a limited way
-- Standard does not yet behave like a real file-reading assistant for attached documents
+- Standard does not yet behave like a fully grounded image-question assistant across the whole Standard lane
 
 Realistic implementation dependency:
 
-- this phase likely requires a Standard-owned file-ingestion and file-identity policy, not just richer attachment text in the prompt
-- supported files may need different handling paths:
-  - direct multimodal input
-  - extracted text
-  - retrieval-backed search over attached content
+- this phase should stay inside the existing image attachment and multimodal request lane
+- broader file ingestion is deferred
 
-Recommended first file set:
+Recommended first supported input set:
 
 - images
 
@@ -545,15 +542,14 @@ Recommended defer list:
 
 Implementation targets:
 
-- extend Standard attachment/context preparation
-- define the ingestion path for each first-pass supported file type
-- define Standard file-input policy and supported file types
-- ensure Standard can answer grounded questions about uploaded content
+- extend Standard image attachment/context preparation where needed
+- define the supported image-question behaviors clearly
+- ensure Standard can answer grounded questions about uploaded images
 
 Constraints:
 
 - keep Pulse boundaries intact
-- keep unsafe or unsupported file handling fail-closed
+- keep unsafe or unsupported non-image handling fail-closed
 - do not turn this into a generic storage/platform refactor
 
 Proof gate:
@@ -717,7 +713,7 @@ This plan is complete when:
 - Standard has a stronger researched-and-verified default model
 - Standard runtime is moved toward a real assistant execution model
 - Standard has richer session memory
-- Standard can handle supported files and images more like a real assistant
+- Standard can handle uploaded images more like a real assistant
 - Standard evals cover the main assistant-quality behaviors
 
 Do not continue beyond these phases by momentum alone. Any work after that should start as a new plan or a concrete follow-up bug/capability lane.

@@ -17,6 +17,7 @@ type MockDualCanvasArgs = {
     mimeType?: string | null;
   }) => Promise<unknown> | unknown;
   resolveCanvasDropFiles?: (files: FileList) => Promise<unknown> | unknown;
+  onOpenMediaDetail?: (item: unknown, instanceId: "main" | "rail") => void;
 };
 
 vi.mock("../../../lib/clientBreadcrumbs", () => ({
@@ -116,10 +117,12 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     addLibraryPromptReferenceToQuickSlot: vi.fn(() => null),
     addPastedPromptReference: vi.fn(),
     insertPastedMediaReference: vi.fn(() => []),
+    getOutputById: () => null,
     getOutputSnapshot: () => createOutputSnapshot(),
     ingestReferenceFiles: vi.fn(async () => []),
     reorderCuratedReference: vi.fn(),
     setActiveOutputId: vi.fn(),
+    setDetailSelectionTarget: vi.fn(),
     setUiError: vi.fn(),
   };
 
@@ -739,6 +742,89 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       posterUrl: "https://cdn.shortpulse.test/dropped-video-poster.webp",
       title: "Dropped video",
       durationMs: null,
+    });
+  });
+
+  it("opens canvas media detail as a studio-output when output authority still resolves", () => {
+    const setDetailSelectionTarget = vi.fn();
+    const output = makeOutput({
+      id: "output-image-detail-1",
+      mode: "image",
+      prompt: "Canvas detail image",
+      previewUrl: "https://cdn.shortpulse.test/canvas-detail.png",
+      resultUrls: ["https://cdn.shortpulse.test/canvas-detail.png"],
+      savedMediaIds: ["saved-media-detail-1"],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+        setDetailSelectionTarget,
+      })
+    );
+
+    latestDualCanvasArgs?.onOpenMediaDetail?.(
+      {
+        id: "canvas-image-detail-1",
+        kind: "image",
+        x: 24,
+        y: 48,
+        z: 2,
+        selected: false,
+        outputId: output.id,
+        sourceSurface: "curated",
+        mediaId: "saved-media-detail-1",
+        src: "https://cdn.shortpulse.test/canvas-detail.png",
+        alt: "Canvas detail image",
+        width: 512,
+        height: 512,
+      },
+      "rail"
+    );
+
+    expect(setDetailSelectionTarget).toHaveBeenCalledWith({
+      kind: "studio-output",
+      outputId: output.id,
+      surface: "right-rail-canvas",
+    });
+  });
+
+  it("falls back to canvas-item detail when output authority is unavailable", () => {
+    const setDetailSelectionTarget = vi.fn();
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        setDetailSelectionTarget,
+      })
+    );
+
+    latestDualCanvasArgs?.onOpenMediaDetail?.(
+      {
+        id: "canvas-image-fallback-1",
+        kind: "image",
+        x: 64,
+        y: 96,
+        z: 1,
+        selected: false,
+        outputId: "missing-output-1",
+        sourceSurface: "curated",
+        mediaId: "saved-media-fallback-1",
+        src: "https://cdn.shortpulse.test/fallback-image.png",
+        alt: "Fallback image",
+        width: 320,
+        height: 180,
+      },
+      "main"
+    );
+
+    expect(setDetailSelectionTarget).toHaveBeenCalledWith({
+      kind: "canvas-item",
+      itemId: "canvas-image-fallback-1",
+      surface: "right-rail-canvas",
+      instanceId: "main",
     });
   });
 

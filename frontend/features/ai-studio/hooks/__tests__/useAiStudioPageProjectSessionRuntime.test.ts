@@ -213,35 +213,80 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     const capturedArgs = useAiStudioPageSessionPersistenceMock.mock.calls[0]?.[0] as {
       hydrateFromSessionSnapshot: (snapshot: AiStudioSessionSnapshot) => unknown;
     };
-    const snapshot = patchAiStudioSessionSnapshotOutputs(
-      createProjectSnapshot({
-        model: "fal-ai/bytedance/seedream/v4.5/edit",
-        selectedCharacterId: "char-1",
-        selectedCharacterLookId: "look-1",
-      }),
+    const snapshot = patchAiStudioSessionSnapshotCanvas(
+      patchAiStudioSessionSnapshotOutputs(
+        createProjectSnapshot({
+          model: "fal-ai/bytedance/seedream/v4.5/edit",
+          selectedCharacterId: "char-1",
+          selectedCharacterLookId: "look-1",
+        }),
+        {
+          active: [
+            {
+              id: "out-1",
+              prompt: "Prompt",
+              mode: "image",
+              aspect: "1:1",
+              model: "model-1",
+              status: "ready",
+              timestamp: "Just now",
+              previewUrl: "https://cdn.example.com/out-1.png",
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-1",
+          curatedReferenceIds: ["out-1"],
+          removedFromAllRefsIds: [],
+        }
+      ),
       {
-        active: [
+        items: [
           {
-            id: "out-1",
-            prompt: "Prompt",
-            mode: "image",
-            aspect: "1:1",
-            model: "model-1",
-            status: "ready",
-            timestamp: "Just now",
-            previewUrl: "https://cdn.example.com/out-1.png",
+            id: "canvas-text-1",
+            kind: "text",
+            x: 24,
+            y: 48,
+            z: 1,
+            selected: true,
+            outputId: null,
+            sourceSurface: null,
+            text: "Saved note",
+            width: 260,
+            height: 180,
+          },
+          {
+            id: "canvas-image-1",
+            kind: "image",
+            x: 320,
+            y: 180,
+            z: 2,
+            selected: true,
+            outputId: "out-1",
+            sourceSurface: "curated",
+            mediaId: "media-1",
+            src: "https://cdn.example.com/out-1.png",
+            alt: "Prompt",
+            width: 512,
+            height: 512,
           },
         ],
-        archived: [],
-        activeOutputId: "out-1",
-        curatedReferenceIds: ["out-1"],
-        removedFromAllRefsIds: [],
+        draftTextEntry: { x: 80, y: 120, value: "typing" },
+        textEditSession: { itemId: "canvas-text-1", value: "editing" },
+        draftOwnerInstanceId: "rail",
+        textEditOwnerInstanceId: "main",
+        mainCamera: { x: 11, y: -22, zoom: 1.35 },
+        railCamera: { x: -8, y: 14, zoom: 0.75 },
       }
     );
 
     act(() => {
       capturedArgs.hydrateFromSessionSnapshot(snapshot);
     });
+
+    const hydratedSnapshot = hydrateFromSessionSnapshot.mock.calls[0]?.[0] as
+      | AiStudioSessionSnapshot
+      | undefined;
+    const hydratedCanvas = parseAiStudioSessionCanvasState(hydratedSnapshot?.canvas ?? null);
 
     expect(hydrateFromSessionSnapshot).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -258,9 +303,150 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         }),
       })
     );
+    expect(hydratedCanvas).toEqual(
+      expect.objectContaining({
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 11, y: -22, zoom: 1.35 },
+        railCamera: { x: -8, y: 14, zoom: 0.75 },
+        items: [
+          expect.objectContaining({
+            id: "canvas-text-1",
+            kind: "text",
+            selected: false,
+            text: "Saved note",
+            width: 260,
+            height: 180,
+          }),
+          expect.objectContaining({
+            id: "canvas-image-1",
+            kind: "image",
+            selected: false,
+            outputId: "out-1",
+            mediaId: "media-1",
+            src: "https://cdn.example.com/out-1.png",
+            width: 512,
+            height: 512,
+          }),
+        ],
+      })
+    );
     expect(setCreateSelectedCharacterId).toHaveBeenCalledWith("");
     expect(setCreateSelectedCharacterLookId).toHaveBeenCalledWith("");
     expect(setIsCreateCharacterModeEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("patches the live canvas session state into project workspace snapshots for save", () => {
+    const canvasSessionState = {
+      items: [
+        {
+          id: "canvas-text-1",
+          kind: "text" as const,
+          x: 18,
+          y: 36,
+          z: 1,
+          selected: false,
+          outputId: null,
+          sourceSurface: null,
+          text: "Launch note",
+          width: 240,
+          height: 160,
+        },
+        {
+          id: "canvas-image-1",
+          kind: "image" as const,
+          x: 260,
+          y: 144,
+          z: 2,
+          selected: false,
+          outputId: "out-1",
+          sourceSurface: "curated" as const,
+          mediaId: "media-1",
+          src: "https://cdn.example.com/out-1.png",
+          alt: "Launch image",
+          width: 512,
+          height: 512,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 32, y: -16, zoom: 1.2 },
+      railCamera: { x: -12, y: 10, zoom: 0.9 },
+    };
+
+    renderHook(() =>
+      useAiStudioPageProjectSessionRuntime({
+        activeCreateAgentKind: "standard",
+        activeCreatePulsePresetId: null,
+        activeSessionPersistenceSessionId: "session-1",
+        buildProjectWorkspaceSnapshot: vi.fn(() =>
+          createProjectSnapshot({
+            prompt: "Ignored by project save patch test",
+          })
+        ),
+        buildSessionSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
+        canvasSessionState,
+        createSelectedCharacterId: "",
+        createSelectedCharacterLookId: "",
+        expertCreateMode: "standard",
+        expertEditSessionRevision: 0,
+        getExpertEditSessionState: vi.fn(() => null),
+        hasActivePulseSession: false,
+        hydrateActiveFromSessionAgentSnapshot: vi.fn(),
+        hydrateCanvasSessionState: vi.fn(),
+        hydrateFromSessionSnapshot: vi.fn((snapshot: AiStudioSessionSnapshot) =>
+          createHydrationPayload(snapshot)
+        ),
+        persistedAgentRuntime: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        projectId: "project-1",
+        projectRouteRequested: true,
+        pulseWorkflowSession: null,
+        resetActiveProjectAgentConversation: vi.fn(),
+        sessionPersistenceTitleOverride: null,
+        setCreateSelectedCharacterId: vi.fn(),
+        setCreateSelectedCharacterLookId: vi.fn(),
+        setIsCreateCharacterModeEnabled: vi.fn(),
+        setExpertEditSessionState: vi.fn(),
+        setMusicPromptDraft: createNoopDraftSetter(),
+        setMusicLyricsDraft: createNoopDraftSetter(),
+        setSoundEffectsPromptDraft: createNoopDraftSetter(),
+        setUiNotice: vi.fn(),
+        setVoiceDesignPromptDraft: createNoopDraftSetter(),
+        setVoiceScriptDraft: createNoopDraftSetter(),
+      })
+    );
+
+    const capturedArgs = useAiStudioPageSessionPersistenceMock.mock.calls[0]?.[0] as {
+      buildBaseSessionSnapshot: (args: {
+        sessionId: string;
+        agentRuntime: unknown;
+      }) => AiStudioSessionSnapshot;
+    };
+    const snapshot = capturedArgs.buildBaseSessionSnapshot({
+      sessionId: "project-1",
+      agentRuntime: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
+    });
+    const savedCanvas = parseAiStudioSessionCanvasState(snapshot.canvas ?? null);
+
+    expect(savedCanvas).toEqual(canvasSessionState);
   });
 
   it("does not wire project persistence through Expert Edit hydration anymore", () => {

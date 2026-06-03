@@ -1024,10 +1024,10 @@ describe("Canvas interaction behavior", () => {
     const railItem = (railViewport as HTMLElement).querySelector('[data-testid^="canvas-item-"]');
     expect(mainItem).toBeTruthy();
     expect(railItem).toBeTruthy();
-    expect(mainItem?.getAttribute("data-x")).toBe("90");
-    expect(mainItem?.getAttribute("data-y")).toBe("80");
-    expect(railItem?.getAttribute("data-x")).toBe("90");
-    expect(railItem?.getAttribute("data-y")).toBe("80");
+    expect(mainItem?.getAttribute("data-x")).toBe("220");
+    expect(mainItem?.getAttribute("data-y")).toBe("140");
+    expect(railItem?.getAttribute("data-x")).toBe("220");
+    expect(railItem?.getAttribute("data-y")).toBe("140");
 
     fireEvent.wheel(mainViewport as HTMLElement, {
       deltaY: -100,

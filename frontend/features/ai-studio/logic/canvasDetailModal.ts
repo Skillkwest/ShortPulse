@@ -21,7 +21,7 @@ export type CanvasDetailModalItem = SharedMediaDetailItemBase & {
 
 const CANVAS_PREVIEW_ONLY_CAPABILITIES: SharedMediaDetailCapabilities = {
   canSaveToLibrary: false,
-  canDownload: false,
+  canDownload: true,
   canDelete: false,
   canEditPrompt: false,
   canSavePrompt: false,

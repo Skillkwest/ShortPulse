@@ -36,7 +36,19 @@ vi.mock("../ModelModal", () => ({
 }));
 
 vi.mock("../AiStudioShellFrame", () => ({
-  AiStudioShellFrame: () => <div data-testid="ai-studio-shell-frame" />,
+  AiStudioShellFrame: ({
+    referenceGridProps,
+    showPreviewRail,
+  }: {
+    referenceGridProps?: { railCanvasProps?: unknown };
+    showPreviewRail?: boolean;
+  }) => (
+    <div
+      data-testid="ai-studio-shell-frame"
+      data-canvas-visible={referenceGridProps?.railCanvasProps ? "true" : "false"}
+      data-show-preview-rail={showPreviewRail === false ? "false" : "true"}
+    />
+  ),
 }));
 
 vi.mock("../edit/ExpertEditPanelView", () => ({
@@ -177,6 +189,7 @@ const createProps = (): React.ComponentProps<typeof AiStudioPageContent> => ({
     onOpenDetails: vi.fn(),
     onPasteTextReference: vi.fn(),
     onPasteMediaReference: vi.fn(),
+    railCanvasProps: {},
   } as never,
   studioPreviewProps: {
     activeOutput: null,
@@ -236,5 +249,52 @@ describe("AiStudioPageContent header project name", () => {
     render(<AiStudioPageContent {...createProps()} projectName={null} />);
 
     expect(screen.queryByRole("status", { name: /current project:/i })).not.toBeInTheDocument();
+  });
+
+  it("toggles Canvas visibility from the header button through the page shell contract", () => {
+    render(<AiStudioPageContent {...createProps()} />);
+
+    const canvasButton = screen.getByRole("button", { name: "Canvas" });
+    const shellFrame = screen.getByTestId("ai-studio-shell-frame");
+
+    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+    expect(shellFrame).toHaveAttribute("data-canvas-visible", "false");
+
+    fireEvent.click(canvasButton);
+
+    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
+    expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
+
+    fireEvent.click(canvasButton);
+
+    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+    expect(shellFrame).toHaveAttribute("data-canvas-visible", "false");
+  });
+
+  it("isolates Canvas on double-click and restores the previous right-rail layout on click", () => {
+    render(<AiStudioPageContent {...createProps()} />);
+
+    const canvasButton = screen.getByRole("button", { name: "Canvas" });
+    const shellFrame = screen.getByTestId("ai-studio-shell-frame");
+
+    fireEvent.click(canvasButton);
+    expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
+    expect(shellFrame).toHaveAttribute("data-show-preview-rail", "true");
+    expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
+
+    fireEvent.doubleClick(canvasButton);
+
+    expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
+    expect(shellFrame).toHaveAttribute("data-show-preview-rail", "false");
+    expect(screen.queryByRole("button", { name: "Reference Grid" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Quick Slot Inventory" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Canvas" }));
+
+    expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
+    expect(shellFrame).toHaveAttribute("data-show-preview-rail", "true");
+    expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
   });
 });

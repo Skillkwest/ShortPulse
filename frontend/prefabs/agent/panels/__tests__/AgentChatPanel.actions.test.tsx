@@ -244,13 +244,13 @@ describe("AgentChatPanel prompt actions", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
-    expect(
-      screen.getByText("I can't process that request right now. Please try again.")
-    ).toBeInTheDocument();
+    const message = screen.getByText("I can't process that request right now. Please try again.");
+    const dragSurface = message.closest(".agent-message-prompt-drag-surface") as HTMLElement;
+    expect(dragSurface).toBeTruthy();
     expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
   });
 
-  it("does not treat omitted assistant promptability as prompt output", () => {
+  it("keeps conversational assistant replies draggable as text without treating them as prompt output", () => {
     const onGenerateOutputPrompt = vi.fn();
 
     render(
@@ -271,11 +271,34 @@ describe("AgentChatPanel prompt actions", () => {
 
     const message = screen.getByText("Legacy assistant message without prompt metadata.");
     const messageBubble = message.closest(".agent-message") as HTMLElement;
+    const dragSurface = message.closest(".agent-message-prompt-drag-surface") as HTMLElement;
     expect(messageBubble).toBeTruthy();
+    expect(dragSurface).toBeTruthy();
     expect(messageBubble).not.toHaveClass("agent-message--with-output-generate");
-    expect(messageBubble).not.toHaveClass("is-draggable");
+    expect(messageBubble).not.toHaveClass("agent-message--prompt-output");
+    expect(messageBubble).toHaveClass("is-draggable");
     expect(messageBubble.getAttribute("draggable")).toBe("false");
+    expect(dragSurface).toHaveAttribute("draggable", "true");
     expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
+
+    const setData = vi.fn();
+    const dataTransfer = {
+      setData,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(dragSurface, { dataTransfer });
+    expect(setData).toHaveBeenCalledWith(
+      "text/plain",
+      "Legacy assistant message without prompt metadata."
+    );
+    expect(setData).toHaveBeenCalledWith(
+      "text/prompt",
+      "Legacy assistant message without prompt metadata."
+    );
+
+    fireEvent.dragEnd(dragSurface);
+    expect(messageBubble.classList.contains("is-dragging")).toBe(false);
     expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
   });
 

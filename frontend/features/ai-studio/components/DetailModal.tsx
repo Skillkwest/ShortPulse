@@ -1351,6 +1351,8 @@ function DetailModalContent({
         <SharedMediaDetailContentLayout
           topBar={
             <SharedMediaDetailTopBar
+              eyebrow="Media detail"
+              title={detailModalItem.presentation?.title ?? displayPromptText}
               items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
               actions={
                 <SharedMediaDetailActionBar

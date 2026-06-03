@@ -123,7 +123,7 @@ Checklist:
   - no `public` / `authenticated` / `anon` execute when the function is meant to be service-role-only
 - For current admin pricing/stats incidents, inspect at minimum:
   - `get_active_model_pricing_policy()`
-  - `apply_model_pricing_policy(jsonb, text, text, uuid, text, text)`
+  - `apply_model_pricing_policy(jsonb, jsonb, text, text, uuid, text, text)`
   - `rollback_model_pricing_policy(text, uuid, text, text)`
   - `get_admin_global_stats_summary()`
   - `list_admin_model_usage_stats(integer)`

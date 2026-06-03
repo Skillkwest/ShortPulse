@@ -71,6 +71,14 @@ const createSnapshotV2 = (
   ...overrides,
 });
 
+const createPromptSnapshotV2 = (prompt: string): AiStudioSessionSnapshotV2 =>
+  createSnapshotV2({
+    workspace: {
+      ...createSnapshot().workspace,
+      prompt,
+    },
+  });
+
 describe("useAiStudioSessionAutosave", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -314,6 +322,146 @@ describe("useAiStudioSessionAutosave", () => {
       await Promise.resolve();
     });
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues only the latest changed snapshot while an older save is in flight", async () => {
+    let resolveFirstPersist: (() => void) | null = null;
+    const persistSnapshot = vi
+      .fn<() => Promise<void>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstPersist = resolve;
+          })
+      )
+      .mockResolvedValue(undefined);
+    const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
+    const { rerender } = renderHook(
+      ({ snapshot }: { snapshot: AiStudioSessionSnapshotV2 }) =>
+        useAiStudioSessionAutosave({
+          sessionId: sid,
+          snapshot,
+          enabled: true,
+          persistSnapshot,
+        }),
+      {
+        initialProps: {
+          snapshot: createPromptSnapshotV2("Prompt 1"),
+        },
+      }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenNthCalledWith(
+      1,
+      sid,
+      expect.objectContaining({
+        workspace: expect.objectContaining({ prompt: "Prompt 1" }),
+      }),
+      expect.objectContaining({ keepalive: false })
+    );
+
+    rerender({ snapshot: createPromptSnapshotV2("Prompt 2") });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+
+    rerender({ snapshot: createPromptSnapshotV2("Prompt 3") });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstPersist?.();
+      await Promise.resolve();
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(2);
+    expect(persistSnapshot).toHaveBeenNthCalledWith(
+      2,
+      sid,
+      expect.objectContaining({
+        workspace: expect.objectContaining({ prompt: "Prompt 3" }),
+      }),
+      expect.objectContaining({ keepalive: false })
+    );
+  });
+
+  it("drops a failed stale snapshot retry when a newer pending snapshot is queued", async () => {
+    let rejectFirstPersist: ((error?: unknown) => void) | null = null;
+    const persistSnapshot = vi
+      .fn<() => Promise<void>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectFirstPersist = reject;
+          })
+      )
+      .mockResolvedValue(undefined);
+    const onPersistError = vi.fn();
+    const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
+    const { rerender } = renderHook(
+      ({ snapshot }: { snapshot: AiStudioSessionSnapshotV2 }) =>
+        useAiStudioSessionAutosave({
+          sessionId: sid,
+          snapshot,
+          enabled: true,
+          persistSnapshot,
+          maxPersistRetries: 1,
+          onPersistError,
+        }),
+      {
+        initialProps: {
+          snapshot: createPromptSnapshotV2("Prompt 1"),
+        },
+      }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+
+    rerender({ snapshot: createPromptSnapshotV2("Prompt 2") });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      rejectFirstPersist?.(new Error("workspace down"));
+      await Promise.resolve();
+    });
+
+    expect(onPersistError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        reason: "persist_failed",
+        attempt: 1,
+        willRetry: true,
+        remainingRetries: 0,
+      })
+    );
+    expect(persistSnapshot).toHaveBeenCalledTimes(2);
+    expect(persistSnapshot).toHaveBeenNthCalledWith(
+      2,
+      sid,
+      expect.objectContaining({
+        workspace: expect.objectContaining({ prompt: "Prompt 2" }),
+      }),
+      expect.objectContaining({ keepalive: false })
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(2);
   });
 
   it("uses a compact semantic hash that ignores volatile timestamp metadata", () => {

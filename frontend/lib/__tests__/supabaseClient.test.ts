@@ -60,6 +60,49 @@ describe("supabaseClient session reads", () => {
     expect(refreshSessionMock).toHaveBeenCalledTimes(1);
   });
 
+  it("refreshes an initialized in-memory session before returning a near-expired access token", async () => {
+    const getSessionMock = vi.fn();
+    const refreshSessionMock = vi.fn().mockResolvedValue({
+      data: {
+        session: {
+          access_token: "fresh-token",
+          refresh_token: "refresh-2",
+          expires_in: 3600,
+          expires_at: Math.floor((Date.now() + 3_600_000) / 1000),
+          token_type: "bearer",
+          user: { id: "user-1" },
+        },
+      },
+      error: null,
+    });
+
+    vi.doMock("@supabase/supabase-js", () => ({
+      createClient: vi.fn(() => ({
+        auth: {
+          getSession: getSessionMock,
+          onAuthStateChange: vi.fn(),
+          refreshSession: refreshSessionMock,
+        },
+      })),
+    }));
+
+    const { primeSupabaseSession, readSupabaseAccessToken } = await import("../supabaseClient");
+
+    primeSupabaseSession({
+      access_token: "stale-token",
+      refresh_token: "refresh-1",
+      expires_in: 3600,
+      expires_at: Math.floor((Date.now() + 30_000) / 1000),
+      token_type: "bearer",
+      user: { id: "user-1" },
+    } as never);
+
+    await expect(readSupabaseAccessToken()).resolves.toBe("fresh-token");
+
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(refreshSessionMock).toHaveBeenCalledTimes(1);
+  });
+
   it("swallows aborted bootstrap session reads inside the shared session hook", async () => {
     const abortError = new Error("signal is aborted without reason");
     abortError.name = "AbortError";

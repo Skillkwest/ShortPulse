@@ -236,6 +236,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   }>({
     camera: null,
   });
+  const hasAutoStartedPreviewRef = React.useRef(false);
   const previewRequestIdRef = React.useRef(0);
   const recordedObjectUrlRef = React.useRef<string | null>(null);
   const hasAttemptedSettingsRecoveryRef = React.useRef(false);
@@ -443,6 +444,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   React.useEffect(() => {
     if (!isOpen) {
       previewRequestIdRef.current += 1;
+      hasAutoStartedPreviewRef.current = false;
       recorderRef.current?.stop?.();
       recorderRef.current = null;
       recordingChunksRef.current = [];
@@ -460,8 +462,12 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       return;
     }
 
-    void updatePermissions();
-    void loadDeviceOptions();
+    if (hasAutoStartedPreviewRef.current) {
+      return;
+    }
+    hasAutoStartedPreviewRef.current = true;
+    setHasRequestedCameraAccess(true);
+    void startPreview();
   }, [
     isOpen,
     loadDeviceOptions,
@@ -723,10 +729,10 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       return "Detecting cameras...";
     }
     if (!hasRequestedCameraAccess) {
-      return "Click record to allow camera access and load your available cameras.";
+      return "Starting camera preview...";
     }
     if (captureError === "Camera access is blocked.") {
-      return "Allow camera access and click record again to load your available cameras.";
+      return "Allow camera access to load your available cameras.";
     }
     return "No labeled cameras detected yet.";
   }, [captureError, hasRequestedCameraAccess, isRequestingAccess]);
@@ -800,7 +806,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                   ) : !hasRequestedCameraAccess ? (
                     <span className="motion-recorder-modal-preview-badge">
                       <Camera size={14} weight="regular" />
-                      <span>Preview starts after you click record</span>
+                      <span>Starting camera preview...</span>
                     </span>
                   ) : (
                     <span className="motion-recorder-modal-preview-badge">

@@ -2,7 +2,6 @@ import React from "react";
 import { getPricingAuthorityClassName, getProviderLabelClassName } from "./PricingPageChrome";
 import type { AdminPricingModelRow, AdminPricingPreviewVariant } from "./types";
 import {
-  buildDraftPricingPreviewVariants,
   canEditModelDuration,
   formatFractionalCredits,
   formatPercent,
@@ -27,7 +26,6 @@ import {
   normalizeVariantOverrideDraft,
   parsePositiveDecimalInput,
   parsePercentToBps,
-  sortAdminPricingPreviewVariants,
   type DurationDraftByModelId,
   type MarkupDraftByModelId,
   type ModelPricingSortOption,
@@ -36,17 +34,39 @@ import {
   type VariantProviderCostPerSecondDraftByVariantKey,
 } from "./pricingPageUtils";
 import type {
-  AudioDraftByModelId,
-  AspectDraftByModelId,
-  ResolutionDraftByModelId,
-} from "./pricingDrafts";
+  AdminPricingCustomRow,
+  AdminPricingCustomRowsDocument,
+} from "../../lib/model-runtime/adminPricingCustomRows";
 import {
   resolveModelPricingForModel,
   type ModelPricingPolicyDocument,
 } from "../../lib/model-runtime/pricingPolicy";
 import { getAdminPricingStrategyLabel } from "../../lib/model-runtime/modelPricingStrategyLabel";
 import type { PricingStrategyId } from "../../lib/model-runtime/pricingTypes";
+import {
+  buildAdminPricingCustomRowSpec,
+  buildAdminPricingCustomRowSpecOptions,
+  buildDefaultAdminPricingCustomRowDraft,
+  buildMergedPricingPreviewVariants,
+  canAddAdminPricingCustomRow,
+  resolveAdminPricingCustomRowCandidate,
+  sortMergedPricingPreviewVariantRows,
+  type AdminPricingCustomRowDraft,
+} from "./pricingCustomRows";
 import styles from "../../styles/admin.module.css";
+
+const NULL_SELECT_VALUE = "__null__";
+
+const encodeNullableString = (value: string | null): string => value ?? NULL_SELECT_VALUE;
+
+const decodeNullableString = (value: string): string | null =>
+  value === NULL_SELECT_VALUE ? null : value;
+
+const encodeNullableBoolean = (value: boolean | null): string =>
+  value == null ? NULL_SELECT_VALUE : value ? "true" : "false";
+
+const decodeNullableBoolean = (value: string): boolean | null =>
+  value === NULL_SELECT_VALUE ? null : value === "true";
 
 const getFiniteValues = (values: Array<number | null | undefined>): number[] =>
   values.filter((value): value is number => value != null && Number.isFinite(value));
@@ -151,16 +171,6 @@ type PricingModelWorkbookTableProps = {
   effectiveModelPolicyDraft: ModelPricingPolicyDocument;
   durationDrafts: DurationDraftByModelId;
   setDurationDrafts: React.Dispatch<React.SetStateAction<DurationDraftByModelId>>;
-  aspectDrafts: AspectDraftByModelId;
-  updateAspectDraft: (modelId: string, value: string) => void;
-  resolutionDrafts: ResolutionDraftByModelId;
-  updateResolutionDraft: (modelId: string, value: string) => void;
-  audioDrafts: AudioDraftByModelId;
-  updateAudioDraft: (
-    modelId: string,
-    value: AudioDraftByModelId[string],
-    model: AdminPricingModelRow
-  ) => void;
   markupDrafts: MarkupDraftByModelId;
   setMarkupDrafts: React.Dispatch<React.SetStateAction<MarkupDraftByModelId>>;
   variantMarkupDrafts: VariantMarkupDraftByVariantKey;
@@ -181,22 +191,21 @@ type PricingModelWorkbookTableProps = {
     variant: AdminPricingPreviewVariant | null
   ) => void;
   hideCostDocsPopover: () => void;
+  effectiveCustomRowsDraft: AdminPricingCustomRowsDocument;
   updateModelPolicyDraft: (
     updater: (current: ModelPricingPolicyDocument) => ModelPricingPolicyDocument
+  ) => void;
+  updateCustomRowsDraft: (
+    updater: (current: AdminPricingCustomRowsDocument) => AdminPricingCustomRowsDocument
   ) => void;
 };
 
 export function PricingModelWorkbookTable({
   displayedModels,
   effectiveModelPolicyDraft,
+  effectiveCustomRowsDraft,
   durationDrafts,
   setDurationDrafts,
-  aspectDrafts,
-  updateAspectDraft,
-  resolutionDrafts,
-  updateResolutionDraft,
-  audioDrafts,
-  updateAudioDraft,
   markupDrafts,
   setMarkupDrafts,
   variantMarkupDrafts,
@@ -209,6 +218,7 @@ export function PricingModelWorkbookTable({
   showCostDocsPopover,
   hideCostDocsPopover,
   updateModelPolicyDraft,
+  updateCustomRowsDraft,
 }: PricingModelWorkbookTableProps) {
   const [expandedModelIds, setExpandedModelIds] = React.useState<Record<string, boolean>>({});
   const [pinnedHeaderLayout, setPinnedHeaderLayout] = React.useState<{
@@ -294,6 +304,132 @@ export function PricingModelWorkbookTable({
     };
   }, []);
 
+  const buildCustomRowDraftFromRow = React.useCallback(
+    (row: AdminPricingCustomRow): AdminPricingCustomRowDraft => ({
+      baseVariantId: row.spec.baseVariantId ?? null,
+      aspect: row.spec.aspect ?? null,
+      resolution: row.spec.resolution ?? null,
+      audio: row.spec.audio ?? null,
+      videoInput: row.spec.videoInput ?? null,
+    }),
+    []
+  );
+
+  const updateCustomRow = React.useCallback(
+    (
+      modelId: string,
+      displayRowId: string,
+      updater: (row: AdminPricingCustomRow) => AdminPricingCustomRow
+    ) => {
+      updateCustomRowsDraft((current) => {
+        const rows = current.rowsByModel[modelId] ?? [];
+        const nextRows = rows.map((row) =>
+          row.displayRowId === displayRowId ? updater(row) : row
+        );
+        return {
+          ...current,
+          rowsByModel: {
+            ...current.rowsByModel,
+            [modelId]: nextRows,
+          },
+        };
+      });
+    },
+    [updateCustomRowsDraft]
+  );
+
+  const removeCustomRow = React.useCallback(
+    (modelId: string, displayRowId: string) => {
+      updateCustomRowsDraft((current) => {
+        const rows = current.rowsByModel[modelId] ?? [];
+        const nextRows = rows.filter((row) => row.displayRowId !== displayRowId);
+        const nextRowsByModel = { ...current.rowsByModel };
+        if (nextRows.length) {
+          nextRowsByModel[modelId] = nextRows;
+        } else {
+          delete nextRowsByModel[modelId];
+        }
+        return {
+          ...current,
+          rowsByModel: nextRowsByModel,
+        };
+      });
+    },
+    [updateCustomRowsDraft]
+  );
+
+  const addCustomRow = React.useCallback(
+    (model: AdminPricingModelRow) => {
+      const draft = buildDefaultAdminPricingCustomRowDraft({
+        model,
+        pricingPolicy: effectiveModelPolicyDraft,
+      });
+      const candidate = resolveAdminPricingCustomRowCandidate({
+        model,
+        pricingPolicy: effectiveModelPolicyDraft,
+        draft,
+      });
+      if (!candidate) return;
+      updateCustomRowsDraft((current) => {
+        const existingRows = current.rowsByModel[model.id] ?? [];
+        const customIndex = existingRows.length + 1;
+        const displayRowId = `custom:${model.id}:${Date.now().toString(36)}:${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+        return {
+          ...current,
+          rowsByModel: {
+            ...current.rowsByModel,
+            [model.id]: [
+              ...existingRows,
+              {
+                displayRowId,
+                label: `Custom variant ${customIndex}`,
+                variantId: candidate.variantId,
+                spec: buildAdminPricingCustomRowSpec(draft),
+                overrides: {
+                  markupBps: null,
+                  providerUsdOverride: null,
+                  providerUsdPerSecondOverride: null,
+                },
+              },
+            ],
+          },
+        };
+      });
+      setExpandedModelIds((current) => ({
+        ...current,
+        [model.id]: true,
+      }));
+    },
+    [effectiveModelPolicyDraft, updateCustomRowsDraft]
+  );
+
+  const updateCustomRowSpecDraft = React.useCallback(
+    (
+      model: AdminPricingModelRow,
+      row: AdminPricingCustomRow,
+      patch: Partial<AdminPricingCustomRowDraft>
+    ) => {
+      const nextDraft = {
+        ...buildCustomRowDraftFromRow(row),
+        ...patch,
+      };
+      const candidate = resolveAdminPricingCustomRowCandidate({
+        model,
+        pricingPolicy: effectiveModelPolicyDraft,
+        draft: nextDraft,
+      });
+      if (!candidate) return;
+      updateCustomRow(model.id, row.displayRowId, (currentRow) => ({
+        ...currentRow,
+        variantId: candidate.variantId,
+        spec: buildAdminPricingCustomRowSpec(nextDraft),
+      }));
+    },
+    [buildCustomRowDraftFromRow, effectiveModelPolicyDraft, updateCustomRow]
+  );
+
   const workbookHeadCells = (
     <>
       <span>Provider</span>
@@ -374,13 +510,16 @@ export function PricingModelWorkbookTable({
             );
             const usageRateMultiplier = getModelUsageRateMultiplier(model, resolvedUsageAmount);
             const usageDisplayLabel = getModelUsageDisplayValue(model, resolvedUsageAmount);
-            const previewVariants = buildDraftPricingPreviewVariants(
+            const mergedPreviewVariantRows = sortMergedPricingPreviewVariantRows({
               model,
-              effectiveModelPolicyDraft,
-              {
+              rows: buildMergedPricingPreviewVariants({
+                model,
+                pricingPolicy: effectiveModelPolicyDraft,
+                customRowsDocument: effectiveCustomRowsDraft,
                 usageAmount: draftUsageAmount,
-              }
-            );
+              }),
+              sortOption: modelSortOption,
+            });
             const draftOverride = effectiveModelPolicyDraft.perModel[model.id] ?? null;
             const resolvedModelPolicy = resolveModelPricingForModel(
               effectiveModelPolicyDraft,
@@ -390,15 +529,18 @@ export function PricingModelWorkbookTable({
             const markupInputValue =
               markupDraftValue ?? String(resolvedModelPolicy.markupBps / 100);
             const canEditSharedPolicy = model.pricingAuthority === "shared_policy";
-            const rowVariants = sortAdminPricingPreviewVariants({
+            const canAddCustomRow = canAddAdminPricingCustomRow(model, effectiveModelPolicyDraft);
+            const customRowSpecOptions = buildAdminPricingCustomRowSpecOptions(
               model,
-              variants: previewVariants.length ? previewVariants : [null],
-              sortOption: modelSortOption,
-            });
+              effectiveModelPolicyDraft
+            );
             const isExpanded = expandedModelIds[model.id] ?? false;
-            const variantRows = rowVariants.map((variant, index) => {
+            const variantRows = mergedPreviewVariantRows.map((variantRow, index) => {
+              const { variant, displayRowId, isCustomRow, customRow } = variantRow;
               const variantId = variant?.id ?? null;
-              const variantDraftKey = `${model.id}:${variantId ?? "default"}`;
+              const variantDraftKey = isCustomRow
+                ? `${model.id}:${displayRowId}`
+                : `${model.id}:${variantId ?? "default"}`;
               const resolvedVariantPolicy = resolveModelPricingForModel(
                 effectiveModelPolicyDraft,
                 model.id,
@@ -408,19 +550,44 @@ export function PricingModelWorkbookTable({
                 ? (draftOverride?.variants?.[variantId] ?? null)
                 : null;
               const activePreview = variant?.breakdown ?? null;
+              const customRowOverrides = customRow?.overrides ?? null;
+              const effectiveRowMarkupBps =
+                customRowOverrides?.markupBps ?? resolvedVariantPolicy.markupBps;
+              const effectiveRowProviderUsdOverride =
+                customRowOverrides?.providerUsdOverride ??
+                resolvedVariantPolicy.providerUsdOverride;
+              const effectiveRowProviderUsdPerSecondOverride =
+                customRowOverrides?.providerUsdPerSecondOverride ??
+                resolvedVariantPolicy.providerUsdPerSecondOverride;
+              const effectiveRowPolicy = {
+                ...resolvedVariantPolicy,
+                markupBps: effectiveRowMarkupBps,
+                providerUsdOverride: effectiveRowProviderUsdOverride,
+                providerUsdPerSecondOverride: effectiveRowProviderUsdPerSecondOverride,
+              };
               const variantMarkupDraftValue = variantMarkupDrafts[variantDraftKey];
               const variantMarkupInputValue =
                 variantMarkupDraftValue ??
-                (variantOverride?.markupBps != null ? String(variantOverride.markupBps / 100) : "");
+                (isCustomRow
+                  ? customRowOverrides?.markupBps != null
+                    ? String(customRowOverrides.markupBps / 100)
+                    : ""
+                  : variantOverride?.markupBps != null
+                    ? String(variantOverride.markupBps / 100)
+                    : "");
               const rateSourceInputMode = getModelRateSourceInputMode(model);
               const variantProviderCostDraftValue = variantProviderCostDrafts[variantDraftKey];
               const variantProviderCostPerSecondDraftValue =
                 variantProviderCostPerSecondDrafts[variantDraftKey];
               const variantProviderCostPerSecondInputValue =
                 variantProviderCostPerSecondDraftValue ??
-                (variantOverride?.providerUsdPerSecondOverride != null
-                  ? String(variantOverride.providerUsdPerSecondOverride)
-                  : "");
+                (isCustomRow
+                  ? customRowOverrides?.providerUsdPerSecondOverride != null
+                    ? String(customRowOverrides.providerUsdPerSecondOverride)
+                    : ""
+                  : variantOverride?.providerUsdPerSecondOverride != null
+                    ? String(variantOverride.providerUsdPerSecondOverride)
+                    : "");
               const parsedVariantMarkupDraftBps =
                 variantMarkupDraftValue !== undefined
                   ? parsePercentToBps(variantMarkupDraftValue)
@@ -430,7 +597,7 @@ export function PricingModelWorkbookTable({
                 parsedVariantMarkupDraftBps != null &&
                 parsedVariantMarkupDraftBps >= 0
                   ? parsedVariantMarkupDraftBps
-                  : resolvedVariantPolicy.markupBps;
+                  : effectiveRowMarkupBps;
               const parsedVariantProviderCostDraft =
                 variantProviderCostDraftValue !== undefined
                   ? parsePositiveDecimalInput(variantProviderCostDraftValue)
@@ -450,11 +617,11 @@ export function PricingModelWorkbookTable({
               const previewVariantProviderUsdOverride =
                 variantProviderCostDraftValue !== undefined
                   ? parsedVariantProviderCostDraft
-                  : resolvedVariantPolicy.providerUsdOverride;
+                  : effectiveRowProviderUsdOverride;
               const previewVariantProviderUsdPerSecondOverride =
                 variantProviderCostPerSecondDraftValue !== undefined
                   ? parsedVariantProviderCostPerSecondDraft
-                  : resolvedVariantPolicy.providerUsdPerSecondOverride;
+                  : effectiveRowProviderUsdPerSecondOverride;
               const activeProviderCostUsd = getEffectiveProviderCostUsd({
                 breakdown: activePreview,
                 providerUsdOverride: previewVariantProviderUsdOverride,
@@ -509,12 +676,12 @@ export function PricingModelWorkbookTable({
                 breakdown: activePreview,
                 creditsAtCost: activeCreditsAtCost,
                 markupBps: previewVariantMarkupBps,
-                roundingIncrement: resolvedVariantPolicy.roundingIncrement,
+                roundingIncrement: effectiveRowPolicy.roundingIncrement,
                 preferRuntimeBilledCredits: !canEditSharedPolicy,
               });
               const workbookBillableUsd = getWorkbookBillableUsd(
                 workbookBillableCredits,
-                resolvedVariantPolicy.creditUsdScale,
+                effectiveRowPolicy.creditUsdScale,
                 activePreview?.billedUsd,
                 {
                   preferRuntimeBilledUsd: !canEditSharedPolicy,
@@ -525,15 +692,21 @@ export function PricingModelWorkbookTable({
                 workbookBillableUsd,
                 activeProviderCostUsd
               );
-              const markupLabel =
-                rowVariants.length > 1 && variant
+              const rowLabel = customRow?.label ?? `Custom variant ${index + 1}`;
+              const markupLabel = isCustomRow
+                ? `Custom variant markup for ${model.label} ${rowLabel}`
+                : mergedPreviewVariantRows.length > 1 && variant
                   ? `Model markup for ${model.label} ${variant.label}`
                   : `Model markup for ${model.label}`;
 
               return {
-                key: `${model.id}:${variant?.id ?? "unavailable"}`,
+                key: isCustomRow
+                  ? `${model.id}:${displayRowId}`
+                  : `${model.id}:${variant?.id ?? "unavailable"}`,
                 index,
                 variant,
+                displayRowId,
+                isCustomRow,
                 activePreview,
                 activeProviderCostUsd,
                 activeProviderCostUsdPerSecond,
@@ -542,9 +715,10 @@ export function PricingModelWorkbookTable({
                 workbookBillableCredits,
                 workbookBillableUsd,
                 activeMargin,
-                resolvedVariantPolicy,
+                resolvedVariantPolicy: effectiveRowPolicy,
                 variantDraftKey,
                 variantId,
+                rowLabel,
                 resolvedDurationSeconds,
                 usageRateMultiplier,
                 variantMarkupInputValue,
@@ -553,7 +727,8 @@ export function PricingModelWorkbookTable({
                 rateSourceInputMode,
                 rateSourceInputValue,
                 markupLabel,
-                specLabel: getVariantSpecSummary(model, variant, rowVariants.length),
+                customRow,
+                specLabel: getVariantSpecSummary(model, variant, mergedPreviewVariantRows.length),
               };
             });
             const usageDisplayValue = usageInputValue || usageDisplayLabel;
@@ -580,7 +755,10 @@ export function PricingModelWorkbookTable({
               variantRows.length === 1
                 ? "Variant override"
                 : (summaryMarkupRange ?? "Blended from variants");
-            const summaryTypeLabel = getVariantTypeSummary(model, rowVariants);
+            const summaryTypeLabel = getVariantTypeSummary(
+              model,
+              variantRows.map((row) => row.variant)
+            );
             const summaryVariant = variantRows[0]?.variant ?? null;
             const summaryMarginToneClass =
               variantRows.length === 1
@@ -610,6 +788,15 @@ export function PricingModelWorkbookTable({
                         <strong>{model.label}</strong>
                       </button>
                       <small>{variantCountLabel}</small>
+                      {canEditSharedPolicy && canAddCustomRow ? (
+                        <button
+                          type="button"
+                          className={styles.pricingModelSecondaryButton}
+                          onClick={() => addCustomRow(model)}
+                        >
+                          Add custom variant
+                        </button>
+                      ) : null}
                     </div>
                   </span>
                   <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>
@@ -776,8 +963,21 @@ export function PricingModelWorkbookTable({
                         <span
                           className={`${styles.pricingPrimaryCell} ${styles.pricingRateSourceCell}`}
                         >
-                          <strong>{`Variant ${row.index + 1}`}</strong>
-                          <small>{model.label}</small>
+                          <strong>
+                            {row.isCustomRow ? row.rowLabel : `Variant ${row.index + 1}`}
+                          </strong>
+                          <small>
+                            {row.isCustomRow ? `${model.label} · custom row` : model.label}
+                          </small>
+                          {row.isCustomRow && row.customRow ? (
+                            <button
+                              type="button"
+                              className={styles.pricingModelSecondaryButton}
+                              onClick={() => removeCustomRow(model.id, row.customRow!.displayRowId)}
+                            >
+                              Remove
+                            </button>
+                          ) : null}
                         </span>
                         <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>
                           {renderTypeSourceLink(model, getModelTypeLabel(model, row.variant))}
@@ -793,7 +993,135 @@ export function PricingModelWorkbookTable({
                         <span
                           className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
                         >
-                          <strong>{row.specLabel}</strong>
+                          {row.isCustomRow && row.customRow ? (
+                            <div className={styles.pricingSpecEditor}>
+                              {customRowSpecOptions.baseOptions.length > 1 ? (
+                                <label className={styles.pricingSpecControl}>
+                                  <span className="sr-only">{`Base type for ${row.rowLabel}`}</span>
+                                  <select
+                                    aria-label={`Base type for ${row.rowLabel}`}
+                                    className={`${styles.searchInput} ${styles.pricingSpecSelect}`}
+                                    value={encodeNullableString(
+                                      row.customRow.spec.baseVariantId ?? null
+                                    )}
+                                    onChange={(event) =>
+                                      updateCustomRowSpecDraft(model, row.customRow!, {
+                                        baseVariantId: decodeNullableString(event.target.value),
+                                      })
+                                    }
+                                  >
+                                    {customRowSpecOptions.baseOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : null}
+                              {customRowSpecOptions.aspectOptions.length > 1 ? (
+                                <label className={styles.pricingSpecControl}>
+                                  <span className="sr-only">{`Aspect for ${row.rowLabel}`}</span>
+                                  <select
+                                    aria-label={`Aspect for ${row.rowLabel}`}
+                                    className={`${styles.searchInput} ${styles.pricingSpecSelect}`}
+                                    value={encodeNullableString(row.customRow.spec.aspect ?? null)}
+                                    onChange={(event) =>
+                                      updateCustomRowSpecDraft(model, row.customRow!, {
+                                        aspect: decodeNullableString(event.target.value),
+                                      })
+                                    }
+                                  >
+                                    {customRowSpecOptions.aspectOptions.map((option) => (
+                                      <option
+                                        key={`${option.label}-${option.value ?? "null"}`}
+                                        value={encodeNullableString(option.value)}
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : null}
+                              {customRowSpecOptions.resolutionOptions.length > 1 ? (
+                                <label className={styles.pricingSpecControl}>
+                                  <span className="sr-only">{`Resolution for ${row.rowLabel}`}</span>
+                                  <select
+                                    aria-label={`Resolution for ${row.rowLabel}`}
+                                    className={`${styles.searchInput} ${styles.pricingSpecSelect}`}
+                                    value={encodeNullableString(
+                                      row.customRow.spec.resolution ?? null
+                                    )}
+                                    onChange={(event) =>
+                                      updateCustomRowSpecDraft(model, row.customRow!, {
+                                        resolution: decodeNullableString(event.target.value),
+                                      })
+                                    }
+                                  >
+                                    {customRowSpecOptions.resolutionOptions.map((option) => (
+                                      <option
+                                        key={`${option.label}-${option.value ?? "null"}`}
+                                        value={encodeNullableString(option.value)}
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : null}
+                              {customRowSpecOptions.audioOptions.length > 1 ? (
+                                <label className={styles.pricingSpecControl}>
+                                  <span className="sr-only">{`Audio for ${row.rowLabel}`}</span>
+                                  <select
+                                    aria-label={`Audio for ${row.rowLabel}`}
+                                    className={`${styles.searchInput} ${styles.pricingSpecSelect}`}
+                                    value={encodeNullableBoolean(row.customRow.spec.audio ?? null)}
+                                    onChange={(event) =>
+                                      updateCustomRowSpecDraft(model, row.customRow!, {
+                                        audio: decodeNullableBoolean(event.target.value),
+                                      })
+                                    }
+                                  >
+                                    {customRowSpecOptions.audioOptions.map((option) => (
+                                      <option
+                                        key={`${option.label}-${String(option.value)}`}
+                                        value={encodeNullableBoolean(option.value)}
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : null}
+                              {customRowSpecOptions.videoInputOptions.length > 1 ? (
+                                <label className={styles.pricingSpecControl}>
+                                  <span className="sr-only">{`Video input for ${row.rowLabel}`}</span>
+                                  <select
+                                    aria-label={`Video input for ${row.rowLabel}`}
+                                    className={`${styles.searchInput} ${styles.pricingSpecSelect}`}
+                                    value={encodeNullableBoolean(
+                                      row.customRow.spec.videoInput ?? null
+                                    )}
+                                    onChange={(event) =>
+                                      updateCustomRowSpecDraft(model, row.customRow!, {
+                                        videoInput: decodeNullableBoolean(event.target.value),
+                                      })
+                                    }
+                                  >
+                                    {customRowSpecOptions.videoInputOptions.map((option) => (
+                                      <option
+                                        key={`${option.label}-${String(option.value)}`}
+                                        value={encodeNullableBoolean(option.value)}
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <strong>{row.specLabel}</strong>
+                          )}
                         </span>
                         <span
                           className={`${styles.pricingPrimaryCell} ${styles.pricingControlCell}`}
@@ -823,9 +1151,9 @@ export function PricingModelWorkbookTable({
                           </button>
                           {canEditSharedPolicy && row.variantId ? (
                             <label className={styles.pricingSheetInputWrap}>
-                              <span className="sr-only">{`Rate source cost for ${model.label} ${row.specLabel}`}</span>
+                              <span className="sr-only">{`Rate source cost for ${model.label} ${row.rowLabel ?? row.specLabel}`}</span>
                               <input
-                                aria-label={`Rate source cost for ${model.label} ${row.specLabel}`}
+                                aria-label={`Rate source cost for ${model.label} ${row.rowLabel ?? row.specLabel}`}
                                 className={`${styles.searchInput} ${styles.pricingSheetInput}`}
                                 value={row.rateSourceInputValue}
                                 placeholder={
@@ -872,12 +1200,27 @@ export function PricingModelWorkbookTable({
                                       return next;
                                     });
                                   }
-                                  updateModelPolicyDraft((current) =>
-                                    normalizeVariantOverrideDraft(current, model.id, variantId, {
-                                      providerUsdOverride,
-                                      providerUsdPerSecondOverride,
-                                    })
-                                  );
+                                  if (row.isCustomRow && row.customRow) {
+                                    updateCustomRow(
+                                      model.id,
+                                      row.customRow!.displayRowId,
+                                      (currentRow) => ({
+                                        ...currentRow,
+                                        overrides: {
+                                          ...currentRow.overrides,
+                                          providerUsdOverride,
+                                          providerUsdPerSecondOverride,
+                                        },
+                                      })
+                                    );
+                                  } else {
+                                    updateModelPolicyDraft((current) =>
+                                      normalizeVariantOverrideDraft(current, model.id, variantId, {
+                                        providerUsdOverride,
+                                        providerUsdPerSecondOverride,
+                                      })
+                                    );
+                                  }
                                 }}
                               />
                             </label>
@@ -892,9 +1235,9 @@ export function PricingModelWorkbookTable({
                         >
                           {canEditSharedPolicy && row.variantId ? (
                             <label className={styles.pricingSheetInputWrap}>
-                              <span className="sr-only">{`Provider cost for ${model.label} ${row.specLabel}`}</span>
+                              <span className="sr-only">{`Provider cost for ${model.label} ${row.rowLabel ?? row.specLabel}`}</span>
                               <input
-                                aria-label={`Provider cost for ${model.label} ${row.specLabel}`}
+                                aria-label={`Provider cost for ${model.label} ${row.rowLabel ?? row.specLabel}`}
                                 className={`${styles.searchInput} ${styles.pricingSheetInput}`}
                                 value={row.variantProviderCostInputValue}
                                 placeholder={
@@ -977,13 +1320,29 @@ export function PricingModelWorkbookTable({
                                       return next;
                                     });
                                   }
-                                  updateModelPolicyDraft((current) =>
-                                    normalizeVariantOverrideDraft(current, model.id, variantId, {
-                                      providerUsdOverride: derivedProviderUsdOverride,
-                                      providerUsdPerSecondOverride:
-                                        derivedProviderUsdPerSecondOverride,
-                                    })
-                                  );
+                                  if (row.isCustomRow && row.customRow) {
+                                    updateCustomRow(
+                                      model.id,
+                                      row.customRow!.displayRowId,
+                                      (currentRow) => ({
+                                        ...currentRow,
+                                        overrides: {
+                                          ...currentRow.overrides,
+                                          providerUsdOverride: derivedProviderUsdOverride,
+                                          providerUsdPerSecondOverride:
+                                            derivedProviderUsdPerSecondOverride,
+                                        },
+                                      })
+                                    );
+                                  } else {
+                                    updateModelPolicyDraft((current) =>
+                                      normalizeVariantOverrideDraft(current, model.id, variantId, {
+                                        providerUsdOverride: derivedProviderUsdOverride,
+                                        providerUsdPerSecondOverride:
+                                          derivedProviderUsdPerSecondOverride,
+                                      })
+                                    );
+                                  }
                                 }}
                               />
                             </label>
@@ -1021,11 +1380,25 @@ export function PricingModelWorkbookTable({
                                     ...current,
                                     [row.variantDraftKey]: nextValue,
                                   }));
-                                  updateModelPolicyDraft((current) =>
-                                    normalizeVariantOverrideDraft(current, model.id, variantId, {
-                                      markupBps: parsePercentToBps(nextValue),
-                                    })
-                                  );
+                                  if (row.isCustomRow && row.customRow) {
+                                    updateCustomRow(
+                                      model.id,
+                                      row.customRow!.displayRowId,
+                                      (currentRow) => ({
+                                        ...currentRow,
+                                        overrides: {
+                                          ...currentRow.overrides,
+                                          markupBps: parsePercentToBps(nextValue),
+                                        },
+                                      })
+                                    );
+                                  } else {
+                                    updateModelPolicyDraft((current) =>
+                                      normalizeVariantOverrideDraft(current, model.id, variantId, {
+                                        markupBps: parsePercentToBps(nextValue),
+                                      })
+                                    );
+                                  }
                                 }}
                               />
                               <span>%</span>

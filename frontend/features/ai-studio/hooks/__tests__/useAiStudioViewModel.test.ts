@@ -345,6 +345,33 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
+  it("keeps ref-driven Nano Banana 2 standard Create on the canonical text row", () => {
+    const modelId = "fal-ai/nano-banana-2";
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "16:9",
+        prompt: "Create an image of a witch.",
+        referenceImageUrl: "https://example.com/user-reference.png",
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "1K",
+        isCreateCharacterModeEnabled: false,
+        createCharacterModeInjectionBundle: null,
+        costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(5);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
   it("maps GPT Image 2 Create UI resolution labels onto canonical quality rows", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const expectedCost = resolvePricingGridBilledCredits({

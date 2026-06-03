@@ -12,12 +12,7 @@ import {
   type PlanEconomicsDraft,
   type PlanMarginModelRow,
 } from "./pricingAnalysis";
-import {
-  formatCredits,
-  formatFractionalCredits,
-  formatPercent,
-  formatProviderCostUsd,
-} from "./pricingFormatting";
+import { formatFractionalCredits, formatPercent, formatProviderCostUsd } from "./pricingFormatting";
 import type {
   AudioDraftByModelId,
   AspectDraftByModelId,
@@ -25,6 +20,7 @@ import type {
   ModelPricingSortOption,
   ResolutionDraftByModelId,
 } from "./pricingDrafts";
+import type { AdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
 import type { ModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
 import type { AdminPricingModelRow, AdminPricingPlanRow } from "./types";
 import styles from "../../styles/admin.module.css";
@@ -37,6 +33,7 @@ type PricingCalculatorSupportStripProps = {
   aspectDrafts: AspectDraftByModelId;
   resolutionDrafts: ResolutionDraftByModelId;
   audioDrafts: AudioDraftByModelId;
+  customRowsDocument: AdminPricingCustomRowsDocument;
   modelSortOption: ModelPricingSortOption;
   planDraftsByPlanId: Record<string, PlanEconomicsDraft>;
   simulatorPlanIds: string[];
@@ -708,6 +705,7 @@ export function PricingCalculatorSupportStrip({
   aspectDrafts,
   resolutionDrafts,
   audioDrafts,
+  customRowsDocument,
   modelSortOption,
   planDraftsByPlanId,
   simulatorPlanIds,
@@ -739,6 +737,7 @@ export function PricingCalculatorSupportStrip({
       buildModelEconomicsRows({
         models: displayedModels,
         pricingPolicy: effectiveModelPolicyDraft,
+        customRowsDocument,
         durationDrafts,
         aspectDrafts,
         resolutionDrafts,
@@ -748,6 +747,7 @@ export function PricingCalculatorSupportStrip({
     [
       aspectDrafts,
       audioDrafts,
+      customRowsDocument,
       displayedModels,
       durationDrafts,
       effectiveModelPolicyDraft,

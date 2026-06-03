@@ -728,6 +728,16 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   padding-inline: clamp(180px, 18vw, 320px);
 }
 
+.ai-hero-project-name-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: min(560px, 100%);
+  pointer-events: auto;
+}
+
 .ai-hero-project-name-text {
   display: block;
   max-width: min(560px, 100%);
@@ -738,6 +748,50 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.03em;
+}
+
+.ai-hero-project-name-edit-button {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  border-radius: 999px;
+  background: rgba(16, 19, 28, 0.92);
+  color: rgba(223, 232, 245, 0.82);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.ai-hero-project-name-anchor:hover .ai-hero-project-name-edit-button,
+.ai-hero-project-name-anchor:focus-within .ai-hero-project-name-edit-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ai-hero-project-name-edit-button:hover {
+  color: rgba(255, 255, 255, 0.98);
+  border-color: rgba(101, 204, 255, 0.46);
+  background: rgba(20, 24, 34, 0.98);
+}
+
+.ai-hero-project-name-edit-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  outline: 1px solid rgba(101, 204, 255, 0.78);
+  outline-offset: 2px;
 }
 
 @media (max-width: 960px) {

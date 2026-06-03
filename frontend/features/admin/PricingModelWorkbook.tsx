@@ -8,21 +8,16 @@ import type {
   AdminPricingStateResponse,
 } from "./types";
 import {
-  type AudioDraftByModelId,
-  type AspectDraftByModelId,
   MODEL_PRICING_SORT_OPTIONS,
-  type CreditScaleDraftByModelId,
   type DurationDraftByModelId,
   type MarkupDraftByModelId,
   type ModelPricingSortOption,
-  type ProviderCostDraftByModelId,
-  type ProviderCostPerSecondDraftByModelId,
-  type ResolutionDraftByModelId,
   type VariantMarkupDraftByVariantKey,
   type VariantProviderCostDraftByVariantKey,
   type VariantProviderCostPerSecondDraftByVariantKey,
 } from "./pricingPageUtils";
 import { PricingModelWorkbookTable } from "./PricingModelWorkbookTable";
+import type { AdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
 import { type ModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
 import styles from "../../styles/admin.module.css";
 
@@ -30,30 +25,13 @@ type PricingModelWorkbookProps = {
   pricingState: AdminPricingStateResponse | null;
   displayedModels: AdminPricingModelRow[];
   effectiveModelPolicyDraft: ModelPricingPolicyDocument;
+  effectiveCustomRowsDraft: AdminPricingCustomRowsDocument;
   durationDrafts: DurationDraftByModelId;
   setDurationDrafts: React.Dispatch<React.SetStateAction<DurationDraftByModelId>>;
-  aspectDrafts: AspectDraftByModelId;
-  updateAspectDraft: (modelId: string, value: string) => void;
-  resolutionDrafts: ResolutionDraftByModelId;
-  updateResolutionDraft: (modelId: string, value: string) => void;
-  audioDrafts: AudioDraftByModelId;
-  updateAudioDraft: (
-    modelId: string,
-    value: AudioDraftByModelId[string],
-    model: AdminPricingModelRow
-  ) => void;
-  creditScaleDrafts: CreditScaleDraftByModelId;
-  setCreditScaleDrafts: React.Dispatch<React.SetStateAction<CreditScaleDraftByModelId>>;
   markupDrafts: MarkupDraftByModelId;
   setMarkupDrafts: React.Dispatch<React.SetStateAction<MarkupDraftByModelId>>;
   variantMarkupDrafts: VariantMarkupDraftByVariantKey;
   setVariantMarkupDrafts: React.Dispatch<React.SetStateAction<VariantMarkupDraftByVariantKey>>;
-  providerCostDrafts: ProviderCostDraftByModelId;
-  setProviderCostDrafts: React.Dispatch<React.SetStateAction<ProviderCostDraftByModelId>>;
-  providerCostPerSecondDrafts: ProviderCostPerSecondDraftByModelId;
-  setProviderCostPerSecondDrafts: React.Dispatch<
-    React.SetStateAction<ProviderCostPerSecondDraftByModelId>
-  >;
   variantProviderCostDrafts: VariantProviderCostDraftByVariantKey;
   setVariantProviderCostDrafts: React.Dispatch<
     React.SetStateAction<VariantProviderCostDraftByVariantKey>
@@ -84,30 +62,22 @@ type PricingModelWorkbookProps = {
   updateModelPolicyDraft: (
     updater: (current: ModelPricingPolicyDocument) => ModelPricingPolicyDocument
   ) => void;
+  updateCustomRowsDraft: (
+    updater: (current: AdminPricingCustomRowsDocument) => AdminPricingCustomRowsDocument
+  ) => void;
 };
 
 export const PricingModelWorkbook = ({
   pricingState,
   displayedModels,
   effectiveModelPolicyDraft,
+  effectiveCustomRowsDraft,
   durationDrafts,
   setDurationDrafts,
-  aspectDrafts,
-  updateAspectDraft,
-  resolutionDrafts,
-  updateResolutionDraft,
-  audioDrafts,
-  updateAudioDraft,
-  creditScaleDrafts,
-  setCreditScaleDrafts,
   markupDrafts,
   setMarkupDrafts,
   variantMarkupDrafts,
   setVariantMarkupDrafts,
-  providerCostDrafts,
-  setProviderCostDrafts,
-  providerCostPerSecondDrafts,
-  setProviderCostPerSecondDrafts,
   variantProviderCostDrafts,
   setVariantProviderCostDrafts,
   variantProviderCostPerSecondDrafts,
@@ -127,6 +97,7 @@ export const PricingModelWorkbook = ({
   showCostDocsPopover,
   hideCostDocsPopover,
   updateModelPolicyDraft,
+  updateCustomRowsDraft,
 }: PricingModelWorkbookProps) => {
   return (
     <section className={styles.adminSection}>
@@ -206,14 +177,9 @@ export const PricingModelWorkbook = ({
           <PricingModelWorkbookTable
             displayedModels={displayedModels}
             effectiveModelPolicyDraft={effectiveModelPolicyDraft}
+            effectiveCustomRowsDraft={effectiveCustomRowsDraft}
             durationDrafts={durationDrafts}
             setDurationDrafts={setDurationDrafts}
-            aspectDrafts={aspectDrafts}
-            updateAspectDraft={updateAspectDraft}
-            resolutionDrafts={resolutionDrafts}
-            updateResolutionDraft={updateResolutionDraft}
-            audioDrafts={audioDrafts}
-            updateAudioDraft={updateAudioDraft}
             markupDrafts={markupDrafts}
             setMarkupDrafts={setMarkupDrafts}
             variantMarkupDrafts={variantMarkupDrafts}
@@ -226,6 +192,7 @@ export const PricingModelWorkbook = ({
             showCostDocsPopover={showCostDocsPopover}
             hideCostDocsPopover={hideCostDocsPopover}
             updateModelPolicyDraft={updateModelPolicyDraft}
+            updateCustomRowsDraft={updateCustomRowsDraft}
           />
         </>
       ) : null}

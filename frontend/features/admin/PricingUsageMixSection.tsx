@@ -8,6 +8,7 @@ import {
 } from "./pricingAnalysis";
 import { formatCredits, formatPercent, formatProviderCostUsd } from "./pricingFormatting";
 import type { AdminPricingModelRow, AdminPricingPlanRow } from "./types";
+import type { AdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
 import type { ModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
 import styles from "../../styles/admin.module.css";
 
@@ -23,6 +24,7 @@ export function PricingUsageMixSection({
   models,
   modelRows,
   pricingPolicy,
+  customRowsDocument,
   isDraftDirty,
 }: {
   plans: AdminPricingPlanRow[];
@@ -36,6 +38,7 @@ export function PricingUsageMixSection({
   models: AdminPricingModelRow[];
   modelRows: ModelEconomicsRow[];
   pricingPolicy: ModelPricingPolicyDocument;
+  customRowsDocument: AdminPricingCustomRowsDocument;
   isDraftDirty: boolean;
 }) {
   const selectedPlan = plans.find((plan) => plan.planId === selectedPlanId) ?? null;
@@ -50,8 +53,9 @@ export function PricingUsageMixSection({
         models,
         pricingPolicy,
         planSummary,
+        customRowsDocument,
       }),
-    [models, planSummary, pricingPolicy, usageMixRows]
+    [customRowsDocument, models, planSummary, pricingPolicy, usageMixRows]
   );
 
   const totalMonthlyCost = usageRows.reduce(

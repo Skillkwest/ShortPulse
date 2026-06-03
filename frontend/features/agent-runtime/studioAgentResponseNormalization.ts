@@ -25,6 +25,11 @@ const UNSTRUCTURED_REFUSAL_PATTERNS: RegExp[] = [
   /\bcontent\s+policy\b/i,
 ];
 
+const UNSTRUCTURED_UNCERTAINTY_PATTERNS: RegExp[] = [
+  /\b(?:cannot|can't|can not|am unable to|not able|unable)\s+to\s+(?:identify|determine|tell|guess|confirm)\b/i,
+  /\b(?:hard|difficult)\s+to\s+(?:identify|determine|tell|guess|confirm)\b/i,
+];
+
 const stripUnstructuredPromptPreamble = (value: string): string => {
   let next = value;
   UNSTRUCTURED_PROMPT_PREFIX_PATTERNS.forEach((pattern) => {
@@ -37,6 +42,12 @@ const isLikelyUnstructuredRefusal = (value: string): boolean => {
   const normalized = value.trim();
   if (!normalized.length) return false;
   if (normalized === STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE) return true;
+  if (
+    UNSTRUCTURED_UNCERTAINTY_PATTERNS.some((pattern) => pattern.test(normalized)) &&
+    !/\b(?:safety|content)\s+policy\b/i.test(normalized)
+  ) {
+    return false;
+  }
   return UNSTRUCTURED_REFUSAL_PATTERNS.some((pattern) => pattern.test(normalized));
 };
 
@@ -290,6 +301,12 @@ export const isStudioAgentRefusalResponse = ({
   if (hasApplyPrompt) return false;
   const message = response.message?.trim() ?? "";
   if (!message.length) return false;
+  if (
+    UNSTRUCTURED_UNCERTAINTY_PATTERNS.some((pattern) => pattern.test(message)) &&
+    !/\b(?:safety|content)\s+policy\b/i.test(message)
+  ) {
+    return false;
+  }
   return /(^|\s)(cannot|can't|unable|refuse|won't|not able)\b/i.test(message);
 };
 

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PricingCalculatorSupportStrip } from "../PricingCalculatorSupportStrip";
 import type { AdminPricingModelRow, AdminPricingPlanRow } from "../types";
+import { getDefaultAdminPricingCustomRowsDocument } from "../../../lib/model-runtime/adminPricingCustomRows";
 import { getDefaultModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 
 const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingModelRow =>
@@ -94,6 +95,7 @@ describe("PricingCalculatorSupportStrip", () => {
         aspectDrafts={{}}
         resolutionDrafts={{}}
         audioDrafts={{}}
+        customRowsDocument={getDefaultAdminPricingCustomRowsDocument()}
         modelSortOption="model_asc"
         planDraftsByPlanId={{
           plus: {
@@ -166,6 +168,7 @@ describe("PricingCalculatorSupportStrip", () => {
         aspectDrafts={{}}
         resolutionDrafts={{}}
         audioDrafts={{}}
+        customRowsDocument={getDefaultAdminPricingCustomRowsDocument()}
         modelSortOption="model_asc"
         planDraftsByPlanId={{
           free: {
@@ -208,6 +211,7 @@ describe("PricingCalculatorSupportStrip", () => {
         aspectDrafts={{}}
         resolutionDrafts={{}}
         audioDrafts={{}}
+        customRowsDocument={getDefaultAdminPricingCustomRowsDocument()}
         modelSortOption="model_asc"
         planDraftsByPlanId={{
           "sim-plan-1": {
@@ -248,6 +252,7 @@ describe("PricingCalculatorSupportStrip", () => {
         aspectDrafts={{}}
         resolutionDrafts={{}}
         audioDrafts={{}}
+        customRowsDocument={getDefaultAdminPricingCustomRowsDocument()}
         modelSortOption="model_asc"
         planDraftsByPlanId={{
           "sim-plan-1": {

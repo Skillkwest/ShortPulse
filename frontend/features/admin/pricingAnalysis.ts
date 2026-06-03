@@ -2,7 +2,7 @@ import {
   resolveModelPricingForModel,
   type ModelPricingPolicyDocument,
 } from "../../lib/model-runtime/pricingPolicy";
-import { buildDraftPricingPreviewVariants } from "./pricingCostDocs";
+import type { AdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
 import {
   formatCredits,
   getModelUsageLabel,
@@ -30,8 +30,11 @@ import {
   getPricingMargin,
   getWorkbookBillableCredits,
   getWorkbookBillableUsd,
-  sortAdminPricingPreviewVariants,
 } from "./pricingWorkbookMath";
+import {
+  buildMergedPricingPreviewVariants,
+  sortMergedPricingPreviewVariantRows,
+} from "./pricingCustomRows";
 import type { AdminPricingModelRow, AdminPricingPlanRow } from "./types";
 
 const DEFAULT_PROCESSOR_PERCENT = 2.9;
@@ -50,8 +53,10 @@ export type PricingGridTab = "grid" | "model-economics" | "plan-economics" | "us
 
 export type ModelEconomicsRow = {
   key: string;
+  displayRowId: string;
   modelId: string;
   variantId: string;
+  isCustomRow: boolean;
   modelLabel: string;
   provider: AdminPricingModelRow["provider"];
   typeLabel: string;
@@ -153,7 +158,7 @@ export type UsageMixAnalysisRow = {
 
 const buildModelEconomicsRow = ({
   model,
-  variant,
+  variantRow,
   pricingPolicy,
   durationSecondsOverride = null,
   variantCount = 1,
@@ -162,7 +167,7 @@ const buildModelEconomicsRow = ({
   audioDrafts = {},
 }: {
   model: AdminPricingModelRow;
-  variant: NonNullable<ReturnType<typeof buildDraftPricingPreviewVariants>[number]>;
+  variantRow: ReturnType<typeof buildMergedPricingPreviewVariants>[number];
   pricingPolicy: ModelPricingPolicyDocument;
   durationSecondsOverride?: number | null;
   variantCount?: number;
@@ -170,7 +175,14 @@ const buildModelEconomicsRow = ({
   resolutionDrafts?: ResolutionDraftByModelId;
   audioDrafts?: AudioDraftByModelId;
 }): ModelEconomicsRow => {
+  const { variant, displayRowId, isCustomRow, customRow } = variantRow;
   const resolvedPolicy = resolveModelPricingForModel(pricingPolicy, model.id, variant.id);
+  const effectiveMarkupBps = customRow?.overrides.markupBps ?? resolvedPolicy.markupBps;
+  const effectiveProviderUsdOverride =
+    customRow?.overrides.providerUsdOverride ?? resolvedPolicy.providerUsdOverride;
+  const effectiveProviderUsdPerSecondOverride =
+    customRow?.overrides.providerUsdPerSecondOverride ??
+    resolvedPolicy.providerUsdPerSecondOverride;
   const isSharedPolicyModel = model.pricingAuthority === "shared_policy";
   const usageValue = durationSecondsOverride ?? getModelUsageValue(model, undefined);
   const durationSeconds = getModelDurationSecondsForUsage(model, usageValue);
@@ -178,8 +190,8 @@ const buildModelEconomicsRow = ({
   const providerCostUsd = isSharedPolicyModel
     ? getEffectiveProviderCostUsd({
         breakdown: variant.breakdown,
-        providerUsdOverride: resolvedPolicy.providerUsdOverride,
-        providerUsdPerSecondOverride: resolvedPolicy.providerUsdPerSecondOverride,
+        providerUsdOverride: effectiveProviderUsdOverride,
+        providerUsdPerSecondOverride: effectiveProviderUsdPerSecondOverride,
         durationSeconds,
         usageRateMultiplier,
       })
@@ -187,7 +199,7 @@ const buildModelEconomicsRow = ({
   const costPerSecondUsd = isSharedPolicyModel
     ? getEffectiveProviderCostUsdPerSecond({
         providerCostUsd,
-        providerUsdPerSecondOverride: resolvedPolicy.providerUsdPerSecondOverride,
+        providerUsdPerSecondOverride: effectiveProviderUsdPerSecondOverride,
         durationSeconds,
       })
     : durationSeconds != null && durationSeconds > 0 && providerCostUsd != null
@@ -204,7 +216,7 @@ const buildModelEconomicsRow = ({
       ? getWorkbookBillableCredits({
           breakdown: variant.breakdown,
           creditsAtCost,
-          markupBps: resolvedPolicy.markupBps,
+          markupBps: effectiveMarkupBps,
           roundingIncrement: resolvedPolicy.roundingIncrement,
           preferRuntimeBilledCredits: false,
         })
@@ -223,9 +235,11 @@ const buildModelEconomicsRow = ({
   const margin = getPricingMargin(variant.breakdown, billedUsd, providerCostUsd);
 
   return {
-    key: `${model.id}:${variant.id}`,
+    key: isCustomRow ? `${model.id}:${displayRowId}` : `${model.id}:${variant.id}`,
+    displayRowId,
     modelId: model.id,
     variantId: variant.id,
+    isCustomRow,
     modelLabel: model.label,
     provider: model.provider,
     typeLabel: getModelTypeLabel(model, variant),
@@ -245,7 +259,7 @@ const buildModelEconomicsRow = ({
     marginUsd: margin?.usd ?? null,
     marginPercent: margin?.percent ?? null,
     creditUsdScale: isSharedPolicyModel ? resolvedPolicy.creditUsdScale : null,
-    markupBps: isSharedPolicyModel ? resolvedPolicy.markupBps : null,
+    markupBps: isSharedPolicyModel ? effectiveMarkupBps : null,
     roundingIncrement: isSharedPolicyModel ? resolvedPolicy.roundingIncrement : null,
     pricingAuthority: model.pricingAuthority,
   };
@@ -259,6 +273,7 @@ export const buildModelEconomicsRows = ({
   resolutionDrafts = {},
   audioDrafts = {},
   sortOption,
+  customRowsDocument,
 }: {
   models: AdminPricingModelRow[];
   pricingPolicy: ModelPricingPolicyDocument;
@@ -267,34 +282,34 @@ export const buildModelEconomicsRows = ({
   resolutionDrafts?: ResolutionDraftByModelId;
   audioDrafts?: AudioDraftByModelId;
   sortOption?: ModelPricingSortOption;
+  customRowsDocument?: AdminPricingCustomRowsDocument | null;
 }): ModelEconomicsRow[] =>
   models.flatMap((model) => {
     const parsedDuration = getModelUsageValue(model, durationDrafts[model.id]);
-    const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, {
+    const variantRows = buildMergedPricingPreviewVariants({
+      model,
+      pricingPolicy,
+      customRowsDocument,
       usageAmount: parsedDuration,
     });
-    if (!variants.length) return [];
-    const sortedVariants = sortOption
-      ? sortAdminPricingPreviewVariants({
-          model,
-          variants,
-          sortOption,
-        })
-      : variants;
-    return sortedVariants
-      .filter((variant): variant is NonNullable<(typeof sortedVariants)[number]> => variant != null)
-      .map((variant) =>
-        buildModelEconomicsRow({
-          model,
-          variant,
-          pricingPolicy,
-          durationSecondsOverride: parsedDuration,
-          variantCount: variants.length,
-          aspectDrafts,
-          resolutionDrafts,
-          audioDrafts,
-        })
-      );
+    if (!variantRows.length) return [];
+    const sortedVariantRows = sortMergedPricingPreviewVariantRows({
+      model,
+      rows: variantRows,
+      sortOption,
+    });
+    return sortedVariantRows.map((variantRow) =>
+      buildModelEconomicsRow({
+        model,
+        variantRow,
+        pricingPolicy,
+        durationSecondsOverride: parsedDuration,
+        variantCount: variantRows.length,
+        aspectDrafts,
+        resolutionDrafts,
+        audioDrafts,
+      })
+    );
   });
 
 export const buildSelectedModelEconomicsRow = ({
@@ -306,6 +321,7 @@ export const buildSelectedModelEconomicsRow = ({
   aspectDrafts = {},
   resolutionDrafts = {},
   audioDrafts = {},
+  customRowsDocument,
 }: {
   models: AdminPricingModelRow[];
   pricingPolicy: ModelPricingPolicyDocument;
@@ -315,23 +331,27 @@ export const buildSelectedModelEconomicsRow = ({
   aspectDrafts?: AspectDraftByModelId;
   resolutionDrafts?: ResolutionDraftByModelId;
   audioDrafts?: AudioDraftByModelId;
+  customRowsDocument?: AdminPricingCustomRowsDocument | null;
 }): ModelEconomicsRow | null => {
   const model = models.find((candidate) => candidate.id === modelId);
   if (!model) return null;
   const parsedDuration =
     durationSeconds == null ? null : getModelUsageValue(model, String(durationSeconds));
-  const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, {
+  const variantRows = buildMergedPricingPreviewVariants({
+    model,
+    pricingPolicy,
+    customRowsDocument,
     usageAmount: parsedDuration,
   });
-  const selectedVariant =
-    variants.find((candidate) => candidate.id === variantId) ?? variants[0] ?? null;
-  if (!selectedVariant) return null;
+  const selectedVariantRow =
+    variantRows.find((candidate) => candidate.variant.id === variantId) ?? variantRows[0] ?? null;
+  if (!selectedVariantRow) return null;
   return buildModelEconomicsRow({
     model,
-    variant: selectedVariant,
+    variantRow: selectedVariantRow,
     pricingPolicy,
     durationSecondsOverride: parsedDuration,
-    variantCount: variants.length,
+    variantCount: variantRows.length,
     aspectDrafts,
     resolutionDrafts,
     audioDrafts,
@@ -525,6 +545,7 @@ export const buildUsageMixAnalysisRows = ({
   aspectDrafts = {},
   resolutionDrafts = {},
   audioDrafts = {},
+  customRowsDocument,
 }: {
   rows: UsageMixDraftRow[];
   models: AdminPricingModelRow[];
@@ -533,6 +554,7 @@ export const buildUsageMixAnalysisRows = ({
   aspectDrafts?: AspectDraftByModelId;
   resolutionDrafts?: ResolutionDraftByModelId;
   audioDrafts?: AudioDraftByModelId;
+  customRowsDocument?: AdminPricingCustomRowsDocument | null;
 }): UsageMixAnalysisRow[] => {
   const rawRows = rows.map((row) => {
     const selectedModelRow = buildSelectedModelEconomicsRow({
@@ -544,6 +566,7 @@ export const buildUsageMixAnalysisRows = ({
       aspectDrafts,
       resolutionDrafts,
       audioDrafts,
+      customRowsDocument,
     });
     const runsPerMonth = clampNonNegative(parseNumericInput(row.runsPerMonth));
 

@@ -20,6 +20,26 @@ describe("StandardMessageRenderer", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
+  it("promotes a trailing section label into a heading when the next block is a list", () => {
+    render(
+      <StandardMessageRenderer
+        content={
+          "Lighting should feel ceremonial and silhouette-first. Avoid:\n\n- bright frontal fill\n- over-revealed skin"
+        }
+        tone="assistant"
+      />
+    );
+
+    expect(
+      screen.getByText("Lighting should feel ceremonial and silhouette-first.", { exact: true })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Avoid")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    expect(
+      screen.queryByText("Lighting should feel ceremonial and silhouette-first. Avoid:")
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps Standard user content on the basic contract", () => {
     render(
       <StandardMessageRenderer

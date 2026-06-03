@@ -3,6 +3,11 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  compactAdminPricingCustomRowsDocument,
+  getDefaultAdminPricingCustomRowsDocument,
+  type AdminPricingCustomRowsDocument,
+} from "../../model-runtime/adminPricingCustomRows";
+import {
   compactModelPricingPolicyDocument,
   getDefaultModelPricingPolicyDocument,
   type ModelPricingPolicyDocument,
@@ -13,6 +18,7 @@ export type ActiveModelPricingPolicy = {
   activePolicyVersion: number;
   activePolicyVersionId: number;
   activePolicy: ModelPricingPolicyDocument;
+  activeCustomRows: AdminPricingCustomRowsDocument;
   lastKnownSafePolicyVersion: number | null;
   lastKnownSafePolicyVersionId: number | null;
   updatedAt: string;
@@ -32,6 +38,7 @@ export type ModelPricingPolicyMutationResult = {
   activePolicyVersion: number | null;
   activePolicyVersionId: number | null;
   activePolicy: ModelPricingPolicyDocument | null;
+  activeCustomRows: AdminPricingCustomRowsDocument | null;
   activePolicyUpdatedAt: string | null;
   activePolicyUpdatedByEmail: string | null;
   message: string | null;
@@ -39,6 +46,7 @@ export type ModelPricingPolicyMutationResult = {
 
 export type RuntimeModelPricingPolicyResolution = {
   policy: ModelPricingPolicyDocument;
+  customRows: AdminPricingCustomRowsDocument;
   activePolicyVersion: number | null;
   activePolicyVersionId: number | null;
   source: "control_plane";
@@ -61,6 +69,9 @@ const VALID_STATUSES = new Set<ModelPricingPolicyMutationStatus>([
   "not_initialized",
   "rejected",
 ]);
+const APPLY_MODEL_PRICING_POLICY_RPC = "apply_model_pricing_policy";
+const APPLY_MODEL_PRICING_POLICY_SIGNATURE_MISS =
+  "Could not find the function public.apply_model_pricing_policy";
 
 let runtimePolicyCache: {
   expiresAtMs: number;
@@ -102,6 +113,20 @@ const asMutationStatus = (value: unknown): ModelPricingPolicyMutationStatus | nu
     : null;
 };
 
+const isApplyPolicyRpcSignatureMissError = (
+  error: { message?: string; code?: string } | null
+): boolean => {
+  if (!error) return false;
+  const normalizedCode = String(error.code ?? "").toUpperCase();
+  if (normalizedCode === "PGRST202" || normalizedCode === "42883") return true;
+  return typeof error.message === "string"
+    ? error.message.includes(APPLY_MODEL_PRICING_POLICY_SIGNATURE_MISS)
+    : false;
+};
+
+const hasCustomPricingRows = (document: AdminPricingCustomRowsDocument): boolean =>
+  Object.values(document.rowsByModel).some((rows) => rows.length > 0);
+
 const resolveControlPlaneCacheTtlMs = (rawValue?: string | null): number => {
   const parsed = Number(rawValue ?? String(DEFAULT_CONTROL_PLANE_CACHE_TTL_MS));
   if (!Number.isFinite(parsed)) return DEFAULT_CONTROL_PLANE_CACHE_TTL_MS;
@@ -123,6 +148,7 @@ const mapActivePolicy = (row: Record<string, unknown> | null): ActiveModelPricin
     activePolicyVersion,
     activePolicyVersionId,
     activePolicy: compactModelPricingPolicyDocument(row.active_policy),
+    activeCustomRows: compactAdminPricingCustomRowsDocument(row.active_custom_rows),
     lastKnownSafePolicyVersion: asNullableNumber(row.last_known_safe_policy_version),
     lastKnownSafePolicyVersionId: asNullableNumber(row.last_known_safe_policy_version_id),
     updatedAt,
@@ -139,6 +165,7 @@ const mapMutationResult = (
   activePolicyVersion: asNullableNumber(row?.active_policy_version),
   activePolicyVersionId: asNullableNumber(row?.active_policy_version_id),
   activePolicy: null,
+  activeCustomRows: null,
   activePolicyUpdatedAt: null,
   activePolicyUpdatedByEmail: null,
   message: asNullableString(row?.message),
@@ -260,6 +287,7 @@ export const resolveRuntimeModelPricingPolicy = async ({
     if (cached) {
       return {
         policy: cached.activePolicy,
+        customRows: cached.activeCustomRows,
         activePolicyVersion: cached.activePolicyVersion,
         activePolicyVersionId: cached.activePolicyVersionId,
         source: "control_plane",
@@ -283,6 +311,7 @@ export const resolveRuntimeModelPricingPolicy = async ({
   }
   return {
     policy: activePolicy.activePolicy,
+    customRows: activePolicy.activeCustomRows,
     activePolicyVersion: activePolicy.activePolicyVersion,
     activePolicyVersionId: activePolicy.activePolicyVersionId,
     source: "control_plane",
@@ -293,6 +322,7 @@ export const resolveRuntimeModelPricingPolicy = async ({
 
 export const applyModelPricingPolicy = async ({
   policy,
+  customRows = getDefaultAdminPricingCustomRowsDocument(),
   note,
   reason,
   actorUserId,
@@ -300,21 +330,44 @@ export const applyModelPricingPolicy = async ({
   supabaseAdmin = getSupabaseAdmin(),
 }: {
   policy: ModelPricingPolicyDocument;
+  customRows?: AdminPricingCustomRowsDocument;
   note?: string | null;
   reason?: string | null;
   actorUserId?: string | null;
   actorEmail?: string | null;
   supabaseAdmin?: SupabaseClient;
 }): Promise<ModelPricingPolicyMutationResult> => {
+  const normalizedCustomRows = compactAdminPricingCustomRowsDocument(customRows);
+
   const applyPolicy = async () => {
-    const { data, error } = await supabaseAdmin.rpc("apply_model_pricing_policy", {
+    let { data, error } = await supabaseAdmin.rpc(APPLY_MODEL_PRICING_POLICY_RPC, {
       p_policy: compactModelPricingPolicyDocument(policy),
+      p_custom_rows: normalizedCustomRows,
       p_note: note ?? null,
       p_reason: reason ?? null,
       p_actor_user_id: actorUserId ?? null,
       p_actor_email: actorEmail ?? null,
       p_source: "admin_api",
     });
+
+    if (isApplyPolicyRpcSignatureMissError(error)) {
+      if (hasCustomPricingRows(normalizedCustomRows)) {
+        throw new Error(
+          "Model pricing custom rows require the latest control-plane SQL migration before they can be saved."
+        );
+      }
+      const legacyRpcResult = await supabaseAdmin.rpc(APPLY_MODEL_PRICING_POLICY_RPC, {
+        p_policy: compactModelPricingPolicyDocument(policy),
+        p_note: note ?? null,
+        p_reason: reason ?? null,
+        p_actor_user_id: actorUserId ?? null,
+        p_actor_email: actorEmail ?? null,
+        p_source: "admin_api",
+      });
+      data = legacyRpcResult.data;
+      error = legacyRpcResult.error;
+    }
+
     if (error) {
       throw new Error(error.message || "Failed to apply model pricing policy.");
     }
@@ -340,6 +393,7 @@ export const applyModelPricingPolicy = async ({
   return {
     ...result,
     activePolicy: activePolicy?.activePolicy ?? null,
+    activeCustomRows: activePolicy?.activeCustomRows ?? null,
     activePolicyUpdatedAt: activePolicy?.updatedAt ?? null,
     activePolicyUpdatedByEmail: activePolicy?.updatedByEmail ?? null,
   };

@@ -3,7 +3,15 @@
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
 import React from "react";
-import { Eye, FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
+import {
+  Eye,
+  FlowArrow,
+  Globe,
+  PencilSimple,
+  type IconProps,
+  SquaresFour,
+  StackSimple,
+} from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
@@ -1536,14 +1544,29 @@ export function AiStudioPageContent({
             </div>
           </div>
           {visibleProjectName ? (
-            <div
-              className="ai-hero-project-name"
-              role="status"
-              aria-live="polite"
-              aria-label={`Current project: ${visibleProjectName}`}
-              title={visibleProjectName}
-            >
-              <span className="ai-hero-project-name-text">{visibleProjectName}</span>
+            <div className="ai-hero-project-name">
+              <div className="ai-hero-project-name-anchor">
+                <span
+                  className="ai-hero-project-name-text"
+                  role="status"
+                  aria-live="polite"
+                  aria-label={`Current project: ${visibleProjectName}`}
+                  title={visibleProjectName}
+                >
+                  {visibleProjectName}
+                </span>
+                {onOpenMediaLibrary ? (
+                  <button
+                    type="button"
+                    className="ai-hero-project-name-edit-button"
+                    aria-label="Edit project name in Media panel"
+                    title="Edit project name"
+                    onClick={onOpenMediaLibrary}
+                  >
+                    <PencilSimple size={13} weight="bold" aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
           <div className="hero-right">

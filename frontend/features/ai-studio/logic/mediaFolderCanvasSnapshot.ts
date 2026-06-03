@@ -348,10 +348,14 @@ export const reconcileFolderMembershipCanvasItems = ({
   items,
   mediaRows,
   promptRows,
+  includeMissingMembershipItems = true,
+  preserveMissingMembershipItemIds,
 }: {
   items: CanvasSceneItem[];
   mediaRows: MediaFileRow[];
   promptRows: PromptRow[];
+  includeMissingMembershipItems?: boolean;
+  preserveMissingMembershipItemIds?: ReadonlySet<string>;
 }): CanvasSceneItem[] => {
   const mediaById = new Map(mediaRows.map((row) => [row.id, row]));
   const promptById = new Map(promptRows.map((row) => [row.id, row]));
@@ -361,7 +365,9 @@ export const reconcileFolderMembershipCanvasItems = ({
         const mediaId = item.mediaId?.trim() || null;
         if (!mediaId) return item;
         const row = mediaById.get(mediaId);
-        if (!row) return null;
+        if (!row) {
+          return preserveMissingMembershipItemIds?.has(item.id) ? item : null;
+        }
         const src = (row.signedUrl ?? "").trim() || item.src;
         return {
           ...item,
@@ -376,7 +382,9 @@ export const reconcileFolderMembershipCanvasItems = ({
       const promptId = getPromptIdFromCanvasOutputId(item.outputId);
       if (!promptId) return item;
       const row = promptById.get(promptId);
-      if (!row) return null;
+      if (!row) {
+        return preserveMissingMembershipItemIds?.has(item.id) ? item : null;
+      }
       return {
         ...item,
         id: `prompt:${promptId}`,
@@ -407,56 +415,58 @@ export const reconcileFolderMembershipCanvasItems = ({
   const existingZ = next.reduce((max, item) => Math.max(max, item.z), 0);
   let nextZ = existingZ + 1;
 
-  mediaRows.forEach((row) => {
-    const itemId = `media:${row.id}`;
-    if (existingIds.has(itemId)) return;
-    const src = (row.signedUrl ?? "").trim();
-    if (!src) return;
-    const aspect = resolveMediaCardAspectRatio({
-      fileType: row.file_type,
-      width: row.width,
-      height: row.height,
-      metadata: row.metadata,
+  if (includeMissingMembershipItems) {
+    mediaRows.forEach((row) => {
+      const itemId = `media:${row.id}`;
+      if (existingIds.has(itemId)) return;
+      const src = (row.signedUrl ?? "").trim();
+      if (!src) return;
+      const aspect = resolveMediaCardAspectRatio({
+        fileType: row.file_type,
+        width: row.width,
+        height: row.height,
+        metadata: row.metadata,
+      });
+      const size = resolveSeedImageSize(aspect);
+      next.push({
+        id: itemId,
+        kind: "image",
+        x: 0,
+        y: 0,
+        z: nextZ,
+        selected: false,
+        outputId: null,
+        sourceSurface: null,
+        mediaId: row.id,
+        src,
+        alt: (row.filename || "Canvas media").trim(),
+        width: size.width,
+        height: size.height,
+      });
+      nextZ += 1;
     });
-    const size = resolveSeedImageSize(aspect);
-    next.push({
-      id: itemId,
-      kind: "image",
-      x: 0,
-      y: 0,
-      z: nextZ,
-      selected: false,
-      outputId: null,
-      sourceSurface: null,
-      mediaId: row.id,
-      src,
-      alt: (row.filename || "Canvas media").trim(),
-      width: size.width,
-      height: size.height,
-    });
-    nextZ += 1;
-  });
 
-  promptRows.forEach((row) => {
-    const itemId = `prompt:${row.id}`;
-    if (existingIds.has(itemId)) return;
-    const text = row.prompt_text.trim();
-    if (!text) return;
-    next.push({
-      id: itemId,
-      kind: "text",
-      x: 0,
-      y: 0,
-      z: nextZ,
-      selected: false,
-      outputId: toPromptOutputId(row.id),
-      sourceSurface: null,
-      text,
-      width: DEFAULT_TEXT_WIDTH,
-      height: CANVAS_TEXT_ITEM_MIN_HEIGHT,
+    promptRows.forEach((row) => {
+      const itemId = `prompt:${row.id}`;
+      if (existingIds.has(itemId)) return;
+      const text = row.prompt_text.trim();
+      if (!text) return;
+      next.push({
+        id: itemId,
+        kind: "text",
+        x: 0,
+        y: 0,
+        z: nextZ,
+        selected: false,
+        outputId: toPromptOutputId(row.id),
+        sourceSurface: null,
+        text,
+        width: DEFAULT_TEXT_WIDTH,
+        height: CANVAS_TEXT_ITEM_MIN_HEIGHT,
+      });
+      nextZ += 1;
     });
-    nextZ += 1;
-  });
+  }
 
   return next;
 };

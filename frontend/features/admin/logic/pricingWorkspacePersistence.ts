@@ -15,6 +15,11 @@ import type {
 import { MODEL_PRICING_SORT_OPTIONS } from "../pricingPageUtils";
 import type { PlanEconomicsDraft, UsageMixDraftRow } from "../pricingAnalysis";
 import {
+  compactAdminPricingCustomRowsDocument,
+  getDefaultAdminPricingCustomRowsDocument,
+  type AdminPricingCustomRowsDocument,
+} from "../../../lib/model-runtime/adminPricingCustomRows";
+import {
   compactModelPricingPolicyDocument,
   type ModelPricingPolicyDocument,
 } from "../../../lib/model-runtime/pricingPolicy";
@@ -31,6 +36,7 @@ export type AdminPricingWorkspaceDraftSnapshot = {
   sourceActivePolicyVersion: number | null;
   modelPolicyDirty: boolean;
   modelPolicyDraft: ModelPricingPolicyDocument | null;
+  customRowsDraft: AdminPricingCustomRowsDocument | null;
   durationDrafts: DurationDraftByModelId;
   aspectDrafts: AspectDraftByModelId;
   resolutionDrafts: ResolutionDraftByModelId;
@@ -154,6 +160,17 @@ const sanitizeModelPricingPolicyDocument = (value: unknown): ModelPricingPolicyD
   }
 };
 
+const sanitizeAdminPricingCustomRowsDocument = (
+  value: unknown
+): AdminPricingCustomRowsDocument | null => {
+  if (!isPlainObject(value)) return null;
+  try {
+    return compactAdminPricingCustomRowsDocument(value as AdminPricingCustomRowsDocument);
+  } catch {
+    return getDefaultAdminPricingCustomRowsDocument();
+  }
+};
+
 const sanitizeWorkspaceDraftSnapshot = (
   value: unknown
 ): AdminPricingWorkspaceDraftSnapshot | null => {
@@ -168,6 +185,7 @@ const sanitizeWorkspaceDraftSnapshot = (
         : null,
     modelPolicyDirty: Boolean(value.modelPolicyDirty),
     modelPolicyDraft: sanitizeModelPricingPolicyDocument(value.modelPolicyDraft),
+    customRowsDraft: sanitizeAdminPricingCustomRowsDocument(value.customRowsDraft),
     durationDrafts: sanitizeStringRecord(value.durationDrafts),
     aspectDrafts: sanitizeStringRecord(value.aspectDrafts),
     resolutionDrafts: sanitizeStringRecord(value.resolutionDrafts),

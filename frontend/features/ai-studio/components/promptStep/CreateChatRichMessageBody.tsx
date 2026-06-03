@@ -187,6 +187,36 @@ const parseListBlock = (lines: string[]): CreateChatRichMessageBlock | null => {
   return null;
 };
 
+const extractTrailingSectionLabel = (
+  value: string
+): { body: string | null; label: string } | null => {
+  const normalized = value.trim();
+  if (!normalized.length || QUESTION_LINE_PATTERN.test(normalized) || !normalized.endsWith(":")) {
+    return null;
+  }
+
+  const trailingLabelMatch = normalized.match(/^(.*[.!?])\s+([A-Za-z][A-Za-z0-9'’/&() -]{0,40}):$/);
+  if (trailingLabelMatch) {
+    const body = trailingLabelMatch[1]?.trim() ?? "";
+    const label = trailingLabelMatch[2]?.trim() ?? "";
+    if (!body.length || !label.length) return null;
+
+    return {
+      body,
+      label,
+    };
+  }
+
+  if (!normalized.includes("\n")) {
+    const standaloneLabel = normalized.replace(/:\s*$/, "").trim();
+    if (standaloneLabel.length > 0 && standaloneLabel.length <= 60) {
+      return { body: null, label: standaloneLabel };
+    }
+  }
+
+  return null;
+};
+
 const renderInlineText = (value: string): React.ReactNode[] => {
   const nodes: React.ReactNode[] = [];
   const normalized = value.replace(/\r\n/g, "\n");
@@ -272,7 +302,8 @@ const parseStandardRichBlocks = (value: string): CreateChatRichMessageBlock[] =>
   const blocks = splitParagraphBlocks(value);
   const parsedBlocks: CreateChatRichMessageBlock[] = [];
 
-  for (const rawBlock of blocks) {
+  for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
+    const rawBlock = blocks[blockIndex] ?? "";
     const lines = rawBlock
       .split("\n")
       .map((line) => line.trim())
@@ -306,6 +337,34 @@ const parseStandardRichBlocks = (value: string): CreateChatRichMessageBlock[] =>
     const listBlock = parseListBlock(lines);
     if (listBlock) {
       parsedBlocks.push(listBlock);
+      continue;
+    }
+
+    const nextBlockLines = (blocks[blockIndex + 1] ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const nextListBlock = nextBlockLines.length > 0 ? parseListBlock(nextBlockLines) : null;
+    const sectionTransition = extractTrailingSectionLabel(lines.join("\n"));
+    if (
+      sectionTransition &&
+      nextListBlock &&
+      nextListBlock.kind === "list" &&
+      !nextListBlock.intro
+    ) {
+      if (sectionTransition.body) {
+        parsedBlocks.push({
+          kind: "paragraph",
+          text: sectionTransition.body,
+        });
+      }
+      parsedBlocks.push({
+        kind: "heading",
+        level: 3,
+        text: sectionTransition.label,
+      });
+      parsedBlocks.push(nextListBlock);
+      blockIndex += 1;
       continue;
     }
 

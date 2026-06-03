@@ -630,6 +630,7 @@ export default async function handler(
         updatedAt: runtimePricingPolicy.updatedAt,
         updatedByEmail: runtimePricingPolicy.updatedByEmail,
       }),
+      customRows: runtimePricingPolicy.customRows,
       models,
       plans,
       creditPackages,

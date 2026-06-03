@@ -260,6 +260,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 138.  `sql/migrations/139_add_motion_reference_video_generation_leases.sql`
 139.  `sql/migrations/140_add_admitted_reference_image_variant.sql`
 140.  `sql/migrations/141_harden_storage_entitlement_helper_grants.sql`
+141.  `sql/migrations/142_add_model_pricing_custom_row_manifests.sql`
+142.  `sql/migrations/143_add_project_workspace_snapshot_freshness_guard.sql`
       Rollback files:
 
 
@@ -344,6 +346,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/129_backfill_user_owned_custom_voices_from_preferences_rollback.sql`
     - `sql/migrations/rollback/130_quarantine_legacy_migrated_custom_voice_ownership_rollback.sql`
     - `sql/migrations/rollback/131_add_user_issue_reports_rollback.sql`
+    - `sql/migrations/rollback/143_add_project_workspace_snapshot_freshness_guard_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -351,6 +354,8 @@ Hosted SQL lint note:
 - Apply `sql/migrations/102_add_admin_growth_stats_v1.sql` to provision `growth_attribution_identities` and `get_admin_growth_stats_v1()` before expecting `/admin/stats` Marketing/Sales lenses to load beyond safe fallback values.
 - Apply `sql/migrations/104_add_user_media_compliance_acceptances.sql` before enforcing the protected-route media agreement gate so acceptance records can be stored and replayed by version.
 - Apply `sql/migrations/112_repair_model_pricing_control_plane_seed.sql` if `/admin/pricing` can load the model-pricing workspace but credit conversion or markup changes do not persist because `model_pricing_policy_runtime` is missing its singleton row. Verify with `sql/check_model_pricing_control_plane.sql`.
+- Apply `sql/migrations/142_add_model_pricing_custom_row_manifests.sql` before expecting `/admin/pricing` custom variant rows to persist through the model-pricing control plane alongside policy saves/rollbacks.
+- Temporary rollout note for migration `142`: app code may fall back to the legacy 6-argument `apply_model_pricing_policy` RPC only while the submitted custom-row manifest is empty. That compatibility exists solely to bridge mixed hosted environments during the `142` rollout and should be removed after all hosted environments have `142` plus the matching grant repair from `133_restore_model_pricing_policy_function_grants.sql`.
 
 Billing safety note:
 

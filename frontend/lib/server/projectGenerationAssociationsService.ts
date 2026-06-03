@@ -1259,21 +1259,33 @@ export const backfillProjectGenerationAssociationsForSnapshot = async ({
   userId,
   projectId,
   snapshot,
+  ownedGenerationIds,
 }: {
   userId: string;
   projectId: string;
   snapshot: SnapshotRecord;
+  ownedGenerationIds?: string[];
 }): Promise<void> => {
-  const ownedGenerationIds = await resolveOwnedGenerationIds({
-    userId,
-    generationIds: collectSnapshotGenerationIds(snapshot),
-  });
-  if (ownedGenerationIds.length === 0) return;
+  const resolvedOwnedGenerationIds = Array.from(
+    new Set(
+      (ownedGenerationIds ?? [])
+        .map((generationId) => asTrimmedString(generationId))
+        .filter((generationId): generationId is string => Boolean(generationId))
+    )
+  );
+  const generationIdsToAssociate =
+    resolvedOwnedGenerationIds.length > 0
+      ? resolvedOwnedGenerationIds
+      : await resolveOwnedGenerationIds({
+          userId,
+          generationIds: collectSnapshotGenerationIds(snapshot),
+        });
+  if (generationIdsToAssociate.length === 0) return;
 
   const supabaseAdmin = getSupabaseAdmin();
   const nowIso = new Date().toISOString();
   const { error } = await supabaseAdmin.from("project_generation_items").upsert(
-    ownedGenerationIds.map((generationId) => ({
+    generationIdsToAssociate.map((generationId) => ({
       project_id: projectId,
       generation_id: generationId,
       user_id: userId,

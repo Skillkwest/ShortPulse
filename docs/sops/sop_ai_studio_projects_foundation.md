@@ -141,8 +141,9 @@ Behavior:
 6. Current storage contract intentionally reuses the AI Studio session snapshot envelope as a parser boundary, but project persistence sanitizes conversational runtime out of the stored payload.
 7. `PUT` writes the sanitized workspace snapshot before association repair runs, so a later backfill failure does not discard the workspace save.
 8. `PUT` may return `saveOutcome.status = "saved_with_repair_pending"` when the durable write succeeds but project association repair still needs follow-up.
-9. `GET` does not block on generated-output projection/media refresh; project-associated generated outputs refresh asynchronously after AI Studio workspace bootstrap.
-10. Returns:
+9. Out-of-order autosave completions must not overwrite a newer durable workspace row; stale saves degrade to a successful no-op that returns the current canonical workspace state.
+10. `GET` does not block on generated-output projection/media refresh; project-associated generated outputs refresh asynchronously after AI Studio workspace bootstrap.
+11. Returns:
 
 - `400` for invalid project id
 - `404` for missing or non-owned project

@@ -280,12 +280,8 @@ describe("Canvas drop behavior", () => {
 
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "video");
-    expect(screen.getByLabelText("Library Video")).toHaveAttribute(
+    expect(screen.getByAltText("Library Video")).toHaveAttribute(
       "src",
-      "https://example.com/library-video.mp4"
-    );
-    expect(screen.getByLabelText("Library Video")).toHaveAttribute(
-      "poster",
       "https://example.com/library-video-poster.webp"
     );
   });
@@ -312,10 +308,10 @@ describe("Canvas drop behavior", () => {
       clientY: 200,
     });
 
-    const video = (await screen.findByLabelText("Library Video")) as HTMLVideoElement;
-    fireEvent.error(video);
+    const videoPoster = await screen.findByAltText("Library Video");
+    fireEvent.error(videoPoster);
 
-    expect(screen.queryByLabelText("Library Video")).not.toBeInTheDocument();
+    expect(screen.queryByAltText("Library Video")).not.toBeInTheDocument();
     expect(screen.getByText("Media unavailable")).toBeInTheDocument();
   });
 
@@ -412,9 +408,8 @@ describe("Canvas drop behavior", () => {
       clientY: 200,
     });
 
-    const video = await screen.findByLabelText("External video");
-    expect(video).toHaveAttribute("src", "https://example.com/external-video.mp4");
-    expect(video).toHaveAttribute("poster", "https://example.com/external-video-poster.webp");
+    const videoPoster = await screen.findByAltText("External video");
+    expect(videoPoster).toHaveAttribute("src", "https://example.com/external-video-poster.webp");
     expect(screen.getByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "video");
   });
 
@@ -537,9 +532,9 @@ describe("Canvas drop behavior", () => {
 
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "video");
-    expect(screen.getByLabelText("Reference video")).toHaveAttribute(
+    expect(screen.getByAltText("Reference video")).toHaveAttribute(
       "src",
-      "https://example.com/reference-video.mp4"
+      "https://example.com/reference-video-poster.webp"
     );
     expect(Number(item.getAttribute("data-width"))).toBe(275);
     expect(Number(item.getAttribute("data-height"))).toBeCloseTo(154.69, 2);
@@ -814,14 +809,14 @@ describe("Canvas drop behavior", () => {
       expect(Number(pendingItem.getAttribute("style")?.match(/left:\s*([0-9.]+)px/)?.[1])).toBe(
         110
       );
-      expect(Number(pendingItem.getAttribute("style")?.match(/top:\s*([0-9.]+)px/)?.[1])).toBe(160);
+      expect(Number(pendingItem.getAttribute("style")?.match(/top:\s*([0-9.]+)px/)?.[1])).toBe(100);
       act(() => {
         pendingFrameCallback?.(16);
       });
       expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
       const finalItem = await screen.findByTestId(/canvas-item-/);
       expect(Number(finalItem.getAttribute("data-x"))).toBe(110);
-      expect(Number(finalItem.getAttribute("data-y"))).toBe(160);
+      expect(Number(finalItem.getAttribute("data-y"))).toBe(100);
       await waitFor(() => {
         expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
       });
@@ -852,7 +847,7 @@ describe("Canvas drop behavior", () => {
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "text");
     expect(Number(item.getAttribute("data-x"))).toBe(110);
-    expect(Number(item.getAttribute("data-y"))).toBe(160);
+    expect(Number(item.getAttribute("data-y"))).toBe(100);
   });
 
   it("creates a text item from an external plain-text drop", async () => {
@@ -872,7 +867,7 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByText("External note")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
     expect(Number(item.getAttribute("data-x"))).toBe(90);
-    expect(Number(item.getAttribute("data-y"))).toBe(140);
+    expect(Number(item.getAttribute("data-y"))).toBe(80);
   });
 
   it("anchors media-library prompt drops to the release point after camera transforms", async () => {
@@ -907,7 +902,55 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByText("Zoomed prompt")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
     expect(Number(item.getAttribute("data-x"))).toBe(0);
-    expect(Number(item.getAttribute("data-y"))).toBe(100);
+    expect(Number(item.getAttribute("data-y"))).toBe(40);
+  });
+
+  it("does not change stored geometry of existing items when a text item is dropped", async () => {
+    render(
+      <SeededCanvasHarness
+        initialSessionState={{
+          items: [
+            {
+              id: "existing-text",
+              kind: "text",
+              x: 40,
+              y: 70,
+              z: 1,
+              selected: true,
+              outputId: null,
+              sourceSurface: null,
+              text: "Existing note",
+              width: 260,
+              height: 120,
+            },
+          ],
+          draftTextEntry: null,
+          textEditSession: null,
+          draftOwnerInstanceId: null,
+          textEditOwnerInstanceId: null,
+          mainCamera: { x: 0, y: 0, zoom: 1 },
+          railCamera: { x: 0, y: 0, zoom: 1 },
+        }}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/plain": "New note",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    expect(await screen.findByText("New note")).toBeInTheDocument();
+    const existingItem = screen.getByTestId("canvas-item-existing-text");
+    expect(existingItem).toHaveAttribute("data-x", "40");
+    expect(existingItem).toHaveAttribute("data-y", "70");
+    expect(existingItem).toHaveAttribute("data-width", "260");
+    expect(existingItem).toHaveAttribute("data-height", "120");
   });
 
   it("creates an image item from a media-library drag payload", async () => {

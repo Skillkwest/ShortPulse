@@ -120,6 +120,24 @@ describe("studioAgentResponseNormalization", () => {
     });
   });
 
+  it("does not classify benign visual-attribute uncertainty as a safety refusal", () => {
+    const parsed = parseStudioAgentJsonWithStatus(
+      "I am not able to identify or guess that particular attribute from the image here. I can still help with other non-sensitive details from the image."
+    );
+
+    expect(parsed).toEqual({
+      status: "ready",
+      response: {
+        message:
+          "I am not able to identify or guess that particular attribute from the image here. I can still help with other non-sensitive details from the image.",
+        actions: {
+          applyPrompt:
+            "I am not able to identify or guess that particular attribute from the image here. I can still help with other non-sensitive details from the image.",
+        },
+      },
+    });
+  });
+
   it("accepts structured message-only payloads without fabricating prompt actions", () => {
     const parsed = parseStudioAgentJsonWithStatus(
       '{"message":"Summary: transformed the prompt","actions":{"apply_prompt":"The prompt now includes stronger detail."}}'

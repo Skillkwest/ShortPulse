@@ -17,7 +17,7 @@ export const CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX = Math.round(
   CANVAS_TEXT_ITEM_MIN_HEIGHT * CANVAS_PROMPT_DRAG_GHOST_SCALE
 );
 export const CANVAS_PROMPT_DRAG_HOTSPOT_X = Math.round(CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX / 2);
-export const CANVAS_PROMPT_DRAG_HOTSPOT_Y = 0;
+export const CANVAS_PROMPT_DRAG_HOTSPOT_Y = Math.round(CANVAS_PROMPT_DRAG_GHOST_HEIGHT_PX / 2);
 
 const trimCanvasPromptGhostText = (value: string | null | undefined): string => {
   const normalized = (value ?? "").trim();

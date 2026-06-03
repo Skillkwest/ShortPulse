@@ -181,7 +181,9 @@ export const buildStandardCreatePanelProps = ({
       case "image_attachment_preparing":
         return "Attached image is still preparing. Retry in a moment.";
       case "empty_visible_prompt":
-        return "Enter a prompt to generate.";
+        // Keep the CTA disabled for an empty composer, but do not surface
+        // inline helper copy that reintroduces the removed empty-state warning.
+        return null;
       case "disabled":
       default:
         return generationGuardrail;

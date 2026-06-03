@@ -38,6 +38,10 @@ const buildSnapshot = (): AdminPricingWorkspaceDraftSnapshot => ({
       },
     },
   },
+  customRowsDraft: {
+    schemaVersion: 1,
+    rowsByModel: {},
+  },
   durationDrafts: {
     "elevenlabs-sound-effect": "5",
   },
@@ -150,6 +154,7 @@ describe("pricingWorkspacePersistence", () => {
       sourceActivePolicyVersion: null,
       modelPolicyDirty: true,
       modelPolicyDraft: null,
+      customRowsDraft: null,
       durationDrafts: {
         good: "5",
       },

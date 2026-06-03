@@ -138,6 +138,21 @@ describe("createImageBilledCredits", () => {
     expect(lookup.breakdown?.credits).toBe(7);
   });
 
+  it("keeps ref-driven Nano Banana 2 standard Create on the canonical text row", () => {
+    const lookup = resolveCreateImageBilledCreditLookup({
+      modelId: "fal-ai/nano-banana-2",
+      params: {
+        aspect: "16:9",
+        resolution: "1K",
+        inputImageCount: 2,
+      },
+      pricingPolicy,
+    });
+
+    expect(lookup.breakdown?.variantId).toBe("default|res:1K|aspect:auto");
+    expect(lookup.breakdown?.credits).toBe(5);
+  });
+
   it("materializes edit-only image model rows under canonical edit variant ids", () => {
     const variantIds = Object.keys(
       pricingPolicy.perModel["fal-ai/nano-banana-2/edit"]?.variants ?? {}

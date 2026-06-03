@@ -1,5 +1,5 @@
 import React from "react";
-import { createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MediaLibraryFolderCanvas } from "../MediaLibraryFolderCanvas";
 
@@ -83,6 +83,7 @@ describe("MediaLibraryFolderCanvas", () => {
 
   afterEach(() => {
     vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("rejects media-library video drops because folder canvas is image-and-prompt only", async () => {
@@ -125,7 +126,7 @@ describe("MediaLibraryFolderCanvas", () => {
     expect(screen.queryAllByTestId(/canvas-item-/)).toHaveLength(0);
   });
 
-  it("places folder-canvas prompt drops with top-center anchored at the cursor release point", async () => {
+  it("places folder-canvas prompt drops with image-style center anchoring at the cursor release point", async () => {
     const onAssignDroppedItem = vi.fn(async () => true);
 
     function FolderPromptDropHarness() {
@@ -188,9 +189,386 @@ describe("MediaLibraryFolderCanvas", () => {
       const matchingItem = items.find((item) => item.getAttribute("data-kind") === "text");
       expect(matchingItem).toBeTruthy();
       expect(matchingItem?.getAttribute("data-x")).toBe("150");
-      expect(matchingItem?.getAttribute("data-y")).toBe("190");
+      expect(matchingItem?.getAttribute("data-y")).toBe("130");
     });
     expect(onAssignDroppedItem).toHaveBeenCalledWith({ kind: "prompt", id: "prompt-1" });
+  });
+
+  it("does not synthesize a prompt item before the dropped prompt resolves", async () => {
+    const onAssignDroppedItem = vi.fn(async () => true);
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    let pendingFrameCallback: FrameRequestCallback | null = null;
+
+    function FolderPromptDropHarness() {
+      const [promptRows, setPromptRows] = React.useState<
+        Array<{
+          id: string;
+          title: string | null;
+          prompt_text: string;
+          created_at: string | null;
+        }>
+      >([]);
+
+      return (
+        <MediaLibraryFolderCanvas
+          folderId="folder-1"
+          mediaRows={[]}
+          promptRows={promptRows}
+          onSelectMedia={vi.fn()}
+          onSelectPrompt={vi.fn()}
+          onUnassignItem={vi.fn(async () => {})}
+          onAssignDroppedItem={async (item) => {
+            const assigned = await onAssignDroppedItem(item);
+            if (assigned && item.kind === "prompt" && item.id === "prompt-1") {
+              setPromptRows([
+                {
+                  id: "prompt-1",
+                  title: "Folder prompt",
+                  prompt_text: "Folder prompt text",
+                  created_at: null,
+                },
+              ]);
+            }
+            return assigned;
+          }}
+        />
+      );
+    }
+
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      pendingFrameCallback = callback;
+      return 1;
+    }) as typeof window.requestAnimationFrame;
+
+    try {
+      render(<FolderPromptDropHarness />);
+
+      const viewport = await screen.findByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      await act(async () => {
+        dispatchDropAtPoint({
+          viewport,
+          dataTransfer: createTransfer({
+            "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+            "text/shortpulse-media-library-kind": "libraryPrompt",
+            "text/shortpulse-media-library-id": "prompt-1",
+            "text/shortpulse-media-library-prompt": "Folder prompt text",
+            "text/shortpulse-media-library-title": "Folder prompt",
+          }),
+          clientX: 280,
+          clientY: 190,
+        });
+        await Promise.resolve();
+      });
+
+      expect(screen.getByTestId("canvas-loading-spinner")).toBeInTheDocument();
+      expect(screen.queryAllByText("Folder prompt text")).toHaveLength(0);
+      expect(screen.queryAllByTestId(/canvas-item-/)).toHaveLength(0);
+
+      await act(async () => {
+        pendingFrameCallback?.(16);
+        await Promise.resolve();
+      });
+
+      expect(await screen.findByText("Folder prompt text")).toBeInTheDocument();
+      const items = screen.getAllByTestId(/canvas-item-/);
+      const matchingItem = items.find((item) => item.getAttribute("data-kind") === "text");
+      expect(matchingItem).toBeTruthy();
+      expect(matchingItem?.getAttribute("data-x")).toBe("150");
+      expect(matchingItem?.getAttribute("data-y")).toBe("130");
+      expect(items).toHaveLength(1);
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
+  });
+
+  it("restores an existing prompt item when reassignment fails after re-drop", async () => {
+    getMediaFolderCanvasStateMock.mockResolvedValue({
+      snapshot: {
+        schemaVersion: 1,
+        camera: { x: 0, y: 0, zoom: 1 },
+        items: [
+          {
+            id: "prompt:prompt-1",
+            kind: "text",
+            outputId: "prompt:prompt-1",
+            text: "Existing prompt text",
+            x: 40,
+            y: 60,
+            z: 1,
+            width: 260,
+            height: 120,
+          },
+        ],
+      },
+    });
+    const onAssignDroppedItem = vi.fn(async () => false);
+
+    render(
+      <MediaLibraryFolderCanvas
+        folderId="folder-1"
+        mediaRows={[]}
+        promptRows={[
+          {
+            id: "prompt-1",
+            title: "Existing prompt",
+            prompt_text: "Existing prompt text",
+            created_at: null,
+          },
+        ]}
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        onUnassignItem={vi.fn(async () => {})}
+        onAssignDroppedItem={onAssignDroppedItem}
+      />
+    );
+
+    const viewport = await screen.findByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryPrompt",
+        "text/shortpulse-media-library-id": "prompt-1",
+        "text/shortpulse-media-library-prompt": "Updated prompt text",
+      }),
+      clientX: 280,
+      clientY: 190,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Unable to assign dropped item to this folder.")).toBeInTheDocument();
+    });
+    expect(onAssignDroppedItem).toHaveBeenCalledWith({ kind: "prompt", id: "prompt-1" });
+
+    const item = await screen.findByTestId("canvas-item-prompt:prompt-1");
+    expect(item).toHaveAttribute("data-x", "40");
+    expect(item).toHaveAttribute("data-y", "60");
+    expect(screen.getByText("Existing prompt text")).toBeInTheDocument();
+    expect(screen.queryByText("Updated prompt text")).not.toBeInTheDocument();
+  });
+
+  it("does not block save while waiting for prompt rows to refresh after a successful drop", async () => {
+    const onAssignDroppedItem = vi.fn(async () => true);
+
+    render(
+      <MediaLibraryFolderCanvas
+        folderId="folder-1"
+        mediaRows={[]}
+        promptRows={[]}
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        onUnassignItem={vi.fn(async () => {})}
+        onAssignDroppedItem={onAssignDroppedItem}
+      />
+    );
+
+    const viewport = await screen.findByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+    saveMediaFolderCanvasStateMock.mockClear();
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryPrompt",
+        "text/shortpulse-media-library-id": "prompt-pending-save",
+        "text/shortpulse-media-library-prompt": "Pending prompt text",
+      }),
+      clientX: 280,
+      clientY: 190,
+    });
+
+    expect(await screen.findByText("Pending prompt text")).toBeInTheDocument();
+    expect(onAssignDroppedItem).toHaveBeenCalledWith({ kind: "prompt", id: "prompt-pending-save" });
+
+    await waitFor(
+      () => {
+        expect(saveMediaFolderCanvasStateMock).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it("does not block save when assignment is optional and the prompt already belongs to the folder", async () => {
+    render(
+      <MediaLibraryFolderCanvas
+        folderId="folder-1"
+        mediaRows={[]}
+        promptRows={[
+          {
+            id: "prompt-existing",
+            title: "Existing prompt",
+            prompt_text: "Existing prompt text",
+            created_at: null,
+          },
+        ]}
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        onUnassignItem={vi.fn(async () => {})}
+      />
+    );
+
+    const viewport = await screen.findByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+    saveMediaFolderCanvasStateMock.mockClear();
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryPrompt",
+        "text/shortpulse-media-library-id": "prompt-existing",
+        "text/shortpulse-media-library-prompt": "Existing prompt text",
+      }),
+      clientX: 280,
+      clientY: 190,
+    });
+
+    expect(await screen.findByText("Existing prompt text")).toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(saveMediaFolderCanvasStateMock).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it("assigns internal prompt drops through the same folder-membership path", async () => {
+    const onAssignDroppedItem = vi.fn(async () => true);
+    const resolveInternalDropItem = vi.fn(async () => ({
+      kind: "prompt" as const,
+      id: "prompt-2",
+    }));
+
+    function FolderPromptDropHarness() {
+      const [promptRows, setPromptRows] = React.useState<
+        Array<{
+          id: string;
+          title: string | null;
+          prompt_text: string;
+          created_at: string | null;
+        }>
+      >([]);
+
+      return (
+        <MediaLibraryFolderCanvas
+          folderId="folder-1"
+          mediaRows={[]}
+          promptRows={promptRows}
+          onSelectMedia={vi.fn()}
+          onSelectPrompt={vi.fn()}
+          onUnassignItem={vi.fn(async () => {})}
+          onAssignDroppedItem={async (item) => {
+            const assigned = await onAssignDroppedItem(item);
+            if (assigned && item.kind === "prompt" && item.id === "prompt-2") {
+              setPromptRows([
+                {
+                  id: "prompt-2",
+                  title: "Internal prompt",
+                  prompt_text: "Internal prompt text",
+                  created_at: null,
+                },
+              ]);
+            }
+            return assigned;
+          }}
+          resolveInternalDropItem={resolveInternalDropItem}
+          resolveCanvasDropReference={(payload) => {
+            if (payload.outputId !== "txt-1") return null;
+            return {
+              kind: "text",
+              outputId: "txt-1",
+              text: "Internal prompt text",
+              sourceSurface: payload.sourceSurface ?? null,
+            };
+          }}
+        />
+      );
+    }
+
+    render(<FolderPromptDropHarness />);
+
+    const viewport = await screen.findByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "txt-1",
+        "text/reference-output-id": "txt-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 240,
+      clientY: 160,
+    });
+
+    expect(await screen.findByText("Internal prompt text")).toBeInTheDocument();
+    expect(resolveInternalDropItem).toHaveBeenCalledTimes(1);
+    expect(onAssignDroppedItem).toHaveBeenCalledWith({ kind: "prompt", id: "prompt-2" });
+    const item = await screen.findByTestId("canvas-item-prompt:prompt-2");
+    expect(item).toHaveAttribute("data-x", "110");
+    expect(item).toHaveAttribute("data-y", "100");
+  });
+
+  it("does not assign folder membership when a prompt drop is blocked by the canvas item cap", async () => {
+    getMediaFolderCanvasStateMock.mockResolvedValue({
+      snapshot: {
+        schemaVersion: 1,
+        camera: { x: 0, y: 0, zoom: 1 },
+        items: Array.from({ length: 300 }, (_, index) => ({
+          id: `seed-${index}`,
+          kind: "text",
+          promptId: null,
+          text: `Seed ${index}`,
+          x: index,
+          y: index,
+          z: index + 1,
+          width: 260,
+          height: 120,
+        })),
+      },
+    });
+    const onAssignDroppedItem = vi.fn(async () => true);
+
+    render(
+      <MediaLibraryFolderCanvas
+        folderId="folder-1"
+        mediaRows={[]}
+        promptRows={[]}
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        onUnassignItem={vi.fn(async () => {})}
+        onAssignDroppedItem={onAssignDroppedItem}
+      />
+    );
+
+    const viewport = await screen.findByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryPrompt",
+        "text/shortpulse-media-library-id": "prompt-cap",
+        "text/shortpulse-media-library-prompt": "Cap prompt text",
+      }),
+      clientX: 280,
+      clientY: 190,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Canvas item limit reached.")).toBeInTheDocument();
+    });
+    expect(onAssignDroppedItem).not.toHaveBeenCalled();
+    expect(screen.queryByText("Cap prompt text")).not.toBeInTheDocument();
   });
 
   it("rejects internal video reference drops because folder canvas is image-and-prompt only", async () => {

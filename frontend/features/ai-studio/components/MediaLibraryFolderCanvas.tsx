@@ -8,6 +8,7 @@ import { CANVAS_DEFAULT_CAMERA } from "./canvas/canvasGeometry";
 import { useAiStudioDualCanvasWorkspaceState } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type {
   CanvasCamera,
+  CanvasInsertResult,
   PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
   CanvasSceneItem,
@@ -79,6 +80,8 @@ type MediaLibraryFolderCanvasProps = {
 const SAVE_DEBOUNCE_MS = 450;
 const FOLDER_CANVAS_UNSUPPORTED_DROP_MESSAGE =
   "Only images and prompts can be dropped onto this canvas.";
+const FOLDER_CANVAS_ASSIGN_DROP_ERROR_MESSAGE = "Unable to assign dropped item to this folder.";
+const FOLDER_CANVAS_ITEM_LIMIT_MESSAGE = "Canvas item limit reached.";
 
 export function MediaLibraryFolderCanvas({
   projectId = null,
@@ -99,7 +102,12 @@ export function MediaLibraryFolderCanvas({
   const [pendingUnassignMembershipItemIds, setPendingUnassignMembershipItemIds] = useState<
     string[]
   >([]);
-  const [pendingAssignedMediaRows, setPendingAssignedMediaRows] = useState<MediaFileRow[]>([]);
+  const [preservedMissingMembershipItemIds, setPreservedMissingMembershipItemIds] = useState<
+    string[]
+  >([]);
+  const [pendingAssignmentMembershipItemIds, setPendingAssignmentMembershipItemIds] = useState<
+    string[]
+  >([]);
   const [fullQualityUrlByMediaId, setFullQualityUrlByMediaId] = useState<Record<string, string>>(
     {}
   );
@@ -112,6 +120,10 @@ export function MediaLibraryFolderCanvas({
   const pendingUnassignMembershipItemSet = useMemo(
     () => new Set(pendingUnassignMembershipItemIds),
     [pendingUnassignMembershipItemIds]
+  );
+  const preservedMissingMembershipItemSet = useMemo(
+    () => new Set(preservedMissingMembershipItemIds),
+    [preservedMissingMembershipItemIds]
   );
 
   const canvasMediaRows = useMemo(() => {
@@ -131,19 +143,11 @@ export function MediaLibraryFolderCanvas({
   );
   const promptById = useMemo(() => new Map(promptRows.map((row) => [row.id, row])), [promptRows]);
   const reconciledMediaRows = useMemo(() => {
-    const baseRows =
-      pendingUnassignMembershipItemSet.size === 0
-        ? canvasMediaRows
-        : canvasMediaRows.filter((row) => !pendingUnassignMembershipItemSet.has(`media:${row.id}`));
-    if (pendingAssignedMediaRows.length === 0) return baseRows;
-    const rowsById = new Map(baseRows.map((row) => [row.id, row]));
-    pendingAssignedMediaRows.forEach((row) => {
-      if (!rowsById.has(row.id)) {
-        rowsById.set(row.id, row);
-      }
-    });
-    return Array.from(rowsById.values());
-  }, [canvasMediaRows, pendingAssignedMediaRows, pendingUnassignMembershipItemSet]);
+    if (pendingUnassignMembershipItemSet.size === 0) return canvasMediaRows;
+    return canvasMediaRows.filter(
+      (row) => !pendingUnassignMembershipItemSet.has(`media:${row.id}`)
+    );
+  }, [canvasMediaRows, pendingUnassignMembershipItemSet]);
   const reconciledPromptRows = useMemo(() => {
     if (pendingUnassignMembershipItemSet.size === 0) return promptRows;
     return promptRows.filter((row) => !pendingUnassignMembershipItemSet.has(`prompt:${row.id}`));
@@ -164,44 +168,118 @@ export function MediaLibraryFolderCanvas({
     });
   }, []);
 
-  const addPendingAssignedMediaRow = useCallback(
-    (item: { mediaId: string; src: string; alt: string }) => {
-      const mediaId = item.mediaId.trim();
-      const src = item.src.trim();
-      if (!mediaId || !src) return;
-      setPendingAssignedMediaRows((previous) => {
-        if (previous.some((row) => row.id === mediaId)) return previous;
-        return [
-          ...previous,
-          {
-            id: mediaId,
-            filename: item.alt.trim() || "Canvas media",
-            storage_path: "",
-            file_type: "image/*",
-            signedUrl: src,
-          },
-        ];
-      });
-    },
-    []
-  );
-
-  const addPendingAssignedMediaRows = useCallback((rows: MediaFileRow[]) => {
-    if (!rows.length) return;
-    setPendingAssignedMediaRows((previous) => {
-      const rowsById = new Map(previous.map((row) => [row.id, row]));
-      rows.forEach((row) => {
-        rowsById.set(row.id, row);
-      });
-      return Array.from(rowsById.values());
+  const addPreservedMissingMembershipItemId = useCallback((itemId: string) => {
+    setPreservedMissingMembershipItemIds((previous) => {
+      if (previous.includes(itemId)) return previous;
+      return [...previous, itemId];
     });
   }, []);
+
+  const removePreservedMissingMembershipItemId = useCallback((itemId: string) => {
+    setPreservedMissingMembershipItemIds((previous) => {
+      if (!previous.includes(itemId)) return previous;
+      const next = previous.filter((candidate) => candidate !== itemId);
+      return next.length === previous.length ? previous : next;
+    });
+  }, []);
+
+  const addPendingAssignmentMembershipItemId = useCallback((itemId: string) => {
+    setPendingAssignmentMembershipItemIds((previous) => {
+      if (previous.includes(itemId)) return previous;
+      return [...previous, itemId];
+    });
+  }, []);
+
+  const removePendingAssignmentMembershipItemId = useCallback((itemId: string) => {
+    setPendingAssignmentMembershipItemIds((previous) => {
+      if (!previous.includes(itemId)) return previous;
+      const next = previous.filter((candidate) => candidate !== itemId);
+      return next.length === previous.length ? previous : next;
+    });
+  }, []);
+
+  const buildDeferredAssignment = useCallback(
+    (assignment: { kind: "media" | "prompt"; id: string }) =>
+      async (result: CanvasInsertResult) => {
+        const membershipItemId = `${assignment.kind}:${assignment.id}`;
+        if (result.status === "blocked_by_cap") {
+          removePendingAssignmentMembershipItemId(membershipItemId);
+          removePreservedMissingMembershipItemId(membershipItemId);
+          setSaveError(FOLDER_CANVAS_ITEM_LIMIT_MESSAGE);
+          return;
+        }
+        if (!onAssignDroppedItem) {
+          removePendingAssignmentMembershipItemId(membershipItemId);
+          removePreservedMissingMembershipItemId(membershipItemId);
+          setSaveError(null);
+          return;
+        }
+        try {
+          const assigned = await onAssignDroppedItem(assignment);
+          if (!assigned) {
+            removePendingAssignmentMembershipItemId(membershipItemId);
+            removePreservedMissingMembershipItemId(membershipItemId);
+            result.removeInsertedItem();
+            setSaveError(FOLDER_CANVAS_ASSIGN_DROP_ERROR_MESSAGE);
+            return;
+          }
+          removePendingAssignmentMembershipItemId(membershipItemId);
+          setSaveError(null);
+        } catch (assignmentError) {
+          removePendingAssignmentMembershipItemId(membershipItemId);
+          removePreservedMissingMembershipItemId(membershipItemId);
+          result.removeInsertedItem();
+          setSaveError(
+            toMediaLibraryErrorText(assignmentError, FOLDER_CANVAS_ASSIGN_DROP_ERROR_MESSAGE)
+          );
+        }
+      },
+    [
+      onAssignDroppedItem,
+      removePendingAssignmentMembershipItemId,
+      removePreservedMissingMembershipItemId,
+    ]
+  );
 
   const prepareResolvedInternalCanvasDrop = useCallback<PrepareResolvedInternalCanvasDrop>(
     async (payload, resolved) => {
       if (resolved.kind === "text") {
+        let promptId = getPromptIdFromCanvasOutputId(resolved.outputId);
+        if (!promptId) {
+          if (!resolveInternalDropItem) {
+            setSaveError("Unable to resolve dropped reference.");
+            return null;
+          }
+          let resolvedItem: ResolvedInternalDropItem = null;
+          try {
+            resolvedItem = await resolveInternalDropItem(payload);
+          } catch {
+            setSaveError("Unable to resolve dropped reference.");
+            return null;
+          }
+          if (!resolvedItem || resolvedItem.kind !== "prompt") {
+            setSaveError("Unable to resolve dropped reference.");
+            return null;
+          }
+          promptId = resolvedItem.id.trim();
+        }
+        if (!promptId) {
+          setSaveError("Unable to resolve dropped reference.");
+          return null;
+        }
+        if (onAssignDroppedItem) {
+          addPreservedMissingMembershipItemId(`prompt:${promptId}`);
+          addPendingAssignmentMembershipItemId(`prompt:${promptId}`);
+        }
         setSaveError(null);
-        return resolved;
+        return {
+          resolved: {
+            ...resolved,
+            outputId: `prompt:${promptId}`,
+            preferredItemId: `prompt:${promptId}`,
+          },
+          afterInsert: buildDeferredAssignment({ kind: "prompt", id: promptId }),
+        };
       }
       if (resolved.kind !== "image") {
         setSaveError(FOLDER_CANVAS_UNSUPPORTED_DROP_MESSAGE);
@@ -211,7 +289,8 @@ export function MediaLibraryFolderCanvas({
       let mediaId = resolvedMediaId;
       if (!mediaId) {
         if (!resolveInternalDropItem) {
-          return resolved;
+          setSaveError("Unable to resolve dropped reference.");
+          return null;
         }
         let resolvedItem: ResolvedInternalDropItem = null;
         try {
@@ -226,23 +305,31 @@ export function MediaLibraryFolderCanvas({
         }
         mediaId = resolvedItem.id.trim();
       }
-      if (!mediaId) return resolved;
+      if (!mediaId) {
+        setSaveError("Unable to resolve dropped reference.");
+        return null;
+      }
       if (onAssignDroppedItem) {
-        const assigned = await onAssignDroppedItem({ kind: "media", id: mediaId });
-        if (!assigned) return null;
-        addPendingAssignedMediaRow({
-          mediaId,
-          src: resolved.src,
-          alt: resolved.alt,
-        });
+        addPreservedMissingMembershipItemId(`media:${mediaId}`);
+        addPendingAssignmentMembershipItemId(`media:${mediaId}`);
       }
       setSaveError(null);
       return {
-        ...resolved,
-        mediaId,
+        resolved: {
+          ...resolved,
+          mediaId,
+          preferredItemId: `media:${mediaId}`,
+        },
+        afterInsert: buildDeferredAssignment({ kind: "media", id: mediaId }),
       };
     },
-    [addPendingAssignedMediaRow, onAssignDroppedItem, resolveInternalDropItem]
+    [
+      addPendingAssignmentMembershipItemId,
+      addPreservedMissingMembershipItemId,
+      buildDeferredAssignment,
+      onAssignDroppedItem,
+      resolveInternalDropItem,
+    ]
   );
 
   const prepareCanvasMediaLibraryDrop = useCallback<PrepareCanvasMediaLibraryDrop>(
@@ -251,14 +338,18 @@ export function MediaLibraryFolderCanvas({
         const promptText = payload.payload.promptText.trim();
         if (!promptText) return null;
         if (onAssignDroppedItem) {
-          const assigned = await onAssignDroppedItem({ kind: "prompt", id: payload.payload.id });
-          if (!assigned) return null;
+          addPreservedMissingMembershipItemId(`prompt:${payload.payload.id}`);
+          addPendingAssignmentMembershipItemId(`prompt:${payload.payload.id}`);
         }
         setSaveError(null);
         return {
-          kind: "text",
-          outputId: `prompt:${payload.payload.id}`,
-          text: promptText,
+          resolved: {
+            kind: "text",
+            outputId: `prompt:${payload.payload.id}`,
+            preferredItemId: `prompt:${payload.payload.id}`,
+            text: promptText,
+          },
+          afterInsert: buildDeferredAssignment({ kind: "prompt", id: payload.payload.id }),
         };
       }
 
@@ -274,27 +365,30 @@ export function MediaLibraryFolderCanvas({
       if (!src) return null;
 
       if (onAssignDroppedItem) {
-        const assigned = await onAssignDroppedItem({ kind: "media", id: payload.payload.id });
-        if (!assigned) return null;
+        addPreservedMissingMembershipItemId(`media:${payload.payload.id}`);
+        addPendingAssignmentMembershipItemId(`media:${payload.payload.id}`);
       }
-
-      addPendingAssignedMediaRow({
-        mediaId: payload.payload.id,
-        src,
-        alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
-      });
       setSaveError(null);
       return {
-        kind: "image",
-        outputId: null,
-        mediaId: payload.payload.id,
-        src,
-        alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
-        width: payload.payload.width,
-        height: payload.payload.height,
+        resolved: {
+          kind: "image",
+          outputId: null,
+          mediaId: payload.payload.id,
+          preferredItemId: `media:${payload.payload.id}`,
+          src,
+          alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
+          width: payload.payload.width,
+          height: payload.payload.height,
+        },
+        afterInsert: buildDeferredAssignment({ kind: "media", id: payload.payload.id }),
       };
     },
-    [addPendingAssignedMediaRow, onAssignDroppedItem]
+    [
+      addPendingAssignmentMembershipItemId,
+      addPreservedMissingMembershipItemId,
+      buildDeferredAssignment,
+      onAssignDroppedItem,
+    ]
   );
 
   const resolveCanvasDropFiles = useCallback(
@@ -316,7 +410,22 @@ export function MediaLibraryFolderCanvas({
         return null;
       }
 
-      addPendingAssignedMediaRows(imageRows);
+      if (onAssignDroppedItem) {
+        setPreservedMissingMembershipItemIds((previous) => {
+          const next = new Set(previous);
+          imageRows.forEach((row) => {
+            next.add(`media:${row.id}`);
+          });
+          return next.size === previous.length ? previous : Array.from(next);
+        });
+        setPendingAssignmentMembershipItemIds((previous) => {
+          const next = new Set(previous);
+          imageRows.forEach((row) => {
+            next.add(`media:${row.id}`);
+          });
+          return next.size === previous.length ? previous : Array.from(next);
+        });
+      }
       setSaveError(null);
       return imageRows
         .map((row) => {
@@ -332,6 +441,7 @@ export function MediaLibraryFolderCanvas({
             kind: "image" as const,
             outputId: null,
             mediaId: row.id,
+            preferredItemId: `media:${row.id}`,
             src,
             alt: (row.filename || "Canvas media").trim(),
             width: dragDimensions.width,
@@ -340,7 +450,7 @@ export function MediaLibraryFolderCanvas({
         })
         .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
     },
-    [addPendingAssignedMediaRows, onDropFilesToCanvas]
+    [onAssignDroppedItem, onDropFilesToCanvas]
   );
 
   const workspace = useAiStudioDualCanvasWorkspaceState({
@@ -426,13 +536,6 @@ export function MediaLibraryFolderCanvas({
 
   useEffect(() => {
     mediaRowsRef.current = canvasMediaRows;
-    if (!canvasMediaRows.length) return;
-    setPendingAssignedMediaRows((previous) => {
-      if (!previous.length) return previous;
-      const mediaIds = new Set(canvasMediaRows.map((row) => row.id));
-      const next = previous.filter((row) => !mediaIds.has(row.id));
-      return next.length === previous.length ? previous : next;
-    });
   }, [canvasMediaRows]);
 
   useEffect(() => {
@@ -440,8 +543,26 @@ export function MediaLibraryFolderCanvas({
   }, [promptRows]);
 
   useEffect(() => {
-    setPendingAssignedMediaRows([]);
+    setSaveError(null);
+    setPreservedMissingMembershipItemIds([]);
+    setPendingAssignmentMembershipItemIds([]);
   }, [folderId]);
+
+  useEffect(() => {
+    setPreservedMissingMembershipItemIds((previous) => {
+      if (!previous.length) return previous;
+      const next = previous.filter((itemId) => {
+        if (itemId.startsWith("media:")) {
+          return !mediaRows.some((row) => `media:${row.id}` === itemId);
+        }
+        if (itemId.startsWith("prompt:")) {
+          return !promptRows.some((row) => `prompt:${row.id}` === itemId);
+        }
+        return false;
+      });
+      return next.length === previous.length ? previous : next;
+    });
+  }, [mediaRows, promptRows]);
 
   const hydrateFolderCanvasState = useCallback(
     ({ nextItems, nextCamera }: { nextItems: CanvasSceneItem[]; nextCamera?: CanvasCamera }) => {
@@ -477,7 +598,13 @@ export function MediaLibraryFolderCanvas({
         loadedFolderIdRef.current = folderId;
         const parsed = parseMediaFolderCanvasSnapshot(state?.snapshot ?? null);
         if (parsed) {
-          hydrateFolderCanvasState({ nextItems: parsed.items, nextCamera: parsed.camera });
+          const reconciledItems = reconcileFolderMembershipCanvasItems({
+            items: parsed.items,
+            mediaRows: mediaRowsRef.current,
+            promptRows: promptRowsRef.current,
+            includeMissingMembershipItems: true,
+          });
+          hydrateFolderCanvasState({ nextItems: reconciledItems, nextCamera: parsed.camera });
           return;
         }
         const seededItems = buildSeedItemsForFolderCanvas({
@@ -547,6 +674,8 @@ export function MediaLibraryFolderCanvas({
       items,
       mediaRows: reconciledMediaRows,
       promptRows: reconciledPromptRows,
+      includeMissingMembershipItems: false,
+      preserveMissingMembershipItemIds: preservedMissingMembershipItemSet,
     });
     if (reconciledItems.length === items.length) {
       let changed = false;
@@ -582,6 +711,7 @@ export function MediaLibraryFolderCanvas({
     isTextResizeActive,
     items,
     loadingState,
+    preservedMissingMembershipItemSet,
     reconciledMediaRows,
     reconciledPromptRows,
     workspace.sessionState.mainCamera,
@@ -629,6 +759,7 @@ export function MediaLibraryFolderCanvas({
     if (isTextResizeActive) return;
     if (loadingState) return;
     if (loadedFolderIdRef.current !== folderId) return;
+    if (pendingAssignmentMembershipItemIds.length > 0) return;
     const payload = JSON.stringify({
       folderId,
       camera: workspace.sessionState.mainCamera,
@@ -665,6 +796,7 @@ export function MediaLibraryFolderCanvas({
     folderId,
     isTextResizeActive,
     loadingState,
+    pendingAssignmentMembershipItemIds,
     projectId,
     workspace.sessionState.items,
     workspace.sessionState.mainCamera,

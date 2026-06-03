@@ -47,6 +47,7 @@ import {
   type SessionSignedMediaRestoreAuthority,
 } from "../logic/sessionRestoreMediaSigning";
 import { resolveOutputAudioSourceMode } from "../logic/audioSourceMode";
+import { resolveCanvasLibraryMediaDisplayAuthority } from "../logic/canvasMediaDisplayAuthority";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 import type { AiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 
@@ -500,10 +501,8 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           payload.payload.width,
           payload.payload.height
         );
-        const previewSrc =
-          (payload.payload.fullUrl ?? "").trim() ||
-          (payload.payload.previewUrl ?? "").trim() ||
-          (payload.payload.url ?? "").trim();
+        const displayAuthority = await resolveCanvasLibraryMediaDisplayAuthority(payload.payload);
+        const previewSrc = displayAuthority.mediaUrl;
         if (!previewSrc) return null;
         if (payload.payload.fileType === "audio") {
           return {
@@ -529,7 +528,10 @@ export const useAiStudioPageMediaReferenceRuntime = ({
             outputId: insertedOutputId,
             mediaId: payload.payload.id,
             videoUrl: previewSrc,
-            posterUrl: resolveCanvasPosterUrl(payload.payload.previewPosterUrl),
+            posterUrl: resolveCanvasPosterUrl(
+              displayAuthority.posterUrl,
+              payload.payload.previewPosterUrl
+            ),
             title:
               (payload.payload.filename || payload.payload.promptText || "Canvas video").trim() ||
               null,

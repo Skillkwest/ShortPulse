@@ -1,11 +1,17 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 import { useAiStudioReferenceSelectionState } from "../useAiStudioReferenceSelectionState";
 
 const uploadVideoFileToStorageMock = vi.hoisted(() => vi.fn());
 const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const deleteUploadedMotionVideoByPathMock = vi.hoisted(() => vi.fn());
 const retireCommittedMotionVideoByUrlMock = vi.hoisted(() => vi.fn());
+const prepareVideoUrlMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrlsBatch: vi.fn(),
+}));
 
 vi.mock("../../utils/videoUpload", () => ({
   uploadVideoFileToStorage: (...args: unknown[]) => uploadVideoFileToStorageMock(...args),
@@ -14,13 +20,18 @@ vi.mock("../../utils/videoUpload", () => ({
     deleteUploadedMotionVideoByPathMock(...args),
   retireCommittedMotionVideoByUrl: (...args: unknown[]) =>
     retireCommittedMotionVideoByUrlMock(...args),
+  prepareVideoUrl: (...args: unknown[]) => prepareVideoUrlMock(...args),
 }));
+
+const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
 
 describe("useAiStudioReferenceSelectionState", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     deleteUploadedMotionVideoByPathMock.mockResolvedValue(undefined);
     retireCommittedMotionVideoByUrlMock.mockResolvedValue(undefined);
+    prepareVideoUrlMock.mockImplementation(async (value: string | null) => value);
   });
 
   it("defaults to Create workflow selection for new studio sessions", () => {
@@ -176,6 +187,55 @@ describe("useAiStudioReferenceSelectionState", () => {
         ],
       })
     );
+  });
+
+  it("refreshes stale signed frame URLs for the video reference slot", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/references/frame.png",
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/frame.png?token=refreshed.valid.token",
+        ],
+        [
+          "user-1/references/extra.png",
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/extra.png?token=refreshed.extra.token",
+        ],
+      ])
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+
+    act(() => {
+      result.current.setSelectedTool("video");
+    });
+    act(() => {
+      result.current.setReferenceImageUrl(
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/frame.png?token=expired.invalid.token"
+      );
+      result.current.setExtraImageUrl(
+        0,
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/extra.png?token=expired.extra.token"
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.referenceImageUrl).toBe(
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/frame.png?token=refreshed.valid.token"
+      );
+    });
+
+    expect(result.current.extraImageUrls[0]).toBe(
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/extra.png?token=refreshed.extra.token"
+    );
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: ["user-1/references/frame.png", "user-1/references/extra.png"],
+    });
   });
 
   it("preserves an off-Create tool when returning to Pulse authority", () => {

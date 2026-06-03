@@ -36,6 +36,10 @@ const buildPricingState = (): AdminPricingStateResponse => ({
       perModel: {},
     },
   },
+  customRows: {
+    schemaVersion: 1,
+    rowsByModel: {},
+  },
   models: [],
   plans: [
     {
@@ -88,6 +92,21 @@ describe("useAdminPricingPageState", () => {
         sourceActivePolicyVersion: 3,
         modelPolicyDirty: false,
         modelPolicyDraft: null,
+        customRowsDraft: {
+          schemaVersion: 1,
+          rowsByModel: {
+            "fal-ai/flux-pro/v1.1": [
+              {
+                displayRowId: "custom-row-1",
+                variantId: "create|aspect:1:1",
+                spec: {
+                  baseVariantId: "create",
+                  aspect: "1:1",
+                },
+              },
+            ],
+          },
+        },
         durationDrafts: {},
         aspectDrafts: {},
         resolutionDrafts: {},
@@ -142,6 +161,14 @@ describe("useAdminPricingPageState", () => {
 
     await waitFor(() => expect(result.current.simulatorPlanIds).toEqual(["starter", "sim-plan-1"]));
     expect(result.current.planEconomicsDrafts["sim-plan-1"]?.simulatedName).toBe("Sandbox Plan");
+    expect(
+      result.current.effectiveCustomRowsDraft.rowsByModel["fal-ai/flux-pro/v1.1"]?.[0]
+    ).toEqual(
+      expect.objectContaining({
+        displayRowId: "custom-row-1",
+        variantId: "create|aspect:1:1",
+      })
+    );
   });
 
   it("drops the hidden free tier from default simulator plan ids when starter exists", async () => {

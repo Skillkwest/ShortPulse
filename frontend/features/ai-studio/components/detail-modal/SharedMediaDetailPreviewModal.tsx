@@ -126,6 +126,8 @@ export function SharedMediaDetailPreviewModal({
       <SharedMediaDetailContentLayout
         topBar={
           <SharedMediaDetailTopBar
+            eyebrow="Media detail"
+            title={title}
             items={item ? resolveSharedMediaDetailTopBarItems(item) : []}
             actions={topBarActions}
             onClose={onClose}

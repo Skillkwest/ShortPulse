@@ -36,6 +36,10 @@ const buildPricingState = () => ({
       perModel: {},
     },
   },
+  customRows: {
+    schemaVersion: 1,
+    rowsByModel: {},
+  },
   models: [],
   plans: [],
   creditPackages: [],

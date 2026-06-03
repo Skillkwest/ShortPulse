@@ -3,8 +3,6 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPricingPage from "../../pages/admin/pricing";
 import type { AdminPricingStateResponse } from "../../features/admin/types";
-import { buildDefaultPricingParams, computeCostForModel } from "../../lib/model-runtime/pricing";
-import type { ModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
@@ -69,6 +67,10 @@ const buildPricingState = (): AdminPricingStateResponse => ({
       },
       perModel: {},
     },
+  },
+  customRows: {
+    schemaVersion: 1,
+    rowsByModel: {},
   },
   models: [
     {
@@ -360,6 +362,25 @@ describe("Admin pricing page", () => {
     expect(screen.getAllByRole("group", { name: /simulator plan$/i }).length).toBeGreaterThan(0);
   });
 
+  it("lets the admin add a custom pricing variant row without changing the built-in row", () => {
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: buildPricingState(),
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminPricingPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /FLUX\.2 Lite/i })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Add custom variant" }));
+
+    expect(screen.getByText("Custom variant 1")).toBeInTheDocument();
+    expect(screen.getAllByText("FLUX.2 Lite").length).toBeGreaterThan(1);
+    expect(screen.getByRole("button", { name: "Save draft live" })).toBeEnabled();
+  });
+
   it("saves model policy drafts and preserves the refreshed preview", async () => {
     const persistedState: AdminPricingStateResponse = {
       ...buildPricingState(),
@@ -391,6 +412,7 @@ describe("Admin pricing page", () => {
         ok: true,
         activePolicyVersion: 4,
         activePolicy: JSON.parse(String(options?.body ?? "{}")).policy,
+        activeCustomRows: JSON.parse(String(options?.body ?? "{}")).customRows,
       })),
     }));
     useAdminPricingControllerMock.mockImplementation(() => ({

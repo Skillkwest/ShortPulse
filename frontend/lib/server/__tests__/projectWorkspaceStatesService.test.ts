@@ -27,6 +27,9 @@ const MEDIA_VIDEO_ID_1 = "66666666-6666-4666-8666-666666666666";
 
 type SupabaseMockOptions = {
   workspaceSnapshot?: Record<string, unknown>;
+  workspaceSnapshotUpdatedAt?: string;
+  workspaceUpsertSnapshot?: Record<string, unknown>;
+  workspaceUpsertSnapshotUpdatedAt?: string;
   associatedSnapshotGenerationIds?: string[];
   recentGenerationIds?: string[];
   generationRows?: Array<Record<string, unknown>>;
@@ -45,6 +48,9 @@ type SupabaseMockOptions = {
 
 const createSupabaseMock = ({
   workspaceSnapshot,
+  workspaceSnapshotUpdatedAt,
+  workspaceUpsertSnapshot,
+  workspaceUpsertSnapshotUpdatedAt,
   associatedSnapshotGenerationIds = [GENERATION_ID_1],
   recentGenerationIds = [GENERATION_ID_1],
   generationRows = [
@@ -82,6 +88,89 @@ const createSupabaseMock = ({
   mediaRowReadError,
   workspaceUpsertError,
 }: SupabaseMockOptions = {}) => {
+  const fallbackWorkspaceSnapshot = {
+    schemaVersion: 2,
+    sessionId: "session-1",
+    updatedAt: "2026-04-23T01:00:00.000Z",
+    meta: {
+      generatedAt: "2026-04-23T01:00:00.000Z",
+      checksum: "fnv1a32:legacy",
+    },
+    outputs: {
+      active: [
+        {
+          id: "out-1",
+          generationId: GENERATION_ID_1,
+          previewUrl: "https://expired.example.com/old.png",
+          resultUrls: ["https://expired.example.com/old.png"],
+        },
+        {
+          id: "out-2",
+          generationId: GENERATION_ID_2,
+          previewUrl: "https://expired.example.com/other.png",
+          resultUrls: ["https://expired.example.com/other.png"],
+        },
+      ],
+      archived: [],
+    },
+    agent: {
+      messages: [{ id: "msg-1", role: "assistant", content: "Legacy chat" }],
+      input: "legacy draft",
+      latestAgentPrompt: "Legacy prompt",
+      promptOrigin: "agent",
+      chatModeEnabled: false,
+      pulseWorkflowSession: {
+        presetId: "single_shot",
+        status: "awaiting_input",
+        currentStepIndex: 1,
+        currentStepLabel: "Action",
+        currentStepPrompt: "What happens next?",
+        collectedInputs: ["Close-up"],
+        lastArtifact: null,
+        finalArtifactSource: null,
+      },
+    },
+    agentRuntimes: {
+      standard: {
+        messages: [{ id: "msg-0", role: "assistant", content: "Legacy standard" }],
+        input: "",
+        latestAgentPrompt: "Legacy standard",
+        promptOrigin: "agent",
+        chatModeEnabled: false,
+        pulseWorkflowSession: null,
+      },
+      pulsePresetId: "single_shot",
+      pulse: {
+        messages: [{ id: "msg-1", role: "assistant", content: "Legacy chat" }],
+        input: "legacy draft",
+        latestAgentPrompt: "Legacy prompt",
+        promptOrigin: "agent",
+        chatModeEnabled: false,
+        pulseWorkflowSession: {
+          presetId: "single_shot",
+          status: "awaiting_input",
+          currentStepIndex: 1,
+          currentStepLabel: "Action",
+          currentStepPrompt: "What happens next?",
+          collectedInputs: ["Close-up"],
+          lastArtifact: null,
+          finalArtifactSource: null,
+        },
+      },
+    },
+  } as Record<string, unknown>;
+  const resolvedWorkspaceSnapshot = workspaceSnapshot ?? fallbackWorkspaceSnapshot;
+  const resolvedWorkspaceSnapshotUpdatedAt =
+    workspaceSnapshotUpdatedAt ??
+    (typeof resolvedWorkspaceSnapshot.updatedAt === "string"
+      ? resolvedWorkspaceSnapshot.updatedAt
+      : "2026-04-23T01:00:00.000Z");
+  const resolvedWorkspaceUpsertSnapshot = workspaceUpsertSnapshot ?? resolvedWorkspaceSnapshot;
+  const resolvedWorkspaceUpsertSnapshotUpdatedAt =
+    workspaceUpsertSnapshotUpdatedAt ??
+    (typeof resolvedWorkspaceUpsertSnapshot.updatedAt === "string"
+      ? resolvedWorkspaceUpsertSnapshot.updatedAt
+      : resolvedWorkspaceSnapshotUpdatedAt);
   const mediaRowsById = new Map<string, Record<string, unknown>>(
     mediaRows
       .filter(
@@ -214,77 +303,8 @@ const createSupabaseMock = ({
       project_id: "project-1",
       user_id: "user-1",
       schema_version: 2,
-      snapshot: workspaceSnapshot ?? {
-        schemaVersion: 2,
-        sessionId: "session-1",
-        updatedAt: "2026-04-23T01:00:00.000Z",
-        meta: {
-          generatedAt: "2026-04-23T01:00:00.000Z",
-          checksum: "fnv1a32:legacy",
-        },
-        outputs: {
-          active: [
-            {
-              id: "out-1",
-              generationId: GENERATION_ID_1,
-              previewUrl: "https://expired.example.com/old.png",
-              resultUrls: ["https://expired.example.com/old.png"],
-            },
-            {
-              id: "out-2",
-              generationId: GENERATION_ID_2,
-              previewUrl: "https://expired.example.com/other.png",
-              resultUrls: ["https://expired.example.com/other.png"],
-            },
-          ],
-          archived: [],
-        },
-        agent: {
-          messages: [{ id: "msg-1", role: "assistant", content: "Legacy chat" }],
-          input: "legacy draft",
-          latestAgentPrompt: "Legacy prompt",
-          promptOrigin: "agent",
-          chatModeEnabled: false,
-          pulseWorkflowSession: {
-            presetId: "single_shot",
-            status: "awaiting_input",
-            currentStepIndex: 1,
-            currentStepLabel: "Action",
-            currentStepPrompt: "What happens next?",
-            collectedInputs: ["Close-up"],
-            lastArtifact: null,
-            finalArtifactSource: null,
-          },
-        },
-        agentRuntimes: {
-          standard: {
-            messages: [{ id: "msg-0", role: "assistant", content: "Legacy standard" }],
-            input: "",
-            latestAgentPrompt: "Legacy standard",
-            promptOrigin: "agent",
-            chatModeEnabled: false,
-            pulseWorkflowSession: null,
-          },
-          pulsePresetId: "single_shot",
-          pulse: {
-            messages: [{ id: "msg-1", role: "assistant", content: "Legacy chat" }],
-            input: "legacy draft",
-            latestAgentPrompt: "Legacy prompt",
-            promptOrigin: "agent",
-            chatModeEnabled: false,
-            pulseWorkflowSession: {
-              presetId: "single_shot",
-              status: "awaiting_input",
-              currentStepIndex: 1,
-              currentStepLabel: "Action",
-              currentStepPrompt: "What happens next?",
-              collectedInputs: ["Close-up"],
-              lastArtifact: null,
-              finalArtifactSource: null,
-            },
-          },
-        },
-      },
+      snapshot: resolvedWorkspaceSnapshot,
+      snapshot_updated_at: resolvedWorkspaceSnapshotUpdatedAt,
       created_at: "2026-04-23T00:00:00.000Z",
       updated_at: "2026-04-23T01:00:00.000Z",
     },
@@ -306,13 +326,8 @@ const createSupabaseMock = ({
               project_id: "project-1",
               user_id: "user-1",
               schema_version: 2,
-              snapshot:
-                workspaceSnapshot ??
-                ({
-                  schemaVersion: 2,
-                  sessionId: "session-1",
-                  updatedAt: "2026-04-23T01:00:00.000Z",
-                } as Record<string, unknown>),
+              snapshot: resolvedWorkspaceUpsertSnapshot,
+              snapshot_updated_at: resolvedWorkspaceUpsertSnapshotUpdatedAt,
               created_at: "2026-04-23T00:00:00.000Z",
               updated_at: "2026-04-23T01:00:00.000Z",
             },
@@ -740,6 +755,101 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
+  it("returns the newer stored workspace unchanged when an older snapshot arrives late", async () => {
+    const existingSnapshot = {
+      schemaVersion: 2,
+      sessionId: "session-existing",
+      updatedAt: "2026-04-23T01:00:05.000Z",
+      workspace: {
+        mode: "image",
+        selectedTool: "create",
+        prompt: "",
+        standardPrompt: "",
+      },
+      outputs: {
+        active: [
+          {
+            id: "library-existing",
+            savedMediaIds: [MEDIA_ID_1],
+          },
+        ],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+      },
+      agent: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: false,
+        pulseWorkflowSession: null,
+      },
+    };
+    const {
+      mediaAssociationUpsert,
+      promptAssociationUpsert,
+      generationAssociationUpsert,
+      workspaceUpsert,
+    } = createSupabaseMock({
+      workspaceSnapshot: existingSnapshot,
+      workspaceSnapshotUpdatedAt: "2026-04-23T01:00:05.000Z",
+      workspaceUpsertSnapshot: existingSnapshot,
+      workspaceUpsertSnapshotUpdatedAt: "2026-04-23T01:00:05.000Z",
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await expect(
+      upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-stale",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          workspace: {
+            mode: "image",
+            selectedTool: "create",
+            prompt: "older prompt",
+            standardPrompt: "older prompt",
+          },
+          outputs: {
+            active: [
+              {
+                id: "library-stale",
+                savedMediaIds: [MEDIA_ID_2],
+              },
+            ],
+            archived: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      })
+    ).resolves.toMatchObject({
+      saveOutcome: {
+        status: "saved",
+      },
+      snapshot: existingSnapshot,
+      updatedAt: "2026-04-23T01:00:00.000Z",
+    });
+
+    expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+    expect(mediaAssociationUpsert).not.toHaveBeenCalled();
+    expect(promptAssociationUpsert).not.toHaveBeenCalled();
+    expect(generationAssociationUpsert).not.toHaveBeenCalled();
+  });
+
   it("preserves saved media-library quick-slot rows through workspace writes", async () => {
     const { workspaceUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
@@ -1041,10 +1151,8 @@ describe("projectWorkspaceStatesService", () => {
     expect(result.saveOutcome).toEqual({ status: "saved" });
     expect(promptIdInMock).toHaveBeenCalledTimes(3);
     expect(promptIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);
-    expect(generationIdInMock).toHaveBeenCalledTimes(6);
-    expect(generationIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([
-      100, 100, 5, 100, 100, 5,
-    ]);
+    expect(generationIdInMock).toHaveBeenCalledTimes(3);
+    expect(generationIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);
     const firstWorkspaceUpsertArg = (
       workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
     ).at(0)?.[0];
@@ -1142,6 +1250,97 @@ describe("projectWorkspaceStatesService", () => {
         onConflict: "project_id,generation_id",
       }
     );
+  });
+
+  it("reuses prewrite runtime-owned generation authority for project association backfill", async () => {
+    const { generationAssociationUpsert, generationIdInMock } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      generationRows: [
+        {
+          id: GENERATION_ID_2,
+          request_id: "task-runtime-owned-save-1",
+        },
+      ],
+      projectionRows: [
+        {
+          generation_id: GENERATION_ID_2,
+          request_id: "task-runtime-owned-save-1",
+          source_ref: "source-runtime-owned-save-1",
+          preview_url: "https://cdn.example.com/runtime-owned-save.png",
+          result_urls: ["https://cdn.example.com/runtime-owned-save.png"],
+          preview_storage_path: "user-1/generated/runtime-owned-save-preview.png",
+          full_storage_path: "user-1/generated/runtime-owned-save-full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Runtime-owned generated output",
+          provider: "fal",
+          model_id: "fal-ai/seedream",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-runtime-owned-save",
+        updatedAt: "2026-06-02T22:10:00.000Z",
+        meta: {
+          generatedAt: "2026-06-02T22:10:00.000Z",
+          checksum: "fnv1a32:runtime-owned-save",
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-generated-runtime-owned-save",
+              taskId: "task-runtime-owned-save-1",
+              sourceRef: "source-runtime-owned-save-1",
+              mediaSource: "generated",
+              previewUrl: "https://cdn.example.com/runtime-owned-save.png",
+              resultUrls: ["https://cdn.example.com/runtime-owned-save.png"],
+            },
+          ],
+          archived: [],
+          activeOutputId: "out-generated-runtime-owned-save",
+          curatedReferenceIds: ["out-generated-runtime-owned-save"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(generationAssociationUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          generation_id: GENERATION_ID_2,
+          user_id: "user-1",
+        }),
+      ],
+      {
+        onConflict: "project_id,generation_id",
+      }
+    );
+    expect(generationIdInMock).toHaveBeenCalledTimes(1);
+    expect(generationIdInMock).toHaveBeenCalledWith("request_id", [
+      "task-runtime-owned-save-1",
+      "source-runtime-owned-save-1",
+    ]);
   });
 
   it("preserves durable generated rows during workspace save even when generation ownership resolves unowned", async () => {

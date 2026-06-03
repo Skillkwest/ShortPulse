@@ -1,5 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
+  adminPricingCustomRowsDocumentsEqual,
+  compactAdminPricingCustomRowsDocument,
+  type AdminPricingCustomRowsDocument,
+} from "../../../../../lib/model-runtime/adminPricingCustomRows";
+import {
   compactModelPricingPolicyDocument,
   modelPricingPolicyDocumentsEqual,
   type ModelPricingPolicyDocument,
@@ -10,6 +15,7 @@ import { applyModelPricingPolicy } from "../../../../../lib/server/api/modelPric
 
 type ApplyModelPricingPolicyRequest = {
   policy?: ModelPricingPolicyDocument;
+  customRows?: AdminPricingCustomRowsDocument;
   note?: string;
   reason?: string;
 };
@@ -37,12 +43,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const body = (req.body ?? {}) as ApplyModelPricingPolicyRequest;
   const policy = compactModelPricingPolicyDocument(body.policy);
+  const customRows = compactAdminPricingCustomRowsDocument(body.customRows);
   const note = normalizeText(body.note, 400);
   const reason = normalizeText(body.reason, 400);
 
   try {
     const result = await applyModelPricingPolicy({
       policy,
+      customRows,
       note,
       reason,
       actorUserId: adminUser.id,
@@ -61,6 +69,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         activePolicyVersion: result.activePolicyVersion,
         activePolicyVersionId: result.activePolicyVersionId,
         activePolicy: result.activePolicy,
+        activePolicyUpdatedAt: result.activePolicyUpdatedAt,
+        activePolicyUpdatedByEmail: result.activePolicyUpdatedByEmail,
+        message,
+      });
+    }
+    if (!adminPricingCustomRowsDocumentsEqual(customRows, result.activeCustomRows)) {
+      const message =
+        "Applied custom pricing rows could not be verified against the active runtime state.";
+      return res.status(409).json({
+        ok: false,
+        error: message,
+        status: "verification_failed",
+        activePolicyVersion: result.activePolicyVersion,
+        activePolicyVersionId: result.activePolicyVersionId,
+        activePolicy: result.activePolicy,
+        activeCustomRows: result.activeCustomRows,
         activePolicyUpdatedAt: result.activePolicyUpdatedAt,
         activePolicyUpdatedByEmail: result.activePolicyUpdatedByEmail,
         message,

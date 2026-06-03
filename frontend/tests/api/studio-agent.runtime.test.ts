@@ -669,6 +669,42 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
   });
 
+  it("does not collapse benign Standard image-attribute uncertainty into a safety refusal", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                "I am not able to identify or guess that particular attribute from the image here. I can still help with other non-sensitive details from the image.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message:
+          "I am not able to identify or guess that particular attribute from the image here. I can still help with other non-sensitive details from the image.",
+        actions: {
+          applyPrompt:
+            "I am not able to identify or guess that particular attribute from the image here. I can still help with other non-sensitive details from the image.",
+        },
+        outcome_class: "success_prompt",
+        reason_code: "SUCCESS_PROMPT",
+      })
+    );
+    expect(payload.outcome_class).not.toBe("refusal_safety");
+  });
+
   it("serializes explicit Standard prompt attachments into the latest user turn", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

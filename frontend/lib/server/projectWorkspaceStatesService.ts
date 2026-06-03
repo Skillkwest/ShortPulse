@@ -21,7 +21,7 @@ import { backfillProjectGenerationAssociationsForSnapshot } from "./projectGener
 import { chunkValues } from "./queryBatching";
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
-  "project_id, user_id, schema_version, snapshot, created_at, updated_at" as const;
+  "project_id, user_id, schema_version, snapshot, snapshot_updated_at, created_at, updated_at" as const;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -30,6 +30,7 @@ type ProjectWorkspaceStateRow = {
   user_id: string;
   schema_version: number;
   snapshot: Record<string, unknown>;
+  snapshot_updated_at: string;
   created_at: string;
   updated_at: string;
 };
@@ -70,6 +71,14 @@ const normalizeOptionalString = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const normalizeIsoTimestamp = (value: unknown): string | null => {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) return null;
+  const parsed = Date.parse(normalized);
+  if (!Number.isFinite(parsed)) return null;
+  return new Date(parsed).toISOString();
+};
+
 const normalizeUuid = (value: unknown): string | null => {
   const normalized = normalizeOptionalString(value);
   return normalized && UUID_PATTERN.test(normalized) ? normalized : null;
@@ -95,6 +104,14 @@ const normalizeStringList = (value: unknown): string[] =>
 
 const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
+
+const compareIsoTimestamps = (left: string, right: string): number => {
+  const leftTime = Date.parse(left);
+  const rightTime = Date.parse(right);
+  if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) return 0;
+  if (leftTime === rightTime) return 0;
+  return leftTime > rightTime ? 1 : -1;
+};
 
 const wrapProjectWorkspaceSaveStageError = ({
   stage,
@@ -820,12 +837,14 @@ const backfillProjectAssetAssociationsForSnapshot = async ({
   snapshot,
   ownedMediaFileIds,
   ownedPromptIds,
+  ownedGenerationIds,
 }: {
   userId: string;
   projectId: string;
   snapshot: Record<string, unknown>;
   ownedMediaFileIds?: string[];
   ownedPromptIds?: string[];
+  ownedGenerationIds?: string[];
 }): Promise<void> => {
   const resolvedOwnedIds =
     ownedMediaFileIds && ownedPromptIds
@@ -874,6 +893,7 @@ const backfillProjectAssetAssociationsForSnapshot = async ({
       userId,
       projectId,
       snapshot,
+      ownedGenerationIds,
     });
   } catch (error) {
     throw new Error(toErrorMessage(error, "Failed to backfill project generation associations"));
@@ -1115,6 +1135,8 @@ export const upsertProjectWorkspaceStateForUser = async ({
     typeof schemaVersion === "number" && Number.isFinite(schemaVersion)
       ? Math.max(1, Math.min(100, Math.trunc(schemaVersion)))
       : 2;
+  const snapshotUpdatedAt =
+    normalizeIsoTimestamp(preparedSnapshot.snapshot.updatedAt) ?? new Date().toISOString();
 
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
@@ -1125,6 +1147,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
         user_id: userId,
         schema_version: normalizedSchemaVersion,
         snapshot: preparedSnapshot.snapshot,
+        snapshot_updated_at: snapshotUpdatedAt,
         updated_at: new Date().toISOString(),
       },
       {
@@ -1147,6 +1170,17 @@ export const upsertProjectWorkspaceStateForUser = async ({
     });
   }
   const savedRow = data as ProjectWorkspaceStateRow;
+  const staleWriteIgnored =
+    compareIsoTimestamps(savedRow.snapshot_updated_at, snapshotUpdatedAt) > 0;
+
+  if (staleWriteIgnored) {
+    return toProjectWorkspaceStateRecord({
+      row: savedRow,
+      saveOutcome: {
+        status: "saved",
+      },
+    });
+  }
 
   try {
     await backfillProjectAssetAssociationsForSnapshot({
@@ -1155,6 +1189,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
       snapshot: preparedSnapshot.snapshot,
       ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
       ownedPromptIds: preparedSnapshot.ownedPromptIds,
+      ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
     });
   } catch (error) {
     const repairMessage = toErrorMessage(

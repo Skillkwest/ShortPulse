@@ -45,6 +45,12 @@ import {
 import { useAdminPricingCatalogState } from "./useAdminPricingCatalogState";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
+  adminPricingCustomRowsDocumentsEqual,
+  compactAdminPricingCustomRowsDocument,
+  getDefaultAdminPricingCustomRowsDocument,
+  type AdminPricingCustomRowsDocument,
+} from "../../../lib/model-runtime/adminPricingCustomRows";
+import {
   compactModelPricingPolicyDocument,
   getDefaultModelPricingPolicyDocument,
   modelPricingPolicyDocumentsEqual,
@@ -79,6 +85,7 @@ type ModelPolicyApplyResponse = {
   message?: string | null;
   status?: string;
   activePolicy?: ModelPricingPolicyDocument | null;
+  activeCustomRows?: AdminPricingCustomRowsDocument | null;
   activePolicyVersion?: number | null;
   activePolicyVersionId?: number | null;
 };
@@ -115,6 +122,8 @@ export function useAdminPricingPageState({
   const [modelPolicyDraft, setModelPolicyDraft] = React.useState<ModelPricingPolicyDocument | null>(
     null
   );
+  const [customRowsDraft, setCustomRowsDraft] =
+    React.useState<AdminPricingCustomRowsDocument | null>(null);
   const [modelPolicyDirty, setModelPolicyDirty] = React.useState(false);
   const [modelPolicySaving, setModelPolicySaving] = React.useState(false);
   const [modelPolicyRollbackLoading, setModelPolicyRollbackLoading] = React.useState(false);
@@ -171,16 +180,26 @@ export function useAdminPricingPageState({
       ),
     [modelPolicySnapshot]
   );
+  const activeCustomRowsDocument = React.useMemo(
+    () =>
+      compactAdminPricingCustomRowsDocument(
+        pricingState?.customRows ?? getDefaultAdminPricingCustomRowsDocument()
+      ),
+    [pricingState?.customRows]
+  );
 
   React.useEffect(() => {
     if (!pricingState || pricingWorkspaceHydrated) return;
     const restoredWorkspace = readAdminPricingWorkspaceDraft();
     if (restoredWorkspace) {
       const restoredPolicyDraft = restoredWorkspace.modelPolicyDraft ?? activeModelPolicyDocument;
+      const restoredCustomRowsDraft = restoredWorkspace.customRowsDraft ?? activeCustomRowsDocument;
       const nextModelPolicyDraft = compactModelPricingPolicyDocument(restoredPolicyDraft);
+      const nextCustomRowsDraft = compactAdminPricingCustomRowsDocument(restoredCustomRowsDraft);
       const nextModelPolicyDirty =
         restoredWorkspace.modelPolicyDirty ||
-        !modelPricingPolicyDocumentsEqual(nextModelPolicyDraft, activeModelPolicyDocument);
+        !modelPricingPolicyDocumentsEqual(nextModelPolicyDraft, activeModelPolicyDocument) ||
+        !adminPricingCustomRowsDocumentsEqual(nextCustomRowsDraft, activeCustomRowsDocument);
 
       setDurationDrafts(restoredWorkspace.durationDrafts);
       setAspectDrafts(restoredWorkspace.aspectDrafts);
@@ -194,6 +213,7 @@ export function useAdminPricingPageState({
       setVariantProviderCostDrafts(restoredWorkspace.variantProviderCostDrafts);
       setVariantProviderCostPerSecondDrafts(restoredWorkspace.variantProviderCostPerSecondDrafts);
       setModelPolicyDraft(nextModelPolicyDraft);
+      setCustomRowsDraft(nextCustomRowsDraft);
       setModelPolicyDirty(nextModelPolicyDirty);
       setModelSearchQuery(restoredWorkspace.modelSearchQuery);
       setModelSortOption(restoredWorkspace.modelSortOption);
@@ -205,11 +225,12 @@ export function useAdminPricingPageState({
       setUsageMixRowsByPlanId(restoredWorkspace.usageMixRowsByPlanId);
     }
     setPricingWorkspaceHydrated(true);
-  }, [activeModelPolicyDocument, pricingState, pricingWorkspaceHydrated]);
+  }, [activeCustomRowsDocument, activeModelPolicyDocument, pricingState, pricingWorkspaceHydrated]);
 
   React.useEffect(() => {
     if (!pricingState || modelPolicyDirty || !pricingWorkspaceHydrated) return;
     setModelPolicyDraft(activeModelPolicyDocument);
+    setCustomRowsDraft(activeCustomRowsDocument);
     setCreditScaleDrafts({});
     setMarkupDrafts({});
     setVariantMarkupDrafts({});
@@ -217,9 +238,16 @@ export function useAdminPricingPageState({
     setProviderCostPerSecondDrafts({});
     setVariantProviderCostDrafts({});
     setVariantProviderCostPerSecondDrafts({});
-  }, [activeModelPolicyDocument, modelPolicyDirty, pricingState, pricingWorkspaceHydrated]);
+  }, [
+    activeCustomRowsDocument,
+    activeModelPolicyDocument,
+    modelPolicyDirty,
+    pricingState,
+    pricingWorkspaceHydrated,
+  ]);
 
   const effectiveModelPolicyDraft = modelPolicyDraft ?? activeModelPolicyDocument;
+  const effectiveCustomRowsDraft = customRowsDraft ?? activeCustomRowsDocument;
 
   React.useEffect(() => {
     if (modelPolicyDirty) return;
@@ -235,6 +263,7 @@ export function useAdminPricingPageState({
       sourceActivePolicyVersion: modelPolicySnapshot?.activePolicyVersion ?? null,
       modelPolicyDirty,
       modelPolicyDraft: effectiveModelPolicyDraft,
+      customRowsDraft: effectiveCustomRowsDraft,
       durationDrafts,
       aspectDrafts,
       resolutionDrafts,
@@ -260,6 +289,7 @@ export function useAdminPricingPageState({
     audioDrafts,
     creditScaleDrafts,
     durationDrafts,
+    effectiveCustomRowsDraft,
     effectiveModelPolicyDraft,
     globalCreditScaleDraft,
     globalCreditUsdAmountDraft,
@@ -326,6 +356,7 @@ export function useAdminPricingPageState({
       buildModelEconomicsRows({
         models: pricingState?.models ?? [],
         pricingPolicy: effectiveModelPolicyDraft,
+        customRowsDocument: effectiveCustomRowsDraft,
         durationDrafts,
         aspectDrafts,
         resolutionDrafts,
@@ -335,6 +366,7 @@ export function useAdminPricingPageState({
       aspectDrafts,
       audioDrafts,
       durationDrafts,
+      effectiveCustomRowsDraft,
       effectiveModelPolicyDraft,
       pricingState?.models,
       resolutionDrafts,
@@ -630,14 +662,29 @@ export function useAdminPricingPageState({
   );
 
   const canApplyModelPolicy = modelPolicyDirty;
-  const draftPolicyDiffDescriptions = React.useMemo(
-    () =>
-      describeDraftPolicyDiff({
-        livePolicy: activeModelPolicyDocument,
-        draftPolicy: effectiveModelPolicyDraft,
-      }),
-    [activeModelPolicyDocument, effectiveModelPolicyDraft]
-  );
+  const draftPolicyDiffDescriptions = React.useMemo(() => {
+    const diffs = describeDraftPolicyDiff({
+      livePolicy: activeModelPolicyDocument,
+      draftPolicy: effectiveModelPolicyDraft,
+    });
+    const liveCustomRowCount = Object.values(activeCustomRowsDocument.rowsByModel).reduce(
+      (sum, rows) => sum + rows.length,
+      0
+    );
+    const draftCustomRowCount = Object.values(effectiveCustomRowsDraft.rowsByModel).reduce(
+      (sum, rows) => sum + rows.length,
+      0
+    );
+    if (!adminPricingCustomRowsDocumentsEqual(activeCustomRowsDocument, effectiveCustomRowsDraft)) {
+      diffs.push(`Custom rows: ${liveCustomRowCount} -> ${draftCustomRowCount}`);
+    }
+    return diffs;
+  }, [
+    activeCustomRowsDocument,
+    activeModelPolicyDocument,
+    effectiveCustomRowsDraft,
+    effectiveModelPolicyDraft,
+  ]);
 
   const hasInvalidModelPolicyDraft = React.useMemo(() => {
     const parsedGlobalCredits = parseIntegerInput(globalCreditScaleDraft);
@@ -751,14 +798,35 @@ export function useAdminPricingPageState({
         const next = updater(current ?? activeModelPolicyDocument);
         const nextDraft = compactModelPricingPolicyDocument(next);
         setModelPolicyDirty(
-          !modelPricingPolicyDocumentsEqual(nextDraft, activeModelPolicyDocument)
+          !modelPricingPolicyDocumentsEqual(nextDraft, activeModelPolicyDocument) ||
+            !adminPricingCustomRowsDocumentsEqual(
+              effectiveCustomRowsDraft,
+              activeCustomRowsDocument
+            )
         );
         return nextDraft;
       });
       setModelPolicyMessage(null);
       setModelPolicyError(null);
     },
-    [activeModelPolicyDocument]
+    [activeCustomRowsDocument, activeModelPolicyDocument, effectiveCustomRowsDraft]
+  );
+
+  const updateCustomRowsDraft = React.useCallback(
+    (updater: (current: AdminPricingCustomRowsDocument) => AdminPricingCustomRowsDocument) => {
+      setCustomRowsDraft((current) => {
+        const next = updater(current ?? activeCustomRowsDocument);
+        const nextDraft = compactAdminPricingCustomRowsDocument(next);
+        setModelPolicyDirty(
+          !modelPricingPolicyDocumentsEqual(effectiveModelPolicyDraft, activeModelPolicyDocument) ||
+            !adminPricingCustomRowsDocumentsEqual(nextDraft, activeCustomRowsDocument)
+        );
+        return nextDraft;
+      });
+      setModelPolicyMessage(null);
+      setModelPolicyError(null);
+    },
+    [activeCustomRowsDocument, activeModelPolicyDocument, effectiveModelPolicyDraft]
   );
 
   const updateGlobalConversionDraft = React.useCallback(
@@ -812,6 +880,7 @@ export function useAdminPricingPageState({
 
   const resetModelPolicyDraft = React.useCallback(() => {
     setModelPolicyDraft(activeModelPolicyDocument);
+    setCustomRowsDraft(activeCustomRowsDocument);
     setAspectDrafts({});
     setResolutionDrafts({});
     setAudioDrafts({});
@@ -829,6 +898,7 @@ export function useAdminPricingPageState({
     setModelPolicyMessage(null);
     setModelPolicyError(null);
   }, [
+    activeCustomRowsDocument,
     activeModelPolicyDocument,
     buildLiveSimulatorPlanIds,
     buildPlanEconomicsDefaults,
@@ -837,6 +907,7 @@ export function useAdminPricingPageState({
 
   const applyModelPolicy = React.useCallback(async () => {
     const policy = compactModelPricingPolicyDocument(effectiveModelPolicyDraft);
+    const customRows = compactAdminPricingCustomRowsDocument(effectiveCustomRowsDraft);
     setModelPolicySaving(true);
     setModelPolicyError(null);
     setModelPolicyMessage(null);
@@ -846,6 +917,7 @@ export function useAdminPricingPageState({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           policy,
+          customRows,
           reason: "",
         }),
       });
@@ -861,8 +933,15 @@ export function useAdminPricingPageState({
             "The pricing policy was not confirmed as the active runtime policy. Refresh and retry."
         );
       }
+      if (!adminPricingCustomRowsDocumentsEqual(customRows, payload.activeCustomRows)) {
+        throw new Error(
+          payload.message ||
+            "The custom pricing rows were not confirmed as the active runtime state. Refresh and retry."
+        );
+      }
       await refreshPricingState();
       setModelPolicyDraft(compactModelPricingPolicyDocument(payload.activePolicy));
+      setCustomRowsDraft(compactAdminPricingCustomRowsDocument(payload.activeCustomRows));
       setModelPolicyDirty(false);
       setModelPolicyMessage(
         payload.message ??
@@ -877,7 +956,7 @@ export function useAdminPricingPageState({
     } finally {
       setModelPolicySaving(false);
     }
-  }, [effectiveModelPolicyDraft, refreshPricingState]);
+  }, [effectiveCustomRowsDraft, effectiveModelPolicyDraft, refreshPricingState]);
 
   const rollbackModelPolicy = React.useCallback(async () => {
     setModelPolicyRollbackLoading(true);
@@ -946,12 +1025,29 @@ export function useAdminPricingPageState({
           before: formatCredits(Object.keys(activeModelPolicyDocument.perModel).length),
           after: formatCredits(Object.keys(policy.perModel).length),
         },
+        {
+          label: "Custom rows",
+          before: formatCredits(
+            Object.values(activeCustomRowsDocument.rowsByModel).reduce(
+              (sum, rows) => sum + rows.length,
+              0
+            )
+          ),
+          after: formatCredits(
+            Object.values(effectiveCustomRowsDraft.rowsByModel).reduce(
+              (sum, rows) => sum + rows.length,
+              0
+            )
+          ),
+        },
       ],
       onConfirm: () => void applyModelPolicy(),
     });
   }, [
+    activeCustomRowsDocument,
     activeModelPolicyDocument,
     applyModelPolicy,
+    effectiveCustomRowsDraft,
     effectiveModelPolicyDraft,
     hasInvalidModelPolicyDraft,
     modelPolicySnapshot,
@@ -1029,6 +1125,7 @@ export function useAdminPricingPageState({
     showCostDocsPopover,
     hideCostDocsPopover,
     updateModelPolicyDraft,
+    updateCustomRowsDraft,
     openModelPolicyApplyConfirmation,
     openModelPolicyRollbackConfirmation,
     resetModelPolicyDraft,
@@ -1036,7 +1133,9 @@ export function useAdminPricingPageState({
     cancelPendingPricingAction,
     hasInvalidModelPolicyDraft,
     activeModelPolicyDocument,
+    activeCustomRowsDocument,
     modelPolicySnapshot,
+    effectiveCustomRowsDraft,
     modelEconomicsRows,
     draftPolicyDiffDescriptions,
     planEconomicsDrafts,

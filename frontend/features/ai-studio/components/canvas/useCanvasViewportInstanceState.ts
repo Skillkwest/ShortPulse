@@ -3,6 +3,7 @@
  */
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -68,6 +69,18 @@ import { useCanvasViewportTextHandlers } from "./useCanvasViewportTextHandlers";
 import { PERF_FLAG_AUDIT_RUNTIME } from "../../logic/perfProfileFlags";
 
 const VIEWPORT_PAN_ACTIVATION_DISTANCE_PX = 6;
+
+type PendingItemDragFrame = {
+  selectedItemIds: string[];
+  deltaX: number;
+  deltaY: number;
+  frameId: number | null;
+};
+
+type PendingCameraFrame = {
+  updater: (currentCamera: CanvasCamera) => CanvasCamera;
+  frameId: number | null;
+};
 
 const setPointerCaptureIfAvailable = ({
   target,
@@ -144,6 +157,8 @@ export const useCanvasViewportInstanceState = ({
 }: UseCanvasViewportInstanceStateParams): CanvasPropertiesPanelProps => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<CanvasPointerSession>({ kind: "none" });
+  const pendingItemDragFrameRef = useRef<PendingItemDragFrame | null>(null);
+  const pendingCameraFrameRef = useRef<PendingCameraFrame | null>(null);
   const lastViewportTapRef = useRef<CanvasInteractionPoint | null>(null);
   const lastViewportDraftCreationRef = useRef<CanvasInteractionPoint | null>(null);
   const [isTextResizeActive, setIsTextResizeActive] = useState(false);
@@ -169,6 +184,136 @@ export const useCanvasViewportInstanceState = ({
     commitDraftTextEntry: commitDraftTextEntryState,
     commitTextItemEdit: commitTextItemEditState,
   } = sharedScene;
+
+  const flushPendingItemDragFrame = useCallback(() => {
+    const pendingFrame = pendingItemDragFrameRef.current;
+    if (!pendingFrame) return;
+    pendingItemDragFrameRef.current = null;
+    if (
+      pendingFrame.frameId != null &&
+      typeof window !== "undefined" &&
+      typeof window.cancelAnimationFrame === "function"
+    ) {
+      window.cancelAnimationFrame(pendingFrame.frameId);
+    }
+    setItems((currentItems) =>
+      moveCanvasSceneItemsByIdSet(
+        currentItems,
+        new Set(pendingFrame.selectedItemIds),
+        pendingFrame.deltaX,
+        pendingFrame.deltaY
+      )
+    );
+  }, [setItems]);
+
+  const scheduleItemDragFrame = useCallback(
+    (selectedItemIds: string[], deltaX: number, deltaY: number) => {
+      if (!selectedItemIds.length || (!deltaX && !deltaY)) return;
+      const pendingFrame = pendingItemDragFrameRef.current;
+      if (pendingFrame) {
+        pendingFrame.selectedItemIds = selectedItemIds;
+        pendingFrame.deltaX += deltaX;
+        pendingFrame.deltaY += deltaY;
+        return;
+      }
+
+      const nextPendingFrame: PendingItemDragFrame = {
+        selectedItemIds,
+        deltaX,
+        deltaY,
+        frameId: null,
+      };
+      pendingItemDragFrameRef.current = nextPendingFrame;
+
+      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+        flushPendingItemDragFrame();
+        return;
+      }
+
+      nextPendingFrame.frameId = window.requestAnimationFrame(() => {
+        const currentPendingFrame = pendingItemDragFrameRef.current;
+        if (currentPendingFrame !== nextPendingFrame) return;
+        pendingItemDragFrameRef.current = null;
+        setItems((currentItems) =>
+          moveCanvasSceneItemsByIdSet(
+            currentItems,
+            new Set(currentPendingFrame.selectedItemIds),
+            currentPendingFrame.deltaX,
+            currentPendingFrame.deltaY
+          )
+        );
+      });
+    },
+    [flushPendingItemDragFrame, setItems]
+  );
+
+  const flushPendingCameraFrame = useCallback(() => {
+    const pendingFrame = pendingCameraFrameRef.current;
+    if (!pendingFrame) return;
+    pendingCameraFrameRef.current = null;
+    if (
+      pendingFrame.frameId != null &&
+      typeof window !== "undefined" &&
+      typeof window.cancelAnimationFrame === "function"
+    ) {
+      window.cancelAnimationFrame(pendingFrame.frameId);
+    }
+    setCamera((currentCamera) => pendingFrame.updater(currentCamera));
+  }, [setCamera]);
+
+  const scheduleCameraFrame = useCallback(
+    (updater: (currentCamera: CanvasCamera) => CanvasCamera) => {
+      const pendingFrame = pendingCameraFrameRef.current;
+      if (pendingFrame) {
+        const previousUpdater = pendingFrame.updater;
+        pendingFrame.updater = (currentCamera) => updater(previousUpdater(currentCamera));
+        return;
+      }
+
+      const nextPendingFrame: PendingCameraFrame = {
+        updater,
+        frameId: null,
+      };
+      pendingCameraFrameRef.current = nextPendingFrame;
+
+      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+        flushPendingCameraFrame();
+        return;
+      }
+
+      nextPendingFrame.frameId = window.requestAnimationFrame(() => {
+        const currentPendingFrame = pendingCameraFrameRef.current;
+        if (currentPendingFrame !== nextPendingFrame) return;
+        pendingCameraFrameRef.current = null;
+        setCamera((currentCamera) => currentPendingFrame.updater(currentCamera));
+      });
+    },
+    [flushPendingCameraFrame, setCamera]
+  );
+
+  useEffect(
+    () => () => {
+      const pendingFrame = pendingItemDragFrameRef.current;
+      if (
+        pendingFrame?.frameId != null &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(pendingFrame.frameId);
+      }
+      pendingItemDragFrameRef.current = null;
+      const pendingCameraFrame = pendingCameraFrameRef.current;
+      if (
+        pendingCameraFrame?.frameId != null &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(pendingCameraFrame.frameId);
+      }
+      pendingCameraFrameRef.current = null;
+    },
+    []
+  );
 
   const clearDraftTextEntry = useCallback(() => {
     clearDraftTextEntryState();
@@ -537,7 +682,7 @@ export const useCanvasViewportInstanceState = ({
           });
         }
         event.preventDefault();
-        setCamera((currentCamera) => ({
+        scheduleCameraFrame((currentCamera) => ({
           ...currentCamera,
           x:
             Math.round((interaction.cameraX + event.clientX - interaction.startClientX) * 100) /
@@ -644,7 +789,7 @@ export const useCanvasViewportInstanceState = ({
         });
       });
     },
-    [camera, logCanvasGesture, setCamera, setItems, viewportRef]
+    [camera, logCanvasGesture, scheduleCameraFrame, setItems, viewportRef]
   );
 
   const handleViewportPointerUp = useCallback(
@@ -660,6 +805,7 @@ export const useCanvasViewportInstanceState = ({
       };
 
       if (interaction.kind === "pan") {
+        flushPendingCameraFrame();
         const travelDistance = Math.hypot(
           event.clientX - interaction.startClientX,
           event.clientY - interaction.startClientY
@@ -772,6 +918,7 @@ export const useCanvasViewportInstanceState = ({
     },
     [
       createDraftTextAtClientPoint,
+      flushPendingCameraFrame,
       isSpacePanActiveRef,
       logCanvasGesture,
       setCamera,
@@ -789,6 +936,9 @@ export const useCanvasViewportInstanceState = ({
         interaction.kind === "marquee" ||
         interaction.kind === "text-resize"
       ) {
+        if (interaction.kind === "pan") {
+          flushPendingCameraFrame();
+        }
         lastViewportTapRef.current = null;
         setMarqueeSelectionBox(null);
         interactionRef.current = { kind: "none" };
@@ -808,7 +958,7 @@ export const useCanvasViewportInstanceState = ({
         }
       }
     },
-    [logCanvasGesture, setMarqueeSelectionBox]
+    [flushPendingCameraFrame, logCanvasGesture, setMarqueeSelectionBox]
   );
 
   const handleTextResizeHandlePointerDown = useCallback(
@@ -859,6 +1009,7 @@ export const useCanvasViewportInstanceState = ({
       if (textEditSession?.itemId === itemId && !shouldPan) return;
       event.preventDefault();
       event.stopPropagation();
+      flushPendingItemDragFrame();
       setMarqueeSelectionBox(null);
       clearTextEditSession();
       viewportRef.current?.focus();
@@ -899,6 +1050,7 @@ export const useCanvasViewportInstanceState = ({
       camera.x,
       camera.y,
       clearTextEditSession,
+      flushPendingItemDragFrame,
       isSpacePanActiveRef,
       setMarqueeSelectionBox,
       setItems,
@@ -910,7 +1062,7 @@ export const useCanvasViewportInstanceState = ({
     (itemId: string, event: PointerEvent<HTMLElement>) => {
       const interaction = interactionRef.current;
       if (interaction.kind === "pan" && interaction.pointerId === event.pointerId) {
-        setCamera((currentCamera) => ({
+        scheduleCameraFrame((currentCamera) => ({
           ...currentCamera,
           x:
             Math.round((interaction.cameraX + event.clientX - interaction.startClientX) * 100) /
@@ -936,34 +1088,35 @@ export const useCanvasViewportInstanceState = ({
         lastClientX: event.clientX,
         lastClientY: event.clientY,
       };
-      setItems((currentItems) =>
-        moveCanvasSceneItemsByIdSet(
-          currentItems,
-          new Set(interaction.selectedItemIds),
-          deltaX,
-          deltaY
-        )
-      );
+      scheduleItemDragFrame(interaction.selectedItemIds, deltaX, deltaY);
     },
-    [camera.zoom, setCamera, setItems]
+    [camera.zoom, scheduleCameraFrame, scheduleItemDragFrame]
   );
 
-  const handleItemPointerUp = useCallback((itemId: string, event: PointerEvent<HTMLElement>) => {
-    const interaction = interactionRef.current;
-    const isMatchingPanInteraction =
-      interaction.kind === "pan" && interaction.pointerId === event.pointerId;
-    const isMatchingDragInteraction =
-      interaction.kind === "item-drag" &&
-      interaction.pointerId === event.pointerId &&
-      interaction.itemId === itemId;
-    if (isMatchingPanInteraction || isMatchingDragInteraction) {
-      interactionRef.current = { kind: "none" };
-      releasePointerCaptureIfHeld({
-        target: event.currentTarget,
-        pointerId: event.pointerId,
-      });
-    }
-  }, []);
+  const handleItemPointerUp = useCallback(
+    (itemId: string, event: PointerEvent<HTMLElement>) => {
+      const interaction = interactionRef.current;
+      const isMatchingPanInteraction =
+        interaction.kind === "pan" && interaction.pointerId === event.pointerId;
+      const isMatchingDragInteraction =
+        interaction.kind === "item-drag" &&
+        interaction.pointerId === event.pointerId &&
+        interaction.itemId === itemId;
+      if (isMatchingPanInteraction || isMatchingDragInteraction) {
+        if (isMatchingDragInteraction) {
+          flushPendingItemDragFrame();
+        } else {
+          flushPendingCameraFrame();
+        }
+        interactionRef.current = { kind: "none" };
+        releasePointerCaptureIfHeld({
+          target: event.currentTarget,
+          pointerId: event.pointerId,
+        });
+      }
+    },
+    [flushPendingCameraFrame, flushPendingItemDragFrame]
+  );
 
   const handleItemPointerCancel = useCallback(
     (itemId: string, event: PointerEvent<HTMLElement>) => {
@@ -975,6 +1128,11 @@ export const useCanvasViewportInstanceState = ({
         interaction.pointerId === event.pointerId &&
         interaction.itemId === itemId;
       if (isMatchingPanInteraction || isMatchingDragInteraction) {
+        if (isMatchingDragInteraction) {
+          flushPendingItemDragFrame();
+        } else {
+          flushPendingCameraFrame();
+        }
         interactionRef.current = { kind: "none" };
         releasePointerCaptureIfHeld({
           target: event.currentTarget,
@@ -982,7 +1140,7 @@ export const useCanvasViewportInstanceState = ({
         });
       }
     },
-    []
+    [flushPendingCameraFrame, flushPendingItemDragFrame]
   );
 
   const handleViewportWheel = useCallback(
@@ -996,7 +1154,7 @@ export const useCanvasViewportInstanceState = ({
         deltaMode: event.deltaMode,
       });
       if (!delta) return;
-      setCamera((currentCamera) =>
+      scheduleCameraFrame((currentCamera) =>
         zoomCanvasCameraAtViewportPoint({
           camera: currentCamera,
           clientX: event.clientX,
@@ -1006,7 +1164,7 @@ export const useCanvasViewportInstanceState = ({
         })
       );
     },
-    [setCamera]
+    [scheduleCameraFrame]
   );
 
   return useMemo(

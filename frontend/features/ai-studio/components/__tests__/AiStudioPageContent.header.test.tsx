@@ -3,7 +3,7 @@
  * Verifies the current project title is rendered in the centered hero/header slot only when available.
  */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
 
@@ -211,6 +211,21 @@ describe("AiStudioPageContent header project name", () => {
     expect(
       screen.getByRole("status", { name: "Current project: Campaign Alpha" })
     ).toHaveTextContent("Campaign Alpha");
+  });
+
+  it("opens the Media panel rename path from the header pencil button", () => {
+    const onOpenMediaLibrary = vi.fn();
+    render(
+      <AiStudioPageContent
+        {...createProps()}
+        projectName="Campaign Alpha"
+        onOpenMediaLibrary={onOpenMediaLibrary}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit project name in Media panel" }));
+
+    expect(onOpenMediaLibrary).toHaveBeenCalledTimes(1);
   });
 
   it("omits the centered project name when no project title is available", () => {

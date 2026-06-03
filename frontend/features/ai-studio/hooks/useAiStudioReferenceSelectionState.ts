@@ -4,11 +4,17 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
-import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
+import {
+  INTERNAL_MEDIA_REF_BUCKET,
+  resolveInternalMediaRefStoragePath,
+  type InternalMediaRef,
+} from "../../../lib/media/internalMediaRefs";
+import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import type { ToolId } from "../types";
 import {
   deleteUploadedMotionVideoByPath,
   retireCommittedMotionVideoByUrl,
+  prepareVideoUrl,
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
 } from "../utils/videoUpload";
@@ -517,6 +523,80 @@ export const useAiStudioReferenceSelectionState = ({
     },
     [getAuthorityState, setAuthorityState, updateMotionReferenceUploadUiStateForAuthority]
   );
+
+  useEffect(() => {
+    const currentReferenceUrls = [referenceImageUrl, ...extraImageUrls] as const;
+    const currentInternalRefs = resolveInternalMediaRefsForUrls([...currentReferenceUrls], 4);
+    const storagePaths = Array.from(
+      new Set(
+        currentInternalRefs
+          .map((ref) => resolveInternalMediaRefStoragePath(ref))
+          .filter((path): path is string => Boolean(path))
+      )
+    );
+    const hasMotionVideoUrl = Boolean(motionReferenceVideoUrl?.trim());
+    if (storagePaths.length === 0 && !hasMotionVideoUrl) return;
+
+    let cancelled = false;
+
+    void Promise.all([
+      storagePaths.length > 0
+        ? getSignedMediaUrlsBatch({
+            bucket: INTERNAL_MEDIA_REF_BUCKET,
+            storagePaths,
+          })
+        : Promise.resolve(new Map<string, string | null>()),
+      hasMotionVideoUrl ? prepareVideoUrl(motionReferenceVideoUrl) : Promise.resolve(null),
+    ])
+      .then(([signedByPath, refreshedMotionVideoUrl]) => {
+        if (cancelled) return;
+
+        const refreshedReferenceUrls = currentReferenceUrls.map((currentUrl, index) => {
+          const storagePath = resolveInternalMediaRefStoragePath(
+            currentInternalRefs[index] ?? null
+          );
+          if (!storagePath) return currentUrl;
+          return signedByPath.get(storagePath) ?? currentUrl;
+        }) as [string | null, string | null, string | null, string | null];
+
+        const [
+          nextReferenceImageUrl,
+          nextExtraImageUrlOne,
+          nextExtraImageUrlTwo,
+          nextExtraImageUrlThree,
+        ] = refreshedReferenceUrls;
+
+        if (nextReferenceImageUrl !== referenceImageUrl) {
+          setReferenceImageUrl(nextReferenceImageUrl);
+        }
+        if (nextExtraImageUrlOne !== extraImageUrls[0]) {
+          setExtraImageUrl(0, nextExtraImageUrlOne);
+        }
+        if (nextExtraImageUrlTwo !== extraImageUrls[1]) {
+          setExtraImageUrl(1, nextExtraImageUrlTwo);
+        }
+        if (nextExtraImageUrlThree !== extraImageUrls[2]) {
+          setExtraImageUrl(2, nextExtraImageUrlThree);
+        }
+        if (
+          typeof refreshedMotionVideoUrl === "string" &&
+          refreshedMotionVideoUrl !== motionReferenceVideoUrl
+        ) {
+          setMotionReferenceVideoUrlState(refreshedMotionVideoUrl);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    extraImageUrls,
+    motionReferenceVideoUrl,
+    referenceImageUrl,
+    setExtraImageUrl,
+    setReferenceImageUrl,
+  ]);
 
   const stageMotionVideoSelection = useCallback(
     async ({ videoFile, videoUrl }: { videoFile?: File | null; videoUrl?: string | null }) => {

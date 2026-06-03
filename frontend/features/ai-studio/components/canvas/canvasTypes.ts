@@ -71,20 +71,23 @@ export type CanvasAudioItem = CanvasSceneItemBase & {
 
 export type CanvasSceneItem = CanvasImageItem | CanvasVideoItem | CanvasTextItem | CanvasAudioItem;
 
+type CanvasDropResolutionBase = {
+  outputId: string | null;
+  sourceSurface?: ReferenceDragSourceSurface | null;
+  preferredItemId?: string | null;
+};
+
 export type CanvasDropResolution =
-  | {
+  | (CanvasDropResolutionBase & {
       kind: "image";
-      outputId: string | null;
       mediaId: string | null;
       src: string;
       alt: string;
       width?: number;
       height?: number;
-      sourceSurface?: ReferenceDragSourceSurface | null;
-    }
-  | {
+    })
+  | (CanvasDropResolutionBase & {
       kind: "video";
-      outputId: string | null;
       mediaId: string | null;
       videoUrl: string;
       posterUrl?: string | null;
@@ -92,17 +95,13 @@ export type CanvasDropResolution =
       durationMs?: number | null;
       width?: number;
       height?: number;
-      sourceSurface?: ReferenceDragSourceSurface | null;
-    }
-  | {
+    })
+  | (CanvasDropResolutionBase & {
       kind: "text";
-      outputId: string | null;
       text: string;
-      sourceSurface?: ReferenceDragSourceSurface | null;
-    }
-  | {
+    })
+  | (CanvasDropResolutionBase & {
       kind: "audio";
-      outputId: string | null;
       mediaId: string | null;
       audioUrl: string;
       title?: string | null;
@@ -113,7 +112,26 @@ export type CanvasDropResolution =
       waveformPeaks?: number[] | null;
       width?: number;
       height?: number;
-      sourceSurface?: ReferenceDragSourceSurface | null;
+    });
+
+export type CanvasInsertResult =
+  | {
+      status: "inserted";
+      itemId: string;
+      reusedExistingItem: boolean;
+      resolved: CanvasDropResolution;
+      removeInsertedItem: () => void;
+    }
+  | {
+      status: "blocked_by_cap";
+      resolved: CanvasDropResolution;
+    };
+
+export type CanvasPreparedDrop =
+  | CanvasDropResolution
+  | {
+      resolved: CanvasDropResolution;
+      afterInsert?: (result: CanvasInsertResult) => Promise<void> | void;
     };
 
 /**
@@ -129,14 +147,14 @@ export type ResolveCanvasDropReference = (
 export type PrepareResolvedInternalCanvasDrop = (
   payload: InternalReferenceDragPayload,
   resolved: CanvasDropResolution
-) => Promise<CanvasDropResolution | null> | CanvasDropResolution | null;
+) => Promise<CanvasPreparedDrop | null> | CanvasPreparedDrop | null;
 
 /**
  * Allows surfaces to preprocess or reroute Media Library drops before insertion.
  */
 export type PrepareCanvasMediaLibraryDrop = (
   payload: MediaLibraryDragPayload
-) => Promise<CanvasDropResolution | null> | CanvasDropResolution | null;
+) => Promise<CanvasPreparedDrop | null> | CanvasPreparedDrop | null;
 
 /**
  * Allows surfaces to convert dropped external media references into a Canvas insert item.

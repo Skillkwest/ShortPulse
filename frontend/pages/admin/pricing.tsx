@@ -131,24 +131,13 @@ export default function AdminPricingPage() {
             pricingState={pricingState}
             displayedModels={pageState.displayedModels}
             effectiveModelPolicyDraft={pageState.effectiveModelPolicyDraft}
+            effectiveCustomRowsDraft={pageState.effectiveCustomRowsDraft}
             durationDrafts={pageState.durationDrafts}
             setDurationDrafts={pageState.setDurationDrafts}
-            aspectDrafts={pageState.aspectDrafts}
-            updateAspectDraft={pageState.updateAspectDraft}
-            resolutionDrafts={pageState.resolutionDrafts}
-            updateResolutionDraft={pageState.updateResolutionDraft}
-            audioDrafts={pageState.audioDrafts}
-            updateAudioDraft={pageState.updateAudioDraft}
-            creditScaleDrafts={pageState.creditScaleDrafts}
-            setCreditScaleDrafts={pageState.setCreditScaleDrafts}
             markupDrafts={pageState.markupDrafts}
             setMarkupDrafts={pageState.setMarkupDrafts}
             variantMarkupDrafts={pageState.variantMarkupDrafts}
             setVariantMarkupDrafts={pageState.setVariantMarkupDrafts}
-            providerCostDrafts={pageState.providerCostDrafts}
-            setProviderCostDrafts={pageState.setProviderCostDrafts}
-            providerCostPerSecondDrafts={pageState.providerCostPerSecondDrafts}
-            setProviderCostPerSecondDrafts={pageState.setProviderCostPerSecondDrafts}
             variantProviderCostDrafts={pageState.variantProviderCostDrafts}
             setVariantProviderCostDrafts={pageState.setVariantProviderCostDrafts}
             variantProviderCostPerSecondDrafts={pageState.variantProviderCostPerSecondDrafts}
@@ -168,6 +157,7 @@ export default function AdminPricingPage() {
             showCostDocsPopover={pageState.showCostDocsPopover}
             hideCostDocsPopover={pageState.hideCostDocsPopover}
             updateModelPolicyDraft={pageState.updateModelPolicyDraft}
+            updateCustomRowsDraft={pageState.updateCustomRowsDraft}
           />
 
           <PricingCalculatorSupportStrip
@@ -178,6 +168,7 @@ export default function AdminPricingPage() {
             aspectDrafts={pageState.aspectDrafts}
             resolutionDrafts={pageState.resolutionDrafts}
             audioDrafts={pageState.audioDrafts}
+            customRowsDocument={pageState.effectiveCustomRowsDraft}
             modelSortOption={pageState.modelSortOption}
             planDraftsByPlanId={pageState.planEconomicsDrafts}
             simulatorPlanIds={pageState.simulatorPlanIds}

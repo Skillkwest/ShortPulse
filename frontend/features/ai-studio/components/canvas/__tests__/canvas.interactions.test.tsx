@@ -176,6 +176,62 @@ describe("Canvas interaction behavior", () => {
     expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
   });
 
+  it("flushes pending item drag movement on pointer release before the animation frame runs", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Drag me",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    const originalCancelAnimationFrame = window.cancelAnimationFrame;
+    window.requestAnimationFrame = vi.fn(
+      () => 123
+    ) as unknown as typeof window.requestAnimationFrame;
+    window.cancelAnimationFrame = vi.fn() as unknown as typeof window.cancelAnimationFrame;
+
+    try {
+      const startX = Number(item.getAttribute("data-x"));
+      const startY = Number(item.getAttribute("data-y"));
+
+      fireEvent.pointerDown(item, {
+        button: 0,
+        pointerId: 21,
+        clientX: 220,
+        clientY: 140,
+      });
+      fireEvent.pointerMove(item, {
+        pointerId: 21,
+        clientX: 270,
+        clientY: 185,
+      });
+
+      expect(Number(item.getAttribute("data-x"))).toBe(startX);
+      expect(Number(item.getAttribute("data-y"))).toBe(startY);
+
+      fireEvent.pointerUp(item, {
+        pointerId: 21,
+        clientX: 270,
+        clientY: 185,
+      });
+
+      await waitFor(() => {
+        expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
+        expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+      });
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+      window.cancelAnimationFrame = originalCancelAnimationFrame;
+    }
+  });
+
   it("keeps audio cards selectable and draggable inside the canvas shell", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
@@ -552,7 +608,7 @@ describe("Canvas interaction behavior", () => {
     expect(Number(viewport.getAttribute("data-camera-y"))).toBe(0);
   });
 
-  it("zooms around the pointer location", () => {
+  it("zooms around the pointer location", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -563,7 +619,9 @@ describe("Canvas interaction behavior", () => {
       clientY: 200,
     });
 
-    expect(Number(viewport.getAttribute("data-camera-zoom"))).toBeGreaterThan(1);
+    await waitFor(() => {
+      expect(Number(viewport.getAttribute("data-camera-zoom"))).toBeGreaterThan(1);
+    });
   });
 
   it("does not create a draft from double-tap fallback when tap travel exceeds threshold", () => {
@@ -967,9 +1025,9 @@ describe("Canvas interaction behavior", () => {
     expect(mainItem).toBeTruthy();
     expect(railItem).toBeTruthy();
     expect(mainItem?.getAttribute("data-x")).toBe("90");
-    expect(mainItem?.getAttribute("data-y")).toBe("140");
+    expect(mainItem?.getAttribute("data-y")).toBe("80");
     expect(railItem?.getAttribute("data-x")).toBe("90");
-    expect(railItem?.getAttribute("data-y")).toBe("140");
+    expect(railItem?.getAttribute("data-y")).toBe("80");
 
     fireEvent.wheel(mainViewport as HTMLElement, {
       deltaY: -100,
@@ -977,13 +1035,15 @@ describe("Canvas interaction behavior", () => {
       clientY: 200,
     });
 
-    expect(Number((mainViewport as HTMLElement).getAttribute("data-camera-zoom"))).toBeGreaterThan(
-      1
-    );
+    await waitFor(() => {
+      expect(
+        Number((mainViewport as HTMLElement).getAttribute("data-camera-zoom"))
+      ).toBeGreaterThan(1);
+    });
     expect((railViewport as HTMLElement).getAttribute("data-camera-zoom")).toBe("1");
   });
 
-  it("consumes wheel in the rail viewport so window scroll is not triggered", () => {
+  it("consumes wheel in the rail viewport so window scroll is not triggered", async () => {
     const { container } = render(<DualCanvasHarness />);
     const railViewport = container.querySelector(
       '[data-canvas-instance="rail"]'
@@ -1009,9 +1069,11 @@ describe("Canvas interaction behavior", () => {
       expect(dispatchResult).toBe(false);
       expect(wheelEvent.defaultPrevented).toBe(true);
       expect(windowWheelSpy).not.toHaveBeenCalled();
-      expect(
-        Number((railViewport as HTMLElement).getAttribute("data-camera-zoom"))
-      ).toBeGreaterThan(1);
+      await waitFor(() => {
+        expect(
+          Number((railViewport as HTMLElement).getAttribute("data-camera-zoom"))
+        ).toBeGreaterThan(1);
+      });
     } finally {
       window.removeEventListener("wheel", windowWheelSpy);
     }

@@ -20,11 +20,13 @@ import {
   CANVAS_AUDIO_ITEM_WIDTH,
   CANVAS_IMAGE_ITEM_HEIGHT,
   CANVAS_IMAGE_ITEM_WIDTH,
-  viewportPointToCanvasWorld,
 } from "./canvasGeometry";
+import { viewportPointToCanvasWorld } from "./canvasGeometry";
 import type {
   CanvasCamera,
+  CanvasPreparedDrop,
   CanvasDropResolution,
+  CanvasInsertResult,
   PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
   ResolveCanvasDroppedMediaReference,
@@ -45,7 +47,7 @@ type UseCanvasViewportDropHandlersParams = {
     worldX: number,
     worldY: number,
     options?: { showLoadingPlaceholder?: boolean }
-  ) => Promise<void>;
+  ) => Promise<CanvasInsertResult>;
 };
 
 type CanvasDropHandlers = {
@@ -71,6 +73,24 @@ export const useCanvasViewportDropHandlers = ({
 }: UseCanvasViewportDropHandlersParams): CanvasDropHandlers => {
   const dragDepthRef = useRef(0);
   const [isDropActive, setIsDropActive] = useState(false);
+
+  const normalizePreparedDrop = useCallback(
+    (
+      prepared: CanvasPreparedDrop
+    ): {
+      resolved: CanvasDropResolution;
+      afterInsert?: (result: CanvasInsertResult) => Promise<void> | void;
+    } => {
+      if ("resolved" in prepared) {
+        return {
+          resolved: prepared.resolved,
+          afterInsert: prepared.afterInsert,
+        };
+      }
+      return { resolved: prepared };
+    },
+    []
+  );
 
   const logUnresolvedInternalDrop = useCallback(
     (
@@ -105,17 +125,29 @@ export const useCanvasViewportDropHandlers = ({
       if (!resolveCanvasDropReference) return false;
       const resolved = resolveCanvasDropReference(payload);
       if (!resolved) return false;
-      const preparedResolved = prepareResolvedInternalCanvasDrop
+      const preparedDrop = prepareResolvedInternalCanvasDrop
         ? await prepareResolvedInternalCanvasDrop(payload, resolved)
         : resolved;
-      if (!preparedResolved) return false;
+      if (!preparedDrop) return false;
       if (!dropPoint) return false;
-      await addResolvedItem(preparedResolved, dropPoint.x, dropPoint.y, {
-        showLoadingPlaceholder: true,
-      });
+      const normalizedPreparedDrop = normalizePreparedDrop(preparedDrop);
+      const insertResult = await addResolvedItem(
+        normalizedPreparedDrop.resolved,
+        dropPoint.x,
+        dropPoint.y,
+        {
+          showLoadingPlaceholder: true,
+        }
+      );
+      await normalizedPreparedDrop.afterInsert?.(insertResult);
       return true;
     },
-    [addResolvedItem, prepareResolvedInternalCanvasDrop, resolveCanvasDropReference]
+    [
+      addResolvedItem,
+      normalizePreparedDrop,
+      prepareResolvedInternalCanvasDrop,
+      resolveCanvasDropReference,
+    ]
   );
 
   const canHandleViewportTransfer = useCallback(
@@ -221,146 +253,108 @@ export const useCanvasViewportDropHandlers = ({
       if (mediaLibraryPayload) {
         event.preventDefault();
         event.stopPropagation();
-        if (prepareCanvasMediaLibraryDrop) {
-          void (async () => {
-            const resolvedItem = await prepareCanvasMediaLibraryDrop(mediaLibraryPayload);
-            if (!resolvedItem) return;
-            await addResolvedItem(resolvedItem, point.x, point.y, {
-              showLoadingPlaceholder: true,
-            });
-          })();
-          return;
-        }
-        if (mediaLibraryPayload.kind === "libraryMedia") {
-          const previewSrc =
-            (mediaLibraryPayload.payload.fullUrl ?? "").trim() ||
-            (mediaLibraryPayload.payload.previewUrl ?? "").trim() ||
-            (mediaLibraryPayload.payload.url ?? "").trim();
-          if (!previewSrc) return;
-          if (mediaLibraryPayload.payload.fileType === "audio") {
-            void addResolvedItem(
-              {
-                kind: "audio",
-                outputId: null,
-                mediaId: mediaLibraryPayload.payload.id,
-                audioUrl: previewSrc,
-                title:
-                  (
-                    mediaLibraryPayload.payload.filename ||
-                    mediaLibraryPayload.payload.promptText ||
-                    "Canvas audio"
-                  ).trim() || null,
-                companionArtUrl: mediaLibraryPayload.payload.companionArtUrl ?? null,
-                companionArtStoragePath:
-                  mediaLibraryPayload.payload.companionArtStoragePath ?? null,
-                audioSourceMode: mediaLibraryPayload.payload.audioSourceMode ?? null,
-                durationMs: mediaLibraryPayload.payload.durationMs ?? null,
-                waveformPeaks: mediaLibraryPayload.payload.waveformPeaks ?? null,
-                width: CANVAS_AUDIO_ITEM_WIDTH,
-                height: CANVAS_AUDIO_ITEM_HEIGHT,
-              },
-              point.x,
-              point.y,
-              {
-                showLoadingPlaceholder: true,
-              }
-            );
-            return;
-          }
-          if (mediaLibraryPayload.payload.fileType === "video") {
-            const payloadWithDimensions =
-              mediaLibraryPayload.payload as typeof mediaLibraryPayload.payload & {
-                width?: number;
-                height?: number;
-              };
-            const fallbackWidth =
-              typeof payloadWithDimensions.width === "number" &&
-              Number.isFinite(payloadWithDimensions.width) &&
-              payloadWithDimensions.width > 0
-                ? payloadWithDimensions.width
-                : CANVAS_IMAGE_ITEM_WIDTH;
-            const fallbackHeight =
-              typeof payloadWithDimensions.height === "number" &&
-              Number.isFinite(payloadWithDimensions.height) &&
-              payloadWithDimensions.height > 0
-                ? payloadWithDimensions.height
-                : CANVAS_IMAGE_ITEM_HEIGHT;
-            void addResolvedItem(
-              {
-                kind: "video",
-                outputId: null,
-                mediaId: mediaLibraryPayload.payload.id,
-                videoUrl: previewSrc,
-                posterUrl: mediaLibraryPayload.payload.previewPosterUrl ?? null,
-                title:
-                  (
-                    mediaLibraryPayload.payload.filename ||
-                    mediaLibraryPayload.payload.promptText ||
-                    "Canvas video"
-                  ).trim() || null,
-                durationMs: mediaLibraryPayload.payload.durationMs ?? null,
-                width: fallbackWidth,
-                height: fallbackHeight,
-              },
-              point.x,
-              point.y,
-              {
-                showLoadingPlaceholder: true,
-              }
-            );
-            return;
-          }
-          const payloadWithDimensions =
-            mediaLibraryPayload.payload as typeof mediaLibraryPayload.payload & {
-              width?: number;
-              height?: number;
-            };
-          const fallbackWidth =
-            typeof payloadWithDimensions.width === "number" &&
-            Number.isFinite(payloadWithDimensions.width) &&
-            payloadWithDimensions.width > 0
-              ? payloadWithDimensions.width
-              : CANVAS_IMAGE_ITEM_WIDTH;
-          const fallbackHeight =
-            typeof payloadWithDimensions.height === "number" &&
-            Number.isFinite(payloadWithDimensions.height) &&
-            payloadWithDimensions.height > 0
-              ? payloadWithDimensions.height
-              : CANVAS_IMAGE_ITEM_HEIGHT;
-          void addResolvedItem(
-            {
-              kind: "image",
-              outputId: null,
-              mediaId: mediaLibraryPayload.payload.id,
-              src: previewSrc,
-              alt: (mediaLibraryPayload.payload.filename || "Canvas media").trim(),
-              width: fallbackWidth,
-              height: fallbackHeight,
-            },
+        void (async () => {
+          const preparedDrop = prepareCanvasMediaLibraryDrop
+            ? await prepareCanvasMediaLibraryDrop(mediaLibraryPayload)
+            : mediaLibraryPayload.kind === "libraryPrompt"
+              ? (() => {
+                  const promptText = mediaLibraryPayload.payload.promptText.trim();
+                  if (!promptText) return null;
+                  return {
+                    kind: "text" as const,
+                    outputId: mediaLibraryPayload.payload.id
+                      ? `prompt:${mediaLibraryPayload.payload.id}`
+                      : null,
+                    text: promptText,
+                  };
+                })()
+              : (() => {
+                  const previewSrc =
+                    mediaLibraryPayload.payload.previewUrl?.trim() ||
+                    mediaLibraryPayload.payload.url?.trim() ||
+                    mediaLibraryPayload.payload.fullUrl?.trim();
+                  if (!previewSrc) return null;
+                  if (mediaLibraryPayload.payload.fileType === "audio") {
+                    return {
+                      kind: "audio" as const,
+                      outputId: null,
+                      mediaId: mediaLibraryPayload.payload.id,
+                      audioUrl: previewSrc,
+                      title:
+                        (
+                          mediaLibraryPayload.payload.filename ||
+                          mediaLibraryPayload.payload.promptText ||
+                          "Canvas audio"
+                        ).trim() || null,
+                      companionArtUrl: mediaLibraryPayload.payload.companionArtUrl ?? null,
+                      companionArtStoragePath:
+                        mediaLibraryPayload.payload.companionArtStoragePath ?? null,
+                      audioSourceMode: mediaLibraryPayload.payload.audioSourceMode ?? null,
+                      durationMs: mediaLibraryPayload.payload.durationMs ?? null,
+                      waveformPeaks: mediaLibraryPayload.payload.waveformPeaks ?? null,
+                      width: CANVAS_AUDIO_ITEM_WIDTH,
+                      height: CANVAS_AUDIO_ITEM_HEIGHT,
+                    };
+                  }
+
+                  const width =
+                    typeof mediaLibraryPayload.payload.width === "number" &&
+                    Number.isFinite(mediaLibraryPayload.payload.width) &&
+                    mediaLibraryPayload.payload.width > 0
+                      ? mediaLibraryPayload.payload.width
+                      : CANVAS_IMAGE_ITEM_WIDTH;
+                  const height =
+                    typeof mediaLibraryPayload.payload.height === "number" &&
+                    Number.isFinite(mediaLibraryPayload.payload.height) &&
+                    mediaLibraryPayload.payload.height > 0
+                      ? mediaLibraryPayload.payload.height
+                      : CANVAS_IMAGE_ITEM_HEIGHT;
+
+                  if (mediaLibraryPayload.payload.fileType === "video") {
+                    return {
+                      kind: "video" as const,
+                      outputId: null,
+                      mediaId: mediaLibraryPayload.payload.id,
+                      videoUrl: previewSrc,
+                      posterUrl: mediaLibraryPayload.payload.previewPosterUrl ?? null,
+                      title:
+                        (
+                          mediaLibraryPayload.payload.filename ||
+                          mediaLibraryPayload.payload.promptText ||
+                          "Canvas video"
+                        ).trim() || null,
+                      durationMs: mediaLibraryPayload.payload.durationMs ?? null,
+                      width,
+                      height,
+                    };
+                  }
+
+                  return {
+                    kind: "image" as const,
+                    outputId: null,
+                    mediaId: mediaLibraryPayload.payload.id,
+                    src: previewSrc,
+                    alt: (
+                      mediaLibraryPayload.payload.filename ||
+                      mediaLibraryPayload.payload.promptText ||
+                      "Canvas media"
+                    ).trim(),
+                    width,
+                    height,
+                  };
+                })();
+          if (!preparedDrop) return;
+          const normalizedPreparedDrop = normalizePreparedDrop(preparedDrop);
+          const insertResult = await addResolvedItem(
+            normalizedPreparedDrop.resolved,
             point.x,
             point.y,
             {
               showLoadingPlaceholder: true,
             }
           );
-          return;
-        }
-        const promptText = mediaLibraryPayload.payload.promptText.trim();
-        if (!promptText) return;
-        void addResolvedItem(
-          {
-            kind: "text",
-            outputId: mediaLibraryPayload.payload.id
-              ? `prompt:${mediaLibraryPayload.payload.id}`
-              : null,
-            text: promptText,
-          },
-          point.x,
-          point.y,
-          {
-            showLoadingPlaceholder: true,
-          }
-        );
+          await normalizedPreparedDrop.afterInsert?.(insertResult);
+        })();
         return;
       }
       const droppedMediaReference = getDroppedMediaReference(transfer);
@@ -417,6 +411,7 @@ export const useCanvasViewportDropHandlers = ({
       handleResolvedInternalDrop,
       logUnresolvedInternalDrop,
       prepareCanvasMediaLibraryDrop,
+      normalizePreparedDrop,
       resolveCanvasDroppedMediaReference,
       resolveCanvasDropFiles,
       viewportRef,

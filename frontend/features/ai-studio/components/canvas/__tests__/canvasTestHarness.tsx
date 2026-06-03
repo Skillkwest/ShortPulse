@@ -9,6 +9,7 @@ import {
   useAiStudioDualCanvasWorkspaceState,
 } from "../useAiStudioCanvasWorkspaceState";
 import type {
+  CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
   CanvasSceneItem,
   PrepareResolvedInternalCanvasDrop,
@@ -16,6 +17,12 @@ import type {
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
 } from "../canvasTypes";
+import {
+  CANVAS_AUDIO_ITEM_HEIGHT,
+  CANVAS_AUDIO_ITEM_WIDTH,
+  CANVAS_IMAGE_ITEM_HEIGHT,
+  CANVAS_IMAGE_ITEM_WIDTH,
+} from "../canvasGeometry";
 import type {
   CanvasWorkspaceInstanceId,
   CanvasWorkspaceSessionState,
@@ -81,6 +88,82 @@ export const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (pa
   return null;
 };
 
+export const defaultPrepareCanvasMediaLibraryDrop: PrepareCanvasMediaLibraryDrop = async (
+  payload
+): Promise<CanvasDropResolution | null> => {
+  if (payload.kind === "libraryPrompt") {
+    const promptText = payload.payload.promptText.trim();
+    if (!promptText) return null;
+    return {
+      kind: "text",
+      outputId: payload.payload.id ? `prompt:${payload.payload.id}` : null,
+      text: promptText,
+    };
+  }
+
+  const previewSrc =
+    payload.payload.previewUrl?.trim() ||
+    payload.payload.url?.trim() ||
+    payload.payload.fullUrl?.trim();
+  if (!previewSrc) return null;
+
+  if (payload.payload.fileType === "audio") {
+    return {
+      kind: "audio",
+      outputId: null,
+      mediaId: payload.payload.id,
+      audioUrl: previewSrc,
+      title:
+        (payload.payload.filename || payload.payload.promptText || "Canvas audio").trim() || null,
+      companionArtUrl: payload.payload.companionArtUrl ?? null,
+      companionArtStoragePath: payload.payload.companionArtStoragePath ?? null,
+      audioSourceMode: payload.payload.audioSourceMode ?? null,
+      durationMs: payload.payload.durationMs ?? null,
+      waveformPeaks: payload.payload.waveformPeaks ?? null,
+      width: CANVAS_AUDIO_ITEM_WIDTH,
+      height: CANVAS_AUDIO_ITEM_HEIGHT,
+    };
+  }
+
+  const width =
+    typeof payload.payload.width === "number" &&
+    Number.isFinite(payload.payload.width) &&
+    payload.payload.width > 0
+      ? payload.payload.width
+      : CANVAS_IMAGE_ITEM_WIDTH;
+  const height =
+    typeof payload.payload.height === "number" &&
+    Number.isFinite(payload.payload.height) &&
+    payload.payload.height > 0
+      ? payload.payload.height
+      : CANVAS_IMAGE_ITEM_HEIGHT;
+
+  if (payload.payload.fileType === "video") {
+    return {
+      kind: "video",
+      outputId: null,
+      mediaId: payload.payload.id,
+      videoUrl: previewSrc,
+      posterUrl: payload.payload.previewPosterUrl ?? null,
+      title:
+        (payload.payload.filename || payload.payload.promptText || "Canvas video").trim() || null,
+      durationMs: payload.payload.durationMs ?? null,
+      width,
+      height,
+    };
+  }
+
+  return {
+    kind: "image",
+    outputId: null,
+    mediaId: payload.payload.id,
+    src: previewSrc,
+    alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
+    width,
+    height,
+  };
+};
+
 export type CanvasHarnessProps = {
   onPinTextReference?: (text: string) => void;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
@@ -114,7 +197,8 @@ export function CanvasHarness({
   const canvasProps = useAiStudioCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
-    prepareCanvasMediaLibraryDrop,
+    prepareCanvasMediaLibraryDrop:
+      prepareCanvasMediaLibraryDrop ?? defaultPrepareCanvasMediaLibraryDrop,
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
@@ -150,7 +234,8 @@ export function DualCanvasHarness({
   const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
-    prepareCanvasMediaLibraryDrop,
+    prepareCanvasMediaLibraryDrop:
+      prepareCanvasMediaLibraryDrop ?? defaultPrepareCanvasMediaLibraryDrop,
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,
@@ -182,7 +267,8 @@ export function SeededCanvasHarness({
   const { mainCanvasProps, hydrateSessionState } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
-    prepareCanvasMediaLibraryDrop,
+    prepareCanvasMediaLibraryDrop:
+      prepareCanvasMediaLibraryDrop ?? defaultPrepareCanvasMediaLibraryDrop,
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     onPinTextReference,

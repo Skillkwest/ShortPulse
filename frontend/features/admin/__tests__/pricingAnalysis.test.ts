@@ -8,6 +8,7 @@ import {
   type UsageMixDraftRow,
 } from "../pricingAnalysis";
 import type { AdminPricingModelRow } from "../types";
+import type { AdminPricingCustomRowsDocument } from "../../../lib/model-runtime/adminPricingCustomRows";
 import { getDefaultModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { buildModelPricingVariantId } from "../../../lib/model-runtime/modelPricingVariants";
 
@@ -168,8 +169,10 @@ describe("pricingAnalysis", () => {
       modelRows: [
         {
           key: "example",
+          displayRowId: "builtin:default",
           modelId: "example-model",
           variantId: "default",
+          isCustomRow: false,
           modelLabel: "Example model",
           provider: "fal",
           typeLabel: "text → image",
@@ -948,5 +951,59 @@ describe("pricingAnalysis", () => {
       billedCredits: 320,
       billedUsd: 3.2,
     });
+  });
+
+  it("applies custom-row pricing overrides without mutating the built-in variant math", () => {
+    const model = buildModelRow({});
+    const pricingPolicy = getDefaultModelPricingPolicyDocument();
+    const customRowsDocument: AdminPricingCustomRowsDocument = {
+      schemaVersion: 1,
+      rowsByModel: {
+        [model.id]: [
+          {
+            displayRowId: "custom-row-1",
+            label: "Custom variant 1",
+            variantId: "default|res:model_default|aspect:4:3",
+            spec: {
+              baseVariantId: "default",
+              aspect: "4:3",
+              resolution: "model_default",
+              audio: null,
+              videoInput: null,
+              inputImageCount: null,
+              inputFidelity: null,
+              maskPresent: null,
+            },
+            overrides: {
+              markupBps: 5000,
+              providerUsdOverride: 0.12,
+              providerUsdPerSecondOverride: null,
+            },
+          },
+        ],
+      },
+    };
+
+    const rows = buildModelEconomicsRows({
+      models: [model],
+      pricingPolicy,
+      customRowsDocument,
+    });
+
+    const builtInDefaultRow = rows.find(
+      (candidate) => candidate.displayRowId === "builtin:default|res:model_default|aspect:4:3"
+    );
+    const customRow = rows.find((candidate) => candidate.displayRowId === "custom-row-1");
+
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    expect(builtInDefaultRow?.isCustomRow).toBe(false);
+    expect(builtInDefaultRow?.providerCostUsd).toBeCloseTo(0.00648, 6);
+    expect(builtInDefaultRow?.billedCredits).toBe(2);
+    expect(customRow?.displayRowId).toBe("custom-row-1");
+    expect(customRow?.isCustomRow).toBe(true);
+    expect(customRow?.providerCostUsd).toBeCloseTo(0.12, 6);
+    expect(customRow?.markupBps).toBe(5000);
+    expect(customRow?.billedCredits).toBe(18);
+    expect(customRow?.billedUsd).toBeCloseTo(0.18, 6);
   });
 });

@@ -20,6 +20,202 @@ const resolveCanvasMediaErrorKey = (item: CanvasSceneItem): string | null => {
   return null;
 };
 
+type CanvasSceneItemViewProps = Pick<
+  CanvasPropertiesPanelProps,
+  | "isItemDraggable"
+  | "onItemPointerDown"
+  | "onItemPointerMove"
+  | "onItemPointerUp"
+  | "onItemPointerCancel"
+  | "onItemDragStart"
+  | "onItemDragEnd"
+  | "onItemContextMenu"
+  | "onItemDoubleClick"
+  | "onPinTextItem"
+  | "onTextItemEditChange"
+  | "onTextItemEditKeyDown"
+  | "onTextItemEditBlur"
+  | "onTextResizeHandlePointerDown"
+> & {
+  item: CanvasSceneItem;
+  textResizeHandles: CanvasResizeHandle[];
+  mediaErrorKey: string | null;
+  hasMediaError: boolean;
+  isEditingTextItem: boolean;
+  showTextResizeHandles: boolean;
+  editingTextValue: string;
+  isTextEditEditable: boolean;
+  markCanvasMediaError: (errorKey: string | null) => void;
+  clearCanvasMediaError: (errorKey: string | null) => void;
+};
+
+const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
+  item,
+  textResizeHandles,
+  mediaErrorKey,
+  hasMediaError,
+  isEditingTextItem,
+  showTextResizeHandles,
+  editingTextValue,
+  isTextEditEditable,
+  isItemDraggable = false,
+  onItemPointerDown,
+  onItemPointerMove,
+  onItemPointerUp,
+  onItemPointerCancel,
+  onItemDragStart,
+  onItemDragEnd,
+  onItemContextMenu,
+  onItemDoubleClick,
+  onPinTextItem,
+  onTextItemEditChange,
+  onTextItemEditKeyDown,
+  onTextItemEditBlur,
+  onTextResizeHandlePointerDown,
+  markCanvasMediaError,
+  clearCanvasMediaError,
+}: CanvasSceneItemViewProps) {
+  return (
+    <article
+      className={`canvas-scene-item canvas-scene-item--${item.kind}${item.selected ? " is-selected" : ""}${hasMediaError ? " is-media-unavailable" : ""}`}
+      data-testid={`canvas-item-${item.id}`}
+      data-kind={item.kind}
+      data-selected={item.selected ? "true" : "false"}
+      data-x={item.x}
+      data-y={item.y}
+      data-width={item.width}
+      data-height={
+        item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height
+      }
+      style={{
+        left: `${item.x}px`,
+        top: `${item.y}px`,
+        zIndex: item.z,
+        width: `${item.width}px`,
+        height: `${item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height}px`,
+      }}
+      draggable={isItemDraggable}
+      onPointerDown={
+        isEditingTextItem
+          ? undefined
+          : (event) => {
+              if (isItemDraggable && event.shiftKey) {
+                event.stopPropagation();
+                return;
+              }
+              onItemPointerDown(item.id, event);
+            }
+      }
+      onPointerMove={isEditingTextItem ? undefined : (event) => onItemPointerMove(item.id, event)}
+      onPointerUp={isEditingTextItem ? undefined : (event) => onItemPointerUp(item.id, event)}
+      onPointerCancel={
+        isEditingTextItem ? undefined : (event) => onItemPointerCancel(item.id, event)
+      }
+      onContextMenu={(event) => onItemContextMenu(item.id, event)}
+      onDragStart={
+        isItemDraggable && onItemDragStart ? (event) => onItemDragStart(item.id, event) : undefined
+      }
+      onDragEnd={
+        isItemDraggable && onItemDragEnd ? (event) => onItemDragEnd(item.id, event) : undefined
+      }
+      onDoubleClick={(event) => {
+        onItemDoubleClick(item.id, event);
+      }}
+    >
+      {hasMediaError ? (
+        <div className="canvas-scene-item__media-unavailable" role="status">
+          <span>Media unavailable</span>
+        </div>
+      ) : item.kind === "image" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className="canvas-scene-item__image"
+          src={item.src}
+          alt={item.alt}
+          draggable={false}
+          onLoad={() => clearCanvasMediaError(mediaErrorKey)}
+          onError={() => markCanvasMediaError(mediaErrorKey)}
+        />
+      ) : item.kind === "video" ? (
+        <>
+          {item.posterUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="canvas-scene-item__video"
+              src={item.posterUrl}
+              alt={item.title?.trim() || "Canvas video"}
+              draggable={false}
+              onLoad={() => clearCanvasMediaError(mediaErrorKey)}
+              onError={() => markCanvasMediaError(mediaErrorKey)}
+            />
+          ) : (
+            <div
+              className="canvas-scene-item__video-placeholder"
+              aria-label={item.title?.trim() || "Canvas video"}
+            >
+              <span>Video</span>
+            </div>
+          )}
+          <MediaDurationBadge
+            className="canvas-scene-item__media-duration"
+            durationMs={item.durationMs ?? null}
+            mediaKind="video"
+          />
+        </>
+      ) : isEditingTextItem ? (
+        isTextEditEditable ? (
+          <textarea
+            className="canvas-scene-item__text-editor"
+            data-testid="canvas-text-edit-input"
+            value={editingTextValue}
+            onPointerDown={(event) => event.stopPropagation()}
+            onChange={(event) => onTextItemEditChange(event.target.value)}
+            onKeyDown={onTextItemEditKeyDown}
+            onBlur={onTextItemEditBlur}
+            autoFocus
+          />
+        ) : (
+          <p className="canvas-scene-item__text">{editingTextValue}</p>
+        )
+      ) : item.kind === "audio" ? (
+        <CanvasAudioCard item={item} />
+      ) : (
+        <>
+          <p className="canvas-scene-item__text">{item.text}</p>
+          <button
+            type="button"
+            className="canvas-scene-item__pin-button"
+            aria-label="Pin text reference to reference grid"
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onPointerUp={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onPinTextItem(item.id);
+            }}
+          >
+            <PushPinSimple aria-hidden="true" size={12} weight="fill" />
+          </button>
+          {showTextResizeHandles
+            ? textResizeHandles.map((handle) => (
+                <span
+                  key={`${item.id}-resize-${handle}`}
+                  className={`canvas-scene-item__resize-handle is-${handle}`}
+                  data-testid={`canvas-text-resize-handle-${handle}`}
+                  onPointerDown={(event) => onTextResizeHandlePointerDown?.(item.id, handle, event)}
+                />
+              ))
+            : null}
+        </>
+      )}
+    </article>
+  );
+});
+
 /**
  * Renders the Canvas workspace UI and delegates all state changes to the page-owned controller.
  */
@@ -202,155 +398,33 @@ export function CanvasPropertiesPanel({
             const mediaErrorKey = resolveCanvasMediaErrorKey(item);
             const hasMediaError = mediaErrorKey ? mediaErrorKeys.has(mediaErrorKey) : false;
             return (
-              <article
+              <CanvasSceneItemView
                 key={item.id}
-                className={`canvas-scene-item canvas-scene-item--${item.kind}${item.selected ? " is-selected" : ""}${hasMediaError ? " is-media-unavailable" : ""}`}
-                data-testid={`canvas-item-${item.id}`}
-                data-kind={item.kind}
-                data-selected={item.selected ? "true" : "false"}
-                data-x={item.x}
-                data-y={item.y}
-                data-width={item.width}
-                data-height={
-                  item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height
-                }
-                style={{
-                  left: `${item.x}px`,
-                  top: `${item.y}px`,
-                  zIndex: item.z,
-                  width: `${item.width}px`,
-                  height: `${
-                    item.kind === "text"
-                      ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT)
-                      : item.height
-                  }px`,
-                }}
-                draggable={isItemDraggable}
-                onPointerDown={
-                  isEditingTextItem
-                    ? undefined
-                    : (event) => {
-                        if (isItemDraggable && event.shiftKey) {
-                          event.stopPropagation();
-                          return;
-                        }
-                        onItemPointerDown(item.id, event);
-                      }
-                }
-                onPointerMove={
-                  isEditingTextItem ? undefined : (event) => onItemPointerMove(item.id, event)
-                }
-                onPointerUp={
-                  isEditingTextItem ? undefined : (event) => onItemPointerUp(item.id, event)
-                }
-                onPointerCancel={
-                  isEditingTextItem ? undefined : (event) => onItemPointerCancel(item.id, event)
-                }
-                onContextMenu={(event) => onItemContextMenu(item.id, event)}
-                onDragStart={
-                  isItemDraggable && onItemDragStart
-                    ? (event) => onItemDragStart(item.id, event)
-                    : undefined
-                }
-                onDragEnd={
-                  isItemDraggable && onItemDragEnd
-                    ? (event) => onItemDragEnd(item.id, event)
-                    : undefined
-                }
-                onDoubleClick={(event) => {
-                  onItemDoubleClick(item.id, event);
-                }}
-              >
-                {hasMediaError ? (
-                  <div className="canvas-scene-item__media-unavailable" role="status">
-                    <span>Media unavailable</span>
-                  </div>
-                ) : item.kind === "image" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    className="canvas-scene-item__image"
-                    src={item.src}
-                    alt={item.alt}
-                    draggable={false}
-                    onLoad={() => clearCanvasMediaError(mediaErrorKey)}
-                    onError={() => markCanvasMediaError(mediaErrorKey)}
-                  />
-                ) : item.kind === "video" ? (
-                  <>
-                    <video
-                      className="canvas-scene-item__video"
-                      src={item.videoUrl}
-                      poster={item.posterUrl ?? undefined}
-                      aria-label={item.title?.trim() || "Canvas video"}
-                      draggable={false}
-                      muted
-                      loop
-                      playsInline
-                      autoPlay
-                      preload="metadata"
-                      onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
-                      onError={() => markCanvasMediaError(mediaErrorKey)}
-                    />
-                    <MediaDurationBadge
-                      className="canvas-scene-item__media-duration"
-                      durationMs={item.durationMs ?? null}
-                      mediaUrl={item.videoUrl}
-                      mediaKind="video"
-                    />
-                  </>
-                ) : isEditingTextItem ? (
-                  isTextEditEditable ? (
-                    <textarea
-                      className="canvas-scene-item__text-editor"
-                      data-testid="canvas-text-edit-input"
-                      value={editingTextValue}
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onChange={(event) => onTextItemEditChange(event.target.value)}
-                      onKeyDown={onTextItemEditKeyDown}
-                      onBlur={onTextItemEditBlur}
-                      autoFocus
-                    />
-                  ) : (
-                    <p className="canvas-scene-item__text">{editingTextValue}</p>
-                  )
-                ) : item.kind === "audio" ? (
-                  <CanvasAudioCard item={item} />
-                ) : (
-                  <>
-                    <p className="canvas-scene-item__text">{item.text}</p>
-                    <button
-                      type="button"
-                      className="canvas-scene-item__pin-button"
-                      aria-label="Pin text reference to reference grid"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onPointerUp={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onPinTextItem(item.id);
-                      }}
-                    >
-                      <PushPinSimple aria-hidden="true" size={12} weight="fill" />
-                    </button>
-                    {showTextResizeHandles
-                      ? textResizeHandles.map((handle) => (
-                          <span
-                            key={`${item.id}-resize-${handle}`}
-                            className={`canvas-scene-item__resize-handle is-${handle}`}
-                            data-testid={`canvas-text-resize-handle-${handle}`}
-                            onPointerDown={(event) =>
-                              onTextResizeHandlePointerDown?.(item.id, handle, event)
-                            }
-                          />
-                        ))
-                      : null}
-                  </>
-                )}
-              </article>
+                item={item}
+                textResizeHandles={textResizeHandles}
+                mediaErrorKey={mediaErrorKey}
+                hasMediaError={hasMediaError}
+                isEditingTextItem={isEditingTextItem}
+                showTextResizeHandles={showTextResizeHandles}
+                editingTextValue={isEditingTextItem ? editingTextValue : ""}
+                isTextEditEditable={isEditingTextItem && isTextEditEditable}
+                isItemDraggable={isItemDraggable}
+                onItemPointerDown={onItemPointerDown}
+                onItemPointerMove={onItemPointerMove}
+                onItemPointerUp={onItemPointerUp}
+                onItemPointerCancel={onItemPointerCancel}
+                onItemDragStart={onItemDragStart}
+                onItemDragEnd={onItemDragEnd}
+                onItemContextMenu={onItemContextMenu}
+                onItemDoubleClick={onItemDoubleClick}
+                onPinTextItem={onPinTextItem}
+                onTextItemEditChange={onTextItemEditChange}
+                onTextItemEditKeyDown={onTextItemEditKeyDown}
+                onTextItemEditBlur={onTextItemEditBlur}
+                onTextResizeHandlePointerDown={onTextResizeHandlePointerDown}
+                markCanvasMediaError={markCanvasMediaError}
+                clearCanvasMediaError={clearCanvasMediaError}
+              />
             );
           })}
           {draftTextEntry ? (

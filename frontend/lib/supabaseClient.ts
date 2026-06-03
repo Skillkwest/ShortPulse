@@ -29,6 +29,7 @@ type UseSupabaseSessionStateOptions = {
 };
 let currentSessionReadPromise: Promise<Session | null> | null = null;
 let authStateSubscriptionStarted = false;
+const SUPABASE_SESSION_EXPIRY_MARGIN_MS = 90_000;
 
 export const supabaseClient =
   supabaseUrl && supabaseAnonKey
@@ -140,6 +141,19 @@ const refreshSessionFromClientPreservingSnapshot = async (): Promise<Session | n
   }
 };
 
+const resolveSessionExpiresAtMs = (session: Session | null): number | null => {
+  if (!session || typeof session.expires_at !== "number" || !Number.isFinite(session.expires_at)) {
+    return null;
+  }
+  return Math.trunc(session.expires_at * 1000);
+};
+
+const isSessionExpiredOrExpiringSoon = (session: Session | null): boolean => {
+  const expiresAtMs = resolveSessionExpiresAtMs(session);
+  if (expiresAtMs == null) return false;
+  return expiresAtMs - Date.now() <= SUPABASE_SESSION_EXPIRY_MARGIN_MS;
+};
+
 /**
  * Reads the current browser session through one shared in-flight request.
  * Prefer this over calling `supabase.auth.getSession()` at leaf consumers.
@@ -149,6 +163,21 @@ export const readSupabaseSession = async (options?: {
 }): Promise<Session | null> => {
   const forceRefresh = options?.forceRefresh === true;
   const snapshot = getSupabaseSessionSnapshot();
+  if (
+    !forceRefresh &&
+    snapshot.initialized &&
+    snapshot.session &&
+    !currentSessionReadPromise &&
+    isSessionExpiredOrExpiringSoon(snapshot.session)
+  ) {
+    const pendingRefresh = refreshSessionFromClientPreservingSnapshot().finally(() => {
+      if (currentSessionReadPromise === pendingRefresh) {
+        currentSessionReadPromise = null;
+      }
+    });
+    currentSessionReadPromise = pendingRefresh;
+    return await pendingRefresh;
+  }
   if (!forceRefresh && snapshot.initialized && !currentSessionReadPromise) {
     return snapshot.session;
   }

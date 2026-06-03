@@ -339,10 +339,12 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `user_id` (uuid): Owner for RLS scoping and same-user FK parity with `projects`.
 - `schema_version` (int): Current persisted AI Studio workspace envelope version.
 - `snapshot` (jsonb object): Project-owned workspace snapshot payload.
+- `snapshot_updated_at` (timestamptz): Server-authoritative freshness timestamp derived from the saved snapshot's own `updatedAt` field.
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Notes:
   - Current payload still reuses the AI Studio session snapshot envelope as the migration boundary.
+  - Stale/out-of-order autosave completions must not overwrite a row whose `snapshot_updated_at` is newer.
   - Workspace reads return the sanitized saved snapshot without blocking on generated-output projection/media refresh.
 
 ### project_media_items
@@ -677,6 +679,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (bigint identity, pk): Immutable model-pricing policy version row id.
 - `version` (integer): Global version number (`>=1`).
 - `policy` (jsonb object): Normalized model-pricing policy document (credit conversion settings plus row-specific `perModel` pricing/rounding overrides).
+- `custom_rows` (jsonb object): Companion admin pricing custom-row manifest keyed by model id for operator-authored display rows that still resolve onto canonical variant ids.
 - `note` (text, nullable): Optional operator note for the version.
 - `created_by_user_id` / `created_by_email` (nullable): Operator attribution metadata.
 - `created_at` (timestamptz, default now).
@@ -706,8 +709,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 ### Model pricing control-plane RPC contract
 
 - `get_active_model_pricing_policy()`
-  - Service-role-only read helper for active runtime version/document + last-known-safe metadata.
-- `apply_model_pricing_policy(p_policy, p_note, p_reason, p_actor_user_id, p_actor_email, p_source)`
+  - Service-role-only read helper for active runtime version/document/custom-row manifest + last-known-safe metadata.
+- `apply_model_pricing_policy(p_policy, p_custom_rows, p_note, p_reason, p_actor_user_id, p_actor_email, p_source)`
   - Service-role-only activation helper.
   - Creates the next immutable policy version row, updates the runtime singleton, and records an `apply` audit event.
 - `rollback_model_pricing_policy(p_reason, p_actor_user_id, p_actor_email, p_source)`

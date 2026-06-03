@@ -25,6 +25,12 @@ export const normalizeCreateImageBilledPricingParams = (
 
   if (config?.supportsTextToImage && config?.supportsImageToImage) {
     normalized.variantBaseId = editLike ? "edit" : "create";
+  } else if (config?.supportsTextToImage) {
+    // Ref-driven standard Create stays on the text-image priced row unless the
+    // model uses a combined create/edit catalog entry like GPT Image 2.
+    if (editLike) {
+      normalized.variantBaseId = "default";
+    }
   } else if (editLike) {
     normalized.variantBaseId = "edit";
   }

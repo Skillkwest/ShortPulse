@@ -1,6 +1,7 @@
 /**
  * Shared types for admin dashboard data contracts.
  */
+import type { AdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
 import type { ModelPricingPolicySnapshot } from "../../lib/model-runtime/pricingPolicy";
 import type { AdminModelWorkflowType } from "../../lib/model-runtime/modelWorkflowType";
 import type { IssueReportStatus } from "../../lib/issueReports";
@@ -764,6 +765,7 @@ export type AdminPricingHealthSummary = {
 export type AdminPricingStateResponse = {
   generatedAt: string;
   modelPolicy: AdminPricingPolicySnapshot;
+  customRows: AdminPricingCustomRowsDocument;
   models: AdminPricingModelRow[];
   plans: AdminPricingPlanRow[];
   creditPackages: AdminPricingCreditPackageRow[];

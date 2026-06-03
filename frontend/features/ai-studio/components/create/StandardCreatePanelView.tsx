@@ -6,7 +6,10 @@ import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
 import { resolveAgentComposerPanelDropKind } from "../promptStep/agentComposerDrop";
 import type { AspectOption } from "../../types";
-import { resolveCreateComposerNoHistoryShell } from "./createComposerEmptyState";
+import {
+  resolveCreateComposerInlineGuardrailReason,
+  resolveCreateComposerNoHistoryShell,
+} from "./createComposerEmptyState";
 
 type StandardCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PromptStep>;
@@ -78,6 +81,7 @@ export function StandardCreatePanelView({
   const shouldShowPersistentEmptyShell = resolveCreateComposerNoHistoryShell({
     hasVisibleAgentMessages,
   });
+  const inlineGuardrailReason = resolveCreateComposerInlineGuardrailReason(guardrailReason);
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
@@ -149,13 +153,13 @@ export function StandardCreatePanelView({
             <div className="create-composer-lower-preview-frame" aria-hidden="true" />
             <div className="create-composer-bottom-block">
               <PromptStep {...promptStepLayoutProps} />
-              {showCreateControlSet && guardrailReason ? (
+              {showCreateControlSet && inlineGuardrailReason ? (
                 <div
                   className="create-composer-inline-warning-bubble"
                   role="status"
                   aria-live="polite"
                 >
-                  {guardrailReason}
+                  {inlineGuardrailReason}
                 </div>
               ) : null}
               {showCreateControlSet ? (

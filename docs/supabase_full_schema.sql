@@ -1920,6 +1920,7 @@ create table if not exists public.project_workspace_states (
     user_id uuid not null references auth.users(id) on delete cascade,
     schema_version integer not null default 2,
     snapshot jsonb not null default '{}'::jsonb,
+    snapshot_updated_at timestamptz not null default timezone('utc', now()),
     created_at timestamptz not null default timezone('utc', now()),
     updated_at timestamptz not null default timezone('utc', now()),
     constraint project_workspace_states_schema_version_check
@@ -1934,6 +1935,48 @@ create table if not exists public.project_workspace_states (
 
 create index if not exists ix_project_workspace_states_user_updated
   on public.project_workspace_states (user_id, updated_at desc);
+
+create index if not exists ix_project_workspace_states_user_snapshot_updated
+  on public.project_workspace_states (user_id, snapshot_updated_at desc);
+
+create or replace function public.project_workspace_states_preserve_newest_snapshot()
+returns trigger
+language plpgsql
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.snapshot_updated_at is null then
+      new.snapshot_updated_at := coalesce(new.updated_at, timezone('utc', now()));
+    end if;
+    return new;
+  end if;
+
+  if new.snapshot_updated_at is null then
+    new.snapshot_updated_at := old.snapshot_updated_at;
+  end if;
+
+  if old.snapshot_updated_at is not null
+      and new.snapshot_updated_at is not null
+      and new.snapshot_updated_at <= old.snapshot_updated_at then
+    new.user_id := old.user_id;
+    new.schema_version := old.schema_version;
+    new.snapshot := old.snapshot;
+    new.snapshot_updated_at := old.snapshot_updated_at;
+    new.created_at := old.created_at;
+    new.updated_at := old.updated_at;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_project_workspace_states_preserve_newest_snapshot
+  on public.project_workspace_states;
+
+create trigger trg_project_workspace_states_preserve_newest_snapshot
+before insert or update on public.project_workspace_states
+for each row
+execute function public.project_workspace_states_preserve_newest_snapshot();
 
 alter table public.project_workspace_states enable row level security;
 
@@ -2615,3 +2658,44 @@ revoke all on function public.archive_admin_kanban_item(uuid, uuid, text) from p
 revoke all on function public.archive_admin_kanban_item(uuid, uuid, text) from anon;
 revoke all on function public.archive_admin_kanban_item(uuid, uuid, text) from authenticated;
 grant execute on function public.archive_admin_kanban_item(uuid, uuid, text) to service_role;
+
+-- -----------------------------------------------------------------------------
+-- Model pricing control-plane addendum (migration 142)
+-- -----------------------------------------------------------------------------
+-- Hosted environments that support admin pricing custom variant rows extend the
+-- existing model_pricing_policy_versions / control-plane RPC contract with a
+-- companion custom-row manifest. This manifest is display-layer authoring state
+-- for /admin/pricing and does not introduce a second calculator path.
+
+alter table if exists public.model_pricing_policy_versions
+    add column if not exists custom_rows jsonb not null
+    default '{"schemaVersion":1,"rowsByModel":{}}'::jsonb;
+
+alter table if exists public.model_pricing_policy_versions
+    drop constraint if exists model_pricing_policy_versions_custom_rows_object_check;
+
+alter table if exists public.model_pricing_policy_versions
+    add constraint model_pricing_policy_versions_custom_rows_object_check
+    check (jsonb_typeof(custom_rows) = 'object');
+
+-- Active pricing read RPC returns:
+--   active_policy_version integer,
+--   active_policy jsonb,
+--   active_custom_rows jsonb,
+--   active_policy_version_id bigint,
+--   last_known_safe_policy_version integer,
+--   last_known_safe_policy_version_id bigint,
+--   updated_at timestamptz,
+--   updated_by_user_id uuid,
+--   updated_by_email text
+--
+-- Apply RPC signature after migration 142:
+--   public.apply_model_pricing_policy(
+--       p_policy jsonb,
+--       p_custom_rows jsonb,
+--       p_note text,
+--       p_reason text,
+--       p_actor_user_id uuid,
+--       p_actor_email text,
+--       p_source text
+--   )

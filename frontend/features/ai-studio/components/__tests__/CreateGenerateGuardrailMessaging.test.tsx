@@ -162,6 +162,39 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
   });
 
+  it("does not show the removed empty-prompt helper copy in the Standard blank shell even if it is passed back in", () => {
+    render(
+      <StandardCreatePanelView
+        promptStepProps={{} as PromptStepProps}
+        characterModeEnabled={false}
+        onCharacterModeEnabledToggle={vi.fn()}
+        onCharacterPickerOpen={vi.fn()}
+        characterSelectDisabled={false}
+        isCharacterSelectionEmpty
+        selectedCharacterName="No Characters"
+        selectedCharacterProfileImageUrl={null}
+        selectedCharacterInitials={null}
+        isCharacterPickerOpen={false}
+        isCreateModelPickerOpen={false}
+        isModelSelectionEmpty={false}
+        onCreateModelOpen={vi.fn()}
+        useUnoptimizedModelLogo={false}
+        effectiveModelLabel="Seedream 4.5 Edit"
+        aspect="9:16"
+        aspectOptionsForModel={[]}
+        onAspectChange={vi.fn()}
+        showCreateControlSet
+        shouldShowImageResolutionCard={false}
+        imageResolutionValue="default"
+        imageResolutionOptions={[]}
+        guardrailReason="Enter a prompt to generate."
+      />
+    );
+
+    expect(screen.queryByText("Enter a prompt to generate.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("hides the Standard create control row when chat mode-only UI is requested", () => {
     render(
       <StandardCreatePanelView

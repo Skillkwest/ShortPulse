@@ -59,6 +59,17 @@ const DEFAULT_DEBOUNCE_MS = 2500;
 const DEFAULT_MAX_DIRTY_MS = 15000;
 const DEFAULT_MAX_PERSIST_RETRIES = 1;
 
+const hasMatchingPersistIdentity = (
+  value: SnapshotPersistIdentity | PendingSnapshotState | null,
+  expected: SnapshotPersistIdentity
+): boolean =>
+  Boolean(
+    value &&
+    value.sessionId === expected.sessionId &&
+    value.hash === expected.hash &&
+    value.title === expected.title
+  );
+
 /**
  * Persists `snapshot` for the active workspace identity in debounced autosave mode.
  */
@@ -108,15 +119,17 @@ export const useAiStudioSessionAutosave = ({
   const flushPending = useCallback(
     (options?: { keepalive?: boolean }) => {
       const flush = async (): Promise<void> => {
+        if (inFlightRef.current) return;
         const pending = pendingRef.current;
         if (!pending) return;
         pendingRef.current = null;
         clearTimers();
-        inFlightRef.current = {
+        const pendingIdentity = {
           sessionId: pending.sessionId,
           hash: pending.hash,
           title: pending.title,
         };
+        inFlightRef.current = pendingIdentity;
         const shouldUseKeepalive =
           options?.keepalive === true && pending.snapshotBytes <= keepaliveSnapshotBytesLimit;
         try {
@@ -127,27 +140,26 @@ export const useAiStudioSessionAutosave = ({
             })
           );
           lastPersistFailureRef.current = null;
-          lastSavedRef.current = {
-            sessionId: pending.sessionId,
-            hash: pending.hash,
-            title: pending.title,
-          };
+          lastSavedRef.current = pendingIdentity;
         } catch (error) {
+          const previousPersistFailure = lastPersistFailureRef.current;
           const previousFailureCount =
-            lastPersistFailureRef.current?.sessionId === pending.sessionId &&
-            lastPersistFailureRef.current?.hash === pending.hash &&
-            lastPersistFailureRef.current?.title === pending.title
-              ? lastPersistFailureRef.current.count
+            previousPersistFailure &&
+            hasMatchingPersistIdentity(previousPersistFailure, pendingIdentity)
+              ? previousPersistFailure.count
               : 0;
           const nextFailureCount = previousFailureCount + 1;
-          const willRetry = nextFailureCount <= maxPersistRetries;
+          const supersedingPendingQueued =
+            pendingRef.current !== null &&
+            !hasMatchingPersistIdentity(pendingRef.current, pendingIdentity);
+          const shouldRetrySameSnapshot =
+            nextFailureCount <= maxPersistRetries && !supersedingPendingQueued;
+          const willRetry = shouldRetrySameSnapshot || supersedingPendingQueued;
           lastPersistFailureRef.current = {
-            sessionId: pending.sessionId,
-            hash: pending.hash,
-            title: pending.title,
+            ...pendingIdentity,
             count: nextFailureCount,
           };
-          if (willRetry) {
+          if (shouldRetrySameSnapshot) {
             pendingRef.current = pending;
           }
           reportPersistError(
@@ -161,21 +173,25 @@ export const useAiStudioSessionAutosave = ({
               attempt: nextFailureCount,
               maxAttempts: maxPersistRetries + 1,
               willRetry,
-              remainingRetries: willRetry ? maxPersistRetries - nextFailureCount + 1 : 0,
+              remainingRetries: shouldRetrySameSnapshot
+                ? maxPersistRetries - nextFailureCount + 1
+                : 0,
             }
           );
-          if (willRetry) {
+          if (shouldRetrySameSnapshot) {
             debounceTimerRef.current = globalThis.setTimeout(() => {
               void flush();
             }, debounceMs);
           }
         } finally {
-          if (
-            inFlightRef.current?.sessionId === pending.sessionId &&
-            inFlightRef.current?.hash === pending.hash &&
-            inFlightRef.current?.title === pending.title
-          ) {
+          if (hasMatchingPersistIdentity(inFlightRef.current, pendingIdentity)) {
             inFlightRef.current = null;
+          }
+          if (
+            pendingRef.current !== null &&
+            !hasMatchingPersistIdentity(pendingRef.current, pendingIdentity)
+          ) {
+            void flush();
           }
         }
       };
@@ -288,6 +304,10 @@ export const useAiStudioSessionAutosave = ({
       title: serializedSnapshot.title,
       snapshotBytes: serializedSnapshot.bytes,
     };
+
+    if (inFlight) {
+      return;
+    }
 
     if (debounceTimerRef.current) {
       globalThis.clearTimeout(debounceTimerRef.current);

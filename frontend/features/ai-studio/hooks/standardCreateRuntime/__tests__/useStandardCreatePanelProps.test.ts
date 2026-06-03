@@ -104,7 +104,7 @@ describe("buildStandardCreatePanelProps", () => {
     expect("outputGenerateCostCredits" in propsRecord).toBe(false);
   });
 
-  it("emits the visible empty-prompt guardrail when the visible composer is empty", () => {
+  it("keeps empty visible composers disabled without surfacing helper copy", () => {
     const props = buildStandardCreatePanelProps({
       ...baseParams,
       chatModeEnabled: true,
@@ -114,7 +114,7 @@ describe("buildStandardCreatePanelProps", () => {
 
     const propsRecord = props as Record<string, unknown>;
     expect(props.isGenerateDisabled).toBe(true);
-    expect(propsRecord.guardrailReason).toBe("Enter a prompt to generate.");
+    expect(propsRecord.guardrailReason).toBeNull();
   });
 
   it("blocks generate while an attached image is still preparing", () => {

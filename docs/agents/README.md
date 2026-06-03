@@ -44,6 +44,14 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/abismia/memory.md`: Abismia's repo-visible durable memory entrypoint.
   - `docs/agents/abismia/standard-operating-procedure.md`: Abismia's standing SOP for UI/UX reviews, canonical interaction fixes, and runtime-state validation.
   - `docs/agents/abismia/workspace/README.md`: Abismia's temporary workspace and intake surface.
+- `docs/agents/enate-ende/README.md`: Enate Ende right-rail Canvas stewardship contract and memory entrypoint.
+  - `docs/agents/enate-ende/AGENTS.md`: Enate Ende-scoped execution overlay for Canvas-only work.
+  - `docs/agents/enate-ende/memory.md`: Enate Ende's repo-visible durable memory entrypoint.
+  - `docs/agents/enate-ende/standard-operating-procedure.md`: Enate Ende's standing SOP for Canvas behavior, durability, and validation work.
+  - `docs/agents/enate-ende/ownership-manifest.md`: Enate Ende's ownership boundary map for Canvas versus adjacent specialist lanes.
+  - `docs/agents/enate-ende/canvas-command-index.md`: compact first-load map for Canvas owner paths, validation anchors, and escalation docs.
+  - `docs/agents/enate-ende/workspace/README.md`: Enate Ende's temporary workspace and intake surface.
+  - retained artifacts live under `docs/records/artifacts/agent/enate-ende/`.
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
   - `docs/agents/d-bug/standard-operating-procedure.md`: standing SOP for D-Bug handoff intake, repo audit, debug planning, bounded fixes, and downstream routing.
   - `docs/agents/d-bug/scorecard-operations.md`: standing SOP for D-Bug checkpoint scoring, baseline tracking, and training-evidence capture.

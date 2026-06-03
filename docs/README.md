@@ -86,6 +86,13 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/abismia/AGENTS.md`
 - `docs/agents/abismia/memory.md`
 - `docs/agents/abismia/standard-operating-procedure.md`
+- `docs/agents/enate-ende/README.md`
+- `docs/agents/enate-ende/AGENTS.md`
+- `docs/agents/enate-ende/memory.md`
+- `docs/agents/enate-ende/standard-operating-procedure.md`
+- `docs/agents/enate-ende/ownership-manifest.md`
+- `docs/agents/enate-ende/canvas-command-index.md`
+- `docs/agents/enate-ende/workspace/README.md`
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`

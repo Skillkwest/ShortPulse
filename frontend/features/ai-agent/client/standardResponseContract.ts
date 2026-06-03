@@ -19,6 +19,7 @@ export type StandardCreatePromptArtifact = {
 export type StandardCreateResponseContract = {
   actions: AgentActions | undefined;
   workflowSession: null;
+  conversationState: AgentResponse["conversationState"] | null;
   canonicalPrompt: string | null;
   assistantReply: StandardCreateAssistantReply;
   promptArtifact: StandardCreatePromptArtifact | null;
@@ -76,6 +77,7 @@ export const resolveStandardCreateResponseContract = (
   return {
     actions,
     workflowSession: null,
+    conversationState: response.conversationState ?? null,
     canonicalPrompt: null,
     assistantReply,
     promptArtifact,

@@ -293,6 +293,80 @@ describe("repairStaleTerminalGenerationProjections", () => {
       })
     );
   });
+
+  it("keeps successful transient outputs visible during projection repair", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [
+        {
+          generation_id: "gen-4",
+          user_id: "user-4",
+          source_ref: "source-4",
+          request_id: "req-4",
+          provider: "kie",
+          provider_request_id: "req-4",
+          latest_attempt_id: "attempt-4",
+          display_prompt: "prompt-4",
+          model_id: "kie-ai/kling-3.0-master",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: false,
+          generation_replay: { input: "value" },
+          character_context: { characterId: "char-4" },
+          style_context: { styleId: "style-4" },
+          started_at: "2026-04-10T23:00:00.000Z",
+        },
+      ],
+      generationRows: [
+        {
+          id: "gen-4",
+          user_id: "user-4",
+          request_id: "req-4",
+          provider: "kie",
+          model_id: "kie-ai/kling-3.0-master",
+          prompt_text: "prompt-4",
+          status: "success",
+          failure_reason_code: null,
+          completed_at: "2026-04-10T23:20:00.000Z",
+        },
+      ],
+      outputRows: [
+        {
+          id: "output-4",
+          output_index: 0,
+          result_url: "https://cdn.kie.ai/generated.mp4",
+          media_file_id: null,
+        },
+      ],
+      mediaRows: [],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 10,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-4",
+        user_id: "user-4",
+        task_state: "success",
+        publication_state: "suppressed",
+        reference_grid_visible: true,
+        preview_url: "https://cdn.kie.ai/generated.mp4",
+        result_urls: ["https://cdn.kie.ai/generated.mp4"],
+        saved_media_ids: [],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+  });
 });
 
 describe("upsertGenerationProjection", () => {

@@ -56,6 +56,24 @@ type UploadDiagnostics = {
   hasMimeType: boolean;
 };
 
+type KieUploadDiagnosticsMetadata = {
+  kie_upload_transport: UploadTransport;
+  kie_upstream_status: number;
+  kie_upstream_content_type: string | null;
+  kie_upstream_body_format: UploadDiagnostics["bodyFormat"];
+  kie_upstream_body_length: number | null;
+  kie_upstream_parse_source: UploadDiagnostics["parseSource"];
+  kie_upstream_json_parsed: boolean;
+  kie_upstream_top_level_keys: string[];
+  kie_upstream_data_keys: string[];
+  kie_upstream_has_message: boolean;
+  kie_upstream_has_data: boolean;
+  kie_upstream_has_download_url: boolean;
+  kie_upstream_has_file_url: boolean;
+  kie_upstream_has_file_name: boolean;
+  kie_upstream_has_mime_type: boolean;
+};
+
 class KieUploadRequestError extends Error {
   readonly statusCode: number;
 
@@ -293,6 +311,53 @@ const readUploadResponse = async ({
       hasMimeType: asNonEmptyString(dataPayload?.mimeType) !== null,
     },
   };
+};
+
+const buildKieUploadDiagnosticsMetadata = ({
+  upstreamStatus,
+  diagnostics,
+}: {
+  upstreamStatus: number;
+  diagnostics: UploadDiagnostics;
+}): KieUploadDiagnosticsMetadata => ({
+  kie_upload_transport: diagnostics.transport,
+  kie_upstream_status: upstreamStatus,
+  kie_upstream_content_type: diagnostics.contentType,
+  kie_upstream_body_format: diagnostics.bodyFormat,
+  kie_upstream_body_length: diagnostics.bodyLength,
+  kie_upstream_parse_source: diagnostics.parseSource,
+  kie_upstream_json_parsed: diagnostics.jsonParsed,
+  kie_upstream_top_level_keys: diagnostics.topLevelKeys,
+  kie_upstream_data_keys: diagnostics.dataKeys,
+  kie_upstream_has_message: diagnostics.hasMessage,
+  kie_upstream_has_data: diagnostics.hasData,
+  kie_upstream_has_download_url: diagnostics.hasDownloadUrl,
+  kie_upstream_has_file_url: diagnostics.hasFileUrl,
+  kie_upstream_has_file_name: diagnostics.hasFileName,
+  kie_upstream_has_mime_type: diagnostics.hasMimeType,
+});
+
+const resolveUpstreamFailureDetail = ({
+  status,
+  detail,
+  diagnostics,
+}: {
+  status: number;
+  detail: string | null;
+  diagnostics: UploadDiagnostics;
+}): string => {
+  if (detail) return detail;
+  const responseShape =
+    diagnostics.bodyFormat === "html_like"
+      ? "an HTML"
+      : diagnostics.bodyFormat === "text_like"
+        ? "a plain-text"
+        : diagnostics.bodyFormat === "empty"
+          ? "an empty"
+          : diagnostics.bodyFormat === "json_like"
+            ? "a JSON"
+            : "an unreadable";
+  return `Upstream upload failed with status ${status} and returned ${responseShape} response.`;
 };
 
 const uploadFileUrlToKie = async ({
@@ -565,9 +630,26 @@ export default async function handler(
         })();
 
     if (!result.upstream.ok) {
+      await logApiRouteException({
+        req,
+        error: new Error(`Kie upload upstream failed with status ${result.upstream.status}`),
+        routeLabel: "kie-upload-url",
+        user,
+        metadata: {
+          kie_upload_failure: "upstream_non_ok",
+          ...buildKieUploadDiagnosticsMetadata({
+            upstreamStatus: result.upstream.status,
+            diagnostics: result.diagnostics,
+          }),
+        },
+      });
       return res.status(result.upstream.status).json({
         error: "Kie upload failed",
-        details: result.parsed.detail ?? "Unknown upstream error",
+        details: resolveUpstreamFailureDetail({
+          status: result.upstream.status,
+          detail: result.parsed.detail,
+          diagnostics: result.diagnostics,
+        }),
       });
     }
 
@@ -580,21 +662,10 @@ export default async function handler(
         user,
         metadata: {
           kie_upload_failure: "missing_uploaded_url",
-          kie_upload_transport: result.diagnostics.transport,
-          kie_upstream_status: result.upstream.status,
-          kie_upstream_content_type: result.diagnostics.contentType,
-          kie_upstream_body_format: result.diagnostics.bodyFormat,
-          kie_upstream_body_length: result.diagnostics.bodyLength,
-          kie_upstream_parse_source: result.diagnostics.parseSource,
-          kie_upstream_json_parsed: result.diagnostics.jsonParsed,
-          kie_upstream_top_level_keys: result.diagnostics.topLevelKeys,
-          kie_upstream_data_keys: result.diagnostics.dataKeys,
-          kie_upstream_has_message: result.diagnostics.hasMessage,
-          kie_upstream_has_data: result.diagnostics.hasData,
-          kie_upstream_has_download_url: result.diagnostics.hasDownloadUrl,
-          kie_upstream_has_file_url: result.diagnostics.hasFileUrl,
-          kie_upstream_has_file_name: result.diagnostics.hasFileName,
-          kie_upstream_has_mime_type: result.diagnostics.hasMimeType,
+          ...buildKieUploadDiagnosticsMetadata({
+            upstreamStatus: result.upstream.status,
+            diagnostics: result.diagnostics,
+          }),
         },
       });
       return res.status(502).json({

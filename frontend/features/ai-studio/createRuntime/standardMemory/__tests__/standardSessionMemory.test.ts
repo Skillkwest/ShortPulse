@@ -328,6 +328,9 @@ describe("standardSessionMemory", () => {
     expect(memory.workingState.latestUserIntent).toBe("Adults 25-34.");
     expect(memory.workingState.currentTask).toBe("Help me shape this ad concept.");
     expect(memory.workingState.historicalUserGoals).toEqual([]);
+    expect(memory.workingState.decisionsMade).toContain(
+      "Answered follow-up: Which audience should this target first? -> Adults 25-34."
+    );
     expect(memory.workingState.openQuestions).toEqual([]);
     expect(memory.workingState.nextBestAction).toBe("Refine or generate from the accepted prompt.");
     expect(memory.summary.text).not.toContain("Open questions:");
@@ -379,6 +382,13 @@ describe("standardSessionMemory", () => {
     expect(memory.workingState.historicalUserGoals).toEqual([
       "Help me shape a premium skincare launch campaign for adults 25-34.",
     ]);
+    expect(memory.workingState.decisionsMade).toEqual(
+      expect.arrayContaining([
+        "Answered follow-up: What audience should this target first? -> Adults 25-34.",
+        "Answered follow-up: Should copy be minimal? -> Yes.",
+        "Answered follow-up: Any color direction? -> Warm neutrals.",
+      ])
+    );
     expect(memory.summary.text).toContain(
       "Earlier user goals to consider: Help me shape a premium skincare launch campaign for adults 25-34."
     );

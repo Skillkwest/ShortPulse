@@ -373,12 +373,10 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(payload).toEqual(
       expect.objectContaining({
         message: "Premium product hero prompt",
-        actions: {
-          applyPrompt: "Premium product hero prompt",
-        },
+        actions: undefined,
         canonicalPrompt: null,
-        outcome_class: "success_prompt",
-        reason_code: "SUCCESS_PROMPT",
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
       })
     );
     expect(payload).not.toHaveProperty("workflowSession");
@@ -415,19 +413,282 @@ describe("AI Studio Create agent runtime boundaries", () => {
         body: expect.stringContaining('"input"'),
       })
     );
+    const requestBody = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
+    ) as {
+      store?: boolean;
+      previous_response_id?: string;
+    };
+    expect(requestBody.store).toBe(true);
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload).toEqual(
       expect.objectContaining({
         message: "Responses transport prompt",
+        actions: undefined,
+        canonicalPrompt: null,
+        conversationState: {
+          previousResponseId: "resp_standard_1",
+        },
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
+      })
+    );
+  });
+
+  it("keeps explicit Standard prompt artifacts on the success_prompt lane", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                message: "Here is a stronger reusable prompt.",
+                actions: {
+                  applyPrompt: "A stronger reusable prompt with cleaner cinematic direction.",
+                },
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message: "Here is a stronger reusable prompt.",
         actions: {
-          applyPrompt: "Responses transport prompt",
+          applyPrompt: "A stronger reusable prompt with cleaner cinematic direction.",
         },
         canonicalPrompt: null,
         outcome_class: "success_prompt",
         reason_code: "SUCCESS_PROMPT",
       })
     );
+  });
+
+  it("passes Standard previous_response_id through the Responses transport when conversation state exists", async () => {
+    process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "false";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "resp_standard_2",
+          model: "gpt-5.5",
+          output: [
+            {
+              content: [{ type: "output_text", text: "Stateful responses transport prompt" }],
+            },
+          ],
+          usage: { input_tokens: 13, output_tokens: 9, total_tokens: 22 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        conversationState: {
+          previousResponseId: "resp_standard_1",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const requestBody = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
+    ) as {
+      previous_response_id?: string;
+      store?: boolean;
+    };
+    expect(requestBody.previous_response_id).toBe("resp_standard_1");
+    expect(requestBody.store).toBe(true);
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message: "Stateful responses transport prompt",
+        conversationState: {
+          previousResponseId: "resp_standard_2",
+        },
+      })
+    );
+  });
+
+  it("compacts Standard replay to session memory plus the latest user turn when Responses state is active without chat fallback", async () => {
+    process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "false";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "resp_standard_compact_1",
+          model: "gpt-5.5",
+          output: [
+            {
+              content: [{ type: "output_text", text: "Compacted responses transport prompt" }],
+            },
+          ],
+          usage: { input_tokens: 15, output_tokens: 9, total_tokens: 24 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-runtime-test",
+        clientSessionNamespace: "ai-studio:session-runtime-test::standard",
+        runtimeMode: "standard",
+        conversationState: {
+          previousResponseId: "resp_standard_prev",
+        },
+        messages: [
+          {
+            role: "assistant",
+            content: [
+              "Standard session memory:",
+              "Latest user intent: Refine the product prompt.",
+              "Next best action: Respond directly to the current task.",
+            ].join("\n"),
+          },
+          { role: "user", content: "old user turn" },
+          { role: "assistant", content: "old assistant reply" },
+          { role: "user", content: "latest user turn" },
+        ],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const requestBody = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
+    ) as {
+      input?: Array<{ role?: string; content?: Array<{ type?: string; text?: string }> }>;
+    };
+    expect(requestBody.input).toEqual([
+      expect.objectContaining({ role: "system" }),
+      expect.objectContaining({
+        role: "assistant",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
+            text: expect.stringContaining("Standard session memory:"),
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "user",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
+            text: "latest user turn",
+          }),
+        ],
+      }),
+    ]);
+  });
+
+  it("keeps richer Standard session-memory decisions in the compacted Responses lane for longer sessions", async () => {
+    process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "false";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "resp_standard_long_1",
+          model: "gpt-5.5",
+          output: [
+            {
+              content: [{ type: "output_text", text: "Long-session responses transport prompt" }],
+            },
+          ],
+          usage: { input_tokens: 19, output_tokens: 11, total_tokens: 30 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-runtime-test",
+        clientSessionNamespace: "ai-studio:session-runtime-test::standard",
+        runtimeMode: "standard",
+        conversationState: {
+          previousResponseId: "resp_standard_prev_long",
+        },
+        messages: [
+          {
+            role: "assistant",
+            content: [
+              "Standard session memory:",
+              "Latest user intent: Adults 25-34.",
+              "Latest reusable prompt artifact: Luxury skincare launch campaign with warm neutral palette and tactile product textures",
+              "Earlier user goals to consider: Help me shape a premium skincare launch campaign for adults 25-34.",
+              "Decisions carried forward: Answered follow-up: What audience should this target first? -> Adults 25-34. | Answered follow-up: Should copy be minimal? -> Yes. | Answered follow-up: Any color direction? -> Warm neutrals. | A reusable prompt is available. | The current prompt source is references.",
+              "Next best action: Refine or generate from the accepted prompt.",
+            ].join("\n"),
+          },
+          {
+            role: "user",
+            content: "Help me shape a premium skincare launch campaign for adults 25-34.",
+          },
+          { role: "assistant", content: "Should the tone feel more clinical or more luxurious?" },
+          { role: "user", content: "More luxurious." },
+          { role: "user", content: "Give me three darker options." },
+        ],
+        context: {
+          modeHint: "chat",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const requestBody = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
+    ) as {
+      input?: Array<{ role?: string; content?: Array<{ type?: string; text?: string }> }>;
+    };
+    expect(requestBody.input).toEqual([
+      expect.objectContaining({ role: "system" }),
+      expect.objectContaining({
+        role: "assistant",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
+            text: expect.stringContaining(
+              "Answered follow-up: What audience should this target first? -> Adults 25-34."
+            ),
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "user",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
+            text: "Give me three darker options.",
+          }),
+        ],
+      }),
+    ]);
+    expect(JSON.stringify(requestBody.input ?? [])).not.toContain(
+      "Should the tone feel more clinical or more luxurious?"
+    );
+    expect(JSON.stringify(requestBody.input ?? [])).not.toContain("More luxurious.");
   });
 
   it("appends the restrained Standard formatting guidance to the runtime system prompt", async () => {
@@ -742,15 +1003,95 @@ describe("AI Studio Create agent runtime boundaries", () => {
       expect.objectContaining({
         message:
           "I am not able to identify or guess that particular attribute from the image here. I can still help with other non-sensitive details from the image.",
-        actions: {
-          applyPrompt:
-            "I am not able to identify or guess that particular attribute from the image here. I can still help with other non-sensitive details from the image.",
-        },
-        outcome_class: "success_prompt",
-        reason_code: "SUCCESS_PROMPT",
+        actions: undefined,
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
       })
     );
     expect(payload.outcome_class).not.toBe("refusal_safety");
+  });
+
+  it("keeps a harmless Standard image-attribute answer on the direct conversational lane", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "Her top is black.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [{ role: "user", content: "What color is her top?" }],
+        context: {
+          modeHint: "describe",
+          focusedSource: "image",
+          references: [{ id: "ref-image-1", kind: "image", caption: "Portrait reference" }],
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message: "Her top is black.",
+        actions: undefined,
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
+      })
+    );
+    expect(payload.outcome_class).not.toBe("refusal_safety");
+  });
+
+  it("keeps a simple Standard chat answer compact instead of converting it into a prompt artifact", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                "It keeps the tone premium while making the visual direction easier to execute.",
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [{ role: "user", content: "Summarize this in one sentence." }],
+        context: {
+          modeHint: "chat",
+          lastAssistantMessage: "Here is the longer explanation of the current direction.",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message: "It keeps the tone premium while making the visual direction easier to execute.",
+        actions: undefined,
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
+      })
+    );
   });
 
   it("serializes explicit Standard prompt attachments into the latest user turn", async () => {
@@ -799,7 +1140,6 @@ describe("AI Studio Create agent runtime boundaries", () => {
       "Improve this prompt.\n\nAttached reference text:\n- Golden-hour portrait with soft rim light."
     );
   });
-
   it("does not duplicate exact-match Standard prompt attachments into the latest user turn", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

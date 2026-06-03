@@ -55,6 +55,8 @@ type UseAiStudioPageContentRuntimeParams = {
   projectRouteRequested: AiStudioPageContentProps["projectRouteRequested"];
   projectName: AiStudioPageContentProps["projectName"];
   onProjectNameCommit: AiStudioPageContentProps["onProjectNameCommit"];
+  onOpenProjectNameEditor: AiStudioPageContentProps["onOpenProjectNameEditor"];
+  mediaLibraryProjectNameFocusRequestKey: AiStudioPageContentProps["mediaLibraryProjectNameFocusRequestKey"];
   resolveMediaLibraryInternalDropItem: AiStudioPageContentProps["resolveMediaLibraryInternalDropItem"];
   resolveStyleLibraryInternalDrop: AiStudioPageContentProps["resolveStyleLibraryInternalDrop"];
   onOpenMediaLibrary: AiStudioPageContentProps["onOpenMediaLibrary"];
@@ -125,6 +127,8 @@ export const useAiStudioPageContentRuntime = ({
   projectRouteRequested,
   projectName,
   onProjectNameCommit,
+  onOpenProjectNameEditor,
+  mediaLibraryProjectNameFocusRequestKey,
   resolveMediaLibraryInternalDropItem,
   resolveStyleLibraryInternalDrop,
   onOpenMediaLibrary,
@@ -192,6 +196,8 @@ export const useAiStudioPageContentRuntime = ({
       projectRouteRequested,
       projectName,
       onProjectNameCommit,
+      onOpenProjectNameEditor,
+      mediaLibraryProjectNameFocusRequestKey,
       resolveMediaLibraryInternalDropItem,
       resolveStyleLibraryInternalDrop,
       onOpenMediaLibrary,
@@ -258,6 +264,8 @@ export const useAiStudioPageContentRuntime = ({
       projectRouteRequested,
       projectName,
       onProjectNameCommit,
+      onOpenProjectNameEditor,
+      mediaLibraryProjectNameFocusRequestKey,
       resolveMediaLibraryInternalDropItem,
       resolveStyleLibraryInternalDrop,
       onOpenMediaLibrary,

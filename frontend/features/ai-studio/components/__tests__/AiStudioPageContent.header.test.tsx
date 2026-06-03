@@ -194,6 +194,8 @@ const createProps = (): React.ComponentProps<typeof AiStudioPageContent> => ({
   projectRouteRequested: true,
   projectName: null,
   onProjectNameCommit: vi.fn(),
+  onOpenProjectNameEditor: vi.fn(),
+  mediaLibraryProjectNameFocusRequestKey: 0,
   modelModalState: {
     isOpen: false,
     options: [],
@@ -219,11 +221,13 @@ describe("AiStudioPageContent header project name", () => {
       <AiStudioPageContent
         {...createProps()}
         projectName="Campaign Alpha"
-        onOpenMediaLibrary={onOpenMediaLibrary}
+        onOpenProjectNameEditor={onOpenMediaLibrary}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit project name in Media panel" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit project Campaign Alpha in Media panel" })
+    );
 
     expect(onOpenMediaLibrary).toHaveBeenCalledTimes(1);
   });

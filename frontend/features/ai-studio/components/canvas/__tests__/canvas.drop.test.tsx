@@ -807,16 +807,16 @@ describe("Canvas drop behavior", () => {
       expect(screen.queryByText("Prompt reference")).not.toBeInTheDocument();
       const pendingItem = screen.getByTestId(/canvas-pending-item-/);
       expect(Number(pendingItem.getAttribute("style")?.match(/left:\s*([0-9.]+)px/)?.[1])).toBe(
-        110
+        240
       );
-      expect(Number(pendingItem.getAttribute("style")?.match(/top:\s*([0-9.]+)px/)?.[1])).toBe(100);
+      expect(Number(pendingItem.getAttribute("style")?.match(/top:\s*([0-9.]+)px/)?.[1])).toBe(160);
       act(() => {
         pendingFrameCallback?.(16);
       });
       expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
       const finalItem = await screen.findByTestId(/canvas-item-/);
-      expect(Number(finalItem.getAttribute("data-x"))).toBe(110);
-      expect(Number(finalItem.getAttribute("data-y"))).toBe(100);
+      expect(Number(finalItem.getAttribute("data-x"))).toBe(240);
+      expect(Number(finalItem.getAttribute("data-y"))).toBe(160);
       await waitFor(() => {
         expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
       });
@@ -846,8 +846,8 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByText("Prompt reference")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "text");
-    expect(Number(item.getAttribute("data-x"))).toBe(110);
-    expect(Number(item.getAttribute("data-y"))).toBe(100);
+    expect(Number(item.getAttribute("data-x"))).toBe(240);
+    expect(Number(item.getAttribute("data-y"))).toBe(160);
   });
 
   it("creates a text item from an external plain-text drop", async () => {
@@ -866,8 +866,8 @@ describe("Canvas drop behavior", () => {
 
     expect(await screen.findByText("External note")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
-    expect(Number(item.getAttribute("data-x"))).toBe(90);
-    expect(Number(item.getAttribute("data-y"))).toBe(80);
+    expect(Number(item.getAttribute("data-x"))).toBe(220);
+    expect(Number(item.getAttribute("data-y"))).toBe(140);
   });
 
   it("anchors media-library prompt drops to the release point after camera transforms", async () => {
@@ -901,8 +901,8 @@ describe("Canvas drop behavior", () => {
 
     expect(await screen.findByText("Zoomed prompt")).toBeInTheDocument();
     const item = await screen.findByTestId(/canvas-item-/);
-    expect(Number(item.getAttribute("data-x"))).toBe(0);
-    expect(Number(item.getAttribute("data-y"))).toBe(40);
+    expect(Number(item.getAttribute("data-x"))).toBe(130);
+    expect(Number(item.getAttribute("data-y"))).toBe(100);
   });
 
   it("does not change stored geometry of existing items when a text item is dropped", async () => {

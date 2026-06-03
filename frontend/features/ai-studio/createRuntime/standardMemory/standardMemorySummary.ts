@@ -182,6 +182,45 @@ const resolveOpenQuestions = (latestAssistantCommitment: string | null): string[
   );
 };
 
+const resolveAnsweredFollowUpDecisions = (messages: AgentMessage[]): string[] => {
+  const decisions: string[] = [];
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!message || message.role !== "user") continue;
+    const answer = message.content.trim();
+    if (!answer.length || !isLikelyFollowUpAnswer(answer)) continue;
+
+    let priorAssistantQuestion: string | null = null;
+    for (let priorIndex = index - 1; priorIndex >= 0; priorIndex -= 1) {
+      const priorMessage = messages[priorIndex];
+      if (!priorMessage) continue;
+      const priorContent = priorMessage.content.trim();
+      if (!priorContent.length) continue;
+      if (priorMessage.role === "assistant") {
+        priorAssistantQuestion = priorContent;
+        break;
+      }
+      if (priorMessage.role === "user") {
+        break;
+      }
+    }
+
+    if (!priorAssistantQuestion || !priorAssistantQuestion.includes("?")) continue;
+    const normalizedQuestion = priorAssistantQuestion.replace(/\s+/g, " ").trim();
+    const normalizedAnswer = answer.replace(/\s+/g, " ").trim();
+    const decision = normalizeListItem(
+      `Answered follow-up: ${normalizedQuestion} -> ${normalizedAnswer}`,
+      180
+    );
+    if (decision) {
+      decisions.push(decision);
+    }
+  }
+
+  return uniqueLimited(decisions, 3);
+};
+
 const resolveHistoricalUserGoals = ({
   allMessages,
   transcriptWindow,
@@ -270,13 +309,15 @@ const resolveReferencesInPlay = ({
 };
 
 const resolveDecisionsMade = ({
+  allMessages,
   lastAcceptedPrompt,
   promptOrigin,
 }: {
+  allMessages: AgentMessage[];
   lastAcceptedPrompt: string | null;
   promptOrigin: PromptOrigin;
 }): string[] => {
-  const items: string[] = [];
+  const items: string[] = [...resolveAnsweredFollowUpDecisions(allMessages)];
   if (lastAcceptedPrompt) {
     items.push("A reusable prompt is available.");
   }
@@ -285,7 +326,7 @@ const resolveDecisionsMade = ({
   } else if (promptOrigin === "reference") {
     items.push("The current prompt source is references.");
   }
-  return uniqueLimited(items, 3);
+  return uniqueLimited(items, 5);
 };
 
 const resolveNextBestAction = ({
@@ -357,6 +398,7 @@ export const buildStandardSessionWorkingState = ({
     attachedReferenceIntent,
   });
   const decisionsMade = resolveDecisionsMade({
+    allMessages: fullMessageHistory,
     lastAcceptedPrompt,
     promptOrigin,
   });

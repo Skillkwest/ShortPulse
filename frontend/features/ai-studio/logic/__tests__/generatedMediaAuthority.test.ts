@@ -933,7 +933,7 @@ describe("generatedMediaAuthority", () => {
     ]);
   });
 
-  it("filters provider-url-only success rows without durable media authority", async () => {
+  it("keeps provider-url-only success rows visible during restore", async () => {
     const projectionBuilder = createAwaitableSelectBuilder({
       data: [
         {
@@ -991,7 +991,19 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([]);
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-provider-only-1",
+        generationId: "gen-provider-only-1",
+        taskId: "req-provider-only-1",
+        sourceRef: "source-provider-only-1",
+        prompt: "A provider-only generated output",
+        previewUrl: "https://fal.test/provider-only-preview.png",
+        resultUrls: ["https://fal.test/provider-only-full.png"],
+        taskState: "success",
+        queueState: "dispatched",
+      }),
+    ]);
   });
 
   it("hydrates published media dimensions onto generated outputs", async () => {
@@ -2437,7 +2449,7 @@ describe("generatedMediaAuthority", () => {
     await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([]);
   });
 
-  it("does not reconcile provider-url-only success rows without durable media authority", async () => {
+  it("reconciles provider-url-only success rows during restore", async () => {
     const projectionDeliveryBuilder = createAwaitableSelectBuilder({
       data: {
         preview_url: "https://fal.test/provider-only-reconcile-preview.png",
@@ -2466,7 +2478,18 @@ describe("generatedMediaAuthority", () => {
       resolveVisibleGenerationReconcile({
         generationId: "gen-provider-only-reconcile",
       })
-    ).resolves.toBeNull();
+    ).resolves.toEqual({
+      generationId: "gen-provider-only-reconcile",
+      previewUrl: "https://fal.test/provider-only-reconcile-preview.png",
+      previewPosterUrl: null,
+      previewPosterStoragePath: null,
+      companionArtUrl: null,
+      companionArtStoragePath: null,
+      companionArtStatus: null,
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: ["https://fal.test/provider-only-reconcile-full.png"],
+    });
   });
 
   it("requires project generation association before reconciling project-route outputs", async () => {

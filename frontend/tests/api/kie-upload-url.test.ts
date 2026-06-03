@@ -246,6 +246,50 @@ describe("POST /api/kie/upload-url", () => {
     });
   });
 
+  it("logs and classifies non-JSON upstream failures from Kie", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      text: async () => "<html><body>Bad gateway</body></html>",
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://cdn.example.com/fallback-image.jpg",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Kie upload failed",
+      details: "Upstream upload failed with status 502 and returned an HTML response.",
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "kie-upload-url",
+        user: { id: "user-1", email: "user@example.com" },
+        metadata: expect.objectContaining({
+          kie_upload_failure: "upstream_non_ok",
+          kie_upload_transport: "url_upload",
+          kie_upstream_status: 502,
+          kie_upstream_content_type: "text/html; charset=utf-8",
+          kie_upstream_body_format: "html_like",
+          kie_upstream_parse_source: "text",
+          kie_upstream_json_parsed: false,
+        }),
+      })
+    );
+  });
+
   it("rejects local or private-network source URLs", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

@@ -3,7 +3,6 @@
  */
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
-import { prefersKieRemoteStreamUpload } from "../../../../lib/kieUploadSourceUrl";
 import { isCharacterScopedMediaUrl } from "../../../../lib/mediaStoragePath";
 import {
   KIE_KLING_30_MODEL_ID,
@@ -84,6 +83,86 @@ const resolveKieUploadFilename = (
   return `kie-${mediaKind}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 };
 
+type KieUploadRoutePayload = {
+  error?: string;
+  details?: string;
+  url?: string;
+};
+
+type KieUploadRouteResponseBodyFormat = "json" | "html" | "text" | "empty" | "unavailable";
+
+const readKieUploadRoutePayload = async (
+  response: Response
+): Promise<{
+  payload: KieUploadRoutePayload;
+  bodyFormat: KieUploadRouteResponseBodyFormat;
+}> => {
+  if (typeof response.text === "function") {
+    const rawText = await response.text().catch(() => null);
+    if (typeof rawText === "string") {
+      const trimmed = rawText.trim();
+      if (!trimmed) {
+        return {
+          payload: {},
+          bodyFormat: "empty",
+        };
+      }
+      try {
+        return {
+          payload: JSON.parse(trimmed) as KieUploadRoutePayload,
+          bodyFormat: "json",
+        };
+      } catch {
+        return {
+          payload: {},
+          bodyFormat: trimmed.startsWith("<") ? "html" : "text",
+        };
+      }
+    }
+  }
+
+  if (typeof response.json === "function") {
+    const payload = (await response.json().catch(() => ({}))) as KieUploadRoutePayload;
+    return {
+      payload,
+      bodyFormat: "json",
+    };
+  }
+
+  return {
+    payload: {},
+    bodyFormat: "unavailable",
+  };
+};
+
+const resolveKieUploadFailureMessage = ({
+  response,
+  payload,
+  bodyFormat,
+}: {
+  response: Response;
+  payload: KieUploadRoutePayload;
+  bodyFormat: KieUploadRouteResponseBodyFormat;
+}): string => {
+  const error =
+    typeof payload.error === "string" && payload.error.trim().length
+      ? payload.error.trim()
+      : `Temporary upload failed (${response.status})`;
+  const details =
+    typeof payload.details === "string" && payload.details.trim().length
+      ? payload.details.trim()
+      : bodyFormat === "html"
+        ? "Upload route returned an HTML error response."
+        : bodyFormat === "text"
+          ? "Upload route returned a plain-text error response."
+          : bodyFormat === "empty"
+            ? "Upload route returned an empty error response."
+            : bodyFormat === "unavailable"
+              ? "Upload route returned an unreadable error response."
+              : null;
+  return details ? `${error}: ${details}` : error;
+};
+
 const uploadUrlToKieTemporaryFile = async ({
   url,
   mediaKind,
@@ -99,21 +178,6 @@ const uploadUrlToKieTemporaryFile = async ({
 
   const cached = cache.get(normalizedUrl);
   if (cached) return await cached;
-
-  if (prefersKieRemoteStreamUpload(normalizedUrl)) {
-    const uploadPromise = uploadSourceUrlToKieTemporaryFile({
-      sourceUrl: normalizedUrl,
-      mediaKind,
-      cache,
-    });
-    cache.set(normalizedUrl, uploadPromise);
-    try {
-      return await uploadPromise;
-    } catch (error) {
-      cache.delete(normalizedUrl);
-      throw error;
-    }
-  }
 
   const uploadPromise = (async () => {
     const response = await fetchWithAuth(KIE_UPLOAD_ROUTE, {
@@ -133,21 +197,15 @@ const uploadUrlToKieTemporaryFile = async ({
       shortpulseLogScope: "generation",
     });
 
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      details?: string;
-      url?: string;
-    };
+    const { payload, bodyFormat } = await readKieUploadRoutePayload(response);
     if (!response.ok) {
-      const error =
-        typeof payload.error === "string" && payload.error.trim().length
-          ? payload.error
-          : "Temporary upload failed";
-      const details =
-        typeof payload.details === "string" && payload.details.trim().length
-          ? payload.details
-          : null;
-      throw new Error(details ? `${error}: ${details}` : error);
+      throw new Error(
+        resolveKieUploadFailureMessage({
+          response,
+          payload,
+          bodyFormat,
+        })
+      );
     }
 
     const uploadedUrl = payload.url?.trim();
@@ -192,21 +250,15 @@ const uploadBlobToKieTemporaryFile = async ({
       shortpulseLogScope: "generation",
     });
 
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      details?: string;
-      url?: string;
-    };
+    const { payload, bodyFormat } = await readKieUploadRoutePayload(response);
     if (!response.ok) {
-      const error =
-        typeof payload.error === "string" && payload.error.trim().length
-          ? payload.error
-          : "Temporary upload failed";
-      const details =
-        typeof payload.details === "string" && payload.details.trim().length
-          ? payload.details
-          : null;
-      throw new Error(details ? `${error}: ${details}` : error);
+      throw new Error(
+        resolveKieUploadFailureMessage({
+          response,
+          payload,
+          bodyFormat,
+        })
+      );
     }
 
     const uploadedUrl = payload.url?.trim();
@@ -363,9 +415,7 @@ const prepareKieInputUrl = async ({
         ? needsVideoUpload(normalizedRawUrl)
         : false)
       ? normalizedRawUrl
-      : normalizedPreparedUrl && prefersKieRemoteStreamUpload(normalizedPreparedUrl)
-        ? normalizedPreparedUrl
-        : "";
+      : "";
   if (browserUploadSourceUrl) {
     return await uploadSourceUrlToKieTemporaryFile({
       sourceUrl: browserUploadSourceUrl,

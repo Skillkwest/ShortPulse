@@ -93,7 +93,14 @@ describe("mediaFolderCanvasSnapshot", () => {
     });
 
     expect(seeded.some((item) => item.id === "media:file-1")).toBe(true);
-    expect(seeded.some((item) => item.id === "prompt:prompt-1")).toBe(true);
+    expect(
+      seeded.some(
+        (item) =>
+          item.kind === "text" &&
+          item.outputId === "prompt:prompt-1" &&
+          item.text === "cinematic sky"
+      )
+    ).toBe(true);
   });
 
   it("uses row width/height to preserve landscape sizing in seeded media items", () => {
@@ -220,7 +227,7 @@ describe("mediaFolderCanvasSnapshot", () => {
     });
   });
 
-  it("canonicalizes and dedupes dropped prompt membership items by prompt id", () => {
+  it("keeps prompt-backed text items independent while preserving prompt links", () => {
     const reconciled = reconcileFolderMembershipCanvasItems({
       items: [
         {
@@ -263,13 +270,61 @@ describe("mediaFolderCanvasSnapshot", () => {
       ],
     });
 
-    expect(reconciled).toHaveLength(1);
+    expect(reconciled).toHaveLength(2);
     expect(reconciled[0]).toMatchObject({
-      id: "prompt:prompt-1",
+      id: "canvas-temp-prompt",
       outputId: "prompt:prompt-1",
       x: 100,
       y: 40,
-      text: "cinematic sky",
+      text: "old prompt text",
+    });
+    expect(reconciled[1]).toMatchObject({
+      id: "prompt:prompt-1",
+      outputId: "prompt:prompt-1",
+      x: 0,
+      y: 0,
+      text: "older prompt text",
+    });
+  });
+
+  it("does not synthesize an extra prompt item when a prompt-backed text bubble already exists", () => {
+    const reconciled = reconcileFolderMembershipCanvasItems({
+      items: [
+        {
+          id: "canvas-temp-prompt",
+          kind: "text",
+          x: 100,
+          y: 40,
+          z: 6,
+          selected: true,
+          outputId: "prompt:prompt-1",
+          sourceSurface: null,
+          text: "old prompt text",
+          width: 260,
+          height: 180,
+        },
+      ],
+      mediaRows: [],
+      promptRows: [
+        {
+          id: "prompt-1",
+          title: "Prompt One",
+          prompt_text: "cinematic sky",
+          mode: "text",
+          source: "manual",
+          created_at: "2026-03-11T00:00:00.000Z",
+        },
+      ],
+      includeMissingMembershipItems: true,
+    });
+
+    expect(reconciled).toHaveLength(1);
+    expect(reconciled[0]).toMatchObject({
+      id: "canvas-temp-prompt",
+      outputId: "prompt:prompt-1",
+      x: 100,
+      y: 40,
+      text: "old prompt text",
     });
   });
 });

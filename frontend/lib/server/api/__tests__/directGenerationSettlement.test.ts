@@ -891,6 +891,59 @@ describe("directGenerationSettlement", () => {
     );
   });
 
+  it("keeps non-hidden transient direct terminal success visible in the reference grid", async () => {
+    readRecoveryGenerationRowMock.mockResolvedValueOnce({
+      id: "gen-1",
+      user_id: "user-1",
+      request_id: "req-1",
+      provider: "fal",
+      model_id: "fal-ai/nano-banana-2",
+      prompt_text: "portrait",
+      created_at: "2026-04-26T00:00:00.000Z",
+      metadata: {
+        source_ref: "source-ref-1",
+        hidden_in_reference_grid: false,
+      },
+    });
+    userPreferencesMaybeSingleMock.mockResolvedValueOnce({
+      data: { media_autosave_enabled: false },
+      error: null,
+    });
+    persistRecoveryMediaFilesForGenerationMock.mockReset();
+    persistGenerationOutputRecordsMock.mockResolvedValueOnce([
+      {
+        id: "output-1",
+        resultUrl: "https://provider.example/out-1.png",
+        mediaFileId: null,
+      },
+    ]);
+
+    await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-visible-transient",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicationState: "suppressed",
+        visibleInReferenceGrid: true,
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicationState: "suppressed",
+        hiddenInReferenceGrid: false,
+        referenceGridVisible: true,
+        resultUrls: ["https://provider.example/out-1.png"],
+        savedMediaIds: [],
+      })
+    );
+  });
+
   it("settles abandoned direct terminal success without republishing to the reference grid", async () => {
     readGenerationAbandonmentContextMock.mockResolvedValue({
       abandoned: true,

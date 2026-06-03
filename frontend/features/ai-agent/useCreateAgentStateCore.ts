@@ -8,6 +8,7 @@ import type {
   AgentApiContext,
   AgentApiRequest,
   AgentAttachment,
+  AgentConversationState,
   AgentMessage,
   AgentResponse,
   AgentRuntimeMode,
@@ -137,6 +138,9 @@ export const useCreateAgentStateCore = ({
   const sessionIdentityRef = useRef<string | null>(null);
   const pendingSendCountRef = useRef(0);
   const canonicalPromptBySessionIdentityRef = useRef<Map<string, string | null>>(new Map());
+  const conversationStateBySessionIdentityRef = useRef<Map<string, AgentConversationState | null>>(
+    new Map()
+  );
   if (!clientSessionKeyRef.current) {
     clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);
   }
@@ -253,6 +257,10 @@ export const useCreateAgentStateCore = ({
             : messagesRef.current;
       const requestCanonicalPrompt =
         canonicalPromptBySessionIdentityRef.current.get(requestSessionIdentity) ?? null;
+      const requestConversationState =
+        requestRuntimeMode === "standard"
+          ? (conversationStateBySessionIdentityRef.current.get(requestSessionIdentity) ?? null)
+          : null;
       if (!skipUserEcho && !allowContextOnlyTurn) {
         // UI-visible history (keep the user's raw text)
         const uiUserMessage: AgentMessage = {
@@ -353,6 +361,7 @@ export const useCreateAgentStateCore = ({
         const body: AgentApiRequest = {
           messages: outboundMessages,
           context: outboundContext,
+          conversationState: requestConversationState,
           clientSessionKey,
           clientSessionNamespace: requestSessionNamespace,
           conversationId: clientSessionKey,
@@ -411,9 +420,23 @@ export const useCreateAgentStateCore = ({
           promptArtifact,
           assistantContent,
           assistantOutputPrompt,
+          conversationState,
         } = await resolveTransportSuccess(data);
         if (canonicalPrompt) {
           canonicalPromptBySessionIdentityRef.current.set(requestSessionIdentity, canonicalPrompt);
+        }
+        if (requestRuntimeMode === "standard") {
+          const nextPreviousResponseId =
+            typeof conversationState?.previousResponseId === "string"
+              ? conversationState.previousResponseId.trim()
+              : "";
+          if (nextPreviousResponseId.length > 0) {
+            conversationStateBySessionIdentityRef.current.set(requestSessionIdentity, {
+              previousResponseId: nextPreviousResponseId,
+            });
+          } else {
+            conversationStateBySessionIdentityRef.current.delete(requestSessionIdentity);
+          }
         }
 
         const assistantMessagePayload = resolveAssistantMessagePayload({
@@ -498,6 +521,7 @@ export const useCreateAgentStateCore = ({
     setMessages([]);
     messagesRef.current = [];
     canonicalPromptBySessionIdentityRef.current.delete(currentSessionIdentity);
+    conversationStateBySessionIdentityRef.current.delete(currentSessionIdentity);
     clientSessionKeyRef.current = randomId();
     persistSessionKey(sessionNamespace, clientSessionKeyRef.current);
     pendingSendCountRef.current = 0;

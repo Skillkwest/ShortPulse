@@ -62,6 +62,31 @@ type FalStatusConfig = {
   alwaysHttp200?: boolean;
 };
 
+type GuardedNextApiResponse = NextApiResponse & {
+  __shortpulseResponseCommitted?: boolean;
+};
+
+const sendJsonResponse = ({
+  res,
+  statusCode,
+  payload,
+}: {
+  res: NextApiResponse;
+  statusCode: number;
+  payload: unknown;
+}) => {
+  const guardedResponse = res as GuardedNextApiResponse;
+  if (
+    guardedResponse.__shortpulseResponseCommitted ||
+    guardedResponse.writableEnded ||
+    guardedResponse.headersSent
+  ) {
+    return res;
+  }
+  guardedResponse.__shortpulseResponseCommitted = true;
+  return res.status(statusCode).json(payload);
+};
+
 const respondError = ({
   res,
   requestId,
@@ -82,9 +107,11 @@ const respondError = ({
   lifecycle?: import("../falIntegration/statusProxyRuntime").ShortPulseLifecycleHint;
 }) => {
   const code = alwaysHttp200 ? 200 : (statusCode ?? 500);
-  return res
-    .status(code)
-    .json(buildFalStatusErrorPayload({ requestId, error, detail, generationId, lifecycle }));
+  return sendJsonResponse({
+    res,
+    statusCode: code,
+    payload: buildFalStatusErrorPayload({ requestId, error, detail, generationId, lifecycle }),
+  });
 };
 
 const attachShortPulseLifecycle = ({
@@ -248,7 +275,11 @@ export const createFalStatusHandler = ({
 }: FalStatusConfig) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
+      return sendJsonResponse({
+        res,
+        statusCode: 405,
+        payload: { error: "Method not allowed" },
+      });
     }
 
     const user = await requireApiUser(req, res);
@@ -267,7 +298,11 @@ export const createFalStatusHandler = ({
         userId: user.id,
         userEmail: user.email ?? null,
       });
-      return res.status(400).json({ error: "requestId is required" });
+      return sendJsonResponse({
+        res,
+        statusCode: 400,
+        payload: { error: "requestId is required" },
+      });
     }
     const ownership = await resolveProviderRequestOwnership({
       userId: user.id,
@@ -287,7 +322,11 @@ export const createFalStatusHandler = ({
           ownership,
         },
       });
-      return res.status(403).json({ error: "Forbidden" });
+      return sendJsonResponse({
+        res,
+        statusCode: 403,
+        payload: { error: "Forbidden" },
+      });
     }
 
     const persistedGenerationContext = await readPersistedGenerationStatusContext({
@@ -312,8 +351,10 @@ export const createFalStatusHandler = ({
       };
     };
     if (persistedGenerationContext.resultUrls.length > 0) {
-      return res.status(200).json(
-        buildPersistedCompletedPayload({
+      return sendJsonResponse({
+        res,
+        statusCode: 200,
+        payload: buildPersistedCompletedPayload({
           requestId,
           resultUrls: persistedGenerationContext.resultUrls,
           generationId,
@@ -323,8 +364,8 @@ export const createFalStatusHandler = ({
           recoveryPending: persistedGenerationContext.recoveryPending === true,
           completionState: persistedGenerationContext.completionState ?? null,
           providerState: persistedGenerationContext.status ?? "completed",
-        })
-      );
+        }),
+      });
     }
     if (persistedGenerationContext.taskState === "fail" && !shouldProbeProviderBeforeFail) {
       return respondError({
@@ -361,7 +402,11 @@ export const createFalStatusHandler = ({
         message: String(error),
         statusCode: 500,
       });
-      return res.status(500).json({ error: String(error) });
+      return sendJsonResponse({
+        res,
+        statusCode: 500,
+        payload: { error: String(error) },
+      });
     }
 
     const respondErrorWithLogging = async ({
@@ -546,8 +591,10 @@ export const createFalStatusHandler = ({
     }) => {
       const canonicalContext = await readCanonicalStatusContext();
       if (canonicalContext.taskState !== "fail") return null;
-      return res.status(200).json(
-        buildPersistedFailedPayload({
+      return sendJsonResponse({
+        res,
+        statusCode: 200,
+        payload: buildPersistedFailedPayload({
           requestId,
           generationId: canonicalContext.generationId ?? generationId,
           errorMessage:
@@ -558,8 +605,8 @@ export const createFalStatusHandler = ({
             canonicalContext.errorDetail ?? canonicalContext.errorMessageShort ?? fallbackDetail,
           providerState,
           queueState: canonicalContext.queueState ?? "failed",
-        })
-      );
+        }),
+      });
     };
     const respondWithCanonicalCompletedPayload = async ({
       providerState,
@@ -568,8 +615,10 @@ export const createFalStatusHandler = ({
     }) => {
       const canonicalContext = await readCanonicalStatusContext();
       if (!canonicalContext.resultUrls.length) return null;
-      return res.status(200).json(
-        buildPersistedCompletedPayload({
+      return sendJsonResponse({
+        res,
+        statusCode: 200,
+        payload: buildPersistedCompletedPayload({
           requestId,
           resultUrls: canonicalContext.resultUrls,
           generationId: canonicalContext.generationId ?? generationId,
@@ -579,8 +628,8 @@ export const createFalStatusHandler = ({
           recoveryPending: canonicalContext.recoveryPending === true,
           completionState: canonicalContext.completionState ?? null,
           providerState,
-        })
-      );
+        }),
+      });
     };
     const respondRecoveryPendingPayload = ({
       providerState,
@@ -589,8 +638,10 @@ export const createFalStatusHandler = ({
       providerState: string | null;
       detail?: unknown;
     }) =>
-      res.status(200).json(
-        buildFalStatusTransientPayload({
+      sendJsonResponse({
+        res,
+        statusCode: 200,
+        payload: buildFalStatusTransientPayload({
           requestId,
           detail,
           generationId,
@@ -606,8 +657,8 @@ export const createFalStatusHandler = ({
               recoveryPending: true,
             }),
           }),
-        })
-      );
+        }),
+      });
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -694,8 +745,10 @@ export const createFalStatusHandler = ({
           detail: detail ?? null,
         },
       });
-      return res.status(200).json(
-        buildFalStatusTransientPayload({
+      return sendJsonResponse({
+        res,
+        statusCode: 200,
+        payload: buildFalStatusTransientPayload({
           requestId,
           detail: {
             stage,
@@ -712,8 +765,8 @@ export const createFalStatusHandler = ({
               recoveryPending: true,
             }),
           }),
-        })
-      );
+        }),
+      });
     };
 
     try {
@@ -921,8 +974,10 @@ export const createFalStatusHandler = ({
               }),
             });
           }
-          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
-            attachGenerationId(
+          return sendJsonResponse({
+            res,
+            statusCode: alwaysHttp200 ? 200 : statusResp.status,
+            payload: attachGenerationId(
               attachShortPulseLifecycle({
                 payload: statusData.json,
                 lifecycle: buildShortPulseLifecycleHint({
@@ -932,8 +987,8 @@ export const createFalStatusHandler = ({
                   recoveryPending: true,
                 }),
               })
-            )
-          );
+            ),
+          });
         }
         return respondErrorWithLogging({
           requestId,
@@ -956,16 +1011,18 @@ export const createFalStatusHandler = ({
         })
       );
       if (!isComplete) {
-        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
-          attachGenerationId(
+        return sendJsonResponse({
+          res,
+          statusCode: alwaysHttp200 ? 200 : statusResp.status,
+          payload: attachGenerationId(
             attachShortPulseLifecycle({
               payload: statusData.json,
               lifecycle: buildNonterminalLifecycleHint({
                 normalizedStatus,
               }),
             })
-          )
-        );
+          ),
+        });
       }
 
       // Some Fal models return terminal status payloads that already include media while
@@ -1068,8 +1125,10 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           })
         ) {
-          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
-            attachGenerationId(
+          return sendJsonResponse({
+            res,
+            statusCode: alwaysHttp200 ? 200 : statusResp.status,
+            payload: attachGenerationId(
               attachShortPulseLifecycle({
                 payload: statusData.json,
                 lifecycle: buildNonterminalLifecycleHint({
@@ -1077,8 +1136,8 @@ export const createFalStatusHandler = ({
                   recoveryPending: true,
                 }),
               })
-            )
-          );
+            ),
+          });
         }
         if (statusTransientFailuresEnabled) {
           return respondTransientWithTelemetry({
@@ -1133,8 +1192,10 @@ export const createFalStatusHandler = ({
               }),
             });
           }
-          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
-            attachGenerationId(
+          return sendJsonResponse({
+            res,
+            statusCode: alwaysHttp200 ? 200 : statusResp.status,
+            payload: attachGenerationId(
               attachShortPulseLifecycle({
                 payload: statusData.json,
                 lifecycle: buildNonterminalLifecycleHint({
@@ -1142,8 +1203,8 @@ export const createFalStatusHandler = ({
                   recoveryPending: true,
                 }),
               })
-            )
-          );
+            ),
+          });
         }
         return await settleCanonicalFailedPayload({
           providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,

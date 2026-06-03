@@ -144,10 +144,15 @@ export type AgentActions = {
   applyPrompt?: string | null;
 };
 
+export type AgentConversationState = {
+  previousResponseId?: string | null;
+};
+
 export type AgentResponse = {
   message: string;
   actions?: AgentActions;
   workflowSession?: AgentPulseWorkflowSession | null;
+  conversationState?: AgentConversationState | null;
   usage?: {
     inputTokens?: number;
     outputTokens?: number;
@@ -174,6 +179,7 @@ export type AgentApiMessage = {
 export type AgentApiRequest = {
   messages: AgentApiMessage[];
   context?: AgentApiContext;
+  conversationState?: AgentConversationState | null;
   clientSessionKey: string;
   clientSessionNamespace?: string | null;
   runtimeMode?: AgentRuntimeMode;

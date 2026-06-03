@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
-import type { AgentContext, AgentMessage, AgentRuntimeMode } from "../../prefabs/agent";
+import type {
+  AgentContext,
+  AgentConversationState,
+  AgentMessage,
+  AgentRuntimeMode,
+} from "../../prefabs/agent";
 import type {
   AgentMachineOutcomeFields,
   AgentReasonCode,
@@ -45,6 +50,7 @@ type StudioAgentRequestEnvelopeSuccess = {
     clientSessionKey: string;
     messages: AgentMessage[];
     context: AgentContext;
+    conversationState: AgentConversationState | null;
     incomingCanonical: string | null;
     runtimeMode: AgentRuntimeMode | null;
   };
@@ -59,6 +65,48 @@ type StudioAgentRequestEnvelopeFailure = {
 export type StudioAgentRequestEnvelopeResult =
   | StudioAgentRequestEnvelopeSuccess
   | StudioAgentRequestEnvelopeFailure;
+
+const STUDIO_AGENT_PREVIOUS_RESPONSE_ID_MAX_CHARS = 200;
+
+const parseStudioAgentConversationState = ({
+  rawValue,
+  runtimeMode,
+}: {
+  rawValue: unknown;
+  runtimeMode: AgentRuntimeMode | null;
+}):
+  | { ok: true; value: AgentConversationState | null }
+  | { ok: false; message: string; details?: Record<string, unknown> } => {
+  if (runtimeMode !== "standard") {
+    return { ok: true, value: null };
+  }
+  if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) {
+    return { ok: true, value: null };
+  }
+  const previousResponseId =
+    typeof (rawValue as { previousResponseId?: unknown }).previousResponseId === "string"
+      ? (rawValue as { previousResponseId: string }).previousResponseId.trim()
+      : "";
+  if (!previousResponseId.length) {
+    return { ok: true, value: null };
+  }
+  if (previousResponseId.length > STUDIO_AGENT_PREVIOUS_RESPONSE_ID_MAX_CHARS) {
+    return {
+      ok: false,
+      message: "conversationState.previousResponseId exceeds allowed length",
+      details: {
+        field: "conversationState.previousResponseId",
+        maxChars: STUDIO_AGENT_PREVIOUS_RESPONSE_ID_MAX_CHARS,
+      },
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      previousResponseId,
+    },
+  };
+};
 
 export const resolveStudioAgentTraceId = (req: NextApiRequest): string => {
   const headerTraceId = req.headers?.["x-shortpulse-request-id"];
@@ -233,6 +281,22 @@ export const parseStudioAgentRequestEnvelope = ({
       },
     };
   }
+  const parsedConversationState = parseStudioAgentConversationState({
+    rawValue: req.body?.conversationState,
+    runtimeMode,
+  });
+  if (!parsedConversationState.ok) {
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        code: "INVALID_REQUEST",
+        message: parsedConversationState.message,
+        details: parsedConversationState.details,
+        traceId,
+      },
+    };
+  }
 
   return {
     ok: true,
@@ -240,6 +304,7 @@ export const parseStudioAgentRequestEnvelope = ({
       clientSessionKey: parsedSessionKey.sessionKey,
       messages: parsedMessages.messages,
       context: sanitizeStudioAgentContext(req.body?.context, runtimeMode),
+      conversationState: parsedConversationState.value,
       incomingCanonical,
       runtimeMode,
     },

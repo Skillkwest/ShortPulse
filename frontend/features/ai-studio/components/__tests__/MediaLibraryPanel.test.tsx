@@ -746,6 +746,25 @@ describe("MediaLibraryPanel", () => {
     expect(onProjectNameCommit).toHaveBeenCalledWith("Launch Board");
   });
 
+  it("focuses the project name input when the rename flow requests it", async () => {
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        projectName="Campaign Alpha"
+        projectNameFocusRequestKey={1}
+      />
+    );
+
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+
+    await waitFor(() => {
+      expect(input).toHaveFocus();
+    });
+
+    expect(input).toHaveValue("Campaign Alpha");
+  });
+
   it("expands the media library layout from the root count row button", async () => {
     const onExpandMediaLibraryPanel = vi.fn();
     render(

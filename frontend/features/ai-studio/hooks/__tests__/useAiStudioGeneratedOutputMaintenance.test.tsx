@@ -164,4 +164,41 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       });
     });
   });
+
+  it("scopes steady-state plain-session generated-output sync to active runtime identities without startup hydration", async () => {
+    listVisibleGeneratedOutputsMock.mockResolvedValue([]);
+
+    renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "plain-runtime-1",
+          generationId: undefined,
+          taskId: undefined,
+          sourceRef: "source-plain-runtime-1",
+          taskState: "pending",
+          timestamp: "Waiting for server recovery...",
+          companionArtStatus: null,
+          previewUrl: undefined,
+          resultUrls: [],
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledTimes(1);
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+        projectId: null,
+        limit: 1,
+        runtimeIdentities: [
+          {
+            generationId: null,
+            requestId: null,
+            sourceRef: "source-plain-runtime-1",
+          },
+        ],
+      });
+    });
+  });
 });

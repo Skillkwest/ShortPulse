@@ -349,6 +349,38 @@ describe("useAiStudioState output store bridge", () => {
     expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
   });
 
+  it("scopes plain-session generated-output sync to active runtime identities without global hydration", async () => {
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([
+        makeOutput("plain-runtime-1", {
+          taskState: "pending",
+          mediaSource: "generated",
+          sourceRef: "source-plain-runtime-1",
+          previewUrl: undefined,
+          resultUrls: [],
+          timestamp: "Waiting for server recovery...",
+        }),
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledTimes(1);
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+        projectId: null,
+        limit: 1,
+        runtimeIdentities: [
+          {
+            generationId: null,
+            requestId: null,
+            sourceRef: "source-plain-runtime-1",
+          },
+        ],
+      });
+    });
+  });
+
   it("repairs posterless restored generated videos without global plain-session hydration", async () => {
     resolveVisibleGenerationReconcileMock.mockResolvedValue({
       generationId: "gen-video-1",

@@ -126,7 +126,7 @@ describe("MediaLibraryFolderCanvas", () => {
     expect(screen.queryAllByTestId(/canvas-item-/)).toHaveLength(0);
   });
 
-  it("places folder-canvas prompt drops with image-style center anchoring at the cursor release point", async () => {
+  it("places folder-canvas prompt drops with the bubble top-left anchored at the cursor release point", async () => {
     const onAssignDroppedItem = vi.fn(async () => true);
 
     function FolderPromptDropHarness() {
@@ -188,8 +188,8 @@ describe("MediaLibraryFolderCanvas", () => {
       const items = screen.getAllByTestId(/canvas-item-/);
       const matchingItem = items.find((item) => item.getAttribute("data-kind") === "text");
       expect(matchingItem).toBeTruthy();
-      expect(matchingItem?.getAttribute("data-x")).toBe("150");
-      expect(matchingItem?.getAttribute("data-y")).toBe("130");
+      expect(matchingItem?.getAttribute("data-x")).toBe("280");
+      expect(matchingItem?.getAttribute("data-y")).toBe("190");
     });
     expect(onAssignDroppedItem).toHaveBeenCalledWith({ kind: "prompt", id: "prompt-1" });
   });
@@ -275,12 +275,102 @@ describe("MediaLibraryFolderCanvas", () => {
       const items = screen.getAllByTestId(/canvas-item-/);
       const matchingItem = items.find((item) => item.getAttribute("data-kind") === "text");
       expect(matchingItem).toBeTruthy();
-      expect(matchingItem?.getAttribute("data-x")).toBe("150");
-      expect(matchingItem?.getAttribute("data-y")).toBe("130");
+      expect(matchingItem?.getAttribute("data-x")).toBe("280");
+      expect(matchingItem?.getAttribute("data-y")).toBe("190");
       expect(items).toHaveLength(1);
     } finally {
       window.requestAnimationFrame = originalRequestAnimationFrame;
     }
+  });
+
+  it("keeps repeated drops of the same prompt as independent text bubbles", async () => {
+    const onAssignDroppedItem = vi.fn(async () => true);
+
+    function FolderPromptDropHarness() {
+      const [promptRows, setPromptRows] = React.useState<
+        Array<{
+          id: string;
+          title: string | null;
+          prompt_text: string;
+          created_at: string | null;
+        }>
+      >([]);
+
+      return (
+        <MediaLibraryFolderCanvas
+          folderId="folder-1"
+          mediaRows={[]}
+          promptRows={promptRows}
+          onSelectMedia={vi.fn()}
+          onSelectPrompt={vi.fn()}
+          onUnassignItem={vi.fn(async () => {})}
+          onAssignDroppedItem={async (item) => {
+            const assigned = await onAssignDroppedItem(item);
+            if (assigned && item.kind === "prompt" && item.id === "prompt-repeat") {
+              setPromptRows([
+                {
+                  id: "prompt-repeat",
+                  title: "Repeated prompt",
+                  prompt_text: "Repeated prompt text",
+                  created_at: null,
+                },
+              ]);
+            }
+            return assigned;
+          }}
+        />
+      );
+    }
+
+    render(<FolderPromptDropHarness />);
+
+    const viewport = await screen.findByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryPrompt",
+        "text/shortpulse-media-library-id": "prompt-repeat",
+        "text/shortpulse-media-library-prompt": "Repeated prompt text",
+      }),
+      clientX: 280,
+      clientY: 190,
+    });
+
+    await waitFor(() => {
+      const textItems = screen
+        .getAllByTestId(/canvas-item-/)
+        .filter((item) => item.getAttribute("data-kind") === "text");
+      expect(textItems).toHaveLength(1);
+      expect(textItems[0]).toHaveAttribute("data-x", "280");
+      expect(textItems[0]).toHaveAttribute("data-y", "190");
+    });
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryPrompt",
+        "text/shortpulse-media-library-id": "prompt-repeat",
+        "text/shortpulse-media-library-prompt": "Repeated prompt text",
+      }),
+      clientX: 360,
+      clientY: 250,
+    });
+
+    await waitFor(() => {
+      const textItems = screen
+        .getAllByTestId(/canvas-item-/)
+        .filter((item) => item.getAttribute("data-kind") === "text");
+      expect(textItems).toHaveLength(2);
+      const positions = textItems.map(
+        (item) => `${item.getAttribute("data-x")},${item.getAttribute("data-y")}`
+      );
+      expect(positions).toContain("280,190");
+      expect(positions).toContain("360,250");
+    });
   });
 
   it("restores an existing prompt item when reassignment fails after re-drop", async () => {
@@ -348,7 +438,9 @@ describe("MediaLibraryFolderCanvas", () => {
     expect(item).toHaveAttribute("data-x", "40");
     expect(item).toHaveAttribute("data-y", "60");
     expect(screen.getByText("Existing prompt text")).toBeInTheDocument();
-    expect(screen.queryByText("Updated prompt text")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Updated prompt text")).not.toBeInTheDocument();
+    });
   });
 
   it("does not block save while waiting for prompt rows to refresh after a successful drop", async () => {
@@ -512,9 +604,15 @@ describe("MediaLibraryFolderCanvas", () => {
     expect(await screen.findByText("Internal prompt text")).toBeInTheDocument();
     expect(resolveInternalDropItem).toHaveBeenCalledTimes(1);
     expect(onAssignDroppedItem).toHaveBeenCalledWith({ kind: "prompt", id: "prompt-2" });
-    const item = await screen.findByTestId("canvas-item-prompt:prompt-2");
-    expect(item).toHaveAttribute("data-x", "110");
-    expect(item).toHaveAttribute("data-y", "100");
+    const items = screen.getAllByTestId(/canvas-item-/);
+    const item = items.find(
+      (candidate) =>
+        candidate.getAttribute("data-kind") === "text" &&
+        candidate.textContent?.includes("Internal prompt text")
+    );
+    expect(item).toBeTruthy();
+    expect(item).toHaveAttribute("data-x", "240");
+    expect(item).toHaveAttribute("data-y", "160");
   });
 
   it("does not assign folder membership when a prompt drop is blocked by the canvas item cap", async () => {

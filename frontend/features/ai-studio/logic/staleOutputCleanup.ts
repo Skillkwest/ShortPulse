@@ -2,6 +2,7 @@
  * Aging rules for unresolved AI Studio generation cards.
  * Identifies stale loading outputs and auto-failed outputs eligible for removal.
  */
+import { hasGeneratedOutputRuntimeIdentity } from "./generatedOutputRuntimeIdentity";
 import type { StudioOutput } from "../types";
 
 export type OutputLifecycleState = {
@@ -38,7 +39,7 @@ const isGeneratedOutput = (output: StudioOutput): boolean => {
 const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
   if (!isGeneratedOutput(output)) return false;
   if (output.previewUrl || output.previewText) return false;
-  if (output.taskId) return false;
+  if (hasGeneratedOutputRuntimeIdentity(output)) return false;
   if (output.submissionMode === "direct-request") return false;
   return output.taskState === "pending" || output.taskState === "running";
 };
@@ -46,15 +47,15 @@ const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
 const isDirectRequestLoadingWithoutPreview = (output: StudioOutput): boolean => {
   if (!isGeneratedOutput(output)) return false;
   if (output.previewUrl || output.previewText) return false;
-  if (output.taskId) return false;
+  if (hasGeneratedOutputRuntimeIdentity(output)) return false;
   if (output.submissionMode !== "direct-request") return false;
   return output.taskState === "pending" || output.taskState === "running";
 };
 
-const isTaskBackedLoadingWithoutPreview = (output: StudioOutput): boolean => {
+const isServerRecoverableLoadingWithoutPreview = (output: StudioOutput): boolean => {
   if (!isGeneratedOutput(output)) return false;
   if (output.previewUrl || output.previewText) return false;
-  if (!output.taskId) return false;
+  if (!hasGeneratedOutputRuntimeIdentity(output)) return false;
   return output.taskState === "pending" || output.taskState === "running";
 };
 
@@ -94,7 +95,7 @@ export const evaluateStaleOutputCleanup = (
 
     const isPlaceholderLoading = isLoadingWithoutPreview(output);
     const isDirectRequestLoading = isDirectRequestLoadingWithoutPreview(output);
-    const isTaskBackedLoading = isTaskBackedLoadingWithoutPreview(output);
+    const isTaskBackedLoading = isServerRecoverableLoadingWithoutPreview(output);
 
     if (isPlaceholderLoading || isDirectRequestLoading || isTaskBackedLoading) {
       if (nextState.pendingSinceMs == null) {

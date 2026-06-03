@@ -117,6 +117,48 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.queueWaitTimeoutIds).toHaveLength(0);
   });
 
+  it("does not submit-start timeout sourceRef-backed recovery outputs", () => {
+    const outputs = [
+      makeOutput({
+        id: "out-source-ref-recovery",
+        sourceRef: "src-recovery-1",
+        taskState: "pending",
+        timestamp: "Waiting for server recovery...",
+      }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "out-source-ref-recovery": { pendingSinceMs: BASE_TIME_MS - config.submitStartTimeoutMs },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.taskBackedTimeoutIds).toHaveLength(0);
+  });
+
+  it("times out sourceRef-backed recovery outputs on the server-recovery budget", () => {
+    const outputs = [
+      makeOutput({
+        id: "out-source-ref-stale",
+        sourceRef: "src-stale-1",
+        taskState: "running",
+        timestamp: "Waiting for server recovery...",
+      }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "out-source-ref-stale": {
+        pendingSinceMs: BASE_TIME_MS - config.taskBackedLoadingTimeoutMs,
+      },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toEqual(["out-source-ref-stale"]);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.taskBackedTimeoutIds).toEqual(["out-source-ref-stale"]);
+  });
+
   it("does not treat success without preview as stale loading", () => {
     const outputs = [
       makeOutput({

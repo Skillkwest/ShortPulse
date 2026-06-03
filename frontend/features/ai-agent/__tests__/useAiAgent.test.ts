@@ -1154,6 +1154,115 @@ describe("useCreateAgentStateCore", () => {
     ]);
   });
 
+  it("carries hidden Standard conversation state across later Standard turns", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "first standard reply",
+          conversationState: {
+            previousResponseId: "resp_standard_1",
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "second standard reply",
+        }),
+      } as Response);
+
+    const hook = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        sessionNamespace: "ai-studio:session-standard-state::standard",
+      })
+    );
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "first turn",
+        payloadText: "first turn",
+      });
+    });
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "second turn",
+        payloadText: "second turn",
+      });
+    });
+
+    const firstBody = JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body ?? "{}")) as {
+      conversationState?: { previousResponseId?: string | null } | null;
+    };
+    const secondBody = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      conversationState?: { previousResponseId?: string | null } | null;
+    };
+
+    expect(firstBody.conversationState ?? null).toBeNull();
+    expect(secondBody.conversationState).toEqual({
+      previousResponseId: "resp_standard_1",
+    });
+  });
+
+  it("clears hidden Standard conversation state when a later Standard response omits it", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "first standard reply",
+          conversationState: {
+            previousResponseId: "resp_standard_1",
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "second standard reply",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "third standard reply",
+        }),
+      } as Response);
+
+    const hook = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        sessionNamespace: "ai-studio:session-standard-state-clear::standard",
+      })
+    );
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "first turn",
+        payloadText: "first turn",
+      });
+    });
+    await act(async () => {
+      await hook.result.current.send({
+        text: "second turn",
+        payloadText: "second turn",
+      });
+    });
+    await act(async () => {
+      await hook.result.current.send({
+        text: "third turn",
+        payloadText: "third turn",
+      });
+    });
+
+    const thirdBody = JSON.parse(String(fetchWithAuthMock.mock.calls[2]?.[1]?.body ?? "{}")) as {
+      conversationState?: { previousResponseId?: string | null } | null;
+    };
+
+    expect(thirdBody.conversationState ?? null).toBeNull();
+  });
+
   it("keeps Standard override sends blocked from Pulse bootstrap namespaces", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,

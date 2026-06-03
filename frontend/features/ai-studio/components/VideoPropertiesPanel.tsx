@@ -49,6 +49,8 @@ import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/inte
 
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
+const KLING_SINGLE_PROMPT_MAX_CHARACTERS = 2500;
+const KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS = 500;
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -756,6 +758,50 @@ export function VideoPropertiesPanel({
     "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.";
   const primaryPromptHelperText =
     "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.";
+  const klingPrimaryPromptCharacterLimit =
+    isKieKlingModelSelected && !isSeedance2FamilyModelSelected
+      ? isCustomKlingWorkflow
+        ? KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
+        : KLING_SINGLE_PROMPT_MAX_CHARACTERS
+      : null;
+  const primaryPromptCharacterCount = primaryPromptValue.length;
+  const isPrimaryPromptOverKlingLimit =
+    klingPrimaryPromptCharacterLimit != null &&
+    primaryPromptCharacterCount > klingPrimaryPromptCharacterLimit;
+  const customKlingPromptOverLimitShots = React.useMemo(
+    () =>
+      isKieKlingModelSelected && !isSeedance2FamilyModelSelected && isCustomKlingWorkflow
+        ? customKlingPrompts.filter(
+            (shot) => shot.prompt.length > KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
+          )
+        : [],
+    [
+      customKlingPrompts,
+      isCustomKlingWorkflow,
+      isKieKlingModelSelected,
+      isSeedance2FamilyModelSelected,
+    ]
+  );
+  const klingPromptGuardrailReason = React.useMemo(() => {
+    if (!isKieKlingModelSelected || isSeedance2FamilyModelSelected) return null;
+    if (isCustomKlingWorkflow) {
+      if (!customKlingPromptOverLimitShots.length) return null;
+      if (customKlingPromptOverLimitShots.length === 1) {
+        return `Shot prompt exceeds Kling's ${KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS.toLocaleString()} character limit.`;
+      }
+      return `Multiple shot prompts exceed Kling's ${KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS.toLocaleString()} character limit.`;
+    }
+    if (isPrimaryPromptOverKlingLimit) {
+      return `Prompt exceeds Kling's ${KLING_SINGLE_PROMPT_MAX_CHARACTERS.toLocaleString()} character limit.`;
+    }
+    return null;
+  }, [
+    customKlingPromptOverLimitShots.length,
+    isCustomKlingWorkflow,
+    isKieKlingModelSelected,
+    isPrimaryPromptOverKlingLimit,
+    isSeedance2FamilyModelSelected,
+  ]);
   const primaryPromptTokenDiagnostics = React.useMemo(
     () => analyzeKlingPromptTokens(primaryPromptValue, klingPromptAttachedSlots),
     [klingPromptAttachedSlots, primaryPromptValue]
@@ -1611,6 +1657,20 @@ export function VideoPropertiesPanel({
                                   onPromptSelect={() => handlePromptSelection("primary")}
                                   onPromptKeyDown={handlePromptKeyDown}
                                 />
+                                {klingPrimaryPromptCharacterLimit != null ? (
+                                  <div
+                                    className={`video-prompt-character-meta ${
+                                      isPrimaryPromptOverKlingLimit ? "is-over-limit" : ""
+                                    }`.trim()}
+                                  >
+                                    <span className="video-prompt-character-meta-label">
+                                      {isCustomKlingWorkflow ? "Kling shot prompt" : "Kling prompt"}
+                                    </span>
+                                    <span className="video-prompt-character-meta-value">
+                                      {`${primaryPromptCharacterCount.toLocaleString()} / ${klingPrimaryPromptCharacterLimit.toLocaleString()} characters`}
+                                    </span>
+                                  </div>
+                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -1693,6 +1753,20 @@ export function VideoPropertiesPanel({
                                 placeholder={`Describe shot ${index + 2}.`}
                               />
                             </div>
+                            <div
+                              className={`video-prompt-character-meta ${
+                                shot.prompt.length > KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
+                                  ? "is-over-limit"
+                                  : ""
+                              }`.trim()}
+                            >
+                              <span className="video-prompt-character-meta-label">
+                                Kling shot prompt
+                              </span>
+                              <span className="video-prompt-character-meta-value">
+                                {`${shot.prompt.length.toLocaleString()} / ${KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS.toLocaleString()} characters`}
+                              </span>
+                            </div>
                           </div>
                         ))}
                         {shouldShowAddCustomShotButton ? (
@@ -1742,6 +1816,14 @@ export function VideoPropertiesPanel({
                   ) : null}
                   {!shouldShowKlingReferenceImageWarning &&
                   !referenceImageWarning &&
+                  klingPromptGuardrailReason ? (
+                    <div className="video-inline-warning-bubble" role="status" aria-live="polite">
+                      {klingPromptGuardrailReason}
+                    </div>
+                  ) : null}
+                  {!shouldShowKlingReferenceImageWarning &&
+                  !referenceImageWarning &&
+                  !klingPromptGuardrailReason &&
                   isGenerateDisabled &&
                   guardrailReason ? (
                     <div className="video-inline-warning-bubble" role="status" aria-live="polite">
@@ -1752,6 +1834,7 @@ export function VideoPropertiesPanel({
                     <AgentGenerateButton
                       onClick={onRegenerate}
                       disabled={
+                        Boolean(klingPromptGuardrailReason) ||
                         isGenerateDisabled ||
                         !hasAnyPromptText ||
                         shouldShowKlingReferenceImageWarning

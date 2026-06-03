@@ -15,7 +15,7 @@ Purpose: retain inbound debugging packets when another agent or the user wants t
 ## Status
 
 - Still-active retained handoff:
-  - none currently
+  - `2026-06-02-ai-studio-video-restore-drop-after-navigation.md`
 - Resolved on current branch:
   - `2026-05-15-character-route-bootstrap-stall.md`
   - `2026-05-15-character-reload-auth-bounce.md`

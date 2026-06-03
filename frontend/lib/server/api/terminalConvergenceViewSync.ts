@@ -139,6 +139,7 @@ export const syncTerminalSuccessViewState = async ({
     outputRows.every(
       (row) => typeof row.mediaFileId === "string" && deliveryPathsByMediaId.has(row.mediaFileId)
     );
+  const hasDisplayableResultMedia = normalizedResultUrls.length > 0;
   const generationMetadata = asObject(generation.metadata);
   const { hiddenInReferenceGrid, publicationState, referenceGridVisible } =
     resolveTerminalSuccessVisibilityState({
@@ -151,6 +152,7 @@ export const syncTerminalSuccessViewState = async ({
       },
       abandoned,
       hasCanonicalOwnedMedia,
+      hasDisplayableResultMedia,
     });
   const savedMediaIds =
     savedMediaIdsPolicy === "all_if_canonical"

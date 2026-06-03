@@ -29,7 +29,6 @@ import {
   readStudioAgentClientSessionNamespace,
 } from "../studioAgentRouteModeBoundary";
 import {
-  ensureStudioAgentApplyPromptContract,
   extractStudioAgentCompletionText,
   isStudioAgentRefusalResponse,
   parseStudioAgentJsonWithStatus,
@@ -40,9 +39,15 @@ import {
   shouldRetryStudioAgentFailure,
   waitForStudioAgentRetry,
 } from "../studioAgentFailurePolicy";
+import { sanitizeGenerationPromptText } from "../../agent-core/promptText";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import type { OpenAiChatMessage } from "../../../lib/server/api/openAiCompat";
+import {
+  buildOpenAiResponsesInput,
+  extractOpenAiResponsesOutputText,
+  fetchOpenAiResponse,
+  type OpenAiChatMessage,
+} from "../../../lib/server/api/openAiCompat";
 import {
   resolveRequiredRuntimeAgentPrompt,
   type RequiredRuntimeAgentPromptResolution,
@@ -71,6 +76,7 @@ const STANDARD_RESPONSE_STYLE_GUIDANCE = [
   '- "Best Direction:\\n---\\nTip: Pick one path"',
   '- "Reply with: 1 2 3"',
 ].join("\n");
+const STANDARD_SESSION_MEMORY_PREFIX = "Standard session memory:";
 
 type StandardOpenAiImageDetail = "high" | "auto";
 
@@ -388,6 +394,41 @@ const buildStandardOpenAiMessages = ({
   return [{ role: "system", content: effectiveSystemPrompt }, ...conversationMessages];
 };
 
+const isStandardSessionMemoryMessage = (message: AgentMessage | undefined): boolean =>
+  Boolean(
+    message &&
+    message.role === "assistant" &&
+    message.content.trim().startsWith(STANDARD_SESSION_MEMORY_PREFIX)
+  );
+
+const resolveCompactStandardConversationMessages = ({
+  messages,
+  previousResponseId,
+  responsesEnabled,
+  chatFallbackEnabled,
+}: {
+  messages: AgentMessage[];
+  previousResponseId: string | null;
+  responsesEnabled: boolean;
+  chatFallbackEnabled: boolean;
+}): AgentMessage[] => {
+  if (!responsesEnabled || chatFallbackEnabled || !previousResponseId) {
+    return messages;
+  }
+
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
+  if (!latestUserMessage) {
+    return messages;
+  }
+
+  const sessionMemoryMessage = messages.find((message) => isStandardSessionMemoryMessage(message));
+  if (!sessionMemoryMessage) {
+    return [latestUserMessage];
+  }
+
+  return [sessionMemoryMessage, latestUserMessage];
+};
+
 const clipStandardPromptReferenceSnippet = (value?: string | null): string | null => {
   if (!value) return null;
   const trimmed = value.trim();
@@ -477,6 +518,9 @@ const executeStandardOpenAiWithRetry = async ({
   maxAttempts,
   retryBaseDelayMs,
   retryMaxDelayMs,
+  previousResponseId,
+  responsesEnabled,
+  chatFallbackEnabled,
   env,
 }: {
   apiKey: string;
@@ -487,9 +531,12 @@ const executeStandardOpenAiWithRetry = async ({
   maxAttempts: number;
   retryBaseDelayMs: number;
   retryMaxDelayMs: number;
+  previousResponseId: string | null;
+  responsesEnabled: boolean;
+  chatFallbackEnabled: boolean;
   env?: NodeJS.ProcessEnv;
 }): Promise<
-  | { ok: true; response: Response; retryCount: number }
+  | { ok: true; response: Response; retryCount: number; transport: "chat" | "responses" }
   | {
       ok: false;
       detail: string;
@@ -501,38 +548,108 @@ const executeStandardOpenAiWithRetry = async ({
   let attempt = 1;
   let retryCount = 0;
 
+  const executeChatTurn = async (): Promise<Response> =>
+    await fetchStudioAgentChatCompletion({
+      apiKey,
+      openAiUrl,
+      model,
+      messages,
+      timeoutMs,
+      env: {
+        ...(env ?? process.env),
+        SHORTPULSE_OPENAI_RESPONSES_ENABLED: "false",
+        SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED: "false",
+      },
+    });
+
   while (true) {
     try {
-      const response = await fetchStudioAgentChatCompletion({
-        apiKey,
-        openAiUrl,
-        model,
-        messages,
-        timeoutMs,
-        env,
-      });
-      if (response.ok) {
-        return { ok: true, response, retryCount };
-      }
+      if (!responsesEnabled) {
+        const response = await executeChatTurn();
+        if (response.ok) {
+          return { ok: true, response, retryCount, transport: "chat" };
+        }
 
-      const detail = await response.text();
-      const failureClass = classifyStudioAgentFailure({
-        status: response.status,
-        detail,
-      });
-      if (
-        !shouldRetryStudioAgentFailure({
-          failureClass,
-          attempt,
-          maxAttempts,
-        })
-      ) {
-        return {
-          ok: false,
+        const detail = await response.text();
+        const failureClass = classifyStudioAgentFailure({
           status: response.status,
           detail,
-          retryCount,
-        };
+        });
+        if (
+          !shouldRetryStudioAgentFailure({
+            failureClass,
+            attempt,
+            maxAttempts,
+          })
+        ) {
+          return {
+            ok: false,
+            status: response.status,
+            detail,
+            retryCount,
+          };
+        }
+      } else {
+        const response = await fetchOpenAiResponse({
+          apiKey,
+          openAiUrl,
+          timeoutMs,
+          body: {
+            model,
+            input: buildOpenAiResponsesInput(messages),
+            store: true,
+            ...(previousResponseId ? { previous_response_id: previousResponseId } : {}),
+          },
+        });
+        if (response.ok) {
+          return { ok: true, response, retryCount, transport: "responses" };
+        }
+
+        if (chatFallbackEnabled) {
+          const fallbackResponse = await executeChatTurn();
+          if (fallbackResponse.ok) {
+            return { ok: true, response: fallbackResponse, retryCount, transport: "chat" };
+          }
+          const detail = await fallbackResponse.text();
+          const failureClass = classifyStudioAgentFailure({
+            status: fallbackResponse.status,
+            detail,
+          });
+          if (
+            !shouldRetryStudioAgentFailure({
+              failureClass,
+              attempt,
+              maxAttempts,
+            })
+          ) {
+            return {
+              ok: false,
+              status: fallbackResponse.status,
+              detail,
+              retryCount,
+            };
+          }
+        } else {
+          const detail = await response.text();
+          const failureClass = classifyStudioAgentFailure({
+            status: response.status,
+            detail,
+          });
+          if (
+            !shouldRetryStudioAgentFailure({
+              failureClass,
+              attempt,
+              maxAttempts,
+            })
+          ) {
+            return {
+              ok: false,
+              status: response.status,
+              detail,
+              retryCount,
+            };
+          }
+        }
       }
     } catch (error) {
       const detail = formatStudioAgentErrorMessage(error);
@@ -632,21 +749,22 @@ const extractStandardOpenAiResponse = ({
   if (!payload || typeof payload !== "object") return null;
   const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
   const raw = choices?.[0]?.message?.content;
-  const parsed = parseStudioAgentJsonWithStatus(raw, { allowUnstructured: true });
+  const parsed = parseStudioAgentJsonWithStatus(raw, { allowUnstructured: false });
   if (!parsed) {
     const directMessage = extractStudioAgentCompletionText(raw);
     if (typeof directMessage !== "string" || directMessage.trim().length === 0) {
       return null;
     }
+    const response: AgentResponse = {
+      message: directMessage.trim(),
+      actions: undefined,
+    };
     return {
-      response: ensureStudioAgentApplyPromptContract({
-        parsed: {
-          message: directMessage.trim(),
-          actions: undefined,
-        },
-        fallbackPrompt: directMessage.trim(),
+      response,
+      refusal: isStudioAgentRefusalResponse({
+        status: null,
+        response,
       }),
-      refusal: false,
     };
   }
 
@@ -666,12 +784,119 @@ const extractStandardOpenAiResponse = ({
   }
 
   return {
-    response: ensureStudioAgentApplyPromptContract({
+    response: normalizeStandardSuccessResponse({
       parsed: parsed.response,
       fallbackPrompt: parsed.response.message || fallbackPrompt,
     }),
     refusal: false,
   };
+};
+
+const extractStandardOpenAiResponsesResult = ({
+  payload,
+  fallbackPrompt,
+}: {
+  payload: unknown;
+  fallbackPrompt: string;
+}): {
+  response: AgentResponse;
+  refusal: boolean;
+} | null => {
+  if (!payload || typeof payload !== "object") return null;
+  const payloadRecord = payload as Record<string, unknown>;
+  const raw = extractOpenAiResponsesOutputText(payloadRecord);
+  const responseId =
+    typeof payloadRecord.id === "string" && payloadRecord.id.trim().length > 0
+      ? payloadRecord.id.trim()
+      : null;
+  const parsed = parseStudioAgentJsonWithStatus(raw, { allowUnstructured: false });
+  if (!parsed) {
+    const directMessage = raw.trim();
+    if (!directMessage.length) {
+      return null;
+    }
+    const response: AgentResponse = {
+      ...normalizeStandardSuccessResponse({
+        parsed: {
+          message: directMessage,
+          actions: undefined,
+        },
+        fallbackPrompt: directMessage,
+      }),
+      conversationState: responseId ? { previousResponseId: responseId } : null,
+    };
+    return {
+      response,
+      refusal: isStudioAgentRefusalResponse({
+        status: null,
+        response,
+      }),
+    };
+  }
+
+  if (
+    isStudioAgentRefusalResponse({
+      status: parsed.status,
+      response: parsed.response,
+    })
+  ) {
+    return {
+      response: {
+        message: parsed.response.message,
+        actions: undefined,
+      },
+      refusal: true,
+    };
+  }
+
+  return {
+    response: {
+      ...normalizeStandardSuccessResponse({
+        parsed: parsed.response,
+        fallbackPrompt: parsed.response.message || fallbackPrompt,
+      }),
+      conversationState: responseId ? { previousResponseId: responseId } : null,
+    },
+    refusal: false,
+  };
+};
+
+const normalizeStandardSuccessResponse = ({
+  parsed,
+  fallbackPrompt,
+}: {
+  parsed: AgentResponse;
+  fallbackPrompt: string;
+}): AgentResponse => {
+  const normalizedApplyPrompt =
+    sanitizeGenerationPromptText(parsed.actions?.applyPrompt ?? null)?.trim() ?? "";
+  const normalizedMessage =
+    sanitizeGenerationPromptText(parsed.message ?? null)?.trim() ??
+    sanitizeGenerationPromptText(fallbackPrompt)?.trim() ??
+    "";
+
+  return {
+    ...parsed,
+    actions: normalizedApplyPrompt.length > 0 ? { applyPrompt: normalizedApplyPrompt } : undefined,
+    message:
+      normalizedMessage.length > 0
+        ? normalizedMessage
+        : normalizedApplyPrompt.length > 0
+          ? normalizedApplyPrompt
+          : "",
+  };
+};
+
+const resolveStandardSuccessOutcomeClass = (
+  response: AgentResponse
+): {
+  outcomeClass: "success_prompt" | "success_message";
+  reasonCode: "SUCCESS_PROMPT" | "SUCCESS_MESSAGE";
+} => {
+  const hasPromptArtifact = Boolean(response.actions?.applyPrompt?.trim());
+  return hasPromptArtifact
+    ? { outcomeClass: "success_prompt", reasonCode: "SUCCESS_PROMPT" }
+    : { outcomeClass: "success_message", reasonCode: "SUCCESS_MESSAGE" };
 };
 
 /**
@@ -765,6 +990,10 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   const normalizedConversationId = requestEnvelope.value.clientSessionKey;
   const messages = requestEnvelope.value.messages;
   const context = requestEnvelope.value.context;
+  const previousResponseId =
+    typeof requestEnvelope.value.conversationState?.previousResponseId === "string"
+      ? requestEnvelope.value.conversationState.previousResponseId
+      : null;
   const flow = resolveStandardFlow(context);
   let resolvedSystemPrompt: RequiredRuntimeAgentPromptResolution;
   const runtimePromptResolutionStartedAt = Date.now();
@@ -809,6 +1038,12 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   }
 
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
+  const compactedMessages = resolveCompactStandardConversationMessages({
+    messages,
+    previousResponseId,
+    responsesEnabled: openAiConfig.standardResponsesEnabled,
+    chatFallbackEnabled: openAiConfig.standardChatFallbackEnabled,
+  });
   const textPayloadChars = measureStandardTextPayloadChars({ messages, context });
   const textPayloadSummary = summarizeStandardTextPayload({ messages, context });
   const executionProfile = resolveStandardOpenAiExecutionProfile({
@@ -823,7 +1058,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   const standardModel = executionProfile.model;
   const openAiRoundTripStartedAt = Date.now();
   const standardOpenAiMessages = buildStandardOpenAiMessages({
-    messages,
+    messages: compactedMessages,
     context,
     systemPrompt: resolvedSystemPrompt.promptBody,
     imageDetail: executionProfile.imageDetail,
@@ -838,6 +1073,9 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       maxAttempts: openAiConfig.upstreamRetryMaxAttempts,
       retryBaseDelayMs: openAiConfig.upstreamRetryBaseDelayMs,
       retryMaxDelayMs: openAiConfig.upstreamRetryMaxDelayMs,
+      previousResponseId,
+      responsesEnabled: openAiConfig.standardResponsesEnabled,
+      chatFallbackEnabled: openAiConfig.standardChatFallbackEnabled,
       env: {
         ...process.env,
         SHORTPULSE_OPENAI_RESPONSES_ENABLED: openAiConfig.standardResponsesEnabled
@@ -885,10 +1123,16 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     }
 
     const directPayload = await directResponseResult.response.json();
-    const directResult = extractStandardOpenAiResponse({
-      payload: directPayload,
-      fallbackPrompt: messages[messages.length - 1]?.content?.trim() || "",
-    });
+    const directResult =
+      directResponseResult.transport === "responses"
+        ? extractStandardOpenAiResponsesResult({
+            payload: directPayload,
+            fallbackPrompt: messages[messages.length - 1]?.content?.trim() || "",
+          })
+        : extractStandardOpenAiResponse({
+            payload: directPayload,
+            fallbackPrompt: messages[messages.length - 1]?.content?.trim() || "",
+          });
     if (!directResult) {
       emitStudioAgentTurnTelemetry({
         flow,
@@ -937,16 +1181,18 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         .json(buildStudioAgentSafetyRefusalPayload({ traceId, canonicalPrompt: null }));
     }
 
+    const successOutcome = resolveStandardSuccessOutcomeClass(directResult.response);
+
     emitStudioAgentTurnTelemetry({
       flow,
       path: STANDARD_TELEMETRY_PATH,
       status: "success",
       traceId,
       model: standardModel,
-      outcomeClass: "success_prompt",
+      outcomeClass: successOutcome.outcomeClass,
       retryUsed: directResponseResult.retryCount > 0,
       retryCount: directResponseResult.retryCount,
-      reasonCode: "SUCCESS_PROMPT",
+      reasonCode: successOutcome.reasonCode,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyTelemetry: {
@@ -956,8 +1202,8 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     return res.status(200).json({
       ...directResult.response,
       ...buildAgentMachineOutcome({
-        outcomeClass: "success_prompt",
-        reasonCode: "SUCCESS_PROMPT",
+        outcomeClass: successOutcome.outcomeClass,
+        reasonCode: successOutcome.reasonCode,
       }),
       canonicalPrompt: null,
       traceId,

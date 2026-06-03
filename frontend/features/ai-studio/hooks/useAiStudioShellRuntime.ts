@@ -46,7 +46,9 @@ export const useAiStudioShellRuntime = ({
     requestedProjectId,
     router,
     sessionId,
+    mediaProjectNameFocusRequestKey,
     setIsProjectsModalOpen,
+    setMediaProjectNameFocusRequestKey,
     setSelectedToolWithEditIntentReset,
     setSessionTitleOverrideState,
     setShowCreateTools,
@@ -115,6 +117,12 @@ export const useAiStudioShellRuntime = ({
     setShowCreateTools(false);
     setSelectedToolWithEditIntentReset("media-library");
   }, [setSelectedToolWithEditIntentReset, setShowCreateTools]);
+
+  const handleOpenMediaLibraryProjectNameEditor = useCallback(() => {
+    setMediaProjectNameFocusRequestKey((value) => value + 1);
+    setShowCreateTools(false);
+    setSelectedToolWithEditIntentReset("media-library");
+  }, [setMediaProjectNameFocusRequestKey, setSelectedToolWithEditIntentReset, setShowCreateTools]);
 
   const handleClearStaleProjectRoute = useCallback(async () => {
     const nextQuery = { ...router.query };
@@ -208,6 +216,8 @@ export const useAiStudioShellRuntime = ({
     handleSelectProjectFromModal,
     handleCreateProjectFromModal: navigateToProjectRoute,
     handleOpenMediaLibraryPanelOnly,
+    handleOpenMediaLibraryProjectNameEditor,
+    mediaProjectNameFocusRequestKey,
     shouldGateProjectBootstrap,
     projectEntryPhase,
     modelModalState,

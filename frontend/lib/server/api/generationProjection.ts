@@ -759,8 +759,8 @@ export const repairStaleTerminalGenerationProjections = async ({
           (row) =>
             typeof row.mediaFileId === "string" && deliveryPathsByMediaId.has(row.mediaFileId)
         );
-      const referenceGridVisible =
-        allOutputsOwned && (projection.referenceGridVisible ?? !projection.hiddenInReferenceGrid);
+      const hasDisplayableResultMedia = resultUrls.length > 0;
+      const referenceGridVisible = hasDisplayableResultMedia && !projection.hiddenInReferenceGrid;
 
       await upsertGenerationProjection({
         supabaseAdmin: adminClient,

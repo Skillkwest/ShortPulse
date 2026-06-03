@@ -548,6 +548,65 @@ describe("VideoPropertiesPanel", () => {
     );
   });
 
+  it("shows the live Kling single-shot character counter", () => {
+    render(<VideoPropertiesPanel {...baseProps} referenceText={"A".repeat(1250)} />);
+
+    expect(screen.getByText("Kling prompt")).toBeInTheDocument();
+    expect(screen.getByText("1,250 / 2,500 characters")).toBeInTheDocument();
+  });
+
+  it("blocks generate when the Kling single-shot prompt exceeds the provider limit", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceImageUrl="https://example.com/first-frame.jpg"
+        referenceText={"A".repeat(2501)}
+      />
+    );
+
+    expect(screen.getByText("Prompt exceeds Kling's 2,500 character limit.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /generate/i })).toBeDisabled();
+  });
+
+  it("shows per-shot Kling counters in custom multi-shot mode", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceImageUrl="https://example.com/first-frame.jpg"
+        klingWorkflowMode="custom"
+        klingMultiPrompts={[
+          { id: "shot-1", prompt: "A".repeat(120), duration: 5 },
+          { id: "shot-2", prompt: "B".repeat(220), duration: 5 },
+        ]}
+        onKlingMultiPromptsChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByText("Kling shot prompt")).toHaveLength(2);
+    expect(screen.getByText("120 / 500 characters")).toBeInTheDocument();
+    expect(screen.getByText("220 / 500 characters")).toBeInTheDocument();
+  });
+
+  it("blocks generate when any custom Kling shot exceeds the documented per-shot limit", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceImageUrl="https://example.com/first-frame.jpg"
+        klingWorkflowMode="custom"
+        klingMultiPrompts={[
+          { id: "shot-1", prompt: "A".repeat(120), duration: 5 },
+          { id: "shot-2", prompt: "B".repeat(501), duration: 5 },
+        ]}
+        onKlingMultiPromptsChange={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText("Shot prompt exceeds Kling's 500 character limit.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /generate/i })).toBeDisabled();
+  });
+
   it("preserves custom shot text when switching from custom to single or multi", () => {
     render(<KlingModeStateHarness />);
 

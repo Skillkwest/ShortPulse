@@ -31,7 +31,7 @@ type OpenAiResponsesRequest = {
   openAiApiBase?: string;
 };
 
-type ResponsesInputMessage = {
+export type ResponsesInputMessage = {
   role: "system" | "assistant" | "user";
   content: Record<string, unknown>[];
 };
@@ -124,7 +124,9 @@ const toResponsesContentPart = (part: OpenAiMessageContentPart): Record<string, 
   return null;
 };
 
-const toResponsesInput = (messages: OpenAiChatMessage[]): ResponsesInputMessage[] => {
+export const buildOpenAiResponsesInput = (
+  messages: OpenAiChatMessage[]
+): ResponsesInputMessage[] => {
   return messages
     .map((message) => {
       if (typeof message.content === "string") {
@@ -164,7 +166,7 @@ const toResponsesTextFormat = (
   };
 };
 
-const collectResponseOutputText = (payload: Record<string, unknown>): string => {
+export const extractOpenAiResponsesOutputText = (payload: Record<string, unknown>): string => {
   const directOutputText = asString(payload.output_text);
   if (directOutputText) return directOutputText;
 
@@ -214,7 +216,7 @@ const toChatCompletionCompatiblePayload = ({
         index: 0,
         message: {
           role: "assistant",
-          content: collectResponseOutputText(payload),
+          content: extractOpenAiResponsesOutputText(payload),
         },
         finish_reason: "stop",
       },
@@ -276,7 +278,7 @@ export const fetchOpenAiCompatibleChatCompletion = async ({
       },
       body: JSON.stringify({
         model,
-        input: toResponsesInput(messages),
+        input: buildOpenAiResponsesInput(messages),
         ...(textFormat ? { text: { format: textFormat } } : {}),
       }),
       signal: controller.signal,

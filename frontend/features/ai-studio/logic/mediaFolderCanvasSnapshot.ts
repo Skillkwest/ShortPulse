@@ -326,7 +326,7 @@ export const buildSeedItemsForFolderCanvas = ({
     const text = prompt.prompt_text.trim();
     if (!text) return;
     items.push({
-      id: `prompt:${prompt.id}`,
+      id: crypto.randomUUID(),
       kind: "text",
       x,
       y,
@@ -382,21 +382,21 @@ export const reconcileFolderMembershipCanvasItems = ({
       const promptId = getPromptIdFromCanvasOutputId(item.outputId);
       if (!promptId) return item;
       const row = promptById.get(promptId);
-      if (!row) {
-        return preserveMissingMembershipItemIds?.has(item.id) ? item : null;
-      }
-      return {
-        ...item,
-        id: `prompt:${promptId}`,
-        outputId: toPromptOutputId(promptId),
-        text: row.prompt_text.trim() || item.text,
-      };
+      if (!row) return item;
+      return item;
     })
     .filter((item): item is CanvasSceneItem => Boolean(item));
 
   const next: CanvasSceneItem[] = [];
   const membershipIndexById = new Map<string, number>();
+  const existingPromptOutputIds = new Set<string>();
   normalized.forEach((item) => {
+    if (item.kind === "text") {
+      const promptId = getPromptIdFromCanvasOutputId(item.outputId);
+      if (promptId) {
+        existingPromptOutputIds.add(promptId);
+      }
+    }
     if (isFolderCanvasMembershipItemId(item.id)) {
       const existingIndex = membershipIndexById.get(item.id);
       if (typeof existingIndex === "number") {
@@ -448,11 +448,11 @@ export const reconcileFolderMembershipCanvasItems = ({
 
     promptRows.forEach((row) => {
       const itemId = `prompt:${row.id}`;
-      if (existingIds.has(itemId)) return;
+      if (existingIds.has(itemId) || existingPromptOutputIds.has(row.id)) return;
       const text = row.prompt_text.trim();
       if (!text) return;
       next.push({
-        id: itemId,
+        id: crypto.randomUUID(),
         kind: "text",
         x: 0,
         y: 0,

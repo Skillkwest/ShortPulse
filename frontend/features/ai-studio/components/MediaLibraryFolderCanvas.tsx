@@ -268,7 +268,6 @@ export function MediaLibraryFolderCanvas({
           return null;
         }
         if (onAssignDroppedItem) {
-          addPreservedMissingMembershipItemId(`prompt:${promptId}`);
           addPendingAssignmentMembershipItemId(`prompt:${promptId}`);
         }
         setSaveError(null);
@@ -276,7 +275,6 @@ export function MediaLibraryFolderCanvas({
           resolved: {
             ...resolved,
             outputId: `prompt:${promptId}`,
-            preferredItemId: `prompt:${promptId}`,
           },
           afterInsert: buildDeferredAssignment({ kind: "prompt", id: promptId }),
         };
@@ -338,7 +336,6 @@ export function MediaLibraryFolderCanvas({
         const promptText = payload.payload.promptText.trim();
         if (!promptText) return null;
         if (onAssignDroppedItem) {
-          addPreservedMissingMembershipItemId(`prompt:${payload.payload.id}`);
           addPendingAssignmentMembershipItemId(`prompt:${payload.payload.id}`);
         }
         setSaveError(null);
@@ -346,7 +343,6 @@ export function MediaLibraryFolderCanvas({
           resolved: {
             kind: "text",
             outputId: `prompt:${payload.payload.id}`,
-            preferredItemId: `prompt:${payload.payload.id}`,
             text: promptText,
           },
           afterInsert: buildDeferredAssignment({ kind: "prompt", id: payload.payload.id }),

@@ -93,6 +93,7 @@ type MediaLibraryPanelProps = {
   projectId?: string | null;
   projectName?: string | null;
   onProjectNameCommit?: (value: string) => void;
+  projectNameFocusRequestKey?: number;
   isMediaLibraryPanelExpanded?: boolean;
   onExpandMediaLibraryPanel?: () => void;
   onCollapseMediaLibraryPanel?: () => void;
@@ -125,6 +126,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   projectId = null,
   projectName = null,
   onProjectNameCommit,
+  projectNameFocusRequestKey = 0,
   isMediaLibraryPanelExpanded = false,
   onExpandMediaLibraryPanel,
   onCollapseMediaLibraryPanel,
@@ -178,6 +180,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   void _onSelectPrompt;
 
   const rootUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const projectNameInputRef = useRef<HTMLInputElement | null>(null);
   const expandedTopHeightPxRef = useRef<number | null>(null);
 
   const panelBodyRef = useRef<HTMLDivElement | null>(null);
@@ -190,6 +193,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   useEffect(() => {
     setProjectNameDraft(projectName ?? "");
   }, [projectName]);
+
+  useEffect(() => {
+    if (projectNameFocusRequestKey <= 0) return;
+    const frameId = window.requestAnimationFrame(() => {
+      const input = projectNameInputRef.current;
+      if (!input) return;
+      input.focus();
+      input.select();
+    });
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [projectNameFocusRequestKey]);
 
   const projectNameInputWidthCh = useMemo(() => {
     const normalizedProjectName =
@@ -1282,6 +1298,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         projectNameDraft={projectNameDraft}
         setProjectNameDraft={setProjectNameDraft}
         commitProjectName={commitProjectName}
+        projectNameInputRef={projectNameInputRef}
         projectNamePlaceholder={PROJECT_NAME_PLACEHOLDER}
         projectNameInputWidthCh={projectNameInputWidthCh}
         rootUploadInputRef={rootUploadInputRef}

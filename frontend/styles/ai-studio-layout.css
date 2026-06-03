@@ -738,6 +738,15 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   pointer-events: auto;
 }
 
+.ai-hero-project-name-trigger {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .ai-hero-project-name-text {
   display: block;
   max-width: min(560px, 100%);
@@ -778,20 +787,26 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-hero-project-name-anchor:hover .ai-hero-project-name-edit-button,
 .ai-hero-project-name-anchor:focus-within .ai-hero-project-name-edit-button {
   opacity: 1;
-  pointer-events: auto;
 }
 
-.ai-hero-project-name-edit-button:hover {
+.ai-hero-project-name-trigger:hover .ai-hero-project-name-text {
+  color: rgba(255, 255, 255, 0.98);
+}
+
+.ai-hero-project-name-trigger:hover .ai-hero-project-name-edit-button {
   color: rgba(255, 255, 255, 0.98);
   border-color: rgba(101, 204, 255, 0.46);
   background: rgba(20, 24, 34, 0.98);
 }
 
-.ai-hero-project-name-edit-button:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
+.ai-hero-project-name-trigger:focus-visible {
   outline: 1px solid rgba(101, 204, 255, 0.78);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.ai-hero-project-name-trigger:focus-visible .ai-hero-project-name-edit-button {
+  opacity: 1;
 }
 
 @media (max-width: 960px) {

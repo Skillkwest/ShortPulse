@@ -433,6 +433,73 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
     );
   });
 
+  it("uses the server-side Kie upload route for signed Veo frame URLs", async () => {
+    const signedUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/veo-first.png?token=abc";
+    vi.stubGlobal("fetch", vi.fn());
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-signed-first.png",
+      }),
+    } as Response);
+
+    const handled = await handleVideoModelSubmission(
+      makeArgs({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        videoReferenceMode: "standard",
+        preparedImageInputs: [signedUrl],
+      })
+    );
+
+    expect(handled).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl: signedUrl,
+          uploadPath: "shortpulse/kie-video/images",
+        }),
+      })
+    );
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url:
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-signed-first.png",
+        image_urls: [
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-signed-first.png",
+        ],
+      })
+    );
+  });
+
+  it("surfaces non-JSON upload route failures with a specific fallback message", async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      text: async () => "<html><body>Bad gateway</body></html>",
+    } as Response);
+
+    await expect(
+      handleVideoModelSubmission(
+        makeArgs({
+          finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+          modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+          videoReferenceMode: "standard",
+          preparedImageInputs: ["https://example.com/first.png"],
+        })
+      )
+    ).rejects.toThrow(
+      "Temporary upload failed (502): Upload route returned an HTML error response."
+    );
+  });
+
   it("blocks character-scoped media URLs before submit", async () => {
     const args = makeArgs({
       finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -1054,7 +1121,6 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     vi.mocked(getSignedMediaUrl).mockResolvedValueOnce(
       "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/elements/taylor/front.png?token=fresh"
     );
-    const fetchMock = vi.mocked(fetch);
     vi.mocked(fetchWithAuth).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -1089,16 +1155,18 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       storagePath: "user-1/elements/taylor/front.png",
       forceRefresh: true,
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/elements/taylor/front.png?token=fresh"
-    );
+    expect(fetch).not.toHaveBeenCalled();
     expect(fetchWithAuth).toHaveBeenCalledWith(
       "/api/kie/upload-url",
       expect.objectContaining({
         method: "POST",
-        body: expect.any(Blob),
-        headers: expect.objectContaining({
-          "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl:
+            "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/elements/taylor/front.png?token=fresh",
+          uploadPath: "shortpulse/kie-video/images",
         }),
       })
     );
@@ -1117,7 +1185,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
-  it("uploads signed Seedance multimodal reference images through the binary Kie path", async () => {
+  it("uploads signed Seedance multimodal reference images through the server-side Kie path", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
     const expSoon = Math.floor(Date.now() / 1000) + 60;
     const payload = Buffer.from(
@@ -1130,7 +1198,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     const signedReferenceUrl =
       "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/red-lantern-front.png" +
       `?token=${token}`;
-    const fetchMock = vi.mocked(fetch);
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/red-lantern-front.png",
+      }),
+    } as Response);
 
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
@@ -1149,30 +1222,38 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith(signedReferenceUrl);
+    expect(fetch).not.toHaveBeenCalled();
     expect(fetchWithAuth).toHaveBeenCalledWith(
       "/api/kie/upload-url",
       expect.objectContaining({
         method: "POST",
-        body: expect.any(Blob),
-        headers: expect.objectContaining({
-          "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl: signedReferenceUrl,
+          uploadPath: "shortpulse/kie-video/images",
         }),
       })
     );
     expect(submitKieSeedance2Video).toHaveBeenCalledWith(
       expect.objectContaining({
         reference_image_urls: [
-          expect.stringContaining("https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/"),
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/red-lantern-front.png",
         ],
       })
     );
   });
 
-  it("uploads non-Supabase signed Seedance references through the binary Kie path", async () => {
+  it("uploads non-Supabase signed Seedance references through the server-side Kie path", async () => {
     const signedReferenceUrl =
       "https://cdn.example.com/red-lantern-front.png?X-Amz-Signature=test-signature&X-Amz-Security-Token=session-token";
-    const fetchMock = vi.mocked(fetch);
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/red-lantern-front.png",
+      }),
+    } as Response);
 
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
@@ -1191,21 +1272,24 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith(signedReferenceUrl);
+    expect(fetch).not.toHaveBeenCalled();
     expect(fetchWithAuth).toHaveBeenCalledWith(
       "/api/kie/upload-url",
       expect.objectContaining({
         method: "POST",
-        body: expect.any(Blob),
-        headers: expect.objectContaining({
-          "x-shortpulse-upload-path": "shortpulse/kie-video/images",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl: signedReferenceUrl,
+          uploadPath: "shortpulse/kie-video/images",
         }),
       })
     );
     expect(submitKieSeedance2Video).toHaveBeenCalledWith(
       expect.objectContaining({
         reference_image_urls: [
-          expect.stringContaining("https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/"),
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/red-lantern-front.png",
         ],
       })
     );

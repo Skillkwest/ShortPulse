@@ -387,6 +387,25 @@ Checkpoint note from 2026-06-02 implementation:
   - this checkpoint proves the Standard-owned transport migration seam and route-boundary preservation
   - it does not yet satisfy the full Phase 2 proof gate because Standard conversation state still depends primarily on manual transcript replay rather than a chosen Responses-style state mechanism
 
+Checkpoint note from 2026-06-02 continuation:
+
+- completed bounded Standard conversation-state carry-forward slice inside the current route:
+  - Standard request/response contracts now support a hidden `conversationState.previousResponseId` handle
+  - the shared Create agent state core stores that Standard-only handle per session identity and resends it on later Standard turns
+  - the Standard runtime now uses direct Responses execution with `store: true` and `previous_response_id` when the Standard Responses lane is enabled
+  - current full Standard message replay remains in place for behavior stability during this phase; the new state handle means Standard is no longer relying only on manual transcript replay
+  - when the Standard runtime falls back to Chat Completions or a later Standard response omits state, the client clears the stale handle
+- proof at this checkpoint:
+  - targeted Standard route, request-envelope, client-state, gateway, and compatibility tests passed with `99` tests across:
+    - `features/ai-agent/__tests__/useAiAgent.test.ts`
+    - `tests/api/studio-agent.runtime.test.ts`
+    - `features/agent-runtime/__tests__/studioAgentRouteEnvelope.test.ts`
+    - `features/agent-runtime/__tests__/studioAgentOpenAiGateway.test.ts`
+    - `lib/server/api/__tests__/openAiCompat.test.ts`
+  - `npm -C frontend run docs:check` passed
+- Phase 2 proof-gate status:
+  - satisfied for the current plan scope
+
 ### Phase 3. Conversation State And Memory V2
 
 Goal:
@@ -428,6 +447,62 @@ Proof gate:
 - snapshot compatibility remains intact unless a later approved migration changes it
 - context compaction or equivalent state reduction exists so longer conversations stay coherent without uncontrolled token growth
 
+Checkpoint note from 2026-06-02 implementation:
+
+- completed bounded Phase 3 memory-compaction slice:
+  - when Standard Responses continuity is active and Standard chat fallback is disabled, the Standard runtime now compacts replayed conversation payloads before the Responses call
+  - the compacted payload keeps:
+    - the synthetic Standard session-memory message when present
+    - the latest user turn
+  - older recent replay turns are no longer resent into the Responses request in that stateful lane
+  - restore and snapshot behavior remain unchanged because compaction happens at the Standard runtime seam, not in persistence
+- proof at this checkpoint:
+  - targeted Standard route, client-state, request-envelope, gateway, and compatibility tests passed with `100` tests across:
+    - `tests/api/studio-agent.runtime.test.ts`
+    - `features/ai-agent/__tests__/useAiAgent.test.ts`
+    - `features/agent-runtime/__tests__/studioAgentRouteEnvelope.test.ts`
+    - `features/agent-runtime/__tests__/studioAgentOpenAiGateway.test.ts`
+    - `lib/server/api/__tests__/openAiCompat.test.ts`
+  - `npm -C frontend run docs:check` passed
+- remaining Phase 3 gap:
+  - this slice proves context compaction exists in the stateful Standard lane
+  - it does not yet finish the broader memory-quality goals around stronger constraint retention, better retrieval policy, and longer-session coherence tuning
+
+Checkpoint note from 2026-06-02 continuation:
+
+- completed bounded Phase 3 memory-quality slice:
+  - Standard working-state memory now preserves answered short follow-up decisions explicitly instead of relying on recent replay turns to keep them alive
+  - examples of carried-forward state now include compact question-and-answer decisions such as audience, tone, color direction, and similar short resolved follow-ups
+  - this improvement is especially important in the compacted Responses lane, where older short answers are intentionally no longer replayed turn by turn
+- proof at this checkpoint:
+  - targeted Standard memory and route tests passed with `56` tests across:
+    - `features/ai-studio/createRuntime/standardMemory/__tests__/standardSessionMemory.test.ts`
+    - `features/ai-studio/createRuntime/standardMemory/__tests__/standardModeEvalCases.test.ts`
+    - `tests/api/studio-agent.runtime.test.ts`
+  - `npm -C frontend run docs:check` passed
+- remaining Phase 3 gap:
+  - stronger answered-follow-up retention now exists
+  - the broader Phase 3 lane still needs longer-session coherence tuning and any additional retrieval-policy work justified by those evals
+
+Checkpoint note from 2026-06-02 continuation:
+
+- completed bounded Phase 3 longer-session coherence proof:
+  - the Standard route test surface now includes a longer-session stateful Responses case that proves the compacted Standard lane keeps the richer synthetic session-memory message while dropping stale replay turns
+  - the proof explicitly preserves historical goal and answered-follow-up decisions inside the Standard memory block instead of requiring those older turns to remain in raw replay
+  - the compacted request now proves the intended split:
+    - retained state lives in Standard session memory
+    - stale prior assistant and user turns do not reappear as replay payload
+    - the actual latest user turn still reaches the Responses call directly
+- proof at this checkpoint:
+  - targeted Standard memory and route tests passed with `57` tests across:
+    - `features/ai-studio/createRuntime/standardMemory/__tests__/standardSessionMemory.test.ts`
+    - `features/ai-studio/createRuntime/standardMemory/__tests__/standardModeEvalCases.test.ts`
+    - `tests/api/studio-agent.runtime.test.ts`
+  - `npm -C frontend run docs:check` passed
+- Phase 3 decision at this checkpoint:
+  - for the current plan scope, Phase 3 is complete
+  - the remaining possible work in this lane is incremental retrieval-policy tuning, not a blocking architecture gap for assistant parity
+
 ### Phase 4. File And Multimodal Understanding
 
 Goal:
@@ -454,11 +529,15 @@ Realistic implementation dependency:
 Recommended first file set:
 
 - images
-- PDFs
-- text-like attachments where safe and practical
+
+Current scoped boundary from 2026-06-02 implementation:
+
+- for now, the only uploaded files Standard should work with are images
+- PDF and other document/file support are explicitly deferred until the user reopens that lane
 
 Recommended defer list:
 
+- PDFs and other document-like attachments
 - spreadsheets requiring deep structured analysis
 - slide-deck-native reasoning beyond text extraction
 - arbitrary binary formats
@@ -479,9 +558,9 @@ Constraints:
 
 Proof gate:
 
-- Standard can answer grounded file questions for supported file types
-- image-question and file-question behaviors remain differentiated and coherent
-- unsupported file types fail clearly without ambiguous assistant behavior
+- Standard can answer grounded questions about uploaded images
+- image-question behavior remains coherent across the Standard lane
+- non-image files remain out of scope and should fail clearly or stay unsupported until the user explicitly reopens that phase
 
 ### Phase 5. Standard Response Contract Shift
 
@@ -503,6 +582,18 @@ Proof gate:
 
 - conversational answers no longer feel artificially bent toward prompt production
 - generation workflows that depend on prompt artifacts still work where intended
+
+Checkpoint note from 2026-06-02 implementation:
+
+- bounded Phase 5 route-contract slice completed in the Standard runtime seam
+- Standard now returns `success_message` by default for plain conversational success
+- Standard stays on `success_prompt` only when an explicit reusable prompt artifact is actually present
+- the runtime no longer treats plain unstructured Standard text as implicit prompt output in the success lane
+- proof passed at this checkpoint:
+  - `npm -C frontend run test -- tests/api/studio-agent.runtime.test.ts features/ai-agent/client/__tests__/standardResponseContract.test.ts features/ai-agent/client/__tests__/standardTransportResultResolution.test.ts features/ai-agent/__tests__/useAiAgent.test.ts features/ai-studio/createRuntime/__tests__/useStandardCreateAgentRuntime.test.ts features/ai-agent/__tests__/createAgentBoundary.test.ts`
+  - `118` tests passed
+  - `npm -C frontend run docs:check` passed
+- this checkpoint does not end the overall plan by itself, but it closes the main prompt-first route-contract ambiguity inside Standard
 
 ### Phase 6. Assistant Behavior Quality And Eval Program
 
@@ -545,6 +636,21 @@ Proof gate:
 
 - Standard has a named assistant-quality eval surface
 - improvements are measured against that surface instead of ad hoc taste alone
+
+Checkpoint note from 2026-06-02 implementation:
+
+- bounded Phase 6 eval slice started without widening runtime or UI scope
+- the Standard assistant-quality eval catalog now explicitly covers:
+  - harmless visible image-attribute questions as direct descriptive-help turns
+  - compact formatting discipline for simple chat-mode asks
+- the Standard route proof surface now also pins the corresponding user-visible outcomes:
+  - a harmless image-attribute answer stays on the direct conversational lane
+  - a simple one-sentence chat answer stays compact and does not convert into a prompt artifact
+- proof passed at this checkpoint:
+  - `npm -C frontend run test -- tests/api/studio-agent.standard-evals.test.ts features/ai-studio/createRuntime/standardMemory/__tests__/standardModeEvalCases.test.ts tests/api/studio-agent.runtime.test.ts`
+  - `55` tests passed
+  - `npm -C frontend run docs:check` passed
+- this checkpoint strengthens the parity proof surface, but it does not finish the overall plan by itself
 
 ## What This Plan Deliberately Does Not Start With
 

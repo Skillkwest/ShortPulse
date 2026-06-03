@@ -19,20 +19,22 @@ export type FailureVisibilityState = {
 };
 
 /**
- * Resolve success-path visibility from abandonment plus canonical media ownership.
+ * Resolve success-path visibility from abandonment plus result displayability.
  */
 export const resolveTerminalSuccessVisibilityState = ({
   metadata,
   abandoned,
   hasCanonicalOwnedMedia,
+  hasDisplayableResultMedia,
 }: {
   metadata: VisibilityMetadataReader;
   abandoned: boolean;
   hasCanonicalOwnedMedia: boolean;
+  hasDisplayableResultMedia: boolean;
 }): SuccessVisibilityState => {
   const hiddenInReferenceGrid = abandoned || Boolean(metadata.hiddenInReferenceGrid);
   const publicationState = hasCanonicalOwnedMedia && !abandoned ? "published" : "suppressed";
-  const referenceGridVisible = !hiddenInReferenceGrid && hasCanonicalOwnedMedia;
+  const referenceGridVisible = !hiddenInReferenceGrid && hasDisplayableResultMedia;
   return {
     hiddenInReferenceGrid,
     publicationState,

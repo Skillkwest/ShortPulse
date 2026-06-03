@@ -455,6 +455,16 @@ const hasGeneratedOutputDurableDisplayAuthority = (output: StudioOutput): boolea
   return hasDurableGeneratedMediaDisplayAuthority(output);
 };
 
+const hasGeneratedOutputRestorableDisplayAuthority = (output: StudioOutput): boolean => {
+  if (hasGeneratedOutputDurableDisplayAuthority(output)) return true;
+  if (output.taskState !== "success") return false;
+  return Boolean(
+    asTrimmedString(output.previewUrl) ||
+    asTrimmedString(output.previewPosterUrl) ||
+    asTrimmedString(output.resultUrls?.[0])
+  );
+};
+
 const hasVisibleGenerationDeliveryDurableDisplayAuthority = (
   delivery: VisibleGenerationDelivery
 ): boolean => {
@@ -464,6 +474,17 @@ const hasVisibleGenerationDeliveryDurableDisplayAuthority = (
     fullStoragePath: delivery.fullStoragePath,
     companionArtStoragePath: delivery.companionArtStoragePath,
   });
+};
+
+const hasVisibleGenerationDeliveryDisplayAuthority = (
+  delivery: VisibleGenerationDelivery
+): boolean => {
+  if (hasVisibleGenerationDeliveryDurableDisplayAuthority(delivery)) return true;
+  return Boolean(
+    asTrimmedString(delivery.previewUrl) ||
+    asTrimmedString(delivery.previewPosterUrl) ||
+    asTrimmedString(delivery.fullUrl)
+  );
 };
 
 const toHydratedGeneratedOutput = (
@@ -1464,13 +1485,13 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
               fullStoragePath:
                 projectionDelivery.fullStoragePath ?? publishedDelivery.fullStoragePath,
             };
-            if (!hasVisibleGenerationDeliveryDurableDisplayAuthority(mergedDelivery)) {
+            if (!hasVisibleGenerationDeliveryDisplayAuthority(mergedDelivery)) {
               return null;
             }
             return await signVisibleGenerationDelivery(mergedDelivery);
           }
         }
-        if (!hasVisibleGenerationDeliveryDurableDisplayAuthority(projectionDelivery)) {
+        if (!hasVisibleGenerationDeliveryDisplayAuthority(projectionDelivery)) {
           return null;
         }
         return await signVisibleGenerationDelivery(projectionDelivery);
@@ -1850,7 +1871,7 @@ export const listVisibleGeneratedOutputs = async ({
       .map((output) => output.generationId as string);
     if (!authorityRepairGenerationIds.length) {
       const signedOutputs = await applySignedGeneratedMediaUrls(outputs);
-      return signedOutputs.filter(hasGeneratedOutputDurableDisplayAuthority);
+      return signedOutputs.filter(hasGeneratedOutputRestorableDisplayAuthority);
     }
     const mediaByGenerationId = await resolveLatestPublishedGenerationMediaByGenerationIds({
       supabase,
@@ -1867,7 +1888,7 @@ export const listVisibleGeneratedOutputs = async ({
     const outputsWithSignedVideoPosterUrls = await applySignedVideoPosterUrls(
       outputsWithSignedMediaUrls
     );
-    return outputsWithSignedVideoPosterUrls.filter(hasGeneratedOutputDurableDisplayAuthority);
+    return outputsWithSignedVideoPosterUrls.filter(hasGeneratedOutputRestorableDisplayAuthority);
   } catch {
     return [];
   }

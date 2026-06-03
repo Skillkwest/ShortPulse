@@ -4,6 +4,10 @@
  */
 import { useCallback, useEffect, useRef } from "react";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
+import {
+  buildGeneratedOutputRuntimeIdentitySignature,
+  resolveGeneratedOutputRuntimeIdentity,
+} from "../logic/generatedOutputRuntimeIdentity";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import { resolveTaskPollingProvider, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
@@ -59,9 +63,7 @@ const isVisibleGenerationWatchdogEligible = (output: StudioOutput): boolean => {
   if (output.hiddenInReferenceGrid === true) return false;
   if (hasSettledOutputLifecycle(output)) return false;
   if (!isOutputLifecycleInFlight(output) && hasSettledOutputPayload(output)) return false;
-  const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
-  const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
-  return generationId.length > 0 || taskId.length > 0;
+  return resolveGeneratedOutputRuntimeIdentity(output) !== null;
 };
 
 /**
@@ -170,9 +172,9 @@ export const useAiStudioTaskOrchestration = ({
       if (inFlightCount >= VISIBLE_GENERATION_MAX_CONCURRENT) return;
       if (visibleGenerationInFlightRef.current[output.id]) return;
 
-      const generationId = output.generationId?.trim() ?? "";
-      const requestId = output.taskId?.trim() ?? "";
-      if (!generationId && !requestId) return;
+      const runtimeIdentity = resolveGeneratedOutputRuntimeIdentity(output);
+      if (!runtimeIdentity) return;
+      const { generationId, requestId, sourceRef } = runtimeIdentity;
 
       visibleGenerationInFlightRef.current[output.id] = true;
       visibleGenerationLastCheckedAtRef.current[output.id] = now;
@@ -181,9 +183,9 @@ export const useAiStudioTaskOrchestration = ({
       void (async () => {
         try {
           const settleResult = await resolveVisibleGenerationSettle({
-            generationId: generationId || undefined,
-            requestId: requestId || undefined,
-            ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
+            generationId: generationId ?? undefined,
+            requestId: requestId ?? undefined,
+            ...(sourceRef ? { sourceRef } : {}),
             ...(projectId ? { projectId } : {}),
           });
           if (settleResult.kind === "hidden_or_failed") {
@@ -365,7 +367,7 @@ export const useAiStudioTaskOrchestration = ({
 
   useEffect(() => {
     const visibleGenerationSignature = visibleGenerationCandidatesRef.current
-      .map((output) => `${output.id}:${output.generationId ?? ""}:${output.taskId ?? ""}`)
+      .map((output) => buildGeneratedOutputRuntimeIdentitySignature(output))
       .sort()
       .join("|");
     if (visibleGenerationSignatureRef.current === visibleGenerationSignature) return;

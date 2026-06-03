@@ -60,6 +60,49 @@ describe("studioAgentRouteEnvelope", () => {
     expect(result.value.runtimeMode).toBe("standard");
   });
 
+  it("accepts Standard conversation state and strips it from non-Standard turns", () => {
+    const standardResult = parseStudioAgentRequestEnvelope({
+      req: {
+        body: {
+          clientSessionKey: "session-123",
+          messages: [{ role: "user", content: "hello" }],
+          runtimeMode: "standard",
+          conversationState: {
+            previousResponseId: "resp_prev_123",
+          },
+        },
+      } as never,
+      userId: "user-1",
+      traceId: "trace-standard-state",
+    });
+    const pulseResult = parseStudioAgentRequestEnvelope({
+      req: {
+        body: {
+          clientSessionKey: "session-456",
+          messages: [{ role: "user", content: "hello" }],
+          runtimeMode: "pulse",
+          conversationState: {
+            previousResponseId: "resp_prev_456",
+          },
+        },
+      } as never,
+      userId: "user-2",
+      traceId: "trace-pulse-state",
+    });
+
+    expect(standardResult.ok).toBe(true);
+    if (standardResult.ok) {
+      expect(standardResult.value.conversationState).toEqual({
+        previousResponseId: "resp_prev_123",
+      });
+    }
+
+    expect(pulseResult.ok).toBe(true);
+    if (pulseResult.ok) {
+      expect(pulseResult.value.conversationState).toBeNull();
+    }
+  });
+
   it("rejects invalid runtimeMode values", () => {
     const result = parseStudioAgentRequestEnvelope({
       req: {

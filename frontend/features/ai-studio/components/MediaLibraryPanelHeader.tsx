@@ -9,6 +9,7 @@ type MediaLibraryPanelHeaderProps = {
   projectNameDraft: string;
   setProjectNameDraft: React.Dispatch<React.SetStateAction<string>>;
   commitProjectName: () => void;
+  projectNameInputRef: React.Ref<HTMLInputElement>;
   projectNamePlaceholder: string;
   projectNameInputWidthCh: number;
   rootUploadInputRef: React.Ref<HTMLInputElement>;
@@ -24,6 +25,7 @@ export const MediaLibraryPanelHeader = React.memo(function MediaLibraryPanelHead
   projectNameDraft,
   setProjectNameDraft,
   commitProjectName,
+  projectNameInputRef,
   projectNamePlaceholder,
   projectNameInputWidthCh,
   rootUploadInputRef,
@@ -40,6 +42,7 @@ export const MediaLibraryPanelHeader = React.memo(function MediaLibraryPanelHead
           <span className="media-library-panel-project-name-label eyebrow">PROJECT:</span>
           <span className="sr-only">Project name</span>
           <input
+            ref={projectNameInputRef}
             type="text"
             value={projectNameDraft}
             onChange={(event) => setProjectNameDraft(event.target.value)}

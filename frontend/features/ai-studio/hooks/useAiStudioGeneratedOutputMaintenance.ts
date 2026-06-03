@@ -2,7 +2,7 @@
  * AI Studio generated-output maintenance.
  * Owns canonical generated-output hydration/sync plus generated and storage poster repair loops.
  */
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { StudioOutput } from "../types";
 import {
   listVisibleGeneratedOutputs,
@@ -29,7 +29,7 @@ const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean 
   if (output.companionArtStatus === "pending" || output.companionArtStatus === "processing") {
     return hasGenerationIdentity || Boolean(output.sourceRef);
   }
-  if (output.taskState === "success" || output.taskState === "fail") return false;
+  if (output.taskState !== "pending" && output.taskState !== "running") return false;
   return hasGenerationIdentity || Boolean(output.sourceRef);
 };
 
@@ -94,6 +94,28 @@ const toCanonicalGeneratedOutputSyncRuntimeIdentity = (
   };
 };
 
+const listCanonicalGeneratedOutputSyncRuntimeIdentities = (
+  outputs: StudioOutput[]
+): VisibleGeneratedOutputRuntimeIdentity[] =>
+  outputs
+    .map((output) => toCanonicalGeneratedOutputSyncRuntimeIdentity(output))
+    .filter((value): value is VisibleGeneratedOutputRuntimeIdentity => Boolean(value))
+    .slice(0, CANONICAL_GENERATED_OUTPUT_SYNC_BATCH_SIZE);
+
+const buildCanonicalGeneratedOutputSyncSignature = (
+  runtimeIdentities: VisibleGeneratedOutputRuntimeIdentity[]
+): string =>
+  runtimeIdentities
+    .map((runtimeIdentity) =>
+      [
+        runtimeIdentity.generationId ?? "",
+        runtimeIdentity.requestId ?? "",
+        runtimeIdentity.sourceRef ?? "",
+      ].join(":")
+    )
+    .sort()
+    .join("|");
+
 type UseAiStudioGeneratedOutputMaintenanceParams = {
   baseRuntimeAuthorityKey: string;
   hasPendingWorkflowRestore: boolean;
@@ -121,6 +143,19 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   const shouldHydrateProjectGeneratedOutputs = Boolean(projectId) && !hasPendingWorkflowRestore;
   const shouldHydratePlainSessionGeneratedOutputs =
     !projectRouteRequested && !projectId && isPlainSessionGeneratedOutputHydrationEnabled();
+  const shouldRunCanonicalGeneratedOutputSync =
+    !hasPendingWorkflowRestore && (!projectRouteRequested || Boolean(projectId));
+  const canonicalGeneratedOutputSyncRuntimeIdentities = useMemo(
+    () =>
+      shouldRunCanonicalGeneratedOutputSync
+        ? listCanonicalGeneratedOutputSyncRuntimeIdentities(outputs)
+        : [],
+    [outputs, shouldRunCanonicalGeneratedOutputSync]
+  );
+  const canonicalGeneratedOutputSyncSignature = useMemo(
+    () => buildCanonicalGeneratedOutputSyncSignature(canonicalGeneratedOutputSyncRuntimeIdentities),
+    [canonicalGeneratedOutputSyncRuntimeIdentities]
+  );
   const [canonicalGeneratedHydrationSettled, setCanonicalGeneratedHydrationSettled] = useState(
     !(shouldHydrateProjectGeneratedOutputs || shouldHydratePlainSessionGeneratedOutputs)
   );
@@ -192,25 +227,22 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   ]);
 
   useEffect(() => {
-    if (!projectId || hasPendingWorkflowRestore) {
+    if (!shouldRunCanonicalGeneratedOutputSync) {
       canonicalGeneratedOutputSyncLastActiveAtRef.current = null;
       canonicalGeneratedOutputSyncRuntimeIdentitiesRef.current = [];
       return;
     }
 
-    const runtimeIdentities = outputs
-      .map((output) => toCanonicalGeneratedOutputSyncRuntimeIdentity(output))
-      .filter((value): value is VisibleGeneratedOutputRuntimeIdentity => Boolean(value))
-      .slice(0, CANONICAL_GENERATED_OUTPUT_SYNC_BATCH_SIZE);
-    canonicalGeneratedOutputSyncRuntimeIdentitiesRef.current = runtimeIdentities;
-    const hasActiveGeneratedOutput = runtimeIdentities.length > 0;
+    canonicalGeneratedOutputSyncRuntimeIdentitiesRef.current =
+      canonicalGeneratedOutputSyncRuntimeIdentities;
+    const hasActiveGeneratedOutput = canonicalGeneratedOutputSyncRuntimeIdentities.length > 0;
     if (hasActiveGeneratedOutput) {
       canonicalGeneratedOutputSyncLastActiveAtRef.current = Date.now();
     }
-  }, [hasPendingWorkflowRestore, outputs, projectId]);
+  }, [canonicalGeneratedOutputSyncRuntimeIdentities, shouldRunCanonicalGeneratedOutputSync]);
 
   useEffect(() => {
-    if (!projectId || hasPendingWorkflowRestore) return;
+    if (!shouldRunCanonicalGeneratedOutputSync) return;
     let cancelled = false;
 
     const syncCanonicalGeneratedOutputs = async () => {
@@ -226,7 +258,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       canonicalGeneratedOutputSyncInFlightRef.current = true;
       try {
         const hydratedOutputs = await listVisibleGeneratedOutputs({
-          projectId,
+          projectId: projectId ?? null,
           limit: runtimeIdentities.length,
           runtimeIdentities,
         });
@@ -249,7 +281,12 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       cancelled = true;
       globalThis.clearInterval(intervalId);
     };
-  }, [hasPendingWorkflowRestore, projectId, setOutputsState]);
+  }, [
+    canonicalGeneratedOutputSyncSignature,
+    projectId,
+    setOutputsState,
+    shouldRunCanonicalGeneratedOutputSync,
+  ]);
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;

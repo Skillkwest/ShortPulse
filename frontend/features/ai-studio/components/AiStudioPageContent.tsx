@@ -588,6 +588,8 @@ export type AiStudioPageContentProps = {
   projectRouteRequested?: boolean;
   projectName?: string | null;
   onProjectNameCommit?: (value: string) => void;
+  onOpenProjectNameEditor?: () => void;
+  mediaLibraryProjectNameFocusRequestKey?: number;
   resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -668,6 +670,8 @@ export function AiStudioPageContent({
   projectRouteRequested = false,
   projectName,
   onProjectNameCommit,
+  onOpenProjectNameEditor,
+  mediaLibraryProjectNameFocusRequestKey = 0,
   resolveMediaLibraryInternalDropItem,
   resolveStyleLibraryInternalDrop,
   onOpenMediaLibrary,
@@ -1361,6 +1365,7 @@ export function AiStudioPageContent({
           projectId={projectId}
           projectName={projectName ?? null}
           onProjectNameCommit={onProjectNameCommit}
+          projectNameFocusRequestKey={mediaLibraryProjectNameFocusRequestKey}
           isMediaLibraryPanelExpanded={isMediaLibraryPanelExpanded}
           onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
           onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
@@ -1382,6 +1387,7 @@ export function AiStudioPageContent({
       handleCollapseMediaLibraryPanel,
       handleExpandMediaLibraryPanel,
       isMediaLibraryPanelExpanded,
+      mediaLibraryProjectNameFocusRequestKey,
       onProjectNameCommit,
       projectName,
       resolveMediaLibraryInternalDropItem,
@@ -1545,28 +1551,40 @@ export function AiStudioPageContent({
           </div>
           {visibleProjectName ? (
             <div className="ai-hero-project-name">
-              <div className="ai-hero-project-name-anchor">
-                <span
-                  className="ai-hero-project-name-text"
-                  role="status"
-                  aria-live="polite"
-                  aria-label={`Current project: ${visibleProjectName}`}
-                  title={visibleProjectName}
+              {onOpenProjectNameEditor ? (
+                <button
+                  type="button"
+                  className="ai-hero-project-name-anchor ai-hero-project-name-trigger"
+                  aria-label={`Edit project ${visibleProjectName} in Media panel`}
+                  title="Edit project name"
+                  onClick={onOpenProjectNameEditor}
                 >
-                  {visibleProjectName}
-                </span>
-                {onOpenMediaLibrary ? (
-                  <button
-                    type="button"
-                    className="ai-hero-project-name-edit-button"
-                    aria-label="Edit project name in Media panel"
-                    title="Edit project name"
-                    onClick={onOpenMediaLibrary}
+                  <span
+                    className="ai-hero-project-name-text"
+                    role="status"
+                    aria-live="polite"
+                    aria-label={`Current project: ${visibleProjectName}`}
+                    title={visibleProjectName}
                   >
+                    {visibleProjectName}
+                  </span>
+                  <span className="ai-hero-project-name-edit-button" aria-hidden="true">
                     <PencilSimple size={13} weight="bold" aria-hidden="true" />
-                  </button>
-                ) : null}
-              </div>
+                  </span>
+                </button>
+              ) : (
+                <div className="ai-hero-project-name-anchor">
+                  <span
+                    className="ai-hero-project-name-text"
+                    role="status"
+                    aria-live="polite"
+                    aria-label={`Current project: ${visibleProjectName}`}
+                    title={visibleProjectName}
+                  >
+                    {visibleProjectName}
+                  </span>
+                </div>
+              )}
             </div>
           ) : null}
           <div className="hero-right">

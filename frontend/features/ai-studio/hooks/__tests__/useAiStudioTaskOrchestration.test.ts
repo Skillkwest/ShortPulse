@@ -641,6 +641,92 @@ describe("useAiStudioTaskOrchestration", () => {
     );
   });
 
+  it("settles sourceRef-only restored outputs from the browser watchdog after navigation", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-source-ref-resume",
+        sourceRef: "src-resume-1",
+        provider: "fal",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        taskState: "pending",
+        timestamp: "Waiting for server recovery...",
+        mediaSource: "generated",
+        previewUrl: undefined,
+        resultUrls: [],
+      }),
+    ];
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    resolveVisibleGenerationReconcileMock.mockResolvedValue({
+      generationId: "gen-source-ref-resume",
+      previewUrl: "https://cdn.test/source-ref-preview.png",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: ["https://cdn.test/source-ref-full.png"],
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          beginPanelGeneration: vi.fn(),
+          endPanelGeneration: vi.fn(),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(resolveGenerationProjectionLifecycleMock).toHaveBeenCalledWith({
+      generationId: null,
+      requestId: null,
+      sourceRef: "src-resume-1",
+    });
+    expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+      generationId: null,
+      requestId: null,
+      sourceRef: "src-resume-1",
+    });
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(outputs[0]?.taskState).toBe("success");
+    expect(outputs[0]?.generationId).toBe("gen-source-ref-resume");
+    expect(outputs[0]?.previewUrl).toBe("https://cdn.test/source-ref-preview.png");
+    expect(outputs[0]?.resultUrls).toEqual(["https://cdn.test/source-ref-full.png"]);
+  });
+
   it("still does not restart task-backed polling when an active poll timer already exists", async () => {
     pollTimersRef.current["out-task-active"] = 123;
     const outputs = [

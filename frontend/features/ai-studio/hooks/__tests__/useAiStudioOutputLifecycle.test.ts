@@ -296,6 +296,42 @@ describe("useAiStudioOutputLifecycle", () => {
     }
   });
 
+  it("keeps sourceRef-backed recovery outputs alive past the submit-start timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("out-source-ref-recovery", {
+              taskState: "pending",
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              sourceRef: "src-recovery-1",
+              timestamp: "Waiting for server recovery...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(95_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("pending");
+      expect(result.current.outputs[0]?.timestamp).toBe("Waiting for server recovery...");
+      expect(result.current.outputs[0]?.errorMessage).toBeUndefined();
+      expect(reportAppErrorMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "fal_submit_not_started",
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not submit-start timeout direct-request placeholders before the direct-request budget", async () => {
     vi.useFakeTimers();
     try {

@@ -813,6 +813,31 @@
   width: 100%;
 }
 
+.video-properties-panel .video-prompt-character-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  color: rgba(226, 232, 239, 0.68);
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.video-properties-panel .video-prompt-character-meta.is-over-limit {
+  color: #ff9b8b;
+}
+
+.video-properties-panel .video-prompt-character-meta-label {
+  font-weight: 600;
+}
+
+.video-properties-panel .video-prompt-character-meta-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .video-properties-panel .video-shot-label-row {
   display: flex;
   justify-content: flex-start;

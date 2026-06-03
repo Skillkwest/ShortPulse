@@ -271,6 +271,40 @@ describe("createFalStatusHandler", () => {
     vi.unstubAllGlobals();
   });
 
+  it("does not commit a second response after the same response object is already ended", async () => {
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
+      routeLabel: "Fal Seedream",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-committed" },
+      headers: {},
+    };
+    const res = {
+      headersSent: false,
+      writableEnded: false,
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockImplementation(function (this: {
+        headersSent: boolean;
+        writableEnded: boolean;
+      }) {
+        this.headersSent = true;
+        this.writableEnded = true;
+        return this;
+      }),
+    };
+
+    await handler(req as never, res as never);
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps nonterminal response_url payloads in polling state without result probes", async () => {
     persistedGenerationRows = [
       {

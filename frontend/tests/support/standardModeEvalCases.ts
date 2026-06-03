@@ -151,6 +151,7 @@ export const STANDARD_MEMORY_EVAL_CASES: StandardMemoryEvalCase[] = [
       currentTask: "Help me shape this ad concept.",
       openQuestions: [],
       decisionsMadeIncludes: [
+        "Answered follow-up: Which audience should this target first? -> Adults 25-34.",
         "A reusable prompt is available.",
         "The current prompt source is references.",
       ],
@@ -203,6 +204,9 @@ export const STANDARD_MEMORY_EVAL_CASES: StandardMemoryEvalCase[] = [
       ],
       openQuestions: [],
       decisionsMadeIncludes: [
+        "Answered follow-up: What audience should this target first? -> Adults 25-34.",
+        "Answered follow-up: Should copy be minimal? -> Yes.",
+        "Answered follow-up: Any color direction? -> Warm neutrals.",
         "A reusable prompt is available.",
         "The current prompt source is references.",
       ],
@@ -300,6 +304,31 @@ export const STANDARD_RUNTIME_EVAL_CASES: StandardRuntimeEvalCase[] = [
     ],
   },
   {
+    id: "describe-image-attribute-direct-answer",
+    goal: "Treat a harmless visible image-attribute question as direct descriptive help, not a prompt-writing turn.",
+    messages: [createMessage({ role: "user", content: "What color is her top?" })],
+    context: {
+      modeHint: "describe",
+      focusedSource: "image",
+      references: [{ id: "ref-image-2", kind: "image", caption: "Black dress portrait reference" }],
+      media: [
+        {
+          id: "ref-image-2",
+          kind: "image",
+          url: "https://example.com/portrait-reference.png",
+          thumbnailAlt: "Portrait reference",
+        },
+      ],
+    },
+    expectedSystemPromptSnippets: [
+      "Standard reply behavior:",
+      "Answer the user's latest message directly before offering optional next help.",
+      "Focused source: image",
+      "The user is focused on image material. Ground the reply in what the image references imply for composition, style, or subject treatment.",
+      "The user likely wants descriptive help, not an automatic rewrite into a generation prompt.",
+    ],
+  },
+  {
     id: "short-directive-pivot-refinement",
     goal: "Treat a short directive pivot as a real revision request even when the prior assistant turn asked a question.",
     messages: [createMessage({ role: "user", content: "Make it darker." })],
@@ -338,6 +367,23 @@ export const STANDARD_RUNTIME_EVAL_CASES: StandardRuntimeEvalCase[] = [
       "Standard reply behavior:",
       "Use the conversation's Standard session memory to preserve active goals, constraints, and accepted prompt direction, but do not quote that memory block verbatim.",
       "The user asked for multiple options. Provide 3 distinct options or directions before offering any follow-up question.",
+      "Keep the turn conversational. Do not force the reply into a reusable prompt unless the user explicitly asks for one.",
+    ],
+  },
+  {
+    id: "simple-chat-compact-formatting",
+    goal: "Keep a simple chat-mode ask compact and avoid over-structured formatting.",
+    messages: [createMessage({ role: "user", content: "Summarize this in one sentence." })],
+    context: {
+      modeHint: "chat",
+      lastAssistantMessage: "Here is the longer explanation of the current direction.",
+    },
+    expectedSystemPromptSnippets: [
+      "Standard response formatting rules:",
+      "Prefer a calm, readable response shape: short paragraphs first, then bullets or numbered lists only when the content is naturally grouped.",
+      "Use a brief section label only when it clearly improves scanning. Most replies should not need headings.",
+      "Avoid dense text walls, but do not over-structure the reply either.",
+      "Answer the user's latest message directly before offering optional next help.",
       "Keep the turn conversational. Do not force the reply into a reusable prompt unless the user explicitly asks for one.",
     ],
   },

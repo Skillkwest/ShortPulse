@@ -5,6 +5,7 @@ import type {
   AgentActions,
   AgentApiMessage,
   AgentApiRequest,
+  AgentConversationState,
   AgentContext,
   AgentMessage,
   AgentPulseWorkflowSession,
@@ -25,6 +26,7 @@ export type CreateAgentPromptArtifact = {
 export type CreateAgentTransportSuccess = {
   actions: AgentActions | undefined;
   workflowSession: AgentPulseWorkflowSession | null;
+  conversationState?: AgentConversationState | null;
   canonicalPrompt: string | null;
   assistantReply?: CreateAgentAssistantReply;
   promptArtifact?: CreateAgentPromptArtifact;

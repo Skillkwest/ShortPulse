@@ -31,6 +31,7 @@ export const useAiStudioPageLocalState = ({ sessionId }: UseAiStudioPageLocalSta
     title: string | null;
   } | null>(null);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+  const [mediaProjectNameFocusRequestKey, setMediaProjectNameFocusRequestKey] = useState(0);
   const [createCharacterModeInjectionBundle, setCreateCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
   const [editCharacterModeInjectionBundle, setEditCharacterModeInjectionBundle] =
@@ -55,6 +56,7 @@ export const useAiStudioPageLocalState = ({ sessionId }: UseAiStudioPageLocalSta
     isEditCharacterModeEnabled,
     isProjectsModalOpen,
     localSessionTitleOverride,
+    mediaProjectNameFocusRequestKey,
     optimisticDebitEntries,
     selectedStyleContext,
     selectedStylePrompt,
@@ -69,6 +71,7 @@ export const useAiStudioPageLocalState = ({ sessionId }: UseAiStudioPageLocalSta
     setIsEditCharacterBundleLoading,
     setIsEditCharacterModeEnabled,
     setIsProjectsModalOpen,
+    setMediaProjectNameFocusRequestKey,
     setOptimisticDebitEntries,
     setSelectedStyleContext,
     setSelectedStylePrompt,

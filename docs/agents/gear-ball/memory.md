@@ -53,6 +53,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - A clean `git status --short` is necessary but not sufficient for push confidence. What matters is whether the final committed content materially differs from the already-validated content; rerun only when that answer is yes.
 - If the manifest includes ignore-matched config files like `frontend/next.config.js`, skip the wrapper preflight immediately and run the manual ladder so ESLint ignore noise does not steal the first pass.
 - Shared-contract changes need first-manifest fan-out; final builds should confirm, not discover, obvious downstream seam breaks.
+- When a touched hook rewires retry or failure refs, make nullability explicit in the first pass; focused Vitest can stay green while the production build still rejects narrower TypeScript control flow.
 - When canonical helpers, route metadata, or memoization boundaries move, update the repo checks and optimization-sensitive tests that depend on them in the same first pass.
 - Optional browser smoke or visual QA is conditional. Verify the toolchain first, and report the limitation plainly when it is unavailable.
 - Treat repeated user corrections as structured training data about role fidelity, closeout discipline, and SOP scope. Keep the lesson durable without promoting all chat friction into always-loaded memory.

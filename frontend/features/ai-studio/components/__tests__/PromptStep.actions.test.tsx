@@ -779,6 +779,25 @@ describe("PromptStep agent actions", () => {
     }
   });
 
+  it("keeps the Standard composer enabled for typing while a send is in flight", () => {
+    const onAgentInputChange = vi.fn();
+
+    render(
+      <PromptStep
+        {...baseProps}
+        agentInput="draft in progress"
+        onAgentInputChange={onAgentInputChange}
+        agentIsSending
+      />
+    );
+
+    const composerInput = screen.getByRole("textbox");
+    expect(composerInput).not.toBeDisabled();
+
+    fireEvent.change(composerInput, { target: { value: "draft while thinking" } });
+    expect(onAgentInputChange).toHaveBeenCalledWith("draft while thinking");
+  });
+
   it("keeps image drops routed through the attachment pipeline in input-drop mode", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentInputChange = vi.fn();

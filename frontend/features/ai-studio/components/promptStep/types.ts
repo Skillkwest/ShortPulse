@@ -82,6 +82,7 @@ export type PromptStepProps = {
   hideChatComposerHint?: boolean;
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur?: boolean;
+  autoFocusAgentInputOnMount?: boolean;
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;

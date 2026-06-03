@@ -75,6 +75,7 @@ export function PromptStep({
   hideChatComposerHint = false,
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur = false,
+  autoFocusAgentInputOnMount = false,
   onAgentInputVisualRowCountChange,
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
@@ -292,6 +293,28 @@ export function PromptStep({
       document.removeEventListener("mousedown", cancelRestoreIfOutsideComposer, true);
     };
   }, [agentIsSending]);
+
+  React.useLayoutEffect(() => {
+    if (!agentIsSending || !shouldRestoreAgentInputFocusRef.current) return;
+
+    const textarea = agentInputRef.current;
+    if (!textarea || textarea.disabled) return;
+    const composerShell = textarea.closest(".agent-composer-input-shell");
+    const activeElement = document.activeElement;
+    const isFocusInsideComposer =
+      activeElement instanceof Node &&
+      Boolean(composerShell?.contains(activeElement) || textarea.contains(activeElement));
+    if (!isFocusInsideComposer) {
+      textarea.focus();
+    }
+  }, [agentInput, agentIsSending]);
+
+  React.useLayoutEffect(() => {
+    if (!autoFocusAgentInputOnMount) return;
+    const textarea = agentInputRef.current;
+    if (!textarea || textarea.disabled) return;
+    textarea.focus();
+  }, [autoFocusAgentInputOnMount]);
 
   React.useEffect(() => {
     const wasAgentSending = previousAgentIsSendingRef.current;

@@ -20,6 +20,8 @@ describe("studioAgentOpenAiGateway", () => {
       openAiThinkerModel: "gpt-5.5",
       openAiFormatterModel: "gpt-5.5",
       openAiPulseModel: "gpt-5.5",
+      standardResponsesEnabled: false,
+      standardChatFallbackEnabled: true,
       requestTimeoutMs: 20000,
       visionTimeoutMs: 20000,
       turnTimeoutMs: 20000,
@@ -100,6 +102,22 @@ describe("studioAgentOpenAiGateway", () => {
     expect(defaultPulse.pulseTurnTimeoutMs).toBe(30000);
     expect(customPulse.openAiPulseModel).toBe("gpt-pulse");
     expect(customPulse.pulseTurnTimeoutMs).toBe(45000);
+  });
+
+  it("supports Standard-specific Responses transport flags", () => {
+    const defaultConfig = resolveStudioAgentOpenAiConfig({
+      OPENAI_MODEL: "gpt-base",
+    } as unknown as NodeJS.ProcessEnv);
+    const responsesConfig = resolveStudioAgentOpenAiConfig({
+      OPENAI_MODEL: "gpt-base",
+      STUDIO_AGENT_STANDARD_RESPONSES_ENABLED: "true",
+      STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED: "false",
+    } as unknown as NodeJS.ProcessEnv);
+
+    expect(defaultConfig.standardResponsesEnabled).toBe(false);
+    expect(defaultConfig.standardChatFallbackEnabled).toBe(true);
+    expect(responsesConfig.standardResponsesEnabled).toBe(true);
+    expect(responsesConfig.standardChatFallbackEnabled).toBe(false);
   });
 
   it("formats timeout errors deterministically", () => {

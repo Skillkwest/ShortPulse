@@ -369,6 +369,24 @@ Proof gate:
 - the Standard runtime can carry forward conversation state using the chosen Responses-style mechanism instead of relying only on manual transcript replay
 - the OpenAI gateway path used by Standard is compatible with the chosen Responses-style assistant execution model
 
+Checkpoint note from 2026-06-02 implementation:
+
+- completed bounded Phase 2 transport slice:
+  - `frontend/features/agent-runtime/studioAgentOpenAiGateway.ts` now exposes Standard-owned transport flags:
+    - `STUDIO_AGENT_STANDARD_RESPONSES_ENABLED`
+    - `STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED`
+  - `frontend/features/agent-runtime/standardStudioAgentRuntime/runtime.ts` now passes those flags into the shared OpenAI compatibility layer as a Standard-scoped env override
+  - the current Standard route can execute through `/v1/responses` without widening into a second public Standard route or moving Pulse/global helper callers at the same time
+- proof at this checkpoint:
+  - targeted gateway, Standard route, and OpenAI compatibility tests passed with `46` tests across:
+    - `features/agent-runtime/__tests__/studioAgentOpenAiGateway.test.ts`
+    - `tests/api/studio-agent.runtime.test.ts`
+    - `lib/server/api/__tests__/openAiCompat.test.ts`
+  - `npm -C frontend run docs:check` passed
+- remaining Phase 2 gap:
+  - this checkpoint proves the Standard-owned transport migration seam and route-boundary preservation
+  - it does not yet satisfy the full Phase 2 proof gate because Standard conversation state still depends primarily on manual transcript replay rather than a chosen Responses-style state mechanism
+
 ### Phase 3. Conversation State And Memory V2
 
 Goal:

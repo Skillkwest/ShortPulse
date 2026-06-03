@@ -68,6 +68,8 @@ export const resolveStudioAgentOpenAiConfig = (
   openAiThinkerModel: string;
   openAiFormatterModel: string;
   openAiPulseModel: string;
+  standardResponsesEnabled: boolean;
+  standardChatFallbackEnabled: boolean;
   requestTimeoutMs: number;
   visionTimeoutMs: number;
   turnTimeoutMs: number;
@@ -85,6 +87,10 @@ export const resolveStudioAgentOpenAiConfig = (
     openAiThinkerModel
   );
   const openAiPulseModel = resolveModelEnv(env.STUDIO_AGENT_PULSE_MODEL, openAiModel);
+  const standardResponsesEnabled =
+    String(env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED ?? "").toLowerCase() === "true";
+  const standardChatFallbackEnabled =
+    String(env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED ?? "true").toLowerCase() !== "false";
   const requestTimeoutMs = parseStudioAgentTimeoutMs(env.STUDIO_AGENT_TIMEOUT_MS);
   const visionTimeoutMs = parseStudioAgentTimeoutMs(
     env.STUDIO_AGENT_VISION_TIMEOUT_MS,
@@ -124,6 +130,8 @@ export const resolveStudioAgentOpenAiConfig = (
     openAiThinkerModel,
     openAiFormatterModel,
     openAiPulseModel,
+    standardResponsesEnabled,
+    standardChatFallbackEnabled,
     requestTimeoutMs,
     visionTimeoutMs,
     turnTimeoutMs,
@@ -141,6 +149,7 @@ export const fetchStudioAgentChatCompletion = async ({
   messages,
   timeoutMs,
   responseFormat,
+  env,
 }: {
   apiKey: string;
   openAiUrl: string;
@@ -148,6 +157,7 @@ export const fetchStudioAgentChatCompletion = async ({
   messages: unknown[];
   timeoutMs: number;
   responseFormat?: OpenAiChatResponseFormat;
+  env?: NodeJS.ProcessEnv;
 }) => {
   return await fetchOpenAiCompatibleChatCompletion({
     apiKey,
@@ -156,6 +166,7 @@ export const fetchStudioAgentChatCompletion = async ({
     messages: messages as Parameters<typeof fetchOpenAiCompatibleChatCompletion>[0]["messages"],
     timeoutMs,
     responseFormat,
+    env,
   });
 };
 

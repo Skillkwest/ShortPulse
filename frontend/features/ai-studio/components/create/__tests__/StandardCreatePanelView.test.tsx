@@ -256,4 +256,66 @@ describe("StandardCreatePanelView", () => {
       }
     }
   });
+
+  it("keeps the Standard composer focused and editable through the first-send shell swap", async () => {
+    const onAgentSend = vi.fn();
+    const onAgentInputChange = vi.fn();
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+
+    try {
+      const { rerender } = render(
+        <StandardCreatePanelView
+          {...baseProps}
+          promptStepProps={{
+            ...basePromptStepProps,
+            agentInput: "First turn",
+            onAgentSend,
+            onAgentInputChange,
+          }}
+        />
+      );
+
+      const initialTextbox = screen.getByRole("textbox");
+      fireEvent.focus(initialTextbox);
+      fireEvent.keyDown(initialTextbox, { key: "Enter" });
+
+      expect(onAgentSend).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <StandardCreatePanelView
+          {...baseProps}
+          promptStepProps={{
+            ...basePromptStepProps,
+            agentInput: "Draft while thinking",
+            onAgentSend,
+            onAgentInputChange,
+            agentIsSending: true,
+            agentMessages: [
+              {
+                id: "user-1",
+                role: "user",
+                content: "First turn",
+              },
+            ],
+          }}
+        />
+      );
+
+      const activeTextbox = screen.getByRole("textbox");
+      await waitFor(() => {
+        expect(activeTextbox).toHaveFocus();
+      });
+      expect(activeTextbox).not.toBeDisabled();
+
+      fireEvent.change(activeTextbox, { target: { value: "Still typing..." } });
+      expect(onAgentInputChange).toHaveBeenCalledWith("Still typing...");
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+    }
+  });
 });

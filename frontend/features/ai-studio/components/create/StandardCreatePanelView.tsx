@@ -77,6 +77,8 @@ export function StandardCreatePanelView({
   const resolvedSelectedCharacterDisplayName =
     selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
+  const [restoreAgentInputAfterShellSwap, setRestoreAgentInputAfterShellSwap] =
+    React.useState(false);
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const shouldShowPersistentEmptyShell = resolveCreateComposerNoHistoryShell({
     hasVisibleAgentMessages,
@@ -85,6 +87,19 @@ export function StandardCreatePanelView({
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
+  const handleAgentSend = React.useCallback(() => {
+    if (shouldShowPersistentEmptyShell) {
+      setRestoreAgentInputAfterShellSwap(true);
+    }
+    promptStepProps.onAgentSend?.();
+  }, [promptStepProps, shouldShowPersistentEmptyShell]);
+
+  React.useEffect(() => {
+    if (shouldShowPersistentEmptyShell) return;
+    if (!restoreAgentInputAfterShellSwap) return;
+    setRestoreAgentInputAfterShellSwap(false);
+  }, [restoreAgentInputAfterShellSwap, shouldShowPersistentEmptyShell]);
+
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
@@ -92,8 +107,10 @@ export function StandardCreatePanelView({
     emptyAgentChatSpacerClassName: shouldShowPersistentEmptyShell
       ? "create-composer-chat-spacer"
       : "",
+    autoFocusAgentInputOnMount: restoreAgentInputAfterShellSwap && !shouldShowPersistentEmptyShell,
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,
+    onAgentSend: handleAgentSend,
     composerMiddleContent: promptStepProps.composerMiddleContent,
     composerLeadingContent: promptStepProps.composerLeadingContent,
   };

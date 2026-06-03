@@ -297,7 +297,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
         maxHeightPx={agentInputMaxHeightPx}
         collapseToMinHeightWhenBlurred={agentInputCollapseOnBlur}
-        disabled={agentBootstrapPending || agentIsSending}
+        disabled={agentBootstrapPending}
       />
       {hasInsideInputSendButton ? (
         <AgentSendButton

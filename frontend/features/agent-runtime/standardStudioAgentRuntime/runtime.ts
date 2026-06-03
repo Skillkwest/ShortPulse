@@ -477,6 +477,7 @@ const executeStandardOpenAiWithRetry = async ({
   maxAttempts,
   retryBaseDelayMs,
   retryMaxDelayMs,
+  env,
 }: {
   apiKey: string;
   openAiUrl: string;
@@ -486,6 +487,7 @@ const executeStandardOpenAiWithRetry = async ({
   maxAttempts: number;
   retryBaseDelayMs: number;
   retryMaxDelayMs: number;
+  env?: NodeJS.ProcessEnv;
 }): Promise<
   | { ok: true; response: Response; retryCount: number }
   | {
@@ -507,6 +509,7 @@ const executeStandardOpenAiWithRetry = async ({
         model,
         messages,
         timeoutMs,
+        env,
       });
       if (response.ok) {
         return { ok: true, response, retryCount };
@@ -835,6 +838,15 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       maxAttempts: openAiConfig.upstreamRetryMaxAttempts,
       retryBaseDelayMs: openAiConfig.upstreamRetryBaseDelayMs,
       retryMaxDelayMs: openAiConfig.upstreamRetryMaxDelayMs,
+      env: {
+        ...process.env,
+        SHORTPULSE_OPENAI_RESPONSES_ENABLED: openAiConfig.standardResponsesEnabled
+          ? "true"
+          : "false",
+        SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED: openAiConfig.standardChatFallbackEnabled
+          ? "true"
+          : "false",
+      },
     });
     markStage("standard_openai_roundtrip", openAiRoundTripStartedAt);
 

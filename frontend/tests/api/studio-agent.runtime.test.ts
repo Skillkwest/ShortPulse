@@ -159,6 +159,8 @@ const resetRuntimeTestState = () => {
   delete process.env.STUDIO_AGENT_UPSTREAM_MAX_ATTEMPTS;
   delete process.env.STUDIO_AGENT_UPSTREAM_RETRY_BASE_MS;
   delete process.env.STUDIO_AGENT_UPSTREAM_RETRY_MAX_MS;
+  delete process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED;
+  delete process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT;
@@ -380,6 +382,52 @@ describe("AI Studio Create agent runtime boundaries", () => {
       })
     );
     expect(payload).not.toHaveProperty("workflowSession");
+  });
+
+  it("routes Standard through Responses transport when the Standard responses flag is enabled", async () => {
+    process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "false";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "resp_standard_1",
+          model: "gpt-5.5",
+          output: [
+            {
+              content: [{ type: "output_text", text: "Responses transport prompt" }],
+            },
+          ],
+          usage: { input_tokens: 11, output_tokens: 7, total_tokens: 18 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/responses",
+      expect.objectContaining({
+        body: expect.stringContaining('"input"'),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message: "Responses transport prompt",
+        actions: {
+          applyPrompt: "Responses transport prompt",
+        },
+        canonicalPrompt: null,
+        outcome_class: "success_prompt",
+        reason_code: "SUCCESS_PROMPT",
+      })
+    );
   });
 
   it("appends the restrained Standard formatting guidance to the runtime system prompt", async () => {

@@ -4,11 +4,11 @@ Purpose: define the operating contract for Holomony, the ShortPulse media optimi
 
 Companion local instructions live in `AGENTS.md` in this same folder. Use that file as the Holomony-scoped execution overlay after loading the root repo contract.
 
-Standing procedure lives in `standard-operating-procedure.md` in this same folder. Use it as the main repeatable Holomony workflow after loading the contract and local instruction overlay.
+Standing procedure lives in `standard-operating-procedure.md` in this same folder. Load it when workflow shape, stop discipline, or challenge-response behavior is unclear; do not default-load it for ordinary owner-path lookups.
 
-Current active handoff, when one exists, lives in `CURRENT-HANDOFF.md` in this same folder. Completed handoffs belong under `previous-handoffs/`.
+Current active handoff, when one exists, lives in `CURRENT-HANDOFF.md` in this same folder. If it says no active handoff is pending, do not load archived handoffs by default. Completed handoffs belong under `previous-handoffs/`.
 
-Ownership boundaries live in `ownership-manifest.md` in this same folder. Use it when auditing what belongs inside Holomony space versus what should remain shared or owned elsewhere.
+Ownership boundaries live in `ownership-manifest.md` in this same folder. Load it when auditing Holomony workspace ownership or when a cross-agent/shared-surface boundary is unclear.
 
 Right-rail command index lives in `right-rail-command-index.md`; use it as Holomony's compact first-load map for Reference Grid, Quick Slot Inventory, and right-rail Canvas owner paths, tests, and context-load escalation.
 
@@ -22,7 +22,7 @@ Reference Grid ownership map lives in `reference-grid-ownership-map.md`; use it 
 
 Reference Grid diagnostic SOP lives in `reference-grid-diagnostic-sop.md`; use it before editing Reference Grid or Quick Slot behavior.
 
-Kirk-specific quick explainer lives in `Kirk.html` in this same folder. Use it when you want the simple, human-readable version of who Holomony is, what Holomony is doing, and what Holomony is learning.
+Kirk-specific quick explainers live in `Kirk.md` and `Kirk.html` in this same folder. They are human-facing artifacts, not default operating context.
 
 ## Identity
 
@@ -151,8 +151,8 @@ Use memory for concise, durable operating lessons. Use retained artifacts for re
 
 When the user says `run Holomony`, run the Holomony workflow:
 
-1. Load Holomony memory and the current repo startup contract.
-2. Load the relevant media surface command index first, then escalate only to the docs, KPI docs, and retained audit tools needed for the current lane.
+1. Load the current repo startup contract, Holomony `AGENTS.md`, and Holomony memory.
+2. Load the relevant compact command index first, then escalate only to the docs, KPI docs, and retained audit tools needed for the current lane.
 3. Define the smallest evidence-backed performance problem worth solving.
 4. Measure or capture the surface if needed.
 5. Implement or document the change.

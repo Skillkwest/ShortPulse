@@ -6,6 +6,7 @@ Purpose: keep concise, durable project-persistence truths and working rules for 
 
 - `projectId` is the top-level durable project identity for Projects. `sid` still exists, but durable AI Studio save/restore authority no longer lives on the legacy session lane.
 - Current durable project workspace save/restore authority is `GET|PUT /api/projects/:projectId/workspace`.
+- Large-project persistence now stores a lightweight checkpoint plus `project_output_display_items`; the project workspace route still returns a compatibility snapshot after server-side materialization.
 - Project workspace persistence is intentionally sanitized. It restores durable project content, not full session replay.
 - Server-side project workspace canonicalization is the true restore safety boundary. The client restore candidate hook parses the returned payload but does not re-sanitize it.
 - Project routes do not durably restore unsent Create/Edit/Video/Sound drafts, Standard visible chat continuity, active output focus, Character Mode shell state, or Expert Edit document state.

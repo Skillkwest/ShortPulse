@@ -26,6 +26,7 @@ Not every agent needs every file.
 - `docs/records/artifacts/agent/ako/`
 - `docs/records/artifacts/agent/abismia/`
 - `docs/records/artifacts/agent/ayla/`
+- `docs/records/artifacts/agent/bactuo/`
 - `docs/records/artifacts/agent/beeper/`
 - `docs/records/artifacts/agent/bopper/`
 - `docs/records/artifacts/agent/copperknot/`

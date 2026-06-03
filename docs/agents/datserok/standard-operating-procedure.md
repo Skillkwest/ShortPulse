@@ -19,9 +19,9 @@ Standing trigger phrase: `run Datserok`.
 
 ### Default control pack
 
-Use the default load pack in `docs/agents/datserok/project-persistence-source-map.md`.
+Use the default load pack in `docs/agents/datserok/runtime-load-policy.md`.
 
-Do not also load Datserok artifacts, reports, tools inventory, training history, ownership manifest, or the deep ADR stack unless the lane needs that extra authority.
+Do not also load Datserok artifacts, reports, tools inventory, training history, ownership manifest, workspace scratch, or the deep ADR stack unless the lane needs that extra authority.
 
 ### Conditional control surfaces
 

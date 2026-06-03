@@ -13,12 +13,12 @@ Purpose: define the ordered execution queue for the current production-readiness
 
 | Priority | System                                          | Current | Ship floor | Lane                               | Recommended agent profile                   | Current handoff                                                                            |
 | -------- | ----------------------------------------------- | ------: | ---------: | ---------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 1        | `Generation recovery / settlement`              |       4 |          7 | Runtime rerate and source audit    | runtime reliability + billing invariants    | `docs/systems/next-agent-handoff-generation-recovery-hardening.md`                         |
-| 2        | `Create workflow`                               |       6 |          7 | Production proof hold              | AI Studio runtime triage + workflow steward | `docs/agents/copperknot/handoffs/2026-05-28-create-workflow-validation-convergence.md`     |
-| 3        | `Media ingest / save`                           |       6 |          7 | Platform trust and release safety  | media persistence + upload authority        | `queue-only`                                                                               |
-| 4        | `Core data persistence`                         |       6 |          7 | Platform trust and release safety  | schema/persistence contract audit           | `queue-only`                                                                               |
-| 5        | `Storage / file delivery`                       |       6 |          7 | Platform trust and release safety  | storage scope + signed delivery             | `queue-only`                                                                               |
-| 6        | `Provider integrations`                         |       6 |          7 | Shared runtime hardening           | provider contract normalization             | `queue-only`                                                                               |
+| 1        | `Media ingest / save`                           |       6 |          7 | Platform trust and release safety  | media persistence + upload authority        | `queue-only`                                                                               |
+| 2        | `Core data persistence`                         |       6 |          7 | Platform trust and release safety  | schema/persistence contract audit           | `queue-only`                                                                               |
+| 3        | `Storage / file delivery`                       |       6 |          7 | Platform trust and release safety  | storage scope + signed delivery             | `queue-only`                                                                               |
+| 4        | `Provider integrations`                         |       6 |          7 | Shared runtime hardening           | provider contract normalization             | `queue-only`                                                                               |
+| 5        | `Create workflow`                               |       6 |          7 | Production proof hold              | AI Studio runtime triage + workflow steward | `docs/agents/copperknot/handoffs/2026-05-28-create-workflow-validation-convergence.md`     |
+| 6        | `Generation recovery / settlement`              |       4 |          7 | Temporary sequencing hold          | runtime reliability + billing invariants    | `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`             |
 | 7        | `Characters workflow`                           |       6 |          6 | Production-verified maintenance    | character workflow validation               | `reviewed-complete`                                                                        |
 | 8        | `Elements workflow`                             |       6 |          6 | Production-measured maintenance    | workflow measurement-depth follow-up        | `reviewed-complete`                                                                        |
 | 9        | `Media delivery / signing / preview resolution` |       6 |          6 | Approved panel/runtime maintenance | preview delivery performance                | `queue-only`                                                                               |
@@ -44,7 +44,7 @@ Purpose: define the ordered execution queue for the current production-readiness
 - `Characters workflow` stays at floor, not above it, because the save/reopen audit found a residual Character Library delete-confirmation pointer-layering risk.
 - `Elements workflow` reached ship floor after the approved-panel KPI capture tooling correction and production remeasurement moved both approved-panel surfaces to `6/10` with `extraListCallsPerOpen: 0`, `missingPreviewRatio: 0`, and `51%` coverage.
 - `Elements workflow` stays at floor, not above it, because evidence depth remains low and the score is still capped below `75%` coverage.
-- `Generation recovery / settlement` remains below floor at `4/10` after the reviewed hardening lane because the May 15 production launch-state refresh explicitly withheld a score lift pending a broader runtime rerate across recovery and settlement.
+- `Generation recovery / settlement` remains below floor at `4/10` after the reviewed hardening lane because the May 15 production launch-state refresh explicitly withheld a score lift pending a broader runtime rerate across recovery and settlement. It is temporarily sequenced behind the current platform-strengthening lanes by user direction, not waived past launch.
 - `Create workflow` stays below floor at `6/10`, but it is no longer the exact-next source-fix lane: the focused Create/runtime validation set is green on current repo evidence (`13` focused files / `54` tests plus Generate CTA contract check), and the remaining score-lift proof is production workflow/browser depth rather than a known safe source fix.
 - `Edit workflow` reached ship floor after the June 3 production smoke: production route parity passed, the Expert Edit production launch-surface audit passed across DPR `1/2/3`, and a user-observed production Generate smoke produced a successful output with no visible error text.
 - `Reference Grid`, `Edit workflow`, `Billing / credits`, `Generation submission / polling`, and `Security boundaries` remain at floor on current evidence.
@@ -52,16 +52,16 @@ Purpose: define the ordered execution queue for the current production-readiness
 ## Current Lane Posture
 
 - Exact next:
-  - `Generation recovery / settlement`
+  - `Media ingest / save`
 - Next proof boundary:
-  - runtime rerate/source audit for `Generation recovery / settlement` before making any score or lane claim
+  - source audit for the canonical media ingest/save path before making any score or lane claim
 - Score-held below floor:
-  - `Generation recovery / settlement`
-  - `Create workflow`
   - `Media ingest / save`
   - `Core data persistence`
   - `Storage / file delivery`
   - `Provider integrations`
+  - `Create workflow`
+  - `Generation recovery / settlement`
 - Reviewed complete at floor:
   - `Edit workflow`
   - `Characters workflow`

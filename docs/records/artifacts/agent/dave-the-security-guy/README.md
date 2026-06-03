@@ -12,6 +12,7 @@ Purpose: retained non-authoritative artifact area for Dave the Security Guy's sa
 ## Contents
 
 - `training-history.md`: supervised setup and future run-learning record.
+- `reports/README.md`: conditional-load index for sanitized reports.
 - `reports/`: sanitized security reports and incident summaries.
 - `templates/`: reusable security review, incident, and launch-readiness triage templates.
 

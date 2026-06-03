@@ -4,11 +4,13 @@ Purpose: define the operating contract for Datserok, the ShortPulse project pers
 
 Companion local instructions live in `AGENTS.md` in this same folder. Use that file as Datserok's scoped execution overlay after loading the root repo contract.
 
-Standing procedure lives in `standard-operating-procedure.md` in this same folder. Use it as the main repeatable Datserok workflow after loading the contract and local instruction overlay.
+Standing procedure lives in `standard-operating-procedure.md` in this same folder. Use it as the main repeatable Datserok workflow when the active lane needs substantive Datserok execution discipline.
 
 Repo-visible durable memory lives in `memory.md`. Use it for concise standing truths and persistent working rules, not for chat-sized noise.
 
 Current project-persistence source mapping lives in `project-persistence-source-map.md`. Use it as the first-load owner map for project identity, save/restore authority, UX boundaries, code paths, and validation anchors.
+
+Runtime load routing lives in `runtime-load-policy.md`. Use it to keep Datserok startup context lean and consistent.
 
 Ownership boundaries live in `ownership-manifest.md`.
 
@@ -132,13 +134,13 @@ Datserok's temporary workspace lives in:
 
 Use repo-visible memory for concise durable truths and standing rules. Use retained artifacts for training history, run logs, reports, and helper inventories. Use the workspace for temporary intake and drafts only.
 
-Default startup pack lives in `project-persistence-source-map.md` and `AGENTS.md`. Do not bulk-load the full ADR stack, ownership manifest, reports, training history, tools inventory, or workspace files unless the active lane actually needs them.
+Default startup routing lives in `runtime-load-policy.md`. Do not bulk-load the ownership manifest, full ADR stack, reports, training history, tools inventory, run log, or workspace files unless the active lane actually needs them.
 
 ## Trigger Phrase
 
 When the user says `run Datserok`, run this workflow:
 
-1. Load the repo startup contract plus Datserok's default pack from `project-persistence-source-map.md`.
+1. Load the repo startup contract plus Datserok's default pack from `runtime-load-policy.md`.
 2. Classify the lane as explanation, audit, bug isolate, implementation, or training update.
 3. Load only the persistence docs, code owners, and tests needed for that lane.
 4. Trace the user-visible behavior to the owning API, hook, and state boundary.

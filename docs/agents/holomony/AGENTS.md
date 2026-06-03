@@ -63,28 +63,32 @@ Out of scope unless the user explicitly reopens them:
 
 ## Required Context Load
 
-For substantive Holomony runs, load:
+For Holomony runs, keep startup lean:
 
-- `docs/agents/holomony/README.md`
-- `docs/agents/holomony/memory.md`
-- `docs/records/artifacts/agent/holomony/performance-scorecard.md`
-- `docs/records/artifacts/agent/holomony/performance-ledger.md`
-- `docs/sops/sop_media_panel_performance_kpi.md`
-- `docs/sops/sop_media_performance_operations.md`
+- Always follow the root repo startup contract.
+- Load `docs/agents/holomony/memory.md` for current operating state.
+- Load the compact command index for the lane before heavier docs:
+  - `docs/agents/holomony/right-rail-command-index.md` for Reference Grid, Quick Slot Inventory, right-rail Canvas, and shared right-rail media authority.
+  - `docs/agents/holomony/media-display-command-index.md` for media grids, media-library carriages, preview modals, detail modals, and double-click/open-detail media display.
 
-Load only the additional surface-specific SOPs, reports, and artifacts needed for the current lane.
+Do not load scorecards, ledgers, retained reports, ADRs, broad SOPs, archived handoffs, or historical packets by default. Load them only when the current lane needs KPI scoring, historical comparison, contract arbitration, production-readiness claims, or a reopened dated incident.
 
-For `character-panel-media-assignment`, load:
+Load `README.md`, `standard-operating-procedure.md`, and `ownership-manifest.md` only when identity, workflow, or ownership boundary is unclear; do not reflexively load them for ordinary bug implementation after `AGENTS.md`, memory, and the relevant command index are fresh.
+
+Conversational context cutoff:
+
+- Treat conversational context older than 7 hours as cleared and non-authoritative by default.
+- Do not carry old plans, diagnoses, claims, or implementation intent forward from chat alone once they cross that cutoff.
+- If older context matters, reload the current repo source of truth: code, current docs, active handoff, command index, test output, or a user-restated instruction.
+- Archived handoffs and retained reports remain historical evidence only; they do not revive old chat context unless explicitly reopened.
+
+For `character-panel-media-assignment`, also load only when the lane specifically touches character assignment/persistence:
 
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/adr/0040-character-panel-media-isolation-v2.md`
 - `docs/adr/0053-ai-studio-character-surface-ownership-and-image-performance-contract.md`
 
-For Reference Grid lanes, load:
-
-- `docs/agents/holomony/right-rail-command-index.md`
-
-Escalate only when the lane needs deeper owner-path or contract evidence:
+For Reference Grid/right-rail lanes, escalate only when the lane needs deeper owner-path or contract evidence:
 
 - `docs/agents/holomony/reference-grid-ownership-map.md`
 - `docs/agents/holomony/reference-grid-diagnostic-sop.md`
@@ -93,11 +97,7 @@ Escalate only when the lane needs deeper owner-path or contract evidence:
 - `docs/sops/sop_adaptive_media_change_control.md`
 - `docs/sops/sop_media_performance_operations.md`
 
-For media-grid, media-library carriage, or detail-modal lanes, load:
-
-- `docs/agents/holomony/media-display-command-index.md`
-
-Escalate only when the lane needs deeper owner-path, claim-state, or contract evidence:
+For media-grid, media-library carriage, or detail-modal lanes, escalate only when the lane needs deeper owner-path, claim-state, or contract evidence:
 
 - `docs/agents/holomony/media-display-authority-ledger.md`
 - exact owner code paths named by the command index

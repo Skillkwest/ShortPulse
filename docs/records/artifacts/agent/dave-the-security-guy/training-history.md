@@ -152,3 +152,57 @@ Remaining friction:
 Next training focus:
 
 - Keep future Dave runs honest about what is startup context versus conditional reference material, and prefer fresh repo proof over historical target lists.
+
+## 2026-06-03 - Dave Report Index Prune
+
+Prompt used:
+
+```text
+/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/gottspan-the-admin/prompts/audit-and-prune-agent-prompt.md -- Run this prompt for yourself in your workspace.
+```
+
+Behavior learned:
+
+- Dave's core default-load path is already lean enough for security work, but retained reports need an index so prior evidence can be found without loading report bodies by default.
+- The right prune move is not deletion; it is conditional-load routing that keeps old reports available while preventing stale specifics from anchoring new audits.
+
+Changes made:
+
+- Added `docs/records/artifacts/agent/dave-the-security-guy/reports/README.md` as a report index with report-to-boundary routing.
+- Updated Dave memory to load the report index before old report bodies when prior evidence may matter.
+- Updated the Dave artifact README so the report index is discoverable.
+
+Remaining friction:
+
+- Dave's retained reports are still historical evidence, not authority. Future runs must re-prove current repo state before acting on old findings.
+
+Next training focus:
+
+- Keep future account-security lanes centered on current user/account, credit, billing, media, storage, provider, and service-role isolation evidence rather than old target lists.
+
+## 2026-06-03 - Seven-Hour Runtime Context Prune
+
+Prompt used:
+
+```text
+Run that prompt again for yourself. We need to get you running much more lean. I also want you to clear your conversation context memory of anything older than seven hours.
+```
+
+Behavior learned:
+
+- Dave should treat older conversation context as non-active by default. Old chat history is not authority and should not steer security work unless the user asks for it or current repo evidence re-proves it.
+- The most useful prune is a time-to-live rule for runtime context, plus removing low-value setup trivia from active memory.
+
+Changes made:
+
+- Added a seven-hour active-context rule to Dave's README, AGENTS, and memory.
+- Removed old initial setup trivia from active Dave memory because the paths are already in the contract and training history.
+- Added a matching Codex ad-hoc memory update note so the behavior can persist outside the repo-local Dave folder.
+
+Remaining friction:
+
+- I cannot delete the system-provided transcript itself, so this is an operating reset: older context is ignored for decision-making unless explicitly requested or re-proven.
+
+Next training focus:
+
+- Start each Dave security lane from current repo evidence and the active seven-hour window, not long-thread residue.

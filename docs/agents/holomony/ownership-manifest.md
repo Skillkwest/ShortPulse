@@ -10,11 +10,12 @@ These are Holomony's canonical local identity, instruction, memory, and retained
 - `docs/agents/holomony/AGENTS.md`
 - `docs/agents/holomony/standard-operating-procedure.md`
 - `docs/agents/holomony/memory.md`
+- `docs/agents/holomony/CURRENT-HANDOFF.md`
+- `docs/agents/holomony/previous-handoffs/*`
 - `docs/agents/holomony/media-display-command-index.md`
 - `docs/agents/holomony/media-display-authority-ledger.md`
 - `docs/agents/holomony/media-display-authority-plan.md`
-- `docs/agents/holomony/Kirk.md`
-- `docs/agents/holomony/Kirk.html`
+- `docs/agents/holomony/Kirk.md` and `docs/agents/holomony/Kirk.html` as human-facing explainers, not default operating context
 - `docs/agents/holomony/ownership-manifest.md`
 - `docs/agents/holomony/right-rail-command-index.md`
 - `docs/agents/holomony/reference-grid-ownership-map.md`

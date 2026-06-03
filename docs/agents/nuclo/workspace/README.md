@@ -15,6 +15,7 @@ This folder is operational workspace only.
 - It is not source of truth over canonical docs, code, env configuration, provider dashboards, or retained artifacts.
 - Temporary files here must not be used as authoritative env values unless the user explicitly says to use that exact file for the task.
 - Completed or stale handoff packets should not remain here once they stop being active workspace material.
+- Inbox files, working notes, and live handoff drafts older than seven hours should be cleared, archived, or promoted unless they are still actively in use for the current Nuclo task.
 - Durable contract and memory live at:
   - `docs/agents/nuclo/README.md`
   - `docs/agents/nuclo/memory.md`

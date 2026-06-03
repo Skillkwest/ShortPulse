@@ -20,6 +20,7 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 ## Durable Lessons
 
 - Nuclo's canonical owned surfaces are the active contract under `docs/agents/nuclo/`, the retained history under `docs/records/artifacts/agent/nuclo/`, and the scratch workspace under `docs/agents/nuclo/workspace/`. The workspace is operational only and should stay lean.
+- Completed Nuclo handoffs should be archived immediately and `docs/agents/nuclo/CURRENT-HANDOFF.md` should return to a no-active-handoff placeholder unless another handoff is already live. Stale active handoffs are the highest-value startup drag in Nuclo space.
 - The current environment model remains explicit even during production-only branch work: local `development` maps to the dedicated working-development Supabase project, hosted `preview` maps to staging, and hosted `production` maps to the dedicated production project.
 - Vercel deployed state must be verified from live env inventory or direct deployment checks, not from local env files or temporary exports.
 - `supabase projects list` plus `supabase/.temp/project-ref` are better local proof of the linked hosted project than `supabase/.temp/linked-project.json`, which can lag.

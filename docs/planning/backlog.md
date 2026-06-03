@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-05-30
+Last audited: 2026-06-03
 Status: active
 
 How to use:
@@ -26,6 +26,10 @@ Structure (locked):
 ## Program 0: Execution Authority
 
 ## Program 1: Runtime And Money
+
+- [ ] Execute the Bactuo generation architecture consolidation plan in staged slices, starting with a canonical lineage resolver and one universal settlement-before-visibility rule across async and direct provider families.
+      Reference: `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`
+      Restart scope: begin with identity/lineage consolidation in recovery, billing, ownership, abandonment, and diagnostics before broader orchestrator splitting or cleanup.
 
 ## Program 2: Media And Reference Integrity
 

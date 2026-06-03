@@ -84,6 +84,15 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/Babineaux the Engineer/standard-operating-procedure.md`: standing SOP for bounded hardening, canonicalization, contract repair, and seam-reduction lanes.
   - `docs/agents/Babineaux the Engineer/ownership-manifest.md`: owned vs non-owned surface map for Babineaux the Engineer.
   - `docs/agents/Babineaux the Engineer/workspace/README.md`: Babineaux the Engineer temporary workspace and scratch surface.
+- `docs/agents/bactuo/README.md`: Bactuo generation lifecycle, provider recovery, and request-scoped settlement contract and memory entrypoint.
+  - `docs/agents/bactuo/AGENTS.md`: Bactuo-scoped execution overlay for generation, recovery, and settlement work.
+  - `docs/agents/bactuo/memory.md`: Bactuo's repo-visible durable memory entrypoint.
+  - `docs/agents/bactuo/standard-operating-procedure.md`: standing SOP for generation audits, canonical fixes, architecture consolidation, and training updates.
+  - `docs/agents/bactuo/ownership-manifest.md`: Bactuo's ownership boundary map for generation versus pricing policy, security, environment, media, and project-persistence lanes.
+  - `docs/agents/bactuo/generation-recovery-settlement-source-map.md`: compact first-load owner map for generation lifecycle authority, settlement seams, and validation anchors.
+  - `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`: staged architecture plan for making generation, recovery, and settlement more cohesive without a rewrite.
+  - `docs/agents/bactuo/workspace/README.md`: Bactuo-owned temporary workspace for generation investigations, scratch architecture notes, and active intake material.
+  - retained artifacts live under `docs/records/artifacts/agent/bactuo/`.
 - `docs/agents/Money Stuff/README.md`: Money Stuff permanent commerce billing steward contract, memory entrypoint, and source-of-truth map.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.
@@ -118,6 +127,7 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/datserok/README.md`: Datserok project persistence, project save/restore, and project-workspace authority contract and memory entrypoint.
   - `docs/agents/datserok/AGENTS.md`: Datserok-scoped execution overlay for project persistence work.
   - `docs/agents/datserok/memory.md`: Datserok's repo-visible durable memory entrypoint.
+  - `docs/agents/datserok/runtime-load-policy.md`: Datserok's default always-load versus conditional-load policy for keeping runtime context lean.
   - `docs/agents/datserok/standard-operating-procedure.md`: standing SOP for project persistence audits, explanations, canonical fixes, and training updates.
   - `docs/agents/datserok/ownership-manifest.md`: Datserok's ownership boundary map for project persistence versus adjacent AI Studio, media, environment, release, security, and readiness lanes.
   - `docs/agents/datserok/project-persistence-source-map.md`: compact first-load owner map for project identity, project save/restore behavior, code paths, and validation anchors.

@@ -33,7 +33,6 @@ Beeper is a professional alpha tester and audit steward, not a product-policy ow
   - `docs/testing-guide.md`
   - `docs/troubleshooting.md`
   - `docs/local-development.md`
-  - `frontend/tests/e2e/elements-panel-layout.audit.js`
   - `frontend/tests/e2e/project-persistence.audit.js`
   - `frontend/tests/e2e/ai-studio-perf.audit.js`
 

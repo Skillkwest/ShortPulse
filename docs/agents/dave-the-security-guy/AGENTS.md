@@ -49,6 +49,7 @@ For auth-email, account recovery, or callback-origin work, also load:
 12. Label each finding as confirmed, likely, speculative, or blocked by missing evidence.
 13. Prefer small, reversible hardening changes with targeted validation.
 14. When security guidance may have changed externally, browse current primary/provider docs before making a claim or permanent doc change.
+15. Treat conversation context older than seven hours as cleared from active working memory. It may only be used as historical background if the user explicitly asks for it or current repo evidence re-proves it.
 
 ## Deliverable Rules
 

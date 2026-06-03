@@ -27,12 +27,16 @@ Purpose: give Datserok a compact first-load map for how project creation, saving
 
 ### What project workspace saves
 
-Project workspace persistence keeps durable project content such as:
+Project workspace persistence now uses a hybrid storage model. The route still returns a compatibility snapshot, but storage is split between a lightweight checkpoint and project-scoped output display records.
 
-- active output media for the shared right rail,
+The lightweight checkpoint keeps durable project content such as:
+
+- active output identity, ordering, and minimal stubs for the shared right rail,
 - Quick Slot Inventory and Reference Grid projection ids,
 - durable Canvas scene items and cameras,
 - and other sanitized workspace content allowed by the current snapshot projection.
+
+`project_output_display_items` keeps rich output card/media state such as preview/full storage paths, fallback URLs, compact prompt/display text, lifecycle state, and saved media ids.
 
 ### What project workspace does not save
 
@@ -51,14 +55,14 @@ Project-visible conversation resets on project open or project switch. Hidden Pu
 
 ### Two-phase save model
 
-- The sanitized workspace snapshot is written first.
+- The compatibility snapshot is normalized into project output display records plus a lightweight checkpoint.
 - Project media, prompt, and generation association repair runs after the durable write.
 - If repair fails, the save returns `saved_with_repair_pending` rather than discarding the workspace write.
 - The warning means restore durability succeeded but association completeness still needs a later successful pass.
 
 ### Read and reopen model
 
-- `GET /api/projects/:projectId/workspace` returns the sanitized saved snapshot quickly.
+- `GET /api/projects/:projectId/workspace` returns a sanitized compatibility snapshot quickly by materializing the lightweight checkpoint with output display records.
 - Generated-output delivery refreshes asynchronously after workspace bootstrap from project-owned generation association rows.
 - Reopen should feel like restoring a durable working board, not replaying the previous chat session.
 
@@ -85,7 +89,8 @@ Use these in roughly this order for current-truth reads:
 5. `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
 6. `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
 7. `docs/adr/0085-global-media-library-folder-authority.md`
-8. `docs/sops/sop_ai_studio_session_persistence_reference_only.md` only for retired-lane historical context
+8. `docs/adr/0089-large-project-persistence-hybrid-checkpoint-and-output-display-records.md`
+9. `docs/sops/sop_ai_studio_session_persistence_reference_only.md` only for retired-lane historical context
 
 ## Canonical Code Ownership Map
 
@@ -105,6 +110,8 @@ Use these in roughly this order for current-truth reads:
   - project record normalization and access helpers
 - `frontend/lib/server/projectWorkspaceStatesService.ts`
   - workspace snapshot sanitization, validation, write/read, repair-pending outcome
+- `frontend/lib/server/projectOutputDisplayItemsService.ts`
+  - output display record sync, lightweight checkpoint creation, compatibility materialization
 - `frontend/lib/server/projectGenerationAssociationsService.ts`
   - project-owned generated-output association and reopen-time refresh
 
@@ -138,6 +145,7 @@ Use these in roughly this order for current-truth reads:
 
 - `frontend/features/ai-studio/hooks/__tests__/useAiStudioProjectWorkspaceRestoreCandidate.test.ts`
 - `frontend/lib/server/__tests__/projectWorkspaceStatesService.test.ts`
+- `frontend/lib/server/__tests__/projectsService.test.ts`
 - `frontend/features/ai-studio/hooks/__tests__/useAiStudioProjectIdentity.test.ts`
 - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionIdentity.test.ts`
 - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
@@ -163,25 +171,8 @@ Reject these stale assumptions unless a newer source of truth replaces the curre
 - "Repair pending means the save failed."
 - "Project association duplicates saved assets into project-local inventory."
 
-## Default Load Pack
+## Load Routing
 
-For most Datserok runs, load:
+Runtime startup/load routing lives in `docs/agents/datserok/runtime-load-policy.md`.
 
-- `docs/agents/datserok/README.md`
-- `docs/agents/datserok/AGENTS.md`
-- `docs/agents/datserok/memory.md`
-- `docs/agents/datserok/standard-operating-procedure.md`
-- `docs/agents/datserok/project-persistence-source-map.md`
-
-Load conditionally:
-
-- `docs/agents/datserok/ownership-manifest.md`
-  - when the lane may cross adjacent ownership boundaries
-- `docs/sops/sop_ai_studio_projects_foundation.md`
-  - for current-contract explanations, audits, or implementation work
-- deeper ADRs, code, and tests
-  - only when the current lane needs them
-- `docs/records/artifacts/agent/datserok/training-history.md`
-  - for training or maintenance lanes
-
-Do not load retained reports, run logs, tools inventory, workspace scratch areas, or prior-thread handoffs by default. They are lookup surfaces for artifact maintenance, historical comparison, or a named incident that explicitly needs them.
+Use this source map as the compact first-load owner map after the runtime-load policy brings Datserok into scope. Do not let this file become a second copy of the startup-routing rules.

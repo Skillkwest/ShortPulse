@@ -38,7 +38,7 @@ The existing codebase already contains the pieces needed for a safe design:
   - `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridDropController.ts`
   - `frontend/features/ai-studio/components/edit/useExpertEditPrimaryIngress.ts`
   - `frontend/features/ai-studio/hooks/useAiStudioAgentComposer.ts`
-- Media Library folder canvas already proves that a Canvas-like surface can export text and media through native dragstart in `frontend/features/ai-studio/components/MediaLibraryFolderCanvas.tsx`.
+- A prior Media Library folder-canvas implementation proved that a Canvas-like surface could export text and media through native dragstart, and the surviving shared-canvas `Shift`-drag export contract is still covered in `frontend/features/ai-studio/components/canvas/__tests__/canvas.interactions.test.tsx`.
 
 This means the right approach is not a brand-new drag protocol. The right approach is to let Canvas become another trusted source surface for the app's existing internal drag system.
 

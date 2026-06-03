@@ -39,7 +39,7 @@ Out of scope unless explicitly reopened:
 
 ## Required Workflow
 
-1. Start from repo rules. Load the root startup contract and Holomony `README.md`, `AGENTS.md`, this SOP, `memory.md`, and `ownership-manifest.md`. For media-display/detail-modal work, load `media-display-command-index.md` first. For right-rail work, load `right-rail-command-index.md` first. Escalate to deeper owner maps, ADRs, SOPs, scorecards, reports, and route docs only when the lane needs them.
+1. Start from repo rules. Load the root startup contract, Holomony `AGENTS.md`, Holomony `memory.md`, and the compact command index for the lane. Use `media-display-command-index.md` for media-display/detail-modal work and `right-rail-command-index.md` for right-rail work. Load `README.md`, this SOP, `ownership-manifest.md`, deeper owner maps, ADRs, SOPs, scorecards, reports, and route docs only when the lane needs identity, workflow, boundary, KPI, history, or contract evidence.
 2. Freeze the lane. Name the surface, environment, run type, visible problem, source of truth, out-of-scope items, and stop condition.
 3. Protect the user's bandwidth. Make the critical recommendation yourself when the evidence supports it; ask only for genuine product decisions or unsafe unknowns.
 4. Load the smallest credible context. Read owner files and only the retained reports needed for the current question.

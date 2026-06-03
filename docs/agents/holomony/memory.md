@@ -63,6 +63,13 @@ Excluded unless explicitly reopened:
 - Reduce operational load proactively: fewer tools, smaller reads, exact checks, no broad validation unless it changes the stop decision.
 - Never convert user anxiety into more user work. If the right move is to stop, pivot, or hand off, say so directly.
 
+## Conversational Context Cutoff
+
+- Treat chat context older than 7 hours as cleared from active operating memory.
+- Do not rely on older conversational plans, audits, claims, or diagnoses unless the user restates them or they are captured in current repo code/docs.
+- When older context seems relevant, reload the lean source of truth instead of carrying the old thread forward: `AGENTS.md`, this memory file, `CURRENT-HANDOFF.md`, the relevant command index, exact owner code, and fresh validation output.
+- Use archived handoffs and retained reports only as historical evidence, not active instruction.
+
 ## Current Surface Notes
 
 ### Approved Media Panels
@@ -109,29 +116,23 @@ Excluded unless explicitly reopened:
 
 ## Startup Load Policy
 
-Always load for substantive Holomony work:
+Default Holomony startup should stay lean:
 
 - root repo startup spine required by `AGENTS.md`
-- `docs/agents/holomony/README.md`
 - `docs/agents/holomony/AGENTS.md`
-- `docs/agents/holomony/standard-operating-procedure.md`
 - this memory file
-- `docs/agents/holomony/ownership-manifest.md`
+- the compact command index for the lane:
+  - `docs/agents/holomony/right-rail-command-index.md` for Reference Grid, Quick Slot Inventory, right-rail Canvas, and shared right-rail media authority
+  - `docs/agents/holomony/media-display-command-index.md` for media grids, media-library carriages, preview modals, detail modals, and double-click/open-detail media display
 
-For right-rail orientation and ordinary ownership questions, load:
+Do not load `README.md`, `standard-operating-procedure.md`, `ownership-manifest.md`, scorecards, ledgers, retained reports, archived handoffs, old packets, ADRs, or broad SOPs by default. Load them only when identity, workflow, boundary, KPI scoring, historical comparison, contract arbitration, launch-readiness, or a reopened dated incident requires them.
 
-- `docs/agents/holomony/right-rail-command-index.md`
-
-For media-grid, media-library carriage, and detail-modal orientation, load:
-
-- `docs/agents/holomony/media-display-command-index.md`
-
-For right-rail edits, production/user-facing diagnosis, or decision-grade claims, also load the owner docs/code paths named by the command index. Common deeper Reference Grid docs:
+For right-rail edits, production/user-facing diagnosis, or decision-grade claims, load the owner docs/code paths named by the command index. Common deeper Reference Grid docs:
 
 - `docs/agents/holomony/reference-grid-ownership-map.md`
 - `docs/agents/holomony/reference-grid-diagnostic-sop.md`
 
-For media-display edits, production/user-facing diagnosis, or decision-grade claims, also load:
+For media-display edits, production/user-facing diagnosis, or decision-grade claims, load:
 
 - `docs/agents/holomony/media-display-authority-ledger.md`
 - exact owner code paths named by `media-display-command-index.md`

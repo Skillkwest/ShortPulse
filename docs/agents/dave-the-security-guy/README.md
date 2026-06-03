@@ -124,6 +124,7 @@ Do not load by default:
 - training history for ordinary implementation lanes
 - workspace drafts or dropbox contents unless they are the explicit task input
 - prior-thread route hunches or stale target lists that have not been re-proven from current repo evidence
+- conversation context older than seven hours unless the user explicitly asks for it or current repo evidence re-proves it
 
 ## Definition Of Done
 

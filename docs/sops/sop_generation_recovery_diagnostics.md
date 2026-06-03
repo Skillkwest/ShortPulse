@@ -145,6 +145,7 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
 4. Re-run recovery, settlement, and admission diagnostics after each pass until counts stabilize and trend down.
 5. Treat control-plane enforce diagnostics as the contract check for hosted scheduler drift:
    - `check_control_plane_enforce_gate.sql` now fails when the live scheduler functions are missing either the Vault read for `shortpulse_vercel_protection_bypass_token` or the `x-vercel-protection-bypass` header send.
+   - `check_control_plane_enforce_gate.sql` also fails when the live recovery/admin-fleet/media-derivative scheduler functions omit `timeout_milliseconds := 60000`.
    - This specifically catches stale hosted `invoke_generation_recovery_scheduler()` bodies that can leave `pg_cron` green while `pg_net` still returns Vercel `401 Authentication Required`.
 6. Treat `telemetry.generation.recovery.media_visible` as the recovery-visibility authority:
    - expect events to appear for recovered-success validation runs,

@@ -356,7 +356,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     });
   });
 
-  it("does not clear an unresolved Pulse runtime while the built-in catalog is non-authoritative", async () => {
+  it("fails closed on an unresolved built-in Pulse runtime while the catalog is non-authoritative", async () => {
     const clearPulseRuntime = vi.fn();
     const clearPulsePrompt = vi.fn();
     useCreatePulseBuiltInCatalogMock.mockReturnValue({
@@ -379,10 +379,39 @@ describe("useCreatePulsePresetPageRuntime", () => {
       )
     );
 
-    await Promise.resolve();
+    await waitFor(() => {
+      expect(clearPulseRuntime).toHaveBeenCalledTimes(1);
+      expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
+    });
+  });
 
-    expect(clearPulseRuntime).not.toHaveBeenCalled();
-    expect(clearPulsePrompt).not.toHaveBeenCalled();
+  it("fails closed on a restored built-in Pulse runtime when only stale local built-ins remain", async () => {
+    const clearPulseRuntime = vi.fn();
+    const clearPulsePrompt = vi.fn();
+    useCreatePulseBuiltInCatalogMock.mockReturnValue({
+      builtInDefinitions: resolveCreatePulseBuiltInPresetDefinitions(),
+      loading: false,
+      error: "network down",
+      source: "control_plane",
+      degraded: false,
+      isAuthoritative: false,
+      refresh: vi.fn(),
+    });
+
+    renderHook(() =>
+      useCreatePulsePresetPageRuntime(
+        createParams({
+          activeCreatePulsePresetId: "story_builder",
+          clearPulseRuntime,
+          clearPulsePrompt,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(clearPulseRuntime).toHaveBeenCalledTimes(1);
+      expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("clears Pulse prompt state when clearing the page Pulse runtime", () => {

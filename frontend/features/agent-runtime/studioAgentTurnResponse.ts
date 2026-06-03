@@ -33,22 +33,12 @@ export const resolveStudioAgentTurnResponse = ({
   const pulseActive = Boolean(context.pulse);
   const workflowPulseActive =
     context.pulse?.runtimeMode === "workflow_gpt" || context.pulse?.pulseKind === "guided_workflow";
-  const customPulseReadyForArtifact =
-    pulseActive && !workflowPulseActive && semanticStatus?.toLowerCase() === "ready";
 
   if (refusal) {
     parsed = {
       message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
       actions: undefined,
     };
-  } else if (customPulseReadyForArtifact) {
-    parsed = ensureStudioAgentApplyPromptContract({
-      parsed,
-      fallbackPrompt:
-        sanitizeGenerationPromptText(nextCanonical ?? effectiveCanonical ?? null) ??
-        sanitizeGenerationPromptText(parsed.message ?? null) ??
-        "",
-    });
   } else if (pulseActive) {
     const displayMessage = typeof parsed.message === "string" ? parsed.message.trim() : "";
     parsed.message =
@@ -72,7 +62,7 @@ export const resolveStudioAgentTurnResponse = ({
     : pulseActive
       ? resolveCanonicalPrompt(
           parsed.actions?.applyPrompt ?? null,
-          customPulseReadyForArtifact ? nextCanonical : null,
+          workflowPulseActive ? nextCanonical : null,
           effectiveCanonical
         )
       : resolveCanonicalPrompt(parsed.actions?.applyPrompt, nextCanonical, effectiveCanonical);

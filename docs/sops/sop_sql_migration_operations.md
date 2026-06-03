@@ -118,7 +118,8 @@ Current set:
 - `060_add_media_folders_and_membership.sql`
 - `061_backfill_media_image_dimensions_metadata.sql`
 - `062_add_dashboard_announcements.sql`
-- `063_add_media_folder_canvas_states.sql`
+- `063_add_media_folder_canvas_states.sql` (historical; removed from current schema by `144_retire_media_folder_canvas_states.sql`)
+- `144_retire_media_folder_canvas_states.sql`
 - `064_backfill_media_files_from_storage_objects.sql`
 - `065_add_media_derivative_processing_fields.sql`
 - `066_add_media_derivative_processing_rpcs.sql`
@@ -187,6 +188,15 @@ Current set:
 - `135_add_media_folder_count_rpcs.sql`
 - `136_restore_global_media_folder_authority.sql`
 - `137_retire_project_media_folder_authority.sql`
+- `138_retire_character_quickswap_tip_preference.sql`
+- `139_add_motion_reference_video_generation_leases.sql`
+- `140_add_admitted_reference_image_variant.sql`
+- `141_harden_storage_entitlement_helper_grants.sql`
+- `142_add_model_pricing_custom_row_manifests.sql`
+- `143_add_project_workspace_snapshot_freshness_guard.sql`
+- `144_retire_media_folder_canvas_states.sql`
+- `145_add_project_output_display_items.sql`
+- `146_harden_control_plane_scheduler_timeouts.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

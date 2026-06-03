@@ -286,12 +286,36 @@ describe("MediaLibraryPanelPreviewModal", () => {
       />
     );
 
-    const savedButton = screen.getByRole("button", { name: "Saved" });
-    expect(savedButton).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(onDownloadItem).toHaveBeenCalledWith(item);
     expect(onDeleteItem).toHaveBeenCalledWith(item);
+  });
+
+  it("hides the prompt blade for uploaded library files and keeps the filename in the header", () => {
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png")}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "portrait.png" })).toBeInTheDocument();
+    expect(screen.getByText("image")).toBeInTheDocument();
+    expect(screen.queryByText("PROMPT")).not.toBeInTheDocument();
   });
 });

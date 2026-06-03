@@ -41,6 +41,11 @@ import {
 } from "./chatModeDefaults";
 import { resolveVideoPosterStoragePath } from "./videoPosterStoragePaths";
 import { resolveHydratedPulseRuntimeState, resolvePulseRuntimeState } from "./pulseSessionState";
+import {
+  hasRecoverableSessionOutputIdentity,
+  hasSettledSessionOutputPayload,
+  shouldKeepSessionOutputForDurableRestore,
+} from "./sessionOutputAuthority";
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
@@ -386,26 +391,6 @@ const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
 const RESTORED_QUEUE_WAITING_TIMESTAMP = "Waiting in queue...";
 const RESTORED_SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
 
-const hasSettledRestoredOutputPayload = (output: StudioOutput): boolean => {
-  if (output.status === "saved") return true;
-  if (Array.isArray(output.savedMediaIds) && output.savedMediaIds.length > 0) return true;
-  if ((output.resultUrls ?? []).some((url) => typeof url === "string" && url.trim().length > 0)) {
-    return true;
-  }
-  if (typeof output.previewUrl === "string" && output.previewUrl.trim().length > 0) return true;
-  if (typeof output.previewText === "string" && output.previewText.trim().length > 0) return true;
-  if (
-    typeof output.previewStoragePath === "string" &&
-    output.previewStoragePath.trim().length > 0
-  ) {
-    return true;
-  }
-  if (typeof output.fullStoragePath === "string" && output.fullStoragePath.trim().length > 0) {
-    return true;
-  }
-  return false;
-};
-
 const resolveRestoredSubmissionMode = (
   output: Pick<AiStudioSessionOutputV1, "submissionMode" | "modelId">
 ): StudioOutput["submissionMode"] => {
@@ -420,13 +405,8 @@ const resolveRestoredSubmissionMode = (
 const shouldDropRestoredTransientFailure = (output: StudioOutput): boolean => {
   if (output.taskState !== "fail") return false;
   if (output.submissionMode !== "direct-request") return false;
-  if (hasSettledRestoredOutputPayload(output)) return false;
-  const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
-  if (generationId) return false;
-  const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
-  if (sourceRef) return false;
-  const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
-  if (taskId) return false;
+  if (hasSettledSessionOutputPayload(output)) return false;
+  if (hasRecoverableSessionOutputIdentity(output)) return false;
   if (output.mediaSource && output.mediaSource !== "generated") return false;
   return true;
 };
@@ -435,14 +415,14 @@ const shouldDropRestoredUnsettledGeneratedAudioFailure = (output: StudioOutput):
   if (output.taskState !== "fail") return false;
   if (output.mode !== "audio") return false;
   if (output.mediaSource && output.mediaSource !== "generated") return false;
-  return !hasSettledRestoredOutputPayload(output);
+  return !hasSettledSessionOutputPayload(output);
 };
 
 const normalizeRestoredOutputLifecycle = (output: StudioOutput): StudioOutput => {
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
   const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
-  if ((!generationId && !sourceRef) || taskId || hasSettledRestoredOutputPayload(output)) {
+  if ((!generationId && !sourceRef) || taskId || hasSettledSessionOutputPayload(output)) {
     return output;
   }
 
@@ -545,7 +525,8 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
     ...(output.styleContext ? { styleContext: output.styleContext } : {}),
     generationReplay: output.generationReplay,
   });
-  return shouldDropRestoredTransientFailure(hydratedOutput) ||
+  return !shouldKeepSessionOutputForDurableRestore(hydratedOutput) ||
+    shouldDropRestoredTransientFailure(hydratedOutput) ||
     shouldDropRestoredUnsettledGeneratedAudioFailure(hydratedOutput)
     ? null
     : hydratedOutput;

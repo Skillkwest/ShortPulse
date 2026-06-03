@@ -413,6 +413,43 @@ describe("Canvas drop behavior", () => {
     expect(screen.getByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "video");
   });
 
+  it("renders dropped external videos without posters as muted canvas video previews", async () => {
+    const resolveCanvasDroppedMediaReference = vi.fn(async (payload) => ({
+      kind: "video" as const,
+      outputId: "external-video-1",
+      mediaId: null,
+      videoUrl: payload.url,
+      posterUrl: null,
+      title: "Posterless video",
+      width: 1280,
+      height: 720,
+    })) satisfies ResolveCanvasDroppedMediaReference;
+
+    render(
+      <CanvasHarness resolveCanvasDroppedMediaReference={resolveCanvasDroppedMediaReference} />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/uri-list": "https://example.com/external-video.mp4",
+        "text/plain": "https://example.com/external-video.mp4",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const videoPreview = item.querySelector("video");
+    expect(videoPreview).toBeTruthy();
+    if (!videoPreview) {
+      throw new Error("Expected posterless canvas video preview");
+    }
+    expect(videoPreview).toHaveAttribute("src", "https://example.com/external-video.mp4");
+    expect(item.querySelector(".canvas-scene-item__video-placeholder")).toBeNull();
+  });
+
   it("prioritizes internal reference payloads over file fallback when both are present", async () => {
     const resolveCanvasDropFiles = vi.fn(async () => [
       {

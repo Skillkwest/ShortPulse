@@ -103,6 +103,7 @@ export const useCreatePulsePresetPageRuntime = ({
   const [pendingCreatePulsePresetSnapshot, setPendingCreatePulsePresetSnapshot] =
     useState<CreatePulseResolvedPreset | null>(null);
   const pulseActivationRevisionRef = useRef(0);
+  const failedClosedPulseRuntimeKeyRef = useRef<string | null>(null);
   const expertCreateModeRef = useRef<"standard" | "pulse">(expertCreateMode);
 
   useEffect(() => {
@@ -175,15 +176,12 @@ export const useCreatePulsePresetPageRuntime = ({
     Boolean(pulseSessionInstanceId);
   const resolvedSavedPresets = savedPresets ?? pulsePreference.savedPresets;
   const resolvedBuiltInDefinitions = builtInDefinitions ?? builtInCatalog.builtInDefinitions;
-  const builtInDefinitionsAreAuthoritative =
+  const resolvedBuiltInDefinitionsAreAuthoritative =
     builtInDefinitions != null ? true : builtInCatalog.isAuthoritative;
   const resolvedSavedPresetCatalogReady =
     isSavedPresetCatalogReady &&
     (!shouldLoadPulsePreferences || !pulsePreference.loading) &&
     !builtInCatalog.loading;
-  const hasSavedPresetMatchForActivePulse =
-    Boolean(activeCreatePulsePresetId) &&
-    resolvedSavedPresets.some((preset) => preset.presetId === activeCreatePulsePresetId);
   const restoredCreatePulsePresetSnapshot = useMemo(
     () =>
       hasActivePulseSession && activeCreatePulsePresetId
@@ -215,22 +213,49 @@ export const useCreatePulsePresetPageRuntime = ({
     expertCreateMode === "pulse" &&
     !hasActivePulseSession &&
     pendingCreatePulsePresetSnapshot != null;
+  const activePulseRuntimeKey =
+    hasActivePulseSession && activeCreatePulsePresetId && pulseSessionInstanceId
+      ? `${activeCreatePulsePresetId}:${pulseSessionInstanceId}`
+      : null;
+
   useEffect(() => {
-    if (!hasActivePulseSession || activeCreatePulsePresetSnapshot) return;
-    if (!resolvedSavedPresetCatalogReady) return;
-    if (!builtInDefinitionsAreAuthoritative && !hasSavedPresetMatchForActivePulse) {
-      return;
-    }
+    if (activePulseRuntimeKey != null) return;
+    failedClosedPulseRuntimeKeyRef.current = null;
+  }, [activePulseRuntimeKey]);
+
+  const requestFailedClosedPulseRuntimeClear = useCallback(() => {
+    if (!activePulseRuntimeKey) return;
+    if (failedClosedPulseRuntimeKeyRef.current === activePulseRuntimeKey) return;
+    failedClosedPulseRuntimeKeyRef.current = activePulseRuntimeKey;
     queueMicrotask(() => {
       clearPulseRuntimeForPage();
     });
+  }, [activePulseRuntimeKey, clearPulseRuntimeForPage]);
+
+  useEffect(() => {
+    if (!hasActivePulseSession || activeCreatePulsePresetSnapshot) return;
+    if (!resolvedSavedPresetCatalogReady) return;
+    requestFailedClosedPulseRuntimeClear();
   }, [
     activeCreatePulsePresetSnapshot,
-    builtInDefinitionsAreAuthoritative,
-    clearPulseRuntimeForPage,
-    hasSavedPresetMatchForActivePulse,
     hasActivePulseSession,
+    requestFailedClosedPulseRuntimeClear,
     resolvedSavedPresetCatalogReady,
+  ]);
+
+  useEffect(() => {
+    if (selectedTool !== "create" || expertCreateMode !== "pulse") return;
+    if (!hasActivePulseSession || activeCreatePulsePresetSnapshot?.isBuiltIn !== true) return;
+    if (!resolvedSavedPresetCatalogReady || resolvedBuiltInDefinitionsAreAuthoritative) return;
+    requestFailedClosedPulseRuntimeClear();
+  }, [
+    activeCreatePulsePresetSnapshot,
+    expertCreateMode,
+    hasActivePulseSession,
+    requestFailedClosedPulseRuntimeClear,
+    resolvedBuiltInDefinitionsAreAuthoritative,
+    resolvedSavedPresetCatalogReady,
+    selectedTool,
   ]);
 
   const getPulseAwareAgentContext = useCallback<GetAgentContext>(

@@ -4,11 +4,9 @@ import {
   createMediaFolder,
   deleteMediaFolder,
   fetchMediaPromptListPage,
-  getMediaFolderCanvasState,
   listMediaFolders,
   moveMediaFolder,
   renameMediaFolder,
-  saveMediaFolderCanvasState,
   uploadMediaFile,
 } from "../mediaLibraryPanelApi";
 
@@ -339,58 +337,6 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
       expect.objectContaining({
         method: "POST",
         body: expect.stringContaining('"projectId":"project-1"'),
-      })
-    );
-  });
-
-  it("uses global folder canvas read routes even when a projectId is provided", async () => {
-    fetchWithAuthMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        state: {
-          folderId: "folder-1",
-          schemaVersion: 1,
-          snapshot: { items: [] },
-          saveSeq: 2,
-          createdAt: "2026-04-24T00:00:00.000Z",
-          updatedAt: "2026-04-24T00:00:00.000Z",
-        },
-      }),
-    });
-
-    await getMediaFolderCanvasState("folder-1", "project-1");
-
-    expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/ai/media-folder-canvas/folder-1",
-      expect.objectContaining({
-        method: "GET",
-      })
-    );
-  });
-
-  it("uses global folder canvas save routes even when a projectId is provided", async () => {
-    fetchWithAuthMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        folderId: "folder-1",
-        schemaVersion: 1,
-        saveSeq: 3,
-        updatedAt: "2026-04-24T00:00:00.000Z",
-      }),
-    });
-
-    await saveMediaFolderCanvasState({
-      folderId: "folder-1",
-      projectId: "project-1",
-      schemaVersion: 1,
-      snapshot: { items: [] },
-    });
-
-    expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/ai/media-folder-canvas/save",
-      expect.objectContaining({
-        method: "POST",
-        body: expect.stringContaining('"folderId":"folder-1"'),
       })
     );
   });

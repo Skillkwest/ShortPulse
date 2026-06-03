@@ -9,6 +9,7 @@ type SharedMediaDetailTopBarProps = {
   actions?: React.ReactNode;
   onClose: () => void;
   closeLabel?: string;
+  centerTitle?: boolean;
 };
 
 /**
@@ -22,14 +23,19 @@ export function SharedMediaDetailTopBar({
   actions = null,
   onClose,
   closeLabel = "Close media detail",
+  centerTitle = false,
 }: SharedMediaDetailTopBarProps) {
   return (
-    <div className="art-modal-top-controls">
+    <div className={`art-modal-top-controls ${centerTitle ? "is-center-title" : ""}`.trim()}>
       <div className="art-modal-heading-group">
         {eyebrow || title ? (
           <div className="art-modal-heading-copy">
             {eyebrow ? <span className="art-modal-eyebrow">{eyebrow}</span> : null}
-            {title ? <h2 className="art-modal-title">{title}</h2> : null}
+            {title ? (
+              <h2 className={`art-modal-title ${centerTitle ? "is-centered" : ""}`.trim()}>
+                {title}
+              </h2>
+            ) : null}
           </div>
         ) : null}
         {items.length > 0 ? (

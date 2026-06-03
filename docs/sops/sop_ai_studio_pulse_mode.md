@@ -110,6 +110,9 @@ behave like guided workflow tools.
   the guided workflow.
 - The first assistant response should come from the active Pulse contract, not
   from visible prompt insertion or Standard composer rewriting.
+- Built-in guided workflows must fail closed when the live built-in catalog is
+  non-authoritative or unavailable. The app must not silently resume or start a
+  built-in from stale browser-only metadata.
 - If kickoff fails or is blocked, the rail should show a durable inline status message until the user retries, dismisses it, or successfully starts a Pulse.
 - When switching from an active Pulse to another Pulse, the prior Pulse id,
   preset snapshot, session instance, transcript, draft input, workflow session,
@@ -125,6 +128,9 @@ behave like guided workflow tools.
 - A custom Pulse may ask questions, answer directly, or produce reusable prompt
   output according to its saved instructions. It must not be coerced into
   step-by-step workflow behavior unless the instructions themselves call for it.
+- A custom Pulse may return a direct final answer with `status=ready` and no
+  reusable artifact. `actions.applyPrompt` is reserved for turns that
+  intentionally emit a reusable final prompt or other artifact.
 - A built-in guided workflow may ask one narrow question at a time and may use
   workflow session state as the authoritative progress record.
 - A helpful intermediate assistant reply must not be treated as a completed

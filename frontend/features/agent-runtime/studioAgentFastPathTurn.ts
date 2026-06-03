@@ -11,7 +11,7 @@ import {
   parseStudioAgentSemanticOutput,
   parseStudioAgentJsonWithStatus,
 } from "./studioAgentResponseNormalization";
-import { isStudioAgentWorkflowPulse, resolveStudioAgentPulseKind } from "./studioAgentPulseRuntime";
+import { resolveStudioAgentPulseKind } from "./studioAgentPulseRuntime";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 
 type StageMarker = (stage: string, startedAt: number) => void;
@@ -158,8 +158,10 @@ const buildFastPathRepairMessagesWithContext = ({
   activePrompt: string | null;
   pulseKind: "guided_workflow" | "custom_gpt" | null;
 }) => {
-  const pulseRepair = pulseKind === "guided_workflow" || pulseKind === "custom_gpt";
-  const repairSystemPrompt = pulseRepair
+  const guidedWorkflowPulseRepair = pulseKind === "guided_workflow";
+  const customPulseRepair = pulseKind === "custom_gpt";
+  const pulseRepair = guidedWorkflowPulseRepair || customPulseRepair;
+  const repairSystemPrompt = guidedWorkflowPulseRepair
     ? [
         "You repair malformed assistant output into strict JSON for a Pulse runtime.",
         "Return only valid JSON with keys: status (needs_input|ready|refuse), message (string), and actions (null or object with applyPrompt).",
@@ -168,16 +170,27 @@ const buildFastPathRepairMessagesWithContext = ({
         "If SOURCE_OUTPUT is a final generation-ready artifact, set status to ready and put the exact final artifact text in actions.applyPrompt.",
         "If content is unsafe/refusal, set status to refuse and omit applyPrompt.",
       ].join(" ")
-    : [
-        "You repair malformed assistant output into strict JSON for a prompt compiler.",
-        "Return only valid JSON with keys: message (string) and optional actions.applyPrompt (string).",
-        "Do not include markdown or explanation text.",
-        "If SOURCE_OUTPUT is recap/meta text, reconstruct the intended prompt using latest_user_input/canonical_prompt/active_prompt while preserving intent.",
-      ].join(" ");
+    : customPulseRepair
+      ? [
+          "You repair malformed assistant output into strict JSON for a custom Pulse runtime.",
+          "Return only valid JSON with keys: status (needs_input|ready|refuse), message (string), and actions (null or object with applyPrompt).",
+          "Do not include markdown or explanation text.",
+          "If SOURCE_OUTPUT is a follow-up question, checklist continuation, or clarification request, set status to needs_input and actions to null.",
+          "If SOURCE_OUTPUT is an ordinary direct answer or chat reply, set status to ready and actions to null.",
+          "Use actions.applyPrompt only when SOURCE_OUTPUT is clearly a reusable final prompt or artifact the UI should treat as the authoritative final output.",
+          "If content is unsafe/refusal, set status to refuse and omit applyPrompt.",
+        ].join(" ")
+      : [
+          "You repair malformed assistant output into strict JSON for a prompt compiler.",
+          "Return only valid JSON with keys: message (string) and optional actions.applyPrompt (string).",
+          "Do not include markdown or explanation text.",
+          "If SOURCE_OUTPUT is recap/meta text, reconstruct the intended prompt using latest_user_input/canonical_prompt/active_prompt while preserving intent.",
+        ].join(" ");
   const repairUserPrompt = pulseRepair
     ? JSON.stringify({
-        instruction:
-          "Repair SOURCE_OUTPUT into Pulse JSON. Preserve question-vs-final-artifact intent. Questions or missing-input requests must return status needs_input with actions null. Final generation-ready artifacts must return status ready with actions.applyPrompt equal to the exact artifact text.",
+        instruction: customPulseRepair
+          ? "Repair SOURCE_OUTPUT into custom-Pulse JSON. Preserve question-vs-direct-answer-vs-final-artifact intent. Questions or missing-input requests must return status needs_input with actions null. Ordinary direct answers must return status ready with actions null. Use actions.applyPrompt only for a clearly reusable final prompt or artifact."
+          : "Repair SOURCE_OUTPUT into Pulse JSON. Preserve question-vs-final-artifact intent. Questions or missing-input requests must return status needs_input with actions null. Final generation-ready artifacts must return status ready with actions.applyPrompt equal to the exact artifact text.",
         pulse_kind: pulseKind,
         source_output: contentText,
         latest_user_input: latestUserInput,
@@ -222,7 +235,6 @@ export const executeStudioAgentFastPathTurn = async ({
   const fastPathStartedAt = Date.now();
   const pulseKind = resolveStudioAgentPulseKind(context.pulse);
   const pulseActive = pulseKind !== null;
-  const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
   let response: Response;
   try {
     response = await fetchStudioAgentChatCompletion({

@@ -49,6 +49,7 @@ const createSnapshot = (
         model: "fal:foo",
         status: "ready",
         timestamp: "t1",
+        previewUrl: "https://cdn.example.com/out-1.png",
       },
     ],
     archived: [
@@ -60,6 +61,7 @@ const createSnapshot = (
         model: "fal:foo",
         status: "ready",
         timestamp: "t2",
+        previewUrl: "https://cdn.example.com/out-2.png",
       },
     ],
     activeOutputId: "out-1",
@@ -104,6 +106,52 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.activePulsePresetId).toBeNull();
     expect(payload.canvas).toBeNull();
     expect(payload.expertEdit).toBeNull();
+  });
+
+  it("drops restored authority-empty media outputs and prunes projections", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "blank-restored-image",
+              prompt: "",
+              mode: "image",
+              aspect: "1:1",
+              model: KIE_SEEDANCE_2_MODEL_ID,
+              status: "ready",
+              timestamp: "Library",
+              mediaSource: "library",
+              resultUrls: [],
+              savedMediaIds: [],
+            },
+            {
+              id: "durable-restored-image",
+              prompt: "Durable image",
+              mode: "image",
+              aspect: "1:1",
+              model: "Library media",
+              status: "ready",
+              timestamp: "Library",
+              mediaSource: "library",
+              previewStoragePath: "user-1/images/durable-preview.png",
+              fullStoragePath: "user-1/images/durable-full.png",
+              savedMediaIds: ["media-durable-image"],
+            },
+          ],
+          archived: [],
+          activeOutputId: "blank-restored-image",
+          curatedReferenceIds: ["blank-restored-image", "durable-restored-image"],
+          removedFromAllRefsIds: ["blank-restored-image"],
+        },
+      })
+    );
+
+    expect(payload.outputs.active.map((output) => output.id)).toEqual(["durable-restored-image"]);
+    expect(payload.outputs.activeOutputId).toBeNull();
+    expect(payload.outputs.curatedReferenceIds).toEqual(["durable-restored-image"]);
+    expect(payload.outputs.removedFromAllRefsIds).toEqual([]);
   });
 
   it("canonicalizes hidden keyframes snapshot values onto the visible standard video lane", () => {
@@ -358,6 +406,7 @@ describe("sessionSnapshotHydrator", () => {
               model: "fal:foo",
               status: "ready",
               timestamp: "2026-03-02T12:34:56.000Z",
+              previewUrl: "https://cdn.example.com/out-legacy-created-at.png",
             },
           ],
           activeOutputId: "out-legacy-created-at",
@@ -1474,6 +1523,7 @@ describe("sessionSnapshotHydrator", () => {
             model: "fal:foo",
             status: "ready",
             timestamp: "t1",
+            previewUrl: "https://cdn.example.com/out-1.png",
           },
           {
             id: "out-1",
@@ -1483,6 +1533,7 @@ describe("sessionSnapshotHydrator", () => {
             model: "fal:foo",
             status: "ready",
             timestamp: "t1b",
+            previewUrl: "https://cdn.example.com/out-1-duplicate.png",
           },
         ],
         activeOutputId: "missing",

@@ -6,7 +6,12 @@
  */
 import { randomUUID } from "crypto";
 import { computeCostForModel } from "../../model-runtime/pricing";
+import type { PricingParams } from "../../model-runtime/pricingTypes";
 import { resolveCreateImageBilledCreditLookup } from "../../model-runtime/createImageBilledCredits";
+import {
+  resolveEditImageBilledCreditLookup,
+  supportsCanonicalEditImageBilledPricing,
+} from "../../model-runtime/editImageBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { requireApiUser } from "./auth";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
@@ -131,6 +136,22 @@ const isCreateImageBillingPath = ({
   return resolvedMode === "image";
 };
 
+const isEditImageBillingPath = ({
+  shortpulseContext,
+}: {
+  shortpulseContext: JsonObject | null;
+}): boolean => {
+  const selectedTool =
+    typeof shortpulseContext?.selected_tool === "string" ? shortpulseContext.selected_tool : null;
+  return selectedTool === "edit";
+};
+
+const isLaunchDeferredEditPricingPath = ({
+  pricingParams,
+}: {
+  pricingParams: Omit<PricingParams, "modelId">;
+}): boolean => pricingParams.maskPresent === true;
+
 /**
  * Reserves credits for a model call before provider submission.
  */
@@ -213,9 +234,52 @@ export const chargeGenerationRequest = async ({
         pricingPolicy: effectivePricingPolicy,
       })
     : null;
-  const effectivePricingParams = createImagePricingLookup?.params ?? pricingParams;
+  const editImagePricingLookup =
+    isEditImageBillingPath({
+      shortpulseContext,
+    }) &&
+    !isLaunchDeferredEditPricingPath({
+      pricingParams,
+    }) &&
+    supportsCanonicalEditImageBilledPricing(modelId)
+      ? resolveEditImageBilledCreditLookup({
+          modelId,
+          params: pricingParams,
+          pricingPolicy: effectivePricingPolicy,
+        })
+      : null;
+  const canonicalImagePricingLookup = createImagePricingLookup ?? editImagePricingLookup;
+  const requiresCanonicalEditImagePricing =
+    isEditImageBillingPath({
+      shortpulseContext,
+    }) &&
+    !isLaunchDeferredEditPricingPath({
+      pricingParams,
+    }) &&
+    supportsCanonicalEditImageBilledPricing(modelId);
+  if (requiresCanonicalEditImagePricing && !editImagePricingLookup?.breakdown) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.generation_billing_missing_canonical_edit_price",
+      message: "Pricing is unavailable for this configuration.",
+      statusCode: 500,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        model_id: modelId,
+        source_ref: sourceRef,
+        pricing_params: pricingParams,
+        pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
+        pricing_policy_source: runtimePricingPolicy.source,
+      },
+    });
+    res.status(500).json({ error: "Pricing is unavailable for this configuration." });
+    return null;
+  }
+  const effectivePricingParams = canonicalImagePricingLookup?.params ?? pricingParams;
   const breakdown =
-    createImagePricingLookup?.breakdown ??
+    canonicalImagePricingLookup?.breakdown ??
     computeCostForModel(modelId, effectivePricingParams, effectivePricingPolicy);
   if (!breakdown?.credits || breakdown.credits <= 0) {
     await logGenerationFailure({
@@ -251,8 +315,8 @@ export const chargeGenerationRequest = async ({
       raw_credits: breakdown.rawCredits,
       billed_credits: breakdown.credits,
       billed_usd: breakdown.usd,
-      ...(createImagePricingLookup?.breakdown?.variantId
-        ? { variant_id: createImagePricingLookup.breakdown.variantId }
+      ...(canonicalImagePricingLookup?.breakdown?.variantId
+        ? { variant_id: canonicalImagePricingLookup.breakdown.variantId }
         : {}),
       pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
       pricing_policy_source: runtimePricingPolicy.source,
@@ -266,8 +330,8 @@ export const chargeGenerationRequest = async ({
     rawCredits: breakdown.rawCredits,
     billedCredits: breakdown.credits,
     billedUsd: breakdown.usd,
-    ...(createImagePricingLookup?.breakdown?.variantId
-      ? { variantId: createImagePricingLookup.breakdown.variantId }
+    ...(canonicalImagePricingLookup?.breakdown?.variantId
+      ? { variantId: canonicalImagePricingLookup.breakdown.variantId }
       : {}),
     pricingPolicyVersion: runtimePricingPolicy.activePolicyVersion,
     pricingPolicySource: runtimePricingPolicy.source,

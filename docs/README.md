@@ -108,6 +108,13 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/Babineaux the Engineer/memory.md`
 - `docs/agents/Babineaux the Engineer/standard-operating-procedure.md`
 - `docs/agents/Babineaux the Engineer/ownership-manifest.md`
+- `docs/agents/bactuo/README.md`
+- `docs/agents/bactuo/AGENTS.md`
+- `docs/agents/bactuo/memory.md`
+- `docs/agents/bactuo/standard-operating-procedure.md`
+- `docs/agents/bactuo/ownership-manifest.md`
+- `docs/agents/bactuo/generation-recovery-settlement-source-map.md`
+- `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`
 - `docs/agents/holomony/README.md`
 - `docs/agents/holomony/AGENTS.md`
 - `docs/agents/holomony/standard-operating-procedure.md`
@@ -145,6 +152,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/datserok/README.md`
 - `docs/agents/datserok/AGENTS.md`
 - `docs/agents/datserok/memory.md`
+- `docs/agents/datserok/runtime-load-policy.md`
 - `docs/agents/datserok/standard-operating-procedure.md`
 - `docs/agents/datserok/ownership-manifest.md`
 - `docs/agents/datserok/project-persistence-source-map.md`
@@ -163,7 +171,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0064-project-asset-association-foundation.md`
 - `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
 - `docs/adr/0066-project-media-library-folder-authority.md`
-- `docs/adr/0067-project-media-library-folder-canvas-authority.md`
+- `docs/adr/0067-project-media-library-folder-canvas-authority.md` (historical; superseded by `docs/adr/0090-retire-media-library-folder-canvas.md`)
 - `docs/adr/0068-model-pricing-control-plane.md`
 - `docs/adr/0069-admin-created-billing-plans.md`
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
@@ -179,6 +187,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0081-signed-in-issue-reports-and-admin-review-lane.md`
 - `docs/adr/0082-create-pulse-standard-mode-runtime-parking.md`
 - `docs/adr/0083-create-mode-global-right-rail-authority.md`
+- `docs/adr/0090-retire-media-library-folder-canvas.md`
 - `docs/adr/0084-ai-studio-internal-media-ref-submit-authority.md`
 - `docs/adr/0085-global-media-library-folder-authority.md`
 - `docs/adr/0086-motion-reference-video-lease-cleanup.md`
@@ -380,7 +389,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`
 - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
 - `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`
-- `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`
+- `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md` (historical; retired runtime)
 - `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`
 - `docs/adr/0035-media-library-all-media-completeness-and-preview-contract.md`
 - `docs/adr/0036-media-library-signed-preview-delivery-and-next-optimizer-bypass.md`

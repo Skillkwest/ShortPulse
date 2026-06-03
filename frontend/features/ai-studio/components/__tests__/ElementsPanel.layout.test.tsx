@@ -94,7 +94,6 @@ const elementsManagerPersistenceMockState = vi.hoisted(() => {
 
 vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
   DEFAULT_ELEMENT_NAME: "New Element",
-  clearElementProfileImage: vi.fn(async () => undefined),
   deleteElementManagerDraft: vi.fn(async ({ elementId }: { elementId: string }) => {
     elementsManagerPersistenceMockState.snapshots.delete(elementId);
     elementsManagerPersistenceMockState.list = elementsManagerPersistenceMockState.list.filter(
@@ -181,11 +180,6 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
       return { updatedAt: nextSnapshot.updatedAt, status: nextSnapshot.status };
     }
   ),
-  saveElementProfileImageAdjustments: vi.fn(async ({ transform }) => transform),
-  uploadElementProfileImage: vi.fn(async ({ file }) => ({
-    profileImageUrl: `blob:${file.name}`,
-    profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
-  })),
 }));
 
 vi.mock("../../utils/imageUpload", () => ({
@@ -358,10 +352,7 @@ describe("ElementsPanel layout", () => {
   });
 
   it("renders the Character-style Elements shell with the media library fixed below", async () => {
-    let container: HTMLElement;
-    await act(async () => {
-      ({ container } = render(<ElementsPanel />));
-    });
+    const { container } = render(<ElementsPanel />);
 
     await waitForElementEditor();
 
@@ -830,7 +821,10 @@ describe("ElementsPanel layout", () => {
     expect(screen.queryByRole("status", { name: "Loading Secondary View reference" })).toBeNull();
     expect(secondaryZone).toHaveAttribute("aria-busy", "false");
 
-    resolvePrimaryUpload?.("https://example.com/uploaded/primary-reference.png");
+    if (!resolvePrimaryUpload) {
+      throw new Error("Expected the primary upload promise resolver to be assigned.");
+    }
+    resolvePrimaryUpload("https://example.com/uploaded/primary-reference.png");
 
     await waitFor(() => {
       expect(screen.getByAltText("Primary View reference")).toHaveAttribute(

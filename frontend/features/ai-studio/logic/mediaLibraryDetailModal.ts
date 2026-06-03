@@ -85,32 +85,40 @@ export const createMediaLibraryDetailModalItem = ({
   file: MediaFileRow;
   surface: MediaLibraryDetailModalSurface;
   fields: MediaLibraryDetailFields;
-}): MediaLibraryDetailModalItem => ({
-  ...createMediaLibraryDetailSelectionPayload(file.id, fields),
-  file,
-  surface,
-  selectionTarget: {
-    kind: "media-file",
-    fileId: file.id,
+}): MediaLibraryDetailModalItem => {
+  const resolvedFilename = fields.filename?.trim() || file.filename || file.id;
+  const isExternalUpload =
+    fields.source?.trim()?.toLowerCase() === "upload" && Boolean(resolvedFilename);
+
+  return {
+    ...createMediaLibraryDetailSelectionPayload(file.id, fields),
+    file,
     surface,
-  },
-  capabilities: MEDIA_LIBRARY_DETAIL_CAPABILITIES,
-  media: {
-    id: file.id,
-    kind: fields.fileType === "audio" ? "audio" : fields.fileType === "video" ? "video" : "image",
-    ...fields,
-  },
-  presentation: {
-    title: fields.filename?.trim() || file.filename || file.id,
-    kindLabel: fields.fileType,
-    topBarItems: [
-      { label: fields.fileType, className: "art-meta-item" },
-      {
-        label: fields.filename?.trim() || file.filename || file.id,
-        className: "art-meta-item art-meta-filename",
-        title: fields.filename?.trim() || file.filename || file.id,
-      },
-    ],
-    bladePlaceholder: "No prompt metadata available.",
-  },
-});
+    selectionTarget: {
+      kind: "media-file",
+      fileId: file.id,
+      surface,
+    },
+    capabilities: MEDIA_LIBRARY_DETAIL_CAPABILITIES,
+    media: {
+      id: file.id,
+      kind: fields.fileType === "audio" ? "audio" : fields.fileType === "video" ? "video" : "image",
+      ...fields,
+    },
+    presentation: {
+      title: resolvedFilename,
+      kindLabel: fields.fileType,
+      topBarItems: isExternalUpload
+        ? [{ label: fields.fileType, className: "art-meta-item" }]
+        : [
+            { label: fields.fileType, className: "art-meta-item" },
+            {
+              label: resolvedFilename,
+              className: "art-meta-item art-meta-filename",
+              title: resolvedFilename,
+            },
+          ],
+      bladePlaceholder: "No prompt metadata available.",
+    },
+  };
+};

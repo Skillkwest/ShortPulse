@@ -915,6 +915,7 @@ function DetailModalContent({
   const outputPrompt = displayPromptText.trim() || null;
   const promptFilename = looksLikeFilename(outputPrompt) ? outputPrompt : null;
   const uploadedHeaderFilename = isUploadedReference ? (promptFilename ?? filenameFromUrl) : null;
+  const shouldUseExternalFileLayout = Boolean(isUploadedReference && uploadedHeaderFilename);
   const downloadFilename = uploadedHeaderFilename ?? filenameFromUrl ?? output?.id ?? "media";
   const bladeContent = useMemo(
     () =>
@@ -935,6 +936,9 @@ function DetailModalContent({
     });
   }, [isUploadedReference, output?.model, output?.modelId]);
   const metaPillItems = useMemo(() => {
+    if (shouldUseExternalFileLayout) {
+      return [mediaType];
+    }
     if (isActiveVoiceChangerSourceVideo) {
       return displayAspect ? ["voice changer", displayAspect] : ["voice changer"];
     }
@@ -968,6 +972,7 @@ function DetailModalContent({
     isUploadedReference,
     mediaType,
     normalizedAudioWorkflowLabel,
+    shouldUseExternalFileLayout,
     uploadedHeaderFilename,
   ]);
   const sharedTopBarItems = useMemo<SharedMediaDetailTopBarItem[]>(
@@ -1335,7 +1340,7 @@ function DetailModalContent({
       onClose={handleCloseModal}
       ariaLabel="Reference details"
       backdropClassName="reference-modal-backdrop"
-      dialogClassName={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
+      dialogClassName={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
       dialogStyle={detailModalStyle}
       backdropDecoration={
         displayPreviewUrl ? (
@@ -1354,6 +1359,7 @@ function DetailModalContent({
               eyebrow="Media detail"
               title={detailModalItem.presentation?.title ?? displayPromptText}
               items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
+              centerTitle={shouldUseExternalFileLayout}
               actions={
                 <SharedMediaDetailActionBar
                   items={sharedMediaActionItems}
@@ -1412,76 +1418,81 @@ function DetailModalContent({
             />
           }
           sidePanel={
-            <SharedMediaDetailInfoPanel
-              leadingContent={
-                <>
-                  {hasCharacterContext ? (
-                    <div className="art-character-chip" aria-label="Character used for generation">
-                      {shouldRenderCharacterAvatar ? (
-                        // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          className="art-character-chip-avatar"
-                          src={characterAvatarUrl ?? ""}
-                          alt={`${characterName} profile`}
-                          onLoad={() => {
-                            clearAvatarFailure(characterAvatarRecoveryId);
-                          }}
-                          onError={() => {
-                            void handleAvatarError({
-                              avatarId: characterAvatarRecoveryId,
-                              recoverAvatarUrl: refreshCharacterAvatar,
-                            });
-                          }}
-                        />
-                      ) : (
-                        <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
-                          {characterInitials}
-                        </span>
-                      )}
-                      <div className="art-character-chip-copy">
-                        <span className="art-character-chip-label">
-                          {characterLookName ? `Character · ${characterLookName}` : "Character"}
-                        </span>
-                        <span className="art-character-chip-name">{characterName}</span>
+            shouldUseExternalFileLayout ? null : (
+              <SharedMediaDetailInfoPanel
+                leadingContent={
+                  <>
+                    {hasCharacterContext ? (
+                      <div
+                        className="art-character-chip"
+                        aria-label="Character used for generation"
+                      >
+                        {shouldRenderCharacterAvatar ? (
+                          // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            className="art-character-chip-avatar"
+                            src={characterAvatarUrl ?? ""}
+                            alt={`${characterName} profile`}
+                            onLoad={() => {
+                              clearAvatarFailure(characterAvatarRecoveryId);
+                            }}
+                            onError={() => {
+                              void handleAvatarError({
+                                avatarId: characterAvatarRecoveryId,
+                                recoverAvatarUrl: refreshCharacterAvatar,
+                              });
+                            }}
+                          />
+                        ) : (
+                          <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
+                            {characterInitials}
+                          </span>
+                        )}
+                        <div className="art-character-chip-copy">
+                          <span className="art-character-chip-label">
+                            {characterLookName ? `Character · ${characterLookName}` : "Character"}
+                          </span>
+                          <span className="art-character-chip-name">{characterName}</span>
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
-                  {hasStyleContext ? (
-                    <div className="art-character-chip" aria-label="Style used for generation">
-                      {shouldRenderStyleAvatar ? (
-                        // Style previews can point to external URLs and signed Supabase assets.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          className="art-character-chip-avatar"
-                          src={stylePreviewImageUrl ?? ""}
-                          alt={`${styleName} style`}
-                          onError={() => {
-                            if (!outputId) return;
-                            setStyleAvatarLoadErrorByOutput({ outputId, value: true });
-                          }}
-                        />
-                      ) : (
-                        <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
-                          {styleInitials}
-                        </span>
-                      )}
-                      <div className="art-character-chip-copy">
-                        <span className="art-character-chip-label">Style</span>
-                        <span className="art-character-chip-name">{styleName}</span>
+                    ) : null}
+                    {hasStyleContext ? (
+                      <div className="art-character-chip" aria-label="Style used for generation">
+                        {shouldRenderStyleAvatar ? (
+                          // Style previews can point to external URLs and signed Supabase assets.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            className="art-character-chip-avatar"
+                            src={stylePreviewImageUrl ?? ""}
+                            alt={`${styleName} style`}
+                            onError={() => {
+                              if (!outputId) return;
+                              setStyleAvatarLoadErrorByOutput({ outputId, value: true });
+                            }}
+                          />
+                        ) : (
+                          <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
+                            {styleInitials}
+                          </span>
+                        )}
+                        <div className="art-character-chip-copy">
+                          <span className="art-character-chip-label">Style</span>
+                          <span className="art-character-chip-name">{styleName}</span>
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
-                </>
-              }
-              label={bladeContent.label}
-              value={bladeContent.value}
-              readOnly={!isPromptEditable}
-              rows={3}
-              textareaRef={promptTextareaRef}
-              placeholder={resolveSharedMediaDetailBladePlaceholder(detailModalItem)}
-              onChange={handlePromptChange}
-            />
+                    ) : null}
+                  </>
+                }
+                label={bladeContent.label}
+                value={bladeContent.value}
+                readOnly={!isPromptEditable}
+                rows={3}
+                textareaRef={promptTextareaRef}
+                placeholder={resolveSharedMediaDetailBladePlaceholder(detailModalItem)}
+                onChange={handlePromptChange}
+              />
+            )
           }
         />
       ) : null}

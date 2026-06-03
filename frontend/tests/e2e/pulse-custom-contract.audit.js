@@ -142,7 +142,7 @@ async function ensurePulseMode(page) {
   await page.getByRole("button", { name: "Pulse Catalog" }).waitFor({ timeout: 20_000 });
 }
 
-async function verifyPulseResetsOutsideCreate(page) {
+async function verifyPulsePersistsOutsideCreate(page) {
   const presetsButton = page
     .locator(".toolbar-libraries button")
     .filter({ hasText: "Presets" })
@@ -162,13 +162,20 @@ async function verifyPulseResetsOutsideCreate(page) {
   const pulseTab = page.getByRole("tab", { name: /^pulse$/i }).first();
   await standardTab.waitFor({ timeout: 10_000 });
   const deactivatePulseButton = page.getByRole("button", { name: /^deactivate pulse$/i }).first();
+  const activationMessage = page.getByText("CUSTOM-PULSE-MARKER: activation acknowledged.").first();
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const standardSelected = await standardTab.getAttribute("aria-selected").catch(() => null);
     const pulseSelected = await pulseTab.getAttribute("aria-selected").catch(() => null);
     const deactivatePulseVisible = await deactivatePulseButton.isVisible().catch(() => false);
+    const activationMessageVisible = await activationMessage.isVisible().catch(() => false);
 
-    if (standardSelected === "true" && pulseSelected !== "true" && !deactivatePulseVisible) {
+    if (
+      standardSelected !== "true" &&
+      pulseSelected === "true" &&
+      deactivatePulseVisible &&
+      activationMessageVisible
+    ) {
       return true;
     }
     await page.waitForTimeout(200);
@@ -271,7 +278,7 @@ async function main() {
     ui: {
       activationMessageSeen: false,
       followupMessageSeen: false,
-      resetOnLeaveCreateVerified: false,
+      persistsOnLeaveCreateVerified: false,
     },
     screenshots: {
       final: "/tmp/shortpulse-pulse-custom-contract-final.png",
@@ -389,7 +396,7 @@ async function main() {
       timeout: 10_000,
     });
     out.ui.followupMessageSeen = true;
-    out.ui.resetOnLeaveCreateVerified = await verifyPulseResetsOutsideCreate(page);
+    out.ui.persistsOnLeaveCreateVerified = await verifyPulsePersistsOutsideCreate(page);
 
     await page.screenshot({ path: out.screenshots.final, fullPage: true });
     out.ok =
@@ -397,7 +404,7 @@ async function main() {
       Object.values(out.requestChecks).every(Boolean) &&
       out.ui.activationMessageSeen &&
       out.ui.followupMessageSeen &&
-      out.ui.resetOnLeaveCreateVerified;
+      out.ui.persistsOnLeaveCreateVerified;
   } catch (error) {
     out.errors.push(error instanceof Error ? error.message : String(error));
     await page.screenshot({ path: out.screenshots.failure, fullPage: true }).catch(() => {});

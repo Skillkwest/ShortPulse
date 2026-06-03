@@ -1578,7 +1578,6 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Remove media ref-1.png" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Remove prompt Prompt One" })).toBeInTheDocument();
     });
-    expect(screen.queryByText("Loading folder canvas...")).not.toBeInTheDocument();
     expect(screen.queryByRole("tablist", { name: "All Media type tabs" })).not.toBeInTheDocument();
   });
 

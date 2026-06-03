@@ -3,7 +3,6 @@
  * Owns Elements panel state transitions while persisting element data to Supabase.
  */
 import React from "react";
-import { maybePreprocessLocalImageFileForUpload } from "../../../lib/adaptive-media/localTranscode";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   buildInternalPayloadFromComposerDropPayload,
@@ -20,16 +19,13 @@ import {
 } from "../../character-manager/logic/characterDropPayload";
 import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
 import { createEmptyElementDraft } from "../constants";
-import type { ElementAssetType, ElementDraft, ElementLibraryItem } from "../types";
+import type { ElementDraft, ElementLibraryItem } from "../types";
 import {
-  clearElementProfileImage,
   deleteElementManagerDraft,
   fetchElementsManagerList,
   loadElementManagerDraftByElementId,
   saveElementManagerDraft,
   saveElementManagerDraftSnapshot,
-  saveElementProfileImageAdjustments,
-  uploadElementProfileImage,
 } from "../logic/elementsManagerPersistence";
 
 const MEDIA_BUCKET = "media_library";
@@ -51,58 +47,10 @@ type DroppedStorageCandidate = {
 const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
 
-const SAVE_ELEMENT_FIRST_MESSAGE = "Save the element before adding a profile photo or references.";
 const SAVE_ELEMENT_REQUIRED_REFERENCES_MESSAGE =
   "Add the first two required references before saving the element.";
 const SAVE_ELEMENT_REQUIRED_VIDEO_REFERENCE_MESSAGE =
   "Add the required motion reference before saving the element.";
-const sanitizeFilenameSegment = (value: string): string =>
-  value
-    .trim()
-    .replace(/[^\w.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-const inferProfileImageExtension = (mimeType: string, sourceUrl: string): string => {
-  const normalizedMimeType = mimeType.trim().toLowerCase();
-  if (normalizedMimeType === "image/png") return "png";
-  if (normalizedMimeType === "image/webp") return "webp";
-  if (normalizedMimeType === "image/gif") return "gif";
-  if (normalizedMimeType === "image/avif") return "avif";
-  if (normalizedMimeType === "image/bmp") return "bmp";
-  if (normalizedMimeType === "image/heic") return "heic";
-  if (normalizedMimeType === "image/heif") return "heif";
-  if (normalizedMimeType === "image/svg+xml") return "svg";
-  try {
-    const pathSegment = new URL(sourceUrl, window.location.href).pathname.split("/").pop() ?? "";
-    const trimmed = pathSegment.trim().toLowerCase();
-    const extension = trimmed.split(".").pop() ?? "";
-    if (extension && extension !== trimmed) {
-      return sanitizeFilenameSegment(extension) || "jpg";
-    }
-  } catch {
-    // Ignore URL parsing failures and fall back to jpg.
-  }
-  return "jpg";
-};
-
-const buildProfileImageFileName = (sourceUrl: string, mimeType: string): string => {
-  try {
-    const parsedUrl = new URL(sourceUrl, window.location.href);
-    const pathSegment = parsedUrl.pathname.split("/").pop() ?? "";
-    const cleanedSegment = sanitizeFilenameSegment(pathSegment);
-    if (cleanedSegment) {
-      const hasExtension = /\.[a-z0-9]{2,5}$/i.test(cleanedSegment);
-      if (hasExtension) {
-        return cleanedSegment;
-      }
-      return `${cleanedSegment}.${inferProfileImageExtension(mimeType, sourceUrl)}`;
-    }
-  } catch {
-    // Ignore URL parsing failures and fall back below.
-  }
-  return `element-profile.${inferProfileImageExtension(mimeType, sourceUrl)}`;
-};
 
 const parseDroppedStorageCandidateFromUrl = (url: string): DroppedStorageCandidate | null => {
   try {
@@ -240,23 +188,6 @@ const downloadDroppedProfileImageBlob = async (
   }
 };
 
-const buildProfileImageFileNameFromStoragePath = (
-  storagePath: string,
-  mimeType: string,
-  sourceUrl: string
-): string => {
-  const pathSegment = storagePath.split("/").pop() ?? "";
-  const cleanedSegment = sanitizeFilenameSegment(pathSegment);
-  if (cleanedSegment) {
-    const hasExtension = /\.[a-z0-9]{2,5}$/i.test(cleanedSegment);
-    if (hasExtension) {
-      return cleanedSegment;
-    }
-    return `${cleanedSegment}.${inferProfileImageExtension(mimeType, sourceUrl)}`;
-  }
-  return buildProfileImageFileName(sourceUrl, mimeType);
-};
-
 const buildElementItemFromDraft = (
   draft: ElementDraft,
   options: {
@@ -272,7 +203,6 @@ const buildElementItemFromDraft = (
     assetType: draft.assetType,
     profileImageUrl: draft.profileImageUrl,
     profileImageTransform: draft.profileImageTransform,
-    thumbnailUrl: draft.profileImageUrl,
     imageReferenceUrls:
       draft.assetType === "image" ? draft.imageReferenceUrls.filter(Boolean).slice(0, 6) : [],
     videoReferenceUrl: draft.assetType === "video" ? draft.videoReferenceUrl.trim() || null : null,
@@ -311,7 +241,6 @@ const buildLibraryItemFromListRow = (
     assetType: row.elementAssetType,
     profileImageUrl: row.profileImageUrl,
     profileImageTransform: row.profileImageTransform,
-    thumbnailUrl: row.profileImageUrl,
     imageReferenceUrls: [],
     videoReferenceUrl: null,
     updatedAt: row.updatedAt,
@@ -365,16 +294,12 @@ export const useElementsManagerViewState = ({
   const [elements, setElements] = React.useState<ElementLibraryItem[]>([]);
   const [selectedElementId, setSelectedElementId] = React.useState<string | null>(null);
   const [pendingDeleteElementId, setPendingDeleteElementId] = React.useState<string | null>(null);
-  const [isEditorOpen, setIsEditorOpen] = React.useState(false);
-  const [editorMode, setEditorMode] = React.useState<"create" | "edit">("edit");
-  const [pendingDiscardDraft, setPendingDiscardDraft] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isCreatingElement, setIsCreatingElement] = React.useState(false);
   const [isDeletingElement, setIsDeletingElement] = React.useState(false);
   const [isSwitchingElement, setIsSwitchingElement] = React.useState(false);
   const [isSavingElement, setIsSavingElement] = React.useState(false);
-  const [isSavingProfileImage, setIsSavingProfileImage] = React.useState(false);
   const [draft, setDraft] = React.useState<ElementDraft>(createEmptyElementDraft);
 
   const hydrateDraft = React.useCallback((item: ElementLibraryItem | null) => {
@@ -392,10 +317,6 @@ export const useElementsManagerViewState = ({
   const lastPersistedDraftRef = React.useRef<string>(
     serializeDraftState(createEmptyElementDraft())
   );
-  const hasUnsavedElementDraft = selectedElementId === null;
-  const isDraftDirty =
-    serializeDraftState(draft) !== lastPersistedDraftRef.current &&
-    serializeDraftState(draft) !== serializeDraftState(createEmptyElementDraft());
 
   React.useEffect(() => {
     selectedElementIdRef.current = selectedElementId;
@@ -481,9 +402,6 @@ export const useElementsManagerViewState = ({
       setPendingDeleteElementId(null);
       setSelectedElementId(null);
       resetDraft();
-      setEditorMode("create");
-      setPendingDiscardDraft(false);
-      setIsEditorOpen(true);
     } catch (nextError) {
       setError(toErrorMessage(nextError, "Failed to create a new element."));
     } finally {
@@ -547,9 +465,6 @@ export const useElementsManagerViewState = ({
       setPendingDeleteElementId(null);
       setSelectedElementId(snapshot.elementId);
       hydrateDraft(nextItem);
-      setEditorMode("edit");
-      setPendingDiscardDraft(false);
-      setIsEditorOpen(true);
       return true;
     } catch (nextError) {
       setError(toErrorMessage(nextError, "Failed to save element."));
@@ -564,9 +479,6 @@ export const useElementsManagerViewState = ({
       if (!elementId) return;
       if (elementId === selectedElementIdRef.current) {
         setPendingDeleteElementId(null);
-        setEditorMode("edit");
-        setPendingDiscardDraft(false);
-        setIsEditorOpen(true);
         return;
       }
       setError(null);
@@ -584,9 +496,6 @@ export const useElementsManagerViewState = ({
         setPendingDeleteElementId(null);
         setSelectedElementId(elementId);
         hydrateDraft(nextItem);
-        setEditorMode("edit");
-        setPendingDiscardDraft(false);
-        setIsEditorOpen(true);
       } catch (nextError) {
         if (selectionRequestIdRef.current !== requestId) return;
         setError(toErrorMessage(nextError, "Failed to switch element."));
@@ -610,8 +519,6 @@ export const useElementsManagerViewState = ({
         setSelectedElementId(null);
         resetDraft();
         lastPersistedDraftRef.current = serializeDraftState(createEmptyElementDraft());
-        setPendingDiscardDraft(false);
-        setIsEditorOpen(false);
       }
       setPendingDeleteElementId(null);
     } catch (nextError) {
@@ -674,23 +581,6 @@ export const useElementsManagerViewState = ({
     [setDraft, syncSelectedElement]
   );
 
-  const onSetAssetType = React.useCallback(
-    (assetType: ElementAssetType) => {
-      setDraft((current) => {
-        if (current.assetType === assetType) return current;
-        const nextDraft = {
-          ...current,
-          assetType,
-          imageReferenceUrls: assetType === "image" ? current.imageReferenceUrls : [],
-          videoReferenceUrl: assetType === "video" ? current.videoReferenceUrl : "",
-        };
-        syncSelectedElement(nextDraft);
-        return nextDraft;
-      });
-    },
-    [setDraft, syncSelectedElement]
-  );
-
   const clearActiveVideoReference = React.useCallback(() => {
     setDraft((current) => {
       if (!current.videoReferenceUrl.trim()) return current;
@@ -702,142 +592,6 @@ export const useElementsManagerViewState = ({
       return nextDraft;
     });
   }, [setDraft, syncSelectedElement]);
-
-  const saveProfileImageFile = React.useCallback(
-    async (profileFile: File) => {
-      const targetId = selectedElementIdRef.current;
-      if (!targetId) {
-        setError(SAVE_ELEMENT_FIRST_MESSAGE);
-        return;
-      }
-      const preparedFile = await maybePreprocessLocalImageFileForUpload(profileFile);
-      setError(null);
-      setIsSavingProfileImage(true);
-      try {
-        const result = await uploadElementProfileImage({
-          elementId: targetId,
-          file: preparedFile,
-        });
-        setDraft((current) => {
-          const nextDraft = {
-            ...current,
-            profileImageUrl: result.profileImageUrl,
-            profileImageTransform: result.profileImageTransform,
-          };
-          lastPersistedDraftRef.current = serializeDraftState(nextDraft);
-          syncElementListEntryById(targetId, nextDraft);
-          return nextDraft;
-        });
-      } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to save element profile image."));
-      } finally {
-        setIsSavingProfileImage(false);
-      }
-    },
-    [setDraft, syncElementListEntryById]
-  );
-
-  const onSetProfileImageFile = React.useCallback(
-    async (file: File) => {
-      await saveProfileImageFile(file);
-    },
-    [saveProfileImageFile]
-  );
-
-  const onSetProfileImageFromUrl = React.useCallback(
-    async (source: string | ElementProfileImageDropSource) => {
-      const normalizedSource: ElementProfileImageDropSource =
-        typeof source === "string" ? { url: source.trim() } : source;
-      const normalizedSourceUrl = normalizedSource.url?.trim() ?? "";
-      if (!normalizedSourceUrl && !normalizedSource.loadBlob) return;
-      const targetId = selectedElementIdRef.current;
-      if (!targetId) {
-        setError(SAVE_ELEMENT_FIRST_MESSAGE);
-        return;
-      }
-      setError(null);
-      setIsSavingProfileImage(true);
-      try {
-        const { blob, resolvedStoragePath } = await downloadDroppedProfileImageBlob({
-          ...normalizedSource,
-          url: normalizedSourceUrl,
-        });
-        const mimeType = blob.type.trim().toLowerCase();
-        if (mimeType && !mimeType.startsWith("image/")) {
-          throw new Error("Dropped content is not an image.");
-        }
-        const fileName = resolvedStoragePath
-          ? buildProfileImageFileNameFromStoragePath(
-              resolvedStoragePath,
-              mimeType || "image/jpeg",
-              normalizedSourceUrl || "element-profile"
-            )
-          : buildProfileImageFileName(
-              normalizedSourceUrl || "element-profile",
-              mimeType || "image/jpeg"
-            );
-        const file = new File([blob], fileName, {
-          type: mimeType || "image/jpeg",
-        });
-        await saveProfileImageFile(file);
-      } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to save element profile image."));
-      } finally {
-        setIsSavingProfileImage(false);
-      }
-    },
-    [saveProfileImageFile]
-  );
-
-  const onSetProfileImageFromInternalDrop = React.useCallback(
-    async (payload: InternalReferenceDragPayload) => {
-      const referenceUrl =
-        payload.referenceUrl?.trim() || payload.referenceRenderUrl?.trim() || null;
-      const fallbackSource: ElementProfileImageDropSource | null =
-        referenceUrl || payload.mediaId?.trim()
-          ? {
-              ...(referenceUrl ? { url: referenceUrl } : {}),
-              mediaId: payload.mediaId?.trim() || null,
-            }
-          : null;
-
-      if (!resolveProfileImageDropSource) {
-        if (fallbackSource) {
-          await onSetProfileImageFromUrl(fallbackSource);
-        }
-        return;
-      }
-
-      try {
-        const resolvedSource = await resolveProfileImageDropSource(payload);
-        if (resolvedSource) {
-          await onSetProfileImageFromUrl({
-            url:
-              resolvedSource.preparedImageUrl?.trim() ||
-              resolvedSource.preview.url?.trim() ||
-              referenceUrl,
-            mediaId: resolvedSource.mediaId?.trim() || payload.mediaId?.trim() || null,
-            storagePath:
-              resolvedSource.fullStoragePath?.trim() ||
-              resolvedSource.previewStoragePath?.trim() ||
-              null,
-            loadBlob: resolvedSource.loadBlob,
-          });
-          return;
-        }
-      } catch (nextError) {
-        if (!fallbackSource) {
-          setError(toErrorMessage(nextError, "Failed to save element profile image."));
-          return;
-        }
-      }
-
-      if (fallbackSource) {
-        await onSetProfileImageFromUrl(fallbackSource);
-      }
-    },
-    [onSetProfileImageFromUrl, resolveProfileImageDropSource]
-  );
 
   const onSetImageReferenceFromUrlAtIndex = React.useCallback(
     async (index: number, source: string | ElementProfileImageDropSource) => {
@@ -1013,66 +767,6 @@ export const useElementsManagerViewState = ({
     ]
   );
 
-  const onSaveProfileImageTransform = React.useCallback(
-    async (transform: ElementDraft["profileImageTransform"]) => {
-      const targetId = selectedElementIdRef.current;
-      if (!targetId) {
-        setError(SAVE_ELEMENT_FIRST_MESSAGE);
-        return false;
-      }
-      setError(null);
-      try {
-        const persistedTransform = await saveElementProfileImageAdjustments({
-          elementId: targetId,
-          transform,
-        });
-        setDraft((current) => {
-          const nextDraft = {
-            ...current,
-            profileImageTransform: persistedTransform,
-          };
-          lastPersistedDraftRef.current = serializeDraftState(nextDraft);
-          syncElementListEntryById(targetId, nextDraft);
-          return nextDraft;
-        });
-        return true;
-      } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to save element profile adjustments."));
-        return false;
-      }
-    },
-    [setDraft, syncElementListEntryById]
-  );
-
-  const onClearProfileImage = React.useCallback(async () => {
-    const targetId = selectedElementIdRef.current;
-    if (!targetId) {
-      setError(SAVE_ELEMENT_FIRST_MESSAGE);
-      return;
-    }
-    setError(null);
-    setIsSavingProfileImage(true);
-    try {
-      await clearElementProfileImage({
-        elementId: targetId,
-      });
-      setDraft((current) => {
-        const nextDraft = {
-          ...current,
-          profileImageUrl: null,
-          profileImageTransform: createEmptyElementDraft().profileImageTransform,
-        };
-        lastPersistedDraftRef.current = serializeDraftState(nextDraft);
-        syncElementListEntryById(targetId, nextDraft);
-        return nextDraft;
-      });
-    } catch (nextError) {
-      setError(toErrorMessage(nextError, "Failed to clear element profile image."));
-    } finally {
-      setIsSavingProfileImage(false);
-    }
-  }, [setDraft, syncElementListEntryById]);
-
   React.useEffect(() => {
     const targetId = selectedElementId;
     if (!targetId) return;
@@ -1127,31 +821,10 @@ export const useElementsManagerViewState = ({
     []
   );
 
-  const closeEditor = React.useCallback(() => {
-    setPendingDiscardDraft(false);
-    setIsEditorOpen(false);
-    setError(null);
-    if (selectedElementIdRef.current === null) {
-      resetDraft();
-      lastPersistedDraftRef.current = serializeDraftState(createEmptyElementDraft());
-    }
-  }, [resetDraft]);
-
-  const requestCloseEditor = React.useCallback(() => {
-    if (selectedElementIdRef.current === null && isDraftDirty) {
-      setPendingDiscardDraft(true);
-      return;
-    }
-    closeEditor();
-  }, [closeEditor, isDraftDirty]);
-
   return {
     elements,
     selectedElementId,
     pendingDeleteElementId,
-    isEditorOpen,
-    editorMode,
-    pendingDiscardDraft,
     draft,
     error,
     loading,
@@ -1159,23 +832,11 @@ export const useElementsManagerViewState = ({
     isDeletingElement,
     isSwitchingElement,
     isSavingElement,
-    isSavingProfileImage,
-    hasUnsavedElementDraft,
     updateDraftField,
-    onSetAssetType,
-    assignActiveImageReferenceAtIndex,
     onHandleImageReferenceTransferAtIndex,
     clearActiveImageReferenceAtIndex,
     assignActiveVideoReference,
     clearActiveVideoReference,
-    onSetProfileImageFile,
-    onSetProfileImageFromUrl,
-    onSetProfileImageFromInternalDrop,
-    onSaveProfileImageTransform,
-    onClearProfileImage,
-    onRequestCloseEditor: requestCloseEditor,
-    onCancelCloseEditor: () => setPendingDiscardDraft(false),
-    onConfirmCloseEditor: closeEditor,
     onCreateElement: () => {
       void handleCreateElement();
     },
@@ -1188,6 +849,5 @@ export const useElementsManagerViewState = ({
     onConfirmDeleteElement: () => {
       void handleDeleteElement();
     },
-    reportSaveElementRequired: () => setError(SAVE_ELEMENT_FIRST_MESSAGE),
   };
 };

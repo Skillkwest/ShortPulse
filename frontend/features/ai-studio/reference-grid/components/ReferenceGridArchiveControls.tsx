@@ -4,6 +4,7 @@ import type { StudioOutput } from "../../types";
 
 type ReferenceGridArchiveControlsProps = {
   archiveCount: number;
+  visibleItemCount: number;
   showHeader: boolean;
   showTitle?: boolean;
   showTopTitleDivider?: boolean;
@@ -22,6 +23,7 @@ type ReferenceGridArchiveControlsProps = {
  */
 export function ReferenceGridArchiveControls({
   archiveCount,
+  visibleItemCount,
   showHeader,
   showTitle = true,
   showTopTitleDivider = false,
@@ -42,15 +44,18 @@ export function ReferenceGridArchiveControls({
             !showTitle ? " is-title-hidden" : ""
           }`}
         >
-          <div
-            className={`reference-all-refs-title-wrap${
-              showTopTitleDivider && showTitle ? " is-top-section-header" : ""
-            }`}
-          >
-            {showTitle ? <p className="eyebrow">Reference Grid</p> : null}
-            {showTopTitleDivider && showTitle ? (
-              <span className="reference-section-title-divider" aria-hidden="true" />
-            ) : null}
+          <div className="reference-all-refs-header-meta">
+            <p className="tiny subdued reference-all-refs-count">Media: {visibleItemCount}</p>
+            <div
+              className={`reference-all-refs-title-wrap${
+                showTopTitleDivider && showTitle ? " is-top-section-header" : ""
+              }`}
+            >
+              {showTitle ? <p className="eyebrow">Reference Grid</p> : null}
+              {showTopTitleDivider && showTitle ? (
+                <span className="reference-section-title-divider" aria-hidden="true" />
+              ) : null}
+            </div>
           </div>
           <div className="preview-header-actions">
             {!hideUploadActions ? (

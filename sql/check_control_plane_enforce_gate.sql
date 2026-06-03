@@ -10,16 +10,22 @@
 -- Implementation note:
 -- Build checks once into a temp table, then emit both result sets.
 -- This avoids duplicating a large CTE block while preserving output contract.
+--
+-- Pooler note:
+-- Production hosted DB access commonly runs through the Supabase transaction
+-- pooler, so the temp-table lifecycle must stay inside one explicit transaction.
 
-drop table if exists pg_temp.control_plane_enforce_checks;
+begin;
 
-create temporary table pg_temp.control_plane_enforce_checks (
+drop table if exists control_plane_enforce_checks;
+
+create temporary table control_plane_enforce_checks (
   check_name text not null,
   pass boolean not null,
   detail text not null
 );
 
-insert into pg_temp.control_plane_enforce_checks (check_name, pass, detail)
+insert into control_plane_enforce_checks (check_name, pass, detail)
 with scheduler as (
   select exists (
     select 1
@@ -100,6 +106,7 @@ runtime_sql as (
         ('public.list_admin_user_health_active_targets(integer,integer)'),
         ('public.prune_admin_user_health_history(integer)'),
         ('public.get_active_agent_safety_policy()'),
+        ('public.create_agent_safety_policy_version(text,jsonb,text,text,uuid,text,boolean,text)'),
         ('public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)'),
         ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)')
     ) as f(signature)
@@ -219,25 +226,29 @@ scheduler_function_contract as (
         (
           'public.invoke_generation_recovery_scheduler()'::text,
           'shortpulse_vercel_protection_bypass_token'::text,
-          'x-vercel-protection-bypass'::text
+          'x-vercel-protection-bypass'::text,
+          'timeout_milliseconds := 60000'::text
         ),
         (
           'public.invoke_media_derivative_scheduler()'::text,
           'shortpulse_vercel_protection_bypass_token'::text,
-          'x-vercel-protection-bypass'::text
+          'x-vercel-protection-bypass'::text,
+          'timeout_milliseconds := 60000'::text
         ),
         (
           'public.invoke_admin_user_health_fleet_scheduler()'::text,
           'shortpulse_vercel_protection_bypass_token'::text,
-          'x-vercel-protection-bypass'::text
+          'x-vercel-protection-bypass'::text,
+          'timeout_milliseconds := 60000'::text
         )
-    ) as t(function_signature, required_secret_snippet, required_header_snippet)
+    ) as t(function_signature, required_secret_snippet, required_header_snippet, required_timeout_snippet)
   ),
   resolved as (
     select
       e.function_signature,
       e.required_secret_snippet,
       e.required_header_snippet,
+      e.required_timeout_snippet,
       to_regprocedure(e.function_signature) as regproc
     from expected_contract e
   ),
@@ -246,6 +257,7 @@ scheduler_function_contract as (
       r.function_signature,
       r.required_secret_snippet,
       r.required_header_snippet,
+      r.required_timeout_snippet,
       r.regproc,
       case
         when r.regproc is null then null
@@ -258,6 +270,7 @@ scheduler_function_contract as (
   where regproc is null
      or function_definition not like '%' || required_secret_snippet || '%'
      or function_definition not like '%' || required_header_snippet || '%'
+     or function_definition not like '%' || required_timeout_snippet || '%'
 )
 select
   'scheduler_alive'::text as check_name,
@@ -335,7 +348,7 @@ union all
 select
   'scheduler_function_contract_parity'::text,
   ((select failing_checks from scheduler_function_contract) = 0) as pass,
-  'scheduler functions must read bypass token secret and send x-vercel-protection-bypass header' as detail;
+  'scheduler functions must read bypass token secret, send x-vercel-protection-bypass, and set timeout_milliseconds := 60000' as detail;
 
 select
   check_name,
@@ -345,5 +358,7 @@ from pg_temp.control_plane_enforce_checks
 order by check_name;
 
 select count(*)::integer as failing_check_count
-from pg_temp.control_plane_enforce_checks
+from control_plane_enforce_checks
 where pass is false;
+
+commit;

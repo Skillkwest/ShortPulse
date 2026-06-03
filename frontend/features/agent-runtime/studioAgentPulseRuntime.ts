@@ -168,7 +168,8 @@ export const buildStudioAgentPulseTurnStateMessage = ({
     previousAssistantTurn: latestAssistantMessage,
     responseContract: {
       needs_input: "ask only for remaining missing inputs",
-      ready: "final artifact complete; set actions.applyPrompt to exact artifact text",
+      ready:
+        "ordinary direct answer => message only; final reusable artifact => set actions.applyPrompt to exact artifact text",
     },
   });
 
@@ -407,6 +408,7 @@ export const buildStudioAgentPulseSystemMessage = (
       "When the pulse instructions imply a questionnaire, interview, checklist, or staged intake, do not repeat the whole list after a user reply. Infer which requested fields were answered and ask only for the missing ones.",
       "Do not repeat previously answered items unless the user asks to restart or the answer is unusable and you need one narrow clarification.",
       "When you are still collecting information or chatting, return status `needs_input`, keep the user-facing question in message, and do not emit a final artifact.",
+      "For an ordinary direct answer that is not a reusable prompt or artifact, you may return status `ready` with message only and omit actions.applyPrompt.",
       "When you have a final generation-ready artifact, return status `ready` and put the exact artifact text into actions.applyPrompt.",
       "If you set actions.applyPrompt, you may mirror the same text in message, but the applyPrompt value is the authoritative final artifact.",
       `preset_id: ${presetId}`,

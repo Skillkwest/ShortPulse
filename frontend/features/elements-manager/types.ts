@@ -18,7 +18,6 @@ export type ElementLibraryItem = {
   assetType: ElementAssetType;
   profileImageUrl: string | null;
   profileImageTransform: ElementProfileImageTransform;
-  thumbnailUrl: string | null;
   imageReferenceUrls: string[];
   videoReferenceUrl: string | null;
   updatedAt: string | null;

@@ -844,17 +844,6 @@
   background: rgb(24, 26, 29);
 }
 
-.media-library-folder-canvas {
-  flex: 1 1 auto;
-  min-height: 480px;
-  display: flex;
-  flex-direction: column;
-}
-
-.media-library-folder-canvas .canvas-properties-panel {
-  min-height: 480px;
-}
-
 .media-library-panel-media-card-shell,
 .media-library-panel-prompt-reference-shell {
   position: relative;

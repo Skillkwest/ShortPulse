@@ -3,7 +3,7 @@
  * Mirrors the Character editor card anatomy with Elements-specific copy and magenta accents.
  */
 import React from "react";
-import { ELEMENT_PANEL_ACCENT_HELPER, ELEMENT_PANEL_ACCENT_LABEL } from "../constants";
+import { ELEMENT_PANEL_ACCENT_LABEL } from "../constants";
 
 const ELEMENTS_DESCRIPTION_INPUT_BACKGROUND = "#131518";
 const ELEMENTS_DESCRIPTION_BORDER = "rgba(34, 40, 49, 0.96)";
@@ -94,27 +94,10 @@ const ELEMENTS_DESCRIPTION_HELPER_ROW_STYLE: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "flex-start",
 };
-const ELEMENTS_DESCRIPTION_HELPER_STYLE: React.CSSProperties = {
-  margin: 0,
-  color: ELEMENT_PANEL_ACCENT_HELPER,
-  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
-  fontSize: "12px",
-  lineHeight: 1.4,
-};
-
 type ElementsDescriptionEditorCardProps = {
   description: string;
-  helperText?: string;
   maxLength: number;
-  rows: number;
-  disabled: boolean;
-  cardGapPx?: number;
   containerHeightPx?: number;
-  containerPaddingTopPx?: number;
-  containerPaddingXpx?: number;
-  containerPaddingBottomPx?: number;
-  textareaPaddingYpx?: number;
-  footerMinHeightPx?: number;
   onChangeDescription: (value: string) => void;
 };
 
@@ -123,34 +106,23 @@ type ElementsDescriptionEditorCardProps = {
  */
 export function ElementsDescriptionEditorCard({
   description,
-  helperText,
   maxLength,
-  rows,
-  disabled,
-  cardGapPx,
   containerHeightPx,
-  containerPaddingTopPx,
-  containerPaddingXpx,
-  containerPaddingBottomPx,
-  textareaPaddingYpx,
-  footerMinHeightPx,
   onChangeDescription,
 }: ElementsDescriptionEditorCardProps) {
   const resolvedContainerHeightPx =
     containerHeightPx ?? Number.parseFloat(ELEMENTS_DESCRIPTION_DROP_ZONE_HEIGHT);
-  const resolvedContainerPaddingTopPx = containerPaddingTopPx ?? 14;
-  const resolvedContainerPaddingXpx = containerPaddingXpx ?? 16;
-  const resolvedContainerPaddingBottomPx = containerPaddingBottomPx ?? 30;
-  const resolvedTextareaPaddingYpx = textareaPaddingYpx ?? 6;
-  const resolvedFooterMinHeightPx = footerMinHeightPx ?? 14;
+  const resolvedContainerPaddingTopPx = 14;
+  const resolvedContainerPaddingXpx = 16;
+  const resolvedContainerPaddingBottomPx = 30;
+  const resolvedTextareaPaddingYpx = 6;
   const showPlaceholder = description.length === 0;
 
   return (
     <div
-      className="elements-description-card elements-profile-fields"
+      className="elements-profile-field"
       style={{
         ...ELEMENTS_DESCRIPTION_CARD_STYLE,
-        gap: `${cardGapPx ?? 8}px`,
       }}
     >
       <div className="elements-description-label-row" style={ELEMENTS_DESCRIPTION_LABEL_ROW_STYLE}>
@@ -159,7 +131,6 @@ export function ElementsDescriptionEditorCard({
         </label>
       </div>
       <div
-        className="elements-description-text-container"
         style={{
           ...ELEMENTS_DESCRIPTION_TEXT_CONTAINER_STYLE,
           padding: `${resolvedContainerPaddingTopPx}px ${resolvedContainerPaddingXpx}px ${resolvedContainerPaddingBottomPx}px`,
@@ -189,12 +160,12 @@ export function ElementsDescriptionEditorCard({
             ...ELEMENTS_DESCRIPTION_INPUT_STYLE,
             padding: `${resolvedTextareaPaddingYpx}px 4px`,
           }}
-          rows={rows}
+          rows={5}
           value={description}
           maxLength={maxLength}
           onChange={(event) => onChangeDescription(event.target.value)}
           placeholder=""
-          disabled={disabled}
+          disabled={false}
         />
         <p
           className="elements-description-count tiny subdued"
@@ -204,21 +175,10 @@ export function ElementsDescriptionEditorCard({
         </p>
       </div>
       <div
-        className="elements-description-footer-row"
         style={{
           ...ELEMENTS_DESCRIPTION_HELPER_ROW_STYLE,
-          minHeight: `${resolvedFooterMinHeightPx}px`,
         }}
-      >
-        {helperText ? (
-          <p
-            className="elements-description-helper tiny subdued"
-            style={ELEMENTS_DESCRIPTION_HELPER_STYLE}
-          >
-            {helperText}
-          </p>
-        ) : null}
-      </div>
+      />
     </div>
   );
 }

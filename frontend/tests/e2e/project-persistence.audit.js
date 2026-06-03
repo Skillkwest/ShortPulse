@@ -485,30 +485,6 @@ async function main() {
       400
     );
 
-    const canvasSnapshot = {
-      schemaVersion: 1,
-      camera: { x: 0, y: 0, zoom: 1 },
-      items: [],
-    };
-    const folderCanvasSaveResult = await apiRequest({
-      token,
-      method: "POST",
-      path: "/api/ai/media-folder-canvas/save",
-      body: {
-        folderId,
-        schemaVersion: 1,
-        snapshot: canvasSnapshot,
-      },
-    });
-    assertJsonApiResult("Global media folder canvas save", folderCanvasSaveResult, 200);
-
-    const folderCanvasReadResult = await apiRequest({
-      token,
-      method: "GET",
-      path: `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`,
-    });
-    assertJsonApiResult("Global media folder canvas read", folderCanvasReadResult, 200);
-
     const legacySnapshot = buildLegacyOrphanSnapshot();
     const saveResult = await apiRequest({
       token,

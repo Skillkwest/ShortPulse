@@ -126,7 +126,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: false,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -145,7 +144,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: true,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -179,7 +177,6 @@ describe("useMediaLibraryPanelDataController", () => {
           normalizedSearch: "",
           shouldShowMedia: true,
           shouldShowPrompts: true,
-          showFolderCanvas: false,
           panelBodyRef: { current: null },
         }),
       {
@@ -245,7 +242,6 @@ describe("useMediaLibraryPanelDataController", () => {
           normalizedSearch: "",
           shouldShowMedia: true,
           shouldShowPrompts: true,
-          showFolderCanvas: false,
           panelBodyRef: { current: null },
         }),
       {
@@ -314,7 +310,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: false,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -381,7 +376,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: false,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -433,7 +427,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: false,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -515,7 +508,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: true,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -588,7 +580,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: true,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -654,7 +645,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: false,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -711,7 +701,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: false,
         shouldShowPrompts: true,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );
@@ -753,7 +742,6 @@ describe("useMediaLibraryPanelDataController", () => {
           normalizedSearch: "",
           shouldShowMedia: true,
           shouldShowPrompts: false,
-          showFolderCanvas: false,
           panelBodyRef: { current: null },
         }),
       {
@@ -793,7 +781,6 @@ describe("useMediaLibraryPanelDataController", () => {
         normalizedSearch: "",
         shouldShowMedia: true,
         shouldShowPrompts: false,
-        showFolderCanvas: false,
         panelBodyRef: { current: null },
       })
     );

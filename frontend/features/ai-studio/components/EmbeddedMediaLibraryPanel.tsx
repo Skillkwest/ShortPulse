@@ -142,7 +142,6 @@ export function EmbeddedMediaLibraryPanel({
   );
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
-  const showFolderCanvas = false;
 
   const {
     error: dataError,
@@ -166,7 +165,6 @@ export function EmbeddedMediaLibraryPanel({
     normalizedSearch,
     shouldShowMedia,
     shouldShowPrompts,
-    showFolderCanvas,
     panelBodyRef,
     listSurface: surface,
   });

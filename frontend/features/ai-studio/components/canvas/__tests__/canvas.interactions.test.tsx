@@ -932,7 +932,7 @@ describe("Canvas interaction behavior", () => {
     });
   });
 
-  it("keeps folder-canvas Shift drag export lane and avoids pointer-move scene drag", async () => {
+  it("keeps Shift drag export lane and avoids pointer-move scene drag", async () => {
     const onItemDragStart = vi.fn();
     render(<CanvasHarness isItemDraggable onItemDragStart={onItemDragStart} />);
     const viewport = screen.getByTestId("canvas-viewport");
@@ -950,6 +950,10 @@ describe("Canvas interaction behavior", () => {
     const startX = Number(item.getAttribute("data-x"));
     const startY = Number(item.getAttribute("data-y"));
 
+    fireEvent.keyDown(window, {
+      key: "Shift",
+      shiftKey: true,
+    });
     fireEvent.pointerDown(item, {
       button: 0,
       pointerId: 907,
@@ -967,10 +971,53 @@ describe("Canvas interaction behavior", () => {
       shiftKey: true,
       dataTransfer: createTransfer({}),
     });
+    fireEvent.keyUp(window, {
+      key: "Shift",
+    });
 
     expect(onItemDragStart).toHaveBeenCalledTimes(1);
     expect(Number(item.getAttribute("data-x"))).toBe(startX);
     expect(Number(item.getAttribute("data-y"))).toBe(startY);
+  });
+
+  it("keeps plain item drag on the canvas pointer-move lane when export is available", async () => {
+    const onItemDragStart = vi.fn();
+    render(<CanvasHarness isItemDraggable onItemDragStart={onItemDragStart} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Drag me locally",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 908,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(item, {
+      pointerId: 908,
+      clientX: 280,
+      clientY: 195,
+    });
+    fireEvent.pointerUp(item, {
+      pointerId: 908,
+      clientX: 280,
+      clientY: 195,
+    });
+
+    expect(onItemDragStart).not.toHaveBeenCalled();
+    expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
+    expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
   });
 
   it("preserves scene state when the panel unmounts and remounts within the page session", async () => {

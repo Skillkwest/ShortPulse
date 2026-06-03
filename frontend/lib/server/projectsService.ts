@@ -31,6 +31,18 @@ type ProjectWorkspacePreviewRow = {
   snapshot: Record<string, unknown> | null;
 };
 
+type ProjectOutputDisplayPreviewRow = {
+  project_id: string;
+  output_id: string;
+  mode?: string | null;
+  task_state?: string | null;
+  preview_url_fallback?: string | null;
+  result_urls_fallback?: unknown;
+  preview_storage_path?: string | null;
+  full_storage_path?: string | null;
+  hidden_in_reference_grid?: boolean | null;
+};
+
 type SnapshotOutputPreviewRecord = {
   id: string;
   mode?: string;
@@ -77,6 +89,31 @@ const asStringArray = (value: unknown): string[] =>
         .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
         .filter((entry) => entry.length > 0)
     : [];
+
+const toDisplayOutputPreviewRecord = (
+  value: ProjectOutputDisplayPreviewRow
+): SnapshotOutputPreviewRecord | null => {
+  const id = typeof value.output_id === "string" ? value.output_id.trim() : "";
+  if (!id) return null;
+
+  return {
+    id,
+    mode: typeof value.mode === "string" ? value.mode.trim() : undefined,
+    taskState: typeof value.task_state === "string" ? value.task_state.trim() : undefined,
+    previewUrl:
+      typeof value.preview_url_fallback === "string"
+        ? value.preview_url_fallback.trim()
+        : undefined,
+    resultUrls: asStringArray(value.result_urls_fallback),
+    previewStoragePath:
+      typeof value.preview_storage_path === "string"
+        ? value.preview_storage_path.trim()
+        : undefined,
+    fullStoragePath:
+      typeof value.full_storage_path === "string" ? value.full_storage_path.trim() : undefined,
+    hiddenInReferenceGrid: value.hidden_in_reference_grid === true,
+  };
+};
 
 const toSnapshotOutputPreviewRecord = (value: unknown): SnapshotOutputPreviewRecord | null => {
   const record = asRecord(value);
@@ -219,6 +256,63 @@ const resolveProjectPreviewImageCandidatesFromSnapshot = (
   });
 };
 
+const resolveProjectPreviewImageCandidatesFromDisplayRecords = ({
+  snapshot,
+  displayRows,
+  userId,
+}: {
+  snapshot: Record<string, unknown> | null | undefined;
+  displayRows: ProjectOutputDisplayPreviewRow[];
+  userId?: string | null;
+}): ProjectPreviewCandidate[] => {
+  if (displayRows.length === 0) return [];
+  const outputsRecord = asRecord(asRecord(snapshot).outputs);
+  const displayOutputs = displayRows
+    .map((row) => toDisplayOutputPreviewRecord(row))
+    .filter(
+      (value): value is SnapshotOutputPreviewRecord =>
+        value !== null && !isFailedSnapshotOutputPreviewRecord(value)
+    );
+  const outputsById = displayOutputs.reduce<Record<string, SnapshotOutputPreviewRecord>>(
+    (acc, output) => {
+      acc[output.id] = output;
+      return acc;
+    },
+    {}
+  );
+  const curatedReferenceIds = asStringArray(outputsRecord.curatedReferenceIds);
+  const quickSlotPreviews = collectUniqueImageCandidates(
+    curatedReferenceIds
+      .map((id) => outputsById[id])
+      .filter((output): output is SnapshotOutputPreviewRecord => Boolean(output)),
+    { limit: PROJECT_PREVIEW_IMAGE_LIMIT, userId }
+  );
+  if (quickSlotPreviews.length > 0) {
+    return quickSlotPreviews;
+  }
+
+  const activeOutputIds = Array.isArray(outputsRecord.active)
+    ? outputsRecord.active
+        .map((row) => {
+          const id = asRecord(row).id;
+          return typeof id === "string" ? id.trim() : "";
+        })
+        .filter((id) => id.length > 0)
+    : [];
+  const activeDisplayOutputs =
+    activeOutputIds.length > 0
+      ? activeOutputIds
+          .map((id) => outputsById[id])
+          .filter((output): output is SnapshotOutputPreviewRecord => Boolean(output))
+      : displayOutputs;
+
+  return collectUniqueImageCandidates(activeDisplayOutputs, {
+    excludeHiddenInReferenceGrid: true,
+    limit: PROJECT_PREVIEW_IMAGE_LIMIT,
+    userId,
+  });
+};
+
 export const resolveProjectPreviewImageUrlsFromSnapshot = (
   snapshot: Record<string, unknown> | null | undefined,
   userId?: string | null
@@ -344,16 +438,50 @@ export const listProjectsForUser = async ({
     throw new Error(workspaceError.message || "Failed to list project previews");
   }
 
+  const projectIds = projects.map((project) => project.id);
+  const { data: displayRows, error: displayError } = await supabaseAdmin
+    .from("project_output_display_items")
+    .select(
+      [
+        "project_id",
+        "output_id",
+        "mode",
+        "task_state",
+        "preview_url_fallback",
+        "result_urls_fallback",
+        "preview_storage_path",
+        "full_storage_path",
+        "hidden_in_reference_grid",
+      ].join(", ")
+    )
+    .eq("user_id", userId)
+    .in("project_id", projectIds);
+
+  const displayRowsByProjectId = new Map<string, ProjectOutputDisplayPreviewRow[]>();
+  if (!displayError) {
+    (Array.isArray(displayRows) ? displayRows : []).forEach((row) => {
+      const displayRow = row as unknown as ProjectOutputDisplayPreviewRow;
+      const rows = displayRowsByProjectId.get(displayRow.project_id) ?? [];
+      rows.push(displayRow);
+      displayRowsByProjectId.set(displayRow.project_id, rows);
+    });
+  }
+
   const previewUrlsByProjectId = new Map<string, string[]>();
   const previewCandidatesByProjectId = new Map<string, ProjectPreviewCandidate[]>();
   const storagePathsToSign = new Set<string>();
 
   (workspaceRows ?? []).forEach((row) => {
     const workspaceRow = row as ProjectWorkspacePreviewRow;
-    const previewCandidates = resolveProjectPreviewImageCandidatesFromSnapshot(
-      workspaceRow.snapshot,
-      userId
-    );
+    const displayCandidates = resolveProjectPreviewImageCandidatesFromDisplayRecords({
+      snapshot: workspaceRow.snapshot,
+      displayRows: displayRowsByProjectId.get(workspaceRow.project_id) ?? [],
+      userId,
+    });
+    const previewCandidates =
+      displayCandidates.length > 0
+        ? displayCandidates
+        : resolveProjectPreviewImageCandidatesFromSnapshot(workspaceRow.snapshot, userId);
     previewCandidatesByProjectId.set(workspaceRow.project_id, previewCandidates);
     previewCandidates.forEach((candidate) => {
       candidate.storagePaths.forEach((path) => storagePathsToSign.add(path));

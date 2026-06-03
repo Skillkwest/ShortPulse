@@ -72,7 +72,7 @@ describe("resolveStudioAgentTurnResponse", () => {
     expect(result.resolvedCanonical).toBe("existing canonical");
   });
 
-  it("promotes ready custom Pulse replies into an authoritative prompt artifact", () => {
+  it("keeps ready custom Pulse replies chat-only unless applyPrompt is explicit", () => {
     const result = resolveStudioAgentTurnResponse({
       parsed: {
         message: "A cinematic dark-fantasy storyboard sequence with escalating beetle swarms.",
@@ -97,12 +97,8 @@ describe("resolveStudioAgentTurnResponse", () => {
     });
 
     expect(result.refusal).toBe(false);
-    expect(result.parsed.actions?.applyPrompt).toBe(
-      "A cinematic dark-fantasy storyboard sequence with escalating beetle swarms."
-    );
-    expect(result.resolvedCanonical).toBe(
-      "A cinematic dark-fantasy storyboard sequence with escalating beetle swarms."
-    );
+    expect(result.parsed.actions).toBeUndefined();
+    expect(result.resolvedCanonical).toBeNull();
   });
 
   it("does not strip prompt-like wording from workflow pulse chat replies", () => {

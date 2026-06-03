@@ -48,7 +48,7 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`
 - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
 - `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`
-- `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`
+- `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md` (historical; retired runtime)
 - `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`
 - `docs/adr/0035-media-library-all-media-completeness-and-preview-contract.md`
 - `docs/adr/0036-media-library-signed-preview-delivery-and-next-optimizer-bypass.md`
@@ -81,7 +81,7 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0064-project-asset-association-foundation.md`
 - `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
 - `docs/adr/0066-project-media-library-folder-authority.md`
-- `docs/adr/0067-project-media-library-folder-canvas-authority.md`
+- `docs/adr/0067-project-media-library-folder-canvas-authority.md` (historical; superseded by `docs/adr/0090-retire-media-library-folder-canvas.md`)
 - `docs/adr/0068-model-pricing-control-plane.md`
 - `docs/adr/0069-admin-created-billing-plans.md`
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
@@ -103,3 +103,5 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0086-motion-reference-video-lease-cleanup.md`
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/adr/0088-admin-priced-billed-credit-authority.md`
+- `docs/adr/0090-retire-media-library-folder-canvas.md`
+- `docs/adr/0089-large-project-persistence-hybrid-checkpoint-and-output-display-records.md`

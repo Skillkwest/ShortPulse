@@ -340,14 +340,6 @@ const resolveProjectFolderApiPath = (
   return `/api/media/folders/${suffix}`;
 };
 
-const resolveProjectFolderCanvasApiPath = (
-  _projectId: string | null | undefined,
-  folderId: string
-): string => {
-  void _projectId;
-  return `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`;
-};
-
 const toMediaFolderFromPayload = (value: unknown, fallback: string): MediaFolder => {
   const folder = asRecord(value);
   const id = asString(folder.id);
@@ -628,85 +620,6 @@ export const fetchMediaPromptListPage = async ({
     rows,
     nextCursor: toCursor(payload.nextCursor),
     hasMore: payload.hasMore === true,
-  };
-};
-
-/**
- * Loads one custom-folder canvas state for the panel.
- */
-export const getMediaFolderCanvasState = async (
-  folderId: string,
-  projectId?: string | null
-): Promise<MediaFolderCanvasState | null> => {
-  const response = await withTransientNetworkRetry(
-    async () =>
-      await fetchWithAuth(resolveProjectFolderCanvasApiPath(projectId, folderId), {
-        method: "GET",
-        shortpulseLogScope: "app",
-      })
-  );
-  if (!response.ok) {
-    const payload = asRecord(await response.json().catch(() => ({})));
-    throw new Error(asString(payload.error) || "Unable to load folder canvas state.");
-  }
-  const payload = asRecord(await response.json().catch(() => ({})));
-  const state = asRecord(payload.state);
-  const id = asString(state.folderId);
-  if (!id) return null;
-  const schemaVersion = Number(state.schemaVersion);
-  const saveSeq = Number(state.saveSeq);
-  const snapshot = asRecord(state.snapshot);
-  return {
-    folderId: id,
-    schemaVersion: Number.isFinite(schemaVersion) ? Math.trunc(schemaVersion) : 1,
-    snapshot,
-    saveSeq: Number.isFinite(saveSeq) ? Math.max(0, Math.trunc(saveSeq)) : 0,
-    createdAt: asString(state.createdAt),
-    updatedAt: asString(state.updatedAt),
-  };
-};
-
-/**
- * Saves one custom-folder canvas state for the panel.
- */
-export const saveMediaFolderCanvasState = async ({
-  folderId,
-  schemaVersion,
-  snapshot,
-  projectId: _projectId,
-}: {
-  folderId: string;
-  schemaVersion: number;
-  snapshot: Record<string, unknown>;
-  projectId?: string | null;
-}): Promise<{ schemaVersion: number; saveSeq: number; updatedAt: string }> => {
-  void _projectId;
-  const response = await withTransientNetworkRetry(
-    async () =>
-      await fetchWithAuth("/api/ai/media-folder-canvas/save", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          folderId,
-          schemaVersion,
-          snapshot,
-        }),
-        shortpulseLogScope: "app",
-      })
-  );
-  if (!response.ok) {
-    const payload = asRecord(await response.json().catch(() => ({})));
-    throw new Error(asString(payload.error) || "Unable to save folder canvas state.");
-  }
-  const payload = asRecord(await response.json().catch(() => ({})));
-  const resolvedSchemaVersion = Number(payload.schemaVersion);
-  const resolvedSaveSeq = Number(payload.saveSeq);
-  return {
-    schemaVersion: Number.isFinite(resolvedSchemaVersion) ? Math.trunc(resolvedSchemaVersion) : 1,
-    saveSeq: Number.isFinite(resolvedSaveSeq) ? Math.max(0, Math.trunc(resolvedSaveSeq)) : 0,
-    updatedAt: asString(payload.updatedAt),
   };
 };
 

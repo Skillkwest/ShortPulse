@@ -262,6 +262,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 140.  `sql/migrations/141_harden_storage_entitlement_helper_grants.sql`
 141.  `sql/migrations/142_add_model_pricing_custom_row_manifests.sql`
 142.  `sql/migrations/143_add_project_workspace_snapshot_freshness_guard.sql`
+143.  `sql/migrations/144_retire_media_folder_canvas_states.sql`
+144.  `sql/migrations/145_add_project_output_display_items.sql`
+145.  `sql/migrations/146_harden_control_plane_scheduler_timeouts.sql`
       Rollback files:
 
 
@@ -419,7 +422,7 @@ Billing safety note:
 - Migration `060_add_media_folders_and_membership.sql` adds user-owned Media Library folders (`media_folders`) and scoped media/prompt membership junctions (`media_folder_media_items`, `media_folder_prompt_items`) for AI Studio folder-based organization.
 - Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.
-- Migration `063_add_media_folder_canvas_states.sql` adds per-user/per-folder Media Library canvas snapshot persistence (`media_folder_canvas_states`) with folder-owner scoped cascade deletion.
+- Migration `063_add_media_folder_canvas_states.sql` added per-user/per-folder Media Library canvas snapshot persistence (`media_folder_canvas_states`) with folder-owner scoped cascade deletion before the folder-canvas runtime was retired.
 - Migration `064_backfill_media_files_from_storage_objects.sql` backfills missing durable `media_files` rows from `storage.objects` for All Media completeness (idempotent user/path insert checks, transient/character/variant exclusions, and rollback-target metadata tagging).
 - Migration `065_add_media_derivative_processing_fields.sql` adds image-derivative retry/lease control fields on `media_files`, an insert-default trigger that marks new image rows `pending`, and claim/backlog indexes for derivative workers.
 - Migration `066_add_media_derivative_processing_rpcs.sql` adds service-role-only derivative claim/update RPCs (`claim_media_derivative_batch`, `mark_media_derivative_ready`, `mark_media_derivative_failed`) using `SKIP LOCKED` claim semantics.
@@ -433,6 +436,9 @@ Billing safety note:
 - Migration `095_add_project_media_folder_canvas_states.sql` adds `project_media_folder_canvas_states` so Media Library custom-folder canvas snapshots can persist by `user_id + project_id + folder_id` on project routes while the legacy user-scoped folder canvas table remains in place for non-project surfaces.
 - Migration `136_restore_global_media_folder_authority.sql` backfills project-scoped Media Library folder trees, memberships, and folder-canvas snapshots into the canonical global `media_folders*` and `media_folder_canvas_states` authority, preserving folder ids and suffixing only imported sibling-name collisions.
 - Migration `137_retire_project_media_folder_authority.sql` removes the obsolete project-scoped Media Library folder tables and count RPC after the global authority backfill and runtime cutover are verified.
+- Migration `144_retire_media_folder_canvas_states.sql` removes the retired `media_folder_canvas_states` table after the Media Library folder-canvas runtime, APIs, and tests were deleted and the shared right-rail Canvas became the only shipped canvas surface.
+- Migration `145_add_project_output_display_items.sql` adds large-project output display records plus checkpoint revision freshness support for project workspace snapshots, backfills display rows from existing rich project snapshots, and adds a display-row trigger that preserves newest-source writes while keeping per-output versions monotonic.
+- Migration `146_harden_control_plane_scheduler_timeouts.sql` hardens the recovery and admin-fleet Supabase scheduler HTTP calls with explicit `60000ms` timeouts and restores the missing `service_role` execute grant for `create_agent_safety_policy_version(...)`.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
 - Read-only Character Media V2 diagnostics script `sql/check_character_media_isolation_backfill.sql` reports `character_media_assets` coverage, unmapped legacy linkage rows, and profile/preset metadata completeness.

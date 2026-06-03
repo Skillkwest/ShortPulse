@@ -8,31 +8,6 @@ import type { ElementProfileImageTransform } from "../types";
 export const ELEMENT_PROFILE_IMAGE_PREVIEW_SIZE = 172;
 
 /**
- * Builds CSS for rendering a persisted element profile crop at a different avatar size.
- *
- * @param transform Persisted profile crop settings.
- * @param renderSize Avatar size being rendered.
- * @param sourcePreviewSize Size the persisted crop values were tuned against.
- * @returns CSS transform styles, or `undefined` when no transform is available.
- */
-export function buildElementProfileImageTransformStyle(
-  transform: ElementProfileImageTransform | null | undefined,
-  renderSize: number,
-  sourcePreviewSize: number = ELEMENT_PROFILE_IMAGE_PREVIEW_SIZE
-): CSSProperties | undefined {
-  if (!transform) return undefined;
-
-  const offsetScale = renderSize / sourcePreviewSize;
-  const offsetX = Math.round(transform.offsetX * offsetScale * 100) / 100;
-  const offsetY = Math.round(transform.offsetY * offsetScale * 100) / 100;
-
-  return {
-    transform: `translate(${offsetX}px, ${offsetY}px) scale(${transform.zoom})`,
-    transformOrigin: "center center",
-  };
-}
-
-/**
  * Builds CSS background-image styling for avatar chips that need a square crop without
  * layering an additional object-fit crop on top of the saved framing.
  *

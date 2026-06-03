@@ -221,6 +221,9 @@ describe("studioAgentPulseRuntime", () => {
       "When you are still collecting information or chatting, return status `needs_input`, keep the user-facing question in message, and do not emit a final artifact."
     );
     expect(systemMessage).toContain(
+      "For an ordinary direct answer that is not a reusable prompt or artifact, you may return status `ready` with message only and omit actions.applyPrompt."
+    );
+    expect(systemMessage).toContain(
       "When you have a final generation-ready artifact, return status `ready` and put the exact artifact text into actions.applyPrompt."
     );
     expect(systemMessage).not.toContain("any final prompt or direct prompt artifact");
@@ -258,6 +261,9 @@ describe("studioAgentPulseRuntime", () => {
     expect(turnStateMessage).toContain("This is not the first turn of the conversation.");
     expect(turnStateMessage).toContain(
       "Any startup or 'when the conversation begins' instructions inside pulse_instructions are already satisfied and must not be repeated."
+    );
+    expect(turnStateMessage).toContain(
+      '"ready":"ordinary direct answer => message only; final reusable artifact => set actions.applyPrompt to exact artifact text"'
     );
     expect(turnStateMessage).toContain('"startupSatisfied":true');
     expect(turnStateMessage).toContain("latest_user_reply: bugs dark bugs");

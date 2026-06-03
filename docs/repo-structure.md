@@ -11,6 +11,7 @@ This document describes the canonical layout of the ShortPulse product repo and 
   - `sql/`: Supabase bootstrap scripts and migrations.
 - Agent operational workspaces:
   - `docs/agents/ayla/workspace/`: Ayla-owned working drafts, support packets, and temporary intake.
+  - `docs/agents/bactuo/workspace/`: Bactuo-owned generation investigation scratch, intake, and draft architecture material.
   - `docs/agents/beeper/workspace/`: Beeper testing workspace for route audits, reports, and helper scripts.
   - `docs/agents/bopper/workspace/`: Bopper average-user testing workspace for confusion, abandonment, and checkpoint evidence.
   - `docs/agents/dave-the-security-guy/workspace/`: Dave-owned security intake, sanitized drafts, and temporary handoff material.
@@ -31,7 +32,7 @@ ShortPulse uses three distinct agent-facing layers:
   durable contract, memory entrypoint, and standing instructions.
 - `docs/records/artifacts/agent/<name>/`:
   retained non-authoritative run artifacts, reports, KPIs, and training history.
-- agent workspaces such as `docs/agents/ayla/workspace/`, `docs/agents/beeper/workspace/`, `docs/agents/bopper/workspace/`, `docs/agents/dave-the-security-guy/workspace/`, and `docs/agents/nuclo/workspace/`:
+- agent workspaces such as `docs/agents/ayla/workspace/`, `docs/agents/bactuo/workspace/`, `docs/agents/beeper/workspace/`, `docs/agents/bopper/workspace/`, `docs/agents/dave-the-security-guy/workspace/`, and `docs/agents/nuclo/workspace/`:
   active scratch, handoff, and temporary working material that should stay separate from canonical product code and docs.
 
 Agent workspaces are operational surfaces, not source of truth. Durable lessons should be promoted into `docs/agents/` or `docs/records/artifacts/agent/` when they need to survive beyond the active working lane.

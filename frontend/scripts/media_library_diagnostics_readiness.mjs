@@ -21,16 +21,9 @@ const LOADED_ENV_FILES = loadLocalEnv({
   ],
 });
 
-const DEFAULT_OUTPUT_FILE = path.join(
-  os.tmpdir(),
-  "media-library-diagnostics-readiness.latest.md"
-);
+const DEFAULT_OUTPUT_FILE = path.join(os.tmpdir(), "media-library-diagnostics-readiness.latest.md");
 
-const LIVE_APP_ENV_KEYS = [
-  "SHORTPULSE_STAGING_BASE_URL",
-  "NEXT_PUBLIC_APP_URL",
-  "VERCEL_URL",
-];
+const LIVE_APP_ENV_KEYS = ["SHORTPULSE_STAGING_BASE_URL", "NEXT_PUBLIC_APP_URL", "VERCEL_URL"];
 
 const TOKEN_ENV_KEYS = [
   "SHORTPULSE_MEDIA_LIBRARY_BEARER_TOKEN",
@@ -48,7 +41,6 @@ const SQL_DIAGNOSTICS = [
 const PHASE0_COMMANDS = [
   "npm -C frontend run media:phase0",
   "npm -C frontend run media:phase0:probe -- --preset panel --base-url <url> --token <token>",
-  "npm -C frontend run test:e2e:elements-panel-layout",
 ];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
@@ -94,7 +86,10 @@ const readTrimmedFile = (filePath) => {
   }
 };
 
-export const detectLocalReadiness = ({ repoRoot = REPO_ROOT, frontendRoot = FRONTEND_ROOT } = {}) => {
+export const detectLocalReadiness = ({
+  repoRoot = REPO_ROOT,
+  frontendRoot = FRONTEND_ROOT,
+} = {}) => {
   const supabaseTempRoot = path.join(repoRoot, "supabase", ".temp");
   const linkedProjectRef = readTrimmedFile(path.join(supabaseTempRoot, "project-ref"));
   const linkedProjectJsonPath = path.join(supabaseTempRoot, "linked-project.json");
@@ -158,14 +153,13 @@ export const detectToolingReadiness = ({ repoRoot = REPO_ROOT } = {}) => {
     supabaseCliAvailable: supabaseVersion.ok,
     supabaseVersion:
       supabaseVersion.ok && supabaseVersion.stdout
-        ? supabaseVersion.stdout.split("\n").pop() ?? supabaseVersion.stdout
+        ? (supabaseVersion.stdout.split("\n").pop() ?? supabaseVersion.stdout)
         : "",
     psqlAvailable: psqlVersion.ok,
     linkedInspectCallsOk: linkedInspectCalls.ok,
-    linkedInspectCallsError:
-      linkedInspectCalls.ok
-        ? ""
-        : linkedInspectCalls.stderr || linkedInspectCalls.error || linkedInspectCalls.stdout,
+    linkedInspectCallsError: linkedInspectCalls.ok
+      ? ""
+      : linkedInspectCalls.stderr || linkedInspectCalls.error || linkedInspectCalls.stdout,
   };
 };
 
@@ -185,18 +179,23 @@ export const buildReadinessModel = ({
   const linkedDbReady = local.linkedProjectConfigured && tooling.supabaseCliAvailable;
 
   const blockers = [];
-  if (!baseUrl?.value) blockers.push("No staging/base URL env is available for authenticated phase0 probes.");
-  if (!token?.value) blockers.push("No bearer token env is available for authenticated phase0 probes.");
-  if (!local.linkedProjectConfigured) blockers.push("No linked Supabase project context was found under supabase/.temp.");
+  if (!baseUrl?.value)
+    blockers.push("No staging/base URL env is available for authenticated phase0 probes.");
+  if (!token?.value)
+    blockers.push("No bearer token env is available for authenticated phase0 probes.");
+  if (!local.linkedProjectConfigured)
+    blockers.push("No linked Supabase project context was found under supabase/.temp.");
   if (!tooling.supabaseCliAvailable) blockers.push("Supabase CLI is not available.");
-  if (!tooling.psqlAvailable) blockers.push("psql is not installed, so raw SQL diagnostics are not directly runnable.");
+  if (!tooling.psqlAvailable)
+    blockers.push("psql is not installed, so raw SQL diagnostics are not directly runnable.");
   if (linkedDbReady && !tooling.linkedInspectCallsOk) {
     blockers.push(
       `Linked Supabase inspect calls are not healthy: ${tooling.linkedInspectCallsError || "unknown error"}`
     );
   }
 
-  let recommendedLane = "Continue static repo/code audits until live measurement access is restored.";
+  let recommendedLane =
+    "Continue static repo/code audits until live measurement access is restored.";
   if (tooling.linkedInspectCallsOk && !liveProbeReady) {
     recommendedLane =
       "Use linked Supabase inspect + repo diagnostics to validate derivative health while waiting on app probe credentials.";
@@ -243,10 +242,10 @@ export const renderMarkdown = (model) => {
   lines.push(`- Linked project ref: ${model.local.linkedProjectRef || "missing"}`);
   lines.push(`- Linked project name: ${model.local.linkedProjectName || "unknown"}`);
   lines.push(`- Linked organization: ${model.local.linkedProjectOrg || "unknown"}`);
+  lines.push(`- SQL diagnostics present: ${model.local.sqlDiagnosticsPresent ? "yes" : "no"}`);
   lines.push(
-    `- SQL diagnostics present: ${model.local.sqlDiagnosticsPresent ? "yes" : "no"}`
+    `- Loaded env files: ${model.loadedEnvFiles.length ? model.loadedEnvFiles.join(", ") : "none"}`
   );
-  lines.push(`- Loaded env files: ${model.loadedEnvFiles.length ? model.loadedEnvFiles.join(", ") : "none"}`);
   lines.push("");
   lines.push("## Tooling");
   lines.push(

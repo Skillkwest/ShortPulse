@@ -225,8 +225,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const normalizedSearch = "";
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
-  // Folder canvas remains a secondary domain and is no longer the default folder browse surface.
-  const showFolderCanvas = false;
   const {
     error: dataError,
     mediaRows,
@@ -249,7 +247,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     normalizedSearch,
     shouldShowMedia,
     shouldShowPrompts,
-    showFolderCanvas,
     panelBodyRef,
     listSurface: panelListSurface,
   });
@@ -1096,7 +1093,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const showCustomFolderEmptyState =
-    !showFolderCanvas &&
     !isRootFolderSelected &&
     !error &&
     !promptLoading &&
@@ -1364,41 +1360,39 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               membershipMessage={membershipMessage}
               storageQuotaMessage={storageQuotaMessage}
             />
-            {!showFolderCanvas ? (
-              isRootFolderSelected ? (
-                <MediaLibraryPanelRootContent
-                  rootTab={rootTab}
-                  setRootTab={setRootTab}
-                  libraryTotalCount={libraryTotalCount}
-                  isMediaLibraryPanelExpanded={isMediaLibraryPanelExpanded}
-                  onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
-                  onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
-                  onOpenRootUploadPicker={handleOpenRootUploadPicker}
-                  disableUploads={isStorageQuotaBlocked}
-                  bulkActions={bulkActions}
-                  selectedVisibleMediaCount={selectedVisibleMediaRows.length}
-                  itemType={itemType}
-                  isRootFolderDropHover={isRootFolderDropHover}
-                  rootFolderDropZoneProps={rootFolderDropZoneProps}
-                  mediaLoading={mediaLoading}
-                  mediaRowsLength={mediaRows.length}
-                  promptLoading={promptLoading}
-                  visiblePromptRowsLength={visiblePromptRows.length}
-                  visibleImageRowsLength={visibleImageRows.length}
-                  visibleVideoRowsLength={visibleVideoRows.length}
-                  visibleAudioRowsLength={visibleAudioRows.length}
-                  renderAllItemsGrid={renderRootAllItemsGrid}
-                  renderImageGrid={renderRootImageGrid}
-                  renderVideoGrid={renderRootVideoGrid}
-                  renderAudioGrid={renderAudioGrid}
-                  renderPromptsSection={renderRootPromptsGrid}
-                  mediaHasMore={mediaHasMore}
-                  loadMediaPage={loadMediaPage}
-                />
-              ) : null
+            {isRootFolderSelected ? (
+              <MediaLibraryPanelRootContent
+                rootTab={rootTab}
+                setRootTab={setRootTab}
+                libraryTotalCount={libraryTotalCount}
+                isMediaLibraryPanelExpanded={isMediaLibraryPanelExpanded}
+                onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
+                onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
+                onOpenRootUploadPicker={handleOpenRootUploadPicker}
+                disableUploads={isStorageQuotaBlocked}
+                bulkActions={bulkActions}
+                selectedVisibleMediaCount={selectedVisibleMediaRows.length}
+                itemType={itemType}
+                isRootFolderDropHover={isRootFolderDropHover}
+                rootFolderDropZoneProps={rootFolderDropZoneProps}
+                mediaLoading={mediaLoading}
+                mediaRowsLength={mediaRows.length}
+                promptLoading={promptLoading}
+                visiblePromptRowsLength={visiblePromptRows.length}
+                visibleImageRowsLength={visibleImageRows.length}
+                visibleVideoRowsLength={visibleVideoRows.length}
+                visibleAudioRowsLength={visibleAudioRows.length}
+                renderAllItemsGrid={renderRootAllItemsGrid}
+                renderImageGrid={renderRootImageGrid}
+                renderVideoGrid={renderRootVideoGrid}
+                renderAudioGrid={renderAudioGrid}
+                renderPromptsSection={renderRootPromptsGrid}
+                mediaHasMore={mediaHasMore}
+                loadMediaPage={loadMediaPage}
+              />
             ) : null}
 
-            {!showFolderCanvas && !isRootFolderSelected ? (
+            {!isRootFolderSelected ? (
               <MediaLibraryPanelFolderContent
                 activeFolderId={activeFolderId}
                 activeFolderName={activeFolderName}

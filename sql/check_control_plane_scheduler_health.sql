@@ -164,25 +164,29 @@ with expected_contract as (
       (
         'public.invoke_generation_recovery_scheduler()'::text,
         'shortpulse_vercel_protection_bypass_token'::text,
-        'x-vercel-protection-bypass'::text
+        'x-vercel-protection-bypass'::text,
+        'timeout_milliseconds := 60000'::text
       ),
       (
         'public.invoke_media_derivative_scheduler()'::text,
         'shortpulse_vercel_protection_bypass_token'::text,
-        'x-vercel-protection-bypass'::text
+        'x-vercel-protection-bypass'::text,
+        'timeout_milliseconds := 60000'::text
       ),
       (
         'public.invoke_admin_user_health_fleet_scheduler()'::text,
         'shortpulse_vercel_protection_bypass_token'::text,
-        'x-vercel-protection-bypass'::text
+        'x-vercel-protection-bypass'::text,
+        'timeout_milliseconds := 60000'::text
       )
-  ) as t(function_signature, required_secret_snippet, required_header_snippet)
+  ) as t(function_signature, required_secret_snippet, required_header_snippet, required_timeout_snippet)
 ),
 resolved as (
   select
     e.function_signature,
     e.required_secret_snippet,
     e.required_header_snippet,
+    e.required_timeout_snippet,
     to_regprocedure(e.function_signature) as regproc
   from expected_contract e
 ),
@@ -191,6 +195,7 @@ definitions as (
     r.function_signature,
     r.required_secret_snippet,
     r.required_header_snippet,
+    r.required_timeout_snippet,
     r.regproc,
     case
       when r.regproc is null then null
@@ -203,15 +208,19 @@ select
   (regproc is not null) as function_present,
   (function_definition like '%' || required_secret_snippet || '%') as has_required_secret_read,
   (function_definition like '%' || required_header_snippet || '%') as has_required_bypass_header,
+  (function_definition like '%' || required_timeout_snippet || '%') as has_required_timeout,
   case
     when regproc is null then 'missing_function'
     when function_definition not like '%' || required_secret_snippet || '%'
       and function_definition not like '%' || required_header_snippet || '%'
-      then 'missing_secret_and_header'
+      and function_definition not like '%' || required_timeout_snippet || '%'
+      then 'missing_secret_header_and_timeout'
     when function_definition not like '%' || required_secret_snippet || '%'
       then 'missing_secret_read'
     when function_definition not like '%' || required_header_snippet || '%'
       then 'missing_bypass_header'
+    when function_definition not like '%' || required_timeout_snippet || '%'
+      then 'missing_timeout'
     else 'ok'
   end as contract_status
 from definitions

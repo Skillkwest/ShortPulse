@@ -12,8 +12,7 @@ export type SharedMediaDetailSurface =
   | "media-library-panel"
   | "character-media-panel"
   | "elements-media-panel"
-  | "right-rail-canvas"
-  | "media-library-folder-canvas";
+  | "right-rail-canvas";
 
 export type SharedMediaDetailSelectionTarget =
   | {

@@ -14,6 +14,7 @@ import {
   INPAINT_REFERENCE_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
 } from "../../logic/inpaintSubmission";
+import { resolveEditImageBilledCredits } from "../../../../lib/model-runtime/editImageBilledCredits";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
 import { getDefaultModelPricingPolicyDocument } from "../../../../lib/model-runtime/pricingPolicy";
@@ -1088,6 +1089,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
         ...editInput,
         prompt: "   ",
         referenceImageUrl: "https://example.com/reference.png",
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
@@ -1101,6 +1103,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
         ...editInput,
         prompt: "Apply cinematic warm tones and increase contrast.",
         referenceImageUrl: "https://example.com/reference.png",
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
@@ -1108,13 +1111,99 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
+  it("prices GPT Image 2 Edit from the canonical billed row", () => {
+    const expectedCost = resolveEditImageBilledCredits({
+      modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      params: {
+        aspect: "16:9",
+        resolution: "medium",
+        inputImageCount: 1,
+      },
+      pricingPolicy: pricingGridPolicy,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+        aspect: "16:9",
+        prompt: "Restyle the portrait subtly.",
+        referenceImageUrl: "https://example.com/reference.png",
+        imageResolution: "2K",
+        costParamsForModel: makeCostParamsForModel(OPENAI_GPT_IMAGE_2_MODEL_ID),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+    expect(result.current.modelPickerCostCredits).toBe(expectedCost);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("keeps GPT Image 2 Edit blocked when the effective edit variant lacks a billed-credit row", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+        aspect: "16:9",
+        prompt: "Restyle the portrait subtly.",
+        referenceImageUrl: "https://example.com/reference.png",
+        extraImageUrls: ["https://example.com/look.png", null, null],
+        imageResolution: "2K",
+        costParamsForModel: makeCostParamsForModel(OPENAI_GPT_IMAGE_2_MODEL_ID),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBeNull();
+    expect(result.current.generationGuardrail).toBe(
+      "Pricing is unavailable for this configuration. Retry in a moment."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
+  it("prices Nano Banana 2 Edit from the canonical billed row even with extra refs", () => {
+    const expectedCost = resolveEditImageBilledCredits({
+      modelId: "fal-ai/nano-banana-2/edit",
+      params: {
+        aspect: "16:9",
+        resolution: "2K",
+        inputImageCount: 2,
+      },
+      pricingPolicy: pricingGridPolicy,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        model: "fal-ai/nano-banana-2/edit",
+        aspect: "16:9",
+        prompt: "Restyle the portrait subtly.",
+        referenceImageUrl: "https://example.com/reference.png",
+        extraImageUrls: ["https://example.com/look.png", null, null],
+        imageResolution: "2K",
+        costParamsForModel: makeCostParamsForModel("fal-ai/nano-banana-2/edit"),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
   it("keeps standard edit pricing when inpaint intent is requested while inpaint is disabled", () => {
-    const selectedModelId = "fal-ai/flux-2/klein/9b";
+    const selectedModelId = "fal-ai/nano-banana-2/edit";
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
-    const standardCostCredits = computeCostForModel(
-      selectedModelId,
-      editCostParamsForModel(selectedModelId, { resolution: "model_default" })
-    )?.credits;
+    const standardCostCredits = resolveEditImageBilledCredits({
+      modelId: selectedModelId,
+      params: {
+        aspect: "1:1",
+        inputImageCount: 1,
+      },
+      pricingPolicy: pricingGridPolicy,
+    });
     const inpaintCostCredits = computeCostForModel(
       INPAINT_FLUX_FILL_MODEL_ID,
       editCostParamsForModel(INPAINT_FLUX_FILL_MODEL_ID, { resolution: "model_default" })
@@ -1141,6 +1230,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
           costParamsForModel: editCostParamsForModel,
           balanceCredits,
           editSubmitIntent: intent,
+          pricingPolicy: pricingGridPolicy,
         }),
       {
         initialProps: { intent: "standard" },
@@ -1165,7 +1255,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
   });
 
   it("ignores reference-inpaint pricing when inpaint is disabled", () => {
-    const selectedModelId = "fal-ai/flux-2/klein/9b";
+    const selectedModelId = "fal-ai/nano-banana-2/edit";
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const fillCostCredits = computeCostForModel(
       INPAINT_FLUX_FILL_MODEL_ID,
@@ -1181,10 +1271,14 @@ describe("useAiStudioViewModel edit guardrails", () => {
         resolution: "model_default",
       })
     )?.credits;
-    const standardCostCredits = computeCostForModel(
-      selectedModelId,
-      editCostParamsForModel(selectedModelId)
-    )?.credits;
+    const standardCostCredits = resolveEditImageBilledCredits({
+      modelId: selectedModelId,
+      params: {
+        aspect: "1:1",
+        inputImageCount: 2,
+      },
+      pricingPolicy: pricingGridPolicy,
+    });
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -1197,6 +1291,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
         costParamsForModel: editCostParamsForModel,
         balanceCredits: 10_000,
         editSubmitIntent: "inpaint",
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
@@ -1207,12 +1302,16 @@ describe("useAiStudioViewModel edit guardrails", () => {
   });
 
   it("keeps standard edit cost and guardrails when hidden markup intent is requested", () => {
-    const selectedModelId = "fal-ai/flux-2/klein/9b";
+    const selectedModelId = "fal-ai/nano-banana-2/edit";
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
-    const standardCostCredits = computeCostForModel(
-      selectedModelId,
-      editCostParamsForModel(selectedModelId, { resolution: "model_default" })
-    )?.credits;
+    const standardCostCredits = resolveEditImageBilledCredits({
+      modelId: selectedModelId,
+      params: {
+        aspect: "1:1",
+        inputImageCount: 1,
+      },
+      pricingPolicy: pricingGridPolicy,
+    });
     const markupCostCredits = computeCostForModel(
       MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
       editCostParamsForModel(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID, {
@@ -1234,6 +1333,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
           costParamsForModel: editCostParamsForModel,
           balanceCredits,
           editSubmitIntent: intent,
+          pricingPolicy: pricingGridPolicy,
         }),
       {
         initialProps: { intent: "standard" },

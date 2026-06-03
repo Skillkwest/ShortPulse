@@ -294,7 +294,7 @@ describe("DetailModal", () => {
     expect(onSaveReference).toHaveBeenCalledWith("out-1");
   });
 
-  it("shows Saved state for media references that are already persisted", () => {
+  it("hides the save action for media references that are already persisted", () => {
     render(
       <DetailModal
         output={{
@@ -308,7 +308,8 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
   });
 
@@ -928,7 +929,7 @@ describe("DetailModal", () => {
     expect(image?.getAttribute("src")).toBe("https://cdn.test/full-quality.jpg");
   });
 
-  it("shows uploaded image filenames in the prompt blade", () => {
+  it("centers uploaded image filenames in the header and hides the prompt blade", () => {
     render(
       <DetailModal
         output={{
@@ -946,9 +947,10 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.getByText("PROMPT")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("create-page-current.png")).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("(Uploaded Image)")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "create-page-current.png" })).toBeInTheDocument();
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.queryByText("PROMPT")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("create-page-current.png")).not.toBeInTheDocument();
   });
 
   it("prefers canonical preview media over transient preview url in detail rendering", () => {

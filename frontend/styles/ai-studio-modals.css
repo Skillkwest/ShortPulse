@@ -109,6 +109,10 @@
   position: relative;
 }
 
+.art-modal-top-controls.is-center-title {
+  align-items: flex-start;
+}
+
 .art-modal-heading-group {
   display: flex;
   flex-direction: column;
@@ -143,31 +147,43 @@
   text-overflow: ellipsis;
 }
 
+.art-modal-title.is-centered {
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  transform: translateX(-50%);
+  max-width: min(560px, calc(100% - 420px));
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 430;
+  color: var(--color-ash-60);
+  text-align: center;
+  pointer-events: none;
+}
+
 .art-modal-meta-pill {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .art-meta-chip {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   max-width: 100%;
-  min-height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: var(--ai-surface-control-muted, rgba(12, 15, 22, 0.82));
-  border: 1px solid var(--ai-border-soft, rgba(201, 205, 214, 0.16));
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--color-ash-70);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 520;
+  letter-spacing: 0.01em;
 }
 
 .art-meta-divider {
   color: var(--color-ash-40);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .truncate-model {
@@ -198,23 +214,23 @@
 .art-action-btn-save {
   font-size: 12px;
   padding: 0 12px;
-  border-color: rgba(52, 200, 255, 0.46);
-  background: rgba(37, 169, 191, 0.18);
-  color: rgba(224, 247, 255, 0.96);
+  border-color: rgba(201, 205, 214, 0.22);
+  background: rgba(29, 33, 39, 0.92);
+  color: rgba(234, 240, 249, 0.94);
 }
 
 .prompt-save-modal-btn:hover:not(:disabled),
 .art-action-btn-save:hover:not(:disabled) {
-  background: rgba(37, 169, 191, 0.28);
-  border-color: rgba(52, 200, 255, 0.66);
+  background: rgba(39, 44, 51, 0.96);
+  border-color: rgba(201, 205, 214, 0.28);
 }
 
 .prompt-save-modal-btn.is-saved,
 .art-action-btn-save.is-saved {
-  border-color: rgba(72, 255, 176, 0.56);
-  background: rgba(49, 184, 129, 0.22);
-  color: rgba(214, 255, 237, 0.96);
-  box-shadow: inset 0 0 0 1px rgba(72, 255, 176, 0.18);
+  border-color: rgba(110, 231, 183, 0.34);
+  background: rgba(39, 44, 51, 0.96);
+  color: rgba(214, 255, 237, 0.94);
+  box-shadow: inset 0 0 0 1px rgba(110, 231, 183, 0.12);
 }
 
 .prompt-save-modal-btn:disabled,
@@ -254,13 +270,13 @@
 }
 
 .art-action-btn-danger {
-  background: rgba(255, 90, 90, 0.12);
+  background: rgba(29, 33, 39, 0.92);
   border-color: rgba(255, 90, 90, 0.35);
   color: #ffb6b6;
 }
 
 .art-action-btn-danger:hover {
-  background: rgba(255, 90, 90, 0.2);
+  background: rgba(39, 44, 51, 0.96);
   border-color: rgba(255, 120, 120, 0.6);
   transform: translateY(-1px);
 }
@@ -605,6 +621,7 @@
   z-index: 20;
   display: flex;
   flex-direction: column;
+  border-left: 1px solid rgba(201, 205, 214, 0.12);
 }
 
 .art-blade-inner {
@@ -658,15 +675,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(82, 197, 255, 0.15);
-  color: rgba(221, 242, 255, 0.95);
+  background: rgba(39, 44, 51, 0.95);
+  color: rgba(234, 240, 249, 0.92);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
 
 .art-character-chip-avatar--style {
-  background: rgba(255, 188, 80, 0.18);
+  background: rgba(39, 44, 51, 0.95);
   color: rgba(255, 227, 171, 0.96);
 }
 
@@ -815,21 +832,21 @@
   min-width: 280px;
   height: 52px;
   border-radius: 12px;
-  border: 1px solid rgba(52, 200, 255, 0.62);
-  background: #25a9bf;
-  color: #ffffff;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: rgba(29, 33, 39, 0.96);
+  color: rgba(234, 240, 249, 0.96);
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  box-shadow: 0 12px 26px rgba(8, 119, 168, 0.36);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
 }
 
 .art-modal-footer .art-prompt-save-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  filter: brightness(1.04);
+  background: rgba(39, 44, 51, 0.98);
   box-shadow:
-    0 14px 30px rgba(8, 119, 168, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    0 14px 30px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .art-modal-footer .art-prompt-save-btn:disabled {
@@ -838,12 +855,12 @@
 }
 
 .art-modal-footer .art-prompt-save-btn.is-saved {
-  border: 1px solid rgba(52, 200, 255, 0.62);
-  background: #25a9bf;
-  color: #052413;
+  border: 1px solid rgba(110, 231, 183, 0.34);
+  background: rgba(39, 44, 51, 0.98);
+  color: rgba(214, 255, 237, 0.94);
   box-shadow:
-    0 12px 28px rgba(52, 211, 153, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 12px 28px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .art-save-feedback {
@@ -1203,6 +1220,15 @@
     flex-direction: column;
   }
 
+  .art-modal-title.is-centered {
+    position: static;
+    left: auto;
+    top: auto;
+    transform: none;
+    max-width: 100%;
+    text-align: left;
+  }
+
   .art-modal-action-row {
     width: 100%;
     justify-content: flex-end;
@@ -1216,6 +1242,7 @@
     width: 100%;
     min-width: 0;
     height: 300px;
+    border-left: none;
   }
 
   .truncate-model {

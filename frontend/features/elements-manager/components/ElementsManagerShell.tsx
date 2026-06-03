@@ -863,7 +863,7 @@ export function ElementsManagerShell({
                     >
                       <button
                         type="button"
-                        className="elements-panel-action-btn elements-panel-action-btn--picker-accent elements-panel-elements-btn"
+                        className="elements-panel-action-btn elements-panel-action-btn--picker-accent"
                         style={elementsTopButtonStyle}
                         onClick={() => setIsElementLibraryModalOpen(true)}
                         onMouseEnter={() => setHoveredTopActionButton("elements")}
@@ -956,10 +956,7 @@ export function ElementsManagerShell({
                   </div>
 
                   <div style={editorFieldsWrapperStyle}>
-                    <div
-                      className="elements-panel-preset-content-grid"
-                      style={editorContentGridStyle}
-                    >
+                    <div style={editorContentGridStyle}>
                       <div
                         className="elements-panel-profile-fields-row elements-panel-profile-fields-row--name"
                         style={nameColumnStyle}
@@ -985,24 +982,16 @@ export function ElementsManagerShell({
                           </div>
                         </div>
                       </div>
-                      <div
-                        className="elements-panel-preset-description-column"
-                        style={descriptionColumnStyle}
-                      >
+                      <div style={descriptionColumnStyle}>
                         <ElementsDescriptionEditorCard
                           description={draft.description}
                           maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
-                          rows={5}
-                          disabled={false}
                           containerHeightPx={measuredReferenceCardHeightPx ?? 142.5}
                           onChangeDescription={(value) => updateDraftField("description", value)}
                         />
                       </div>
 
-                      <div
-                        className="elements-panel-preset-references-column"
-                        style={referenceColumnStyle}
-                      >
+                      <div style={referenceColumnStyle}>
                         <div
                           className="elements-reference-title-row"
                           style={ELEMENT_REFERENCE_TITLE_INLINE_STYLE}
@@ -1011,14 +1000,7 @@ export function ElementsManagerShell({
                             Element References:
                           </p>
                         </div>
-                        <div
-                          className={`elements-references-grid ${
-                            draft.assetType === "image"
-                              ? "elements-references-grid--image"
-                              : "elements-references-grid--video"
-                          }`}
-                          style={referenceGridStyle}
-                        >
+                        <div style={referenceGridStyle}>
                           {(draft.assetType === "image"
                             ? IMAGE_REFERENCE_SLOT_LABELS
                             : (["Motion Reference"] as const)
@@ -1072,10 +1054,7 @@ export function ElementsManagerShell({
                                   void handleSheetDrop(index)(event);
                                 }}
                               >
-                                <div
-                                  className="elements-panel-slot-actions"
-                                  style={ELEMENT_REFERENCE_SLOT_ACTIONS_INLINE_STYLE}
-                                >
+                                <div style={ELEMENT_REFERENCE_SLOT_ACTIONS_INLINE_STYLE}>
                                   {slotValue ? (
                                     <button
                                       type="button"
@@ -1183,12 +1162,7 @@ export function ElementsManagerShell({
                                     </span>
                                   </div>
                                 ) : null}
-                                <span
-                                  className="elements-reference-empty-hint"
-                                  style={ELEMENT_REFERENCE_HINT_INLINE_STYLE}
-                                >
-                                  {slotLabel}
-                                </span>
+                                <span style={ELEMENT_REFERENCE_HINT_INLINE_STYLE}>{slotLabel}</span>
                               </article>
                             );
                           })}

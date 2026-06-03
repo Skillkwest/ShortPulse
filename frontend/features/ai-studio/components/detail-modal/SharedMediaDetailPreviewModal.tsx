@@ -75,6 +75,9 @@ export function SharedMediaDetailPreviewModal({
   const isVideo = item?.media.kind === "video";
   const isAudio = item?.media.kind === "audio";
   const title = item ? resolveSharedMediaDetailTitle(item) : "Media preview";
+  const isExternalUpload = Boolean(
+    item?.media.source?.trim()?.toLowerCase() === "upload" && item.media.filename?.trim()
+  );
   const bladeContent = item
     ? resolveSharedMediaDetailBladeContent({
         item,
@@ -119,7 +122,10 @@ export function SharedMediaDetailPreviewModal({
       onClose={onClose}
       ariaLabel={`${ariaLabelPrefix} ${title}`}
       backdropClassName={backdropClassName}
-      dialogClassName={dialogClassName ?? `reference-modal-new ${isAudio ? "is-audio-modal" : ""}`}
+      dialogClassName={
+        dialogClassName ??
+        `reference-modal-new ${isAudio ? "is-audio-modal" : ""} ${isExternalUpload ? "is-uploaded is-stage-only" : ""}`.trim()
+      }
       backdropDataTestId={backdropDataTestId}
       closeOnEscape
     >
@@ -129,6 +135,7 @@ export function SharedMediaDetailPreviewModal({
             eyebrow="Media detail"
             title={title}
             items={item ? resolveSharedMediaDetailTopBarItems(item) : []}
+            centerTitle={isExternalUpload}
             actions={topBarActions}
             onClose={onClose}
             closeLabel={closeLabel}
@@ -163,11 +170,13 @@ export function SharedMediaDetailPreviewModal({
           />
         }
         sidePanel={
-          <SharedMediaDetailInfoPanel
-            label={bladeContent.label}
-            value={bladeContent.value}
-            placeholder={item ? resolveSharedMediaDetailBladePlaceholder(item) : undefined}
-          />
+          isExternalUpload ? null : (
+            <SharedMediaDetailInfoPanel
+              label={bladeContent.label}
+              value={bladeContent.value}
+              placeholder={item ? resolveSharedMediaDetailBladePlaceholder(item) : undefined}
+            />
+          )
         }
       />
     </SharedMediaDetailModalShell>

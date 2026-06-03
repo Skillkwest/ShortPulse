@@ -22,7 +22,6 @@ type UseMediaLibraryPanelDataControllerParams = {
   normalizedSearch: string;
   shouldShowMedia: boolean;
   shouldShowPrompts: boolean;
-  showFolderCanvas: boolean;
   panelBodyRef: React.RefObject<HTMLDivElement | null>;
   listSurface?: MediaListSurface;
 };
@@ -86,7 +85,6 @@ export const useMediaLibraryPanelDataController = ({
   normalizedSearch,
   shouldShowMedia,
   shouldShowPrompts,
-  showFolderCanvas,
   panelBodyRef,
   listSurface = "media-library-panel",
 }: UseMediaLibraryPanelDataControllerParams): UseMediaLibraryPanelDataControllerResult => {
@@ -429,7 +427,7 @@ export const useMediaLibraryPanelDataController = ({
         loading: mediaLoading,
         scrollHeight: container.scrollHeight,
         scrollTop: container.scrollTop,
-        surfaceBlocked: showFolderCanvas,
+        surfaceBlocked: false,
         thresholdPx: INFINITE_LOAD_BOTTOM_THRESHOLD_PX,
       })
     ) {
@@ -449,7 +447,7 @@ export const useMediaLibraryPanelDataController = ({
         loading: promptLoading,
         scrollHeight: container.scrollHeight,
         scrollTop: container.scrollTop,
-        surfaceBlocked: showFolderCanvas,
+        surfaceBlocked: false,
         thresholdPx: INFINITE_LOAD_BOTTOM_THRESHOLD_PX,
       })
     ) {
@@ -468,7 +466,6 @@ export const useMediaLibraryPanelDataController = ({
     promptLoading,
     shouldShowMedia,
     shouldShowPrompts,
-    showFolderCanvas,
   ]);
 
   React.useEffect(() => {

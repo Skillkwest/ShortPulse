@@ -569,6 +569,7 @@ function ReferenceGridComponent({
         showStylesSection={isStylesPanelOpen}
         showHeader={showHeader}
         archiveCount={archiveCount}
+        visibleItemCount={allOutputIds.length}
         topNotice={topNotice}
         isArchivePanelOpen={isArchivePanelOpen}
         archivedOutputs={archivedOutputs}

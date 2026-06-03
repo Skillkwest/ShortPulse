@@ -34,11 +34,7 @@ Legacy flags:
    - scene items (`image`/`text`),
    - main + right-rail viewport cameras,
    - transient draft/edit sessions and ownership.
-4. Media Library target UX extends this with folder-scoped canvas domains:
-   - each user-created Media Library folder has an independent canvas scene/camera scope,
-   - durability key is `user + folder`,
-   - folder-canvas state is distinct from the main/rail shared-scene canvas contract,
-   - storage/API boundary is `media_folder_canvas_states` + `/api/ai/media-folder-canvas/[folderId]` + `/api/ai/media-folder-canvas/save`.
+4. Current shipped AI Studio persistence has no separate Media Library folder-canvas domain; only the shared main/right-rail canvas scene remains part of the historical session snapshot contract.
 5. Hard limits:
    - max canvas items: `300`,
    - max serialized snapshot size: `~900KB`.
@@ -62,8 +58,6 @@ Legacy flags:
 2. `npm -C frontend run build`
 3. Manual smoke:
    - create/edit/move canvas items in both main and right-rail canvas,
-   - validate folder-canvas persistence isolation across at least two user-created Media Library folders,
-   - validate folder-canvas ingest actions that intersect session state (`Shift` drag export, right-click copy-to-Reference Grid),
    - refresh and confirm full restoration,
    - validate cap messaging at 300 items,
    - verify oversize snapshot warning behavior.

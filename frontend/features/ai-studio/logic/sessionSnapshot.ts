@@ -43,6 +43,10 @@ import { resolveInternalMediaRefsForUrls } from "./referenceInputInternalMediaRe
 import { resolveVideoPosterStoragePath } from "./videoPosterStoragePaths";
 import { isEphemeralLocalImageAttachment } from "./ephemeralComposerImage";
 import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
+import {
+  hasSettledSessionOutputPayload,
+  shouldKeepSessionOutputForDurableRestore,
+} from "./sessionOutputAuthority";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
@@ -598,31 +602,13 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
   };
 };
 
-const hasSettledSnapshotOutputPayload = (output: StudioOutput): boolean => {
-  if (output.status === "saved") return true;
-  if (Array.isArray(output.savedMediaIds) && output.savedMediaIds.length > 0) return true;
-  if ((output.resultUrls ?? []).some((url) => typeof url === "string" && url.trim().length > 0)) {
-    return true;
-  }
-  if (typeof output.previewUrl === "string" && output.previewUrl.trim().length > 0) return true;
-  if (typeof output.previewText === "string" && output.previewText.trim().length > 0) return true;
-  if (
-    typeof output.previewStoragePath === "string" &&
-    output.previewStoragePath.trim().length > 0
-  ) {
-    return true;
-  }
-  if (typeof output.fullStoragePath === "string" && output.fullStoragePath.trim().length > 0) {
-    return true;
-  }
-  return false;
-};
-
 const shouldPersistOutputInSnapshot = (output: StudioOutput): boolean => {
-  if (output.taskState !== "fail") return true;
-  if (output.mode !== "audio") return true;
-  if (output.mediaSource && output.mediaSource !== "generated") return true;
-  return hasSettledSnapshotOutputPayload(output);
+  if (output.taskState === "fail" && output.mode === "audio") {
+    if (!output.mediaSource || output.mediaSource === "generated") {
+      return hasSettledSessionOutputPayload(output);
+    }
+  }
+  return shouldKeepSessionOutputForDurableRestore(output);
 };
 
 const sanitizePulseWorkflowStatus = (

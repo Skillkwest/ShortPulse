@@ -19,6 +19,7 @@ import {
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
 import { buildPulseChatThreadSnapshot } from "../../pulseChats/pulseChatThread";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../chatModeDefaults";
+import type { BuildAiStudioSessionSnapshotInput } from "../sessionSnapshot";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -39,6 +40,53 @@ const createCanvasState = (): AiStudioSessionCanvasState => ({
   textEditOwnerInstanceId: null,
   mainCamera: { x: 0, y: 0, zoom: 1 },
   railCamera: { x: 0, y: 0, zoom: 1 },
+});
+
+const createSnapshotInput = (
+  overrides: Partial<BuildAiStudioSessionSnapshotInput> = {}
+): BuildAiStudioSessionSnapshotInput => ({
+  sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+  updatedAt: "2026-03-02T12:00:00.000Z",
+  mode: "image",
+  selectedTool: "create",
+  prompt: "",
+  standardCreatePrompt: "",
+  pulseCreatePrompt: "",
+  model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+  aspect: "9:16",
+  expertCreateMode: "standard",
+  activePulsePresetId: null,
+  pulseSessionInstanceId: null,
+  referenceImageUrl: null,
+  extraImageUrls: [null, null, null],
+  editReferenceText: "",
+  videoReferenceText: "",
+  videoReferenceMode: "standard",
+  videoDurationSeconds: 6,
+  videoResolution: "1080p",
+  imageResolution: "model_default",
+  videoGenerateAudio: false,
+  videoCameraFixed: false,
+  videoAutoFix: false,
+  klingNegativePrompt: "",
+  klingCfgScale: 0.5,
+  klingWorkflowMode: "single",
+  klingShotType: "customize",
+  klingVoiceIds: ["", ""],
+  klingMultiPrompts: [],
+  klingElements: [],
+  motionReferenceVideoUrl: null,
+  outputs: [],
+  archivedOutputs: [],
+  activeOutputId: null,
+  curatedReferenceIds: [],
+  removedFromAllRefsIds: [],
+  agentMessages: [],
+  agentInput: "",
+  latestAgentPrompt: null,
+  promptOrigin: "manual",
+  chatModeEnabled: false,
+  ...overrides,
 });
 
 const createExpertEditSessionState = (): ExpertEditSessionState => ({
@@ -137,7 +185,12 @@ describe("sessionSnapshot", () => {
       klingMultiPrompts: [],
       klingElements: [],
       motionReferenceVideoUrl: null,
-      outputs: [createOutput({ createdAt: "2026-03-02T11:59:00.000Z" })],
+      outputs: [
+        createOutput({
+          createdAt: "2026-03-02T11:59:00.000Z",
+          previewUrl: "https://cdn.example.com/out-1.png",
+        }),
+      ],
       archivedOutputs: [],
       activeOutputId: "out-1",
       curatedReferenceIds: ["out-1"],
@@ -291,6 +344,7 @@ describe("sessionSnapshot", () => {
           id: "out-dimensions",
           width: 1792,
           height: 1008,
+          previewUrl: "https://cdn.example.com/out-dimensions.png",
         }),
       ],
       archivedOutputs: [],
@@ -770,6 +824,8 @@ describe("sessionSnapshot", () => {
           audioSourceMode: "music",
           durationMs: 4_000,
           waveformPeaks: [10, 30, 20],
+          previewStoragePath: "user-1/audio/audio-duration.mp3",
+          fullStoragePath: "user-1/audio/audio-duration.mp3",
         }),
         createOutput({
           id: "video-duration",
@@ -873,6 +929,78 @@ describe("sessionSnapshot", () => {
     expect(snapshot.outputs.activeOutputId).toBeNull();
     expect(snapshot.outputs.curatedReferenceIds).toEqual([]);
     expect(snapshot.outputs.removedFromAllRefsIds).toEqual([]);
+  });
+
+  it("omits authority-empty media outputs from persisted snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot(
+      createSnapshotInput({
+        outputs: [
+          createOutput({
+            id: "blank-image-shell",
+            mode: "image",
+            mediaSource: "library",
+            prompt: "",
+            previewUrl: undefined,
+            previewText: undefined,
+            previewStoragePath: null,
+            fullStoragePath: null,
+            resultUrls: [],
+            savedMediaIds: [],
+          }),
+          createOutput({
+            id: "durable-image",
+            mode: "image",
+            mediaSource: "library",
+            previewStoragePath: "user-1/images/durable-preview.png",
+            fullStoragePath: "user-1/images/durable-full.png",
+            savedMediaIds: ["media-durable-image"],
+          }),
+        ],
+        activeOutputId: "blank-image-shell",
+        curatedReferenceIds: ["blank-image-shell", "durable-image"],
+        removedFromAllRefsIds: ["blank-image-shell"],
+      })
+    );
+
+    expect(snapshot.outputs.active.map((output) => output.id)).toEqual(["durable-image"]);
+    expect(snapshot.outputs.activeOutputId).toBeNull();
+    expect(snapshot.outputs.curatedReferenceIds).toEqual(["durable-image"]);
+    expect(snapshot.outputs.removedFromAllRefsIds).toEqual([]);
+  });
+
+  it("keeps recoverable generated outputs even before media payload settles", () => {
+    const snapshot = buildAiStudioSessionSnapshot(
+      createSnapshotInput({
+        outputs: [
+          createOutput({
+            id: "recoverable-generated",
+            mediaSource: "generated",
+            generationId: "generation-recoverable",
+            taskId: "task-recoverable",
+            taskState: "pending",
+            previewUrl: undefined,
+            previewText: undefined,
+            previewStoragePath: null,
+            fullStoragePath: null,
+            resultUrls: [],
+            savedMediaIds: [],
+          }),
+        ],
+        activeOutputId: "recoverable-generated",
+        curatedReferenceIds: ["recoverable-generated"],
+      })
+    );
+
+    expect(snapshot.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        id: "recoverable-generated",
+        generationId: "generation-recoverable",
+        taskId: "task-recoverable",
+        taskState: "pending",
+      })
+    );
+    expect(snapshot.outputs.activeOutputId).toBe("recoverable-generated");
+    expect(snapshot.outputs.curatedReferenceIds).toEqual(["recoverable-generated"]);
   });
 
   it("serializes legacy image attachments into one canonical preview url", () => {
@@ -2513,15 +2641,20 @@ describe("sessionSnapshot", () => {
     });
 
     const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
-    const canvasSnapshot = projectSnapshot.canvas as {
-      scene?: { items?: Array<Record<string, unknown>> };
-    };
+    const canvasSnapshot =
+      "canvas" in projectSnapshot
+        ? (projectSnapshot.canvas as {
+            scene?: { items?: Array<Record<string, unknown>> };
+          })
+        : null;
 
     expect(projectSnapshot.outputs.active.map((output) => output.id)).toEqual([
       "generated:gen-generated-canvas",
     ]);
     expect(projectSnapshot.outputs.curatedReferenceIds).toEqual(["generated:gen-generated-canvas"]);
-    expect(canvasSnapshot.scene?.items?.[0]).toMatchObject({
+    expect(canvasSnapshot).not.toBeNull();
+    const sceneItems = canvasSnapshot?.scene?.items ?? [];
+    expect(sceneItems[0]).toMatchObject({
       id: "canvas-image-1",
       outputId: "generated:gen-generated-canvas",
     });

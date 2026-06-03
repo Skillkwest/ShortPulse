@@ -1,12 +1,114 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import {
+  listProjectsForUser,
   resolveProjectCardPreviewSigningStoragePaths,
   resolveProjectPreviewImageUrlsFromSnapshot,
 } from "../projectsService";
 
+vi.mock("../api/supabaseAdmin", () => ({
+  getSupabaseAdmin: vi.fn(),
+}));
+
+const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
+
+const PROJECT_ID_1 = "11111111-1111-4111-8111-111111111111";
+
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.clearAllMocks();
 });
+
+const createAwaitableQuery = <T>(result: T) => {
+  const query = {} as {
+    eq: ReturnType<typeof vi.fn>;
+    order: ReturnType<typeof vi.fn>;
+    limit: ReturnType<typeof vi.fn>;
+    then: Promise<T>["then"];
+  };
+  query.eq = vi.fn(() => query);
+  query.order = vi.fn(() => query);
+  query.limit = vi.fn(() => query);
+  query.then = Promise.resolve(result).then.bind(Promise.resolve(result));
+  return query;
+};
+
+const mockProjectListSupabase = ({
+  workspaceSnapshot,
+  displayRows = [],
+  displayError,
+}: {
+  workspaceSnapshot: Record<string, unknown>;
+  displayRows?: Array<Record<string, unknown>>;
+  displayError?: string;
+}) => {
+  const projectRows = [
+    {
+      id: PROJECT_ID_1,
+      user_id: "user-1",
+      title: "Project One",
+      created_at: "2026-06-03T10:00:00.000Z",
+      updated_at: "2026-06-03T11:00:00.000Z",
+    },
+  ];
+  const workspaceIn = vi.fn(async () => ({
+    data: [
+      {
+        project_id: PROJECT_ID_1,
+        snapshot: workspaceSnapshot,
+      },
+    ],
+    error: null,
+  }));
+  const displayIn = vi.fn(async () => ({
+    data: displayError ? null : displayRows,
+    error: displayError ? { message: displayError } : null,
+  }));
+  const createSignedUrl = vi.fn(async (path: string) => ({
+    data: { signedUrl: `signed:${path}` },
+    error: null,
+  }));
+  const supabaseMock = {
+    from: vi.fn((table: string) => {
+      if (table === "projects") {
+        return {
+          select: vi.fn(() =>
+            createAwaitableQuery({
+              data: projectRows,
+              error: null,
+            })
+          ),
+        };
+      }
+      if (table === "project_workspace_states") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: workspaceIn,
+            })),
+          })),
+        };
+      }
+      if (table === "project_output_display_items") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: displayIn,
+            })),
+          })),
+        };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    }),
+    storage: {
+      from: vi.fn(() => ({
+        createSignedUrl,
+      })),
+    },
+  };
+  getSupabaseAdminMock.mockReturnValue(supabaseMock as never);
+  return { createSignedUrl, displayIn, workspaceIn };
+};
 
 describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
   it("prefers the first four quick-slot image previews", () => {
@@ -164,6 +266,87 @@ describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
 
     expect(resolveProjectPreviewImageUrlsFromSnapshot(snapshot, "user-1")).toEqual([
       "https://cdn.example.test/media_library/user-1/private/images/owned.png",
+    ]);
+  });
+});
+
+describe("listProjectsForUser preview composition", () => {
+  it("prefers checkpoint plus display-record previews over rich snapshot parsing", async () => {
+    mockProjectListSupabase({
+      workspaceSnapshot: {
+        outputs: {
+          curatedReferenceIds: ["quick-display"],
+          active: [
+            {
+              id: "grid-display",
+              mode: "image",
+            },
+            {
+              id: "quick-display",
+              mode: "image",
+            },
+          ],
+          archived: [],
+        },
+      },
+      displayRows: [
+        {
+          project_id: PROJECT_ID_1,
+          output_id: "grid-display",
+          mode: "image",
+          task_state: "success",
+          preview_url_fallback: "https://cdn.example.com/display-grid.png",
+          result_urls_fallback: [],
+          preview_storage_path: "user-1/generated/display-grid.png",
+          full_storage_path: null,
+          hidden_in_reference_grid: false,
+        },
+        {
+          project_id: PROJECT_ID_1,
+          output_id: "quick-display",
+          mode: "image",
+          task_state: "success",
+          preview_url_fallback: "https://cdn.example.com/display-quick.png",
+          result_urls_fallback: [],
+          preview_storage_path: "user-1/generated/display-quick.png",
+          full_storage_path: null,
+          hidden_in_reference_grid: false,
+        },
+      ],
+    });
+
+    await expect(listProjectsForUser({ userId: "user-1", limit: "all" })).resolves.toEqual([
+      expect.objectContaining({
+        id: PROJECT_ID_1,
+        previewImageUrls: ["signed:user-1/generated/display-quick.png"],
+      }),
+    ]);
+  });
+
+  it("falls back to snapshot-derived project previews when display records are unavailable", async () => {
+    mockProjectListSupabase({
+      displayError: "relation does not exist",
+      workspaceSnapshot: {
+        outputs: {
+          curatedReferenceIds: ["quick-snapshot"],
+          active: [
+            {
+              id: "quick-snapshot",
+              mode: "image",
+              previewStoragePath: "user-1/generated/snapshot-quick.png",
+              previewUrl: "https://cdn.example.com/snapshot-quick.png",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    await expect(listProjectsForUser({ userId: "user-1", limit: "all" })).resolves.toEqual([
+      expect.objectContaining({
+        id: PROJECT_ID_1,
+        previewImageUrls: ["signed:user-1/generated/snapshot-quick.png"],
+      }),
     ]);
   });
 });

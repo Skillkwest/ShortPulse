@@ -32,6 +32,7 @@ type ReferenceGridSectionsProps = {
   showStylesSection: boolean;
   showHeader: boolean;
   archiveCount: number;
+  visibleItemCount: number;
   topNotice?: string | null;
   isArchivePanelOpen: boolean;
   archivedOutputs: StudioOutput[];
@@ -93,6 +94,7 @@ export function ReferenceGridSections({
   showStylesSection,
   showHeader,
   archiveCount,
+  visibleItemCount,
   topNotice,
   isArchivePanelOpen,
   archivedOutputs,
@@ -445,6 +447,7 @@ export function ReferenceGridSections({
                 <div ref={allRefsHeaderRef}>
                   <ReferenceGridArchiveControls
                     archiveCount={archiveCount}
+                    visibleItemCount={visibleItemCount}
                     showHeader={showHeader}
                     showTitle={showReferenceGridTitleInHeader}
                     showTopTitleDivider={showTopReferenceHeaderDivider}
@@ -520,6 +523,7 @@ export function ReferenceGridSections({
                   <div ref={allRefsHeaderRef}>
                     <ReferenceGridArchiveControls
                       archiveCount={archiveCount}
+                      visibleItemCount={visibleItemCount}
                       showHeader={showHeader}
                       showTitle={showReferenceGridTitleInHeader}
                       showTopTitleDivider={showTopReferenceHeaderDivider}

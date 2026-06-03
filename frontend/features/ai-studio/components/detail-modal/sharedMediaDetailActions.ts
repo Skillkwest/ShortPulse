@@ -4,7 +4,7 @@
  * can present the same customer-facing action contract.
  */
 import React, { type ReactNode } from "react";
-import { Check, DownloadSimple } from "phosphor-react";
+import { DownloadSimple } from "phosphor-react";
 import type {
   SharedMediaDetailActionItem,
   SharedMediaDetailSaveActionState,
@@ -52,36 +52,26 @@ export const resolveSharedMediaDetailMediaActionItems = ({
     });
   }
 
-  if (saveState !== "hidden") {
+  if (saveState !== "hidden" && saveState !== "saved") {
     const label = isStorageFull
       ? "Storage Full"
       : saveState === "saving"
         ? "Saving..."
-        : saveState === "saved"
-          ? "Saved"
-          : saveState === "blocked_storage" || saveState === "failed"
-            ? "Retry Save"
-            : "Save";
+        : saveState === "blocked_storage" || saveState === "failed"
+          ? "Retry Save"
+          : "Save";
     const disabled =
-      isStorageFull ||
-      saveState === "saving" ||
-      saveState === "saved" ||
-      typeof onSaveToLibrary !== "function";
+      isStorageFull || saveState === "saving" || typeof onSaveToLibrary !== "function";
 
     items.push({
       id: "save-media",
-      label: saveState === "saved" ? "" : label,
+      label,
       onClick: onSaveToLibrary ?? (() => {}),
-      ariaLabel: saveState === "saved" ? "Saved" : undefined,
+      ariaLabel: undefined,
       disabled,
-      title: saveState === "saved" ? "Already saved to media library" : "Save to media library",
+      title: "Save to media library",
       intent: "save",
-      state: saveState === "saved" ? "saved" : "default",
-      icon:
-        saveState === "saved"
-          ? React.createElement(Check, { size: 16, weight: "bold", "aria-hidden": true })
-          : undefined,
-      className: saveState === "saved" ? "is-icon-only" : undefined,
+      state: "default",
     });
   }
 

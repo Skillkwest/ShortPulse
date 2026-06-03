@@ -172,12 +172,17 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
               onError={() => markCanvasMediaError(mediaErrorKey)}
             />
           ) : (
-            <div
-              className="canvas-scene-item__video-placeholder"
+            <video
+              className="canvas-scene-item__video"
+              src={item.videoUrl}
               aria-label={item.title?.trim() || "Canvas video"}
-            >
-              <span>Video</span>
-            </div>
+              draggable={false}
+              muted
+              playsInline
+              preload="auto"
+              onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
+              onError={() => markCanvasMediaError(mediaErrorKey)}
+            />
           )}
           <MediaDurationBadge
             className="canvas-scene-item__media-duration"
@@ -288,6 +293,7 @@ export function CanvasPropertiesPanel({
 }: CanvasPropertiesPanelProps) {
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
+  const [isNativeDragModifierArmed, setIsNativeDragModifierArmed] = React.useState(false);
   const activeMediaErrorKeys = React.useMemo(() => {
     const nextKeys = new Set<string>();
     items.forEach((item) => {
@@ -318,6 +324,46 @@ export function CanvasPropertiesPanel({
       return next;
     });
   }, []);
+
+  React.useEffect(() => {
+    if (!isItemDraggable) {
+      setIsNativeDragModifierArmed(false);
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.shiftKey && event.key !== "Shift") return;
+      setIsNativeDragModifierArmed(true);
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.shiftKey) return;
+      if (event.key !== "Shift") return;
+      setIsNativeDragModifierArmed(false);
+    };
+
+    const handleWindowBlur = () => {
+      setIsNativeDragModifierArmed(false);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsNativeDragModifierArmed(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keyup", handleKeyUp, true);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keyup", handleKeyUp, true);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isItemDraggable]);
 
   React.useEffect(() => {
     if (instanceId !== "rail") return;
@@ -422,7 +468,7 @@ export function CanvasPropertiesPanel({
                 showTextResizeHandles={showTextResizeHandles}
                 editingTextValue={isEditingTextItem ? editingTextValue : ""}
                 isTextEditEditable={isEditingTextItem && isTextEditEditable}
-                isItemDraggable={isItemDraggable}
+                isItemDraggable={isItemDraggable && isNativeDragModifierArmed}
                 onItemPointerDown={onItemPointerDown}
                 onItemPointerMove={onItemPointerMove}
                 onItemPointerUp={onItemPointerUp}

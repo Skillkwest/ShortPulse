@@ -22,6 +22,10 @@ For default closeout selection by planning program, see:
   - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:pulse-custom-contract`
     Verifies the custom Pulse transport contract and that an active Pulse can survive leaving Create for another workflow and resume intact when the user returns.
     - Signs in to the live app, creates a custom Pulse through the real Pulse Library UI, activates it from Pulse Catalog, intercepts `/api/ai/studio-agent-pulse`, and verifies the outgoing request keeps the minimal custom-Pulse contract without guided-workflow metadata.
+  - Built-in Pulse contract audit:
+  - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:pulse-builtin-contract`
+    Verifies the built-in Pulse browser contract and that an active built-in Pulse survives leaving Create for another workflow and resumes intact when the user returns.
+    - Signs in to the live app, loads `/api/ai/create-pulse-builtins`, verifies the public built-in catalog is authoritative and does not expose hidden instructions, activates a real built-in from Pulse Catalog, intercepts `/api/ai/studio-agent-pulse`, and verifies the browser request stays on the built-in/server-authoritative contract with no browser-supplied system instructions.
   - Custom Pulse contract release check:
   - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:pulse-custom-contract:release-check`
     Runs the same audit against a temporary production server.
@@ -29,6 +33,13 @@ For default closeout selection by planning program, see:
     - Optional overrides:
       - `PULSE_CUSTOM_CONTRACT_SKIP_BUILD=true` to reuse an existing production build.
       - `PULSE_CUSTOM_CONTRACT_PORT=<port>` to choose a different local server port.
+  - Built-in Pulse contract release check:
+  - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:pulse-builtin-contract:release-check`
+    Runs the built-in Pulse audit against a temporary production server.
+    - Builds production, starts a temporary local server, runs the built-in browser audit against that clean bundle, and tears the server down automatically.
+    - Optional overrides:
+      - `PULSE_BUILTIN_CONTRACT_SKIP_BUILD=true` to reuse an existing production build.
+      - `PULSE_BUILTIN_CONTRACT_PORT=<port>` to choose a different local server port.
   - Project workspace persistence audit:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:project-persistence`
     - Uses the real project create/save/read/delete APIs plus an authenticated `/ai-studio?projectId=...` reopen to verify legacy orphan output payloads are stripped before persistence and do not leak back into the UI.

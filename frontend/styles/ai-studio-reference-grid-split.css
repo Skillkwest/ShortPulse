@@ -528,6 +528,28 @@
   padding: 0 4px;
 }
 
+.reference-all-refs-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.reference-all-refs-count {
+  margin: 0;
+  white-space: nowrap;
+  color: rgba(201, 205, 214, 0.72);
+}
+
+.reference-all-refs-header.is-title-hidden .reference-all-refs-header-meta {
+  min-height: 32px;
+}
+
+.reference-all-refs-header.is-title-hidden .reference-all-refs-title-wrap {
+  display: none;
+}
+
 .reference-all-refs-section .panel-header.preview-header.reference-all-refs-header.is-title-hidden {
   margin-top: 0;
   padding-top: 0;

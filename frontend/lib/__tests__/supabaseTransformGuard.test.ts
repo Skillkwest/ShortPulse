@@ -24,7 +24,6 @@ const IGNORE_SEGMENTS = new Set([
 const RENDER_IMAGE_ALLOWLIST = new Set([
   path.join(repoRoot, "lib/mediaPreviewTrustPolicy.ts"),
   path.join(repoRoot, "features/media-library/logic/mediaPreviewSigningBatch.ts"),
-  path.join(repoRoot, "features/ai-studio/hooks/useMediaLibraryPanelFolderCanvasController.ts"),
 ]);
 
 const walkSourceFiles = (root: string): string[] => {

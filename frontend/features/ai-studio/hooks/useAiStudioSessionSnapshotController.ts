@@ -41,7 +41,30 @@ import type { ExpertEditSessionState } from "../components/edit/expertEditSessio
 import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
 import { prepareVideoUrl } from "../utils/videoUpload";
 
-const isPlaceholderOnlyRestoredOutput = (output: StudioOutput): boolean => {
+type RestoredOutputAuthorityLike = Partial<
+  Pick<
+    StudioOutput,
+    | "previewText"
+    | "previewUrl"
+    | "previewPosterUrl"
+    | "previewPosterStoragePath"
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "resultUrls"
+    | "savedMediaIds"
+    | "generationId"
+    | "taskId"
+    | "sourceRef"
+  >
+>;
+
+const hasRestoredOutputText = (value: string | null | undefined): boolean =>
+  typeof value === "string" && value.trim().length > 0;
+
+const hasRestoredOutputStringEntries = (value: readonly string[] | null | undefined): boolean =>
+  Array.isArray(value) && value.some((entry) => hasRestoredOutputText(entry));
+
+const isPlaceholderOnlyRestoredOutput = (output: RestoredOutputAuthorityLike): boolean => {
   const hasResultMedia =
     Array.isArray(output.resultUrls) &&
     output.resultUrls.some((value) => typeof value === "string" && value.trim().length > 0);
@@ -52,9 +75,21 @@ const isPlaceholderOnlyRestoredOutput = (output: StudioOutput): boolean => {
     !output.previewPosterStoragePath &&
     !output.previewStoragePath &&
     !output.fullStoragePath &&
-    !hasResultMedia
+    !hasResultMedia &&
+    !hasRestoredOutputStringEntries(output.savedMediaIds) &&
+    !hasRestoredOutputText(output.generationId) &&
+    !hasRestoredOutputText(output.taskId) &&
+    !hasRestoredOutputText(output.sourceRef)
   );
 };
+
+const asRestoredOutputRows = (value: unknown): RestoredOutputAuthorityLike[] =>
+  Array.isArray(value)
+    ? value.filter(
+        (row): row is RestoredOutputAuthorityLike =>
+          Boolean(row) && typeof row === "object" && !Array.isArray(row)
+      )
+    : [];
 
 const SESSION_RESTORE_SIGN_RETRY_DELAY_MS = 1500;
 const SESSION_RESTORE_SIGN_MAX_ATTEMPTS = 2;
@@ -316,6 +351,8 @@ export const useAiStudioSessionSnapshotController = ({
 
   const hydrateFromSessionSnapshot = useCallback(
     (snapshot: AiStudioSessionSnapshot): AiStudioSessionHydrationPayload => {
+      const rawActiveOutputs = asRestoredOutputRows(snapshot.outputs?.active);
+      const rawArchivedOutputs = asRestoredOutputRows(snapshot.outputs?.archived);
       const payload = buildAiStudioSessionHydrationPayload(snapshot);
       const workspace = payload.workspace;
       const outputPayload = payload.outputs;
@@ -345,10 +382,9 @@ export const useAiStudioSessionSnapshotController = ({
         motionReferenceVideoUrl:
           workspace.expertCreateMode === "pulse" ? workspace.motionReferenceVideoUrl : null,
       };
-      const placeholderOnlyRestoredCount = [
-        ...outputPayload.active,
-        ...outputPayload.archived,
-      ].filter(isPlaceholderOnlyRestoredOutput).length;
+      const placeholderOnlyRestoredCount = [...rawActiveOutputs, ...rawArchivedOutputs].filter(
+        isPlaceholderOnlyRestoredOutput
+      ).length;
       if (placeholderOnlyRestoredCount > 0) {
         addBreadcrumb({
           type: "ui",
@@ -357,8 +393,10 @@ export const useAiStudioSessionSnapshotController = ({
           data: {
             session_id: snapshot.sessionId,
             placeholder_only_output_count: placeholderOnlyRestoredCount,
-            active_output_count: outputPayload.active.length,
-            archived_output_count: outputPayload.archived.length,
+            active_output_count: rawActiveOutputs.length,
+            archived_output_count: rawArchivedOutputs.length,
+            restored_active_output_count: outputPayload.active.length,
+            restored_archived_output_count: outputPayload.archived.length,
           },
         });
       }

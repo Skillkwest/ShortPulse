@@ -390,6 +390,77 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(result.result.repairUsed).toBe(true);
   });
 
+  it("repairs unstructured custom Pulse direct answers into ready chat-only replies", async () => {
+    fetchStudioAgentChatCompletionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  "Start with the protagonist's most emotionally specific fear, then build the scene around that pressure.",
+              },
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "ready",
+                  message:
+                    "Start with the protagonist's most emotionally specific fear, then build the scene around that pressure.",
+                  actions: null,
+                }),
+              },
+            },
+          ],
+        }),
+      });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "How should I tighten the opening beat?" }],
+      timeoutMs: 20000,
+      effectiveCanonical: null,
+      context: {
+        pulse: {
+          presetId: "pulse_custom",
+          label: "Custom Pulse",
+          instructions:
+            "Answer creative coaching questions directly unless I ask for a final prompt.",
+          pulseKind: "custom_gpt",
+          runtimeMode: "custom_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          source: "custom",
+        },
+      },
+      messages: [{ role: "user", content: "How should I tighten the opening beat?" }],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+    expect(result.result.semanticStatus).toBe("ready");
+    expect(result.result.parsed.message).toBe(
+      "Start with the protagonist's most emotionally specific fear, then build the scene around that pressure."
+    );
+    expect(result.result.parsed.actions).toBeUndefined();
+    expect(result.result.resolvedCanonical).toBeNull();
+    expect(result.result.repairUsed).toBe(true);
+  });
+
   it("repairs unstructured guided-workflow Pulse text before falling back to needs_input", async () => {
     fetchStudioAgentChatCompletionMock
       .mockResolvedValueOnce({

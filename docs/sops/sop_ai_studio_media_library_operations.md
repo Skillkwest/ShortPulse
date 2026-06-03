@@ -16,8 +16,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - AI Studio left-panel Media Library under `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`.
   - `all_items` (`All Media`) master-folder semantics.
   - Folder CRUD, hierarchy, membership operations, and drag/drop flows.
-  - Cross-surface ingestion into Reference Grid, Quick Slot Inventory, and Canvas.
-  - Folder-canvas interaction contract and persistence boundary.
+  - Cross-surface ingestion into Reference Grid, Quick Slot Inventory, and the shared right-rail Canvas.
 - Out of scope:
   - Billing product pricing decisions beyond the storage-quota contract referenced below.
 
@@ -31,8 +30,6 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Drag protocol + ghost behavior: `frontend/features/ai-studio/utils/dragDrop.ts`
 - Media Library drag ghost utility: `frontend/features/ai-studio/logic/mediaLibraryDragGhost.ts`
 - Panel API contracts: `frontend/features/ai-studio/logic/mediaLibraryPanelApi.ts`
-- Folder canvas panel: `frontend/features/ai-studio/components/MediaLibraryFolderCanvas.tsx`
-- Folder canvas snapshot adapters: `frontend/features/ai-studio/logic/mediaFolderCanvasSnapshot.ts`
 - AI Studio shell DnD bridge: `frontend/features/ai-studio/hooks/useAiStudioShellDndController.ts`
 - Server endpoints:
   - `frontend/pages/api/media/prepare-upload.ts`
@@ -46,13 +43,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - `frontend/pages/api/media/list.ts`
   - `frontend/pages/api/media/copy-from-url.ts`
   - `frontend/pages/api/media/prompts/list.ts`
-  - `frontend/pages/api/ai/media-folder-canvas/[folderId].ts`
-  - `frontend/pages/api/ai/media-folder-canvas/save.ts`
 - Membership service: `frontend/lib/server/mediaFoldersService.ts`
-- Folder canvas persistence service: `frontend/lib/server/mediaFolderCanvasService.ts`
 - Schema migration: `sql/migrations/060_add_media_folders_and_membership.sql`
-  - `sql/migrations/063_add_media_folder_canvas_states.sql`
-  - `sql/migrations/136_restore_global_media_folder_authority.sql`
   - `sql/migrations/064_backfill_media_files_from_storage_objects.sql`
   - `sql/check_media_all_media_completeness_drift.sql`
 
@@ -112,8 +104,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ### 6) Right-click behaviors
 
 1. Right-clicking media (image/video/audio) in `All Media` sends that media to the Reference Grid.
-2. For folder-canvas spaces, right-clicking media sends a copy to Reference Grid (source item remains in the folder canvas).
-3. Double-clicking media (image/video/audio) in `All Media` opens the shared media detail modal without Reference Grid ingest side effects; library-owned items show persisted-library `Saved` state plus `Download` and `Delete` actions, and audible previews follow the shared exclusive-sound rule so only one sound plays at a time across AI Studio and Media Library surfaces.
+2. Double-clicking media (image/video/audio) in `All Media` opens the shared media detail modal without Reference Grid ingest side effects; library-owned items show persisted-library `Saved` state plus `Download` and `Delete` actions, and audible previews follow the shared exclusive-sound rule so only one sound plays at a time across AI Studio and Media Library surfaces.
 
 ### 7) Bulk selection and action semantics
 
@@ -139,18 +130,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 4. Deleting an item from `All Media` permanently deletes it from the Media Library and Supabase storage/metadata.
 5. Root delete actions initiated from the item `X` button require explicit confirm/cancel before mutation.
 
-### 9) Folder-canvas spaces
-
-1. Folder-canvas is a secondary domain and must not define the core folder-navigation mental model.
-2. If retained, each custom folder owns a unique canvas space within its active folder authority boundary.
-3. Each folder canvas has independent scene and camera state.
-4. Folder-canvas state persists durably through the active folder authority boundary:
-   - non-project surfaces use `user + folder`
-   - project routes use `user + project + folder`
-5. Folder canvases follow main-canvas interaction constraints (marquee-select/zoom/place media/double-click text, with pan on `Space` + drag or middle-mouse drag).
-6. Because drag and pan overlap in canvas contexts, holding `Shift` while clicking/dragging enables drag-export.
-
-### 10) `All Media` completeness policy
+### 9) `All Media` completeness policy
 
 1. `All Media` should include durable user-scoped media represented by `media_files` rows.
 2. Durable storage path classes targeted for backfill:
@@ -207,10 +187,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 8. Delete from `All Media` permanent remove:
    - Status: Aligned.
    - Current: Root-level delete action permanently removes media/prompt rows from library (including best-effort storage cleanup for media after metadata delete succeeds).
-9. Folder-canvas independent spaces:
-   - Status: Partially aligned.
-   - Current: Custom folders now default to the normal folder browse surface (folder-scoped media/prompt grids with standard remove controls). Folder-canvas remains a secondary domain with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior when explicitly retained.
-   - Gap: Folder-canvas still exists as a separate persistence surface and has not yet been formally retired or repositioned behind an advanced-only entry point.
+9. Custom-folder browse-first surface:
+   - Status: Aligned.
+   - Current: Custom folders use the normal folder browse surface only (folder-scoped media/prompt grids with standard remove controls). There is no separate Media Library folder-canvas persistence or interaction surface.
 10. Folder hierarchy foundation:
 
 - Status: Aligned.
@@ -355,8 +334,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`
 - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
-- `docs/adr/0032-ai-studio-media-library-target-ux-and-folder-canvas-domains.md`
-- `docs/adr/0033-ai-studio-media-library-folder-canvas-persistence-and-gesture-v2.md`
+- `docs/adr/0090-retire-media-library-folder-canvas.md`
 - `docs/adr/0035-media-library-all-media-completeness-and-preview-contract.md`
 - `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`
 - `docs/adr/0038-ai-studio-media-library-all-media-inline-tabs.md`

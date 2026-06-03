@@ -18,10 +18,17 @@ import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { writeAppErrorLog } from "./api/appErrorLogs";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { backfillProjectGenerationAssociationsForSnapshot } from "./projectGenerationAssociationsService";
+import {
+  areProjectWorkspaceCheckpointsStructurallyEqual,
+  createLightweightProjectWorkspaceCheckpointSnapshot,
+  materializeProjectWorkspaceSnapshotForUser,
+  projectWorkspaceCheckpointNeedsCompaction,
+  syncProjectOutputDisplayItemsForSnapshot,
+} from "./projectOutputDisplayItemsService";
 import { chunkValues } from "./queryBatching";
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
-  "project_id, user_id, schema_version, snapshot, snapshot_updated_at, created_at, updated_at" as const;
+  "project_id, user_id, schema_version, snapshot, snapshot_updated_at, checkpoint_revision, created_at, updated_at" as const;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -31,6 +38,7 @@ type ProjectWorkspaceStateRow = {
   schema_version: number;
   snapshot: Record<string, unknown>;
   snapshot_updated_at: string;
+  checkpoint_revision: number;
   created_at: string;
   updated_at: string;
 };
@@ -40,6 +48,7 @@ export type ProjectWorkspaceStateRecord = {
   userId: string;
   schemaVersion: number;
   snapshot: Record<string, unknown>;
+  checkpointRevision: number;
   createdAt: string;
   updatedAt: string;
   saveOutcome?: ProjectWorkspaceSaveOutcome;
@@ -1054,6 +1063,7 @@ const toProjectWorkspaceStateRecord = ({
   userId: row.user_id,
   schemaVersion: row.schema_version,
   snapshot: snapshot ?? row.snapshot,
+  checkpointRevision: row.checkpoint_revision,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   ...(saveOutcome ? { saveOutcome } : {}),
@@ -1081,12 +1091,17 @@ export const getProjectWorkspaceStateForUser = async ({
   const record = toProjectWorkspaceStateRecord({
     row: data as ProjectWorkspaceStateRow,
   });
+  const materializedSnapshot = await materializeProjectWorkspaceSnapshotForUser({
+    userId,
+    projectId,
+    snapshot: record.snapshot,
+  });
   return {
     ...record,
     snapshot: await canonicalizeProjectWorkspaceSnapshotForRead({
       userId,
       projectId,
-      snapshot: record.snapshot,
+      snapshot: materializedSnapshot,
     }),
   };
 };
@@ -1139,47 +1154,158 @@ export const upsertProjectWorkspaceStateForUser = async ({
     normalizeIsoTimestamp(preparedSnapshot.snapshot.updatedAt) ?? new Date().toISOString();
 
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
+  const { data: existingData, error: existingError } = await supabaseAdmin
     .from("project_workspace_states")
-    .upsert(
-      {
-        project_id: projectId,
-        user_id: userId,
-        schema_version: normalizedSchemaVersion,
-        snapshot: preparedSnapshot.snapshot,
-        snapshot_updated_at: snapshotUpdatedAt,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "project_id",
-      }
-    )
     .select(PROJECT_WORKSPACE_SELECT_COLUMNS)
+    .eq("project_id", projectId)
+    .eq("user_id", userId)
     .maybeSingle();
 
-  if (error) {
+  if (existingError) {
     throw wrapProjectWorkspaceSaveStageError({
-      stage: "workspace upsert",
-      error,
+      stage: "workspace lookup",
+      error: existingError,
     });
   }
-  if (!data) {
-    throw wrapProjectWorkspaceSaveStageError({
-      stage: "workspace upsert",
-      error: new Error("No workspace row returned"),
-    });
-  }
-  const savedRow = data as ProjectWorkspaceStateRow;
-  const staleWriteIgnored =
-    compareIsoTimestamps(savedRow.snapshot_updated_at, snapshotUpdatedAt) > 0;
 
-  if (staleWriteIgnored) {
+  const existingRow = (existingData as ProjectWorkspaceStateRow | null) ?? null;
+  if (existingRow && compareIsoTimestamps(existingRow.snapshot_updated_at, snapshotUpdatedAt) > 0) {
+    const materializedExistingSnapshot = await materializeProjectWorkspaceSnapshotForUser({
+      userId,
+      projectId,
+      snapshot: existingRow.snapshot,
+    });
     return toProjectWorkspaceStateRecord({
-      row: savedRow,
+      row: existingRow,
+      snapshot: await canonicalizeProjectWorkspaceSnapshotForRead({
+        userId,
+        projectId,
+        snapshot: materializedExistingSnapshot,
+      }),
       saveOutcome: {
         status: "saved",
       },
     });
+  }
+
+  const existingCheckpointRevision = existingRow?.checkpoint_revision ?? 0;
+  const nextCheckpointRevision = existingCheckpointRevision + 1;
+  const lightweightCheckpointSnapshot = createLightweightProjectWorkspaceCheckpointSnapshot({
+    snapshot: preparedSnapshot.snapshot,
+    checkpointRevision: nextCheckpointRevision,
+  });
+  const checkpointStructureChanged =
+    !existingRow ||
+    projectWorkspaceCheckpointNeedsCompaction(existingRow.snapshot) ||
+    !areProjectWorkspaceCheckpointsStructurallyEqual(
+      existingRow.snapshot,
+      lightweightCheckpointSnapshot
+    );
+  // Advance workspace freshness on newer display-only saves without bumping structural revision.
+  const shouldPersistWorkspaceRow =
+    !existingRow ||
+    checkpointStructureChanged ||
+    compareIsoTimestamps(existingRow.snapshot_updated_at, snapshotUpdatedAt) < 0;
+  const workspaceSnapshotForWrite =
+    checkpointStructureChanged || !existingRow
+      ? lightweightCheckpointSnapshot
+      : existingRow.snapshot;
+  const workspaceCheckpointRevisionForWrite =
+    checkpointStructureChanged || !existingRow
+      ? nextCheckpointRevision
+      : existingCheckpointRevision;
+
+  let displaySyncResult;
+  try {
+    displaySyncResult = await syncProjectOutputDisplayItemsForSnapshot({
+      userId,
+      projectId,
+      snapshot: preparedSnapshot.snapshot,
+      snapshotUpdatedAt,
+      deferDeletes: checkpointStructureChanged,
+    });
+  } catch (error) {
+    throw wrapProjectWorkspaceSaveStageError({
+      stage: "project output display sync",
+      error,
+    });
+  }
+
+  let savedRow: ProjectWorkspaceStateRow;
+  if (!shouldPersistWorkspaceRow && existingRow) {
+    savedRow = existingRow;
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from("project_workspace_states")
+      .upsert(
+        {
+          project_id: projectId,
+          user_id: userId,
+          schema_version: normalizedSchemaVersion,
+          snapshot: workspaceSnapshotForWrite,
+          snapshot_updated_at: snapshotUpdatedAt,
+          checkpoint_revision: workspaceCheckpointRevisionForWrite,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "project_id",
+        }
+      )
+      .select(PROJECT_WORKSPACE_SELECT_COLUMNS)
+      .maybeSingle();
+
+    if (error) {
+      throw wrapProjectWorkspaceSaveStageError({
+        stage: "workspace upsert",
+        error,
+      });
+    }
+    if (!data) {
+      throw wrapProjectWorkspaceSaveStageError({
+        stage: "workspace upsert",
+        error: new Error("No workspace row returned"),
+      });
+    }
+    savedRow = data as ProjectWorkspaceStateRow;
+  }
+  const staleWriteIgnored =
+    compareIsoTimestamps(savedRow.snapshot_updated_at, snapshotUpdatedAt) > 0;
+
+  if (staleWriteIgnored) {
+    const materializedSavedSnapshot = await materializeProjectWorkspaceSnapshotForUser({
+      userId,
+      projectId,
+      snapshot: savedRow.snapshot,
+    });
+    return toProjectWorkspaceStateRecord({
+      row: savedRow,
+      snapshot: await canonicalizeProjectWorkspaceSnapshotForRead({
+        userId,
+        projectId,
+        snapshot: materializedSavedSnapshot,
+      }),
+      saveOutcome: {
+        status: "saved",
+      },
+    });
+  }
+
+  if (checkpointStructureChanged && displaySyncResult.deletedCount === 0) {
+    try {
+      await syncProjectOutputDisplayItemsForSnapshot({
+        userId,
+        projectId,
+        snapshot: preparedSnapshot.snapshot,
+        snapshotUpdatedAt,
+        deferDeletes: false,
+      });
+    } catch (error) {
+      logProjectWorkspaceBestEffortFailure({
+        stage: "project output display cleanup",
+        projectId,
+        error,
+      });
+    }
   }
 
   try {
@@ -1212,7 +1338,11 @@ export const upsertProjectWorkspaceStateForUser = async ({
     });
     return toProjectWorkspaceStateRecord({
       row: savedRow,
-      snapshot: preparedSnapshot.snapshot,
+      snapshot: await materializeProjectWorkspaceSnapshotForUser({
+        userId,
+        projectId,
+        snapshot: savedRow.snapshot,
+      }),
       saveOutcome: {
         status: "saved_with_repair_pending",
         repairStage: "project_association_backfill",
@@ -1223,7 +1353,11 @@ export const upsertProjectWorkspaceStateForUser = async ({
 
   return toProjectWorkspaceStateRecord({
     row: savedRow,
-    snapshot: preparedSnapshot.snapshot,
+    snapshot: await materializeProjectWorkspaceSnapshotForUser({
+      userId,
+      projectId,
+      snapshot: savedRow.snapshot,
+    }),
     saveOutcome: {
       status: "saved",
     },

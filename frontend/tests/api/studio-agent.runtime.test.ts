@@ -144,6 +144,29 @@ const createPulseContext = () => ({
   },
 });
 
+const createRuntimeBuiltInDefinition = (overrides: Record<string, unknown> = {}) => ({
+  presetId: "story_builder",
+  label: "DFY Story Builder",
+  description: "Guided story-circle workflow for scene plans and final image prompts.",
+  starterAssistantMessage:
+    "**Step 1 — Upload your characters.** Please upload 1–3+ character images.",
+  workflowStageHints: [
+    "Upload Characters",
+    "Plot Seed",
+    "Runtime",
+    "Scene Review",
+    "Image Prompts",
+    "Dialogue Story",
+  ],
+  artifactTarget: "image_prompt",
+  systemInstructions: "SERVER STORY BUILDER INSTRUCTIONS",
+  runtimeMode: "workflow_gpt",
+  activationMode: "activate_and_start",
+  outputMode: "chat_reply",
+  memoryPolicy: "session",
+  ...overrides,
+});
+
 const resetRuntimeTestState = () => {
   vi.clearAllMocks();
   process.env.OPENAI_API_KEY = "test-key";
@@ -175,29 +198,7 @@ const resetRuntimeTestState = () => {
     source: "env",
   });
   resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
-    builtInDefinitions: [
-      {
-        presetId: "story_builder",
-        label: "DFY Story Builder",
-        description: "Guided story-circle workflow for scene plans and final image prompts.",
-        starterAssistantMessage:
-          "**Step 1 — Upload your characters.** Please upload 1–3+ character images.",
-        workflowStageHints: [
-          "Upload Characters",
-          "Plot Seed",
-          "Runtime",
-          "Scene Review",
-          "Image Prompts",
-          "Dialogue Story",
-        ],
-        artifactTarget: "image_prompt",
-        systemInstructions: "SERVER STORY BUILDER INSTRUCTIONS",
-        runtimeMode: "workflow_gpt",
-        activationMode: "activate_and_start",
-        outputMode: "chat_reply",
-        memoryPolicy: "session",
-      },
-    ],
+    builtInDefinitions: [createRuntimeBuiltInDefinition()],
     source: "control_plane",
     updatedAt: "2026-05-05T18:00:00.000Z",
     updatedByEmail: "admin@example.com",
@@ -1648,6 +1649,91 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(serializedRequest).toContain("SERVER STORY BUILDER INSTRUCTIONS");
     expect(serializedRequest).not.toContain("CLIENT OVERRIDE SHOULD NOT WIN");
     expect(serializedRequest).not.toContain("Client Drifted Label");
+  });
+
+  it("picks up updated built-in instructions on the very next Pulse turn", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "needs_input",
+                message: "What story should we build first?",
+                actions: null,
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    resolveRuntimeCreatePulseBuiltInCatalogMock
+      .mockResolvedValueOnce({
+        builtInDefinitions: [
+          createRuntimeBuiltInDefinition({
+            label: "DFY Story Builder v1",
+            systemInstructions: "SERVER STORY BUILDER INSTRUCTIONS V1",
+          }),
+        ],
+        source: "control_plane",
+        updatedAt: "2026-05-05T18:00:00.000Z",
+        updatedByEmail: "admin@example.com",
+        degraded: false,
+      })
+      .mockResolvedValueOnce({
+        builtInDefinitions: [
+          createRuntimeBuiltInDefinition({
+            label: "DFY Story Builder v2",
+            systemInstructions: "SERVER STORY BUILDER INSTRUCTIONS V2",
+          }),
+        ],
+        source: "control_plane",
+        updatedAt: "2026-05-05T18:05:00.000Z",
+        updatedByEmail: "admin@example.com",
+        degraded: false,
+      });
+
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: {
+          pulse: {
+            ...createPulseContext().pulse,
+            instructions: "CLIENT STALE INSTRUCTIONS SHOULD NEVER WIN",
+            label: "Client Drifted Label",
+            source: "builtin",
+          },
+        },
+      },
+    };
+    const firstRes = createMockResponse();
+    const secondRes = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, firstRes as never);
+    await pulseStudioAgentHandler(req as never, secondRes as never);
+
+    expect(resolveRuntimeCreatePulseBuiltInCatalogMock).toHaveBeenNthCalledWith(1, {
+      bypassCache: true,
+    });
+    expect(resolveRuntimeCreatePulseBuiltInCatalogMock).toHaveBeenNthCalledWith(2, {
+      bypassCache: true,
+    });
+    const firstSerializedRequest =
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as { body?: string } | undefined)
+        ?.body ?? "";
+    const secondSerializedRequest =
+      ((fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[1] as { body?: string } | undefined)
+        ?.body ?? "";
+
+    expect(firstSerializedRequest).toContain("SERVER STORY BUILDER INSTRUCTIONS V1");
+    expect(firstSerializedRequest).not.toContain("SERVER STORY BUILDER INSTRUCTIONS V2");
+    expect(firstSerializedRequest).not.toContain("CLIENT STALE INSTRUCTIONS SHOULD NEVER WIN");
+
+    expect(secondSerializedRequest).toContain("SERVER STORY BUILDER INSTRUCTIONS V2");
+    expect(secondSerializedRequest).not.toContain("SERVER STORY BUILDER INSTRUCTIONS V1");
+    expect(secondSerializedRequest).not.toContain("CLIENT STALE INSTRUCTIONS SHOULD NEVER WIN");
   });
 
   it("fails closed when the built-in Pulse catalog is not authoritative", async () => {

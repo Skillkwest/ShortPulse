@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computeCostForModel } from "../../lib/model-runtime/pricing";
 import { getDefaultModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
+import { resolveEditImageBilledCreditLookup } from "../../lib/model-runtime/editImageBilledCredits";
+import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import {
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -304,12 +306,10 @@ describe("generationBilling reservation RPC handling", () => {
       quality: "medium",
       n: 1,
       input_fidelity: "high",
-      images: [
-        { image_url: "https://example.com/base.png" },
-        { image_url: "https://example.com/ref.png" },
-      ],
-      mask: {
-        image_url: "https://example.com/mask.png",
+      images: [{ image_url: "https://example.com/base.png" }],
+      shortpulse_context: {
+        selected_tool: "edit",
+        mode: "image",
       },
     };
 
@@ -319,12 +319,25 @@ describe("generationBilling reservation RPC handling", () => {
       modelId: "gpt-image-2",
       payload,
       reason: "GPT Image 2 edit",
+      shortpulseContext: {
+        selected_tool: "edit",
+        mode: "image",
+      },
     });
 
     const expectedPricingParams = buildPricingParams("gpt-image-2", payload);
-    const expectedEstimate = computeCostForModel("gpt-image-2", expectedPricingParams);
+    const expectedLookup = resolveEditImageBilledCreditLookup({
+      modelId: "gpt-image-2",
+      params: expectedPricingParams,
+      pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
+    });
+    const expectedCredits = expectedLookup.breakdown?.credits ?? null;
 
     expect(charge).not.toBeNull();
+    expect(expectedLookup.breakdown?.variantId).toBe(
+      "edit|res:medium|aspect:16:9|input_images:1|input_fidelity:high|mask:no"
+    );
+    expect(expectedCredits).toBe(16);
     expect(charge?.billingMode).toBe("reservation");
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
     expect(rpcMock).toHaveBeenCalledTimes(1);
@@ -333,17 +346,71 @@ describe("generationBilling reservation RPC handling", () => {
       expect.objectContaining({
         p_user_id: "user-1",
         p_source_ref: "req-openai-image-edit",
-        p_amount_cents: Math.abs(expectedEstimate?.credits ?? 0),
+        p_amount_cents: Math.abs(expectedCredits ?? 0),
         p_metadata: expect.objectContaining({
           model_id: "gpt-image-2",
           route: "/api/openai/image-edit",
-          debited_credits: expectedEstimate?.credits,
-          pricing_params: expectedPricingParams,
+          debited_credits: expectedCredits,
+          pricing_params: expect.objectContaining(expectedPricingParams),
         }),
       })
     );
 
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a canonical GPT edit row is missing", async () => {
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-openai-image-edit-missing-row",
+      },
+      url: "/api/openai/image-edit",
+    };
+    const res = createMockResponse();
+
+    const payload = {
+      prompt: "restyle the portrait",
+      size: "1536x1024",
+      quality: "medium",
+      n: 1,
+      input_fidelity: "high",
+      images: [
+        { image_url: "https://example.com/base.png" },
+        { image_url: "https://example.com/look.png" },
+      ],
+      shortpulse_context: {
+        selected_tool: "edit",
+        mode: "image",
+      },
+    };
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "gpt-image-2",
+      payload,
+      reason: "GPT Image 2 edit missing canonical row",
+      shortpulseContext: {
+        selected_tool: "edit",
+        mode: "image",
+      },
+    });
+
+    expect(charge).toBeNull();
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Pricing is unavailable for this configuration.",
+    });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.generation_billing_missing_canonical_edit_price",
+        statusCode: 500,
+      })
+    );
   });
 
   it("records pricing observability when the client sends displayed billed credits", async () => {

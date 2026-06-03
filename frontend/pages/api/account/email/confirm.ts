@@ -8,6 +8,8 @@ type ConfirmEmailResponse = {
   email: string | null;
 };
 
+const CONFIRM_EMAIL_SYNC_ERROR_MESSAGE = "Unable to finish confirming your email change.";
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{ error: string } | ConfirmEmailResponse>
@@ -36,8 +38,7 @@ export default async function handler(
       user,
     });
     return res.status(500).json({
-      error:
-        error instanceof Error ? error.message : "Unable to finish confirming your email change.",
+      error: CONFIRM_EMAIL_SYNC_ERROR_MESSAGE,
     });
   }
 }

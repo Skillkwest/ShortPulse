@@ -4,7 +4,6 @@
  * matching proxy headers only as advisory metadata after verification.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { readProxyAuthenticatedUser } from "./authProxyContext";
 import {
   isAuthVerificationUnavailableError,
   parseBearerToken,
@@ -27,16 +26,6 @@ const resolveVerifiedApiUser = async (
 
   const verifiedUser = await verifyBearerRequestUser(req);
   if (!verifiedUser) return null;
-
-  const proxyUser = readProxyAuthenticatedUser(req);
-  if (proxyUser && proxyUser.id === verifiedUser.id) {
-    return {
-      ...verifiedUser,
-      email: verifiedUser.email ?? proxyUser.email,
-      app_metadata: verifiedUser.app_metadata ?? proxyUser.app_metadata,
-      user_metadata: verifiedUser.user_metadata ?? proxyUser.user_metadata,
-    };
-  }
 
   return verifiedUser;
 };

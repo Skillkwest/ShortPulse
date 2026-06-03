@@ -342,4 +342,28 @@ describe("account identity routes", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ email: "user@example.com" });
   });
+
+  it("sanitizes downstream billing sync failures on the confirmed email route", async () => {
+    syncStripeCustomerForUserMock.mockRejectedValueOnce(
+      new Error("No such customer: 'cus_sensitive_123'; a similar object exists in test mode.")
+    );
+    const req = {
+      method: "POST",
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await confirmEmailHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "account/email/confirm",
+      user: expect.objectContaining({ id: "user-1" }),
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to finish confirming your email change.",
+    });
+  });
 });

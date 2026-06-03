@@ -220,4 +220,24 @@ describe("auth callback url route", () => {
       url: "https://www.shortpulse.ai/auth/callback?flow=recovery&next=%2Fai-studio",
     });
   });
+
+  it("fails closed to the dashboard for backslash next paths that URL parsers can normalize cross-origin", async () => {
+    process.env.APP_BASE_URL = "https://www.shortpulse.ai";
+    const req = {
+      method: "GET",
+      query: { flow: "recovery", next: "/\\evil.example.com/account" },
+      headers: {
+        host: "www.shortpulse.ai",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://www.shortpulse.ai/auth/callback?flow=recovery&next=%2Fdashboard",
+    });
+  });
 });

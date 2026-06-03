@@ -51,6 +51,8 @@ describe("auth redirect helpers", () => {
     expect(resolveNextPath(undefined)).toBe("/dashboard");
     expect(resolveNextPath("https://evil.example.com/character")).toBe("/dashboard");
     expect(resolveNextPath("//evil.example.com/character")).toBe("/dashboard");
+    expect(resolveNextPath("/\\evil.example.com/character")).toBe("/dashboard");
+    expect(resolveNextPath("/\\/evil.example.com/character")).toBe("/dashboard");
     expect(resolveNextPath("/auth?next=%2Fcharacter")).toBe("/dashboard");
   });
 });

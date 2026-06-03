@@ -244,6 +244,35 @@ describe("auth helper protected-route auth behavior", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("does not let forged same-user proxy metadata supply admin authority", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: "user-1",
+        email: "user@example.com",
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const req = {
+      url: "/api/admin/users",
+      headers: {
+        authorization: "Bearer valid-token",
+        "x-shortpulse-authenticated": "1",
+        "x-shortpulse-user-id": "user-1",
+        "x-shortpulse-user-email": "user@example.com",
+        "x-shortpulse-user-app-metadata": encodeURIComponent('{"role":"admin"}'),
+      },
+    };
+    const res = createMockResponse();
+
+    const adminUser = await requireAdminUser(req as never, res as never);
+
+    expect(adminUser).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: "Forbidden" });
+  });
+
   it("does not resolve admin access from email alone when operator role is absent", () => {
     const accessVia = resolveAdminAccessVia({
       id: "user-allowlist",

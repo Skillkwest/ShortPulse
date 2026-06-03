@@ -24,6 +24,7 @@ export const resolveNextPath = (nextQueryValue: string | string[] | undefined): 
   const rawValue = Array.isArray(nextQueryValue) ? nextQueryValue[0] : nextQueryValue;
   if (!rawValue) return DEFAULT_POST_AUTH_PATH;
   const candidate = rawValue.trim();
+  if (candidate.includes("\\")) return DEFAULT_POST_AUTH_PATH;
   if (!candidate.startsWith("/") || candidate.startsWith("//")) return DEFAULT_POST_AUTH_PATH;
   if (candidate.startsWith(AUTH_ENTRY_PATH)) return DEFAULT_POST_AUTH_PATH;
   const candidatePathname = (candidate.split(/[?#]/, 1)[0] ?? candidate).replace(/\/+$/, "") || "/";

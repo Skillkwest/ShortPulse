@@ -735,6 +735,50 @@ describe("PromptStep agent actions", () => {
     }
   });
 
+  it("restores composer focus when focus drifts during send without user click-away intent", async () => {
+    const onAgentSend = vi.fn();
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+
+    try {
+      const renderPromptStep = (agentIsSending = false) => (
+        <>
+          <button type="button">Outside action</button>
+          <PromptStep
+            {...baseProps}
+            agentInput={agentIsSending ? "" : "keep going"}
+            onAgentSend={onAgentSend}
+            agentIsSending={agentIsSending}
+          />
+        </>
+      );
+      const { rerender } = render(renderPromptStep());
+
+      const composerInput = screen.getByRole("textbox");
+      fireEvent.focus(composerInput);
+      fireEvent.keyDown(composerInput, { key: "Enter" });
+
+      expect(onAgentSend).toHaveBeenCalledTimes(1);
+
+      rerender(renderPromptStep(true));
+      const outsideAction = screen.getByRole("button", { name: "Outside action" });
+      act(() => {
+        outsideAction.focus();
+      });
+      rerender(renderPromptStep(false));
+
+      await waitFor(() => {
+        expect(composerInput).toHaveFocus();
+      });
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+    }
+  });
+
   it("keeps image drops routed through the attachment pipeline in input-drop mode", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentInputChange = vi.fn();

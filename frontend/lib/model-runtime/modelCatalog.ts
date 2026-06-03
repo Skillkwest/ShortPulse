@@ -171,9 +171,9 @@ const DEFAULT_ROLE_FALLBACK_MODEL_IDS: Record<ModelDefaultRole, string> = {
   "audio-voiceover": ELEVENLABS_VOICEOVER_MODEL_ID,
   "audio-voice-changer": ELEVENLABS_VOICE_CHANGER_MODEL_ID,
   "audio-voice-design": ELEVENLABS_VOICE_DESIGN_MODEL_ID,
-  "ai-studio-text-prompt": "gpt-5.4-nano",
-  "studio-agent-chat": "gpt-5.4-nano",
-  "studio-agent-vision": "gpt-5.4-nano",
+  "ai-studio-text-prompt": "gpt-5.5",
+  "studio-agent-chat": "gpt-5.5",
+  "studio-agent-vision": "gpt-5.5",
   "style-extraction-vision": "gpt-5.4-mini",
   "style-extraction-fallback": "gpt-5.4",
 };
@@ -1367,6 +1367,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text"],
     executionMode: "none",
     submitHandler: "unsupported",
+    defaultRoles: ["ai-studio-text-prompt", "studio-agent-chat", "studio-agent-vision"],
     gridEligible: false,
   }),
   "gpt-5.5-pro": activeInternalPricingRuntime({
@@ -1434,7 +1435,6 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text"],
     executionMode: "none",
     submitHandler: "unsupported",
-    defaultRoles: ["ai-studio-text-prompt", "studio-agent-chat", "studio-agent-vision"],
     gridEligible: false,
   }),
   [ELEVENLABS_MUSIC_MODEL_ID]: activeAudioPricingRuntime({

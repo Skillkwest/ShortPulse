@@ -281,14 +281,15 @@ export function PromptStep({
       shouldRestoreAgentInputFocusRef.current = false;
     };
 
+    // Treat only explicit pointer intent as "the user clicked away".
+    // Browser-driven focus drift while the textarea is disabled in-flight
+    // should not cancel the post-send focus restore.
     document.addEventListener("pointerdown", cancelRestoreIfOutsideComposer, true);
     document.addEventListener("mousedown", cancelRestoreIfOutsideComposer, true);
-    document.addEventListener("focusin", cancelRestoreIfOutsideComposer, true);
 
     return () => {
       document.removeEventListener("pointerdown", cancelRestoreIfOutsideComposer, true);
       document.removeEventListener("mousedown", cancelRestoreIfOutsideComposer, true);
-      document.removeEventListener("focusin", cancelRestoreIfOutsideComposer, true);
     };
   }, [agentIsSending]);
 

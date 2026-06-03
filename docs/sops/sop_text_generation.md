@@ -42,8 +42,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Environment prerequisites
 
 1. `OPENAI_API_KEY` must be set at runtime for the retained text and image-analysis endpoints.
-2. `OPENAI_MODEL` governs shared OpenAI defaults and falls back to `gpt-5.4-nano` when a retained helper path uses it.
-3. `OPENAI_VISION_MODEL` defaults to `gpt-5.4-mini`, and `OPENAI_VISION_FALLBACK_MODEL` defaults to `gpt-5.4` for retained style-extraction vision calls.
+2. `OPENAI_MODEL` governs shared OpenAI defaults and falls back to `gpt-5.5` when a retained helper path uses it.
+3. `OPENAI_VISION_MODEL` defaults to `gpt-5.5`, and `OPENAI_VISION_FALLBACK_MODEL` defaults to `gpt-5.4` for retained style-extraction vision calls.
 4. The direct style-extraction lane no longer depends on remote-image URL allowlists because `/api/ai/extract-style` accepts `imageDataUrl` directly; any retained `OPENAI_DESCRIBE_ALLOWED_HOSTS` usage is limited to older remote-image analysis lanes outside the Styles Library create flow.
 5. Emergency overrides: `OPENAI_PROMPT_SYSTEM` and `OPENAI_PROMPT_IMAGE_DESCRIBE` can be defined in env vars when immediate changes are required without touching source code.
 

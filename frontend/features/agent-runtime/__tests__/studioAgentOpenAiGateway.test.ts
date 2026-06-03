@@ -15,11 +15,11 @@ describe("studioAgentOpenAiGateway", () => {
 
     expect(config).toEqual({
       openAiUrl: "https://api.openai.com/v1/chat/completions",
-      openAiModel: "gpt-5.4-nano",
-      openAiVisionModel: "gpt-5.4-nano",
-      openAiThinkerModel: "gpt-5.4-nano",
-      openAiFormatterModel: "gpt-5.4-nano",
-      openAiPulseModel: "gpt-5.4-nano",
+      openAiModel: "gpt-5.5",
+      openAiVisionModel: "gpt-5.5",
+      openAiThinkerModel: "gpt-5.5",
+      openAiFormatterModel: "gpt-5.5",
+      openAiPulseModel: "gpt-5.5",
       requestTimeoutMs: 20000,
       visionTimeoutMs: 20000,
       turnTimeoutMs: 20000,

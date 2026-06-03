@@ -28,9 +28,9 @@ describe("modelCatalog default roles", () => {
     expect(resolveAudioVoiceoverModelId()).toBe("eleven_multilingual_v2");
     expect(resolveAudioVoiceChangerModelId()).toBe("eleven_multilingual_sts_v2");
     expect(resolveAudioVoiceDesignModelId()).toBe("eleven_multilingual_ttv_v2");
-    expect(resolveAiStudioTextPromptModelId()).toBe("gpt-5.4-nano");
-    expect(resolveStudioAgentDefaultModelId()).toBe("gpt-5.4-nano");
-    expect(resolveStudioAgentDefaultVisionModelId()).toBe("gpt-5.4-nano");
+    expect(resolveAiStudioTextPromptModelId()).toBe("gpt-5.5");
+    expect(resolveStudioAgentDefaultModelId()).toBe("gpt-5.5");
+    expect(resolveStudioAgentDefaultVisionModelId()).toBe("gpt-5.5");
     expect(resolveStyleExtractionVisionModelId()).toBe("gpt-5.4-mini");
     expect(resolveStyleExtractionFallbackVisionModelId()).toBe("gpt-5.4");
   });
@@ -45,9 +45,9 @@ describe("modelCatalog default roles", () => {
       ["audio-voiceover", "eleven_multilingual_v2"],
       ["audio-voice-changer", "eleven_multilingual_sts_v2"],
       ["audio-voice-design", "eleven_multilingual_ttv_v2"],
-      ["ai-studio-text-prompt", "gpt-5.4-nano"],
-      ["studio-agent-chat", "gpt-5.4-nano"],
-      ["studio-agent-vision", "gpt-5.4-nano"],
+      ["ai-studio-text-prompt", "gpt-5.5"],
+      ["studio-agent-chat", "gpt-5.5"],
+      ["studio-agent-vision", "gpt-5.5"],
       ["style-extraction-vision", "gpt-5.4-mini"],
       ["style-extraction-fallback", "gpt-5.4"],
     ];

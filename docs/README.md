@@ -92,6 +92,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/enate-ende/standard-operating-procedure.md`
 - `docs/agents/enate-ende/ownership-manifest.md`
 - `docs/agents/enate-ende/canvas-command-index.md`
+- `docs/agents/enate-ende/canvas-launch-hardening-plan-2026-07-07.md`
 - `docs/agents/enate-ende/workspace/README.md`
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`

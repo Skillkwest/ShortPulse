@@ -211,11 +211,11 @@ Do all of these:
 ## Current system snapshot
 
 - `Generation recovery / settlement`: `4/10`
-- `Generation submission / polling`: `6/10`
-- `Billing / credits`: `6/10`
+- `Generation submission / polling`: `7/10`
+- `Billing / credits`: `7/10`
 - `Create workflow`: `6/10`
-- `Edit workflow`: `5/10`
-- `Reference Grid`: `6/10`
+- `Edit workflow`: `7/10`
+- `Reference Grid`: `7/10`
 
 Interpretation:
 

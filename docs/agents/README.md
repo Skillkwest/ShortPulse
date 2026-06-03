@@ -51,6 +51,7 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/enate-ende/ownership-manifest.md`: Enate Ende's ownership boundary map for Canvas versus adjacent specialist lanes.
   - `docs/agents/enate-ende/canvas-command-index.md`: compact first-load map for Canvas owner paths, validation anchors, and escalation docs.
   - `docs/agents/enate-ende/canvas-launch-hardening-plan-2026-07-07.md`: canonical pre-launch Canvas hardening plan for trust, durability, proof, and freeze rules.
+  - `docs/agents/enate-ende/canvas-tear-out-drag-design-2026-06-03.md`: design note for exporting Canvas items into workflow surfaces without regressing normal Canvas drag behavior.
   - `docs/agents/enate-ende/workspace/README.md`: Enate Ende's temporary workspace and intake surface.
   - retained artifacts live under `docs/records/artifacts/agent/enate-ende/`.
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.

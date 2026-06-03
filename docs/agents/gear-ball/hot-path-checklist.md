@@ -73,7 +73,13 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 - do not treat the run as stable until this loop returns clean or only intentionally deferred unrelated work remains
 
 12. Do not commit the score loop while any related repo-backed tail is still live. Score-loop writeback happens only after the final commit set is complete.
-13. Before push, rerun only the final required validation on the exact final tree when the final committed content materially differs from the already-validated content. Do not duplicate the same ladder just because a commit happened.
+13. Before push, rerun validation only when the final committed content materially differs from the already-validated content. Valid triggers are:
+
+- commit hooks rewrote validated files
+- related tails were folded into the lane after the earlier proof
+- a post-validation fix changed committed content
+
+If rerun is required, rerun only the affected rung set (`gear-ball:preflight`, owning tests, `build`, or `docs:check`). Do not duplicate the full earlier ladder just because a commit happened.
 14. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
 15. Push only the approved branch.
 16. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool confirms success.

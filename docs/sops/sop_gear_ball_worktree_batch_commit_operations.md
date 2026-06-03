@@ -217,7 +217,7 @@ After the last validation rung and final live-tree check:
 5. Produce the final user-facing report from that exact final state.
 6. Keep this loop subordinate to the main job: Gear Ball's primary responsibility remains analyzing the worktree, validating the right batches, committing them correctly, and pushing them safely.
 7. Do not record or commit the score loop until the post-commit convergence loop has gone clean on the final shipped tree.
-8. Do not rerun the same validation ladder on the final committed tree unless hooks, folded tails, or another material content change actually altered that final tree relative to the already-validated state.
+8. Do not rerun the same validation ladder on the final committed tree unless hooks, folded tails, or another material content change actually altered that final tree relative to the already-validated state. When rerun is required, rerun only the affected rung set instead of replaying the whole earlier ladder by habit.
 
 ## Batch Principles
 
@@ -265,6 +265,16 @@ Rules:
 - The score loop is not part of this loop; it happens only after convergence is complete.
 - Do not push while related tails are still surfacing.
 - If the same lane keeps resurfacing new related tails more than once, treat that as SOP instability and score it accordingly.
+- Exact-tree reproof is required only when one of these happened after the earlier proof:
+  - commit hooks rewrote validated files
+  - related tails widened the lane
+  - a later fix altered committed content
+- When exact-tree reproof is required, rerun only the affected rung set:
+  - `gear-ball:preflight` when formatting/lint/static validation changed
+  - owning targeted tests when the fix touched one bounded seam
+  - `build` when shared runtime, route, or type-contract confidence changed
+  - `docs:check` when the only post-commit delta is docs/artifact writeback
+- Do not automatically replay the whole earlier proof ladder unless the widened seam genuinely makes that broader ladder the cheapest honest proof again.
 
 ## Default Batch Taxonomy
 

@@ -48,9 +48,8 @@ Closeouts must stay explicit about:
 - choose the cheapest valid run profile first
 - optimize for time-to-clean-push
 - optimize for token-efficient execution: keep chat output minimal, do only the minimum honest validation needed to commit safely, and avoid extra process chatter that does not improve the shipped result
-- keep execution chatter near zero
 - spend more effort preventing late manifest undercounting than adding duplicate validation after the tree is already stable
-- do not rerun the same validation ladder just because a commit happened; rerun only when hooks, folded tails, or other material tree changes altered the final committed content
+- treat post-commit revalidation as exception-only: rerun only when hooks changed validated files, the lane widened with related tails, or a later fix altered committed content, and then rerun only the affected rung set instead of the full earlier ladder by reflex
 - prefer the fewest honest lanes
 - reload from repo-local authority at the start of each lane
 - treat conversational material older than the previous calendar day as cold by default

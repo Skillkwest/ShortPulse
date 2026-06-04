@@ -32,6 +32,7 @@ This SOP governs:
 - External agent reports are evidence inputs, not rating decisions.
 - Repo code, current docs, and validation evidence outrank retained artifacts and previous assumptions.
 - Copperknot should usually run the audit, source fix, focused validation, and self-audit loop itself inside the active lane when that work is safe, high-ROI, and does not change UI/UX or intended behavior.
+- Copperknot must treat the Supabase image transformation prohibition as a hard launch invariant in every media/storage/adaptive lane. Transform usage is a regression to remove, never a mitigation or rollout option.
 - Bounded execution moves to another agent only when the user explicitly asks for delegation or when a current task explicitly authorizes it under the active tool contract.
 - Copperknot remains accountable for delegated work. It must choose the lane, review the result, decide whether the result is acceptable, and update launch-control truth itself. The user should not need to arbitrate routine delegated-lane decisions inside Copperknot's authority boundary.
 - Copperknot may decide that a lane is ready for dispatch, but it must pause there and wait for explicit user approval before actually dispatching the execution lane.
@@ -128,6 +129,8 @@ Before rerating, define the evidence snapshot:
 - post-batch state after active lanes finish
 
 Do not rerate against a moving target if active edits are still landing in the same system boundary.
+
+When the target is moving, Copperknot should not chase final launch proof as the primary work. Use a rolling weakness audit instead: identify the weakest source seam, harden the canonical path, add or repair narrow invariant tests and meaningful variant checks, run bounded validation, and record the final proof boundary for the later stable-lane or launch-week pass.
 
 For full repo audits, explicitly record all of these:
 
@@ -234,14 +237,22 @@ Before making a second patch in response to a failed validation signal, classify
 - `broad-lane spillover`
   - the failure belongs to a wider system than the current lane can safely resolve in a couple focused passes
 - `handoff boundary`
-  - the remaining work requires another agent, more architectural thought, or more than a couple focused Copperknot passes
+  - the remaining work requires another agent, broad architectural thought, production credentials/spend approval, UI/UX or intended-behavior changes, or repeated fixes/regressions despite bounded Copperknot passes
 
 Use these rules:
 
+- Treat `lint`, `type-check`, and equivalent ordinary repo validation failures as Copperknot-owned launch hygiene by default. Triage the owning seam, fix narrow source errors, stale tests, stale fixtures, and type-contract drift directly, then rerun the bounded slice to green before considering handoff.
+- Treat final production/user-journey proof as high ROI only for stable lanes, launch-week gates, or cheap non-mutating checks that directly guide source hardening.
+- Do not hand off validation failures merely because they are noisy. Hand off only after a disciplined first convergence pass proves the remaining work requires UI/UX or intended-behavior changes, broad architecture/source-contract redesign, cross-lane ownership, production credentials, or repeated oscillation.
 - patch `source regression` only at the owning source seam
 - patch `stale validation` only when the current source contract is clear and the test is the stale surface
 - record `flaky/non-reproducible validation` as a caveat instead of patching around it
-- convert `broad-lane spillover` and `handoff boundary` into a marked lane and handoff
+- convert `broad-lane spillover` and `handoff boundary` into a marked lane and handoff, especially when the remaining fix requires UI/UX or intended-behavior changes, broad architecture/source-contract redesign, cross-lane ownership, or repeated oscillation
+- do not hand off by size alone; continue when the source owner seam is clear, confidence remains high, validation is bounded, and the work preserves current UI/UX and intended behavior
+- treat the next step as a handoff blocker only when it crosses an autonomy gate, requires another agent's documented authority, needs broad architecture/source-contract redesign, needs production credentials or approved production spending, or starts oscillating between fixes and regressions
+- before acting on any queue row, board claim, handoff packet, retained proof, or pasted agent packet, run the Freshness Gate against current branch, worktree, owning source files, current queue/board, and relevant production evidence
+- if a packet is stale, do not execute from it; refresh it, narrow it, retire it, or report the stale boundary before acting
+- after creating or refreshing a handoff, stop the current Copperknot pursuit, notify the user, and do not continue into the next queue lane without explicit continuation approval
 - do not keep alternating between source and test patches unless fresh evidence proves each patch is the highest-ROI launch move
 - after one bounded rerun fails to reproduce a validation issue, stop treating that issue as patchable evidence until a narrower owner path reproduces it
 
@@ -317,6 +328,10 @@ After the handoff is sharp enough, prefer dispatch over local execution unless o
 - delegation would create more context ambiguity than it removes
 
 Reaching dispatch readiness does not authorize dispatch by itself.
+
+Creating or refreshing a handoff is also the stop condition for the current Copperknot pursuit. The closeout must name the handoff path, evidence level, unproven proof boundary, and recommended next decision. Copperknot must not continue into adjacent launch lanes in the same autonomous run.
+
+Every new or refreshed handoff must include a freshness instruction for pasted use: the receiving agent must re-read the current queue/board, inspect the owning source seams, and stop if any packet assertion is stale before editing.
 
 Before any execution lane is actually dispatched:
 

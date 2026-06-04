@@ -135,6 +135,15 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`
+- `docs/agents/latency/README.md`
+- `docs/agents/latency/AGENTS.md`
+- `docs/agents/latency/job-description.md`
+- `docs/agents/latency/goal-prompt.md`
+- `docs/agents/latency/memory.md`
+- `docs/agents/latency/standard-operating-procedure.md`
+- `docs/agents/latency/ownership-manifest.md`
+- `docs/agents/latency/tools/README.md`
+- `docs/agents/latency/workspace/README.md`
 - `docs/agents/Create Workflow/README.md`
 - `docs/agents/Create Workflow/create-panel-operating-brief.md`
 - `docs/agents/Create Workflow/create-panel-system-map.md`

@@ -86,6 +86,8 @@ Rules:
   - `docs/records/evidence/style-adherence/`
 
 ## Telemetry contract
+Low-severity browser `telemetry.ai_studio.*` reports are currently suppressed before `/api/log/client-error`, so the contract below documents payload shape and source naming, not a guaranteed live-ingest path.
+
 Source: `telemetry.ai_studio.style_extraction`
 
 Messages:

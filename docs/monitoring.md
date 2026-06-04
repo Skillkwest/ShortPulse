@@ -9,7 +9,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
 - Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
-- AI Studio generate-click telemetry is emitted as `telemetry.ai_studio.generate_clicked` whenever a signed-in user explicitly starts a generate/regenerate action in AI Studio.
+- AI Studio low-severity client telemetry under `telemetry.ai_studio.*` is currently suppressed in the browser reporter before `/api/log/client-error` ingest so incident-budget headroom is reserved for real failures.
 - Project workspace degraded-save telemetry is emitted as `telemetry.ai_studio.project_workspace.repair_pending` when the durable workspace write succeeds but follow-up project association repair still needs another pass.
 - Growth funnel telemetry is emitted through `/api/telemetry/growth` for:
   - `telemetry.marketing.page_view`
@@ -36,6 +36,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
    - Deduplicated incidents stored in `app_error_logs` (open incident merge by fingerprint)
 3. Telemetry-only source policy:
    - Sources under `telemetry.*` stay in `app_error_events` only (no grouped incident row)
+   - Low-severity browser `telemetry.ai_studio.*` reports are currently dropped before ingest and therefore do not reach `app_error_events`.
    - Shared policy contract lives in `frontend/lib/server/api/errorTelemetryPolicy.ts`
 4. Operator retrieval:
    - `/api/admin/error-events` = raw stream + enrichment + alert summaries
@@ -44,7 +45,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 
 ## AI Studio usage analytics
 
-- Primary generate-click source: `telemetry.ai_studio.generate_clicked`
+- Primary generate-click source: temporarily unavailable in `app_error_events` while low-severity browser `telemetry.ai_studio.*` ingest is suppressed to protect incident budget.
 - Primary accepted-run source: `ai_generations`
 - Primary workflow-context source: `generation_projection` (style/character/reference lineage)
 - Primary asset-behavior source: `media_events`
@@ -58,7 +59,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `workflows` uses generate-click telemetry for tool/mode intent and `generation_projection` for style-applied, character-mode, and reference-assisted generation context.
   - `assets` uses `media_events` for save/upload/rename/move/delete/prompt-save behavior and `ai_generations.metadata.autosave_decision` for autosave rollups.
   - `projects` uses `projects`, `project_generation_items`, `project_media_items`, and `project_prompt_items` for serious-work attachment metrics.
-- `telemetry.ai_studio.generate_clicked` metadata contract now includes:
+- Historical `telemetry.ai_studio.generate_clicked` metadata contract includes:
   - `selected_tool`
   - `mode`
   - `project_id_present`

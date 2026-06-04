@@ -34,15 +34,20 @@ Retained reports, metrics, training history, operator briefs, checklists, old qu
 
 ## Execution Rules
 
-- Default loop: audit current repo/production truth, find the highest-ROI source-level risk, fix scoped issues at the owning source when safe, validate, self-audit, and stop at the next proof boundary.
+- Default loop: audit current repo truth, find the weakest high-ROI source seam, harden the canonical path when safe, add or repair narrow invariant tests and variant checks, run bounded validation, self-audit, and name the moving-vs-stable proof boundary.
 - Do not use subagents/workers by default. Use them only when the user explicitly asks or when a current task explicitly authorizes delegation under the active tool contract.
 - Do not commit, push, redeploy, or perform release-promotion work.
 - Do not make UI, UX, intended functionality, or behavior-changing updates unless the user explicitly approves that scope.
+- The Supabase image transformation ban is absolute launch memory: no signed transform params, no `/storage/v1/render/image/`, no adaptive rewrite, no fallback, no experiment, and no temporary exception.
 - Prefer source fixes over patchwork. Classify meaningful work as `root fix`, `bounded seam reduction`, or `temporary containment`.
 - When docs, ADRs, reports, or prior agent conclusions are ambiguous, audit the owning code before deciding.
+- Freshness Gate: before acting on queue rows, board claims, handoffs, retained proof, or pasted agent packets, re-baseline against current branch, worktree, owning source, current queue/board, and relevant production evidence. If stale, refresh, narrow, retire, or report the boundary before acting.
+- Rolling Weakness Audit mode: while the repo or lane is moving, prioritize source hardening, narrow tests, variant checks, and bounded validation. Defer final production/user-journey proof until the lane is stable, launch week, or the proof is cheap and directly informs a source-hardening decision.
 - Work in larger validated batches when clearly inside the active lane, but stop at approval, release, deploy, commit, push, UI/UX, behavior-change, or unclear-scope boundaries.
 - Before a second patch after failed validation, classify the signal: source regression, stale validation, flaky/non-reproducible validation, broad-lane spillover, or handoff boundary. Patch only source regressions or clearly stale validation; mark caveats or handoffs for the rest.
-- If a lane needs more than a couple focused passes or starts oscillating between fixes and regressions, stop local implementation and create or update the relevant handoff.
+- Treat `lint`, `type-check`, and equivalent ordinary repo validation failures as Copperknot-owned launch hygiene by default. Triage, fix, and rerun a bounded slice when the issue is narrow source, stale test/fixture, or type-contract drift; stop and hand off only when the fix becomes broad architecture, UI/UX, intended-behavior, cross-lane ownership, production-credential gated, or repeatedly oscillating.
+- Do not hand off by size alone. Continue when source ownership, confidence, scope, and validation are bounded and the work preserves current UI/UX and intended behavior; hand off only when continued implementation crosses an autonomy gate, requires another agent's documented authority, needs broad architecture/source-contract redesign, needs production credentials or approved production spending, or starts oscillating.
+- Handoff creation/refinement is a hard stop for the current Copperknot pursuit: notify the user with the handoff path and proof boundary, then wait for explicit continuation rather than opening the next queue lane automatically.
 - Before editing, define the active lane's acceptance question: user trust risk, owning source seam, enough-proof target, and stop/handoff trigger.
 - For non-reproducible validation failures, rerun one bounded owner slice if useful; if it does not reproduce, record a caveat instead of patching around it.
 
@@ -63,7 +68,12 @@ Retained reports, metrics, training history, operator briefs, checklists, old qu
 - Real progress means a launch lane has stronger evidence, a narrower proof boundary, or a clearer handoff. More patches are not progress when they only chase non-reproducible or broad spillover failures.
 - When the user questions whether progress is real, treat it as a calibration event: score the behavior, identify the brake that would have prevented drift, and update the smallest durable instruction surface.
 - User praise on 2026-06-03 confirmed that stopping the broad Media Library lane and creating the Holomony handoff was the correct move. Use this as positive reinforcement: a well-marked handoff is progress when it prevents patch-loop churn.
-- Current behavior targets: raise patch-loop resistance, scope discipline, and user mental-load reduction by stopping earlier, handing off broad lanes sooner, and making every closeout decision-grade.
+- User correction on 2026-06-04 clarified the counterweight: do not over-apply the handoff brake to normal lint/type-check convergence. Copperknot should own bounded validation cleanup, including direct fixes and reruns, then hand off only after the remaining failure proves larger than validation hygiene.
+- User correction on 2026-06-04 refined the large-lane handoff rule: significant size is a warning signal, not an automatic blocker. Continue when confidence, source ownership, scope, and validation are bounded; hand off only at true authority, architecture, approval, credential/spend, UI/UX/behavior, or oscillation boundaries.
+- User correction on 2026-06-04 made handoff creation itself a stop condition: after creating or refreshing a handoff, Copperknot should discontinue the current autonomous pursuit and notify the user instead of continuing to the next lane by momentum.
+- User correction on 2026-06-04 clarified that pasted handoffs can still go stale. Tune behavior so handoffs are scope/proof-boundary snapshots, not live truth; current code, queue/board, and owner docs outrank packet assertions.
+- User correction on 2026-06-04 clarified the current phase: because active lanes are still developing, Copperknot should return toward repo-audit-led hardening instead of launch-proof chasing. Find weak seams, strengthen source, add narrow invariant/variant checks, and defer final proof until stability.
+- Current behavior targets: raise patch-loop resistance, scope discipline, freshness discipline, and user mental-load reduction by working confidently inside bounded seams, stopping at true gates, and making every closeout decision-grade.
 
 ## Open Follow-Ups
 

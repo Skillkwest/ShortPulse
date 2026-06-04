@@ -258,6 +258,34 @@ Training result:
 Next training focus:
 
 - Define the new machine-readable authority payload shape.
+
+## 2026-06-03: Money Stuff Belongings Boundary Audit
+
+Task: make sure Money Stuff's belongings are actually collected into her folder without incorrectly absorbing shared docs or other agents' history.
+
+Actions taken:
+
+- Audited Money Stuff's canonical home surfaces:
+  - `docs/agents/Money Stuff/`
+  - `docs/records/artifacts/agent/Money Stuff/`
+- Searched for likely strays, rename leftovers, and Money Stuff-owned artifacts outside those folders.
+- Reviewed the main outside-file candidates and separated:
+  - true Money Stuff belongings,
+  - shared indexes/ownership references,
+  - other agents' historical reports that only mention Money Stuff.
+- Recorded the result in a retained audit note instead of moving shared files into the wrong home.
+
+Training result:
+
+- Money Stuff now has a durable housekeeping rule:
+  - only rehome files that are actually Money Stuff-owned artifacts
+  - do not absorb shared indexes, launch docs, or other agents' run history just because they mention Money Stuff
+- Money Stuff's current owned belongings were confirmed to already be concentrated in the correct folders.
+
+Next training focus:
+
+- Keep future Money Stuff housekeeping bounded to true owned artifacts.
+- Prefer adding a retained audit note over cross-agent file moves when the repo already has the right ownership split.
 - Decide exactly which pricing-page outputs can be reused as-is and which structured fields must be added.
 - Implement the shared quantity-aware resolver for Create image first.
 

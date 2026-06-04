@@ -57,6 +57,30 @@ npm -C frontend test -- --run tests/api/projects-create.test.ts lib/server/__tes
 
 Result: 3 test files passed, 79 tests passed.
 
+Continuation revalidation on 2026-06-04:
+
+```bash
+npm -C frontend test -- --run lib/server/__tests__/projectWorkspaceStatesService.test.ts lib/server/__tests__/projectsService.test.ts lib/server/__tests__/projectGenerationAssociationsService.test.ts tests/api/projects-create.test.ts
+```
+
+Result: 4 test files passed, 104 tests passed.
+
+Additional validation:
+
+```bash
+node scripts/check_secret_exposure.js
+```
+
+Result: secret exposure checks passed.
+
+## 2026-06-04 Continuation Decision
+
+No code edit was selected after the continuation recheck.
+
+Why: the current primary project routes still require `requireApiUser`, validate project ids, and prove project ownership through `getProjectForUser({ userId, projectId })` before item or workspace read/write/delete. The current workspace service still filters storage paths to the caller's user scope, resolves media/prompt/generation references through caller-owned rows, re-sanitizes on read, and falls back to ownership-safe snapshots when read-time authority resolution degrades. Project association helpers also re-check project ownership and asset/generation ownership before writing service-role association rows. SQL backstops still include project/user composite constraints, user-scoped RLS, and service-role-only display-row access.
+
+Stop rationale: continuing into code would require inventing a new threat statement or touching nearby Project Persistence behavior by momentum. That would be lower launch-readiness ROI than stopping with the current no-fix audit evidence.
+
 ## Residual Launch Risk
 
 - This was a local repo audit and test run only; no hosted Supabase or production data was mutated.

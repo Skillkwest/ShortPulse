@@ -48,8 +48,11 @@ These packets are intentionally flat and copy/paste ready.
 When a packet is pasted into another agent:
 
 - the receiving agent should treat the pasted handoff as the primary scope definition,
+- run the Freshness Gate before editing: re-read the current queue/board, inspect the packet's owning source seams, and stop if any packet assertion is stale,
 - keep the lane bounded to that packet,
 - and close out with a concise result that is ready to archive once returned to the user.
+
+Pasted handoffs are scope/proof-boundary snapshots, not live truth. Current source code, current queue/board state, and current owner docs outrank stale packet assertions.
 
 ## Closeout Intake Rule
 

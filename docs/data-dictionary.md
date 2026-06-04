@@ -1079,7 +1079,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `occurred_at` / `created_at` (timestamptz)
 - RLS: enabled with no client policies by default (service-role/server-only writes and reads).
 - Telemetry contract notes:
-  - `telemetry.ai_studio.generate_clicked` is the intent authority for admin stats v1.
+  - `telemetry.ai_studio.generate_clicked` was the original intent authority for admin stats v1, but low-severity browser `telemetry.ai_studio.*` ingest is currently suppressed before `/api/log/client-error`, so do not treat this source as fresh/live authority until a dedicated product-telemetry lane replaces it.
   - Growth funnel sources now include:
     - `telemetry.marketing.page_view`
     - `telemetry.marketing.cta_clicked`

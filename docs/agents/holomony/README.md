@@ -18,6 +18,8 @@ Media-display authority ledger lives in `media-display-authority-ledger.md`; use
 
 Media-display authority plan lives in `media-display-authority-plan.md`; use it as the active implementation plan for the final canonical media route across Reference Grid, Quick Slot Inventory, global right-rail Canvas, media-library grids/carriages, and detail/preview modals.
 
+Goal prompt lives in `goal-prompt.md`; use it when Holomony needs to convert current audit findings into a bounded plan document and stop before implementation.
+
 Reference Grid ownership map lives in `reference-grid-ownership-map.md`; use it as Holomony's canonical deeper map for Reference Grid scope, owner paths, and failure classification when a right-rail lane is substantive enough to need Tier 1 context.
 
 Reference Grid diagnostic SOP lives in `reference-grid-diagnostic-sop.md`; use it before editing Reference Grid or Quick Slot behavior.

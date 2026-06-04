@@ -68,6 +68,16 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/nuclo/README.md`: Nuclo version, environment ladder, Vercel, and Supabase coordination contract and memory entrypoint.
   - `docs/agents/nuclo/environment-ledger-template.md`: reviewed matrix template for branch, Vercel, GitHub Environment, and Supabase mapping before cutover work.
   - `docs/agents/nuclo/workspace/README.md`: Nuclo-owned operational workspace for managed scratch, inbox material, and handoff preparation.
+- `docs/agents/latency/README.md`: Latency app-wide latency optimization steward contract, memory entrypoint, and source-of-truth prompt for the July 7 2026 latency launch plan.
+  - `docs/agents/latency/AGENTS.md`: Latency-scoped execution overlay for high-ROI, preserve-behavior performance work.
+  - `docs/agents/latency/job-description.md`: Latency's durable job title, job description, responsibilities, authority, success criteria, and hard boundaries.
+  - `docs/agents/latency/goal-prompt.md`: durable active goal prompt for continuing the ShortPulse latency optimization plan.
+  - `docs/agents/latency/memory.md`: Latency's repo-visible durable memory entrypoint.
+  - `docs/agents/latency/standard-operating-procedure.md`: Latency's standing SOP for ROI-ranked latency execution, validation, and stop discipline.
+  - `docs/agents/latency/ownership-manifest.md`: Latency's ownership boundary map for app-wide performance versus adjacent specialist lanes.
+  - `docs/agents/latency/tools/README.md`: Latency's helper command and tool inventory.
+  - `docs/agents/latency/workspace/README.md`: Latency's temporary workspace and intake surface.
+  - retained artifacts live under `docs/records/artifacts/agent/latency/`.
 - `docs/records/artifacts/agent/ophestivus/contract.md`: admin board steward contract and local workspace home.
   - compatibility pointer remains at `docs/agents/ophestivus/README.md` for historical links.
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.

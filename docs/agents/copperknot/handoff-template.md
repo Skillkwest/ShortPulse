@@ -16,7 +16,8 @@ Purpose: provide one reusable handoff format for execution agents working from t
 
 - This document is written to be pasted directly into another agent.
 - Treat it as an execution packet, not as brainstorming context.
-- Do not re-audit the whole repo before starting unless this packet explicitly requires it.
+- Before editing, run the Freshness Gate: re-read the current Copperknot queue/board, inspect the owning source seams named here, and stop if any packet assertion is stale.
+- Do not re-audit the whole repo before starting unless this packet explicitly requires it; freshness-gate only the bounded lane.
 
 ### Why this task
 

@@ -27,7 +27,7 @@ This is intentionally not a full CDP or CRM pipeline. The current scope is admin
   - activity on `2+` distinct UTC days
   - `5+` successful generations
   - `100+` spent credits (`ai_credit_ledger` negative deltas)
-- `Paid converted`: first non-free Stripe-backed `billing_subscription_contracts` row (`contract_source='stripe'`)
+- `Paid converted`: first Stripe-backed paid `billing_subscription_contracts` row (`contract_source='stripe'`)
 
 ## Source Of Truth
 

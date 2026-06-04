@@ -102,4 +102,92 @@ describe("runAdminUserHealthFleetScan", () => {
       expect.anything()
     );
   });
+
+  it("uses projection request lineage to avoid false fleet cost-without-success alerts", async () => {
+    loadFleetTargetUsersMock.mockResolvedValue([
+      {
+        userId: "user-1",
+        email: "user@example.com",
+      },
+    ]);
+
+    const rpcMock = vi.fn(async () => ({ error: null }));
+    const buildQuery = (table: string) => {
+      const filters = new Map<string, unknown[]>();
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn(() => chain);
+      chain.in = vi.fn((field: string, values: unknown[]) => {
+        filters.set(field, values);
+        return chain;
+      });
+      chain.gte = vi.fn(() => chain);
+      chain.lte = vi.fn(() => chain);
+      chain.lt = vi.fn(() => chain);
+      chain.order = vi.fn(() => chain);
+      chain.then = (resolve: (value: unknown) => void, reject?: (reason?: unknown) => void) => {
+        let data: unknown[] = [];
+        if (table === "ai_credit_balance") {
+          data = [{ user_id: "user-1", balance_cents: 100 }];
+        } else if (table === "ai_credit_reservations") {
+          data = [
+            {
+              user_id: "user-1",
+              status: "captured",
+              source_ref: "ledger-source-ref",
+              provider_request_id: "provider-request-1",
+              amount_cents: 5,
+              created_at: "2026-06-03T10:00:00.000Z",
+            },
+          ];
+        } else if (table === "ai_credit_ledger") {
+          data = [
+            {
+              user_id: "user-1",
+              change_cents: -5,
+              source: "generation_charge",
+              source_ref: "ledger-source-ref",
+              reason: "elevenlabs music generation",
+              created_at: "2026-06-03T10:01:00.000Z",
+            },
+          ];
+        } else if (table === "generation_projection") {
+          const requestIds = filters.get("request_id") ?? [];
+          data = requestIds.includes("provider-request-1")
+            ? [
+                {
+                  user_id: "user-1",
+                  source_ref: "projection-source-ref",
+                  request_id: "provider-request-1",
+                  provider_request_id: null,
+                  status: "success",
+                  task_state: "success",
+                  result_urls: ["https://cdn.test/audio.mp3"],
+                  preview_url: null,
+                },
+              ]
+            : [];
+        }
+        return Promise.resolve({ data, error: null }).then(resolve, reject);
+      };
+      return chain;
+    };
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => buildQuery(table),
+      rpc: rpcMock,
+    });
+
+    const result = await runAdminUserHealthFleetScan({
+      triggerSource: "scheduled",
+    });
+
+    expect(result.status).toBe("completed");
+    const persistedDrafts = persistFleetSnapshotBatchMock.mock.calls[0]?.[0]?.drafts ?? [];
+    expect(persistedDrafts[0]).toEqual(
+      expect.objectContaining({
+        costWithoutSuccessCents: 0,
+        costWithoutSuccessLinkedCents: 0,
+        costWithoutSuccessMissingLinkageCents: 0,
+      })
+    );
+  });
 });

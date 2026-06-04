@@ -411,6 +411,73 @@ describe("buildAdminHealthResponse", () => {
     );
   });
 
+  it("uses projection request lineage when charge source_ref differs from projection source_ref", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user-1",
+      lookupMode: "user_id",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,recovery_state,request_id,metadata",
+      reservationsSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: null,
+      generations: [],
+      attempts: [],
+      outputs: [],
+      reservations: [
+        {
+          id: "res-provider-lineage",
+          status: "captured",
+          source_ref: "ledger-source-ref",
+          provider_request_id: "provider-request-1",
+          model_id: "music_v1",
+          amount_cents: 5,
+          metadata: null,
+          created_at: "2026-03-17T11:05:00.000Z",
+          released_at: null,
+          captured_at: "2026-03-17T11:06:00.000Z",
+        },
+      ],
+      generationProjectionBillingRows: [
+        {
+          generation_id: "gen-provider-lineage",
+          source_ref: "projection-source-ref",
+          request_id: "provider-request-1",
+          provider_request_id: null,
+          status: "success",
+          task_state: "success",
+          result_urls: ["https://cdn.test/audio.mp3"],
+          preview_url: null,
+        },
+      ],
+      ledger: [
+        {
+          id: "ledger-provider-lineage",
+          user_id: "user-1",
+          change_cents: -5,
+          reason: "elevenlabs music generation",
+          source: "generation_charge",
+          source_ref: "ledger-source-ref",
+          metadata: null,
+          created_at: "2026-03-17T11:06:00.000Z",
+        },
+      ],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.drainage.costWithoutSuccessfulGeneration.debitCents).toBe(0);
+    expect(result.findings.map((finding) => finding.code)).not.toEqual(
+      expect.arrayContaining([
+        "CHARGED_MISSING_LINKAGE_DATA",
+        "CHARGED_LINKED_NON_SUCCESS_GENERATION",
+      ])
+    );
+  });
+
   it("surfaces generation output, project association, and terminal hold invariants", () => {
     const result = buildAdminHealthResponse({
       lookup: "user-1",

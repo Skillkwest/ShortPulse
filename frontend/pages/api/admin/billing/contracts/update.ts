@@ -192,7 +192,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       );
       if (profileUpsertError) {
-        throw new Error(profileUpsertError.message || "Failed to set the account back to Free.");
+        throw new Error(
+          profileUpsertError.message || "Failed to return the account to the baseline plan state."
+        );
       }
 
       return res.status(200).json({

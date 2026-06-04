@@ -171,13 +171,13 @@ describe("useAdminPricingPageState", () => {
     );
   });
 
-  it("drops the hidden free tier from default simulator plan ids when starter exists", async () => {
+  it("drops the hidden baseline tier from default simulator plan ids when starter exists", async () => {
     const pricingState = {
       ...buildPricingState(),
       plans: [
         {
           planId: "free",
-          displayName: "Free",
+          displayName: "Starter",
           offerId: "free__current",
           sortOrder: 0,
           accountCount: 10,

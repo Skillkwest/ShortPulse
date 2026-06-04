@@ -51,6 +51,17 @@ type GenerationRow = {
   created_at: string | null;
 };
 
+type ProjectionBillingRow = {
+  user_id: string;
+  source_ref: string | null;
+  request_id: string | null;
+  provider_request_id: string | null;
+  status: string | null;
+  task_state: string | null;
+  result_urls?: unknown;
+  preview_url?: string | null;
+};
+
 type RichLedgerRow = {
   user_id: string;
   change_cents: number | string | null;
@@ -107,11 +118,15 @@ const evaluateCostWithoutSuccess = ({
   ledgerRows,
   reservationBySourceRef,
   generationByRequestId,
+  projectionBySourceRef,
+  projectionByProviderRequestId,
 }: {
   userId: string;
   ledgerRows: NormalizedLedgerRow[];
   reservationBySourceRef: Map<string, ReservationRow>;
   generationByRequestId: Map<string, string | null>;
+  projectionBySourceRef: Map<string, ProjectionBillingRow>;
+  projectionByProviderRequestId: Map<string, ProjectionBillingRow>;
 }) => {
   let total = 0;
   let linked = 0;
@@ -130,8 +145,34 @@ const evaluateCostWithoutSuccess = ({
       const reservation = reservationBySourceRef.get(row.source_ref);
       if (reservation?.provider_request_id) {
         generationStatus = generationByRequestId.get(reservation.provider_request_id) ?? null;
+        const projection =
+          projectionByProviderRequestId.get(reservation.provider_request_id) ??
+          projectionBySourceRef.get(row.source_ref) ??
+          null;
+        const projectionStatus = projection?.task_state ?? projection?.status ?? null;
+        const projectionResultUrls = Array.isArray(projection?.result_urls)
+          ? projection.result_urls
+          : [];
+        const hasSuccessfulProjectionMedia =
+          projectionStatus === "success" &&
+          (projectionResultUrls.length > 0 || Boolean(projection?.preview_url));
+        if (hasSuccessfulProjectionMedia) {
+          continue;
+        }
         if (generationStatus && generationStatus !== "success") {
           bucket = "linked";
+        }
+      } else {
+        const projection = projectionBySourceRef.get(row.source_ref);
+        const projectionStatus = projection?.task_state ?? projection?.status ?? null;
+        const projectionResultUrls = Array.isArray(projection?.result_urls)
+          ? projection.result_urls
+          : [];
+        const hasSuccessfulProjectionMedia =
+          projectionStatus === "success" &&
+          (projectionResultUrls.length > 0 || Boolean(projection?.preview_url));
+        if (hasSuccessfulProjectionMedia) {
+          continue;
         }
       }
     }
@@ -303,6 +344,63 @@ const loadChunkMetrics = async ({
     compatibilityWarnings.add(ledgerResult.warning);
   }
 
+  const ledgerRows = ledgerResult.rows;
+  const ledgerSourceRefs = Array.from(
+    new Set(
+      ledgerRows
+        .filter((row) => row.source === "generation_charge")
+        .map((row) => row.source_ref?.trim())
+        .filter((sourceRef): sourceRef is string => Boolean(sourceRef))
+    )
+  );
+  const ledgerSourceRefSet = new Set(ledgerSourceRefs);
+  const providerRequestRefs = Array.from(
+    new Set(
+      reservationRows
+        .filter((row) => row.source_ref && ledgerSourceRefSet.has(row.source_ref))
+        .map((row) => row.provider_request_id?.trim())
+        .filter((providerRequestId): providerRequestId is string => Boolean(providerRequestId))
+    )
+  );
+  const projectionRows: ProjectionBillingRow[] = [];
+  const readProjectionRows = async (
+    lookupField: "source_ref" | "provider_request_id" | "request_id",
+    values: string[]
+  ) => {
+    const uniqueValues = Array.from(new Set(values.filter(Boolean)));
+    for (const valueChunk of chunk(uniqueValues, 100)) {
+      const result = await supabaseAdmin
+        .from("generation_projection")
+        .select(
+          "user_id,source_ref,request_id,provider_request_id,status,task_state,result_urls,preview_url"
+        )
+        .in("user_id", userIds)
+        .in(lookupField, valueChunk);
+      const error = normalizeQueryError(result.error);
+      if (error) return error;
+      if (Array.isArray(result.data)) {
+        projectionRows.push(...(result.data as ProjectionBillingRow[]));
+      }
+    }
+    return null;
+  };
+  for (const [lookupField, values] of [
+    ["source_ref", ledgerSourceRefs],
+    ["provider_request_id", providerRequestRefs],
+    ["request_id", providerRequestRefs],
+  ] as Array<["source_ref" | "provider_request_id" | "request_id", string[]]>) {
+    if (!values.length) continue;
+    const error = await readProjectionRows(lookupField, values);
+    if (!error) continue;
+    if (isSchemaCompatibilityError(error)) {
+      compatibilityWarnings.add(
+        "generation_projection billing linkage fields are unavailable; fleet cost-without-success detection is partial."
+      );
+      break;
+    }
+    throw new Error(error.message || "Failed to load generation_projection billing rows.");
+  }
+
   const balanceByUser = new Map<string, number>();
   for (const row of (balanceResult.data ?? []) as BalanceRow[]) {
     if (!row || !userIdSet.has(String(row.user_id))) continue;
@@ -375,7 +473,21 @@ const loadChunkMetrics = async ({
     stuckCountByUser.set(userId, (stuckCountByUser.get(userId) ?? 0) + 1);
   }
 
-  const ledgerRows = ledgerResult.rows;
+  const projectionBySourceRef = new Map<string, ProjectionBillingRow>();
+  const projectionByProviderRequestId = new Map<string, ProjectionBillingRow>();
+  for (const row of projectionRows) {
+    if (!userIdSet.has(String(row.user_id))) continue;
+    if (row.source_ref && !projectionBySourceRef.has(row.source_ref)) {
+      projectionBySourceRef.set(row.source_ref, row);
+    }
+    if (row.provider_request_id && !projectionByProviderRequestId.has(row.provider_request_id)) {
+      projectionByProviderRequestId.set(row.provider_request_id, row);
+    }
+    if (row.request_id && !projectionByProviderRequestId.has(row.request_id)) {
+      projectionByProviderRequestId.set(row.request_id, row);
+    }
+  }
+
   const drafts: FleetSnapshotDraft[] = targets.map((target) => {
     const availableCents = balanceByUser.get(target.userId) ?? 0;
     const reservedCents = reservedByUser.get(target.userId) ?? 0;
@@ -391,6 +503,8 @@ const loadChunkMetrics = async ({
       ledgerRows,
       reservationBySourceRef,
       generationByRequestId,
+      projectionBySourceRef,
+      projectionByProviderRequestId,
     });
 
     const metricInput: FleetUserMetricInput = {

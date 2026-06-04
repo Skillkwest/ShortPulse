@@ -145,7 +145,7 @@ describe("PricingCalculatorSupportStrip", () => {
         plans={[
           {
             planId: "free",
-            displayName: "Free",
+            displayName: "Starter",
             offerId: "free__current",
             sortOrder: 1,
             accountCount: 1,
@@ -190,7 +190,7 @@ describe("PricingCalculatorSupportStrip", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText("Free simulator title"), {
+    fireEvent.change(screen.getByLabelText("Starter simulator title"), {
       target: { value: "Growth Sandbox Plan" },
     });
 

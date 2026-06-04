@@ -328,6 +328,85 @@ describe("GET /api/admin/generation-trace", () => {
     );
   });
 
+  it("expands trace lookup through generation_projection when attempt lineage is missing", async () => {
+    const generationRow = {
+      id: "gen-projection-trace-1",
+      user_id: "user-1",
+      request_id: null,
+      status: "success",
+      metadata: {},
+      created_at: "2026-02-19T15:00:00.000Z",
+    };
+    const projectionRow = {
+      generation_id: "gen-projection-trace-1",
+      source_ref: null,
+      request_id: null,
+      provider_request_id: "req-projection-trace-1",
+      updated_at: "2026-02-19T15:01:00.000Z",
+    };
+    const outputRow = {
+      id: "output-projection-trace-1",
+      generation_id: "gen-projection-trace-1",
+      media_file_id: "file-projection-trace-1",
+      created_at: "2026-02-19T15:02:00.000Z",
+    };
+
+    let aiGenerationsSelectCount = 0;
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        switch (table) {
+          case "ai_generations":
+            return {
+              select: vi.fn(() => {
+                aiGenerationsSelectCount += 1;
+                if (aiGenerationsSelectCount === 1) {
+                  return {
+                    eq: vi.fn(() => ({
+                      limit: vi.fn(async () => ({ data: [], error: null })),
+                    })),
+                  };
+                }
+                return {
+                  in: vi.fn(() => ({
+                    limit: vi.fn(async () => ({ data: [generationRow], error: null })),
+                  })),
+                };
+              }),
+            };
+          case "generation_attempts":
+            return createQueryBuilder([]);
+          case "generation_projection":
+            return createQueryBuilder([projectionRow]);
+          case "ai_generation_outputs":
+            return createQueryBuilder([outputRow]);
+          default:
+            return createQueryBuilder([]);
+        }
+      },
+    });
+
+    const req = { method: "GET", query: { requestId: "req-projection-trace-1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          generations: 1,
+          attempts: 0,
+          outputs: 1,
+        }),
+        generations: expect.arrayContaining([
+          expect.objectContaining({ id: "gen-projection-trace-1" }),
+        ]),
+        generationOutputs: expect.arrayContaining([
+          expect.objectContaining({ media_file_id: "file-projection-trace-1" }),
+        ]),
+      })
+    );
+  });
+
   it("uses live ai_generation_outputs columns in the trace query", async () => {
     const generationRow = {
       id: "gen-output-columns-1",

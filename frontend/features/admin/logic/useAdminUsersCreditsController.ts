@@ -466,7 +466,9 @@ export const useAdminUsersCreditsController = ({
       if (!response.ok) {
         throw new Error(data.error || "Payment-exempt access removal failed.");
       }
-      setBillingOverrideResult("Payment-exempt access removed and the account was set to Free.");
+      setBillingOverrideResult(
+        "Payment-exempt access removed and the account was returned to the baseline plan state."
+      );
       await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
       return true;
     } catch (error) {

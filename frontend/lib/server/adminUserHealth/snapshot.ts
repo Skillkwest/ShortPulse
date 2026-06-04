@@ -53,6 +53,8 @@ type LegacyLedgerRow = {
   created_at: string | null;
 };
 
+type ProjectionBillingLookupField = "source_ref" | "provider_request_id" | "request_id";
+
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -102,6 +104,61 @@ const chunkArray = <T>(values: T[], size: number): T[][] => {
     chunks.push(values.slice(index, index + size));
   }
   return chunks;
+};
+
+const projectionBillingRowKey = (row: GenerationProjectionBillingRow): string =>
+  [
+    asTrimmedString(row.generation_id) ?? "",
+    asTrimmedString(row.source_ref) ?? "",
+    asTrimmedString(row.request_id) ?? "",
+    asTrimmedString(row.provider_request_id) ?? "",
+  ].join(":");
+
+const readGenerationProjectionBillingRows = async ({
+  supabaseAdmin,
+  userId,
+  lookupField,
+  values,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+  lookupField: ProjectionBillingLookupField;
+  values: string[];
+}): Promise<{ rows: GenerationProjectionBillingRow[]; error: QueryError | null }> => {
+  const uniqueValues = Array.from(
+    new Set(
+      values
+        .map((value) => asTrimmedString(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  if (!uniqueValues.length) return { rows: [], error: null };
+
+  const rows: GenerationProjectionBillingRow[] = [];
+  for (const valueChunk of chunkArray(uniqueValues, DB_IN_CLAUSE_BATCH_SIZE)) {
+    const batchResult = await fetchAllRowsForSelect<GenerationProjectionBillingRow>(
+      async (from, to) => {
+        const query = supabaseAdmin
+          .from("generation_projection")
+          .select(
+            "generation_id,source_ref,request_id,provider_request_id,status,task_state,result_urls,preview_url"
+          )
+          .eq("user_id", userId)
+          .in(lookupField, valueChunk)
+          .range(from, to);
+        const { data, error } = await query;
+        return {
+          data: (data as GenerationProjectionBillingRow[] | null) ?? null,
+          error: normalizeQueryError(error),
+        };
+      }
+    );
+    if (batchResult.error) {
+      return batchResult;
+    }
+    rows.push(...batchResult.rows);
+  }
+  return { rows, error: null };
 };
 
 /**
@@ -458,39 +515,45 @@ export const loadAdminHealthSnapshot = async ({
         .filter((sourceRef): sourceRef is string => Boolean(sourceRef))
     )
   );
-  const generationProjectionBillingResult = ledgerSourceRefs.length
-    ? await (async () => {
-        const rows: GenerationProjectionBillingRow[] = [];
-        for (const sourceRefChunk of chunkArray(ledgerSourceRefs, DB_IN_CLAUSE_BATCH_SIZE)) {
-          const batchResult = await fetchAllRowsForSelect<GenerationProjectionBillingRow>(
-            async (from, to) => {
-              const query = supabaseAdmin
-                .from("generation_projection")
-                .select(
-                  "generation_id,source_ref,request_id,provider_request_id,status,task_state,result_urls,preview_url"
-                )
-                .eq("user_id", userId)
-                .in("source_ref", sourceRefChunk)
-                .range(from, to);
-              const { data, error } = await query;
-              return {
-                data: (data as GenerationProjectionBillingRow[] | null) ?? null,
-                error: normalizeQueryError(error),
-              };
-            }
-          );
-          if (batchResult.error) {
-            return batchResult;
-          }
-          rows.push(...batchResult.rows);
-        }
-        return { rows, error: null as QueryError | null };
-      })()
-    : { rows: [] as GenerationProjectionBillingRow[], error: null };
-
-  const generationProjectionBillingError = normalizeQueryError(
-    generationProjectionBillingResult.error
+  const ledgerProviderRequestRefs = ledgerResult.rows
+    .filter((row) => row.source === "generation_charge")
+    .map((row) => asTrimmedString(row.metadata?.provider_request_id))
+    .filter((providerRequestId): providerRequestId is string => Boolean(providerRequestId));
+  const ledgerSourceRefSet = new Set(ledgerSourceRefs);
+  const reservationProviderRequestRefs = reservationsResult.rows
+    .filter((row) => Boolean(asTrimmedString(row.source_ref)))
+    .filter((row) => ledgerSourceRefSet.has(String(row.source_ref)))
+    .map((row) => asTrimmedString(row.provider_request_id))
+    .filter((providerRequestId): providerRequestId is string => Boolean(providerRequestId));
+  const providerRequestRefs = Array.from(
+    new Set([...ledgerProviderRequestRefs, ...reservationProviderRequestRefs])
   );
+  const generationProjectionBillingRowsByKey = new Map<string, GenerationProjectionBillingRow>();
+  let generationProjectionBillingError: QueryError | null = null;
+  const addProjectionBillingRows = (rows: GenerationProjectionBillingRow[]) => {
+    rows.forEach((row) => {
+      generationProjectionBillingRowsByKey.set(projectionBillingRowKey(row), row);
+    });
+  };
+  for (const [lookupField, lookupValues] of [
+    ["source_ref", ledgerSourceRefs],
+    ["provider_request_id", providerRequestRefs],
+    ["request_id", providerRequestRefs],
+  ] as Array<[ProjectionBillingLookupField, string[]]>) {
+    if (generationProjectionBillingError) break;
+    const lookupResult = await readGenerationProjectionBillingRows({
+      supabaseAdmin,
+      userId,
+      lookupField,
+      values: lookupValues,
+    });
+    if (lookupResult.error) {
+      generationProjectionBillingError = lookupResult.error;
+    } else {
+      addProjectionBillingRows(lookupResult.rows);
+    }
+  }
+
   if (generationProjectionBillingError) {
     if (isSchemaCompatibilityError(generationProjectionBillingError)) {
       compatibilityWarnings.push(
@@ -503,6 +566,7 @@ export const loadAdminHealthSnapshot = async ({
       );
     }
   }
+  const generationProjectionBillingRows = Array.from(generationProjectionBillingRowsByKey.values());
 
   const generationProjectIds = Array.from(
     new Set(
@@ -561,9 +625,7 @@ export const loadAdminHealthSnapshot = async ({
     generationProjectionProjects: generationProjectionProjectsResult.error
       ? []
       : generationProjectionProjectsResult.rows,
-    generationProjectionBillingRows: generationProjectionBillingResult.error
-      ? []
-      : generationProjectionBillingResult.rows,
+    generationProjectionBillingRows,
     activeProjectIds: activeProjectIdsResult.error ? undefined : activeProjectIdsResult.rows,
     reservations: reservationsResult.rows,
     ledger: ledgerResult.rows,

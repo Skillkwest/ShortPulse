@@ -73,7 +73,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Attribution identity storage: `growth_attribution_identities`
 - Signup authority: `billing_profiles.created_at`
 - Activation authority: derived from first `media_events.event_type='generation_saved'` or first `project_generation_items.created_at` within 7 days of signup
-- Paid conversion authority: first non-free Stripe-backed `billing_subscription_contracts` row (`contract_source='stripe'`)
+- Paid conversion authority: first Stripe-backed paid `billing_subscription_contracts` row (`contract_source='stripe'`)
 - `/admin/stats` now has:
   - `Product` for usage/value analytics
   - `Marketing` for signups, activation, time-to-value, retention, and source/campaign attribution

@@ -30,7 +30,7 @@ You need exactly two values.
      - `https://<staging-domain>/api/internal/admin-user-health-fleet/run`
    - Example:
      - `https://shortpulse-git-staging-preview-kirk-artmans-projects.vercel.app/api/internal/admin-user-health-fleet/run`
-   - Do not use `/landing`.
+   - Use the staging deployment host, not an unrelated app page.
 
 2. `Fleet cron secret`
    - Use a real secret from staging Vercel:

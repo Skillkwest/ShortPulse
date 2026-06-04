@@ -259,6 +259,14 @@ const selectOutputFields = [
   "updated_at",
 ].join(", ");
 
+const selectProjectionFields = [
+  "generation_id",
+  "source_ref",
+  "request_id",
+  "provider_request_id",
+  "updated_at",
+].join(", ");
+
 const selectMediaEventFields = [
   "id",
   "event_type",
@@ -441,6 +449,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const requestIdList = Array.from(requestIds);
     const generationAttempts: JsonRow[] = [];
     const generationOutputs: JsonRow[] = [];
+    const generationProjectionRows: JsonRow[] = [];
 
     const attemptQueries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [];
     if (generationIds.length) {
@@ -474,11 +483,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    const projectionQueries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [];
+    if (requestIdList.length) {
+      projectionQueries.push(
+        supabaseAdmin
+          .from("generation_projection")
+          .select(selectProjectionFields)
+          .in("provider_request_id", requestIdList)
+          .order("updated_at", { ascending: false })
+          .limit(200)
+      );
+      projectionQueries.push(
+        supabaseAdmin
+          .from("generation_projection")
+          .select(selectProjectionFields)
+          .in("request_id", requestIdList)
+          .order("updated_at", { ascending: false })
+          .limit(200)
+      );
+    }
+    if (projectionQueries.length) {
+      const projectionResults = await Promise.all(projectionQueries);
+      projectionResults.forEach((result) => {
+        if (result.error) {
+          warnings.push(`generation_projection lookup failed: ${readErrorMessage(result.error)}`);
+          return;
+        }
+        appendObjectRows(generationProjectionRows, result.data);
+      });
+    }
+
     const dedupedAttempts = sortRowsDesc(dedupeRowsById(generationAttempts));
     const attemptGenerationIds = dedupedAttempts
       .map((row) => row.generation_id)
       .filter((value): value is string => typeof value === "string" && value.length > 0);
-    const missingGenerationIds = attemptGenerationIds.filter((id) => !generationIds.includes(id));
+    const projectionGenerationIds = generationProjectionRows
+      .map((row) => row.generation_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
+    const missingGenerationIds = Array.from(
+      new Set([...attemptGenerationIds, ...projectionGenerationIds])
+    ).filter((id) => !generationIds.includes(id));
 
     if (missingGenerationIds.length) {
       const { data, error } = await runGenerationQueryWithFallback({

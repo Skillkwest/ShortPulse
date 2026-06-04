@@ -64,7 +64,7 @@ describe("POST /api/telemetry/growth", () => {
           utmSource: "google",
           utmMedium: "cpc",
           utmCampaign: "spring_launch",
-          landingPath: "/landing?utm_source=google",
+          landingPath: "/dashboard?utm_source=google",
           referrerHost: "www.google.com",
         },
       },
@@ -134,6 +134,40 @@ describe("POST /api/telemetry/growth", () => {
     const metadata = writeAppErrorLogMock.mock.calls[0]?.[0]?.metadata as Record<string, unknown>;
     expect(metadata.nested).toBeUndefined();
     expect(res.status).toHaveBeenCalledWith(202);
+  });
+
+  it("does not return raw downstream errors to public telemetry callers", async () => {
+    upsertGrowthAttributionIdentityMock.mockRejectedValueOnce(
+      new Error("relation growth_attribution_identities does not exist")
+    );
+    const req = {
+      method: "POST",
+      body: {
+        source: "telemetry.marketing.page_view",
+        eventName: "page_view",
+        attribution: {
+          anonymousId: "anon_789",
+        },
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.growth.ingest_failed",
+        message: "Growth telemetry ingest failed.",
+        metadata: expect.objectContaining({
+          error_message: "relation growth_attribution_identities does not exist",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Growth telemetry ingest failed.",
+    });
   });
 
   it("rate limits repeated requests from the same client", async () => {

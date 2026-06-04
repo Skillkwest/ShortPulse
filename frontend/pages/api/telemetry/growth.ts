@@ -26,6 +26,7 @@ const GROWTH_TELEMETRY_RATE_LIMIT = {
   maxRequests: 120,
   windowMs: 60_000,
 };
+const GROWTH_TELEMETRY_INGEST_FAILED_MESSAGE = "Growth telemetry ingest failed.";
 const MAX_METADATA_KEYS = 20;
 const MAX_METADATA_KEY_LENGTH = 80;
 const MAX_METADATA_STRING_LENGTH = 240;
@@ -135,7 +136,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Avoid cascading failures from the telemetry sink itself.
     }
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Growth telemetry ingest failed.",
+      error: GROWTH_TELEMETRY_INGEST_FAILED_MESSAGE,
     });
   }
 }

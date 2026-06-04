@@ -185,12 +185,12 @@ describe("admin pricing mutation routes", () => {
     );
   });
 
-  it("rejects non-free zero-price plan offers before activation", async () => {
+  it("rejects zero-price paid-plan offers before activation", async () => {
     const req = {
       method: "POST",
       body: {
         planId: "studio",
-        offerName: "Studio Free Admin Offer",
+        offerName: "Studio Zero-Price Admin Offer",
         recurringPriceCents: 0,
         monthlyCreditsCents: 3500,
         storageLimitBytes: 107374182400,
@@ -328,7 +328,7 @@ describe("admin pricing mutation routes", () => {
     );
   });
 
-  it("rejects non-free zero-price plan creation before creating Stripe artifacts", async () => {
+  it("rejects zero-price paid-plan creation before creating Stripe artifacts", async () => {
     const req = {
       method: "POST",
       body: {

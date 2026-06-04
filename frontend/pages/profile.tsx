@@ -40,6 +40,7 @@ import {
   type ProfileSectionItem,
   type SubscriptionTransaction,
 } from "../features/profile/profilePageModel";
+import { profileClass } from "../features/profile/profileRouteStyles";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { fetchCanonicalAuthCallbackUrl } from "../lib/authRedirects";
 import {
@@ -928,7 +929,15 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <main className="page page-wide dashboard-refresh profile-page profile-page-shell">
+      <main
+        className={profileClass(
+          "page",
+          "page-wide",
+          "dashboard-refresh",
+          "profile-page",
+          "profile-page-shell"
+        )}
+      >
         <p className="subdued">Checking your session…</p>
       </main>
     );
@@ -944,7 +953,15 @@ export default function ProfilePage() {
         />
       </Head>
 
-      <main className="page page-wide dashboard-refresh profile-page profile-page-shell">
+      <main
+        className={profileClass(
+          "page",
+          "page-wide",
+          "dashboard-refresh",
+          "profile-page",
+          "profile-page-shell"
+        )}
+      >
         <ProfileWorkspaceShell
           displayInitials={displayInitials}
           section={section}

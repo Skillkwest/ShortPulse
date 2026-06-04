@@ -192,18 +192,18 @@
 }
 
 /* Focus + accessibility */
-button:focus-visible,
-.primary-btn:focus-visible,
-.ghost-btn:focus-visible,
-.platform-pill:focus-visible,
-.trend-card:focus-visible,
-a:focus-visible {
+.analytics-page button:focus-visible,
+.analytics-page :global(.primary-btn):focus-visible,
+.analytics-page :global(.ghost-btn):focus-visible,
+.analytics-page .platform-pill:focus-visible,
+.analytics-page .trend-card:focus-visible,
+.analytics-page :global(a:focus-visible) {
   outline: 2px solid var(--color-teal);
   outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  .analytics-page * {
     transition: none !important;
     animation-duration: 0.001ms !important;
   }

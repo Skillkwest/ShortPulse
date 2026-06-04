@@ -29,7 +29,8 @@
   overflow: hidden;
 }
 
-.subscription-plan-card.plan-free {
+.subscription-plan-card.plan-free,
+.subscription-plan-card.plan-starter {
   border-color: rgba(115, 124, 138, 0.42);
 }
 
@@ -185,7 +186,8 @@
   margin-top: 1px;
 }
 
-.subscription-plan-card.plan-free .subscription-plan-card-feature-list li.is-included svg {
+.subscription-plan-card.plan-free .subscription-plan-card-feature-list li.is-included svg,
+.subscription-plan-card.plan-starter .subscription-plan-card-feature-list li.is-included svg {
   color: #49a91f;
 }
 

@@ -78,7 +78,7 @@ describe("useResolvedAccountPlan", () => {
       data: [
         {
           id: "free",
-          display_name: "Free",
+          display_name: "Starter",
           monthly_price_cents: 0,
           monthly_credits_cents: 500,
           storage_limit_bytes: 1073741824,
@@ -95,8 +95,8 @@ describe("useResolvedAccountPlan", () => {
     await waitFor(() => {
       expect(result.current.resolvedPlan).toEqual({
         id: "free",
-        label: "Default access",
-        className: "plan-free",
+        label: "Starter",
+        className: "plan-starter",
       });
     });
   });

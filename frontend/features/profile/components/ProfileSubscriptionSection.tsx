@@ -22,6 +22,7 @@ import {
   formatStatusLabel,
   type SubscriptionTransaction,
 } from "../profilePageModel";
+import { profileClass } from "../profileRouteStyles";
 
 type ActivePlanView = ReturnType<typeof buildPlanView>;
 
@@ -84,7 +85,7 @@ export function ProfileSubscriptionSection({
     activeAddonStorageBytes > 0
       ? "Recurring storage add-ons renew monthly"
       : "No recurring storage add-ons active";
-  const showRenewalChip = activePlan.id !== "free";
+  const showRenewalChip = currentSubscriptionPriceCents > 0 || isInternalCompContract;
   const annualSavingsPercent = useMemo(
     () =>
       Math.max(
@@ -98,8 +99,7 @@ export function ProfileSubscriptionSection({
       ),
     [visibleBillingPlans]
   );
-  const activePlanDisplayName =
-    activePlan.id === "free" ? "No active paid plan" : activePlan.displayName;
+  const activePlanDisplayName = activePlan.displayName;
   const currentPlanSummary = isInternalCompContract
     ? "Managed internally"
     : currentSubscriptionPriceCents === 0
@@ -114,7 +114,7 @@ export function ProfileSubscriptionSection({
 
   return (
     <>
-      <details className="panel profile-detail-panel profile-billing-how">
+      <details className={profileClass("panel", "profile-detail-panel", "profile-billing-how")}>
         <summary>How subscriptions work</summary>
         <p>
           Paid plans include recurring credits whether you choose monthly or annual billing. You can
@@ -124,56 +124,63 @@ export function ProfileSubscriptionSection({
       </details>
 
       <article
-        className={`panel profile-hero-card profile-subscription-hero-card ${activePlan.className}`}
+        className={profileClass(
+          "panel",
+          "profile-hero-card",
+          "profile-subscription-hero-card",
+          activePlan.className
+        )}
       >
-        <div className="profile-hero-copy">
+        <div className={profileClass("profile-hero-copy")}>
           <p className="eyebrow">Current plan</p>
-          <h2 className="profile-hero-title">Your subscription</h2>
-          <p className="profile-hero-value profile-hero-value-text">{activePlanDisplayName}</p>
+          <h2 className={profileClass("profile-hero-title")}>Your subscription</h2>
+          <p className={profileClass("profile-hero-value", "profile-hero-value-text")}>
+            {activePlanDisplayName}
+          </p>
           <p className="tiny subdued">
             {currentPlanSummary} · {activePlan.description}
           </p>
         </div>
 
-        <div className="profile-hero-meta">
+        <div className={profileClass("profile-hero-meta")}>
           {showRenewalChip ? (
-            <div className="profile-hero-stat-card">
-              <p className="profile-hero-stat-label">Next renewal</p>
-              <p className="profile-hero-stat-value">{subscriptionRenewalText}</p>
-              <p className="profile-hero-stat-helper">{renewalHelperText}</p>
+            <div className={profileClass("profile-hero-stat-card")}>
+              <p className={profileClass("profile-hero-stat-label")}>Next renewal</p>
+              <p className={profileClass("profile-hero-stat-value")}>{subscriptionRenewalText}</p>
+              <p className={profileClass("profile-hero-stat-helper")}>{renewalHelperText}</p>
             </div>
           ) : null}
-          <div className="profile-hero-stat-card">
-            <p className="profile-hero-stat-label">Monthly credits</p>
-            <p className="profile-hero-stat-value">
+          <div className={profileClass("profile-hero-stat-card")}>
+            <p className={profileClass("profile-hero-stat-label")}>Monthly credits</p>
+            <p className={profileClass("profile-hero-stat-value")}>
               {currentSubscriptionCreditsCents.toLocaleString()}
             </p>
-            <p className="profile-hero-stat-helper">{monthlyCreditsHelperText}</p>
+            <p className={profileClass("profile-hero-stat-helper")}>{monthlyCreditsHelperText}</p>
           </div>
-          <div className="profile-hero-stat-card">
-            <p className="profile-hero-stat-label">Storage included</p>
-            <p className="profile-hero-stat-value">
+          <div className={profileClass("profile-hero-stat-card")}>
+            <p className={profileClass("profile-hero-stat-label")}>Storage included</p>
+            <p className={profileClass("profile-hero-stat-value")}>
               {formatStorageBytes(currentSubscriptionStorageLimitBytes)}
             </p>
-            <p className="profile-hero-stat-helper">{storageIncludedHelperText}</p>
+            <p className={profileClass("profile-hero-stat-helper")}>{storageIncludedHelperText}</p>
           </div>
           {activeAddonStorageBytes > 0 ? (
-            <div className="profile-hero-stat-card">
-              <p className="profile-hero-stat-label">Active add-ons</p>
-              <p className="profile-hero-stat-value">
+            <div className={profileClass("profile-hero-stat-card")}>
+              <p className={profileClass("profile-hero-stat-label")}>Active add-ons</p>
+              <p className={profileClass("profile-hero-stat-value")}>
                 +{formatStorageBytes(activeAddonStorageBytes)}
               </p>
-              <p className="profile-hero-stat-helper">{activeAddonsHelperText}</p>
+              <p className={profileClass("profile-hero-stat-helper")}>{activeAddonsHelperText}</p>
             </div>
           ) : null}
         </div>
       </article>
 
-      <section className="panel profile-panel profile-panel-stack">
-        <div className="panel-header profile-panel-header">
+      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
+        <div className={profileClass("panel-header", "profile-panel-header")}>
           <div>
             <p className="eyebrow">All plans</p>
-            <h2 className="profile-panel-title">Available plans</h2>
+            <h2 className={profileClass("profile-panel-title")}>Available plans</h2>
             <p className="subdued tiny">
               Compare the public offers available if you change plans now, including your current
               plan.
@@ -185,16 +192,16 @@ export function ProfileSubscriptionSection({
           selectedBillingInterval={selectedBillingInterval}
           annualSavingsPercent={annualSavingsPercent}
           onChange={setSelectedBillingInterval}
-          className="profile-subscription-interval-toggle"
+          className={profileClass("profile-subscription-interval-toggle")}
         />
 
-        <div className="profile-plan-grid subscription-plan-grid">
+        <div className={profileClass("profile-plan-grid", "subscription-plan-grid")}>
           {billingPlansLoading ? (
-            <div className="profile-plan-card">
+            <div className={profileClass("profile-plan-card")}>
               <p className="tiny subdued">Loading plans…</p>
             </div>
           ) : visibleBillingPlans.length === 0 ? (
-            <div className="profile-plan-card">
+            <div className={profileClass("profile-plan-card")}>
               <p className="tiny subdued">No active plans configured yet.</p>
             </div>
           ) : (
@@ -208,7 +215,7 @@ export function ProfileSubscriptionSection({
               const isFree = plan.monthly_price_cents === 0;
               const isCurrentInternalCompPlan = isInternalCompContract && isCurrentPlan && !isFree;
               const isActionLoading = planChangeLoadingPlanId === plan.id;
-              const paidPlanLabel = activePlan.id === "free" || isInternalCompContract;
+              const paidPlanLabel = currentSubscriptionPriceCents === 0 || isInternalCompContract;
               const billingLabel = selectedBillingInterval === "year" ? "annual" : "monthly";
               const intervalUnavailable =
                 selectedBillingInterval === "year" &&
@@ -216,13 +223,20 @@ export function ProfileSubscriptionSection({
                 !isFree &&
                 !planPricing.hasLiveOffer;
               const actionButton = isCurrentPlan ? (
-                <button type="button" className="profile-button ghost-btn" disabled>
+                <button
+                  type="button"
+                  className={profileClass("profile-button", "ghost-btn")}
+                  disabled
+                >
                   Current Plan
                 </button>
               ) : intervalUnavailable ? (
                 <button
                   type="button"
-                  className={`profile-button ${isHigherTier ? "primary-btn" : "ghost-btn"}`}
+                  className={profileClass(
+                    "profile-button",
+                    isHigherTier ? "primary-btn" : "ghost-btn"
+                  )}
                   disabled
                 >
                   Annual unavailable
@@ -230,7 +244,7 @@ export function ProfileSubscriptionSection({
               ) : isCurrentInternalCompPlan ? (
                 <button
                   type="button"
-                  className="profile-button primary-btn"
+                  className={profileClass("profile-button", "primary-btn")}
                   onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
                   disabled={isActionLoading}
                 >
@@ -241,7 +255,7 @@ export function ProfileSubscriptionSection({
               ) : isHigherTier ? (
                 <button
                   type="button"
-                  className="profile-button primary-btn"
+                  className={profileClass("profile-button", "primary-btn")}
                   onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
                   disabled={isActionLoading}
                 >
@@ -256,7 +270,7 @@ export function ProfileSubscriptionSection({
               ) : isLowerTier && !isFree ? (
                 <button
                   type="button"
-                  className="profile-button ghost-btn"
+                  className={profileClass("profile-button", "ghost-btn")}
                   onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
                   disabled={isActionLoading}
                 >
@@ -271,7 +285,7 @@ export function ProfileSubscriptionSection({
               ) : isFree ? (
                 <button
                   type="button"
-                  className="profile-button ghost-btn"
+                  className={profileClass("profile-button", "ghost-btn")}
                   onClick={() => onRequestCancel(plan.id)}
                 >
                   {isInternalCompContract ? "End paid access" : "Cancel paid subscription"}
@@ -286,9 +300,11 @@ export function ProfileSubscriptionSection({
                   billingInterval={selectedBillingInterval}
                   isCurrent={isCurrentPlan}
                   stateBadgeLabel={isCurrentPlan ? "Current Plan" : null}
-                  className="profile-subscription-plan-card"
+                  className={profileClass("profile-subscription-plan-card")}
                   actionSlot={
-                    actionButton ? <div className="profile-actions">{actionButton}</div> : null
+                    actionButton ? (
+                      <div className={profileClass("profile-actions")}>{actionButton}</div>
+                    ) : null
                   }
                 />
               );
@@ -297,10 +313,10 @@ export function ProfileSubscriptionSection({
         </div>
 
         {activePlan.id !== "free" && visibleBillingPlans.every((plan) => plan.id !== "free") ? (
-          <div className="profile-actions">
+          <div className={profileClass("profile-actions")}>
             <button
               type="button"
-              className="profile-button ghost-btn"
+              className={profileClass("profile-button", "ghost-btn")}
               onClick={() => onRequestCancel("free")}
             >
               {isInternalCompContract ? "End paid access" : "Cancel paid subscription"}
@@ -309,25 +325,25 @@ export function ProfileSubscriptionSection({
         ) : null}
       </section>
 
-      <section className="panel profile-panel profile-panel-stack">
-        <div className="panel-header profile-panel-header">
+      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
+        <div className={profileClass("panel-header", "profile-panel-header")}>
           <div>
             <p className="eyebrow">Payment history</p>
-            <h2 className="profile-panel-title">Recent subscription payments</h2>
+            <h2 className={profileClass("profile-panel-title")}>Recent subscription payments</h2>
             <p className="subdued tiny">
               {isInternalCompContract
                 ? "This account is managed internally, so there are no Stripe subscription charges to show here."
                 : "Recent Stripe invoices that include subscription charges."}
             </p>
           </div>
-          <span className="profile-panel-icon-chip" aria-hidden="true">
+          <span className={profileClass("profile-panel-icon-chip")} aria-hidden="true">
             <Receipt size={18} weight="bold" />
           </span>
         </div>
 
-        <div className="profile-receipts profile-receipts-standalone">
-          <div className="profile-receipts-header">
-            <h3 className="profile-subsection-title">Recent transactions</h3>
+        <div className={profileClass("profile-receipts", "profile-receipts-standalone")}>
+          <div className={profileClass("profile-receipts-header")}>
+            <h3 className={profileClass("profile-subsection-title")}>Recent transactions</h3>
             <Receipt size={16} />
           </div>
 
@@ -349,11 +365,11 @@ export function ProfileSubscriptionSection({
           {!subscriptionTransactionsLoading &&
           !subscriptionTransactionsError &&
           subscriptionTransactions.length > 0 ? (
-            <ul className="profile-receipt-list">
+            <ul className={profileClass("profile-receipt-list")}>
               {subscriptionTransactions.map((transaction) => {
                 const timestamp = transaction.paidAt ?? transaction.createdAt;
                 return (
-                  <li key={transaction.id} className="profile-receipt-item">
+                  <li key={transaction.id} className={profileClass("profile-receipt-item")}>
                     <div>
                       <p className="label">{transaction.title}</p>
                       <p className="tiny subdued">
@@ -363,7 +379,7 @@ export function ProfileSubscriptionSection({
                       {transaction.receiptUrl ? (
                         <a
                           href={transaction.receiptUrl}
-                          className="tiny subdued profile-receipt-link"
+                          className={profileClass("tiny", "subdued", "profile-receipt-link")}
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -372,7 +388,7 @@ export function ProfileSubscriptionSection({
                       ) : null}
                     </div>
 
-                    <div className="profile-receipt-item-meta">
+                    <div className={profileClass("profile-receipt-item-meta")}>
                       <p className="label">
                         {formatCurrencyAmount(
                           transaction.amountPaidCents,
@@ -390,7 +406,7 @@ export function ProfileSubscriptionSection({
       </section>
 
       {!isInternalCompContract ? (
-        <aside className="profile-callout">
+        <aside className={profileClass("profile-callout")}>
           <WarningCircle size={18} />
           <p className="tiny">
             Plan changes run through Stripe&apos;s secure billing flow. If you are on a legacy

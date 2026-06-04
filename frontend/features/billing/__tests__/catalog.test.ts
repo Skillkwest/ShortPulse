@@ -30,14 +30,14 @@ describe("buildPlanView", () => {
     expect(buildPlanView({ planId: "studio", plans }).seatsLabel).toBe("1 workspace seat");
   });
 
-  it("keeps the hidden free tier on neutral customer-facing copy", () => {
+  it("presents the hidden baseline tier with Starter-facing customer copy", () => {
     expect(
       buildPlanView({
         planId: "free",
         plans: [
           {
             id: "free",
-            display_name: "Free",
+            display_name: "Starter",
             monthly_price_cents: 0,
             monthly_credits_cents: 0,
             storage_limit_bytes: 1024,
@@ -45,7 +45,7 @@ describe("buildPlanView", () => {
           },
         ],
       }).displayName
-    ).toBe("Default access");
+    ).toBe("Starter");
   });
 
   it("uses starter as the paid first-tier presentation model", () => {
@@ -66,18 +66,36 @@ describe("buildPlanView", () => {
     ).toBe("Starter");
   });
 
-  it("exposes pricing-copy concurrency limits for each plan tier", () => {
+  it("exposes plan-card concurrency copy that stays consistent with each tier's included studios", () => {
+    expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsLabel).toBe(
+      "1 image generation at a time"
+    );
+    expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsLabel).toBe(
+      "1 image generation at a time"
+    );
     expect(buildPlanView({ planId: "media", plans }).concurrentGenerationsLabel).toBe(
       "2 audio, 2 image, and 1 video generations at a time"
     );
     expect(buildPlanView({ planId: "studio", plans }).concurrentGenerationsLabel).toBe(
       "4 audio, 3 image, and 2 video generations at a time"
     );
+    expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsLabel).toBe(
+      "6 audio, 4 image, and 3 video generations at a time"
+    );
+    expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsCompactLabel).toBe(
+      "1 image"
+    );
+    expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsCompactLabel).toBe(
+      "1 image"
+    );
     expect(buildPlanView({ planId: "media", plans }).concurrentGenerationsCompactLabel).toBe(
       "2 audio · 2 image · 1 video"
     );
     expect(buildPlanView({ planId: "studio", plans }).concurrentGenerationsCompactLabel).toBe(
       "4 audio · 3 image · 2 video"
+    );
+    expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsCompactLabel).toBe(
+      "6 audio · 4 image · 3 video"
     );
   });
 
@@ -141,12 +159,12 @@ describe("buildPlanView", () => {
     expect(studioAnnual.savingsAmountCents).toBe(7800);
   });
 
-  it("hides the system free tier from public plan selections when starter exists", () => {
+  it("hides the hidden baseline tier from public plan selections when starter exists", () => {
     expect(
       filterPublicSubscriptionPlans([
         {
           id: "free",
-          display_name: "Free",
+          display_name: "Starter",
           monthly_price_cents: 0,
           monthly_credits_cents: 100,
           storage_limit_bytes: 1024,

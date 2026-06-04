@@ -10,6 +10,7 @@ import {
   resolveLedgerLabel,
   resolveLedgerReference,
 } from "../profilePageModel";
+import { profileClass } from "../profileRouteStyles";
 
 type CreditPackageCard = {
   id: string;
@@ -98,7 +99,7 @@ export function ProfileCreditsSection({
 
   return (
     <>
-      <details className="panel profile-detail-panel profile-billing-how">
+      <details className={profileClass("panel", "profile-detail-panel", "profile-billing-how")}>
         <summary>How credits work</summary>
         <p>
           Credit packs are one-time top-ups. Every generation debits credits based on model cost,
@@ -106,59 +107,65 @@ export function ProfileCreditsSection({
         </p>
       </details>
 
-      <article className={`panel profile-credit-hero-card ${activePlanClassName}`}>
-        <div className="profile-credit-hero-copy">
+      <article className={profileClass("panel", "profile-credit-hero-card", activePlanClassName)}>
+        <div className={profileClass("profile-credit-hero-copy")}>
           <p className="eyebrow">Available balance</p>
-          <h2 className="profile-credit-hero-title">Your credits</h2>
-          <p className="profile-credit-hero-value">{balanceDisplayValue}</p>
+          <h2 className={profileClass("profile-credit-hero-title")}>Your credits</h2>
+          <p className={profileClass("profile-credit-hero-value")}>{balanceDisplayValue}</p>
           <p className="tiny subdued">{balanceHelperText}</p>
         </div>
 
-        <div className="profile-credit-hero-meta">
-          <div className="profile-credit-hero-stat-card">
-            <p className="profile-credit-hero-stat-label">Next renewal</p>
-            <p className="profile-credit-hero-stat-value">
+        <div className={profileClass("profile-credit-hero-meta")}>
+          <div className={profileClass("profile-credit-hero-stat-card")}>
+            <p className={profileClass("profile-credit-hero-stat-label")}>Next renewal</p>
+            <p className={profileClass("profile-credit-hero-stat-value")}>
               {formatCompactDate(nextCreditRenewalAt)}
             </p>
-            <p className="profile-credit-hero-stat-helper">
+            <p className={profileClass("profile-credit-hero-stat-helper")}>
               {nextCreditRenewalAt ? "Plan credits refresh automatically" : "No renewal scheduled"}
             </p>
           </div>
-          <div className="profile-credit-hero-stat-card">
-            <p className="profile-credit-hero-stat-label">Incoming credits</p>
-            <p className="profile-credit-hero-stat-value">
+          <div className={profileClass("profile-credit-hero-stat-card")}>
+            <p className={profileClass("profile-credit-hero-stat-label")}>Incoming credits</p>
+            <p className={profileClass("profile-credit-hero-stat-value")}>
               +{nextCreditRenewalAmount.toLocaleString()}
             </p>
-            <p className="profile-credit-hero-stat-helper">Credits added on renewal</p>
+            <p className={profileClass("profile-credit-hero-stat-helper")}>
+              Credits added on renewal
+            </p>
           </div>
-          <div className="profile-credit-hero-stat-card">
-            <p className="profile-credit-hero-stat-label">Last synced</p>
-            <p className="profile-credit-hero-stat-value">{formatCompactTime(balanceUpdatedAt)}</p>
-            <p className="profile-credit-hero-stat-helper">{formatCompactDate(balanceUpdatedAt)}</p>
+          <div className={profileClass("profile-credit-hero-stat-card")}>
+            <p className={profileClass("profile-credit-hero-stat-label")}>Last synced</p>
+            <p className={profileClass("profile-credit-hero-stat-value")}>
+              {formatCompactTime(balanceUpdatedAt)}
+            </p>
+            <p className={profileClass("profile-credit-hero-stat-helper")}>
+              {formatCompactDate(balanceUpdatedAt)}
+            </p>
           </div>
         </div>
       </article>
 
       {!portalManagementAvailable ? (
-        <aside className="profile-callout">
+        <aside className={profileClass("profile-callout")}>
           <CreditCard size={18} />
           <p className="tiny">{billingIdentityDescription}</p>
         </aside>
       ) : null}
 
-      <div className="profile-section-stack">
-        <section className="panel profile-panel profile-panel-stack">
-          <div className="panel-header profile-panel-header">
+      <div className={profileClass("profile-section-stack")}>
+        <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
+          <div className={profileClass("panel-header", "profile-panel-header")}>
             <div>
               <p className="eyebrow">Credits & top-ups</p>
-              <h2 className="profile-panel-title">Buy credits</h2>
+              <h2 className={profileClass("profile-panel-title")}>Buy credits</h2>
               <p className="subdued tiny">
                 One-time purchases. Taxes may apply. Receipts are available in Stripe.
               </p>
             </div>
             <button
               type="button"
-              className="profile-inline-action"
+              className={profileClass("profile-inline-action")}
               onClick={onRefreshCredits}
               disabled={refreshingCredits || balanceLoading}
             >
@@ -167,25 +174,27 @@ export function ProfileCreditsSection({
             </button>
           </div>
 
-          <div className="profile-plan-grid">
+          <div className={profileClass("profile-plan-grid")}>
             {packagesLoading ? (
-              <div className="profile-plan-card">
+              <div className={profileClass("profile-plan-card")}>
                 <p className="tiny subdued">Loading credit packages…</p>
               </div>
             ) : packageCards.length === 0 ? (
-              <div className="profile-plan-card">
+              <div className={profileClass("profile-plan-card")}>
                 <p className="tiny subdued">No active credit packages are configured yet.</p>
               </div>
             ) : (
               packageCards.map((pkg) => (
-                <div key={pkg.id} className="profile-plan-card">
-                  <div className="profile-plan-top">
+                <div key={pkg.id} className={profileClass("profile-plan-card")}>
+                  <div className={profileClass("profile-plan-top")}>
                     <div>
                       <p className="tiny subdued">Credit package</p>
-                      <h3 className="profile-plan-card-title">{pkg.display_name}</h3>
+                      <h3 className={profileClass("profile-plan-card-title")}>
+                        {pkg.display_name}
+                      </h3>
                     </div>
                     {pkg.badge ? (
-                      <span className="profile-plan-badge">{pkg.badge}</span>
+                      <span className={profileClass("profile-plan-badge")}>{pkg.badge}</span>
                     ) : (
                       <CheckCircle size={18} />
                     )}
@@ -200,10 +209,10 @@ export function ProfileCreditsSection({
                   </p>
                   <p className="tiny subdued">{`$${pkg.unitUsdPerThousand.toFixed(2)} / 1,000 credits`}</p>
 
-                  <div className="profile-actions">
+                  <div className={profileClass("profile-actions")}>
                     <button
                       type="button"
-                      className="profile-button primary-btn"
+                      className={profileClass("profile-button", "primary-btn")}
                       onClick={() => onCheckout(pkg.id)}
                       aria-label={`Buy ${pkg.display_name} for ${formatCurrencyFromCents(pkg.price_cents)}`}
                       disabled={checkoutLoadingId === pkg.id}
@@ -217,22 +226,22 @@ export function ProfileCreditsSection({
           </div>
         </section>
 
-        <section className="panel profile-panel profile-panel-stack">
-          <div className="panel-header profile-panel-header">
+        <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
+          <div className={profileClass("panel-header", "profile-panel-header")}>
             <div>
               <p className="eyebrow">Payment details</p>
-              <h2 className="profile-panel-title">Invoices and payment method</h2>
+              <h2 className={profileClass("profile-panel-title")}>Invoices and payment method</h2>
             </div>
-            <span className="profile-panel-icon-chip" aria-hidden="true">
+            <span className={profileClass("profile-panel-icon-chip")} aria-hidden="true">
               <CreditCard size={18} weight="bold" />
             </span>
           </div>
 
           {portalManagementAvailable ? (
-            <div className="profile-actions">
+            <div className={profileClass("profile-actions")}>
               <button
                 type="button"
-                className="profile-button primary-btn"
+                className={profileClass("profile-button", "primary-btn")}
                 onClick={onOpenBillingPortal}
                 disabled={portalLoading}
               >
@@ -241,9 +250,9 @@ export function ProfileCreditsSection({
             </div>
           ) : null}
 
-          <div className="profile-receipts">
-            <div className="profile-receipts-header">
-              <h3 className="profile-subsection-title">Recent credit activity</h3>
+          <div className={profileClass("profile-receipts")}>
+            <div className={profileClass("profile-receipts-header")}>
+              <h3 className={profileClass("profile-subsection-title")}>Recent credit activity</h3>
               <Receipt size={16} />
             </div>
 
@@ -252,12 +261,12 @@ export function ProfileCreditsSection({
               <p className="tiny subdued">No recent billing events yet.</p>
             ) : null}
             {!billingActivityLoading && billingActivity.length > 0 ? (
-              <ul className="profile-receipt-list">
+              <ul className={profileClass("profile-receipt-list")}>
                 {billingActivity.map((event) => {
                   const reference = resolveLedgerReference(event);
                   const amountLabel = `${event.change_cents > 0 ? "+" : ""}${event.change_cents.toLocaleString()} credits`;
                   return (
-                    <li key={event.id} className="profile-receipt-item">
+                    <li key={event.id} className={profileClass("profile-receipt-item")}>
                       <div>
                         <p className="label">{resolveLedgerLabel(event)}</p>
                         <p className="tiny subdued">

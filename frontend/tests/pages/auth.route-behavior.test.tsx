@@ -154,7 +154,7 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
   });
 
-  it("submits signup with the free plan and returns to sign-in with a confirmation notice", async () => {
+  it("submits signup with the hidden baseline plan and returns to sign-in with a confirmation notice", async () => {
     render(<AuthPage />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Sign up" }));

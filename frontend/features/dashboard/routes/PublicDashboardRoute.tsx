@@ -1,6 +1,6 @@
 /**
  * Public dashboard/home surface.
- * Renders the logged-out dashboard experience shared by `/`, `/landing`, and anonymous `/dashboard`.
+ * Renders the logged-out dashboard experience shared by `/` and anonymous `/dashboard`.
  */
 import Head from "next/head";
 import Link from "next/link";

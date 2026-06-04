@@ -24,7 +24,7 @@ const getErrorMessage = (error: unknown, fallback: string): string =>
 export default function SavedCreatorsPage() {
   const { resolvedPlan } = useResolvedAccountPlan();
   const searchUsage = { used: 0, limit: 100 };
-  const planUsage = { label: "Current plan", name: resolvedPlan?.label ?? "Free" };
+  const planUsage = { label: "Current plan", name: resolvedPlan?.label ?? "Starter" };
   const router = useRouter();
   const [creators, setCreators] = useState<Creator[]>([]);
   const [handle, setHandle] = useState("");

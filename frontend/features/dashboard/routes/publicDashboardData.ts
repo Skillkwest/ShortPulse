@@ -1,6 +1,6 @@
 /**
  * Public dashboard route data loader.
- * Centralizes the shared static props used by `/`, `/landing`, and the anonymous `/dashboard` surface.
+ * Centralizes the shared static props used by `/` and the anonymous `/dashboard` surface.
  */
 import type { BillingCatalogSnapshot } from "../../billing/catalog";
 import { loadBillingCatalogSnapshot } from "../../../lib/server/api/billingCatalog";

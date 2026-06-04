@@ -4,6 +4,7 @@
  * Kept isolated so the list view in the page stays readable.
  */
 import { ScoredVideo } from "../types";
+import { performanceClass } from "../performanceRouteStyles";
 import { formatCompact } from "../utils/formatters";
 
 export type CompactVideoCardProps = {
@@ -17,7 +18,7 @@ export type CompactVideoCardProps = {
 export function CompactVideoCard({ video, onSelect }: CompactVideoCardProps) {
   return (
     <article
-      className="compact-card"
+      className={performanceClass("compact-card")}
       onClick={() => onSelect(video)}
       role="button"
       tabIndex={0}
@@ -29,7 +30,7 @@ export function CompactVideoCard({ video, onSelect }: CompactVideoCardProps) {
         }
       }}
     >
-      <div className="compact-thumb">
+      <div className={performanceClass("compact-thumb")}>
         {/* Source host can vary with upstream platform data. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -37,33 +38,37 @@ export function CompactVideoCard({ video, onSelect }: CompactVideoCardProps) {
           alt={video.caption_text || "Video thumbnail"}
           loading="lazy"
         />
-        <span className="rank-badge">#{video.rank}</span>
+        <span className={performanceClass("rank-badge")}>#{video.rank}</span>
       </div>
-      <div className="compact-body">
-        <div className="score-bar">
-          <span className="score-label">Performance score:</span>
-          <span className="score-value">{video.performance_score.toFixed(1)}</span>
+      <div className={performanceClass("compact-body")}>
+        <div className={performanceClass("score-bar")}>
+          <span className={performanceClass("score-label")}>Performance score:</span>
+          <span className={performanceClass("score-value")}>
+            {video.performance_score.toFixed(1)}
+          </span>
         </div>
-        <div className="metric-row primary">
+        <div className={performanceClass("metric-row", "primary")}>
           <div>
-            <p className="metric-label">Views</p>
-            <p className="metric-value">{formatCompact(video.views)}</p>
+            <p className={performanceClass("metric-label")}>Views</p>
+            <p className={performanceClass("metric-value")}>{formatCompact(video.views)}</p>
           </div>
-          <div className="metric-block">
-            <p className="metric-label">Outlier</p>
-            <p className="metric-value outlier">
+          <div className={performanceClass("metric-block")}>
+            <p className={performanceClass("metric-label")}>Outlier</p>
+            <p className={performanceClass("metric-value", "outlier")}>
               {video.outlierMultiplier.toFixed(1)}× over median
             </p>
           </div>
         </div>
-        <div className="metric-row secondary">
-          <div className="meta-group">
-            <span className="meta-label">Platform</span>
-            <span className={`platform-pill tiny ${video.platform}`}>{video.platform_label}</span>
+        <div className={performanceClass("metric-row", "secondary")}>
+          <div className={performanceClass("meta-group")}>
+            <span className={performanceClass("meta-label")}>Platform</span>
+            <span className={performanceClass("platform-pill", "tiny", video.platform)}>
+              {video.platform_label}
+            </span>
           </div>
-          <div className="meta-group">
-            <span className="meta-label">Niche</span>
-            <span className="pill tiny">{video.category}</span>
+          <div className={performanceClass("meta-group")}>
+            <span className={performanceClass("meta-label")}>Niche</span>
+            <span className={performanceClass("pill", "tiny")}>{video.category}</span>
           </div>
         </div>
       </div>

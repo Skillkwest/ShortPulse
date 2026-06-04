@@ -28,7 +28,7 @@ vi.mock("next/link", () => ({
 vi.mock("../../features/billing/useResolvedAccountPlan", () => ({
   useResolvedAccountPlan: () => ({
     user: { id: "user-1", email: "kirk@example.com", user_metadata: { plan: "free" } },
-    resolvedPlan: { label: "Free", className: "plan-free" },
+    resolvedPlan: { label: "Starter", className: "plan-starter" },
   }),
 }));
 
@@ -36,7 +36,7 @@ describe("Performance analytics route behavior", () => {
   it("updates the route sort state from the sort menu", () => {
     const { container } = render(<PerformanceAnalyticsPage />);
 
-    expect(screen.getByText("Free")).toBeInTheDocument();
+    expect(screen.getByText("Starter")).toBeInTheDocument();
     expect(screen.getByText("Sorted by performance score")).toBeInTheDocument();
 
     const sortToggle = container.querySelector(".sort-toggle");

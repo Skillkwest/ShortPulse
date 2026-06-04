@@ -25,11 +25,18 @@ import {
   readSupabaseSession,
 } from "../lib/supabaseClient";
 import { trackSignupCompleted, trackSignupSubmitted } from "../lib/growthTelemetry";
+import authStyles from "../styles/auth-route.module.css";
 
 type Mode = "signin" | "signup";
 
 const DEFAULT_PLAN = "free";
 const MIN_PASSWORD_LENGTH = 8;
+
+const authClass = (...names: Array<string | false | null | undefined>) =>
+  names
+    .filter((name): name is string => Boolean(name))
+    .map((name) => authStyles[name] ?? name)
+    .join(" ");
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -189,39 +196,47 @@ export default function AuthPage() {
       <Head>
         <title>{`ShortPulse · ${mode === "signin" ? "Sign in" : "Sign up"}`}</title>
       </Head>
-      <main className="auth-shell">
-        <div className="auth-overlay" />
-        <div className="auth-glow auth-glow-left" />
-        <div className="auth-glow auth-glow-right" />
-        <div className="auth-layout">
-          <form className="auth-card" onSubmit={onSubmit}>
-            <div className="auth-card-header">
-              <Link href="/" className="auth-brand" aria-label="Go to ShortPulse dashboard home">
+      <main className={authClass("auth-shell")}>
+        <div className={authClass("auth-overlay")} />
+        <div className={authClass("auth-glow", "auth-glow-left")} />
+        <div className={authClass("auth-glow", "auth-glow-right")} />
+        <div className={authClass("auth-layout")}>
+          <form className={authClass("auth-card")} onSubmit={onSubmit}>
+            <div className={authClass("auth-card-header")}>
+              <Link
+                href="/"
+                className={authClass("auth-brand")}
+                aria-label="Go to ShortPulse dashboard home"
+              >
                 <Image
                   src="/small good d.png"
                   alt="ShortPulse logo"
-                  className="auth-brand-logo"
+                  className={authClass("auth-brand-logo")}
                   width={203}
                   height={64}
                   style={{ height: "auto" }}
                 />
               </Link>
-              <h1 className="auth-title">
+              <h1 className={authClass("auth-title")}>
                 {mode === "signin" ? "Welcome back" : "Create your account"}
               </h1>
-              <p className="auth-subtitle">
+              <p className={authClass("auth-subtitle")}>
                 {mode === "signin"
                   ? "Use your email and password to continue."
                   : "Create an account to get started."}
               </p>
             </div>
 
-            <div className="auth-mode-toggle" role="tablist" aria-label="Authentication mode">
+            <div
+              className={authClass("auth-mode-toggle")}
+              role="tablist"
+              aria-label="Authentication mode"
+            >
               <button
                 type="button"
                 role="tab"
                 aria-selected={mode === "signin"}
-                className={mode === "signin" ? "active" : ""}
+                className={authClass(mode === "signin" && "active")}
                 onClick={() => {
                   setMode("signin");
                   setError(null);
@@ -234,7 +249,7 @@ export default function AuthPage() {
                 type="button"
                 role="tab"
                 aria-selected={mode === "signup"}
-                className={mode === "signup" ? "active" : ""}
+                className={authClass(mode === "signup" && "active")}
                 onClick={() => {
                   setMode("signup");
                   setError(null);
@@ -245,11 +260,11 @@ export default function AuthPage() {
               </button>
             </div>
 
-            <div className="auth-field-stack">
-              <label className="auth-label" htmlFor="email">
+            <div className={authClass("auth-field-stack")}>
+              <label className={authClass("auth-label")} htmlFor="email">
                 Email
               </label>
-              <div className="auth-input">
+              <div className={authClass("auth-input")}>
                 <EnvelopeSimple size={18} weight="bold" />
                 <input
                   id="email"
@@ -263,15 +278,15 @@ export default function AuthPage() {
               </div>
             </div>
 
-            <div className="auth-field-stack">
-              <div className="auth-label-row">
-                <label className="auth-label" htmlFor="password">
+            <div className={authClass("auth-field-stack")}>
+              <div className={authClass("auth-label-row")}>
+                <label className={authClass("auth-label")} htmlFor="password">
                   Password
                 </label>
                 {mode === "signin" ? (
                   <button
                     type="button"
-                    className="auth-forgot"
+                    className={authClass("auth-forgot")}
                     onClick={onResetPassword}
                     disabled={resettingPassword || loading}
                   >
@@ -279,7 +294,7 @@ export default function AuthPage() {
                   </button>
                 ) : null}
               </div>
-              <div className="auth-input">
+              <div className={authClass("auth-input")}>
                 <LockSimple size={18} weight="bold" />
                 <input
                   id="password"
@@ -293,7 +308,7 @@ export default function AuthPage() {
                 />
                 <button
                   type="button"
-                  className="auth-eye"
+                  className={authClass("auth-eye")}
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
@@ -306,16 +321,20 @@ export default function AuthPage() {
               </div>
             </div>
 
-            {error ? <div className="auth-error">{error}</div> : null}
-            {info ? <div className="auth-info">{info}</div> : null}
+            {error ? <div className={authClass("auth-error")}>{error}</div> : null}
+            {info ? <div className={authClass("auth-info")}>{info}</div> : null}
 
-            <button className="auth-submit primary-btn" type="submit" disabled={isSubmitDisabled}>
+            <button
+              className={authClass("auth-submit", "primary-btn")}
+              type="submit"
+              disabled={isSubmitDisabled}
+            >
               <SignIn size={18} weight="bold" />
               {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
             </button>
 
-            <div className="auth-divider" />
-            <p className="auth-switch">
+            <div className={authClass("auth-divider")} />
+            <p className={authClass("auth-switch")}>
               {mode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
               <button
                 type="button"
@@ -328,7 +347,7 @@ export default function AuthPage() {
                 {mode === "signin" ? "Sign up" : "Sign in"}
               </button>
             </p>
-            <p className="auth-footnote">
+            <p className={authClass("auth-footnote")}>
               By continuing, you agree to use ShortPulse under your workspace account.
             </p>
           </form>

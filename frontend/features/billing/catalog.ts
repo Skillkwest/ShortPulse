@@ -135,13 +135,13 @@ export type BillingPlanView = {
 
 const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
   free: {
-    className: "plan-free",
-    displayNameOverride: "Default access",
+    className: "plan-starter",
+    displayNameOverride: "Starter",
     seatsLabel: "1 workspace seat",
-    description: "Baseline workspace access outside a paid subscription.",
-    cardFooterDescription: "Included default access when no paid subscription is active.",
-    concurrentGenerationsLabel: "1 audio, 1 image, and 1 video generation at a time",
-    concurrentGenerationsCompactLabel: "1 audio · 1 image · 1 video",
+    description: "Starter access for exploration.",
+    cardFooterDescription: "Best for graphic artists and all image based workflows.",
+    concurrentGenerationsLabel: "1 image generation at a time",
+    concurrentGenerationsCompactLabel: "1 image",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -163,12 +163,12 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     },
   },
   starter: {
-    className: "plan-free",
+    className: "plan-starter",
     seatsLabel: "1 workspace seat",
     description: "Starter access for exploration.",
     cardFooterDescription: "Best for graphic artists and all image based workflows.",
-    concurrentGenerationsLabel: "1 audio, 1 image, and 1 video generation at a time",
-    concurrentGenerationsCompactLabel: "1 audio · 1 image · 1 video",
+    concurrentGenerationsLabel: "1 image generation at a time",
+    concurrentGenerationsCompactLabel: "1 image",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },

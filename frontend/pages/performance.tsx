@@ -20,6 +20,7 @@ import { SCRAPE_NOTE } from "../features/performance/constants";
 import { TRENDING_VIDEOS } from "../features/performance/data/sampleVideos";
 import { pickSelectedVideo } from "../features/performance/logic/analytics";
 import { filterAndScoreVideos } from "../features/performance/logic/scoring";
+import { performanceClass } from "../features/performance/performanceRouteStyles";
 import {
   CategoryFilter,
   DateRange,
@@ -137,7 +138,7 @@ export default function PerformanceAnalyticsPage() {
   const sortRef = useRef<HTMLDivElement>(null);
   const planSearchLimit = 100;
   const searchesRemaining = 72;
-  const planName = resolvedPlan?.label ?? "Free";
+  const planName = resolvedPlan?.label ?? "Starter";
   const [dataVersion, setDataVersion] = useState(0);
   const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(() =>
     new Date(seedTimestamp).toISOString()
@@ -257,49 +258,58 @@ export default function PerformanceAnalyticsPage() {
           content="Top-performing public videos trending across Instagram, TikTok, and YouTube with velocity, engagement, and completion."
         />
       </Head>
-      <main className="page page-wide analytics-page minimal">
-        <div className="page-top minimal">
+      <main className={performanceClass("page", "page-wide", "analytics-page", "minimal")}>
+        <div className={performanceClass("page-top", "minimal")}>
           <Link href="/dashboard" className="ghost-btn small">
             ← Back to dashboard
           </Link>
-          <div className="live-indicator">
-            <span className="dot" />
-            <span className="live-time">{formatActionDateTime(lastRefreshAt)}</span>
+          <div className={performanceClass("live-indicator")}>
+            <span className={performanceClass("dot")} />
+            <span className={performanceClass("live-time")}>
+              {formatActionDateTime(lastRefreshAt)}
+            </span>
           </div>
         </div>
 
         <section
-          className="panel performance-hero-card"
+          className={performanceClass("panel", "performance-hero-card")}
           style={{
             backgroundImage:
               "linear-gradient(180deg, rgba(7, 10, 16, 0.6), rgba(7, 10, 16, 0.75)), url('/dashboard/performance-analytics.png')",
           }}
         >
-          <div className="panel-header hero-header">
+          <div className={performanceClass("panel-header", "hero-header")}>
             <div>
               <h1 className="title">Performance Analytics</h1>
               <p className="subdued">{SCRAPE_NOTE}</p>
             </div>
-            <div className="hero-actions">
-              <div className="hero-card-row">
-                <div className="header-stat-card" aria-label="Searches left" role="status">
-                  <div className="status-icon compact" aria-hidden="true">
+            <div className={performanceClass("hero-actions")}>
+              <div className={performanceClass("hero-card-row")}>
+                <div
+                  className={performanceClass("header-stat-card")}
+                  aria-label="Searches left"
+                  role="status"
+                >
+                  <div className={performanceClass("status-icon", "compact")} aria-hidden="true">
                     <MagnifyingGlass size={16} weight="bold" />
                   </div>
-                  <div className="header-card-body">
-                    <p className="metric-label tiny">Searches left</p>
-                    <p className="status-value small">
+                  <div className={performanceClass("header-card-body")}>
+                    <p className={performanceClass("metric-label", "tiny")}>Searches left</p>
+                    <p className={performanceClass("status-value", "small")}>
                       {searchesRemaining} / {planSearchLimit}
                     </p>
                   </div>
                 </div>
                 <div
-                  className="search-usage-card plan-card"
+                  className={performanceClass("search-usage-card", "plan-card")}
                   aria-label="Plan status"
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="search-usage-icon plan-icon" aria-hidden="true">
+                  <div
+                    className={performanceClass("search-usage-icon", "plan-icon")}
+                    aria-hidden="true"
+                  >
                     <svg
                       width="18"
                       height="18"
@@ -317,9 +327,11 @@ export default function PerformanceAnalyticsPage() {
                       />
                     </svg>
                   </div>
-                  <div className="search-usage-text">
-                    <p className="metric-label subtle">Plan</p>
-                    <p className="search-usage-value plan-value">{planName}</p>
+                  <div className={performanceClass("search-usage-text")}>
+                    <p className={performanceClass("metric-label", "subtle")}>Plan</p>
+                    <p className={performanceClass("search-usage-value", "plan-value")}>
+                      {planName}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -353,32 +365,35 @@ export default function PerformanceAnalyticsPage() {
           onClear={handleClearThresholds}
         />
 
-        <section className="list-section top-videos-card">
-          <div className="section-heading minimal">
+        <section className={performanceClass("list-section", "top-videos-card")}>
+          <div className={performanceClass("section-heading", "minimal")}>
             <div>
               <p className="eyebrow">Trending</p>
               <h3>Top videos</h3>
               <p className="tiny subdued">Sorted by {currentSortLabel.toLowerCase()}</p>
             </div>
-            <div className="section-heading-actions">
-              <div className="section-heading-stats"></div>
-              <div className="sort-picker" ref={sortRef}>
-                <span className="sort-side-label">Sort</span>
+            <div className={performanceClass("section-heading-actions")}>
+              <div className={performanceClass("section-heading-stats")}></div>
+              <div className={performanceClass("sort-picker")} ref={sortRef}>
+                <span className={performanceClass("sort-side-label")}>Sort</span>
                 <button
                   type="button"
-                  className={`sort-toggle ${sortOpen ? "is-open" : ""}`}
+                  className={performanceClass("sort-toggle", sortOpen && "is-open")}
                   onClick={() => setSortOpen((prev) => !prev)}
                 >
-                  <span className="sort-name">{currentSortLabel}</span>
+                  <span className={performanceClass("sort-name")}>{currentSortLabel}</span>
                   <CaretDown size={14} weight="bold" />
                 </button>
                 {sortOpen ? (
-                  <div className="sort-menu">
+                  <div className={performanceClass("sort-menu")}>
                     {SORT_OPTIONS.map((option) => (
                       <button
                         key={option.key}
                         type="button"
-                        className={sortKey === option.key ? "sort-option is-active" : "sort-option"}
+                        className={performanceClass(
+                          "sort-option",
+                          sortKey === option.key && "is-active"
+                        )}
                         onClick={() => {
                           setSortKey(option.key);
                           setSortOpen(false);
@@ -392,18 +407,22 @@ export default function PerformanceAnalyticsPage() {
               </div>
               <button
                 type="button"
-                className={`primary-btn refresh-button ${isRefreshing ? "is-busy" : ""}`}
+                className={performanceClass(
+                  "primary-btn",
+                  "refresh-button",
+                  isRefreshing && "is-busy"
+                )}
                 onClick={handleRefreshData}
                 disabled={isRefreshing}
               >
-                <span className="refresh-icon">
+                <span className={performanceClass("refresh-icon")}>
                   <ArrowClockwise size={18} weight="bold" />
                 </span>
-                <span className="refresh-copy">
-                  <span className="refresh-title">
+                <span className={performanceClass("refresh-copy")}>
+                  <span className={performanceClass("refresh-title")}>
                     {isRefreshing ? "Refreshing…" : "Refresh videos"}
                   </span>
-                  <span className="refresh-meta">
+                  <span className={performanceClass("refresh-meta")}>
                     {isRefreshing ? "Pulling latest demo signals" : formatActionTime(lastRefreshAt)}
                   </span>
                 </span>
@@ -411,13 +430,15 @@ export default function PerformanceAnalyticsPage() {
             </div>
           </div>
           {dataset.length ? (
-            <div className="compact-grid">
+            <div className={performanceClass("compact-grid")}>
               {sortedDataset.map((video) => (
                 <CompactVideoCard key={video.reel_id} video={video} onSelect={handleSelectVideo} />
               ))}
             </div>
           ) : (
-            <div className="chart-empty">No videos match the current filters.</div>
+            <div className={performanceClass("chart-empty")}>
+              No videos match the current filters.
+            </div>
           )}
         </section>
 

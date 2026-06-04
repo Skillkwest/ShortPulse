@@ -47,7 +47,7 @@ vi.mock("../../features/saved-creators/logic/supabase", () => ({
 vi.mock("../../features/billing/useResolvedAccountPlan", () => ({
   useResolvedAccountPlan: () => ({
     user: { id: "user-1", email: "kirk@example.com", user_metadata: { plan: "free" } },
-    resolvedPlan: { label: "Free", className: "plan-free" },
+    resolvedPlan: { label: "Starter", className: "plan-starter" },
   }),
 }));
 
@@ -98,7 +98,7 @@ describe("Saved creators route behavior", () => {
 
     await screen.findByText("@alphaeditor");
     expect(screen.getByText("Current plan")).toBeInTheDocument();
-    expect(screen.getByText("Free")).toBeInTheDocument();
+    expect(screen.getByText("Starter")).toBeInTheDocument();
 
     expect(document.body.classList.contains("saved-creators-body")).toBe(true);
     expect(document.documentElement.classList.contains("saved-creators-body")).toBe(true);

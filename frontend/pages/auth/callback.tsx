@@ -23,9 +23,16 @@ import {
   readSupabaseSession,
   refreshSupabaseSession,
 } from "../../lib/supabaseClient";
+import authStyles from "../../styles/auth-route.module.css";
 
 const MIN_PASSWORD_LENGTH = 8;
 const CALLBACK_SESSION_SETTLE_MS = 750;
+
+const authClass = (...names: Array<string | false | null | undefined>) =>
+  names
+    .filter((name): name is string => Boolean(name))
+    .map((name) => authStyles[name] ?? name)
+    .join(" ");
 
 type CallbackStatus = "loading" | "recovery" | "error";
 type CompletionAuthEvent = "SIGNED_IN" | "USER_UPDATED";
@@ -359,27 +366,31 @@ export default function AuthCallbackPage() {
           }`}
         </title>
       </Head>
-      <main className="auth-shell">
-        <div className="auth-overlay" />
-        <div className="auth-glow auth-glow-left" />
-        <div className="auth-glow auth-glow-right" />
-        <div className="auth-layout">
+      <main className={authClass("auth-shell")}>
+        <div className={authClass("auth-overlay")} />
+        <div className={authClass("auth-glow", "auth-glow-left")} />
+        <div className={authClass("auth-glow", "auth-glow-right")} />
+        <div className={authClass("auth-layout")}>
           <form
-            className="auth-card"
+            className={authClass("auth-card")}
             onSubmit={status === "recovery" ? onUpdatePassword : undefined}
           >
-            <div className="auth-card-header">
-              <Link href="/" className="auth-brand" aria-label="Go to ShortPulse dashboard home">
+            <div className={authClass("auth-card-header")}>
+              <Link
+                href="/"
+                className={authClass("auth-brand")}
+                aria-label="Go to ShortPulse dashboard home"
+              >
                 <Image
                   src="/small good d.png"
                   alt="ShortPulse logo"
-                  className="auth-brand-logo"
+                  className={authClass("auth-brand-logo")}
                   width={203}
                   height={64}
                   style={{ height: "auto" }}
                 />
               </Link>
-              <h1 className="auth-title">
+              <h1 className={authClass("auth-title")}>
                 {status === "recovery"
                   ? "Reset your password"
                   : status === "error"
@@ -388,7 +399,7 @@ export default function AuthCallbackPage() {
                       ? "Confirming your new email"
                       : "Completing your sign-in"}
               </h1>
-              <p className="auth-subtitle">
+              <p className={authClass("auth-subtitle")}>
                 {status === "recovery"
                   ? "Choose a new password to finish the recovery flow."
                   : status === "error"
@@ -399,11 +410,11 @@ export default function AuthCallbackPage() {
 
             {status === "recovery" ? (
               <>
-                <div className="auth-field-stack">
-                  <label className="auth-label" htmlFor="password">
+                <div className={authClass("auth-field-stack")}>
+                  <label className={authClass("auth-label")} htmlFor="password">
                     New password
                   </label>
-                  <div className="auth-input">
+                  <div className={authClass("auth-input")}>
                     <LockSimple size={18} weight="bold" />
                     <input
                       id="password"
@@ -417,7 +428,7 @@ export default function AuthCallbackPage() {
                     />
                     <button
                       type="button"
-                      className="auth-eye"
+                      className={authClass("auth-eye")}
                       onClick={() => setShowPassword((value) => !value)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
@@ -430,11 +441,11 @@ export default function AuthCallbackPage() {
                   </div>
                 </div>
 
-                <div className="auth-field-stack">
-                  <label className="auth-label" htmlFor="password-confirmation">
+                <div className={authClass("auth-field-stack")}>
+                  <label className={authClass("auth-label")} htmlFor="password-confirmation">
                     Confirm new password
                   </label>
-                  <div className="auth-input">
+                  <div className={authClass("auth-input")}>
                     <LockSimple size={18} weight="bold" />
                     <input
                       id="password-confirmation"
@@ -451,12 +462,12 @@ export default function AuthCallbackPage() {
               </>
             ) : null}
 
-            {error ? <div className="auth-error">{error}</div> : null}
-            {info ? <div className="auth-info">{info}</div> : null}
+            {error ? <div className={authClass("auth-error")}>{error}</div> : null}
+            {info ? <div className={authClass("auth-info")}>{info}</div> : null}
 
             {status === "recovery" ? (
               <button
-                className="auth-submit primary-btn"
+                className={authClass("auth-submit", "primary-btn")}
                 type="submit"
                 disabled={!password || !passwordConfirmation || loading}
               >
@@ -465,7 +476,7 @@ export default function AuthCallbackPage() {
               </button>
             ) : status === "error" && emailSyncRetryAvailable ? (
               <button
-                className="auth-submit primary-btn"
+                className={authClass("auth-submit", "primary-btn")}
                 type="button"
                 onClick={() => {
                   void onRetryEmailSync();
@@ -476,18 +487,18 @@ export default function AuthCallbackPage() {
                 {retryingEmailSync ? "Retrying..." : "Retry account sync"}
               </button>
             ) : status === "error" ? (
-              <Link className="auth-submit primary-btn" href={signInHref}>
+              <Link className={authClass("auth-submit", "primary-btn")} href={signInHref}>
                 <SignIn size={18} weight="bold" />
                 Return to sign in
               </Link>
             ) : null}
             {status === "error" && emailSyncRetryAvailable ? (
-              <Link className="auth-switch" href={signInHref}>
+              <Link className={authClass("auth-switch")} href={signInHref}>
                 Return to sign in
               </Link>
             ) : null}
-            <div className="auth-divider" />
-            <p className="auth-footnote">
+            <div className={authClass("auth-divider")} />
+            <p className={authClass("auth-footnote")}>
               ShortPulse uses this route to complete secure email and recovery links.
             </p>
           </form>

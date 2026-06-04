@@ -9,6 +9,7 @@ import {
   formatStatusLabel,
   type SubscriptionTransaction,
 } from "../profilePageModel";
+import { profileClass } from "../profileRouteStyles";
 
 type ProfileTransactionsSectionProps = {
   portalActionLabel: string;
@@ -36,7 +37,7 @@ export function ProfileTransactionsSection({
 }: ProfileTransactionsSectionProps) {
   return (
     <>
-      <details className="panel profile-detail-panel profile-billing-how">
+      <details className={profileClass("panel", "profile-detail-panel", "profile-billing-how")}>
         <summary>How transaction history works</summary>
         <p>
           This feed combines recurring subscription invoices, storage add-on charges, and one-time
@@ -44,11 +45,11 @@ export function ProfileTransactionsSection({
         </p>
       </details>
 
-      <section className="panel profile-panel profile-panel-stack">
-        <div className="panel-header profile-panel-header">
+      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
+        <div className={profileClass("panel-header", "profile-panel-header")}>
           <div>
             <p className="eyebrow">Billing overview</p>
-            <h2 className="profile-panel-title">Recent transactions</h2>
+            <h2 className={profileClass("profile-panel-title")}>Recent transactions</h2>
             <p className="subdued tiny">
               {userEmail ? `Billing email: ${userEmail}. ` : ""}
               {portalManagementAvailable
@@ -56,16 +57,16 @@ export function ProfileTransactionsSection({
                 : "This account is managed internally, so Stripe-backed billing history may be limited."}
             </p>
           </div>
-          <span className="profile-panel-icon-chip" aria-hidden="true">
+          <span className={profileClass("profile-panel-icon-chip")} aria-hidden="true">
             <CreditCard size={18} weight="bold" />
           </span>
         </div>
 
         {portalManagementAvailable ? (
-          <div className="profile-actions">
+          <div className={profileClass("profile-actions")}>
             <button
               type="button"
-              className="profile-button ghost-btn"
+              className={profileClass("profile-button", "ghost-btn")}
               onClick={onOpenBillingPortal}
               disabled={portalLoading}
             >
@@ -74,9 +75,9 @@ export function ProfileTransactionsSection({
           </div>
         ) : null}
 
-        <div className="profile-receipts profile-receipts-standalone">
-          <div className="profile-receipts-header">
-            <h3 className="profile-subsection-title">Recent transactions</h3>
+        <div className={profileClass("profile-receipts", "profile-receipts-standalone")}>
+          <div className={profileClass("profile-receipts-header")}>
+            <h3 className={profileClass("profile-subsection-title")}>Recent transactions</h3>
             <Receipt size={16} />
           </div>
 
@@ -90,11 +91,11 @@ export function ProfileTransactionsSection({
             <p className="tiny subdued">No recent billing transactions yet.</p>
           ) : null}
           {!transactionsLoading && !transactionsError && transactions.length > 0 ? (
-            <ul className="profile-receipt-list">
+            <ul className={profileClass("profile-receipt-list")}>
               {transactions.map((transaction) => {
                 const timestamp = transaction.paidAt ?? transaction.createdAt;
                 return (
-                  <li key={transaction.id} className="profile-receipt-item">
+                  <li key={transaction.id} className={profileClass("profile-receipt-item")}>
                     <div>
                       <p className="label">{transaction.title}</p>
                       <p className="tiny subdued">
@@ -105,7 +106,7 @@ export function ProfileTransactionsSection({
                       {transaction.receiptUrl ? (
                         <a
                           href={transaction.receiptUrl}
-                          className="tiny subdued profile-receipt-link"
+                          className={profileClass("tiny", "subdued", "profile-receipt-link")}
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -114,7 +115,7 @@ export function ProfileTransactionsSection({
                       ) : null}
                     </div>
 
-                    <div className="profile-receipt-item-meta">
+                    <div className={profileClass("profile-receipt-item-meta")}>
                       <p className="label">
                         {formatCurrencyAmount(
                           transaction.amountPaidCents,

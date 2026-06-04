@@ -1,6 +1,6 @@
 /**
  * Session-aware dashboard route.
- * Serves as the public home/landing/dashboard shell while keeping authenticated bootstrap off the public entry chunk.
+ * Serves as the public home/dashboard shell while keeping authenticated bootstrap off the public entry chunk.
  */
 import Head from "next/head";
 import { useEffect, useState } from "react";

@@ -114,7 +114,7 @@ describe("Dashboard guest route", () => {
           plans: [
             {
               id: "free",
-              display_name: "Free",
+              display_name: "Starter",
               sort_order: 0,
               monthly_price_cents: 0,
               monthly_credits_cents: 100,

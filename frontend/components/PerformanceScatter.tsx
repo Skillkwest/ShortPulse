@@ -25,6 +25,7 @@ import {
   formatRate,
   prettifyUrl,
 } from "../features/performance/utils/formatters";
+import { performanceClass } from "../features/performance/performanceRouteStyles";
 import { median } from "../features/performance/utils/statistics";
 
 type Props = {
@@ -45,40 +46,45 @@ const CustomTooltip = ({
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="tooltip-card">
-      <div className="tooltip-header">
-        <a href={d.reel_url} target="_blank" rel="noreferrer" className="tooltip-title">
+    <div className={performanceClass("tooltip-card")}>
+      <div className={performanceClass("tooltip-header")}>
+        <a
+          href={d.reel_url}
+          target="_blank"
+          rel="noreferrer"
+          className={performanceClass("tooltip-title")}
+        >
           {prettifyUrl(d.reel_url)}
         </a>
-        <span className="metric-chip">{d.platform}</span>
+        <span className={performanceClass("metric-chip")}>{d.platform}</span>
       </div>
-      <div className="tooltip-badges">
-        <span className="pill pill-teal">
+      <div className={performanceClass("tooltip-badges")}>
+        <span className={performanceClass("pill", "pill-teal")}>
           Velocity · {formatPercentile(d.views_per_hour_percentile)}
         </span>
-        <span className="pill pill-amber">
+        <span className={performanceClass("pill", "pill-amber")}>
           Engagement · {formatPercentile(d.engagement_rate_percentile)}
         </span>
       </div>
-      <div className="tooltip-grid">
-        <div className="tooltip-metric">
+      <div className={performanceClass("tooltip-grid")}>
+        <div className={performanceClass("tooltip-metric")}>
           <span>Performance score</span>
           <strong>{d.performance_score.toFixed(2)}</strong>
         </div>
-        <div className="tooltip-metric">
+        <div className={performanceClass("tooltip-metric")}>
           <span>Engagement rate</span>
           <strong>{formatRate(d.engagement_rate)}</strong>
         </div>
-        <div className="tooltip-metric">
+        <div className={performanceClass("tooltip-metric")}>
           <span>Views per hour</span>
           <strong>{formatNumber(d.views_per_hour)}</strong>
         </div>
-        <div className="tooltip-metric">
+        <div className={performanceClass("tooltip-metric")}>
           <span>Total views</span>
           <strong>{formatNumber(d.views)}</strong>
         </div>
       </div>
-      <div className="tooltip-meta">
+      <div className={performanceClass("tooltip-meta")}>
         <span>Published</span>
         <span>{new Date(d.publish_time).toUTCString()}</span>
       </div>
@@ -126,80 +132,90 @@ export function PerformanceScatter({ data, loading }: Props) {
   }, [data]);
 
   return (
-    <div className="panel">
-      <div className="panel-header">
+    <div className={performanceClass("panel")}>
+      <div className={performanceClass("panel-header")}>
         <div>
           <p className="eyebrow">Scatter · 7d cohort</p>
           <h2>Reels performance field</h2>
           <p className="subdued">X: views/hr percentile · Y: engagement percentile · Size: views</p>
         </div>
-        <div className="chip-row">
-          <span className="chip">Total: {data.length}</span>
-          <span className="chip chip-highlight">Breakouts: {highlighted.length}</span>
-          <span className="chip chip-ghost">Score ≥ {highlightThreshold}</span>
+        <div className={performanceClass("chip-row")}>
+          <span className={performanceClass("chip")}>Total: {data.length}</span>
+          <span className={performanceClass("chip", "chip-highlight")}>
+            Breakouts: {highlighted.length}
+          </span>
+          <span className={performanceClass("chip", "chip-ghost")}>
+            Score ≥ {highlightThreshold}
+          </span>
         </div>
       </div>
-      <div className="stat-rail">
-        <div className="stat-card">
-          <div className="stat-label">Breakout share</div>
-          <div className="stat-value">
+      <div className={performanceClass("stat-rail")}>
+        <div className={performanceClass("stat-card")}>
+          <div className={performanceClass("stat-label")}>Breakout share</div>
+          <div className={performanceClass("stat-value")}>
             <span>{breakoutShare.toFixed(0)}%</span>
-            <span className="stat-tag">of {data.length || 0} reels</span>
+            <span className={performanceClass("stat-tag")}>of {data.length || 0} reels</span>
           </div>
-          <div className="stat-sub">Performance score ≥ {highlightThreshold}</div>
+          <div className={performanceClass("stat-sub")}>
+            Performance score ≥ {highlightThreshold}
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Median engagement</div>
-          <div className="stat-value">
+        <div className={performanceClass("stat-card")}>
+          <div className={performanceClass("stat-label")}>Median engagement</div>
+          <div className={performanceClass("stat-value")}>
             <span>{summary.medianEngagement.toFixed(2)}%</span>
-            <span className="stat-tag">rate</span>
+            <span className={performanceClass("stat-tag")}>rate</span>
           </div>
-          <div className="stat-sub">
+          <div className={performanceClass("stat-sub")}>
             Percentile median:{" "}
             {formatPercentile(median(data.map((d) => d.engagement_rate_percentile)))}
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Median velocity</div>
-          <div className="stat-value">
+        <div className={performanceClass("stat-card")}>
+          <div className={performanceClass("stat-label")}>Median velocity</div>
+          <div className={performanceClass("stat-value")}>
             <span>{formatCompact(summary.medianVelocity)} / hr</span>
-            <span className="stat-tag">speed</span>
+            <span className={performanceClass("stat-tag")}>speed</span>
           </div>
-          <div className="stat-sub">Views per hour across cohort</div>
+          <div className={performanceClass("stat-sub")}>Views per hour across cohort</div>
         </div>
-        <div className="stat-card stat-card-accent">
-          <div className="stat-label">Top performer</div>
-          <div className="stat-value">
+        <div className={performanceClass("stat-card", "stat-card-accent")}>
+          <div className={performanceClass("stat-label")}>Top performer</div>
+          <div className={performanceClass("stat-value")}>
             <span>{summary.top ? summary.top.performance_score.toFixed(1) : "—"}</span>
-            <span className="stat-tag">
+            <span className={performanceClass("stat-tag")}>
               {summary.top ? prettifyUrl(summary.top.reel_url) : "Waiting for data"}
             </span>
           </div>
-          <div className="stat-sub">
+          <div className={performanceClass("stat-sub")}>
             {summary.top
               ? `${summary.top.platform} · ${formatNumber(summary.top.views)} views`
               : "Loaded when data arrives"}
           </div>
         </div>
       </div>
-      <div className="legend-row">
-        <div className="legend-pill">
-          <span className="legend-dot legend-dot-base" />
+      <div className={performanceClass("legend-row")}>
+        <div className={performanceClass("legend-pill")}>
+          <span className={performanceClass("legend-dot", "legend-dot-base")} />
           <span>Cohort</span>
-          <span className="legend-sublabel">Performance &lt; {highlightThreshold}</span>
+          <span className={performanceClass("legend-sublabel")}>
+            Performance &lt; {highlightThreshold}
+          </span>
         </div>
-        <div className="legend-pill legend-pill-highlight">
-          <span className="legend-dot legend-dot-highlight" />
+        <div className={performanceClass("legend-pill", "legend-pill-highlight")}>
+          <span className={performanceClass("legend-dot", "legend-dot-highlight")} />
           <span>Top performers</span>
-          <span className="legend-sublabel">Performance ≥ {highlightThreshold}</span>
+          <span className={performanceClass("legend-sublabel")}>
+            Performance ≥ {highlightThreshold}
+          </span>
         </div>
       </div>
-      <div className="chart-shell">
+      <div className={performanceClass("chart-shell")}>
         {loading ? (
-          <div className="loading">Pulling latest signals…</div>
+          <div className={performanceClass("loading")}>Pulling latest signals…</div>
         ) : data.length === 0 ? (
-          <div className="chart-empty">
-            <div className="empty-dot" />
+          <div className={performanceClass("chart-empty")}>
+            <div className={performanceClass("empty-dot")} />
             <p>No data yet. Try refreshing or load a sample cohort.</p>
           </div>
         ) : (

@@ -50,7 +50,7 @@ const billingContractState = vi.hoisted(() => ({
 const billingPlansFixture = [
   {
     id: "free",
-    display_name: "Free",
+    display_name: "Starter",
     monthly_price_cents: 0,
     monthly_credits_cents: 0,
     storage_limit_bytes: 1073741824,
@@ -359,7 +359,7 @@ describe("Profile subscription actions", () => {
     );
   }, 15000);
 
-  it("hides the system free tier when starter exists and keeps a cancel-to-free action", async () => {
+  it("hides the hidden baseline tier when starter exists and keeps the downgrade fallback", async () => {
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
       if (url === "/api/billing/catalog") {
         return {
@@ -368,7 +368,7 @@ describe("Profile subscription actions", () => {
             plans: [
               {
                 id: "free",
-                display_name: "Free",
+                display_name: "Starter",
                 monthly_price_cents: 0,
                 monthly_credits_cents: 100,
                 storage_limit_bytes: 1073741824,
@@ -407,7 +407,6 @@ describe("Profile subscription actions", () => {
     expect(
       await screen.findByRole("button", { name: "Cancel paid subscription" })
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Default access" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Downgrade to Starter" })).toBeInTheDocument();
   });
 
@@ -423,7 +422,7 @@ describe("Profile subscription actions", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides the renewal hero chip for the free plan", async () => {
+  it("hides the renewal hero chip for the baseline fallback plan", async () => {
     billingProfileState.plan_id = "free";
     billingProfileState.subscription_status = "inactive";
     billingProfileState.current_period_end = null;
@@ -434,7 +433,7 @@ describe("Profile subscription actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
-    expect(await screen.findByText("No active paid plan")).toBeInTheDocument();
+    expect((await screen.findAllByText("Starter")).length).toBeGreaterThan(0);
     expect(screen.queryByText("Next renewal")).not.toBeInTheDocument();
     expect(screen.queryByText("Not scheduled")).not.toBeInTheDocument();
     expect(screen.getByText("Monthly credits")).toBeInTheDocument();

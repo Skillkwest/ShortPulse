@@ -19,7 +19,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - `billing_storage_addons` for shared storage add-on metadata
 - Public acquisition surfaces now load those values server-side through the shared loader:
   - `frontend/lib/server/api/billingCatalog.ts`
-  - Used by `/`, `/dashboard`, `/landing`, and `/pricing`
+  - Used by `/`, `/dashboard`, and `/pricing`
 - Authenticated account-management surfaces still read those values through the authenticated catalog route:
   - `frontend/pages/api/billing/catalog.ts`
 - Operators can now inspect and update public catalog pricing from:
@@ -59,9 +59,14 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 
 ## Current catalog (2026-02-10)
 
+Public entry-plan note:
+
+- `Starter` is the public first paid plan.
+- The hidden internal `free` contract may still exist as a backend/runtime fallback, but it is not part of the customer-facing plan ladder.
+
 ### Subscription plans
 
-- `free`: `$0`, `100` credits/month, `1 GB`
+- `starter`: `$15/month`, `350` credits/month, `1 GB`
 - `media`: `$12/month` or `$120/year`, `600` credits/month, `25 GB`
 - `studio`: `$39/month` or `$390/year`, `3,000` credits/month, `100 GB`
 - `business`: `$129/month` or `$1,392/year`, `12,000` credits/month, `500 GB`

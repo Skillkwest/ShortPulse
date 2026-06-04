@@ -4,6 +4,7 @@
  */
 import { MagnifyingGlass } from "phosphor-react";
 import { DATE_OPTIONS, NICHES } from "../constants";
+import { performanceClass } from "../performanceRouteStyles";
 import { CategoryFilter, DateRange, PlatformFilter } from "../types";
 
 export type PrimaryFilterBarProps = {
@@ -37,13 +38,13 @@ export function PrimaryFilterBar({
   resultsCount,
 }: PrimaryFilterBarProps) {
   return (
-    <section className="filter-bar">
-      <div className="filter-group">
-        <div className="segmented">
+    <section className={performanceClass("filter-bar")}>
+      <div className={performanceClass("filter-group")}>
+        <div className={performanceClass("segmented")}>
           {DATE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
-              className={dateRange === opt.value ? "active" : ""}
+              className={performanceClass(dateRange === opt.value && "active")}
               onClick={() => onDateChange(opt.value)}
               aria-pressed={dateRange === opt.value}
             >
@@ -51,21 +52,27 @@ export function PrimaryFilterBar({
             </button>
           ))}
         </div>
-        <div className="platform-toggle compact">
+        <div className={performanceClass("platform-toggle", "compact")}>
           {(["all", "instagram", "tiktok", "youtube"] as PlatformFilter[]).map((value) => (
             <button
               key={value}
-              className={`platform-pill small ${platform === value ? "active" : ""}`}
+              className={performanceClass("platform-pill", "small", platform === value && "active")}
               onClick={() => onPlatformChange(value)}
               aria-pressed={platform === value}
             >
-              {value === "all" ? "All" : value === "instagram" ? "Instagram" : value === "tiktok" ? "TikTok" : "YouTube"}
+              {value === "all"
+                ? "All"
+                : value === "instagram"
+                  ? "Instagram"
+                  : value === "tiktok"
+                    ? "TikTok"
+                    : "YouTube"}
             </button>
           ))}
         </div>
-        <div className="pill-select">
+        <div className={performanceClass("pill-select")}>
           <select
-            className="niche-select"
+            className={performanceClass("niche-select")}
             value={categoryFilter}
             onChange={(e) => onCategoryChange(e.target.value as CategoryFilter)}
             aria-label="Select niche"
@@ -79,16 +86,16 @@ export function PrimaryFilterBar({
           </select>
         </div>
         <button
-          className={`outlier-btn ${outliersOnly ? "active" : ""}`}
+          className={performanceClass("outlier-btn", outliersOnly && "active")}
           onClick={onToggleOutliers}
           aria-pressed={outliersOnly}
           title="Outlier = views / platform median"
         >
           Outliers
         </button>
-        <div className="search-row">
-          <div className="search-chip primary">
-            <span className="search-icon" aria-hidden>
+        <div className={performanceClass("search-row")}>
+          <div className={performanceClass("search-chip", "primary")}>
+            <span className={performanceClass("search-icon")} aria-hidden>
               <MagnifyingGlass size={16} weight="bold" />
             </span>
             <input
@@ -99,7 +106,10 @@ export function PrimaryFilterBar({
               onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
-          <span className="pill tiny results-pill filter-results" aria-live="polite">
+          <span
+            className={performanceClass("pill", "tiny", "results-pill", "filter-results")}
+            aria-live="polite"
+          >
             {resultsCount} results
           </span>
         </div>
@@ -136,9 +146,9 @@ export function ThresholdFilterBar({
   onClear,
 }: ThresholdFilterBarProps) {
   return (
-    <section className="filter-bar sub">
-      <div className="filter-group">
-        <div className="input-chip">
+    <section className={performanceClass("filter-bar", "sub")}>
+      <div className={performanceClass("filter-group")}>
+        <div className={performanceClass("input-chip")}>
           <label className="tiny subdued" htmlFor="minViews">
             Min views
           </label>
@@ -150,7 +160,7 @@ export function ThresholdFilterBar({
             onChange={(e) => onMinViewsChange(e.target.value)}
           />
         </div>
-        <div className="input-chip">
+        <div className={performanceClass("input-chip")}>
           <label className="tiny subdued" htmlFor="minLikes">
             Min likes
           </label>
@@ -162,7 +172,7 @@ export function ThresholdFilterBar({
             onChange={(e) => onMinLikesChange(e.target.value)}
           />
         </div>
-        <div className="input-chip">
+        <div className={performanceClass("input-chip")}>
           <label className="tiny subdued" htmlFor="minFollowers">
             Min followers
           </label>
@@ -174,7 +184,7 @@ export function ThresholdFilterBar({
             onChange={(e) => onMinFollowersChange(e.target.value)}
           />
         </div>
-        <div className="input-chip">
+        <div className={performanceClass("input-chip")}>
           <label className="tiny subdued" htmlFor="maxFollowers">
             Max followers
           </label>
@@ -187,7 +197,12 @@ export function ThresholdFilterBar({
           />
         </div>
       </div>
-      <button type="button" className="ghost-btn small clear-btn" onClick={onClear} aria-label="Clear filters">
+      <button
+        type="button"
+        className={performanceClass("ghost-btn", "small", "clear-btn")}
+        onClick={onClear}
+        aria-label="Clear filters"
+      >
         Clear
       </button>
     </section>

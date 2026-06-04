@@ -13,6 +13,7 @@ import {
   type BillingSubscriptionStorageAddon,
   type SubscriptionTransaction,
 } from "../profilePageModel";
+import { profileClass } from "../profileRouteStyles";
 
 type ProfileStorageSectionProps = {
   activeAddonStorageBytes: number;
@@ -97,7 +98,7 @@ export function ProfileStorageSection({
 
   return (
     <>
-      <details className="panel profile-detail-panel profile-billing-how">
+      <details className={profileClass("panel", "profile-detail-panel", "profile-billing-how")}>
         <summary>How media storage works</summary>
         <p>
           Your workspace includes storage with your base plan. Recurring storage add-ons increase
@@ -106,12 +107,17 @@ export function ProfileStorageSection({
       </details>
 
       <article
-        className={`panel profile-hero-card profile-storage-hero-card ${activePlanClassName}`}
+        className={profileClass(
+          "panel",
+          "profile-hero-card",
+          "profile-storage-hero-card",
+          activePlanClassName
+        )}
       >
-        <div className="profile-hero-copy">
+        <div className={profileClass("profile-hero-copy")}>
           <p className="eyebrow">Workspace capacity</p>
-          <h2 className="profile-hero-title">Your media storage</h2>
-          <p className="profile-hero-value profile-hero-value-text">
+          <h2 className={profileClass("profile-hero-title")}>Your media storage</h2>
+          <p className={profileClass("profile-hero-value", "profile-hero-value-text")}>
             {formatStorageBytes(totalStorageLimitBytes)}
           </p>
           <p className="tiny subdued">
@@ -120,38 +126,40 @@ export function ProfileStorageSection({
           </p>
         </div>
 
-        <div className="profile-hero-meta">
-          <div className="profile-hero-stat-card">
-            <p className="profile-hero-stat-label">Plan capacity</p>
-            <p className="profile-hero-stat-value">
+        <div className={profileClass("profile-hero-meta")}>
+          <div className={profileClass("profile-hero-stat-card")}>
+            <p className={profileClass("profile-hero-stat-label")}>Plan capacity</p>
+            <p className={profileClass("profile-hero-stat-value")}>
               {formatStorageBytes(currentSubscriptionStorageLimitBytes)}
             </p>
-            <p className="profile-hero-stat-helper">{planCapacityHelperText}</p>
+            <p className={profileClass("profile-hero-stat-helper")}>{planCapacityHelperText}</p>
           </div>
-          <div className="profile-hero-stat-card">
-            <p className="profile-hero-stat-label">Current usage</p>
-            <p className="profile-hero-stat-value">{formatStorageBytes(usedStorageBytes)}</p>
-            <p className="profile-hero-stat-helper">{currentUsageHelperText}</p>
+          <div className={profileClass("profile-hero-stat-card")}>
+            <p className={profileClass("profile-hero-stat-label")}>Current usage</p>
+            <p className={profileClass("profile-hero-stat-value")}>
+              {formatStorageBytes(usedStorageBytes)}
+            </p>
+            <p className={profileClass("profile-hero-stat-helper")}>{currentUsageHelperText}</p>
           </div>
-          <div className="profile-hero-stat-card">
-            <p className="profile-hero-stat-label">Active add-ons</p>
-            <p className="profile-hero-stat-value">{activeAddonSummary}</p>
-            <p className="profile-hero-stat-helper">{activeAddonsHelperText}</p>
+          <div className={profileClass("profile-hero-stat-card")}>
+            <p className={profileClass("profile-hero-stat-label")}>Active add-ons</p>
+            <p className={profileClass("profile-hero-stat-value")}>{activeAddonSummary}</p>
+            <p className={profileClass("profile-hero-stat-helper")}>{activeAddonsHelperText}</p>
           </div>
         </div>
       </article>
 
       {storageCalloutMessage ? (
-        <aside className="profile-callout">
+        <aside className={profileClass("profile-callout")}>
           <p className="tiny">{storageCalloutMessage}</p>
         </aside>
       ) : null}
 
-      <section className="panel profile-panel profile-panel-stack">
-        <div className="panel-header profile-panel-header">
+      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
+        <div className={profileClass("panel-header", "profile-panel-header")}>
           <div>
             <p className="eyebrow">Storage add-ons</p>
-            <h2 className="profile-panel-title">Expand media capacity</h2>
+            <h2 className={profileClass("profile-panel-title")}>Expand media capacity</h2>
             <p className="subdued tiny">
               Recurring add-ons increase workspace capacity and renew alongside your subscription.
               Removing one updates Stripe immediately; if usage stays over the remaining limit, new
@@ -160,25 +168,27 @@ export function ProfileStorageSection({
           </div>
         </div>
 
-        <div className="profile-plan-grid">
+        <div className={profileClass("profile-plan-grid")}>
           {billingPlansLoading ? (
-            <div className="profile-plan-card">
+            <div className={profileClass("profile-plan-card")}>
               <p className="tiny subdued">Loading storage add-ons…</p>
             </div>
           ) : storageAddons.length === 0 ? (
-            <div className="profile-plan-card">
+            <div className={profileClass("profile-plan-card")}>
               <p className="tiny subdued">No recurring storage add-ons are configured yet.</p>
             </div>
           ) : (
             storageAddons.map((addon) => (
-              <div key={addon.id} className="profile-plan-card">
-                <div className="profile-plan-top">
+              <div key={addon.id} className={profileClass("profile-plan-card")}>
+                <div className={profileClass("profile-plan-top")}>
                   <div>
                     <p className="tiny subdued">Recurring add-on</p>
-                    <h3 className="profile-plan-card-title">{addon.display_name}</h3>
+                    <h3 className={profileClass("profile-plan-card-title")}>
+                      {addon.display_name}
+                    </h3>
                   </div>
                   {(activeAddonRowsById.get(addon.id)?.length ?? 0) > 0 ? (
-                    <span className="profile-plan-badge">Active add-on</span>
+                    <span className={profileClass("profile-plan-badge")}>Active add-on</span>
                   ) : null}
                 </div>
 
@@ -223,10 +233,10 @@ export function ProfileStorageSection({
                           : "Renews with your subscription"}
                       </p>
 
-                      <div className="profile-actions">
+                      <div className={profileClass("profile-actions")}>
                         <button
                           type="button"
-                          className="profile-button ghost-btn"
+                          className={profileClass("profile-button", "ghost-btn")}
                           onClick={() =>
                             onStorageAddonChange({
                               storageAddonId: addon.id,
@@ -251,25 +261,25 @@ export function ProfileStorageSection({
         ) : null}
       </section>
 
-      <section className="panel profile-panel profile-panel-stack">
-        <div className="panel-header profile-panel-header">
+      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
+        <div className={profileClass("panel-header", "profile-panel-header")}>
           <div>
             <p className="eyebrow">Payment history</p>
-            <h2 className="profile-panel-title">Recent storage payments</h2>
+            <h2 className={profileClass("profile-panel-title")}>Recent storage payments</h2>
             <p className="subdued tiny">
               {storagePaymentsAvailable
                 ? "Recent recurring storage add-on charges billed through Stripe."
                 : "This account is managed internally, so there are no Stripe storage charges to show here."}
             </p>
           </div>
-          <span className="profile-panel-icon-chip" aria-hidden="true">
+          <span className={profileClass("profile-panel-icon-chip")} aria-hidden="true">
             <Receipt size={18} weight="bold" />
           </span>
         </div>
 
-        <div className="profile-receipts profile-receipts-standalone">
-          <div className="profile-receipts-header">
-            <h3 className="profile-subsection-title">Recent transactions</h3>
+        <div className={profileClass("profile-receipts", "profile-receipts-standalone")}>
+          <div className={profileClass("profile-receipts-header")}>
+            <h3 className={profileClass("profile-subsection-title")}>Recent transactions</h3>
             <Receipt size={16} />
           </div>
 
@@ -291,11 +301,11 @@ export function ProfileStorageSection({
           {!storageTransactionsLoading &&
           !storageTransactionsError &&
           storageTransactions.length > 0 ? (
-            <ul className="profile-receipt-list">
+            <ul className={profileClass("profile-receipt-list")}>
               {storageTransactions.map((transaction) => {
                 const timestamp = transaction.paidAt ?? transaction.createdAt;
                 return (
-                  <li key={transaction.id} className="profile-receipt-item">
+                  <li key={transaction.id} className={profileClass("profile-receipt-item")}>
                     <div>
                       <p className="label">{transaction.title}</p>
                       <p className="tiny subdued">
@@ -305,7 +315,7 @@ export function ProfileStorageSection({
                       {transaction.receiptUrl ? (
                         <a
                           href={transaction.receiptUrl}
-                          className="tiny subdued profile-receipt-link"
+                          className={profileClass("tiny", "subdued", "profile-receipt-link")}
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -314,7 +324,7 @@ export function ProfileStorageSection({
                       ) : null}
                     </div>
 
-                    <div className="profile-receipt-item-meta">
+                    <div className={profileClass("profile-receipt-item-meta")}>
                       <p className="label">
                         {formatCurrencyAmount(
                           transaction.amountPaidCents,

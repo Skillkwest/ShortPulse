@@ -173,7 +173,7 @@ Checklist:
 - Validate ElevenLabs key routing and rate/security policy in that environment.
 - Reproduce the call once in isolation to separate transient provider failure from app routing regression.
 
-### `client.ai_studio.failure_stack` visible failure cards
+### `telemetry.ai_studio.failure_stack` visible failure cards
 
 Symptoms:
 
@@ -181,6 +181,7 @@ Symptoms:
 
 Interpretation:
 
+- This source is a low-severity visible UI mirror and is suppressed in the browser before `/api/log/client-error`; it should not create `app_error_logs` incidents.
 - Could be normal provider/transient failures when the user keeps retrying.
 - Prioritize validating paired provider/status/submit telemetry before treating as a core UI bug.
 
@@ -190,6 +191,7 @@ Checklist:
 - Check `/api/fal/*-status` responses and recent `media_perf` telemetry.
 - Correlate with provider-facing errors (credits, prompts, source signing, preflight).
 - If failures are user-impacting for all runs, escalate with route labels + request IDs and include a short reproducible sample.
+- If this source appears in `app_error_logs`, treat that as telemetry-policy drift; expected actionable incidents should come from sources such as `generation.workflow_failure`, `fal_submit_not_started`, `fal_auth_session_timeout`, `generation_submit_lifecycle_contract`, or `client.ai_studio.media_library_save_failure`.
 
 ## `next build` / `next lint` prompts to “configure ESLint”
 

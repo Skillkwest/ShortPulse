@@ -1044,7 +1044,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 - `id` (uuid, pk): Incident record ID.
 - `fingerprint` (text): Hash of normalized source/message/stack/location for deduping repeats.
-- `source` (text): e.g. client.runtime | client.unhandledrejection | client.api_response | client.api_network | client.react_error_boundary | client.route_change | generation.workflow_failure | generation.stale_timeout | api.exception | db.trigger.handle_new_user_billing_setup.
+- `source` (text): e.g. client.runtime | client.unhandledrejection | client.api_response | client.api_network | client.react_error_boundary | client.route_change | generation.workflow_failure | generation.stale_timeout | client.ai_studio.media_library_save_failure | api.exception | db.trigger.handle_new_user_billing_setup. Low-severity browser `telemetry.ai_studio.*` UI mirrors are suppressed before ingest and should not appear here.
 - `scope` (text): app | generation.
 - `severity` (text): low | medium | high.
 - `status` (text): open | ignored | resolved.

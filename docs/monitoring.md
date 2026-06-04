@@ -9,7 +9,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
 - Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
-- AI Studio low-severity client telemetry under `telemetry.ai_studio.*` is currently suppressed in the browser reporter before `/api/log/client-error` ingest so incident-budget headroom is reserved for real failures.
+- AI Studio low-severity client telemetry under `telemetry.ai_studio.*` is currently suppressed in the browser reporter before `/api/log/client-error` ingest so incident-budget headroom is reserved for real failures; this includes visible UI mirrors such as `ui_error_banner`, `notice_banner`, `failure_stack`, and media-library panel/modal error banners.
 - Project workspace degraded-save telemetry is emitted as `telemetry.ai_studio.project_workspace.repair_pending` when the durable workspace write succeeds but follow-up project association repair still needs another pass.
 - Growth funnel telemetry is emitted through `/api/telemetry/growth` for:
   - `telemetry.marketing.page_view`
@@ -37,6 +37,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 3. Telemetry-only source policy:
    - Sources under `telemetry.*` stay in `app_error_events` only (no grouped incident row)
    - Low-severity browser `telemetry.ai_studio.*` reports are currently dropped before ingest and therefore do not reach `app_error_events`.
+   - Actionable AI Studio failures, such as generation submit/status failures and media-library save failures, stay on non-telemetry sources so they can create operator incidents.
    - Shared policy contract lives in `frontend/lib/server/api/errorTelemetryPolicy.ts`
 4. Operator retrieval:
    - `/api/admin/error-events` = raw stream + enrichment + alert summaries

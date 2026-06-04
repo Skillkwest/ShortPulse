@@ -23,7 +23,6 @@ vercel_staging_env_*.txt
 .vercel
 .tmp/
 .playwright-mcp/
-.claude/
 admin-support-state-pass.png
 
 # Local auth/session artifacts. These may contain Supabase access tokens,

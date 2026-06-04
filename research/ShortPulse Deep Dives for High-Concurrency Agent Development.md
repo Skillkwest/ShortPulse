@@ -517,13 +517,12 @@ This is especially valuable to block:
 
 ## Agent policy matrix for ShortPulse: allowed / ask / deny by tool
 
-This section translates your “agent permission” goal into a concrete, enforceable policy stack for Codex, Claude Code, Gemini Code Assist, and VS Code agent sessions.
+This section translates your “agent permission” goal into a concrete, enforceable policy stack for Codex, Gemini Code Assist, and VS Code agent sessions.
 
 ### Documented permission models you can rely on
 
 - Codex: sandboxing + approvals model is explicitly documented; sandboxing defines boundaries and approvals gate risky actions. citeturn3search12turn3search0  
   Codex config docs also note that `.git/` and `.codex/` may be read-only even when workspace is writable (important for “agent can’t commit” expectations). citeturn3search24turn3search16  
-- Claude Code: permissions evaluate in order deny → ask → allow, where the first match wins. citeturn3search1  
 - Gemini Code Assist: agent mode shows a plan for approval and asks for permissions during execution; Gemini CLI plan mode is explicitly read-only. citeturn3search2turn3search6  
   Gemini release notes also include “auto approve mode,” which is a major risk knob you should treat as off by default in this repo. citeturn3search30  
 - VS Code agents: “Bypass Approvals” and “Autopilot” bypass manual approval prompts, including for destructive actions; only use with full understanding of the security implications. citeturn3search39  
@@ -549,7 +548,6 @@ Interpretation: “Allow” means pre-approved, “Ask” means human must appro
 ### Tool-specific enforcement hooks
 
 - Codex: enforce sandbox boundaries and require approvals for network and high-risk commands per the approvals/security model; be aware `.git` read-only constraints may prevent in-agent commits. citeturn3search0turn3search24  
-- Claude Code: implement deny/ask/allow rules in the documented evaluation order. citeturn3search1  
 - Gemini: keep plan mode for analysis tasks (read-only) and explicitly disable auto-approve in ShortPulse contexts. citeturn3search6turn3search30  
 - VS Code: do not enable bypass approvals for sessions that can access repo secrets; this is explicitly a security risk. citeturn3search39  
 

@@ -2,13 +2,13 @@
 
 Date: 2026-06-04
 
-Status: plan-ready, implementation not started.
+Status: implemented and locally validated on 2026-06-04.
 
 ## Goal
 
 Add Kie.ai GPT Image 2 image-to-image support to AI Studio as a sibling queued edit model to the existing Kie GPT Image 2 text-to-image lane.
 
-This plan is complete enough to begin implementation once the pricing decision below is confirmed. Stop after this plan is written and indexed; do not implement model code in the planning pass.
+This plan was the source checkpoint for implementation after the pricing decision below was confirmed by the user.
 
 ## Source Of Truth
 
@@ -50,12 +50,13 @@ The current repo already encodes Kie GPT Image 2 pricing as:
 - `2K`: `$0.05`
 - `4K`: `$0.08`
 
-The pasted image-to-image API docs did not include pricing. Before implementation, confirm one of these options:
+The pasted image-to-image API docs did not include pricing. The user confirmed on 2026-06-04 that image-to-image should reuse the existing `kie-gpt-image-2-per-image` strategy:
 
-- Reuse the existing `kie-gpt-image-2-per-image` strategy for image-to-image.
-- Add a separate pricing strategy if Kie image-to-image has different provider pricing.
+- `1K`: `$0.03`
+- `2K`: `$0.05`
+- `4K`: `$0.08`
 
-Do not ship the image-to-image model to billable picker/runtime surfaces without this decision.
+This satisfies the pricing gate for billable picker/runtime exposure.
 
 ## Implementation Steps
 
@@ -129,12 +130,12 @@ Run `npm -C frontend exec tsc -- --noEmit` only as a residual-risk check because
 
 ## Stop Condition
 
-Planning is complete when this document:
+Buildout is complete when current repo evidence proves:
 
-- Names the model id, provider model id, submit endpoint, status endpoint pattern, required fields, reference cap, aspect/resolution policy, and pricing decision gate.
-- Identifies all implementation surfaces.
-- Identifies what is intentionally out of scope.
-- Defines validation commands.
-- States that implementation must not start in the planning pass.
+- The catalog, runtime metadata, Kie payload contract, generated routes, client submission adapter, polling provider, picker presentation metadata, docs, and tests cover `kie-ai/gpt-image-2-image-to-image`.
+- The pricing gate is satisfied by the confirmed `kie-gpt-image-2-per-image` strategy.
+- Targeted validation passes: `fal:routes:check`, `model:doctor`, `docs:check`, Kie model contract tests, Kie result media tests, model API contracts, model pricing coverage, task submission payload matrix, and TypeScript residual check.
+- No UI/UX behavior was changed beyond making the new Kie image-to-image/edit model selectable in the existing edit-model picker flow.
+- Character Mode startup/default model behavior and selectable model allowlist remain unchanged.
 
-At that point, stop. Begin implementation only after the user explicitly asks to proceed and the pricing decision is confirmed or explicitly accepted as an implementation assumption.
+At that point, stop; do not continue into provider live-call validation, UI redesign, Character Mode allowlist/default changes, fallback transport, or adjacent AI Studio cleanup unless separately requested.

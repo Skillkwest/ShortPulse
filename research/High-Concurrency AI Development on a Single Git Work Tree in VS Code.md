@@ -305,7 +305,7 @@ esac
 
 The underlying primitives (`git worktree add/remove/prune`) are standard Git functionality. citeturn19search1
 
-## Agent permission hardening: Codex vs Claude vs Gemini vs VS Code controls
+## Agent permission hardening: Codex vs Gemini vs VS Code controls
 
 ### Comparative threat model: what you must assume with many agents
 
@@ -323,11 +323,6 @@ The goal is “safe by default” *without* making the workflow unusable.
 **Codex (OpenAI)**  
 Codex documents a two-layer model: sandbox boundaries + approval policy. It explicitly states network access is off by default and describes OS-enforced sandboxing locally. It also documents protected paths like `.git` and `.codex` as read-only even inside writable roots. citeturn18view0turn18view1turn18view2  
 For cloud environments, Codex documents a two-phase runtime model (setup may use network; agent phase runs offline by default) and that secrets configured for cloud environments are available only during setup and removed before the agent phase starts. citeturn18view0
-
-**Claude Code (Anthropic)**  
-Claude Code documents a permissions system with Allow/Ask/Deny rules for tools, managed via `/permissions`. citeturn6search1  
-Claude Code’s security docs describe default protections including permission gating and default blocking of certain risky commands like `curl`/`wget` unless explicitly allowed. citeturn6search9  
-Claude Code also documents sandboxing as an OS-level limit on damage and network access outside the sandbox triggers a block + user choice. citeturn6search37
 
 **Gemini (Google)**  
 Gemini Code Assist agent mode documentation describes a plan-first workflow where you review/approve a plan before changes, and permissions can be requested as execution proceeds. citeturn6search10  
@@ -351,7 +346,7 @@ Think in layers; each layer should still work if the one above fails:
   - For Windows, prefer WSL-based dev for fewer file locking/symlink issues and consistent sandbox semantics; Codex explicitly recommends WSL workflows in its Windows guidance. citeturn18view3
 
 - **Layer 3: Explicit approvals for high-risk operations**
-  - Disallow or require “Ask” for: `git push`, writing under `.github/workflows/`, editing secrets/config files, running package installs, running “network tools.” (Claude’s model is directly Allow/Ask/Deny.) citeturn6search1turn6search9
+  - Disallow or require explicit approval for: `git push`, writing under `.github/workflows/`, editing secrets/config files, running package installs, and running network tools.
   - Ensure VS Code isn’t set to bypass approvals for sessions with repo secrets accessible. citeturn6search15turn6search7
 
 - **Layer 4: Audit + provenance**
@@ -555,4 +550,3 @@ Practical levers that don’t compromise correctness:
 - Cancel stale runs per PR (`concurrency`), citeturn10search0  
 - Cache dependencies, citeturn10search1  
 - Run required checks via a single “gate” job always reported, avoid workflow-level path filters on required checks. citeturn10search31turn4search3
-

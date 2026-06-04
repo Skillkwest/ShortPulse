@@ -10,7 +10,7 @@ Generated: April 29, 2026
 - Physical source lines: 514,046
 - Nonblank source lines: 471,699
 - Line definition: physical lines in source, test, SQL, script, style, and config files; blank and comment lines are included in the total.
-- Exclusions: prose docs, binary/design assets, dependency folders, generated/build outputs, coverage/test reports, temp folders, local secret env files, `.git/`, `.venv/`, `.vercel/`, `.husky/_/`, `.claude/`, and `mini-ecosystem/`.
+- Exclusions: prose docs, binary/design assets, dependency folders, generated/build outputs, coverage/test reports, temp folders, local secret env files, `.git/`, `.venv/`, `.vercel/`, `.husky/_/`, and `mini-ecosystem/`.
 
 ## Lines By System
 

@@ -17,6 +17,9 @@ const resolveCanvasMediaErrorKey = (item: CanvasSceneItem): string | null => {
   if (item.kind === "video") {
     return `${item.id}:video:${item.videoUrl}:${item.posterUrl ?? ""}`;
   }
+  if (item.kind === "audio") {
+    return `${item.id}:audio:${item.audioUrl}`;
+  }
   return null;
 };
 
@@ -54,6 +57,7 @@ type CanvasSceneItemViewProps = Pick<
   | "onTextItemEditKeyDown"
   | "onTextItemEditBlur"
   | "onTextResizeHandlePointerDown"
+  | "onCanvasMediaRenderError"
 > & {
   item: CanvasSceneItem;
   textResizeHandles: CanvasResizeHandle[];
@@ -92,6 +96,7 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
   onTextItemEditKeyDown,
   onTextItemEditBlur,
   onTextResizeHandlePointerDown,
+  onCanvasMediaRenderError,
   markCanvasMediaError,
   clearCanvasMediaError,
 }: CanvasSceneItemViewProps) {
@@ -196,7 +201,10 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
           alt={item.alt}
           draggable={false}
           onLoad={() => clearCanvasMediaError(mediaErrorKey)}
-          onError={() => markCanvasMediaError(mediaErrorKey)}
+          onError={() => {
+            markCanvasMediaError(mediaErrorKey);
+            onCanvasMediaRenderError?.(item);
+          }}
         />
       ) : item.kind === "video" ? (
         <>
@@ -208,7 +216,10 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
               alt={item.title?.trim() || "Canvas video"}
               draggable={false}
               onLoad={() => clearCanvasMediaError(mediaErrorKey)}
-              onError={() => markCanvasMediaError(mediaErrorKey)}
+              onError={() => {
+                markCanvasMediaError(mediaErrorKey);
+                onCanvasMediaRenderError?.(item);
+              }}
             />
           ) : (
             <div
@@ -241,7 +252,13 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
           <p className="canvas-scene-item__text">{editingTextValue}</p>
         )
       ) : item.kind === "audio" ? (
-        <CanvasAudioCard item={item} />
+        <CanvasAudioCard
+          item={item}
+          onMediaError={() => {
+            markCanvasMediaError(mediaErrorKey);
+            onCanvasMediaRenderError?.(item);
+          }}
+        />
       ) : (
         <>
           <p className="canvas-scene-item__text">{item.text}</p>
@@ -382,6 +399,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     onTextItemEditChange,
     onTextItemEditKeyDown,
     onTextItemEditBlur,
+    onCanvasMediaRenderError,
   } = useResolvedCanvasPropertiesPanelProps(props);
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
@@ -639,6 +657,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
                       }
                     : undefined
                 }
+                onCanvasMediaRenderError={onCanvasMediaRenderError}
                 markCanvasMediaError={markCanvasMediaError}
                 clearCanvasMediaError={clearCanvasMediaError}
               />

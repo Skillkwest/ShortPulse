@@ -185,6 +185,61 @@ describe("Canvas drop behavior", () => {
     expect(screen.getByText("Media unavailable")).toBeInTheDocument();
   });
 
+  it("reports canvas image render failures to the page media authority owner", async () => {
+    const onCanvasMediaRenderError = vi.fn();
+    const resolveCanvasDropFiles = vi.fn(async () => [
+      {
+        kind: "image" as const,
+        outputId: "output-file-drop-1",
+        mediaId: "media-file-drop-1",
+        src: "https://example.com/file-drop.png",
+        alt: "Desktop file image",
+        width: 1280,
+        height: 720,
+      },
+    ]);
+
+    render(
+      <CanvasHarness
+        resolveCanvasDropFiles={resolveCanvasDropFiles}
+        onCanvasMediaRenderError={onCanvasMediaRenderError}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const file = new File(["desktop"], "desktop-drop.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+
+    fireEvent.drop(viewport, {
+      dataTransfer: {
+        files,
+        types: ["Files"],
+        getData: () => "",
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer,
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const image = await screen.findByAltText("Desktop file image");
+    fireEvent.error(image);
+
+    expect(onCanvasMediaRenderError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "image",
+        outputId: "output-file-drop-1",
+        mediaId: "media-file-drop-1",
+        src: "https://example.com/file-drop.png",
+      })
+    );
+  });
+
   it("routes media-library image drops through the async library-drop preparer when provided", async () => {
     const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
       if (payload.kind !== "libraryMedia") return null;

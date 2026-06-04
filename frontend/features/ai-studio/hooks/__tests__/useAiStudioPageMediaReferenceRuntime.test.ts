@@ -1,5 +1,5 @@
 import type React from "react";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   extractInternalReferenceDragPayload,
@@ -1536,5 +1536,162 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     expect(
       restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId
     ).toHaveBeenCalledWith(["saved-media-direct-1"]);
+  });
+
+  it("retries failed canvas image renders through fresh output media authority", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-render-error-1",
+          kind: "image" as const,
+          x: 12,
+          y: 24,
+          z: 1,
+          selected: false,
+          outputId: "output-image-render-error-1",
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          src: "https://expired.shortpulse.test/canvas-image.png",
+          alt: "Expired image",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const refreshedOutput = makeOutput({
+      id: "output-image-render-error-1",
+      mode: "image",
+      prompt: "Fresh render image",
+      previewStoragePath: "user-1/variants/images/render-error/preview.webp",
+      fullStoragePath: "user-1/images/render-error/full.png",
+      previewUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: [],
+    });
+    let outputAvailable = false;
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) =>
+          outputAvailable && outputId === refreshedOutput.id ? refreshedOutput : null,
+        getOutputSnapshot: () => createOutputSnapshot([refreshedOutput]),
+      })
+    );
+
+    expect(hydrateCanvasSessionStateMock).not.toHaveBeenCalled();
+    outputAvailable = true;
+
+    act(() => {
+      result.current.railCanvasProps.onCanvasMediaRenderError?.(mockedCanvasSessionState.items[0]);
+    });
+
+    await waitFor(() => {
+      expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+        ...mockedCanvasSessionState,
+        items: [
+          expect.objectContaining({
+            id: "canvas-image-render-error-1",
+            outputId: "output-image-render-error-1",
+            src: "https://signed.shortpulse.test/user-1/images/render-error/full.png",
+            alt: "Fresh render image",
+          }),
+        ],
+      });
+    });
+    expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/images/render-error/full.png",
+      forceRefresh: true,
+    });
+  });
+
+  it("retries failed canvas video posters through media id authority and preserves posterless video placeholder", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-video-render-error-1",
+          kind: "video" as const,
+          x: 12,
+          y: 24,
+          z: 1,
+          selected: false,
+          outputId: "missing-output-1",
+          sourceSurface: "curated" as const,
+          mediaId: "saved-media-video-render-error-1",
+          videoUrl: "https://expired.shortpulse.test/canvas-video.mp4",
+          posterUrl: "https://expired.shortpulse.test/canvas-video-poster.webp",
+          title: "Expired video",
+          durationMs: null,
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId
+      .mockResolvedValueOnce(new Map())
+      .mockResolvedValueOnce(
+        new Map([
+          [
+            "saved-media-video-render-error-1",
+            {
+              mediaId: "saved-media-video-render-error-1",
+              fileType: "video/mp4",
+              previewStoragePath: "user-1/videos/render-error/preview.mp4",
+              fullStoragePath: "user-1/videos/render-error/full.mp4",
+              previewPosterStoragePath: null,
+              signedPreviewUrl: "https://signed.shortpulse.test/video-preview.mp4",
+              signedFullUrl: "https://signed.shortpulse.test/video-full.mp4",
+              signedPreviewPosterUrl: null,
+            },
+          ],
+        ])
+      );
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        getOutputSnapshot: () => createOutputSnapshot(),
+      })
+    );
+
+    await waitFor(() => {
+      expect(
+        restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId
+      ).toHaveBeenCalledWith(["saved-media-video-render-error-1"]);
+    });
+
+    act(() => {
+      result.current.railCanvasProps.onCanvasMediaRenderError?.(mockedCanvasSessionState.items[0]);
+    });
+
+    await waitFor(() => {
+      expect(
+        restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId
+      ).toHaveBeenLastCalledWith(["saved-media-video-render-error-1"], { forceRefresh: true });
+      expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+        ...mockedCanvasSessionState,
+        items: [
+          expect.objectContaining({
+            id: "canvas-video-render-error-1",
+            videoUrl: "https://signed.shortpulse.test/video-full.mp4",
+            posterUrl: null,
+          }),
+        ],
+      });
+    });
   });
 });

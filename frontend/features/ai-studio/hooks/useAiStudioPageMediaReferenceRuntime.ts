@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, type DragEvent } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { useAiStudioDualCanvasWorkspaceState } from "../components/canvas/useAiStudioCanvasWorkspaceState";
 import type {
   CanvasDropResolution,
@@ -18,6 +19,7 @@ import type { SharedMediaDetailSelectionTarget } from "../components/detail-moda
 import type {
   CanvasPropertiesPanelProps,
   CanvasWorkspaceInstanceId,
+  CanvasWorkspaceSessionState,
 } from "../components/canvas/canvasWorkspaceContracts";
 import {
   CANVAS_AUDIO_ITEM_HEIGHT,
@@ -67,6 +69,7 @@ import {
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
+const CANVAS_MEDIA_LIBRARY_BUCKET = "media_library";
 
 const areNumberListsEqual = (
   left: readonly number[] | null | undefined,
@@ -76,6 +79,26 @@ const areNumberListsEqual = (
   if (!left || !right) return !left && !right;
   if (left.length !== right.length) return false;
   return left.every((value, index) => value === right[index]);
+};
+
+const resolveCanvasMediaRenderRetryKey = (item: CanvasSceneItem): string | null => {
+  if (item.kind === "image") {
+    return `${item.id}:image:${item.src}`;
+  }
+  if (item.kind === "video") {
+    return `${item.id}:video:${item.videoUrl}:${item.posterUrl ?? ""}`;
+  }
+  if (item.kind === "audio") {
+    return `${item.id}:audio:${item.audioUrl}`;
+  }
+  return null;
+};
+
+const resolveCanvasMediaFallbackUrl = (item: CanvasSceneItem): string | null => {
+  if (item.kind === "image") return item.src;
+  if (item.kind === "video") return item.videoUrl;
+  if (item.kind === "audio") return item.audioUrl;
+  return null;
 };
 
 type QuickSlotDropOptions = {
@@ -739,6 +762,298 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     onPinTextReference: addPastedPromptReference,
     onOpenMediaDetail: handleOpenCanvasMediaDetail,
   });
+  const canvasSessionStateRef = useRef<CanvasWorkspaceSessionState>(canvasSessionState);
+  const canvasMediaRenderRetryKeysRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    canvasSessionStateRef.current = canvasSessionState;
+  }, [canvasSessionState]);
+
+  const applyCanvasSessionItemUpdate = useCallback(
+    (itemId: string, resolveNextItem: (item: CanvasSceneItem) => CanvasSceneItem): boolean => {
+      const currentState = canvasSessionStateRef.current;
+      let changed = false;
+      const nextItems = currentState.items.map((item) => {
+        if (item.id !== itemId) return item;
+        const nextItem = resolveNextItem(item);
+        if (nextItem !== item) changed = true;
+        return nextItem;
+      });
+      if (!changed) return false;
+      hydrateCanvasSessionState({
+        ...currentState,
+        items: nextItems,
+      });
+      return true;
+    },
+    [hydrateCanvasSessionState]
+  );
+
+  const applyCanvasOutputRetryResolution = useCallback(
+    ({
+      itemId,
+      outputId,
+      resolved,
+      forceVideoPlaceholderWithoutPoster,
+    }: {
+      itemId: string;
+      outputId: string;
+      resolved: CanvasDropResolution;
+      forceVideoPlaceholderWithoutPoster?: boolean;
+    }): boolean =>
+      applyCanvasSessionItemUpdate(itemId, (item) => {
+        if (
+          (item.kind !== "image" && item.kind !== "audio" && item.kind !== "video") ||
+          resolved.kind !== item.kind
+        ) {
+          return item;
+        }
+
+        if (item.kind === "image" && resolved.kind === "image") {
+          const nextMediaId = resolved.mediaId ?? item.mediaId ?? null;
+          if (
+            outputId === item.outputId &&
+            resolved.src === item.src &&
+            resolved.alt === item.alt &&
+            nextMediaId === (item.mediaId ?? null)
+          ) {
+            return item;
+          }
+          return {
+            ...item,
+            outputId,
+            src: resolved.src,
+            alt: resolved.alt,
+            mediaId: nextMediaId,
+          };
+        }
+
+        if (item.kind === "video" && resolved.kind === "video") {
+          const nextMediaId = resolved.mediaId ?? item.mediaId ?? null;
+          const nextPosterUrl = forceVideoPlaceholderWithoutPoster
+            ? null
+            : (resolved.posterUrl ?? item.posterUrl ?? null);
+          const nextTitle = resolved.title ?? item.title ?? null;
+          const nextDurationMs = resolved.durationMs ?? item.durationMs ?? null;
+          if (
+            outputId === item.outputId &&
+            resolved.videoUrl === item.videoUrl &&
+            nextPosterUrl === (item.posterUrl ?? null) &&
+            nextTitle === (item.title ?? null) &&
+            nextDurationMs === (item.durationMs ?? null) &&
+            nextMediaId === (item.mediaId ?? null)
+          ) {
+            return item;
+          }
+          return {
+            ...item,
+            outputId,
+            mediaId: nextMediaId,
+            videoUrl: resolved.videoUrl,
+            posterUrl: nextPosterUrl,
+            title: nextTitle,
+            durationMs: nextDurationMs,
+          };
+        }
+
+        if (item.kind === "audio" && resolved.kind === "audio") {
+          const nextMediaId = resolved.mediaId ?? item.mediaId ?? null;
+          const nextCompanionArtUrl = resolved.companionArtUrl ?? item.companionArtUrl ?? null;
+          const nextCompanionArtStoragePath =
+            resolved.companionArtStoragePath ?? item.companionArtStoragePath ?? null;
+          const nextTitle = resolved.title ?? item.title ?? null;
+          const nextDurationMs = resolved.durationMs ?? item.durationMs ?? null;
+          const nextAudioSourceMode = resolved.audioSourceMode ?? item.audioSourceMode ?? null;
+          const nextWaveformPeaks = resolved.waveformPeaks ?? item.waveformPeaks ?? null;
+          if (
+            outputId === item.outputId &&
+            resolved.audioUrl === item.audioUrl &&
+            nextTitle === (item.title ?? null) &&
+            nextCompanionArtUrl === (item.companionArtUrl ?? null) &&
+            nextCompanionArtStoragePath === (item.companionArtStoragePath ?? null) &&
+            nextDurationMs === (item.durationMs ?? null) &&
+            nextAudioSourceMode === (item.audioSourceMode ?? null) &&
+            nextMediaId === (item.mediaId ?? null) &&
+            areNumberListsEqual(nextWaveformPeaks, item.waveformPeaks ?? null)
+          ) {
+            return item;
+          }
+          return {
+            ...item,
+            outputId,
+            mediaId: nextMediaId,
+            audioUrl: resolved.audioUrl,
+            title: nextTitle,
+            companionArtUrl: nextCompanionArtUrl,
+            companionArtStoragePath: nextCompanionArtStoragePath,
+            audioSourceMode: nextAudioSourceMode,
+            durationMs: nextDurationMs,
+            waveformPeaks: nextWaveformPeaks,
+          };
+        }
+
+        return item;
+      }),
+    [applyCanvasSessionItemUpdate]
+  );
+
+  const applyCanvasMediaIdRetryAuthority = useCallback(
+    (itemId: string, authority: SessionSignedMediaRestoreAuthority): boolean =>
+      applyCanvasSessionItemUpdate(itemId, (item) => {
+        if (item.kind === "image") {
+          const nextSrc = authority.signedPreviewUrl ?? authority.signedFullUrl;
+          if (!nextSrc || nextSrc === item.src) return item;
+          return {
+            ...item,
+            src: nextSrc,
+          };
+        }
+
+        if (item.kind === "video") {
+          const nextVideoUrl = authority.signedFullUrl ?? authority.signedPreviewUrl;
+          const nextPosterUrl = authority.signedPreviewPosterUrl ?? null;
+          if (
+            (!nextVideoUrl || nextVideoUrl === item.videoUrl) &&
+            nextPosterUrl === (item.posterUrl ?? null)
+          ) {
+            return item;
+          }
+          return {
+            ...item,
+            videoUrl: nextVideoUrl ?? item.videoUrl,
+            posterUrl: nextPosterUrl,
+          };
+        }
+
+        if (item.kind === "audio") {
+          const nextAudioUrl = authority.signedFullUrl ?? authority.signedPreviewUrl;
+          if (!nextAudioUrl || nextAudioUrl === item.audioUrl) return item;
+          return {
+            ...item,
+            audioUrl: nextAudioUrl,
+          };
+        }
+
+        return item;
+      }),
+    [applyCanvasSessionItemUpdate]
+  );
+
+  const handleCanvasMediaRenderError = useCallback(
+    (failedItem: CanvasSceneItem) => {
+      const retryKey = resolveCanvasMediaRenderRetryKey(failedItem);
+      if (!retryKey || canvasMediaRenderRetryKeysRef.current.has(retryKey)) return;
+      canvasMediaRenderRetryKeysRef.current.add(retryKey);
+
+      void (async () => {
+        const currentItem = canvasSessionStateRef.current.items.find(
+          (item) => item.id === failedItem.id
+        );
+        if (
+          !currentItem ||
+          (currentItem.kind !== "image" &&
+            currentItem.kind !== "audio" &&
+            currentItem.kind !== "video")
+        ) {
+          return;
+        }
+
+        const outputId = currentItem.outputId?.trim() || "";
+        if (outputId) {
+          const outputSnapshot = getOutputSnapshot();
+          const projectionOutputs = [
+            ...outputSnapshot.outputOrder
+              .map((id) => outputSnapshot.outputById[id])
+              .filter((item): item is StudioOutput => Boolean(item)),
+            ...outputSnapshot.archivedOutputOrder
+              .map((id) => outputSnapshot.archivedOutputById[id])
+              .filter((item): item is StudioOutput => Boolean(item)),
+          ];
+          const resolvedOutputId =
+            resolveReferenceProjectionIds([outputId], projectionOutputs, {
+              preserveUnresolved: true,
+            })[0] ?? outputId;
+          const output = getOutputById(resolvedOutputId);
+          if (output) {
+            try {
+              const displayAuthority = await resolveCanvasStudioOutputMediaDisplayAuthority(
+                output,
+                (storagePath) =>
+                  getSignedMediaUrl({
+                    bucket: CANVAS_MEDIA_LIBRARY_BUCKET,
+                    storagePath,
+                    forceRefresh: true,
+                  })
+              );
+              const resolved = resolveCanvasResolutionFromOutput({
+                output,
+                outputId: resolvedOutputId,
+                mediaId: "mediaId" in currentItem ? (currentItem.mediaId ?? null) : null,
+                fallbackUrl: resolveCanvasMediaFallbackUrl(currentItem),
+                width: "width" in currentItem ? currentItem.width : undefined,
+                height: "height" in currentItem ? currentItem.height : undefined,
+                displayAuthority,
+              });
+              if (resolved) {
+                const applied = applyCanvasOutputRetryResolution({
+                  itemId: currentItem.id,
+                  outputId: resolvedOutputId,
+                  resolved,
+                  forceVideoPlaceholderWithoutPoster:
+                    currentItem.kind === "video" && !displayAuthority.posterPreviewUrl,
+                });
+                if (applied) return;
+              }
+            } catch (error) {
+              addBreadcrumb({
+                type: "ui",
+                level: "warn",
+                message: "ai_studio_canvas_media_render_output_retry_failed",
+                data: {
+                  itemId: currentItem.id,
+                  outputId: resolvedOutputId,
+                  kind: currentItem.kind,
+                  error: error instanceof Error ? error.message : "unknown_error",
+                },
+              });
+            }
+          }
+        }
+
+        const mediaId = "mediaId" in currentItem ? currentItem.mediaId?.trim() || "" : "";
+        if (!mediaId) return;
+        try {
+          const authorityByMediaId = await resolveSessionRestoreSignedMediaAuthorityByMediaId(
+            [mediaId],
+            { forceRefresh: true }
+          );
+          const authority = authorityByMediaId.get(mediaId);
+          if (!authority) return;
+          canvasMediaRestoreAuthorityCacheRef.current.set(mediaId, authority);
+          applyCanvasMediaIdRetryAuthority(currentItem.id, authority);
+        } catch (error) {
+          addBreadcrumb({
+            type: "ui",
+            level: "warn",
+            message: "ai_studio_canvas_media_render_media_retry_failed",
+            data: {
+              itemId: currentItem.id,
+              mediaId,
+              kind: currentItem.kind,
+              error: error instanceof Error ? error.message : "unknown_error",
+            },
+          });
+        }
+      })();
+    },
+    [
+      applyCanvasMediaIdRetryAuthority,
+      applyCanvasOutputRetryResolution,
+      getOutputById,
+      getOutputSnapshot,
+      resolveCanvasResolutionFromOutput,
+    ]
+  );
 
   const handleRailCanvasItemDragStart = useCallback(
     (id: string, event: DragEvent<HTMLElement>) => {
@@ -801,8 +1116,14 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       isItemDraggable: true,
       onItemDragStart: handleRailCanvasItemDragStart,
       onItemDragEnd: handleRailCanvasItemDragEnd,
+      onCanvasMediaRenderError: handleCanvasMediaRenderError,
     }),
-    [baseRailCanvasProps, handleRailCanvasItemDragEnd, handleRailCanvasItemDragStart]
+    [
+      baseRailCanvasProps,
+      handleCanvasMediaRenderError,
+      handleRailCanvasItemDragEnd,
+      handleRailCanvasItemDragStart,
+    ]
   );
   const stableRailCanvasProps = useCanvasPropertiesPanelLivePropsBridge(railCanvasProps);
 

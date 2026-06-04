@@ -175,6 +175,7 @@ export type CanvasHarnessProps = {
   onItemDragStart?: (id: string, event: React.DragEvent<HTMLElement>) => void;
   onItemDragEnd?: (id: string, event: React.DragEvent<HTMLElement>) => void;
   onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
+  onCanvasMediaRenderError?: (item: CanvasSceneItem) => void;
 };
 
 type SeededCanvasHarnessProps = CanvasHarnessProps & {
@@ -192,6 +193,7 @@ export function CanvasHarness({
   onItemDragStart,
   onItemDragEnd,
   onOpenMediaDetail,
+  onCanvasMediaRenderError,
 }: CanvasHarnessProps) {
   const [visible, setVisible] = useState(true);
   const canvasProps = useAiStudioCanvasWorkspaceState({
@@ -216,6 +218,7 @@ export function CanvasHarness({
           isItemDraggable={isItemDraggable}
           onItemDragStart={onItemDragStart}
           onItemDragEnd={onItemDragEnd}
+          onCanvasMediaRenderError={onCanvasMediaRenderError}
         />
       ) : null}
     </div>
@@ -262,6 +265,7 @@ export function SeededCanvasHarness({
   onItemDragStart,
   onItemDragEnd,
   onOpenMediaDetail,
+  onCanvasMediaRenderError,
 }: SeededCanvasHarnessProps) {
   const [visible, setVisible] = useState(true);
   const { mainCanvasProps, hydrateSessionState } = useAiStudioDualCanvasWorkspaceState({
@@ -290,6 +294,7 @@ export function SeededCanvasHarness({
           isItemDraggable={isItemDraggable}
           onItemDragStart={onItemDragStart}
           onItemDragEnd={onItemDragEnd}
+          onCanvasMediaRenderError={onCanvasMediaRenderError}
         />
       ) : null}
     </div>

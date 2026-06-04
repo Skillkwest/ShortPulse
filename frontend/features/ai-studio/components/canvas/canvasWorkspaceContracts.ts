@@ -96,6 +96,7 @@ export type CanvasPropertiesPanelProps = {
   onTextItemEditChange: (value: string) => void;
   onTextItemEditKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onTextItemEditBlur: () => void;
+  onCanvasMediaRenderError?: (item: CanvasSceneItem) => void;
 };
 
 export type AiStudioDualCanvasWorkspaceState = {

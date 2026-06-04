@@ -14,7 +14,13 @@ const isInteractiveAudioTarget = (target: EventTarget | null): boolean => {
 /**
  * Renders one canvas audio scene item with the shared Reference Grid audio UI.
  */
-export function CanvasAudioCard({ item }: { item: CanvasAudioItem }) {
+export function CanvasAudioCard({
+  item,
+  onMediaError,
+}: {
+  item: CanvasAudioItem;
+  onMediaError?: () => void;
+}) {
   const title = item.title?.trim() || "audio reference";
 
   return (
@@ -41,6 +47,7 @@ export function CanvasAudioCard({ item }: { item: CanvasAudioItem }) {
           waveformPeaks={item.waveformPeaks ?? null}
           playLabel={`Play ${title}`}
           pauseLabel={`Pause ${title}`}
+          onError={onMediaError}
           eagerWaveformDecode={false}
         />
       </div>

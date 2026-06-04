@@ -304,7 +304,8 @@ const resolveSessionRestoreRecoveredStorageAuthority = async (
  * Resolves signed restore authority directly from durable media ids.
  */
 export const resolveSessionRestoreSignedMediaAuthorityByMediaId = async (
-  mediaIds: readonly string[]
+  mediaIds: readonly string[],
+  options: { forceRefresh?: boolean } = {}
 ): Promise<Map<string, SessionSignedMediaRestoreAuthority>> => {
   const authorityByMediaId = await resolveMediaStorageAuthorityByMediaId(mediaIds);
   const storagePaths = new Set<string>();
@@ -317,6 +318,7 @@ export const resolveSessionRestoreSignedMediaAuthorityByMediaId = async (
   const signedByPath = await getSignedMediaUrlsBatch({
     bucket: "media_library",
     storagePaths: [...storagePaths],
+    forceRefresh: options.forceRefresh ?? false,
     surface: "reference-grid",
     queryMode: "default",
   });

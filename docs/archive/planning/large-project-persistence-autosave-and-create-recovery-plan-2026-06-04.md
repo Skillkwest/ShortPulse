@@ -1,8 +1,10 @@
 # Large Project Persistence Autosave And Create Recovery Plan
 
+> Archive note, 2026-06-04: moved from active planning to archive after the large-project autosave persistence and new-project create recovery buildout completed, with focused tests, repo-wide type-check, and docs validation passing.
+
 ## Status
 
-Ready for implementation.
+Archived after implementation.
 
 ## Date
 

@@ -93,6 +93,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/enate-ende/ownership-manifest.md`
 - `docs/agents/enate-ende/canvas-command-index.md`
 - `docs/agents/enate-ende/canvas-launch-hardening-plan-2026-07-07.md`
+- `docs/agents/enate-ende/canvas-runtime-performance-recovery-plan-2026-06-04.md`
 - `docs/agents/enate-ende/canvas-tear-out-drag-design-2026-06-03.md`
 - `docs/agents/enate-ende/workspace/README.md`
 - `docs/agents/gear-ball/github-operations.md`
@@ -351,7 +352,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
   - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
   - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
   - `docs/planning/kie-gpt-image-2-image-to-image-implementation-plan-2026-06-04.md`
-  - `docs/planning/large-project-persistence-autosave-and-create-recovery-plan-2026-06-04.md`
   - `docs/planning/ai-studio-agent-modularization-program.md`
   - `docs/planning/ai-studio-agent-modularization-tracker.md`
   - `docs/planning/ai-studio-reference-grid-modularization-program.md`
@@ -361,6 +361,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
   - `docs/archive/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`
   - `docs/archive/planning/ai-studio-pricing-runtime-alignment-coverage-2026-05-11.md`
   - `docs/archive/planning/ai-studio-primary-character-panel-build-plan.md`
+  - `docs/archive/planning/large-project-persistence-autosave-and-create-recovery-plan-2026-06-04.md`
 - `docs/change_log.md`
 
 ## Records And Evidence

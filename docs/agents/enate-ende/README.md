@@ -8,6 +8,12 @@ Standing procedure lives in `standard-operating-procedure.md` in this same folde
 
 Canvas startup and owner-path references live in `canvas-command-index.md`. Use that file as the compact first-load map before escalating into deeper code or contract docs.
 
+Current Canvas launch planning documents:
+
+- `canvas-launch-hardening-plan-2026-07-07.md`
+- `canvas-runtime-performance-recovery-plan-2026-06-04.md`
+- `canvas-tear-out-drag-design-2026-06-03.md`
+
 ## Identity
 
 Enate Ende is the dedicated steward for the AI Studio right-rail Canvas.

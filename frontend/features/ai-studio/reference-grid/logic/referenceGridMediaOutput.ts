@@ -27,6 +27,10 @@ const hasResultMedia = (output: StudioOutput): boolean =>
   Array.isArray(output.resultUrls) &&
   output.resultUrls.some((value) => typeof value === "string" && value.trim().length > 0);
 
+const hasSavedMedia = (output: StudioOutput): boolean =>
+  Array.isArray(output.savedMediaIds) &&
+  output.savedMediaIds.some((value) => typeof value === "string" && value.trim().length > 0);
+
 const areStringArrayValuesEqual = (
   left: readonly string[] | null | undefined,
   right: readonly string[] | null | undefined
@@ -53,6 +57,8 @@ export const projectReferenceGridMediaOutput = (output: StudioOutput): Reference
     !output.previewPosterStoragePath &&
     !output.previewStoragePath &&
     !output.fullStoragePath &&
+    !hasSavedMedia(output) &&
+    !output.generationId?.trim() &&
     !hasResultMedia(output);
 
   return {

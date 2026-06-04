@@ -220,6 +220,9 @@ export function ReferenceGridSections({
     railCanvasSplit.topSectionHeightPx <=
       CANVAS_COLLAPSE_TOP_HEIGHT_PX + CANVAS_HIDE_CONTENT_BUFFER_PX;
   const isCanvasInventoryExpanded = showCanvasInventoryDivider && railCanvasSplit.isAllRefsExpanded;
+  const isCanvasDropSurfaceAvailable =
+    !showCanvasInventoryDivider ||
+    (!isCanvasInventoryExpanded && !isCanvasNearCollapsedForInventory);
   const hideReferenceGridUploadActionsBase =
     allRefsInventoryExpanded || isReferenceGridCollapsedForStyles;
   const hideReferenceGridUploadActions = hideReferenceGridUploadActionsBase;
@@ -238,7 +241,7 @@ export function ReferenceGridSections({
                   ? " is-divider-near-collapsed"
                   : ""
               }`}
-              data-right-rail-drop-surface="canvas"
+              data-right-rail-drop-surface={isCanvasDropSurfaceAvailable ? "canvas" : undefined}
               style={showCanvasInventoryDivider ? railCanvasSplit.topSectionStyle : undefined}
             >
               <div

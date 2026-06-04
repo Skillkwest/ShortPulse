@@ -219,9 +219,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   );
   const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
   const resolvedFailureSubtitle = isFailing ? resolveReferenceFailureSubtitle(item) : null;
-  const canDragReference =
-    Boolean(item.previewText) ||
-    (!hasMediaRenderError && !!cardPreviewUrl && canDragReferenceOutput(item));
+  const canDragReference = Boolean(item.previewText) || canDragReferenceOutput(item);
   const dragPreviewKind = isImagePreview
     ? "image"
     : isVideoPreview

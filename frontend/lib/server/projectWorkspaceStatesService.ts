@@ -2,10 +2,7 @@
  * Project workspace persistence helpers.
  * Owns server-authoritative read/write access for user-owned project workspace snapshots.
  */
-import {
-  parseAiStudioSessionSnapshot,
-  parseAiStudioSessionSnapshotShape,
-} from "../ai-studio-session/sessionSnapshotShape";
+import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
 import {
   createAiStudioProjectWorkspaceSnapshot,
   hasProjectDurableOutputAuthority,
@@ -19,7 +16,10 @@ import {
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { writeAppErrorLog } from "./api/appErrorLogs";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
-import { backfillProjectGenerationAssociationsForSnapshot } from "./projectGenerationAssociationsService";
+import {
+  backfillProjectGenerationAssociationsForSnapshot,
+  hydrateProjectSnapshotGeneratedOutputs,
+} from "./projectGenerationAssociationsService";
 import {
   areProjectWorkspaceCheckpointsStructurallyEqual,
   createLightweightProjectWorkspaceCheckpointSnapshot,
@@ -33,6 +33,7 @@ const PROJECT_WORKSPACE_SELECT_COLUMNS =
   "project_id, user_id, schema_version, snapshot, snapshot_updated_at, checkpoint_revision, created_at, updated_at" as const;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES = 900_000;
 
 type ProjectWorkspaceStateRow = {
   project_id: string;
@@ -75,6 +76,17 @@ const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+
+const parseProjectWorkspaceSnapshotPayload = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  try {
+    const snapshotBytes = Buffer.byteLength(JSON.stringify(value), "utf8");
+    if (snapshotBytes > PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES) return null;
+    return value as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
 
 const normalizeOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -1052,6 +1064,78 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
   }
 };
 
+const convergeProjectWorkspaceGeneratedOutputsForRead = async ({
+  userId,
+  projectId,
+  snapshot,
+}: {
+  userId: string;
+  projectId: string;
+  snapshot: Record<string, unknown>;
+}): Promise<Record<string, unknown>> => {
+  try {
+    return await hydrateProjectSnapshotGeneratedOutputs({
+      userId,
+      projectId,
+      snapshot,
+      options: {
+        appendMissingProjectOutputs: false,
+        patchDurableSnapshotRows: false,
+        reorderActiveOutputs: false,
+      },
+    });
+  } catch (error) {
+    const message = toErrorMessage(error, "Unknown error");
+    console.warn("[project-workspace] generated output read convergence skipped", {
+      projectId,
+      error: message,
+    });
+    void writeAppErrorLog({
+      source: "telemetry.ai_studio.project_workspace.generated_output_read_convergence_skipped",
+      message:
+        "Project workspace read skipped generated output convergence after projection refresh failed.",
+      userId,
+      statusCode: 200,
+      metadata: {
+        project_id: projectId,
+        fallback_stage: "generated_output_read_convergence",
+        error: message,
+      },
+    }).catch(() => undefined);
+    return snapshot;
+  }
+};
+
+const prepareProjectWorkspaceSnapshotForReadResponse = async ({
+  userId,
+  projectId,
+  snapshot,
+}: {
+  userId: string;
+  projectId: string;
+  snapshot: Record<string, unknown>;
+}): Promise<Record<string, unknown>> => {
+  const materializedSnapshot = await materializeProjectWorkspaceSnapshotForUser({
+    userId,
+    projectId,
+    snapshot,
+  });
+  const sanitizedSnapshot = await canonicalizeProjectWorkspaceSnapshotForRead({
+    userId,
+    projectId,
+    snapshot: materializedSnapshot,
+  });
+  const convergedSnapshot = await convergeProjectWorkspaceGeneratedOutputsForRead({
+    userId,
+    projectId,
+    snapshot: sanitizedSnapshot,
+  });
+
+  // Generated-output convergence only patches user-scoped delivery fields here; avoid repeating
+  // full ownership lookups on every project read after that safe convergence pass.
+  return sanitizeProjectWorkspaceSnapshot(convergedSnapshot);
+};
+
 const toProjectWorkspaceStateRecord = ({
   row,
   snapshot,
@@ -1093,17 +1177,12 @@ export const getProjectWorkspaceStateForUser = async ({
   const record = toProjectWorkspaceStateRecord({
     row: data as ProjectWorkspaceStateRow,
   });
-  const materializedSnapshot = await materializeProjectWorkspaceSnapshotForUser({
-    userId,
-    projectId,
-    snapshot: record.snapshot,
-  });
   return {
     ...record,
-    snapshot: await canonicalizeProjectWorkspaceSnapshotForRead({
+    snapshot: await prepareProjectWorkspaceSnapshotForReadResponse({
       userId,
       projectId,
-      snapshot: materializedSnapshot,
+      snapshot: record.snapshot,
     }),
   };
 };
@@ -1138,7 +1217,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
   schemaVersion?: number;
   snapshot: unknown;
 }): Promise<ProjectWorkspaceStateRecord> => {
-  const parsedSnapshot = parseAiStudioSessionSnapshot(snapshot);
+  const parsedSnapshot = parseProjectWorkspaceSnapshotPayload(snapshot);
   if (!parsedSnapshot || !parseAiStudioSessionSnapshotShape(parsedSnapshot)) {
     throw new InvalidProjectWorkspaceSnapshotError();
   }
@@ -1172,17 +1251,12 @@ export const upsertProjectWorkspaceStateForUser = async ({
 
   const existingRow = (existingData as ProjectWorkspaceStateRow | null) ?? null;
   if (existingRow && compareIsoTimestamps(existingRow.snapshot_updated_at, snapshotUpdatedAt) > 0) {
-    const materializedExistingSnapshot = await materializeProjectWorkspaceSnapshotForUser({
-      userId,
-      projectId,
-      snapshot: existingRow.snapshot,
-    });
     return toProjectWorkspaceStateRecord({
       row: existingRow,
-      snapshot: await canonicalizeProjectWorkspaceSnapshotForRead({
+      snapshot: await prepareProjectWorkspaceSnapshotForReadResponse({
         userId,
         projectId,
-        snapshot: materializedExistingSnapshot,
+        snapshot: existingRow.snapshot,
       }),
       saveOutcome: {
         status: "saved",
@@ -1274,17 +1348,12 @@ export const upsertProjectWorkspaceStateForUser = async ({
     compareIsoTimestamps(savedRow.snapshot_updated_at, snapshotUpdatedAt) > 0;
 
   if (staleWriteIgnored) {
-    const materializedSavedSnapshot = await materializeProjectWorkspaceSnapshotForUser({
-      userId,
-      projectId,
-      snapshot: savedRow.snapshot,
-    });
     return toProjectWorkspaceStateRecord({
       row: savedRow,
-      snapshot: await canonicalizeProjectWorkspaceSnapshotForRead({
+      snapshot: await prepareProjectWorkspaceSnapshotForReadResponse({
         userId,
         projectId,
-        snapshot: materializedSavedSnapshot,
+        snapshot: savedRow.snapshot,
       }),
       saveOutcome: {
         status: "saved",

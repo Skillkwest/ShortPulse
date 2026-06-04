@@ -399,13 +399,15 @@ describe("POST /api/media/upload", () => {
         width: expect.any(Number),
         height: expect.any(Number),
         aspect_ratio: expect.any(Number),
-        upload_normalization: expect.objectContaining({
-          attempted: true,
-          applied: true,
+        image_admission: expect.objectContaining({
+          status: "admitted",
+          strategy: expect.any(String),
+          original_preserved: false,
           original_bytes: oversizedPng.length,
-          final_bytes: uploadedBuffer.length,
+          admitted_bytes: uploadedBuffer.length,
           original_mime_type: "image/png",
-          final_mime_type: uploadOptions.contentType,
+          admitted_mime_type: uploadOptions.contentType,
+          supabase_transform_used: false,
         }),
       })
     );

@@ -6,7 +6,6 @@ import Head from "next/head";
 import React from "react";
 import { AiStudioPageContent } from "./AiStudioPageContent";
 import { AiStudioProjectEntryState } from "./AiStudioProjectEntryState";
-import { ProjectsModal } from "./ProjectsModal";
 import { AiStudioModalActivityProvider } from "./modal-layer/AiStudioModalLayer";
 
 type AiStudioPageShellProps = {
@@ -27,6 +26,12 @@ type AiStudioPageShellProps = {
   onSelectProjectFromModal: (projectId: string) => void;
   onCreateProjectFromModal?: (projectId: string) => Promise<void> | void;
 };
+
+const LazyProjectsModal = React.lazy(() =>
+  import("./ProjectsModal").then((module) => ({
+    default: module.ProjectsModal,
+  }))
+);
 
 /**
  * Renders the stable AI Studio page shell around the page content.
@@ -55,6 +60,18 @@ export const AiStudioPageShell = ({
       projectBootstrapError
     )
   );
+  const projectsModal = projectsModalOpen ? (
+    <React.Suspense fallback={<p className="tiny subdued">Loading projects...</p>}>
+      <LazyProjectsModal
+        isOpen={projectsModalOpen}
+        currentProjectId={projectId}
+        onClose={onCloseProjectsModal}
+        onSelectProject={onSelectProjectFromModal}
+        onCreateProject={onCreateProjectFromModal}
+      />
+    </React.Suspense>
+  ) : null;
+
   if (shouldGateProjectBootstrap) {
     return (
       <AiStudioModalActivityProvider>
@@ -109,13 +126,7 @@ export const AiStudioPageShell = ({
             projectTitle={projectTitle}
           />
         )}
-        <ProjectsModal
-          isOpen={projectsModalOpen}
-          currentProjectId={projectId}
-          onClose={onCloseProjectsModal}
-          onSelectProject={onSelectProjectFromModal}
-          onCreateProject={onCreateProjectFromModal}
-        />
+        {projectsModal}
       </AiStudioModalActivityProvider>
     );
   }
@@ -133,13 +144,7 @@ export const AiStudioPageShell = ({
         ) : null}
       </Head>
       <AiStudioPageContent {...pageContentProps} />
-      <ProjectsModal
-        isOpen={projectsModalOpen}
-        currentProjectId={projectId}
-        onClose={onCloseProjectsModal}
-        onSelectProject={onSelectProjectFromModal}
-        onCreateProject={onCreateProjectFromModal}
-      />
+      {projectsModal}
     </AiStudioModalActivityProvider>
   );
 };

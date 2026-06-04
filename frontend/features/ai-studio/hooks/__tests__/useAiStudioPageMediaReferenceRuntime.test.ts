@@ -753,6 +753,43 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
   });
 
+  it("uses internal render authority for image canvas drops when transfer URL is absent", () => {
+    const output = makeOutput({
+      id: "output-image-render-hint",
+      mode: "image",
+      prompt: "Render hint",
+      previewStoragePath: "user-1/variants/images/render-hint.webp",
+      fullStoragePath: "user-1/generations/images/render-hint.png",
+      savedMediaIds: ["saved-media-render-hint"],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const resolvedItem = latestDualCanvasArgs?.resolveCanvasDropReference?.(
+      makePayload({
+        outputId: output.id,
+        referenceId: output.id,
+        mediaKind: "image",
+        referenceUrl: null,
+        referenceRenderUrl: "https://signed.shortpulse.test/render-hint.webp",
+      })
+    );
+
+    expect(resolvedItem).toMatchObject({
+      kind: "image",
+      outputId: "output-image-render-hint",
+      mediaId: "saved-media-render-hint",
+      src: "https://signed.shortpulse.test/render-hint.webp",
+      alt: "Render hint",
+      sourceSurface: "curated",
+    });
+  });
+
   it("resolves dropped video files into canvas video items", async () => {
     const file = new File(["video"], "clip-1.mp4", { type: "video/mp4" });
     const ingestReferenceFiles = vi.fn(async () => [

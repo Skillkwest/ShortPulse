@@ -630,6 +630,77 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
   });
 
+  it("skips hidden-tab interval refreshes and catches up when visible again", async () => {
+    const visibilitySpy = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const originalSetInterval = window.setInterval.bind(window);
+    const originalClearInterval = window.clearInterval.bind(window);
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+    let intervalCallback: (() => void) | null = null;
+    const intervalMock = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+      if (timeout !== 20 * 60 * 1000) {
+        return originalSetInterval(handler, timeout, ...args);
+      }
+      intervalCallback = typeof handler === "function" ? () => handler() : () => undefined;
+      return 1 as unknown as ReturnType<typeof window.setInterval>;
+    }) as typeof window.setInterval;
+    setIntervalSpy.mockImplementation(intervalMock);
+    const clearIntervalMock = ((intervalId?: Parameters<typeof window.clearInterval>[0]) => {
+      if (intervalId === 1) return undefined;
+      return originalClearInterval(intervalId);
+    }) as typeof window.clearInterval;
+    clearIntervalSpy.mockImplementation(clearIntervalMock);
+    let avatarUrl: string | null = null;
+    listCharacterManagerCharactersMock.mockImplementation(
+      async () =>
+        [
+          {
+            characterId: "char-1",
+            characterName: "Hero",
+            profileImageUrl: avatarUrl,
+          },
+        ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>
+    );
+
+    try {
+      const { result } = renderHook(() =>
+        useAiStudioCharacterModeLifecycle(
+          createParams({
+            selectedTool: "create" as ToolId,
+          })
+        )
+      );
+
+      await waitFor(() => {
+        expect(result.current.isCharacterOptionsLoading).toBe(false);
+      });
+      const callsAfterInitialLoad = listCharacterManagerCharactersMock.mock.calls.length;
+
+      avatarUrl = "https://example.com/profile-hidden-refresh.png";
+      visibilitySpy.mockReturnValue("hidden");
+      act(() => {
+        intervalCallback?.();
+      });
+
+      expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(callsAfterInitialLoad);
+
+      visibilitySpy.mockReturnValue("visible");
+      act(() => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+
+      await waitFor(() => {
+        expect(result.current.characterOptions[0]?.profileImageUrl).toBe(
+          "https://example.com/profile-hidden-refresh.png"
+        );
+      });
+    } finally {
+      visibilitySpy.mockRestore();
+      setIntervalSpy.mockRestore();
+      clearIntervalSpy.mockRestore();
+    }
+  });
+
   it("refreshes character options when a Character Manager list-sync event is published", async () => {
     listCharacterManagerCharactersMock.mockResolvedValue([
       {

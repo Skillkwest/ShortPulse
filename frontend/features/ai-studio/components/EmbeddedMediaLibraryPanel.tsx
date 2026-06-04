@@ -421,7 +421,9 @@ export function EmbeddedMediaLibraryPanel({
   const handleMediaCardDragStart = React.useCallback(
     (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => {
       const signedUrl = (file.signedUrl ?? "").trim();
-      if (!signedUrl) {
+      const durableUrl = (file.storage_path ?? file.preview_storage_path ?? "").trim();
+      const transferUrl = signedUrl || durableUrl;
+      if (!transferUrl) {
         event.preventDefault();
         return;
       }
@@ -438,7 +440,7 @@ export function EmbeddedMediaLibraryPanel({
         source: "mediaLibrary",
         payload: {
           id: file.id,
-          url: signedUrl,
+          url: transferUrl,
           fileType: isAudioFile(file.file_type)
             ? "audio"
             : isVideoFile(file.file_type)
@@ -452,8 +454,8 @@ export function EmbeddedMediaLibraryPanel({
           source: file.source ?? null,
           previewStoragePath: file.preview_storage_path ?? file.storage_path,
           fullStoragePath: file.storage_path,
-          previewUrl: signedUrl,
-          fullUrl: signedUrl,
+          previewUrl: signedUrl || null,
+          fullUrl: signedUrl || null,
           companionArtUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : null,
           companionArtStoragePath: isAudioFile(file.file_type)
             ? (file.companion_art_storage_path ?? null)
@@ -464,9 +466,9 @@ export function EmbeddedMediaLibraryPanel({
       });
       event.dataTransfer.effectAllowed = "copy";
       try {
-        event.dataTransfer.setData("text/reference-url", signedUrl);
-        event.dataTransfer.setData("text/uri-list", signedUrl);
-        event.dataTransfer.setData("text/plain", promptText.trim() || signedUrl);
+        event.dataTransfer.setData("text/reference-url", transferUrl);
+        event.dataTransfer.setData("text/uri-list", transferUrl);
+        event.dataTransfer.setData("text/plain", promptText.trim() || transferUrl);
         if (promptText.trim()) {
           event.dataTransfer.setData("text/prompt", promptText);
         }
@@ -477,7 +479,9 @@ export function EmbeddedMediaLibraryPanel({
       attachMediaLibraryDragGhost(event, {
         label: file.filename || "Media",
         detail: promptText,
-        previewUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : signedUrl,
+        previewUrl: isAudioFile(file.file_type)
+          ? (file.companion_art_url ?? null)
+          : signedUrl || null,
         previewKind: isVideoFile(file.file_type)
           ? "video"
           : isAudioFile(file.file_type)

@@ -5,10 +5,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
+import { buildUserScopedStorageKey } from "../../character-manager/logic/userScopedLocalStorage";
 
 const DEFAULT_MEDIA_AUTOSAVE_ENABLED = true;
 const MEDIA_AUTOSAVE_STORAGE_KEY = "shortpulse.ai_studio.media_autosave_enabled";
 const MEDIA_AUTOSAVE_RETRY_DELAY_MS = 15_000;
+const buildMediaAutosaveStorageKey = (userId?: string | null): string =>
+  buildUserScopedStorageKey(MEDIA_AUTOSAVE_STORAGE_KEY, userId);
 
 export type MediaAutosaveSyncState = "loading" | "ready" | "saving" | "error";
 
@@ -20,6 +23,10 @@ type UseMediaAutosavePreferenceResult = {
   setMediaAutosaveEnabled: (value: boolean) => void;
 };
 
+type UseMediaAutosavePreferenceOptions = {
+  enabled?: boolean;
+};
+
 const isMissingUserPreferencesTableError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
   const maybeError = error as { code?: string; message?: string };
@@ -27,24 +34,26 @@ const isMissingUserPreferencesTableError = (error: unknown): boolean => {
   return typeof maybeError.message === "string" && maybeError.message.includes("user_preferences");
 };
 
-const readLocalMediaAutosave = (): boolean => {
+const readLocalMediaAutosave = (userId?: string | null): boolean => {
   if (typeof window === "undefined") return DEFAULT_MEDIA_AUTOSAVE_ENABLED;
-  const stored = window.localStorage.getItem(MEDIA_AUTOSAVE_STORAGE_KEY);
+  const stored = window.localStorage.getItem(buildMediaAutosaveStorageKey(userId));
   if (stored == null) return DEFAULT_MEDIA_AUTOSAVE_ENABLED;
   return stored === "true";
 };
 
-const writeLocalMediaAutosave = (value: boolean): void => {
+const writeLocalMediaAutosave = (value: boolean, userId?: string | null): void => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(MEDIA_AUTOSAVE_STORAGE_KEY, String(value));
+  window.localStorage.setItem(buildMediaAutosaveStorageKey(userId), String(value));
 };
 
 /**
  * Reads and writes `user_preferences.media_autosave_enabled` with local fallback.
  */
-export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult => {
-  const sessionSnapshot = useResolvedProtectedSessionState();
-  const sessionUserId = sessionSnapshot.user?.id ?? null;
+export const useMediaAutosavePreference = ({
+  enabled = true,
+}: UseMediaAutosavePreferenceOptions = {}): UseMediaAutosavePreferenceResult => {
+  const sessionSnapshot = useResolvedProtectedSessionState({ enabled });
+  const sessionUserId = enabled ? (sessionSnapshot.user?.id ?? null) : null;
   const [mediaAutosaveEnabled, setMediaAutosaveEnabledState] = useState<boolean>(
     DEFAULT_MEDIA_AUTOSAVE_ENABLED
   );
@@ -58,20 +67,26 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
   const hasLocalOverrideRef = useRef<boolean>(false);
   const lastResolvedUserIdRef = useRef<string | null>(null);
 
-  const updateLocalValue = useCallback((value: boolean) => {
+  const updateLocalValue = useCallback((value: boolean, storageUserId?: string | null) => {
     latestValueRef.current = value;
     setMediaAutosaveEnabledState(value);
-    writeLocalMediaAutosave(value);
+    writeLocalMediaAutosave(value, storageUserId);
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(true);
+      setError(null);
+      setSyncState("loading");
+      return;
+    }
     if (!sessionSnapshot.initialized) {
       setLoading(true);
       setSyncState("loading");
       return;
     }
     let active = true;
-    const localValue = readLocalMediaAutosave();
+    const localValue = readLocalMediaAutosave(sessionUserId);
     const userChanged = lastResolvedUserIdRef.current !== sessionUserId;
     if (userChanged) {
       hasLocalOverrideRef.current = false;
@@ -85,7 +100,7 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
       try {
         if (!sessionUserId) {
           if (!active) return;
-          updateLocalValue(localValue);
+          updateLocalValue(localValue, null);
           setError(null);
           setSyncState("ready");
           return;
@@ -105,7 +120,7 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
         const nextValue =
           storedPreference?.media_autosave_enabled ?? DEFAULT_MEDIA_AUTOSAVE_ENABLED;
         if (!hasLocalOverrideRef.current) {
-          updateLocalValue(nextValue);
+          updateLocalValue(nextValue, sessionUserId);
         }
 
         if (!active) return;
@@ -116,7 +131,7 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
         if (!active) return;
         if (isMissingUserPreferencesTableError(err)) {
           remoteSyncEnabledRef.current = false;
-          updateLocalValue(localValue);
+          updateLocalValue(localValue, sessionUserId);
           setError(null);
           setSyncState("ready");
           return;
@@ -133,22 +148,24 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
     return () => {
       active = false;
     };
-  }, [reloadVersion, sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
+  }, [enabled, reloadVersion, sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
 
   useEffect(() => {
+    if (!enabled) return;
     if (typeof window === "undefined") return;
     const handleStorage = (event: StorageEvent) => {
-      if (event.key !== MEDIA_AUTOSAVE_STORAGE_KEY) return;
+      if (event.key !== buildMediaAutosaveStorageKey(null)) return;
       if (sessionUserId) return;
-      updateLocalValue(readLocalMediaAutosave());
+      updateLocalValue(readLocalMediaAutosave(null), null);
     };
     window.addEventListener("storage", handleStorage);
     return () => {
       window.removeEventListener("storage", handleStorage);
     };
-  }, [sessionUserId, updateLocalValue]);
+  }, [enabled, sessionUserId, updateLocalValue]);
 
   useEffect(() => {
+    if (!enabled) return;
     if (syncState !== "error") return;
     const retry = () => {
       setReloadVersion((current) => current + 1);
@@ -161,16 +178,23 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
       window.removeEventListener("focus", retry);
       window.removeEventListener("online", retry);
     };
-  }, [syncState]);
+  }, [enabled, syncState]);
 
   const persistPreference = useCallback(
     async (value: boolean) => {
+      if (!enabled) {
+        updateLocalValue(value, sessionUserId);
+        setLoading(false);
+        setError(null);
+        setSyncState("ready");
+        return;
+      }
       const requestVersion = writeVersionRef.current + 1;
       writeVersionRef.current = requestVersion;
       hasLocalOverrideRef.current = true;
 
       const previous = latestValueRef.current;
-      updateLocalValue(value);
+      updateLocalValue(value, sessionUserId);
       setSyncState("saving");
       setError(null);
 
@@ -202,12 +226,12 @@ export const useMediaAutosavePreference = (): UseMediaAutosavePreferenceResult =
           setSyncState("ready");
           return;
         }
-        updateLocalValue(previous);
+        updateLocalValue(previous, sessionUserId);
         setError(err instanceof Error ? err.message : "Unable to update media autosave preference");
         setSyncState("error");
       }
     },
-    [sessionUserId, updateLocalValue]
+    [enabled, sessionUserId, updateLocalValue]
   );
 
   const setMediaAutosaveEnabled = useCallback(

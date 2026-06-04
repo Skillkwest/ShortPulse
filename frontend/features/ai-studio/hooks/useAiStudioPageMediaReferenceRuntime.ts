@@ -412,9 +412,10 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
       const output = outputId ? getOutputById(outputId) : null;
       if (!output) return null;
+      const fallbackUrl = payload.referenceUrl ?? payload.referenceRenderUrl ?? null;
       return resolveCanvasResolutionFromOutput({
         output,
-        fallbackUrl: payload.referenceUrl ?? null,
+        fallbackUrl,
         outputId: outputId || null,
         mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
         sourceSurface: payload.sourceSurface ?? null,

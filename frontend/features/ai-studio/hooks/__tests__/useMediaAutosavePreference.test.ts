@@ -34,6 +34,26 @@ describe("useMediaAutosavePreference", () => {
     window.localStorage.clear();
   });
 
+  it("defers preference sync while disabled", async () => {
+    vi.mocked(useSupabaseSessionState).mockReturnValue({
+      initialized: false,
+      session: null,
+      user: null,
+    });
+
+    const { result } = renderHook(() => useMediaAutosavePreference({ enabled: false }));
+
+    await waitFor(() => {
+      expect(result.current.syncState).toBe("loading");
+    });
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.mediaAutosaveEnabled).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(ensureSupabaseQueryClient).not.toHaveBeenCalled();
+    expect(useSupabaseSessionState).toHaveBeenCalledWith({ enabled: false });
+  });
+
   it("loads local preference and becomes ready when no user session exists", async () => {
     window.localStorage.setItem("shortpulse.ai_studio.media_autosave_enabled", "false");
 
@@ -60,6 +80,50 @@ describe("useMediaAutosavePreference", () => {
     const maybeSingle = vi
       .fn()
       .mockResolvedValue({ data: { media_autosave_enabled: true }, error: null });
+
+    vi.mocked(useSupabaseSessionState).mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } } as never,
+      user: { id: "user-1" } as never,
+    });
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useMediaAutosavePreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.mediaAutosaveEnabled).toBe(true);
+    expect(result.current.syncState).toBe("ready");
+    expect(result.current.error).toBeNull();
+    expect(window.localStorage.getItem("shortpulse.ai_studio.media_autosave_enabled")).toBe(
+      "false"
+    );
+    expect(window.localStorage.getItem("shortpulse.ai_studio.media_autosave_enabled:user-1")).toBe(
+      "true"
+    );
+  });
+
+  it("does not hydrate signed-in fallback from another user's global local preference", async () => {
+    window.localStorage.setItem("shortpulse.ai_studio.media_autosave_enabled", "false");
+    window.localStorage.setItem("shortpulse.ai_studio.media_autosave_enabled:user-1", "true");
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: "PGRST205", message: "user_preferences unavailable" },
+    });
 
     vi.mocked(useSupabaseSessionState).mockReturnValue({
       initialized: true,
@@ -154,7 +218,9 @@ describe("useMediaAutosavePreference", () => {
 
     expect(result.current.mediaAutosaveEnabled).toBe(true);
     expect(result.current.error).toBeNull();
-    expect(window.localStorage.getItem("shortpulse.ai_studio.media_autosave_enabled")).toBe("true");
+    expect(window.localStorage.getItem("shortpulse.ai_studio.media_autosave_enabled:user-1")).toBe(
+      "true"
+    );
   });
 
   it("retries a failed signed-in load on window focus", async () => {

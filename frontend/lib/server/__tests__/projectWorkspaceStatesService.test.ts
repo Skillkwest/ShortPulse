@@ -2409,8 +2409,6 @@ describe("projectWorkspaceStatesService", () => {
             {
               id: `generated:${GENERATION_ID_1}`,
               generationId: GENERATION_ID_1,
-              previewUrl: "https://expired.example.com/old.png",
-              resultUrls: ["https://expired.example.com/old.png"],
             },
           ],
           archived: [],
@@ -2528,6 +2526,177 @@ describe("projectWorkspaceStatesService", () => {
         },
       },
     });
+  });
+
+  it("repairs materialized generated display rows from durable projection authority on workspace read", async () => {
+    const { generationIdInMock } = createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-generated-display-convergence",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-03T12:00:00.000Z",
+          checkpointRevision: 5,
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "generated-display-1",
+              mode: "image",
+              mediaSource: "generated",
+              generationId: GENERATION_ID_2,
+            },
+            {
+              id: "library-display-1",
+              mode: "image",
+              mediaSource: "library",
+            },
+          ],
+          archived: [],
+          activeOutputId: "generated-display-1",
+          curatedReferenceIds: ["generated-display-1", "library-display-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "generated-display-1",
+          version: 2,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "generated",
+          created_at: "2026-06-03T11:55:00.000Z",
+          generation_id: GENERATION_ID_2,
+          prompt_id: null,
+          task_id: "task-generated-display-1",
+          source_ref: "source-generated-display-1",
+          generation_trace_id: null,
+          preview_text: null,
+          display_prompt_summary: null,
+          mime_type: "image/png",
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://expired.example.com/generated-display.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://expired.example.com/generated-display.png"],
+          saved_media_ids: [],
+          task_state: "success",
+          queue_state: "dispatched",
+          save_state: "idle",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "library-display-1",
+          version: 2,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: "2026-06-03T11:56:00.000Z",
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: "Library row",
+          display_prompt_summary: "Library prompt",
+          mime_type: "image/png",
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: "user-1/generated/library-display-preview.png",
+          full_storage_path: "user-1/generated/library-display-full.png",
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/library-display.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/library-display.png"],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: "success",
+          queue_state: null,
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [GENERATION_ID_2],
+      recentGenerationIds: [],
+      generationRows: [
+        {
+          id: GENERATION_ID_2,
+          request_id: "task-generated-display-1",
+        },
+      ],
+      projectionRows: [
+        {
+          generation_id: GENERATION_ID_2,
+          request_id: "task-generated-display-1",
+          source_ref: "source-generated-display-1",
+          preview_url: "https://cdn.example.com/generated-display-preview.png",
+          result_urls: ["https://cdn.example.com/generated-display-full.png"],
+          preview_storage_path: "user-1/generated/generated-display-preview.png",
+          full_storage_path: "user-1/generated/generated-display-full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Projection repaired generated output",
+          provider: "fal",
+          model_id: "fal-ai/seedream",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: `generated:${GENERATION_ID_2}`,
+          generationId: GENERATION_ID_2,
+          previewStoragePath: "user-1/generated/generated-display-preview.png",
+          fullStoragePath: "user-1/generated/generated-display-full.png",
+        }),
+        expect.objectContaining({
+          id: "library-display-1",
+          mediaSource: "library",
+          savedMediaIds: [MEDIA_ID_1],
+        }),
+      ],
+      curatedReferenceIds: [`generated:${GENERATION_ID_2}`, "library-display-1"],
+    });
+    // One read canonicalization pass resolves both generation ids and runtime request ids.
+    // A second post-convergence canonicalization would repeat these low-level ownership reads.
+    expect(generationIdInMock).toHaveBeenCalledTimes(2);
   });
 
   it("does not overwrite newer display rows when an older compatibility snapshot arrives", async () => {
@@ -2659,6 +2828,70 @@ describe("projectWorkspaceStatesService", () => {
       },
     });
     expect(outputDisplayUpsert).not.toHaveBeenCalled();
+  });
+
+  it("normalizes invalid typed display values before writing output display rows", async () => {
+    const { outputDisplayUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-invalid-display-types",
+        updatedAt: "2026-06-03T13:00:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "invalid-display-types-1",
+              mode: "image",
+              mediaSource: "library",
+              createdAt: "not-a-date",
+              promptId: "not-a-uuid",
+              savedMediaIds: [MEDIA_ID_1],
+              previewStoragePath: "user-1/generated/invalid-display-types-preview.png",
+              fullStoragePath: "user-1/generated/invalid-display-types-full.png",
+              prompt: "Invalid display types should not break autosave.",
+            },
+          ],
+          archived: [],
+          activeOutputId: "invalid-display-types-1",
+          curatedReferenceIds: ["invalid-display-types-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          output_id: "invalid-display-types-1",
+          created_at: null,
+          generation_id: null,
+          prompt_id: null,
+          saved_media_ids: [MEDIA_ID_1],
+        }),
+      ],
+      {
+        onConflict: "project_id,output_id",
+      }
+    );
   });
 
   it("touches workspace freshness without rewriting unchanged display rows", async () => {
@@ -3449,15 +3682,18 @@ describe("projectWorkspaceStatesService", () => {
     expect(result?.snapshot.outputs).toMatchObject({
       active: [
         expect.objectContaining({
-          id: "out-generated-runtime-owned",
+          id: `generated:${GENERATION_ID_2}`,
+          generationId: GENERATION_ID_2,
           taskId: "task-runtime-owned-1",
           sourceRef: "source-runtime-owned-1",
           mediaSource: "generated",
+          previewStoragePath: "user-1/generated/runtime-owned-preview.png",
+          fullStoragePath: "user-1/generated/runtime-owned-full.png",
         }),
       ],
       archived: [],
       activeOutputId: null,
-      curatedReferenceIds: ["out-generated-runtime-owned"],
+      curatedReferenceIds: [`generated:${GENERATION_ID_2}`],
       removedFromAllRefsIds: [],
     });
   });
@@ -3591,7 +3827,7 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
-  it("preserves settled non-generated refs while leaving generated delivery refresh async", async () => {
+  it("preserves settled non-generated refs while refreshing generated delivery on workspace read", async () => {
     createSupabaseMock({
       workspaceSnapshot: {
         schemaVersion: 2,
@@ -3650,7 +3886,8 @@ describe("projectWorkspaceStatesService", () => {
       active: [
         expect.objectContaining({
           id: `generated:${GENERATION_ID_1}`,
-          previewUrl: "https://expired.example.com/generated.png",
+          previewStoragePath: "user-1/generated/project-output-preview.png",
+          fullStoragePath: "user-1/generated/project-output-full.png",
         }),
         expect.objectContaining({
           id: "library-1",

@@ -193,6 +193,56 @@ describe("useReferenceGridCardItemsController", () => {
     });
   });
 
+  it("does not treat saved-media-only outputs as placeholder-only", () => {
+    const item = output({
+      taskState: "success",
+      mediaSource: "library",
+      previewUrl: undefined,
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [],
+      localObjectUrl: null,
+      savedMediaIds: ["saved-media-1"],
+    });
+    const resolveCardMedia = vi.fn(() =>
+      resolvedMedia({
+        previewUrl: null,
+        fullUrl: null,
+        fallbackUrl: null,
+        authorityTier: "reusable",
+        normalizedPreviewUrl: null,
+        normalizedFallbackUrl: null,
+        isImagePreview: false,
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: null,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [projectReferenceGridMediaOutput(item)],
+        visibleCuratedOutputs: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        hydrationPriorityCount: 1,
+        curatedHydrationPriorityCount: 0,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia,
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
+        hydratedById: {},
+      })
+    );
+
+    expect(resolveCardMedia).toHaveBeenCalledTimes(1);
+    expect(result.current.visibleCardItems[0]).toMatchObject({
+      cardPreviewUrl: null,
+      isPlaceholderOnly: false,
+      authorityTier: "reusable",
+    });
+  });
+
   it("separates generated waiting state from imported hydration state", () => {
     const pendingItem = output({
       id: "pending-1",

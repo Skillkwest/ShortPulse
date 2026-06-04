@@ -33,6 +33,7 @@ vi.mock("../../../media-library/runtime", async () => {
   const ReactModule = await vi.importActual<typeof import("react")>("react");
 
   return {
+    getMediaLibrarySurfaceConfig: () => ({ pageSize: 18 }),
     useMediaLibraryPanelRuntime: () => {
       const [error, setError] = ReactModule.useState<string | null>(null);
       const [mediaRows, setMediaRows] = ReactModule.useState<unknown[]>([]);
@@ -133,6 +134,12 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(setSignedUrlsMock).toHaveBeenCalledWith(signedById);
     });
+    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limit: 18,
+        surface: "media-library-panel",
+      })
+    );
   });
 
   it("normalizes transient pending folder ids back to the root folder for data loads", async () => {
@@ -293,63 +300,123 @@ describe("useMediaLibraryPanelDataController", () => {
     });
   });
 
-  it("loads the root saved-count total on the primary reset request", async () => {
-    fetchMediaListPageMock.mockResolvedValueOnce({
-      rows: [],
-      nextCursor: "cursor-1",
-      hasMore: true,
-      signedById: new Map(),
-      libraryTotalCount: 5,
+  it("defers the root saved-count total until after the primary reset request", async () => {
+    const originalRequestIdleCallback = window.requestIdleCallback;
+    const originalCancelIdleCallback = window.cancelIdleCallback;
+    const requestIdleCallbackMock = vi.fn((callback: IdleRequestCallback) => {
+      callback({ didTimeout: false, timeRemaining: () => 50 });
+      return 1;
+    });
+    const cancelIdleCallbackMock = vi.fn();
+    Object.defineProperty(window, "requestIdleCallback", {
+      configurable: true,
+      writable: true,
+      value: requestIdleCallbackMock,
+    });
+    Object.defineProperty(window, "cancelIdleCallback", {
+      configurable: true,
+      writable: true,
+      value: cancelIdleCallbackMock,
     });
 
-    const { result } = renderHook(() =>
-      useMediaLibraryPanelDataController({
-        projectId: "project-1",
-        activeFolderId: "all_items",
-        itemType: "all",
-        normalizedSearch: "",
-        shouldShowMedia: true,
-        shouldShowPrompts: false,
-        panelBodyRef: { current: null },
-      })
-    );
+    try {
+      fetchMediaListPageMock
+        .mockResolvedValueOnce({
+          rows: [],
+          nextCursor: "cursor-1",
+          hasMore: true,
+          signedById: new Map(),
+          libraryTotalCount: null,
+        })
+        .mockResolvedValueOnce({
+          rows: [],
+          nextCursor: null,
+          hasMore: false,
+          signedById: new Map(),
+          libraryTotalCount: 5,
+        });
 
-    await waitFor(() => {
-      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      const { result } = renderHook(() =>
+        useMediaLibraryPanelDataController({
+          projectId: "project-1",
+          activeFolderId: "all_items",
+          itemType: "all",
+          normalizedSearch: "",
+          shouldShowMedia: true,
+          shouldShowPrompts: false,
+          panelBodyRef: { current: null },
+        })
+      );
+
+      await waitFor(() => {
+        expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+        expect(result.current.libraryTotalCount).toBe(5);
+      });
+
+      expect(fetchMediaListPageMock.mock.calls[0]?.[0]).toEqual(
         expect.objectContaining({
+          includeLibraryTotalCount: false,
+        })
+      );
+      expect(fetchMediaListPageMock.mock.calls[0]?.[0]).not.toEqual(
+        expect.objectContaining({ countOnly: true })
+      );
+      expect(fetchMediaListPageMock.mock.calls[1]?.[0]).toEqual(
+        expect.objectContaining({
+          countOnly: true,
+          includeLibraryTotalCount: true,
+          limit: 1,
+        })
+      );
+
+      fetchMediaListPageMock.mockClear();
+      fetchMediaListPageMock
+        .mockResolvedValueOnce({
+          rows: [],
+          nextCursor: "cursor-2",
+          hasMore: true,
+          signedById: new Map(),
+          libraryTotalCount: null,
+        })
+        .mockResolvedValueOnce({
+          rows: [],
+          nextCursor: null,
+          hasMore: false,
+          signedById: new Map(),
+          libraryTotalCount: 6,
+        });
+
+      await act(async () => {
+        await result.current.loadMediaPage({ reset: true });
+      });
+
+      await waitFor(() => {
+        expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+        expect(result.current.libraryTotalCount).toBe(6);
+      });
+      expect(fetchMediaListPageMock.mock.calls[0]?.[0]).toEqual(
+        expect.objectContaining({
+          includeLibraryTotalCount: false,
+        })
+      );
+      expect(fetchMediaListPageMock.mock.calls[1]?.[0]).toEqual(
+        expect.objectContaining({
+          countOnly: true,
           includeLibraryTotalCount: true,
         })
       );
-      expect(result.current.libraryTotalCount).toBe(5);
-    });
-
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-    expect(fetchMediaListPageMock.mock.calls[0]?.[0]).not.toEqual(
-      expect.objectContaining({ countOnly: true })
-    );
-
-    fetchMediaListPageMock.mockClear();
-    fetchMediaListPageMock.mockResolvedValueOnce({
-      rows: [],
-      nextCursor: "cursor-2",
-      hasMore: true,
-      signedById: new Map(),
-      libraryTotalCount: 6,
-    });
-
-    await act(async () => {
-      await result.current.loadMediaPage({ reset: true });
-    });
-
-    await waitFor(() => {
-      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          includeLibraryTotalCount: true,
-        })
-      );
-    });
-
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(window, "requestIdleCallback", {
+        configurable: true,
+        writable: true,
+        value: originalRequestIdleCallback,
+      });
+      Object.defineProperty(window, "cancelIdleCallback", {
+        configurable: true,
+        writable: true,
+        value: originalCancelIdleCallback,
+      });
+    }
   });
 
   it("derives library total count from loaded rows when the first page exhausts the scope", async () => {

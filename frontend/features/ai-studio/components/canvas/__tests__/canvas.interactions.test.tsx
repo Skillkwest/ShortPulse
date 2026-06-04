@@ -176,6 +176,46 @@ describe("Canvas interaction behavior", () => {
     expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
   });
 
+  it("keeps moving an item when pointer events continue on the viewport", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Drag through viewport",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 22,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 22,
+      clientX: 300,
+      clientY: 210,
+    });
+    fireEvent.pointerUp(viewport, {
+      pointerId: 22,
+      clientX: 300,
+      clientY: 210,
+    });
+
+    await waitFor(() => {
+      expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
+      expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+    });
+  });
+
   it("flushes pending item drag movement on pointer release before the animation frame runs", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

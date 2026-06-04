@@ -64,6 +64,7 @@ export const useAiStudioOutputLifecycle = ({
   const outputByIdRef = useRef<Record<string, StudioOutput>>({});
   const outputIndexByIdRef = useRef<Record<string, number>>({});
   const staleOutputLifecycleRef = useRef<OutputLifecycleMap>({});
+  const hasOutputs = outputs.length > 0;
 
   useEffect(() => {
     outputsRef.current = outputs;
@@ -241,9 +242,10 @@ export const useAiStudioOutputLifecycle = ({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!hasOutputs) return;
     const timeoutId = window.setInterval(sweepStaleOutputs, STALE_OUTPUT_SWEEP_INTERVAL_MS);
     return () => window.clearInterval(timeoutId);
-  }, [sweepStaleOutputs]);
+  }, [hasOutputs, sweepStaleOutputs]);
 
   const findOutputById = useCallback(
     (id: string) => {

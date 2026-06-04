@@ -958,10 +958,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
 
     const preparedSnapshotAfterBootstrap =
       mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]?.preparedSnapshot;
+    const prepareCallsAfterBootstrap = prepareSpy.mock.calls.length;
 
     rerender({ projectId: "project-1" });
 
     expect(prepareSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(prepareSpy.mock.calls.length).toBe(prepareCallsAfterBootstrap);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]?.preparedSnapshot).toEqual(
       preparedSnapshotAfterBootstrap
     );

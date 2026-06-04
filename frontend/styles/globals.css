@@ -34,8 +34,6 @@
 @import "./ai-studio-sound-effects-properties.css";
 @import "./ai-studio-music-properties.css";
 @import "./ai-studio-voices-properties.css";
-@import "./ai-studio-voice-changer-properties.css";
-@import "./ai-studio-tts-properties.css";
 @import "./ai-studio-character-controls.css";
 @import "./ai-studio-text-properties.css";
 @import "./ai-studio-prompts.css";
@@ -63,12 +61,7 @@
 @import "./elements-manager-embedded.css";
 @import "./workspace-tools.css";
 @import "./workspace-media.css";
-@import "./workspace-profile.css";
-@import "./performance-core.css";
-@import "./performance-detail.css";
-@import "./performance-responsive.css";
 @import "./landing-core.css";
 @import "./landing-sections.css";
 @import "./subscription-plan-cards.css";
-@import "./auth.css";
 @import "./viewport-lock.css";

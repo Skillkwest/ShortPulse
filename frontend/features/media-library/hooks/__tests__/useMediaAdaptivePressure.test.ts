@@ -1,8 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   evaluateMediaAdaptiveCandidateLevel,
   resolveMediaPreviewPressureTransition,
+  useMediaAdaptivePressure,
 } from "../useMediaAdaptivePressure";
+
+const mockDocumentVisibility = (visibilityState: DocumentVisibilityState) =>
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(visibilityState);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
 
 describe("useMediaAdaptivePressure helpers", () => {
   it("promotes pressure to level 2 under severe runtime load", () => {
@@ -110,5 +120,29 @@ describe("useMediaAdaptivePressure helpers", () => {
     expect(recovered.nextLevel).toBe(0);
     expect(recovered.changed).toBe(true);
     expect(recovered.nextRecoveryCandidate).toBeNull();
+  });
+});
+
+describe("useMediaAdaptivePressure", () => {
+  it("does not start pressure sampling while the document is hidden", () => {
+    vi.useFakeTimers();
+    const visibilitySpy = mockDocumentVisibility("hidden");
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+    renderHook(() =>
+      useMediaAdaptivePressure({
+        surface: "media-library-panel",
+        enabled: true,
+      })
+    );
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+
+    visibilitySpy.mockReturnValue("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(setIntervalSpy).toHaveBeenCalled();
   });
 });

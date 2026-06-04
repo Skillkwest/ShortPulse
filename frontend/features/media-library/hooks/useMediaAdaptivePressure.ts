@@ -114,6 +114,9 @@ const nowMs = (): number =>
     ? performance.now()
     : Date.now();
 
+const isDocumentVisible = (): boolean =>
+  typeof document === "undefined" || document.visibilityState === "visible";
+
 /**
  * Returns media-library pressure state for adaptive preview routing.
  */
@@ -135,9 +138,24 @@ export const useMediaAdaptivePressure = ({
   const recoverStreakRef = useRef(0);
   const previewRecoveryCandidateRef = useRef<RecoveryCandidate | null>(null);
   const previewLastChangeAtMsRef = useRef(0);
+  const [documentVisible, setDocumentVisible] = useState(isDocumentVisible);
 
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled || typeof document === "undefined") return;
+    const updateDocumentVisible = () => {
+      setDocumentVisible(isDocumentVisible());
+    };
+    updateDocumentVisible();
+    document.addEventListener("visibilitychange", updateDocumentVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", updateDocumentVisible);
+    };
+  }, [enabled]);
+
+  const samplingEnabled = enabled && documentVisible;
+
+  useEffect(() => {
+    if (!samplingEnabled || typeof window === "undefined") return;
     let longTaskObserver: PerformanceObserver | null = null;
     if (typeof PerformanceObserver !== "undefined") {
       longTaskObserver = new PerformanceObserver((entryList) => {
@@ -230,16 +248,16 @@ export const useMediaAdaptivePressure = ({
       window.clearInterval(evaluationIntervalId);
     };
   }, [
-    enabled,
     evaluationWindowMs,
     memoryGuardEnabled,
     minChangeIntervalMs,
     recoveryStableMs,
+    samplingEnabled,
     surface,
   ]);
 
   return useMemo(() => {
-    if (!enabled) return initialState();
+    if (!samplingEnabled) return initialState();
     return state;
-  }, [enabled, state]);
+  }, [samplingEnabled, state]);
 };

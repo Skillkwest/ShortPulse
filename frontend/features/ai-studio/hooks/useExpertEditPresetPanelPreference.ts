@@ -50,6 +50,7 @@ type UseExpertEditPresetPanelPreferenceResult = {
 };
 
 type UseExpertEditPresetPanelPreferenceParams = {
+  enabled?: boolean;
   systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null;
 };
 
@@ -185,6 +186,7 @@ const writeLocalPresetPreferenceValue = (
  * Reads and writes Expert Edit preset panel preferences with local fallback.
  */
 export const useExpertEditPresetPanelPreference = ({
+  enabled = true,
   systemPresetDefinitions,
 }: UseExpertEditPresetPanelPreferenceParams = {}): UseExpertEditPresetPanelPreferenceResult => {
   const normalizePreferenceValue = useCallback(
@@ -254,6 +256,7 @@ export const useExpertEditPresetPanelPreference = ({
     latestValueRef,
     persistValue,
   } = useUserPreferenceSync<ExpertEditPresetPreferenceValue>({
+    enabled,
     defaultValue: DEFAULT_PRESET_PREFERENCE_VALUE,
     normalizeValue: normalizePreferenceValue,
     readLocal: readLocalPreferenceValue,

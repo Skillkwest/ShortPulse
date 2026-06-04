@@ -96,6 +96,31 @@ describe("referenceGridDropOwnership", () => {
     );
   });
 
+  it("does not resolve collapsed canvas sections as active drop surfaces", () => {
+    const root = document.createElement("div");
+    const canvas = document.createElement("div");
+    const canvasHeader = document.createElement("div");
+    const quickSlot = document.createElement("div");
+    const overlay = document.createElement("div");
+    canvas.setAttribute("data-right-rail-drop-surface", "canvas");
+    canvas.classList.add("is-divider-near-collapsed");
+    quickSlot.setAttribute("data-right-rail-drop-surface", "quick-slot");
+    canvas.append(canvasHeader);
+    root.append(canvas, quickSlot, overlay);
+    mockRect(canvas, { left: 100, right: 300, top: 100, bottom: 130 });
+    mockRect(quickSlot, { left: 100, right: 300, top: 140, bottom: 420 });
+
+    expect(
+      resolveRightRailDropSurface({ target: canvasHeader, clientX: 120, clientY: 115 }, root)
+    ).toBe(null);
+    expect(resolveRightRailDropSurface({ target: overlay, clientX: 140, clientY: 115 }, root)).toBe(
+      null
+    );
+    expect(resolveRightRailDropSurface({ target: overlay, clientX: 140, clientY: 260 }, root)).toBe(
+      "quick-slot"
+    );
+  });
+
   it("bypasses shell capture for zero-file external media drags over Canvas", () => {
     const root = document.createElement("div");
     const canvas = document.createElement("div");

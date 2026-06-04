@@ -432,8 +432,11 @@ export const resolveInternalReferenceSource = async ({
     : null;
   const initialOutput = resolvedOutputId ? getOutputById(resolvedOutputId) : null;
   let resolvedOutput = initialOutput?.mode === "image" ? initialOutput : null;
+  const trustedPayloadMediaId = allowSessionPayloadAuthority
+    ? payload.mediaId?.trim() || null
+    : null;
   let resolvedMediaId =
-    payload.mediaId?.trim() || resolveSavedMediaIdFromOutput(resolvedOutput, imageIndex) || null;
+    trustedPayloadMediaId || resolveSavedMediaIdFromOutput(resolvedOutput, imageIndex) || null;
   let persistedResult: PersistOutputSaveResult | null = null;
   const debugEntry = recordInternalReferenceSourceDebugEntry({
     capturedAt: new Date().toISOString(),

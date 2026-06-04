@@ -27,6 +27,23 @@ const createDeferred = <T>() => {
   return { promise, resolve, reject };
 };
 
+const flushAsyncWork = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const createSignedResponseForPaths = (paths: string[]) =>
+  new Response(
+    JSON.stringify({
+      urls: Object.fromEntries(
+        paths.map((path) => [path, `https://signed.test/${encodeURIComponent(path)}`])
+      ),
+    }),
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
 describe("getSignedMediaUrlsBatch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -73,6 +90,46 @@ describe("getSignedMediaUrlsBatch", () => {
     for (const path of storagePaths) {
       expect(signedByPath.get(path)).toBe(`https://signed.test/${encodeURIComponent(path)}`);
     }
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
+  });
+
+  it("serializes API signing chunks to avoid bursty media-heavy opens", async () => {
+    const capturedBatches: string[][] = [];
+    const deferredResponses: Array<ReturnType<typeof createDeferred<Response>>> = [];
+    fetchWithAuthMock.mockImplementation(async (_url, init) => {
+      const payload = JSON.parse(String((init as RequestInit | undefined)?.body ?? "{}")) as {
+        paths?: string[];
+      };
+      const paths = payload.paths ?? [];
+      capturedBatches.push(paths);
+      const deferred = createDeferred<Response>();
+      deferredResponses.push(deferred);
+      return deferred.promise;
+    });
+
+    const storagePaths = Array.from({ length: 130 }, (_, index) => `user/path-${index + 1}.png`);
+    const signedByPathPromise = getSignedMediaUrlsBatch({
+      bucket: "media_library",
+      storagePaths,
+      forceRefresh: true,
+    });
+
+    await flushAsyncWork();
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    deferredResponses[0]?.resolve(createSignedResponseForPaths(capturedBatches[0] ?? []));
+    await flushAsyncWork();
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+
+    deferredResponses[1]?.resolve(createSignedResponseForPaths(capturedBatches[1] ?? []));
+    await flushAsyncWork();
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(3);
+
+    deferredResponses[2]?.resolve(createSignedResponseForPaths(capturedBatches[2] ?? []));
+    const signedByPath = await signedByPathPromise;
+
+    expect(capturedBatches.map((batch) => batch.length)).toEqual([60, 60, 10]);
+    expect(signedByPath.size).toBe(130);
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
   });
 

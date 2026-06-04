@@ -693,6 +693,19 @@ export const useCanvasViewportInstanceState = ({
         }));
         return;
       }
+      if (interaction.kind === "item-drag") {
+        event.preventDefault();
+        const deltaX = (event.clientX - interaction.lastClientX) / camera.zoom;
+        const deltaY = (event.clientY - interaction.lastClientY) / camera.zoom;
+        if (!deltaX && !deltaY) return;
+        interactionRef.current = {
+          ...interaction,
+          lastClientX: event.clientX,
+          lastClientY: event.clientY,
+        };
+        scheduleItemDragFrame(interaction.selectedItemIds, deltaX, deltaY);
+        return;
+      }
       if (interaction.kind === "text-resize") {
         event.preventDefault();
         const deltaWorldX = (event.clientX - interaction.startClientX) / camera.zoom;
@@ -789,7 +802,7 @@ export const useCanvasViewportInstanceState = ({
         });
       });
     },
-    [camera, logCanvasGesture, scheduleCameraFrame, setItems, viewportRef]
+    [camera, logCanvasGesture, scheduleCameraFrame, scheduleItemDragFrame, setItems, viewportRef]
   );
 
   const handleViewportPointerUp = useCallback(
@@ -908,6 +921,9 @@ export const useCanvasViewportInstanceState = ({
       } else if (interaction.kind === "text-resize") {
         lastViewportTapRef.current = null;
         setIsTextResizeActive(false);
+      } else if (interaction.kind === "item-drag") {
+        lastViewportTapRef.current = null;
+        flushPendingItemDragFrame();
       }
 
       interactionRef.current = { kind: "none" };
@@ -919,6 +935,7 @@ export const useCanvasViewportInstanceState = ({
     [
       createDraftTextAtClientPoint,
       flushPendingCameraFrame,
+      flushPendingItemDragFrame,
       isSpacePanActiveRef,
       logCanvasGesture,
       setCamera,
@@ -934,10 +951,13 @@ export const useCanvasViewportInstanceState = ({
       if (
         interaction.kind === "pan" ||
         interaction.kind === "marquee" ||
-        interaction.kind === "text-resize"
+        interaction.kind === "text-resize" ||
+        interaction.kind === "item-drag"
       ) {
         if (interaction.kind === "pan") {
           flushPendingCameraFrame();
+        } else if (interaction.kind === "item-drag") {
+          flushPendingItemDragFrame();
         }
         lastViewportTapRef.current = null;
         setMarqueeSelectionBox(null);
@@ -951,14 +971,16 @@ export const useCanvasViewportInstanceState = ({
             ? "pointercancel.reset-pan"
             : interaction.kind === "marquee"
               ? "pointercancel.reset-marquee"
-              : "pointercancel.reset-text-resize"
+              : interaction.kind === "text-resize"
+                ? "pointercancel.reset-text-resize"
+                : "pointercancel.reset-item-drag"
         );
         if (interaction.kind === "text-resize") {
           setIsTextResizeActive(false);
         }
       }
     },
-    [flushPendingCameraFrame, logCanvasGesture, setMarqueeSelectionBox]
+    [flushPendingCameraFrame, flushPendingItemDragFrame, logCanvasGesture, setMarqueeSelectionBox]
   );
 
   const handleTextResizeHandlePointerDown = useCallback(
@@ -1013,9 +1035,10 @@ export const useCanvasViewportInstanceState = ({
       setMarqueeSelectionBox(null);
       clearTextEditSession();
       viewportRef.current?.focus();
-      if (typeof event.currentTarget.setPointerCapture === "function") {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
+      setPointerCaptureIfAvailable({
+        target: viewportRef.current ?? event.currentTarget,
+        pointerId: event.pointerId,
+      });
       if (shouldPan) {
         interactionRef.current = {
           kind: "pan",
@@ -1055,6 +1078,7 @@ export const useCanvasViewportInstanceState = ({
       setMarqueeSelectionBox,
       setItems,
       textEditSession?.itemId,
+      viewportRef,
     ]
   );
 
@@ -1110,12 +1134,12 @@ export const useCanvasViewportInstanceState = ({
         }
         interactionRef.current = { kind: "none" };
         releasePointerCaptureIfHeld({
-          target: event.currentTarget,
+          target: viewportRef.current ?? event.currentTarget,
           pointerId: event.pointerId,
         });
       }
     },
-    [flushPendingCameraFrame, flushPendingItemDragFrame]
+    [flushPendingCameraFrame, flushPendingItemDragFrame, viewportRef]
   );
 
   const handleItemPointerCancel = useCallback(
@@ -1135,12 +1159,12 @@ export const useCanvasViewportInstanceState = ({
         }
         interactionRef.current = { kind: "none" };
         releasePointerCaptureIfHeld({
-          target: event.currentTarget,
+          target: viewportRef.current ?? event.currentTarget,
           pointerId: event.pointerId,
         });
       }
     },
-    [flushPendingCameraFrame, flushPendingItemDragFrame]
+    [flushPendingCameraFrame, flushPendingItemDragFrame, viewportRef]
   );
 
   const handleViewportWheel = useCallback(

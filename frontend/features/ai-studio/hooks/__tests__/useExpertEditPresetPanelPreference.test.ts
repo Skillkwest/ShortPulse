@@ -39,6 +39,28 @@ describe("useExpertEditPresetPanelPreference", () => {
     window.localStorage.clear();
   });
 
+  it("keeps defaults without reading auth or preferences when disabled", async () => {
+    const { result } = renderHook(() => useExpertEditPresetPanelPreference({ enabled: false }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(readSupabaseUserId).not.toHaveBeenCalled();
+    expect(ensureSupabaseQueryClient).not.toHaveBeenCalled();
+    expect(result.current.presetPanelIds).toEqual(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS);
+    expect(result.current.customPresetOverrides).toEqual({});
+
+    act(() => {
+      result.current.setPresetPanelIds(["selfie"]);
+    });
+
+    expect(
+      window.localStorage.getItem("shortpulse.ai_studio.expert_edit_preset_panel_ids")
+    ).toBeNull();
+  });
+
   it("loads local preference and becomes ready when no user session exists", async () => {
     window.localStorage.setItem(
       "shortpulse.ai_studio.expert_edit_preset_panel_ids",

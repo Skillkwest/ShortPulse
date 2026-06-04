@@ -146,10 +146,24 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const normalizeString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+};
+
+const normalizeIsoTimestamp = (value: unknown): string | null => {
+  const normalized = normalizeString(value);
+  if (!normalized) return null;
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+};
+
+const normalizeUuid = (value: unknown): string | null => {
+  const normalized = normalizeString(value);
+  return normalized && UUID_PATTERN.test(normalized) ? normalized : null;
 };
 
 const normalizeNumber = (value: unknown): number | null =>
@@ -324,9 +338,9 @@ const toDisplayItemCandidate = ({
     source_snapshot_updated_at: snapshotUpdatedAt,
     mode: normalizeString(output.mode),
     media_source: normalizeString(output.mediaSource),
-    created_at: normalizeString(output.createdAt),
-    generation_id: normalizeString(output.generationId),
-    prompt_id: normalizeString(output.promptId),
+    created_at: normalizeIsoTimestamp(output.createdAt),
+    generation_id: normalizeUuid(output.generationId),
+    prompt_id: normalizeUuid(output.promptId),
     task_id: normalizeString(output.taskId),
     source_ref: normalizeString(output.sourceRef),
     generation_trace_id: normalizeString(output.generationTraceId),

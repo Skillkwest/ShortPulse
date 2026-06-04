@@ -14,6 +14,7 @@ import {
   INPAINT_REFERENCE_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
 } from "../../logic/inpaintSubmission";
+import { resolveCreateImageBilledCredits } from "../../../../lib/model-runtime/createImageBilledCredits";
 import { resolveEditImageBilledCredits } from "../../../../lib/model-runtime/editImageBilledCredits";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
@@ -207,7 +208,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
-  it("keeps GPT Image 2 Create Character Mode blocked when the submit variant still lacks a billed-credit row", () => {
+  it("prices GPT Image 2 Create Character Mode from runtime quantity authority when the explicit row is missing", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
@@ -219,17 +220,16 @@ describe("useAiStudioViewModel motion guardrails", () => {
       ],
       loadedAtMs: Date.now(),
     };
-    const expectedCost = resolvePricingGridBilledCredits({
+    const expectedCost = resolveCreateImageBilledCredits({
       modelId,
       params: {
-        modelId,
         aspect: "16:9",
         resolution: "medium",
         inputImageCount: 3,
         inputFidelity: "high",
+        maskPresent: false,
       },
       pricingPolicy: pricingGridPolicy,
-      requireExplicitBilledCreditsOverride: true,
     });
 
     const { result } = renderHook(() =>
@@ -252,10 +252,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
-    expect(result.current.generationGuardrail).toBe(
-      "Pricing is unavailable for this configuration. Retry in a moment."
-    );
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 
   it("prices GPT Image 2 Create Character Mode when the effective submit variant has a canonical row", () => {

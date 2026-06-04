@@ -502,6 +502,33 @@ describe("ReferenceGridCard", () => {
     expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
   });
 
+  it("keeps durable media draggable even when no card preview URL is available", () => {
+    const onCardDragStart = vi.fn();
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mediaSource: "generated",
+            generationId: "generation-1",
+            fullStoragePath: "user-1/generations/images/full.png",
+            savedMediaIds: ["media-1"],
+          }),
+          cardPreviewUrl: null,
+          imageSrc: undefined,
+          isImagePreview: false,
+          onCardDragStart,
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    expect(card).toHaveAttribute("draggable", "true");
+
+    fireEvent.dragStart(card);
+
+    expect(onCardDragStart).toHaveBeenCalledTimes(1);
+  });
+
   it("hides the poster image on hover for poster-backed videos", async () => {
     render(
       <ReferenceGridCard

@@ -79,7 +79,7 @@ describe("AiStudioPageShell", () => {
     expect(screen.getByText("Project not found.")).toBeInTheDocument();
   });
 
-  it("keeps the projects modal available while project bootstrap is gated", () => {
+  it("keeps the projects modal available while project bootstrap is gated", async () => {
     render(
       <AiStudioPageShell
         pageContentProps={{} as React.ComponentProps<typeof AiStudioPageShell>["pageContentProps"]}
@@ -101,7 +101,7 @@ describe("AiStudioPageShell", () => {
       />
     );
 
-    expect(screen.getByText("Projects modal open")).toBeInTheDocument();
+    expect(await screen.findByText("Projects modal open")).toBeInTheDocument();
     expect(screen.getByText("Create project enabled")).toBeInTheDocument();
   });
 

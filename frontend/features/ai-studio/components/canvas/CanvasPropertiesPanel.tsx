@@ -172,17 +172,9 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
               onError={() => markCanvasMediaError(mediaErrorKey)}
             />
           ) : (
-            <video
-              className="canvas-scene-item__video"
-              src={item.videoUrl}
-              aria-label={item.title?.trim() || "Canvas video"}
-              draggable={false}
-              muted
-              playsInline
-              preload="auto"
-              onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
-              onError={() => markCanvasMediaError(mediaErrorKey)}
-            />
+            <div className="canvas-scene-item__video-placeholder" role="img">
+              <span>{item.title?.trim() || "Video"}</span>
+            </div>
           )}
           <MediaDurationBadge
             className="canvas-scene-item__media-duration"

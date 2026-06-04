@@ -117,6 +117,17 @@ type ProjectSnapshotByteBreakdown = {
   expertEditBytes: number | null;
 };
 
+type ProjectAutosaveSnapshotSelectionComputation = {
+  selection: {
+    snapshot: AiStudioSessionSnapshot | null;
+    fallbackKind: AiStudioProjectWorkspaceAutosaveCandidateKind;
+    preparedSnapshot: PreparedAiStudioSessionAutosaveSnapshot | null;
+  };
+  durationMs: number;
+  reportSnapshot: AiStudioSessionSnapshot | null;
+  reportFallbackKind?: AiStudioProjectWorkspaceAutosaveCandidateKind;
+};
+
 const PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS = {
   baseSnapshotBuild: 40,
   sessionSnapshotCompose: 24,
@@ -409,6 +420,63 @@ const resolvePerfNow = (): number =>
     ? performance.now()
     : Date.now();
 
+const resolveProjectAutosaveSnapshotSelectionComputation = (
+  sessionSnapshot: AiStudioSessionSnapshot | null
+): ProjectAutosaveSnapshotSelectionComputation => {
+  const startedAt = resolvePerfNow();
+  if (!sessionSnapshot) {
+    return {
+      selection: {
+        snapshot: null,
+        fallbackKind: "full",
+        preparedSnapshot: null,
+      },
+      durationMs: resolvePerfNow() - startedAt,
+      reportSnapshot: null,
+      reportFallbackKind: undefined,
+    };
+  }
+  let fullPreparedSnapshot: PreparedAiStudioSessionAutosaveSnapshot | null = null;
+  for (const candidate of createAiStudioProjectWorkspaceAutosaveCandidates(sessionSnapshot)) {
+    const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(candidate.snapshot, {
+      title: null,
+    });
+    if (candidate.kind === "full") {
+      fullPreparedSnapshot = preparedSnapshot;
+    }
+    if (
+      preparedSnapshot.hash &&
+      Number.isFinite(preparedSnapshot.bytes) &&
+      preparedSnapshot.bytes <= PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES
+    ) {
+      return {
+        selection: {
+          snapshot: candidate.snapshot,
+          fallbackKind: candidate.kind,
+          preparedSnapshot,
+        },
+        durationMs: resolvePerfNow() - startedAt,
+        reportSnapshot: candidate.snapshot,
+        reportFallbackKind: candidate.kind,
+      };
+    }
+  }
+  return {
+    selection: {
+      snapshot: sessionSnapshot,
+      fallbackKind: "full",
+      preparedSnapshot:
+        fullPreparedSnapshot ??
+        prepareAiStudioSessionAutosaveSnapshot(sessionSnapshot, {
+          title: null,
+        }),
+    },
+    durationMs: resolvePerfNow() - startedAt,
+    reportSnapshot: sessionSnapshot,
+    reportFallbackKind: "full",
+  };
+};
+
 /**
  * Returns project-owned persistence wiring for AI Studio page orchestration.
  */
@@ -608,18 +676,21 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         : null,
     [projectBootstrapSettled, sessionRestoreCandidate.snapshot]
   );
-  const actualProjectRestoreVisibilitySignature = useMemo(
-    () =>
-      projectBootstrapSettled ? resolveProjectRestoreVisibilitySignature(sessionSnapshot) : null,
-    [projectBootstrapSettled, sessionSnapshot]
-  );
   const activeBootstrapVisibilityApplied =
     bootstrapVisibilityApplied?.projectId === projectId &&
     bootstrapVisibilityApplied.revision === projectRuntimeRevision &&
     bootstrapVisibilityApplied.restoreVisibilitySignature ===
       expectedProjectRestoreVisibilitySignature;
+  const actualProjectRestoreVisibilitySignature = useMemo(
+    () =>
+      projectBootstrapSettled && !activeBootstrapVisibilityApplied
+        ? resolveProjectRestoreVisibilitySignature(sessionSnapshot)
+        : null,
+    [activeBootstrapVisibilityApplied, projectBootstrapSettled, sessionSnapshot]
+  );
   useEffect(() => {
     if (!projectId || !projectBootstrapSettled) return;
+    if (activeBootstrapVisibilityApplied) return;
     if (!expectedProjectRestoreVisibilitySignature) return;
     if (expectedProjectRestoreVisibilitySignature !== actualProjectRestoreVisibilitySignature)
       return;
@@ -646,6 +717,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     };
   }, [
     actualProjectRestoreVisibilitySignature,
+    activeBootstrapVisibilityApplied,
     expectedProjectRestoreVisibilitySignature,
     projectBootstrapSettled,
     projectId,
@@ -655,60 +727,10 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
 
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
   const repairPendingNoticeKeyRef = useRef<string | null>(null);
-  const autosaveSnapshotSelectionComputation = (() => {
-    const startedAt = resolvePerfNow();
-    if (!sessionSnapshot) {
-      return {
-        selection: {
-          snapshot: null as AiStudioSessionSnapshot | null,
-          fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
-          preparedSnapshot: null as PreparedAiStudioSessionAutosaveSnapshot | null,
-        },
-        durationMs: resolvePerfNow() - startedAt,
-        reportSnapshot: null as AiStudioSessionSnapshot | null,
-        reportFallbackKind: undefined as AiStudioProjectWorkspaceAutosaveCandidateKind | undefined,
-      };
-    }
-    let fullPreparedSnapshot: PreparedAiStudioSessionAutosaveSnapshot | null = null;
-    for (const candidate of createAiStudioProjectWorkspaceAutosaveCandidates(sessionSnapshot)) {
-      const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(candidate.snapshot, {
-        title: null,
-      });
-      if (candidate.kind === "full") {
-        fullPreparedSnapshot = preparedSnapshot;
-      }
-      if (
-        preparedSnapshot.hash &&
-        Number.isFinite(preparedSnapshot.bytes) &&
-        preparedSnapshot.bytes <= PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES
-      ) {
-        return {
-          selection: {
-            snapshot: candidate.snapshot,
-            fallbackKind: candidate.kind,
-            preparedSnapshot,
-          },
-          durationMs: resolvePerfNow() - startedAt,
-          reportSnapshot: candidate.snapshot,
-          reportFallbackKind: candidate.kind,
-        };
-      }
-    }
-    return {
-      selection: {
-        snapshot: sessionSnapshot,
-        fallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
-        preparedSnapshot:
-          fullPreparedSnapshot ??
-          prepareAiStudioSessionAutosaveSnapshot(sessionSnapshot, {
-            title: null,
-          }),
-      },
-      durationMs: resolvePerfNow() - startedAt,
-      reportSnapshot: sessionSnapshot,
-      reportFallbackKind: "full" as AiStudioProjectWorkspaceAutosaveCandidateKind,
-    };
-  })();
+  const autosaveSnapshotSelectionComputation = useMemo(
+    () => resolveProjectAutosaveSnapshotSelectionComputation(sessionSnapshot),
+    [sessionSnapshot]
+  );
   const autosaveSnapshotSelection = autosaveSnapshotSelectionComputation.selection;
   const autosaveUnlockSignature = useMemo(
     () => resolveProjectAutosaveUnlockSignature(autosaveSnapshotSelection.snapshot),

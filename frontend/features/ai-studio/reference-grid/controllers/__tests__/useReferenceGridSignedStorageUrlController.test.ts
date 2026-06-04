@@ -77,7 +77,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     ]);
   });
 
-  it("does not collect full or result storage paths for default card rendering", () => {
+  it("uses full and result storage paths for default card rendering when preview paths are absent", () => {
     expect(
       collectReferenceGridStoragePaths([
         createStorageBackedImage({
@@ -86,7 +86,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
           resultUrls: ["https://provider.example.com/transient.png", "user-1/results/image-1.png"],
         }),
       ])
-    ).toEqual([]);
+    ).toEqual(["user-1/generations/images/image-1.png", "user-1/results/image-1.png"]);
 
     expect(
       collectReferenceGridStoragePaths([
@@ -96,7 +96,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
           resultUrls: undefined,
         }),
       ])
-    ).toEqual([]);
+    ).toEqual(["user-1/generations/images/image-1.png"]);
   });
 
   it("signs visible reference-grid storage paths through the shared media signing cache", async () => {

@@ -32,22 +32,10 @@ import { SharedMediaDetailPreviewModal } from "./detail-modal/SharedMediaDetailP
 import type { SharedMediaDetailItemBase } from "./detail-modal/detailModalPlatformTypes";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
-import { ExpertEditPanelView } from "./edit/ExpertEditPanelView";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
-import { CharacterPanel } from "./CharacterPanel";
-import { StylesLibraryPanel } from "./StylesLibraryPanel";
-import { UnifiedPresetsLibraryPanel } from "./UnifiedPresetsLibraryPanel";
-import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
-import { MusicPropertiesPanel, type MusicPropertiesPanelProps } from "./MusicPropertiesPanel";
-import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
-import {
-  SoundEffectsPropertiesPanel,
-  type SoundEffectsPropertiesPanelProps,
-} from "./SoundEffectsPropertiesPanel";
-import { VoicesPropertiesPanel } from "./VoicesPropertiesPanel";
-import { MediaLibraryPanel } from "./MediaLibraryPanel";
-import { ElementsPanel } from "./ElementsPanel";
+import type { MusicPropertiesPanelProps } from "./MusicPropertiesPanel";
+import type { SoundEffectsPropertiesPanelProps } from "./SoundEffectsPropertiesPanel";
 import type {
   ActiveVoiceChangerSourceVideo,
   VoicesPropertiesPanelProps,
@@ -183,6 +171,62 @@ const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
   { id: "quick-slot-inventory", label: "Quick Slot Inventory" },
   { id: "reference-grid", label: "Reference Grid" },
 ] as const;
+const LazyExpertEditPanelView = React.lazy(() =>
+  import("./edit/ExpertEditPanelView").then((module) => ({
+    default: module.ExpertEditPanelView,
+  }))
+);
+const LazyCharacterPanel = React.lazy(() =>
+  import("./CharacterPanel").then((module) => ({
+    default: module.CharacterPanel,
+  }))
+);
+const LazyStylesLibraryPanel = React.lazy(() =>
+  import("./StylesLibraryPanel").then((module) => ({
+    default: module.StylesLibraryPanel,
+  }))
+);
+const LazyUnifiedPresetsLibraryPanel = React.lazy(() =>
+  import("./UnifiedPresetsLibraryPanel").then((module) => ({
+    default: module.UnifiedPresetsLibraryPanel,
+  }))
+);
+const LazyVideoPropertiesPanel = React.lazy(() =>
+  import("./VideoPropertiesPanel").then((module) => ({
+    default: module.VideoPropertiesPanel,
+  }))
+);
+const LazyMusicPropertiesPanel = React.lazy(() =>
+  import("./MusicPropertiesPanel").then((module) => ({
+    default: module.MusicPropertiesPanel,
+  }))
+);
+const LazySoundPropertiesPanel = React.lazy(() =>
+  import("./SoundPropertiesPanel").then((module) => ({
+    default: module.SoundPropertiesPanel,
+  }))
+);
+const LazySoundEffectsPropertiesPanel = React.lazy(() =>
+  import("./SoundEffectsPropertiesPanel").then((module) => ({
+    default: module.SoundEffectsPropertiesPanel,
+  }))
+);
+const LazyVoicesPropertiesPanel = React.lazy(() =>
+  import("./VoicesPropertiesPanel").then((module) => ({
+    default: module.VoicesPropertiesPanel,
+  }))
+);
+const LazyElementsPanel = React.lazy(() =>
+  import("./ElementsPanel").then((module) => ({
+    default: module.ElementsPanel,
+  }))
+);
+const LazyMediaLibraryPanel = React.lazy(() =>
+  import("./MediaLibraryPanel").then((module) => ({
+    default: module.MediaLibraryPanel,
+  }))
+);
+const lazyPanelFallback = <p className="tiny subdued">Loading panel...</p>;
 
 type RightColumnDropMode = "none" | "text" | "media";
 type PastedMediaReference = { url: string; mimeType?: string | null };
@@ -356,8 +400,8 @@ const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropP
 };
 
 type CreateSectionProps = AiStudioCreatePanelContract;
-type EditExpertSectionProps = React.ComponentProps<typeof ExpertEditPanelView>;
-type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
+type EditExpertSectionProps = React.ComponentProps<typeof LazyExpertEditPanelView>;
+type VideoSectionProps = React.ComponentProps<typeof LazyVideoPropertiesPanel>;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
 const FLAG_SHELL_DECOUPLE = PERF_FLAG_SHELL_DECOUPLE;
 const FLAG_DND_BACKPRESSURE = PERF_FLAG_SHELL_DND_BACKPRESSURE;
@@ -1257,28 +1301,38 @@ export function AiStudioPageContent({
     resolvedStandardCreatePropertiesWithStyles,
   ]);
   const editPropertiesPanelContent = React.useMemo(
-    () => <ExpertEditPanelView {...resolvedExpertEditProperties} />,
+    () => (
+      <React.Suspense fallback={lazyPanelFallback}>
+        <LazyExpertEditPanelView {...resolvedExpertEditProperties} />
+      </React.Suspense>
+    ),
     [resolvedExpertEditProperties]
   );
   const videoPropertiesPanelContent = React.useMemo(
-    () => <VideoPropertiesPanel {...propertiesVideo} />,
+    () => (
+      <React.Suspense fallback={lazyPanelFallback}>
+        <LazyVideoPropertiesPanel {...propertiesVideo} />
+      </React.Suspense>
+    ),
     [propertiesVideo]
   );
   const characterPropertiesPanelContent = React.useMemo(
     () => (
-      <CharacterPanel
-        createRequestKey={characterCreateRequestKey}
-        externalUploadRequest={pendingCharacterUploadRequest}
-        onExternalUploadRequestHandled={onCharacterUploadRequestHandled}
-        projectId={projectId}
-        projectRouteRequested={projectRouteRequested}
-        selectedCharacterId={createSelectedCharacterId}
-        onSelectedCharacterIdChange={onCreateSelectedCharacterIdChange}
-        resolveCharacterDropReference={resolveCharacterDropReference}
-        resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
-        detailSelectionTarget={mediaLibraryDetailSelectionTarget}
-        onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
-      />
+      <React.Suspense fallback={lazyPanelFallback}>
+        <LazyCharacterPanel
+          createRequestKey={characterCreateRequestKey}
+          externalUploadRequest={pendingCharacterUploadRequest}
+          onExternalUploadRequestHandled={onCharacterUploadRequestHandled}
+          projectId={projectId}
+          projectRouteRequested={projectRouteRequested}
+          selectedCharacterId={createSelectedCharacterId}
+          onSelectedCharacterIdChange={onCreateSelectedCharacterIdChange}
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
+          detailSelectionTarget={mediaLibraryDetailSelectionTarget}
+          onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
+        />
+      </React.Suspense>
     ),
     [
       characterCreateRequestKey,
@@ -1296,14 +1350,16 @@ export function AiStudioPageContent({
   );
   const presetsPropertiesPanelContent = React.useMemo(
     () => (
-      <UnifiedPresetsLibraryPanel
-        promptPresets={presetsLibraryCatalog}
-        selectedPromptPresetId={selectedPresetId}
-        onOpenCreateWorkflow={() => handleToolSelection("create")}
-        onOpenEditWorkflow={() => handleToolSelection("edit")}
-        onSelectPromptPreset={handleSelectedPresetIdChange}
-        onSavePromptPresetOverride={handlePresetOverrideSave}
-      />
+      <React.Suspense fallback={lazyPanelFallback}>
+        <LazyUnifiedPresetsLibraryPanel
+          promptPresets={presetsLibraryCatalog}
+          selectedPromptPresetId={selectedPresetId}
+          onOpenCreateWorkflow={() => handleToolSelection("create")}
+          onOpenEditWorkflow={() => handleToolSelection("edit")}
+          onSelectPromptPreset={handleSelectedPresetIdChange}
+          onSavePromptPresetOverride={handlePresetOverrideSave}
+        />
+      </React.Suspense>
     ),
     [
       handleToolSelection,
@@ -1315,14 +1371,16 @@ export function AiStudioPageContent({
   );
   const elementsPropertiesPanelContent = React.useMemo(
     () => (
-      <ElementsPanel
-        createRequestKey={elementCreateRequestKey}
-        projectId={projectId}
-        resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
-        resolveProfileImageDropSource={resolveElementProfileImageDropSource}
-        detailSelectionTarget={mediaLibraryDetailSelectionTarget}
-        onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
-      />
+      <React.Suspense fallback={lazyPanelFallback}>
+        <LazyElementsPanel
+          createRequestKey={elementCreateRequestKey}
+          projectId={projectId}
+          resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
+          resolveProfileImageDropSource={resolveElementProfileImageDropSource}
+          detailSelectionTarget={mediaLibraryDetailSelectionTarget}
+          onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
+        />
+      </React.Suspense>
     ),
     [
       elementCreateRequestKey,
@@ -1335,15 +1393,17 @@ export function AiStudioPageContent({
   );
   const stylesPropertiesPanelContent = React.useMemo(
     () => (
-      <StylesLibraryPanel
-        styles={visibleStylesCatalog}
-        onReorderStyle={handleReorderStyle}
-        onSaveStyleDetails={upsertStyleDetails}
-        saveError={styleDetailsSaveError}
-        onDeleteStyle={handleDeleteStyle}
-        deleteError={stylesDeleteError}
-        resolveInternalStyleDrop={resolveStyleLibraryInternalDrop}
-      />
+      <React.Suspense fallback={lazyPanelFallback}>
+        <LazyStylesLibraryPanel
+          styles={visibleStylesCatalog}
+          onReorderStyle={handleReorderStyle}
+          onSaveStyleDetails={upsertStyleDetails}
+          saveError={styleDetailsSaveError}
+          onDeleteStyle={handleDeleteStyle}
+          deleteError={stylesDeleteError}
+          resolveInternalStyleDrop={resolveStyleLibraryInternalDrop}
+        />
+      </React.Suspense>
     ),
     [
       handleDeleteStyle,
@@ -1358,22 +1418,24 @@ export function AiStudioPageContent({
   const mediaLibraryPropertiesPanelContent = React.useMemo(
     () =>
       onAddLibraryMediaReference && onAddLibraryPromptReference ? (
-        <MediaLibraryPanel
-          key={projectId ?? "no-project"}
-          onSelectMedia={onAddLibraryMediaReference}
-          onSelectPrompt={onAddLibraryPromptReference}
-          projectId={projectId}
-          projectName={projectName ?? null}
-          onProjectNameCommit={onProjectNameCommit}
-          projectNameFocusRequestKey={mediaLibraryProjectNameFocusRequestKey}
-          isMediaLibraryPanelExpanded={isMediaLibraryPanelExpanded}
-          onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
-          onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
-          resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
-          onDeleteMediaRowsFromWorkspace={onDeleteMediaRowsFromWorkspace}
-          detailSelectionTarget={mediaLibraryDetailSelectionTarget}
-          onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
-        />
+        <React.Suspense fallback={<p className="tiny subdued">Loading Media Library...</p>}>
+          <LazyMediaLibraryPanel
+            key={projectId ?? "no-project"}
+            onSelectMedia={onAddLibraryMediaReference}
+            onSelectPrompt={onAddLibraryPromptReference}
+            projectId={projectId}
+            projectName={projectName ?? null}
+            onProjectNameCommit={onProjectNameCommit}
+            projectNameFocusRequestKey={mediaLibraryProjectNameFocusRequestKey}
+            isMediaLibraryPanelExpanded={isMediaLibraryPanelExpanded}
+            onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
+            onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
+            resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
+            onDeleteMediaRowsFromWorkspace={onDeleteMediaRowsFromWorkspace}
+            detailSelectionTarget={mediaLibraryDetailSelectionTarget}
+            onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
+          />
+        </React.Suspense>
       ) : (
         <p className="tiny subdued">Media Library panel is unavailable.</p>
       ),
@@ -1403,26 +1465,40 @@ export function AiStudioPageContent({
         case "video":
           return videoPropertiesPanelContent;
         case "music":
-          return <MusicPropertiesPanel {...propertiesMusic} />;
+          return (
+            <React.Suspense fallback={lazyPanelFallback}>
+              <LazyMusicPropertiesPanel {...propertiesMusic} />
+            </React.Suspense>
+          );
         case "sound":
-          return <SoundPropertiesPanel onSelectTool={handleToolSelection} />;
+          return (
+            <React.Suspense fallback={lazyPanelFallback}>
+              <LazySoundPropertiesPanel onSelectTool={handleToolSelection} />
+            </React.Suspense>
+          );
         case "sound-effects":
-          return <SoundEffectsPropertiesPanel {...propertiesSoundEffects} />;
+          return (
+            <React.Suspense fallback={lazyPanelFallback}>
+              <LazySoundEffectsPropertiesPanel {...propertiesSoundEffects} />
+            </React.Suspense>
+          );
         case "voices":
           return (
-            <VoicesPropertiesPanel
-              selectedTool={selectedTool}
-              {...propertiesVoices}
-              voiceChangerSource={voiceChangerSource}
-              onVoiceChangerSourceChange={handleVoiceChangerSourceChange}
-              onActiveVoiceChangerSourceVideoChange={(source) => {
-                setActiveVoiceChangerSourceVideo(source);
-                propertiesVoices?.onActiveVoiceChangerSourceVideoChange?.(source);
-              }}
-              resolveVoiceChangerInternalReferenceSource={
-                resolveVoiceChangerInternalReferenceSource
-              }
-            />
+            <React.Suspense fallback={lazyPanelFallback}>
+              <LazyVoicesPropertiesPanel
+                selectedTool={selectedTool}
+                {...propertiesVoices}
+                voiceChangerSource={voiceChangerSource}
+                onVoiceChangerSourceChange={handleVoiceChangerSourceChange}
+                onActiveVoiceChangerSourceVideoChange={(source) => {
+                  setActiveVoiceChangerSourceVideo(source);
+                  propertiesVoices?.onActiveVoiceChangerSourceVideoChange?.(source);
+                }}
+                resolveVoiceChangerInternalReferenceSource={
+                  resolveVoiceChangerInternalReferenceSource
+                }
+              />
+            </React.Suspense>
           );
         case "character":
           return characterPropertiesPanelContent;

@@ -29,6 +29,9 @@ export type ReferenceGridPerfWatchdogState = {
   sampleCount: number;
 };
 
+const isDocumentVisible = (): boolean =>
+  typeof document === "undefined" || document.visibilityState === "visible";
+
 /**
  * Returns adaptive degrade level and sampled metrics for runtime grid performance pressure.
  */
@@ -58,9 +61,24 @@ export const useReferenceGridPerfWatchdog = ({
   const previewLastChangeAtMsRef = useRef(0);
   const promoteStreakRef = useRef(0);
   const recoverStreakRef = useRef(0);
+  const [documentVisible, setDocumentVisible] = useState(isDocumentVisible);
 
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled || typeof document === "undefined") return;
+    const updateDocumentVisible = () => {
+      setDocumentVisible(isDocumentVisible());
+    };
+    updateDocumentVisible();
+    document.addEventListener("visibilitychange", updateDocumentVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", updateDocumentVisible);
+    };
+  }, [enabled]);
+
+  const samplingEnabled = enabled && documentVisible;
+
+  useEffect(() => {
+    if (!samplingEnabled || typeof window === "undefined") return;
     let longTaskObserver: PerformanceObserver | null = null;
     if (typeof PerformanceObserver !== "undefined") {
       longTaskObserver = new PerformanceObserver((entryList) => {
@@ -173,15 +191,15 @@ export const useReferenceGridPerfWatchdog = ({
       window.clearInterval(evaluationIntervalId);
     };
   }, [
-    enabled,
     evaluationWindowMs,
     memoryGuardEnabled,
     previewMinChangeIntervalMs,
     previewRecoveryStableMs,
+    samplingEnabled,
   ]);
 
   return useMemo(() => {
-    if (!enabled) {
+    if (!samplingEnabled) {
       return {
         degradeLevel: 0,
         previewQualityPressureLevel: 0,
@@ -192,5 +210,5 @@ export const useReferenceGridPerfWatchdog = ({
       } satisfies ReferenceGridPerfWatchdogState;
     }
     return state;
-  }, [enabled, state]);
+  }, [samplingEnabled, state]);
 };

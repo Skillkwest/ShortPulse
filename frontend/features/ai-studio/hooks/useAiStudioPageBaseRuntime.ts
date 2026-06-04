@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { useAiStudioEditSubmitIntent } from "./useAiStudioEditSubmitIntent";
 import { useAiStudioInternalDropResolvers } from "./useAiStudioInternalDropResolvers";
@@ -33,26 +33,55 @@ const FLAG_OUTPUT_SELECTOR_STORE = PERF_FLAG_OUTPUT_SELECTOR_STORE;
 const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
+const MODEL_PRICING_POLICY_IDLE_TIMEOUT_MS = 1500;
+const MODEL_PRICING_POLICY_FALLBACK_DELAY_MS = 250;
+
+const useDeferredModelPricingPolicyLoad = () => {
+  const [shouldLoadModelPricingPolicy, setShouldLoadModelPricingPolicy] = useState(false);
+
+  useEffect(() => {
+    if (shouldLoadModelPricingPolicy) return;
+    if (typeof window === "undefined") return;
+
+    let cancelled = false;
+    const enableModelPricingPolicyLoad = () => {
+      if (!cancelled) {
+        setShouldLoadModelPricingPolicy(true);
+      }
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(enableModelPricingPolicyLoad, {
+        timeout: MODEL_PRICING_POLICY_IDLE_TIMEOUT_MS,
+      });
+
+      return () => {
+        cancelled = true;
+        if (typeof window.cancelIdleCallback === "function") {
+          window.cancelIdleCallback(idleId);
+        }
+      };
+    }
+
+    const timeoutId = window.setTimeout(
+      enableModelPricingPolicyLoad,
+      MODEL_PRICING_POLICY_FALLBACK_DELAY_MS
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [shouldLoadModelPricingPolicy]);
+
+  return shouldLoadModelPricingPolicy;
+};
 
 export const useAiStudioPageBaseRuntime = () => {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
+  const shouldLoadModelPricingPolicy = useDeferredModelPricingPolicyLoad();
 
-  const {
-    mediaAutosaveEnabled,
-    syncState: mediaAutosaveSyncState,
-    error: mediaAutosaveError,
-  } = useMediaAutosavePreference();
-  const { systemPresetDefinitions: expertEditSystemPresetDefinitions } =
-    useExpertEditSystemPresetCatalog();
-  const {
-    presetPanelIds: selectedExpertEditPresetIds,
-    customPresetOverrides: expertEditCustomPresetOverrides,
-    setPresetPanelIds: setSelectedExpertEditPresetIds,
-    setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
-  } = useExpertEditPresetPanelPreference({
-    systemPresetDefinitions: expertEditSystemPresetDefinitions,
-  });
   const { balanceCents, balanceReservedCents, balanceLoading, balanceError, refreshBalance } =
     useCredits();
   const {
@@ -61,7 +90,7 @@ export const useAiStudioPageBaseRuntime = () => {
     modelPricingPolicyLoading,
     modelPricingPolicyError,
   } = useActiveModelPricingPolicy({
-    enabled: true,
+    enabled: shouldLoadModelPricingPolicy,
   });
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
@@ -314,6 +343,29 @@ export const useAiStudioPageBaseRuntime = () => {
     setActivePulsePresetId: setActiveCreatePulsePresetId,
     setPulseSessionInstanceId,
   });
+  const {
+    mediaAutosaveEnabled,
+    syncState: mediaAutosaveSyncState,
+    error: mediaAutosaveError,
+  } = useMediaAutosavePreference({
+    enabled: outputs.length > 0,
+  });
+  const [shouldLoadExpertEditPresetRuntime, setShouldLoadExpertEditPresetRuntime] = useState(() =>
+    isEditWorkflow(selectedTool)
+  );
+  const { systemPresetDefinitions: expertEditSystemPresetDefinitions } =
+    useExpertEditSystemPresetCatalog({
+      enabled: shouldLoadExpertEditPresetRuntime,
+    });
+  const {
+    presetPanelIds: selectedExpertEditPresetIds,
+    customPresetOverrides: expertEditCustomPresetOverrides,
+    setPresetPanelIds: setSelectedExpertEditPresetIds,
+    setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
+  } = useExpertEditPresetPanelPreference({
+    enabled: shouldLoadExpertEditPresetRuntime,
+    systemPresetDefinitions: expertEditSystemPresetDefinitions,
+  });
   useEffect(() => {
     setExpertEditSessionState(null);
   }, [sessionId, setExpertEditSessionState]);
@@ -325,6 +377,9 @@ export const useAiStudioPageBaseRuntime = () => {
     (nextTool: ToolId | null) => {
       if (isEditWorkflow(selectedTool) && !isEditWorkflow(nextTool)) {
         resetEditSubmitIntent();
+      }
+      if (isEditWorkflow(nextTool)) {
+        setShouldLoadExpertEditPresetRuntime(true);
       }
       setSelectedTool(nextTool);
     },

@@ -104,7 +104,7 @@
   gap: 18px;
   padding: 18px 20px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
+  background: rgba(24, 27, 31, 0.96);
   z-index: 10;
   position: relative;
 }
@@ -248,7 +248,7 @@
   justify-content: center;
   gap: 6px;
   padding: 0 15px;
-  background: var(--ai-surface-control-muted, rgba(12, 15, 22, 0.82));
+  background: rgba(29, 33, 39, 0.92);
   border: 1px solid var(--ai-border-soft, rgba(201, 205, 214, 0.16));
   border-radius: 999px;
   color: var(--color-ash);
@@ -264,7 +264,7 @@
 }
 
 .art-action-btn:hover {
-  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
+  background: rgba(39, 44, 51, 0.96);
   border-color: var(--ai-border-medium, rgba(201, 205, 214, 0.18));
   transform: translateY(-1px);
 }
@@ -297,15 +297,15 @@
 }
 
 .art-close-btn:hover {
-  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
+  background: rgba(39, 44, 51, 0.96);
   color: var(--color-ash);
   border-color: var(--ai-border-medium, rgba(201, 205, 214, 0.18));
 }
 
 .reference-modal-new.is-uploaded .art-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(39, 44, 51, 0.96);
+  color: var(--color-ash);
+  border-color: rgba(201, 205, 214, 0.18);
 }
 
 .art-confirm-backdrop {
@@ -657,7 +657,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: var(--ai-surface-control-muted, rgba(12, 15, 22, 0.82));
+  background: rgba(29, 33, 39, 0.92);
   border: 1px solid var(--ai-border-soft, rgba(201, 205, 214, 0.16));
   border-radius: 14px;
 }
@@ -714,7 +714,7 @@
   flex: 1;
   width: 100%;
   height: 100%;
-  background: var(--ai-surface-control-muted, rgba(12, 15, 22, 0.82));
+  background: rgba(24, 27, 31, 0.96);
   border: 1px solid var(--ai-border-soft, rgba(201, 205, 214, 0.16));
   border-radius: 16px;
   color: var(--color-ash);
@@ -736,7 +736,7 @@
 .art-blade-textarea:focus {
   opacity: 1;
   border-color: var(--ai-border-medium, rgba(201, 205, 214, 0.18));
-  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
+  background: rgba(29, 33, 39, 0.98);
 }
 
 /* Custom Scrollbar styled matching the reference grid */
@@ -791,8 +791,8 @@
 }
 
 .art-prompt-textarea.large {
-  background: var(--ai-container-card-bg);
-  border: 1px solid var(--ai-container-card-border);
+  background: rgba(24, 27, 31, 0.96);
+  border: 1px solid rgba(201, 205, 214, 0.14);
   border-radius: 20px;
   padding: 32px;
   font-size: 18px;

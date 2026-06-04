@@ -230,6 +230,14 @@ function ReferenceGridComponent({
     collapseTopHeightPx: railCanvasHeaderHeightPx,
     ariaLabel: "Resize Canvas and right-rail sections",
   });
+  const { snapToInventoryExpanded: snapRailCanvasToInventoryExpanded } = railCanvasSplit;
+  const wasRailCanvasSectionVisibleRef = React.useRef(showRailCanvasSection);
+  React.useEffect(() => {
+    const wasVisible = wasRailCanvasSectionVisibleRef.current;
+    wasRailCanvasSectionVisibleRef.current = showRailCanvasSection;
+    if (!showRailCanvasSection || wasVisible) return;
+    snapRailCanvasToInventoryExpanded();
+  }, [showRailCanvasSection, snapRailCanvasToInventoryExpanded]);
   React.useEffect(() => {
     if (!showRailCanvasSection) return;
     const updateHeaderHeight = () => {

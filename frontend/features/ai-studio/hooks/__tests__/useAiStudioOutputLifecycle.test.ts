@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMemo, useRef, useState } from "react";
 import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
@@ -94,6 +94,10 @@ const useHarness = (
 describe("useAiStudioOutputLifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("normalizes failure output state without raising a duplicate UI error", () => {
@@ -219,6 +223,15 @@ describe("useAiStudioOutputLifecycle", () => {
 
     expect(result.current.outputs[0]?.taskState).toBe("fail");
     expect(result.current.outputs[0]?.errorDetail).toBe("Detailed reason");
+  });
+
+  it("does not schedule the stale-output sweep interval when there are no outputs", () => {
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+    renderHook(() => useHarness([], null));
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
   });
 
   it("fails fast when a generated placeholder never receives a task id", async () => {

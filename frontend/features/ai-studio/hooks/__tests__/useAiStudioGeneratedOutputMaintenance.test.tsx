@@ -2,9 +2,9 @@
  * Regression tests for AI Studio generated-output maintenance.
  * Verifies project-scoped generated outputs refresh after project bootstrap instead of blocking workspace restore.
  */
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
   listVisibleGeneratedOutputs,
@@ -25,6 +25,9 @@ vi.mock("../../logic/videoPosterRepair", () => ({
 const listVisibleGeneratedOutputsMock = vi.mocked(listVisibleGeneratedOutputs);
 const resolveVisibleGenerationReconcileMock = vi.mocked(resolveVisibleGenerationReconcile);
 const resolveVideoPosterRepairsForOutputsMock = vi.mocked(resolveVideoPosterRepairsForOutputs);
+
+const mockDocumentVisibility = (visibilityState: DocumentVisibilityState) =>
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(visibilityState);
 
 const hydratedOutput: StudioOutput = {
   id: "generated:generation-1",
@@ -87,6 +90,10 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     listVisibleGeneratedOutputsMock.mockResolvedValue([]);
     resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
     resolveVideoPosterRepairsForOutputsMock.mockResolvedValue(new Map());
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("hydrates project-scoped generated outputs after workspace bootstrap is no longer pending", async () => {
@@ -199,6 +206,178 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
           },
         ],
       });
+    });
+  });
+
+  it("pauses steady-state generated-output sync while the document is hidden", async () => {
+    const visibilitySpy = mockDocumentVisibility("hidden");
+
+    renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "hidden-runtime-1",
+          generationId: undefined,
+          taskId: "task-hidden-1",
+          taskState: "running",
+          companionArtStatus: null,
+          previewUrl: undefined,
+          resultUrls: [],
+        },
+      ],
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
+
+    visibilitySpy.mockReturnValue("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+        projectId: null,
+        limit: 1,
+        runtimeIdentities: [
+          {
+            generationId: null,
+            requestId: "task-hidden-1",
+            sourceRef: null,
+          },
+        ],
+      });
+    });
+  });
+
+  it("pauses audio companion-art reconciliation while the document is hidden", async () => {
+    const visibilitySpy = mockDocumentVisibility("hidden");
+
+    renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "audio-hidden-1",
+          mode: "audio",
+          generationId: "audio-generation-1",
+          taskId: "audio-task-1",
+          taskState: "success",
+          companionArtStatus: "pending",
+          companionArtUrl: null,
+          companionArtStoragePath: null,
+        },
+      ],
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(resolveVisibleGenerationReconcileMock).not.toHaveBeenCalled();
+
+    visibilitySpy.mockReturnValue("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+        generationId: "audio-generation-1",
+        requestId: "audio-task-1",
+        projectId: null,
+      });
+    });
+  });
+
+  it("pauses generated-video poster repair while the document is hidden", async () => {
+    const visibilitySpy = mockDocumentVisibility("hidden");
+
+    renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "generated-video-hidden-1",
+          mode: "video",
+          generationId: "video-generation-1",
+          taskId: "video-task-1",
+          taskState: "success",
+          previewPosterUrl: null,
+          previewPosterStoragePath: null,
+          previewUrl: "https://cdn.example.com/video.mp4",
+          resultUrls: ["https://cdn.example.com/video.mp4"],
+        },
+      ],
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(resolveVisibleGenerationReconcileMock).not.toHaveBeenCalled();
+
+    visibilitySpy.mockReturnValue("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+        generationId: "video-generation-1",
+        requestId: "video-task-1",
+        projectId: null,
+      });
+    });
+  });
+
+  it("pauses storage-backed video poster repair while the document is hidden", async () => {
+    const visibilitySpy = mockDocumentVisibility("hidden");
+
+    renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "storage-video-hidden-1",
+          mode: "video",
+          mediaSource: "library",
+          generationId: undefined,
+          taskId: undefined,
+          taskState: "success",
+          savedMediaIds: ["media-video-hidden-1"],
+          previewPosterUrl: null,
+          previewPosterStoragePath: null,
+          previewUrl: "https://cdn.example.com/storage-video.mp4",
+          previewStoragePath: "user-1/videos/storage-video-hidden-1.mp4",
+          fullStoragePath: "user-1/videos/storage-video-hidden-1.mp4",
+          resultUrls: ["https://cdn.example.com/storage-video.mp4"],
+        },
+      ],
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(resolveVideoPosterRepairsForOutputsMock).not.toHaveBeenCalled();
+
+    visibilitySpy.mockReturnValue("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(resolveVideoPosterRepairsForOutputsMock).toHaveBeenCalledWith([
+        expect.objectContaining({
+          id: "storage-video-hidden-1",
+          savedMediaIds: ["media-video-hidden-1"],
+        }),
+      ]);
     });
   });
 });

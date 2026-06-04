@@ -232,6 +232,32 @@ const maybeLogProjectWorkspaceSaveFailure = ({
   });
 };
 
+const maybeLogMalformedProjectWorkspaceSaveSuccess = ({
+  projectId,
+  responseDetails,
+}: {
+  projectId: string;
+  responseDetails: ProjectWorkspaceApiResponseDetails;
+}) => {
+  const payload = responseDetails.payload;
+  addBreadcrumb({
+    type: "network",
+    level: "error",
+    message: "ai_studio_project_workspace_save_malformed_success",
+    data: {
+      project_id: projectId,
+      status: 200,
+      content_type: responseDetails.contentType,
+      payload_parse_mode: responseDetails.parseMode,
+      payload_keys: payload ? Object.keys(payload).sort() : [],
+      has_workspace_key: payload
+        ? Object.prototype.hasOwnProperty.call(payload, "workspace")
+        : false,
+      workspace_type: payload?.workspace === null ? "null" : typeof payload?.workspace,
+    },
+  });
+};
+
 const toProjectWorkspaceBootstrapProjectRecord = (
   project: AiStudioProjectWorkspaceApiProjectRecord | null | undefined
 ): AiStudioProjectWorkspaceApiProjectRecord | null =>
@@ -372,6 +398,12 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
   const payload = responseDetails.payload;
 
   if (!response.ok || !payload?.workspace) {
+    if (response.ok) {
+      maybeLogMalformedProjectWorkspaceSaveSuccess({
+        projectId,
+        responseDetails,
+      });
+    }
     maybeLogProjectWorkspaceSaveFailure({
       projectId,
       status: response.status,
@@ -382,7 +414,9 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
       status: response.status,
       payload,
     });
-    const message = resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
+    const message = response.ok
+      ? "Malformed project workspace save response: missing workspace"
+      : resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
     throw new Error(`Failed to save project workspace snapshot: ${message}`);
   }
 

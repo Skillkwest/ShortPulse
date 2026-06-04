@@ -370,6 +370,67 @@ describe("projectWorkspaceApiClient", () => {
     });
   });
 
+  it("records a malformed-success breadcrumb when project workspace save returns 200 without workspace", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          saveOutcome: {
+            status: "saved",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).rejects.toThrow(
+      "Failed to save project workspace snapshot: Malformed project workspace save response: missing workspace"
+    );
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_save_malformed_success",
+      data: {
+        project_id: "project-1",
+        status: 200,
+        content_type: "application/json",
+        payload_parse_mode: "json_object",
+        payload_keys: ["ok", "saveOutcome"],
+        has_workspace_key: false,
+        workspace_type: "undefined",
+      },
+    });
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "warn",
+      message: "ai_studio_project_workspace_save_failed",
+      data: {
+        project_id: "project-1",
+        status: 200,
+        failure_stage: null,
+        error: "",
+        content_type: "application/json",
+        payload_parse_mode: "json_object",
+        raw_error_excerpt: null,
+      },
+    });
+  });
+
   it("includes status and content type when project workspace load fails with a non-json response", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response("<!doctype html><title>Not found</title>", {

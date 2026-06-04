@@ -31,6 +31,11 @@ const collectOutputStoragePaths = (
     return paths;
   }
 
+  if (paths.length === 0) {
+    pushPath(output.fullStoragePath);
+    output.resultUrls?.forEach(pushPath);
+  }
+
   return paths;
 };
 

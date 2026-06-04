@@ -56,6 +56,56 @@ describe("useMediaLibraryPanelSelectionController", () => {
     });
   });
 
+  it("does not mount poster image URLs as video modal sources", async () => {
+    resolveSignedSelectionUrlMock.mockReset();
+    const videoFile = {
+      id: "video-1",
+      filename: "clip.mp4",
+      file_type: "video/mp4",
+      storage_path: "user-1/media/clip.mp4",
+      preview_storage_path: "user-1/media/clip-preview.mp4",
+      poster_variant_path: "user-1/media/clip-poster.jpg",
+      signedUrl: "https://signed.example.com/clip-poster.jpg",
+      metadata: null,
+      source: "upload",
+    };
+    resolveSignedSelectionUrlMock.mockResolvedValueOnce(
+      "https://signed.example.com/clip-poster.jpg"
+    );
+    const signStoragePath = vi.fn(async (storagePath: string) =>
+      storagePath === "user-1/media/clip.mp4" ? "https://signed.example.com/clip.mp4" : null
+    );
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [videoFile],
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => null),
+        signStoragePath,
+      })
+    );
+
+    act(() => {
+      result.current.handleMediaCardDoubleClick(videoFile);
+    });
+
+    expect(result.current.detailModalItem?.url).toBe("");
+    expect(result.current.detailModalItem?.media.url).toBe("");
+    expect(result.current.detailModalLoading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/clip.mp4");
+      expect(result.current.detailModalItem?.media.url).toBe("https://signed.example.com/clip.mp4");
+      expect(result.current.detailModalItem?.media.previewPosterUrl).toBe(
+        "https://signed.example.com/clip-poster.jpg"
+      );
+      expect(result.current.detailModalLoading).toBe(false);
+    });
+  });
+
   it("records an error when preview modal resolution fails", async () => {
     resolveSignedSelectionUrlMock.mockReset();
     resolveSignedSelectionUrlMock.mockRejectedValueOnce(new Error("boom"));

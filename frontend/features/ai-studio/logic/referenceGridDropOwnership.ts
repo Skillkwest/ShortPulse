@@ -57,12 +57,26 @@ const containsPoint = (element: Element, clientX: number, clientY: number): bool
   );
 };
 
+const isDropSurfaceAvailable = (surface: RightRailDropSurface, element: Element): boolean => {
+  if (surface !== "canvas") return true;
+  if (!(element instanceof HTMLElement)) return true;
+  return (
+    !element.classList.contains("is-divider-near-collapsed") &&
+    !element.classList.contains("is-inventory-expanded")
+  );
+};
+
 const resolveSurfaceFromTarget = (target: EventTarget | null): RightRailDropSurface | null => {
   const targetElement = getEventTargetElement(target);
   if (!targetElement) return null;
-  if (targetElement.closest(RIGHT_RAIL_DROP_SURFACE_SELECTORS.canvas)) return "canvas";
-  if (targetElement.closest(RIGHT_RAIL_DROP_SURFACE_SELECTORS["quick-slot"])) return "quick-slot";
-  if (targetElement.closest(RIGHT_RAIL_DROP_SURFACE_SELECTORS["all-refs"])) return "all-refs";
+  const canvasSurface = targetElement.closest(RIGHT_RAIL_DROP_SURFACE_SELECTORS.canvas);
+  if (canvasSurface && isDropSurfaceAvailable("canvas", canvasSurface)) return "canvas";
+  const quickSlotSurface = targetElement.closest(RIGHT_RAIL_DROP_SURFACE_SELECTORS["quick-slot"]);
+  if (quickSlotSurface && isDropSurfaceAvailable("quick-slot", quickSlotSurface)) {
+    return "quick-slot";
+  }
+  const allRefsSurface = targetElement.closest(RIGHT_RAIL_DROP_SURFACE_SELECTORS["all-refs"]);
+  if (allRefsSurface && isDropSurfaceAvailable("all-refs", allRefsSurface)) return "all-refs";
   return null;
 };
 
@@ -83,7 +97,11 @@ export const resolveRightRailDropSurface = (
       );
       return {
         surface,
-        ownsPoint: elements.some((element) => containsPoint(element, event.clientX, event.clientY)),
+        ownsPoint: elements.some(
+          (element) =>
+            isDropSurfaceAvailable(surface, element) &&
+            containsPoint(element, event.clientX, event.clientY)
+        ),
       };
     }
   );

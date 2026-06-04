@@ -46,6 +46,12 @@ const PROJECT_SNAPSHOT_GENERATED_OUTPUT_APPEND_LIMIT = 100;
 
 type SnapshotRecord = Record<string, unknown>;
 
+type HydrateProjectSnapshotGeneratedOutputsOptions = {
+  appendMissingProjectOutputs?: boolean;
+  patchDurableSnapshotRows?: boolean;
+  reorderActiveOutputs?: boolean;
+};
+
 type ProjectGenerationProjectionRow = {
   generation_id?: unknown;
   project_id?: unknown;
@@ -1308,11 +1314,16 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
   userId,
   projectId,
   snapshot,
+  options,
 }: {
   userId: string;
   projectId: string;
   snapshot: SnapshotRecord;
+  options?: HydrateProjectSnapshotGeneratedOutputsOptions;
 }): Promise<SnapshotRecord> => {
+  const appendMissingProjectOutputs = options?.appendMissingProjectOutputs !== false;
+  const patchDurableSnapshotRows = options?.patchDurableSnapshotRows !== false;
+  const reorderActiveOutputs = options?.reorderActiveOutputs !== false;
   const outputsRecord = asRecord(snapshot.outputs);
   const snapshotGenerationIds = collectSnapshotGenerationIds(snapshot);
   const [associatedSnapshotGenerationIds, recentAssociatedGenerationIds] = await Promise.all([
@@ -1378,6 +1389,12 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         if (!projection) {
           return normalizedRow;
         }
+        if (
+          !patchDurableSnapshotRows &&
+          hasSnapshotRowDurableDisplayAuthority({ userId, row: normalizedRow })
+        ) {
+          return normalizedRow;
+        }
         const projectionGenerationId = asTrimmedString(projection.generation_id);
         const mediaDeliveryGenerationId = generationId ?? projectionGenerationId;
         const mediaDelivery = mediaDeliveryGenerationId
@@ -1408,19 +1425,21 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
       .map((row) => asTrimmedString(asRecord(row).generationId))
       .filter((generationId): generationId is string => Boolean(generationId))
   );
-  const appendedActiveRows = recentAssociatedGenerationIds
-    .filter((generationId) => !existingGenerationIds.has(generationId))
-    .map((generationId) => {
-      const projection = projectionByGenerationId.get(generationId);
-      return projection
-        ? createSnapshotOutputRowFromProjection({
-            userId,
-            projection,
-            mediaDelivery: mediaDeliveryByGenerationId.get(generationId) ?? null,
-          })
-        : null;
-    })
-    .filter((row): row is SnapshotRecord => Boolean(row));
+  const appendedActiveRows = appendMissingProjectOutputs
+    ? recentAssociatedGenerationIds
+        .filter((generationId) => !existingGenerationIds.has(generationId))
+        .map((generationId) => {
+          const projection = projectionByGenerationId.get(generationId);
+          return projection
+            ? createSnapshotOutputRowFromProjection({
+                userId,
+                projection,
+                mediaDelivery: mediaDeliveryByGenerationId.get(generationId) ?? null,
+              })
+            : null;
+        })
+        .filter((row): row is SnapshotRecord => Boolean(row))
+    : [];
 
   if (appendedActiveRows.length > 0) {
     changed = true;
@@ -1429,9 +1448,11 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
     ...(Array.isArray(activeRows) ? activeRows : []),
     ...appendedActiveRows,
   ];
-  const orderedActiveRows = orderActiveSnapshotRowsByProjectGenerationRecency({
-    rows: unorderedActiveRows,
-  });
+  const orderedActiveRows = reorderActiveOutputs
+    ? orderActiveSnapshotRowsByProjectGenerationRecency({
+        rows: unorderedActiveRows,
+      })
+    : unorderedActiveRows;
   if (!areSnapshotRowsSameOrder(unorderedActiveRows, orderedActiveRows)) {
     changed = true;
   }

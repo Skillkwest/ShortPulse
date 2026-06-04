@@ -57,14 +57,16 @@ export const useMediaLibraryPanelItemInteractions = ({
       preview?: MediaLibraryMediaDragPreview
     ) => {
       const signedUrl = (file.signedUrl ?? "").trim();
-      if (!signedUrl) {
+      const durableUrl = (file.storage_path ?? file.preview_storage_path ?? "").trim();
+      const transferUrl = signedUrl || durableUrl;
+      if (!transferUrl) {
         event.preventDefault();
         return;
       }
       const isVideo = isVideoFile(file.file_type);
       const hoverVideoUrl = preview?.hoverVideoUrl?.trim() || signedUrl;
       const posterPreviewUrl = isVideo ? preview?.posterPreviewUrl?.trim() || null : null;
-      const transferUrl = isVideo ? hoverVideoUrl : signedUrl;
+      const resolvedTransferUrl = isVideo ? hoverVideoUrl || transferUrl : transferUrl;
       const previewUrl = posterPreviewUrl ?? signedUrl;
       const previewStoragePath = isVideo
         ? (file.preview_storage_path ?? file.storage_path)
@@ -82,7 +84,7 @@ export const useMediaLibraryPanelItemInteractions = ({
         source: "mediaLibrary",
         payload: {
           id: file.id,
-          url: transferUrl,
+          url: resolvedTransferUrl,
           fileType: resolveLibraryMediaReferenceFileType(file.file_type),
           createdAt: file.created_at ?? null,
           originFolderId: activeFolderId,
@@ -95,7 +97,7 @@ export const useMediaLibraryPanelItemInteractions = ({
           previewUrl,
           previewPosterUrl: posterPreviewUrl,
           previewPosterStoragePath: isVideo ? (file.poster_variant_path ?? null) : null,
-          fullUrl: transferUrl,
+          fullUrl: signedUrl || null,
           companionArtUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : null,
           companionArtStoragePath: isAudioFile(file.file_type)
             ? (file.companion_art_storage_path ?? null)
@@ -112,13 +114,13 @@ export const useMediaLibraryPanelItemInteractions = ({
         },
       });
       event.dataTransfer.effectAllowed = "copy";
-      setTransferDataSafe(event.dataTransfer, "text/reference-url", transferUrl);
-      setTransferDataSafe(event.dataTransfer, "text/uri-list", transferUrl);
+      setTransferDataSafe(event.dataTransfer, "text/reference-url", resolvedTransferUrl);
+      setTransferDataSafe(event.dataTransfer, "text/uri-list", resolvedTransferUrl);
       if (promptText.trim()) {
         setTransferDataSafe(event.dataTransfer, "text/prompt", promptText);
         setTransferDataSafe(event.dataTransfer, "text/plain", promptText);
       } else {
-        setTransferDataSafe(event.dataTransfer, "text/plain", transferUrl);
+        setTransferDataSafe(event.dataTransfer, "text/plain", resolvedTransferUrl);
       }
       event.currentTarget.classList.add("is-dragging");
       attachMediaLibraryDragGhost(event, {

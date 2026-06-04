@@ -39,6 +39,7 @@ const createProps = (): React.ComponentProps<typeof ReferenceGridSections> => ({
   showStylesSection: false,
   showHeader: true,
   archiveCount: 0,
+  visibleItemCount: 0,
   topNotice: null,
   isArchivePanelOpen: false,
   archivedOutputs: [],
@@ -125,6 +126,23 @@ describe("ReferenceGridSections", () => {
       height: "180px",
       flexBasis: "180px",
     });
+  });
+
+  it("removes canvas drop ownership when the canvas body is collapsed", () => {
+    const { container } = render(
+      <ReferenceGridSections
+        {...createProps()}
+        showQuickSlotSection
+        railCanvasSplit={createSplitViewModel({
+          topSectionHeightPx: 30,
+          topSectionStyle: { height: "30px", flexBasis: "30px" },
+        })}
+      />
+    );
+
+    const canvasSection = container.querySelector(".reference-rail-canvas-section");
+    expect(canvasSection).toHaveClass("is-divider-near-collapsed");
+    expect(canvasSection).not.toHaveAttribute("data-right-rail-drop-surface");
   });
 
   it("labels the canvas divider with the first visible downstream section", () => {

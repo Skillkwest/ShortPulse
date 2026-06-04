@@ -39,13 +39,12 @@ export const resolvePanelSignBudget = () =>
   });
 
 /**
- * Downshifts the eager sign budget for the mixed `All Media` root tab without weakening
- * the dedicated image/video tabs that already measure well.
+ * Keeps the mixed `All Media` root tab modest so first open does not over-spend signing work.
  */
 export const resolvePanelMixedAllMediaSignBudget = (budget: MediaSignBudget): MediaSignBudget => ({
-  initialSignLimit: Math.max(1, Math.min(budget.initialSignLimit, 2)),
-  prefetchWindow: Math.max(1, Math.min(budget.prefetchWindow, 3)),
-  signBatchSize: Math.max(1, Math.min(budget.signBatchSize, 2)),
+  initialSignLimit: Math.max(2, Math.min(budget.initialSignLimit, 2)),
+  prefetchWindow: Math.max(3, Math.min(budget.prefetchWindow, 3)),
+  signBatchSize: Math.max(2, Math.min(budget.signBatchSize, 2)),
 });
 
 export const MEDIA_LIBRARY_SURFACE_CONFIG: Record<
@@ -70,7 +69,7 @@ export const MEDIA_LIBRARY_SURFACE_CONFIG: Record<
     listProfile: "expanded",
     adaptiveSurface: "media-library-panel-grid",
     imageCardPreviewProfile: "media-library-panel-image-card",
-    pageSize: 36,
+    pageSize: 18,
     cacheTtlMs: null,
     loadMoreRootMargin: "600px 0px",
     visibilityRootMargin: "460px 0px",

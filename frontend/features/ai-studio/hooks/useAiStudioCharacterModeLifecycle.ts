@@ -35,6 +35,9 @@ export type CharacterSelectOption = {
 
 const CHARACTER_OPTIONS_REFRESH_INTERVAL_MS = 20 * 60 * 1000;
 
+const isDocumentVisible = (): boolean =>
+  typeof document === "undefined" || document.visibilityState === "visible";
+
 const isCharacterSelectionTool = (selectedTool: ToolId | null): boolean =>
   selectedTool === "create" ||
   selectedTool === "text" ||
@@ -280,6 +283,7 @@ export const useAiStudioCharacterModeLifecycle = ({
       return () => {};
     }
     const refreshCharacterOptionsSilently = () => {
+      if (!isDocumentVisible()) return;
       void refreshCharacterOptions().catch(() => {
         // Silent refresh is best-effort to keep signed avatar URLs fresh in long-running sessions.
       });
@@ -288,7 +292,7 @@ export const useAiStudioCharacterModeLifecycle = ({
       refreshCharacterOptionsSilently();
     };
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+      if (isDocumentVisible()) {
         refreshCharacterOptionsSilently();
       }
     };

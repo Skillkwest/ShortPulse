@@ -20,6 +20,7 @@ import {
   type MediaLibraryDetailModalSurface,
   type MediaLibraryDetailSelectionPayload,
 } from "../logic/mediaLibraryDetailModal";
+import { isVideoUrl } from "../logic/stateParsers";
 
 export type MediaLibrarySelectionPayload = MediaLibraryDetailSelectionPayload;
 
@@ -171,8 +172,13 @@ export const useMediaLibraryPanelSelectionController = ({
     (file: MediaFileRow) => {
       const nextToken = previewResolveTokenRef.current + 1;
       previewResolveTokenRef.current = nextToken;
-      const immediatePreviewUrl = (file.signedUrl ?? "").trim() || null;
       const isVideo = isVideoFile(file.file_type);
+      const immediateSignedUrl = (file.signedUrl ?? "").trim() || null;
+      const immediatePreviewUrl = isVideo
+        ? immediateSignedUrl && isVideoUrl(immediateSignedUrl)
+          ? immediateSignedUrl
+          : null
+        : immediateSignedUrl;
       const previewStoragePath = file.preview_storage_path ?? file.storage_path;
       const previewPosterStoragePath = isVideo
         ? (file.poster_variant_path ?? file.thumb_variant_path ?? null)
@@ -219,15 +225,33 @@ export const useMediaLibraryPanelSelectionController = ({
             ).catch(() => null),
           ]);
           if (previewResolveTokenRef.current !== nextToken) return;
-          const resolvedUrl = resolvedFullUrl ?? resolvedPreviewUrl ?? null;
+          const resolvedUrl =
+            resolvedFullUrl ??
+            (!isVideo || (resolvedPreviewUrl && isVideoUrl(resolvedPreviewUrl))
+              ? resolvedPreviewUrl
+              : null);
           if (resolvedUrl) {
             setDetailModalItem((current) => {
               if (!current || current.file.id !== file.id) return current;
+              const nextPreviewUrl = resolvedPreviewUrl ?? current.previewUrl ?? null;
+              const nextPosterUrl =
+                isVideo && resolvedPreviewUrl && !isVideoUrl(resolvedPreviewUrl)
+                  ? resolvedPreviewUrl
+                  : (current.previewPosterUrl ?? null);
+              const nextFullUrl = resolvedFullUrl ?? current.fullUrl ?? null;
               return {
                 ...current,
                 url: resolvedUrl,
-                previewUrl: resolvedPreviewUrl ?? current.previewUrl ?? null,
-                fullUrl: resolvedFullUrl ?? current.fullUrl ?? null,
+                previewUrl: nextPreviewUrl,
+                previewPosterUrl: nextPosterUrl,
+                fullUrl: nextFullUrl,
+                media: {
+                  ...current.media,
+                  url: resolvedUrl,
+                  previewUrl: nextPreviewUrl,
+                  previewPosterUrl: nextPosterUrl,
+                  fullUrl: nextFullUrl,
+                },
               };
             });
             return;

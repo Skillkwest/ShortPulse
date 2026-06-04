@@ -441,13 +441,10 @@ describe("Canvas drop behavior", () => {
     });
 
     const item = await screen.findByTestId(/canvas-item-/);
-    const videoPreview = item.querySelector("video");
-    expect(videoPreview).toBeTruthy();
-    if (!videoPreview) {
-      throw new Error("Expected posterless canvas video preview");
-    }
-    expect(videoPreview).toHaveAttribute("src", "https://example.com/external-video.mp4");
-    expect(item.querySelector(".canvas-scene-item__video-placeholder")).toBeNull();
+    expect(item.querySelector("video")).toBeNull();
+    const placeholder = item.querySelector(".canvas-scene-item__video-placeholder");
+    expect(placeholder).toBeTruthy();
+    expect(placeholder).toHaveTextContent("Posterless video");
   });
 
   it("prioritizes internal reference payloads over file fallback when both are present", async () => {

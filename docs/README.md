@@ -249,6 +249,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/api/api-fal-veo3-first-last-frame.md`
 - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
 - `docs/api/api-kie-kling-3-0.md`
+- `docs/api/api-kie-gpt-image-2-text-to-image.md`
+- `docs/api/api-kie-gpt-image-2-image-to-image.md`
 - `docs/api/api-kie-seedance-2.md`
 - `docs/api/api-kie-seedance-2-fast.md`
 - `docs/api/api-fal-flux-dev.md`
@@ -348,6 +350,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - Current active program examples:
   - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
   - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+  - `docs/planning/kie-gpt-image-2-image-to-image-implementation-plan-2026-06-04.md`
+  - `docs/planning/large-project-persistence-autosave-and-create-recovery-plan-2026-06-04.md`
   - `docs/planning/ai-studio-agent-modularization-program.md`
   - `docs/planning/ai-studio-agent-modularization-tracker.md`
   - `docs/planning/ai-studio-reference-grid-modularization-program.md`

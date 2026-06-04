@@ -18,5 +18,6 @@ Purpose: store reusable prompts that improve Gottspan's repo-steward, audit, and
 - `create-generic-goal-prompt.md`: compact meta-prompt for creating a bounded goal prompt with checkpoint audits, no UI/UX/behavior changes, no drift, and a clear stop condition.
 - `new-perspective-audit-prompt.md`: bounded experimental audit prompt for checking non-obvious repo surfaces without violating current instructions, scope, or safety rules.
 - `product-understanding-audit-prompt.md`: deep product-understanding audit prompt covering technical, product, human, and business understanding.
+- `pursue-goal-to-complete-plan-buildout-prompt.md`: autonomous plan-buildout prompt with validated batches, plan-completeness checks, no drift, and firm stop conditions.
 - `scaled-plan-first-workflow-prompt.md`: general-purpose task prompt that scales planning effort to task size while preserving stop condition, scope, source-of-truth, and no-drift controls.
 - `setup-build-automation-prompt.md`: checkpointed execution-loop prompt for build, cleanup, and repo-management tasks that need explicit stop conditions, scope locks, checkpoint audits, and continuation rules.

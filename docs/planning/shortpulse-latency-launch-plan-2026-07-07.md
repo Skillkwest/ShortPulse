@@ -233,6 +233,10 @@ Purpose: convert the latency goal into an execution-ready plan that can be imple
 
 This section is the planning stop line. Once the lane cards below are understood, ranked, and accepted, planning should stop and implementation should begin from the first recommended packet rather than continuing to brainstorm.
 
+Focused subordinate lane plans:
+
+- Verified AI Studio divider-drag lag with dense `Reference Grid` projects is governed by [docs/planning/ai-studio-divider-drag-latency-execution-plan-2026-06-04.md](./ai-studio-divider-drag-latency-execution-plan-2026-06-04.md). Use that plan for this seam instead of broadening into generic right-rail or CSS work.
+
 ### Planning Lane Done Criteria
 
 Planning is complete only when all of the following are true:

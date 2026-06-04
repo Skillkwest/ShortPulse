@@ -28,6 +28,8 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-veo3-first-last-frame.md`
 - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
 - `docs/api/api-kie-kling-3-0.md`
+- `docs/api/api-kie-gpt-image-2-text-to-image.md`
+- `docs/api/api-kie-gpt-image-2-image-to-image.md`
 - `docs/api/api-kie-seedance-2.md`
 - `docs/api/api-kie-seedance-2-fast.md`
 - `docs/api/api-fal-flux-2-klein-9b.md`

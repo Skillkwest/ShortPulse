@@ -7,6 +7,7 @@ import {
 } from "../../lib/server/api/falStatusPersistedResults";
 
 const getSupabaseAdminMock = vi.fn();
+const resolveGenerationLineageByProviderRequestMock = vi.fn();
 const readMediaDeliveryPathsByIdMock = vi.fn();
 const createSignedMediaUrlMock = vi.fn();
 let persistedProjectionRows: Array<Record<string, unknown>> = [];
@@ -20,6 +21,11 @@ let outputEqCalls: Array<[string, unknown]> = [];
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: () => getSupabaseAdminMock(),
+}));
+
+vi.mock("../../lib/server/api/generationLineageResolver", () => ({
+  resolveGenerationLineageByProviderRequest: (...args: unknown[]) =>
+    resolveGenerationLineageByProviderRequestMock(...args),
 }));
 
 vi.mock("../../lib/server/api/mediaDeliveryPaths", () => ({
@@ -39,6 +45,16 @@ describe("falStatusPersistedResults", () => {
     persistedOutputRows = [];
     persistedDeliveryPathsByMediaId = new Map();
     outputEqCalls = [];
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: null,
+      generationAttemptId: null,
+      userId: null,
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "",
+      evidence: [],
+      attemptLookupError: null,
+    });
     readMediaDeliveryPathsByIdMock.mockImplementation(
       async ({ mediaFileIds }: { mediaFileIds: string[] }) =>
         new Map(
@@ -533,6 +549,56 @@ describe("falStatusPersistedResults", () => {
       saveState: "idle",
       saveError: null,
     });
+  });
+
+  it("uses shared lineage to find canonical outputs when request_id fallback cannot", async () => {
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValueOnce({
+      generationId: "gen-lineage-output-1",
+      generationAttemptId: "attempt-lineage-output-1",
+      userId: "user-1",
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "provider-req-lineage-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
+    });
+    persistedOutputRows = [
+      {
+        output_index: 0,
+        result_url: "https://cdn.shortpulse.test/lineage-output.mp4",
+        media_file_id: "media-lineage-output-1",
+      },
+    ];
+    persistedDeliveryPathsByMediaId.set("media-lineage-output-1", {
+      previewStoragePath: "user-1/generations/videos/lineage-output.mp4",
+      fullStoragePath: "user-1/generations/videos/lineage-output.mp4",
+    });
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "provider-req-lineage-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-lineage-output-1",
+      resultUrls: [
+        "https://signed.shortpulse.test/user-1%2Fgenerations%2Fvideos%2Flineage-output.mp4",
+      ],
+      status: "success",
+      taskState: "success",
+      deliveryState: "canonical_owned",
+      recoveryPending: false,
+      completionState: null,
+      queueState: "dispatched",
+      saveState: "saved",
+      saveError: null,
+    });
+    expect(resolveGenerationLineageByProviderRequestMock).toHaveBeenCalledWith({
+      providerRequestId: "provider-req-lineage-1",
+      userId: "user-1",
+      includeProjection: true,
+    });
+    expect(outputEqCalls).toContainEqual(["generation_id", "gen-lineage-output-1"]);
   });
 
   it("drops foreign published projection urls when no owned output authority exists", async () => {

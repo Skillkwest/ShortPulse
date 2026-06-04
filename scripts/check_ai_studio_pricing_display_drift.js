@@ -48,6 +48,14 @@ const fileChecks = [
   {
     file: "frontend/features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit.ts",
     label: "Standard Create primary submit",
+    requireIncludes: [
+      "resolveStandardCreatePrimaryActionDecision",
+      "return handleGenerate(decision.prompt, decision.options);",
+    ],
+  },
+  {
+    file: "frontend/features/ai-studio/createRuntime/standardPanel/standardCreatePrimaryActionPolicy.ts",
+    label: "Standard Create primary action policy",
     requireIncludes: ["costOverrideCredits: createGenerateCostCredits"],
   },
   {

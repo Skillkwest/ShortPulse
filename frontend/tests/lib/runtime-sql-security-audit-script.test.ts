@@ -59,10 +59,9 @@ describe("check_runtime_sql_security_audit.sql", () => {
     expect(sql).toContain("schema_checks(signature, check_name, check_pass, detail) as (");
     expect(sql).toContain("table_checks(signature, check_name, check_pass, detail) as (");
     expect(sql).toContain("sequence_checks(signature, check_name, check_pass, detail) as (");
-    expect(sql).toContain("into temp table runtime_sql_security_audit_checks");
+    expect(sql).toContain("from all_checks\norder by signature, check_name;");
     expect(sql).toContain("count(*)::integer as total_checks");
     expect(sql).toContain("count(*) filter (where check_pass)::integer as passing_checks");
     expect(sql).toContain("count(*) filter (where not check_pass)::integer as failing_checks");
-    expect(sql).toContain("drop table runtime_sql_security_audit_checks;");
   });
 });

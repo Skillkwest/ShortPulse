@@ -5,6 +5,7 @@
 
 import type { SubmitPayload } from "../falIntegration/contracts";
 import { getModelCatalogEntry } from "../../model-runtime/modelCatalog";
+import { normalizeDurationForModelConfig } from "../../model-runtime/modelDurationConstraints";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -252,12 +253,19 @@ const normalizeOptionalDuration = ({
   const resolved =
     asPositiveInteger(payload.duration_seconds) ?? asPositiveInteger(payload.duration);
   if (resolved === null) return null;
-  if (!allowedValues.includes(resolved)) {
+  const normalized = normalizeDurationForModelConfig(resolved, {
+    allowedDurations: [...allowedValues],
+    defaultDurationSeconds: undefined,
+    maxDurationSeconds: undefined,
+    mediaType: "video",
+    minDurationSeconds: undefined,
+  });
+  if (typeof normalized !== "number" || !allowedValues.includes(normalized)) {
     throw new Error(
       `${modelLabel} submit uses unsupported duration: ${resolved}. Allowed: ${allowedValues.join(", ")}`
     );
   }
-  return resolved;
+  return normalized;
 };
 
 const normalizeOptionalResolution = ({

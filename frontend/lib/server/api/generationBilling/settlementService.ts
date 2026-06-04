@@ -1,9 +1,4 @@
-import { lookupGenerationAttemptByProviderRequest } from "../generationAttempts";
-import {
-  readGenerationProjectionLinkByGenerationId,
-  readGenerationProjectionLinkByProviderRequestId,
-  readGenerationProjectionLinkByRequestId,
-} from "../generationProjection";
+import { resolveGenerationLineageByProviderRequest } from "../generationLineageResolver";
 import {
   isMissingGenerationAttemptSchemaError,
   isRecoverableReservationFailure,
@@ -29,15 +24,16 @@ const lookupGenerationSourceRefByProviderRequest = async ({
   userId: string;
   providerRequestId: string;
 }): Promise<{ generationId: string | null; sourceRef: string | null }> => {
-  const attemptLookup = await lookupGenerationAttemptByProviderRequest({
+  const lineage = await resolveGenerationLineageByProviderRequest({
     userId,
     providerRequestId,
+    includeProjection: true,
   });
-  if (attemptLookup.error) {
+  if (lineage.attemptLookupError) {
     if (
       !isMissingGenerationAttemptSchemaError(
-        attemptLookup.error.code ?? null,
-        attemptLookup.error.message ?? undefined
+        lineage.attemptLookupError.code ?? null,
+        lineage.attemptLookupError.message ?? undefined
       )
     ) {
       console.error(
@@ -45,61 +41,15 @@ const lookupGenerationSourceRefByProviderRequest = async ({
         {
           providerRequestId,
           userId,
-          message: attemptLookup.error.message ?? null,
+          message: lineage.attemptLookupError.message ?? null,
         }
       );
     }
-  } else if (attemptLookup.data?.generationId) {
-    try {
-      const projectionLink = await readGenerationProjectionLinkByGenerationId({
-        userId,
-        generationId: attemptLookup.data.generationId,
-      }).catch(() => null);
-      if (projectionLink?.sourceRef) {
-        return {
-          generationId: projectionLink.generationId,
-          sourceRef: projectionLink.sourceRef,
-        };
-      }
-    } catch (error) {
-      console.error(
-        "[generationBilling] lookupGenerationSourceRefByProviderRequest generation lookup threw",
-        String(error)
-      );
-    }
   }
-
-  try {
-    const projectionProviderLink = await readGenerationProjectionLinkByProviderRequestId({
-      userId,
-      providerRequestId,
-    }).catch(() => null);
-    if (projectionProviderLink?.sourceRef) {
-      return {
-        generationId: projectionProviderLink.generationId,
-        sourceRef: projectionProviderLink.sourceRef,
-      };
-    }
-
-    const projectionLink = await readGenerationProjectionLinkByRequestId({
-      userId,
-      requestId: providerRequestId,
-    }).catch(() => null);
-    if (projectionLink?.sourceRef) {
-      return {
-        generationId: projectionLink.generationId,
-        sourceRef: projectionLink.sourceRef,
-      };
-    }
-
-    return { generationId: null, sourceRef: null };
-  } catch (error) {
-    console.error(
-      "[generationBilling] lookupGenerationSourceRefByProviderRequest threw",
-      String(error)
-    );
-    return { generationId: null, sourceRef: null };
-  }
+  return {
+    generationId: lineage.generationId,
+    sourceRef: lineage.sourceRef,
+  };
 };
 
 const maybeRepairReservationLinkage = async ({

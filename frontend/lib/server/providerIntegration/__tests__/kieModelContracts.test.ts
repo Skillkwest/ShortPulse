@@ -115,7 +115,7 @@ describe("kieModelContracts", () => {
       })
     );
 
-    expect(() =>
+    expect(
       normalizeKieSubmitPayloadForModel({
         modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: {
@@ -124,7 +124,12 @@ describe("kieModelContracts", () => {
           duration: 5,
         },
       })
-    ).toThrow("Kie VEO 3.1 Fast I2V submit uses unsupported duration: 5. Allowed: 4, 6, 8");
+    ).toEqual(
+      expect.objectContaining({
+        duration: 6,
+        duration_seconds: 6,
+      })
+    );
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({

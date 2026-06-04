@@ -238,6 +238,72 @@ describe("persistGeneratedImageAsset", () => {
     });
   });
 
+  it("runs the settlement gate before publication, projection, and project visibility", async () => {
+    const beforeVisibleSettlement = vi.fn().mockResolvedValue(undefined);
+
+    await persistGeneratedImageAsset({
+      userId: "user-1",
+      promptText: "Cinematic portrait",
+      modelId: "gpt-image-2",
+      projectId: "project-1",
+      providerRequestId: "provider-image-1",
+      requestId: "request-image-1",
+      requestedSize: "1024x1024",
+      requestedQuality: "medium",
+      outputBuffer: Buffer.from("image"),
+      outputContentType: "image/png",
+      beforeVisibleSettlement,
+    });
+
+    expect(beforeVisibleSettlement).toHaveBeenCalledWith({
+      generationId: "generation-1",
+      requestId: "request-image-1",
+      providerRequestId: "provider-image-1",
+      outputRowId: null,
+      mediaFileId: null,
+    });
+    expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
+      persistGenerationOutputRecordsMock.mock.invocationCallOrder[0]
+    );
+    expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
+    );
+    expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
+    );
+    expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
+      associateGenerationWithProjectForUserMock.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("does not publish or project visible success when the settlement gate fails", async () => {
+    const beforeVisibleSettlement = vi.fn().mockRejectedValue(new Error("billing capture failed"));
+
+    await expect(
+      persistGeneratedImageAsset({
+        userId: "user-1",
+        promptText: "Cinematic portrait",
+        modelId: "gpt-image-2",
+        projectId: "project-1",
+        providerRequestId: "provider-image-1",
+        requestId: "request-image-1",
+        requestedSize: "1024x1024",
+        requestedQuality: "medium",
+        outputBuffer: Buffer.from("image"),
+        outputContentType: "image/png",
+        beforeVisibleSettlement,
+      })
+    ).rejects.toThrow("billing capture failed");
+
+    expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).not.toHaveBeenCalled();
+    expect(mediaFilesInsertMock).not.toHaveBeenCalled();
+    expect(attachMediaFileToGenerationOutputMock).not.toHaveBeenCalled();
+    expect(associateGenerationWithProjectForUserMock).not.toHaveBeenCalled();
+    expect(associateMediaFilesWithProjectForUserMock).not.toHaveBeenCalled();
+  });
+
   it("fails closed when the autosave preference lookup errors", async () => {
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: null,

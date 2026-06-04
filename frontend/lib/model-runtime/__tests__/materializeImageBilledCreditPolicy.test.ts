@@ -38,5 +38,12 @@ describe("materializeImageBilledCreditPolicy", () => {
         "default|res:auto_4K|aspect:1:1"
       ).billedCreditsOverride
     ).toBe(4);
+
+    expect(materialized.perModel["gpt-image-2"]?.runtimeAuthorities?.create_image).toEqual({
+      mode: "runtime_quantity_derived",
+      workflow: "create_image",
+      unitBasis: "per_image",
+      quantityDrivers: ["generation_count", "input_image_count"],
+    });
   });
 });

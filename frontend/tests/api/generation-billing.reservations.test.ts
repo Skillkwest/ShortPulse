@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computeCostForModel } from "../../lib/model-runtime/pricing";
 import { getDefaultModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
+import { resolveCreateImageBilledCreditLookup } from "../../lib/model-runtime/createImageBilledCredits";
 import { resolveEditImageBilledCreditLookup } from "../../lib/model-runtime/editImageBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import {
@@ -282,6 +283,79 @@ describe("generationBilling reservation RPC handling", () => {
       })
     );
 
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("reserves gpt-image-2 multi-ref Create requests from runtime quantity authority when no explicit row exists", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-openai-image-multi-ref", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-openai-image-multi-ref",
+      },
+      url: "/api/openai/image-generate",
+    };
+    const res = createMockResponse();
+    const payload = {
+      prompt: "cinematic portrait",
+      size: "1536x1024",
+      quality: "medium",
+      n: 1,
+      input_fidelity: "high",
+      images: [
+        { image_url: "https://example.com/look-1.png" },
+        { image_url: "https://example.com/look-2.png" },
+        { image_url: "https://example.com/look-3.png" },
+      ],
+      shortpulse_context: {
+        selected_tool: "create",
+        mode: "image",
+      },
+    };
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "gpt-image-2",
+      payload,
+      reason: "GPT Image 2 multi-ref create",
+      shortpulseContext: {
+        selected_tool: "create",
+        mode: "image",
+      },
+    });
+
+    const expectedPricingParams = buildPricingParams("gpt-image-2", payload);
+    const expectedLookup = resolveCreateImageBilledCreditLookup({
+      modelId: "gpt-image-2",
+      params: expectedPricingParams,
+      pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
+    });
+    const expectedCredits = expectedLookup.breakdown?.credits ?? null;
+
+    expect(charge).not.toBeNull();
+    expect(expectedLookup.authorityMode).toBe("runtime_quantity_derived");
+    expect(expectedLookup.breakdown?.variantId).toBe(
+      "edit|res:medium|aspect:16:9|input_images:3|input_fidelity:high|mask:no"
+    );
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_amount_cents: Math.abs(expectedCredits ?? 0),
+        p_metadata: expect.objectContaining({
+          model_id: "gpt-image-2",
+          debited_credits: expectedCredits,
+          pricing_params: expect.objectContaining(expectedPricingParams),
+          pricing_breakdown: expect.objectContaining({
+            billed_credits: expectedCredits,
+          }),
+        }),
+      })
+    );
     expect(res.status).not.toHaveBeenCalled();
   });
 

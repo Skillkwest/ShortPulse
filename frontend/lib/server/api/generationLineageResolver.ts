@@ -1,0 +1,173 @@
+/**
+ * Shared generation lineage resolver for provider request ids.
+ * Gives runtime recovery, settlement repair, webhook ingest, and future
+ * diagnostics one attempt/projection fallback order to share.
+ */
+import { lookupGenerationAttemptByProviderRequest } from "./generationAttempts";
+import {
+  readGenerationProjectionLinkByGenerationId,
+  readGenerationProjectionLinkByProviderRequestId,
+  readGenerationProjectionLinkByRequestId,
+} from "./generationProjection";
+
+export type GenerationLineageEvidence =
+  | "generation_attempt"
+  | "projection_generation_id"
+  | "projection_provider_request_id"
+  | "projection_request_id";
+
+export type GenerationLineageResolution = {
+  generationId: string | null;
+  generationAttemptId: string | null;
+  userId: string | null;
+  sourceRef: string | null;
+  requestId: string | null;
+  providerRequestId: string;
+  evidence: GenerationLineageEvidence[];
+  attemptLookupError: { code?: string | null; message?: string | null } | null;
+};
+
+export type ResolveGenerationLineageByProviderRequestInput = {
+  providerRequestId: string;
+  userId?: string | null;
+  includeProjection?: boolean;
+  throwOnAttemptLookupError?: boolean;
+};
+
+const normalizeString = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const emptyResolution = (
+  providerRequestId: string,
+  attemptLookupError: GenerationLineageResolution["attemptLookupError"] = null
+): GenerationLineageResolution => ({
+  generationId: null,
+  generationAttemptId: null,
+  userId: null,
+  sourceRef: null,
+  requestId: null,
+  providerRequestId,
+  evidence: [],
+  attemptLookupError,
+});
+
+/**
+ * Resolves the canonical generation/source lineage for a provider request id.
+ * Projection rows are treated as repair/read-model evidence, not ownership authority.
+ */
+export const resolveGenerationLineageByProviderRequest = async ({
+  providerRequestId,
+  userId = null,
+  includeProjection = true,
+  throwOnAttemptLookupError = false,
+}: ResolveGenerationLineageByProviderRequestInput): Promise<GenerationLineageResolution> => {
+  const normalizedProviderRequestId = normalizeString(providerRequestId);
+  if (!normalizedProviderRequestId) return emptyResolution("");
+
+  const evidence: GenerationLineageEvidence[] = [];
+  let generationId: string | null = null;
+  let generationAttemptId: string | null = null;
+  let lineageUserId: string | null = null;
+  const sourceRef: string | null = null;
+  const requestId: string | null = null;
+  let attemptLookupError: GenerationLineageResolution["attemptLookupError"] = null;
+
+  const attemptLookup = await lookupGenerationAttemptByProviderRequest({
+    providerRequestId: normalizedProviderRequestId,
+    userId,
+  });
+  if (attemptLookup.error) {
+    attemptLookupError = {
+      code: attemptLookup.error.code ?? null,
+      message: attemptLookup.error.message ?? null,
+    };
+    if (throwOnAttemptLookupError) {
+      throw new Error(attemptLookupError.message ?? "attempt_provider_request_lookup_failed");
+    }
+  } else if (attemptLookup.data?.generationId) {
+    generationId = normalizeString(attemptLookup.data.generationId);
+    generationAttemptId = normalizeString(attemptLookup.data.id);
+    lineageUserId = normalizeString(attemptLookup.data.userId);
+    if (generationId) evidence.push("generation_attempt");
+  }
+
+  if (!includeProjection || !userId) {
+    return {
+      generationId,
+      generationAttemptId,
+      userId: lineageUserId,
+      sourceRef,
+      requestId,
+      providerRequestId: normalizedProviderRequestId,
+      evidence,
+      attemptLookupError,
+    };
+  }
+
+  if (generationId) {
+    const projectionLink = await readGenerationProjectionLinkByGenerationId({
+      userId,
+      generationId,
+    }).catch(() => null);
+    if (projectionLink?.generationId) {
+      return {
+        generationId: projectionLink.generationId,
+        generationAttemptId,
+        userId: lineageUserId,
+        sourceRef: projectionLink.sourceRef,
+        requestId: projectionLink.requestId,
+        providerRequestId: normalizedProviderRequestId,
+        evidence: [...evidence, "projection_generation_id"],
+        attemptLookupError,
+      };
+    }
+  }
+
+  const projectionProviderLink = await readGenerationProjectionLinkByProviderRequestId({
+    userId,
+    providerRequestId: normalizedProviderRequestId,
+  }).catch(() => null);
+  if (projectionProviderLink?.generationId) {
+    return {
+      generationId: projectionProviderLink.generationId,
+      generationAttemptId,
+      userId: lineageUserId,
+      sourceRef: projectionProviderLink.sourceRef,
+      requestId: projectionProviderLink.requestId,
+      providerRequestId: normalizedProviderRequestId,
+      evidence: [...evidence, "projection_provider_request_id"],
+      attemptLookupError,
+    };
+  }
+
+  const projectionRequestLink = await readGenerationProjectionLinkByRequestId({
+    userId,
+    requestId: normalizedProviderRequestId,
+  }).catch(() => null);
+  if (projectionRequestLink?.generationId) {
+    return {
+      generationId: projectionRequestLink.generationId,
+      generationAttemptId,
+      userId: lineageUserId,
+      sourceRef: projectionRequestLink.sourceRef,
+      requestId: projectionRequestLink.requestId,
+      providerRequestId: normalizedProviderRequestId,
+      evidence: [...evidence, "projection_request_id"],
+      attemptLookupError,
+    };
+  }
+
+  return {
+    generationId,
+    generationAttemptId,
+    userId: lineageUserId,
+    sourceRef,
+    requestId,
+    providerRequestId: normalizedProviderRequestId,
+    evidence,
+    attemptLookupError,
+  };
+};

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import userPolicyHandler from "../../pages/api/pricing/model-policy";
 import applyPolicyHandler from "../../pages/api/admin/pricing/model-policy/apply";
 import rollbackPolicyHandler from "../../pages/api/admin/pricing/model-policy/rollback";
+import { getDefaultAdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
 
 const requireApiUserMock = vi.fn();
 const requireAdminUserMock = vi.fn();
@@ -70,6 +71,19 @@ describe("model pricing policy routes", () => {
         version: "policy-v4",
         policySource: "control_plane",
         creditUsdScale: 100,
+        document: expect.objectContaining({
+          perModel: expect.objectContaining({
+            "gpt-image-2": expect.objectContaining({
+              runtimeAuthorities: expect.objectContaining({
+                create_image: expect.objectContaining({
+                  mode: "runtime_quantity_derived",
+                  workflow: "create_image",
+                  unitBasis: "per_image",
+                }),
+              }),
+            }),
+          }),
+        }),
       }),
     });
   });
@@ -89,6 +103,7 @@ describe("model pricing policy routes", () => {
       activePolicyVersion: 5,
       activePolicyVersionId: 55,
       activePolicy: submittedPolicy,
+      activeCustomRows: getDefaultAdminPricingCustomRowsDocument(),
       activePolicyUpdatedAt: "2026-04-24T13:00:00.000Z",
       activePolicyUpdatedByEmail: "admin@example.com",
       message: null,

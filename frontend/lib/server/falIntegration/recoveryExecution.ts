@@ -577,6 +577,15 @@ export const executeGenerationRecovery = async ({
         generationId: generation.id,
         userId: generation.user_id,
       });
+      await settleRecoveryOutcome({
+        outcome: "success",
+        reason: "Recovered generation media already persisted.",
+        detail: {
+          actor,
+          generation_id: generation.id,
+          existing_media_count: existingRows.length,
+        },
+      });
       await syncRecoveredGenerationProjection({
         actor,
         autosaveDecision: "auto_persisted",
@@ -587,15 +596,6 @@ export const executeGenerationRecovery = async ({
         persistedOutputRows,
         recoveredUrls: persistedOutputRows.map((row) => row.resultUrl),
         routeLabel,
-      });
-      await settleRecoveryOutcome({
-        outcome: "success",
-        reason: "Recovered generation media already persisted.",
-        detail: {
-          actor,
-          generation_id: generation.id,
-          existing_media_count: existingRows.length,
-        },
       });
       await applyRecoveryTransition({
         generation,
@@ -653,6 +653,15 @@ export const executeGenerationRecovery = async ({
       generationId: generation.id,
       userId: generation.user_id,
     });
+    await settleRecoveryOutcome({
+      outcome: "success",
+      reason: "Recovered generation media already persisted.",
+      detail: {
+        actor,
+        generation_id: generation.id,
+        existing_media_count: existingRows.length,
+      },
+    });
     await syncRecoveredGenerationProjection({
       actor,
       autosaveDecision: "auto_persisted",
@@ -663,15 +672,6 @@ export const executeGenerationRecovery = async ({
       persistedOutputRows,
       recoveredUrls: persistedOutputRows.map((row) => row.resultUrl),
       routeLabel,
-    });
-    await settleRecoveryOutcome({
-      outcome: "success",
-      reason: "Recovered generation media already persisted.",
-      detail: {
-        actor,
-        generation_id: generation.id,
-        existing_media_count: existingRows.length,
-      },
     });
     await applyRecoveryTransition({
       generation,
@@ -1081,18 +1081,6 @@ export const executeGenerationRecovery = async ({
         recovery_execution: true,
       },
     });
-    await syncRecoveredGenerationProjection({
-      actor,
-      autosaveDecision: "autosave_skipped",
-      autosaveDecisionReason: autosavePolicyDecision.reason,
-      autosavePreferenceLookupMessage,
-      generation,
-      mediaFileIds: [],
-      nowIso,
-      persistedOutputRows,
-      recoveredUrls,
-      routeLabel,
-    });
     await settleRecoveryOutcome({
       outcome: "success",
       reason: "Generation recovered; autosave skipped by user preference.",
@@ -1105,6 +1093,18 @@ export const executeGenerationRecovery = async ({
         autosave_decision: "autosave_skipped",
         decision_reason: autosavePolicyDecision.reason,
       },
+    });
+    await syncRecoveredGenerationProjection({
+      actor,
+      autosaveDecision: "autosave_skipped",
+      autosaveDecisionReason: autosavePolicyDecision.reason,
+      autosavePreferenceLookupMessage,
+      generation,
+      mediaFileIds: [],
+      nowIso,
+      persistedOutputRows,
+      recoveredUrls,
+      routeLabel,
     });
     await logRecoveryAutosaveDecisionEvent({
       generationId: generation.id,
@@ -1187,17 +1187,6 @@ export const executeGenerationRecovery = async ({
           recovery_execution: true,
         },
       });
-      await syncRecoveredGenerationProjection({
-        actor,
-        autosaveDecision: "autosave_skipped",
-        autosaveDecisionReason,
-        generation,
-        mediaFileIds: [],
-        nowIso,
-        persistedOutputRows,
-        recoveredUrls,
-        routeLabel,
-      });
       await settleRecoveryOutcome({
         outcome: "success",
         reason: "Generation recovered; media save blocked because storage is full.",
@@ -1210,6 +1199,17 @@ export const executeGenerationRecovery = async ({
           autosave_decision: "autosave_skipped",
           decision_reason: autosaveDecisionReason,
         },
+      });
+      await syncRecoveredGenerationProjection({
+        actor,
+        autosaveDecision: "autosave_skipped",
+        autosaveDecisionReason,
+        generation,
+        mediaFileIds: [],
+        nowIso,
+        persistedOutputRows,
+        recoveredUrls,
+        routeLabel,
       });
       await logRecoveryAutosaveDecisionEvent({
         generationId: generation.id,
@@ -1351,18 +1351,6 @@ export const executeGenerationRecovery = async ({
       recovery_execution: true,
     },
   });
-  await syncRecoveredGenerationProjection({
-    actor,
-    autosaveDecision: "auto_persisted",
-    autosaveDecisionReason: autosavePolicyDecision.reason,
-    autosavePreferenceLookupMessage,
-    generation,
-    mediaFileIds,
-    nowIso,
-    persistedOutputRows,
-    recoveredUrls,
-    routeLabel,
-  });
   const metadata = asObject(generation.metadata);
   await settleRecoveryOutcome({
     outcome: "success",
@@ -1376,6 +1364,18 @@ export const executeGenerationRecovery = async ({
       autosave_decision: "auto_persisted",
       decision_reason: autosavePolicyDecision.reason,
     },
+  });
+  await syncRecoveredGenerationProjection({
+    actor,
+    autosaveDecision: "auto_persisted",
+    autosaveDecisionReason: autosavePolicyDecision.reason,
+    autosavePreferenceLookupMessage,
+    generation,
+    mediaFileIds,
+    nowIso,
+    persistedOutputRows,
+    recoveredUrls,
+    routeLabel,
   });
   await logRecoveryAutosaveDecisionEvent({
     generationId: generation.id,

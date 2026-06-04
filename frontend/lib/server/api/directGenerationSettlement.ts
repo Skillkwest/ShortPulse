@@ -1,7 +1,7 @@
 import { readRecoveryGenerationRow } from "../falIntegration/recoveryGenerationLookup";
 import { persistRecoveryMediaFilesForGeneration } from "../falIntegration/recoveryMediaPersistence";
 import { settleGenerationOutcome } from "./generationBilling";
-import { lookupGenerationAttemptByProviderRequest } from "./generationAttempts";
+import { resolveGenerationLineageByProviderRequest } from "./generationLineageResolver";
 import { persistGenerationOutputRecords } from "./generationOutputs";
 import { applyGenerationLifecycleTransition } from "./generationLifecycleTransitionService";
 import { writeAppErrorLog } from "./appErrorLogs";
@@ -275,12 +275,16 @@ const readGenerationContext = async ({
 };
 
 const readAttemptContext = async ({ requestId, userId }: { requestId: string; userId: string }) => {
-  const lookup = await lookupGenerationAttemptByProviderRequest({
+  const lineage = await resolveGenerationLineageByProviderRequest({
     providerRequestId: requestId,
     userId,
+    includeProjection: false,
   });
-  if (lookup.error) return null;
-  return lookup.data;
+  return lineage.generationAttemptId
+    ? {
+        id: lineage.generationAttemptId,
+      }
+    : null;
 };
 
 export const settleDirectGenerationSuccess = async ({
@@ -680,6 +684,29 @@ export const settleDirectGenerationFailure = async ({
     userId: generation.user_id,
   });
 
+  const billingSettlement = await settleGenerationOutcome({
+    userId: generation.user_id,
+    providerRequestId: generation.request_id,
+    outcome: "fail",
+    reason: normalizedErrorMessage,
+    routeLabel,
+    detail: {
+      generation_id: generation.id,
+      failure_reason_code: failureReasonCode,
+      direct_terminal_settlement: true,
+      provider_state: providerState,
+      error_detail: normalizedErrorDetail,
+      user_abandoned: isAbandoned,
+    },
+    abandonedNoRefund: isAbandoned && abandonment.noRefund,
+  });
+  if (!billingSettlement.settled) {
+    return {
+      ok: false,
+      error: buildUnsettledBillingError(billingSettlement.note),
+    };
+  }
+
   await syncTerminalFailureViewState({
     generation: {
       id: generation.id,
@@ -712,29 +739,6 @@ export const settleDirectGenerationFailure = async ({
       });
     },
   });
-
-  const billingSettlement = await settleGenerationOutcome({
-    userId: generation.user_id,
-    providerRequestId: generation.request_id,
-    outcome: "fail",
-    reason: normalizedErrorMessage,
-    routeLabel,
-    detail: {
-      generation_id: generation.id,
-      failure_reason_code: failureReasonCode,
-      direct_terminal_settlement: true,
-      provider_state: providerState,
-      error_detail: normalizedErrorDetail,
-      user_abandoned: isAbandoned,
-    },
-    abandonedNoRefund: isAbandoned && abandonment.noRefund,
-  });
-  if (!billingSettlement.settled) {
-    return {
-      ok: false,
-      error: buildUnsettledBillingError(billingSettlement.note),
-    };
-  }
 
   return {
     ok: true,

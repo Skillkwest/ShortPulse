@@ -224,6 +224,7 @@ export default async function handler(
       shortpulseContext,
     });
     if (!charge) return;
+    const settledCharge = charge;
 
     const providerPrompt = buildProviderPrompt({
       text,
@@ -301,22 +302,26 @@ export default async function handler(
         provider_prompt: providerPrompt,
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
-    });
-    const captureResult = await captureSucceededGenerationByProviderRequest({
-      userId: charge.userId,
-      providerRequestId,
-      reason: "Audio music generation completed.",
-      routeLabel: "elevenlabs-music",
-      detail: {
-        generation_id: persisted.generationId,
-        source_ref: charge.sourceRef,
-        source_mode: "music",
-        song_id: generated.songId,
+      beforeVisibleSettlement: async ({ generationId }) => {
+        const captureResult = await captureSucceededGenerationByProviderRequest({
+          userId: settledCharge.userId,
+          providerRequestId,
+          reason: "Audio music generation completed.",
+          routeLabel: "elevenlabs-music",
+          detail: {
+            generation_id: generationId,
+            source_ref: settledCharge.sourceRef,
+            source_mode: "music",
+            song_id: generated.songId,
+          },
+        });
+        if (!captureResult.settled) {
+          throw new Error(
+            `Unable to capture generation billing reservation: ${captureResult.note}`
+          );
+        }
       },
     });
-    if (!captureResult.settled) {
-      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
-    }
     await markAudioCompanionArtPending({
       generationId: persisted.generationId,
       userId: charge.userId,

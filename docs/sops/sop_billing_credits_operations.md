@@ -55,7 +55,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 
 ## Billing model contract
 
-- `billing_plans` defines the shared plan tier (`free`, `media`, `studio`, `business`).
+- `billing_plans` defines the shared plan ids, including the hidden baseline fallback (`free`) plus the public paid tiers (`starter`, `media`, `studio`, `business`).
 - `billing_plan_offers` defines versioned recurring offers and current acquisition pricing.
 - `billing_subscription_contracts` defines the subscriber-specific recurring commercial terms and historical lineage.
 - `billing_plans.storage_limit_bytes`, `billing_plan_offers.storage_limit_bytes`, and `billing_subscription_contracts.storage_limit_bytes` define base storage entitlements for each tier and subscriber contract snapshot.
@@ -206,9 +206,9 @@ Recommended operator sequence:
 4. For AI usage pricing changes, edit the truth grid, verify the exact canonical `Billed credits` variant rows needed by live product workflows, and confirm those same rows are what billable UI and server debit consume.
 5. After any pricing change, verify the customer-facing catalog on `/profile?section=credits` and `/profile?section=storage`.
 6. Verify `/profile?section=subscription` still routes each plan card to the intended self-serve flow:
-   - free/internal-comp to paid should open Stripe Checkout for the selected target plan
+   - baseline-fallback/internal-comp to paid should open Stripe Checkout for the selected target plan
    - Stripe-managed paid upgrades/downgrades should open a Stripe Billing Portal plan-change flow
-   - internal-comp to Free should complete in-app and return the user to the subscription section
+   - internal-comp back to the hidden baseline fallback should complete in-app and return the user to the subscription section
 7. After any AI usage pricing change, verify AI Studio button display and one server-side debit path still agree on the same canonical billed-credit row.
 
 ## Charging model behavior
@@ -287,7 +287,7 @@ Recommended operator sequence:
   - changing the runtime conversion rate does not rewrite historical grants or subscription contract rows
   - phase-1 billable AI Studio flows also persist `pricing_observability` metadata so operators can compare displayed billed credits against final debited credits without reconstructing the client estimate manually
 - Stripe subscription item sync must treat storage add-ons as recurring subscription items, not consumable credit packs.
-- Immediate Stripe subscription deletion must drop local paid entitlements back to free runtime state. Only `cancel_at_period_end = true` should preserve access through the paid period.
+- Immediate Stripe subscription deletion must drop local paid entitlements back to the baseline runtime state. Only `cancel_at_period_end = true` should preserve access through the paid period.
 
 ## Pricing observability diagnostics
 
@@ -316,7 +316,7 @@ Recommended operator sequence:
 - Effective storage entitlement is:
   - base contract storage
   - plus active recurring storage add-ons
-- Free or internally managed accounts must not silently self-grant recurring storage add-ons. They should be blocked with explicit product messaging until a paid Stripe-managed subscription exists.
+- Accounts in the hidden baseline fallback or managed internally must not silently self-grant recurring storage add-ons. They should be blocked with explicit product messaging until a paid Stripe-managed subscription exists.
 - Self-serve recurring storage removal is immediate on the Stripe subscription item. If current media usage remains above the new remaining limit after removal, new uploads/autosaves may be blocked until usage drops under entitlement again.
 - Quota enforcement is database-authoritative on `media_files` inserts/updates through `enforce_media_storage_quota()`.
 - App/server persistence lanes must still best-effort remove uploaded storage objects if the `media_files` insert fails because the DB quota guard rejects the write.
@@ -328,7 +328,7 @@ Recommended operator sequence:
 - Granting internal comp access seeds the current period allocation immediately.
 - Monthly renewals for internal comp contracts are owned by `/api/internal/billing-contract-renewals/run`, not by the Stripe webhook.
 - Renewal idempotency uses deterministic period references per contract; duplicate runs must be safe.
-- Revoking internal comp access returns the account to `free` runtime state unless a different trusted operator path is intentionally used.
+- Revoking internal comp access returns the account to the baseline runtime state unless a different trusted operator path is intentionally used.
 
 - Payment-exempt users do **not** require a Stripe product for runtime entitlement.
 - Internal-comp entitlement is enforced by the `billing_subscription_contracts` row:

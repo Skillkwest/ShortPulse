@@ -6,6 +6,7 @@ import {
   compactModelPricingPolicyDocument,
   type ModelPricingPerModelOverride,
   type ModelPricingPolicyDocument,
+  type ModelPricingRuntimeAuthorities,
   type ModelPricingVariantOverride,
 } from "./pricingPolicy";
 import { resolvePricingGridCostBreakdown } from "./pricingGridBilledCredits";
@@ -15,6 +16,44 @@ import {
 } from "./pricingGridVariantRules";
 
 type ImageVariantBase = { editLike: boolean };
+
+const CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
+  Record<
+    NonNullable<ModelConfig["pricingStrategy"]>,
+    ModelPricingRuntimeAuthorities["create_image"]
+  >
+> = {
+  "gpt-image-2-per-image": {
+    mode: "runtime_quantity_derived",
+    workflow: "create_image",
+    unitBasis: "per_image",
+    quantityDrivers: ["generation_count", "input_image_count"],
+  },
+  "nano-banana-2-per-image": {
+    mode: "runtime_quantity_derived",
+    workflow: "create_image",
+    unitBasis: "per_image",
+    quantityDrivers: ["generation_count"],
+  },
+  "nano-banana-per-image": {
+    mode: "runtime_quantity_derived",
+    workflow: "create_image",
+    unitBasis: "per_image",
+    quantityDrivers: ["generation_count"],
+  },
+  "seedream-per-image": {
+    mode: "runtime_quantity_derived",
+    workflow: "create_image",
+    unitBasis: "per_image",
+    quantityDrivers: ["generation_count"],
+  },
+  "seedream-5-lite-per-image": {
+    mode: "runtime_quantity_derived",
+    workflow: "create_image",
+    unitBasis: "per_image",
+    quantityDrivers: ["generation_count"],
+  },
+};
 
 const orderWithDefaultFirst = <T extends string | null>(values: T[], defaultValue: T): T[] => {
   const ordered: T[] = [];
@@ -83,6 +122,17 @@ const mergeVariantOverride = (
   };
 };
 
+const mergeRuntimeAuthorities = (
+  override: ModelPricingPerModelOverride | undefined,
+  runtimeAuthorities: ModelPricingRuntimeAuthorities
+): ModelPricingPerModelOverride => ({
+  ...(override ?? {}),
+  runtimeAuthorities: {
+    ...(override?.runtimeAuthorities ?? {}),
+    ...runtimeAuthorities,
+  },
+});
+
 /**
  * Produces a runtime-only policy document where image-model billed credits are
  * materialized per pricing-grid variant. This preserves Scott's admin pricing
@@ -103,6 +153,15 @@ export const materializeImageBilledCreditPolicy = (
     if (model.mediaType !== "image") return;
     const variantBases = buildImageVariantBases(model);
     if (!variantBases.length) return;
+    const createImageRuntimeAuthority =
+      model.supportsTextToImage && model.pricingStrategy
+        ? CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY[model.pricingStrategy]
+        : null;
+    if (createImageRuntimeAuthority) {
+      nextPolicy.perModel[model.id] = mergeRuntimeAuthorities(nextPolicy.perModel[model.id], {
+        create_image: createImageRuntimeAuthority,
+      });
+    }
     const aspects = buildAspectOptions(model);
     const resolutions = buildResolutionOptions(model);
 

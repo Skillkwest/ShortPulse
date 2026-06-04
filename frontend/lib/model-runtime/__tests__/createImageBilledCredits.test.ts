@@ -3,10 +3,7 @@ import { describe, expect, it } from "vitest";
 import { resolveCreatePricingTarget } from "../../../features/ai-studio/logic/createPricingTarget";
 import { buildPricingParams } from "../../server/api/generationBilling/pricingParams";
 import type { PricingParams } from "../pricingTypes";
-import {
-  resolveCreateImageBilledCreditLookup,
-  resolveCreateImageBilledCredits,
-} from "../createImageBilledCredits";
+import { resolveCreateImageBilledCreditLookup } from "../createImageBilledCredits";
 import { getDefaultModelPricingPolicyDocument } from "../pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../materializeImageBilledCreditPolicy";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../openAiImage2";
@@ -78,7 +75,7 @@ describe("createImageBilledCredits", () => {
     expect(clientLookup.breakdown?.credits).not.toBeNull();
   });
 
-  it("keeps GPT Image 2 multi-ref Create gaps fail-closed after canonical normalization", () => {
+  it("derives GPT Image 2 multi-ref Create pricing from runtime quantity authority when no explicit row exists", () => {
     const clientTarget = resolveCreatePricingTarget({
       modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
       aspect: "16:9",
@@ -96,13 +93,17 @@ describe("createImageBilledCredits", () => {
     });
 
     expect(clientTarget).not.toBeNull();
-    expect(
-      resolveCreateImageBilledCredits({
-        modelId: clientTarget?.modelId ?? OPENAI_GPT_IMAGE_2_MODEL_ID,
-        params: clientTarget?.params,
-        pricingPolicy,
-      })
-    ).toBeNull();
+    const lookup = resolveCreateImageBilledCreditLookup({
+      modelId: clientTarget?.modelId ?? OPENAI_GPT_IMAGE_2_MODEL_ID,
+      params: clientTarget?.params,
+      pricingPolicy,
+    });
+
+    expect(lookup.authorityMode).toBe("runtime_quantity_derived");
+    expect(lookup.breakdown?.variantId).toBe(
+      "edit|res:medium|aspect:16:9|input_images:3|input_fidelity:high|mask:no"
+    );
+    expect(lookup.breakdown?.credits).toBe(10);
   });
 
   it("collapses Nano Banana 2 Character Mode multi-ref pricing onto the canonical edit row", () => {

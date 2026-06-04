@@ -368,42 +368,43 @@ export const readGenerationProjectionStatusContext = async ({
   requestId: string;
   supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
 }): Promise<GenerationProjectionStatusContext | null> => {
-  let adminClient = supabaseAdmin;
-  if (!adminClient) {
-    adminClient = getSupabaseAdmin();
-  }
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
 
-  const { data, error } = await adminClient
-    .from("generation_projection")
-    .select(
-      "generation_id, result_urls, publication_state, status, task_state, queue_state, error_message_short, error_detail, save_state, save_error, updated_at"
-    )
-    .eq("user_id", userId)
-    .eq("request_id", requestId)
-    .order("updated_at", { ascending: false })
-    .limit(5);
-  if (error || !Array.isArray(data) || !data.length) return null;
+  const readByColumn = async (column: "request_id" | "provider_request_id") => {
+    const { data, error } = await adminClient
+      .from("generation_projection")
+      .select(
+        "generation_id, result_urls, publication_state, status, task_state, queue_state, error_message_short, error_detail, save_state, save_error, updated_at"
+      )
+      .eq("user_id", userId)
+      .eq(column, requestId)
+      .order("updated_at", { ascending: false })
+      .limit(5);
+    if (error || !Array.isArray(data) || !data.length) return null;
 
-  for (const item of data) {
-    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-    const row = item as Record<string, unknown>;
-    const generationId = asString(row.generation_id);
-    if (!generationId) continue;
-    return {
-      generationId,
-      resultUrls: asStringArray(row.result_urls),
-      publicationState: asString(row.publication_state),
-      status: asString(row.status),
-      taskState: asString(row.task_state),
-      queueState: asString(row.queue_state),
-      errorMessageShort: asString(row.error_message_short),
-      errorDetail: asString(row.error_detail),
-      saveState: asString(row.save_state),
-      saveError: asString(row.save_error),
-    };
-  }
+    for (const item of data) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+      const row = item as Record<string, unknown>;
+      const generationId = asString(row.generation_id);
+      if (!generationId) continue;
+      return {
+        generationId,
+        resultUrls: asStringArray(row.result_urls),
+        publicationState: asString(row.publication_state),
+        status: asString(row.status),
+        taskState: asString(row.task_state),
+        queueState: asString(row.queue_state),
+        errorMessageShort: asString(row.error_message_short),
+        errorDetail: asString(row.error_detail),
+        saveState: asString(row.save_state),
+        saveError: asString(row.save_error),
+      };
+    }
 
-  return null;
+    return null;
+  };
+
+  return (await readByColumn("request_id")) ?? (await readByColumn("provider_request_id"));
 };
 
 export const readGenerationProjectionQueueContext = async ({

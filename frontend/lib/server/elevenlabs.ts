@@ -78,6 +78,9 @@ type ElevenLabsJsonOptions = {
   body?: Record<string, unknown>;
 };
 
+type ElevenLabsAudioSourceMode = "voiceover" | "voice-changer" | "sound-effects" | "music";
+type ElevenLabsVideoSourceMode = "voice-changer";
+
 type PersistGeneratedAudioInput = {
   userId: string;
   promptText: string;
@@ -87,13 +90,22 @@ type PersistGeneratedAudioInput = {
   providerRequestId?: string | null;
   requestId?: string | null;
   projectId?: string | null;
-  sourceMode: "voiceover" | "voice-changer" | "sound-effects" | "music";
+  sourceMode: ElevenLabsAudioSourceMode;
   voiceId?: string | null;
   voiceName?: string | null;
   outputBuffer: Buffer;
   outputContentType: string;
   outputFormat: string;
   extraMetadata?: Record<string, unknown>;
+  beforeVisibleSettlement?: (context: {
+    generationId: string;
+    requestId: string;
+    providerRequestId: string | null;
+    outputRowId: string | null;
+    mediaFileId: string | null;
+    mediaKind: "audio";
+    sourceMode: ElevenLabsAudioSourceMode;
+  }) => Promise<void>;
 };
 
 type PersistGeneratedVideoInput = {
@@ -105,11 +117,20 @@ type PersistGeneratedVideoInput = {
   providerRequestId?: string | null;
   requestId?: string | null;
   projectId?: string | null;
-  sourceMode: "voice-changer";
+  sourceMode: ElevenLabsVideoSourceMode;
   outputBuffer: Buffer;
   outputContentType: "video/mp4" | "video/webm";
   generationReplay?: Record<string, unknown>;
   extraMetadata?: Record<string, unknown>;
+  beforeVisibleSettlement?: (context: {
+    generationId: string;
+    requestId: string;
+    providerRequestId: string | null;
+    outputRowId: string | null;
+    mediaFileId: string | null;
+    mediaKind: "video";
+    sourceMode: ElevenLabsVideoSourceMode;
+  }) => Promise<void>;
 };
 
 export type PersistGeneratedAudioResult = {
@@ -946,6 +967,7 @@ export const persistGeneratedAudioAsset = async ({
   outputContentType,
   outputFormat,
   extraMetadata = {},
+  beforeVisibleSettlement,
 }: PersistGeneratedAudioInput): Promise<PersistGeneratedAudioResult> => {
   const supabaseAdmin = getSupabaseAdmin();
   const generationId = randomUUID();
@@ -1031,6 +1053,16 @@ export const persistGeneratedAudioAsset = async ({
     ? "auto_persisted"
     : "autosave_skipped";
   let autosaveDecisionReason: string = autosavePolicyDecision.reason;
+  await beforeVisibleSettlement?.({
+    generationId,
+    requestId: resolvedRequestId,
+    providerRequestId: resolvedProviderRequestId,
+    outputRowId: null,
+    mediaFileId: null,
+    mediaKind: "audio",
+    sourceMode,
+  });
+
   let outputRows = await persistGenerationOutputRecords({
     generationId,
     providerRequestId: resolvedProviderRequestId,
@@ -1240,6 +1272,7 @@ export const persistGeneratedVideoAsset = async ({
   outputContentType,
   generationReplay = {},
   extraMetadata = {},
+  beforeVisibleSettlement,
 }: PersistGeneratedVideoInput): Promise<PersistGeneratedVideoResult> => {
   const supabaseAdmin = getSupabaseAdmin();
   const generationId = randomUUID();
@@ -1325,6 +1358,16 @@ export const persistGeneratedVideoAsset = async ({
   let previewStoragePath: string = storagePath;
   let previewPosterStoragePath: string | null = null;
   let previewPosterUrl: string | null = null;
+  await beforeVisibleSettlement?.({
+    generationId,
+    requestId: resolvedRequestId,
+    providerRequestId: resolvedProviderRequestId,
+    outputRowId: null,
+    mediaFileId: null,
+    mediaKind: "video",
+    sourceMode,
+  });
+
   let outputRows = await persistGenerationOutputRecords({
     generationId,
     providerRequestId: resolvedProviderRequestId,

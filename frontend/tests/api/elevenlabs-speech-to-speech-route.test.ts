@@ -95,7 +95,32 @@ vi.mock("../../lib/server/elevenlabs", () => ({
     generateElevenLabsVoiceChangerMock(...args),
   createRemuxedVoiceChangerVideo: (...args: unknown[]) =>
     createRemuxedVoiceChangerVideoMock(...args),
-  persistGeneratedAudioAsset: (...args: unknown[]) => persistGeneratedAudioAssetMock(...args),
+  persistGeneratedAudioAsset: async (...args: unknown[]) => {
+    const result = await persistGeneratedAudioAssetMock(...args);
+    const input = args[0] as {
+      beforeVisibleSettlement?: (context: {
+        generationId: string;
+        requestId: string;
+        providerRequestId: string | null;
+        outputRowId: string | null;
+        mediaFileId: string | null;
+        mediaKind: "audio";
+        sourceMode: string;
+      }) => Promise<void>;
+      providerRequestId?: string | null;
+      sourceMode: string;
+    };
+    await input.beforeVisibleSettlement?.({
+      generationId: result.generationId,
+      requestId: result.requestId,
+      providerRequestId: input.providerRequestId ?? null,
+      outputRowId: result.outputRowId ?? null,
+      mediaFileId: result.mediaFileId ?? null,
+      mediaKind: "audio",
+      sourceMode: input.sourceMode,
+    });
+    return result;
+  },
   persistGeneratedVideoAsset: (...args: unknown[]) => persistGeneratedVideoAssetMock(...args),
   readRemoteSourceBuffer: (...args: unknown[]) => readRemoteSourceBufferMock(...args),
 }));

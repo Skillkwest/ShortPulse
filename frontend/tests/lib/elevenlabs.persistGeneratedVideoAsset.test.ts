@@ -92,6 +92,36 @@ vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
     associateGenerationWithProjectForUserMock(...args),
   associateMediaFilesWithProjectForUser: (...args: unknown[]) =>
     associateMediaFilesWithProjectForUserMock(...args),
+  associateGenerationAndMediaWithProjectForUserBestEffort: async ({
+    userId,
+    projectId,
+    generationId,
+    mediaFileIds,
+  }: {
+    userId: string;
+    projectId: string | null | undefined;
+    generationId: string;
+    mediaFileIds?: string[] | null;
+  }) => {
+    const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : "";
+    if (!normalizedProjectId) return false;
+    const associatedGeneration = await associateGenerationWithProjectForUserMock({
+      userId,
+      projectId: normalizedProjectId,
+      generationId,
+    });
+    const normalizedMediaFileIds =
+      Array.isArray(mediaFileIds) && mediaFileIds.length > 0 ? mediaFileIds : [];
+    if (normalizedMediaFileIds.length === 0) {
+      return associatedGeneration;
+    }
+    const associatedMedia = await associateMediaFilesWithProjectForUserMock({
+      userId,
+      projectId: normalizedProjectId,
+      mediaFileIds: normalizedMediaFileIds,
+    });
+    return Boolean(associatedGeneration || associatedMedia);
+  },
 }));
 
 vi.mock("../../lib/server/videoPosterVariant", () => ({
@@ -225,6 +255,73 @@ describe("persistGeneratedVideoAsset", () => {
       signedUrl: "https://signed.example/video.mp4",
       outputRowId: "output-1",
     });
+  });
+
+  it("runs the settlement gate before publication, projection, and project visibility", async () => {
+    const beforeVisibleSettlement = vi.fn().mockResolvedValue(undefined);
+
+    await persistGeneratedVideoAsset({
+      userId: "user-1",
+      promptText: "Cinematic skyline reveal",
+      provider: "elevenlabs",
+      modelId: "video_v1",
+      projectId: "project-1",
+      providerRequestId: "provider-video-1",
+      requestId: "request-video-1",
+      sourceMode: "voice-changer",
+      outputBuffer: Buffer.from("video"),
+      outputContentType: "video/mp4",
+      beforeVisibleSettlement,
+    });
+
+    expect(beforeVisibleSettlement).toHaveBeenCalledWith({
+      generationId: "generation-1",
+      requestId: "request-video-1",
+      providerRequestId: "provider-video-1",
+      outputRowId: null,
+      mediaFileId: null,
+      mediaKind: "video",
+      sourceMode: "voice-changer",
+    });
+    expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
+      persistGenerationOutputRecordsMock.mock.invocationCallOrder[0]
+    );
+    expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
+    );
+    expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
+    );
+    expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
+      associateGenerationWithProjectForUserMock.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("does not publish, project, or autosave media when the settlement gate fails", async () => {
+    const beforeVisibleSettlement = vi.fn().mockRejectedValue(new Error("billing capture failed"));
+
+    await expect(
+      persistGeneratedVideoAsset({
+        userId: "user-1",
+        promptText: "Cinematic skyline reveal",
+        provider: "elevenlabs",
+        modelId: "video_v1",
+        projectId: "project-1",
+        providerRequestId: "provider-video-1",
+        requestId: "request-video-1",
+        sourceMode: "voice-changer",
+        outputBuffer: Buffer.from("video"),
+        outputContentType: "video/mp4",
+        beforeVisibleSettlement,
+      })
+    ).rejects.toThrow("billing capture failed");
+
+    expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).not.toHaveBeenCalled();
+    expect(mediaFilesInsertMock).not.toHaveBeenCalled();
+    expect(associateGenerationWithProjectForUserMock).not.toHaveBeenCalled();
+    expect(associateMediaFilesWithProjectForUserMock).not.toHaveBeenCalled();
   });
 
   it("fails closed when the autosave preference lookup errors", async () => {

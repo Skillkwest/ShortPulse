@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const readRecoveryGenerationRowMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
-const lookupGenerationAttemptByProviderRequestMock = vi.fn();
+const resolveGenerationLineageByProviderRequestMock = vi.fn();
 const persistGenerationOutputRecordsMock = vi.fn();
 const persistRecoveryMediaFilesForGenerationMock = vi.fn();
 const applyGenerationLifecycleTransitionMock = vi.fn();
@@ -33,9 +33,9 @@ vi.mock("../generationBilling", () => ({
   settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
 }));
 
-vi.mock("../generationAttempts", () => ({
-  lookupGenerationAttemptByProviderRequest: (...args: unknown[]) =>
-    lookupGenerationAttemptByProviderRequestMock(...args),
+vi.mock("../generationLineageResolver", () => ({
+  resolveGenerationLineageByProviderRequest: (...args: unknown[]) =>
+    resolveGenerationLineageByProviderRequestMock(...args),
 }));
 
 vi.mock("../generationOutputs", () => ({
@@ -162,11 +162,15 @@ describe("directGenerationSettlement", () => {
         style_context: { styleId: "style-1" },
       },
     });
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
-      data: {
-        id: "attempt-1",
-      },
-      error: null,
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: "gen-1",
+      generationAttemptId: "attempt-1",
+      userId: "user-1",
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "req-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
     });
     applyGenerationLifecycleTransitionMock.mockResolvedValue({ ok: true });
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1", "media-2"]);
@@ -1087,6 +1091,9 @@ describe("directGenerationSettlement", () => {
         outcome: "fail",
         reason: "Provider rejected request",
       })
+    );
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
     );
   });
 

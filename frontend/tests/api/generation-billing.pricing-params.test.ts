@@ -19,7 +19,7 @@ describe("generationBilling pricing params normalization", () => {
       resolution: "ultra",
     });
 
-    expect(params.durationSeconds).toBe(5);
+    expect(params.durationSeconds).toBe(4);
     expect(params.resolution).toBe("1080p");
   });
 

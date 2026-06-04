@@ -12,6 +12,7 @@ export type ModelPricingPerModelOverride = {
   providerUsdOverride?: number;
   providerUsdPerSecondOverride?: number;
   billedCreditsOverride?: number;
+  runtimeAuthorities?: ModelPricingRuntimeAuthorities;
   variants?: Record<string, ModelPricingVariantOverride>;
 };
 
@@ -23,6 +24,41 @@ export type ModelPricingVariantOverride = {
   providerUsdPerSecondOverride?: number;
   billedCreditsOverride?: number;
 };
+
+export type ModelPricingRuntimeAuthorityWorkflow =
+  | "create_image"
+  | "edit_image"
+  | "video"
+  | "sound";
+
+export type ModelPricingRuntimeAuthorityUnitBasis =
+  | "flat"
+  | "per_image"
+  | "per_second"
+  | "per_minute"
+  | "per_1k_chars"
+  | "per_50k_chars"
+  | "per_1m_tokens";
+
+export type ModelPricingRuntimeAuthorityQuantityDriver =
+  | "generation_count"
+  | "input_image_count"
+  | "output_image_count"
+  | "duration_seconds"
+  | "source_duration_seconds"
+  | "input_video_count"
+  | "text_characters";
+
+export type ModelPricingRuntimeAuthority = {
+  mode: "runtime_quantity_derived";
+  workflow: ModelPricingRuntimeAuthorityWorkflow;
+  unitBasis: ModelPricingRuntimeAuthorityUnitBasis;
+  quantityDrivers: ModelPricingRuntimeAuthorityQuantityDriver[];
+};
+
+export type ModelPricingRuntimeAuthorities = Partial<
+  Record<ModelPricingRuntimeAuthorityWorkflow, ModelPricingRuntimeAuthority>
+>;
 
 export type ModelPricingPolicyDocument = {
   schemaVersion: 1 | 2 | 3 | 4;
@@ -119,6 +155,95 @@ const normalizeModelIdList = (value: unknown, fallback: string[]): string[] => {
 const convertLegacyMultiplierToMarkupOverride = (multiplierBps: number): number =>
   multiplierBps - 10_000;
 
+const RUNTIME_AUTHORITY_WORKFLOWS = [
+  "create_image",
+  "edit_image",
+  "video",
+  "sound",
+] as const satisfies ModelPricingRuntimeAuthorityWorkflow[];
+
+const RUNTIME_AUTHORITY_UNIT_BASES = [
+  "flat",
+  "per_image",
+  "per_second",
+  "per_minute",
+  "per_1k_chars",
+  "per_50k_chars",
+  "per_1m_tokens",
+] as const satisfies ModelPricingRuntimeAuthorityUnitBasis[];
+
+const RUNTIME_AUTHORITY_QUANTITY_DRIVERS = [
+  "generation_count",
+  "input_image_count",
+  "output_image_count",
+  "duration_seconds",
+  "source_duration_seconds",
+  "input_video_count",
+  "text_characters",
+] as const satisfies ModelPricingRuntimeAuthorityQuantityDriver[];
+
+const isRuntimeAuthorityWorkflow = (value: string): value is ModelPricingRuntimeAuthorityWorkflow =>
+  (RUNTIME_AUTHORITY_WORKFLOWS as readonly string[]).includes(value);
+
+const isRuntimeAuthorityUnitBasis = (
+  value: string
+): value is ModelPricingRuntimeAuthorityUnitBasis =>
+  (RUNTIME_AUTHORITY_UNIT_BASES as readonly string[]).includes(value);
+
+const isRuntimeAuthorityQuantityDriver = (
+  value: string
+): value is ModelPricingRuntimeAuthorityQuantityDriver =>
+  (RUNTIME_AUTHORITY_QUANTITY_DRIVERS as readonly string[]).includes(value);
+
+const normalizeRuntimeAuthority = (value: unknown): ModelPricingRuntimeAuthority | null => {
+  const record = asObjectRecord(value);
+  if (!record) return null;
+
+  if (record.mode !== "runtime_quantity_derived") return null;
+  const workflow = typeof record.workflow === "string" ? record.workflow.trim() : "";
+  const unitBasis = typeof record.unitBasis === "string" ? record.unitBasis.trim() : "";
+  const quantityDrivers = Array.isArray(record.quantityDrivers)
+    ? record.quantityDrivers
+        .filter((driver): driver is string => typeof driver === "string")
+        .map((driver) => driver.trim())
+        .filter(isRuntimeAuthorityQuantityDriver)
+    : [];
+
+  if (
+    !isRuntimeAuthorityWorkflow(workflow) ||
+    !isRuntimeAuthorityUnitBasis(unitBasis) ||
+    quantityDrivers.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    mode: "runtime_quantity_derived",
+    workflow,
+    unitBasis,
+    quantityDrivers: Array.from(new Set(quantityDrivers)),
+  };
+};
+
+const normalizeRuntimeAuthorities = (value: unknown): ModelPricingRuntimeAuthorities | null => {
+  const record = asObjectRecord(value);
+  if (!record) return null;
+
+  const normalized = Object.entries(record).reduce<ModelPricingRuntimeAuthorities>(
+    (accumulator, [workflow, authority]) => {
+      if (!isRuntimeAuthorityWorkflow(workflow)) return accumulator;
+      const nextAuthority = normalizeRuntimeAuthority(authority);
+      if (nextAuthority) {
+        accumulator[workflow] = nextAuthority;
+      }
+      return accumulator;
+    },
+    {}
+  );
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
+};
+
 const normalizeVariantOverride = (value: unknown): ModelPricingVariantOverride | null => {
   const record = asObjectRecord(value);
   if (!record) return null;
@@ -165,6 +290,7 @@ const normalizePerModelOverride = (value: unknown): ModelPricingPerModelOverride
   if (!record) return null;
 
   const baseOverride = normalizeVariantOverride(value) ?? {};
+  const runtimeAuthorities = normalizeRuntimeAuthorities(record.runtimeAuthorities);
   const variantsRecord = asObjectRecord(record.variants);
   const normalizedVariants = Object.entries(variantsRecord ?? {}).reduce<
     Record<string, ModelPricingVariantOverride>
@@ -177,6 +303,9 @@ const normalizePerModelOverride = (value: unknown): ModelPricingPerModelOverride
   }, {});
 
   const normalized: ModelPricingPerModelOverride = { ...baseOverride };
+  if (runtimeAuthorities) {
+    normalized.runtimeAuthorities = runtimeAuthorities;
+  }
   if (Object.keys(normalizedVariants).length > 0) {
     normalized.variants = normalizedVariants;
   }
@@ -284,6 +413,10 @@ export const compactModelPricingPolicyDocument = (value: unknown): ModelPricingP
       nextOverride.billedCreditsOverride = override.billedCreditsOverride;
     }
 
+    if (override.runtimeAuthorities && Object.keys(override.runtimeAuthorities).length > 0) {
+      nextOverride.runtimeAuthorities = override.runtimeAuthorities;
+    }
+
     const compactedVariants = Object.entries(override.variants ?? {}).reduce<
       Record<string, ModelPricingVariantOverride>
     >((variantAccumulator, [variantId, variantOverride]) => {
@@ -366,6 +499,8 @@ const modelPricingOverridesEqual = (
   left.providerUsdOverride === right.providerUsdOverride &&
   left.providerUsdPerSecondOverride === right.providerUsdPerSecondOverride &&
   left.billedCreditsOverride === right.billedCreditsOverride &&
+  JSON.stringify(left.runtimeAuthorities ?? {}) ===
+    JSON.stringify(right.runtimeAuthorities ?? {}) &&
   JSON.stringify(left.variants ?? {}) === JSON.stringify(right.variants ?? {});
 
 export const modelPricingPolicyDocumentsEqual = (

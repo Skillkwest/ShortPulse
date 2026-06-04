@@ -163,6 +163,7 @@ export default async function handler(
       shortpulseContext,
     });
     if (!charge) return;
+    const settledCharge = charge;
 
     const generated = await generateElevenLabsVoiceover({
       voiceId,
@@ -201,21 +202,25 @@ export default async function handler(
         text_character_count: text.length,
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
-    });
-    const captureResult = await captureSucceededGenerationByProviderRequest({
-      userId: charge.userId,
-      providerRequestId,
-      reason: "Audio voiceover generation completed.",
-      routeLabel: "elevenlabs-text-to-speech",
-      detail: {
-        generation_id: persisted.generationId,
-        source_ref: charge.sourceRef,
-        source_mode: "voiceover",
+      beforeVisibleSettlement: async ({ generationId }) => {
+        const captureResult = await captureSucceededGenerationByProviderRequest({
+          userId: settledCharge.userId,
+          providerRequestId,
+          reason: "Audio voiceover generation completed.",
+          routeLabel: "elevenlabs-text-to-speech",
+          detail: {
+            generation_id: generationId,
+            source_ref: settledCharge.sourceRef,
+            source_mode: "voiceover",
+          },
+        });
+        if (!captureResult.settled) {
+          throw new Error(
+            `Unable to capture generation billing reservation: ${captureResult.note}`
+          );
+        }
       },
     });
-    if (!captureResult.settled) {
-      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
-    }
     await markAudioCompanionArtPending({
       generationId: persisted.generationId,
       userId: charge.userId,

@@ -40,7 +40,7 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `OPENAI_API_BASE`
    - `OPENAI_MODEL`
    - `OPENAI_VISION_MODEL`
-   - `STUDIO_AGENT_STANDARD_RESPONSES_ENABLED` (optional; `true` enables Responses transport for the Standard runtime only)
+   - `STUDIO_AGENT_STANDARD_RESPONSES_ENABLED` (optional; `true` enables stateless Responses transport for the Standard runtime only; ShortPulse does not store, return, or accept client-held provider `previous_response_id` handles without server-side ownership binding)
    - `STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED` (optional; defaults to `true`; keeps Standard-only Chat Completions fallback available during migration)
    - `SHORTPULSE_OPENAI_RESPONSES_ENABLED` (optional lower-level compatibility flag; do not use as the primary Standard rollout control)
    - `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED` (optional lower-level compatibility flag; defaults to `true`)
@@ -52,7 +52,6 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `STUDIO_AGENT_THINKER`
    - `STUDIO_AGENT_FORMATTER`
    - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
-   - AI Studio legacy `sid` session persistence is retired; do not add the old `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` flags to local runtime config.
    - `SHORTPULSE_RELEASE` (optional explicit release/build tag for error incidents)
    - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client release tag for error incidents)
    - `SHORTPULSE_ADMIN_ALERT_TOTAL_15M` (optional admin event spike threshold; default `40`)
@@ -113,7 +112,7 @@ Local cleanup policy:
 - Do not add dead rollout flags back into `frontend/.env.local`. On this branch, examples include `NEXT_PUBLIC_AGENT_V2`, `SHORTPULSE_FAL_INTEGRATION_MODE`, and Fal webhook mode/secret toggles that are no longer part of the live runtime contract.
 - Do not leave client/server mirror flags intentionally divergent unless a doc explicitly calls out that split.
 - Do not leave half-enabled rollout lanes in local env. For example, avoid enabling a client path while the matching API route or worker remains disabled.
-- Legacy AI Studio session persistence is not a default local requirement. Only opt it in intentionally for controlled testing.
+- Legacy AI Studio session persistence is not a default local requirement. Use project workspace routes for current persistence testing.
 - Product-decision flags that are still under active rollout governance should remain explicit until a permanent posture is chosen.
 
 ## Run the app

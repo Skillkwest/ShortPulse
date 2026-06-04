@@ -30,7 +30,27 @@ vi.mock("../../lib/server/api/generationAbandonment", () => ({
 
 vi.mock("../../lib/server/openaiImageGeneration", () => ({
   generateOpenAiImage: (...args: unknown[]) => generateOpenAiImageMock(...args),
-  persistGeneratedImageAsset: (...args: unknown[]) => persistGeneratedImageAssetMock(...args),
+  persistGeneratedImageAsset: async (...args: unknown[]) => {
+    const result = await persistGeneratedImageAssetMock(...args);
+    const input = args[0] as {
+      beforeVisibleSettlement?: (context: {
+        generationId: string;
+        requestId: string;
+        providerRequestId: string | null;
+        outputRowId: string | null;
+        mediaFileId: string | null;
+      }) => Promise<void>;
+      providerRequestId?: string | null;
+    };
+    await input.beforeVisibleSettlement?.({
+      generationId: result.generationId,
+      requestId: result.requestId,
+      providerRequestId: input.providerRequestId ?? null,
+      outputRowId: result.outputRowId ?? null,
+      mediaFileId: result.mediaFileId ?? null,
+    });
+    return result;
+  },
 }));
 
 const createMockResponse = () => ({

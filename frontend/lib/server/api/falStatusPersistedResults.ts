@@ -3,6 +3,7 @@ import { isTrustedMediaDirectPreviewUrl } from "../../mediaPreviewTrustPolicy";
 import { createSignedMediaUrl } from "../mediaIngest";
 import { readMediaDeliveryPathsById } from "./mediaDeliveryPaths";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { resolveGenerationLineageByProviderRequest } from "./generationLineageResolver";
 import { readGenerationProjectionStatusContext } from "./generationProjection";
 import { readPersistedGenerationOutputs } from "./generationOutputs";
 
@@ -226,6 +227,21 @@ const readGenerationIdByRequestId = async ({
   return asString((row as Record<string, unknown>).id);
 };
 
+const readGenerationIdByLineage = async ({
+  userId,
+  requestId,
+}: {
+  userId: string;
+  requestId: string;
+}): Promise<string | null> => {
+  const lineage = await resolveGenerationLineageByProviderRequest({
+    providerRequestId: requestId,
+    userId,
+    includeProjection: true,
+  }).catch(() => null);
+  return asString(lineage?.generationId);
+};
+
 export const buildPersistedFailedPayload = ({
   requestId,
   generationId,
@@ -424,11 +440,16 @@ export const readPersistedGenerationStatusContext = async ({
       };
     }
 
-    const generationId = await readGenerationIdByRequestId({
-      userId,
-      requestId,
-      supabaseAdmin: adminClient,
-    }).catch(() => null);
+    const generationId =
+      (await readGenerationIdByLineage({
+        userId,
+        requestId,
+      })) ??
+      (await readGenerationIdByRequestId({
+        userId,
+        requestId,
+        supabaseAdmin: adminClient,
+      }).catch(() => null));
     if (generationId) {
       const outputRows = await readPersistedGenerationOutputs({
         generationId,

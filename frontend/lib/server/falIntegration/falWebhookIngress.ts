@@ -1,9 +1,8 @@
 import crypto from "crypto";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
-import { lookupGenerationAttemptByProviderRequest } from "../api/generationAttempts";
+import { resolveGenerationLineageByProviderRequest } from "../api/generationLineageResolver";
 import { persistGenerationObservation } from "../api/generationObservationInbox";
 import { readPersistedGenerationStatusContext } from "../api/falStatusPersistedResults";
-import { readRecoveryGenerationRow } from "./recoveryGenerationLookup";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { executeGenerationRecovery } from "./recoveryExecution";
 import {
@@ -93,25 +92,19 @@ const resolveWebhookObservationIdentity = async ({
   generationAttemptId: string | null;
   userId: string | null;
 }> => {
-  const attemptLookup = await lookupGenerationAttemptByProviderRequest({
+  const lineage = await resolveGenerationLineageByProviderRequest({
     providerRequestId: requestId,
-  }).catch(() => ({ data: null, error: null }));
-
-  if (attemptLookup.data) {
-    return {
-      generationId: attemptLookup.data.generationId ?? null,
-      generationAttemptId: attemptLookup.data.id ?? null,
-      userId: attemptLookup.data.userId ?? null,
-    };
-  }
-
-  const generation = await readRecoveryGenerationRow({
-    requestId,
-  }).catch(() => null);
-  return {
-    generationId: generation?.id ?? null,
+    includeProjection: false,
+  }).catch(() => ({
+    generationId: null,
     generationAttemptId: null,
-    userId: generation?.user_id ?? null,
+    userId: null,
+  }));
+
+  return {
+    generationId: lineage.generationId ?? null,
+    generationAttemptId: lineage.generationAttemptId ?? null,
+    userId: lineage.userId ?? null,
   };
 };
 

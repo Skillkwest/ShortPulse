@@ -68,6 +68,12 @@ describe("video contract parity", () => {
     })(normalized.payload);
     expect(contractResult.valid).toBe(true);
     if (!contractResult.valid) throw new Error(contractResult.error);
+    expect(contractResult.projectedPayload).toEqual(
+      expect.objectContaining({
+        duration: 6,
+        duration_seconds: 6,
+      })
+    );
 
     const providerPayload = normalizeKieSubmitPayloadForModel({
       modelId: "kie-ai/veo-3.1-fast-i2v",
@@ -78,7 +84,7 @@ describe("video contract parity", () => {
         prompt: "A cinematic drone shot over a neon city at dusk",
         generationType: "TEXT_2_VIDEO",
         aspect_ratio: "9:16",
-        duration: 5,
+        duration: 6,
         resolution: "720p",
         generate_audio: true,
       })

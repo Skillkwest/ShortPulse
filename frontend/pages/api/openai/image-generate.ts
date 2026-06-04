@@ -120,6 +120,7 @@ export default async function handler(
       reason: "openai-gpt-image-2 generation",
     });
     if (!charge) return;
+    const settledCharge = charge;
 
     const generated = await generateOpenAiImage({
       prompt,
@@ -160,21 +161,25 @@ export default async function handler(
         shortpulse_context: shortpulseContext,
         provider_usage: generated.usage,
       },
-    });
-    const captureResult = await captureSucceededGenerationByProviderRequest({
-      userId: charge.userId,
-      providerRequestId,
-      reason: "OpenAI image generation completed.",
-      routeLabel: "openai-image-generate",
-      detail: {
-        generation_id: persisted.generationId,
-        source_ref: charge.sourceRef,
-        source_mode: "image",
+      beforeVisibleSettlement: async ({ generationId }) => {
+        const captureResult = await captureSucceededGenerationByProviderRequest({
+          userId: settledCharge.userId,
+          providerRequestId,
+          reason: "OpenAI image generation completed.",
+          routeLabel: "openai-image-generate",
+          detail: {
+            generation_id: generationId,
+            source_ref: settledCharge.sourceRef,
+            source_mode: "image",
+          },
+        });
+        if (!captureResult.settled) {
+          throw new Error(
+            `Unable to capture generation billing reservation: ${captureResult.note}`
+          );
+        }
       },
     });
-    if (!captureResult.settled) {
-      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
-    }
 
     return res.status(200).json({
       output: {

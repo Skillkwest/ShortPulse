@@ -72,6 +72,13 @@ type PersistGeneratedImageInput = {
   styleContext?: Record<string, unknown>;
   hiddenInReferenceGrid?: boolean;
   extraMetadata?: Record<string, unknown>;
+  beforeVisibleSettlement?: (context: {
+    generationId: string;
+    requestId: string;
+    providerRequestId: string | null;
+    outputRowId: string | null;
+    mediaFileId: string | null;
+  }) => Promise<void>;
 };
 
 export type PersistGeneratedImageResult = {
@@ -496,6 +503,7 @@ export const persistGeneratedImageAsset = async ({
   styleContext = {},
   hiddenInReferenceGrid = false,
   extraMetadata = {},
+  beforeVisibleSettlement,
 }: PersistGeneratedImageInput): Promise<PersistGeneratedImageResult> => {
   const supabaseAdmin = getSupabaseAdmin();
   const generationId = randomUUID();
@@ -588,6 +596,14 @@ export const persistGeneratedImageAsset = async ({
     ? "auto_persisted"
     : "autosave_skipped";
   let autosaveDecisionReason: string = autosavePolicyDecision.reason;
+  await beforeVisibleSettlement?.({
+    generationId,
+    requestId: resolvedRequestId,
+    providerRequestId: resolvedProviderRequestId,
+    outputRowId: null,
+    mediaFileId: null,
+  });
+
   let mediaFileId: string | null = null;
   let outputRows = await persistGenerationOutputRecords({
     generationId,

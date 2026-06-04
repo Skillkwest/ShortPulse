@@ -4,6 +4,7 @@
  * character-media isolation for video model submissions.
  */
 
+import { normalizeDurationForModel } from "../../model-runtime/modelDurationConstraints";
 import { getModelConfig } from "../../model-runtime/pricing";
 import { isCharacterScopedMediaUrl } from "../../mediaStoragePath";
 import {
@@ -115,6 +116,20 @@ const asObject = (value: unknown): JsonObject | null => {
 };
 
 const cloneObject = (value: JsonObject): JsonObject => ({ ...value });
+
+const asPositiveInteger = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    const normalized = Math.trunc(value);
+    return normalized > 0 ? normalized : null;
+  }
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed.length) return null;
+  const match = trimmed.match(/^(\d+)s?$/);
+  if (!match) return null;
+  const parsed = Number.parseInt(match[1], 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
 
 const decodeSafe = (value: string): string => {
   try {
@@ -263,6 +278,14 @@ const validateCanonicalPayload = ({
       error: "Character media fields/paths are not allowed in video model payloads.",
       detail: leak,
     };
+  }
+
+  const requestedDuration =
+    asPositiveInteger(nextPayload.duration_seconds) ?? asPositiveInteger(nextPayload.duration);
+  const normalizedDuration = normalizeDurationForModel(requestedDuration, modelId);
+  if (requestedDuration !== null && normalizedDuration) {
+    nextPayload.duration_seconds = normalizedDuration;
+    nextPayload.duration = normalizedDuration;
   }
 
   return {

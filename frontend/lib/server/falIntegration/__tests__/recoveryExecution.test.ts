@@ -330,6 +330,12 @@ describe("executeGenerationRecovery", () => {
         resultUrls: ["https://cdn.shortpulse.test/already-persisted.png"],
       })
     );
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
+    );
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
+    );
     expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         providerRequestId: "req-1",
@@ -940,6 +946,12 @@ describe("executeGenerationRecovery", () => {
         resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
         savedMediaIds: ["media-1", "media-2"],
       })
+    );
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
+    );
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
     );
     expect(scenario.updatePayloads).toHaveLength(1);
     expect(scenario.updatePayloads[0]).toEqual(

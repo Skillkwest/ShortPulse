@@ -259,6 +259,7 @@ export default async function handler(
       reason: "openai-gpt-image-2 edit",
     });
     if (!charge) return;
+    const settledCharge = charge;
 
     const edited = await editOpenAiImage({
       prompt,
@@ -309,22 +310,26 @@ export default async function handler(
         mask_present: Boolean(resolvedMask),
         provider_usage: edited.usage,
       },
-    });
-    const captureResult = await captureSucceededGenerationByProviderRequest({
-      userId: charge.userId,
-      providerRequestId,
-      reason: "OpenAI image edit completed.",
-      routeLabel: "openai-image-edit",
-      detail: {
-        generation_id: persisted.generationId,
-        source_ref: charge.sourceRef,
-        source_mode: "image",
-        openai_operation: "edit",
+      beforeVisibleSettlement: async ({ generationId }) => {
+        const captureResult = await captureSucceededGenerationByProviderRequest({
+          userId: settledCharge.userId,
+          providerRequestId,
+          reason: "OpenAI image edit completed.",
+          routeLabel: "openai-image-edit",
+          detail: {
+            generation_id: generationId,
+            source_ref: settledCharge.sourceRef,
+            source_mode: "image",
+            openai_operation: "edit",
+          },
+        });
+        if (!captureResult.settled) {
+          throw new Error(
+            `Unable to capture generation billing reservation: ${captureResult.note}`
+          );
+        }
       },
     });
-    if (!captureResult.settled) {
-      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
-    }
 
     return res.status(200).json({
       output: {

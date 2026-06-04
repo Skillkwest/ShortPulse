@@ -290,6 +290,7 @@ export default async function handler(
       shortpulseContext,
     });
     if (!charge) return;
+    const settledCharge = charge;
 
     if (originalVideoStoragePath) {
       const trustedStoragePath = assertUserScopedMediaStoragePath({
@@ -397,22 +398,26 @@ export default async function handler(
         source_duration_seconds: sourceDurationSeconds,
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
-    });
-    const captureResult = await captureSucceededGenerationByProviderRequest({
-      userId: charge.userId,
-      providerRequestId,
-      reason: "Audio voice changer generation completed.",
-      routeLabel: "elevenlabs-speech-to-speech",
-      detail: {
-        generation_id: persisted.generationId,
-        source_ref: charge.sourceRef,
-        source_mode: "voice-changer",
-        source_duration_seconds: sourceDurationSeconds,
+      beforeVisibleSettlement: async ({ generationId }) => {
+        const captureResult = await captureSucceededGenerationByProviderRequest({
+          userId: settledCharge.userId,
+          providerRequestId,
+          reason: "Audio voice changer generation completed.",
+          routeLabel: "elevenlabs-speech-to-speech",
+          detail: {
+            generation_id: generationId,
+            source_ref: settledCharge.sourceRef,
+            source_mode: "voice-changer",
+            source_duration_seconds: sourceDurationSeconds,
+          },
+        });
+        if (!captureResult.settled) {
+          throw new Error(
+            `Unable to capture generation billing reservation: ${captureResult.note}`
+          );
+        }
       },
     });
-    if (!captureResult.settled) {
-      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
-    }
     await markAudioCompanionArtPending({
       generationId: persisted.generationId,
       userId: charge.userId,

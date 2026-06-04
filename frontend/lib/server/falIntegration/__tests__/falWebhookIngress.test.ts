@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ingestFalWebhookEvent, parseFalWebhookPayload } from "../falWebhookIngress";
 
 const getSupabaseAdminMock = vi.fn();
-const lookupGenerationAttemptByProviderRequestMock = vi.fn();
+const resolveGenerationLineageByProviderRequestMock = vi.fn();
 const persistGenerationObservationMock = vi.fn();
 const readPersistedGenerationStatusContextMock = vi.fn();
 const readRecoveryGenerationRowMock = vi.fn();
@@ -13,9 +13,9 @@ vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
 }));
 
-vi.mock("../../api/generationAttempts", () => ({
-  lookupGenerationAttemptByProviderRequest: (...args: unknown[]) =>
-    lookupGenerationAttemptByProviderRequestMock(...args),
+vi.mock("../../api/generationLineageResolver", () => ({
+  resolveGenerationLineageByProviderRequest: (...args: unknown[]) =>
+    resolveGenerationLineageByProviderRequestMock(...args),
 }));
 
 vi.mock("../../api/generationObservationInbox", () => ({
@@ -59,7 +59,16 @@ const createSupabaseMock = () => {
 describe("falWebhookIngress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({ data: null, error: null });
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: null,
+      generationAttemptId: null,
+      userId: null,
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "req-1",
+      evidence: [],
+      attemptLookupError: null,
+    });
     persistGenerationObservationMock.mockResolvedValue(undefined);
     readPersistedGenerationStatusContextMock.mockResolvedValue({
       generationId: "gen-1",
@@ -146,16 +155,15 @@ describe("falWebhookIngress", () => {
   it("synthesizes an event id when Fal omits one but request id is present", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
-      data: {
-        id: "attempt-1",
-        generationId: "gen-1",
-        userId: "user-1",
-        attemptNumber: 1,
-        providerRequestId: "req-1",
-        metadata: {},
-      },
-      error: null,
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: "gen-1",
+      generationAttemptId: "attempt-1",
+      userId: "user-1",
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "req-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
     });
     readPersistedGenerationStatusContextMock.mockResolvedValue({
       generationId: "gen-1",
@@ -205,16 +213,15 @@ describe("falWebhookIngress", () => {
   it("skips fallback observation when immediate webhook recovery settles canonical success", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
-      data: {
-        id: "attempt-1",
-        generationId: "gen-1",
-        userId: "user-1",
-        attemptNumber: 1,
-        providerRequestId: "req-1",
-        metadata: {},
-      },
-      error: null,
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: "gen-1",
+      generationAttemptId: "attempt-1",
+      userId: "user-1",
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "req-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
     });
     await expect(
       ingestFalWebhookEvent({
@@ -263,16 +270,15 @@ describe("falWebhookIngress", () => {
   it("persists terminal events into the observation inbox and wakes the control plane when immediate recovery does not settle", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
-      data: {
-        id: "attempt-1",
-        generationId: "gen-1",
-        userId: "user-1",
-        attemptNumber: 1,
-        providerRequestId: "req-1",
-        metadata: {},
-      },
-      error: null,
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: "gen-1",
+      generationAttemptId: "attempt-1",
+      userId: "user-1",
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "req-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
     });
     readPersistedGenerationStatusContextMock.mockResolvedValue({
       generationId: "gen-1",
@@ -328,16 +334,15 @@ describe("falWebhookIngress", () => {
   it("passes extracted Fal media URLs into immediate webhook recovery", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
-      data: {
-        id: "attempt-1",
-        generationId: "gen-1",
-        userId: "user-1",
-        attemptNumber: 1,
-        providerRequestId: "req-1",
-        metadata: {},
-      },
-      error: null,
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: "gen-1",
+      generationAttemptId: "attempt-1",
+      userId: "user-1",
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "req-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
     });
 
     await ingestFalWebhookEvent({

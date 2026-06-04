@@ -1198,12 +1198,11 @@ describe("POST /api/media/list", () => {
       [
         "user-1/uploads/images/panel-target-thumb.png",
         "user-1/uploads/images/panel-target-2-thumb.png",
-        "user-1/uploads/images/panel-target-3-thumb.png",
       ],
       3600
     );
     expect(createSignedUrlMock).not.toHaveBeenCalled();
-    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "3");
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "2");
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         rows: expect.arrayContaining([
@@ -1215,8 +1214,6 @@ describe("POST /api/media/list", () => {
           "panel-media-1": "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-thumb.png",
           "panel-media-2":
             "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-2-thumb.png",
-          "panel-media-3":
-            "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-3-thumb.png",
         },
       })
     );
@@ -1285,7 +1282,7 @@ describe("POST /api/media/list", () => {
     );
   });
 
-  it("seeds a full first visual row of signed previews for the panel mixed open", async () => {
+  it("seeds only the first usable signed previews for the panel mixed open", async () => {
     const rows = Array.from({ length: 5 }, (_, index) => ({
       id: `panel-seed-${index + 1}`,
       user_id: "user-1",
@@ -1326,13 +1323,10 @@ describe("POST /api/media/list", () => {
       [
         "user-1/uploads/images/panel-seed-1-thumb.png",
         "user-1/uploads/images/panel-seed-2-thumb.png",
-        "user-1/uploads/images/panel-seed-3-thumb.png",
-        "user-1/uploads/images/panel-seed-4-thumb.png",
-        "user-1/uploads/images/panel-seed-5-thumb.png",
       ],
       3600
     );
-    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "5");
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "2");
   });
 
   it.each(["elements-media-panel", "character-media-panel"] as const)(

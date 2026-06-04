@@ -3,7 +3,7 @@
  * Isolates ai_generations read/query behavior from recovery orchestration.
  */
 
-import { lookupGenerationAttemptByProviderRequest } from "../api/generationAttempts";
+import { resolveGenerationLineageByProviderRequest } from "../api/generationLineageResolver";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { asString } from "./falAdapter";
 
@@ -104,13 +104,12 @@ export const readRecoveryGenerationRow = async ({
     return readByGenerationId(generationId);
   }
   if (!requestId) return null;
-  const attemptLookup = await lookupGenerationAttemptByProviderRequest({
+  const lineage = await resolveGenerationLineageByProviderRequest({
     providerRequestId: requestId,
     userId,
+    includeProjection: false,
+    throwOnAttemptLookupError: true,
   });
-  if (attemptLookup.error) {
-    throw new Error(attemptLookup.error.message ?? "attempt_provider_request_lookup_failed");
-  }
-  if (!attemptLookup.data?.generationId) return null;
-  return readByGenerationId(attemptLookup.data.generationId);
+  if (!lineage.generationId) return null;
+  return readByGenerationId(lineage.generationId);
 };

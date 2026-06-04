@@ -25,6 +25,7 @@ import { ProfileStorageSection } from "../features/profile/components/ProfileSto
 import { ProfileSubscriptionSection } from "../features/profile/components/ProfileSubscriptionSection";
 import { ProfileTransactionsSection } from "../features/profile/components/ProfileTransactionsSection";
 import { ProfileWorkspaceShell } from "../features/profile/components/ProfileWorkspaceShell";
+import { shellStyles } from "../features/profile/components/profileAccountInlineStyles";
 import {
   formatDateLabel,
   formatLongDateLabel,
@@ -937,6 +938,7 @@ export default function ProfilePage() {
           "profile-page",
           "profile-page-shell"
         )}
+        style={shellStyles.page}
       >
         <p className="subdued">Checking your session…</p>
       </main>
@@ -961,6 +963,7 @@ export default function ProfilePage() {
           "profile-page",
           "profile-page-shell"
         )}
+        style={shellStyles.page}
       >
         <ProfileWorkspaceShell
           displayInitials={displayInitials}

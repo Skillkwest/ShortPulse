@@ -87,6 +87,20 @@ describe("Profile account settings autosave toggle", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders restored account presentation styles without relying on browser defaults", () => {
+    render(<ProfilePage />);
+
+    expect(screen.getByRole("main")).toHaveStyle({
+      backgroundColor: "rgb(11, 15, 20)",
+    });
+    expect(screen.getByLabelText("Display name").getAttribute("style")).toContain(
+      "background: rgba(8, 12, 17, 0.92)"
+    );
+    expect(screen.getByRole("link", { name: "Account" }).getAttribute("style")).toContain(
+      "background: rgba(24, 64, 76, 0.94)"
+    );
+  });
+
   it("forwards toggle intent to media autosave setter", () => {
     const setMediaAutosaveEnabled = vi.fn();
     useMediaAutosavePreferenceMock.mockReturnValue({

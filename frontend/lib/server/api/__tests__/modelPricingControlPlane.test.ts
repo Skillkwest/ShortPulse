@@ -352,11 +352,17 @@ describe("modelPricingControlPlane", () => {
             "fal-ai/flux-2/klein/9b": [
               {
                 displayRowId: "row-1",
+                label: null,
                 variantId: "create|res:model_default|aspect:4:3",
                 spec: {
                   baseVariantId: "create",
                   aspect: "4:3",
                   resolution: "model_default",
+                },
+                overrides: {
+                  markupBps: null,
+                  providerUsdOverride: null,
+                  providerUsdPerSecondOverride: null,
                 },
               },
             ],

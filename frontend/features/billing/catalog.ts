@@ -140,8 +140,8 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "1 workspace seat",
     description: "Starter access for exploration.",
     cardFooterDescription: "Best for graphic artists and all image based workflows.",
-    concurrentGenerationsLabel: "1 image generation at a time",
-    concurrentGenerationsCompactLabel: "1 image",
+    concurrentGenerationsLabel: "Image-only workflow",
+    concurrentGenerationsCompactLabel: "Image-only workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -167,8 +167,8 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "1 workspace seat",
     description: "Starter access for exploration.",
     cardFooterDescription: "Best for graphic artists and all image based workflows.",
-    concurrentGenerationsLabel: "1 image generation at a time",
-    concurrentGenerationsCompactLabel: "1 image",
+    concurrentGenerationsLabel: "Image-only workflow",
+    concurrentGenerationsCompactLabel: "Image-only workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -194,8 +194,8 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "1 workspace seat",
     description: "Ideal for creators testing cadence.",
     cardFooterDescription: "Best for image + short form video workflows.",
-    concurrentGenerationsLabel: "2 audio, 2 image, and 1 video generations at a time",
-    concurrentGenerationsCompactLabel: "2 audio · 2 image · 1 video",
+    concurrentGenerationsLabel: "Parallel mixed-media workflow",
+    concurrentGenerationsCompactLabel: "Parallel mixed-media workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -222,8 +222,8 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     description: "Built for consistent creative production.",
     cardFooterDescription:
       "Best for creators moving from casual experimenting to serious AI production.",
-    concurrentGenerationsLabel: "4 audio, 3 image, and 2 video generations at a time",
-    concurrentGenerationsCompactLabel: "4 audio · 3 image · 2 video",
+    concurrentGenerationsLabel: "Higher-concurrency mixed-media workflow",
+    concurrentGenerationsCompactLabel: "Higher-concurrency mixed-media workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -249,8 +249,8 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "Team access",
     description: "Highest throughput for heavy AI workloads.",
     cardFooterDescription: "Best for serious creators with heavy workflow & storage needs",
-    concurrentGenerationsLabel: "6 audio, 4 image, and 3 video generations at a time",
-    concurrentGenerationsCompactLabel: "6 audio · 4 image · 3 video",
+    concurrentGenerationsLabel: "Highest-concurrency mixed-media workflow",
+    concurrentGenerationsCompactLabel: "Highest-concurrency mixed-media workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -281,8 +281,8 @@ const GENERIC_PLAN_PRESENTATION: PlanPresentation = {
   seatsLabel: "Workspace access",
   description: "Subscription plan.",
   cardFooterDescription: "Built for creators scaling their workflow.",
-  concurrentGenerationsLabel: "Standard concurrent generation access",
-  concurrentGenerationsCompactLabel: "Standard concurrent access",
+  concurrentGenerationsLabel: "Workflow concurrency",
+  concurrentGenerationsCompactLabel: "Workflow concurrency",
   cardFeatures: [
     { label: "Create studio", included: true },
     { label: "Editing studio", included: true },

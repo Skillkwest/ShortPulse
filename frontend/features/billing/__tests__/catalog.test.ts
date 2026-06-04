@@ -66,36 +66,36 @@ describe("buildPlanView", () => {
     ).toBe("Starter");
   });
 
-  it("exposes plan-card concurrency copy that stays consistent with each tier's included studios", () => {
+  it("exposes plan-card concurrency copy that hints at capacity without hard-coding exact limits", () => {
     expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsLabel).toBe(
-      "1 image generation at a time"
+      "Image-only workflow"
     );
     expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsLabel).toBe(
-      "1 image generation at a time"
+      "Image-only workflow"
     );
     expect(buildPlanView({ planId: "media", plans }).concurrentGenerationsLabel).toBe(
-      "2 audio, 2 image, and 1 video generations at a time"
+      "Parallel mixed-media workflow"
     );
     expect(buildPlanView({ planId: "studio", plans }).concurrentGenerationsLabel).toBe(
-      "4 audio, 3 image, and 2 video generations at a time"
+      "Higher-concurrency mixed-media workflow"
     );
     expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsLabel).toBe(
-      "6 audio, 4 image, and 3 video generations at a time"
+      "Highest-concurrency mixed-media workflow"
     );
     expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsCompactLabel).toBe(
-      "1 image"
+      "Image-only workflow"
     );
     expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsCompactLabel).toBe(
-      "1 image"
+      "Image-only workflow"
     );
     expect(buildPlanView({ planId: "media", plans }).concurrentGenerationsCompactLabel).toBe(
-      "2 audio · 2 image · 1 video"
+      "Parallel mixed-media workflow"
     );
     expect(buildPlanView({ planId: "studio", plans }).concurrentGenerationsCompactLabel).toBe(
-      "4 audio · 3 image · 2 video"
+      "Higher-concurrency mixed-media workflow"
     );
     expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsCompactLabel).toBe(
-      "6 audio · 4 image · 3 video"
+      "Highest-concurrency mixed-media workflow"
     );
   });
 

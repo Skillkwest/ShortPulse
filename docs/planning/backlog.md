@@ -50,5 +50,8 @@ Structure (locked):
 - [ ] Build a complete, polished collection of small delete buttons.
 - [ ] Build a complete, polished collection of small save buttons.
 - [ ] Finish the Dashboard redesign pass by retiring the remaining staged/legacy posture and tightening the long-term styling structure.
+- [ ] Add durable plan-concurrency disclosure surfaces so exact enforced limits live in product-contract UX instead of only in plan-card copy. Scope should cover a pricing comparison table, billing/pricing FAQ or help surface, and in-product limit messaging for users who hit concurrency caps.
+      Reference: `frontend/features/billing/catalog.ts`, `frontend/features/billing/components/SubscriptionPlanCard.tsx`, `docs/product/billing-pricing-catalog.md`
+      Restart scope: treat plan cards as soft value framing, and move exact concurrency numbers into clearer disclosure/help surfaces once plan-specific enforcement truth is ready to publish.
 
 ## Program 5: Release Confidence And Research

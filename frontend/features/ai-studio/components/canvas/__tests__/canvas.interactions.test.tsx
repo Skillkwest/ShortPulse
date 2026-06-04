@@ -13,6 +13,10 @@ const canvasWorkspaceCss = readFileSync(
   `${process.cwd()}/styles/ai-studio-canvas-workspace.css`,
   "utf8"
 );
+const referenceGridSplitCss = readFileSync(
+  `${process.cwd()}/styles/ai-studio-reference-grid-split.css`,
+  "utf8"
+);
 
 const dispatchDropAtPoint = ({
   viewport,
@@ -88,6 +92,24 @@ const dragMarquee = ({
 };
 
 describe("Canvas interaction behavior", () => {
+  it("keeps Canvas transform work inside isolated paint and layout boundaries", () => {
+    expect(referenceGridSplitCss).toMatch(
+      /\.reference-rail-canvas-section\s*{[^}]*contain:\s*layout paint style;/s
+    );
+    expect(referenceGridSplitCss).toMatch(
+      /\.reference-rail-canvas-body\s*{[^}]*contain:\s*layout paint style;/s
+    );
+    expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-workspace-viewport\s*{[^}]*contain:\s*layout paint style;/s
+    );
+    expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-workspace-viewport\s*{[^}]*isolation:\s*isolate;/s
+    );
+    expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-workspace-world\s*{[^}]*will-change:\s*transform;/s
+    );
+  });
+
   it("supports select and deselect interactions", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
@@ -197,6 +219,56 @@ describe("Canvas interaction behavior", () => {
       expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
       expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
       expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+    });
+  });
+
+  it("continues ghost dragging when move and release events land on the viewport", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Viewport fallback drag",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 221,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 221,
+      clientX: 276,
+      clientY: 188,
+    });
+
+    const ghost = await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+    expect(Number(item.getAttribute("data-x"))).toBe(startX);
+    expect(Number(item.getAttribute("data-y"))).toBe(startY);
+    expect(Number(ghost.getAttribute("data-x"))).toBe(startX + 56);
+    expect(Number(ghost.getAttribute("data-y"))).toBe(startY + 48);
+
+    fireEvent.pointerUp(viewport, {
+      button: 0,
+      pointerId: 221,
+      clientX: 276,
+      clientY: 188,
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
+      expect(Number(item.getAttribute("data-x"))).toBe(startX + 56);
+      expect(Number(item.getAttribute("data-y"))).toBe(startY + 48);
     });
   });
 
@@ -777,6 +849,53 @@ describe("Canvas interaction behavior", () => {
 
     expect(Number(viewport.getAttribute("data-camera-x"))).toBe(40);
     expect(Number(viewport.getAttribute("data-camera-y"))).toBe(50);
+  });
+
+  it("pans from Space-drag after composer-like textarea focus without blocking text entry", () => {
+    const composer = document.createElement("textarea");
+    document.body.append(composer);
+
+    try {
+      render(<CanvasHarness />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      composer.focus();
+      const spaceDown = createEvent.keyDown(composer, {
+        code: "Space",
+        key: " ",
+      });
+      fireEvent(composer, spaceDown);
+
+      expect(spaceDown.defaultPrevented).toBe(false);
+
+      fireEvent.pointerDown(viewport, {
+        button: 0,
+        pointerId: 310,
+        clientX: 100,
+        clientY: 100,
+      });
+      fireEvent.pointerMove(viewport, {
+        pointerId: 310,
+        clientX: 146,
+        clientY: 152,
+      });
+      fireEvent.pointerUp(viewport, {
+        button: 0,
+        pointerId: 310,
+        clientX: 146,
+        clientY: 152,
+      });
+      fireEvent.keyUp(composer, {
+        code: "Space",
+        key: " ",
+      });
+
+      expect(Number(viewport.getAttribute("data-camera-x"))).toBe(46);
+      expect(Number(viewport.getAttribute("data-camera-y"))).toBe(52);
+    } finally {
+      composer.remove();
+    }
   });
 
   it("creates a draft from double-tap fallback when slight drag jitter would otherwise trigger pan", () => {

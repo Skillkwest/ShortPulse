@@ -12,7 +12,6 @@ import {
   type MouseEvent,
   type PointerEvent,
   type SetStateAction,
-  type WheelEvent,
 } from "react";
 import {
   CANVAS_DEFAULT_CAMERA,
@@ -63,6 +62,7 @@ import type {
   CanvasItemDragPreview,
   CanvasMarqueeSelectionBox,
   CanvasPropertiesPanelProps,
+  CanvasViewportWheelEvent,
   CanvasWorkspaceInstanceId,
 } from "./canvasWorkspaceContracts";
 import { useCanvasViewportDropHandlers } from "./useCanvasViewportDropHandlers";
@@ -1209,7 +1209,7 @@ export const useCanvasViewportInstanceState = ({
   );
 
   const handleViewportWheel = useCallback(
-    (event: WheelEvent<HTMLDivElement>) => {
+    (event: CanvasViewportWheelEvent) => {
       if (!viewportRef.current) return;
       event.preventDefault();
       event.stopPropagation();

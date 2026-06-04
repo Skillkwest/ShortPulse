@@ -20,6 +20,18 @@ const resolveCanvasMediaErrorKey = (item: CanvasSceneItem): string | null => {
   return null;
 };
 
+const useResolvedCanvasPropertiesPanelProps = (
+  props: CanvasPropertiesPanelProps
+): CanvasPropertiesPanelProps => {
+  const livePropsStore = props.livePropsStore;
+  const liveProps = React.useSyncExternalStore(
+    livePropsStore?.subscribe ?? (() => () => undefined),
+    livePropsStore?.getSnapshot ?? (() => props),
+    livePropsStore?.getSnapshot ?? (() => props)
+  );
+  return livePropsStore ? liveProps : props;
+};
+
 type CanvasSceneItemViewProps = Pick<
   CanvasPropertiesPanelProps,
   | "isItemDraggable"
@@ -318,51 +330,52 @@ const CanvasSceneItemGhostView = React.memo(function CanvasSceneItemGhostView({
 /**
  * Renders the Canvas workspace UI and delegates all state changes to the page-owned controller.
  */
-export function CanvasPropertiesPanel({
-  instanceId,
-  camera,
-  items,
-  pendingItems,
-  itemDragPreview,
-  marqueeSelectionBox,
-  viewportRef,
-  isDropActive,
-  draftTextEntry,
-  isDraftTextEditable = true,
-  editingTextItemId,
-  editingTextValue,
-  isTextEditEditable = true,
-  onViewportKeyDown,
-  onViewportDoubleClick,
-  onViewportClick,
-  onViewportPointerDown,
-  onViewportPointerMove,
-  onViewportPointerUp,
-  onViewportPointerCancel,
-  onViewportDragEnter,
-  onViewportDragOver,
-  onViewportDragLeave,
-  onViewportDrop,
-  onViewportWheel,
-  onItemPointerDown,
-  onItemPointerMove,
-  onItemPointerUp,
-  onItemPointerCancel,
-  isTextResizeEnabled = false,
-  onTextResizeHandlePointerDown,
-  isItemDraggable = false,
-  onItemDragStart,
-  onItemDragEnd,
-  onItemContextMenu,
-  onItemDoubleClick,
-  onPinTextItem,
-  onDraftTextChange,
-  onDraftTextKeyDown,
-  onDraftTextBlur,
-  onTextItemEditChange,
-  onTextItemEditKeyDown,
-  onTextItemEditBlur,
-}: CanvasPropertiesPanelProps) {
+export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
+  const {
+    instanceId,
+    camera,
+    items,
+    pendingItems,
+    itemDragPreview,
+    marqueeSelectionBox,
+    viewportRef,
+    isDropActive,
+    draftTextEntry,
+    isDraftTextEditable = true,
+    editingTextItemId,
+    editingTextValue,
+    isTextEditEditable = true,
+    onViewportKeyDown,
+    onViewportDoubleClick,
+    onViewportClick,
+    onViewportPointerDown,
+    onViewportPointerMove,
+    onViewportPointerUp,
+    onViewportPointerCancel,
+    onViewportDragEnter,
+    onViewportDragOver,
+    onViewportDragLeave,
+    onViewportDrop,
+    onViewportWheel,
+    onItemPointerDown,
+    onItemPointerMove,
+    onItemPointerUp,
+    onItemPointerCancel,
+    isTextResizeEnabled = false,
+    onTextResizeHandlePointerDown,
+    isItemDraggable = false,
+    onItemDragStart,
+    onItemDragEnd,
+    onItemContextMenu,
+    onItemDoubleClick,
+    onPinTextItem,
+    onDraftTextChange,
+    onDraftTextKeyDown,
+    onDraftTextBlur,
+    onTextItemEditChange,
+    onTextItemEditKeyDown,
+    onTextItemEditBlur,
+  } = useResolvedCanvasPropertiesPanelProps(props);
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
   const [isNativeDragModifierArmed, setIsNativeDragModifierArmed] = React.useState(false);
@@ -445,28 +458,23 @@ export function CanvasPropertiesPanel({
     };
   }, [isItemDraggable]);
 
+  const onViewportWheelRef = React.useRef(onViewportWheel);
+
   React.useEffect(() => {
-    if (instanceId !== "rail") return;
+    onViewportWheelRef.current = onViewportWheel;
+  }, [onViewportWheel]);
+
+  React.useEffect(() => {
     const viewportNode = viewportRef.current;
     if (!viewportNode) return;
     const handleNativeWheel = (event: globalThis.WheelEvent) => {
-      if (!event.cancelable) return;
-      event.preventDefault();
+      onViewportWheelRef.current(event);
     };
     viewportNode.addEventListener("wheel", handleNativeWheel, { passive: false });
     return () => {
       viewportNode.removeEventListener("wheel", handleNativeWheel);
     };
-  }, [instanceId, viewportRef]);
-
-  const handleViewportWheel = React.useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      onViewportWheel(event);
-    },
-    [onViewportWheel]
-  );
+  }, [viewportRef]);
 
   return (
     <section className="canvas-properties-panel">
@@ -492,7 +500,6 @@ export function CanvasPropertiesPanel({
         onDragOver={onViewportDragOver}
         onDragLeave={onViewportDragLeave}
         onDrop={onViewportDrop}
-        onWheel={handleViewportWheel}
       >
         <div
           className="canvas-workspace-world"

@@ -56,6 +56,8 @@ import {
   resolveCanvasStudioOutputMediaDisplayAuthority,
 } from "../logic/canvasMediaDisplayAuthority";
 import type { StudioOutputMediaDisplayAuthority } from "../logic/referenceGridMedia";
+import { resolveVideoPosterStoragePath } from "../logic/videoPosterStoragePaths";
+import { useCanvasPropertiesPanelLivePropsBridge } from "../components/canvas/useCanvasPropertiesPanelLivePropsBridge";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 import type { AiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 import {
@@ -802,6 +804,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     }),
     [baseRailCanvasProps, handleRailCanvasItemDragEnd, handleRailCanvasItemDragStart]
   );
+  const stableRailCanvasProps = useCanvasPropertiesPanelLivePropsBridge(railCanvasProps);
 
   useEffect(() => {
     const outputSnapshot = getOutputSnapshot();
@@ -951,7 +954,12 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         })[0] ?? item.outputId;
       const output = getOutputById(resolvedOutputId);
       if (!output || output.mode !== "video") return [];
-      if (!output.previewPosterStoragePath && !output.previewPosterUrl) return [];
+      const posterStoragePath = resolveVideoPosterStoragePath({
+        previewPosterStoragePath: output.previewPosterStoragePath,
+        previewStoragePath: output.previewStoragePath,
+        fullStoragePath: output.fullStoragePath,
+      });
+      if (!posterStoragePath && !output.previewPosterUrl) return [];
       return [
         {
           item,
@@ -1163,7 +1171,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
     hydrateCanvasSessionState,
-    railCanvasProps,
+    railCanvasProps: stableRailCanvasProps,
     resolveVoiceChangerInternalReferenceSource,
   };
 };

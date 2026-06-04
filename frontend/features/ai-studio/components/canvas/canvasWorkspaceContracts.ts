@@ -1,14 +1,7 @@
 /**
  * Shared Canvas workspace contracts consumed across orchestration and render layers.
  */
-import type {
-  DragEvent,
-  KeyboardEvent,
-  MouseEvent,
-  PointerEvent,
-  RefObject,
-  WheelEvent,
-} from "react";
+import type { DragEvent, KeyboardEvent, MouseEvent, PointerEvent, RefObject } from "react";
 import type {
   CanvasDraftTextEntry,
   CanvasPendingSceneItem,
@@ -42,7 +35,18 @@ export type CanvasItemDragPreview = {
   deltaY: number;
 };
 
+export type CanvasViewportWheelEvent = Pick<
+  globalThis.WheelEvent,
+  "clientX" | "clientY" | "deltaMode" | "deltaY" | "preventDefault" | "stopPropagation"
+>;
+
+export type CanvasPropertiesPanelLivePropsStore = {
+  getSnapshot: () => CanvasPropertiesPanelProps;
+  subscribe: (listener: () => void) => () => void;
+};
+
 export type CanvasPropertiesPanelProps = {
+  livePropsStore?: CanvasPropertiesPanelLivePropsStore;
   instanceId?: CanvasWorkspaceInstanceId;
   camera: CanvasCamera;
   items: CanvasSceneItem[];
@@ -67,7 +71,7 @@ export type CanvasPropertiesPanelProps = {
   onViewportDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onViewportDragLeave: (event: DragEvent<HTMLDivElement>) => void;
   onViewportDrop: (event: DragEvent<HTMLDivElement>) => void;
-  onViewportWheel: (event: WheelEvent<HTMLDivElement>) => void;
+  onViewportWheel: (event: CanvasViewportWheelEvent) => void;
   onItemPointerDown: (id: string, event: PointerEvent<HTMLElement>) => void;
   onItemPointerMove: (id: string, event: PointerEvent<HTMLElement>) => void;
   onItemPointerUp: (id: string, event: PointerEvent<HTMLElement>) => void;

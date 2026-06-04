@@ -8,6 +8,7 @@ import {
 import type { StudioOutput } from "../../types";
 import type { AiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
 import type { AiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
+import type { CanvasPropertiesPanelProps } from "../../components/canvas/canvasWorkspaceContracts";
 import { useAiStudioPageMediaReferenceRuntime } from "../useAiStudioPageMediaReferenceRuntime";
 
 const restoreSigningMocks = vi.hoisted(() => ({
@@ -45,6 +46,7 @@ vi.mock("../../logic/sessionRestoreMediaSigning", () => ({
 }));
 
 let latestDualCanvasArgs: MockDualCanvasArgs | null = null;
+let mockedRailCanvasProps: Partial<CanvasPropertiesPanelProps> = {};
 let mockedCanvasSessionState: AiStudioSessionCanvasState = {
   items: [],
   draftTextEntry: null,
@@ -60,7 +62,7 @@ vi.mock("../../components/canvas/useAiStudioCanvasWorkspaceState", () => ({
   useAiStudioDualCanvasWorkspaceState: (args: MockDualCanvasArgs) => {
     latestDualCanvasArgs = args;
     return {
-      railCanvasProps: {},
+      railCanvasProps: mockedRailCanvasProps,
       sessionState: mockedCanvasSessionState,
       hydrateSessionState: hydrateCanvasSessionStateMock,
     };
@@ -169,6 +171,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
         `https://signed.shortpulse.test/${storagePath}`
     );
     latestDualCanvasArgs = null;
+    mockedRailCanvasProps = {};
     mockedCanvasSessionState = {
       items: [],
       draftTextEntry: null,
@@ -331,6 +334,32 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     } as unknown as React.DragEvent<HTMLElement>);
 
     expect(currentTarget.classList.contains("is-dragging")).toBe(false);
+  });
+
+  it("keeps the rail canvas prop identity stable while publishing fresh live props", async () => {
+    mockedRailCanvasProps = {
+      camera: { x: 0, y: 0, zoom: 1 },
+    };
+    const { result, rerender } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+      })
+    );
+    const firstRailCanvasProps = result.current.railCanvasProps;
+
+    mockedRailCanvasProps = {
+      camera: { x: 24, y: 36, zoom: 1.5 },
+    };
+    rerender();
+
+    expect(result.current.railCanvasProps).toBe(firstRailCanvasProps);
+    await waitFor(() => {
+      expect(result.current.railCanvasProps.livePropsStore?.getSnapshot().camera).toEqual({
+        x: 24,
+        y: 36,
+        zoom: 1.5,
+      });
+    });
   });
 
   it("exports right-rail canvas media as internal reference drags on Shift drag with copy semantics", () => {
@@ -857,6 +886,58 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
   });
 
+  it("prepares internal canvas video drops with poster inferred from image preview storage", async () => {
+    const output = makeOutput({
+      id: "output-video-inferred-poster-drop",
+      mode: "video",
+      prompt: "Inferred poster drop",
+      previewStoragePath: "user-1/variants/videos/output-video-inferred-poster-drop/poster.webp",
+      previewPosterStoragePath: null,
+      fullStoragePath: "user-1/generations/videos/output-video-inferred-poster-drop/full.mp4",
+      previewUrl: undefined,
+      previewPosterUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-video-inferred-poster-drop"],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const payload = makePayload({
+      outputId: output.id,
+      referenceId: output.id,
+      mediaKind: "video",
+      referenceUrl: null,
+      referenceRenderUrl: null,
+    });
+    const syncResolved = latestDualCanvasArgs?.resolveCanvasDropReference?.(payload);
+    const prepared = await latestDualCanvasArgs?.prepareResolvedInternalCanvasDrop?.(
+      payload,
+      syncResolved ?? null
+    );
+
+    expect(syncResolved).toBeNull();
+    expect(prepared).toMatchObject({
+      kind: "video",
+      outputId: "output-video-inferred-poster-drop",
+      mediaId: "saved-media-video-inferred-poster-drop",
+      videoUrl:
+        "https://signed.shortpulse.test/user-1/generations/videos/output-video-inferred-poster-drop/full.mp4",
+      posterUrl:
+        "https://signed.shortpulse.test/user-1/variants/videos/output-video-inferred-poster-drop/poster.webp",
+      title: "Inferred poster drop",
+      sourceSurface: "curated",
+    });
+    expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/variants/videos/output-video-inferred-poster-drop/poster.webp",
+    });
+  });
+
   it("resolves dropped video files into canvas video items", async () => {
     const file = new File(["video"], "clip-1.mp4", { type: "video/mp4" });
     const ingestReferenceFiles = vi.fn(async () => [
@@ -1252,6 +1333,78 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
       bucket: "media_library",
       storagePath: "user-1/variants/videos/video-poster-refresh/poster.webp",
+    });
+  });
+
+  it("hydrates restored canvas video posters inferred from image preview storage", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-video-inferred-poster-1",
+          kind: "video" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: false,
+          outputId: "output-video-inferred-poster-1",
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          videoUrl: "https://expired.shortpulse.test/inferred-video.mp4",
+          posterUrl: null,
+          title: "Old inferred video",
+          durationMs: null,
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const refreshedOutput = makeOutput({
+      id: "output-video-inferred-poster-1",
+      mode: "video",
+      prompt: "Inferred poster video",
+      previewStoragePath: "user-1/variants/videos/video-inferred-poster/poster.webp",
+      previewPosterStoragePath: null,
+      fullStoragePath: "user-1/generations/videos/video-inferred-poster/full.mp4",
+      previewUrl: undefined,
+      previewPosterUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: [],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === refreshedOutput.id ? refreshedOutput : null),
+        getOutputSnapshot: () => createOutputSnapshot([refreshedOutput]),
+      })
+    );
+
+    await waitFor(() => {
+      expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+        ...mockedCanvasSessionState,
+        items: [
+          expect.objectContaining({
+            id: "canvas-video-inferred-poster-1",
+            outputId: "output-video-inferred-poster-1",
+            mediaId: null,
+            videoUrl:
+              "https://signed.shortpulse.test/user-1/generations/videos/video-inferred-poster/full.mp4",
+            posterUrl:
+              "https://signed.shortpulse.test/user-1/variants/videos/video-inferred-poster/poster.webp",
+            title: "Inferred poster video",
+          }),
+        ],
+      });
+    });
+    expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/variants/videos/video-inferred-poster/poster.webp",
     });
   });
 

@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { resolveCanvasLibraryMediaDisplayAuthority } from "../canvasMediaDisplayAuthority";
+import {
+  resolveCanvasLibraryMediaDisplayAuthority,
+  resolveCanvasStudioOutputMediaDisplayAuthority,
+} from "../canvasMediaDisplayAuthority";
 import type { CanvasLibraryMediaPayload } from "../canvasMediaDisplayAuthority";
+import type { StudioOutput } from "../../types";
 
 const basePayload = {
   id: "media-1",
@@ -9,6 +13,45 @@ const basePayload = {
 } satisfies CanvasLibraryMediaPayload;
 
 describe("canvasMediaDisplayAuthority", () => {
+  it("infers signed studio video poster authority from image preview storage", async () => {
+    const signStoragePath = vi.fn(
+      async (storagePath: string) => `https://signed.example.com/${storagePath}`
+    );
+
+    const result = await resolveCanvasStudioOutputMediaDisplayAuthority(
+      {
+        id: "output-video-legacy-poster",
+        prompt: "Legacy poster",
+        mode: "video",
+        aspect: "16:9",
+        model: "Model",
+        status: "ready",
+        timestamp: "now",
+        taskState: "success",
+        mediaSource: "generated",
+        resultUrls: [],
+        savedMediaIds: [],
+        previewStoragePath: "user-1/variants/videos/output-video-legacy-poster/poster.webp",
+        previewPosterStoragePath: null,
+        fullStoragePath: "user-1/generations/videos/output-video-legacy-poster/full.mp4",
+      } as StudioOutput,
+      signStoragePath
+    );
+
+    expect(signStoragePath).toHaveBeenCalledWith(
+      "user-1/variants/videos/output-video-legacy-poster/poster.webp"
+    );
+    expect(signStoragePath).toHaveBeenCalledWith(
+      "user-1/generations/videos/output-video-legacy-poster/full.mp4"
+    );
+    expect(result.posterPreviewUrl).toBe(
+      "https://signed.example.com/user-1/variants/videos/output-video-legacy-poster/poster.webp"
+    );
+    expect(result.playableMediaUrl).toBe(
+      "https://signed.example.com/user-1/generations/videos/output-video-legacy-poster/full.mp4"
+    );
+  });
+
   it("uses signed image preview storage before direct or full media URLs", async () => {
     const signStoragePath = vi.fn(
       async (storagePath: string) => `https://signed.example.com/${storagePath}`

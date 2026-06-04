@@ -26,6 +26,8 @@
   padding-top: 2px;
   background: var(--ai-container-card-bg);
   border: 1px solid var(--ai-container-card-border);
+  contain: layout paint style;
+  isolation: isolate;
 }
 
 .reference-rail-canvas-header {
@@ -89,6 +91,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  contain: layout paint style;
 }
 
 .reference-rail-canvas-section.is-inventory-expanded .reference-rail-canvas-body,

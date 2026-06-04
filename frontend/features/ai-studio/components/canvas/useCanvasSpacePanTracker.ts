@@ -1,6 +1,6 @@
 /**
  * Space-pan key tracker for canvas instances.
- * Tracks global Space key state while ignoring editable controls.
+ * Tracks physical Space key state while preserving editable text input behavior.
  */
 import { useEffect, useRef } from "react";
 
@@ -13,7 +13,10 @@ const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
 };
 
 /**
- * Returns a mutable ref that indicates whether space-pan mode is active.
+ * Returns a mutable ref that indicates whether the Space key is currently held.
+ *
+ * Editable controls still receive normal Space typing because the tracker only
+ * prevents default on non-editable keyboard targets.
  */
 export const useCanvasSpacePanTracker = () => {
   const isSpacePanActiveRef = useRef(false);
@@ -21,8 +24,8 @@ export const useCanvasSpacePanTracker = () => {
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.code !== "Space") return;
-      if (isEditableKeyboardTarget(event.target)) return;
       isSpacePanActiveRef.current = true;
+      if (isEditableKeyboardTarget(event.target)) return;
       event.preventDefault();
     };
     const handleKeyUp = (event: globalThis.KeyboardEvent) => {

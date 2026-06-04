@@ -2,12 +2,13 @@ import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import {
   resolvePreferredMediaSigningStoragePath,
-  resolveVideoPosterStoragePath,
+  resolveVideoPosterStoragePath as resolveLibraryVideoPosterStoragePath,
 } from "../../../lib/mediaPreviewPath";
 import {
   resolveStudioOutputMediaDisplayAuthority,
   type StudioOutputMediaDisplayAuthority,
 } from "./referenceGridMedia";
+import { resolveVideoPosterStoragePath as resolveStudioVideoPosterStoragePath } from "./videoPosterStoragePaths";
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
 import type { StudioOutput } from "../types";
 
@@ -48,9 +49,17 @@ export const resolveCanvasStudioOutputMediaDisplayAuthority = async (
   output: StudioOutput,
   signStoragePath: CanvasMediaDisplaySigner = signCanvasMediaStoragePath
 ): Promise<StudioOutputMediaDisplayAuthority> => {
+  const posterStoragePath =
+    output.mode === "video"
+      ? resolveStudioVideoPosterStoragePath({
+          previewPosterStoragePath: output.previewPosterStoragePath,
+          previewStoragePath: output.previewStoragePath,
+          fullStoragePath: output.fullStoragePath,
+        })
+      : output.previewPosterStoragePath;
   const [signedPreviewUrl, signedPosterUrl, signedFullUrl] = await Promise.all([
     signCanvasStudioOutputStoragePath(output.previewStoragePath, signStoragePath),
-    signCanvasStudioOutputStoragePath(output.previewPosterStoragePath, signStoragePath),
+    signCanvasStudioOutputStoragePath(posterStoragePath, signStoragePath),
     signCanvasStudioOutputStoragePath(output.fullStoragePath, signStoragePath),
   ]);
 
@@ -59,6 +68,7 @@ export const resolveCanvasStudioOutputMediaDisplayAuthority = async (
       ...output,
       previewStoragePath: signedPreviewUrl ?? output.previewStoragePath,
       previewPosterUrl: signedPosterUrl ?? output.previewPosterUrl,
+      previewPosterStoragePath: posterStoragePath ?? output.previewPosterStoragePath,
       fullStoragePath: signedFullUrl ?? output.fullStoragePath,
       resultUrls: signedFullUrl
         ? [signedFullUrl, ...(output.resultUrls ?? []).filter((url) => url !== signedFullUrl)]
@@ -89,7 +99,9 @@ export const resolveCanvasLibraryMediaDisplayAuthority = async (
   };
   const previewSigningPath = resolvePreferredMediaSigningStoragePath(row);
   const posterSigningPath =
-    payload.fileType === "video" ? (resolveVideoPosterStoragePath(row) ?? posterStoragePath) : null;
+    payload.fileType === "video"
+      ? (resolveLibraryVideoPosterStoragePath(row) ?? posterStoragePath)
+      : null;
 
   const [signedPreviewUrl, signedPosterUrl] = await Promise.all([
     previewSigningPath ? signStoragePath(previewSigningPath) : Promise.resolve(null),

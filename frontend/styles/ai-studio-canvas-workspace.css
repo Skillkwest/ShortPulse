@@ -19,7 +19,9 @@
   border-radius: 0;
   border: none;
   background-color: transparent;
+  contain: layout paint style;
   cursor: default;
+  isolation: isolate;
   touch-action: none;
 }
 
@@ -38,6 +40,7 @@
   position: absolute;
   inset: 0;
   transform-origin: 0 0;
+  will-change: transform;
 }
 
 .canvas-workspace-marquee {

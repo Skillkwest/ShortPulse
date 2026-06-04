@@ -66,8 +66,6 @@ export type StudioAgentRequestEnvelopeResult =
   | StudioAgentRequestEnvelopeSuccess
   | StudioAgentRequestEnvelopeFailure;
 
-const STUDIO_AGENT_PREVIOUS_RESPONSE_ID_MAX_CHARS = 200;
-
 const parseStudioAgentConversationState = ({
   rawValue,
   runtimeMode,
@@ -77,35 +75,9 @@ const parseStudioAgentConversationState = ({
 }):
   | { ok: true; value: AgentConversationState | null }
   | { ok: false; message: string; details?: Record<string, unknown> } => {
-  if (runtimeMode !== "standard") {
-    return { ok: true, value: null };
-  }
-  if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) {
-    return { ok: true, value: null };
-  }
-  const previousResponseId =
-    typeof (rawValue as { previousResponseId?: unknown }).previousResponseId === "string"
-      ? (rawValue as { previousResponseId: string }).previousResponseId.trim()
-      : "";
-  if (!previousResponseId.length) {
-    return { ok: true, value: null };
-  }
-  if (previousResponseId.length > STUDIO_AGENT_PREVIOUS_RESPONSE_ID_MAX_CHARS) {
-    return {
-      ok: false,
-      message: "conversationState.previousResponseId exceeds allowed length",
-      details: {
-        field: "conversationState.previousResponseId",
-        maxChars: STUDIO_AGENT_PREVIOUS_RESPONSE_ID_MAX_CHARS,
-      },
-    };
-  }
-  return {
-    ok: true,
-    value: {
-      previousResponseId,
-    },
-  };
+  void rawValue;
+  void runtimeMode;
+  return { ok: true, value: null };
 };
 
 export const resolveStudioAgentTraceId = (req: NextApiRequest): string => {

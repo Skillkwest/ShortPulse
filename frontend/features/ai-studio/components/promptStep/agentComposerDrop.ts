@@ -82,10 +82,49 @@ export const resolveAgentComposerDrop = (
   };
 };
 
+/**
+ * Resolves prompt text only when the dropped payload should be inserted into the composer
+ * instead of routed through the generic attachment pipeline.
+ */
+export const resolveAgentComposerTextDrop = (
+  transfer: DataTransfer | null | undefined
+): string | null => {
+  const { droppedPromptText, droppedImageUrl, isVideoReference } =
+    resolveAgentComposerDrop(transfer);
+  if (!droppedPromptText || droppedImageUrl || isVideoReference) return null;
+  return droppedPromptText;
+};
+
+/**
+ * Builds the next composer text/caret state for text-only prompt drops.
+ */
+export const resolveAgentComposerTextDropInsertion = ({
+  transfer,
+  composerText,
+  selectionStart,
+  selectionEnd,
+}: {
+  transfer: DataTransfer | null | undefined;
+  composerText: string;
+  selectionStart: number;
+  selectionEnd: number;
+}): { prompt: string; caret: number } | null => {
+  const droppedPromptText = resolveAgentComposerTextDrop(transfer);
+  if (!droppedPromptText) return null;
+  return insertDroppedPromptTextAtSelection({
+    composerText,
+    droppedPromptText,
+    selectionStart,
+    selectionEnd,
+  });
+};
+
 export const resolveAgentComposerPanelDropKind = (
   transfer: DataTransfer | null | undefined
 ): AgentComposerPanelDropKind => {
   if (!transfer) return "none";
+
+  if (resolveAgentComposerTextDrop(transfer)) return "text";
 
   const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
   if (mediaLibraryPayload?.kind === "libraryMedia") return "media";

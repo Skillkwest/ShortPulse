@@ -1,8 +1,9 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PulsePromptStep } from "../../PulsePromptStep";
 import { PulseCreatePanelView } from "../PulseCreatePanelView";
+import { prepareReferenceDrag } from "../../../utils/dragDrop";
 
 vi.mock("../CreatePulsePresetPanel", () => ({
   CreatePulsePresetPanel: () => <div data-testid="pulse-presets-panel" />,
@@ -43,6 +44,22 @@ const baseProps: React.ComponentProps<typeof PulseCreatePanelView> = {
     setPresetPanelIds: vi.fn(async () => true),
     setSavedPresets: vi.fn(async () => true),
   },
+};
+
+const createMutableTransfer = () => {
+  const store = new Map<string, string>();
+  return {
+    files: { length: 0, item: () => null } as unknown as FileList,
+    get types() {
+      return Array.from(store.keys());
+    },
+    getData: (type: string) => store.get(type) ?? "",
+    setData: (type: string, value: string) => {
+      store.set(type, value);
+    },
+    setDragImage: vi.fn(),
+    effectAllowed: "all",
+  } as unknown as DataTransfer;
 };
 
 describe("PulseCreatePanelView", () => {
@@ -94,11 +111,61 @@ describe("PulseCreatePanelView", () => {
     expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
   });
 
-  it("ignores prompt-text drops on the wider create panel body", () => {
+  it("routes plain prompt-text drops from the wider create panel body into the composer", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();
     const onAgentAttachmentDragOver = vi.fn();
     const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
+
+    const { container } = render(
+      <PulseCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentInput: "Existing draft ",
+          onAgentAttachmentDrop,
+          onAgentAttachmentDragEnter,
+          onAgentAttachmentDragOver,
+          onAgentAttachmentDragLeave,
+          onAgentInputChange,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const composerInput = screen.getByRole("textbox") as HTMLTextAreaElement;
+    expect(panelBody).toBeTruthy();
+    act(() => {
+      composerInput.focus();
+      composerInput.setSelectionRange("Existing draft ".length, "Existing draft ".length);
+    });
+
+    const textTransfer = {
+      types: ["text/plain"],
+      getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+    };
+
+    act(() => {
+      fireEvent.dragEnter(panelBody as Element, { dataTransfer: textTransfer });
+      fireEvent.dragOver(panelBody as Element, { dataTransfer: textTransfer });
+      fireEvent.dragLeave(panelBody as Element, { dataTransfer: textTransfer });
+      fireEvent.drop(panelBody as Element, { dataTransfer: textTransfer });
+    });
+
+    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Dropped prompt text");
+  });
+
+  it("routes hybrid internal prompt-reference drags from the wider create panel body into the composer", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragEnter = vi.fn();
+    const onAgentAttachmentDragOver = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
 
     const { container } = render(
       <PulseCreatePanelView
@@ -109,6 +176,7 @@ describe("PulseCreatePanelView", () => {
           onAgentAttachmentDragEnter,
           onAgentAttachmentDragOver,
           onAgentAttachmentDragLeave,
+          onAgentInputChange,
         }}
       />
     );
@@ -116,20 +184,39 @@ describe("PulseCreatePanelView", () => {
     const panelBody = container.querySelector(".create-composer-right-panel-inner");
     expect(panelBody).toBeTruthy();
 
-    const textTransfer = {
-      types: ["text/plain"],
-      getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
-    };
+    const transfer = createMutableTransfer();
+    prepareReferenceDrag(
+      {
+        currentTarget: panelBody as HTMLElement,
+        dataTransfer: transfer,
+      } as unknown as React.DragEvent<HTMLElement>,
+      {
+        id: "prompt-ref-1",
+        prompt: "Prompt reference text",
+        previewText: "Prompt reference text",
+        mode: "text",
+        aspect: "1:1",
+        model: "Test model",
+        status: "ready",
+        timestamp: "now",
+      } as never,
+      {
+        dragImage: panelBody as HTMLElement,
+        sourceSurface: "all-refs",
+      }
+    );
 
-    fireEvent.dragEnter(panelBody as Element, { dataTransfer: textTransfer });
-    fireEvent.dragOver(panelBody as Element, { dataTransfer: textTransfer });
-    fireEvent.dragLeave(panelBody as Element, { dataTransfer: textTransfer });
-    fireEvent.drop(panelBody as Element, { dataTransfer: textTransfer });
+    act(() => {
+      fireEvent.dragEnter(panelBody as Element, { dataTransfer: transfer });
+      fireEvent.dragOver(panelBody as Element, { dataTransfer: transfer });
+      fireEvent.drop(panelBody as Element, { dataTransfer: transfer });
+    });
 
-    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
-    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
-    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(onAgentInputChange).toHaveBeenCalledWith("Prompt reference text");
   });
 
   it("keeps an expanded Pulse create draft open after blur", async () => {

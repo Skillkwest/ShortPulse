@@ -60,7 +60,7 @@ describe("studioAgentRouteEnvelope", () => {
     expect(result.value.runtimeMode).toBe("standard");
   });
 
-  it("accepts Standard conversation state and strips it from non-Standard turns", () => {
+  it("strips client-supplied conversation state from all runtime turns", () => {
     const standardResult = parseStudioAgentRequestEnvelope({
       req: {
         body: {
@@ -92,9 +92,7 @@ describe("studioAgentRouteEnvelope", () => {
 
     expect(standardResult.ok).toBe(true);
     if (standardResult.ok) {
-      expect(standardResult.value.conversationState).toEqual({
-        previousResponseId: "resp_prev_123",
-      });
+      expect(standardResult.value.conversationState).toBeNull();
     }
 
     expect(pulseResult.ok).toBe(true);

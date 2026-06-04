@@ -2,7 +2,7 @@
  * AI Studio task orchestration hook.
  * Owns generation polling lifecycle, status retry handling, and task-submission wiring.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import {
   buildGeneratedOutputRuntimeIdentitySignature,
@@ -83,12 +83,37 @@ export const useAiStudioTaskOrchestration = ({
   const visibleGenerationLastCheckedAtRef = useRef<Record<string, number>>({});
   const visibleGenerationSignatureRef = useRef<string>("");
   const abandonedOutputIdsRef = useRef<Set<string>>(new Set());
+  const [documentVisible, setDocumentVisible] = useState(isDocumentVisible);
+
+  const visibleGenerationCandidates = useMemo(
+    () => outputs.filter((output) => isVisibleGenerationWatchdogEligible(output)),
+    [outputs]
+  );
+  const visibleGenerationSignature = useMemo(
+    () =>
+      visibleGenerationCandidates
+        .map((output) => buildGeneratedOutputRuntimeIdentitySignature(output))
+        .sort()
+        .join("|"),
+    [visibleGenerationCandidates]
+  );
+  const hasVisibleGenerationCandidates = visibleGenerationSignature.length > 0;
 
   useEffect(() => {
-    visibleGenerationCandidatesRef.current = outputs.filter((output) =>
-      isVisibleGenerationWatchdogEligible(output)
-    );
-  }, [outputs]);
+    visibleGenerationCandidatesRef.current = visibleGenerationCandidates;
+  }, [visibleGenerationCandidates]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const updateDocumentVisible = () => {
+      setDocumentVisible(isDocumentVisible());
+    };
+    updateDocumentVisible();
+    document.addEventListener("visibilitychange", updateDocumentVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", updateDocumentVisible);
+    };
+  }, []);
 
   const handlePollingOutputLookupHardStop = useCallback(
     async (payload: {
@@ -357,24 +382,21 @@ export const useAiStudioTaskOrchestration = ({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!documentVisible || !hasVisibleGenerationCandidates) return;
     runVisibleGenerationWatchdog();
     const intervalId = window.setInterval(
       runVisibleGenerationWatchdog,
       VISIBLE_GENERATION_SCAN_INTERVAL_MS
     );
     return () => window.clearInterval(intervalId);
-  }, [runVisibleGenerationWatchdog]);
+  }, [documentVisible, hasVisibleGenerationCandidates, runVisibleGenerationWatchdog]);
 
   useEffect(() => {
-    const visibleGenerationSignature = visibleGenerationCandidatesRef.current
-      .map((output) => buildGeneratedOutputRuntimeIdentitySignature(output))
-      .sort()
-      .join("|");
     if (visibleGenerationSignatureRef.current === visibleGenerationSignature) return;
     visibleGenerationSignatureRef.current = visibleGenerationSignature;
     if (!visibleGenerationSignature) return;
     runVisibleGenerationWatchdog();
-  }, [outputs, runVisibleGenerationWatchdog]);
+  }, [runVisibleGenerationWatchdog, visibleGenerationSignature]);
 
   return {
     submitTask,

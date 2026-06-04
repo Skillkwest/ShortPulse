@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AiStudioSessionAgentV1 } from "../../logic/sessionSnapshot";
 import { usePulseChatThreads } from "../usePulseChatThreads";
@@ -23,8 +23,7 @@ const buildRuntime = (messages: AiStudioSessionAgentV1["messages"]): AiStudioSes
 });
 
 describe("usePulseChatThreads", () => {
-  it("binds New chat to exactly one fresh saved thread after Pulse restart", async () => {
-    const restartCurrentPulse = vi.fn(async () => true);
+  it("creates a fresh saved thread when the active Pulse session restarts", async () => {
     const openThreadSnapshot = vi.fn(async () => undefined);
 
     const { result, rerender } = renderHook(
@@ -46,7 +45,6 @@ describe("usePulseChatThreads", () => {
           pulsePrompt: props.pulsePrompt,
           persistedAgentRuntime: props.persistedAgentRuntime,
           openThreadSnapshot,
-          restartCurrentPulse,
         });
       },
       {
@@ -73,12 +71,6 @@ describe("usePulseChatThreads", () => {
     });
 
     const firstThreadId = result.current.activeThreadId;
-
-    await act(async () => {
-      await result.current.createNewChat();
-    });
-
-    expect(restartCurrentPulse).toHaveBeenCalledTimes(1);
 
     rerender({
       expertCreateMode: "pulse",

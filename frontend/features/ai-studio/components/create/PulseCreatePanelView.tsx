@@ -3,7 +3,10 @@ import { Power, Trash } from "phosphor-react";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
-import { resolveAgentComposerPanelDropKind } from "../promptStep/agentComposerDrop";
+import {
+  resolveAgentComposerPanelDropKind,
+  resolveAgentComposerTextDropInsertion,
+} from "../promptStep/agentComposerDrop";
 import { CreatePulsePresetPanel } from "./CreatePulsePresetPanel";
 import { PulseChatHistoryPanel, type PulseChatHistoryPanelProps } from "./PulseChatHistoryPanel";
 import {
@@ -108,7 +111,7 @@ const PulseCreatePanelViewContent = ({
   const handlePanelMediaDragEnter = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
-      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      if (resolveAgentComposerPanelDropKind(event.dataTransfer) === "none") return;
       promptStepProps.onAgentAttachmentDragEnter?.(event);
     },
     [isTargetInsideComposerInputShell, promptStepProps]
@@ -116,7 +119,7 @@ const PulseCreatePanelViewContent = ({
   const handlePanelMediaDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
-      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      if (resolveAgentComposerPanelDropKind(event.dataTransfer) === "none") return;
       promptStepProps.onAgentAttachmentDragOver?.(event);
     },
     [isTargetInsideComposerInputShell, promptStepProps]
@@ -132,7 +135,35 @@ const PulseCreatePanelViewContent = ({
   const handlePanelMediaDrop = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
-      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      const panelDropKind = resolveAgentComposerPanelDropKind(event.dataTransfer);
+      if (panelDropKind === "none") return;
+      if (panelDropKind === "text") {
+        event.preventDefault();
+        event.stopPropagation();
+        promptStepProps.onAgentAttachmentDragLeave?.(event);
+        const composerText = promptStepProps.agentInput ?? "";
+        const textarea = event.currentTarget.querySelector(
+          "textarea"
+        ) as HTMLTextAreaElement | null;
+        const insertedPrompt = resolveAgentComposerTextDropInsertion({
+          transfer: event.dataTransfer,
+          composerText,
+          selectionStart: textarea?.selectionStart ?? composerText.length,
+          selectionEnd: textarea?.selectionEnd ?? textarea?.selectionStart ?? composerText.length,
+        });
+        if (!insertedPrompt) return;
+        promptStepProps.onAgentInputChange?.(insertedPrompt.prompt);
+        const panelNode = event.currentTarget;
+        requestAnimationFrame(() => {
+          const nextTextarea =
+            textarea && textarea.isConnected
+              ? textarea
+              : (panelNode.querySelector("textarea") as HTMLTextAreaElement | null);
+          nextTextarea?.focus();
+          nextTextarea?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
+        });
+        return;
+      }
       promptStepProps.onAgentAttachmentDrop?.(event);
     },
     [isTargetInsideComposerInputShell, promptStepProps]

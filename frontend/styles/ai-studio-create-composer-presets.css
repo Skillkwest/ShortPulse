@@ -434,10 +434,6 @@
   min-height: 0;
 }
 
-.create-composer-chats-new-btn {
-  justify-content: center;
-}
-
 .create-composer-chats-list {
   display: flex;
   flex-direction: column;

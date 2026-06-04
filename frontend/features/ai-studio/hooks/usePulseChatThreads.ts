@@ -37,7 +37,6 @@ type UsePulseChatThreadsParams = {
     threadId: string;
     snapshot: PulseChatThreadSnapshot;
   }) => Promise<void>;
-  restartCurrentPulse: () => Promise<boolean>;
   setUiNotice?: (message: string | null) => void;
 };
 
@@ -70,14 +69,11 @@ export const usePulseChatThreads = ({
   pulsePrompt,
   persistedAgentRuntime,
   openThreadSnapshot,
-  restartCurrentPulse,
   setUiNotice,
 }: UsePulseChatThreadsParams) => {
   const [error, setError] = useState<string | null>(null);
   const [openingThreadId, setOpeningThreadId] = useState<string | null>(null);
-  const [creatingNewChat, setCreatingNewChat] = useState(false);
   const lastRuntimeSignatureRef = useRef<string | null>(null);
-  const pendingNewThreadIdRef = useRef<string | null>(null);
 
   const reportError = useCallback(
     (message: string) => {
@@ -91,9 +87,7 @@ export const usePulseChatThreads = ({
     if (enabled) return;
     setError(null);
     setOpeningThreadId(null);
-    setCreatingNewChat(false);
     lastRuntimeSignatureRef.current = null;
-    pendingNewThreadIdRef.current = null;
   }, [enabled]);
 
   useEffect(() => {
@@ -112,7 +106,6 @@ export const usePulseChatThreads = ({
       return;
     }
     lastRuntimeSignatureRef.current = runtimeSignature;
-    const pendingNewThreadId = pendingNewThreadIdRef.current;
 
     setProjectPulseChatState((current) => {
       const normalized = parsePulseChatProjectState(current);
@@ -122,11 +115,9 @@ export const usePulseChatThreads = ({
             null)
           : null;
       const shouldReuseActiveThread =
-        !pendingNewThreadId &&
         activeThread?.snapshot.workspace.activePulsePresetId === activePresetId &&
         activeThread.snapshot.workspace.pulseSessionInstanceId === pulseSessionInstanceId;
-      const threadId =
-        pendingNewThreadId ?? (shouldReuseActiveThread ? activeThread.threadId : createThreadId());
+      const threadId = shouldReuseActiveThread ? activeThread.threadId : createThreadId();
       const existingThreadSnapshot =
         normalized.threads.find((thread) => thread.threadId === threadId)?.snapshot ?? null;
       const snapshot = buildPulseChatThreadSnapshot({
@@ -147,7 +138,6 @@ export const usePulseChatThreads = ({
         activeThreadId: threadId,
       });
     });
-    pendingNewThreadIdRef.current = null;
     setError(null);
   }, [
     activePresetId,
@@ -162,7 +152,6 @@ export const usePulseChatThreads = ({
 
   const openThread = useCallback(
     async (threadId: string) => {
-      pendingNewThreadIdRef.current = null;
       const normalizedState = parsePulseChatProjectState(projectPulseChatState);
       const thread = normalizedState.threads.find((entry) => entry.threadId === threadId);
       if (!thread) {
@@ -192,25 +181,6 @@ export const usePulseChatThreads = ({
     [openThreadSnapshot, projectPulseChatState, reportError, setProjectPulseChatState]
   );
 
-  const createNewChat = useCallback(async () => {
-    setCreatingNewChat(true);
-    setError(null);
-    try {
-      pendingNewThreadIdRef.current = createThreadId();
-      const restarted = await restartCurrentPulse();
-      if (!restarted) {
-        pendingNewThreadIdRef.current = null;
-        return;
-      }
-      lastRuntimeSignatureRef.current = null;
-    } catch (errorValue) {
-      pendingNewThreadIdRef.current = null;
-      reportError(errorValue instanceof Error ? errorValue.message : "Failed to start a new chat.");
-    } finally {
-      setCreatingNewChat(false);
-    }
-  }, [reportError, restartCurrentPulse]);
-
   const normalizedState = useMemo(
     () => parsePulseChatProjectState(projectPulseChatState),
     [projectPulseChatState]
@@ -223,10 +193,8 @@ export const usePulseChatThreads = ({
       loading: false,
       error,
       openingThreadId,
-      creatingNewChat,
       openThread,
-      createNewChat,
     }),
-    [creatingNewChat, error, normalizedState, openThread, openingThreadId, createNewChat]
+    [error, normalizedState, openThread, openingThreadId]
   );
 };

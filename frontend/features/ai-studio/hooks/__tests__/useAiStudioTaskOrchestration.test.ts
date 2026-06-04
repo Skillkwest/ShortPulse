@@ -1,5 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioTaskOrchestration } from "../useAiStudioTaskOrchestration";
@@ -40,6 +40,9 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   ...overrides,
 });
 
+const mockDocumentVisibility = (visibilityState: DocumentVisibilityState) =>
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(visibilityState);
+
 type TasksCallbacks = Parameters<typeof useAiStudioTasks>[0];
 
 describe("useAiStudioTaskOrchestration", () => {
@@ -71,6 +74,10 @@ describe("useAiStudioTaskOrchestration", () => {
         pollTimersRef,
       };
     }) as typeof useAiStudioTasks);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("applies Bria remove-background success to primary reference and clears hidden output", async () => {
@@ -1125,5 +1132,130 @@ describe("useAiStudioTaskOrchestration", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("does not schedule the visible-generation watchdog when there are no eligible generated outputs", () => {
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "edit",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          beginPanelGeneration: vi.fn(),
+          endPanelGeneration: vi.fn(),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById: vi.fn(),
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs: [],
+        findOutputById: () => null,
+      })
+    );
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(resolveGenerationProjectionLifecycleMock).not.toHaveBeenCalled();
+    expect(resolveVisibleGenerationReconcileMock).not.toHaveBeenCalled();
+  });
+
+  it("pauses the visible-generation watchdog interval while the document is hidden", async () => {
+    const visibilitySpy = mockDocumentVisibility("hidden");
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    const outputs = [
+      createOutput({
+        id: "out-hidden-watchdog",
+        generationId: "gen-hidden-watchdog",
+        taskId: "req-hidden-watchdog",
+        provider: "fal",
+        modelId: "fal-ai/nano-banana-2/edit",
+        taskState: "running",
+        timestamp: "Processing...",
+        mediaSource: "generated",
+      }),
+    ];
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        projectId: "project-1",
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "edit",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          beginPanelGeneration: vi.fn(),
+          endPanelGeneration: vi.fn(),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById: vi.fn(),
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(resolveGenerationProjectionLifecycleMock).not.toHaveBeenCalled();
+
+    visibilitySpy.mockReturnValue("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(setIntervalSpy).toHaveBeenCalled();
+      expect(resolveGenerationProjectionLifecycleMock).toHaveBeenCalledWith({
+        generationId: "gen-hidden-watchdog",
+        requestId: "req-hidden-watchdog",
+        projectId: "project-1",
+      });
+    });
   });
 });

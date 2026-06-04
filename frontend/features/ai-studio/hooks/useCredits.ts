@@ -54,6 +54,7 @@ let preferLegacyLedgerQuery = false;
 let creditSnapshotRetryAfterMs = 0;
 let creditSnapshotInFlightPromise: Promise<CreditSnapshotApiResponse | null> | null = null;
 const CREDIT_SNAPSHOT_RETRY_BACKOFF_MS = 30_000;
+const CREDIT_SNAPSHOT_IDLE_REFRESH_INTERVAL_MS = 120_000;
 
 const createBalanceState = (
   ownerUserId: string | null,
@@ -414,12 +415,13 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
   }, [enabled, refresh]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !currentUserId) return;
     const intervalId = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void refresh({ silent: true });
-    }, 30000);
+    }, CREDIT_SNAPSHOT_IDLE_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [enabled, refresh]);
+  }, [currentUserId, enabled, refresh]);
 
   const exposingCurrentUserBalance = balance.ownerUserId === currentUserId;
 

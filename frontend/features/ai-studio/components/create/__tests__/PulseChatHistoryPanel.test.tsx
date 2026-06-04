@@ -19,9 +19,7 @@ describe("PulseChatHistoryPanel", () => {
         loading={false}
         error={null}
         openingThreadId={null}
-        creatingNewChat={false}
         onOpenThread={vi.fn()}
-        onCreateNewChat={vi.fn()}
       />
     );
 
@@ -32,9 +30,8 @@ describe("PulseChatHistoryPanel", () => {
     expect(screen.getByText(/Story Builder/i)).toBeInTheDocument();
   });
 
-  it("calls open and new chat actions", () => {
+  it("opens saved threads and hides the new chat entry point", () => {
     const onOpenThread = vi.fn();
-    const onCreateNewChat = vi.fn();
 
     render(
       <PulseChatHistoryPanel
@@ -51,16 +48,13 @@ describe("PulseChatHistoryPanel", () => {
         loading={false}
         error={null}
         openingThreadId={null}
-        creatingNewChat={false}
         onOpenThread={onOpenThread}
-        onCreateNewChat={onCreateNewChat}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /New chat/i }));
     fireEvent.click(screen.getByRole("button", { name: /First pulse chat/i }));
 
-    expect(onCreateNewChat).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /New chat/i })).not.toBeInTheDocument();
     expect(onOpenThread).toHaveBeenCalledWith("thread-1");
   });
 });

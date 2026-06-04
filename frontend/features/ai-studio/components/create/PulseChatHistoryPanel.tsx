@@ -1,9 +1,9 @@
 /**
  * Left-rail project Pulse chat history card.
- * Lists saved project-owned Pulse threads and exposes the explicit reopen/new-chat actions.
+ * Lists saved project-owned Pulse threads and exposes explicit reopen actions.
  */
 import React from "react";
-import { ChatCircleDots, ClockCounterClockwise, Plus } from "phosphor-react";
+import { ChatCircleDots } from "phosphor-react";
 import type { PulseChatThreadListItem } from "../../pulseChats/pulseChatThread";
 
 export type PulseChatHistoryPanelProps = {
@@ -12,10 +12,7 @@ export type PulseChatHistoryPanelProps = {
   loading: boolean;
   error: string | null;
   openingThreadId: string | null;
-  creatingNewChat: boolean;
-  newChatDisabled?: boolean;
   onOpenThread: (threadId: string) => void;
-  onCreateNewChat: () => void;
 };
 
 const formatUpdatedAt = (value: string): string => {
@@ -38,10 +35,7 @@ export function PulseChatHistoryPanel({
   loading,
   error,
   openingThreadId,
-  creatingNewChat,
-  newChatDisabled = false,
   onOpenThread,
-  onCreateNewChat,
 }: PulseChatHistoryPanelProps) {
   const hasThreads = threads.length > 0;
 
@@ -54,21 +48,6 @@ export function PulseChatHistoryPanel({
             <ChatCircleDots size={14} weight="regular" />
           </span>
         </div>
-        <button
-          type="button"
-          className="create-composer-presets-btn create-composer-presets-btn--more create-composer-chats-new-btn"
-          onClick={onCreateNewChat}
-          disabled={newChatDisabled || creatingNewChat}
-        >
-          <span className="create-composer-presets-btn-icon" aria-hidden="true">
-            {creatingNewChat ? (
-              <ClockCounterClockwise size={12} weight="regular" />
-            ) : (
-              <Plus size={12} weight="regular" />
-            )}
-          </span>
-          {creatingNewChat ? "Starting..." : "New chat"}
-        </button>
         <div className="create-composer-chats-list" aria-label="Saved pulse chats">
           {loading && !hasThreads ? (
             <p className="create-composer-chats-empty">Loading chats...</p>

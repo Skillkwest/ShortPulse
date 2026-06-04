@@ -76,4 +76,37 @@ describe("agentComposerDrop", () => {
       isVideoReference: false,
     });
   });
+
+  it("classifies internal prompt-reference drags as text drops for the open Create zone", () => {
+    const transfer = createMutableTransfer();
+    const currentTarget = document.createElement("article");
+
+    prepareReferenceDrag(
+      {
+        currentTarget,
+        dataTransfer: transfer,
+      } as unknown as React.DragEvent<HTMLElement>,
+      {
+        id: "output-prompt-export-1",
+        prompt: "Prompt-only reference text",
+        previewText: "Prompt-only reference text",
+        mode: "text",
+        aspect: "1:1",
+        model: "Test model",
+        status: "ready",
+        timestamp: "now",
+      } as never,
+      {
+        dragImage: currentTarget,
+        sourceSurface: "all-refs",
+      }
+    );
+
+    expect(resolveAgentComposerPanelDropKind(transfer)).toBe("text");
+    expect(resolveAgentComposerDrop(transfer)).toEqual({
+      droppedPromptText: "Prompt-only reference text",
+      droppedImageUrl: null,
+      isVideoReference: false,
+    });
+  });
 });

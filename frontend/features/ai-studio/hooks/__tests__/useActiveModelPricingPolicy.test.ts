@@ -42,6 +42,15 @@ describe("useActiveModelPricingPolicy", () => {
     vi.clearAllMocks();
   });
 
+  it("stays idle without fetching while disabled", () => {
+    const { result } = renderHook(() => useActiveModelPricingPolicy({ enabled: false }));
+
+    expect(result.current.modelPricingPolicyLoading).toBe(false);
+    expect(result.current.modelPricingPolicyReady).toBe(false);
+    expect(result.current.modelPricingPolicyError).toBeNull();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
+
   it("loads the authenticated model pricing policy", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
@@ -97,7 +106,7 @@ describe("useActiveModelPricingPolicy", () => {
   });
 
   it("dedupes overlapping model pricing loads across concurrent hook mounts", async () => {
-    let resolveResponse: ((response: Response) => void) | null = null;
+    let resolveResponse!: (response: Response) => void;
     fetchWithAuthMock.mockReturnValue(
       new Promise<Response>((resolve) => {
         resolveResponse = resolve;
@@ -109,7 +118,7 @@ describe("useActiveModelPricingPolicy", () => {
 
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
 
-    resolveResponse?.(
+    resolveResponse(
       new Response(JSON.stringify(createPolicyPayload()), {
         status: 200,
         headers: {

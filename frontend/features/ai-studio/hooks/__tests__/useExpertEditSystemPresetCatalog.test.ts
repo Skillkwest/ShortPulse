@@ -12,6 +12,20 @@ describe("useExpertEditSystemPresetCatalog", () => {
     vi.clearAllMocks();
   });
 
+  it("keeps seeded presets without fetching when disabled", async () => {
+    const { result } = renderHook(() => useExpertEditSystemPresetCatalog({ enabled: false }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(fetchWithAuth).not.toHaveBeenCalled();
+    expect(result.current.error).toBeNull();
+    expect(result.current.source).toBe("seed");
+    expect(result.current.isAuthoritative).toBe(false);
+    expect(result.current.systemPresetDefinitions.length).toBeGreaterThan(0);
+  });
+
   it("loads Edit system presets through authenticated fetch", async () => {
     vi.mocked(fetchWithAuth).mockResolvedValue(
       new Response(
@@ -144,7 +158,9 @@ describe("useExpertEditSystemPresetCatalog", () => {
   });
 
   it("dedupes overlapping preset catalog loads across concurrent hook mounts", async () => {
-    let resolveResponse: ((response: Response) => void) | null = null;
+    let resolveResponse: (response: Response) => void = () => {
+      throw new Error("Expected deferred catalog response resolver.");
+    };
     vi.mocked(fetchWithAuth).mockReturnValue(
       new Promise<Response>((resolve) => {
         resolveResponse = resolve;
@@ -156,7 +172,7 @@ describe("useExpertEditSystemPresetCatalog", () => {
 
     expect(fetchWithAuth).toHaveBeenCalledTimes(1);
 
-    resolveResponse?.(
+    resolveResponse(
       new Response(
         JSON.stringify({
           source: "control_plane",

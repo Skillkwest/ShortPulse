@@ -339,11 +339,6 @@ export const useAiStudioCreatePanelRuntime = ({
     pulsePrompt: base.pulsePrompt,
     persistedAgentRuntime: pulseCreateAgentRuntime.persistedAgentRuntime,
     openThreadSnapshot: openPulseChatSnapshot,
-    restartCurrentPulse: async () => {
-      if (!displayCreatePulsePresetSnapshot) return false;
-      await handlePulsePresetRestart(displayCreatePulsePresetSnapshot);
-      return true;
-    },
     setUiNotice: base.setUiNotice,
   });
 
@@ -368,11 +363,7 @@ export const useAiStudioCreatePanelRuntime = ({
                 loading: pulseChatHistory.loading,
                 error: pulseChatHistory.error,
                 openingThreadId: pulseChatHistory.openingThreadId,
-                creatingNewChat: pulseChatHistory.creatingNewChat,
-                newChatDisabled:
-                  !displayCreatePulsePresetSnapshot || isPulseStartupPending || createIsGenerating,
                 onOpenThread: pulseChatHistory.openThread,
-                onCreateNewChat: pulseChatHistory.createNewChat,
               }
             : undefined,
         },
@@ -558,8 +549,6 @@ export const useAiStudioCreatePanelRuntime = ({
     persistedAgentRuntime,
     pulsePreferenceRuntime,
     pulseChatHistory.activeThreadId,
-    pulseChatHistory.createNewChat,
-    pulseChatHistory.creatingNewChat,
     pulseChatHistory.error,
     pulseChatHistory.loading,
     pulseChatHistory.openThread,

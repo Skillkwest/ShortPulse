@@ -76,8 +76,6 @@ const STANDARD_RESPONSE_STYLE_GUIDANCE = [
   '- "Best Direction:\\n---\\nTip: Pick one path"',
   '- "Reply with: 1 2 3"',
 ].join("\n");
-const STANDARD_SESSION_MEMORY_PREFIX = "Standard session memory:";
-
 type StandardOpenAiImageDetail = "high" | "auto";
 
 const STANDARD_DIRECTIVE_SHIFT_VERBS = new Set([
@@ -394,41 +392,6 @@ const buildStandardOpenAiMessages = ({
   return [{ role: "system", content: effectiveSystemPrompt }, ...conversationMessages];
 };
 
-const isStandardSessionMemoryMessage = (message: AgentMessage | undefined): boolean =>
-  Boolean(
-    message &&
-    message.role === "assistant" &&
-    message.content.trim().startsWith(STANDARD_SESSION_MEMORY_PREFIX)
-  );
-
-const resolveCompactStandardConversationMessages = ({
-  messages,
-  previousResponseId,
-  responsesEnabled,
-  chatFallbackEnabled,
-}: {
-  messages: AgentMessage[];
-  previousResponseId: string | null;
-  responsesEnabled: boolean;
-  chatFallbackEnabled: boolean;
-}): AgentMessage[] => {
-  if (!responsesEnabled || chatFallbackEnabled || !previousResponseId) {
-    return messages;
-  }
-
-  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
-  if (!latestUserMessage) {
-    return messages;
-  }
-
-  const sessionMemoryMessage = messages.find((message) => isStandardSessionMemoryMessage(message));
-  if (!sessionMemoryMessage) {
-    return [latestUserMessage];
-  }
-
-  return [sessionMemoryMessage, latestUserMessage];
-};
-
 const clipStandardPromptReferenceSnippet = (value?: string | null): string | null => {
   if (!value) return null;
   const trimmed = value.trim();
@@ -518,7 +481,6 @@ const executeStandardOpenAiWithRetry = async ({
   maxAttempts,
   retryBaseDelayMs,
   retryMaxDelayMs,
-  previousResponseId,
   responsesEnabled,
   chatFallbackEnabled,
   env,
@@ -531,7 +493,6 @@ const executeStandardOpenAiWithRetry = async ({
   maxAttempts: number;
   retryBaseDelayMs: number;
   retryMaxDelayMs: number;
-  previousResponseId: string | null;
   responsesEnabled: boolean;
   chatFallbackEnabled: boolean;
   env?: NodeJS.ProcessEnv;
@@ -597,8 +558,7 @@ const executeStandardOpenAiWithRetry = async ({
           body: {
             model,
             input: buildOpenAiResponsesInput(messages),
-            store: true,
-            ...(previousResponseId ? { previous_response_id: previousResponseId } : {}),
+            store: false,
           },
         });
         if (response.ok) {
@@ -805,10 +765,6 @@ const extractStandardOpenAiResponsesResult = ({
   if (!payload || typeof payload !== "object") return null;
   const payloadRecord = payload as Record<string, unknown>;
   const raw = extractOpenAiResponsesOutputText(payloadRecord);
-  const responseId =
-    typeof payloadRecord.id === "string" && payloadRecord.id.trim().length > 0
-      ? payloadRecord.id.trim()
-      : null;
   const parsed = parseStudioAgentJsonWithStatus(raw, { allowUnstructured: false });
   if (!parsed) {
     const directMessage = raw.trim();
@@ -823,7 +779,7 @@ const extractStandardOpenAiResponsesResult = ({
         },
         fallbackPrompt: directMessage,
       }),
-      conversationState: responseId ? { previousResponseId: responseId } : null,
+      conversationState: null,
     };
     return {
       response,
@@ -855,7 +811,7 @@ const extractStandardOpenAiResponsesResult = ({
         parsed: parsed.response,
         fallbackPrompt: parsed.response.message || fallbackPrompt,
       }),
-      conversationState: responseId ? { previousResponseId: responseId } : null,
+      conversationState: null,
     },
     refusal: false,
   };
@@ -990,10 +946,6 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   const normalizedConversationId = requestEnvelope.value.clientSessionKey;
   const messages = requestEnvelope.value.messages;
   const context = requestEnvelope.value.context;
-  const previousResponseId =
-    typeof requestEnvelope.value.conversationState?.previousResponseId === "string"
-      ? requestEnvelope.value.conversationState.previousResponseId
-      : null;
   const flow = resolveStandardFlow(context);
   let resolvedSystemPrompt: RequiredRuntimeAgentPromptResolution;
   const runtimePromptResolutionStartedAt = Date.now();
@@ -1038,12 +990,6 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   }
 
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
-  const compactedMessages = resolveCompactStandardConversationMessages({
-    messages,
-    previousResponseId,
-    responsesEnabled: openAiConfig.standardResponsesEnabled,
-    chatFallbackEnabled: openAiConfig.standardChatFallbackEnabled,
-  });
   const textPayloadChars = measureStandardTextPayloadChars({ messages, context });
   const textPayloadSummary = summarizeStandardTextPayload({ messages, context });
   const executionProfile = resolveStandardOpenAiExecutionProfile({
@@ -1058,7 +1004,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   const standardModel = executionProfile.model;
   const openAiRoundTripStartedAt = Date.now();
   const standardOpenAiMessages = buildStandardOpenAiMessages({
-    messages: compactedMessages,
+    messages,
     context,
     systemPrompt: resolvedSystemPrompt.promptBody,
     imageDetail: executionProfile.imageDetail,
@@ -1073,7 +1019,6 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       maxAttempts: openAiConfig.upstreamRetryMaxAttempts,
       retryBaseDelayMs: openAiConfig.upstreamRetryBaseDelayMs,
       retryMaxDelayMs: openAiConfig.upstreamRetryMaxDelayMs,
-      previousResponseId,
       responsesEnabled: openAiConfig.standardResponsesEnabled,
       chatFallbackEnabled: openAiConfig.standardChatFallbackEnabled,
       env: {

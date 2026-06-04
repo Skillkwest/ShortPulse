@@ -4,7 +4,10 @@ import { Trash } from "phosphor-react";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
-import { resolveAgentComposerPanelDropKind } from "../promptStep/agentComposerDrop";
+import {
+  resolveAgentComposerPanelDropKind,
+  resolveAgentComposerTextDropInsertion,
+} from "../promptStep/agentComposerDrop";
 import type { AspectOption } from "../../types";
 import {
   resolveCreateComposerInlineGuardrailReason,
@@ -124,7 +127,7 @@ export function StandardCreatePanelView({
   const handlePanelMediaDragEnter = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
-      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      if (resolveAgentComposerPanelDropKind(event.dataTransfer) === "none") return;
       promptStepProps.onAgentAttachmentDragEnter?.(event);
     },
     [isTargetInsideComposerInputShell, promptStepProps]
@@ -132,7 +135,7 @@ export function StandardCreatePanelView({
   const handlePanelMediaDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
-      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      if (resolveAgentComposerPanelDropKind(event.dataTransfer) === "none") return;
       promptStepProps.onAgentAttachmentDragOver?.(event);
     },
     [isTargetInsideComposerInputShell, promptStepProps]
@@ -148,7 +151,41 @@ export function StandardCreatePanelView({
   const handlePanelMediaDrop = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
-      if (resolveAgentComposerPanelDropKind(event.dataTransfer) !== "media") return;
+      const panelDropKind = resolveAgentComposerPanelDropKind(event.dataTransfer);
+      if (panelDropKind === "none") return;
+      if (panelDropKind === "text") {
+        event.preventDefault();
+        event.stopPropagation();
+        promptStepProps.onAgentAttachmentDragLeave?.(event);
+        const isChatModeEnabled = promptStepProps.chatModeEnabled ?? true;
+        const composerText = isChatModeEnabled
+          ? (promptStepProps.agentInput ?? "")
+          : promptStepProps.prompt;
+        const applyComposerTextChange = isChatModeEnabled
+          ? promptStepProps.onAgentInputChange
+          : promptStepProps.onPromptChange;
+        const textarea = event.currentTarget.querySelector(
+          "textarea"
+        ) as HTMLTextAreaElement | null;
+        const insertedPrompt = resolveAgentComposerTextDropInsertion({
+          transfer: event.dataTransfer,
+          composerText,
+          selectionStart: textarea?.selectionStart ?? composerText.length,
+          selectionEnd: textarea?.selectionEnd ?? textarea?.selectionStart ?? composerText.length,
+        });
+        if (!insertedPrompt) return;
+        applyComposerTextChange?.(insertedPrompt.prompt);
+        const panelNode = event.currentTarget;
+        requestAnimationFrame(() => {
+          const nextTextarea =
+            textarea && textarea.isConnected
+              ? textarea
+              : (panelNode.querySelector("textarea") as HTMLTextAreaElement | null);
+          nextTextarea?.focus();
+          nextTextarea?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
+        });
+        return;
+      }
       promptStepProps.onAgentAttachmentDrop?.(event);
     },
     [isTargetInsideComposerInputShell, promptStepProps]

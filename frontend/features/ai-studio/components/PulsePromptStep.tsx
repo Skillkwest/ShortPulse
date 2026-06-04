@@ -10,10 +10,7 @@ import type {
   AgentMessage,
 } from "../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../logic/promptTokenHighlight";
-import {
-  insertDroppedPromptTextAtSelection,
-  resolveAgentComposerDrop,
-} from "./promptStep/agentComposerDrop";
+import { resolveAgentComposerTextDropInsertion } from "./promptStep/agentComposerDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
 import { PulsePromptStepChatSurface } from "./promptStep/PulsePromptStepChatSurface";
@@ -259,22 +256,18 @@ export function PulsePromptStep({
   };
   const handleComposerAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.stopPropagation();
-    const { droppedPromptText, droppedImageUrl, isVideoReference } = resolveAgentComposerDrop(
-      event.dataTransfer
-    );
-    if (droppedPromptText && !droppedImageUrl && !isVideoReference) {
+    const textarea = agentInputRef.current;
+    const insertedPrompt = resolveAgentComposerTextDropInsertion({
+      transfer: event.dataTransfer,
+      composerText: effectiveComposerInput,
+      selectionStart: textarea?.selectionStart ?? effectiveComposerInput.length,
+      selectionEnd:
+        textarea?.selectionEnd ?? textarea?.selectionStart ?? effectiveComposerInput.length,
+    });
+    if (insertedPrompt) {
       event.preventDefault();
       // Text-only drops bypass the generic attachment handler, so clear any drag-active affordance.
       onAgentAttachmentDragLeave?.(event);
-      const textarea = agentInputRef.current;
-      const selectionStart = textarea?.selectionStart ?? effectiveComposerInput.length;
-      const selectionEnd = textarea?.selectionEnd ?? selectionStart;
-      const insertedPrompt = insertDroppedPromptTextAtSelection({
-        composerText: effectiveComposerInput,
-        droppedPromptText,
-        selectionStart,
-        selectionEnd,
-      });
       effectiveAgentInputChange?.(insertedPrompt.prompt);
       requestAnimationFrame(() => {
         agentInputRef.current?.focus();

@@ -3,7 +3,7 @@
  * Verifies account-visible balances stay snapshot-backed, user-scoped, and safe under failures.
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Session, User } from "@supabase/supabase-js";
 import { resetUseCreditsTestState, useCredits } from "../useCredits";
 import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../../lib/supabaseClient";
@@ -42,9 +42,18 @@ describe("useCredits", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     resetUseCreditsTestState();
     sessionState = createSessionState("user-123");
     useSupabaseSessionStateMock.mockImplementation(() => sessionState);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
   });
 
   it("loads spendable balance from the authenticated snapshot API without browser balance fallbacks", async () => {
@@ -235,5 +244,59 @@ describe("useCredits", () => {
     expect(second.result.current.balanceCents).toBe(900);
     expect(first.result.current.balanceReservedCents).toBe(120);
     expect(second.result.current.balanceReservedCents).toBe(120);
+  });
+
+  it("keeps idle credit polling sparse and skips hidden tabs", async () => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    let idleRefreshCallback: (() => void) | null = null;
+    let idleRefreshDelayMs: number | undefined;
+    const setIntervalSpy = vi.spyOn(window, "setInterval").mockImplementation((handler, delay) => {
+      if (typeof handler === "function") {
+        idleRefreshCallback = handler as () => void;
+      }
+      idleRefreshDelayMs = typeof delay === "number" ? delay : undefined;
+      return 1 as unknown as ReturnType<typeof window.setInterval>;
+    });
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        spendableCents: 900,
+        reservedCents: 120,
+        updatedAt: "2026-02-15T20:00:00.000Z",
+      }),
+    } as unknown as Response);
+
+    const { result } = renderHook(() => useCredits());
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.balanceLoading).toBe(false);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(idleRefreshDelayMs).toBe(120_000);
+
+    fetchWithAuthMock.mockClear();
+    await act(async () => {
+      idleRefreshCallback?.();
+      await Promise.resolve();
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    fetchWithAuthMock.mockClear();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    act(() => {
+      idleRefreshCallback?.();
+    });
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+
+    setIntervalSpy.mockRestore();
   });
 });

@@ -164,9 +164,10 @@ behave like guided workflow tools.
 
 - Switching to a different Pulse starts a fresh Pulse session.
 - Restarting the active Pulse preserves the selected Pulse id but clears the active session state and starts fresh.
-- `New chat` in the `Chats` panel is a Pulse-only restart action: it preserves
-  the selected Pulse id, clears the active Pulse thread state, and starts a new
-  saved Chat binding.
+- The `Chats` panel is a reopen-only saved-thread list. Starting a fresh Pulse
+  thread now happens through the existing Pulse lifecycle actions
+  (restart/deactivate/switching Pulses) instead of a separate `New chat`
+  button inside the saved Chats card.
 - Clearing in Pulse mode deactivates the Pulse and clears its runtime state.
 - Deactivating a Pulse leaves the user in Pulse mode with the rail visible and no active Pulse runtime.
 

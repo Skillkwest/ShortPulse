@@ -420,7 +420,8 @@ describe("AI Studio Create agent runtime boundaries", () => {
       store?: boolean;
       previous_response_id?: string;
     };
-    expect(requestBody.store).toBe(true);
+    expect(requestBody.store).toBe(false);
+    expect(requestBody).not.toHaveProperty("previous_response_id");
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload).toEqual(
@@ -428,9 +429,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         message: "Responses transport prompt",
         actions: undefined,
         canonicalPrompt: null,
-        conversationState: {
-          previousResponseId: "resp_standard_1",
-        },
+        conversationState: null,
         outcome_class: "success_message",
         reason_code: "SUCCESS_MESSAGE",
       })
@@ -474,7 +473,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
   });
 
-  it("passes Standard previous_response_id through the Responses transport when conversation state exists", async () => {
+  it("does not forward client-supplied Standard previous_response_id through Responses transport", async () => {
     process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
     process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "false";
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -512,20 +511,18 @@ describe("AI Studio Create agent runtime boundaries", () => {
       previous_response_id?: string;
       store?: boolean;
     };
-    expect(requestBody.previous_response_id).toBe("resp_standard_1");
-    expect(requestBody.store).toBe(true);
+    expect(requestBody).not.toHaveProperty("previous_response_id");
+    expect(requestBody.store).toBe(false);
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload).toEqual(
       expect.objectContaining({
         message: "Stateful responses transport prompt",
-        conversationState: {
-          previousResponseId: "resp_standard_2",
-        },
+        conversationState: null,
       })
     );
   });
 
-  it("compacts Standard replay to session memory plus the latest user turn when Responses state is active without chat fallback", async () => {
+  it("keeps full Standard replay instead of compacting from untrusted client Responses state", async () => {
     process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
     process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "false";
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -576,8 +573,10 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const requestBody = JSON.parse(
       String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
     ) as {
+      previous_response_id?: string;
       input?: Array<{ role?: string; content?: Array<{ type?: string; text?: string }> }>;
     };
+    expect(requestBody).not.toHaveProperty("previous_response_id");
     expect(requestBody.input).toEqual([
       expect.objectContaining({ role: "system" }),
       expect.objectContaining({
@@ -594,6 +593,24 @@ describe("AI Studio Create agent runtime boundaries", () => {
         content: [
           expect.objectContaining({
             type: "input_text",
+            text: "old user turn",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "assistant",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
+            text: "old assistant reply",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "user",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
             text: "latest user turn",
           }),
         ],
@@ -601,7 +618,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     ]);
   });
 
-  it("keeps richer Standard session-memory decisions in the compacted Responses lane for longer sessions", async () => {
+  it("keeps richer Standard replay in Responses lane without trusting client response handles", async () => {
     process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
     process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "false";
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -661,8 +678,10 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const requestBody = JSON.parse(
       String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
     ) as {
+      previous_response_id?: string;
       input?: Array<{ role?: string; content?: Array<{ type?: string; text?: string }> }>;
     };
+    expect(requestBody).not.toHaveProperty("previous_response_id");
     expect(requestBody.input).toEqual([
       expect.objectContaining({ role: "system" }),
       expect.objectContaining({
@@ -681,15 +700,38 @@ describe("AI Studio Create agent runtime boundaries", () => {
         content: [
           expect.objectContaining({
             type: "input_text",
+            text: "Help me shape a premium skincare launch campaign for adults 25-34.",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "assistant",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
+            text: "Should the tone feel more clinical or more luxurious?",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "user",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
+            text: "More luxurious.",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "user",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
             text: "Give me three darker options.",
           }),
         ],
       }),
     ]);
-    expect(JSON.stringify(requestBody.input ?? [])).not.toContain(
-      "Should the tone feel more clinical or more luxurious?"
-    );
-    expect(JSON.stringify(requestBody.input ?? [])).not.toContain("More luxurious.");
   });
 
   it("appends the restrained Standard formatting guidance to the runtime system prompt", async () => {

@@ -214,6 +214,25 @@ describe("model pricing coverage", () => {
         resolution: "4K",
       })?.usdRaw
     ).toBeCloseTo(0.05);
+    expect(
+      computeCostForModel("kie-ai/gpt-image-2-image-to-image", {
+        aspect: "16:9",
+        resolution: "4K",
+        generationCount: 2,
+      })?.usdRaw
+    ).toBeCloseTo(0.16);
+    expect(
+      computeCostForModel("kie-ai/gpt-image-2-image-to-image", {
+        aspect: "auto",
+        resolution: "4K",
+      })?.usdRaw
+    ).toBeCloseTo(0.03);
+    expect(
+      computeCostForModel("kie-ai/gpt-image-2-image-to-image", {
+        aspect: "1:1",
+        resolution: "4K",
+      })?.usdRaw
+    ).toBeCloseTo(0.05);
   });
 
   it("adds deterministic GPT Image 2 edit input-image surcharges", () => {

@@ -67,18 +67,27 @@ describe("appErrorReporter", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("skips low-severity ai-studio telemetry before it reaches ingest", async () => {
-    await reportAppError({
-      source: "telemetry.ai_studio.generate_clicked",
-      scope: "app",
-      severity: "low",
-      message: "generate_clicked.generate",
-      route: "/ai-studio",
-    });
+  it.each([
+    ["telemetry.ai_studio.generate_clicked", "generate_clicked.generate"],
+    ["telemetry.ai_studio.ui_error_banner", "Unable to load media."],
+    ["telemetry.ai_studio.media_library_panel_error", "Unable to load media library."],
+    ["telemetry.ai_studio.media_library_modal_error", "Unable to load media library."],
+    ["telemetry.ai_studio.elements_media_library_error", "Unable to load elements media."],
+  ])(
+    "skips low-severity ai-studio telemetry before it reaches ingest: %s",
+    async (source, message) => {
+      await reportAppError({
+        source,
+        scope: "app",
+        severity: "low",
+        message,
+        route: "/ai-studio",
+      });
 
-    expect(readCachedSupabaseAccessTokenMock).not.toHaveBeenCalled();
-    expect(fetch).not.toHaveBeenCalled();
-  });
+      expect(readCachedSupabaseAccessTokenMock).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  );
 
   it("backs off after client-error ingest is rate limited", async () => {
     vi.mocked(fetch)

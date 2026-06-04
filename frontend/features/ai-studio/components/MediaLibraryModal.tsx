@@ -110,9 +110,9 @@ export function MediaLibraryModal({
   );
 
   useVisibleErrorTelemetry({
-    source: "client.ai_studio.media_library_modal_error",
+    source: "telemetry.ai_studio.media_library_modal_error",
     scope: "app",
-    severity: "medium",
+    severity: "low",
     message: error,
     metadata: {
       active_tab: activeTab,

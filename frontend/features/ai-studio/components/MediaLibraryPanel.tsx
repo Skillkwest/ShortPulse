@@ -387,9 +387,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   });
 
   useVisibleErrorTelemetry({
-    source: "client.ai_studio.media_library_panel_error",
+    source: "telemetry.ai_studio.media_library_panel_error",
     scope: "app",
-    severity: "medium",
+    severity: "low",
     message: error || folderError,
     metadata: {
       folder_id: activeFolderId,

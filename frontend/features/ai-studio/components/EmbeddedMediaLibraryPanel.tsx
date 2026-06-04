@@ -275,7 +275,7 @@ export function EmbeddedMediaLibraryPanel({
   useVisibleErrorTelemetry({
     source: errorTelemetrySource,
     scope: "app",
-    severity: "medium",
+    severity: "low",
     message: dataError || folderError,
     metadata: {
       item_type: itemType,

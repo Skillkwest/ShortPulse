@@ -15,6 +15,7 @@ import {
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../../lib/model-runtime/falModelIds";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -364,6 +365,11 @@ describe("ModelModal", () => {
         label: "Seedream 4.5",
         mediaType: "image",
       },
+      {
+        value: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        label: "GPT Image 2 Edit (Kie)",
+        mediaType: "image",
+      },
     ];
     const { container } = render(
       <ModelModal
@@ -380,12 +386,13 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
+      "GPT Image 2 Edit (Kie)",
       "GPT Image 2",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
-      { family: "GPT Image", chips: ["GPT Image 2"] },
+      { family: "GPT Image", chips: ["GPT Image 2 Edit (Kie)", "GPT Image 2"] },
     ]);
   });
 
@@ -402,6 +409,11 @@ describe("ModelModal", () => {
       {
         value: FAL_SEEDREAM_45_EDIT_MODEL_ID,
         label: "Seedream 4.5",
+        mediaType: "image",
+      },
+      {
+        value: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        label: "GPT Image 2 Edit (Kie)",
         mediaType: "image",
       },
     ];
@@ -424,6 +436,7 @@ describe("ModelModal", () => {
       "Nano Banana Pro",
       "GPT Image 2",
     ]);
+    expect(screen.queryByRole("button", { name: /GPT Image 2 Edit \(Kie\)/i })).toBeNull();
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },

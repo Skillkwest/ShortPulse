@@ -7,6 +7,7 @@ Purpose: keep concise, durable project-persistence truths and working rules for 
 - `projectId` is the top-level durable project identity for Projects. `sid` still exists, but durable AI Studio save/restore authority no longer lives on the legacy session lane.
 - Current durable project workspace save/restore authority is `GET|PUT /api/projects/:projectId/workspace`.
 - Large-project persistence now stores a lightweight checkpoint plus `project_output_display_items`; the project workspace route still returns a compatibility snapshot after server-side materialization.
+- Project workspace reads now materialize checkpoint/display records, run ownership-safe read sanitization, and then narrowly converge existing generated rows from durable project-scoped projection/media authority without appending missing outputs or reordering the right rail.
 - Project workspace persistence is intentionally sanitized. It restores durable project content, not full session replay.
 - Server-side project workspace canonicalization is the true restore safety boundary. The client restore candidate hook parses the returned payload but does not re-sanitize it.
 - Project routes do not durably restore unsent Create/Edit/Video/Sound drafts, Standard visible chat continuity, active output focus, Character Mode shell state, or Expert Edit document state.
@@ -14,7 +15,7 @@ Purpose: keep concise, durable project-persistence truths and working rules for 
 - `saved_with_repair_pending` means the sanitized workspace write succeeded but project asset/generation backfill still needs a later successful repair pass.
 - Project asset association is additive: media, prompts, and generated outputs attach to a project without duplicating the user-global inventory.
 - `project_generation_items` is not display authority by itself. Visible restored/generated success rows still require durable media authority such as canonical storage, saved media ids, or canonical publication/canonical media delivery.
-- Project reopen is hybrid: sanitized snapshot first, then project-scoped generated-output refresh asynchronously from association rows and project-scoped projection rows.
+- Project reopen is hybrid: sanitized materialized snapshot first, narrow read-time convergence for existing generated rows, then any remaining client-side generated-output maintenance after bootstrap.
 - Media Library folders and folder-canvas state are global across projects. ADR 0085 is the active authority; ADR 0066 and ADR 0067 are superseded history only.
 - Project card previews prefer Quick Slot Inventory images first and fall back to visible Reference Grid images only when quick slots have no image previews.
 - Project delete removes the owned project row, owned workspace row, and project-only associations by cascade, but it does not delete the global Media Library folder tree.

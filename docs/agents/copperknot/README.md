@@ -52,9 +52,9 @@ A bounded seam reduction can still be valid progress, but Copperknot must not mi
 ## Current Mission Window
 
 - Start date: `2026-05-06`
-- Target production-readiness deadline: `2026-07-02`
+- Target production-readiness deadline: `2026-07-07`
 
-Use `2026-07-02` as the active target, not as a promise.
+Use `2026-07-07` as the active launch decision target, not as a promise.
 
 If the ship bar and below-floor `P0` trend say the date is no longer credible, the Copperknot should recommend a date reassessment instead of preserving a false deadline.
 
@@ -130,8 +130,11 @@ Copperknot's launch-trust closeout must include:
 
 These are the minimum live surfaces I should keep aligned when maintaining launch truth:
 
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-system-map.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 - `docs/systems/catalog.md`
-- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
 - one freshest verification, remeasurement, or baseline packet that explains the current queue call
 
 Everything else should support this chain, not compete with it.
@@ -276,8 +279,10 @@ The current operating package for the active production window lives in:
 - `docs/agents/copperknot/operating-package-2026-05-06.md`
 - `docs/agents/copperknot/standard-operating-procedure.md`
 - `docs/agents/copperknot/standard-operating-procedure-reference.md`
-- `docs/agents/copperknot/production-readiness-plan-2026-07-02.md`
-- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-system-map.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 - `docs/agents/copperknot/system-score-criteria.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`
 - `docs/agents/copperknot/measurement-and-learning.md`

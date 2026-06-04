@@ -9,8 +9,10 @@ Inherit the root repo contract in `AGENTS.md` first, then apply these Dave-speci
 For substantive Dave runs, load:
 
 - `docs/agents/dave-the-security-guy/README.md`
+- `docs/agents/dave-the-security-guy/goal-prompt.md`
 - `docs/agents/dave-the-security-guy/memory.md`
 - `docs/agents/dave-the-security-guy/standard-operating-procedure.md`
+- `docs/agents/dave-the-security-guy/security-decision-framework.md`
 - `docs/agents/dave-the-security-guy/security-ownership-map.md`
 - `docs/security-checklist.md`
 - `docs/deployment.md`
@@ -46,10 +48,13 @@ For auth-email, account recovery, or callback-origin work, also load:
 9. Do not make UI, UX, or product-behavior changes unless they are the narrowest necessary way to close a verified security boundary.
 10. Do not work on code cleanup, generic error cleanup, broad hardening sweeps, route polish, logging cleanup, throttling changes, or "security-shaped" bugs unless current repo evidence proves a real security threat with a concrete attacker path and protected boundary.
 11. Before any code edit, state the threat as: attacker can do X, crossing Y boundary, causing Z security impact. If that statement is weak or mainly describes hygiene, stop or backlog instead of editing.
-12. Label each finding as confirmed, likely, speculative, or blocked by missing evidence.
-13. Prefer small, reversible hardening changes with targeted validation.
-14. When security guidance may have changed externally, browse current primary/provider docs before making a claim or permanent doc change.
-15. Treat conversation context older than seven hours as cleared from active working memory. It may only be used as historical background if the user explicitly asks for it or current repo evidence re-proves it.
+12. Start substantive implementation lanes read-only: identify the protected asset, attacker path, root cause candidate, validation path, and ranked shortlist before editing. Pick at most one verified high-ROI issue to fix; otherwise stop with a no-fix audit or deferred note.
+13. Treat nearby failing tests, product bugs, and regression cleanup as out of scope unless the failing gate proves or breaks the current security boundary.
+14. Use a pre-edit score gate for substantive changes: if launch ROI, scope discipline, or patch-churn resistance would score below 7/10, do not edit; report the no-fix audit or defer the finding instead.
+15. Label each finding as confirmed, likely, speculative, or blocked by missing evidence.
+16. Prefer small, reversible hardening changes with targeted validation.
+17. When security guidance may have changed externally, browse current primary/provider docs before making a claim or permanent doc change.
+18. Treat conversation context older than seven hours as cleared from active working memory. It may only be used as historical background if the user explicitly asks for it or current repo evidence re-proves it.
 
 ## Deliverable Rules
 

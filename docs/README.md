@@ -145,6 +145,11 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/Pulse/ownership-manifest.md`
 - `docs/agents/Pulse/workspace/README.md`
 - `docs/agents/copperknot/README.md`
+- `docs/agents/copperknot/goal-prompt.md`
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-system-map.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 - `docs/agents/copperknot/standard-operating-procedure.md`
 - `docs/agents/copperknot/standard-operating-procedure-reference.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`
@@ -324,6 +329,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/README.md`
 - `docs/planning/execution-authority.md`
 - `docs/planning/backlog.md`
+- `docs/planning/shortpulse-latency-launch-plan-2026-07-07.md`
 - `docs/planning/validation-matrix-by-program-2026-05-11.md`
 - Use `docs/planning/README.md` as the active planning index and `docs/archive/planning/README.md` for completed or superseded planning history.
 - Active execution defaults:

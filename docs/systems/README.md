@@ -14,6 +14,15 @@ Use `docs/systems/` to answer:
 
 This namespace is the canonical architecture and ship-readiness catalog.
 
+For the active July 7, 2026 launch decision, use Copperknot's July 7 launch-control docs for launch state, evidence level, risk, next proof, and exact queue order:
+
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-system-map.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
+
+The systems catalog remains the architecture inventory and score baseline. It does not override the July 7 launch board.
+
 ## Relationship to other docs
 
 - `docs/operator-map.md` remains the canonical operations map for schedulers, recovery controls, signals, and runbooks.

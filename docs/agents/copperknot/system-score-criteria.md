@@ -2,6 +2,8 @@
 
 Purpose: define the ship-floor and mature-state criteria for each current system row so the catalog helps ShortPulse ship honestly before it chases idealized scores.
 
+July 7 launch-control note: this file is now a supporting baseline, not the active launch authority. For the `2026-07-07` launch decision, use `docs/agents/copperknot/july-7-launch-authority.md`, `docs/agents/copperknot/july-7-system-map.md`, `docs/agents/copperknot/july-7-launch-board.md`, and `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`.
+
 ## How To Use This
 
 - `Ship floor` is the minimum acceptable score for the current production window.

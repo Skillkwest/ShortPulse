@@ -10,20 +10,24 @@ For normal Copperknot execution, load in this order:
 
 1. `README.md`
 2. `standard-operating-procedure.md`
-3. `prioritized-handoff-queue-2026-07-02.md`
-4. latest launch-state truth:
+3. `goal-prompt.md`
+4. `july-7-launch-authority.md`
+5. `july-7-system-map.md`
+6. `july-7-launch-board.md`
+7. `prioritized-launch-queue-2026-07-07.md`
+8. latest launch-state truth:
    - the latest dated verification, launch-state refresh, or baseline-reset report when needed
-5. the system-specific docs in scope
+9. the system-specific docs in scope
 
 Treat that load order as the minimum authority chain. If those surfaces already answer the question, do not widen the load by default.
 
 Load these only when the task explicitly requires them:
 
-- `goal-prompt.md`
 - `catalog-tool-health-metrics.md`
 - `measurement-and-learning.md`
 - `standard-operating-procedure-reference.md`
-- `production-readiness-plan-2026-07-02.md`
+- superseded historical `production-readiness-plan-2026-07-02.md`
+- superseded historical `prioritized-handoff-queue-2026-07-02.md`
 - `dispatch-ready-audit-output-template.md`
 - `operator-brief-template.md`
 - `handoff-template.md`
@@ -67,6 +71,11 @@ Do not load secondary overlays such as the scoreboard, operator brief, launch-re
 - If the current highest-ROI next proof is blocked on a redeploy or other release-operation step outside Copperknot's lane, stop there and report the exact blocking boundary instead of continuing to generate adjacent work.
 - When docs, ADRs, reports, or prior agent conclusions are ambiguous, audit the owning code before making a launch-readiness decision.
 - Do not make UI, UX, intended functionality, or behavior-changing updates unless the user explicitly approves that scope.
+- Before patching after any failed validation, classify the failure as one of: source regression, stale validation, flaky/non-reproducible validation, broad-lane spillover, or handoff boundary. Patch only source regressions or clearly stale validation assertions with an owning source contract. Do not whack-a-mole broad or non-reproducible failures.
+- If a lane has already taken a couple focused passes or starts producing alternating fixes/regressions, stop local implementation, mark the lane boundary, and create or update the relevant handoff instead of continuing to patch.
+- To improve launch authority and scope discipline, define the active lane's acceptance question before editing: what user trust risk is being reduced, what source seam owns it, what proof would be enough, and what proof boundary would trigger a handoff.
+- To improve patch-loop resistance, allow at most one bounded validation rerun for a non-reproducible failure before recording it as a caveat. Do not patch test-environment instability or broad spillover just to make a combined slice look green.
+- To reduce user mental load, every closeout should make the next state obvious: changed, not proven, validation, handoff/next lane. Avoid leaving the user to infer whether progress was real.
 
 ## Editing Rules
 
@@ -80,6 +89,8 @@ Do not load secondary overlays such as the scoreboard, operator brief, launch-re
 - Keep user-facing narration minimal by default. Prefer short updates that name the active lane, the root issue, and the current proof boundary. Do not spend context on long process narration unless the user explicitly asks for deeper explanation.
 - When work is clearly inside the active lane, prefer larger validated batches over frequent checkpoints. Keep moving through audit, source fix, focused validation, and self-audit before reporting, unless the next step crosses a user approval, release, deploy, commit, push, UI/UX, behavior-change, or unclear-scope boundary.
 - Do not write handoffs, dispatch logs, or retained reports for ordinary checkpoints. Use chat for routine closeout; create a durable artifact only when the work is being transferred, the user explicitly requests a worker packet, or the launch-readiness decision would otherwise lose necessary evidence.
+- When the user challenges whether progress is real, audit behavior directly rather than defend momentum. Convert the critique into a concrete operating brake, validation rule, or handoff boundary only when it will reduce future launch churn.
+- Use performance scoring as a behavior-tuning tool, not a vanity recap. When a score is below `8/10`, name the operational change that would raise it and encode only durable changes that prevent repeat drift.
 
 ## Validation
 

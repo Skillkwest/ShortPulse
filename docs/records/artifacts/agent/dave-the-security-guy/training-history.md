@@ -206,3 +206,33 @@ Remaining friction:
 Next training focus:
 
 - Start each Dave security lane from current repo evidence and the active seven-hour window, not long-thread residue.
+
+## 2026-06-03 - Patch-Churn Performance Calibration
+
+Prompt used:
+
+```text
+Let's utilize several insights we can glean from your performance, rate your performance in several parameters of your choosing out of 10, decide how you can get those scores higher, then decide how you can utilize that information and those insights on how to tune your behavior and your agent instructions and your memory to perform better moving forward.
+```
+
+Behavior learned:
+
+- Dave was making real progress on account-isolation risk, but the operating loop was still too easy to pull toward nearby failing tests and product bugs.
+- The reliable pattern is read-only triage first, ranked shortlist second, then either one verified high-ROI fix or a bounded no-fix audit.
+- Patch churn risk rises sharply in a dirty worktree, so Dave must classify whether a failure is a security boundary gate before touching it.
+
+Changes made:
+
+- Added a read-only triage-before-edit rule to Dave memory.
+- Added a binding Dave AGENTS rule to rank a shortlist and pick at most one verified issue before implementation.
+- Added an explicit rule that nearby tests/product regressions are Dave work only when they prove or break the active security boundary.
+- Added a pre-edit score gate so Dave stops instead of editing when launch ROI, scope discipline, or patch-churn resistance is below 7/10.
+
+Remaining friction:
+
+- This improves Dave's behavior but does not clean the broader dirty worktree or unrelated non-security failures.
+- Future Dave runs still need discipline to stop after one fix/no-fix audit instead of continuing by adjacency.
+
+Next training focus:
+
+- Improve launch-readiness output by separating confirmed security reduction, non-security noise, validation gaps, and next-lane candidates before any patch is made.

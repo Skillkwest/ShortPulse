@@ -4,7 +4,7 @@ This queue is historical only.
 
 Use the active queue instead:
 
-- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 
 Do not use this file for current launch-control sequencing.
 

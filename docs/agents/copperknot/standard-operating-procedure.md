@@ -44,13 +44,17 @@ This SOP governs:
 
 ### Catalog authority
 
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-system-map.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 - `docs/systems/catalog.md`
 - `docs/systems/rating-rubric.md`
 - `docs/agents/copperknot/system-score-criteria.md`
 
 ### Minimum launch-truth chain
 
-- the current dated handoff queue for the active production window under `docs/agents/copperknot/`
+- the current dated launch queue for the active production window under `docs/agents/copperknot/`
 - one freshest verification, remeasurement, or baseline packet that explains the current queue state
 
 ### Secondary overlays
@@ -87,7 +91,7 @@ Detailed run-type definitions, handoff standards, review-basis structure, mainte
 ### Step 1. Start with repo rules
 
 - Follow the root `AGENTS.md` startup contract.
-- Load the Copperknot contract, core SOP, current queue, and one freshest retained evidence packet.
+- Load the Copperknot contract, core SOP, July 7 launch authority docs, current queue, and one freshest retained evidence packet.
 - Load system-specific docs before touching ratings or queue status.
 - Retire conversation context older than 8 hours unless it is captured in the current repo authority chain or the user explicitly reactivates it.
 
@@ -190,6 +194,15 @@ If the audit cannot name those three things, Copperknot should treat the lane as
 
 For major user-visible, ship-critical, or repeated issues, do not package an execution lane until the audit has traced the issue to a root cause or has proved why a narrower seam reduction is the true highest-ROI move.
 
+Before editing, state the lane acceptance question in working notes or chat:
+
+- user trust risk being reduced
+- owning source seam
+- enough-proof target
+- stop or handoff trigger
+
+This is the practical guardrail for improving scope discipline from acceptable to strong.
+
 ### Step 5a. Classify the fix shape
 
 Before dispatching a lane or accepting a returned patch, classify the work as one of:
@@ -207,6 +220,40 @@ Use these rules:
 - allow `bounded seam reduction` only when it meaningfully reduces real ship risk and the residual weakness is named explicitly
 - avoid `temporary containment` unless it is genuinely the highest-ROI safe move
 - if the same risk family is producing repeated `bounded seam reduction` or `temporary containment` lanes, escalate and reassess whether the architecture itself now needs a more direct rewrite or source-level simplification
+
+### Step 5b. Apply the patch-loop brake
+
+Before making a second patch in response to a failed validation signal, classify the signal:
+
+- `source regression`
+  - current source behavior contradicts the launch contract or intended runtime behavior
+- `stale validation`
+  - the test, doc, or assertion still expects an old contract that current source and authority docs have legitimately replaced
+- `flaky/non-reproducible validation`
+  - the failure does not reproduce in the owning bounded slice or points to test-environment instability
+- `broad-lane spillover`
+  - the failure belongs to a wider system than the current lane can safely resolve in a couple focused passes
+- `handoff boundary`
+  - the remaining work requires another agent, more architectural thought, or more than a couple focused Copperknot passes
+
+Use these rules:
+
+- patch `source regression` only at the owning source seam
+- patch `stale validation` only when the current source contract is clear and the test is the stale surface
+- record `flaky/non-reproducible validation` as a caveat instead of patching around it
+- convert `broad-lane spillover` and `handoff boundary` into a marked lane and handoff
+- do not keep alternating between source and test patches unless fresh evidence proves each patch is the highest-ROI launch move
+- after one bounded rerun fails to reproduce a validation issue, stop treating that issue as patchable evidence until a narrower owner path reproduces it
+
+### Step 5c. Apply the score-improvement targets
+
+Use the recent Copperknot scorecard as behavior targets:
+
+- raise `Patch-loop resistance` by classifying failures before the second patch and refusing broad/flaky patch churn
+- raise `Scope discipline` by defining the lane acceptance question before edits and stopping at the proof boundary
+- raise `User mental-load reduction` by making closeouts decision-grade: changed, not proven, validation, and next lane or handoff
+- raise `Handoff discipline` by marking broad lanes earlier, not only after exhaustion
+- preserve `Evidence honesty` by never letting local proof, test proof, production-safe checks, and production-proven claims collapse into one confidence level
 
 ### Step 6. Compare against rerating gates
 

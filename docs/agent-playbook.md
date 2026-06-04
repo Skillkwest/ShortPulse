@@ -16,7 +16,7 @@ Authority shortcuts:
 - Frontend dev server: `cd frontend && npm run dev`
 - One-time deps: `cd frontend && npm install`
 - Common checks: `cd frontend && npm run lint` / `npm run build`
-- Full pre-launch release-gate stack lives in `docs/agents/copperknot/production-readiness-plan-2026-07-02.md`; do not treat the common checks above as the whole ship bar.
+- Full pre-launch release authority lives in `docs/agents/copperknot/july-7-launch-authority.md`; do not treat the common checks above as the whole ship bar.
 
 ## Structure to respect
 
@@ -36,7 +36,7 @@ Authority shortcuts:
 
 - Only use anon key on the client; never check in service-role keys or `.env.local`.
 - Enforce per-user isolation: RLS on `saved_creators`, `media_files`, and private `media_library` bucket paths (`auth.uid()` scoped).
-- Protected routes: `/performance*`, `/saved-creators`, `/profile`, `/ai-studio`, `/creator-studio`, and `/admin`.
+- Protected routes: `/performance*`, `/saved-creators`, `/profile`, `/ai-studio`, and `/admin`.
 - Reuse `frontend/lib/supabaseClient` and `useProtectedRoute` instead of ad-hoc clients.
 - Use Supabase CLI for Supabase access and avoid Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 
@@ -69,7 +69,7 @@ Authority shortcuts:
 - If a lane needs compatibility, migration scaffolding, or platform-required alternate transport, document it as the canonical plan for that constraint, including the owner, validation path, and removal condition when temporary.
 - Require route/API tests to cover route-owned behavior or failure handling that shared logic tests do not already protect.
 - Prefer one coherent lane at a time. Finish it, checkpoint it, or explicitly stop it before starting another lane.
-- During the pre-launch production-readiness phase through the Copperknot launch decision window ending `2026-07-02`, stay on `production` for local work and target GitHub `production` for branch operations.
+- During the pre-launch production-readiness phase through the Copperknot launch decision window ending `2026-07-07`, stay on `production` for local work and target GitHub `production` for branch operations.
 - Keep `git config --local shortpulse.allowedBranch` set to `production`. Local Husky `pre-commit` and `pre-push` hooks enforce that the current branch and push target match it.
 - Never push directly to `main` unless the user explicitly changes that rule.
 - During this phase, prefer direct `production` push/check/review coordination; do not assume a cross-branch PR flow unless the user explicitly rewrites the branch policy.

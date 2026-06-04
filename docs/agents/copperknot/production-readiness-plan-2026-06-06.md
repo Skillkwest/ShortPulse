@@ -4,7 +4,9 @@ This plan is historical only.
 
 Use the active plan instead:
 
-- `docs/agents/copperknot/production-readiness-plan-2026-07-02.md`
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 
 Do not use this file for current launch-control decisions.
 

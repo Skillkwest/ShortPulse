@@ -62,6 +62,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 
 - `docs/testing-guide.md`
 - `docs/release-checklist.md`
+- `docs/planning/shortpulse-latency-launch-plan-2026-07-07.md`
 - `docs/planning/tooling-audit-2026-02-16.md`
 - `docs/planning/validation-matrix-by-program-2026-05-11.md`
 

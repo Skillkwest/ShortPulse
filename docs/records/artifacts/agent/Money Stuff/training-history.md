@@ -230,3 +230,123 @@ Next training focus:
 
 - Continue cataloging concrete missing priced rows only when a runtime fail-closed case is confirmed.
 - Keep runtime/debit aligned to Scott's final `Billed credits` output without editing the pricing page calculator surface.
+
+## 2026-06-03: Unit-Pricing Runtime Calculation Planning
+
+Task: convert the clarified pricing intent into a durable migration plan for Scott-owned unit pricing plus ShortPulse runtime quantity calculation.
+
+Actions taken:
+
+- Re-audited the current pricing page calculator, pricing policy document, runtime pricing strategies, and display/debit seams.
+- Confirmed the current control-plane contract can store final overrides, but cannot yet express a machine-readable quantity rule such as `per_image` plus `input_image_count`.
+- Confirmed the runtime strategy layer already contains most of the quantity math needed for:
+  - image
+  - video
+  - sound
+- Wrote a retained migration plan that separates:
+  - Scott's authority over base variant and unit economics
+  - ShortPulse's responsibility for payload-based quantity counting and final billed-credit derivation.
+
+Training result:
+
+- Money Stuff now has a durable planning pattern for the next pricing-authority phase:
+  - keep Scott's calculator untouched
+  - design a machine-readable unit-pricing authority contract
+  - build one shared quantity-aware runtime resolver
+  - migrate Create, then Edit, then Video, then Sound
+
+Next training focus:
+
+- Define the new machine-readable authority payload shape.
+- Decide exactly which pricing-page outputs can be reused as-is and which structured fields must be added.
+- Implement the shared quantity-aware resolver for Create image first.
+
+## 2026-06-03: Unit-Pricing Plan Audit Update
+
+Task: audit the new unit-pricing migration plan against the real current control-plane policy and runtime seams, then tighten the plan where it was still too implicit.
+
+Actions taken:
+
+- Re-read the retained plan against the current pricing policy document, admin pricing state route, and runtime pricing seams.
+- Confirmed the plan needed one explicit architectural decision gate:
+  - when Scott authors direct final billed credits
+  - versus when ShortPulse derives final billed credits from unit economics plus quantity
+- Added a workflow quantity matrix for:
+  - image
+  - video
+  - sound
+- Added a Phase 0 checklist so implementation does not begin before the new authority contract shape is explicitly chosen.
+
+Training result:
+
+- Money Stuff's pricing migration plans now more clearly separate:
+  - source-of-truth decisions
+  - runtime-resolver design
+  - panel migration order
+- The plan is now better protected against starting implementation too early with an under-specified authority contract.
+
+Next training focus:
+
+- Turn the Phase 0 checklist into the actual authority-payload design decision.
+- Start Create-image implementation only after that design is explicit.
+
+## 2026-06-03: Unit-Pricing Plan Coverage Audit
+
+Task: compare the new unit-pricing plan against the repo again to make sure it did not miss child workflows or hidden migration seams.
+
+Actions taken:
+
+- Cross-checked the plan against:
+  - route-level pricing helpers
+  - local sound-component credit indicators
+  - expert edit variant pricing helpers
+  - client policy distribution
+  - observability and support traces
+- Confirmed the original plan needed to be widened beyond top-level panel buttons.
+- Updated the retained plan to explicitly cover:
+  - child workflow pricing surfaces
+  - `/api/pricing/model-policy`
+  - image-policy materialization replacement
+  - observability parity requirements
+
+Training result:
+
+- Money Stuff now has a stronger audit pattern for pricing migrations:
+  - compare the plan not only against top-level UX and debit paths
+  - but also against route-level, component-level, and observability-level seams
+
+Next training focus:
+
+- Use the widened plan as the source of truth when designing the authority payload shape.
+- Keep future implementation lanes honest about child workflow coverage, not just main CTA coverage.
+
+## 2026-06-03: Batch And Regenerate Pricing Plan Audit
+
+Task: compare the widened plan against regenerate flows, optimistic debit behavior, and batched child workflows to make sure pricing semantics would stay coherent after migration.
+
+Actions taken:
+
+- Re-audited the AI Studio pricing surfaces for:
+  - regenerate actions
+  - optimistic debit paths
+  - batch-style child workflows such as music
+- Confirmed the plan needed one more explicit rule:
+  - whether authority is interpreted per request or per click when one user action spawns multiple submits
+- Updated the retained plan to require explicit batch semantics and regenerate parity.
+
+Training result:
+
+- Money Stuff's plan-audit pattern now checks not only:
+  - top-level buttons
+  - child workflow displays
+  - debit
+  - observability
+- but also:
+  - regenerate behavior
+  - optimistic debit behavior
+  - batched submission semantics
+
+Next training focus:
+
+- Keep Phase 0 authority-payload design explicit about per-request versus per-click meaning.
+- Ensure the first Create implementation slice does not leave regenerate behavior on a legacy pricing path.

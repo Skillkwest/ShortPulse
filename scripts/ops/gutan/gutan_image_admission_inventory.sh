@@ -33,7 +33,7 @@ done
 echo
 echo "Image admission policy and size-limit references"
 rg -n \
-  "MAX_IMAGE_MEDIA_BYTES|CANONICAL_IMAGE_UPLOAD_MAX_BYTES|25 \\* 1024 \\* 1024|25MB|25 MB|maybeNormalizeOversizedImageUpload|localTranscode|prepare-upload|finalize-upload|upload-image|copy-from-url" \
+  "MAX_IMAGE_MEDIA_BYTES|CANONICAL_IMAGE_UPLOAD_MAX_BYTES|25 \\* 1024 \\* 1024|25MB|25 MB|maybeNormalizeOversizedImageUpload|localTranscode|prepare-upload|finalize-upload|prepare-reference-image-upload|stage-reference-image|copy-from-url" \
   frontend/lib frontend/features frontend/pages/api \
   --glob '!**/.next/**' \
   --glob '!**/node_modules/**' \

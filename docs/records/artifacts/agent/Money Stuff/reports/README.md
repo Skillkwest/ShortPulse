@@ -15,3 +15,4 @@ Current notable report:
 - `2026-05-30-create-admin-priced-billed-credit-implementation-plan.md` — Create-only execution plan defining the exact billed-credit lookup key, consumer cutover set, and proof gate for the first migration lane.
 - `2026-05-31-pricing-grid-gap-notes.md` — retained gap notes for pricing-grid coverage still missing canonical billed-credit rows during the migration.
 - `2026-06-02-admin-pricing-custom-variant-row-approaches-and-plan.md` — compares candidate implementations for operator-added pricing-grid rows, selects the recommended architecture, and lays out the execution plan.
+- `2026-06-03-authoritative-unit-pricing-runtime-calculation-plan.md` — defines the next-phase migration from explicit final billed rows toward Scott-owned unit pricing plus ShortPulse runtime quantity calculation across Create, Edit, Video, and Sound.

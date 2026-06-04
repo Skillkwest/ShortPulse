@@ -16,7 +16,7 @@ Do not infer exact next-work order from this folder listing alone.
 
 The current authority chain decides whether a packet is truly live:
 
-- exact order: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- exact order: `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 - lane state: the current queue row plus the freshest retained verification, remeasurement, or closeout-review packet
 - rationale for the current top call: the freshest retained verification or baseline packet
 

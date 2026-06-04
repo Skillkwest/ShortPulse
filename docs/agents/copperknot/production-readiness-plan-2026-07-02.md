@@ -1,4 +1,8 @@
-# Production-Readiness Plan Through 2026-07-02
+# Superseded: Production-Readiness Plan Through 2026-07-02
+
+Superseded by `docs/agents/copperknot/july-7-launch-authority.md`, `docs/agents/copperknot/july-7-launch-board.md`, and `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`.
+
+Do not use this file as active launch authority for the July 7, 2026 launch decision.
 
 Purpose: define the current production-readiness plan for moving ShortPulse to a defensible ship bar by `2026-07-02`.
 

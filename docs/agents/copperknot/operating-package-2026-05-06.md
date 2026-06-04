@@ -12,8 +12,11 @@ The catalog is a decision tool. It is not the mission.
 
 For current launch-truth decisions, use these first:
 
-- Catalog: `docs/systems/catalog.md`
-- Queue: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- Authority: `docs/agents/copperknot/july-7-launch-authority.md`
+- System map: `docs/agents/copperknot/july-7-system-map.md`
+- Board: `docs/agents/copperknot/july-7-launch-board.md`
+- Queue: `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
+- Catalog baseline: `docs/systems/catalog.md`
 - Freshest retained packet explaining the current queue call
 
 If these surfaces already answer the question, do not widen the load by default.
@@ -26,8 +29,12 @@ This package points to supporting surfaces that may be useful during maintenance
 - Memory: `docs/agents/copperknot/memory.md`
 - SOP: `docs/agents/copperknot/standard-operating-procedure.md`
 - SOP reference: `docs/agents/copperknot/standard-operating-procedure-reference.md`
-- Production plan: `docs/agents/copperknot/production-readiness-plan-2026-07-02.md`
-- Handoff queue: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- July 7 authority: `docs/agents/copperknot/july-7-launch-authority.md`
+- July 7 system map: `docs/agents/copperknot/july-7-system-map.md`
+- July 7 launch board: `docs/agents/copperknot/july-7-launch-board.md`
+- July 7 launch queue: `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
+- Superseded July 2 plan: `docs/agents/copperknot/production-readiness-plan-2026-07-02.md`
+- Superseded July 2 queue: `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
 - Score criteria: `docs/agents/copperknot/system-score-criteria.md`
 - Tool health metrics: `docs/agents/copperknot/catalog-tool-health-metrics.md`
 - Measurement and learning: `docs/agents/copperknot/measurement-and-learning.md`
@@ -43,7 +50,7 @@ This package is not the first source of truth.
 
 If another package document summarizes priorities, lane state, or launch truth more loosely than the primary authority chain, the primary authority chain wins.
 
-If the ship bar evidence no longer supports the current `2026-07-02` target, recommend a date reassessment explicitly instead of stretching weak launch claims to fit the date.
+If the ship bar evidence no longer supports the current `2026-07-07` target, recommend a date reassessment explicitly instead of stretching weak launch claims to fit the date.
 
 ## Current Ship Bar
 

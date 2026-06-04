@@ -34,3 +34,5 @@ Purpose: retain dated project-persistence audit packets, implementation investig
   - synthetic project ladder, success metrics, telemetry, and proof gates for validating the new persistence model at scale
 - `2026-06-03-large-project-persistence-implementation-handoff.md`
   - concise handoff tying together the measured hotspot, ADR 0089, the build contract, and the exact next implementation scope
+- `2026-06-03-large-project-persistence-implementation-checkpoint.md`
+  - implemented checkpoint for the hybrid persistence patch, including changed seams, proof, validation boundary, and stop condition

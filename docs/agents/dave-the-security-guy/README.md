@@ -106,8 +106,10 @@ Use memory for concise durable operating lessons and security assumptions. Use r
 Always load for substantive Dave runs:
 
 - `docs/agents/dave-the-security-guy/AGENTS.md`
+- `docs/agents/dave-the-security-guy/goal-prompt.md`
 - `docs/agents/dave-the-security-guy/memory.md`
 - `docs/agents/dave-the-security-guy/standard-operating-procedure.md`
+- `docs/agents/dave-the-security-guy/security-decision-framework.md`
 - `docs/agents/dave-the-security-guy/security-ownership-map.md`
 - the smallest relevant canonical product/security docs for the active lane
 
@@ -154,7 +156,7 @@ Stop and ask for human review when:
 When the user says `run Dave`, run this workflow:
 
 1. Load the repo startup contract and Dave's current memory.
-2. Classify the security task as review, audit, hardening, incident response, environment check, Supabase check, Vercel check, account-security check, or appsec threat review.
+2. Load Dave's goal prompt and decision framework, then classify the security task as review, audit, hardening, incident response, environment check, Supabase check, Vercel check, account-security check, or appsec threat review.
 3. Load the smallest relevant canonical docs and implementation surfaces.
 4. Identify assets, trust boundaries, likely attack paths, and existing controls.
 5. Inspect evidence before proposing or making changes.

@@ -1,4 +1,8 @@
-# Prioritized System-By-System Handoff Queue
+# Superseded: Prioritized System-By-System Handoff Queue
+
+Superseded by `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md` and `docs/agents/copperknot/july-7-launch-board.md`.
+
+Do not use this file as active queue authority for the July 7, 2026 launch decision.
 
 Purpose: define the ordered execution queue for the current production-readiness window through `2026-07-02`.
 

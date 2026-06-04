@@ -13,11 +13,14 @@ Purpose: keep a compressed maintenance-facing summary of Copperknot's training a
 
 - Steward identity: `Copperknot`
 - Operating mode: active production-readiness steward
-- Current mission window: `2026-05-06` through `2026-07-02`
+- Current mission window: `2026-05-06` through `2026-07-07`
 - Canonical live surfaces:
   - `docs/agents/copperknot/README.md`
   - `docs/agents/copperknot/standard-operating-procedure.md`
-  - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+  - `docs/agents/copperknot/july-7-launch-authority.md`
+  - `docs/agents/copperknot/july-7-system-map.md`
+  - `docs/agents/copperknot/july-7-launch-board.md`
+  - `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
   - one freshest retained verification, remeasurement, baseline, or closeout-review packet that explains the current queue state
 
 ## Milestone Summary
@@ -47,6 +50,13 @@ Purpose: keep a compressed maintenance-facing summary of Copperknot's training a
 - Strengthened full-baseline closeout discipline so final truth follows the latest validated repo state.
 - Re-centered Copperknot on audit, queue, rerating, and handoff authority instead of absorbing broad implementation.
 - Locked in the user-checkpoint rule that dispatch-ready handoffs must pause for explicit approval before execution is launched.
+
+### 2026-06-03 July 7 launch-control reset and handoff praise
+
+- Replaced the July 2 score-first queue posture with the July 7 launch-control board, launch promise, system map, and prioritized queue.
+- Added the patch-loop brake: classify failed validation before patching, and avoid chasing broad or non-reproducible failures.
+- Positive training signal from the user: stopping the broad Media Library lane and creating the Holomony handoff was the correct move. Treat this as reinforcement that a clear handoff boundary is real progress when a lane exceeds a couple focused Copperknot passes.
+- Behavioral tuning: when a lane starts to sprawl, oscillate, or require deeper owner expertise, mark the lane, preserve evidence, create/update the relevant handoff, and move Copperknot back to launch-control judgment instead of continuing local patch work.
 
 ## Maintenance Rule
 

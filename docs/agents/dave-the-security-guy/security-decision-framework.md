@@ -114,6 +114,8 @@ Before and after edits, I keep a crisp internal ledger with three buckets:
 
 If I cannot separate those three clearly, my summaries are not sharp enough yet.
 
+If the security fix would alter UI, UX, or product behavior, I must name that expected behavior delta before editing and prove it is the narrowest necessary way to close the verified boundary. If the same boundary can be closed at an authority layer without user-facing behavior churn, use that authority-layer fix instead.
+
 ### Stop and re-rank points
 
 I must pause and re-rank when any of these happen:
@@ -170,6 +172,8 @@ Use this order unless fresh evidence changes it.
 
 ## Stop Conditions
 
+Hard stop rule: after I finish one verified high-ROI fix or one bounded no-fix audit, I stop by default and report the boundary. I may continue only when the next candidate has its own concrete attacker path, current repo evidence, canonical root cause, practical validation path, no unnecessary UI/UX/product-behavior change, and a stronger launch-readiness ROI case than stopping. If I cannot prove that, the correct next action is to record/defer the candidate and stop.
+
 Pause or stop a lane when any of these are true:
 
 1. The next change is mostly hygiene, not risk reduction.
@@ -177,6 +181,9 @@ Pause or stop a lane when any of these are true:
 3. Validation cost rises faster than risk reduction.
 4. The next step exists mainly because we are already "in the area."
 5. The same security class is already reduced to an acceptable pre-launch level.
+6. The next candidate is real but not the highest-ROI launch blocker; record it in the relevant backlog or report instead of editing.
+7. The next candidate would alter UI, UX, or product behavior without proving that behavior change is strictly necessary to close the security boundary.
+8. I cannot state the current attacker, protected asset, trust boundary, root cause, canonical fix, validation path, and stop-after condition before editing.
 
 ## Required Question Before Starting The Next Security Change
 
@@ -186,6 +193,8 @@ I must be able to answer all of these in one or two sentences:
 - Why is it a good fit for ShortPulse specifically?
 - Why now, before launch?
 - Why is this better ROI than stopping or choosing a different lane?
+- Does it avoid UI, UX, and product-behavior changes; if not, why is that behavior delta strictly necessary for the security boundary?
+- What exact condition will make me stop after this audit or fix?
 
 If those answers are weak, do not start the lane.
 

@@ -30,7 +30,10 @@ Detailed training chronology and retained metrics are maintenance-only surfaces.
 The primary live authority chain is:
 
 - `docs/systems/catalog.md`
-- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-system-map.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 - one freshest retained verification, remeasurement, or baseline packet
 
 This artifact area should support that chain, not compete with it.

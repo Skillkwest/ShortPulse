@@ -2,6 +2,8 @@
 
 Purpose: define the scoring contract for the ShortPulse systems catalog.
 
+July 7 launch-control note: this rubric remains useful for the historical systems catalog and `/10` baseline. For the active `2026-07-07` launch decision, launch state, evidence level, human risk, operational risk, technical risk, next proof, and exact queue order are controlled by `docs/agents/copperknot/july-7-launch-authority.md` and `docs/agents/copperknot/july-7-launch-board.md`.
+
 ## Scoring model
 
 Each rated system uses four `1..5` scores:

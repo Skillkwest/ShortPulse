@@ -47,6 +47,9 @@ describe("fetchMediaListPage", () => {
         shortpulseRetryNetworkOnce: true,
       })
     );
+    const requestOptions = (fetcher.mock.calls as unknown as Array<[string, RequestInit]>)[0]?.[1];
+    const requestBody = JSON.parse(String(requestOptions?.body ?? "{}")) as Record<string, unknown>;
+    expect(requestBody.projectId).toBeUndefined();
   });
 
   it("surfaces auth-required failures as classified media-list errors", async () => {

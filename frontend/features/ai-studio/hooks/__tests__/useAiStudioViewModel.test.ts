@@ -268,7 +268,6 @@ describe("useAiStudioViewModel motion guardrails", () => {
     const expectedCost = resolvePricingGridBilledCredits({
       modelId,
       params: {
-        modelId,
         aspect: "16:9",
         resolution: "medium",
         inputImageCount: 1,
@@ -376,7 +375,6 @@ describe("useAiStudioViewModel motion guardrails", () => {
     const expectedCost = resolvePricingGridBilledCredits({
       modelId,
       params: {
-        modelId,
         aspect: "16:9",
         resolution: "medium",
       },

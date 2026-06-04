@@ -13,9 +13,16 @@ import { useAiStudioPageMediaReferenceRuntime } from "../useAiStudioPageMediaRef
 const restoreSigningMocks = vi.hoisted(() => ({
   resolveSessionRestoreSignedMediaAuthorityByMediaId: vi.fn(),
 }));
+const mediaSigningMocks = vi.hoisted(() => ({
+  getSignedMediaUrl: vi.fn(),
+}));
 
 type MockDualCanvasArgs = {
   resolveCanvasDropReference?: (payload: InternalReferenceDragPayload) => unknown;
+  prepareResolvedInternalCanvasDrop?: (
+    payload: InternalReferenceDragPayload,
+    resolved: unknown
+  ) => Promise<unknown> | unknown;
   resolveCanvasDroppedMediaReference?: (payload: {
     url: string;
     mimeType?: string | null;
@@ -26,6 +33,10 @@ type MockDualCanvasArgs = {
 
 vi.mock("../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),
+}));
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: (...args: unknown[]) => mediaSigningMocks.getSignedMediaUrl(...args),
 }));
 
 vi.mock("../../logic/sessionRestoreMediaSigning", () => ({
@@ -152,6 +163,10 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     vi.clearAllMocks();
     restoreSigningMocks.resolveSessionRestoreSignedMediaAuthorityByMediaId.mockResolvedValue(
       new Map()
+    );
+    mediaSigningMocks.getSignedMediaUrl.mockImplementation(
+      async ({ storagePath }: { storagePath: string }) =>
+        `https://signed.shortpulse.test/${storagePath}`
     );
     latestDualCanvasArgs = null;
     mockedCanvasSessionState = {
@@ -786,6 +801,58 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       mediaId: "saved-media-render-hint",
       src: "https://signed.shortpulse.test/render-hint.webp",
       alt: "Render hint",
+      sourceSurface: "curated",
+    });
+  });
+
+  it("prepares internal canvas video drops by signing durable playable and poster authority", async () => {
+    const output = makeOutput({
+      id: "output-video-durable-drop",
+      mode: "video",
+      prompt: "Durable video",
+      previewStoragePath: "user-1/variants/videos/output-video-durable-drop/preview-loop.mp4",
+      previewPosterStoragePath: "user-1/variants/videos/output-video-durable-drop/poster.webp",
+      fullStoragePath: "user-1/generations/videos/output-video-durable-drop/full.mp4",
+      previewUrl: undefined,
+      previewPosterUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-video-durable-drop"],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const payload = makePayload({
+      outputId: output.id,
+      referenceId: output.id,
+      mediaKind: "video",
+      referenceUrl: null,
+      referenceRenderUrl: null,
+    });
+    const syncResolved = latestDualCanvasArgs?.resolveCanvasDropReference?.(payload);
+    const prepared = await latestDualCanvasArgs?.prepareResolvedInternalCanvasDrop?.(
+      payload,
+      syncResolved ?? null
+    );
+
+    expect(syncResolved).toBeNull();
+    expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/generations/videos/output-video-durable-drop/full.mp4",
+    });
+    expect(prepared).toMatchObject({
+      kind: "video",
+      outputId: "output-video-durable-drop",
+      mediaId: "saved-media-video-durable-drop",
+      videoUrl:
+        "https://signed.shortpulse.test/user-1/generations/videos/output-video-durable-drop/full.mp4",
+      posterUrl:
+        "https://signed.shortpulse.test/user-1/variants/videos/output-video-durable-drop/poster.webp",
+      title: "Durable video",
       sourceSurface: "curated",
     });
   });

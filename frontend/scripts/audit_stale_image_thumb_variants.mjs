@@ -171,7 +171,7 @@ const probeSignedPath = async ({ supabase, storagePath }) => {
     };
   }
 
-  const response = await fetch(data.signedUrl);
+  const response = await globalThis.fetch(data.signedUrl);
   await response.arrayBuffer();
 
   return {

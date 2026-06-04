@@ -103,7 +103,6 @@ const scheduleBackgroundLibraryCountTask = (callback: () => void): (() => void) 
 };
 
 export const useMediaLibraryPanelDataController = ({
-  projectId = null,
   activeFolderId,
   itemType,
   normalizedSearch,
@@ -148,8 +147,7 @@ export const useMediaLibraryPanelDataController = ({
     () => normalizeRequestFolderId(activeFolderId),
     [activeFolderId]
   );
-  const activeProjectScopeId = projectId?.trim() || "no_project";
-  const activeRowsScopeKey = `${activeProjectScopeId}|${requestFolderId}|${itemType}|${normalizedSearch}`;
+  const activeRowsScopeKey = `${requestFolderId}|${itemType}|${normalizedSearch}`;
   const libraryTotalCount = mediaScopeCache.libraryTotalCount;
   const mediaHasMore = mediaScopeCache.hasMore;
   const promptHasMore = promptScopeCache.hasMore;
@@ -206,7 +204,6 @@ export const useMediaLibraryPanelDataController = ({
         surface: listSurface,
         profile: "minimal",
         folderId: requestFolderId,
-        projectId,
         includeLibraryTotalCount: true,
         countOnly: true,
       });
@@ -223,7 +220,7 @@ export const useMediaLibraryPanelDataController = ({
           : prev
       );
     },
-    [itemType, listSurface, normalizedSearch, projectId, requestFolderId, setMediaScopeCache]
+    [itemType, listSurface, normalizedSearch, requestFolderId, setMediaScopeCache]
   );
 
   const scheduleLibraryTotalCountRefresh = React.useCallback(
@@ -279,7 +276,6 @@ export const useMediaLibraryPanelDataController = ({
           surface: listSurface,
           profile: resolveMediaListProfile(itemType),
           folderId: requestFolderId,
-          projectId,
           includeLibraryTotalCount: false,
         });
         if (!result) {
@@ -332,7 +328,6 @@ export const useMediaLibraryPanelDataController = ({
       itemType,
       listSurface,
       normalizedSearch,
-      projectId,
       requestFolderId,
       scheduleLibraryTotalCountRefresh,
       setMediaRows,
@@ -368,7 +363,6 @@ export const useMediaLibraryPanelDataController = ({
       try {
         const result = await fetchMediaPromptListPage({
           folderId: requestFolderId,
-          projectId,
           query: normalizedSearch,
           cursor: reset ? null : promptCursorRef.current,
           limit: PROMPT_PAGE_SIZE,
@@ -408,14 +402,7 @@ export const useMediaLibraryPanelDataController = ({
         }
       }
     },
-    [
-      activeRowsScopeKey,
-      normalizedSearch,
-      projectId,
-      requestFolderId,
-      setPromptRows,
-      setPromptScopeCache,
-    ]
+    [activeRowsScopeKey, normalizedSearch, requestFolderId, setPromptRows, setPromptScopeCache]
   );
 
   React.useEffect(() => {

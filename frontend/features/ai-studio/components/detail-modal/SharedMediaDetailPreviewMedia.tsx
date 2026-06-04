@@ -11,6 +11,7 @@ type SharedMediaDetailPreviewMediaProps = {
   imageClassName: string;
   videoClassName?: string;
   audioClassName?: string;
+  videoPosterUrl?: string | null;
   imageStyle?: React.CSSProperties;
   videoStyle?: React.CSSProperties;
   videoRef?: React.Ref<HTMLVideoElement>;
@@ -55,6 +56,7 @@ export function SharedMediaDetailPreviewMedia({
   imageClassName,
   videoClassName,
   audioClassName,
+  videoPosterUrl,
   imageStyle,
   videoStyle,
   videoRef,
@@ -96,6 +98,7 @@ export function SharedMediaDetailPreviewMedia({
       <video
         className={videoClassName ?? imageClassName}
         src={mediaUrl}
+        poster={videoPosterUrl?.trim() || undefined}
         ref={videoRef}
         controls={videoControls}
         autoPlay={videoAutoPlay}

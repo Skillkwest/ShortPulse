@@ -291,7 +291,7 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     });
 
     const hydratedSnapshot = hydrateFromSessionSnapshot.mock.calls[0]?.[0] as
-      | AiStudioSessionSnapshot
+      | AiStudioSessionSnapshotV2
       | undefined;
     const hydratedCanvas = parseAiStudioSessionCanvasState(hydratedSnapshot?.canvas ?? null);
 
@@ -455,7 +455,7 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         chatModeEnabled: true,
         pulseWorkflowSession: null,
       },
-    });
+    }) as AiStudioSessionSnapshotV2;
     const savedCanvas = parseAiStudioSessionCanvasState(snapshot.canvas ?? null);
 
     expect(savedCanvas).toEqual(canvasSessionState);

@@ -779,7 +779,9 @@ describe("ElementsPanel layout", () => {
   });
 
   it("allows another slot upload to finish while a different slot upload is still pending", async () => {
-    let resolvePrimaryUpload: ((value: string) => void) | null = null;
+    let resolvePrimaryUpload: (value: string | PromiseLike<string>) => void = () => {
+      throw new Error("Expected the primary upload promise resolver to be assigned.");
+    };
     const primaryUploadPromise = new Promise<string>((resolve) => {
       resolvePrimaryUpload = resolve;
     });
@@ -821,9 +823,6 @@ describe("ElementsPanel layout", () => {
     expect(screen.queryByRole("status", { name: "Loading Secondary View reference" })).toBeNull();
     expect(secondaryZone).toHaveAttribute("aria-busy", "false");
 
-    if (!resolvePrimaryUpload) {
-      throw new Error("Expected the primary upload promise resolver to be assigned.");
-    }
     resolvePrimaryUpload("https://example.com/uploaded/primary-reference.png");
 
     await waitFor(() => {

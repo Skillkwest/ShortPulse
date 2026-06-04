@@ -143,7 +143,7 @@ describe("useAiStudioCreateCharacterLookState", () => {
       {
         initialProps: {
           createSelectedCharacterLookId: "",
-          createCharacterModeInjectionBundle: null,
+          createCharacterModeInjectionBundle: null as CharacterModeInjectionBundle | null,
         },
       }
     );
@@ -230,7 +230,7 @@ describe("useAiStudioCreateCharacterLookState", () => {
       {
         initialProps: {
           createSelectedCharacterLookId: "2",
-          createCharacterModeInjectionBundle: null,
+          createCharacterModeInjectionBundle: null as CharacterModeInjectionBundle | null,
         },
       }
     );
@@ -279,7 +279,7 @@ describe("useAiStudioCreateCharacterLookState", () => {
       {
         initialProps: {
           createSelectedCharacterLookId: "",
-          createCharacterModeInjectionBundle: null,
+          createCharacterModeInjectionBundle: null as CharacterModeInjectionBundle | null,
         },
       }
     );

@@ -1500,6 +1500,28 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
   });
 
+  it("rejects Pulse requests with missing preset ids", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody("ai-studio:session-runtime-test::pulse::pulse-session-test"),
+        context: {
+          pulse: {
+            ...createPulseContext().pulse,
+            presetId: "",
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+  });
+
   it("strips generic last-assistant context before Pulse provider execution", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

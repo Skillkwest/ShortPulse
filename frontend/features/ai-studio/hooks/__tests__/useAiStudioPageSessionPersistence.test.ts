@@ -379,6 +379,84 @@ describe("useAiStudioPageSessionPersistence", () => {
     );
   });
 
+  it("clears only the active project autosave notice after recovery", () => {
+    const buildBaseSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshotV2 =>
+        ({
+          schemaVersion: 2,
+          sessionId: args.sessionId,
+          updatedAt: "2026-03-23T00:00:00.000Z",
+          workspace: {} as AiStudioSessionSnapshotV2["workspace"],
+          outputs: {} as AiStudioSessionSnapshotV2["outputs"],
+          agent: {} as AiStudioSessionSnapshotV2["agent"],
+          meta: {} as AiStudioSessionSnapshotV2["meta"],
+        }) as AiStudioSessionSnapshotV2
+    );
+    const hydrateFromSessionSnapshot = vi.fn(
+      (): AiStudioSessionHydrationPayload => ({
+        workspace: {} as never,
+        outputs: {} as never,
+        agent: createAgentRuntime() as never,
+        agentRuntimes: {
+          standard: createAgentRuntime() as never,
+          pulsePresetId: null,
+          pulseSessionInstanceId: null,
+          pulse: createAgentRuntime({ chatModeEnabled: true }) as never,
+        },
+        pulseChats: {
+          schemaVersion: 1,
+          activeThreadId: null,
+          threads: [],
+        },
+        canvas: null,
+        expertEdit: null,
+      })
+    );
+    const setUiNotice = vi.fn();
+
+    renderHook(() =>
+      useAiStudioPageSessionPersistence({
+        projectId: "project-1",
+        sessionId: "session-1",
+        buildBaseSessionSnapshot,
+        createPersistenceRuntime: {
+          kind: "standard",
+          agentRuntime: createAgentRuntime(),
+        },
+        hydrateFromSessionSnapshot,
+        hydrateFromSessionAgentSnapshot: vi.fn(),
+        setUiNotice,
+      })
+    );
+
+    const persistenceParams =
+      mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls[0]?.[0];
+    const warningMessage = "Project autosave is retrying in the background: HTTP 500";
+    persistenceParams?.onPersistenceWarning?.(warningMessage, {
+      scope: "project_autosave",
+      reason: "persist_failed",
+      projectId: "project-1",
+      snapshotHash: "hash-1",
+      message: warningMessage,
+      recovered: false,
+    });
+    persistenceParams?.onPersistenceWarning?.(null, {
+      scope: "project_autosave",
+      reason: "persist_failed",
+      projectId: "project-1",
+      snapshotHash: "hash-1",
+      message: warningMessage,
+      recovered: true,
+    });
+
+    expect(setUiNotice).toHaveBeenNthCalledWith(1, warningMessage);
+    const clearUpdater = setUiNotice.mock.calls[1]?.[0] as
+      | ((current: string | null) => string | null)
+      | undefined;
+    expect(clearUpdater?.(warningMessage)).toBeNull();
+    expect(clearUpdater?.("Different notice")).toBe("Different notice");
+  });
+
   it("starts project workspace bootstrap as soon as a valid route project id is known", () => {
     const buildBaseSessionSnapshot = vi.fn(
       (args): AiStudioSessionSnapshotV2 =>

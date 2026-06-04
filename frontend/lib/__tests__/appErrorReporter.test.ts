@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { reportAppError } from "../appErrorReporter";
+import { reportAppError, resetAppErrorReporterBackpressureForTests } from "../appErrorReporter";
 
 const readCachedSupabaseAccessTokenMock = vi.fn();
 
@@ -15,8 +15,9 @@ describe("appErrorReporter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
+    resetAppErrorReporterBackpressureForTests();
     readCachedSupabaseAccessTokenMock.mockReturnValue("token");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 202 }));
   });
 
   it("skips browser ResizeObserver loop notifications", async () => {
@@ -48,6 +49,64 @@ describe("appErrorReporter", () => {
         method: "POST",
       })
     );
+  });
+
+  it("dedupes repeated equivalent client reports before they hit ingest", async () => {
+    const event = {
+      source: "client.ai_studio.media_library_save_failure",
+      scope: "generation" as const,
+      severity: "medium" as const,
+      message: "No media available to save.",
+      route: "/ai-studio/project-1",
+    };
+
+    await reportAppError(event);
+    await reportAppError(event);
+
+    expect(readCachedSupabaseAccessTokenMock).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips low-severity ai-studio telemetry before it reaches ingest", async () => {
+    await reportAppError({
+      source: "telemetry.ai_studio.generate_clicked",
+      scope: "app",
+      severity: "low",
+      message: "generate_clicked.generate",
+      route: "/ai-studio",
+    });
+
+    expect(readCachedSupabaseAccessTokenMock).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("backs off after client-error ingest is rate limited", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        headers: {
+          get: vi.fn((name: string) => (name === "Retry-After" ? "120" : null)),
+        },
+      } as never)
+      .mockResolvedValue({ ok: true, status: 202 } as never);
+
+    await reportAppError({
+      source: "client.runtime",
+      scope: "app",
+      severity: "high",
+      message: "first failure",
+      route: "/ai-studio",
+    });
+    await reportAppError({
+      source: "client.runtime",
+      scope: "app",
+      severity: "high",
+      message: "second distinct failure",
+      route: "/ai-studio",
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("skips non-ai-studio Fast Refresh reference misses in development", async () => {

@@ -72,6 +72,12 @@ const isQueuedOutput = (output: StudioOutput): boolean => {
 const isFailedWithoutPreview = (output: StudioOutput): boolean =>
   output.taskState === "fail" && !output.previewUrl && !output.previewText && !output.taskId;
 
+export const hasStaleOutputCleanupCandidate = (output: StudioOutput): boolean =>
+  isLoadingWithoutPreview(output) ||
+  isDirectRequestLoadingWithoutPreview(output) ||
+  isServerRecoverableLoadingWithoutPreview(output) ||
+  isFailedWithoutPreview(output);
+
 /**
  * Returns stale-loading and removable ids plus next lifecycle tracking state.
  */

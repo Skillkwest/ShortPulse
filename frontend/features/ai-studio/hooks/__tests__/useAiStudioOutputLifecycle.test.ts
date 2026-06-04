@@ -234,6 +234,36 @@ describe("useAiStudioOutputLifecycle", () => {
     expect(reportAppErrorMock).not.toHaveBeenCalled();
   });
 
+  it("does not schedule the stale-output sweep interval for settled outputs", () => {
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+    renderHook(() => useHarness([makeOutput("out-ready")], "out-ready"));
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("schedules the stale-output sweep interval while unresolved outputs can timeout", () => {
+    const setIntervalSpy = vi
+      .spyOn(window, "setInterval")
+      .mockImplementation(() => 1 as unknown as ReturnType<typeof window.setInterval>);
+
+    renderHook(() =>
+      useHarness(
+        [
+          makeOutput("out-loading", {
+            taskState: "pending",
+            previewText: undefined,
+            previewUrl: undefined,
+          }),
+        ],
+        null
+      )
+    );
+
+    expect(setIntervalSpy).toHaveBeenCalled();
+  });
+
   it("fails fast when a generated placeholder never receives a task id", async () => {
     vi.useFakeTimers();
     try {

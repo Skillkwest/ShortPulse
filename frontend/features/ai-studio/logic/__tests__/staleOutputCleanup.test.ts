@@ -4,7 +4,11 @@
  */
 import { describe, expect, it } from "vitest";
 import type { StudioOutput } from "../../types";
-import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../staleOutputCleanup";
+import {
+  evaluateStaleOutputCleanup,
+  hasStaleOutputCleanupCandidate,
+  type OutputLifecycleMap,
+} from "../staleOutputCleanup";
 
 const BASE_TIME_MS = 1_700_000_000_000;
 
@@ -29,6 +33,38 @@ const config = {
 };
 
 describe("evaluateStaleOutputCleanup", () => {
+  it("identifies only unresolved or removable outputs as sweep candidates", () => {
+    expect(
+      hasStaleOutputCleanupCandidate(
+        makeOutput({
+          id: "out-ready",
+          taskState: "success",
+          previewUrl: "https://example.com/image.png",
+        })
+      )
+    ).toBe(false);
+    expect(
+      hasStaleOutputCleanupCandidate(
+        makeOutput({
+          id: "out-loading",
+          taskState: "pending",
+          previewText: undefined,
+          previewUrl: undefined,
+        })
+      )
+    ).toBe(true);
+    expect(
+      hasStaleOutputCleanupCandidate(
+        makeOutput({
+          id: "out-failed",
+          taskState: "fail",
+          previewText: undefined,
+          previewUrl: undefined,
+        })
+      )
+    ).toBe(true);
+  });
+
   it("flags generated loading outputs as stale after timeout", () => {
     const outputs = [makeOutput({ id: "out-stale" })];
     const lifecycle: OutputLifecycleMap = {

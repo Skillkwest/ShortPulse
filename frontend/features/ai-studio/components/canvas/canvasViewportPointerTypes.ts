@@ -6,12 +6,14 @@ import type { CanvasResizeHandle } from "./canvasTypes";
 export type CanvasPointerSession =
   | { kind: "none" }
   | {
-      kind: "item-drag";
+      kind: "item-ghost-drag";
       pointerId: number;
       itemId: string;
       selectedItemIds: string[];
-      lastClientX: number;
-      lastClientY: number;
+      startClientX: number;
+      startClientY: number;
+      deltaX: number;
+      deltaY: number;
     }
   | {
       kind: "pan";

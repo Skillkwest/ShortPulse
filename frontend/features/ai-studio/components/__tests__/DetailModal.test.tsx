@@ -662,7 +662,7 @@ describe("DetailModal", () => {
     expect(baseElement.querySelector("img.art-hero-image")).not.toBeNull();
   });
 
-  it("keeps poster-image previews as images for video outputs when no playable preview URL is selected", () => {
+  it("does not use poster-image previews as playable media for video outputs", () => {
     const { baseElement } = render(
       <DetailModal
         output={{
@@ -679,9 +679,9 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.getByText("Loading media...")).toBeInTheDocument();
     expect(baseElement.querySelector("video.art-hero-image")).toBeNull();
-    expect(baseElement.querySelector("img.art-hero-image")).not.toBeNull();
+    expect(baseElement.querySelector("img.art-hero-image")).toBeNull();
   });
 
   it("keeps successfully loaded media even when actual dimensions differ from aspect metadata", async () => {
@@ -937,7 +937,7 @@ describe("DetailModal", () => {
           id: "upload-1",
           prompt: "create-page-current.png",
           previewUrl: "https://cdn.test/uploads/create-page-current.png",
-          model: undefined,
+          model: "",
           modelId: undefined,
           timestamp: "Dropped",
         }}
@@ -1101,7 +1101,7 @@ describe("DetailModal", () => {
           previewStoragePath: null,
           fullStoragePath: null,
           mediaSource: "generated",
-          generationId: null,
+          generationId: undefined,
           savedMediaIds: [],
         }}
         onClose={vi.fn()}

@@ -3,6 +3,7 @@
  * Separates generation lifecycle loading from media hydration loading.
  */
 import type { StudioOutput } from "../../types";
+import { hasStorageAuthority } from "../../logic/referenceOutputAuthority";
 import {
   isReferenceOutputFailing,
   isReferenceOutputLoadingTaskState,
@@ -56,6 +57,7 @@ export const classifyReferenceGridCardVisualState = ({
 }: ReferenceGridCardVisualInput): ReferenceGridCardVisualState => {
   const isFailing = isReferenceOutputFailing(item);
   const hasRenderablePreview = Boolean(cardPreviewUrl);
+  const hasDurableMediaAuthority = hasStorageAuthority(item);
   const hasRenderableCardMedia = hasRenderablePreview && (!isImagePreview || Boolean(imageSrc));
   const hasRenderableGeneratedMedia = item.mediaSource === "generated" && hasRenderableCardMedia;
   const hasLoadedGeneratedMedia =
@@ -64,6 +66,7 @@ export const classifyReferenceGridCardVisualState = ({
     (isLoaded || hasRenderableGeneratedMedia);
   const isGenerationLoading =
     !isFailing &&
+    !hasDurableMediaAuthority &&
     !hasLoadedGeneratedMedia &&
     isReferenceOutputLoadingTaskState({
       taskState: item.taskState,
@@ -79,7 +82,7 @@ export const classifyReferenceGridCardVisualState = ({
     !isGenerationLoading &&
     !isLocalVideoPersistenceLoading &&
     !hasRenderableGeneratedMedia &&
-    hasRenderablePreview &&
+    (hasRenderablePreview || hasDurableMediaAuthority) &&
     !hasPromptOnlyPreview &&
     (!isLoaded || isDecodeBudgetHydrationPending);
 

@@ -7,7 +7,10 @@ type ResolveCreateComposerNoHistoryShellParams = {
   hasVisibleAgentMessages: boolean;
 };
 
-const BANNED_CREATE_INLINE_GUARDRAIL_COPY = new Set(["Enter a prompt to generate."]);
+const BANNED_CREATE_INLINE_GUARDRAIL_COPY = new Set([
+  "Enter a prompt to generate.",
+  "Pricing is unavailable for this configuration. Retry in a moment.",
+]);
 
 /**
  * Returns whether the Create composer should render its persistent no-history shell.

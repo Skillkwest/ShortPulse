@@ -62,7 +62,26 @@ type UseAiStudioProjectWorkspacePersistenceControllerParams = {
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
-  onPersistenceWarning?: (message: string) => void;
+  onPersistenceWarning?: (
+    message: string | null,
+    details: ProjectWorkspaceAutosaveNoticeDetails
+  ) => void;
+};
+
+type ProjectWorkspaceAutosaveNoticeReason =
+  | "snapshot_reduced"
+  | "repair_pending"
+  | "snapshot_too_large"
+  | "snapshot_serialize_failed"
+  | "persist_failed";
+
+export type ProjectWorkspaceAutosaveNoticeDetails = {
+  scope: "project_autosave";
+  reason: ProjectWorkspaceAutosaveNoticeReason;
+  projectId: string;
+  snapshotHash: string | null;
+  message: string;
+  recovered: boolean;
 };
 
 const resolveProjectPersistenceWarningMessage = ({
@@ -134,6 +153,7 @@ const PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS = {
   candidateSelection: 24,
 } as const;
 const PROJECT_WORKSPACE_PHASE_TELEMETRY_THROTTLE_MS = 60_000;
+const PROJECT_WORKSPACE_QUICK_SLOT_DIAGNOSTIC_THROTTLE_MS = 5 * 60_000;
 
 const flattenProjectSnapshotByteBreakdown = (
   prefix: string,
@@ -169,6 +189,29 @@ const resolveProjectSnapshotOutputCounts = (snapshot: AiStudioSessionSnapshot | 
     totalCount: activeCount + archivedCount,
   };
 };
+
+const resolveQuickSlotDiagnosticsTelemetryKey = (
+  diagnostics: ReturnType<typeof buildProjectWorkspaceQuickSlotDiagnostics>
+): string =>
+  [
+    diagnostics.active_count,
+    diagnostics.archived_count,
+    diagnostics.quick_slot_count,
+    diagnostics.removed_from_refs_count,
+    diagnostics.quick_slot_missing_count,
+    diagnostics.quick_slot_missing_ids,
+    diagnostics.quick_slot_ids,
+    diagnostics.quick_slot_library_count,
+    diagnostics.quick_slot_generated_count,
+    diagnostics.quick_slot_saved_media_count,
+    diagnostics.quick_slot_saved_media_ids_total,
+    diagnostics.canvas_item_count,
+    diagnostics.canvas_media_item_count,
+    diagnostics.canvas_media_id_count,
+    diagnostics.canvas_output_id_count,
+    diagnostics.canvas_missing_media_authority_count,
+    diagnostics.canvas_url_count,
+  ].join("|");
 
 const resolveProjectSnapshotByteBreakdown = (
   snapshot: AiStudioSessionSnapshot | null
@@ -727,6 +770,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
 
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
   const repairPendingNoticeKeyRef = useRef<string | null>(null);
+  const activeAutosaveNoticeRef = useRef<ProjectWorkspaceAutosaveNoticeDetails | null>(null);
+  const quickSlotSaveResultTelemetryRef = useRef<{ key: string; emittedAt: number } | null>(null);
   const autosaveSnapshotSelectionComputation = useMemo(
     () => resolveProjectAutosaveSnapshotSelectionComputation(sessionSnapshot),
     [sessionSnapshot]
@@ -748,6 +793,65 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       expectedProjectRestoreVisibilitySignature &&
     pendingVisibilityAutosaveBaseline.autosaveUnlockSignature !== autosaveUnlockSignature;
   const projectAutosaveReady = projectBootstrapReady || projectAutosaveReadyAfterUserEdit;
+
+  const emitProjectAutosaveWarning = useCallback(
+    ({
+      reason,
+      message,
+      snapshotHash,
+    }: {
+      reason: ProjectWorkspaceAutosaveNoticeReason;
+      message: string;
+      snapshotHash?: string | null;
+    }) => {
+      if (!projectId) return;
+      const details: ProjectWorkspaceAutosaveNoticeDetails = {
+        scope: "project_autosave",
+        reason,
+        projectId,
+        snapshotHash: snapshotHash ?? null,
+        message,
+        recovered: false,
+      };
+      activeAutosaveNoticeRef.current = details;
+      onPersistenceWarning?.(message, details);
+    },
+    [onPersistenceWarning, projectId]
+  );
+
+  const clearRecoveredProjectAutosaveWarning = useCallback(
+    (
+      activeProjectId: string,
+      snapshotHash: string | null | undefined,
+      options?: { allowAnySnapshot?: boolean }
+    ) => {
+      const activeNotice = activeAutosaveNoticeRef.current;
+      if (!activeNotice || activeNotice.projectId !== activeProjectId) return;
+      const successfulSnapshotHash = snapshotHash ?? null;
+      const snapshotMatches =
+        options?.allowAnySnapshot === true ||
+        activeNotice.snapshotHash == null ||
+        activeNotice.snapshotHash === successfulSnapshotHash;
+      if (!snapshotMatches) return;
+      activeAutosaveNoticeRef.current = null;
+      onPersistenceWarning?.(null, {
+        ...activeNotice,
+        snapshotHash: successfulSnapshotHash,
+        recovered: true,
+      });
+    },
+    [onPersistenceWarning]
+  );
+
+  useEffect(() => {
+    const activeNotice = activeAutosaveNoticeRef.current;
+    if (!activeNotice || activeNotice.projectId === projectId) return;
+    activeAutosaveNoticeRef.current = null;
+    onPersistenceWarning?.(null, {
+      ...activeNotice,
+      recovered: true,
+    });
+  }, [onPersistenceWarning, projectId]);
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -848,17 +952,20 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         ...flattenProjectSnapshotByteBreakdown("reduced", reducedSnapshotByteBreakdown),
       },
     });
-    onPersistenceWarning?.(
-      resolveReducedWorkspaceNotice(
+    emitProjectAutosaveWarning({
+      reason: "snapshot_reduced",
+      snapshotHash: autosaveSnapshotSelection.preparedSnapshot?.hash ?? null,
+      message: resolveReducedWorkspaceNotice(
         autosaveSnapshotSelection.fallbackKind as Exclude<
           AiStudioProjectWorkspaceAutosaveCandidateKind,
           "full"
         >
-      )
-    );
+      ),
+    });
   }, [
+    autosaveSnapshotSelection.preparedSnapshot?.hash,
     autosaveSnapshotSelection.fallbackKind,
-    onPersistenceWarning,
+    emitProjectAutosaveWarning,
     projectId,
     resolveCachedSnapshotByteBreakdown,
     autosaveSnapshotSelection.snapshot,
@@ -932,7 +1039,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     async (
       activeProjectId: string,
       snapshot: AiStudioSessionSnapshot,
-      options?: { keepalive?: boolean }
+      options?: { keepalive?: boolean; snapshotHash?: string | null }
     ) => {
       const savedWorkspace = await saveAiStudioProjectWorkspaceSnapshotViaApi({
         projectId: activeProjectId,
@@ -950,27 +1057,42 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         shouldReportProjectWorkspaceQuickSlotDiagnostics(localQuickSlotDiagnostics) ||
         shouldReportProjectWorkspaceQuickSlotDiagnostics(savedQuickSlotDiagnostics)
       ) {
-        void reportAppError({
-          source: "telemetry.ai_studio.project_workspace.quick_slot_save_result",
-          scope: "app",
-          severity: "low",
-          message: "Project workspace save returned Quick Slot diagnostics.",
-          metadata: {
-            project_id: activeProjectId,
-            keepalive: options?.keepalive === true,
-            snapshot_updated_at: snapshot.updatedAt,
-            saved_snapshot_updated_at: savedSnapshot?.updatedAt ?? null,
-            save_outcome: savedWorkspace.saveOutcome?.status ?? "saved",
-            quick_slot_count_changed:
-              localQuickSlotDiagnostics.quick_slot_count !==
-              savedQuickSlotDiagnostics.quick_slot_count,
-            quick_slot_missing_changed:
-              localQuickSlotDiagnostics.quick_slot_missing_count !==
-              savedQuickSlotDiagnostics.quick_slot_missing_count,
-            ...prefixProjectWorkspaceQuickSlotDiagnostics("local", localQuickSlotDiagnostics),
-            ...prefixProjectWorkspaceQuickSlotDiagnostics("saved", savedQuickSlotDiagnostics),
-          },
-        });
+        const now = Date.now();
+        const telemetryKey = [
+          activeProjectId,
+          savedWorkspace.saveOutcome?.status ?? "saved",
+          options?.keepalive === true ? "keepalive" : "normal",
+          resolveQuickSlotDiagnosticsTelemetryKey(localQuickSlotDiagnostics),
+          resolveQuickSlotDiagnosticsTelemetryKey(savedQuickSlotDiagnostics),
+        ].join("|");
+        const previousTelemetry = quickSlotSaveResultTelemetryRef.current;
+        if (
+          previousTelemetry?.key !== telemetryKey ||
+          now - previousTelemetry.emittedAt >= PROJECT_WORKSPACE_QUICK_SLOT_DIAGNOSTIC_THROTTLE_MS
+        ) {
+          quickSlotSaveResultTelemetryRef.current = { key: telemetryKey, emittedAt: now };
+          void reportAppError({
+            source: "telemetry.ai_studio.project_workspace.quick_slot_save_result",
+            scope: "app",
+            severity: "low",
+            message: "Project workspace save returned Quick Slot diagnostics.",
+            metadata: {
+              project_id: activeProjectId,
+              keepalive: options?.keepalive === true,
+              snapshot_updated_at: snapshot.updatedAt,
+              saved_snapshot_updated_at: savedSnapshot?.updatedAt ?? null,
+              save_outcome: savedWorkspace.saveOutcome?.status ?? "saved",
+              quick_slot_count_changed:
+                localQuickSlotDiagnostics.quick_slot_count !==
+                savedQuickSlotDiagnostics.quick_slot_count,
+              quick_slot_missing_changed:
+                localQuickSlotDiagnostics.quick_slot_missing_count !==
+                savedQuickSlotDiagnostics.quick_slot_missing_count,
+              ...prefixProjectWorkspaceQuickSlotDiagnostics("local", localQuickSlotDiagnostics),
+              ...prefixProjectWorkspaceQuickSlotDiagnostics("saved", savedQuickSlotDiagnostics),
+            },
+          });
+        }
       }
       const savedOutputIds = savedSnapshot ? collectProjectSnapshotOutputIds(savedSnapshot) : [];
       if (savedSnapshot && !areStringListsEqual(localOutputIds, savedOutputIds)) {
@@ -997,21 +1119,34 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         ].join("|");
         if (repairPendingNoticeKeyRef.current !== noticeKey) {
           repairPendingNoticeKeyRef.current = noticeKey;
-          onPersistenceWarning?.(resolveProjectRepairPendingNotice());
+          emitProjectAutosaveWarning({
+            reason: "repair_pending",
+            snapshotHash: options?.snapshotHash ?? null,
+            message: resolveProjectRepairPendingNotice(),
+          });
         }
+      } else {
+        clearRecoveredProjectAutosaveWarning(activeProjectId, options?.snapshotHash ?? null, {
+          allowAnySnapshot: autosaveSnapshotSelection.fallbackKind === "full",
+        });
       }
     },
-    [onPersistenceWarning]
+    [
+      autosaveSnapshotSelection.fallbackKind,
+      clearRecoveredProjectAutosaveWarning,
+      emitProjectAutosaveWarning,
+    ]
   );
 
   const writeProjectWorkspaceSnapshot = useCallback(
     (
       activeProjectId: string,
       snapshot: AiStudioSessionSnapshot,
-      options?: { keepalive?: boolean }
+      options?: { keepalive?: boolean; snapshotHash?: string | null }
     ) =>
       persistProjectWorkspaceSnapshot(activeProjectId, snapshot, {
         keepalive: options?.keepalive,
+        snapshotHash: options?.snapshotHash,
       }),
     [persistProjectWorkspaceSnapshot]
   );
@@ -1046,20 +1181,22 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           },
         });
       }
-      onPersistenceWarning?.(
-        resolveProjectPersistenceWarningMessage({
+      emitProjectAutosaveWarning({
+        reason: details.reason,
+        snapshotHash: details.snapshotHash ?? null,
+        message: resolveProjectPersistenceWarningMessage({
           reason: details.reason,
           snapshotBytes: details.snapshotBytes,
           maxSnapshotBytes: details.maxSnapshotBytes,
           error,
           willRetry: details.willRetry,
-        })
-      );
+        }),
+      });
     },
     [
       autosaveSnapshotSelection.fallbackKind,
       autosaveSnapshotSelection.snapshot,
-      onPersistenceWarning,
+      emitProjectAutosaveWarning,
       projectId,
       resolveCachedSnapshotByteBreakdown,
       sessionSnapshot,
@@ -1081,14 +1218,16 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     if (!shouldReportProjectWorkspaceQuickSlotDiagnostics(diagnostics)) return;
     const telemetryKey = [
       projectId,
-      autosaveSnapshotSelection.preparedSnapshot?.hash ?? "no-hash",
       autosaveSnapshotSelection.fallbackKind,
       projectAutosaveReady ? "ready" : "not-ready",
       activeBootstrapError ? "bootstrap-error" : "bootstrap-ok",
-      diagnostics.quick_slot_ids,
+      resolveQuickSlotDiagnosticsTelemetryKey(diagnostics),
     ].join("|");
-    if (quickSlotAutosaveCandidateTelemetryKeyRef.current === telemetryKey) return;
-    quickSlotAutosaveCandidateTelemetryKeyRef.current = telemetryKey;
+    const throttledTelemetryKey = `${telemetryKey}|${Math.floor(
+      Date.now() / PROJECT_WORKSPACE_QUICK_SLOT_DIAGNOSTIC_THROTTLE_MS
+    )}`;
+    if (quickSlotAutosaveCandidateTelemetryKeyRef.current === throttledTelemetryKey) return;
+    quickSlotAutosaveCandidateTelemetryKeyRef.current = throttledTelemetryKey;
     void reportAppError({
       source: "telemetry.ai_studio.project_workspace.quick_slot_autosave_candidate",
       scope: "app",

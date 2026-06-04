@@ -78,6 +78,21 @@ type UseReferenceGridRuntimeScaffoldArgs = Pick<
   | "onReorderCuratedReference"
 >;
 
+export const resolveReferenceGridValidHydrationOutputIds = ({
+  allOutputIds,
+  curatedOutputIds,
+  activeOutputId,
+}: {
+  allOutputIds: readonly string[];
+  curatedOutputIds: readonly string[];
+  activeOutputId?: string | null;
+}): string[] => {
+  const nextIds = new Set<string>(allOutputIds);
+  curatedOutputIds.forEach((id) => nextIds.add(id));
+  if (activeOutputId) nextIds.add(activeOutputId);
+  return Array.from(nextIds);
+};
+
 export const useReferenceGridRuntimeScaffold = ({
   outputs: outputsProp,
   archivedOutputs: archivedOutputsProp,
@@ -331,6 +346,13 @@ export const useReferenceGridRuntimeScaffold = ({
     adaptivePreviewEnabled: PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW,
     adaptivePreviewQualityEnabled: PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY,
   });
+  const validHydrationOutputIds = React.useMemo(() => {
+    return resolveReferenceGridValidHydrationOutputIds({
+      allOutputIds,
+      curatedOutputIds,
+      activeOutputId,
+    });
+  }, [activeOutputId, allOutputIds, curatedOutputIds]);
 
   const {
     imageHydrationState,
@@ -344,7 +366,7 @@ export const useReferenceGridRuntimeScaffold = ({
     adaptivePreviewRoutingEnabled,
     imageDecodeBudget: mediaWorkBudget.imageDecodeBudget,
     activeOutputId,
-    validOutputIds: allOutputIds,
+    validOutputIds: validHydrationOutputIds,
     runNonUrgentUpdate,
     liveWatchdogDegradeLevelRef,
     onOutputMediaLoaded,

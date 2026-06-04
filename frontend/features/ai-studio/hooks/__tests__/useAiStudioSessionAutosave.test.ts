@@ -111,6 +111,7 @@ describe("useAiStudioSessionAutosave", () => {
       snapshot,
       expect.objectContaining({
         keepalive: false,
+        snapshotHash: expect.stringMatching(/^fnv1a32:/),
       })
     );
   });
@@ -580,6 +581,7 @@ describe("useAiStudioSessionAutosave", () => {
       expect.any(Error),
       expect.objectContaining({
         reason: "persist_failed",
+        snapshotHash: expect.stringMatching(/^fnv1a32:/),
         attempt: 1,
         maxAttempts: 2,
         willRetry: true,

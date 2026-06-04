@@ -10,6 +10,7 @@ import type {
   CanvasDropResolution,
   CanvasSceneItem,
   PrepareCanvasMediaLibraryDrop,
+  PrepareResolvedInternalCanvasDrop,
   ResolveCanvasDroppedMediaReference,
   ResolveCanvasDropReference,
 } from "../components/canvas/canvasTypes";
@@ -50,7 +51,11 @@ import {
   type SessionSignedMediaRestoreAuthority,
 } from "../logic/sessionRestoreMediaSigning";
 import { resolveOutputAudioSourceMode } from "../logic/audioSourceMode";
-import { resolveCanvasLibraryMediaDisplayAuthority } from "../logic/canvasMediaDisplayAuthority";
+import {
+  resolveCanvasLibraryMediaDisplayAuthority,
+  resolveCanvasStudioOutputMediaDisplayAuthority,
+} from "../logic/canvasMediaDisplayAuthority";
+import type { StudioOutputMediaDisplayAuthority } from "../logic/referenceGridMedia";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 import type { AiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 import {
@@ -203,6 +208,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       height,
       imageIndex = 0,
       preferFallbackUrl = false,
+      displayAuthority = null,
     }: {
       output: StudioOutput;
       fallbackUrl?: string | null;
@@ -213,6 +219,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       height?: number | null;
       imageIndex?: number;
       preferFallbackUrl?: boolean;
+      displayAuthority?: StudioOutputMediaDisplayAuthority | null;
     }): CanvasDropResolution | null => {
       const visualDimensions =
         normalizeCanvasVisualDimensions(width, height) ??
@@ -228,7 +235,12 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         };
       }
       if (output.mode === "audio") {
-        const audioUrl = output.resultUrls?.[0] ?? output.previewUrl ?? fallbackUrl ?? null;
+        const audioUrl =
+          displayAuthority?.playableMediaUrl ??
+          output.resultUrls?.[0] ??
+          output.previewUrl ??
+          fallbackUrl ??
+          null;
         if (!audioUrl) return null;
         return {
           kind: "audio",
@@ -247,14 +259,23 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         };
       }
       if (output.mode === "video") {
-        const videoUrl = output.resultUrls?.[0] ?? output.previewUrl ?? fallbackUrl ?? null;
+        const videoUrl =
+          displayAuthority?.playableMediaUrl ??
+          output.resultUrls?.[0] ??
+          output.previewUrl ??
+          fallbackUrl ??
+          null;
         if (!videoUrl) return null;
         return {
           kind: "video",
           outputId,
           mediaId,
           videoUrl,
-          posterUrl: resolveCanvasPosterUrl(output.previewPosterUrl, fallbackUrl),
+          posterUrl: resolveCanvasPosterUrl(
+            displayAuthority?.posterPreviewUrl,
+            output.previewPosterUrl,
+            fallbackUrl
+          ),
           title: (output.prompt || output.previewText || "Canvas video").trim() || null,
           durationMs: output.durationMs ?? null,
           ...(visualDimensions ?? {}),
@@ -263,8 +284,18 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       }
       if (output.mode !== "image") return null;
       const sourceUrl = preferFallbackUrl
-        ? (fallbackUrl ?? output.previewUrl ?? output.resultUrls?.[imageIndex] ?? null)
-        : (output.previewUrl ?? output.resultUrls?.[imageIndex] ?? fallbackUrl ?? null);
+        ? (fallbackUrl ??
+          displayAuthority?.fullMediaUrl ??
+          displayAuthority?.cardDisplayUrl ??
+          output.previewUrl ??
+          output.resultUrls?.[imageIndex] ??
+          null)
+        : (displayAuthority?.fullMediaUrl ??
+          displayAuthority?.cardDisplayUrl ??
+          output.previewUrl ??
+          output.resultUrls?.[imageIndex] ??
+          fallbackUrl ??
+          null);
       if (!sourceUrl) return null;
       return {
         kind: "image",
@@ -424,6 +455,58 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         imageIndex,
         preferFallbackUrl: true,
       });
+    },
+    [getOutputById, resolveCanvasResolutionFromOutput]
+  );
+
+  const prepareResolvedInternalCanvasDrop = useCallback<PrepareResolvedInternalCanvasDrop>(
+    async (payload, resolved) => {
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
+      const output = outputId ? getOutputById(outputId) : null;
+      if (!output || output.mode === "text") return resolved;
+      try {
+        const displayAuthority = await resolveCanvasStudioOutputMediaDisplayAuthority(output);
+        const prepared = resolveCanvasResolutionFromOutput({
+          output,
+          fallbackUrl:
+            resolved?.kind === "image"
+              ? resolved.src
+              : resolved?.kind === "audio"
+                ? resolved.audioUrl
+                : resolved?.kind === "video"
+                  ? resolved.videoUrl
+                  : (payload.referenceRenderUrl ?? payload.referenceUrl ?? null),
+          outputId: outputId || null,
+          mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
+          sourceSurface: payload.sourceSurface ?? null,
+          width:
+            resolved && "width" in resolved && typeof resolved.width === "number"
+              ? resolved.width
+              : payload.width,
+          height:
+            resolved && "height" in resolved && typeof resolved.height === "number"
+              ? resolved.height
+              : payload.height,
+          imageIndex,
+          preferFallbackUrl: false,
+          displayAuthority,
+        });
+        return prepared ?? resolved;
+      } catch (error) {
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "canvas.internal_reference_media_authority_resolve_failed",
+          data: {
+            outputId,
+            mode: output.mode,
+            mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
+            errorMessage: error instanceof Error ? error.message : String(error),
+          },
+        });
+        return resolved;
+      }
     },
     [getOutputById, resolveCanvasResolutionFromOutput]
   );
@@ -647,6 +730,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     hydrateSessionState: hydrateCanvasSessionState,
   } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
+    prepareResolvedInternalCanvasDrop,
     prepareCanvasMediaLibraryDrop,
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,

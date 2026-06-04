@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveReferenceCardUrls } from "../referenceGridMedia";
+import {
+  resolveReferenceCardUrls,
+  resolveStudioOutputMediaDisplayAuthority,
+} from "../referenceGridMedia";
 
 const importResolver = async () => {
   vi.resetModules();
@@ -400,5 +403,36 @@ describe("referenceGridMedia", () => {
     expect(resolved.targetLongEdgePx).toBe(259);
     expect(resolved.previewUrl).toBe(sourceUrl);
     expect(resolved.previewUrl).not.toContain("/storage/v1/render/image/");
+  });
+
+  it("separates video poster authority from playable media authority", () => {
+    const authority = resolveStudioOutputMediaDisplayAuthority({
+      id: "video-1",
+      mode: "video",
+      taskState: "success",
+      mediaSource: "generated",
+      generationId: "gen-video-1",
+      taskId: "task-video-1",
+      savedMediaIds: ["media-video-1"],
+      previewStoragePath: "https://signed.test/video-preview-loop.mp4",
+      previewPosterStoragePath: "https://signed.test/video-poster.webp",
+      fullStoragePath: "https://signed.test/video-full.mp4",
+      previewUrl: "https://signed.test/video-poster.webp",
+      previewPosterUrl: "https://signed.test/video-poster.webp",
+      resultUrls: ["https://signed.test/video-full.mp4"],
+    });
+
+    expect(authority.mediaIdentity).toMatchObject({
+      outputId: "video-1",
+      savedMediaId: "media-video-1",
+      generationId: "gen-video-1",
+      taskId: "task-video-1",
+      mediaKind: "video",
+    });
+    expect(authority.posterPreviewUrl).toBe("https://signed.test/video-poster.webp");
+    expect(authority.playableMediaUrl).toBe("https://signed.test/video-full.mp4");
+    expect(authority.cardDisplayUrl).toBe("https://signed.test/video-poster.webp");
+    expect(authority.posterPreviewUrl).not.toBe(authority.playableMediaUrl);
+    expect(authority.unavailableReason).toBeNull();
   });
 });

@@ -45,6 +45,7 @@ import {
   markExclusiveSoundPlaying,
   requestExclusiveSoundPlayback,
 } from "./shared/exclusiveSoundPlayback";
+import styles from "../../../styles/ai-studio-voices-properties.module.css";
 
 type VoicesSurfaceMode = "create" | "edit";
 type CreateVoiceMode = "generate" | "clone";
@@ -1688,7 +1689,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   );
 
   return (
-    <section className="voices-properties-panel tool-properties" aria-label="Voices properties">
+    <section
+      className={`voices-properties-panel tool-properties ${styles.bootstrapStyleScope}`}
+      aria-label="Voices properties"
+    >
       <div className="voices-properties-shell">
         <div className="voices-properties-column-shell">
           <div ref={splitContainerRef} className="voices-properties-main">

@@ -577,7 +577,6 @@ export const applyMediaFolderMembershipBatch = async (
  */
 export const fetchMediaPromptListPage = async ({
   folderId,
-  projectId,
   query,
   cursor,
   limit,
@@ -597,8 +596,6 @@ export const fetchMediaPromptListPage = async ({
         },
         body: JSON.stringify({
           folderId,
-          projectId:
-            typeof projectId === "string" && projectId.trim() ? projectId.trim() : undefined,
           query,
           cursor,
           limit,

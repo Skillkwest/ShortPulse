@@ -29,6 +29,7 @@ import {
   saveAiStudioProjectWorkspaceSnapshotViaApi,
 } from "../../logic/projectWorkspaceApiClient";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
+import { reportAppError } from "../../../../lib/appErrorReporter";
 import * as sessionAutosaveSerialization from "../../logic/sessionAutosaveSerialization";
 
 vi.mock("../useAiStudioProjectWorkspaceRestoreCandidate", () => ({
@@ -65,6 +66,10 @@ vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),
 }));
 
+vi.mock("../../../../lib/appErrorReporter", () => ({
+  reportAppError: vi.fn(async () => undefined),
+}));
+
 const mockedUseAiStudioProjectWorkspaceRestoreCandidate = vi.mocked(
   useAiStudioProjectWorkspaceRestoreCandidate
 );
@@ -76,6 +81,7 @@ const mockedResetAiStudioOutputStore = vi.mocked(resetAiStudioOutputStore);
 const mockedSaveProjectWorkspaceViaApi = vi.mocked(saveAiStudioProjectWorkspaceSnapshotViaApi);
 const mockedResetProjectWorkspaceViaApi = vi.mocked(resetAiStudioProjectWorkspaceSnapshotViaApi);
 const mockedAddBreadcrumb = vi.mocked(addBreadcrumb);
+const mockedReportAppError = vi.mocked(reportAppError);
 
 const createDefaultRestoreCandidate = () => ({
   status: "ready" as const,
@@ -219,6 +225,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     mockedSaveProjectWorkspaceViaApi.mockReset();
     mockedResetProjectWorkspaceViaApi.mockClear();
     mockedAddBreadcrumb.mockClear();
+    mockedReportAppError.mockClear();
   });
 
   it("keeps project autosave disabled until bootstrap settles", () => {
@@ -2114,7 +2121,179 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
 
     expect(onPersistenceWarning).toHaveBeenCalledTimes(1);
     expect(onPersistenceWarning).toHaveBeenCalledWith(
-      "Project autosave saved the workspace, but project asset repair is pending. Recent outputs may not fully restore until the next successful save."
+      "Project autosave saved the workspace, but project asset repair is pending. Recent outputs may not fully restore until the next successful save.",
+      expect.objectContaining({
+        scope: "project_autosave",
+        reason: "repair_pending",
+        projectId: "project-1",
+        recovered: false,
+      })
+    );
+  });
+
+  it("clears a matching Failed to fetch project autosave warning after a successful save", async () => {
+    const snapshot = {
+      ...createSnapshot(),
+      outputs: {
+        active: [
+          {
+            id: "out-1",
+            mode: "image",
+            prompt: "A forest",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "2026-04-24T18:00:00.000Z",
+            mediaSource: "library",
+            savedMediaIds: ["media-1"],
+          },
+        ],
+        archived: [],
+        activeOutputId: "out-1",
+        curatedReferenceIds: ["out-1"],
+        removedFromAllRefsIds: [],
+      },
+    } as AiStudioSessionSnapshot;
+    const buildSessionSnapshot = vi.fn(() => snapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const onPersistenceWarning = vi.fn();
+
+    const { rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+        onPersistenceWarning,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    rerender();
+    await flushBootstrapVisibilityLatch();
+
+    const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    act(() => {
+      autosaveArgs?.onPersistError?.(new Error("Failed to fetch"), {
+        reason: "persist_failed",
+        sessionId: "project-1",
+        snapshotHash: "hash-1",
+        maxSnapshotBytes: 1024,
+        willRetry: true,
+      });
+    });
+
+    const autosaveSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    mockedSaveProjectWorkspaceViaApi.mockResolvedValue({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: autosaveSnapshot,
+      createdAt: "2026-04-24T18:00:00.000Z",
+      updatedAt: "2026-04-24T18:00:00.000Z",
+      saveOutcome: { status: "saved" },
+    });
+
+    await act(async () => {
+      await autosaveArgs!.persistSnapshot("project-1", autosaveSnapshot, {
+        snapshotHash: "hash-1",
+      });
+    });
+
+    expect(onPersistenceWarning).toHaveBeenNthCalledWith(
+      1,
+      "Project autosave is retrying in the background: Failed to fetch",
+      expect.objectContaining({
+        reason: "persist_failed",
+        recovered: false,
+        snapshotHash: "hash-1",
+      })
+    );
+    expect(onPersistenceWarning).toHaveBeenNthCalledWith(
+      2,
+      null,
+      expect.objectContaining({
+        reason: "persist_failed",
+        recovered: true,
+        snapshotHash: "hash-1",
+      })
+    );
+  });
+
+  it("bounds repeated Quick Slot save-result diagnostics for the same snapshot shape", async () => {
+    const snapshot = {
+      ...createSnapshot(),
+      outputs: {
+        active: [
+          {
+            id: "out-1",
+            mode: "image",
+            prompt: "A forest",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "2026-04-24T18:00:00.000Z",
+            mediaSource: "library",
+            savedMediaIds: ["media-1"],
+          },
+        ],
+        archived: [],
+        activeOutputId: "out-1",
+        curatedReferenceIds: ["out-1"],
+        removedFromAllRefsIds: [],
+      },
+    } as AiStudioSessionSnapshot;
+    const buildSessionSnapshot = vi.fn(() => snapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    rerender();
+    await flushBootstrapVisibilityLatch();
+    mockedReportAppError.mockClear();
+
+    const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    const autosaveSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    mockedSaveProjectWorkspaceViaApi.mockResolvedValue({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: autosaveSnapshot,
+      createdAt: "2026-04-24T18:00:00.000Z",
+      updatedAt: "2026-04-24T18:00:00.000Z",
+      saveOutcome: { status: "saved" },
+    });
+
+    await act(async () => {
+      await autosaveArgs!.persistSnapshot("project-1", autosaveSnapshot, {
+        snapshotHash: "hash-1",
+      });
+      await autosaveArgs!.persistSnapshot("project-1", autosaveSnapshot, {
+        snapshotHash: "hash-1",
+      });
+    });
+
+    expect(mockedReportAppError).toHaveBeenCalledTimes(1);
+    expect(mockedReportAppError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.ai_studio.project_workspace.quick_slot_save_result",
+      })
     );
   });
 
@@ -2154,7 +2333,13 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     });
 
     expect(onPersistenceWarning).toHaveBeenCalledWith(
-      "Project autosave paused after repeated failures: HTTP 500"
+      "Project autosave paused after repeated failures: HTTP 500",
+      expect.objectContaining({
+        scope: "project_autosave",
+        reason: "persist_failed",
+        projectId: "project-1",
+        recovered: false,
+      })
     );
     expect(mockedAddBreadcrumb).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2287,7 +2472,13 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     });
 
     expect(onPersistenceWarning).toHaveBeenCalledWith(
-      "Project autosave skipped because workspace size (987KB) exceeded the 977KB limit."
+      "Project autosave skipped because workspace size (987KB) exceeded the 977KB limit.",
+      expect.objectContaining({
+        scope: "project_autosave",
+        reason: "snapshot_too_large",
+        projectId: "project-1",
+        recovered: false,
+      })
     );
     expect(mockedAddBreadcrumb).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -26,6 +26,9 @@ export default async function pulseStudioAgentHandler(req: NextApiRequest, res: 
       req.body?.runtimeMode === "standard" ||
       !hasStudioAgentPulseContext(req.body?.context) ||
       !isPulseCreateAgentSessionNamespace(clientSessionNamespace) ||
+      contextPresetId === null ||
+      namespacePresetId === null ||
+      namespacePresetId !== contextPresetId ||
       hasInboundStudioAgentCanonicalPrompt(req.body) ||
       isRetiredCreatePulsePresetId(contextPresetId) ||
       isRetiredCreatePulsePresetId(namespacePresetId)

@@ -43,6 +43,7 @@ type CanvasSceneItemViewProps = Pick<
   hasMediaError: boolean;
   isEditingTextItem: boolean;
   showTextResizeHandles: boolean;
+  isGhostSource: boolean;
   editingTextValue: string;
   isTextEditEditable: boolean;
   markCanvasMediaError: (errorKey: string | null) => void;
@@ -56,6 +57,7 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
   hasMediaError,
   isEditingTextItem,
   showTextResizeHandles,
+  isGhostSource,
   editingTextValue,
   isTextEditEditable,
   isItemDraggable = false,
@@ -75,6 +77,7 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
   markCanvasMediaError,
   clearCanvasMediaError,
 }: CanvasSceneItemViewProps) {
+  const isExportDragArmedRef = React.useRef(false);
   const dragPreviewKind =
     item.kind === "image" || item.kind === "video" || item.kind === "audio" || item.kind === "text"
       ? item.kind
@@ -97,7 +100,7 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
           : undefined;
   return (
     <article
-      className={`canvas-scene-item canvas-scene-item--${item.kind}${item.selected ? " is-selected" : ""}${hasMediaError ? " is-media-unavailable" : ""}`}
+      className={`canvas-scene-item canvas-scene-item--${item.kind}${item.selected ? " is-selected" : ""}${isGhostSource ? " is-ghost-source" : ""}${hasMediaError ? " is-media-unavailable" : ""}`}
       data-testid={`canvas-item-${item.id}`}
       data-kind={item.kind}
       data-drag-preview-kind={dragPreviewKind}
@@ -123,9 +126,11 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
           ? undefined
           : (event) => {
               if (isItemDraggable && event.shiftKey) {
+                isExportDragArmedRef.current = true;
                 event.stopPropagation();
                 return;
               }
+              isExportDragArmedRef.current = false;
               onItemPointerDown(item.id, event);
             }
       }
@@ -136,10 +141,26 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
       }
       onContextMenu={(event) => onItemContextMenu(item.id, event)}
       onDragStart={
-        isItemDraggable && onItemDragStart ? (event) => onItemDragStart(item.id, event) : undefined
+        isItemDraggable && onItemDragStart
+          ? (event) => {
+              const isExportDragArmed = event.shiftKey || isExportDragArmedRef.current;
+              isExportDragArmedRef.current = false;
+              if (!isExportDragArmed) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+              }
+              onItemDragStart(item.id, event);
+            }
+          : undefined
       }
       onDragEnd={
-        isItemDraggable && onItemDragEnd ? (event) => onItemDragEnd(item.id, event) : undefined
+        isItemDraggable && onItemDragEnd
+          ? (event) => {
+              isExportDragArmedRef.current = false;
+              onItemDragEnd(item.id, event);
+            }
+          : undefined
       }
       onDoubleClick={(event) => {
         onItemDoubleClick(item.id, event);
@@ -172,8 +193,12 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
               onError={() => markCanvasMediaError(mediaErrorKey)}
             />
           ) : (
-            <div className="canvas-scene-item__video-placeholder" role="img">
-              <span>{item.title?.trim() || "Video"}</span>
+            <div
+              className="canvas-scene-item__video-placeholder"
+              role="img"
+              aria-label={item.title?.trim() || "Canvas video"}
+            >
+              <span>Video</span>
             </div>
           )}
           <MediaDurationBadge
@@ -236,6 +261,60 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
   );
 });
 
+const CanvasSceneItemGhostView = React.memo(function CanvasSceneItemGhostView({
+  item,
+  deltaX,
+  deltaY,
+}: {
+  item: CanvasSceneItem;
+  deltaX: number;
+  deltaY: number;
+}) {
+  const ghostX = Math.round((item.x + deltaX) * 100) / 100;
+  const ghostY = Math.round((item.y + deltaY) * 100) / 100;
+  const height = item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height;
+  return (
+    <article
+      className={`canvas-scene-item canvas-scene-item--${item.kind} canvas-scene-item--ghost`}
+      data-testid={`canvas-item-ghost-${item.id}`}
+      data-kind={item.kind}
+      data-source-item-id={item.id}
+      data-x={ghostX}
+      data-y={ghostY}
+      data-width={item.width}
+      data-height={height}
+      aria-hidden="true"
+      style={{
+        zIndex: item.z + 10_000,
+        width: `${item.width}px`,
+        height: `${height}px`,
+        ["--canvas-item-x" as string]: `${ghostX}px`,
+        ["--canvas-item-y" as string]: `${ghostY}px`,
+      }}
+    >
+      {item.kind === "image" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="canvas-scene-item__image" src={item.src} alt="" draggable={false} />
+      ) : item.kind === "video" ? (
+        item.posterUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="canvas-scene-item__video" src={item.posterUrl} alt="" draggable={false} />
+        ) : (
+          <div className="canvas-scene-item__video-placeholder">
+            <span>Video</span>
+          </div>
+        )
+      ) : item.kind === "audio" ? (
+        <div className="canvas-scene-item__ghost-label">
+          <span>Audio</span>
+        </div>
+      ) : (
+        <p className="canvas-scene-item__text">{item.text}</p>
+      )}
+    </article>
+  );
+});
+
 /**
  * Renders the Canvas workspace UI and delegates all state changes to the page-owned controller.
  */
@@ -244,6 +323,7 @@ export function CanvasPropertiesPanel({
   camera,
   items,
   pendingItems,
+  itemDragPreview,
   marqueeSelectionBox,
   viewportRef,
   isDropActive,
@@ -286,6 +366,14 @@ export function CanvasPropertiesPanel({
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
   const [isNativeDragModifierArmed, setIsNativeDragModifierArmed] = React.useState(false);
+  const itemDragPreviewIdSet = React.useMemo(
+    () => new Set(itemDragPreview?.itemIds ?? []),
+    [itemDragPreview]
+  );
+  const itemDragPreviewItems = React.useMemo(
+    () => (itemDragPreview ? items.filter((item) => itemDragPreviewIdSet.has(item.id)) : []),
+    [itemDragPreview, itemDragPreviewIdSet, items]
+  );
   const activeMediaErrorKeys = React.useMemo(() => {
     const nextKeys = new Set<string>();
     items.forEach((item) => {
@@ -458,6 +546,7 @@ export function CanvasPropertiesPanel({
                 hasMediaError={hasMediaError}
                 isEditingTextItem={isEditingTextItem}
                 showTextResizeHandles={showTextResizeHandles}
+                isGhostSource={itemDragPreviewIdSet.has(item.id)}
                 editingTextValue={isEditingTextItem ? editingTextValue : ""}
                 isTextEditEditable={isEditingTextItem && isTextEditEditable}
                 isItemDraggable={isItemDraggable && isNativeDragModifierArmed}
@@ -479,6 +568,16 @@ export function CanvasPropertiesPanel({
               />
             );
           })}
+          {itemDragPreview
+            ? itemDragPreviewItems.map((item) => (
+                <CanvasSceneItemGhostView
+                  key={`ghost-${item.id}`}
+                  item={item}
+                  deltaX={itemDragPreview.deltaX}
+                  deltaY={itemDragPreview.deltaY}
+                />
+              ))
+            : null}
           {draftTextEntry ? (
             <article
               className="canvas-scene-item canvas-scene-item--text canvas-scene-item--draft is-selected"

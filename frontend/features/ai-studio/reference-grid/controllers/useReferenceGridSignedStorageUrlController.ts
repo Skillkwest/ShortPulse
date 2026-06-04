@@ -82,6 +82,7 @@ export const applySignedStorageUrlsToReferenceGridMediaOutput = (
   };
   const signedPreviewUrl =
     signedUrlFor(output.previewStoragePath) ?? signedUrlFor(output.previewPosterStoragePath);
+  const signedPosterUrl = signedUrlFor(output.previewPosterStoragePath);
   let hasSignedResultUrl = false;
   let firstSignedResultUrl: string | null = null;
   const signedResultUrls =
@@ -112,6 +113,7 @@ export const applySignedStorageUrlsToReferenceGridMediaOutput = (
     previewStoragePath: signedPreviewUrl ?? output.previewStoragePath,
     fullStoragePath: signedFullUrl ?? output.fullStoragePath,
     previewUrl: signedPreviewUrl ?? output.previewUrl,
+    previewPosterUrl: signedPosterUrl ?? output.previewPosterUrl,
     resultUrls: nextResultUrls.length > 0 ? nextResultUrls : output.resultUrls,
   };
 };

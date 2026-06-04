@@ -209,6 +209,30 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     });
   });
 
+  it("does not install steady-state sync intervals when there are no sync candidates", async () => {
+    const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
+
+    renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "settled-image-no-sync",
+          generationId: "settled-generation-1",
+          taskId: "settled-task-1",
+          taskState: "success",
+          companionArtStatus: null,
+        },
+      ],
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+  });
+
   it("pauses steady-state generated-output sync while the document is hidden", async () => {
     const visibilitySpy = mockDocumentVisibility("hidden");
 

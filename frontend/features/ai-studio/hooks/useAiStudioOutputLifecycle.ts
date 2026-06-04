@@ -13,7 +13,11 @@ import {
 import { normalizeErrorText } from "../../../lib/errorText";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { normalizeExplicitContentFailure } from "../../../lib/explicitContentFailure";
-import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/staleOutputCleanup";
+import {
+  evaluateStaleOutputCleanup,
+  hasStaleOutputCleanupCandidate,
+  type OutputLifecycleMap,
+} from "../logic/staleOutputCleanup";
 import type { StudioOutput } from "../types";
 
 const SUBMIT_START_TIMEOUT_MS = 90_000;
@@ -65,6 +69,7 @@ export const useAiStudioOutputLifecycle = ({
   const outputIndexByIdRef = useRef<Record<string, number>>({});
   const staleOutputLifecycleRef = useRef<OutputLifecycleMap>({});
   const hasOutputs = outputs.length > 0;
+  const hasStaleOutputSweepCandidates = outputs.some(hasStaleOutputCleanupCandidate);
 
   useEffect(() => {
     outputsRef.current = outputs;
@@ -242,10 +247,10 @@ export const useAiStudioOutputLifecycle = ({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!hasOutputs) return;
+    if (!hasOutputs || !hasStaleOutputSweepCandidates) return;
     const timeoutId = window.setInterval(sweepStaleOutputs, STALE_OUTPUT_SWEEP_INTERVAL_MS);
     return () => window.clearInterval(timeoutId);
-  }, [hasOutputs, sweepStaleOutputs]);
+  }, [hasOutputs, hasStaleOutputSweepCandidates, sweepStaleOutputs]);
 
   const findOutputById = useCallback(
     (id: string) => {

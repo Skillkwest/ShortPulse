@@ -124,7 +124,6 @@ export const useCanvasViewportDropHandlers = ({
     ): Promise<boolean> => {
       if (!resolveCanvasDropReference) return false;
       const resolved = resolveCanvasDropReference(payload);
-      if (!resolved) return false;
       const preparedDrop = prepareResolvedInternalCanvasDrop
         ? await prepareResolvedInternalCanvasDrop(payload, resolved)
         : resolved;

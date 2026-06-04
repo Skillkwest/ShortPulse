@@ -1096,7 +1096,7 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps?.densityConfig).toEqual(MEDIA_LIBRARY_PANEL_DENSITY_CONFIG);
   });
 
-  it("downshifts the panel signing budget on the mixed all-media root tab", async () => {
+  it("covers the first visible column set on the mixed all-media root tab", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
@@ -1107,9 +1107,9 @@ describe("MediaLibraryPanel", () => {
     expect(latestArgs).toBeTruthy();
     expect(latestArgs.surface).toBe("media-library-panel");
     expect(latestArgs.signBudget).toEqual({
-      initialSignLimit: 2,
-      prefetchWindow: 3,
-      signBatchSize: 2,
+      initialSignLimit: 5,
+      prefetchWindow: 6,
+      signBatchSize: 5,
     });
   });
 

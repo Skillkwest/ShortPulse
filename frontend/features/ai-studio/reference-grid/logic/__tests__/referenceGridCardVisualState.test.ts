@@ -84,6 +84,27 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("none");
   });
 
+  it("treats durable generated media with stale running task state as media hydration", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "running",
+        mediaSource: "generated",
+        previewStoragePath: "user-1/variants/images/out-1.webp",
+        fullStoragePath: "user-1/generations/images/out-1.png",
+        savedMediaIds: ["media-1"],
+      }),
+      cardPreviewUrl: null,
+      isLoaded: false,
+      decodeBudgetEnabled: true,
+      isImagePreview: true,
+      isPriorityHydration: true,
+    });
+
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isMediaHydrating).toBe(true);
+    expect(state.loadingVisual).toBe("hydrating");
+  });
+
   it("does not keep rendered generated rows in any loading visual state", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({

@@ -29,6 +29,8 @@ export type ReferenceGridVisibleCardItem = {
   mediaSurface: "reference-grid" | "quick-slot";
   authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
+  videoPosterUrl?: string | null;
+  playableMediaUrl?: string | null;
   fallbackUrl: string | null;
   previewQualityBand: ReferenceGridPreviewQualityBand;
   targetLongEdgePx: number;
@@ -128,6 +130,8 @@ export const useReferenceGridCardItemsController = ({
             mediaSurface: options.mediaSurface,
             authorityTier: "preview-only" as const,
             cardPreviewUrl: null,
+            videoPosterUrl: null,
+            playableMediaUrl: null,
             fallbackUrl: null,
             previewQualityBand: "high" as const,
             targetLongEdgePx: options.cardLongEdgePx,
@@ -198,6 +202,8 @@ export const useReferenceGridCardItemsController = ({
           mediaSurface: options.mediaSurface,
           authorityTier: resolvedMedia.authorityTier,
           cardPreviewUrl: resolvedMedia.previewUrl,
+          videoPosterUrl: resolvedMedia.posterPreviewUrl,
+          playableMediaUrl: resolvedMedia.playableMediaUrl,
           fallbackUrl: resolvedMedia.fallbackUrl,
           previewQualityBand: resolvedMedia.previewQualityBand,
           targetLongEdgePx: resolvedMedia.targetLongEdgePx,

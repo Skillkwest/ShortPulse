@@ -13,6 +13,7 @@ import {
 } from "../../../lib/adaptive-media";
 import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import {
+  hasStorageAuthority,
   isGeneratedOutput,
   resolveReferenceOutputAuthorityTier,
   type ReferenceOutputAuthorityTier,
@@ -28,6 +29,36 @@ import type { StudioOutput } from "../types";
 type ReferenceMediaCandidate = string | null | undefined;
 export type ReferenceGridMediaAuthorityTier = ReferenceOutputAuthorityTier;
 export type { ReferenceGridPreviewQualityBand } from "./referenceGridMediaAdaptivePreview";
+
+export type StudioOutputMediaDisplayUnavailableReason =
+  | "waiting_for_signing"
+  | "missing_storage_authority"
+  | "upstream_generation_pending"
+  | "storage_resolve_failed"
+  | "unsupported_media_kind";
+
+export type StudioOutputMediaDisplayAuthority = {
+  mediaIdentity: {
+    outputId: string | null;
+    savedMediaId: string | null;
+    generationId: string | null;
+    taskId: string | null;
+    previewStoragePath: string | null;
+    previewPosterStoragePath: string | null;
+    fullStoragePath: string | null;
+    mediaKind: ReferenceGridMediaKindHint | "unknown";
+  };
+  thumbnailPreviewUrl: string | null;
+  posterPreviewUrl: string | null;
+  playableMediaUrl: string | null;
+  fullMediaUrl: string | null;
+  cardDisplayUrl: string | null;
+  unavailableReason: StudioOutputMediaDisplayUnavailableReason | null;
+  authorityTier: ReferenceGridMediaAuthorityTier;
+  authoritySource: "durable" | "direct" | "temporary" | null;
+  previewQualityBand: ReferenceGridPreviewQualityBand;
+  targetLongEdgePx: number;
+};
 
 /**
  * Returns true when a media candidate is directly renderable by an `<img>`/`<video>` tag.
@@ -57,6 +88,51 @@ const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp|svg)(?
 const AUDIO_EXTENSION_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:$|[?#])/i;
 const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
 const RELATIVE_IMAGE_PREVIEW_ROUTE_PATTERN = /^\/api\/media\/preview(?:\/|\?|$)/i;
+
+const DATA_OR_BLOB_AUDIO_PATTERN = /^(?:blob:|data:audio\/)/i;
+const DATA_OR_BLOB_VIDEO_PATTERN = /^(?:blob:|data:video\/)/i;
+
+const isAudioMediaCandidate = (value: string | null | undefined): boolean => {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  return AUDIO_EXTENSION_PATTERN.test(trimmed) || DATA_OR_BLOB_AUDIO_PATTERN.test(trimmed);
+};
+
+const isVideoMediaCandidate = (value: string | null | undefined): boolean => {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  return VIDEO_EXTENSION_PATTERN.test(trimmed) || DATA_OR_BLOB_VIDEO_PATTERN.test(trimmed);
+};
+
+const isImageMediaCandidate = (value: string | null | undefined): boolean => {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  return (
+    IMAGE_EXTENSION_PATTERN.test(trimmed) || RELATIVE_IMAGE_PREVIEW_ROUTE_PATTERN.test(trimmed)
+  );
+};
+
+const firstRenderableCandidate = (...candidates: ReferenceMediaCandidate[]): string | null => {
+  for (const candidate of candidates) {
+    const normalized = normalizeRenderableUrl(candidate);
+    if (normalized) return normalized;
+  }
+  return null;
+};
+
+const firstPlayableCandidate = (
+  kind: ReferenceGridMediaKindHint,
+  ...candidates: ReferenceMediaCandidate[]
+): string | null => {
+  if (kind !== "audio" && kind !== "video") return null;
+  for (const candidate of candidates) {
+    const normalized = normalizeRenderableUrl(candidate);
+    if (!normalized) continue;
+    if (kind === "audio" && isAudioMediaCandidate(normalized)) return normalized;
+    if (kind === "video" && isVideoMediaCandidate(normalized)) return normalized;
+  }
+  return null;
+};
 
 const inferReferenceMediaKind = ({
   mode,
@@ -254,6 +330,135 @@ export const resolveReferenceCardUrls = (
 
   logAdaptivePolicyApplied({ result: v2Resolved });
   return resolved;
+};
+
+type StudioOutputMediaDisplayInput = Pick<
+  StudioOutput,
+  | "id"
+  | "mode"
+  | "taskState"
+  | "mediaSource"
+  | "generationId"
+  | "taskId"
+  | "savedMediaIds"
+  | "previewStoragePath"
+  | "previewPosterStoragePath"
+  | "fullStoragePath"
+  | "previewUrl"
+  | "previewPosterUrl"
+  | "resultUrls"
+>;
+
+const resolveUnavailableReason = (
+  output: StudioOutputMediaDisplayInput,
+  hasAnyDisplayUrl: boolean
+): StudioOutputMediaDisplayUnavailableReason | null => {
+  if (hasAnyDisplayUrl) return null;
+  if (hasStorageAuthority(output)) return "waiting_for_signing";
+  if (output.taskState === "pending" || output.taskState === "running") {
+    return "upstream_generation_pending";
+  }
+  if (output.mode !== "image" && output.mode !== "video" && output.mode !== "audio") {
+    return "unsupported_media_kind";
+  }
+  return "missing_storage_authority";
+};
+
+/**
+ * Resolves canonical StudioOutput media-display authority without blurring poster,
+ * thumbnail, playable, and full/original media roles.
+ */
+export const resolveStudioOutputMediaDisplayAuthority = (
+  output: StudioOutputMediaDisplayInput,
+  options?: {
+    strictPreviewLadder?: boolean;
+    pressureLevel?: number;
+    cardLongEdgePx?: number | null;
+    devicePixelRatio?: number;
+    adaptivePreviewQuality?: boolean;
+    surface?: AdaptiveSurface;
+  }
+): StudioOutputMediaDisplayAuthority => {
+  const mediaKind = inferReferenceMediaKind(output) ?? "unknown";
+  const resolvedCardUrls = resolveReferenceCardUrls(output, options);
+  const authorityTier = resolvedCardUrls.authorityTier;
+  const firstResultUrl = output.resultUrls?.[0] ?? null;
+  const savedMediaId =
+    output.savedMediaIds?.find((value) => typeof value === "string" && value.trim().length > 0) ??
+    null;
+  const normalizedPreviewPosterUrl = firstRenderableCandidate(
+    output.previewPosterUrl,
+    output.previewPosterStoragePath
+  );
+
+  let thumbnailPreviewUrl: string | null = null;
+  let posterPreviewUrl: string | null = null;
+  let playableMediaUrl: string | null = null;
+  let fullMediaUrl: string | null = null;
+  let cardDisplayUrl: string | null = null;
+
+  if (mediaKind === "image") {
+    thumbnailPreviewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl ?? null;
+    fullMediaUrl = resolvedCardUrls.fullUrl ?? thumbnailPreviewUrl;
+    cardDisplayUrl = thumbnailPreviewUrl;
+  } else if (mediaKind === "video") {
+    posterPreviewUrl =
+      normalizedPreviewPosterUrl ??
+      (!isVideoMediaCandidate(output.previewUrl) && isImageMediaCandidate(output.previewUrl)
+        ? firstRenderableCandidate(output.previewUrl)
+        : null);
+    playableMediaUrl =
+      firstRenderableCandidate(output.fullStoragePath) ??
+      firstPlayableCandidate("video", firstResultUrl, ...(output.resultUrls ?? [])) ??
+      firstPlayableCandidate("video", output.previewUrl) ??
+      (isVideoMediaCandidate(resolvedCardUrls.fullUrl) ? resolvedCardUrls.fullUrl : null) ??
+      (isVideoMediaCandidate(resolvedCardUrls.previewUrl) ? resolvedCardUrls.previewUrl : null);
+    fullMediaUrl = playableMediaUrl;
+    cardDisplayUrl = posterPreviewUrl ?? playableMediaUrl;
+  } else if (mediaKind === "audio") {
+    playableMediaUrl =
+      firstRenderableCandidate(output.fullStoragePath) ??
+      firstPlayableCandidate("audio", firstResultUrl, ...(output.resultUrls ?? [])) ??
+      firstPlayableCandidate("audio", output.previewUrl) ??
+      (isAudioMediaCandidate(resolvedCardUrls.fullUrl) ? resolvedCardUrls.fullUrl : null) ??
+      (isAudioMediaCandidate(resolvedCardUrls.previewUrl) ? resolvedCardUrls.previewUrl : null);
+    fullMediaUrl = playableMediaUrl;
+    cardDisplayUrl = playableMediaUrl;
+  }
+
+  const hasAnyDisplayUrl = Boolean(
+    thumbnailPreviewUrl || posterPreviewUrl || playableMediaUrl || fullMediaUrl || cardDisplayUrl
+  );
+  const authoritySource = hasStorageAuthority(output)
+    ? "durable"
+    : output.mediaSource === "generated"
+      ? "temporary"
+      : hasAnyDisplayUrl
+        ? "direct"
+        : null;
+
+  return {
+    mediaIdentity: {
+      outputId: output.id?.trim() || null,
+      savedMediaId: savedMediaId?.trim() || null,
+      generationId: output.generationId?.trim() || null,
+      taskId: output.taskId?.trim() || null,
+      previewStoragePath: asCanonicalStoragePath(output.previewStoragePath),
+      previewPosterStoragePath: asCanonicalStoragePath(output.previewPosterStoragePath),
+      fullStoragePath: asCanonicalStoragePath(output.fullStoragePath),
+      mediaKind,
+    },
+    thumbnailPreviewUrl,
+    posterPreviewUrl,
+    playableMediaUrl,
+    fullMediaUrl,
+    cardDisplayUrl,
+    unavailableReason: resolveUnavailableReason(output, hasAnyDisplayUrl),
+    authorityTier,
+    authoritySource,
+    previewQualityBand: resolvedCardUrls.previewQualityBand ?? "high",
+    targetLongEdgePx: resolvedCardUrls.targetLongEdgePx ?? 960,
+  };
 };
 
 /**

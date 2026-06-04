@@ -21,8 +21,8 @@ const baseProps: React.ComponentProps<typeof ExpertEditPanelView> = {
   extraImageUrls: [null, null, null],
   referenceText: "Clean up edges and relight softly",
   aspectOptions: [
-    { value: "1:1", label: "1:1" },
-    { value: "16:9", label: "16:9" },
+    { value: "1:1", ratioLabel: "1:1", name: "Square", orientation: "square" },
+    { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "widescreen" },
   ],
   isModelModalOpen: false,
   modelModalAnchor: null,

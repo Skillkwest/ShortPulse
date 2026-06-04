@@ -27,6 +27,8 @@ export type ReferenceGridVisibleCard = {
   item: ReferenceGridMediaOutput;
   authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
+  videoPosterUrl?: string | null;
+  playableMediaUrl?: string | null;
   fallbackUrl?: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
@@ -192,13 +194,15 @@ export const useReferenceGridCardRenderController = ({
         Boolean(onRetryStatus && currentOutput.taskId) && (isFailing || isGenerationLoading);
       const videoPosterUrl =
         currentOutput.mode === "video"
-          ? currentOutput.previewPosterUrl?.trim() ||
+          ? card.videoPosterUrl?.trim() ||
+            currentOutput.previewPosterUrl?.trim() ||
             (card.isImagePreview ? card.cardPreviewUrl : "") ||
             null
           : null;
       const hoverVideoUrl =
         currentOutput.mode === "video"
           ? currentOutput.localObjectUrl?.trim() ||
+            card.playableMediaUrl?.trim() ||
             (card.isVideoPreview ? card.cardPreviewUrl : "") ||
             (card.fallbackUrl && isVideoUrl(card.fallbackUrl) ? card.fallbackUrl : "") ||
             currentOutput.resultUrls?.find(

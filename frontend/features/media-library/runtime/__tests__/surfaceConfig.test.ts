@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolvePanelMixedAllMediaSignBudget } from "../surfaceConfig";
 
 describe("resolvePanelMixedAllMediaSignBudget", () => {
-  it("limits mixed all-media signing to the first usable preview slice", () => {
+  it("limits mixed all-media signing to the first visible panel column set", () => {
     expect(
       resolvePanelMixedAllMediaSignBudget({
         initialSignLimit: 6,
@@ -10,13 +10,13 @@ describe("resolvePanelMixedAllMediaSignBudget", () => {
         signBatchSize: 4,
       })
     ).toEqual({
-      initialSignLimit: 2,
-      prefetchWindow: 3,
-      signBatchSize: 2,
+      initialSignLimit: 5,
+      prefetchWindow: 6,
+      signBatchSize: 5,
     });
   });
 
-  it("keeps a small minimum batch for constrained devices", () => {
+  it("keeps first-visible coverage even for constrained devices", () => {
     expect(
       resolvePanelMixedAllMediaSignBudget({
         initialSignLimit: 1,
@@ -24,9 +24,9 @@ describe("resolvePanelMixedAllMediaSignBudget", () => {
         signBatchSize: 1,
       })
     ).toEqual({
-      initialSignLimit: 2,
-      prefetchWindow: 3,
-      signBatchSize: 2,
+      initialSignLimit: 5,
+      prefetchWindow: 5,
+      signBatchSize: 5,
     });
   });
 });

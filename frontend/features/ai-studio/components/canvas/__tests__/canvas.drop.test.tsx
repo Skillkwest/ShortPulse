@@ -444,7 +444,9 @@ describe("Canvas drop behavior", () => {
     expect(item.querySelector("video")).toBeNull();
     const placeholder = item.querySelector(".canvas-scene-item__video-placeholder");
     expect(placeholder).toBeTruthy();
-    expect(placeholder).toHaveTextContent("Posterless video");
+    expect(placeholder).toHaveTextContent("Video");
+    expect(placeholder).not.toHaveTextContent("Posterless video");
+    expect(placeholder).toHaveAttribute("aria-label", "Posterless video");
   });
 
   it("prioritizes internal reference payloads over file fallback when both are present", async () => {
@@ -611,6 +613,7 @@ describe("Canvas drop behavior", () => {
 
   it("preprocesses internal drops before insertion when a preparer is provided", async () => {
     const prepareResolvedInternalCanvasDrop = vi.fn(async (_payload, resolved) => {
+      if (!resolved) return null;
       if (resolved.kind !== "image") return resolved;
       return {
         ...resolved,

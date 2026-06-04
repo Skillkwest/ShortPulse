@@ -2,6 +2,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StandardCreatePropertiesPanel } from "../StandardCreatePropertiesPanel";
+import { resolveCreateComposerInlineGuardrailReason } from "../createComposerEmptyState";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../../lib/model-runtime/openAiImage2";
 
 const { createCharacterModeControllerState } = vi.hoisted(() => ({
@@ -254,20 +255,12 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(button).not.toHaveAttribute("aria-busy");
   });
 
-  it("renders the visible guardrail reason when generate is disabled", () => {
-    const { container } = render(
-      <StandardCreatePropertiesPanel
-        {...baseProps}
-        isGenerateDisabled
-        guardrailReason="Pricing is unavailable for this configuration. Retry in a moment."
-      />
-    );
-
+  it("suppresses pricing-unavailable inline helper copy in the create composer", () => {
     expect(
-      screen.getByText("Pricing is unavailable for this configuration. Retry in a moment.")
-    ).toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(container.querySelector(".create-composer-inline-warning-bubble")).not.toBeNull();
+      resolveCreateComposerInlineGuardrailReason(
+        "Pricing is unavailable for this configuration. Retry in a moment."
+      )
+    ).toBeNull();
   });
 
   it("keeps the create mode toggle in the standard panel path", () => {

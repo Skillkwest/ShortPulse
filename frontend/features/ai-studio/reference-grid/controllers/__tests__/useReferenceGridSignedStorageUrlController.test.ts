@@ -42,6 +42,10 @@ describe("useReferenceGridSignedStorageUrlController", () => {
           "user-1/variants/images/image-1/preview.webp",
           "https://signed.shortpulse.test/preview.webp",
         ],
+        [
+          "user-1/variants/videos/video-1/poster.webp",
+          "https://signed.shortpulse.test/video-poster.webp",
+        ],
         ["user-1/generations/images/image-1.png", "https://signed.shortpulse.test/full.png"],
         ["user-1/results/image-1.png", "https://signed.shortpulse.test/result.png"],
       ])
@@ -168,5 +172,36 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     expect(projected.fullStoragePath).toBe("https://signed.shortpulse.test/full.png");
     expect(projected.previewUrl).toBe("https://signed.shortpulse.test/preview.webp");
     expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/full.png"]);
+  });
+
+  it("projects signed video poster storage into previewPosterUrl without using it as full media", () => {
+    const output = createStorageBackedImage({
+      id: "video-1",
+      mode: "video",
+      previewStoragePath: "user-1/variants/videos/video-1/preview-loop.mp4",
+      previewPosterStoragePath: "user-1/variants/videos/video-1/poster.webp",
+      fullStoragePath: "user-1/generations/videos/video-1/full.mp4",
+      previewUrl: undefined,
+      previewPosterUrl: undefined,
+      resultUrls: undefined,
+    });
+    const projected = applySignedStorageUrlsToReferenceGridMediaOutput(
+      output,
+      new Map([
+        [
+          "user-1/variants/videos/video-1/poster.webp",
+          "https://signed.shortpulse.test/video-poster.webp",
+        ],
+        [
+          "user-1/generations/videos/video-1/full.mp4",
+          "https://signed.shortpulse.test/video-full.mp4",
+        ],
+      ])
+    );
+
+    expect(projected.previewPosterUrl).toBe("https://signed.shortpulse.test/video-poster.webp");
+    expect(projected.fullStoragePath).toBe("https://signed.shortpulse.test/video-full.mp4");
+    expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/video-full.mp4"]);
+    expect(projected.previewPosterUrl).not.toBe(projected.fullStoragePath);
   });
 });

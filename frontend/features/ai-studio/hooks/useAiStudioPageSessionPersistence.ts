@@ -2,14 +2,17 @@
  * AI Studio page session-persistence bridge.
  * Keeps page-owned snapshot wiring and warning hydration out of the page component while preserving the existing controller contract.
  */
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import type {
   AiStudioSessionAgentV1,
   AiStudioSessionAgentRuntimesV2,
   AiStudioSessionSnapshot,
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
-import { useAiStudioProjectWorkspacePersistenceController } from "./useAiStudioProjectWorkspacePersistenceController";
+import {
+  useAiStudioProjectWorkspacePersistenceController,
+  type ProjectWorkspaceAutosaveNoticeDetails,
+} from "./useAiStudioProjectWorkspacePersistenceController";
 import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
@@ -51,7 +54,7 @@ type UseAiStudioPageSessionPersistenceParams = {
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
-  setUiNotice: (message: string | null) => void;
+  setUiNotice: Dispatch<SetStateAction<string | null>>;
 };
 
 /**
@@ -90,10 +93,20 @@ export const useAiStudioPageSessionPersistence = ({
       patchSessionSnapshot ? patchSessionSnapshot : (snapshot: AiStudioSessionSnapshot) => snapshot,
     [patchSessionSnapshot]
   );
+  const activeAutosaveNoticeMessageRef = useRef<string | null>(null);
 
   const handleSessionPersistenceWarning = useCallback(
-    (message: string) => {
-      setUiNotice(message);
+    (message: string | null, details: ProjectWorkspaceAutosaveNoticeDetails) => {
+      if (message) {
+        activeAutosaveNoticeMessageRef.current = message;
+        setUiNotice(message);
+        return;
+      }
+      if (!details.recovered) return;
+      const ownedMessage = activeAutosaveNoticeMessageRef.current;
+      activeAutosaveNoticeMessageRef.current = null;
+      if (!ownedMessage) return;
+      setUiNotice((current) => (current === ownedMessage ? null : current));
     },
     [setUiNotice]
   );

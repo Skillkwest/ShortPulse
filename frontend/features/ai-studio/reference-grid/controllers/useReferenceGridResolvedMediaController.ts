@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
   resolveReferenceCardUrls,
+  resolveStudioOutputMediaDisplayAuthority,
   type ReferenceGridMediaAuthorityTier,
   type ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMedia";
@@ -24,6 +25,8 @@ import {
 export type ReferenceGridResolvedCardMedia = {
   previewUrl: string | null;
   fullUrl: string | null;
+  posterPreviewUrl: string | null;
+  playableMediaUrl: string | null;
   fallbackUrl: string | null;
   authorityTier: ReferenceGridMediaAuthorityTier;
   previewQualityBand: ReferenceGridPreviewQualityBand;
@@ -133,11 +136,35 @@ export const useReferenceGridResolvedMediaController = ({
         cardLongEdgePx,
         devicePixelRatio,
       });
-      const previewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
-      const fullUrl =
-        resolvedCardUrls.fullUrl && resolvedCardUrls.fullUrl !== resolvedCardUrls.previewUrl
+      const displayAuthority = resolveStudioOutputMediaDisplayAuthority(mediaItem, {
+        strictPreviewLadder,
+        adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
+        pressureLevel: previewQualityPressureLevel,
+        surface: mediaSurface,
+        cardLongEdgePx,
+        devicePixelRatio,
+      });
+      const shouldPreferKindAwareDisplay = mediaItem.mode === "video" || mediaItem.mode === "audio";
+      const previewUrl = shouldPreferKindAwareDisplay
+        ? (displayAuthority.cardDisplayUrl ??
+          resolvedCardUrls.previewUrl ??
+          resolvedCardUrls.fullUrl)
+        : (resolvedCardUrls.previewUrl ??
+          displayAuthority.cardDisplayUrl ??
+          resolvedCardUrls.fullUrl);
+      const fullUrl = shouldPreferKindAwareDisplay
+        ? displayAuthority.fullMediaUrl && displayAuthority.fullMediaUrl !== previewUrl
+          ? displayAuthority.fullMediaUrl
+          : resolvedCardUrls.fullUrl && resolvedCardUrls.fullUrl !== resolvedCardUrls.previewUrl
+            ? resolvedCardUrls.fullUrl
+            : null
+        : resolvedCardUrls.fullUrl && resolvedCardUrls.fullUrl !== resolvedCardUrls.previewUrl
           ? resolvedCardUrls.fullUrl
-          : null;
+          : displayAuthority.fullMediaUrl && displayAuthority.fullMediaUrl !== previewUrl
+            ? displayAuthority.fullMediaUrl
+            : null;
+      const posterPreviewUrl = displayAuthority.posterPreviewUrl;
+      const playableMediaUrl = displayAuthority.playableMediaUrl;
       const fallbackUrl =
         resolvedCardUrls.authorityTier === "preview-only" && isGeneratedOutput(item)
           ? (resolveFirstRenderableUrl(
@@ -149,12 +176,14 @@ export const useReferenceGridResolvedMediaController = ({
               resolvedCardUrls.fullUrl ?? null,
               resolvedCardUrls.previewUrl ?? null
             ) ?? null);
-      const isVideoPreview = isOutputVideoPreview(mediaItem, previewUrl);
-      const isAudioPreview = isOutputAudioPreview(mediaItem, previewUrl);
+      const isVideoPreview = isOutputVideoPreview(mediaItem, playableMediaUrl ?? previewUrl);
+      const isAudioPreview = isOutputAudioPreview(mediaItem, playableMediaUrl ?? previewUrl);
 
       const resolvedMedia: ReferenceGridResolvedCardMedia = {
         previewUrl,
         fullUrl,
+        posterPreviewUrl,
+        playableMediaUrl,
         fallbackUrl,
         authorityTier: resolvedCardUrls.authorityTier,
         previewQualityBand: resolvedCardUrls.previewQualityBand ?? "high",

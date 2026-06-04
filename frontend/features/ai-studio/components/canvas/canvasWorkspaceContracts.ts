@@ -35,11 +35,19 @@ export type CanvasMarqueeSelectionBox = {
   height: number;
 };
 
+export type CanvasItemDragPreview = {
+  activeItemId: string;
+  itemIds: string[];
+  deltaX: number;
+  deltaY: number;
+};
+
 export type CanvasPropertiesPanelProps = {
   instanceId?: CanvasWorkspaceInstanceId;
   camera: CanvasCamera;
   items: CanvasSceneItem[];
   pendingItems: CanvasPendingSceneItem[];
+  itemDragPreview?: CanvasItemDragPreview | null;
   marqueeSelectionBox?: CanvasMarqueeSelectionBox | null;
   viewportRef: RefObject<HTMLDivElement>;
   isDropActive: boolean;

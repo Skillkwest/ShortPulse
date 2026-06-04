@@ -92,6 +92,7 @@ const createParams = (
   model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
   modelPricingPolicyReady: true,
   motionReferenceVideoPending: false,
+  motionReferenceVideoError: null,
   motionReferenceVideoUrl: null,
   notifyGenerationFailure: vi.fn(),
   optimisticDebitEntries: [],

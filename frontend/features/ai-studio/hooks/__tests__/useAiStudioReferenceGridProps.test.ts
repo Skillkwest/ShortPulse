@@ -31,6 +31,7 @@ const createParams = (
   handleDownloadReference: vi.fn(),
   handlePasteTextReference: vi.fn(),
   handlePasteMediaReference: vi.fn(),
+  openDetailSelectionTarget: vi.fn(),
   retryOutputStatus: vi.fn(),
   deleteOutput: vi.fn(),
   addCuratedReference: vi.fn(),

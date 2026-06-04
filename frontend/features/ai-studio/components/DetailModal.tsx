@@ -10,7 +10,7 @@ import {
 } from "../../../lib/adaptive-media";
 import { StudioOutput } from "../types";
 import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
-import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
+import { resolveStudioOutputMediaDisplayAuthority } from "../logic/referenceGridMedia";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { createStudioOutputDetailModalItem } from "../logic/studioOutputDetailModal";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
@@ -196,17 +196,26 @@ function DetailModalContent({
   });
 
   const outputId = output?.id ?? null;
-  const resolvedDetailMedia = useMemo(() => {
+  const resolvedCanonicalPreviewUrl =
+    resolvedCanonicalPreviewByOutput && resolvedCanonicalPreviewByOutput.outputId === outputId
+      ? resolvedCanonicalPreviewByOutput.url
+      : null;
+  const detailMediaAuthority = useMemo(() => {
     if (!output) return null;
-    return resolveReferenceCardUrls(
+    return resolveStudioOutputMediaDisplayAuthority(
       {
+        id: output.id,
         previewStoragePath: output.previewStoragePath,
-        fullStoragePath: output.fullStoragePath,
+        previewPosterStoragePath: output.previewPosterStoragePath,
+        fullStoragePath: resolvedCanonicalPreviewUrl ?? output.fullStoragePath,
         mediaSource: output.mediaSource,
         generationId: output.generationId,
+        taskId: output.taskId,
+        taskState: output.taskState,
         savedMediaIds: output.savedMediaIds,
         mode: output.mode,
         previewUrl: output.previewUrl,
+        previewPosterUrl: output.previewPosterUrl,
         resultUrls: output.resultUrls,
       },
       {
@@ -215,13 +224,13 @@ function DetailModalContent({
         surface: "detail-modal",
       }
     );
-  }, [output]);
+  }, [output, resolvedCanonicalPreviewUrl]);
   const preferredDetailMediaUrl =
-    resolvedDetailMedia?.fullUrl ?? resolvedDetailMedia?.previewUrl ?? null;
-  const resolvedCanonicalPreviewUrl =
-    resolvedCanonicalPreviewByOutput && resolvedCanonicalPreviewByOutput.outputId === outputId
-      ? resolvedCanonicalPreviewByOutput.url
-      : null;
+    output.mode === "video" || output.mode === "audio"
+      ? (detailMediaAuthority?.playableMediaUrl ?? null)
+      : (detailMediaAuthority?.fullMediaUrl ?? detailMediaAuthority?.cardDisplayUrl ?? null);
+  const detailVideoPosterUrl =
+    output.mode === "video" ? (detailMediaAuthority?.posterPreviewUrl ?? null) : null;
   const canonicalAuthorityInput = useMemo(
     () => ({
       savedMediaIds: output.savedMediaIds,
@@ -256,26 +265,29 @@ function DetailModalContent({
     return buildUniquePreviewCandidates([
       resolvedCanonicalPreviewUrl,
       preferredDetailMediaUrl,
-      resolvedDetailMedia?.previewUrl ?? null,
-      output?.previewUrl,
+      output.mode === "video" || output.mode === "audio"
+        ? null
+        : (detailMediaAuthority?.thumbnailPreviewUrl ?? null),
+      output.mode === "video" || output.mode === "audio" ? null : output?.previewUrl,
       ...(output?.resultUrls ?? []),
     ]);
   }, [
+    detailMediaAuthority?.thumbnailPreviewUrl,
+    output.mode,
     output?.previewUrl,
     output?.resultUrls,
     preferredDetailMediaUrl,
     resolvedCanonicalPreviewUrl,
-    resolvedDetailMedia?.previewUrl,
   ]);
   const fullQualityPromotionUrl = useMemo(() => {
     const hasExplicitFullStoragePath = Boolean(output?.fullStoragePath?.trim());
     return (
       [
         resolvedCanonicalPreviewUrl,
-        hasExplicitFullStoragePath ? (resolvedDetailMedia?.fullUrl ?? null) : null,
+        hasExplicitFullStoragePath ? (detailMediaAuthority?.fullMediaUrl ?? null) : null,
       ].find((candidateUrl) => isFullQualityDetailImageUrl(candidateUrl)) ?? null
     );
-  }, [output?.fullStoragePath, resolvedCanonicalPreviewUrl, resolvedDetailMedia?.fullUrl]);
+  }, [detailMediaAuthority?.fullMediaUrl, output?.fullStoragePath, resolvedCanonicalPreviewUrl]);
   const previewSelection =
     previewSelectionByOutput && outputId && previewSelectionByOutput.outputId === outputId
       ? previewSelectionByOutput
@@ -392,7 +404,9 @@ function DetailModalContent({
     output?.mode === "audio" || (displayPreviewUrl && isAudioUrl(displayPreviewUrl))
   );
   const isVideoOutput = Boolean(
-    !isAudioOutput && output?.mode !== "image" && displayPreviewUrl && isVideoUrl(displayPreviewUrl)
+    !isAudioOutput &&
+    output?.mode !== "image" &&
+    (output?.mode === "video" || (displayPreviewUrl && isVideoUrl(displayPreviewUrl)))
   );
   const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput && !isAudioOutput;
   const detailPreviewKind = displayPreviewUrl
@@ -1390,6 +1404,7 @@ function DetailModalContent({
               imageClassName="art-hero-image"
               videoClassName="art-hero-image"
               audioClassName="art-hero-audio"
+              videoPosterUrl={detailVideoPosterUrl}
               imageStyle={imageStyle}
               videoStyle={aspectStyle}
               videoRef={videoPreviewRef}

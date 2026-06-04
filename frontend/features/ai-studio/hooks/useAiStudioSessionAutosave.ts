@@ -13,7 +13,7 @@ import {
 type PersistSnapshotFn = (
   sessionId: string,
   snapshot: AiStudioSessionSnapshot,
-  options?: { keepalive?: boolean; title?: string | null }
+  options?: { keepalive?: boolean; title?: string | null; snapshotHash?: string | null }
 ) => Promise<void> | void;
 
 type PersistErrorReason = "snapshot_too_large" | "snapshot_serialize_failed" | "persist_failed";
@@ -21,6 +21,7 @@ type PersistErrorReason = "snapshot_too_large" | "snapshot_serialize_failed" | "
 export type AiStudioSessionAutosaveError = {
   reason: PersistErrorReason;
   sessionId: string | null;
+  snapshotHash?: string | null;
   snapshotBytes?: number;
   maxSnapshotBytes: number;
   keepalive?: boolean;
@@ -137,6 +138,7 @@ export const useAiStudioSessionAutosave = ({
             persistSnapshot(pending.sessionId, pending.snapshot, {
               keepalive: shouldUseKeepalive,
               title: pending.title,
+              snapshotHash: pending.hash,
             })
           );
           lastPersistFailureRef.current = null;
@@ -167,6 +169,7 @@ export const useAiStudioSessionAutosave = ({
             {
               reason: "persist_failed",
               sessionId: pending.sessionId,
+              snapshotHash: pending.hash,
               snapshotBytes: pending.snapshotBytes,
               maxSnapshotBytes: maxSnapshotBytes,
               keepalive: shouldUseKeepalive,
@@ -243,6 +246,7 @@ export const useAiStudioSessionAutosave = ({
       reportPersistError(new Error("Session snapshot could not be serialized."), {
         reason: "snapshot_serialize_failed",
         sessionId,
+        snapshotHash: null,
         maxSnapshotBytes,
       });
       return;
@@ -260,6 +264,7 @@ export const useAiStudioSessionAutosave = ({
         reportPersistError(new Error("Session snapshot exceeds maximum size."), {
           reason: "snapshot_too_large",
           sessionId,
+          snapshotHash: serializedSnapshot.hash,
           snapshotBytes: serializedSnapshot.bytes,
           maxSnapshotBytes,
         });

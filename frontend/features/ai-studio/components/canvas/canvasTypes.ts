@@ -146,7 +146,7 @@ export type ResolveCanvasDropReference = (
  */
 export type PrepareResolvedInternalCanvasDrop = (
   payload: InternalReferenceDragPayload,
-  resolved: CanvasDropResolution
+  resolved: CanvasDropResolution | null
 ) => Promise<CanvasPreparedDrop | null> | CanvasPreparedDrop | null;
 
 /**

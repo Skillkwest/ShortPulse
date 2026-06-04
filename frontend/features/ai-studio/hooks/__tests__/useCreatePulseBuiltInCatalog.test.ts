@@ -172,7 +172,9 @@ describe("useCreatePulseBuiltInCatalog", () => {
   });
 
   it("dedupes overlapping built-in catalog loads across concurrent hook mounts", async () => {
-    let resolveResponse: ((response: Response) => void) | null = null;
+    let resolveResponse: (value: Response | PromiseLike<Response>) => void = () => {
+      throw new Error("Expected the catalog response resolver to be assigned.");
+    };
     vi.mocked(fetchWithAuth).mockReturnValue(
       new Promise<Response>((resolve) => {
         resolveResponse = resolve;
@@ -184,7 +186,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
 
     expect(fetchWithAuth).toHaveBeenCalledTimes(1);
 
-    resolveResponse?.(
+    resolveResponse(
       new Response(
         JSON.stringify({
           source: "control_plane",

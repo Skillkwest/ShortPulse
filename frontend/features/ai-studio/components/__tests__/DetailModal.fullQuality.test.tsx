@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import * as mediaSignedUrlCacheModule from "../../../../lib/mediaSignedUrlCache";
 import * as supabaseClientModule from "../../../../lib/supabaseClient";
 import * as referenceDownloadModule from "../../logic/referenceDownload";
-import * as referenceGridMediaModule from "../../logic/referenceGridMedia";
 import { DetailModal } from "../DetailModal";
 import type { StudioOutput } from "../../types";
 
@@ -23,46 +22,27 @@ const baseOutput: StudioOutput = {
 
 describe("DetailModal full-quality media policy", () => {
   it("prefers the resolved full URL for the primary image display", () => {
-    const resolveSpy = vi
-      .spyOn(referenceGridMediaModule, "resolveReferenceCardUrls")
-      .mockReturnValue({
-        previewUrl: "https://signed.test/preview.png",
-        fullUrl: "https://signed.test/full.png",
-        authorityTier: "reusable",
-        previewQualityBand: "high",
-        targetLongEdgePx: 960,
-      });
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          previewUrl: "https://signed.test/preview.png",
+          previewStoragePath: "https://signed.test/preview.png",
+          fullStoragePath: "https://signed.test/full.png",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
 
-    try {
-      const { baseElement } = render(
-        <DetailModal
-          output={baseOutput}
-          onClose={vi.fn()}
-          onUpdatePrompt={vi.fn()}
-          onDeleteOutput={vi.fn()}
-        />
-      );
-
-      const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
-      expect(image).not.toBeNull();
-      expect(image?.getAttribute("src")).toBe("https://signed.test/full.png");
-      expect(resolveSpy).toHaveBeenCalled();
-      expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
-    } finally {
-      resolveSpy.mockRestore();
-    }
+    const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute("src")).toBe("https://signed.test/full.png");
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
   });
 
   it("promotes restored generated images to signed canonical media authority", async () => {
-    const resolveSpy = vi
-      .spyOn(referenceGridMediaModule, "resolveReferenceCardUrls")
-      .mockReturnValue({
-        previewUrl: "https://provider.test/stale-preview.png",
-        fullUrl: null,
-        authorityTier: "preview-only",
-        previewQualityBand: "high",
-        targetLongEdgePx: 960,
-      });
     const supabaseSpy = vi
       .spyOn(supabaseClientModule, "ensureSupabaseQueryClient")
       .mockReturnValue({} as ReturnType<typeof supabaseClientModule.ensureSupabaseQueryClient>);
@@ -103,7 +83,6 @@ describe("DetailModal full-quality media policy", () => {
         expect(image).not.toBeNull();
         expect(image?.getAttribute("src")).toBe("https://signed.test/generated-output.png");
       });
-      expect(resolveSpy).toHaveBeenCalled();
       expect(supabaseSpy).toHaveBeenCalled();
       expect(downloadTargetSpy).toHaveBeenCalled();
       expect(signedUrlSpy).toHaveBeenCalledWith({
@@ -112,7 +91,6 @@ describe("DetailModal full-quality media policy", () => {
         previewProfile: "none",
       });
     } finally {
-      resolveSpy.mockRestore();
       supabaseSpy.mockRestore();
       downloadTargetSpy.mockRestore();
       signedUrlSpy.mockRestore();
@@ -120,15 +98,6 @@ describe("DetailModal full-quality media policy", () => {
   });
 
   it("recovers generated detail media when the restored output starts without preview candidates", async () => {
-    const resolveSpy = vi
-      .spyOn(referenceGridMediaModule, "resolveReferenceCardUrls")
-      .mockReturnValue({
-        previewUrl: null,
-        fullUrl: null,
-        authorityTier: "tracked",
-        previewQualityBand: "high",
-        targetLongEdgePx: 960,
-      });
     const supabaseSpy = vi
       .spyOn(supabaseClientModule, "ensureSupabaseQueryClient")
       .mockReturnValue({} as ReturnType<typeof supabaseClientModule.ensureSupabaseQueryClient>);
@@ -175,7 +144,6 @@ describe("DetailModal full-quality media policy", () => {
         expect(image?.getAttribute("src")).toBe("https://signed.test/generated-output-2.png");
       });
       expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
-      expect(resolveSpy).toHaveBeenCalled();
       expect(supabaseSpy).toHaveBeenCalled();
       expect(downloadTargetSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -188,10 +156,37 @@ describe("DetailModal full-quality media policy", () => {
         previewProfile: "none",
       });
     } finally {
-      resolveSpy.mockRestore();
       supabaseSpy.mockRestore();
       downloadTargetSpy.mockRestore();
       signedUrlSpy.mockRestore();
     }
+  });
+
+  it("uses playable video as src and poster media only as the video poster", () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "video-out-1",
+          mode: "video",
+          prompt: "A cinematic clip.",
+          previewUrl: "https://signed.test/video-poster.webp",
+          previewPosterUrl: "https://signed.test/video-poster.webp",
+          previewStoragePath: "https://signed.test/video-preview-loop.mp4",
+          previewPosterStoragePath: "https://signed.test/video-poster.webp",
+          fullStoragePath: "https://signed.test/video-full.mp4",
+          resultUrls: ["https://signed.test/video-full.mp4"],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const video = baseElement.querySelector("video.art-hero-image") as HTMLVideoElement | null;
+    expect(video).not.toBeNull();
+    expect(video?.getAttribute("src")).toBe("https://signed.test/video-full.mp4");
+    expect(video?.getAttribute("poster")).toBe("https://signed.test/video-poster.webp");
+    expect(video?.getAttribute("src")).not.toBe(video?.getAttribute("poster"));
   });
 });

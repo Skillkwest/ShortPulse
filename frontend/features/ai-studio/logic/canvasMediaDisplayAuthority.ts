@@ -1,9 +1,15 @@
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import {
   resolvePreferredMediaSigningStoragePath,
   resolveVideoPosterStoragePath,
 } from "../../../lib/mediaPreviewPath";
+import {
+  resolveStudioOutputMediaDisplayAuthority,
+  type StudioOutputMediaDisplayAuthority,
+} from "./referenceGridMedia";
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
+import type { StudioOutput } from "../types";
 
 const CANVAS_MEDIA_LIBRARY_BUCKET = "media_library";
 
@@ -29,6 +35,42 @@ const signCanvasMediaStoragePath: CanvasMediaDisplaySigner = (storagePath) =>
     bucket: CANVAS_MEDIA_LIBRARY_BUCKET,
     storagePath,
   });
+
+const signCanvasStudioOutputStoragePath = async (
+  value: string | null | undefined,
+  signStoragePath: CanvasMediaDisplaySigner
+): Promise<string | null> => {
+  const storagePath = asCanonicalStoragePath(value);
+  return storagePath ? signStoragePath(storagePath) : null;
+};
+
+export const resolveCanvasStudioOutputMediaDisplayAuthority = async (
+  output: StudioOutput,
+  signStoragePath: CanvasMediaDisplaySigner = signCanvasMediaStoragePath
+): Promise<StudioOutputMediaDisplayAuthority> => {
+  const [signedPreviewUrl, signedPosterUrl, signedFullUrl] = await Promise.all([
+    signCanvasStudioOutputStoragePath(output.previewStoragePath, signStoragePath),
+    signCanvasStudioOutputStoragePath(output.previewPosterStoragePath, signStoragePath),
+    signCanvasStudioOutputStoragePath(output.fullStoragePath, signStoragePath),
+  ]);
+
+  return resolveStudioOutputMediaDisplayAuthority(
+    {
+      ...output,
+      previewStoragePath: signedPreviewUrl ?? output.previewStoragePath,
+      previewPosterUrl: signedPosterUrl ?? output.previewPosterUrl,
+      fullStoragePath: signedFullUrl ?? output.fullStoragePath,
+      resultUrls: signedFullUrl
+        ? [signedFullUrl, ...(output.resultUrls ?? []).filter((url) => url !== signedFullUrl)]
+        : output.resultUrls,
+    },
+    {
+      strictPreviewLadder: true,
+      adaptivePreviewQuality: false,
+      surface: "detail-modal",
+    }
+  );
+};
 
 export const resolveCanvasLibraryMediaDisplayAuthority = async (
   payload: CanvasLibraryMediaPayload,

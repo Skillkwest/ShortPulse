@@ -18,6 +18,7 @@ function renderInlinePostStageTools(selectedRailTool: "inpaint" | "markup" | "mo
       isMarkupToolSelected={selectedRailTool === "markup"}
       isMoveToolSelected={selectedRailTool === "move"}
       isInpaintLikeToolSelected={selectedRailTool !== "move"}
+      isAdvancedEditModesEnabled={true}
       setSelectedRailTool={vi.fn()}
       handleInpaintCollapseToggle={vi.fn()}
       renderInpaintControlsContent={renderInpaintControlsContent}
@@ -54,12 +55,12 @@ describe("ExpertEditInlinePostStageTools", () => {
     expect(renderMoveControlsContent).not.toHaveBeenCalled();
   });
 
-  it("renders shared move controls when the move rail tool is selected", () => {
+  it("marks the move rail tool selected without rendering inline controls", () => {
     const { renderInpaintControlsContent, renderMarkupControlsContent, renderMoveControlsContent } =
       renderInlinePostStageTools("move");
 
-    expect(screen.getByText("Move controls")).toBeInTheDocument();
-    expect(renderMoveControlsContent).toHaveBeenCalledWith("inline");
+    expect(screen.getByRole("button", { name: "Move" })).toHaveAttribute("aria-pressed", "true");
+    expect(renderMoveControlsContent).not.toHaveBeenCalled();
     expect(renderInpaintControlsContent).not.toHaveBeenCalled();
     expect(renderMarkupControlsContent).not.toHaveBeenCalled();
   });

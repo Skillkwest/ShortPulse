@@ -125,6 +125,32 @@ describe("mediaPreviewPath", () => {
     ).toBe(directUrl);
   });
 
+  it("rejects Supabase render-image URLs as direct preview candidates", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const renderImageUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/private/images/legacy.jpg?token=abc&width=320&quality=28";
+
+    expect(
+      resolvePreferredMediaDirectPreviewUrl(
+        {
+          file_type: "image/jpeg",
+          storage_path: "user-1/images/local.jpg",
+          thumb_variant_path: renderImageUrl,
+        },
+        "user-1"
+      )
+    ).toBeNull();
+    expect(
+      resolveMediaPreviewCandidates(
+        {
+          file_type: "image/jpeg",
+          storage_path: renderImageUrl,
+        },
+        "user-1"
+      ).directUrl
+    ).toBeNull();
+  });
+
   it("prefers explicit video poster variants over loop previews", () => {
     expect(
       resolveVideoPosterStoragePath({

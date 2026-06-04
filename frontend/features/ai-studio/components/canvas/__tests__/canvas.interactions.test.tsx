@@ -138,7 +138,7 @@ describe("Canvas interaction behavior", () => {
     });
   });
 
-  it("updates item coordinates while dragging", async () => {
+  it("previews item movement with a ghost before committing on release", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -152,6 +152,7 @@ describe("Canvas interaction behavior", () => {
     });
 
     const item = await screen.findByTestId(/canvas-item-/);
+    const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
     const startX = Number(item.getAttribute("data-x"));
     const startY = Number(item.getAttribute("data-y"));
 
@@ -166,17 +167,79 @@ describe("Canvas interaction behavior", () => {
       clientX: 260,
       clientY: 175,
     });
+
+    const ghost = await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+    expect(Number(item.getAttribute("data-x"))).toBe(startX);
+    expect(Number(item.getAttribute("data-y"))).toBe(startY);
+    expect(Number(ghost.getAttribute("data-x"))).toBeGreaterThan(startX);
+    expect(Number(ghost.getAttribute("data-y"))).toBeGreaterThan(startY);
+
     fireEvent.pointerUp(item, {
       pointerId: 20,
       clientX: 260,
       clientY: 175,
     });
 
-    expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
-    expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+    await waitFor(() => {
+      expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
+      expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
+      expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+    });
   });
 
-  it("keeps moving an item when pointer events continue on the viewport", async () => {
+  it("does not commit stale ghost movement when the pointer returns to the start", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Return home",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 24,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(item, {
+      pointerId: 24,
+      clientX: 260,
+      clientY: 175,
+    });
+
+    await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+
+    fireEvent.pointerMove(item, {
+      pointerId: 24,
+      clientX: 220,
+      clientY: 140,
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
+    });
+
+    fireEvent.pointerUp(item, {
+      pointerId: 24,
+      clientX: 220,
+      clientY: 140,
+    });
+
+    expect(Number(item.getAttribute("data-x"))).toBe(startX);
+    expect(Number(item.getAttribute("data-y"))).toBe(startY);
+  });
+
+  it("keeps previewing an item when pointer events continue on the viewport", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -190,6 +253,7 @@ describe("Canvas interaction behavior", () => {
     });
 
     const item = await screen.findByTestId(/canvas-item-/);
+    const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
     const startX = Number(item.getAttribute("data-x"));
     const startY = Number(item.getAttribute("data-y"));
 
@@ -204,6 +268,13 @@ describe("Canvas interaction behavior", () => {
       clientX: 300,
       clientY: 210,
     });
+
+    const ghost = await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+    expect(Number(item.getAttribute("data-x"))).toBe(startX);
+    expect(Number(item.getAttribute("data-y"))).toBe(startY);
+    expect(Number(ghost.getAttribute("data-x"))).toBeGreaterThan(startX);
+    expect(Number(ghost.getAttribute("data-y"))).toBeGreaterThan(startY);
+
     fireEvent.pointerUp(viewport, {
       pointerId: 22,
       clientX: 300,
@@ -216,7 +287,7 @@ describe("Canvas interaction behavior", () => {
     });
   });
 
-  it("flushes pending item drag movement on pointer release before the animation frame runs", async () => {
+  it("commits pending ghost movement on pointer release before the animation frame runs", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -255,6 +326,7 @@ describe("Canvas interaction behavior", () => {
 
       expect(Number(item.getAttribute("data-x"))).toBe(startX);
       expect(Number(item.getAttribute("data-y"))).toBe(startY);
+      expect(screen.queryByTestId(/canvas-item-ghost-/)).not.toBeInTheDocument();
 
       fireEvent.pointerUp(item, {
         pointerId: 21,
@@ -270,6 +342,51 @@ describe("Canvas interaction behavior", () => {
       window.requestAnimationFrame = originalRequestAnimationFrame;
       window.cancelAnimationFrame = originalCancelAnimationFrame;
     }
+  });
+
+  it("cancels ghost movement without moving the source item", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Cancel me",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 23,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(item, {
+      pointerId: 23,
+      clientX: 270,
+      clientY: 185,
+    });
+
+    await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+
+    fireEvent.pointerCancel(item, {
+      pointerId: 23,
+      clientX: 270,
+      clientY: 185,
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
+      expect(Number(item.getAttribute("data-x"))).toBe(startX);
+      expect(Number(item.getAttribute("data-y"))).toBe(startY);
+    });
   });
 
   it("keeps audio cards selectable and draggable inside the canvas shell", async () => {
@@ -868,6 +985,8 @@ describe("Canvas interaction behavior", () => {
 
     const items = await screen.findAllByTestId(/canvas-item-/);
     const [itemA, itemB] = items;
+    const itemAId = itemA.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
+    const itemBId = itemB.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
 
     const xAStart = Number(itemA.getAttribute("data-x"));
     const yAStart = Number(itemA.getAttribute("data-y"));
@@ -903,6 +1022,18 @@ describe("Canvas interaction behavior", () => {
       clientX: xAStart + 60,
       clientY: yAStart + 52,
     });
+
+    const ghostA = await screen.findByTestId(`canvas-item-ghost-${itemAId}`);
+    const ghostB = await screen.findByTestId(`canvas-item-ghost-${itemBId}`);
+    expect(Number(itemA.getAttribute("data-x"))).toBe(xAStart);
+    expect(Number(itemA.getAttribute("data-y"))).toBe(yAStart);
+    expect(Number(itemB.getAttribute("data-x"))).toBe(xBStart);
+    expect(Number(itemB.getAttribute("data-y"))).toBe(yBStart);
+    expect(Number(ghostA.getAttribute("data-x"))).toBeGreaterThan(xAStart);
+    expect(Number(ghostA.getAttribute("data-y"))).toBeGreaterThan(yAStart);
+    expect(Number(ghostB.getAttribute("data-x"))).toBeGreaterThan(xBStart);
+    expect(Number(ghostB.getAttribute("data-y"))).toBeGreaterThan(yBStart);
+
     fireEvent.pointerUp(itemA, {
       pointerId: 906,
       clientX: xAStart + 60,
@@ -1016,6 +1147,7 @@ describe("Canvas interaction behavior", () => {
     });
 
     expect(onItemDragStart).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId(/canvas-item-ghost-/)).not.toBeInTheDocument();
     expect(Number(item.getAttribute("data-x"))).toBe(startX);
     expect(Number(item.getAttribute("data-y"))).toBe(startY);
   });
@@ -1037,6 +1169,15 @@ describe("Canvas interaction behavior", () => {
     const item = await screen.findByTestId(/canvas-item-/);
     const startX = Number(item.getAttribute("data-x"));
     const startY = Number(item.getAttribute("data-y"));
+
+    const plainDragStartEvent = createEvent.dragStart(item);
+    Object.defineProperty(plainDragStartEvent, "dataTransfer", {
+      configurable: true,
+      value: createTransfer({}),
+    });
+    fireEvent(item, plainDragStartEvent);
+
+    expect(onItemDragStart).not.toHaveBeenCalled();
 
     fireEvent.pointerDown(item, {
       button: 0,

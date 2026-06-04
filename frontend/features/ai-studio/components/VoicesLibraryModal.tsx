@@ -6,6 +6,7 @@ import React from "react";
 import { X } from "phosphor-react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import styles from "../../../styles/ai-studio-voices-properties.module.css";
 
 type VoicesLibraryModalProps = {
   isOpen: boolean;
@@ -40,7 +41,10 @@ export function VoicesLibraryModal({
 
   return (
     <AiStudioModalLayer>
-      <div className="voices-library-modal-backdrop" {...backdropDismiss}>
+      <div
+        className={`voices-library-modal-backdrop ${styles.bootstrapStyleScope}`}
+        {...backdropDismiss}
+      >
         <div
           className="voices-library-modal"
           role="dialog"

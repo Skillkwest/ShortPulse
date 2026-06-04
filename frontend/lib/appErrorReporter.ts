@@ -24,9 +24,15 @@ export type ClientAppErrorEvent = {
 };
 
 const MAX_MESSAGE_LENGTH = 600;
+const REPORT_DEDUPE_WINDOW_MS = 60_000;
+const HIGH_SEVERITY_REPORT_DEDUPE_WINDOW_MS = 10_000;
+const DEFAULT_INGEST_BACKOFF_MS = 60_000;
+const LOW_VALUE_CLIENT_TELEMETRY_SOURCE_PREFIX = "telemetry.ai_studio.";
 let listenersInstalled = false;
 let supabaseAccessTokenHintsPromise: Promise<typeof import("./supabaseAccessTokenHints")> | null =
   null;
+let clientErrorIngestBackoffUntilMs = 0;
+const recentReportKeys = new Map<string, number>();
 
 const loadSupabaseAccessTokenHints = async (): Promise<
   typeof import("./supabaseAccessTokenHints")
@@ -148,10 +154,18 @@ const isResizeObserverLoopNoise = (event: ClientAppErrorEvent): boolean => {
   );
 };
 
+const isLowValueAiStudioTelemetry = (event: ClientAppErrorEvent): boolean => {
+  return (
+    event.source.startsWith(LOW_VALUE_CLIENT_TELEMETRY_SOURCE_PREFIX) &&
+    (event.severity ?? "medium") === "low"
+  );
+};
+
 const shouldSkip = (event: ClientAppErrorEvent): boolean => {
   const scope = event.scope ?? "app";
   if (isFastRefreshNoise(event)) return true;
   if (isResizeObserverLoopNoise(event)) return true;
+  if (isLowValueAiStudioTelemetry(event)) return true;
 
   const message = normalizeText(event.message) ?? "Unknown runtime error";
   const endpoint = endpointPath(event.endpoint);
@@ -175,6 +189,51 @@ const shouldSkip = (event: ClientAppErrorEvent): boolean => {
     return true;
   }
 
+  return false;
+};
+
+const readRetryAfterMs = (response: Response): number => {
+  const retryAfterHeader = response.headers?.get?.("Retry-After");
+  if (!retryAfterHeader) return DEFAULT_INGEST_BACKOFF_MS;
+  const retryAfterSeconds = Number.parseInt(retryAfterHeader, 10);
+  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds <= 0) {
+    return DEFAULT_INGEST_BACKOFF_MS;
+  }
+  return Math.min(retryAfterSeconds * 1000, 5 * 60_000);
+};
+
+const pruneRecentReportKeys = (nowMs: number): void => {
+  const maxWindowMs = Math.max(REPORT_DEDUPE_WINDOW_MS, HIGH_SEVERITY_REPORT_DEDUPE_WINDOW_MS);
+  for (const [key, emittedAt] of recentReportKeys.entries()) {
+    if (nowMs - emittedAt > maxWindowMs) {
+      recentReportKeys.delete(key);
+    }
+  }
+};
+
+const reportDedupeKey = (event: ClientAppErrorEvent): string =>
+  [
+    event.source,
+    event.scope ?? "app",
+    event.severity ?? "medium",
+    normalizeText(event.message) ?? "Unknown runtime error",
+    endpointPath(event.endpoint) ?? "",
+    typeof event.statusCode === "number" ? Math.trunc(event.statusCode) : "",
+    normalizeText(event.route) ?? currentRoute() ?? "",
+  ].join("|");
+
+const shouldBackpressureReport = (event: ClientAppErrorEvent): boolean => {
+  const nowMs = Date.now();
+  if (nowMs < clientErrorIngestBackoffUntilMs) return true;
+  pruneRecentReportKeys(nowMs);
+  const key = reportDedupeKey(event);
+  const lastEmittedAt = recentReportKeys.get(key) ?? 0;
+  const dedupeWindowMs =
+    event.severity === "high" ? HIGH_SEVERITY_REPORT_DEDUPE_WINDOW_MS : REPORT_DEDUPE_WINDOW_MS;
+  if (lastEmittedAt > 0 && nowMs - lastEmittedAt < dedupeWindowMs) {
+    return true;
+  }
+  recentReportKeys.set(key, nowMs);
   return false;
 };
 
@@ -232,7 +291,7 @@ const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
   if (!token) return;
 
   const endpoint = "/api/log/client-error";
-  await fetch(endpoint, {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -258,6 +317,9 @@ const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
     }),
     keepalive: true,
   });
+  if (response.status === 429) {
+    clientErrorIngestBackoffUntilMs = Date.now() + readRetryAfterMs(response);
+  }
 };
 
 /**
@@ -266,10 +328,16 @@ const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
 export const reportAppError = async (event: ClientAppErrorEvent): Promise<void> => {
   try {
     if (shouldSkip(event)) return;
+    if (shouldBackpressureReport(event)) return;
     await reportToApi(event);
   } catch {
     // Best-effort telemetry only.
   }
+};
+
+export const resetAppErrorReporterBackpressureForTests = (): void => {
+  clientErrorIngestBackoffUntilMs = 0;
+  recentReportKeys.clear();
 };
 
 /**

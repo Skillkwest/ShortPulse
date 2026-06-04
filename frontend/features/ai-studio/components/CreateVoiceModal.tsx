@@ -6,6 +6,7 @@ import React from "react";
 import { CircleNotch, Pause, Play, X } from "phosphor-react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../lib/customVoiceName";
+import styles from "../../../styles/ai-studio-voices-properties.module.css";
 
 export type CreateVoiceModalPreview = {
   generatedVoiceId: string;
@@ -106,7 +107,10 @@ export function CreateVoiceModal({
   const generateVoiceLabel = "Generate Voice";
 
   return (
-    <div className="voices-create-modal-backdrop" {...backdropDismiss}>
+    <div
+      className={`voices-create-modal-backdrop ${styles.bootstrapStyleScope}`}
+      {...backdropDismiss}
+    >
       <div
         className={`voices-create-modal${isCloneMode ? " voices-create-modal--clone" : ""}`}
         role="dialog"

@@ -174,6 +174,15 @@ export const useAiStudioGeneratedOutputMaintenance = ({
         : [],
     [outputs, shouldRunCanonicalGeneratedOutputSync]
   );
+  const pendingAudioCompanionArtCandidates = useMemo(
+    () =>
+      hasPendingWorkflowRestore
+        ? []
+        : outputs
+            .filter(isPendingAudioCompanionArtCandidate)
+            .slice(0, AUDIO_COMPANION_ART_SYNC_BATCH_SIZE),
+    [hasPendingWorkflowRestore, outputs]
+  );
   const canonicalGeneratedOutputSyncSignature = useMemo(
     () => buildCanonicalGeneratedOutputSyncSignature(canonicalGeneratedOutputSyncRuntimeIdentities),
     [canonicalGeneratedOutputSyncRuntimeIdentities]
@@ -279,6 +288,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   useEffect(() => {
     if (!shouldRunCanonicalGeneratedOutputSync) return;
     if (!documentVisible) return;
+    if (canonicalGeneratedOutputSyncRuntimeIdentities.length === 0) return;
     let cancelled = false;
 
     const syncCanonicalGeneratedOutputs = async () => {
@@ -319,6 +329,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     };
   }, [
     canonicalGeneratedOutputSyncSignature,
+    canonicalGeneratedOutputSyncRuntimeIdentities.length,
     documentVisible,
     projectId,
     setOutputsState,
@@ -328,19 +339,16 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
     if (!documentVisible) return;
+    if (pendingAudioCompanionArtCandidates.length === 0) return;
     let cancelled = false;
 
     const syncPendingAudioCompanionArt = async () => {
       if (cancelled || audioCompanionArtSyncInFlightRef.current) return;
-      const candidates = outputs
-        .filter(isPendingAudioCompanionArtCandidate)
-        .slice(0, AUDIO_COMPANION_ART_SYNC_BATCH_SIZE);
-      if (!candidates.length) return;
 
       audioCompanionArtSyncInFlightRef.current = true;
       try {
         const reconciles = await Promise.all(
-          candidates.map(async (output) => ({
+          pendingAudioCompanionArtCandidates.map(async (output) => ({
             outputId: output.id,
             reconcile: await resolveVisibleGenerationReconcile({
               generationId: output.generationId ?? null,
@@ -401,7 +409,13 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       cancelled = true;
       globalThis.clearInterval(intervalId);
     };
-  }, [documentVisible, hasPendingWorkflowRestore, outputs, projectId, setOutputsState]);
+  }, [
+    documentVisible,
+    hasPendingWorkflowRestore,
+    pendingAudioCompanionArtCandidates,
+    projectId,
+    setOutputsState,
+  ]);
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;

@@ -71,7 +71,7 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   setMusicPromptDraft: (value: string) => void;
   setMusicLyricsDraft: (value: string) => void;
   setSoundEffectsPromptDraft: (value: string) => void;
-  setUiNotice: (message: string | null) => void;
+  setUiNotice: Dispatch<SetStateAction<string | null>>;
   setVoiceDesignPromptDraft: (value: string) => void;
   setVoiceScriptDraft: (value: string) => void;
 };

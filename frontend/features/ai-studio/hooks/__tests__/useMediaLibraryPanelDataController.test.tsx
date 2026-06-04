@@ -163,13 +163,11 @@ describe("useMediaLibraryPanelDataController", () => {
     expect(fetchMediaListPageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         folderId: "all_items",
-        projectId: "project-1",
       })
     );
     expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         folderId: "all_items",
-        projectId: "project-1",
       })
     );
   });
@@ -211,34 +209,19 @@ describe("useMediaLibraryPanelDataController", () => {
     expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
   });
 
-  it("treats project switches as a new unresolved media/prompt scope", async () => {
-    const projectOneMedia = createDeferred<{
-      rows: never[];
-      nextCursor: null;
-      hasMore: false;
-      signedById: Map<string, string>;
-      libraryTotalCount: number;
-    }>();
-    const projectOnePrompts = createDeferred<{
-      rows: never[];
-      nextCursor: null;
-      hasMore: false;
-    }>();
-
-    fetchMediaListPageMock.mockReturnValueOnce(projectOneMedia.promise).mockResolvedValueOnce({
+  it("keeps resolved global media and prompt rows across project switches", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
       rows: [],
       nextCursor: null,
       hasMore: false,
       signedById: new Map(),
       libraryTotalCount: 0,
     });
-    fetchMediaPromptListPageMock
-      .mockReturnValueOnce(projectOnePrompts.promise)
-      .mockResolvedValueOnce({
-        rows: [],
-        nextCursor: null,
-        hasMore: false,
-      });
+    fetchMediaPromptListPageMock.mockResolvedValueOnce({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
 
     const { result, rerender } = renderHook(
       ({ projectId }) =>
@@ -259,45 +242,19 @@ describe("useMediaLibraryPanelDataController", () => {
     );
 
     await waitFor(() => {
-      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: "project-1" })
-      );
-      expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: "project-1" })
-      );
-    });
-
-    rerender({ projectId: "project-2" });
-
-    expect(result.current.mediaScopeResolved).toBe(false);
-    expect(result.current.promptScopeResolved).toBe(false);
-
-    await waitFor(() => {
-      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: "project-2" })
-      );
-      expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
-        expect.objectContaining({ projectId: "project-2" })
-      );
-    });
-
-    projectOneMedia.resolve({
-      rows: [],
-      nextCursor: null,
-      hasMore: false,
-      signedById: new Map(),
-      libraryTotalCount: 0,
-    });
-    projectOnePrompts.resolve({
-      rows: [],
-      nextCursor: null,
-      hasMore: false,
-    });
-
-    await waitFor(() => {
       expect(result.current.mediaScopeResolved).toBe(true);
       expect(result.current.promptScopeResolved).toBe(true);
     });
+
+    fetchMediaListPageMock.mockClear();
+    fetchMediaPromptListPageMock.mockClear();
+
+    rerender({ projectId: "project-2" });
+
+    expect(result.current.mediaScopeResolved).toBe(true);
+    expect(result.current.promptScopeResolved).toBe(true);
+    expect(fetchMediaListPageMock).not.toHaveBeenCalled();
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
   });
 
   it("defers the root saved-count total until after the primary reset request", async () => {

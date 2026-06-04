@@ -2,6 +2,7 @@ import { useState } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AiStudioSessionAgentV1 } from "../../logic/sessionSnapshot";
+import type { PulseChatProjectState } from "../../pulseChats/pulseChatThread";
 import { usePulseChatThreads } from "../usePulseChatThreads";
 
 type HookProps = {
@@ -28,7 +29,7 @@ describe("usePulseChatThreads", () => {
 
     const { result, rerender } = renderHook(
       (props: HookProps) => {
-        const [projectPulseChatState, setProjectPulseChatState] = useState({
+        const [projectPulseChatState, setProjectPulseChatState] = useState<PulseChatProjectState>({
           schemaVersion: 1 as const,
           activeThreadId: null,
           threads: [],

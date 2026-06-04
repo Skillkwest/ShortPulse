@@ -4,6 +4,7 @@
  */
 import { resolveModalSignBudget } from "../../ai-studio/logic/mediaLibraryModalModel";
 import { resolveMediaPreviewSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
+import { MEDIA_LIBRARY_PANEL_MAX_COLUMNS } from "../logic/mediaLibraryRuntimeConfig";
 import type { MediaLibrarySurfaceConfig, MediaLibrarySurfaceKind } from "./types";
 import type { MediaSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
 
@@ -42,9 +43,18 @@ export const resolvePanelSignBudget = () =>
  * Keeps the mixed `All Media` root tab modest so first open does not over-spend signing work.
  */
 export const resolvePanelMixedAllMediaSignBudget = (budget: MediaSignBudget): MediaSignBudget => ({
-  initialSignLimit: Math.max(2, Math.min(budget.initialSignLimit, 2)),
-  prefetchWindow: Math.max(3, Math.min(budget.prefetchWindow, 3)),
-  signBatchSize: Math.max(2, Math.min(budget.signBatchSize, 2)),
+  initialSignLimit: Math.max(
+    MEDIA_LIBRARY_PANEL_MAX_COLUMNS,
+    Math.min(budget.initialSignLimit, MEDIA_LIBRARY_PANEL_MAX_COLUMNS)
+  ),
+  prefetchWindow: Math.max(
+    MEDIA_LIBRARY_PANEL_MAX_COLUMNS,
+    Math.min(budget.prefetchWindow, MEDIA_LIBRARY_PANEL_MAX_COLUMNS + 1)
+  ),
+  signBatchSize: Math.max(
+    MEDIA_LIBRARY_PANEL_MAX_COLUMNS,
+    Math.min(budget.signBatchSize, MEDIA_LIBRARY_PANEL_MAX_COLUMNS)
+  ),
 });
 
 export const MEDIA_LIBRARY_SURFACE_CONFIG: Record<

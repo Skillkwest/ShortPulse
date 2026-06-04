@@ -60,6 +60,7 @@ import {
 } from "./canvasViewportPointerTypes";
 import { AI_STUDIO_CANVAS_TEXT_RESIZE_ENABLED } from "./canvasFeatureFlags";
 import type {
+  CanvasItemDragPreview,
   CanvasMarqueeSelectionBox,
   CanvasPropertiesPanelProps,
   CanvasWorkspaceInstanceId,
@@ -70,10 +71,8 @@ import { PERF_FLAG_AUDIT_RUNTIME } from "../../logic/perfProfileFlags";
 
 const VIEWPORT_PAN_ACTIVATION_DISTANCE_PX = 6;
 
-type PendingItemDragFrame = {
-  selectedItemIds: string[];
-  deltaX: number;
-  deltaY: number;
+type PendingItemDragPreviewFrame = {
+  preview: CanvasItemDragPreview;
   frameId: number | null;
 };
 
@@ -157,12 +156,13 @@ export const useCanvasViewportInstanceState = ({
 }: UseCanvasViewportInstanceStateParams): CanvasPropertiesPanelProps => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<CanvasPointerSession>({ kind: "none" });
-  const pendingItemDragFrameRef = useRef<PendingItemDragFrame | null>(null);
+  const pendingItemDragPreviewFrameRef = useRef<PendingItemDragPreviewFrame | null>(null);
   const pendingCameraFrameRef = useRef<PendingCameraFrame | null>(null);
   const lastViewportTapRef = useRef<CanvasInteractionPoint | null>(null);
   const lastViewportDraftCreationRef = useRef<CanvasInteractionPoint | null>(null);
   const [isTextResizeActive, setIsTextResizeActive] = useState(false);
   const [internalCamera, setInternalCamera] = useState(CANVAS_DEFAULT_CAMERA);
+  const [itemDragPreview, setItemDragPreview] = useState<CanvasItemDragPreview | null>(null);
   const [marqueeSelectionBox, setMarqueeSelectionBox] = useState<CanvasMarqueeSelectionBox | null>(
     null
   );
@@ -184,11 +184,16 @@ export const useCanvasViewportInstanceState = ({
     commitDraftTextEntry: commitDraftTextEntryState,
     commitTextItemEdit: commitTextItemEditState,
   } = sharedScene;
+  const itemsRef = useRef(items);
 
-  const flushPendingItemDragFrame = useCallback(() => {
-    const pendingFrame = pendingItemDragFrameRef.current;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const cancelPendingItemDragPreviewFrame = useCallback(() => {
+    const pendingFrame = pendingItemDragPreviewFrameRef.current;
     if (!pendingFrame) return;
-    pendingItemDragFrameRef.current = null;
+    pendingItemDragPreviewFrameRef.current = null;
     if (
       pendingFrame.frameId != null &&
       typeof window !== "undefined" &&
@@ -196,55 +201,54 @@ export const useCanvasViewportInstanceState = ({
     ) {
       window.cancelAnimationFrame(pendingFrame.frameId);
     }
-    setItems((currentItems) =>
-      moveCanvasSceneItemsByIdSet(
-        currentItems,
-        new Set(pendingFrame.selectedItemIds),
-        pendingFrame.deltaX,
-        pendingFrame.deltaY
-      )
-    );
-  }, [setItems]);
+  }, []);
 
-  const scheduleItemDragFrame = useCallback(
-    (selectedItemIds: string[], deltaX: number, deltaY: number) => {
-      if (!selectedItemIds.length || (!deltaX && !deltaY)) return;
-      const pendingFrame = pendingItemDragFrameRef.current;
-      if (pendingFrame) {
-        pendingFrame.selectedItemIds = selectedItemIds;
-        pendingFrame.deltaX += deltaX;
-        pendingFrame.deltaY += deltaY;
-        return;
-      }
+  const clearItemDragPreview = useCallback(() => {
+    cancelPendingItemDragPreviewFrame();
+    setItemDragPreview(null);
+  }, [cancelPendingItemDragPreviewFrame]);
 
-      const nextPendingFrame: PendingItemDragFrame = {
-        selectedItemIds,
-        deltaX,
-        deltaY,
-        frameId: null,
-      };
-      pendingItemDragFrameRef.current = nextPendingFrame;
+  const scheduleItemDragPreviewFrame = useCallback((preview: CanvasItemDragPreview) => {
+    if (!preview.itemIds.length) return;
+    const pendingFrame = pendingItemDragPreviewFrameRef.current;
+    if (pendingFrame) {
+      pendingFrame.preview = preview;
+      return;
+    }
 
-      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-        flushPendingItemDragFrame();
-        return;
-      }
+    const nextPendingFrame: PendingItemDragPreviewFrame = {
+      preview,
+      frameId: null,
+    };
+    pendingItemDragPreviewFrameRef.current = nextPendingFrame;
 
-      nextPendingFrame.frameId = window.requestAnimationFrame(() => {
-        const currentPendingFrame = pendingItemDragFrameRef.current;
-        if (currentPendingFrame !== nextPendingFrame) return;
-        pendingItemDragFrameRef.current = null;
-        setItems((currentItems) =>
-          moveCanvasSceneItemsByIdSet(
-            currentItems,
-            new Set(currentPendingFrame.selectedItemIds),
-            currentPendingFrame.deltaX,
-            currentPendingFrame.deltaY
-          )
-        );
-      });
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+      pendingItemDragPreviewFrameRef.current = null;
+      setItemDragPreview(preview);
+      return;
+    }
+
+    nextPendingFrame.frameId = window.requestAnimationFrame(() => {
+      const currentPendingFrame = pendingItemDragPreviewFrameRef.current;
+      if (currentPendingFrame !== nextPendingFrame) return;
+      pendingItemDragPreviewFrameRef.current = null;
+      setItemDragPreview(currentPendingFrame.preview);
+    });
+  }, []);
+
+  const commitItemGhostDrag = useCallback(
+    (interaction: Extract<CanvasPointerSession, { kind: "item-ghost-drag" }>) => {
+      clearItemDragPreview();
+      setItems((currentItems) =>
+        moveCanvasSceneItemsByIdSet(
+          currentItems,
+          new Set(interaction.selectedItemIds),
+          interaction.deltaX,
+          interaction.deltaY
+        )
+      );
     },
-    [flushPendingItemDragFrame, setItems]
+    [clearItemDragPreview, setItems]
   );
 
   const flushPendingCameraFrame = useCallback(() => {
@@ -293,7 +297,7 @@ export const useCanvasViewportInstanceState = ({
 
   useEffect(
     () => () => {
-      const pendingFrame = pendingItemDragFrameRef.current;
+      const pendingFrame = pendingItemDragPreviewFrameRef.current;
       if (
         pendingFrame?.frameId != null &&
         typeof window !== "undefined" &&
@@ -301,7 +305,7 @@ export const useCanvasViewportInstanceState = ({
       ) {
         window.cancelAnimationFrame(pendingFrame.frameId);
       }
-      pendingItemDragFrameRef.current = null;
+      pendingItemDragPreviewFrameRef.current = null;
       const pendingCameraFrame = pendingCameraFrameRef.current;
       if (
         pendingCameraFrame?.frameId != null &&
@@ -693,17 +697,28 @@ export const useCanvasViewportInstanceState = ({
         }));
         return;
       }
-      if (interaction.kind === "item-drag") {
+      if (interaction.kind === "item-ghost-drag") {
         event.preventDefault();
-        const deltaX = (event.clientX - interaction.lastClientX) / camera.zoom;
-        const deltaY = (event.clientY - interaction.lastClientY) / camera.zoom;
-        if (!deltaX && !deltaY) return;
-        interactionRef.current = {
+        const deltaX =
+          Math.round(((event.clientX - interaction.startClientX) / camera.zoom) * 100) / 100;
+        const deltaY =
+          Math.round(((event.clientY - interaction.startClientY) / camera.zoom) * 100) / 100;
+        const nextInteraction = {
           ...interaction,
-          lastClientX: event.clientX,
-          lastClientY: event.clientY,
+          deltaX,
+          deltaY,
         };
-        scheduleItemDragFrame(interaction.selectedItemIds, deltaX, deltaY);
+        interactionRef.current = nextInteraction;
+        if (!deltaX && !deltaY) {
+          clearItemDragPreview();
+          return;
+        }
+        scheduleItemDragPreviewFrame({
+          activeItemId: interaction.itemId,
+          itemIds: interaction.selectedItemIds,
+          deltaX,
+          deltaY,
+        });
         return;
       }
       if (interaction.kind === "text-resize") {
@@ -802,7 +817,15 @@ export const useCanvasViewportInstanceState = ({
         });
       });
     },
-    [camera, logCanvasGesture, scheduleCameraFrame, scheduleItemDragFrame, setItems, viewportRef]
+    [
+      camera,
+      clearItemDragPreview,
+      logCanvasGesture,
+      scheduleCameraFrame,
+      scheduleItemDragPreviewFrame,
+      setItems,
+      viewportRef,
+    ]
   );
 
   const handleViewportPointerUp = useCallback(
@@ -921,9 +944,9 @@ export const useCanvasViewportInstanceState = ({
       } else if (interaction.kind === "text-resize") {
         lastViewportTapRef.current = null;
         setIsTextResizeActive(false);
-      } else if (interaction.kind === "item-drag") {
+      } else if (interaction.kind === "item-ghost-drag") {
         lastViewportTapRef.current = null;
-        flushPendingItemDragFrame();
+        commitItemGhostDrag(interaction);
       }
 
       interactionRef.current = { kind: "none" };
@@ -934,8 +957,8 @@ export const useCanvasViewportInstanceState = ({
     },
     [
       createDraftTextAtClientPoint,
+      commitItemGhostDrag,
       flushPendingCameraFrame,
-      flushPendingItemDragFrame,
       isSpacePanActiveRef,
       logCanvasGesture,
       setCamera,
@@ -952,12 +975,12 @@ export const useCanvasViewportInstanceState = ({
         interaction.kind === "pan" ||
         interaction.kind === "marquee" ||
         interaction.kind === "text-resize" ||
-        interaction.kind === "item-drag"
+        interaction.kind === "item-ghost-drag"
       ) {
         if (interaction.kind === "pan") {
           flushPendingCameraFrame();
-        } else if (interaction.kind === "item-drag") {
-          flushPendingItemDragFrame();
+        } else if (interaction.kind === "item-ghost-drag") {
+          clearItemDragPreview();
         }
         lastViewportTapRef.current = null;
         setMarqueeSelectionBox(null);
@@ -973,14 +996,14 @@ export const useCanvasViewportInstanceState = ({
               ? "pointercancel.reset-marquee"
               : interaction.kind === "text-resize"
                 ? "pointercancel.reset-text-resize"
-                : "pointercancel.reset-item-drag"
+                : "pointercancel.reset-item-ghost-drag"
         );
         if (interaction.kind === "text-resize") {
           setIsTextResizeActive(false);
         }
       }
     },
-    [flushPendingCameraFrame, flushPendingItemDragFrame, logCanvasGesture, setMarqueeSelectionBox]
+    [clearItemDragPreview, flushPendingCameraFrame, logCanvasGesture, setMarqueeSelectionBox]
   );
 
   const handleTextResizeHandlePointerDown = useCallback(
@@ -1031,12 +1054,12 @@ export const useCanvasViewportInstanceState = ({
       if (textEditSession?.itemId === itemId && !shouldPan) return;
       event.preventDefault();
       event.stopPropagation();
-      flushPendingItemDragFrame();
+      clearItemDragPreview();
       setMarqueeSelectionBox(null);
       clearTextEditSession();
       viewportRef.current?.focus();
       setPointerCaptureIfAvailable({
-        target: viewportRef.current ?? event.currentTarget,
+        target: event.currentTarget,
         pointerId: event.pointerId,
       });
       if (shouldPan) {
@@ -1051,29 +1074,34 @@ export const useCanvasViewportInstanceState = ({
         };
         return;
       }
-      setItems((currentItems) => {
-        const targetItem = currentItems.find((item) => item.id === itemId);
-        const selectedItems =
-          targetItem?.selected === true
-            ? currentItems
-            : selectCanvasSceneItem(currentItems, itemId);
-        const selectedIds = Array.from(getSelectedCanvasSceneItemIds(selectedItems));
-        interactionRef.current = {
-          kind: "item-drag",
-          pointerId: event.pointerId,
-          itemId,
-          selectedItemIds: selectedIds,
-          lastClientX: event.clientX,
-          lastClientY: event.clientY,
-        };
-        return selectedItems;
-      });
+      const currentItems = itemsRef.current;
+      const targetItem = currentItems.find((item) => item.id === itemId);
+      if (!targetItem) {
+        interactionRef.current = { kind: "none" };
+        return;
+      }
+      const selectedIds = targetItem.selected
+        ? Array.from(getSelectedCanvasSceneItemIds(currentItems))
+        : [itemId];
+      interactionRef.current = {
+        kind: "item-ghost-drag",
+        pointerId: event.pointerId,
+        itemId,
+        selectedItemIds: selectedIds,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        deltaX: 0,
+        deltaY: 0,
+      };
+      if (!targetItem.selected) {
+        setItems((currentItems) => selectCanvasSceneItem(currentItems, itemId));
+      }
     },
     [
       camera.x,
       camera.y,
       clearTextEditSession,
-      flushPendingItemDragFrame,
+      clearItemDragPreview,
       isSpacePanActiveRef,
       setMarqueeSelectionBox,
       setItems,
@@ -1086,6 +1114,7 @@ export const useCanvasViewportInstanceState = ({
     (itemId: string, event: PointerEvent<HTMLElement>) => {
       const interaction = interactionRef.current;
       if (interaction.kind === "pan" && interaction.pointerId === event.pointerId) {
+        event.preventDefault();
         scheduleCameraFrame((currentCamera) => ({
           ...currentCamera,
           x:
@@ -1098,23 +1127,35 @@ export const useCanvasViewportInstanceState = ({
         return;
       }
       if (
-        interaction.kind !== "item-drag" ||
+        interaction.kind !== "item-ghost-drag" ||
         interaction.pointerId !== event.pointerId ||
         interaction.itemId !== itemId
       ) {
         return;
       }
-      const deltaX = (event.clientX - interaction.lastClientX) / camera.zoom;
-      const deltaY = (event.clientY - interaction.lastClientY) / camera.zoom;
-      if (!deltaX && !deltaY) return;
-      interactionRef.current = {
+      event.preventDefault();
+      const deltaX =
+        Math.round(((event.clientX - interaction.startClientX) / camera.zoom) * 100) / 100;
+      const deltaY =
+        Math.round(((event.clientY - interaction.startClientY) / camera.zoom) * 100) / 100;
+      const nextInteraction = {
         ...interaction,
-        lastClientX: event.clientX,
-        lastClientY: event.clientY,
+        deltaX,
+        deltaY,
       };
-      scheduleItemDragFrame(interaction.selectedItemIds, deltaX, deltaY);
+      interactionRef.current = nextInteraction;
+      if (!deltaX && !deltaY) {
+        clearItemDragPreview();
+        return;
+      }
+      scheduleItemDragPreviewFrame({
+        activeItemId: interaction.itemId,
+        itemIds: interaction.selectedItemIds,
+        deltaX,
+        deltaY,
+      });
     },
-    [camera.zoom, scheduleCameraFrame, scheduleItemDragFrame]
+    [camera.zoom, clearItemDragPreview, scheduleCameraFrame, scheduleItemDragPreviewFrame]
   );
 
   const handleItemPointerUp = useCallback(
@@ -1123,23 +1164,23 @@ export const useCanvasViewportInstanceState = ({
       const isMatchingPanInteraction =
         interaction.kind === "pan" && interaction.pointerId === event.pointerId;
       const isMatchingDragInteraction =
-        interaction.kind === "item-drag" &&
+        interaction.kind === "item-ghost-drag" &&
         interaction.pointerId === event.pointerId &&
         interaction.itemId === itemId;
       if (isMatchingPanInteraction || isMatchingDragInteraction) {
         if (isMatchingDragInteraction) {
-          flushPendingItemDragFrame();
+          commitItemGhostDrag(interaction);
         } else {
           flushPendingCameraFrame();
         }
         interactionRef.current = { kind: "none" };
         releasePointerCaptureIfHeld({
-          target: viewportRef.current ?? event.currentTarget,
+          target: event.currentTarget,
           pointerId: event.pointerId,
         });
       }
     },
-    [flushPendingCameraFrame, flushPendingItemDragFrame, viewportRef]
+    [commitItemGhostDrag, flushPendingCameraFrame]
   );
 
   const handleItemPointerCancel = useCallback(
@@ -1148,23 +1189,23 @@ export const useCanvasViewportInstanceState = ({
       const isMatchingPanInteraction =
         interaction.kind === "pan" && interaction.pointerId === event.pointerId;
       const isMatchingDragInteraction =
-        interaction.kind === "item-drag" &&
+        interaction.kind === "item-ghost-drag" &&
         interaction.pointerId === event.pointerId &&
         interaction.itemId === itemId;
       if (isMatchingPanInteraction || isMatchingDragInteraction) {
         if (isMatchingDragInteraction) {
-          flushPendingItemDragFrame();
+          clearItemDragPreview();
         } else {
           flushPendingCameraFrame();
         }
         interactionRef.current = { kind: "none" };
         releasePointerCaptureIfHeld({
-          target: viewportRef.current ?? event.currentTarget,
+          target: event.currentTarget,
           pointerId: event.pointerId,
         });
       }
     },
-    [flushPendingCameraFrame, flushPendingItemDragFrame, viewportRef]
+    [clearItemDragPreview, flushPendingCameraFrame]
   );
 
   const handleViewportWheel = useCallback(
@@ -1197,6 +1238,7 @@ export const useCanvasViewportInstanceState = ({
       camera,
       items,
       pendingItems,
+      itemDragPreview,
       marqueeSelectionBox,
       viewportRef,
       isDropActive,
@@ -1255,6 +1297,7 @@ export const useCanvasViewportInstanceState = ({
       isDropActive,
       isTextResizeActive,
       isTextEditEditable,
+      itemDragPreview,
       items,
       marqueeSelectionBox,
       onDraftTextChange,

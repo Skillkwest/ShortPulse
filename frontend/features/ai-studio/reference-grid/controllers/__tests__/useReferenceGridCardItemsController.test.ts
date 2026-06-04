@@ -22,6 +22,8 @@ const resolvedMedia = (
 ): ReferenceGridResolvedCardMedia => ({
   previewUrl: "https://provider.example.com/generated-preview.png",
   fullUrl: null,
+  posterPreviewUrl: null,
+  playableMediaUrl: null,
   fallbackUrl: "https://provider.example.com/generated-preview.png",
   authorityTier: "preview-only",
   previewQualityBand: "high",

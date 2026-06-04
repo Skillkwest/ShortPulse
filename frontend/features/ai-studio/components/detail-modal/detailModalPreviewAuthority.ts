@@ -6,7 +6,7 @@ import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../../lib/mediaSignedUrlCache";
 import { isSupabaseRenderImageUrl } from "../../../../lib/mediaPreviewTrustPolicy";
 import { ensureSupabaseQueryClient } from "../../../../lib/supabaseClient";
-import { resolveReferenceCardUrls } from "../../logic/referenceGridMedia";
+import { resolveStudioOutputMediaDisplayAuthority } from "../../logic/referenceGridMedia";
 import { resolveReferenceDownloadTarget } from "../../logic/referenceDownload";
 import type { StudioOutput } from "../../types";
 
@@ -86,18 +86,28 @@ export const resolveDetailPreviewCandidates = (
     | "savedMediaIds"
     | "mode"
     | "previewUrl"
+    | "previewPosterUrl"
+    | "previewPosterStoragePath"
     | "resultUrls"
+    | "id"
+    | "taskId"
+    | "taskState"
   >
 ): string[] => {
-  const resolvedDetailMedia = resolveReferenceCardUrls(
+  const resolvedDetailMedia = resolveStudioOutputMediaDisplayAuthority(
     {
+      id: output.id,
       previewStoragePath: output.previewStoragePath,
+      previewPosterStoragePath: output.previewPosterStoragePath,
       fullStoragePath: output.fullStoragePath,
       mediaSource: output.mediaSource,
       generationId: output.generationId,
+      taskId: output.taskId,
+      taskState: output.taskState,
       savedMediaIds: output.savedMediaIds,
       mode: output.mode,
       previewUrl: output.previewUrl,
+      previewPosterUrl: output.previewPosterUrl,
       resultUrls: output.resultUrls,
     },
     {
@@ -107,11 +117,15 @@ export const resolveDetailPreviewCandidates = (
     }
   );
   const preferredDetailMediaUrl =
-    resolvedDetailMedia.fullUrl ?? resolvedDetailMedia.previewUrl ?? null;
+    output.mode === "video" || output.mode === "audio"
+      ? resolvedDetailMedia.playableMediaUrl
+      : (resolvedDetailMedia.fullMediaUrl ?? resolvedDetailMedia.cardDisplayUrl);
+  const legacyPreviewUrl =
+    output.mode === "video" || output.mode === "audio" ? null : output.previewUrl;
   return buildUniquePreviewCandidates([
     preferredDetailMediaUrl,
-    resolvedDetailMedia.previewUrl ?? null,
-    output.previewUrl,
+    resolvedDetailMedia.thumbnailPreviewUrl ?? null,
+    legacyPreviewUrl,
     ...(output.resultUrls ?? []),
   ]);
 };

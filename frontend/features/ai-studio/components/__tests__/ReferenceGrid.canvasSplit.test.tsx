@@ -1,10 +1,21 @@
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
 import type { StudioOutput } from "../../types";
 
 vi.mock("../canvas/CanvasPropertiesPanel", () => ({
-  CanvasPropertiesPanel: () => <div data-testid="canvas-properties-panel" />,
+  CanvasPropertiesPanel: ({
+    onInteractionActiveChange,
+  }: {
+    onInteractionActiveChange?: (active: boolean) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="canvas-properties-panel"
+      onPointerDown={() => onInteractionActiveChange?.(true)}
+      onPointerUp={() => onInteractionActiveChange?.(false)}
+    />
+  ),
 }));
 
 class MockResizeObserver {
@@ -95,6 +106,29 @@ describe("ReferenceGrid canvas split", () => {
         flexBasis: "30%",
       });
       expect(canvasSection).not.toHaveClass("is-inventory-expanded");
+    });
+  });
+
+  it("suspends background visual work while the rail canvas is interacting", async () => {
+    const { container } = render(
+      <ReferenceGrid {...createProps({ railCanvasProps: {} as never })} />
+    );
+
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toHaveAttribute("data-grid-background-visual-work-suspended", "false");
+
+    fireEvent.pointerDown(screen.getByTestId("canvas-properties-panel"));
+
+    await waitFor(() => {
+      expect(panel).toHaveAttribute("data-rail-canvas-interaction-active", "true");
+      expect(panel).toHaveAttribute("data-grid-background-visual-work-suspended", "true");
+    });
+
+    fireEvent.pointerUp(screen.getByTestId("canvas-properties-panel"));
+
+    await waitFor(() => {
+      expect(panel).toHaveAttribute("data-rail-canvas-interaction-active", "false");
+      expect(panel).toHaveAttribute("data-grid-background-visual-work-suspended", "false");
     });
   });
 });

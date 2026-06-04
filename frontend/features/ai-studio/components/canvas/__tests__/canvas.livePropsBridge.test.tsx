@@ -121,4 +121,58 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     expect(initialWheel).not.toHaveBeenCalled();
     expect(nextWheel).toHaveBeenCalledTimes(1);
   });
+
+  it("preserves wrapper callbacks that are added around the live store", () => {
+    const viewportRef = React.createRef<HTMLDivElement>();
+    const interactionActiveChange = vi.fn();
+    const initialSnapshot = createPanelProps({ viewportRef });
+    const liveProps = createLivePropsHarness(initialSnapshot);
+    render(
+      <CanvasPropertiesPanel
+        {...liveProps.props}
+        onInteractionActiveChange={interactionActiveChange}
+      />
+    );
+
+    fireEvent.pointerDown(screen.getByTestId("canvas-viewport"));
+    fireEvent.pointerUp(screen.getByTestId("canvas-viewport"));
+
+    expect(interactionActiveChange).toHaveBeenNthCalledWith(1, true);
+    expect(interactionActiveChange).toHaveBeenNthCalledWith(2, false);
+  });
+
+  it("raises wrapper interaction callbacks for item-origin gestures", () => {
+    const viewportRef = React.createRef<HTMLDivElement>();
+    const interactionActiveChange = vi.fn();
+    const initialSnapshot = createPanelProps({
+      viewportRef,
+      items: [
+        {
+          id: "text-1",
+          kind: "text",
+          text: "Move me",
+          x: 0,
+          y: 0,
+          z: 1,
+          width: 120,
+          height: 72,
+          selected: false,
+          outputId: null,
+        },
+      ],
+    });
+    const liveProps = createLivePropsHarness(initialSnapshot);
+    render(
+      <CanvasPropertiesPanel
+        {...liveProps.props}
+        onInteractionActiveChange={interactionActiveChange}
+      />
+    );
+
+    fireEvent.pointerDown(screen.getByTestId("canvas-item-text-1"));
+    fireEvent.pointerUp(screen.getByTestId("canvas-item-text-1"));
+
+    expect(interactionActiveChange).toHaveBeenNthCalledWith(1, true);
+    expect(interactionActiveChange).toHaveBeenNthCalledWith(2, false);
+  });
 });

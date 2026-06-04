@@ -102,6 +102,17 @@ function ReferenceGridComponent({
   stylesPanel,
 }: ReferenceGridProps) {
   incrementFreezeInvestigationCounter("referenceGrid.render");
+  const [isRailCanvasInteractionActive, setIsRailCanvasInteractionActive] = React.useState(false);
+  const effectiveRailCanvasProps = React.useMemo(
+    () =>
+      railCanvasProps
+        ? {
+            ...railCanvasProps,
+            onInteractionActiveChange: setIsRailCanvasInteractionActive,
+          }
+        : undefined,
+    [railCanvasProps]
+  );
   const {
     allOutputIds,
     archivedOutputs,
@@ -218,8 +229,9 @@ function ReferenceGridComponent({
     onAddCuratedReference,
     onRemoveCuratedReference,
     onReorderCuratedReference,
-    railCanvasProps,
+    railCanvasProps: effectiveRailCanvasProps,
     isShellResizeActive,
+    isRailCanvasInteractionActive,
   });
   setFreezeInvestigationGauge("referenceGrid.allOutputsCount", allOutputIds.length);
   setFreezeInvestigationGauge("referenceGrid.archivedOutputsCount", archivedOutputs.length);
@@ -522,6 +534,8 @@ function ReferenceGridComponent({
       data-grid-src-swap-rate-per-minute={previewSwapMetrics.swapRatePerMinute}
       data-grid-repaint-spike-count={previewSwapMetrics.repaintSpikeCount}
       data-grid-last-swap-burst-count={previewSwapMetrics.lastSwapBurstCount}
+      data-grid-background-visual-work-suspended={suspendBackgroundVisualWork ? "true" : "false"}
+      data-rail-canvas-interaction-active={isRailCanvasInteractionActive ? "true" : "false"}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
       onDragEnter={handleCanvasDragEnter}
@@ -534,7 +548,7 @@ function ReferenceGridComponent({
       <ReferenceGridSections
         isCuratedSplitEnabled={isCuratedSplitActive}
         isCuratedDropActive={isCuratedDropActive}
-        railCanvasProps={railCanvasProps}
+        railCanvasProps={effectiveRailCanvasProps}
         showRailCanvasSection={showRailCanvasSection}
         railCanvasSplit={railCanvasSplit}
         showQuickSlotSection={showQuickSlotSection}

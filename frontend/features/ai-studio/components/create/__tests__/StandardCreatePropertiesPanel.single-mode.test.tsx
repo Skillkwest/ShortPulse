@@ -45,6 +45,7 @@ vi.mock("../StandardCreatePanelView", () => ({
         agentInputCollapseOnBlur?: boolean;
         composerLeadingContent?: React.ReactNode;
         onChatModeEnabledChange?: (value: boolean) => void;
+        onUseAssistantMessageAsPrompt?: (request: { messageId: string; prompt: string }) => void;
       };
       onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
       showCreateControlSet: boolean;
@@ -193,6 +194,35 @@ describe("StandardCreatePropertiesPanel single mode", () => {
         name: "Generate",
       })
     ).toBeNull();
+  });
+
+  it("moves assistant output into the Standard prompt composer without generating", () => {
+    const onPromptChange = vi.fn();
+    const onChatModeEnabledChange = vi.fn();
+    const onGenerate = vi.fn();
+
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        chatModeEnabled
+        onPromptChange={onPromptChange}
+        onChatModeEnabledChange={onChatModeEnabledChange}
+        onGenerate={onGenerate}
+      />
+    );
+
+    const promptStepProps = standardCreatePanelViewMockState.latestProps?.promptStepProps as {
+      onUseAssistantMessageAsPrompt?: (request: { messageId: string; prompt: string }) => void;
+    };
+
+    promptStepProps.onUseAssistantMessageAsPrompt?.({
+      messageId: "assistant-output-1",
+      prompt: "  A clean generation-ready prompt.  ",
+    });
+
+    expect(onPromptChange).toHaveBeenCalledWith("A clean generation-ready prompt.");
+    expect(onChatModeEnabledChange).toHaveBeenCalledWith(false);
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("toggles the Standard create control set cleanly across chat mode changes", () => {

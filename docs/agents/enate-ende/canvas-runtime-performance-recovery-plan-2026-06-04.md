@@ -1,6 +1,6 @@
 # Enate Ende Canvas Runtime Performance Recovery Plan
 
-Status: Lanes 1-5 implemented and locally validated, including production build; production proof remains pending
+Status: Lanes 1-5 implemented, locally validated, deployed, and re-audited in production; Lane 6 Canvas interaction backpressure is locally implemented and validated with deployment/runtime proof pending
 
 Date: 2026-06-04
 
@@ -65,6 +65,14 @@ Runtime production evidence from `https://www.shortpulse.ai/ai-studio` showed:
 - the right rail reported pressure telemetry: `data-grid-perf-degrade-level=2`, `data-grid-watchdog-input-stall-ms=293`, and `data-grid-watchdog-longtask-p95=206`
 - Canvas, rail Canvas body, rail Canvas section, and inventory stack reported `contain: none`
 - some Canvas item centers were outside the viewport or hit underlying page/rail elements rather than the Canvas item
+
+Post-deploy production evidence from 2026-06-04 showed:
+
+- the deployed production page now contains the Canvas containment signatures from Lanes 1-2: the rail Canvas section, body, and viewport report `contain: content`, the section and viewport report `isolation: isolate`, and the Canvas world reports `will-change: transform`
+- wheel zoom now changes rail camera state on production, but small zoom gestures still took about 421-428 ms through the live UI, so the failure shifted from missing zoom behavior to unacceptable input latency
+- Space-drag browser automation took about 1067-1070 ms and did not move the camera; this remains a pan reliability signal, with the caveat that browser automation may not hold Space exactly like a manual user gesture
+- the right rail still reports worst-level pressure while Canvas is open: `data-grid-perf-degrade-level=2`, `data-grid-density-pressure-level=2`, input-stall readings around 303-328 ms, and long-task p95 readings around 209-225 ms
+- the production Canvas had only 8 Canvas items, while the visible right rail still included dense Quick Slot Inventory and Reference Grid media cards, so Canvas latency must be treated as both Canvas render cost and sibling right-rail main-thread pressure
 
 Code evidence showed:
 
@@ -490,6 +498,35 @@ Validation completed:
 Stop boundary:
 
 - The implementation passes the broad local production build gate. The remaining plan work is deploy/runtime Production Proof Matrix validation on `https://www.shortpulse.ai/ai-studio`; do not mark the plan complete from local proof alone.
+
+### Lane 6: Canvas Interaction Backpressure
+
+Status: implemented locally on 2026-06-04 after deployed production proof still showed severe latency; deployment/runtime proof remains pending.
+
+Goal:
+
+- when the user is actively zooming, panning, or dragging in the rail Canvas, dense sibling media work in Quick Slot Inventory and Reference Grid must yield frame budget to Canvas input
+- use the existing right-rail background-visual-work suspension authority instead of adding a second media throttling system or a duplicate Canvas implementation
+
+Current source update:
+
+- `CanvasPropertiesPanel` now emits an optional `onInteractionActiveChange` signal during pointer gestures and wheel gestures
+- `ReferenceGrid` wires that signal into `useReferenceGridRuntimeScaffold`
+- `useReferenceGridRuntimeScaffold` now includes rail Canvas interaction in `suspendBackgroundVisualWork`, which is already consumed by autoplay selection, preview runtime scheduling, hydration queue suspension, visual telemetry suspension, and autoplay budget recomputation
+- production-inspectable attrs were added: `data-rail-canvas-interaction-active` and `data-grid-background-visual-work-suspended`
+
+Validation completed:
+
+- `npm -C frontend run test -- features/ai-studio/components/__tests__/ReferenceGrid.canvasSplit.test.tsx`
+- `npm -C frontend run test -- features/ai-studio/components/canvas/__tests__/canvas.livePropsBridge.test.tsx features/ai-studio/components/canvas/__tests__/canvas.interactions.test.tsx`
+- `npm -C frontend run test -- features/ai-studio/components/canvas/__tests__/canvas.livePropsBridge.test.tsx features/ai-studio/components/__tests__/ReferenceGrid.canvasSplit.test.tsx features/ai-studio/components/canvas/__tests__/canvas.interactions.test.tsx`
+- `npm -C frontend run type-check:touched`
+- `npm -C frontend run docs:check`
+- `npm -C frontend run build`
+
+Stop boundary:
+
+- continue only to validate type safety/build and, after deployment, production-runtime proof that Canvas input flips the suspension attrs and improves perceived zoom/pan/drag latency. If production still lags, the next canonical investigation is imperative transient Canvas camera/ghost rendering, not more right-rail patches.
 
 ## Self-Audit
 

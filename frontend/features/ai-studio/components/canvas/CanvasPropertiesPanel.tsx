@@ -29,7 +29,13 @@ const useResolvedCanvasPropertiesPanelProps = (
     livePropsStore?.getSnapshot ?? (() => props),
     livePropsStore?.getSnapshot ?? (() => props)
   );
-  return livePropsStore ? liveProps : props;
+  if (!livePropsStore) return props;
+  if (props.onInteractionActiveChange === liveProps.onInteractionActiveChange) return liveProps;
+  return {
+    ...liveProps,
+    onInteractionActiveChange:
+      props.onInteractionActiveChange ?? liveProps.onInteractionActiveChange,
+  };
 };
 
 type CanvasSceneItemViewProps = Pick<
@@ -357,6 +363,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     onViewportDragLeave,
     onViewportDrop,
     onViewportWheel,
+    onInteractionActiveChange,
     onItemPointerDown,
     onItemPointerMove,
     onItemPointerUp,
@@ -379,6 +386,8 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
   const [isNativeDragModifierArmed, setIsNativeDragModifierArmed] = React.useState(false);
+  const interactionActiveRef = React.useRef(false);
+  const wheelInteractionIdleTimeoutRef = React.useRef<number | null>(null);
   const itemDragPreviewIdSet = React.useMemo(
     () => new Set(itemDragPreview?.itemIds ?? []),
     [itemDragPreview]
@@ -417,6 +426,39 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
       return next;
     });
   }, []);
+
+  const setCanvasInteractionActive = React.useCallback(
+    (active: boolean) => {
+      if (interactionActiveRef.current === active) return;
+      interactionActiveRef.current = active;
+      onInteractionActiveChange?.(active);
+    },
+    [onInteractionActiveChange]
+  );
+
+  const releaseWheelInteractionAfterIdle = React.useCallback(() => {
+    if (wheelInteractionIdleTimeoutRef.current != null) {
+      window.clearTimeout(wheelInteractionIdleTimeoutRef.current);
+    }
+    wheelInteractionIdleTimeoutRef.current = window.setTimeout(() => {
+      wheelInteractionIdleTimeoutRef.current = null;
+      setCanvasInteractionActive(false);
+    }, 180);
+  }, [setCanvasInteractionActive]);
+
+  React.useEffect(
+    () => () => {
+      if (wheelInteractionIdleTimeoutRef.current != null) {
+        window.clearTimeout(wheelInteractionIdleTimeoutRef.current);
+        wheelInteractionIdleTimeoutRef.current = null;
+      }
+      if (interactionActiveRef.current) {
+        interactionActiveRef.current = false;
+        onInteractionActiveChange?.(false);
+      }
+    },
+    [onInteractionActiveChange]
+  );
 
   React.useEffect(() => {
     if (!isItemDraggable) {
@@ -468,13 +510,15 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     const viewportNode = viewportRef.current;
     if (!viewportNode) return;
     const handleNativeWheel = (event: globalThis.WheelEvent) => {
+      setCanvasInteractionActive(true);
       onViewportWheelRef.current(event);
+      releaseWheelInteractionAfterIdle();
     };
     viewportNode.addEventListener("wheel", handleNativeWheel, { passive: false });
     return () => {
       viewportNode.removeEventListener("wheel", handleNativeWheel);
     };
-  }, [viewportRef]);
+  }, [releaseWheelInteractionAfterIdle, setCanvasInteractionActive, viewportRef]);
 
   return (
     <section className="canvas-properties-panel">
@@ -489,10 +533,19 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
         data-camera-y={camera.y}
         data-camera-zoom={camera.zoom}
         tabIndex={0}
-        onPointerDown={onViewportPointerDown}
+        onPointerDown={(event) => {
+          setCanvasInteractionActive(true);
+          onViewportPointerDown(event);
+        }}
         onPointerMove={onViewportPointerMove}
-        onPointerUp={onViewportPointerUp}
-        onPointerCancel={onViewportPointerCancel}
+        onPointerUp={(event) => {
+          onViewportPointerUp(event);
+          setCanvasInteractionActive(false);
+        }}
+        onPointerCancel={(event) => {
+          onViewportPointerCancel(event);
+          setCanvasInteractionActive(false);
+        }}
         onKeyDown={onViewportKeyDown}
         onDoubleClick={onViewportDoubleClick}
         onClick={onViewportClick}
@@ -557,10 +610,19 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
                 editingTextValue={isEditingTextItem ? editingTextValue : ""}
                 isTextEditEditable={isEditingTextItem && isTextEditEditable}
                 isItemDraggable={isItemDraggable && isNativeDragModifierArmed}
-                onItemPointerDown={onItemPointerDown}
+                onItemPointerDown={(id, event) => {
+                  setCanvasInteractionActive(true);
+                  onItemPointerDown(id, event);
+                }}
                 onItemPointerMove={onItemPointerMove}
-                onItemPointerUp={onItemPointerUp}
-                onItemPointerCancel={onItemPointerCancel}
+                onItemPointerUp={(id, event) => {
+                  onItemPointerUp(id, event);
+                  setCanvasInteractionActive(false);
+                }}
+                onItemPointerCancel={(id, event) => {
+                  onItemPointerCancel(id, event);
+                  setCanvasInteractionActive(false);
+                }}
                 onItemDragStart={onItemDragStart}
                 onItemDragEnd={onItemDragEnd}
                 onItemContextMenu={onItemContextMenu}
@@ -569,7 +631,14 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
                 onTextItemEditChange={onTextItemEditChange}
                 onTextItemEditKeyDown={onTextItemEditKeyDown}
                 onTextItemEditBlur={onTextItemEditBlur}
-                onTextResizeHandlePointerDown={onTextResizeHandlePointerDown}
+                onTextResizeHandlePointerDown={
+                  onTextResizeHandlePointerDown
+                    ? (id, handle, event) => {
+                        setCanvasInteractionActive(true);
+                        onTextResizeHandlePointerDown(id, handle, event);
+                      }
+                    : undefined
+                }
                 markCanvasMediaError={markCanvasMediaError}
                 clearCanvasMediaError={clearCanvasMediaError}
               />

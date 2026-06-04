@@ -3,6 +3,7 @@
  * UI stays minimal so existing panel styles remain dominant.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowBendDownRight } from "phosphor-react";
 import { AgentSendButton } from "../buttons/AgentSendButton";
 import { AgentResponseInlineGenerateButton } from "../buttons/AgentResponseInlineGenerateButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
@@ -108,6 +109,7 @@ export type AgentChatPanelProps = {
   onSend: () => void;
   onMessageClick?: (message: AgentMessage) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
+  onUseAssistantMessageAsPrompt?: (request: { messageId: string; prompt: string }) => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -150,6 +152,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onSend,
   onMessageClick,
   onAssistantMessageEdit,
+  onUseAssistantMessageAsPrompt,
   onGenerateOutputPrompt,
   onDrop,
   onDragOver,
@@ -670,10 +673,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   Boolean(onGenerateOutputPrompt);
                 const showOutputBubbleControls =
                   Boolean(bubbleMedia && bubbleMedia.state !== "idle") || showOutputGenerateButton;
-                const shouldUseOutputGenerateLayout =
-                  showOutputGenerateButton ||
-                  (preserveOutputGenerateLayoutWhenControlsHidden &&
-                    Boolean(bubbleMedia && bubbleMedia.state !== "idle"));
                 const isLatestAssistantMessage =
                   highlightLatestAssistantOnly &&
                   message.role === "assistant" &&
@@ -682,6 +681,16 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   highlightLatestAssistantOnly &&
                   message.role === "assistant" &&
                   index !== latestAssistantMessageIndex;
+                const showUseAsPromptButton =
+                  Boolean(onUseAssistantMessageAsPrompt) &&
+                  isLatestAssistantMessage &&
+                  message.role === "assistant" &&
+                  !isEditingMessage &&
+                  Boolean(assistantDraggableText);
+                const shouldUseOutputGenerateLayout =
+                  showOutputGenerateButton ||
+                  (preserveOutputGenerateLayoutWhenControlsHidden &&
+                    Boolean(bubbleMedia && bubbleMedia.state !== "idle"));
                 const hasOutputThumbnail = Boolean(bubbleMedia && bubbleMedia.state !== "idle");
                 const messageAttachments = message.attachments ?? [];
                 const hasMessageAttachments = messageAttachments.length > 0;
@@ -759,6 +768,28 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                       />
                     ) : (
                       <div className="agent-message-body">
+                        {showUseAsPromptButton ? (
+                          <button
+                            type="button"
+                            className="agent-message-use-as-prompt-btn"
+                            aria-label="Use as prompt"
+                            title="Use as prompt"
+                            onPointerDown={(event) => {
+                              event.stopPropagation();
+                            }}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              const promptText = assistantDraggableText?.trim() ?? "";
+                              if (!promptText) return;
+                              onUseAssistantMessageAsPrompt?.({
+                                messageId: resolvedMessageId,
+                                prompt: promptText,
+                              });
+                            }}
+                          >
+                            <ArrowBendDownRight size={14} weight="bold" aria-hidden="true" />
+                          </button>
+                        ) : null}
                         {hasMessageAttachments ? (
                           <div className="agent-message-attachments">
                             {renderAttachmentCards(messageAttachments, { compact: true })}

@@ -148,6 +148,45 @@ describe("AgentChatPanel prompt actions", () => {
     expect(
       screen.queryByRole("button", { name: "Apply this agent output to the composer" })
     ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Use as prompt" })).toBeNull();
+  });
+
+  it("offers a subtle use-as-prompt action only for the latest assistant message when opted in", () => {
+    const onUseAssistantMessageAsPrompt = vi.fn();
+
+    render(
+      <AgentChatPanel
+        messages={[
+          { id: "a-1", role: "assistant", content: "Earlier assistant output." },
+          { id: "u-1", role: "user", content: "User input one." },
+          {
+            id: "a-2",
+            role: "assistant",
+            content: "Latest assistant output.",
+            outputPrompt: "Latest prompt artifact.",
+            canUseAsPrompt: true,
+          },
+        ]}
+        input=""
+        highlightLatestAssistantOnly
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+        onUseAssistantMessageAsPrompt={onUseAssistantMessageAsPrompt}
+      />
+    );
+
+    const earlierMessage = screen
+      .getByText("Earlier assistant output.")
+      .closest(".agent-message") as HTMLElement;
+    expect(within(earlierMessage).queryByRole("button", { name: "Use as prompt" })).toBeNull();
+
+    const useAsPromptButton = screen.getByRole("button", { name: "Use as prompt" });
+    fireEvent.click(useAsPromptButton);
+
+    expect(onUseAssistantMessageAsPrompt).toHaveBeenCalledWith({
+      messageId: "a-2",
+      prompt: "Latest prompt artifact.",
+    });
   });
 
   it("disables small generate pills when output generate is disabled", () => {

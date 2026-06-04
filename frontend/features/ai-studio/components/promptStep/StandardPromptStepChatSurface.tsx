@@ -60,6 +60,7 @@ type StandardPromptStepChatSurfaceProps = {
   agentBootstrapPending: boolean;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
+  onUseAssistantMessageAsPrompt?: (request: { messageId: string; prompt: string }) => void;
   highlightLatestAssistantOnly: boolean;
   CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
   disableOutputGenerate: boolean;
@@ -121,6 +122,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   agentBootstrapPending,
   onAgentSend,
   onGenerateOutputPrompt,
+  onUseAssistantMessageAsPrompt,
   highlightLatestAssistantOnly,
   CreateChatPanel = AgentChatPanel,
   disableOutputGenerate,
@@ -217,6 +219,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         onInputChange={(value) => onAgentInputChange?.(value)}
         onSend={onAgentSend ?? (() => {})}
         onGenerateOutputPrompt={onGenerateOutputPrompt}
+        onUseAssistantMessageAsPrompt={onUseAssistantMessageAsPrompt}
         onAssistantMessageEdit={onAssistantMessageEdit}
         highlightLatestAssistantOnly={highlightLatestAssistantOnly}
         disableOutputGenerate={disableOutputGenerate}

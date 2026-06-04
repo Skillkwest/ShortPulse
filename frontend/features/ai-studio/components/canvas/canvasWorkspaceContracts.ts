@@ -72,6 +72,7 @@ export type CanvasPropertiesPanelProps = {
   onViewportDragLeave: (event: DragEvent<HTMLDivElement>) => void;
   onViewportDrop: (event: DragEvent<HTMLDivElement>) => void;
   onViewportWheel: (event: CanvasViewportWheelEvent) => void;
+  onInteractionActiveChange?: (active: boolean) => void;
   onItemPointerDown: (id: string, event: PointerEvent<HTMLElement>) => void;
   onItemPointerMove: (id: string, event: PointerEvent<HTMLElement>) => void;
   onItemPointerUp: (id: string, event: PointerEvent<HTMLElement>) => void;

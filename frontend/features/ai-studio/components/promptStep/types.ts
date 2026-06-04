@@ -49,6 +49,7 @@ export type PromptStepProps = {
   onClearAgentAttachments?: () => void;
   onClearAgentChat?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
+  onUseAssistantMessageAsPrompt?: (request: { messageId: string; prompt: string }) => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   // State / UI
   isCollapsed: boolean;

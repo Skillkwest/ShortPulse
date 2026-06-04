@@ -41,6 +41,7 @@ export function PromptStep({
   onClearAgentAttachments,
   onClearAgentChat,
   onAssistantMessageEdit,
+  onUseAssistantMessageAsPrompt,
   onGenerateOutputPrompt,
   isCollapsed,
   onToggleCollapse,
@@ -389,6 +390,7 @@ export function PromptStep({
                 agentBootstrapPending={agentBootstrapPending}
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}
+                onUseAssistantMessageAsPrompt={onUseAssistantMessageAsPrompt}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                 CreateChatPanel={CreateChatPanel}
                 disableOutputGenerate={disableOutputGenerate}

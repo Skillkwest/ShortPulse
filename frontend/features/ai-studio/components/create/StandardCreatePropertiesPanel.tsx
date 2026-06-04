@@ -309,6 +309,15 @@ export function StandardCreatePropertiesPanel({
     onStylesPanelToggle,
     shouldHideCreateControlSet,
   ]);
+  const handleUseAssistantMessageAsPrompt = React.useCallback(
+    ({ prompt: nextPrompt }: { messageId: string; prompt: string }) => {
+      const promptText = nextPrompt.trim();
+      if (!promptText) return;
+      onPromptChange(promptText);
+      onChatModeEnabledChange?.(false);
+    },
+    [onChatModeEnabledChange, onPromptChange]
+  );
 
   const sharedPromptStepProps = {
     prompt,
@@ -336,6 +345,7 @@ export function StandardCreatePropertiesPanel({
     onClearAgentAttachments,
     onClearAgentChat,
     onAssistantMessageEdit,
+    onUseAssistantMessageAsPrompt: handleUseAssistantMessageAsPrompt,
     isGenerating: isPromptGenerating,
     showGenerationThinkingInChat: false,
     chatOnly: true,

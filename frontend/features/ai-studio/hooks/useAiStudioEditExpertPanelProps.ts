@@ -49,6 +49,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   currentCostCredits: number | null;
+  removeBackgroundCostCredits: number | null;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   isPrimaryStageGenerating: boolean;
@@ -68,9 +69,13 @@ type UseAiStudioEditExpertPanelPropsParams = {
   >;
   resolveCharacterAvatarUrlById: (characterId: string | null | undefined) => string | null;
   selectedPresetIds?: readonly ExpertEditPresetId[];
-  onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
+  onSelectedPresetIdsChange?: (
+    presetIds: ExpertEditPresetId[]
+  ) => void | boolean | Promise<boolean>;
   customPresetOverrides?: ExpertEditCustomPresetOverrides;
-  onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
+  onCustomPresetOverridesChange?: (
+    overrides: ExpertEditCustomPresetOverrides
+  ) => void | boolean | Promise<boolean>;
   systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[];
   sessionState?: ExpertEditSessionState | null;
   onSessionStateChange?: (state: ExpertEditSessionState) => void;
@@ -101,6 +106,7 @@ export const useAiStudioEditExpertPanelProps = ({
   notifyGenerationFailure,
   onEditSubmitIntentChange,
   currentCostCredits,
+  removeBackgroundCostCredits,
   isGenerateDisabled,
   generationGuardrail,
   isPrimaryStageGenerating,
@@ -174,6 +180,7 @@ export const useAiStudioEditExpertPanelProps = ({
             : {}),
         })) as ExpertEditRegenerateWithReferenceInputsHandler,
       costCredits: currentCostCredits,
+      removeBackgroundCostCredits,
       isGenerateDisabled,
       guardrailReason: generationGuardrail,
       isPrimaryStageGenerating,
@@ -222,6 +229,7 @@ export const useAiStudioEditExpertPanelProps = ({
     model,
     modelModalAnchor,
     notifyGenerationFailure,
+    removeBackgroundCostCredits,
     removeOptimisticGenerationPlaceholder,
     referenceImageUrl,
     referenceImageWarning,

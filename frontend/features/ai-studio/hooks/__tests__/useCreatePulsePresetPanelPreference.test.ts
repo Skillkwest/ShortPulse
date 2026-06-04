@@ -4,6 +4,22 @@ import { readFileSync } from "node:fs";
 import { useCreatePulsePresetPanelPreference } from "../useCreatePulsePresetPanelPreference";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+};
+
+const createDeferred = <T>(): Deferred<T> => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 const CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY =
   "shortpulse.ai_studio.create_pulse_preset_panel_ids";
 const CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY = "shortpulse.ai_studio.saved_pulses";
@@ -235,7 +251,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("does not hydrate signed-in Pulse preferences from global localStorage fallback", async () => {
+  it("migrates signed-in Pulse preferences from global localStorage fallback", async () => {
     window.localStorage.setItem(
       CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY,
       JSON.stringify(["image", "pulse_product"])
@@ -278,9 +294,35 @@ describe("useCreatePulsePresetPanelPreference", () => {
       expect(result.current.syncState).toBe("ready");
     });
 
-    expect(result.current.presetPanelIds).toEqual(["image", "multi_shot", "story_builder"]);
-    expect(result.current.savedPresets).toEqual([]);
-    expect(upsert).not.toHaveBeenCalled();
+    expect(result.current.presetPanelIds).toEqual(["image", "pulse_product"]);
+    expect(result.current.savedPresets).toEqual([
+      buildExpectedSavedPulse({
+        presetId: "pulse_product",
+        label: "Product Director",
+        systemInstructions:
+          "Treat the product like a premium hero with one decisive benefit frame.",
+        createdAt: null,
+      }),
+    ]);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-keep-local",
+        ai_studio_create_pulse_panel_ids: ["image", "pulse_product"],
+        ai_studio_saved_pulses: [
+          buildExpectedSavedPulse({
+            presetId: "pulse_product",
+            label: "Product Director",
+            systemInstructions:
+              "Treat the product like a premium hero with one decisive benefit frame.",
+            createdAt: null,
+          }),
+        ],
+      }),
+      { onConflict: "user_id" }
+    );
+    expect(
+      window.localStorage.getItem(scopedCreatePulsePresetPanelIdsStorageKey("user-keep-local"))
+    ).toBe(JSON.stringify(["image", "pulse_product"]));
   });
 
   it("keeps signed-in Pulse values in user-scoped localStorage when the remote preference row is empty", async () => {
@@ -367,6 +409,94 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
     expect(maybeSingle).toHaveBeenCalledTimes(1);
     expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("queues Pulse saves until auth resolves and then persists them per user", async () => {
+    const userIdDeferred = createDeferred<string | null>();
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+
+    vi.mocked(readSupabaseUserId).mockReturnValue(userIdDeferred.promise);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+      expect(result.current.syncState).toBe("loading");
+    });
+
+    let saveResult = true;
+    await act(async () => {
+      saveResult = await result.current.setSavedPresets([
+        buildExpectedSavedPulse({
+          presetId: "pulse_custom",
+          label: "Queued Pulse",
+          systemInstructions: "Persist after auth resolves.",
+          createdAt: null,
+        }),
+      ]);
+    });
+
+    expect(saveResult).toBe(false);
+    expect(window.localStorage.getItem(CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY)).toBeNull();
+
+    await act(async () => {
+      userIdDeferred.resolve("user-queued");
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(result.current.savedPresets).toEqual([
+      buildExpectedSavedPulse({
+        presetId: "pulse_custom",
+        label: "Queued Pulse",
+        systemInstructions: "Persist after auth resolves.",
+        createdAt: null,
+      }),
+    ]);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-queued",
+        ai_studio_saved_pulses: [
+          buildExpectedSavedPulse({
+            presetId: "pulse_custom",
+            label: "Queued Pulse",
+            systemInstructions: "Persist after auth resolves.",
+            createdAt: null,
+          }),
+        ],
+      }),
+      { onConflict: "user_id" }
+    );
+    expect(
+      window.localStorage.getItem(scopedCreatePulseSavedPresetsStorageKey("user-queued"))
+    ).toBe(
+      JSON.stringify([
+        buildExpectedSavedPulse({
+          presetId: "pulse_custom",
+          label: "Queued Pulse",
+          systemInstructions: "Persist after auth resolves.",
+          createdAt: null,
+        }),
+      ])
+    );
   });
 
   it("preserves local hidden built-ins when signed-in remote Pulse preferences load", async () => {

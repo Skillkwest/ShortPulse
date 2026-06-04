@@ -5,6 +5,8 @@
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
 export const DEFAULT_NEW_PROJECT_TITLE = "Untitled project";
+const PROJECT_CREATE_REQUEST_TIMEOUT_MS = 20_000;
+const PROJECT_CREATE_TIMEOUT_MESSAGE = "Project creation timed out. Please try again.";
 
 export type CreatedProjectRecord = {
   id: string;
@@ -34,13 +36,39 @@ const toCreatedProjectRecord = (value: Partial<CreatedProjectRecord> | null | un
  * Returns the normalized project record or throws with a user-facing message.
  */
 export const createProject = async (title: string): Promise<CreatedProjectRecord> => {
-  const response = await fetchWithAuth("/api/projects/create", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ title }),
+  const abortController = new AbortController();
+  let timeoutTriggered = false;
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const timeoutPromise = new Promise<Response>((_resolve, reject) => {
+    timeoutId = globalThis.setTimeout(() => {
+      timeoutTriggered = true;
+      abortController.abort();
+      reject(new Error(PROJECT_CREATE_TIMEOUT_MESSAGE));
+    }, PROJECT_CREATE_REQUEST_TIMEOUT_MS);
   });
+  let response: Response;
+  try {
+    response = await Promise.race([
+      fetchWithAuth("/api/projects/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title }),
+        signal: abortController.signal,
+      }),
+      timeoutPromise,
+    ]);
+  } catch (error) {
+    if (timeoutTriggered) {
+      throw new Error(PROJECT_CREATE_TIMEOUT_MESSAGE);
+    }
+    throw error;
+  } finally {
+    if (timeoutId) {
+      globalThis.clearTimeout(timeoutId);
+    }
+  }
   const payload = (await response.json().catch(() => ({}))) as CreateProjectPayload;
   const project = toCreatedProjectRecord(payload.project);
   if (!response.ok || !project) {

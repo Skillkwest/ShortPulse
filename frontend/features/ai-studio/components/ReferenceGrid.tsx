@@ -32,7 +32,6 @@ import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/co
 import { useReferenceGridRuntimeScaffold } from "../reference-grid/controllers/useReferenceGridRuntimeScaffold";
 import { useReferenceGridSingleAudioPlaybackController } from "../reference-grid/controllers/useReferenceGridSingleAudioPlaybackController";
 import { useReferenceGridPreviewRuntimeScheduling } from "../reference-grid/controllers/useReferenceGridPreviewRuntime";
-import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
 import {
   REFERENCE_AUTOPLAY_DETACH_DELAY_MS,
@@ -57,7 +56,6 @@ const REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT =
 const REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_TELEMETRY_BACKPRESSURE;
 const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY;
-const DEFAULT_CANVAS_SECTION_TOP_RATIO = 0.3;
 
 /**
  * Displays the reference grid and handles drag/drop + selection behavior.
@@ -99,6 +97,7 @@ function ReferenceGridComponent({
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
   railCanvasProps,
+  isShellResizeActive,
   panelVisibility,
   stylesPanel,
 }: ReferenceGridProps) {
@@ -125,6 +124,8 @@ function ReferenceGridComponent({
     curatedScrollContainerRef,
     curatedGridRef,
     panelRef,
+    railCanvasSectionRef,
+    railCanvasHeaderRef,
     inventoryStackRef,
     curatedSectionRef,
     curatedHeaderRef,
@@ -163,6 +164,8 @@ function ReferenceGridComponent({
     setCuratedVirtualMetrics,
     horizontalSplit,
     stylesSplit,
+    railCanvasSplit,
+    showRailCanvasSection,
     referenceGridStylesStackRef,
     lastRenderCommitAtRef,
     autoplayEnabledIdSet,
@@ -215,47 +218,9 @@ function ReferenceGridComponent({
     onAddCuratedReference,
     onRemoveCuratedReference,
     onReorderCuratedReference,
+    railCanvasProps,
+    isShellResizeActive,
   });
-  const railCanvasSectionRef = React.useRef<HTMLDivElement | null>(null);
-  const railCanvasHeaderRef = React.useRef<HTMLDivElement | null>(null);
-  const [railCanvasHeaderHeightPx, setRailCanvasHeaderHeightPx] = React.useState(24);
-  const showRailCanvasSection = Boolean(railCanvasProps);
-  const railCanvasSplit = useReferenceGridHorizontalSplit({
-    enabled: showRailCanvasSection,
-    containerRef: panelRef,
-    defaultTopRatio: DEFAULT_CANVAS_SECTION_TOP_RATIO,
-    minTopSectionHeightPx: railCanvasHeaderHeightPx,
-    minBottomSectionHeightPx: 120,
-    allRefsSnapTopHeightPx: railCanvasHeaderHeightPx,
-    collapseTopHeightPx: railCanvasHeaderHeightPx,
-    ariaLabel: "Resize Canvas and right-rail sections",
-  });
-  const { snapToInventoryExpanded: snapRailCanvasToInventoryExpanded } = railCanvasSplit;
-  const wasRailCanvasSectionVisibleRef = React.useRef(showRailCanvasSection);
-  React.useEffect(() => {
-    const wasVisible = wasRailCanvasSectionVisibleRef.current;
-    wasRailCanvasSectionVisibleRef.current = showRailCanvasSection;
-    if (!showRailCanvasSection || wasVisible) return;
-    snapRailCanvasToInventoryExpanded();
-  }, [showRailCanvasSection, snapRailCanvasToInventoryExpanded]);
-  React.useEffect(() => {
-    if (!showRailCanvasSection) return;
-    const updateHeaderHeight = () => {
-      const node = railCanvasHeaderRef.current;
-      if (!node) return;
-      const nextHeight = Math.max(24, Math.round(node.offsetHeight));
-      setRailCanvasHeaderHeightPx((previous) => (previous === nextHeight ? previous : nextHeight));
-    };
-    updateHeaderHeight();
-    if (typeof ResizeObserver === "undefined") return;
-    const node = railCanvasHeaderRef.current;
-    if (!node) return;
-    const observer = new ResizeObserver(() => {
-      updateHeaderHeight();
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [showRailCanvasSection]);
   setFreezeInvestigationGauge("referenceGrid.allOutputsCount", allOutputIds.length);
   setFreezeInvestigationGauge("referenceGrid.archivedOutputsCount", archivedOutputs.length);
   setFreezeInvestigationGauge("referenceGrid.projectedOutputsCount", allOutputIds.length);

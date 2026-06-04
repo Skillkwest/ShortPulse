@@ -1,7 +1,7 @@
 import React from "react";
 import { act, fireEvent, render } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { __resetExclusiveSoundPlaybackForTests } from "../../../components/shared/exclusiveSoundPlayback";
 import { projectReferenceGridMediaOutput } from "../../logic/referenceGridMediaOutput";
@@ -38,6 +38,10 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
 describe("useReferenceGridCardRenderController", () => {
   beforeEach(() => {
     __resetExclusiveSoundPlaybackForTests();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   const createAudioControllerStub = () => ({
@@ -177,6 +181,67 @@ describe("useReferenceGridCardRenderController", () => {
 
     expect(audioShell?.getAttribute("style") ?? "").not.toContain("/storage/v1/render/image/");
     expect(audioShell?.getAttribute("style") ?? "").not.toContain("quality=28");
+  });
+
+  it("keeps supabase signed-object audio cover art on the original direct route", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://jwmcytzyhcvacjwqtynn.supabase.co");
+    const companionArtUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/audio-cover.png?token=abc123";
+    const output = createOutput({
+      id: "audio-cover-2",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-cover-2.mp3",
+      companionArtUrl,
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: "https://example.com/audio-cover-2.mp3",
+      isVideoPreview: false,
+      isImagePreview: false,
+      isAudioPreview: true,
+      isPriorityHydration: true,
+      previewQualityBand: "compact" as const,
+      targetLongEdgePx: 320,
+      imageSrc: undefined,
+    };
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 2,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+      })
+    );
+
+    const { container } = render(<>{result.current.allRefsCardNodes}</>);
+    const audioShell = container.querySelector(".reference-card-audio-shell") as HTMLElement | null;
+    const backgroundStyle = audioShell?.getAttribute("style") ?? "";
+
+    expect(backgroundStyle).toContain(encodeURI(companionArtUrl));
+    expect(backgroundStyle).not.toContain("/_next/image?url=");
   });
 
   it("clears active ownership after audio playback ends", () => {

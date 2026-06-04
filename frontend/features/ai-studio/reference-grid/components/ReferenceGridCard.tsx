@@ -194,6 +194,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const [hasPosterImageError, setHasPosterImageError] = React.useState(false);
   const [hasMediaRenderError, setHasMediaRenderError] = React.useState(false);
+  const [loadedPrimaryImageSrc, setLoadedPrimaryImageSrc] = React.useState<string | null>(null);
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
   const saveDisabled =
@@ -251,6 +252,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     normalizedPrimaryImageSrc &&
     ((isImagePreview && cardPreviewUrl) || (hasVideoPosterPreview && !hasPosterImageError))
   );
+  const isPrimaryImageLoadConfirmed = Boolean(
+    normalizedPrimaryImageSrc && loadedPrimaryImageSrc === normalizedPrimaryImageSrc
+  );
+  const primaryImageProbeClass = isPrimaryImageLoadConfirmed ? "" : " is-probing";
   const shouldRenderAudioElement = Boolean(!hasMediaRenderError && audioPreviewUrl);
   const dragImageSrc =
     dragPreviewKind === "image" || hasVideoPosterPreview
@@ -369,18 +374,14 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       setHasPosterImageError(true);
       return;
     }
-    if (effectiveIsLoading) return;
     if (hasMediaRenderError) return;
     setHasMediaRenderError(true);
     markLoaded(item.id, { notifyAutoSave: false });
-  }, [
-    effectiveIsLoading,
-    hasMediaRenderError,
-    hasVideoPosterPreview,
-    item.id,
-    markLoaded,
-    resolvedHoverVideoUrl,
-  ]);
+  }, [hasMediaRenderError, hasVideoPosterPreview, item.id, markLoaded, resolvedHoverVideoUrl]);
+  const handlePrimaryImageLoad = React.useCallback(() => {
+    setLoadedPrimaryImageSrc(normalizedPrimaryImageSrc);
+    markCardMediaLoaded();
+  }, [markCardMediaLoaded, normalizedPrimaryImageSrc]);
 
   return (
     <div
@@ -468,11 +469,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             src={normalizedPrimaryImageSrc}
             data-src={primaryImageDataSrc ?? undefined}
             alt=""
-            className={`reference-card-image reference-card-image--cover ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
+            className={`reference-card-image reference-card-image--cover${primaryImageProbeClass} ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
             loading={imageLoading}
             decoding="async"
             {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
-            onLoad={markCardMediaLoaded}
+            onLoad={handlePrimaryImageLoad}
             onError={handleImageRenderError}
           />
           {renderContainPreview ? (
@@ -482,7 +483,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               data-src={primaryImageDataSrc ?? undefined}
               alt=""
               aria-hidden="true"
-              className={`reference-card-image reference-card-image--contain ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
+              className={`reference-card-image reference-card-image--contain${primaryImageProbeClass} ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
               loading={imageLoading}
               decoding="async"
               {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}

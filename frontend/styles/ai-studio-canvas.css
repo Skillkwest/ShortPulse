@@ -630,6 +630,10 @@
   opacity: 0;
 }
 
+.reference-card-image.is-probing {
+  visibility: hidden;
+}
+
 .reference-card-image--cover {
   opacity: 1;
   transform: scale(1);

@@ -18,11 +18,11 @@ describe("appErrorLogs skip rules", () => {
     expect(result).toEqual({ ok: true, skipped: true, id: null });
   });
 
-  it("keeps actionable ai studio client telemetry in local development", async () => {
+  it("keeps ai studio UI mirror telemetry out of grouped incidents", async () => {
     const result = await writeAppErrorLog({
-      source: "client.ai_studio.ui_error_banner",
+      source: "telemetry.ai_studio.ui_error_banner",
       scope: "app",
-      severity: "medium",
+      severity: "low",
       message: "Upstream error (thinker)",
       route: "/ai-studio",
       stack: null,
@@ -32,7 +32,7 @@ describe("appErrorLogs skip rules", () => {
       },
     });
 
-    expect(result).toEqual({ ok: false, skipped: false, id: null });
+    expect(result).toEqual({ ok: true, skipped: false, id: null });
   });
 
   it("skips hidden-tab local workspace fetch noise", async () => {

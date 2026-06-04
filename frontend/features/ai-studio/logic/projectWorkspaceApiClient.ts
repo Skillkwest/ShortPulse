@@ -9,7 +9,10 @@ import type { AiStudioSessionSnapshot } from "./sessionSnapshot";
 
 export type AiStudioProjectWorkspaceSaveOutcome = {
   status: "saved" | "saved_with_repair_pending";
-  repairStage?: "project_association_backfill";
+  repairStage?:
+    | "owned_id_resolution"
+    | "project_output_display_sync"
+    | "project_association_backfill";
   repairMessage?: string | null;
 };
 

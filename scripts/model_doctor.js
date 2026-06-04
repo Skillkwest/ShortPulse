@@ -535,7 +535,7 @@ function run() {
       }
       seenCharacterModeOrders.add(entry.createCharacterModeOrder);
 
-      if (!pairedModelId) {
+      if (!pairedModelId && entry.supportsTextToImage !== true) {
         errors.push(
           `createCharacterModeOrder requires pairedModelId: ${modelId}`,
         );

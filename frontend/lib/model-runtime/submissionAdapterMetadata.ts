@@ -4,6 +4,7 @@
  */
 export const defaultSubmissionAdapterKeys = [
   "openai-gpt-image-2",
+  "kie-gpt-image-2-text",
   "seedream-text",
   "seedream-v5-lite-text",
   "nano-banana-pro-text",
@@ -14,6 +15,7 @@ export type DefaultSubmissionAdapterKey = (typeof defaultSubmissionAdapterKeys)[
 
 export const imageSubmissionAdapterKeys = [
   "bria-background-remove",
+  "kie-gpt-image-2-edit",
   "nano-banana-pro-edit",
   "nano-banana-2-edit",
   "seedream-edit",

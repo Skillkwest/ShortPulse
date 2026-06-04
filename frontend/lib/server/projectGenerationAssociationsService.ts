@@ -1082,6 +1082,43 @@ const patchSnapshotOutputRow = ({
   };
 };
 
+const patchSnapshotOutputMetadataRow = ({
+  row,
+  projection,
+}: {
+  row: SnapshotRecord;
+  projection: ProjectGenerationProjectionRow;
+}): SnapshotRecord => {
+  const nextPrompt = asTrimmedString(projection.display_prompt);
+  const nextTranscriptText = asTrimmedString(projection.transcript_text);
+  const nextProvider = asTrimmedString(projection.provider);
+  const nextModelId = asTrimmedString(projection.model_id);
+  const nextSourceRef = asTrimmedString(projection.source_ref);
+  const nextTaskId = asTrimmedString(projection.request_id);
+  const nextGenerationId = asTrimmedString(projection.generation_id);
+  const nextGenerationReplay = asRecord(projection.generation_replay);
+  const nextCharacterContext = asRecord(projection.character_context);
+  const nextStyleContext = asRecord(projection.style_context);
+  const nextAspect = asTrimmedString(nextGenerationReplay.aspect);
+  const nextRow = {
+    ...row,
+    prompt: nextPrompt ?? row.prompt ?? "",
+    transcriptText: nextTranscriptText ?? row.transcriptText ?? null,
+    provider: nextProvider ?? row.provider,
+    modelId: nextModelId ?? row.modelId,
+    sourceRef: nextSourceRef ?? row.sourceRef,
+    generationId: nextGenerationId ?? row.generationId,
+    taskId: nextTaskId ?? row.taskId,
+    aspect: nextAspect ?? row.aspect,
+    generationReplay:
+      Object.keys(nextGenerationReplay).length > 0 ? nextGenerationReplay : row.generationReplay,
+    characterContext:
+      Object.keys(nextCharacterContext).length > 0 ? nextCharacterContext : row.characterContext,
+    styleContext: Object.keys(nextStyleContext).length > 0 ? nextStyleContext : row.styleContext,
+  };
+  return JSON.stringify(nextRow) === JSON.stringify(row) ? row : nextRow;
+};
+
 const resolveSnapshotOutputMode = (projection: ProjectGenerationProjectionRow): string => {
   const modelId = asTrimmedString(projection.model_id)?.toLowerCase() ?? "";
   const provider = asTrimmedString(projection.provider)?.toLowerCase() ?? "";
@@ -1393,7 +1430,14 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
           !patchDurableSnapshotRows &&
           hasSnapshotRowDurableDisplayAuthority({ userId, row: normalizedRow })
         ) {
-          return normalizedRow;
+          const metadataPatchedRow = patchSnapshotOutputMetadataRow({
+            row: normalizedRow,
+            projection,
+          });
+          if (metadataPatchedRow !== normalizedRow) {
+            changed = true;
+          }
+          return metadataPatchedRow;
         }
         const projectionGenerationId = asTrimmedString(projection.generation_id);
         const mediaDeliveryGenerationId = generationId ?? projectionGenerationId;

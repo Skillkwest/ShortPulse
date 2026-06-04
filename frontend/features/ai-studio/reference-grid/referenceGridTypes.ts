@@ -84,6 +84,7 @@ export type ReferenceGridProps = {
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
   railCanvasProps?: CanvasPropertiesPanelProps;
+  isShellResizeActive?: boolean;
   panelVisibility?: ReferenceGridPanelVisibility;
   stylesPanel?: {
     isOpen: boolean;

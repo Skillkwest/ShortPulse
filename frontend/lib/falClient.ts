@@ -174,6 +174,7 @@ const fetchWithTimeout = async (
       ...init,
       signal: controller.signal,
       shortpulseLogScope: "generation",
+      shortpulseSkipErrorLogging: init?.shortpulseSkipErrorLogging ?? true,
     });
   } finally {
     window.clearTimeout(timeoutId);

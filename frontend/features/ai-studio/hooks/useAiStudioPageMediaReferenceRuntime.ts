@@ -934,6 +934,124 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   ]);
 
   useEffect(() => {
+    const outputSnapshot = getOutputSnapshot();
+    const projectionOutputs = [
+      ...outputSnapshot.outputOrder
+        .map((id) => outputSnapshot.outputById[id])
+        .filter((item): item is StudioOutput => Boolean(item)),
+      ...outputSnapshot.archivedOutputOrder
+        .map((id) => outputSnapshot.archivedOutputById[id])
+        .filter((item): item is StudioOutput => Boolean(item)),
+    ];
+    const candidates = canvasSessionState.items.flatMap((item) => {
+      if (item.kind !== "video" || !item.outputId || item.posterUrl) return [];
+      const resolvedOutputId =
+        resolveReferenceProjectionIds([item.outputId], projectionOutputs, {
+          preserveUnresolved: true,
+        })[0] ?? item.outputId;
+      const output = getOutputById(resolvedOutputId);
+      if (!output || output.mode !== "video") return [];
+      if (!output.previewPosterStoragePath && !output.previewPosterUrl) return [];
+      return [
+        {
+          item,
+          output,
+          outputId: resolvedOutputId,
+        },
+      ];
+    });
+    if (candidates.length === 0) return;
+
+    let cancelled = false;
+    void Promise.all(
+      candidates.map(async ({ item, output, outputId }) => {
+        try {
+          const displayAuthority = await resolveCanvasStudioOutputMediaDisplayAuthority(output);
+          const resolved = resolveCanvasResolutionFromOutput({
+            output,
+            outputId,
+            mediaId: item.mediaId ?? resolveSavedMediaIdFromOutput(output, 0),
+            fallbackUrl: item.videoUrl,
+            width: item.width,
+            height: item.height,
+            displayAuthority,
+          });
+          return {
+            itemId: item.id,
+            outputId,
+            resolved,
+          };
+        } catch {
+          return null;
+        }
+      })
+    ).then((resolvedCandidates) => {
+      if (cancelled) return;
+      const resolvedByItemId = new Map(
+        resolvedCandidates
+          .filter(
+            (
+              entry
+            ): entry is {
+              itemId: string;
+              outputId: string;
+              resolved: Extract<CanvasDropResolution, { kind: "video" }>;
+            } => Boolean(entry?.resolved && entry.resolved.kind === "video")
+          )
+          .map((entry) => [entry.itemId, entry])
+      );
+      if (resolvedByItemId.size === 0) return;
+
+      let changed = false;
+      const nextItems = canvasSessionState.items.map((item) => {
+        if (item.kind !== "video") return item;
+        const entry = resolvedByItemId.get(item.id);
+        const posterUrl = entry?.resolved.posterUrl?.trim() || null;
+        if (!entry || !posterUrl) return item;
+        const nextMediaId = entry.resolved.mediaId ?? item.mediaId ?? null;
+        const nextTitle = entry.resolved.title ?? item.title ?? null;
+        const nextDurationMs = entry.resolved.durationMs ?? item.durationMs ?? null;
+        if (
+          entry.outputId === item.outputId &&
+          entry.resolved.videoUrl === item.videoUrl &&
+          posterUrl === (item.posterUrl ?? null) &&
+          nextTitle === (item.title ?? null) &&
+          nextDurationMs === (item.durationMs ?? null) &&
+          nextMediaId === (item.mediaId ?? null)
+        ) {
+          return item;
+        }
+        changed = true;
+        return {
+          ...item,
+          outputId: entry.outputId,
+          mediaId: nextMediaId,
+          videoUrl: entry.resolved.videoUrl,
+          posterUrl,
+          title: nextTitle,
+          durationMs: nextDurationMs,
+        };
+      });
+
+      if (!changed) return;
+      hydrateCanvasSessionState({
+        ...canvasSessionState,
+        items: nextItems,
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    canvasSessionState,
+    getOutputById,
+    getOutputSnapshot,
+    hydrateCanvasSessionState,
+    resolveCanvasResolutionFromOutput,
+  ]);
+
+  useEffect(() => {
     const mediaIds = Array.from(
       new Set(
         canvasSessionState.items

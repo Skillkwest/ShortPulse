@@ -1,4 +1,5 @@
 import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   CanvasHarness,
@@ -7,6 +8,11 @@ import {
   createTransfer,
   mockViewportRect,
 } from "./canvasTestHarness";
+
+const canvasWorkspaceCss = readFileSync(
+  `${process.cwd()}/styles/ai-studio-canvas-workspace.css`,
+  "utf8"
+);
 
 const dispatchDropAtPoint = ({
   viewport,
@@ -33,6 +39,13 @@ const dispatchDropAtPoint = ({
     value: clientY,
   });
   fireEvent(viewport, event);
+};
+
+const installCanvasWorkspaceStyles = () => {
+  const style = document.createElement("style");
+  style.textContent = canvasWorkspaceCss;
+  document.head.append(style);
+  return () => style.remove();
 };
 
 const dragMarquee = ({
@@ -185,6 +198,53 @@ describe("Canvas interaction behavior", () => {
       expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
       expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
     });
+  });
+
+  it("keeps text items and text ghosts in absolute canvas positioning", async () => {
+    const removeCanvasWorkspaceStyles = installCanvasWorkspaceStyles();
+    try {
+      render(<CanvasHarness />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/plain": "Positioned text",
+        }),
+        clientX: 220,
+        clientY: 140,
+      });
+
+      const item = await screen.findByTestId(/canvas-item-/);
+      const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
+
+      fireEvent.pointerDown(item, {
+        button: 0,
+        pointerId: 25,
+        clientX: 220,
+        clientY: 140,
+      });
+      fireEvent.pointerMove(item, {
+        pointerId: 25,
+        clientX: 260,
+        clientY: 175,
+      });
+
+      const ghost = await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+      expect(window.getComputedStyle(item).position).toBe("absolute");
+      expect(window.getComputedStyle(ghost).position).toBe("absolute");
+      expect(Number(ghost.getAttribute("data-y"))).toBeGreaterThan(
+        Number(item.getAttribute("data-y"))
+      );
+
+      fireEvent.pointerCancel(item, {
+        pointerId: 25,
+        clientX: 260,
+        clientY: 175,
+      });
+    } finally {
+      removeCanvasWorkspaceStyles();
+    }
   });
 
   it("does not commit stale ghost movement when the pointer returns to the start", async () => {

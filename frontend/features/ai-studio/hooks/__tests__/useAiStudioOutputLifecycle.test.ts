@@ -134,6 +134,52 @@ describe("useAiStudioOutputLifecycle", () => {
     );
   });
 
+  it("keeps validation failures in UI state without reporting an incident", () => {
+    const { result } = renderHook(() =>
+      useHarness([makeOutput("out-1", { taskState: "running" })], "out-1")
+    );
+
+    act(() => {
+      result.current.notifyGenerationFailure(
+        "out-1",
+        "Reference image required.",
+        "Reference image required.",
+        {
+          reasonCode: "USER_INPUT_VALIDATION",
+          telemetryMode: "validation",
+        }
+      );
+    });
+
+    expect(result.current.outputs[0]?.taskState).toBe("fail");
+    expect(result.current.outputs[0]?.errorMessage).toBe("Reference image required.");
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps already-reported failures in UI state without reporting a generic workflow incident", () => {
+    const { result } = renderHook(() =>
+      useHarness([makeOutput("out-1", { taskState: "running" })], "out-1")
+    );
+
+    act(() => {
+      result.current.notifyGenerationFailure(
+        "out-1",
+        "Generation failed to start. Please retry.",
+        "Submit route completed without starting provider polling.",
+        {
+          reasonCode: "SUBMIT_NOT_STARTED",
+          telemetryMode: "state_only",
+        }
+      );
+    });
+
+    expect(result.current.outputs[0]?.taskState).toBe("fail");
+    expect(result.current.outputs[0]?.errorDetail).toBe(
+      "Submit route completed without starting provider polling."
+    );
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+  });
+
   it("normalizes explicit-content failures into shared user-facing copy", () => {
     const { result } = renderHook(() =>
       useHarness([makeOutput("out-1", { taskState: "running" })], "out-1")

@@ -53,6 +53,7 @@ type UseExpertEditPanelShellRuntimeArgs = {
   isGenerateDisabled: boolean;
   selectedLayerImageUrl: string | null;
   isRemoveBackgroundPending: boolean;
+  removeBackgroundCostCredits: number | null;
   populatedLayerCount: number;
   isFlattenPending: boolean;
   setEditingLayerValue: React.Dispatch<React.SetStateAction<string>>;
@@ -134,6 +135,7 @@ export function useExpertEditPanelShellRuntime({
   isGenerateDisabled,
   selectedLayerImageUrl,
   isRemoveBackgroundPending,
+  removeBackgroundCostCredits,
   populatedLayerCount,
   isFlattenPending,
   setEditingLayerValue,
@@ -205,6 +207,7 @@ export function useExpertEditPanelShellRuntime({
           isGenerateDisabled={isGenerateDisabled}
           selectedLayerImageUrl={selectedLayerImageUrl}
           isRemoveBackgroundPending={isRemoveBackgroundPending}
+          removeBackgroundCostCredits={removeBackgroundCostCredits}
           populatedLayerCount={populatedLayerCount}
           isFlattenPending={isFlattenPending}
           setEditingLayerValue={setEditingLayerValue}
@@ -225,6 +228,7 @@ export function useExpertEditPanelShellRuntime({
       isGenerateDisabled={isGenerateDisabled}
       selectedLayerImageUrl={selectedLayerImageUrl}
       isRemoveBackgroundPending={isRemoveBackgroundPending}
+      removeBackgroundCostCredits={removeBackgroundCostCredits}
       populatedLayerCount={populatedLayerCount}
       isFlattenPending={isFlattenPending}
       handleManualFlatten={() => Promise.resolve(handleManualFlatten())}

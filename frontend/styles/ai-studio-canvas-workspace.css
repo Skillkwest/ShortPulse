@@ -278,7 +278,7 @@
 .canvas-scene-item--text {
   min-height: 120px;
   padding: 16px 16px 40px;
-  position: relative;
+  position: absolute;
   overflow: visible;
 }
 

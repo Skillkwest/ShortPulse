@@ -20,6 +20,7 @@ import type {
   SubmissionModelConfig,
   SubmissionPatch,
 } from "./types";
+import type { NotifyGenerationFailure } from "../generationFailureReporting";
 
 export type DispatchSubmissionByRouteParams = {
   id: string;
@@ -54,7 +55,7 @@ export type DispatchSubmissionByRouteParams = {
   klingCfgScale: number;
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
   klingElements: AiStudioKlingElement[];
-  notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
+  notifyGenerationFailure: NotifyGenerationFailure;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   startPollingWithGeneration: (
     taskId: string | undefined,

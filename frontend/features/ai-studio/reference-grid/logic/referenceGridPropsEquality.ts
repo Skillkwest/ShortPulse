@@ -165,6 +165,9 @@ export const areReferenceGridPropsEqual = (
   if (!areRailCanvasPropsEqual(previous.railCanvasProps, next.railCanvasProps)) {
     return false;
   }
+  if (previous.isShellResizeActive !== next.isShellResizeActive) {
+    return false;
+  }
   if (!areStylesPanelsEqual(previous.stylesPanel, next.stylesPanel)) {
     return false;
   }

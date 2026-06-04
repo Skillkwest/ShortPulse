@@ -5,12 +5,16 @@
 
 export const KIE_VEO_31_FAST_I2V_MODEL_ID = "kie-ai/veo-3.1-fast-i2v";
 export const KIE_KLING_30_MODEL_ID = "kie-ai/kling-3.0";
+export const KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID = "kie-ai/gpt-image-2-text-to-image";
+export const KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID = "kie-ai/gpt-image-2-image-to-image";
 export const KIE_SEEDANCE_2_MODEL_ID = "kie-ai/seedance-2";
 export const KIE_SEEDANCE_2_FAST_MODEL_ID = "kie-ai/seedance-2-fast";
 
 export const KIE_SUPPORTED_MODEL_IDS = [
   KIE_VEO_31_FAST_I2V_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
 ] as const;

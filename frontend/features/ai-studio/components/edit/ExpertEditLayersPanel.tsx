@@ -21,6 +21,7 @@ type ExpertEditLayersPanelProps = {
   isGenerateDisabled: boolean;
   selectedLayerImageUrl: string | null;
   isRemoveBackgroundPending: boolean;
+  removeBackgroundCostCredits?: number | null;
   populatedLayerCount: number;
   isFlattenPending: boolean;
   setEditingLayerValue: (value: string) => void;
@@ -43,6 +44,7 @@ type ExpertEditLayerUtilityActionsProps = {
   isGenerateDisabled: boolean;
   selectedLayerImageUrl: string | null;
   isRemoveBackgroundPending: boolean;
+  removeBackgroundCostCredits?: number | null;
   populatedLayerCount: number;
   isFlattenPending: boolean;
   onFlatten: () => void;
@@ -56,6 +58,7 @@ export function ExpertEditLayerUtilityActions({
   isGenerateDisabled,
   selectedLayerImageUrl,
   isRemoveBackgroundPending,
+  removeBackgroundCostCredits = null,
   populatedLayerCount,
   isFlattenPending,
   onFlatten,
@@ -69,7 +72,8 @@ export function ExpertEditLayerUtilityActions({
     .filter((action) => visibleActionIds.includes(action.id))
     .map((action) => {
       const Icon = action.icon;
-      const actionCreditCost = action.creditCost;
+      const actionCreditCost =
+        action.id === REMOVE_BACKGROUND_ACTION_ID ? removeBackgroundCostCredits : action.creditCost;
       const isFlattenAction = action.id === FLATTEN_IMAGE_ACTION_ID;
       const isFlattenActionPending = isFlattenAction && isFlattenPending;
       const isActionDisabled = Boolean(
@@ -140,6 +144,7 @@ export function ExpertEditLayersPanel({
   isGenerateDisabled,
   selectedLayerImageUrl,
   isRemoveBackgroundPending,
+  removeBackgroundCostCredits = null,
   populatedLayerCount,
   isFlattenPending,
   setEditingLayerValue,
@@ -249,6 +254,7 @@ export function ExpertEditLayersPanel({
                   isGenerateDisabled={isGenerateDisabled}
                   selectedLayerImageUrl={selectedLayerImageUrl}
                   isRemoveBackgroundPending={isRemoveBackgroundPending}
+                  removeBackgroundCostCredits={removeBackgroundCostCredits}
                   populatedLayerCount={populatedLayerCount}
                   isFlattenPending={isFlattenPending}
                   onFlatten={onFlatten}
@@ -267,6 +273,7 @@ export function ExpertEditLayersPanel({
           isGenerateDisabled={isGenerateDisabled}
           selectedLayerImageUrl={selectedLayerImageUrl}
           isRemoveBackgroundPending={isRemoveBackgroundPending}
+          removeBackgroundCostCredits={removeBackgroundCostCredits}
           populatedLayerCount={populatedLayerCount}
           isFlattenPending={isFlattenPending}
           onFlatten={onFlatten}

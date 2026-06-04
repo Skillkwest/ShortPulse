@@ -17,6 +17,7 @@ import {
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../../../lib/model-runtime/falModelIds";
+import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../../../../../lib/model-runtime/providerModelIds";
 import {
   handleDefaultModelSubmission,
   resolveDefaultSubmissionAdapterKey,
@@ -37,6 +38,7 @@ const falClientMocks = vi.hoisted(() => ({
   submitFalSeedreamEdit: vi.fn(),
   submitFalSeedreamV5Lite: vi.fn(),
   submitFalSeedreamV5LiteEdit: vi.fn(),
+  submitKieGptImage2Edit: vi.fn(),
 }));
 
 vi.mock("../../../../../lib/falClient", () => {
@@ -62,6 +64,8 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitFalNanoBanana2Edit(payload);
       case FAL_NANO_BANANA_PRO_EDIT_MODEL_ID:
         return falClientMocks.submitFalNanoBananaProEdit(payload);
+      case KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID:
+        return falClientMocks.submitKieGptImage2Edit(payload);
       default:
         return Promise.reject(new Error(`Unhandled queued submit model ${modelId}`));
     }
@@ -82,6 +86,7 @@ const {
   submitFalSeedreamEdit,
   submitFalSeedreamV5Lite,
   submitFalSeedreamV5LiteEdit,
+  submitKieGptImage2Edit,
 } = falClientMocks;
 
 type Route = "default" | "image" | "video";
@@ -94,6 +99,7 @@ type CaseConfig = {
   expectedSafetyTolerance?: "5" | 5;
   expectedReferenceField?:
     | "image_urls"
+    | "input_urls"
     | "image_url"
     | "start_image_url"
     | "first_last_frame_urls"
@@ -164,6 +170,12 @@ const CASES: Record<string, CaseConfig> = {
     expectedSafetyChecker: true,
     expectedReferenceField: "image_urls",
   },
+  [KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID]: {
+    route: "image",
+    submitName: "submitKieGptImage2Edit",
+    requestedResolution: "4K",
+    expectedReferenceField: "input_urls",
+  },
 };
 
 const parseAspectRatio = (aspect: string): number => {
@@ -221,6 +233,7 @@ const submitSpyByName = {
   submitFalSeedreamEdit: vi.mocked(submitFalSeedreamEdit),
   submitFalSeedreamV5Lite: vi.mocked(submitFalSeedreamV5Lite),
   submitFalSeedreamV5LiteEdit: vi.mocked(submitFalSeedreamV5LiteEdit),
+  submitKieGptImage2Edit: vi.mocked(submitKieGptImage2Edit),
 } as const;
 
 const resetFalSubmitMocks = () => {
@@ -264,7 +277,7 @@ describe("task submission payload matrix", () => {
       .filter(
         (config) =>
           config.mediaType !== "text" &&
-          config.provider === "fal" &&
+          (config.provider === "fal" || config.id === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID) &&
           config.lifecycle === "active" &&
           config.surfaces.includes("runtime")
       )
@@ -338,6 +351,8 @@ describe("task submission payload matrix", () => {
 
       if (config.expectedReferenceField === "image_urls") {
         expect(Array.isArray(payload.image_urls)).toBe(true);
+      } else if (config.expectedReferenceField === "input_urls") {
+        expect(Array.isArray(payload.input_urls)).toBe(true);
       } else if (config.expectedReferenceField === "image_url") {
         expect(typeof payload.image_url).toBe("string");
       } else if (config.expectedReferenceField === "start_image_url") {

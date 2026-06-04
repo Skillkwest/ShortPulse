@@ -9,6 +9,7 @@ import {
   OPENAI_GPT_IMAGE_2_MODEL_ID,
   OPENAI_GPT_IMAGE_2_UI_ALLOWED_RESOLUTIONS,
 } from "../../../lib/model-runtime/openAiImage2";
+export { normalizeKieGptImage2ResolutionForAspect } from "../../../lib/model-runtime/kieGptImage2";
 
 export const MODEL_DEFAULT_IMAGE_RESOLUTION = "model_default";
 export const SEEDREAM_AUTO_2K_IMAGE_SIZE = "auto_2K";

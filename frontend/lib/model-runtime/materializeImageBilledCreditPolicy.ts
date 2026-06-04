@@ -29,6 +29,12 @@ const CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
     unitBasis: "per_image",
     quantityDrivers: ["generation_count", "input_image_count"],
   },
+  "kie-gpt-image-2-per-image": {
+    mode: "runtime_quantity_derived",
+    workflow: "create_image",
+    unitBasis: "per_image",
+    quantityDrivers: ["generation_count"],
+  },
   "nano-banana-2-per-image": {
     mode: "runtime_quantity_derived",
     workflow: "create_image",

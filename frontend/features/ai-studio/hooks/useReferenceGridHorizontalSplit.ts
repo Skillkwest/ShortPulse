@@ -134,6 +134,7 @@ export const useReferenceGridHorizontalSplit = ({
   const [topRatio, setTopRatio] = useState(() =>
     clamp(defaultTopRatio, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO)
   );
+  const [isResizing, setIsResizing] = useState(false);
   const topRatioRef = useRef(topRatio);
   const containerHeightRef = useRef(0);
   const observedContainerHeightRef = useRef(0);
@@ -144,6 +145,7 @@ export const useReferenceGridHorizontalSplit = ({
       detachPointerListenersRef.current = null;
     }
     dragSessionRef.current = null;
+    setIsResizing(false);
   }, []);
 
   useEffect(() => stopResizing, [stopResizing]);
@@ -289,6 +291,7 @@ export const useReferenceGridHorizontalSplit = ({
         pointerId: event.pointerId,
         containerHeight: height,
       };
+      setIsResizing(true);
 
       const handlePointerStop = (nativeEvent: PointerEvent) => {
         const session = dragSessionRef.current;
@@ -562,6 +565,7 @@ export const useReferenceGridHorizontalSplit = ({
     bottomRatio: 1 - topRatio,
     topSectionHeightPx: containerHeightPx > 0 ? topRatio * containerHeightPx : 0,
     bottomSectionHeightPx: containerHeightPx > 0 ? (1 - topRatio) * containerHeightPx : 0,
+    isResizing,
     topSectionStyle,
     bottomSectionStyle,
     isAllRefsExpanded,

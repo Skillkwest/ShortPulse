@@ -63,6 +63,7 @@ export type ExpertEditPanelViewProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
   costCredits?: number | null;
+  removeBackgroundCostCredits?: number | null;
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
   isPrimaryStageGenerating?: boolean;
@@ -79,9 +80,13 @@ export type ExpertEditPanelViewProps = {
   >;
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   selectedPresetIds?: readonly ExpertEditPresetId[];
-  onSelectedPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
+  onSelectedPresetIdsChange?: (
+    presetIds: ExpertEditPresetId[]
+  ) => void | boolean | Promise<boolean>;
   customPresetOverrides?: ExpertEditCustomPresetOverrides;
-  onCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
+  onCustomPresetOverridesChange?: (
+    overrides: ExpertEditCustomPresetOverrides
+  ) => void | boolean | Promise<boolean>;
   systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[];
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;
@@ -132,7 +137,7 @@ export const editLayerUtilityActions = [
     icon: MagicWand,
     buttonClassName:
       "edit-expert-preset-action-btn--compose-image edit-expert-preset-action-btn--remove-bg",
-    creditCost: 3,
+    creditCost: null,
   },
 ] as const;
 

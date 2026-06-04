@@ -63,7 +63,7 @@ type SupabaseMockOptions = {
   generationReadError?: string;
   publicationError?: string;
   mediaRowReadError?: string;
-  workspaceUpsertError?: string;
+  workspaceUpsertError?: string | Record<string, unknown>;
 };
 
 const createSupabaseMock = ({
@@ -374,7 +374,12 @@ const createSupabaseMock = ({
                 return mutableWorkspaceRow;
               })()
             : null,
-        error: workspaceUpsertError ? { message: workspaceUpsertError } : null,
+        error:
+          workspaceUpsertError == null
+            ? null
+            : typeof workspaceUpsertError === "string"
+              ? { message: workspaceUpsertError }
+              : workspaceUpsertError,
       })),
     })),
   }));
@@ -1331,8 +1336,9 @@ describe("projectWorkspaceStatesService", () => {
       previewUrl: `https://cdn.example.com/pathological-${index + 1}.png`,
       resultUrls: [`https://cdn.example.com/pathological-${index + 1}.png`],
       status: "ready",
-      width: 1024,
-      height: 768,
+      width: index === 0 ? 1024.8 : 1024,
+      height: index === 0 ? 768.4 : 768,
+      durationMs: index === 0 ? 333.9 : undefined,
     }));
     const snapshot = {
       schemaVersion: 2,
@@ -1389,6 +1395,12 @@ describe("projectWorkspaceStatesService", () => {
       mediaSource: "library",
     });
     expect(outputDisplayUpsert).toHaveBeenCalled();
+    expect(outputDisplayUpsert.mock.calls[0]?.[0]?.[0]).toMatchObject({
+      output_id: "pathological-output-1",
+      width: 1024,
+      height: 768,
+      duration_ms: 333,
+    });
   });
 
   it("retains quick-slot generated outputs when ownership is projection-backed during workspace save", async () => {
@@ -2309,6 +2321,218 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
+  it("preserves Supabase plain-object workspace upsert errors for actionable diagnostics", async () => {
+    createSupabaseMock({
+      workspaceUpsertError: {
+        message: "duplicate key value violates unique constraint",
+        details: "Key (project_id) already exists.",
+        code: "23505",
+      },
+    });
+
+    await expect(
+      upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          meta: {
+            generatedAt: "2026-04-23T01:00:00.000Z",
+            checksum: "fnv1a32:plain-error",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Project prompt",
+          },
+          outputs: {
+            active: [],
+            archived: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      })
+    ).rejects.toThrow(
+      "Project workspace save failed during workspace upsert: duplicate key value violates unique constraint Key (project_id) already exists. 23505"
+    );
+  });
+
+  it("returns repair-pending save outcomes when save-side generation authority resolution degrades", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { workspaceUpsert } = createSupabaseMock({
+      generationReadError: "upstream request timeout",
+    });
+
+    try {
+      await expect(
+        upsertProjectWorkspaceStateForUser({
+          userId: "user-1",
+          projectId: "project-1",
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-1",
+            updatedAt: "2026-04-23T01:00:00.000Z",
+            meta: {
+              generatedAt: "2026-04-23T01:00:00.000Z",
+              checksum: "fnv1a32:authority-degraded",
+            },
+            workspace: {
+              selectedTool: "create",
+              standardPrompt: "Project prompt",
+            },
+            outputs: {
+              active: [
+                {
+                  id: `generated:${GENERATION_ID_1}`,
+                  generationId: GENERATION_ID_1,
+                  taskId: "task-1",
+                  sourceRef: "source-1",
+                  mode: "image",
+                },
+              ],
+              archived: [],
+            },
+            agent: {
+              messages: [],
+              input: "",
+              latestAgentPrompt: null,
+              promptOrigin: "manual",
+              chatModeEnabled: false,
+              pulseWorkflowSession: null,
+            },
+          },
+        })
+      ).resolves.toMatchObject({
+        saveOutcome: {
+          status: "saved_with_repair_pending",
+          repairStage: "owned_id_resolution",
+          repairMessage:
+            "Project workspace save failed during owned id resolution: upstream request timeout",
+        },
+      });
+
+      expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
+        expect.objectContaining({
+          projectId: "project-1",
+          stage: "owned id resolution",
+          error:
+            "Project workspace save failed during owned id resolution: upstream request timeout",
+        })
+      );
+      expect(writeAppErrorLogMock).toHaveBeenCalledWith({
+        source: "telemetry.ai_studio.project_workspace.repair_pending",
+        message: "Project workspace save completed, but follow-up project repair is still pending.",
+        userId: "user-1",
+        statusCode: 200,
+        metadata: {
+          project_id: "project-1",
+          repair_stage: "owned_id_resolution",
+          save_outcome: "saved_with_repair_pending",
+          repair_message:
+            "Project workspace save failed during owned id resolution: upstream request timeout",
+        },
+      });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("returns repair-pending save outcomes when output display sync fails after the checkpoint write", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { workspaceUpsert, outputDisplayUpsert } = createSupabaseMock({
+      outputDisplayUpsertError: "invalid input syntax for type integer",
+    });
+
+    try {
+      await expect(
+        upsertProjectWorkspaceStateForUser({
+          userId: "user-1",
+          projectId: "project-1",
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-1",
+            updatedAt: "2026-04-23T01:00:00.000Z",
+            meta: {
+              generatedAt: "2026-04-23T01:00:00.000Z",
+              checksum: "fnv1a32:display-sync-failure",
+            },
+            workspace: {
+              selectedTool: "create",
+              standardPrompt: "Project prompt",
+            },
+            outputs: {
+              active: [
+                {
+                  id: "library-1",
+                  savedMediaIds: [MEDIA_ID_1],
+                  prompt: "Display prompt",
+                  width: 1024.8,
+                  height: 768.4,
+                  durationMs: 333.9,
+                },
+              ],
+              archived: [],
+            },
+            agent: {
+              messages: [],
+              input: "",
+              latestAgentPrompt: null,
+              promptOrigin: "manual",
+              chatModeEnabled: false,
+              pulseWorkflowSession: null,
+            },
+          },
+        })
+      ).resolves.toMatchObject({
+        saveOutcome: {
+          status: "saved_with_repair_pending",
+          repairStage: "project_output_display_sync",
+          repairMessage:
+            "Project workspace save failed during project output display sync: invalid input syntax for type integer",
+        },
+      });
+
+      expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+      expect(outputDisplayUpsert).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
+        expect.objectContaining({
+          projectId: "project-1",
+          stage: "project output display sync",
+          error: "invalid input syntax for type integer",
+        })
+      );
+      expect(writeAppErrorLogMock).toHaveBeenCalledWith({
+        source: "telemetry.ai_studio.project_workspace.repair_pending",
+        message: "Project workspace save completed, but follow-up project repair is still pending.",
+        userId: "user-1",
+        statusCode: 200,
+        metadata: {
+          project_id: "project-1",
+          repair_stage: "project_output_display_sync",
+          save_outcome: "saved_with_repair_pending",
+          repair_message:
+            "Project workspace save failed during project output display sync: invalid input syntax for type integer",
+        },
+      });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("accepts richer agent attachment fields while still sanitizing project workspace saves", async () => {
     createSupabaseMock();
 
@@ -2697,6 +2921,141 @@ describe("projectWorkspaceStatesService", () => {
     // One read canonicalization pass resolves both generation ids and runtime request ids.
     // A second post-convergence canonicalization would repeat these low-level ownership reads.
     expect(generationIdInMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores generated output metadata from projection while preserving durable display rows", async () => {
+    const generationReplay = {
+      version: 2,
+      mode: "image",
+      submitTool: "create",
+      modelId: "fal-ai/seedream",
+      displayPrompt: "Durable display row prompt restored from projection",
+      submissionPrompt: "Durable display row prompt restored from projection",
+      aspect: "16:9",
+      imageResolution: "2K",
+      referenceInputs: [],
+      internalMediaRefs: [],
+      capturedAt: "2026-06-03T12:00:00.000Z",
+    };
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-durable-display-metadata",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "generated-display-durable-1",
+              mode: "image",
+              mediaSource: "generated",
+              generationId: GENERATION_ID_2,
+            },
+          ],
+          archived: [],
+          activeOutputId: "generated-display-durable-1",
+          curatedReferenceIds: ["generated-display-durable-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "generated-display-durable-1",
+          version: 2,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "generated",
+          created_at: "2026-06-03T11:55:00.000Z",
+          generation_id: GENERATION_ID_2,
+          prompt_id: null,
+          task_id: "task-generated-display-durable-1",
+          source_ref: "source-generated-display-durable-1",
+          generation_trace_id: null,
+          preview_text: null,
+          display_prompt_summary: null,
+          mime_type: "image/png",
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: "user-1/generated/existing-display-preview.png",
+          full_storage_path: "user-1/generated/existing-display-full.png",
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://expired.example.com/generated-display-preview.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://expired.example.com/generated-display-full.png"],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: "success",
+          queue_state: "dispatched",
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [GENERATION_ID_2],
+      recentGenerationIds: [],
+      generationRows: [
+        {
+          id: GENERATION_ID_2,
+          request_id: "task-generated-display-durable-1",
+        },
+      ],
+      projectionRows: [
+        {
+          generation_id: GENERATION_ID_2,
+          request_id: "task-generated-display-durable-1",
+          source_ref: "source-generated-display-durable-1",
+          preview_url: "https://cdn.example.com/generated-display-preview.png",
+          result_urls: ["https://cdn.example.com/generated-display-full.png"],
+          preview_storage_path: "user-1/generated/projection-display-preview.png",
+          full_storage_path: "user-1/generated/projection-display-full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: generationReplay.displayPrompt,
+          provider: "fal",
+          model_id: "fal-ai/seedream",
+          generation_replay: generationReplay,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: `generated:${GENERATION_ID_2}`,
+          generationId: GENERATION_ID_2,
+          prompt: generationReplay.displayPrompt,
+          modelId: "fal-ai/seedream",
+          aspect: "16:9",
+          generationReplay,
+          previewStoragePath: "user-1/generated/existing-display-preview.png",
+          fullStoragePath: "user-1/generated/existing-display-full.png",
+        }),
+      ],
+      curatedReferenceIds: [`generated:${GENERATION_ID_2}`],
+    });
   });
 
   it("does not overwrite newer display rows when an older compatibility snapshot arrives", async () => {

@@ -9,10 +9,12 @@ const ASPECT_EXPANDED_PRICING_STRATEGIES = new Set<string>([
   "fal-fill-per-mp",
   "fal-flux-kontext-inpaint-per-mp",
   "gpt-image-2-per-image",
+  "kie-gpt-image-2-per-image",
 ]);
 
 const RESOLUTION_EXPANDED_PRICING_STRATEGIES = new Set<string>([
   "gpt-image-2-per-image",
+  "kie-gpt-image-2-per-image",
   "kling-3-per-second",
   "nano-banana-2-per-image",
   "nano-banana-per-image",

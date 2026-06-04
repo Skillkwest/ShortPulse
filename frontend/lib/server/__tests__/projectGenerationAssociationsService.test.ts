@@ -1416,6 +1416,126 @@ describe("associateGenerationWithProjectForUser", () => {
     );
   });
 
+  it("hydrates metadata for durable generated rows without overwriting media delivery", async () => {
+    const generationReplay = {
+      version: 2,
+      mode: "image",
+      submitTool: "create",
+      modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      displayPrompt: "Projection prompt restored for detail modal",
+      submissionPrompt: "Projection prompt restored for detail modal",
+      aspect: "16:9",
+      imageResolution: "2K",
+      referenceInputs: [],
+      internalMediaRefs: [],
+      capturedAt: "2026-04-18T16:13:00.000Z",
+    };
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1", updated_at: "2026-04-18T16:30:00.000Z" }],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1", updated_at: "2026-04-18T16:30:00.000Z" }],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-1",
+          updated_at: "2026-04-18T16:13:00.000Z",
+          request_id: "req-1",
+          source_ref: "source-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: generationReplay.displayPrompt,
+          preview_url: "https://fal.test/generated.png",
+          result_urls: ["https://fal.test/generated.png"],
+          saved_media_ids: ["projection-media-1"],
+          save_state: "saved",
+          preview_storage_path: "user-1/generations/images/generation-1/projection-preview.png",
+          full_storage_path: "user-1/generations/images/generation-1/projection-full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          generation_replay: generationReplay,
+          character_context: { applied: true, characterId: "character-1" },
+          style_context: { applied: true, styleId: "style-1" },
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, started_at, created_at, updated_at") {
+        return recentProjectionBuilder;
+      }
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-1",
+              generationId: "generation-1",
+              prompt: "",
+              saveState: "idle",
+              status: "ready",
+              savedMediaIds: ["existing-media-1"],
+              previewUrl: "https://existing.example/generated-preview.png",
+              resultUrls: ["https://existing.example/generated-full.png"],
+              previewStoragePath: "user-1/generations/images/generation-1/existing-preview.png",
+              fullStoragePath: "user-1/generations/images/generation-1/existing-full.png",
+            },
+          ],
+          archived: [],
+        },
+      },
+      options: {
+        patchDurableSnapshotRows: false,
+      },
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [
+            expect.objectContaining({
+              id: "generated-1",
+              generationId: "generation-1",
+              taskId: "req-1",
+              sourceRef: "source-1",
+              provider: "fal",
+              modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+              prompt: generationReplay.displayPrompt,
+              aspect: "16:9",
+              generationReplay,
+              characterContext: { applied: true, characterId: "character-1" },
+              styleContext: { applied: true, styleId: "style-1" },
+              saveState: "idle",
+              savedMediaIds: ["existing-media-1"],
+              previewUrl: "https://existing.example/generated-preview.png",
+              resultUrls: ["https://existing.example/generated-full.png"],
+              previewStoragePath: "user-1/generations/images/generation-1/existing-preview.png",
+              fullStoragePath: "user-1/generations/images/generation-1/existing-full.png",
+            }),
+          ],
+        }),
+      })
+    );
+  });
+
   it("hydrates project-route generated image delivery from published media rows", async () => {
     const associationBuilder = createAwaitableSelectBuilder({
       data: [{ generation_id: "generation-image-published-1" }],

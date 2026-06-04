@@ -6,10 +6,13 @@ import { useReferenceGridVirtualMetricsController } from "../useReferenceGridVir
 class MockResizeObserver {
   static instanceCount = 0;
   static disconnectCount = 0;
+  private static callbacks = new Set<ResizeObserverCallback>();
   private disconnected = false;
+  private callback: ResizeObserverCallback;
 
   constructor(callback: ResizeObserverCallback) {
-    void callback;
+    this.callback = callback;
+    MockResizeObserver.callbacks.add(callback);
     MockResizeObserver.instanceCount += 1;
   }
 
@@ -24,13 +27,21 @@ class MockResizeObserver {
   disconnect() {
     if (this.disconnected) return undefined;
     this.disconnected = true;
+    MockResizeObserver.callbacks.delete(this.callback);
     MockResizeObserver.disconnectCount += 1;
     return undefined;
+  }
+
+  static trigger() {
+    for (const callback of MockResizeObserver.callbacks) {
+      callback([], {} as ResizeObserver);
+    }
   }
 
   static reset() {
     MockResizeObserver.instanceCount = 0;
     MockResizeObserver.disconnectCount = 0;
+    MockResizeObserver.callbacks.clear();
   }
 }
 
@@ -68,6 +79,7 @@ type HarnessProps = {
   outputsLength: number;
   curatedOutputsLength: number;
   perfDegradeLevel?: 0 | 1 | 2;
+  suspendMeasurements?: boolean;
   outputIds?: string[];
   curatedOutputIds?: string[];
 };
@@ -80,6 +92,7 @@ const useHarness = ({
   outputsLength,
   curatedOutputsLength,
   perfDegradeLevel = 0,
+  suspendMeasurements = false,
   outputIds,
   curatedOutputIds,
 }: HarnessProps) => {
@@ -120,6 +133,7 @@ const useHarness = ({
     outputIds: resolvedOutputIds,
     curatedOutputIds: resolvedCuratedOutputIds,
     perfDegradeLevel,
+    suspendMeasurements,
     scrollContainerRef,
     gridRef,
     curatedScrollContainerRef,
@@ -294,5 +308,60 @@ describe("useReferenceGridVirtualMetricsController", () => {
 
     expect(result.current.virtualMetrics.scrollTop).toBe(0);
     expect(result.current.scrollNode.scrollTop).toBe(0);
+  });
+
+  it("skips resize measurements while suspended and resyncs once resumed", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+
+    const { result, rerender } = renderHook(
+      ({ suspendMeasurements }: HarnessProps) =>
+        useHarness({
+          isWideLayout: false,
+          outputsLength: 80,
+          curatedOutputsLength: 0,
+          suspendMeasurements,
+        }),
+      {
+        initialProps: {
+          isWideLayout: false,
+          outputsLength: 80,
+          curatedOutputsLength: 0,
+          suspendMeasurements: false,
+        },
+      }
+    );
+
+    expect(result.current.virtualMetrics.scrollTop).toBe(12);
+
+    rerender({
+      isWideLayout: false,
+      outputsLength: 80,
+      curatedOutputsLength: 0,
+      suspendMeasurements: true,
+    });
+
+    act(() => {
+      result.current.scrollNode.scrollTop = 240;
+      MockResizeObserver.trigger();
+    });
+
+    expect(result.current.virtualMetrics.scrollTop).toBe(12);
+
+    rerender({
+      isWideLayout: false,
+      outputsLength: 80,
+      curatedOutputsLength: 0,
+      suspendMeasurements: false,
+    });
+
+    expect(result.current.virtualMetrics.scrollTop).toBe(240);
+    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
   });
 });

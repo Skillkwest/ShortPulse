@@ -35,6 +35,7 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
   resolveRenderableLayerTransform: (layer: ExpertEditLayer) => LayerTransform;
   isFlattenPending: boolean;
   isRemoveBackgroundPending: boolean;
+  removeBackgroundCostCredits: number | null;
   isPrimaryStageGenerating: boolean;
   renderSelectedLayerTransformOverlay: (
     scope: "inline" | "modal",
@@ -131,6 +132,7 @@ export function useExpertEditStageWorkspaceRuntime({
   resolveRenderableLayerTransform,
   isFlattenPending,
   isRemoveBackgroundPending,
+  removeBackgroundCostCredits,
   isPrimaryStageGenerating,
   renderSelectedLayerTransformOverlay,
   inlineStageInteractionRouter,
@@ -335,6 +337,7 @@ export function useExpertEditStageWorkspaceRuntime({
         isGenerateDisabled={isGenerateDisabled}
         selectedLayerImageUrl={selectedLayerImageUrl}
         isRemoveBackgroundPending={isRemoveBackgroundPending}
+        removeBackgroundCostCredits={removeBackgroundCostCredits}
         populatedLayerCount={populatedLayerCount}
         isFlattenPending={isFlattenPending}
         setEditingLayerValue={setEditingLayerValue}

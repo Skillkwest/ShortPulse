@@ -7,7 +7,10 @@ import {
   resolveAdaptiveSourceKind,
   type AdaptiveSurface,
 } from "../../../lib/adaptive-media";
-import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
+import {
+  isSupabaseObjectSignedStorageUrl,
+  isSupabaseRenderImageUrl,
+} from "../../../lib/mediaPreviewTrustPolicy";
 
 type MediaLibraryAdaptiveSurface = Extract<
   AdaptiveSurface,
@@ -32,14 +35,6 @@ const isVideoFile = (fileType?: string | null): boolean =>
 
 const isAudioFile = (fileType?: string | null): boolean =>
   (fileType ?? "").toLowerCase().startsWith("audio");
-
-const SUPABASE_OBJECT_SIGNED_STORAGE_PATH_PATTERN = /\/storage\/v1\/object\/sign\//i;
-
-const isSupabaseObjectSignedStorageUrl = (value: string): boolean => {
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  return SUPABASE_OBJECT_SIGNED_STORAGE_PATH_PATTERN.test(trimmed);
-};
 
 /**
  * Resolves a card preview URL for media-library grids using adaptive media policy.

@@ -13,6 +13,7 @@ import type { useAiStudioGenerationController } from "./useAiStudioGenerationCon
 type UseAiStudioEditVideoPanelRuntimesParams = {
   base: AiStudioPageBaseRuntime;
   currentCostCredits: number | null;
+  removeBackgroundCostCredits: number | null;
   effectiveGenerationGuardrail: string | null;
   effectiveIsGenerateDisabled: boolean;
   referenceImageWarning: string | null;
@@ -42,6 +43,7 @@ type UseAiStudioEditVideoPanelRuntimesParams = {
 export const useAiStudioEditVideoPanelRuntimes = ({
   base,
   currentCostCredits,
+  removeBackgroundCostCredits,
   effectiveGenerationGuardrail,
   effectiveIsGenerateDisabled,
   referenceImageWarning,
@@ -79,6 +81,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     notifyGenerationFailure: base.notifyGenerationFailure,
     onEditSubmitIntentChange: base.setEditSubmitIntent,
     currentCostCredits,
+    removeBackgroundCostCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,
     isPrimaryStageGenerating: base.isPrimaryEditStageGenerating,

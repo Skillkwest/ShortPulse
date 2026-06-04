@@ -24,6 +24,7 @@ import {
 import { resolveModelLabelById } from "../../../lib/model-runtime/modelCatalog";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
+import { PresetsPanelLoader } from "./PresetsPanelLoader";
 import { StandardCreatePropertiesPanel } from "./create/StandardCreatePropertiesPanel";
 import { PulseCreatePropertiesPanel } from "./create/PulseCreatePropertiesPanel";
 import { CreateModeToggle } from "./create/CreateModeToggle";
@@ -184,11 +185,6 @@ const LazyCharacterPanel = React.lazy(() =>
 const LazyStylesLibraryPanel = React.lazy(() =>
   import("./StylesLibraryPanel").then((module) => ({
     default: module.StylesLibraryPanel,
-  }))
-);
-const LazyUnifiedPresetsLibraryPanel = React.lazy(() =>
-  import("./UnifiedPresetsLibraryPanel").then((module) => ({
-    default: module.UnifiedPresetsLibraryPanel,
   }))
 );
 const LazyVideoPropertiesPanel = React.lazy(() =>
@@ -1182,6 +1178,7 @@ export function AiStudioPageContent({
     () => ({
       ...resolvedReferenceGridProps,
       railCanvasProps: isCanvasVisible ? resolvedReferenceGridProps.railCanvasProps : undefined,
+      isShellResizeActive: isResizing,
       panelVisibility: effectivePanelVisibility,
       stylesPanel: {
         isOpen: isStylesPanelOpen,
@@ -1193,6 +1190,7 @@ export function AiStudioPageContent({
     [
       effectivePanelVisibility,
       handleSelectedStyleIdChange,
+      isResizing,
       isStylesPanelOpen,
       isCanvasVisible,
       resolvedReferenceGridProps,
@@ -1212,19 +1210,19 @@ export function AiStudioPageContent({
     setSelectedPresetId(presetId);
   }, []);
   const handlePresetOverrideSave = React.useCallback(
-    (presetId: ExpertEditPresetId, override: ExpertEditPresetOverride): boolean => {
+    async (presetId: ExpertEditPresetId, override: ExpertEditPresetOverride): Promise<boolean> => {
       const onCustomPresetOverridesChange = propertiesEditExpert.onCustomPresetOverridesChange;
       if (!onCustomPresetOverridesChange) return false;
       if (!isExpertEditCustomPresetId(presetId)) return false;
       const currentOverrides = propertiesEditExpert.customPresetOverrides ?? {};
-      onCustomPresetOverridesChange({
+      const saveResult = await onCustomPresetOverridesChange({
         ...currentOverrides,
         [presetId]: {
           label: override.label,
           prompt: override.prompt,
         },
       });
-      return true;
+      return saveResult !== false;
     },
     [propertiesEditExpert.customPresetOverrides, propertiesEditExpert.onCustomPresetOverridesChange]
   );
@@ -1235,9 +1233,9 @@ export function AiStudioPageContent({
   );
 
   useVisibleErrorTelemetry({
-    source: "client.ai_studio.ui_error_banner",
+    source: "telemetry.ai_studio.ui_error_banner",
     scope: "app",
-    severity: "medium",
+    severity: "low",
     message: uiError,
     metadata: {
       selected_tool: selectedTool,
@@ -1245,7 +1243,7 @@ export function AiStudioPageContent({
   });
 
   useVisibleErrorTelemetry({
-    source: "client.ai_studio.notice_banner",
+    source: "telemetry.ai_studio.notice_banner",
     scope: "app",
     severity: "low",
     message: uiNotice,
@@ -1260,9 +1258,9 @@ export function AiStudioPageContent({
   );
 
   useVisibleErrorTelemetry({
-    source: "client.ai_studio.failure_stack",
+    source: "telemetry.ai_studio.failure_stack",
     scope: "generation",
-    severity: "medium",
+    severity: "low",
     message:
       visibleFailures.length > 0
         ? `${visibleFailures.length} generation failure card(s) visible in UI.`
@@ -1350,16 +1348,14 @@ export function AiStudioPageContent({
   );
   const presetsPropertiesPanelContent = React.useMemo(
     () => (
-      <React.Suspense fallback={lazyPanelFallback}>
-        <LazyUnifiedPresetsLibraryPanel
-          promptPresets={presetsLibraryCatalog}
-          selectedPromptPresetId={selectedPresetId}
-          onOpenCreateWorkflow={() => handleToolSelection("create")}
-          onOpenEditWorkflow={() => handleToolSelection("edit")}
-          onSelectPromptPreset={handleSelectedPresetIdChange}
-          onSavePromptPresetOverride={handlePresetOverrideSave}
-        />
-      </React.Suspense>
+      <PresetsPanelLoader
+        promptPresets={presetsLibraryCatalog}
+        selectedPromptPresetId={selectedPresetId}
+        onOpenCreateWorkflow={() => handleToolSelection("create")}
+        onOpenEditWorkflow={() => handleToolSelection("edit")}
+        onSelectPromptPreset={handleSelectedPresetIdChange}
+        onSavePromptPresetOverride={handlePresetOverrideSave}
+      />
     ),
     [
       handleToolSelection,

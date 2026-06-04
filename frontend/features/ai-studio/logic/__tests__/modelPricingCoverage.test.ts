@@ -2,6 +2,7 @@
  * Exhaustive matrix coverage for model pricing outputs and rounding policy contracts.
  */
 
+import { describe, expect, it } from "vitest";
 import { computeCostForModel } from "../pricing";
 import { listPricingModelConfigs } from "../modelRegistry";
 import {
@@ -179,6 +180,40 @@ describe("model pricing coverage", () => {
     expect(landscapeFallback?.height).toBe(
       OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1536x1024"].height
     );
+  });
+
+  it("uses Kie GPT Image 2 per-resolution pricing and provider-safe normalization", () => {
+    expect(
+      computeCostForModel("kie-ai/gpt-image-2-text-to-image", {
+        aspect: "16:9",
+        resolution: "1K",
+      })?.usdRaw
+    ).toBeCloseTo(0.03);
+    expect(
+      computeCostForModel("kie-ai/gpt-image-2-text-to-image", {
+        aspect: "16:9",
+        resolution: "2K",
+      })?.usdRaw
+    ).toBeCloseTo(0.05);
+    expect(
+      computeCostForModel("kie-ai/gpt-image-2-text-to-image", {
+        aspect: "16:9",
+        resolution: "4K",
+        generationCount: 2,
+      })?.usdRaw
+    ).toBeCloseTo(0.16);
+    expect(
+      computeCostForModel("kie-ai/gpt-image-2-text-to-image", {
+        aspect: "auto",
+        resolution: "4K",
+      })?.usdRaw
+    ).toBeCloseTo(0.03);
+    expect(
+      computeCostForModel("kie-ai/gpt-image-2-text-to-image", {
+        aspect: "1:1",
+        resolution: "4K",
+      })?.usdRaw
+    ).toBeCloseTo(0.05);
   });
 
   it("adds deterministic GPT Image 2 edit input-image surcharges", () => {

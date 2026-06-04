@@ -95,6 +95,7 @@ describe("referenceGridMedia", () => {
   });
 
   it("keeps supabase object URLs off the native render endpoint in right-rail grid surfaces", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://jwmcytzyhcvacjwqtynn.supabase.co");
     const sourceUrl =
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123";
     const resolved = resolveReferenceCardUrls(
@@ -113,6 +114,7 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.previewUrl).toBe(sourceUrl);
+    expect(resolved.previewUrl).not.toContain("/_next/image?url=");
     expect(resolved.fullUrl).not.toContain("width=");
   });
 
@@ -138,6 +140,7 @@ describe("referenceGridMedia", () => {
   });
 
   it("keeps signed durable preview URLs off supabase render-image delivery", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://jwmcytzyhcvacjwqtynn.supabase.co");
     const durablePreviewUrl =
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user-1/variants/images/ref-1/thumb_480?token=abc123";
     const resolved = resolveReferenceCardUrls(
@@ -155,6 +158,7 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.previewUrl).toBe(durablePreviewUrl);
+    expect(resolved.previewUrl).not.toContain("/_next/image?url=");
     expect(resolved.previewUrl).not.toContain("/storage/v1/render/image/");
     expect(resolved.previewQualityBand).toBe("compact");
     expect(resolved.targetLongEdgePx).toBe(320);

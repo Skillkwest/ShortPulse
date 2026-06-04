@@ -19,6 +19,7 @@ import {
   type OutputLifecycleMap,
 } from "../logic/staleOutputCleanup";
 import type { StudioOutput } from "../types";
+import type { GenerationFailureContext } from "./generationFailureReporting";
 
 const SUBMIT_START_TIMEOUT_MS = 90_000;
 const DIRECT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
@@ -41,15 +42,6 @@ type UseAiStudioOutputLifecycleParams = {
   activeOutputId: string | null;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   pendingAutoSavesRef: MutableRefObject<Record<string, unknown>>;
-};
-
-type GenerationFailureContext = {
-  reasonCode?: string | null;
-  providerState?: string | null;
-  pollAttempt?: number | null;
-  noMediaAttempt?: number | null;
-  elapsedMs?: number | null;
-  maxWaitMs?: number | null;
 };
 
 /**
@@ -312,29 +304,32 @@ export const useAiStudioOutputLifecycle = ({
           errorDetail: resolvedDetail,
         };
       });
-      void reportAppError({
-        source: "generation.workflow_failure",
-        scope: "generation",
-        severity: "high",
-        message: resolvedMessage,
-        route: currentRoute(),
-        metadata: {
-          output_id: outputId,
-          detail: resolvedDetail,
-          model: outputContext?.model ?? null,
-          model_id: outputContext?.modelId ?? null,
-          provider: outputContext?.provider ?? null,
-          task_id: outputContext?.taskId ?? null,
-          task_state: outputContext?.taskState ?? null,
-          generation_id: outputContext?.generationId ?? null,
-          failure_reason_code: context?.reasonCode ?? null,
-          provider_state: context?.providerState ?? null,
-          poll_attempt: context?.pollAttempt ?? null,
-          no_media_attempt: context?.noMediaAttempt ?? null,
-          elapsed_ms: context?.elapsedMs ?? null,
-          max_wait_ms: context?.maxWaitMs ?? null,
-        },
-      });
+      const telemetryMode = context?.telemetryMode ?? "incident";
+      if (telemetryMode === "incident") {
+        void reportAppError({
+          source: "generation.workflow_failure",
+          scope: "generation",
+          severity: "high",
+          message: resolvedMessage,
+          route: currentRoute(),
+          metadata: {
+            output_id: outputId,
+            detail: resolvedDetail,
+            model: outputContext?.model ?? null,
+            model_id: outputContext?.modelId ?? null,
+            provider: outputContext?.provider ?? null,
+            task_id: outputContext?.taskId ?? null,
+            task_state: outputContext?.taskState ?? null,
+            generation_id: outputContext?.generationId ?? null,
+            failure_reason_code: context?.reasonCode ?? null,
+            provider_state: context?.providerState ?? null,
+            poll_attempt: context?.pollAttempt ?? null,
+            no_media_attempt: context?.noMediaAttempt ?? null,
+            elapsed_ms: context?.elapsedMs ?? null,
+            max_wait_ms: context?.maxWaitMs ?? null,
+          },
+        });
+      }
     },
     [findOutputById, pendingAutoSavesRef, updateOutputById]
   );

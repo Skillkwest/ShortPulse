@@ -31,6 +31,7 @@ type UseReferenceGridVirtualMetricsControllerArgs = {
   outputIds: readonly string[];
   curatedOutputIds: readonly string[];
   perfDegradeLevel: 0 | 1 | 2;
+  suspendMeasurements?: boolean;
   scrollContainerRef: MutableRefObject<HTMLDivElement | null>;
   gridRef: MutableRefObject<HTMLDivElement | null>;
   curatedScrollContainerRef: MutableRefObject<HTMLDivElement | null>;
@@ -59,6 +60,7 @@ export const useReferenceGridVirtualMetricsController = ({
   outputIds,
   curatedOutputIds,
   perfDegradeLevel,
+  suspendMeasurements = false,
   scrollContainerRef,
   gridRef,
   curatedScrollContainerRef,
@@ -71,6 +73,7 @@ export const useReferenceGridVirtualMetricsController = ({
   const currentCuratedOutputIdsRef = useRef<readonly string[]>(curatedOutputIds);
   const previousOutputIdsRef = useRef<readonly string[]>(outputIds);
   const previousCuratedOutputIdsRef = useRef<readonly string[]>(curatedOutputIds);
+  const wasMeasurementsSuspendedRef = useRef(false);
 
   const syncVirtualMetricsForSurface = useCallback(
     ({
@@ -88,6 +91,7 @@ export const useReferenceGridVirtualMetricsController = ({
       nextOutputIds: readonly string[];
       setMetrics: Dispatch<SetStateAction<VirtualMetricsState>>;
     }) => {
+      if (suspendMeasurements) return;
       if (!scrollNode || !gridNode) return;
       const defaultRequestedMaxColumns = isWideLayout
         ? config.referenceGridMaxColumnsWide
@@ -167,6 +171,7 @@ export const useReferenceGridVirtualMetricsController = ({
       config.referenceGridMinColumns,
       isWideLayout,
       perfDegradeLevel,
+      suspendMeasurements,
     ]
   );
 
@@ -206,10 +211,23 @@ export const useReferenceGridVirtualMetricsController = ({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    syncVirtualMetrics();
-    syncCuratedVirtualMetrics();
-    previousOutputIdsRef.current = outputIds;
-    previousCuratedOutputIdsRef.current = curatedOutputIds;
+    if (suspendMeasurements) {
+      wasMeasurementsSuspendedRef.current = true;
+      return;
+    }
+    const commitMeasurements = () => {
+      syncVirtualMetrics();
+      syncCuratedVirtualMetrics();
+      previousOutputIdsRef.current = outputIds;
+      previousCuratedOutputIdsRef.current = curatedOutputIds;
+    };
+    if (!wasMeasurementsSuspendedRef.current) {
+      commitMeasurements();
+      return;
+    }
+    wasMeasurementsSuspendedRef.current = false;
+    const frameId = window.requestAnimationFrame(commitMeasurements);
+    return () => window.cancelAnimationFrame(frameId);
   }, [
     curatedOutputIds,
     curatedOutputsLength,
@@ -217,6 +235,7 @@ export const useReferenceGridVirtualMetricsController = ({
     outputsLength,
     syncCuratedVirtualMetrics,
     syncVirtualMetrics,
+    suspendMeasurements,
   ]);
 
   useEffect(() => {
@@ -228,12 +247,14 @@ export const useReferenceGridVirtualMetricsController = ({
     const curatedGridNode = curatedGridRef.current;
     if (!scrollNode || !gridNode) return;
     const handleResize = () => {
+      if (suspendMeasurements) return;
       syncVirtualMetrics();
       syncCuratedVirtualMetrics();
     };
     const observer =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => {
+            if (suspendMeasurements) return;
             syncVirtualMetrics();
             syncCuratedVirtualMetrics();
           })
@@ -257,5 +278,6 @@ export const useReferenceGridVirtualMetricsController = ({
     scrollContainerRef,
     syncCuratedVirtualMetrics,
     syncVirtualMetrics,
+    suspendMeasurements,
   ]);
 };

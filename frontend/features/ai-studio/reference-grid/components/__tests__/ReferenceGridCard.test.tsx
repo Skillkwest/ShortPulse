@@ -340,7 +340,7 @@ describe("ReferenceGridCard", () => {
     expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
   });
 
-  it("keeps hydrating image errors from becoming terminal unavailable placeholders", () => {
+  it("converts hydrating image errors into controlled unavailable placeholders", () => {
     const markLoaded = vi.fn();
     const { container } = render(
       <ReferenceGridCard
@@ -366,9 +366,11 @@ describe("ReferenceGridCard", () => {
 
     fireEvent.error(image as HTMLImageElement);
 
+    expect(container.querySelector(".reference-card-media-unavailable")).not.toBeNull();
     expect(screen.queryByText("Preview unavailable")).toBeNull();
-    expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
-    expect(markLoaded).not.toHaveBeenCalled();
+    expect(container.querySelector(".reference-loading--hydrating")).toBeNull();
+    expect(container.querySelector(".reference-card-image")).toBeNull();
+    expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
   });
 
   it("keeps passive image load completion local to the card", () => {
@@ -396,6 +398,63 @@ describe("ReferenceGridCard", () => {
     fireEvent.load(image as HTMLImageElement);
 
     expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
+  });
+
+  it("keeps raw image previews invisible until load confirms the source", () => {
+    const markLoaded = vi.fn();
+    const { container, rerender } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/probing.png",
+          }),
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/probing.png",
+          imageSrc: "https://example.com/probing.png",
+          markLoaded,
+        })}
+      />
+    );
+
+    const coverImage = container.querySelector(
+      ".reference-card-image--cover"
+    ) as HTMLImageElement | null;
+    const containImage = container.querySelector(
+      ".reference-card-image--contain"
+    ) as HTMLImageElement | null;
+
+    expect(coverImage).not.toBeNull();
+    expect(containImage).not.toBeNull();
+    expect(coverImage).toHaveClass("is-probing");
+    expect(containImage).toHaveClass("is-probing");
+
+    fireEvent.load(coverImage as HTMLImageElement);
+
+    expect(coverImage).not.toHaveClass("is-probing");
+    expect(containImage).not.toHaveClass("is-probing");
+    expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
+
+    rerender(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/probing-replacement.png",
+          }),
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/probing-replacement.png",
+          imageSrc: "https://example.com/probing-replacement.png",
+          markLoaded,
+        })}
+      />
+    );
+
+    const replacementCoverImage = container.querySelector(
+      ".reference-card-image--cover"
+    ) as HTMLImageElement | null;
+    expect(replacementCoverImage).not.toBeNull();
+    expect(replacementCoverImage).toHaveClass("is-probing");
   });
 
   it("omits the secondary contain image when dense rendering does not request it", () => {

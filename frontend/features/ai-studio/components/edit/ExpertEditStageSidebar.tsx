@@ -48,6 +48,7 @@ type ExpertEditStageSidebarProps = {
   isGenerateDisabled: boolean;
   selectedLayerImageUrl: string | null;
   isRemoveBackgroundPending: boolean;
+  removeBackgroundCostCredits: number | null;
   populatedLayerCount: number;
   isFlattenPending: boolean;
   handleManualFlatten: () => Promise<void>;
@@ -98,6 +99,7 @@ export function ExpertEditStageSidebar({
   isGenerateDisabled,
   selectedLayerImageUrl,
   isRemoveBackgroundPending,
+  removeBackgroundCostCredits,
   populatedLayerCount,
   isFlattenPending,
   handleManualFlatten,
@@ -188,6 +190,7 @@ export function ExpertEditStageSidebar({
           isGenerateDisabled={isGenerateDisabled}
           selectedLayerImageUrl={selectedLayerImageUrl}
           isRemoveBackgroundPending={isRemoveBackgroundPending}
+          removeBackgroundCostCredits={removeBackgroundCostCredits}
           populatedLayerCount={populatedLayerCount}
           isFlattenPending={isFlattenPending}
           onFlatten={() => void handleManualFlatten()}

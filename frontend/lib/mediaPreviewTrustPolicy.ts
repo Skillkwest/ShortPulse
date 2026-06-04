@@ -6,6 +6,7 @@
 const MEDIA_BUCKET = "media_library";
 const NEXT_IMAGE_OPTIMIZER_PREFIX = "/_next/image";
 const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
+const SUPABASE_OBJECT_SIGNED_STORAGE_PATH = "/storage/v1/object/sign/";
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS = [
   "tempfile.redpandaai.co",
@@ -74,6 +75,16 @@ export const isSupabaseRenderImageUrl = (url: string): boolean => {
     return new URL(trimmed).pathname.includes(SUPABASE_RENDER_IMAGE_PATH);
   } catch {
     return trimmed.includes(SUPABASE_RENDER_IMAGE_PATH);
+  }
+};
+
+export const isSupabaseObjectSignedStorageUrl = (url: string): boolean => {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  try {
+    return new URL(trimmed).pathname.includes(SUPABASE_OBJECT_SIGNED_STORAGE_PATH);
+  } catch {
+    return trimmed.includes(SUPABASE_OBJECT_SIGNED_STORAGE_PATH);
   }
 };
 
@@ -202,6 +213,7 @@ export const canUseNextImageOptimizerForUrl = (url: string): boolean => {
   if (!trimmed) return false;
   if (trimmed.startsWith(NEXT_IMAGE_OPTIMIZER_PREFIX)) return false;
   if (isSupabaseRenderImageUrl(trimmed)) return false;
+  if (isSupabaseObjectSignedStorageUrl(trimmed)) return false;
   if (trimmed.startsWith("/")) return true;
 
   let parsedUrl: URL;

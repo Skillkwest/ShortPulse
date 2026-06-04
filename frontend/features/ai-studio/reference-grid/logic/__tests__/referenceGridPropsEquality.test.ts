@@ -100,4 +100,15 @@ describe("areReferenceGridPropsEqual", () => {
 
     expect(areReferenceGridPropsEqual(base, next)).toBe(false);
   });
+
+  it("detects shell resize session changes", () => {
+    const base = createProps({
+      isShellResizeActive: false,
+    });
+    const next = createProps({
+      isShellResizeActive: true,
+    });
+
+    expect(areReferenceGridPropsEqual(base, next)).toBe(false);
+  });
 });

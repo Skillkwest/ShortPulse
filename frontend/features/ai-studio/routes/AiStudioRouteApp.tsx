@@ -5,6 +5,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { AiStudioPageShell } from "../components/AiStudioPageShell";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
+import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { buildDefaultPricingParams } from "../logic/pricing";
 import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
 import { useAiStudioPageUiNotices } from "../hooks/useAiStudioPageUiNotices";
@@ -599,9 +600,12 @@ const AiStudioPageRuntimeBody = ({
     },
     [aspect, modelPricingPolicy, modelPricingPolicyReady]
   );
+  const removeBackgroundCostCredits =
+    resolveModelPickerCredits(BRIA_BACKGROUND_REMOVE_MODEL_ID) ?? null;
   const { editExpertPanelProps, videoPanelProps } = useAiStudioEditVideoPanelRuntimes({
     base,
     currentCostCredits,
+    removeBackgroundCostCredits,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
     referenceImageWarning,

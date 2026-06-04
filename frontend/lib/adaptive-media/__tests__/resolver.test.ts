@@ -112,6 +112,7 @@ describe("adaptive-media resolver", () => {
   });
 
   it("keeps supabase signed object URLs on the original signed object route", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
     const sourceUrl =
       "https://project.supabase.co/storage/v1/object/sign/media_library/user-1/images/a.png?token=abc";
     const result = resolveAdaptiveMedia({
@@ -129,6 +130,7 @@ describe("adaptive-media resolver", () => {
 
     expect(result.previewUrl).toBe(sourceUrl);
     expect(result.fullUrl).toBe(sourceUrl);
+    expect(result.previewUrl).not.toContain("/_next/image?url=");
   });
 
   it("rejects persisted supabase render image URLs as adaptive candidates", () => {

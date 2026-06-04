@@ -116,7 +116,7 @@ describe("mediaPreviewTrustPolicy", () => {
       canUseNextImageOptimizerForUrl(
         "https://project.supabase.co/storage/v1/object/sign/media_library/user-1/images/a.png?token=abc"
       )
-    ).toBe(true);
+    ).toBe(false);
     expect(canUseNextImageOptimizerForUrl("https://cdn.example.com/user-1/images/a.png")).toBe(
       false
     );

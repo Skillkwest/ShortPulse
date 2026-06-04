@@ -207,9 +207,9 @@ export const useAiStudioShellResize = ({
   }, [enabled, isResizableViewport, stopResizing, syncWidthToContainer]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || leftWidthPx == null) return;
+    if (!enabled || isResizing || typeof window === "undefined" || leftWidthPx == null) return;
     window.localStorage.setItem(AI_SHELL_LEFT_WIDTH_STORAGE_KEY, String(leftWidthPx));
-  }, [leftWidthPx]);
+  }, [enabled, isResizing, leftWidthPx]);
 
   useEffect(() => {
     if (minWidthResetKey == null) {

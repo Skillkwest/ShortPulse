@@ -11,6 +11,11 @@ import {
   FAL_SEEDREAM_45_TEXT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../../lib/model-runtime/falModelIds";
+import { KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  normalizeKieGptImage2AspectRatio,
+  normalizeKieGptImage2ResolutionForAspect,
+} from "../../../../lib/model-runtime/kieGptImage2";
 import {
   normalizeOpenAiGptImage2Quality,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
@@ -33,6 +38,7 @@ import type { ImageSubmissionArgs } from "./types";
 type DefaultPollingProvider =
   | "fal-seedream"
   | "fal-seedream-v5-lite"
+  | "kie-gpt-image-2"
   | "fal-nano-banana-2"
   | "fal-nano-banana-pro";
 
@@ -158,6 +164,31 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
       });
       return {
         terminal: "immediate",
+      };
+    },
+  },
+  {
+    key: "kie-gpt-image-2-text",
+    matches: (modelId) => modelId === KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+    submit: async ({ cleanedPrompt, aspect, requestedResolution, shortpulseSubmitPayload }) => {
+      const aspect_ratio = normalizeKieGptImage2AspectRatio(aspect);
+      const resolution = normalizeKieGptImage2ResolutionForAspect({
+        aspect: aspect_ratio,
+        resolution: requestedResolution,
+      });
+      const response = await submitQueuedGenerationByModelId(
+        KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        {
+          prompt: cleanedPrompt,
+          aspect_ratio,
+          resolution,
+          ...shortpulseSubmitPayload,
+        }
+      );
+      return {
+        terminal: "queued",
+        response,
+        pollingProvider: "kie-gpt-image-2",
       };
     },
   },

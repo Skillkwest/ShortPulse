@@ -1,8 +1,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useAiStudioShellResize } from "../useAiStudioShellResize";
-import { AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX, AI_SHELL_LEFT_MIN_PX } from "../../logic/shellResize";
+import {
+  AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_LEFT_MIN_PX,
+  AI_SHELL_LEFT_WIDTH_STORAGE_KEY,
+} from "../../logic/shellResize";
 
 describe("useAiStudioShellResize", () => {
   afterEach(() => {
@@ -118,6 +123,69 @@ describe("useAiStudioShellResize", () => {
 
     await waitFor(() => {
       expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX);
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
+  it("persists the dragged shell width only after pointer resizing stops", async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1400,
+    });
+    const setItemSpy = vi.spyOn(window.localStorage.__proto__, "setItem");
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+      })
+    );
+
+    act(() => {
+      result.current.shellRef.current = {
+        getBoundingClientRect: () => ({ width: 1600 }),
+      } as HTMLElement;
+      result.current.leftColumnRef.current = {
+        getBoundingClientRect: () => ({ width: 760 }),
+      } as HTMLElement;
+    });
+
+    await waitFor(() => {
+      expect(result.current.showDivider).toBe(true);
+    });
+
+    setItemSpy.mockClear();
+
+    act(() => {
+      result.current.dividerProps.onPointerDown?.({
+        pointerId: 101,
+        button: 0,
+        clientX: 760,
+        preventDefault: vi.fn(),
+      } as unknown as ReactPointerEvent<HTMLButtonElement>);
+    });
+
+    expect(result.current.isResizing).toBe(true);
+    expect(setItemSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 101, clientX: 820 }));
+    });
+
+    expect(result.current.leftWidthPx).toBe(820);
+    expect(setItemSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 101, clientX: 820 }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.isResizing).toBe(false);
+      expect(setItemSpy).toHaveBeenCalledWith(AI_SHELL_LEFT_WIDTH_STORAGE_KEY, "820");
     });
 
     Object.defineProperty(window, "innerWidth", {

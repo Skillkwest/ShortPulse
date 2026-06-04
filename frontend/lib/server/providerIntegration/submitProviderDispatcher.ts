@@ -66,6 +66,7 @@ export class ProviderSubmitValidationError extends Error {
 }
 
 const KIE_SUBMIT_REQUEST_ID_KEYS = [
+  "taskId",
   "taskID",
   "job_id",
   "jobId",

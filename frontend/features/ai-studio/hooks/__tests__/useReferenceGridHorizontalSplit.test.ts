@@ -306,6 +306,8 @@ describe("useReferenceGridHorizontalSplit", () => {
       } as unknown as ReactPointerEvent<HTMLDivElement>);
     });
 
+    expect(result.current.isResizing).toBe(true);
+
     act(() => {
       window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 101, clientY: 120 }));
     });
@@ -315,5 +317,7 @@ describe("useReferenceGridHorizontalSplit", () => {
     act(() => {
       window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 101, clientY: 120 }));
     });
+
+    expect(result.current.isResizing).toBe(false);
   });
 });

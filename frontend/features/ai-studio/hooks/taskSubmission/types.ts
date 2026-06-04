@@ -8,6 +8,7 @@ import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { getModelConfig } from "../../logic/pricing";
 import { Provider } from "../../logic/stateParsers";
 import { StudioOutput, type StudioOutputSaveState } from "../../types";
+import type { NotifyGenerationFailure } from "../generationFailureReporting";
 
 export type SubmissionModelConfig = ReturnType<typeof getModelConfig>;
 
@@ -38,7 +39,7 @@ export type BaseSubmissionArgs = {
   requestedAudio: boolean;
   preparedImageInputs: string[];
   modelConfig: SubmissionModelConfig;
-  notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
+  notifyGenerationFailure: NotifyGenerationFailure;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   generationReplay?: Record<string, unknown> | null;
   internalMediaRefs?: Array<InternalMediaRef | null>;

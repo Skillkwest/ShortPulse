@@ -9,9 +9,11 @@ import {
   FAL_SEEDREAM_45_EDIT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
 } from "../../../../lib/model-runtime/falModelIds";
+import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import type { ImageSubmissionAdapterKey } from "../../../../lib/model-runtime/submissionAdapterMetadata";
 import { falNanoBananaProAllowedAspects } from "../../constants";
 import {
+  normalizeKieGptImage2ResolutionForAspect,
   normalizeNanoBanana2Resolution,
   normalizeNanoBananaProResolution,
 } from "../../logic/imageResolution";
@@ -28,7 +30,8 @@ type ImagePollingProvider =
   | "fal-nano-banana-2-edit"
   | "fal-nano-banana-pro-edit"
   | "fal-flux2-klein"
-  | "fal-bria-background-remove";
+  | "fal-bria-background-remove"
+  | "kie-gpt-image-2-edit";
 
 type ImageHandlerContext = {
   id: string;
@@ -57,6 +60,11 @@ type ImageSubmissionAdapter = {
   matches: (modelId: string) => boolean;
   submit: (context: ImageHandlerContext) => Promise<ImageSubmissionAdapterResult>;
 };
+
+const VALIDATION_FAILURE_CONTEXT = {
+  telemetryMode: "validation",
+  reasonCode: "USER_INPUT_VALIDATION",
+} as const;
 
 const handoffSubmitResponse = ({
   response,
@@ -96,7 +104,12 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
     }) => {
       const sourceImageUrl = preparedImageInputs[0]?.trim();
       if (!sourceImageUrl) {
-        notifyGenerationFailure(id, "Background remove requires a source image.");
+        notifyGenerationFailure(
+          id,
+          "Background remove requires a source image.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
         return { handled: true };
       }
       const response = await submitQueuedGenerationByModelId("fal-ai/bria/background/remove", {
@@ -107,6 +120,48 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         handled: true,
         response,
         pollingProvider: "fal-bria-background-remove",
+      };
+    },
+  },
+  {
+    key: "kie-gpt-image-2-edit",
+    matches: (modelId) => modelId === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+    submit: async ({
+      id,
+      cleanedPrompt,
+      aspect,
+      requestedResolution,
+      preparedImageInputs,
+      internalMediaRefs,
+      notifyGenerationFailure,
+      shortpulseSubmitPayload,
+    }) => {
+      if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
+        notifyGenerationFailure(
+          id,
+          "Kie GPT Image 2 Edit requires at least one reference image.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
+        return { handled: true };
+      }
+      const response = await submitQueuedGenerationByModelId(
+        KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        {
+          prompt: cleanedPrompt,
+          input_urls: preparedImageInputs.slice(0, 16),
+          aspect_ratio: aspect,
+          resolution: normalizeKieGptImage2ResolutionForAspect({
+            aspect,
+            resolution: requestedResolution,
+          }),
+          ...shortpulseSubmitPayload,
+        }
+      );
+      return {
+        handled: true,
+        response,
+        pollingProvider: "kie-gpt-image-2-edit",
       };
     },
   },
@@ -124,7 +179,12 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       shortpulseSubmitPayload,
     }) => {
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
-        notifyGenerationFailure(id, "Nano Banana Pro Edit requires at least one reference image.");
+        notifyGenerationFailure(
+          id,
+          "Nano Banana Pro Edit requires at least one reference image.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
         return { handled: true };
       }
       const response = await submitQueuedGenerationByModelId(FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, {
@@ -157,7 +217,12 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       shortpulseSubmitPayload,
     }) => {
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
-        notifyGenerationFailure(id, "Nano Banana 2 Edit requires at least one reference image.");
+        notifyGenerationFailure(
+          id,
+          "Nano Banana 2 Edit requires at least one reference image.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
         return { handled: true };
       }
       const response = await submitQueuedGenerationByModelId(FAL_NANO_BANANA_2_EDIT_MODEL_ID, {
@@ -191,7 +256,12 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       shortpulseSubmitPayload,
     }) => {
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
-        notifyGenerationFailure(id, "Seedream 4.5 Edit requires at least one reference image.");
+        notifyGenerationFailure(
+          id,
+          "Seedream 4.5 Edit requires at least one reference image.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
         return { handled: true };
       }
       const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
@@ -225,7 +295,12 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       shortpulseSubmitPayload,
     }) => {
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
-        notifyGenerationFailure(id, "Seedream 5 Lite Edit requires at least one reference image.");
+        notifyGenerationFailure(
+          id,
+          "Seedream 5 Lite Edit requires at least one reference image.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
         return { handled: true };
       }
       const image_size = resolveSeedreamImageSize(aspect, requestedResolution);

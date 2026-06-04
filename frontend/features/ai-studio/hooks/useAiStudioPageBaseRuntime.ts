@@ -19,6 +19,7 @@ import { useAiStudioProjectIdentity } from "./useAiStudioProjectIdentity";
 import { useAiStudioSessionIdentity } from "./useAiStudioSessionIdentity";
 import { useActiveModelPricingPolicy } from "./useActiveModelPricingPolicy";
 import { useAiStudioCharacterPanelUploadBridge } from "./useAiStudioCharacterPanelUploadBridge";
+import { shouldActivateExpertEditPresetRuntime } from "../logic/expertEditPresetRuntimeActivation";
 import { isEditWorkflow } from "../logic/workflowIdentity";
 import { createCanvasDetailModalItem } from "../logic/canvasDetailModal";
 import {
@@ -351,7 +352,7 @@ export const useAiStudioPageBaseRuntime = () => {
     enabled: outputs.length > 0,
   });
   const [shouldLoadExpertEditPresetRuntime, setShouldLoadExpertEditPresetRuntime] = useState(() =>
-    isEditWorkflow(selectedTool)
+    shouldActivateExpertEditPresetRuntime(selectedTool)
   );
   const { systemPresetDefinitions: expertEditSystemPresetDefinitions } =
     useExpertEditSystemPresetCatalog({
@@ -378,7 +379,7 @@ export const useAiStudioPageBaseRuntime = () => {
       if (isEditWorkflow(selectedTool) && !isEditWorkflow(nextTool)) {
         resetEditSubmitIntent();
       }
-      if (isEditWorkflow(nextTool)) {
+      if (shouldActivateExpertEditPresetRuntime(nextTool)) {
         setShouldLoadExpertEditPresetRuntime(true);
       }
       setSelectedTool(nextTool);

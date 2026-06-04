@@ -446,7 +446,10 @@ function run() {
       if (!entry.payloadValidation) {
         errors.push(`payloadValidation missing for Kie model ${modelId}`);
       }
-      if (!allowedDurations.length) {
+      if (
+        (entry.mediaType === "video" || entry.mediaType === "image-to-video") &&
+        !allowedDurations.length
+      ) {
         errors.push(`allowedDurations missing for Kie model ${modelId}`);
       }
       if (!String(entry.kieSubmitUrl || "").trim()) {

@@ -169,6 +169,18 @@ const normalizeUuid = (value: unknown): string | null => {
 const normalizeNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
+const normalizePositiveInteger = (value: unknown): number | null => {
+  const normalized = normalizeNumber(value);
+  if (normalized == null || normalized <= 0) return null;
+  return Math.trunc(normalized);
+};
+
+const normalizeNonNegativeInteger = (value: unknown): number | null => {
+  const normalized = normalizeNumber(value);
+  if (normalized == null || normalized < 0) return null;
+  return Math.trunc(normalized);
+};
+
 const normalizeBoolean = (value: unknown): boolean => value === true;
 
 const normalizeStringArray = (value: unknown): string[] =>
@@ -347,9 +359,9 @@ const toDisplayItemCandidate = ({
     preview_text: normalizeString(output.previewText),
     display_prompt_summary: truncateSummary(output.prompt) ?? truncateSummary(output.previewText),
     mime_type: normalizeString(output.mimeType),
-    width: normalizeNumber(output.width),
-    height: normalizeNumber(output.height),
-    duration_ms: normalizeNumber(output.durationMs),
+    width: normalizePositiveInteger(output.width),
+    height: normalizePositiveInteger(output.height),
+    duration_ms: normalizeNonNegativeInteger(output.durationMs),
     preview_storage_path: normalizeString(output.previewStoragePath),
     full_storage_path: normalizeString(output.fullStoragePath),
     preview_poster_storage_path: normalizeString(output.previewPosterStoragePath),

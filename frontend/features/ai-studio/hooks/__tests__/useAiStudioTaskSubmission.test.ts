@@ -770,6 +770,78 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("marks edit-image submissions as pricing-grid priced in shortpulse context", async () => {
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => "gen-direct-complete-edit");
+    const setOutputs = vi.fn();
+    const updateOutputById = vi.fn();
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("default");
+    vi.mocked(handleDefaultModelSubmission).mockImplementationOnce(async () => undefined);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "1:1",
+        mode: "image",
+        model: "fal-ai/nano-banana-2/edit",
+        prompt: "",
+        currentCostCredits: 9,
+        promptReferenceGenerateCostCredits: 9,
+        selectedTool: "edit",
+        imageResolution: "2K",
+        videoDurationSeconds: 6,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: "https://cdn.test/reference.png",
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        projectId: "project-edit-1",
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Clean up edges", ["https://cdn.test/reference.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+        displayedBilledCredits: 9,
+      });
+    });
+
+    expect(handleDefaultModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shortpulseContext: expect.objectContaining({
+          selected_tool: "edit",
+          displayed_billed_credits: 9,
+          pricing_display_source: "pricing_grid",
+          pricing_policy_ready: true,
+        }),
+      })
+    );
+  });
+
   it("routes Kie Veo to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
@@ -3133,7 +3205,11 @@ describe("useAiStudioTaskSubmission", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       expect.any(String),
       "Generation failed to start. Please retry.",
-      expect.stringContaining("did not handle model")
+      expect.stringContaining("did not handle model"),
+      expect.objectContaining({
+        reasonCode: "SUBMIT_NOT_STARTED",
+        telemetryMode: "state_only",
+      })
     );
     expect(reportAppErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -3208,6 +3284,7 @@ describe("useAiStudioTaskSubmission", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       expect.any(String),
       "FLUX Fill requires both a base image and mask.",
+      undefined,
       undefined
     );
     expect(reportAppErrorMock).not.toHaveBeenCalledWith(
@@ -3281,7 +3358,11 @@ describe("useAiStudioTaskSubmission", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       expect.any(String),
       "Generation failed to start. Please retry.",
-      "Session check timed out before provider submit."
+      "Session check timed out before provider submit.",
+      expect.objectContaining({
+        reasonCode: "AUTH_SESSION_TIMEOUT",
+        telemetryMode: "state_only",
+      })
     );
     expect(reportAppErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({

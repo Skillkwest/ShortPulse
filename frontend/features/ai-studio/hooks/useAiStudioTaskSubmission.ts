@@ -59,6 +59,10 @@ import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
 import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
+import type {
+  GenerationFailureContext,
+  NotifyGenerationFailure,
+} from "./generationFailureReporting";
 
 type GenerationMetadata = Record<string, unknown>;
 type SubmissionInvariantError = Error & {
@@ -139,7 +143,7 @@ type UseAiStudioTaskSubmissionParams = {
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setSaved: Dispatch<SetStateAction<boolean>>;
   getDefaultDurationSeconds: (modelId: string | null) => number;
-  notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
+  notifyGenerationFailure: NotifyGenerationFailure;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   startPollingTask: (
     taskId: string,
@@ -455,6 +459,8 @@ export const useAiStudioTaskSubmission = ({
         const motionReferenceAssetContext = buildMotionReferenceAssetShortpulseContext({
           motionReferenceVideoUrl,
         });
+        const usesPricingGridDisplay =
+          outputMode === "image" && (effectiveTool === "create" || effectiveTool === "edit");
         const shortpulseContext = {
           selected_tool: effectiveTool,
           mode: outputMode,
@@ -469,10 +475,7 @@ export const useAiStudioTaskSubmission = ({
             preparedImageInputs.length,
             internalMediaRefs.filter((ref) => Boolean(ref)).length
           ),
-          pricing_display_source:
-            effectiveTool === "create" && outputMode === "image"
-              ? "pricing_grid"
-              : "shared_adapter",
+          pricing_display_source: usesPricingGridDisplay ? "pricing_grid" : "shared_adapter",
           pricing_policy_ready: true,
           displayed_billed_credits: displayedBilledCredits,
           ...(motionReferenceAssetContext
@@ -546,10 +549,11 @@ export const useAiStudioTaskSubmission = ({
           const notifyGenerationFailureForSubmit = (
             outputId: string,
             message: string,
-            detail?: string
+            detail?: string,
+            context?: GenerationFailureContext
           ) => {
             submissionFailureSignaled = true;
-            notifyGenerationFailure(outputId, message, detail);
+            notifyGenerationFailure(outputId, message, detail, context);
           };
           const { startPollingWithGeneration, completeGenerationImmediately } =
             createSubmissionLifecycleCallbacks({
@@ -641,7 +645,15 @@ export const useAiStudioTaskSubmission = ({
         } catch (error) {
           const submissionError = error as SubmissionInvariantError;
           if (isAuthSessionTimeoutError(error)) {
-            notifyGenerationFailure(id, SUBMIT_NOT_STARTED_USER_ERROR, AUTH_SESSION_TIMEOUT_DETAIL);
+            notifyGenerationFailure(
+              id,
+              SUBMIT_NOT_STARTED_USER_ERROR,
+              AUTH_SESSION_TIMEOUT_DETAIL,
+              {
+                reasonCode: "AUTH_SESSION_TIMEOUT",
+                telemetryMode: "state_only",
+              }
+            );
             void reportAppError({
               source: "fal_auth_session_timeout",
               scope: "generation",
@@ -661,7 +673,11 @@ export const useAiStudioTaskSubmission = ({
             notifyGenerationFailure(
               id,
               SUBMIT_NOT_STARTED_USER_ERROR,
-              submissionError.detail ?? SUBMIT_NOT_STARTED_USER_ERROR
+              submissionError.detail ?? SUBMIT_NOT_STARTED_USER_ERROR,
+              {
+                reasonCode: "SUBMIT_NOT_STARTED",
+                telemetryMode: "state_only",
+              }
             );
             void reportAppError({
               source: "fal_submit_not_started",
@@ -700,7 +716,11 @@ export const useAiStudioTaskSubmission = ({
             notifyGenerationFailure(
               id,
               SUBMIT_NOT_STARTED_USER_ERROR,
-              submissionError.detail ?? SUBMIT_NOT_STARTED_USER_ERROR
+              submissionError.detail ?? SUBMIT_NOT_STARTED_USER_ERROR,
+              {
+                reasonCode: "SUBMIT_LIFECYCLE_CONTRACT",
+                telemetryMode: "state_only",
+              }
             );
             return;
           }

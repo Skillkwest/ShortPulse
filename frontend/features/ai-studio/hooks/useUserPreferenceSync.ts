@@ -70,6 +70,8 @@ export const useUserPreferenceSync = <TValue>({
   const remoteSyncEnabledRef = useRef<boolean>(true);
   const writeVersionRef = useRef<number>(0);
   const hasLocalOverrideRef = useRef<boolean>(false);
+  const bootstrapResolvedRef = useRef<boolean>(!enabled);
+  const queuedPersistBeforeAuthResolutionRef = useRef<boolean>(false);
 
   const setValue = useCallback(
     (
@@ -94,6 +96,8 @@ export const useUserPreferenceSync = <TValue>({
     if (!enabled) {
       remoteSyncEnabledRef.current = true;
       hasLocalOverrideRef.current = false;
+      bootstrapResolvedRef.current = true;
+      queuedPersistBeforeAuthResolutionRef.current = false;
       latestValueRef.current = normalizedDefaultValue;
       setValueState(normalizedDefaultValue);
       setLoading(false);
@@ -107,6 +111,8 @@ export const useUserPreferenceSync = <TValue>({
 
     remoteSyncEnabledRef.current = true;
     hasLocalOverrideRef.current = false;
+    bootstrapResolvedRef.current = false;
+    queuedPersistBeforeAuthResolutionRef.current = false;
     userIdRef.current = null;
     setLoading(true);
     setSyncState("loading");
@@ -120,8 +126,16 @@ export const useUserPreferenceSync = <TValue>({
         if (!resolvedUserId) {
           if (!active) return;
           userIdRef.current = null;
-          if (!readLocalBeforeUserResolution) {
+          bootstrapResolvedRef.current = true;
+          if (!hasLocalOverrideRef.current && !readLocalBeforeUserResolution) {
             setValue(readLocal(), { persistLocal: false });
+          }
+          if (queuedPersistBeforeAuthResolutionRef.current) {
+            queuedPersistBeforeAuthResolutionRef.current = false;
+            setValue(latestValueRef.current, {
+              storageUserId: null,
+              persistLocal: true,
+            });
           }
           setError(null);
           setSyncState("ready");
@@ -130,10 +144,12 @@ export const useUserPreferenceSync = <TValue>({
         if (!active) return;
         userIdRef.current = resolvedUserId;
         const localValue = readLocal(resolvedUserId);
-        setValue(localValue, {
-          storageUserId: resolvedUserId,
-          persistLocal: false,
-        });
+        if (!hasLocalOverrideRef.current) {
+          setValue(localValue, {
+            storageUserId: resolvedUserId,
+            persistLocal: false,
+          });
+        }
 
         const remoteValue = await loadRemote(resolvedUserId, localValue);
         if (!active) return;
@@ -143,10 +159,19 @@ export const useUserPreferenceSync = <TValue>({
             persistLocal: false,
           });
         }
+        bootstrapResolvedRef.current = true;
+        if (queuedPersistBeforeAuthResolutionRef.current) {
+          queuedPersistBeforeAuthResolutionRef.current = false;
+          writeLocal(latestValueRef.current, resolvedUserId);
+          if (remoteSyncEnabledRef.current) {
+            await persistRemote(resolvedUserId, latestValueRef.current);
+          }
+        }
         setError(null);
         setSyncState("ready");
       } catch (err) {
         if (!active) return;
+        bootstrapResolvedRef.current = true;
         if (isMissingRemoteError(err)) {
           remoteSyncEnabledRef.current = false;
           setError(null);
@@ -169,9 +194,11 @@ export const useUserPreferenceSync = <TValue>({
     loadErrorMessage,
     loadRemote,
     normalizedDefaultValue,
+    persistRemote,
     readLocalBeforeUserResolution,
     readLocal,
     setValue,
+    writeLocal,
   ]);
 
   const persistValue = useCallback(
@@ -183,11 +210,20 @@ export const useUserPreferenceSync = <TValue>({
 
       const normalizedNextValue = normalizeValue(nextValue);
       const previousValue = latestValueRef.current;
+      const activeUserId = userIdRef.current;
+      if (!activeUserId && !bootstrapResolvedRef.current) {
+        queuedPersistBeforeAuthResolutionRef.current = true;
+        setValue(normalizedNextValue, { persistLocal: false });
+        setError(null);
+        setSyncState("loading");
+        return false;
+      }
+
+      queuedPersistBeforeAuthResolutionRef.current = false;
       setValue(normalizedNextValue, { persistLocal: true });
       setSyncState("saving");
       setError(null);
 
-      const activeUserId = userIdRef.current;
       if (!activeUserId || !remoteSyncEnabledRef.current) {
         if (requestVersion === writeVersionRef.current) {
           setSyncState("ready");

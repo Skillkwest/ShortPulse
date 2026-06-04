@@ -358,6 +358,7 @@ export const useAiStudioAudioGeneration = ({
                   ...(projectId ? { project_id: projectId } : {}),
                 }),
                 shortpulseLogScope: "generation",
+                shortpulseSkipErrorLogging: true,
               })
             : await (async () => {
                 const formData = new FormData();
@@ -414,6 +415,7 @@ export const useAiStudioAudioGeneration = ({
                   method: "POST",
                   body: formData,
                   shortpulseLogScope: "generation",
+                  shortpulseSkipErrorLogging: true,
                 });
               })();
 
@@ -512,6 +514,7 @@ export const useAiStudioAudioGeneration = ({
             ...(projectId ? { project_id: projectId } : {}),
           }),
           shortpulseLogScope: "generation",
+          shortpulseSkipErrorLogging: true,
         });
 
         const payload = (await response.json().catch(() => null)) as
@@ -599,6 +602,7 @@ export const useAiStudioAudioGeneration = ({
             ...(projectId ? { project_id: projectId } : {}),
           }),
           shortpulseLogScope: "generation",
+          shortpulseSkipErrorLogging: true,
         });
 
         const payload = (await response.json().catch(() => null)) as

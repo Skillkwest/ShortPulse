@@ -7,6 +7,18 @@ import type { SubmitPayload } from "../falIntegration/contracts";
 import { getModelCatalogEntry } from "../../model-runtime/modelCatalog";
 import { normalizeDurationForModelConfig } from "../../model-runtime/modelDurationConstraints";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_RESOLUTIONS,
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MAX_PROMPT_CHARS,
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_PROVIDER_MODEL_ID,
+  KIE_GPT_IMAGE_2_MAX_INPUT_IMAGES,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_RESOLUTIONS,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MAX_PROMPT_CHARS,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_PROVIDER_MODEL_ID,
+  normalizeKieGptImage2ResolutionForAspect,
+} from "../../model-runtime/kieGptImage2";
+import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -117,6 +129,13 @@ const readKlingMotionVideoUrlList = (payload: Record<string, unknown>): string[]
     listFields: ["video_urls", "videoUrls"],
   });
 };
+
+const readKieGptImage2InputUrlList = (payload: Record<string, unknown>): string[] =>
+  readStringUrlList({
+    payload,
+    directFields: ["image_url", "imageUrl", "input_url", "inputUrl"],
+    listFields: ["image_urls", "imageUrls", "input_urls", "inputUrls"],
+  });
 
 const readKieKlingMultiPromptList = (
   payload: Record<string, unknown>
@@ -725,6 +744,134 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
   };
 };
 
+const normalizeKieGptImage2TextToImagePayload = (
+  payload: Record<string, unknown>
+): Record<string, unknown> => {
+  const inputPayload = asRecord(payload.input);
+  const source = Object.keys(inputPayload).length ? inputPayload : payload;
+  const prompt = asNonEmptyString(source.prompt);
+  if (!prompt) {
+    throw new Error("Kie GPT Image 2 text-to-image submit requires a prompt.");
+  }
+  if (prompt.length > KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MAX_PROMPT_CHARS) {
+    throw new Error(
+      `Kie GPT Image 2 text-to-image prompt must be ${KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MAX_PROMPT_CHARS} characters or fewer.`
+    );
+  }
+  const entry = getModelCatalogEntry(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID);
+  if (!entry || entry.provider !== "kie") {
+    throw new Error("Kie GPT Image 2 text-to-image model catalog contract is missing.");
+  }
+  if (!entry.allowedAspects?.length) {
+    throw new Error(
+      "Kie GPT Image 2 text-to-image model catalog contract is missing allowed aspects."
+    );
+  }
+  const aspectRatio = normalizeAspectRatio({
+    payload: source,
+    allowedValues: entry.allowedAspects,
+    defaultValue: entry.defaultAspect,
+    modelLabel: "Kie GPT Image 2 text-to-image",
+  });
+  const requestedResolution = normalizeOptionalResolution({
+    payload: source,
+    allowedValues: [...KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_RESOLUTIONS],
+    modelLabel: "Kie GPT Image 2 text-to-image",
+  });
+  const resolution = normalizeKieGptImage2ResolutionForAspect({
+    aspect: aspectRatio,
+    resolution: requestedResolution ?? entry.defaultResolution,
+  });
+  const callbackValue = normalizeOptionalStringField({
+    payload,
+    fields: ["callBackUrl", "callbackUrl", "callback_url"],
+  });
+  const callbackUrl = callbackValue ? asHttpUrlString(callbackValue) : null;
+  if (callbackValue && !callbackUrl) {
+    throw new Error(
+      "Kie GPT Image 2 text-to-image submit field callBackUrl must be a valid http(s) URL."
+    );
+  }
+  return {
+    model: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_PROVIDER_MODEL_ID,
+    ...(callbackUrl ? { callBackUrl: callbackUrl } : {}),
+    input: {
+      prompt,
+      aspect_ratio: aspectRatio,
+      resolution,
+    },
+  };
+};
+
+const normalizeKieGptImage2ImageToImagePayload = (
+  payload: Record<string, unknown>
+): Record<string, unknown> => {
+  const inputPayload = asRecord(payload.input);
+  const source = Object.keys(inputPayload).length ? inputPayload : payload;
+  const prompt = asNonEmptyString(source.prompt);
+  if (!prompt) {
+    throw new Error("Kie GPT Image 2 image-to-image submit requires a prompt.");
+  }
+  if (prompt.length > KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MAX_PROMPT_CHARS) {
+    throw new Error(
+      `Kie GPT Image 2 image-to-image prompt must be ${KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MAX_PROMPT_CHARS} characters or fewer.`
+    );
+  }
+  const inputUrls = readKieGptImage2InputUrlList(source);
+  if (!inputUrls.length) {
+    throw new Error("Kie GPT Image 2 image-to-image submit requires at least one input URL.");
+  }
+  if (inputUrls.length > KIE_GPT_IMAGE_2_MAX_INPUT_IMAGES) {
+    throw new Error(
+      `Kie GPT Image 2 image-to-image supports at most ${KIE_GPT_IMAGE_2_MAX_INPUT_IMAGES} input URLs.`
+    );
+  }
+  const entry = getModelCatalogEntry(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID);
+  if (!entry || entry.provider !== "kie") {
+    throw new Error("Kie GPT Image 2 image-to-image model catalog contract is missing.");
+  }
+  if (!entry.allowedAspects?.length) {
+    throw new Error(
+      "Kie GPT Image 2 image-to-image model catalog contract is missing allowed aspects."
+    );
+  }
+  const aspectRatio = normalizeAspectRatio({
+    payload: source,
+    allowedValues: entry.allowedAspects,
+    defaultValue: entry.defaultAspect,
+    modelLabel: "Kie GPT Image 2 image-to-image",
+  });
+  const requestedResolution = normalizeOptionalResolution({
+    payload: source,
+    allowedValues: [...KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_RESOLUTIONS],
+    modelLabel: "Kie GPT Image 2 image-to-image",
+  });
+  const resolution = normalizeKieGptImage2ResolutionForAspect({
+    aspect: aspectRatio,
+    resolution: requestedResolution ?? entry.defaultResolution,
+  });
+  const callbackValue = normalizeOptionalStringField({
+    payload,
+    fields: ["callBackUrl", "callbackUrl", "callback_url"],
+  });
+  const callbackUrl = callbackValue ? asHttpUrlString(callbackValue) : null;
+  if (callbackValue && !callbackUrl) {
+    throw new Error(
+      "Kie GPT Image 2 image-to-image submit field callBackUrl must be a valid http(s) URL."
+    );
+  }
+  return {
+    model: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_PROVIDER_MODEL_ID,
+    ...(callbackUrl ? { callBackUrl: callbackUrl } : {}),
+    input: {
+      prompt,
+      input_urls: inputUrls,
+      aspect_ratio: aspectRatio,
+      resolution,
+    },
+  };
+};
+
 const normalizeKieSeedance2Payload = ({
   payload,
   modelId,
@@ -898,6 +1045,12 @@ export const normalizeKieSubmitPayloadForModel = ({
   }
   if (modelId === KIE_KLING_30_MODEL_ID) {
     return normalizeKieKlingPayload(source);
+  }
+  if (modelId === KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID) {
+    return normalizeKieGptImage2TextToImagePayload(source);
+  }
+  if (modelId === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID) {
+    return normalizeKieGptImage2ImageToImagePayload(source);
   }
   if (modelId === KIE_SEEDANCE_2_MODEL_ID) {
     return normalizeKieSeedance2Payload({

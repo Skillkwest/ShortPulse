@@ -1183,6 +1183,78 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
   });
 
+  it("hydrates restored canvas video posters from output storage authority without a media id", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-video-output-poster-1",
+          kind: "video" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: false,
+          outputId: "output-video-poster-refresh-1",
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          videoUrl: "https://expired.shortpulse.test/video.mp4",
+          posterUrl: null,
+          title: "Old video",
+          durationMs: null,
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const refreshedOutput = makeOutput({
+      id: "output-video-poster-refresh-1",
+      mode: "video",
+      prompt: "Fresh video",
+      previewStoragePath: "user-1/variants/videos/video-poster-refresh/preview.mp4",
+      previewPosterStoragePath: "user-1/variants/videos/video-poster-refresh/poster.webp",
+      fullStoragePath: "user-1/generations/videos/video-poster-refresh/full.mp4",
+      previewUrl: undefined,
+      previewPosterUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: [],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === refreshedOutput.id ? refreshedOutput : null),
+        getOutputSnapshot: () => createOutputSnapshot([refreshedOutput]),
+      })
+    );
+
+    await waitFor(() => {
+      expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+        ...mockedCanvasSessionState,
+        items: [
+          expect.objectContaining({
+            id: "canvas-video-output-poster-1",
+            outputId: "output-video-poster-refresh-1",
+            mediaId: null,
+            videoUrl:
+              "https://signed.shortpulse.test/user-1/generations/videos/video-poster-refresh/full.mp4",
+            posterUrl:
+              "https://signed.shortpulse.test/user-1/variants/videos/video-poster-refresh/poster.webp",
+            title: "Fresh video",
+          }),
+        ],
+      });
+    });
+    expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/variants/videos/video-poster-refresh/poster.webp",
+    });
+  });
+
   it("reconciles restored canvas output ids through generated-output aliases before refreshing media", async () => {
     mockedCanvasSessionState = {
       items: [

@@ -18,6 +18,8 @@ import {
 } from "./elevenLabsModels";
 import type { PricingStrategyId } from "./pricingTypes";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -35,6 +37,18 @@ import {
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "./falModelIds";
 import { OPENAI_GPT_IMAGE_2_ALLOWED_SIZES } from "./openAiImage2";
+import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_ASPECTS,
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_RESOLUTIONS,
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_DEFAULT_ASPECT,
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_DEFAULT_RESOLUTION,
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_PROVIDER_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_ASPECTS,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_RESOLUTIONS,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_DEFAULT_ASPECT,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_DEFAULT_RESOLUTION,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_PROVIDER_MODEL_ID,
+} from "./kieGptImage2";
 import type { ModelSubmissionAdapterKey } from "./submissionAdapterMetadata";
 export type { ModelSubmissionAdapterKey } from "./submissionAdapterMetadata";
 
@@ -181,6 +195,7 @@ const DEFAULT_ROLE_FALLBACK_MODEL_IDS: Record<ModelDefaultRole, string> = {
 const VERIFIED_AT = "2026-04-30";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
+const KIE_GPT_IMAGE_2_VERIFIED_AT = "2026-06-04";
 const OPENAI_TEXT_VERIFIED_AT = "2026-05-07";
 const ELEVENLABS_VERIFIED_AT = "2026-05-01";
 const SEEDANCE_ALLOWED_DURATIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
@@ -731,6 +746,86 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["duration", "cfg_scale"],
     },
   },
+  [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: {
+    modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+    provider: "kie",
+    sourceUrl: "https://docs.kie.ai/",
+    verifiedAt: KIE_GPT_IMAGE_2_VERIFIED_AT,
+    apiDocFile: "api-kie-gpt-image-2-text-to-image.md",
+    submitAspectField: "aspect_ratio",
+    defaultAspect: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_DEFAULT_ASPECT,
+    allowedAspects: [...KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_ASPECTS],
+    defaultResolution: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_DEFAULT_RESOLUTION,
+    allowedResolutions: [...KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_RESOLUTIONS],
+    providerModelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_PROVIDER_MODEL_ID,
+    kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+    kieStatusBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
+    kieTimeoutMs: 60000,
+    payloadValidation: {
+      allowedTopLevelFields: [
+        "prompt",
+        "aspect",
+        "aspectRatio",
+        "aspect_ratio",
+        "resolution",
+        "model",
+        "callBackUrl",
+        "callbackUrl",
+        "callback_url",
+        "input",
+      ],
+      requiredStringFields: ["prompt"],
+      enumFields: {
+        aspect_ratio: [...KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_ASPECTS],
+        resolution: [...KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_RESOLUTIONS],
+      },
+    },
+  },
+  [KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID]: {
+    modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+    provider: "kie",
+    sourceUrl: "https://docs.kie.ai/",
+    verifiedAt: KIE_GPT_IMAGE_2_VERIFIED_AT,
+    apiDocFile: "api-kie-gpt-image-2-image-to-image.md",
+    submitAspectField: "aspect_ratio",
+    defaultAspect: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_DEFAULT_ASPECT,
+    allowedAspects: [...KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_ASPECTS],
+    defaultResolution: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_DEFAULT_RESOLUTION,
+    allowedResolutions: [...KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_RESOLUTIONS],
+    providerModelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_PROVIDER_MODEL_ID,
+    kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+    kieStatusBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
+    kieTimeoutMs: 60000,
+    payloadValidation: {
+      allowedTopLevelFields: [
+        "prompt",
+        "image_url",
+        "imageUrl",
+        "image_urls",
+        "imageUrls",
+        "input_url",
+        "inputUrl",
+        "input_urls",
+        "inputUrls",
+        "aspect",
+        "aspectRatio",
+        "aspect_ratio",
+        "resolution",
+        "model",
+        "callBackUrl",
+        "callbackUrl",
+        "callback_url",
+        "input",
+      ],
+      requiredStringFields: ["prompt"],
+      requiredAnyOfStringFields: ["image_url", "imageUrl", "input_url", "inputUrl"],
+      requiredAnyOfStringArrayFields: ["image_urls", "imageUrls", "input_urls", "inputUrls"],
+      enumFields: {
+        aspect_ratio: [...KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_ASPECTS],
+        resolution: [...KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_RESOLUTIONS],
+      },
+    },
+  },
   [KIE_SEEDANCE_2_MODEL_ID]: {
     modelId: KIE_SEEDANCE_2_MODEL_ID,
     provider: "kie",
@@ -1127,6 +1222,42 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "default",
     submissionAdapterKey: "openai-gpt-image-2",
     gridEligible: true,
+  }),
+  [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: activePickerPricingRuntime({
+    label: "GPT Image 2 (Kie)",
+    mediaType: "image",
+    pricingStrategy: "kie-gpt-image-2-per-image",
+    displayFamily: "Image",
+    displayOrder: 120,
+    pricingFamily: "Image",
+    logoKey: "openai",
+    providerModelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_PROVIDER_MODEL_ID,
+    alwaysOnProviderRuntime: true,
+    supportsTextToImage: true,
+    generationLanes: ["text-to-image"],
+    executionMode: "queued",
+    submitHandler: "default",
+    submissionAdapterKey: "kie-gpt-image-2-text",
+    gridEligible: true,
+    apiRouteSlug: "kie-gpt-image-2",
+  }),
+  [KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID]: activePickerPricingRuntime({
+    label: "GPT Image 2 Edit (Kie)",
+    mediaType: "image",
+    pricingStrategy: "kie-gpt-image-2-per-image",
+    displayFamily: "Image",
+    displayOrder: 125,
+    pricingFamily: "Image",
+    logoKey: "openai",
+    providerModelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_PROVIDER_MODEL_ID,
+    alwaysOnProviderRuntime: true,
+    supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    submissionAdapterKey: "kie-gpt-image-2-edit",
+    gridEligible: true,
+    apiRouteSlug: "kie-gpt-image-2-edit",
   }),
   [FAL_NANO_BANANA_2_MODEL_ID]: activePickerPricingRuntime({
     label: "Nano Banana 2",

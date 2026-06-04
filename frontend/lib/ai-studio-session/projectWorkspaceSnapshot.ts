@@ -148,14 +148,22 @@ const isPromptOnlyProjectReference = (output: Record<string, unknown>): boolean 
 const shouldTrimGeneratedOutputPayload = (output: Record<string, unknown>): boolean =>
   hasText(output.generationId) && !isInFlightProjectOutput(output);
 
+type GeneratedOutputTrimOptions = {
+  trimDeliveryUrls?: boolean;
+  trimMetadata?: boolean;
+};
+
 const trimGeneratedProjectWorkspaceOutput = (
-  output: Record<string, unknown>
+  output: Record<string, unknown>,
+  options: GeneratedOutputTrimOptions = {}
 ): Record<string, unknown> => {
   const trimmedOutput = {
     ...output,
   };
+  const trimDeliveryUrls = options.trimDeliveryUrls !== false;
+  const trimMetadata = options.trimMetadata !== false;
 
-  if (hasText(output.generationId)) {
+  if (trimMetadata && hasText(output.generationId)) {
     delete trimmedOutput.generationReplay;
     delete trimmedOutput.characterContext;
     delete trimmedOutput.styleContext;
@@ -165,13 +173,15 @@ const trimGeneratedProjectWorkspaceOutput = (
     return trimmedOutput;
   }
 
-  delete trimmedOutput.prompt;
-  delete trimmedOutput.transcriptText;
-  delete trimmedOutput.errorMessage;
-  delete trimmedOutput.errorMessageShort;
-  delete trimmedOutput.errorDetail;
+  if (trimMetadata) {
+    delete trimmedOutput.prompt;
+    delete trimmedOutput.transcriptText;
+    delete trimmedOutput.errorMessage;
+    delete trimmedOutput.errorMessageShort;
+    delete trimmedOutput.errorDetail;
+  }
 
-  if (hasProjectPersistedOutputPreviewAuthority(output)) {
+  if (trimDeliveryUrls && hasProjectPersistedOutputPreviewAuthority(output)) {
     delete trimmedOutput.resultUrls;
     delete trimmedOutput.previewUrl;
     delete trimmedOutput.previewPosterUrl;
@@ -241,16 +251,28 @@ type CanonicalizedProjectWorkspaceOutputs = {
   persistedOutputIds: Set<string>;
 };
 
+type ProjectWorkspaceSnapshotOptions = {
+  trimGeneratedOutputDeliveryUrls?: boolean;
+  trimGeneratedOutputMetadata?: boolean;
+};
+
 const stripFailedOutputsFromProjectWorkspaceOutputs = (
-  outputs: unknown
+  outputs: unknown,
+  options: ProjectWorkspaceSnapshotOptions = {}
 ): CanonicalizedProjectWorkspaceOutputs => {
   const outputsRecord = asRecord(outputs);
+  const trimGeneratedOutputDeliveryUrls = options.trimGeneratedOutputDeliveryUrls !== false;
+  const trimGeneratedOutputMetadata = options.trimGeneratedOutputMetadata !== false;
   const persistedActiveOutputs = (Array.isArray(outputsRecord.active) ? outputsRecord.active : [])
     .map((output) => asRecord(output))
     .filter(shouldPersistOutputInProjectWorkspaceSnapshot);
-  const normalizedActiveOutputs = persistedActiveOutputs.map((output) =>
-    trimPromptOnlyProjectWorkspaceOutput(trimGeneratedProjectWorkspaceOutput(output))
-  );
+  const normalizedActiveOutputs = persistedActiveOutputs.map((output) => {
+    const generatedNormalizedOutput = trimGeneratedProjectWorkspaceOutput(output, {
+      trimDeliveryUrls: trimGeneratedOutputDeliveryUrls,
+      trimMetadata: trimGeneratedOutputMetadata,
+    });
+    return trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput);
+  });
   const outputIdAliases = new Map<string, string>();
   const persistedOutputIds = new Set<string>();
   const canonicalActiveOutputs: Record<string, unknown>[] = [];
@@ -420,7 +442,8 @@ export const computeAiStudioSessionChecksum = (value: unknown): string => {
 export const createAiStudioProjectWorkspaceSnapshot = <
   TSnapshot extends MinimalAiStudioSessionSnapshot,
 >(
-  snapshot: TSnapshot
+  snapshot: TSnapshot,
+  options: ProjectWorkspaceSnapshotOptions = {}
 ): TSnapshot => {
   const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
   if (snapshot.schemaVersion >= 2) {
@@ -434,7 +457,8 @@ export const createAiStudioProjectWorkspaceSnapshot = <
     const baseWorkspace = asRecord(baseSnapshot.workspace);
     const normalizedWorkspace = resetProjectWorkspaceFields(baseWorkspace);
     const canonicalizedOutputs = stripFailedOutputsFromProjectWorkspaceOutputs(
-      baseSnapshot.outputs
+      baseSnapshot.outputs,
+      options
     );
     const normalizedCanvas = normalizeProjectWorkspaceCanvas(
       canvas,
@@ -463,7 +487,7 @@ export const createAiStudioProjectWorkspaceSnapshot = <
   return {
     ...snapshot,
     workspace: resetProjectWorkspaceFields(asRecord(snapshot.workspace)),
-    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs).outputs,
+    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs, options).outputs,
     agent: emptyAgentRuntime,
   } as unknown as TSnapshot;
 };

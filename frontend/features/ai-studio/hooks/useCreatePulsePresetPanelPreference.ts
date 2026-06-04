@@ -76,6 +76,12 @@ const createDefaultCreatePulsePresetPreferenceStorageValue = (
 const DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_STORAGE_VALUE =
   createDefaultCreatePulsePresetPreferenceStorageValue();
 
+const areCreatePulsePresetIdListsEqual = (
+  left: readonly CreatePulsePresetId[],
+  right: readonly CreatePulsePresetId[]
+): boolean =>
+  left.length === right.length && left.every((presetId, index) => presetId === right[index]);
+
 const isLegacyDefaultCreatePulsePanelPresetIds = (presetIds: readonly string[]): boolean =>
   presetIds.length === CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS.length &&
   presetIds.every((presetId, index) => presetId === CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS[index]);
@@ -105,6 +111,15 @@ const buildCreatePulseHiddenBuiltInsStorageKey = (userId?: string | null): strin
   return normalizedUserId
     ? `${CREATE_PULSE_HIDDEN_BUILT_INS_STORAGE_KEY}:${normalizedUserId}`
     : CREATE_PULSE_HIDDEN_BUILT_INS_STORAGE_KEY;
+};
+
+const readCreatePulseStorageValue = (key: string): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 };
 
 const isMissingCreatePulsePreferenceStorageError = (error: unknown): boolean => {
@@ -279,18 +294,35 @@ const resolveCreatePulsePresetPreferenceValue = (
   ),
 });
 
+const hasStoredCreatePulsePreferenceKeys = (userId?: string | null): boolean =>
+  readCreatePulseStorageValue(buildCreatePulsePresetPanelIdsStorageKey(userId)) != null ||
+  readCreatePulseStorageValue(buildCreatePulseSavedPresetsStorageKey(userId)) != null ||
+  readCreatePulseStorageValue(buildCreatePulseHiddenBuiltInsStorageKey(userId)) != null;
+
+const hasMeaningfulCreatePulsePreferenceStorageValue = (
+  value: CreatePulsePresetPreferenceStorageValue,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): boolean => {
+  const defaultValue = createDefaultCreatePulsePresetPreferenceStorageValue(builtInDefinitions);
+  return (
+    value.customSavedPresets.length > 0 ||
+    value.hiddenBuiltInPresetIds.length > 0 ||
+    !areCreatePulsePresetIdListsEqual(value.presetPanelIds, defaultValue.presetPanelIds)
+  );
+};
+
 const readLocalCreatePulsePresetPreferenceValue = (
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null,
   userId?: string | null
 ): CreatePulsePresetPreferenceStorageValue => {
   if (typeof window === "undefined") return DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_STORAGE_VALUE;
-  const storedPresetPanelIds = window.localStorage.getItem(
+  const storedPresetPanelIds = readCreatePulseStorageValue(
     buildCreatePulsePresetPanelIdsStorageKey(userId)
   );
-  const storedSavedPresets = window.localStorage.getItem(
+  const storedSavedPresets = readCreatePulseStorageValue(
     buildCreatePulseSavedPresetsStorageKey(userId)
   );
-  const storedHiddenBuiltIns = window.localStorage.getItem(
+  const storedHiddenBuiltIns = readCreatePulseStorageValue(
     buildCreatePulseHiddenBuiltInsStorageKey(userId)
   );
   const parsedPresetPanelIds = (() => {
@@ -389,22 +421,56 @@ export const useCreatePulsePresetPanelPreference = ({
         .eq("user_id", userId)
         .maybeSingle();
       if (preferenceError) throw preferenceError;
+      const normalizedRemoteValue = normalizeCreatePulsePresetPreferenceStorageValue(
+        {
+          presetPanelIds: storedPreference?.ai_studio_create_pulse_panel_ids,
+          customSavedPresets: storedPreference?.ai_studio_saved_pulses,
+        },
+        builtInDefinitions,
+        {
+          preserveHiddenBuiltInPresetIds: localValue.hiddenBuiltInPresetIds,
+        }
+      );
+      const hasRemoteValue =
+        storedPreference != null &&
+        (storedPreference.ai_studio_create_pulse_panel_ids != null ||
+          storedPreference.ai_studio_saved_pulses != null);
+      if (hasRemoteValue) {
+        return {
+          value: normalizedRemoteValue,
+          hasRemoteValue: true,
+        };
+      }
+
+      const hasScopedLocalStorage = hasStoredCreatePulsePreferenceKeys(userId);
+      const hasLegacyGlobalStorage =
+        !hasScopedLocalStorage && hasStoredCreatePulsePreferenceKeys(null);
+      if (hasLegacyGlobalStorage) {
+        const legacyGlobalValue = readLocalCreatePulsePresetPreferenceValue(
+          builtInDefinitions,
+          null
+        );
+        if (hasMeaningfulCreatePulsePreferenceStorageValue(legacyGlobalValue, builtInDefinitions)) {
+          writeLocalCreatePulsePresetPreferenceValue(legacyGlobalValue, builtInDefinitions, userId);
+          const { error: migrationError } = await supabase.from("user_preferences").upsert(
+            {
+              user_id: userId,
+              ai_studio_create_pulse_panel_ids: legacyGlobalValue.presetPanelIds,
+              ai_studio_saved_pulses: legacyGlobalValue.customSavedPresets,
+            },
+            { onConflict: "user_id" }
+          );
+          if (migrationError) throw migrationError;
+          return {
+            value: legacyGlobalValue,
+            hasRemoteValue: true,
+          };
+        }
+      }
 
       return {
-        value: normalizeCreatePulsePresetPreferenceStorageValue(
-          {
-            presetPanelIds: storedPreference?.ai_studio_create_pulse_panel_ids,
-            customSavedPresets: storedPreference?.ai_studio_saved_pulses,
-          },
-          builtInDefinitions,
-          {
-            preserveHiddenBuiltInPresetIds: localValue.hiddenBuiltInPresetIds,
-          }
-        ),
-        hasRemoteValue:
-          storedPreference != null &&
-          (storedPreference.ai_studio_create_pulse_panel_ids != null ||
-            storedPreference.ai_studio_saved_pulses != null),
+        value: normalizedRemoteValue,
+        hasRemoteValue: false,
       };
     },
     [builtInDefinitions]

@@ -15,6 +15,10 @@ import {
 import { convertUsdToCredits } from "./pricingCredits";
 import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes";
 import {
+  normalizeKieGptImage2ResolutionForAspect,
+  type KieGptImage2Resolution,
+} from "./kieGptImage2";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -27,6 +31,11 @@ const FLUX_PRO_FILL_COST_PER_MP_USD = 0.05;
 const FLUX_KONTEXT_INPAINT_COST_PER_MP_USD = 0.035;
 const BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD = 0.018;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
+const KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_USD_BY_RESOLUTION: Record<KieGptImage2Resolution, number> = {
+  "1K": 0.03,
+  "2K": 0.05,
+  "4K": 0.08,
+};
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
 const ELEVENLABS_TEXT_TO_SPEECH_USD_PER_1K_CHARACTERS = 0.1;
 const ELEVENLABS_VOICE_CHANGER_USD_PER_MINUTE = 0.12;
@@ -325,6 +334,34 @@ const computeGoogleNanoBananaPerImageCost: StrategyFn = ({
     height: 0,
     policy: pricingPolicy,
     variantId: resolveModelPricingVariantId({ modelId, pricingPolicy }),
+  });
+};
+
+const computeKieGptImage2PerImageCost: StrategyFn = ({
+  modelId,
+  aspect,
+  resolution,
+  generationCount,
+  pricingPolicy,
+}) => {
+  const normalizedResolution = normalizeKieGptImage2ResolutionForAspect({
+    aspect,
+    resolution,
+  });
+  return toCostBreakdown({
+    modelId,
+    usdRaw:
+      KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_USD_BY_RESOLUTION[normalizedResolution] *
+      resolveOutputCount(generationCount),
+    megapixels: 0,
+    width: 0,
+    height: 0,
+    policy: pricingPolicy,
+    variantId: buildModelPricingVariantId({
+      baseVariantId: "default",
+      aspect: aspect ?? getModelConfig(modelId)?.defaultAspect ?? null,
+      resolution: normalizedResolution,
+    }),
   });
 };
 
@@ -761,6 +798,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-flux-kontext-inpaint-per-mp": computeFluxKontextInpaintPerMpCost,
   "gpt-image-2-per-image": computeGptImage2PerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
+  "kie-gpt-image-2-per-image": computeKieGptImage2PerImageCost,
   "nano-banana-2-per-image": computeNanoBanana2PerImageCost,
   "openai-text-token": computeOpenAiTextTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,

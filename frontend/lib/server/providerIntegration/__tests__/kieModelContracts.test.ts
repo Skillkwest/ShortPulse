@@ -9,6 +9,8 @@ import {
   normalizeKieSubmitPayloadForModel,
 } from "../kieModelContracts";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -24,6 +26,8 @@ describe("kieModelContracts", () => {
   it("tracks supported Kie model ids", () => {
     expect(isSupportedKieModelId(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId(KIE_KLING_30_MODEL_ID)).toBe(true);
+    expect(isSupportedKieModelId(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID)).toBe(true);
+    expect(isSupportedKieModelId(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId(KIE_SEEDANCE_2_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId("kie-ai/unknown")).toBe(false);
@@ -231,6 +235,200 @@ describe("kieModelContracts", () => {
         payload: { duration: 10, image_url: "https://example.com/ref.png" },
       })
     ).toThrow("Kie Kling 3.0 submit requires a prompt.");
+  });
+
+  it("normalizes Kie GPT Image 2 text-to-image payloads to the createTask contract", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "A cinematic night city poster",
+          aspect_ratio: "16:9",
+          resolution: "4K",
+          callBackUrl: "https://example.com/kie-callback",
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-text-to-image",
+      callBackUrl: "https://example.com/kie-callback",
+      input: {
+        prompt: "A cinematic night city poster",
+        aspect_ratio: "16:9",
+        resolution: "4K",
+      },
+    });
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        payload: {
+          input: {
+            prompt: "A square studio portrait",
+            aspect_ratio: "1:1",
+            resolution: "4K",
+          },
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-text-to-image",
+      input: {
+        prompt: "A square studio portrait",
+        aspect_ratio: "1:1",
+        resolution: "2K",
+      },
+    });
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "Auto aspect should stay provider-safe",
+          aspect_ratio: "auto",
+          resolution: "2K",
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-text-to-image",
+      input: {
+        prompt: "Auto aspect should stay provider-safe",
+        aspect_ratio: "auto",
+        resolution: "1K",
+      },
+    });
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        payload: { aspect_ratio: "16:9", resolution: "1K" },
+      })
+    ).toThrow("Kie GPT Image 2 text-to-image submit requires a prompt.");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "A poster",
+          aspect_ratio: "7:5",
+        },
+      })
+    ).toThrow("Kie GPT Image 2 text-to-image submit uses unsupported aspect ratio");
+  });
+
+  it("normalizes Kie GPT Image 2 image-to-image payloads to the createTask contract", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "Turn this reference into a cinematic poster",
+          input_urls: ["https://example.com/reference.png"],
+          aspect_ratio: "4:5",
+          resolution: "2K",
+          callBackUrl: "https://example.com/kie-callback",
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-image-to-image",
+      callBackUrl: "https://example.com/kie-callback",
+      input: {
+        prompt: "Turn this reference into a cinematic poster",
+        input_urls: ["https://example.com/reference.png"],
+        aspect_ratio: "4:5",
+        resolution: "2K",
+      },
+    });
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          input: {
+            prompt: "Preserve the face and change the wardrobe",
+            image_urls: ["https://example.com/ref-1.png", "https://example.com/ref-2.png"],
+            aspect_ratio: "1:1",
+            resolution: "4K",
+          },
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-image-to-image",
+      input: {
+        prompt: "Preserve the face and change the wardrobe",
+        input_urls: ["https://example.com/ref-1.png", "https://example.com/ref-2.png"],
+        aspect_ratio: "1:1",
+        resolution: "2K",
+      },
+    });
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "Auto aspect should stay provider-safe",
+          image_url: "https://example.com/ref.png",
+          aspect_ratio: "auto",
+          resolution: "4K",
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-image-to-image",
+      input: {
+        prompt: "Auto aspect should stay provider-safe",
+        input_urls: ["https://example.com/ref.png"],
+        aspect_ratio: "auto",
+        resolution: "1K",
+      },
+    });
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: { input_urls: ["https://example.com/ref.png"], aspect_ratio: "16:9" },
+      })
+    ).toThrow("Kie GPT Image 2 image-to-image submit requires a prompt.");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: { prompt: "No references", aspect_ratio: "16:9", resolution: "1K" },
+      })
+    ).toThrow("Kie GPT Image 2 image-to-image submit requires at least one input URL.");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "Too many refs",
+          input_urls: Array.from(
+            { length: 17 },
+            (_, index) => `https://example.com/ref-${index + 1}.png`
+          ),
+        },
+      })
+    ).toThrow("Kie GPT Image 2 image-to-image supports at most 16 input URLs.");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "A poster",
+          input_urls: ["https://example.com/ref.png"],
+          aspect_ratio: "7:5",
+        },
+      })
+    ).toThrow("Kie GPT Image 2 image-to-image submit uses unsupported aspect ratio");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "A poster",
+          input_urls: ["https://example.com/ref.png"],
+          callbackUrl: "file:///tmp/callback",
+        },
+      })
+    ).toThrow(
+      "Kie GPT Image 2 image-to-image submit field callBackUrl must be a valid http(s) URL."
+    );
   });
 
   it("normalizes Seedance 2 payload for text, frame, and multimodal lanes", () => {

@@ -18,9 +18,13 @@ type UseExpertEditGenerationPresetRuntimeParams = {
   isGenerationModeToggleEnabled: boolean;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
   controlledPresetIds?: readonly ExpertEditPresetId[] | null;
-  onSelectedPresetIdsChange?: ((value: ExpertEditPresetId[]) => void) | null;
+  onSelectedPresetIdsChange?:
+    | ((value: ExpertEditPresetId[]) => void | boolean | Promise<boolean>)
+    | null;
   controlledCustomPresetOverrides?: ExpertEditCustomPresetOverrides | null;
-  onCustomPresetOverridesChange?: ((value: ExpertEditCustomPresetOverrides) => void) | null;
+  onCustomPresetOverridesChange?:
+    | ((value: ExpertEditCustomPresetOverrides) => void | boolean | Promise<boolean>)
+    | null;
   systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null;
 };
 

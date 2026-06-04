@@ -61,6 +61,8 @@ import {
   STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX,
 } from "../referenceGridConfig";
 
+const DEFAULT_CANVAS_SECTION_TOP_RATIO = 0.3;
+
 type UseReferenceGridRuntimeScaffoldArgs = Pick<
   ReferenceGridProps,
   | "outputs"
@@ -76,6 +78,8 @@ type UseReferenceGridRuntimeScaffoldArgs = Pick<
   | "onAddCuratedReference"
   | "onRemoveCuratedReference"
   | "onReorderCuratedReference"
+  | "railCanvasProps"
+  | "isShellResizeActive"
 >;
 
 export const resolveReferenceGridValidHydrationOutputIds = ({
@@ -93,6 +97,29 @@ export const resolveReferenceGridValidHydrationOutputIds = ({
   return Array.from(nextIds);
 };
 
+export const shouldSuspendReferenceGridResizeMeasurements = ({
+  outputCount,
+  highDensityCardCount,
+  isShellResizeActive,
+  isHorizontalSplitResizeActive,
+  isStylesSplitResizeActive,
+  isRailCanvasSplitResizeActive,
+}: {
+  outputCount: number;
+  highDensityCardCount: number;
+  isShellResizeActive: boolean;
+  isHorizontalSplitResizeActive: boolean;
+  isStylesSplitResizeActive: boolean;
+  isRailCanvasSplitResizeActive: boolean;
+}): boolean => {
+  const isAnyResizeInteractionActive =
+    isShellResizeActive ||
+    isHorizontalSplitResizeActive ||
+    isStylesSplitResizeActive ||
+    isRailCanvasSplitResizeActive;
+  return isAnyResizeInteractionActive && outputCount >= highDensityCardCount;
+};
+
 export const useReferenceGridRuntimeScaffold = ({
   outputs: outputsProp,
   archivedOutputs: archivedOutputsProp,
@@ -107,6 +134,8 @@ export const useReferenceGridRuntimeScaffold = ({
   onAddCuratedReference,
   onRemoveCuratedReference,
   onReorderCuratedReference,
+  railCanvasProps,
+  isShellResizeActive = false,
 }: UseReferenceGridRuntimeScaffoldArgs) => {
   const { allOutputIds, archivedOutputs, curatedOutputIds, curatedOutputs, outputById } =
     useReferenceGridOutputCollections({
@@ -117,7 +146,6 @@ export const useReferenceGridRuntimeScaffold = ({
     });
 
   const isAnyModalOpen = useAiStudioAnyModalOpen();
-  const suspendBackgroundVisualWork = PERF_FLAG_MODAL_STABILITY_V1 && isAnyModalOpen;
 
   const panelVisibilityResolved = React.useMemo(
     () => ({
@@ -171,6 +199,8 @@ export const useReferenceGridRuntimeScaffold = ({
   const curatedScrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const curatedGridRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
+  const railCanvasSectionRef = React.useRef<HTMLDivElement | null>(null);
+  const railCanvasHeaderRef = React.useRef<HTMLDivElement | null>(null);
   const inventoryStackRef = React.useRef<HTMLDivElement | null>(null);
   const curatedSectionRef = React.useRef<HTMLDivElement | null>(null);
   const curatedHeaderRef = React.useRef<HTMLDivElement | null>(null);
@@ -202,7 +232,9 @@ export const useReferenceGridRuntimeScaffold = ({
   const [isCuratedDropActive, setIsCuratedDropActive] = useState(false);
   const isCuratedDropActiveRef = React.useRef(false);
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
+  const [railCanvasHeaderHeightPx, setRailCanvasHeaderHeightPx] = useState(24);
 
+  const showRailCanvasSection = Boolean(railCanvasProps);
   const stylesSplitShowsReferenceGridTop = showReferenceGridSection;
   const stylesSplitShowsQuickSlotTop = showQuickSlotSection && !showReferenceGridSection;
   const stylesSplitEnabled =
@@ -308,6 +340,52 @@ export const useReferenceGridRuntimeScaffold = ({
     collapseTopHeightPx: stylesSplitTopHeaderHeightPx,
     ariaLabel: stylesSplitAriaLabel,
   });
+  const railCanvasSplit = useReferenceGridHorizontalSplit({
+    enabled: showRailCanvasSection,
+    containerRef: panelRef,
+    defaultTopRatio: DEFAULT_CANVAS_SECTION_TOP_RATIO,
+    minTopSectionHeightPx: railCanvasHeaderHeightPx,
+    minBottomSectionHeightPx: 120,
+    allRefsSnapTopHeightPx: railCanvasHeaderHeightPx,
+    collapseTopHeightPx: railCanvasHeaderHeightPx,
+    ariaLabel: "Resize Canvas and right-rail sections",
+  });
+  const { restoreTopRatio: restoreRailCanvasTopRatio } = railCanvasSplit;
+  const wasRailCanvasSectionVisibleRef = React.useRef(showRailCanvasSection);
+  React.useEffect(() => {
+    const wasVisible = wasRailCanvasSectionVisibleRef.current;
+    wasRailCanvasSectionVisibleRef.current = showRailCanvasSection;
+    if (!showRailCanvasSection || wasVisible) return;
+    restoreRailCanvasTopRatio(DEFAULT_CANVAS_SECTION_TOP_RATIO);
+  }, [restoreRailCanvasTopRatio, showRailCanvasSection]);
+  React.useEffect(() => {
+    if (!showRailCanvasSection) return;
+    const updateHeaderHeight = () => {
+      const node = railCanvasHeaderRef.current;
+      if (!node) return;
+      const nextHeight = Math.max(24, Math.round(node.offsetHeight));
+      setRailCanvasHeaderHeightPx((previous) => (previous === nextHeight ? previous : nextHeight));
+    };
+    updateHeaderHeight();
+    if (typeof ResizeObserver === "undefined") return;
+    const node = railCanvasHeaderRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() => {
+      updateHeaderHeight();
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [showRailCanvasSection]);
+  const isDenseResizeSessionActive = shouldSuspendReferenceGridResizeMeasurements({
+    outputCount: allOutputIds.length,
+    highDensityCardCount: REFERENCE_HIGH_DENSITY_CARD_COUNT,
+    isShellResizeActive,
+    isHorizontalSplitResizeActive: horizontalSplit.isResizing,
+    isStylesSplitResizeActive: stylesSplit.isResizing,
+    isRailCanvasSplitResizeActive: railCanvasSplit.isResizing,
+  });
+  const suspendBackgroundVisualWork =
+    (PERF_FLAG_MODAL_STABILITY_V1 && isAnyModalOpen) || isDenseResizeSessionActive;
 
   const lastRenderCommitAtRef = React.useRef<number>(0);
   const autoplayEnabledIdSet = React.useMemo(
@@ -407,6 +485,7 @@ export const useReferenceGridRuntimeScaffold = ({
     curatedScrollContainerRef,
     curatedGridRef,
     perfDegradeLevel: effectivePerfDegradeLevel,
+    suspendMeasurements: isDenseResizeSessionActive,
     setVirtualMetrics,
     setCuratedVirtualMetrics,
     config: {
@@ -505,6 +584,8 @@ export const useReferenceGridRuntimeScaffold = ({
     curatedScrollContainerRef,
     curatedGridRef,
     panelRef,
+    railCanvasSectionRef,
+    railCanvasHeaderRef,
     inventoryStackRef,
     curatedSectionRef,
     curatedHeaderRef,
@@ -546,6 +627,9 @@ export const useReferenceGridRuntimeScaffold = ({
     setCuratedVirtualMetrics,
     horizontalSplit,
     stylesSplit,
+    railCanvasSplit,
+    showRailCanvasSection,
+    isDenseResizeSessionActive,
     referenceGridStylesStackRef,
     lastRenderCommitAtRef,
     autoplayEnabledIdSet,

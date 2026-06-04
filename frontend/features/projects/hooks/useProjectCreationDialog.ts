@@ -9,6 +9,10 @@ import {
   type CreatedProjectRecord,
 } from "../logic/projectCreateClient";
 
+const PROJECT_CREATE_HANDOFF_TIMEOUT_MS = 15_000;
+const PROJECT_CREATE_HANDOFF_TIMEOUT_MESSAGE =
+  "Project was created, but opening it timed out. Close this dialog and open it from Projects.";
+
 type UseProjectCreationDialogParams = {
   onCreatedProject?: (project: CreatedProjectRecord) => Promise<void> | void;
 };
@@ -23,6 +27,22 @@ type UseProjectCreationDialogResult = {
   closeDialog: () => void;
   setTitle: (value: string) => void;
   submit: () => Promise<CreatedProjectRecord | null>;
+};
+
+const withProjectCreateHandoffDeadline = async (run: () => Promise<void> | void): Promise<void> => {
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const timeoutPromise = new Promise<void>((_resolve, reject) => {
+    timeoutId = globalThis.setTimeout(() => {
+      reject(new Error(PROJECT_CREATE_HANDOFF_TIMEOUT_MESSAGE));
+    }, PROJECT_CREATE_HANDOFF_TIMEOUT_MS);
+  });
+  try {
+    await Promise.race([Promise.resolve(run()), timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      globalThis.clearTimeout(timeoutId);
+    }
+  }
 };
 
 /**
@@ -63,7 +83,9 @@ export const useProjectCreationDialog = ({
     setError(null);
     try {
       const project = await createProject(normalizedTitle);
-      await onCreatedProject?.(project);
+      if (onCreatedProject) {
+        await withProjectCreateHandoffDeadline(() => onCreatedProject(project));
+      }
       setIsOpen(false);
       setTitleState(DEFAULT_NEW_PROJECT_TITLE);
       return project;

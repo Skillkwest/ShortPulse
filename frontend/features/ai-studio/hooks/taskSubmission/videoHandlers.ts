@@ -49,6 +49,11 @@ const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
   "tempfileb.aiquickdraw.com",
 ] as const;
 
+const VALIDATION_FAILURE_CONTEXT = {
+  telemetryMode: "validation",
+  reasonCode: "USER_INPUT_VALIDATION",
+} as const;
+
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const hasKlingElementMedia = (element: AiStudioKlingElement): boolean =>
@@ -914,11 +919,21 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
     }) => {
       if (videoReferenceMode === "motion") {
         if (!videoReferenceImageUrl) {
-          notifyGenerationFailure(id, "Motion Control requires a character image");
+          notifyGenerationFailure(
+            id,
+            "Motion Control requires a character image",
+            undefined,
+            VALIDATION_FAILURE_CONTEXT
+          );
           return { handled: true };
         }
         if (!motionReferenceVideoUrl) {
-          notifyGenerationFailure(id, "Motion Control requires a motion reference video");
+          notifyGenerationFailure(
+            id,
+            "Motion Control requires a motion reference video",
+            undefined,
+            VALIDATION_FAILURE_CONTEXT
+          );
           return { handled: true };
         }
 
@@ -932,7 +947,9 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         if (needsVideoUpload(motionReferenceVideoUrl)) {
           notifyGenerationFailure(
             id,
-            "Motion clip is not ready yet. Re-add it and wait for upload before generating."
+            "Motion clip is not ready yet. Re-add it and wait for upload before generating.",
+            undefined,
+            VALIDATION_FAILURE_CONTEXT
           );
           return { handled: true };
         }
@@ -977,7 +994,12 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       }
 
       if (!preparedImageInputs.length) {
-        notifyGenerationFailure(id, "Kling 3.0 requires at least one reference image.");
+        notifyGenerationFailure(
+          id,
+          "Kling 3.0 requires at least one reference image.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
         return { handled: true };
       }
       let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
@@ -1011,7 +1033,12 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         preparedKlingElements,
       });
       if ("error" in resolvedShotModePayload) {
-        notifyGenerationFailure(id, resolvedShotModePayload.error);
+        notifyGenerationFailure(
+          id,
+          resolvedShotModePayload.error,
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
         return { handled: true };
       }
       const response = await submitQueuedGenerationByModelId(finalModel, {

@@ -16,6 +16,8 @@ import {
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../lib/model-runtime/falModelIds";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -86,7 +88,13 @@ export function resolveModelModalFallbackLogo(logoOrProvider?: string | null): s
 }
 
 export function resolveModelModalFamilyKey(modelId: string): ModelModalFamilyKey {
-  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) return "gpt-image";
+  if (
+    modelId === OPENAI_GPT_IMAGE_2_MODEL_ID ||
+    modelId === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID ||
+    modelId === KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID
+  ) {
+    return "gpt-image";
+  }
   if (modelId.includes("seedream")) return "seedream";
   if (modelId.includes("nano-banana")) return "nano-banana";
   if (modelId.includes("flux")) return "flux";
@@ -104,6 +112,20 @@ export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentatio
     provider: "OpenAI",
     description: "GPT Image 2 supports high-quality image generation and standard edits.",
     tags: ["Image", "Text-to-Image", "Image-to-Image"],
+    verified: true,
+  },
+  [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: {
+    provider: "Kie AI",
+    description:
+      "GPT Image 2 through Kie AI supports queued text-to-image generation at 1K, 2K, or 4K.",
+    tags: ["Image", "Text-to-Image", "1K-4K", "Queued"],
+    verified: true,
+  },
+  [KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID]: {
+    provider: "Kie AI",
+    description:
+      "GPT Image 2 through Kie AI supports queued image-to-image editing with up to 16 reference images at 1K, 2K, or 4K.",
+    tags: ["Image", "Image-to-Image", "1K-4K", "Queued"],
     verified: true,
   },
   [FAL_FLUX_2_KLEIN_9B_MODEL_ID]: {

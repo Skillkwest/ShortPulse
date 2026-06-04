@@ -22,6 +22,7 @@ export const getAdminPricingStrategyLabel = (
       return "Per output megapixel";
     case "gpt-image-2-per-image":
     case "google-nano-banana-per-image":
+    case "kie-gpt-image-2-per-image":
     case "nano-banana-per-image":
     case "nano-banana-2-per-image":
     case "seedream-5-lite-per-image":

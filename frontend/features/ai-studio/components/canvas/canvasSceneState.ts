@@ -78,6 +78,33 @@ export type CanvasSharedSceneState = {
 const getHighestCanvasZIndex = (items: CanvasSceneItem[]): number =>
   items.reduce((highest, item) => Math.max(highest, item.z), 0);
 
+const roundCanvasSceneCoordinate = (value: number): number => Math.round(value * 100) / 100;
+
+const resolveCanvasDropInsertionPoint = ({
+  kind,
+  worldX,
+  worldY,
+  width,
+  height,
+}: {
+  kind: CanvasDropResolution["kind"];
+  worldX: number;
+  worldY: number;
+  width: number;
+  height: number;
+}): { x: number; y: number } => {
+  if (kind === "text") {
+    return {
+      x: roundCanvasSceneCoordinate(worldX),
+      y: roundCanvasSceneCoordinate(worldY),
+    };
+  }
+  return {
+    x: roundCanvasSceneCoordinate(worldX - width / 2),
+    y: roundCanvasSceneCoordinate(worldY - height / 2),
+  };
+};
+
 export const clearCanvasSceneSelection = (items: CanvasSceneItem[]): CanvasSceneItem[] => {
   let changed = false;
   const nextItems = items.map((item) => {
@@ -463,8 +490,13 @@ export const useCanvasSharedSceneState = ({
             : resolved.kind === "audio"
               ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT)
               : (textDimensions?.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT);
-      const pendingX = Math.round((worldX - pendingWidth / 2) * 100) / 100;
-      const pendingY = Math.round((worldY - pendingHeight / 2) * 100) / 100;
+      const insertionPoint = resolveCanvasDropInsertionPoint({
+        kind: resolved.kind,
+        worldX,
+        worldY,
+        width: pendingWidth,
+        height: pendingHeight,
+      });
 
       if (pendingId) {
         setPendingItems((currentPendingItems) => [
@@ -472,8 +504,8 @@ export const useCanvasSharedSceneState = ({
           {
             id: pendingId,
             kind: resolved.kind,
-            x: pendingX,
-            y: pendingY,
+            x: insertionPoint.x,
+            y: insertionPoint.y,
             z: CANVAS_PENDING_BASE_Z_INDEX + currentPendingItems.length + 1,
             width: pendingWidth,
             height: pendingHeight,
@@ -502,27 +534,11 @@ export const useCanvasSharedSceneState = ({
           }
           const highestZ = getHighestCanvasZIndex(currentItems) + 1;
           const nextItems = clearCanvasSceneSelection(currentItems);
-          const offsetX =
-            resolved.kind === "image"
-              ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
-              : resolved.kind === "text"
-                ? (textDimensions?.width ?? CANVAS_TEXT_ITEM_WIDTH) / 2
-                : resolved.kind === "video"
-                  ? (videoDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
-                  : (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH) / 2;
-          const offsetY =
-            resolved.kind === "image"
-              ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
-              : resolved.kind === "text"
-                ? (textDimensions?.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) / 2
-                : resolved.kind === "video"
-                  ? (videoDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
-                  : (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT) / 2;
           const builtItem = buildCanvasSceneItem({
             itemId: candidateItemId,
             resolved,
-            x: Math.round((worldX - offsetX) * 100) / 100,
-            y: Math.round((worldY - offsetY) * 100) / 100,
+            x: insertionPoint.x,
+            y: insertionPoint.y,
             z: highestZ,
             width:
               resolved.kind === "audio"

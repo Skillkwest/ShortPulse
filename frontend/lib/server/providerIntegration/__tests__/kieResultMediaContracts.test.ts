@@ -8,6 +8,8 @@ import {
   isSupportedKieResultMediaModel,
 } from "../kieResultMediaContracts";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -23,7 +25,54 @@ describe("kieResultMediaContracts", () => {
   it("tracks supported Kie media models", () => {
     expect(isSupportedKieResultMediaModel(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
     expect(isSupportedKieResultMediaModel(KIE_KLING_30_MODEL_ID)).toBe(true);
+    expect(isSupportedKieResultMediaModel(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID)).toBe(true);
+    expect(isSupportedKieResultMediaModel(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
     expect(isSupportedKieResultMediaModel("kie-ai/unknown")).toBe(false);
+  });
+
+  it("extracts image URLs for Kie GPT Image 2 text-to-image payloads", () => {
+    expect(
+      extractKieResultMediaUrls({
+        modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        payload: {
+          data: {
+            resultJson: JSON.stringify({
+              resultUrls: ["https://cdn.shortpulse.test/kie-gpt-image-2.png"],
+            }),
+          },
+        },
+      })
+    ).toEqual(["https://cdn.shortpulse.test/kie-gpt-image-2.png"]);
+
+    expect(
+      extractKieResultMediaUrls({
+        modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        payload: {
+          data: {
+            response: {
+              images: [{ url: "https://cdn.shortpulse.test/kie-gpt-image-2-image.png" }],
+            },
+          },
+        },
+      })
+    ).toEqual(["https://cdn.shortpulse.test/kie-gpt-image-2-image.png"]);
+  });
+
+  it("extracts image URLs for Kie GPT Image 2 image-to-image payloads", () => {
+    expect(
+      extractKieResultMediaUrls({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          data: {
+            response: {
+              result: {
+                images: [{ url: "https://cdn.shortpulse.test/kie-gpt-image-2-edit.png" }],
+              },
+            },
+          },
+        },
+      })
+    ).toEqual(["https://cdn.shortpulse.test/kie-gpt-image-2-edit.png"]);
   });
 
   it("extracts media URLs for active Kie Seedance 2 payloads", () => {

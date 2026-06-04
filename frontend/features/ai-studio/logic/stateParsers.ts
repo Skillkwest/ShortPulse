@@ -38,6 +38,8 @@ export type Provider =
   | "fal-veo"
   | "fal-veo-i2v"
   | "openai-image"
+  | "kie-gpt-image-2"
+  | "kie-gpt-image-2-edit"
   | "kie-veo"
   | "kie-kling"
   | "kie-seedance-2"
@@ -61,6 +63,8 @@ const activePollingProviders = new Set<Provider>([
   "fal-seedream-edit",
   "fal-seedream-v5-lite",
   "fal-seedream-v5-lite-edit",
+  "kie-gpt-image-2",
+  "kie-gpt-image-2-edit",
   "kie-veo",
   "kie-kling",
   "kie-seedance-2",
@@ -126,6 +130,16 @@ export const normalizeProviderForPolling = (
     return "fal";
   }
   if (normalized.startsWith("kie")) {
+    if (normalized.includes("gpt-image-2") || normalized.includes("gpt_image_2")) {
+      if (
+        normalized.includes("image-to-image") ||
+        normalized.includes("image_to_image") ||
+        normalized.includes("edit")
+      ) {
+        return "kie-gpt-image-2-edit";
+      }
+      return "kie-gpt-image-2";
+    }
     if (normalized.includes("seedance-2-fast")) return "kie-seedance-2-fast";
     if (normalized.includes("seedance-2")) return "kie-seedance-2";
     return normalized.includes("kling") ? "kie-kling" : "kie-veo";

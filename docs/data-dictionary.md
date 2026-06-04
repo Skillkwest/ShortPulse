@@ -793,7 +793,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ### billing_plans
 
-- `id` (text, pk): Stable plan identifier used across billing profiles, subscriber contracts, and the public catalog. Historically seeded with `free | media | studio | business`, but admin-created plans may add more ids.
+- `id` (text, pk): Stable plan identifier used across billing profiles, subscriber contracts, and the public catalog. Public acquisition uses `starter | media | studio | business`; the legacy `free` database id is a non-public baseline fallback row, not a customer-facing plan.
 - `display_name` (text): UI-facing plan label.
 - `monthly_price_cents` (int): Current public baseline price in cents for the tier.
 - `monthly_credits_cents` (int): Current public baseline monthly credits for the tier.
@@ -813,6 +813,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `recurring_price_cents` (int): Recurring price snapshot for this offer.
 - `monthly_credits_cents` (int): Included monthly credits snapshot for this offer.
 - `storage_limit_bytes` (bigint): Included base media storage entitlement snapshot for this offer.
+- `max_concurrent_generations` (int): Active generation slot entitlement for this offer.
 - `stripe_price_id` (text, nullable): Stripe recurring price id for this offer.
 - `currency` (text, default `usd`): Offer currency.
 - `billing_interval` (text, default `month`): Current recurring interval.
@@ -886,6 +887,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `recurring_price_cents` (int): Locked recurring price snapshot for the subscriber.
 - `monthly_credits_cents` (int): Locked included monthly credits snapshot for the subscriber.
 - `storage_limit_bytes` (bigint): Locked base media storage entitlement snapshot for the subscriber.
+- `max_concurrent_generations` (int): Locked active generation slot entitlement for the subscriber.
 - `currency` (text, default `usd`): Contract currency.
 - `billing_interval` (text, default `month`): Current recurring interval.
 - `status` (text): Contract/subscription status projection (`active`, `trialing`, `past_due`, `canceled`, `inactive`, etc.).

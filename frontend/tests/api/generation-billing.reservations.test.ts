@@ -20,6 +20,7 @@ const getSupabaseAdminMock = vi.fn();
 const insertCreditLedgerEntryMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const resolveRuntimeModelPricingPolicyMock = vi.fn();
+const resolveBillingConcurrencyEntitlementMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -42,6 +43,11 @@ vi.mock("../../lib/server/api/modelPricingControlPlane", () => ({
     resolveRuntimeModelPricingPolicyMock(...args),
 }));
 
+vi.mock("../../lib/server/api/billingConcurrencyEntitlements", () => ({
+  resolveBillingConcurrencyEntitlement: (...args: unknown[]) =>
+    resolveBillingConcurrencyEntitlementMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -55,6 +61,15 @@ describe("generationBilling reservation RPC handling", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
     logGenerationFailureMock.mockResolvedValue(undefined);
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValue({
+      userId: "user-1",
+      planId: "studio",
+      planDisplayName: "Studio",
+      offerId: "studio__current",
+      contractId: "contract-studio",
+      maxConcurrentGenerations: 4,
+      source: "contract",
+    });
     resolveRuntimeModelPricingPolicyMock.mockResolvedValue({
       policy: getDefaultModelPricingPolicyDocument(),
       activePolicyVersion: null,
@@ -1005,6 +1020,9 @@ describe("generationBilling reservation RPC handling", () => {
       code: "GENERATION_ADMISSION_LIMIT",
       retryAfterSeconds: 11,
       admissionScope: "per_user",
+      planId: "studio",
+      planDisplayName: "Studio",
+      maxConcurrentGenerations: 4,
     });
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1012,6 +1030,72 @@ describe("generationBilling reservation RPC handling", () => {
         statusCode: 429,
       })
     );
+  });
+
+  it("blocks generation access when the resolved plan entitlement has zero active slots", async () => {
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValueOnce({
+      userId: "user-1",
+      planId: "free",
+      planDisplayName: "Baseline access",
+      offerId: "free__current",
+      contractId: null,
+      maxConcurrentGenerations: 0,
+      source: "current_offer",
+    });
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [
+        {
+          status: "admission_limited",
+          source_ref: "req-zero-slots",
+          message: "admission_limited",
+          admission_reason: "global_limit",
+          admission_global_active: 0,
+          admission_global_max: 0,
+          admission_tier: "image_standard",
+          admission_tier_active: 0,
+          admission_tier_max: 1000000,
+          retry_after_seconds: 20,
+        },
+      ],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-zero-slots" },
+      url: "/api/openai/image-generate",
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "gpt-image-2",
+      payload: {
+        prompt: "test prompt",
+        size: "1024x1024",
+      },
+      reason: "OpenAI image generation",
+    });
+
+    expect(charge).toBeNull();
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_admission_mode: "enforce",
+        p_global_max: 0,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Baseline access does not include generation access. Choose a paid plan to generate.",
+      code: "GENERATION_ADMISSION_LIMIT",
+      retryAfterSeconds: 20,
+      admissionScope: "per_user",
+      planId: "free",
+      planDisplayName: "Baseline access",
+      maxConcurrentGenerations: 0,
+    });
   });
 
   it("uses a direct-submit telemetry source for non-Fal admission denials", async () => {

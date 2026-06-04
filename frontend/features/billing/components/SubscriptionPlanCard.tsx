@@ -73,7 +73,7 @@ export function SubscriptionPlanCard({
       annotation: null,
     })),
     {
-      label: `Concurrency: ${planView.concurrentGenerationsCompactLabel}`,
+      label: planView.concurrentGenerationsCompactLabel,
       included: true,
       annotation: null,
     },

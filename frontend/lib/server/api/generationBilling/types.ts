@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import type { BillingConcurrencyEntitlement } from "../billingConcurrencyEntitlements";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -19,6 +20,7 @@ export type ChargeResult = {
   sourceRef: string;
   billingMode: "reservation";
   chargeMetadata: JsonObject;
+  concurrencyEntitlement?: BillingConcurrencyEntitlement;
   pricingBreakdown: {
     billedCredits: number;
     billedUsd: number;

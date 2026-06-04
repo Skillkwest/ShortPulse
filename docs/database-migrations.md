@@ -265,6 +265,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 143.  `sql/migrations/144_retire_media_folder_canvas_states.sql`
 144.  `sql/migrations/145_add_project_output_display_items.sql`
 145.  `sql/migrations/146_harden_control_plane_scheduler_timeouts.sql`
+146.  `sql/migrations/147_add_plan_concurrency_entitlements.sql`
       Rollback files:
 
 
@@ -439,6 +440,7 @@ Billing safety note:
 - Migration `144_retire_media_folder_canvas_states.sql` removes the retired `media_folder_canvas_states` table after the Media Library folder-canvas runtime, APIs, and tests were deleted and the shared right-rail Canvas became the only shipped canvas surface.
 - Migration `145_add_project_output_display_items.sql` adds large-project output display records plus checkpoint revision freshness support for project workspace snapshots, backfills display rows from existing rich project snapshots, and adds a display-row trigger that preserves newest-source writes while keeping per-output versions monotonic.
 - Migration `146_harden_control_plane_scheduler_timeouts.sql` hardens the recovery and admin-fleet Supabase scheduler HTTP calls with explicit `60000ms` timeouts and restores the missing `service_role` execute grant for `create_agent_safety_policy_version(...)`.
+- Migration `147_add_plan_concurrency_entitlements.sql` adds versioned plan concurrency entitlements to billing offers and subscriber contracts, seeds the `starter/media/studio/business` `1/2/4/8` active-generation ladder, and sets non-public baseline fallback generation concurrency to `0`.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
 - Read-only Character Media V2 diagnostics script `sql/check_character_media_isolation_backfill.sql` reports `character_media_assets` coverage, unmapped legacy linkage rows, and profile/preset metadata completeness.

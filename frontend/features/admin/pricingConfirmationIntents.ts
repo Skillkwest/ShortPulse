@@ -45,6 +45,7 @@ export const buildPlanOfferConfirmationIntent = ({
   const draftPrice = parseIntegerInput(planOfferDraft.recurringPriceCents);
   const draftCredits = parseIntegerInput(planOfferDraft.monthlyCreditsCents);
   const draftStorageBytes = parseIntegerInput(planOfferDraft.storageLimitBytes);
+  const draftMaxConcurrentGenerations = parseIntegerInput(planOfferDraft.maxConcurrentGenerations);
   const stripePriceId = planOfferDraft.stripePriceId.trim();
   const planId = planOfferDraft.planId.trim().toLowerCase();
   const hasInvalidDraft =
@@ -55,6 +56,8 @@ export const buildPlanOfferConfirmationIntent = ({
     draftCredits < 0 ||
     draftStorageBytes == null ||
     draftStorageBytes < 0 ||
+    draftMaxConcurrentGenerations == null ||
+    draftMaxConcurrentGenerations < 0 ||
     (requiresPlanStripePrice(planId, draftPrice) && !stripePriceId);
 
   return {
@@ -90,6 +93,14 @@ export const buildPlanOfferConfirmationIntent = ({
             : formatStorageBytes(draftStorageBytes),
       },
       {
+        label: "Max active generations",
+        before: currentOffer ? String(currentOffer.maxConcurrentGenerations) : "none",
+        after:
+          draftMaxConcurrentGenerations == null || draftMaxConcurrentGenerations < 0
+            ? "invalid"
+            : String(draftMaxConcurrentGenerations),
+      },
+      {
         label: "Stripe price",
         before: currentOffer?.stripePriceId ?? "none",
         after:
@@ -114,6 +125,7 @@ export const buildPlanCreateConfirmationIntent = ({
   const draftAnnualPrice = parseIntegerInput(planDraft.annualRecurringPriceCents);
   const draftCredits = parseIntegerInput(planDraft.monthlyCreditsCents);
   const draftStorageBytes = parseIntegerInput(planDraft.storageLimitBytes);
+  const draftMaxConcurrentGenerations = parseIntegerInput(planDraft.maxConcurrentGenerations);
   const draftSortOrder = parseIntegerInput(planDraft.sortOrder);
   const hasInvalidDraft =
     !PLAN_ID_PATTERN.test(planId) ||
@@ -124,6 +136,8 @@ export const buildPlanCreateConfirmationIntent = ({
     draftCredits < 0 ||
     draftStorageBytes == null ||
     draftStorageBytes < 0 ||
+    draftMaxConcurrentGenerations == null ||
+    draftMaxConcurrentGenerations < 0 ||
     draftSortOrder == null ||
     draftSortOrder < 0;
 
@@ -161,6 +175,14 @@ export const buildPlanCreateConfirmationIntent = ({
           draftStorageBytes == null || draftStorageBytes < 0
             ? "invalid"
             : formatStorageBytes(draftStorageBytes),
+      },
+      {
+        label: "Max active generations",
+        before: "none",
+        after:
+          draftMaxConcurrentGenerations == null || draftMaxConcurrentGenerations < 0
+            ? "invalid"
+            : String(draftMaxConcurrentGenerations),
       },
       {
         label: "Sort order",

@@ -704,6 +704,7 @@ export type AdminPricingPlanRow = {
   recurringPriceCents: number;
   monthlyCreditsCents: number;
   storageLimitBytes: number;
+  maxConcurrentGenerations: number;
   stripeProductId: string | null;
   stripePriceId: string | null;
   acquisitionEnabled: boolean;
@@ -714,6 +715,7 @@ export type AdminPricingPlanRow = {
     recurringPriceCents: number;
     monthlyCreditsCents: number;
     storageLimitBytes: number;
+    maxConcurrentGenerations: number;
     stripePriceId: string | null;
     acquisitionEnabled: boolean;
     isActive: boolean;
@@ -724,6 +726,7 @@ export type AdminPricingPlanRow = {
     recurringPriceCents: number;
     monthlyCreditsCents: number;
     storageLimitBytes: number;
+    maxConcurrentGenerations: number;
     stripePriceId: string | null;
     acquisitionEnabled: boolean;
     isActive: boolean;

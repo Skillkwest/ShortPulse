@@ -875,9 +875,11 @@ export const createFalSubmitHandler = ({
             globalMax: runtimeFlags.admission.sharedProviderGlobalMax,
           })
         : null;
+      const userGlobalMax =
+        charge.concurrencyEntitlement?.maxConcurrentGenerations ?? runtimeFlags.admission.globalMax;
       const userAdmissionDecision = await evaluateAdmissionForScope({
         scopeUserId: charge.userId,
-        globalMax: runtimeFlags.admission.globalMax,
+        globalMax: userGlobalMax,
       });
       const admissionDecision = selectEffectiveAdmissionDecision({
         providerDecision: sharedProviderDecision,
@@ -906,6 +908,10 @@ export const createFalSubmitHandler = ({
             tier_active: admissionDecision.snapshot.tierActive,
             tier_max: admissionDecision.snapshot.tierMax,
             admission_scope: admissionScope,
+            plan_id: charge.concurrencyEntitlement?.planId ?? null,
+            max_concurrent_generations:
+              charge.concurrencyEntitlement?.maxConcurrentGenerations ?? null,
+            entitlement_source: charge.concurrencyEntitlement?.source ?? null,
           },
         });
       }

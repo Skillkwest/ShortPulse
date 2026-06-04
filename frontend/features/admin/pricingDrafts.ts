@@ -23,6 +23,7 @@ export type PlanCreateDraft = {
   annualRecurringPriceCents: string;
   monthlyCreditsCents: string;
   storageLimitBytes: string;
+  maxConcurrentGenerations: string;
   sortOrder: string;
 };
 
@@ -34,6 +35,7 @@ export type PlanOfferDraft = {
   recurringPriceCents: string;
   monthlyCreditsCents: string;
   storageLimitBytes: string;
+  maxConcurrentGenerations: string;
   stripePriceId: string;
   expectedCurrentOfferId: string | null;
   expectedCurrentOfferAbsent: boolean;
@@ -118,6 +120,7 @@ export const buildEmptyPlanCreateDraft = (sortOrder: number): PlanCreateDraft =>
   annualRecurringPriceCents: "",
   monthlyCreditsCents: "",
   storageLimitBytes: "",
+  maxConcurrentGenerations: "",
   sortOrder: String(sortOrder),
 });
 
@@ -138,6 +141,9 @@ export const buildPlanOfferDraft = (
     recurringPriceCents: String(offer?.recurringPriceCents ?? fallbackRecurringPriceCents),
     monthlyCreditsCents: String(offer?.monthlyCreditsCents ?? row.monthlyCreditsCents),
     storageLimitBytes: String(offer?.storageLimitBytes ?? row.storageLimitBytes),
+    maxConcurrentGenerations: String(
+      offer?.maxConcurrentGenerations ?? row.maxConcurrentGenerations
+    ),
     stripePriceId: offer?.stripePriceId ?? "",
     expectedCurrentOfferId: offer?.offerId ?? null,
     expectedCurrentOfferAbsent: !offer,

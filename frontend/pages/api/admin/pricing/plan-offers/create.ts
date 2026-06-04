@@ -20,6 +20,7 @@ type CreatePlanOfferRequest = {
   recurringPriceCents?: number | string;
   monthlyCreditsCents?: number | string;
   storageLimitBytes?: number | string;
+  maxConcurrentGenerations?: number | string;
   stripePriceId?: string | null;
   expectedCurrentOfferId?: string | null;
   expectedCurrentOfferAbsent?: boolean;
@@ -57,6 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const recurringPriceCents = parseNonNegativeInteger(body.recurringPriceCents);
   const monthlyCreditsCents = parseNonNegativeInteger(body.monthlyCreditsCents);
   const storageLimitBytes = parseNonNegativeInteger(body.storageLimitBytes);
+  const maxConcurrentGenerations = parseNonNegativeInteger(body.maxConcurrentGenerations);
   const stripePriceId = normalizeNullableText(body.stripePriceId);
   const expectedCurrentOfferId = normalizeNullableText(body.expectedCurrentOfferId);
   const expectedCurrentOfferAbsent =
@@ -79,6 +81,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (storageLimitBytes == null) {
     return res.status(400).json({ error: "storageLimitBytes must be a non-negative integer." });
+  }
+  if (maxConcurrentGenerations == null) {
+    return res
+      .status(400)
+      .json({ error: "maxConcurrentGenerations must be a non-negative integer." });
   }
   if (!requireStripePriceForPaidCatalogRow({ priceCents: recurringPriceCents, stripePriceId })) {
     return res.status(400).json({ error: "Paid public plan offers require a Stripe price id." });
@@ -104,6 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       p_recurring_price_cents: recurringPriceCents,
       p_monthly_credits_cents: monthlyCreditsCents,
       p_storage_limit_bytes: storageLimitBytes,
+      p_max_concurrent_generations: maxConcurrentGenerations,
       p_stripe_price_id: stripePriceId,
       p_expected_current_offer_id: expectedCurrentOfferId,
       p_expected_current_offer_absent: expectedCurrentOfferAbsent,

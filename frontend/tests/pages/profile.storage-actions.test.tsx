@@ -1,7 +1,7 @@
 /**
  * Profile storage-section tests for recurring storage add-on presentation.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
@@ -380,7 +380,10 @@ describe("Profile storage actions", () => {
   it("re-polls storage state after a successful add-on change", async () => {
     render(<ProfilePage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    const removeButton = await screen.findByRole("button", { name: "Remove" });
+    await act(async () => {
+      fireEvent.click(removeButton);
+    });
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/storage-addon/change", {
@@ -393,7 +396,9 @@ describe("Profile storage actions", () => {
     const initialStorageQueryCalls = activeStorageAddonsQueryMock.mock.calls.length;
     const initialQuotaRefreshCalls = refreshQuotaSummaryMock.mock.calls.length;
 
-    await new Promise((resolve) => window.setTimeout(resolve, 1800));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 1800));
+    });
 
     expect(activeStorageAddonsQueryMock.mock.calls.length).toBeGreaterThan(
       initialStorageQueryCalls

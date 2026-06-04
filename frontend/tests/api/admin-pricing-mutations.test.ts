@@ -152,6 +152,7 @@ describe("admin pricing mutation routes", () => {
         recurringPriceCents: 4900,
         monthlyCreditsCents: 3500,
         storageLimitBytes: 107374182400,
+        maxConcurrentGenerations: 4,
         stripePriceId: "price_studio_admin",
         expectedCurrentOfferId: "studio__current",
       },
@@ -170,6 +171,7 @@ describe("admin pricing mutation routes", () => {
         p_offer_name: "Studio Admin Offer",
         p_recurring_price_cents: 4900,
         p_monthly_credits_cents: 3500,
+        p_max_concurrent_generations: 4,
         p_stripe_price_id: "price_studio_admin",
         p_expected_current_offer_id: "studio__current",
         p_expected_current_offer_absent: false,
@@ -194,6 +196,7 @@ describe("admin pricing mutation routes", () => {
         recurringPriceCents: 0,
         monthlyCreditsCents: 3500,
         storageLimitBytes: 107374182400,
+        maxConcurrentGenerations: 4,
         stripePriceId: "",
       },
     };
@@ -255,6 +258,7 @@ describe("admin pricing mutation routes", () => {
         annualRecurringPriceCents: 59000,
         monthlyCreditsCents: 4500,
         storageLimitBytes: 214748364800,
+        maxConcurrentGenerations: 6,
         sortOrder: 40,
       },
     };
@@ -303,6 +307,7 @@ describe("admin pricing mutation routes", () => {
         plan_id: "creator",
         offer_name: "Creator Monthly Current Offer",
         billing_interval: "month",
+        max_concurrent_generations: 6,
         stripe_price_id: "price_plan_creator_month",
       }),
       expect.objectContaining({
@@ -311,6 +316,7 @@ describe("admin pricing mutation routes", () => {
         offer_name: "Creator Annual Current Offer",
         billing_interval: "year",
         recurring_price_cents: 59000,
+        max_concurrent_generations: 6,
         stripe_price_id: "price_plan_creator_year",
       }),
     ]);
@@ -338,6 +344,7 @@ describe("admin pricing mutation routes", () => {
         annualRecurringPriceCents: 0,
         monthlyCreditsCents: 4500,
         storageLimitBytes: 214748364800,
+        maxConcurrentGenerations: 6,
         sortOrder: 40,
       },
     };
@@ -389,6 +396,7 @@ describe("admin pricing mutation routes", () => {
         recurringPriceCents: 59000,
         monthlyCreditsCents: 4500,
         storageLimitBytes: 214748364800,
+        maxConcurrentGenerations: 6,
         stripePriceId: "price_creator_annual",
         expectedCurrentOfferId: null,
         expectedCurrentOfferAbsent: true,
@@ -402,6 +410,7 @@ describe("admin pricing mutation routes", () => {
       "activate_billing_plan_offer",
       expect.objectContaining({
         p_billing_interval: "year",
+        p_max_concurrent_generations: 6,
         p_expected_current_offer_id: null,
         p_expected_current_offer_absent: true,
       })

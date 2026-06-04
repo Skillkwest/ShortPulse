@@ -53,6 +53,7 @@ type BillingPlanOfferRow = {
   billing_interval: "month" | "year";
   stripe_price_id: string | null;
   recurring_price_cents: number;
+  max_concurrent_generations: number;
   acquisition_enabled: boolean;
   is_active: boolean;
   effective_start_at: string | null;
@@ -160,7 +161,7 @@ const loadTargetPlan = async (targetPlanId: string, billingInterval: "month" | "
     supabaseAdmin
       .from("billing_plan_offers")
       .select(
-        "id, plan_id, billing_interval, stripe_price_id, recurring_price_cents, acquisition_enabled, is_active, effective_start_at, created_at"
+        "id, plan_id, billing_interval, stripe_price_id, recurring_price_cents, max_concurrent_generations, acquisition_enabled, is_active, effective_start_at, created_at"
       )
       .eq("plan_id", targetPlanId)
       .eq("billing_interval", billingInterval)
@@ -473,9 +474,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "metadata[user_id]": user.id,
       "metadata[billing_plan_id]": targetPlanId,
       "metadata[billing_offer_id]": targetOffer.id,
+      "metadata[max_concurrent_generations]": targetOffer.max_concurrent_generations,
       "subscription_data[metadata][user_id]": user.id,
       "subscription_data[metadata][billing_plan_id]": targetPlanId,
       "subscription_data[metadata][billing_offer_id]": targetOffer.id,
+      "subscription_data[metadata][max_concurrent_generations]":
+        targetOffer.max_concurrent_generations,
     });
 
     if (!session.url) {

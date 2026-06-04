@@ -14,6 +14,7 @@ import {
 } from "../../model-runtime/editImageBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { requireApiUser } from "./auth";
+import { resolveBillingConcurrencyEntitlement } from "./billingConcurrencyEntitlements";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveRuntimeModelPricingPolicy } from "./modelPricingControlPlane";
 import { isRecoverableReservationFailure } from "./generationBilling/errorGuards";
@@ -122,6 +123,22 @@ const resolveAdmissionLimitedTelemetrySource = (routeLabel: string): string =>
   routeLabel.startsWith("/api/fal/")
     ? ADMISSION_LIMITED_TELEMETRY_SOURCE
     : DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE;
+
+const PROVIDER_TIER_MAX_WHEN_ADMISSION_DISABLED = 1_000_000;
+
+const buildPlanConcurrencyLimitMessage = ({
+  planDisplayName,
+  maxConcurrentGenerations,
+}: {
+  planDisplayName: string;
+  maxConcurrentGenerations: number;
+}): string => {
+  if (maxConcurrentGenerations <= 0) {
+    return `${planDisplayName} does not include generation access. Choose a paid plan to generate.`;
+  }
+  const generationLabel = maxConcurrentGenerations === 1 ? "generation" : "generations";
+  return `${planDisplayName} supports ${maxConcurrentGenerations} active ${generationLabel} at a time. Please wait for one to finish, then retry.`;
+};
 
 const isCreateImageBillingPath = ({
   shortpulseContext,
@@ -371,7 +388,51 @@ export const chargeGenerationRequest = async ({
   };
 
   const runtimeFlags = readFalRuntimeFlags();
+  const concurrencyEntitlement = await resolveBillingConcurrencyEntitlement(user.id).catch(
+    async (error) => {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.generation_billing_concurrency_entitlement_unavailable",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Generation concurrency entitlement is unavailable.",
+        statusCode: 503,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
+          model_id: modelId,
+          source_ref: sourceRef,
+        },
+      });
+      return null;
+    }
+  );
+  if (!concurrencyEntitlement) {
+    const retryAfterSeconds = Math.max(1, runtimeFlags.admission.retryAfterSeconds);
+    res.setHeader("Retry-After", String(retryAfterSeconds));
+    res.status(503).json({
+      error: "Generation admission is temporarily unavailable. Please retry shortly.",
+      code: "GENERATION_ADMISSION_UNAVAILABLE",
+      retryAfterSeconds,
+    });
+    return null;
+  }
+
   const admissionTier = resolveGenerationAdmissionTier(modelId);
+  const concurrencyMetadata = {
+    plan_id: concurrencyEntitlement.planId,
+    plan_display_name: concurrencyEntitlement.planDisplayName,
+    billing_offer_id: concurrencyEntitlement.offerId,
+    billing_contract_id: concurrencyEntitlement.contractId,
+    max_concurrent_generations: concurrencyEntitlement.maxConcurrentGenerations,
+    entitlement_source: concurrencyEntitlement.source,
+  };
+  const finalChargeMetadata = {
+    ...chargeMetadata,
+    concurrency_entitlement: concurrencyMetadata,
+  };
   const reserveResult = await reserveGenerationCredits({
     userId: user.id,
     sourceRef,
@@ -379,14 +440,17 @@ export const chargeGenerationRequest = async ({
     amountCents: Math.abs(Math.trunc(breakdown.credits)),
     reason,
     metadata: {
-      ...chargeMetadata,
+      ...finalChargeMetadata,
       admission_tier: admissionTier,
     },
     admission: {
-      mode: runtimeFlags.admission.mode,
-      globalMax: runtimeFlags.admission.globalMax,
+      mode: "enforce",
+      globalMax: concurrencyEntitlement.maxConcurrentGenerations,
       tier: admissionTier,
-      tierMax: runtimeFlags.admission.tierLimits[admissionTier],
+      tierMax:
+        runtimeFlags.admission.mode === "enforce"
+          ? runtimeFlags.admission.tierLimits[admissionTier]
+          : PROVIDER_TIER_MAX_WHEN_ADMISSION_DISABLED,
       retryAfterSeconds: runtimeFlags.admission.retryAfterSeconds,
     },
   });
@@ -438,10 +502,15 @@ export const chargeGenerationRequest = async ({
       1,
       reserveResult.admission?.retryAfterSeconds ?? runtimeFlags.admission.retryAfterSeconds
     );
+    const admissionReason = reserveResult.admission?.reason ?? null;
+    const customerMessage =
+      admissionReason === "tier_limit"
+        ? "Too many active generations. Please retry shortly."
+        : buildPlanConcurrencyLimitMessage(concurrencyEntitlement);
     res.setHeader("Retry-After", String(retryAfterSeconds));
     return respondChargeFailure({
       statusCode: 429,
-      message: "Too many active generations. Please retry shortly.",
+      message: customerMessage,
       source: resolveAdmissionLimitedTelemetrySource(routeLabel),
       metadata: {
         reservation_mode: true,
@@ -454,12 +523,19 @@ export const chargeGenerationRequest = async ({
         admission_tier: reserveResult.admission?.tier ?? null,
         admission_tier_active: reserveResult.admission?.tierActive ?? null,
         admission_tier_max: reserveResult.admission?.tierMax ?? null,
+        plan_id: concurrencyEntitlement.planId,
+        plan_display_name: concurrencyEntitlement.planDisplayName,
+        max_concurrent_generations: concurrencyEntitlement.maxConcurrentGenerations,
+        entitlement_source: concurrencyEntitlement.source,
         retry_after_seconds: retryAfterSeconds,
       },
       responseBody: {
         code: "GENERATION_ADMISSION_LIMIT",
         retryAfterSeconds,
         admissionScope: "per_user",
+        planId: concurrencyEntitlement.planId,
+        planDisplayName: concurrencyEntitlement.planDisplayName,
+        maxConcurrentGenerations: concurrencyEntitlement.maxConcurrentGenerations,
       },
     });
   }
@@ -560,7 +636,8 @@ export const chargeGenerationRequest = async ({
     credits: breakdown.credits,
     sourceRef,
     billingMode: "reservation",
-    chargeMetadata,
+    chargeMetadata: finalChargeMetadata,
+    concurrencyEntitlement,
     pricingBreakdown,
     pricingParams,
     markSubmitted,

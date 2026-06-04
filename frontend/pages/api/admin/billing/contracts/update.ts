@@ -11,6 +11,7 @@ import {
   isInternalCompPlanId,
   isUniqueViolationError,
 } from "../../../../../lib/server/api/billingContracts";
+import { resolveDefaultPlanConcurrencyLimit } from "../../../../../lib/billing/planConcurrency";
 import { insertCreditLedgerEntry } from "../../../../../lib/server/api/creditLedger";
 import { getSupabaseAdmin } from "../../../../../lib/server/api/supabaseAdmin";
 
@@ -42,6 +43,7 @@ type BillingContractRow = {
   recurring_price_cents: number | string | null;
   monthly_credits_cents: number | string | null;
   storage_limit_bytes: number | string | null;
+  max_concurrent_generations: number | string | null;
   status: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
@@ -54,6 +56,7 @@ type BillingOfferRow = {
   recurring_price_cents: number | string;
   monthly_credits_cents: number | string;
   storage_limit_bytes: number | string;
+  max_concurrent_generations: number | string | null;
 };
 
 const DEFAULT_GRANT_REASON = "Admin internal comp override";
@@ -127,7 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, stripe_customer_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, contract_source"
+          "id, plan_id, offer_id, stripe_customer_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, status, current_period_start, current_period_end, contract_source"
         )
         .eq("user_id", normalizedUserId)
         .is("ended_at", null)
@@ -210,7 +213,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const internalOfferId = buildInternalCompOfferId(effectivePlanId);
     const offerResult = await supabaseAdmin
       .from("billing_plan_offers")
-      .select("id, plan_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes")
+      .select(
+        "id, plan_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations"
+      )
       .eq("id", internalOfferId)
       .maybeSingle();
     if (offerResult.error) {
@@ -225,13 +230,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const nextMonthlyCredits = asCents(offer.monthly_credits_cents);
     const nextStorageLimitBytes = asCents(offer.storage_limit_bytes);
+    const nextMaxConcurrentGenerations = asCents(
+      offer.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(effectivePlanId)
+    );
 
     if (
       currentContract?.contract_source === BILLING_CONTRACT_SOURCE_INTERNAL_COMP &&
       currentContract.plan_id === effectivePlanId &&
       currentContract.status === "active" &&
       asCents(currentContract.monthly_credits_cents) === nextMonthlyCredits &&
-      asCents(currentContract.storage_limit_bytes) === nextStorageLimitBytes
+      asCents(currentContract.storage_limit_bytes) === nextStorageLimitBytes &&
+      asCents(currentContract.max_concurrent_generations) === nextMaxConcurrentGenerations
     ) {
       return res.status(200).json({
         ok: true,
@@ -301,6 +310,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         recurring_price_cents: asCents(offer.recurring_price_cents),
         monthly_credits_cents: nextMonthlyCredits,
         storage_limit_bytes: nextStorageLimitBytes,
+        max_concurrent_generations: nextMaxConcurrentGenerations,
         status: "active",
         current_period_start: currentPeriodStart.toISOString(),
         current_period_end: currentPeriodEnd.toISOString(),

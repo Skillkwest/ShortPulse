@@ -10,6 +10,7 @@ import type {
   BillingStorageAddonRecord,
   CreditPackageRecord,
 } from "../../../features/billing/catalog";
+import { resolveDefaultPlanConcurrencyLimit } from "../../billing/planConcurrency";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type BillingPlanMetadataRow = {
@@ -26,6 +27,7 @@ type BillingPlanOfferRow = {
   recurring_price_cents: number;
   monthly_credits_cents: number;
   storage_limit_bytes: number;
+  max_concurrent_generations?: number | null;
   stripe_price_id: string | null;
   acquisition_enabled: boolean;
   is_active: boolean;
@@ -125,7 +127,7 @@ export const loadBillingCatalogSnapshot = async (
     supabaseAdmin
       .from("billing_plan_offers")
       .select(
-        "id, plan_id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id, acquisition_enabled, is_active, effective_start_at, created_at"
+        "id, plan_id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, stripe_price_id, acquisition_enabled, is_active, effective_start_at, created_at"
       )
       .eq("acquisition_enabled", true)
       .eq("is_active", true)
@@ -206,6 +208,8 @@ export const loadBillingCatalogSnapshot = async (
           recurring_price_cents: monthlyOffer.recurring_price_cents,
           monthly_credits_cents: monthlyOffer.monthly_credits_cents,
           storage_limit_bytes: monthlyOffer.storage_limit_bytes,
+          max_concurrent_generations:
+            monthlyOffer.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(planId),
           stripe_price_id: monthlyOffer.stripe_price_id,
           acquisition_enabled: monthlyOffer.acquisition_enabled,
           is_active: monthlyOffer.is_active,
@@ -219,6 +223,8 @@ export const loadBillingCatalogSnapshot = async (
           recurring_price_cents: annualOffer.recurring_price_cents,
           monthly_credits_cents: annualOffer.monthly_credits_cents,
           storage_limit_bytes: annualOffer.storage_limit_bytes,
+          max_concurrent_generations:
+            annualOffer.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(planId),
           stripe_price_id: annualOffer.stripe_price_id,
           acquisition_enabled: annualOffer.acquisition_enabled,
           is_active: annualOffer.is_active,
@@ -237,6 +243,10 @@ export const loadBillingCatalogSnapshot = async (
             monthlyOffer?.monthly_credits_cents ?? primaryOffer.monthly_credits_cents,
           storage_limit_bytes:
             monthlyOffer?.storage_limit_bytes ?? primaryOffer.storage_limit_bytes,
+          max_concurrent_generations:
+            monthlyOffer?.max_concurrent_generations ??
+            primaryOffer.max_concurrent_generations ??
+            resolveDefaultPlanConcurrencyLimit(planId),
           is_active: Boolean(metadata.is_active && primaryOffer.is_active),
           offers,
         },

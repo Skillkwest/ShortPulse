@@ -177,23 +177,19 @@ export const shellStyles = {
 export const accountStyles = {
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
-    gap: 16,
-    alignItems: "stretch",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
+    gap: 18,
+    alignItems: "start",
   },
   panel: {
-    minHeight: 260,
     display: "flex",
     flexDirection: "column",
-    gap: 16,
-    padding: 22,
+    gap: 18,
+    padding: 24,
     borderRadius: 16,
     border: `1px solid ${colors.border}`,
     background: colors.card,
     boxShadow: shadow,
-  },
-  panelWide: {
-    gridColumn: "span 2",
   },
   panelHeader: {
     display: "grid",
@@ -223,11 +219,11 @@ export const accountStyles = {
   actions: {
     display: "flex",
     gap: 10,
-    marginTop: "auto",
+    marginTop: 2,
   },
   button: {
     minHeight: 46,
-    width: "100%",
+    width: "min(100%, 260px)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -244,7 +240,7 @@ export const accountStyles = {
   },
   ghostButton: {
     minHeight: 46,
-    width: "100%",
+    width: "min(100%, 260px)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -261,11 +257,10 @@ export const accountStyles = {
     textDecoration: "none",
   },
   preference: {
-    minHeight: 260,
     display: "grid",
-    alignContent: "space-between",
-    gap: 18,
-    padding: 22,
+    alignContent: "start",
+    gap: 16,
+    padding: 24,
     borderRadius: 16,
     border: `1px solid ${colors.border}`,
     background: colors.cardLift,

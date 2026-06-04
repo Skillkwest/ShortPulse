@@ -138,6 +138,7 @@ const buildPricingStateWithPlans = (): AdminPricingStateResponse => ({
       recurringPriceCents: 3900,
       monthlyCreditsCents: 3000,
       storageLimitBytes: 107374182400,
+      maxConcurrentGenerations: 4,
       stripeProductId: "prod_studio",
       stripePriceId: "price_studio_current",
       acquisitionEnabled: true,
@@ -148,6 +149,7 @@ const buildPricingStateWithPlans = (): AdminPricingStateResponse => ({
         recurringPriceCents: 3900,
         monthlyCreditsCents: 3000,
         storageLimitBytes: 107374182400,
+        maxConcurrentGenerations: 4,
         stripePriceId: "price_studio_current",
         acquisitionEnabled: true,
         isActive: true,
@@ -158,6 +160,7 @@ const buildPricingStateWithPlans = (): AdminPricingStateResponse => ({
         recurringPriceCents: 39000,
         monthlyCreditsCents: 3000,
         storageLimitBytes: 107374182400,
+        maxConcurrentGenerations: 4,
         stripePriceId: "price_studio_year_current",
         acquisitionEnabled: true,
         isActive: true,
@@ -174,6 +177,7 @@ const buildPricingStateWithPlans = (): AdminPricingStateResponse => ({
       recurringPriceCents: 9900,
       monthlyCreditsCents: 8000,
       storageLimitBytes: 214748364800,
+      maxConcurrentGenerations: 8,
       stripeProductId: "prod_business",
       stripePriceId: "price_business_current",
       acquisitionEnabled: true,
@@ -184,6 +188,7 @@ const buildPricingStateWithPlans = (): AdminPricingStateResponse => ({
         recurringPriceCents: 9900,
         monthlyCreditsCents: 8000,
         storageLimitBytes: 214748364800,
+        maxConcurrentGenerations: 8,
         stripePriceId: "price_business_current",
         acquisitionEnabled: true,
         isActive: true,
@@ -194,6 +199,7 @@ const buildPricingStateWithPlans = (): AdminPricingStateResponse => ({
         recurringPriceCents: 99000,
         monthlyCreditsCents: 8000,
         storageLimitBytes: 214748364800,
+        maxConcurrentGenerations: 8,
         stripePriceId: "price_business_year_current",
         acquisitionEnabled: true,
         isActive: true,
@@ -568,6 +574,9 @@ describe("Admin pricing page", () => {
     fireEvent.change(screen.getByLabelText("Storage bytes"), {
       target: { value: "214748364800" },
     });
+    fireEvent.change(screen.getByLabelText("Max active generations"), {
+      target: { value: "6" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Create plan" }));
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Create plan" })
@@ -586,6 +595,7 @@ describe("Admin pricing page", () => {
         planId: "creator",
         recurringPriceCents: "5900",
         annualRecurringPriceCents: "70800",
+        maxConcurrentGenerations: "6",
       })
     );
   });

@@ -1,6 +1,7 @@
 /**
  * Profile account settings page tests for autosave toggle wiring.
  */
+import { readFileSync } from "node:fs";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -99,6 +100,16 @@ describe("Profile account settings autosave toggle", () => {
     expect(screen.getByRole("link", { name: "Account" }).getAttribute("style")).toContain(
       "background: rgba(24, 64, 76, 0.94)"
     );
+    expect(screen.getByText("Profile").closest(".profile-account-grid")).toHaveStyle({
+      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
+      alignItems: "start",
+    });
+  });
+
+  it("keeps stale profile shell CSS from overriding restored inline page chrome", () => {
+    const shellCss = readFileSync("styles/workspace-profile-shell.css", "utf8");
+
+    expect(shellCss).not.toContain("background: transparent !important");
   });
 
   it("forwards toggle intent to media autosave setter", () => {

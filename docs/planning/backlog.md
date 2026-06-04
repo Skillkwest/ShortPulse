@@ -30,6 +30,9 @@ Structure (locked):
 - [ ] Execute the Bactuo generation architecture consolidation plan in staged slices, starting with a canonical lineage resolver and one universal settlement-before-visibility rule across async and direct provider families.
       Reference: `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`
       Restart scope: begin with identity/lineage consolidation in recovery, billing, ownership, abandonment, and diagnostics before broader orchestrator splitting or cleanup.
+- [ ] Add clear active-generation slot disclosure to public pricing comparison tables, pricing FAQs, or equivalent customer-facing billing education surfaces.
+      Reference: `docs/product/billing-pricing-catalog.md`
+      Restart scope: disclose the current Starter/Media/Studio/Business active-generation ladder without describing provider rate limits or internal throttling mechanics.
 
 ## Program 2: Media And Reference Integrity
 
@@ -50,8 +53,5 @@ Structure (locked):
 - [ ] Build a complete, polished collection of small delete buttons.
 - [ ] Build a complete, polished collection of small save buttons.
 - [ ] Finish the Dashboard redesign pass by retiring the remaining staged/legacy posture and tightening the long-term styling structure.
-- [ ] Add durable plan-concurrency disclosure surfaces so exact enforced limits live in product-contract UX instead of only in plan-card copy. Scope should cover a pricing comparison table, billing/pricing FAQ or help surface, and in-product limit messaging for users who hit concurrency caps.
-      Reference: `frontend/features/billing/catalog.ts`, `frontend/features/billing/components/SubscriptionPlanCard.tsx`, `docs/product/billing-pricing-catalog.md`
-      Restart scope: treat plan cards as soft value framing, and move exact concurrency numbers into clearer disclosure/help surfaces once plan-specific enforcement truth is ready to publish.
 
 ## Program 5: Release Confidence And Research

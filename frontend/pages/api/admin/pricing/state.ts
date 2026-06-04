@@ -24,6 +24,7 @@ import {
 } from "../../../../lib/model-runtime/modelRegistry";
 import { getAdminModelWorkflowType } from "../../../../lib/model-runtime/modelWorkflowType";
 import { getAdminPricingStrategyLabel } from "../../../../lib/model-runtime/modelPricingStrategyLabel";
+import { resolveDefaultPlanConcurrencyLimit } from "../../../../lib/billing/planConcurrency";
 import {
   getModelPricingPolicySnapshot,
   resolveModelPricingForModel,
@@ -52,6 +53,7 @@ type BillingPlanOfferRow = {
   recurring_price_cents: number;
   monthly_credits_cents: number;
   storage_limit_bytes: number;
+  max_concurrent_generations?: number | null;
   stripe_price_id: string | null;
   acquisition_enabled: boolean;
   is_active: boolean;
@@ -363,7 +365,7 @@ export default async function handler(
       supabaseAdmin
         .from("billing_plan_offers")
         .select(
-          "id, plan_id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id, acquisition_enabled, is_active, effective_start_at, created_at"
+          "id, plan_id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, stripe_price_id, acquisition_enabled, is_active, effective_start_at, created_at"
         )
         .order("effective_start_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
@@ -503,6 +505,9 @@ export default async function handler(
           storageLimitBytes: Number(
             offer?.storage_limit_bytes ?? metadata.storage_limit_bytes ?? 0
           ),
+          maxConcurrentGenerations: Number(
+            offer?.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(metadata.id)
+          ),
           stripeProductId: metadata.stripe_product_id,
           stripePriceId: offer?.stripe_price_id ?? metadata.stripe_price_id,
           acquisitionEnabled: Boolean(
@@ -516,6 +521,10 @@ export default async function handler(
                 recurringPriceCents: Number(monthlyOffer.recurring_price_cents ?? 0),
                 monthlyCreditsCents: Number(monthlyOffer.monthly_credits_cents ?? 0),
                 storageLimitBytes: Number(monthlyOffer.storage_limit_bytes ?? 0),
+                maxConcurrentGenerations: Number(
+                  monthlyOffer.max_concurrent_generations ??
+                    resolveDefaultPlanConcurrencyLimit(metadata.id)
+                ),
                 stripePriceId: monthlyOffer.stripe_price_id,
                 acquisitionEnabled: Boolean(monthlyOffer.acquisition_enabled),
                 isActive: Boolean(monthlyOffer.is_active),
@@ -528,6 +537,10 @@ export default async function handler(
                 recurringPriceCents: Number(annualOffer.recurring_price_cents ?? 0),
                 monthlyCreditsCents: Number(annualOffer.monthly_credits_cents ?? 0),
                 storageLimitBytes: Number(annualOffer.storage_limit_bytes ?? 0),
+                maxConcurrentGenerations: Number(
+                  annualOffer.max_concurrent_generations ??
+                    resolveDefaultPlanConcurrencyLimit(metadata.id)
+                ),
                 stripePriceId: annualOffer.stripe_price_id,
                 acquisitionEnabled: Boolean(annualOffer.acquisition_enabled),
                 isActive: Boolean(annualOffer.is_active),

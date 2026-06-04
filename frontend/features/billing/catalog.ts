@@ -2,6 +2,7 @@
  * Billing catalog helpers for plans and credit packages.
  * Monetary values come from Supabase rows so pricing can be changed without app code edits.
  */
+import { resolveDefaultPlanConcurrencyLimit } from "../../lib/billing/planConcurrency";
 
 export type BillingInterval = "month" | "year";
 
@@ -11,6 +12,7 @@ export type BillingPlanIntervalOfferRecord = {
   recurring_price_cents: number;
   monthly_credits_cents: number;
   storage_limit_bytes: number;
+  max_concurrent_generations?: number;
   stripe_price_id?: string | null;
   acquisition_enabled?: boolean;
   is_active?: boolean;
@@ -24,6 +26,7 @@ export type BillingPlanRecord = {
   monthly_price_cents: number;
   monthly_credits_cents: number;
   storage_limit_bytes: number;
+  max_concurrent_generations?: number;
   is_active?: boolean;
   offers?: Partial<Record<BillingInterval, BillingPlanIntervalOfferRecord>>;
 };
@@ -67,17 +70,21 @@ type AnnualPricingConfig = {
 };
 
 const ANNUAL_PRICING_CONFIG: Partial<Record<string, AnnualPricingConfig>> = {
+  starter: {
+    yearlyPriceCents: 18_000,
+    savingsBadge: "",
+  },
   media: {
-    yearlyPriceCents: 12_000,
-    savingsBadge: "2 months free",
+    yearlyPriceCents: 58_800,
+    savingsBadge: "",
   },
   studio: {
-    yearlyPriceCents: 39_000,
-    savingsBadge: "2 months free",
+    yearlyPriceCents: 118_800,
+    savingsBadge: "23% OFF",
   },
   business: {
-    yearlyPriceCents: 139_200,
-    savingsBadge: "Save 10%",
+    yearlyPriceCents: 274_800,
+    savingsBadge: "23% OFF",
   },
 };
 
@@ -131,17 +138,18 @@ export type BillingPlanView = {
   monthlyPriceCents: number;
   monthlyCreditsCents: number;
   storageLimitBytes: number;
+  maxConcurrentGenerations: number;
 };
 
 const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
   free: {
     className: "plan-starter",
-    displayNameOverride: "Starter",
+    displayNameOverride: "Baseline access",
     seatsLabel: "1 workspace seat",
-    description: "Starter access for exploration.",
-    cardFooterDescription: "Best for graphic artists and all image based workflows.",
-    concurrentGenerationsLabel: "Image-only workflow",
-    concurrentGenerationsCompactLabel: "Image-only workflow",
+    description: "Account access without generation privileges.",
+    cardFooterDescription: "Generation access starts on Starter.",
+    concurrentGenerationsLabel: "No generation access",
+    concurrentGenerationsCompactLabel: "No generation access",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -158,7 +166,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       annualSaveLabel: null,
     },
     displayBenefits: {
-      monthlyCreditsLabel: "100 credits every month",
+      monthlyCreditsLabel: "No generation credits included",
       storageLabel: "1.0 GB of media storage",
     },
   },
@@ -281,8 +289,8 @@ const GENERIC_PLAN_PRESENTATION: PlanPresentation = {
   seatsLabel: "Workspace access",
   description: "Subscription plan.",
   cardFooterDescription: "Built for creators scaling their workflow.",
-  concurrentGenerationsLabel: "Workflow concurrency",
-  concurrentGenerationsCompactLabel: "Workflow concurrency",
+  concurrentGenerationsLabel: "Standard concurrent generation access",
+  concurrentGenerationsCompactLabel: "Standard concurrent access",
   cardFeatures: [
     { label: "Create studio", included: true },
     { label: "Editing studio", included: true },
@@ -391,6 +399,9 @@ export const buildPlanView = (params: {
     monthlyCreditsCents: resolvedCatalog?.monthly_credits_cents ?? 0,
     storageLimitBytes:
       resolvedCatalog?.storage_limit_bytes ?? DEFAULT_PLAN_STORAGE_LIMITS[normalizedId] ?? 0,
+    maxConcurrentGenerations:
+      resolvedCatalog?.max_concurrent_generations ??
+      resolveDefaultPlanConcurrencyLimit(normalizedId),
   };
 };
 
@@ -408,6 +419,8 @@ export const resolvePlanOfferForInterval = (
       recurring_price_cents: plan.monthly_price_cents,
       monthly_credits_cents: plan.monthly_credits_cents,
       storage_limit_bytes: plan.storage_limit_bytes,
+      max_concurrent_generations:
+        plan.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(plan.id),
       stripe_price_id: null,
       acquisition_enabled: Boolean(plan.is_active),
       is_active: Boolean(plan.is_active),

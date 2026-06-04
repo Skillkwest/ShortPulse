@@ -77,6 +77,7 @@ export function PricingPlansSection({
             <span>Annual</span>
             <span>Credits</span>
             <span>Storage</span>
+            <span>Max active</span>
             <span>Monthly Stripe</span>
             <span>Annual Stripe</span>
             <span>Action</span>
@@ -113,6 +114,7 @@ export function PricingPlansSection({
                 </span>
                 <span>{formatCredits(plan.monthlyCreditsCents)}</span>
                 <span>{formatStorageBytes(plan.storageLimitBytes)}</span>
+                <span>{plan.maxConcurrentGenerations}</span>
                 <span className={monthlyStripeStatus.className}>{monthlyStripeStatus.label}</span>
                 <span className={annualStripeStatus.className}>{annualStripeStatus.label}</span>
                 <span className={styles.pricingEditorActions}>
@@ -239,6 +241,18 @@ export function PricingPlansSection({
               />
             </label>
             <label className={styles.manualAdjustField}>
+              <span className="tiny subdued">Max active generations</span>
+              <input
+                className={styles.searchInput}
+                value={planDraft.maxConcurrentGenerations}
+                onChange={(event) =>
+                  setPlanDraft((current) =>
+                    current ? { ...current, maxConcurrentGenerations: event.target.value } : current
+                  )
+                }
+              />
+            </label>
+            <label className={styles.manualAdjustField}>
               <span className="tiny subdued">Sort order</span>
               <input
                 className={styles.searchInput}
@@ -341,6 +355,18 @@ export function PricingPlansSection({
                 onChange={(event) =>
                   setPlanOfferDraft((current) =>
                     current ? { ...current, storageLimitBytes: event.target.value } : current
+                  )
+                }
+              />
+            </label>
+            <label className={styles.manualAdjustField}>
+              <span className="tiny subdued">Max active generations</span>
+              <input
+                className={styles.searchInput}
+                value={planOfferDraft.maxConcurrentGenerations}
+                onChange={(event) =>
+                  setPlanOfferDraft((current) =>
+                    current ? { ...current, maxConcurrentGenerations: event.target.value } : current
                   )
                 }
               />

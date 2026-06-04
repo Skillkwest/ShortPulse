@@ -12,6 +12,7 @@ import {
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { verifyStripeWebhookSignature } from "../../../../lib/server/api/stripe";
 import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
+import { resolveDefaultPlanConcurrencyLimit } from "../../../../lib/billing/planConcurrency";
 import { readVerifiedStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 import {
   readRawRequestBody,
@@ -40,6 +41,7 @@ type ResolvedOffer = {
   recurringPriceCents: number;
   monthlyCreditsCents: number;
   storageLimitBytes: number;
+  maxConcurrentGenerations: number;
 };
 
 type ResolvedStorageAddonOffer = {
@@ -65,6 +67,7 @@ type BillingContractProjection = {
   recurring_price_cents: number | null;
   monthly_credits_cents: number | null;
   storage_limit_bytes: number | null;
+  max_concurrent_generations: number | null;
   current_period_start: string | null;
   current_period_end: string | null;
   last_credit_grant_at: string | null;
@@ -195,7 +198,7 @@ const resolveOfferFromPriceId = async (
   const { data: offer, error: offerError } = await supabaseAdmin
     .from("billing_plan_offers")
     .select(
-      "id, plan_id, billing_interval, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes"
+      "id, plan_id, billing_interval, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations"
     )
     .eq("stripe_price_id", stripePriceId)
     .maybeSingle();
@@ -213,6 +216,12 @@ const resolveOfferFromPriceId = async (
       recurringPriceCents: Number(offer.recurring_price_cents ?? 0),
       monthlyCreditsCents: Number(offer.monthly_credits_cents ?? 0),
       storageLimitBytes: Number(offer.storage_limit_bytes ?? 0),
+      maxConcurrentGenerations: Number(
+        offer.max_concurrent_generations ??
+          resolveDefaultPlanConcurrencyLimit(
+            typeof offer.plan_id === "string" ? offer.plan_id : null
+          )
+      ),
     };
   }
 
@@ -239,17 +248,20 @@ const resolveOfferFromPriceId = async (
       recurringPriceCents: Number.isFinite(recurringPriceCents) ? recurringPriceCents : 0,
       monthlyCreditsCents: Number.isFinite(monthlyCreditsCents) ? monthlyCreditsCents : 0,
       storageLimitBytes: 0,
+      maxConcurrentGenerations: 0,
     };
   }
 
+  const planId = typeof plan.id === "string" ? plan.id : null;
   return {
-    offerId: typeof plan.id === "string" ? `${plan.id}__current` : null,
-    planId: typeof plan.id === "string" ? plan.id : null,
+    offerId: planId ? `${planId}__current` : null,
+    planId,
     billingInterval: BILLING_INTERVAL_MONTH,
     stripePriceId: typeof plan.stripe_price_id === "string" ? plan.stripe_price_id : stripePriceId,
     recurringPriceCents: Number(plan.monthly_price_cents ?? 0),
     monthlyCreditsCents: Number(plan.monthly_credits_cents ?? 0),
     storageLimitBytes: Number(plan.storage_limit_bytes ?? 0),
+    maxConcurrentGenerations: resolveDefaultPlanConcurrencyLimit(planId),
   };
 };
 
@@ -390,7 +402,7 @@ const resolveCurrentContractForUser = async (
   const { data, error } = await supabaseAdmin
     .from("billing_subscription_contracts")
     .select(
-      "id, plan_id, offer_id, billing_interval, stripe_price_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, current_period_start, current_period_end, last_credit_grant_at, next_credit_grant_at, status"
+      "id, plan_id, offer_id, billing_interval, stripe_price_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, current_period_start, current_period_end, last_credit_grant_at, next_credit_grant_at, status"
     )
     .eq("user_id", userId)
     .is("ended_at", null)
@@ -541,6 +553,10 @@ const syncSubscriptionContract = async (params: {
   const recurringPriceCents = Number(params.resolvedOffer?.recurringPriceCents ?? 0);
   const monthlyCreditsCents = Number(params.resolvedOffer?.monthlyCreditsCents ?? 0);
   const storageLimitBytes = Number(params.resolvedOffer?.storageLimitBytes ?? 0);
+  const maxConcurrentGenerations = Number(
+    params.resolvedOffer?.maxConcurrentGenerations ??
+      resolveDefaultPlanConcurrencyLimit(params.planId)
+  );
   const stripePriceId = params.resolvedOffer?.stripePriceId ?? null;
   const offerId = params.resolvedOffer?.offerId ?? null;
   const billingInterval = params.resolvedOffer?.billingInterval ?? BILLING_INTERVAL_MONTH;
@@ -569,6 +585,9 @@ const syncSubscriptionContract = async (params: {
     recurring_price_cents: Number.isFinite(recurringPriceCents) ? recurringPriceCents : 0,
     monthly_credits_cents: Number.isFinite(monthlyCreditsCents) ? monthlyCreditsCents : 0,
     storage_limit_bytes: Number.isFinite(storageLimitBytes) ? storageLimitBytes : 0,
+    max_concurrent_generations: Number.isFinite(maxConcurrentGenerations)
+      ? Math.max(0, Math.trunc(maxConcurrentGenerations))
+      : 0,
     billing_interval: billingInterval,
     status: params.status,
     current_period_start: params.currentPeriodStart,
@@ -597,7 +616,8 @@ const syncSubscriptionContract = async (params: {
     current.stripe_price_id === stripePriceId &&
     Number(current.recurring_price_cents ?? 0) === payload.recurring_price_cents &&
     Number(current.monthly_credits_cents ?? 0) === payload.monthly_credits_cents &&
-    Number(current.storage_limit_bytes ?? 0) === payload.storage_limit_bytes;
+    Number(current.storage_limit_bytes ?? 0) === payload.storage_limit_bytes &&
+    Number(current.max_concurrent_generations ?? 0) === payload.max_concurrent_generations;
 
   if (sameCommercialTerms) {
     const periodShifted = current.current_period_start !== params.currentPeriodStart;

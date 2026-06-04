@@ -10,16 +10,16 @@ describe("buildPlanView", () => {
     {
       id: "media",
       display_name: "Media",
-      monthly_price_cents: 1200,
-      monthly_credits_cents: 600,
+      monthly_price_cents: 4900,
+      monthly_credits_cents: 1200,
       storage_limit_bytes: 25 * 1024 * 1024 * 1024,
       is_active: true,
     },
     {
       id: "studio",
       display_name: "Studio",
-      monthly_price_cents: 3900,
-      monthly_credits_cents: 3000,
+      monthly_price_cents: 12900,
+      monthly_credits_cents: 3200,
       storage_limit_bytes: 100 * 1024 * 1024 * 1024,
       is_active: true,
     },
@@ -30,14 +30,14 @@ describe("buildPlanView", () => {
     expect(buildPlanView({ planId: "studio", plans }).seatsLabel).toBe("1 workspace seat");
   });
 
-  it("presents the hidden baseline tier with Starter-facing customer copy", () => {
+  it("presents the hidden baseline tier without Starter-facing customer copy", () => {
     expect(
       buildPlanView({
         planId: "free",
         plans: [
           {
             id: "free",
-            display_name: "Starter",
+            display_name: "Baseline access",
             monthly_price_cents: 0,
             monthly_credits_cents: 0,
             storage_limit_bytes: 1024,
@@ -45,7 +45,7 @@ describe("buildPlanView", () => {
           },
         ],
       }).displayName
-    ).toBe("Starter");
+    ).toBe("Baseline access");
   });
 
   it("uses starter as the paid first-tier presentation model", () => {
@@ -66,9 +66,9 @@ describe("buildPlanView", () => {
     ).toBe("Starter");
   });
 
-  it("exposes plan-card concurrency copy that hints at capacity without hard-coding exact limits", () => {
+  it("exposes plan-card concurrency copy that stays consistent with each tier's included studios", () => {
     expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsLabel).toBe(
-      "Image-only workflow"
+      "No generation access"
     );
     expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsLabel).toBe(
       "Image-only workflow"
@@ -83,7 +83,7 @@ describe("buildPlanView", () => {
       "Highest-concurrency mixed-media workflow"
     );
     expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsCompactLabel).toBe(
-      "Image-only workflow"
+      "No generation access"
     );
     expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsCompactLabel).toBe(
       "Image-only workflow"
@@ -97,6 +97,14 @@ describe("buildPlanView", () => {
     expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsCompactLabel).toBe(
       "Highest-concurrency mixed-media workflow"
     );
+  });
+
+  it("exposes the server-backed max active generation ladder", () => {
+    expect(buildPlanView({ planId: "free", plans }).maxConcurrentGenerations).toBe(0);
+    expect(buildPlanView({ planId: "starter", plans }).maxConcurrentGenerations).toBe(1);
+    expect(buildPlanView({ planId: "media", plans }).maxConcurrentGenerations).toBe(2);
+    expect(buildPlanView({ planId: "studio", plans }).maxConcurrentGenerations).toBe(4);
+    expect(buildPlanView({ planId: "business", plans }).maxConcurrentGenerations).toBe(8);
   });
 
   it("adds business pricing highlights for credit efficiency", () => {
@@ -150,13 +158,13 @@ describe("buildPlanView", () => {
     const mediaAnnual = resolvePlanPricingForInterval(plans[0], "year");
     const studioAnnual = resolvePlanPricingForInterval(plans[1], "year");
 
-    expect(mediaAnnual.monthlyEquivalentCents).toBe(1000);
-    expect(mediaAnnual.billedPriceCents).toBe(12000);
-    expect(mediaAnnual.savingsAmountCents).toBe(2400);
+    expect(mediaAnnual.monthlyEquivalentCents).toBe(4900);
+    expect(mediaAnnual.billedPriceCents).toBe(58800);
+    expect(mediaAnnual.savingsAmountCents).toBe(0);
 
-    expect(studioAnnual.monthlyEquivalentCents).toBe(3250);
-    expect(studioAnnual.billedPriceCents).toBe(39000);
-    expect(studioAnnual.savingsAmountCents).toBe(7800);
+    expect(studioAnnual.monthlyEquivalentCents).toBe(9900);
+    expect(studioAnnual.billedPriceCents).toBe(118800);
+    expect(studioAnnual.savingsAmountCents).toBe(36000);
   });
 
   it("hides the hidden baseline tier from public plan selections when starter exists", () => {
@@ -164,9 +172,9 @@ describe("buildPlanView", () => {
       filterPublicSubscriptionPlans([
         {
           id: "free",
-          display_name: "Starter",
+          display_name: "Baseline access",
           monthly_price_cents: 0,
-          monthly_credits_cents: 100,
+          monthly_credits_cents: 0,
           storage_limit_bytes: 1024,
           is_active: true,
         },

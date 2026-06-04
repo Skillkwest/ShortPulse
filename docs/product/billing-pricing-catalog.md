@@ -12,7 +12,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 ## Source of truth
 
 - Public acquisition pricing shown in UI is loaded from current acquisition offer rows plus shared metadata:
-  - `billing_plan_offers` for current recurring plan prices, credits, storage, and billing interval
+  - `billing_plan_offers` for current recurring plan prices, credits, storage, billing interval, and active generation slots
   - `billing_plans` for shared plan metadata such as stable ids, display names, Stripe product linkage, and UI ordering
   - `billing_credit_packages`
   - `billing_storage_addon_offers` for current recurring storage add-on prices and capacity
@@ -32,6 +32,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - `frontend/features/billing/catalog.ts`
 - Subscriber-specific recurring terms are stored separately in:
   - `billing_subscription_contracts`
+  - `billing_subscription_contracts.max_concurrent_generations` snapshots the active generation slot entitlement for that subscriber
 - Subscriber-specific recurring storage add-ons are stored separately in:
   - `billing_subscription_storage_addons`
 - `billing_profiles` is a runtime projection only. It must not be treated as the authoritative source for paid recurring entitlements when an open contract row is missing.
@@ -57,19 +58,19 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - `billing_subscription_contracts.next_credit_grant_at` tracks the next monthly allocation due inside the active annual term
   - annual monthly allocations are processed by the secured billing renewal runner rather than by annual Stripe invoices alone
 
-## Current catalog (2026-02-10)
+## Current catalog (2026-06-04)
 
 Public entry-plan note:
 
 - `Starter` is the public first paid plan.
-- The hidden internal `free` contract may still exist as a backend/runtime fallback, but it is not part of the customer-facing plan ladder.
+- The legacy `free` database id is a non-public baseline fallback row, not a customer-facing plan, and carries `0` active generation slots.
 
 ### Subscription plans
 
-- `starter`: `$15/month`, `350` credits/month, `1 GB`
-- `media`: `$12/month` or `$120/year`, `600` credits/month, `25 GB`
-- `studio`: `$39/month` or `$390/year`, `3,000` credits/month, `100 GB`
-- `business`: `$129/month` or `$1,392/year`, `12,000` credits/month, `500 GB`
+- `starter`: `$15/month` or `$180/year`, `350` credits/month, `1 GB`, `1` active generation
+- `media`: `$49/month` or `$588/year`, `1,200` credits/month, `25 GB`, `2` active generations
+- `studio`: `$129/month` or `$1,188/year`, `3,200` credits/month, `100 GB`, `4` active generations
+- `business`: `$299/month` or `$2,748/year`, `7,500` credits/month, `500 GB`, `8` active generations
 
 ### Recurring storage add-ons
 
@@ -94,6 +95,7 @@ Public entry-plan note:
 3. If you are changing public pricing for an existing recurring plan, create a new internal offer row instead of overwriting historical subscriber pricing:
    - `billing_plan_offers`
    - `billing_storage_addon_offers` for recurring storage add-ons
+   - include `max_concurrent_generations` when changing plan offer terms
 4. If you are changing an existing plan/storage/top-up price outside the new-plan flow, create or attach the correct Stripe Price before activation.
    - Paid plan/storage/top-up activation validates the Stripe Price is active, USD-denominated, amount-matched, interval-matched for recurring offers, and catalog-target-compatible when ShortPulse metadata is present.
 5. Update the acquisition catalog for new buyers:
@@ -133,7 +135,7 @@ select id, display_name, sort_order, stripe_product_id, monthly_price_cents, mon
 from billing_plans
 order by sort_order asc, monthly_price_cents asc;
 
-select id, plan_id, offer_name, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id, acquisition_enabled
+select id, plan_id, offer_name, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, stripe_price_id, acquisition_enabled
 from billing_plan_offers
 order by plan_id, created_at asc;
 
@@ -149,7 +151,7 @@ select id, storage_addon_id, offer_name, storage_limit_bytes, recurring_price_ce
 from billing_storage_addon_offers
 order by storage_addon_id, created_at asc;
 
-select user_id, plan_id, offer_id, contract_source, stripe_subscription_id, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status
+select user_id, plan_id, offer_id, contract_source, stripe_subscription_id, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, status
 from billing_subscription_contracts
 where ended_at is null
 order by created_at desc;

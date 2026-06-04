@@ -28,10 +28,11 @@ insert into billing_plans (
     is_active
 )
 values
-    ('free', 'Free', 0, 100, 1::bigint * 1024 * 1024 * 1024, null, null, 0, true),
-    ('media', 'Media', 1200, 600, 25::bigint * 1024 * 1024 * 1024, null, null, 10, true),
-    ('studio', 'Studio', 3900, 3000, 100::bigint * 1024 * 1024 * 1024, null, null, 20, true),
-    ('business', 'Business', 12900, 12000, 500::bigint * 1024 * 1024 * 1024, null, null, 30, true)
+    ('free', 'Baseline fallback', 0, 0, 1::bigint * 1024 * 1024 * 1024, null, null, 0, true),
+    ('starter', 'Starter', 1500, 350, 1::bigint * 1024 * 1024 * 1024, null, null, 10, true),
+    ('media', 'Media', 4900, 1200, 25::bigint * 1024 * 1024 * 1024, null, null, 20, true),
+    ('studio', 'Studio', 12900, 3200, 100::bigint * 1024 * 1024 * 1024, null, null, 30, true),
+    ('business', 'Business', 29900, 7500, 500::bigint * 1024 * 1024 * 1024, null, null, 40, true)
 on conflict (id) do update
 set display_name = excluded.display_name,
     monthly_price_cents = excluded.monthly_price_cents,
@@ -53,6 +54,7 @@ create table if not exists billing_plan_offers (
     recurring_price_cents integer not null check (recurring_price_cents >= 0),
     monthly_credits_cents integer not null check (monthly_credits_cents >= 0),
     storage_limit_bytes bigint not null check (storage_limit_bytes >= 0),
+    max_concurrent_generations integer not null default 0 check (max_concurrent_generations >= 0),
     stripe_price_id text unique,
     currency text not null default 'usd' check (currency = lower(currency)),
     billing_interval text not null default 'month' check (billing_interval in ('month', 'year')),
@@ -76,6 +78,7 @@ insert into billing_plan_offers (
     recurring_price_cents,
     monthly_credits_cents,
     storage_limit_bytes,
+    max_concurrent_generations,
     stripe_price_id,
     billing_interval,
     acquisition_enabled,
@@ -89,9 +92,16 @@ select
     p.monthly_price_cents,
     p.monthly_credits_cents,
     p.storage_limit_bytes,
+    case p.id
+        when 'starter' then 1
+        when 'media' then 2
+        when 'studio' then 4
+        when 'business' then 8
+        else 0
+    end,
     p.stripe_price_id,
     'month',
-    p.is_active,
+    case when p.id = 'free' then false else p.is_active end,
     p.is_active,
     now()
 from billing_plans p
@@ -100,6 +110,7 @@ set offer_name = excluded.offer_name,
     recurring_price_cents = excluded.recurring_price_cents,
     monthly_credits_cents = excluded.monthly_credits_cents,
     storage_limit_bytes = excluded.storage_limit_bytes,
+    max_concurrent_generations = excluded.max_concurrent_generations,
     stripe_price_id = excluded.stripe_price_id,
     billing_interval = excluded.billing_interval,
     acquisition_enabled = excluded.acquisition_enabled,
@@ -112,6 +123,7 @@ insert into billing_plan_offers (
     recurring_price_cents,
     monthly_credits_cents,
     storage_limit_bytes,
+    max_concurrent_generations,
     stripe_price_id,
     billing_interval,
     acquisition_enabled,
@@ -119,14 +131,15 @@ insert into billing_plan_offers (
     effective_start_at
 )
 values
-    ('media__internal_comp', 'media', 'Media Internal Comp', 0, 600, 25::bigint * 1024 * 1024 * 1024, null, 'month', false, true, now()),
-    ('studio__internal_comp', 'studio', 'Studio Internal Comp', 0, 3000, 100::bigint * 1024 * 1024 * 1024, null, 'month', false, true, now()),
-    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 12000, 500::bigint * 1024 * 1024 * 1024, null, 'month', false, true, now())
+    ('media__internal_comp', 'media', 'Media Internal Comp', 0, 1200, 25::bigint * 1024 * 1024 * 1024, 2, null, 'month', false, true, now()),
+    ('studio__internal_comp', 'studio', 'Studio Internal Comp', 0, 3200, 100::bigint * 1024 * 1024 * 1024, 4, null, 'month', false, true, now()),
+    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 7500, 500::bigint * 1024 * 1024 * 1024, 8, null, 'month', false, true, now())
 on conflict (id) do update
 set offer_name = excluded.offer_name,
     recurring_price_cents = excluded.recurring_price_cents,
     monthly_credits_cents = excluded.monthly_credits_cents,
     storage_limit_bytes = excluded.storage_limit_bytes,
+    max_concurrent_generations = excluded.max_concurrent_generations,
     stripe_price_id = excluded.stripe_price_id,
     acquisition_enabled = excluded.acquisition_enabled,
     is_active = excluded.is_active;
@@ -240,6 +253,7 @@ create table if not exists billing_subscription_contracts (
     recurring_price_cents integer not null check (recurring_price_cents >= 0),
     monthly_credits_cents integer not null check (monthly_credits_cents >= 0),
     storage_limit_bytes bigint not null check (storage_limit_bytes >= 0),
+    max_concurrent_generations integer not null default 0 check (max_concurrent_generations >= 0),
     currency text not null default 'usd' check (currency = lower(currency)),
     billing_interval text not null default 'month' check (billing_interval in ('month', 'year')),
     status text not null default 'inactive',
@@ -307,6 +321,7 @@ insert into billing_subscription_contracts (
     recurring_price_cents,
     monthly_credits_cents,
     storage_limit_bytes,
+    max_concurrent_generations,
     billing_interval,
     status,
     current_period_end,
@@ -323,6 +338,13 @@ select
     p.monthly_price_cents,
     p.monthly_credits_cents,
     p.storage_limit_bytes,
+    case bp.plan_id
+        when 'starter' then 1
+        when 'media' then 2
+        when 'studio' then 4
+        when 'business' then 8
+        else 0
+    end,
     'month',
     bp.subscription_status,
     bp.current_period_end,
@@ -940,9 +962,9 @@ begin
         return new;
     end if;
 
-    -- Self-heal baseline plan metadata if `free` was accidentally removed.
+    -- Self-heal hidden baseline fallback metadata if `free` was accidentally removed.
     insert into billing_plans (id, display_name, monthly_price_cents, monthly_credits_cents, stripe_price_id, is_active)
-    values (desired_plan, 'Free', 0, 100, null, true)
+    values (desired_plan, 'Baseline fallback', 0, 0, null, true)
     on conflict (id) do update
       set display_name = excluded.display_name,
           monthly_price_cents = excluded.monthly_price_cents,
@@ -962,7 +984,7 @@ begin
     end if;
 
     if not has_ledger_table then
-        raise notice 'Skipping starter credit seed because ai_credit_ledger table is missing.';
+        raise notice 'Skipping baseline credit seed because ai_credit_ledger table is missing.';
         return new;
     end if;
 

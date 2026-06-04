@@ -32,8 +32,8 @@ set search_path = public
 as $$
 declare
     v_mode text := lower(coalesce(p_admission_mode, 'off'));
-    v_global_max integer := greatest(coalesce(p_global_max, 1), 1);
-    v_tier_max integer := greatest(coalesce(p_tier_max, 1), 1);
+    v_global_max integer := greatest(coalesce(p_global_max, 0), 0);
+    v_tier_max integer := greatest(coalesce(p_tier_max, 0), 0);
     v_retry_after_seconds integer := greatest(coalesce(p_retry_after_seconds, 1), 1);
     v_tier text := lower(coalesce(nullif(trim(p_tier), ''), 'image_standard'));
     v_existing_status text;

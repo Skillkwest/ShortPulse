@@ -18,6 +18,7 @@ type CreatePlanRequest = {
   annualRecurringPriceCents?: number | string;
   monthlyCreditsCents?: number | string;
   storageLimitBytes?: number | string;
+  maxConcurrentGenerations?: number | string;
   sortOrder?: number | string;
 };
 
@@ -68,6 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const annualRecurringPriceCents = parseNonNegativeInteger(body.annualRecurringPriceCents);
   const monthlyCreditsCents = parseNonNegativeInteger(body.monthlyCreditsCents);
   const storageLimitBytes = parseNonNegativeInteger(body.storageLimitBytes);
+  const maxConcurrentGenerations = parseNonNegativeInteger(body.maxConcurrentGenerations);
   const sortOrder = parseNonNegativeInteger(body.sortOrder);
 
   if (!planId || !PLAN_ID_PATTERN.test(planId)) {
@@ -96,6 +98,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (storageLimitBytes == null) {
     return res.status(400).json({ error: "storageLimitBytes must be a non-negative integer." });
+  }
+  if (maxConcurrentGenerations == null) {
+    return res
+      .status(400)
+      .json({ error: "maxConcurrentGenerations must be a non-negative integer." });
   }
   if (sortOrder == null) {
     return res.status(400).json({ error: "sortOrder must be a non-negative integer." });
@@ -192,6 +199,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         recurring_price_cents: recurringPriceCents,
         monthly_credits_cents: monthlyCreditsCents,
         storage_limit_bytes: storageLimitBytes,
+        max_concurrent_generations: maxConcurrentGenerations,
         stripe_price_id: stripePriceId,
         acquisition_enabled: true,
         is_active: true,
@@ -205,6 +213,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         recurring_price_cents: annualRecurringPriceCents,
         monthly_credits_cents: monthlyCreditsCents,
         storage_limit_bytes: storageLimitBytes,
+        max_concurrent_generations: maxConcurrentGenerations,
         stripe_price_id: annualStripePriceId,
         acquisition_enabled: true,
         is_active: true,

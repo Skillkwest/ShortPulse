@@ -9,7 +9,6 @@ export const PROTECTED_ROUTES = [
   "/profile",
   "/report-issue",
   "/ai-studio",
-  "/creator-studio",
   "/admin",
 ] as const;
 
@@ -22,5 +21,4 @@ export const isProtectedRoutePath = (pathname: string): boolean =>
 /**
  * Determines whether a pathname belongs to the AI Studio route family.
  */
-export const isAiStudioRoutePath = (pathname: string): boolean =>
-  pathname.startsWith("/ai-studio") || pathname.startsWith("/creator-studio");
+export const isAiStudioRoutePath = (pathname: string): boolean => pathname.startsWith("/ai-studio");

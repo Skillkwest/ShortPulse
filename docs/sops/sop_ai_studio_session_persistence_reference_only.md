@@ -17,14 +17,14 @@ This SOP governs the retired legacy AI Studio session persistence system. That s
 
 1. Session SQL migration `044_add_ai_studio_sessions_persistence.sql` may still exist in older environments.
 2. Hotfix migration `053_fix_ai_studio_session_upsert_ambiguity.sql` may still exist in older environments.
-3. The legacy `/api/ai/sessions/*` routes are retired and should not be used for runtime product behavior.
+3. The legacy `/api/ai/sessions/*` routes were retired and then removed from the shipped runtime; do not use them for product behavior.
 
 ## Runtime Flags
 
 Legacy flags:
 
 1. Historical AI Studio session-persistence env flags are ignored by current runtime policy.
-2. The legacy `/api/ai/sessions/*` routes now return a retired response and do not persist or restore session data.
+2. The legacy `/api/ai/sessions/*` routes are removed from the shipped runtime and do not persist or restore session data.
 
 ## Persistence Contract
 
@@ -43,7 +43,7 @@ Legacy flags:
 ## Runtime Status
 
 1. The shipped product no longer performs durable `sid` session autosave or restore.
-2. `/api/ai/sessions/save`, `/api/ai/sessions/:sid`, and `/api/ai/sessions` are retired endpoints.
+2. `/api/ai/sessions/save`, `/api/ai/sessions/:sid`, and `/api/ai/sessions` are removed legacy endpoints.
 3. Non-project `sid` values remain runtime identity only.
 4. Durable AI Studio persistence now lives on project routes through `/api/projects/:projectId/workspace`.
 

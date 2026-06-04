@@ -11,7 +11,7 @@ If regressions reappear, check `app_error_logs` for `source='client.api_network'
 
 Symptoms:
 
-- A protected route such as `/ai-studio`, `/creator-studio`, or `/profile` does not continue past the media-rights gate.
+- A protected route such as `/ai-studio` or `/profile` does not continue past the media-rights gate.
 - The user sees `Unauthorized`, `Media agreement service is temporarily unavailable.`, or repeated retries with no progress.
 
 Interpretation:
@@ -57,7 +57,7 @@ Checklist:
 Mitigation:
 
 - Re-upload a smaller reference image and retry the generation.
-- If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the active route (`media-upload` for Reference Grid / Media Library intake, `media-stage-reference-image` for staged local reference preflight, or `upload-image` for legacy compatibility callers).
+- If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the active route (`media-upload` for Reference Grid / Media Library intake or `media-stage-reference-image` for staged local reference preflight).
 
 ## Admin runtime/API error handoff workflow
 
@@ -909,7 +909,7 @@ Checklist:
 - This durability flow does **not** create `media_files` rows and does not auto-add items to Media Library tabs.
 - If a local reference is still missing after refresh:
   - inspect client breadcrumbs for `ai_studio_session_reference_durability_upload_failed`,
-  - verify `POST /api/upload-image` / `POST /api/upload-video` returned `200`,
+  - verify `POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image` or `POST /api/upload-video` returned `200`,
   - confirm the local preview URL was still present (not removed/replaced) before upload completed.
 
 ## AI Studio legacy `sid` session persistence is retired
@@ -917,8 +917,7 @@ Checklist:
 Checklist:
 
 - `sid` remains runtime identity only and does not restore or save durable workspace state.
-- `/api/ai/sessions/*` is expected to return a retired response rather than `200`.
-- Do not troubleshoot `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` as active product flags; current runtime ignores that lane.
+- The legacy `/api/ai/sessions/*` route family is removed from the shipped runtime.
 - If resumable workspace restore is needed, validate the project workspace path instead:
   - `GET|PUT /api/projects/:projectId/workspace`
   - `docs/sops/sop_ai_studio_projects_foundation.md`
@@ -1081,7 +1080,7 @@ Checklist:
   - `fetch_local_image`
   - `upload_image_route`
   - `refresh_signed_url`
-- If `upload_image_route` is timing out, verify auth/session health plus `/api/media/prepare-reference-image-upload` and `/api/media/stage-reference-image` latency. Legacy callers may still surface `/api/upload-image`.
+- If `upload_image_route` is timing out, verify auth/session health plus `/api/media/prepare-reference-image-upload` and `/api/media/stage-reference-image` latency.
 - If `refresh_signed_url` is failing, reselect references to mint fresh signed URLs.
 
 Mitigation:

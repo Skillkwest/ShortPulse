@@ -34,18 +34,11 @@ vi.mock("../../features/compliance/routes/ProtectedRouteBootstrapGate", () => ({
 }));
 
 vi.mock("../../lib/protectedRoutes", () => ({
-  isAiStudioRoutePath: (pathname: string) =>
-    pathname.startsWith("/ai-studio") || pathname.startsWith("/creator-studio"),
+  isAiStudioRoutePath: (pathname: string) => pathname.startsWith("/ai-studio"),
   isProtectedRoutePath: (pathname: string) =>
-    [
-      "/performance",
-      "/saved-creators",
-      "/profile",
-      "/report-issue",
-      "/ai-studio",
-      "/creator-studio",
-      "/admin",
-    ].some((route) => pathname.startsWith(route)),
+    ["/performance", "/saved-creators", "/profile", "/report-issue", "/ai-studio", "/admin"].some(
+      (route) => pathname.startsWith(route)
+    ),
 }));
 
 vi.mock("../../lib/appErrorReporter", () => ({

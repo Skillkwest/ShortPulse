@@ -2,7 +2,10 @@
  * Project workspace persistence helpers.
  * Owns server-authoritative read/write access for user-owned project workspace snapshots.
  */
-import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
+import {
+  parseAiStudioSessionSnapshot,
+  parseAiStudioSessionSnapshotShape,
+} from "../ai-studio-session/sessionSnapshotShape";
 import {
   createAiStudioProjectWorkspaceSnapshot,
   hasProjectDurableOutputAuthority,
@@ -14,7 +17,6 @@ import {
   isSupabaseRenderImageUrl,
 } from "../mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
-import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { writeAppErrorLog } from "./api/appErrorLogs";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { backfillProjectGenerationAssociationsForSnapshot } from "./projectGenerationAssociationsService";

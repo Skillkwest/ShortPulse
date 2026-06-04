@@ -1,7 +1,7 @@
 import type { NextApiRequest } from "next";
 import { writeAppErrorLog } from "./api/appErrorLogs";
 
-type LegacyUploadAdapterRoute = "upload-image" | "upload-video" | "upload-audio";
+type LegacyUploadAdapterRoute = "upload-video" | "upload-audio";
 
 type LegacyUploadAdapterUsageParams = {
   req: NextApiRequest;
@@ -13,7 +13,6 @@ type LegacyUploadAdapterUsageParams = {
 };
 
 const TELEMETRY_SOURCE_BY_ROUTE: Record<LegacyUploadAdapterRoute, string> = {
-  "upload-image": "telemetry.media.upload_adapter.upload_image_used",
   "upload-video": "telemetry.media.upload_adapter.upload_video_used",
   "upload-audio": "telemetry.media.upload_adapter.upload_audio_used",
 };

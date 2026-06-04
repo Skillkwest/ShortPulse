@@ -105,9 +105,9 @@ describe("AiStudioProtectedRouteEntry", () => {
     expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
   });
 
-  it("uses the AI Studio entry shell while checking media compliance on creator studio", () => {
-    routerState.pathname = "/creator-studio";
-    routerState.asPath = "/creator-studio";
+  it("uses the AI Studio entry shell while checking media compliance", () => {
+    routerState.pathname = "/ai-studio";
+    routerState.asPath = "/ai-studio";
     useMediaComplianceGateMock.mockReturnValue({
       ...baseComplianceState,
       initialized: false,

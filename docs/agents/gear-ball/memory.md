@@ -42,6 +42,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Before the first Git write on a mixed or risky run, verify `production` + `shortpulse.allowedBranch=production`, lock a file-backed manifest, and run the cheapest honest preflight.
 - Do one fast whole-tree classification pass, collapse to the fewest honest lanes, and stop refining labels once the split is decision-useful.
 - Build the first manifest from full live `git status --short`, then do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass.
+- When a narrow AI Studio lane starts inside a deep Canvas or Create sub-tree, sweep the adjacent state hook, renderer, shared contract, styles, and owning tests together before the first commit; otherwise hook stash restore will often surface the rest of that same lane after commit.
 - If a status-backed manifest needs to be regenerated after working from `frontend/` or another subdirectory, rebuild it from the repo root so repo-relative `frontend/...` paths survive into the final preflight.
 - Late manifest undercounting is usually a bigger speed loss than slightly broad first-pass validation. Bias toward one harder sibling/test sweep before first staging so related tails do not surface after the lane already looked finished.
 - Use the lightweight helper path when it reduces rereads: `gear_ball_related_sweep.mjs` for the first sibling pass and `gear_ball_tail_check.mjs` for ambiguous post-commit tails.

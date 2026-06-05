@@ -86,6 +86,46 @@ const editInput = {
 };
 
 describe("useAiStudioViewModel motion guardrails", () => {
+  it("uses pricing-grid billed credits for active video settings", () => {
+    const modelId = KIE_KLING_30_MODEL_ID;
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
+      aspect: "16:9",
+      durationSeconds: 8,
+      resolution: "1080p",
+      audio: true,
+      ...overrides,
+    });
+    const expectedCost = resolvePricingGridBilledCredits({
+      modelId,
+      params: costParamsForModel(modelId, {
+        durationSeconds: 5,
+        resolution: "1080p",
+        audio: false,
+      }),
+      pricingPolicy: pricingGridPolicy,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "video",
+        selectedTool: "video",
+        model: modelId,
+        videoDurationSeconds: 5,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        costParamsForModel,
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+  });
+
   it("uses active video settings for prompt-reference generate cost", () => {
     const modelId = KIE_KLING_30_MODEL_ID;
     const costParamsForModel = (

@@ -3,6 +3,7 @@ import { computeCostForModel } from "../../lib/model-runtime/pricing";
 import { getDefaultModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
 import { resolveCreateImageBilledCreditLookup } from "../../lib/model-runtime/createImageBilledCredits";
 import { resolveEditImageBilledCreditLookup } from "../../lib/model-runtime/editImageBilledCredits";
+import { resolvePricingGridCostBreakdown } from "../../lib/model-runtime/pricingGridBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import {
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -566,6 +567,81 @@ describe("generationBilling reservation RPC handling", () => {
         }),
       })
     );
+  });
+
+  it("reserves video requests from the pricing-grid resolver when shortpulse_context marks video billing", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-video-grid", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-video-grid",
+      },
+      url: "/api/fal/kie-seedance-2-fast-submit",
+      body: {
+        shortpulse_context: {
+          selected_tool: "video",
+          mode: "video",
+          displayed_billed_credits: 20,
+          pricing_display_source: "pricing_grid",
+          pricing_policy_ready: true,
+        },
+      },
+    };
+    const res = createMockResponse();
+    const payload = {
+      prompt: "product hero turntable shot",
+      duration: 10,
+      resolution: "720p",
+      aspect_ratio: "1:1",
+      generate_audio: false,
+      web_search: false,
+      shortpulse_context: {
+        selected_tool: "video",
+        mode: "video",
+      },
+    };
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      payload,
+      reason: "Seedance 2 Fast video generation",
+      shortpulseContext: {
+        selected_tool: "video",
+        mode: "video",
+      },
+    });
+
+    const expectedPricingParams = buildPricingParams(KIE_SEEDANCE_2_FAST_MODEL_ID, payload);
+    const expectedBreakdown = resolvePricingGridCostBreakdown({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: expectedPricingParams,
+      pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
+    });
+
+    expect(charge).not.toBeNull();
+    expect(expectedBreakdown).not.toBeNull();
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_amount_cents: Math.abs(expectedBreakdown?.credits ?? 0),
+        p_metadata: expect.objectContaining({
+          model_id: KIE_SEEDANCE_2_FAST_MODEL_ID,
+          debited_credits: expectedBreakdown?.credits,
+          pricing_breakdown: expect.objectContaining({
+            billed_credits: expectedBreakdown?.credits,
+            billed_usd: expectedBreakdown?.usd,
+            ...(expectedBreakdown?.variantId ? { variant_id: expectedBreakdown.variantId } : {}),
+          }),
+        }),
+      })
+    );
+    expect(res.status).not.toHaveBeenCalled();
   });
 
   it("returns charge helpers when reservation RPC succeeds and calls mark/release RPCs", async () => {

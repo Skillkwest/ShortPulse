@@ -12,6 +12,7 @@ import {
   resolveEditImageBilledCreditLookup,
   supportsCanonicalEditImageBilledPricing,
 } from "../../model-runtime/editImageBilledCredits";
+import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGridBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { requireApiUser } from "./auth";
 import { resolveBillingConcurrencyEntitlement } from "./billingConcurrencyEntitlements";
@@ -163,6 +164,18 @@ const isEditImageBillingPath = ({
   return selectedTool === "edit";
 };
 
+const isVideoBillingPath = ({
+  shortpulseContext,
+}: {
+  shortpulseContext: JsonObject | null;
+}): boolean => {
+  const selectedTool =
+    typeof shortpulseContext?.selected_tool === "string" ? shortpulseContext.selected_tool : null;
+  const resolvedMode =
+    typeof shortpulseContext?.mode === "string" ? shortpulseContext.mode.trim() : null;
+  return selectedTool === "video" && resolvedMode === "video";
+};
+
 const isLaunchDeferredEditPricingPath = ({
   pricingParams,
 }: {
@@ -265,7 +278,21 @@ export const chargeGenerationRequest = async ({
           pricingPolicy: effectivePricingPolicy,
         })
       : null;
-  const canonicalImagePricingLookup = createImagePricingLookup ?? editImagePricingLookup;
+  const videoPricingBreakdown = isVideoBillingPath({
+    shortpulseContext,
+  })
+    ? resolvePricingGridCostBreakdown({
+        modelId,
+        params: pricingParams,
+        pricingPolicy: effectivePricingPolicy,
+      })
+    : null;
+  const canonicalPricingBreakdown =
+    createImagePricingLookup?.breakdown ??
+    editImagePricingLookup?.breakdown ??
+    videoPricingBreakdown;
+  const canonicalPricingParams =
+    createImagePricingLookup?.params ?? editImagePricingLookup?.params ?? pricingParams;
   const requiresCanonicalEditImagePricing =
     isEditImageBillingPath({
       shortpulseContext,
@@ -274,6 +301,9 @@ export const chargeGenerationRequest = async ({
       pricingParams,
     }) &&
     supportsCanonicalEditImageBilledPricing(modelId);
+  const requiresCanonicalVideoPricing = isVideoBillingPath({
+    shortpulseContext,
+  });
   if (requiresCanonicalEditImagePricing && !editImagePricingLookup?.breakdown) {
     await logGenerationFailure({
       req,
@@ -294,9 +324,29 @@ export const chargeGenerationRequest = async ({
     res.status(500).json({ error: "Pricing is unavailable for this configuration." });
     return null;
   }
-  const effectivePricingParams = canonicalImagePricingLookup?.params ?? pricingParams;
+  if (requiresCanonicalVideoPricing && !videoPricingBreakdown) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.generation_billing_missing_canonical_video_price",
+      message: "Pricing is unavailable for this configuration.",
+      statusCode: 500,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        model_id: modelId,
+        source_ref: sourceRef,
+        pricing_params: pricingParams,
+        pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
+        pricing_policy_source: runtimePricingPolicy.source,
+      },
+    });
+    res.status(500).json({ error: "Pricing is unavailable for this configuration." });
+    return null;
+  }
+  const effectivePricingParams = canonicalPricingParams;
   const breakdown =
-    canonicalImagePricingLookup?.breakdown ??
+    canonicalPricingBreakdown ??
     computeCostForModel(modelId, effectivePricingParams, effectivePricingPolicy);
   if (!breakdown?.credits || breakdown.credits <= 0) {
     await logGenerationFailure({
@@ -332,8 +382,8 @@ export const chargeGenerationRequest = async ({
       raw_credits: breakdown.rawCredits,
       billed_credits: breakdown.credits,
       billed_usd: breakdown.usd,
-      ...(canonicalImagePricingLookup?.breakdown?.variantId
-        ? { variant_id: canonicalImagePricingLookup.breakdown.variantId }
+      ...(canonicalPricingBreakdown?.variantId
+        ? { variant_id: canonicalPricingBreakdown.variantId }
         : {}),
       pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
       pricing_policy_source: runtimePricingPolicy.source,
@@ -347,8 +397,8 @@ export const chargeGenerationRequest = async ({
     rawCredits: breakdown.rawCredits,
     billedCredits: breakdown.credits,
     billedUsd: breakdown.usd,
-    ...(canonicalImagePricingLookup?.breakdown?.variantId
-      ? { variantId: canonicalImagePricingLookup.breakdown.variantId }
+    ...(canonicalPricingBreakdown?.variantId
+      ? { variantId: canonicalPricingBreakdown.variantId }
       : {}),
     pricingPolicyVersion: runtimePricingPolicy.activePolicyVersion,
     pricingPolicySource: runtimePricingPolicy.source,

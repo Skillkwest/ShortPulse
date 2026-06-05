@@ -13,6 +13,10 @@ import {
   resolveEditImageBilledCredits,
   supportsCanonicalEditImageBilledPricing,
 } from "../../../lib/model-runtime/editImageBilledCredits";
+import {
+  resolvePricingGridBilledCredits,
+  resolvePricingGridCostBreakdown,
+} from "../../../lib/model-runtime/pricingGridBilledCredits";
 import { getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
@@ -308,11 +312,10 @@ export const useAiStudioViewModel = ({
       }
       if (mode === "video") {
         if (!model) return null;
-        return resolveClientPricingBreakdown({
+        return resolvePricingGridCostBreakdown({
           modelId: model,
           params: costParamsForModel(model, { durationSeconds: getDefaultDurationSeconds(model) }),
           pricingPolicy,
-          pricingPolicyReady: !isPricingPolicyUnavailable,
         });
       }
       if (mode === "text") {
@@ -352,11 +355,10 @@ export const useAiStudioViewModel = ({
 
     if (isVideoTool) {
       if (!model) return null;
-      return resolveClientPricingBreakdown({
+      return resolvePricingGridCostBreakdown({
         modelId: model,
         params: costParamsForModel(model, videoPricingParams),
         pricingPolicy,
-        pricingPolicyReady: !isPricingPolicyUnavailable,
       });
     }
 
@@ -478,15 +480,20 @@ export const useAiStudioViewModel = ({
           pricingPolicy,
         });
       }
+      if (isVideoTool) {
+        return resolvePricingGridBilledCredits({
+          modelId: modelIdForChip,
+          params: costParamsForModel(modelIdForChip, videoPricingParams),
+          pricingPolicy,
+        });
+      }
       return resolveClientBilledCredits({
         modelId: modelIdForChip,
         params: costParamsForModel(
           modelIdForChip,
-          isVideoTool
-            ? videoPricingParams
-            : isImageTool && candidatePricingImageResolution
-              ? { resolution: candidatePricingImageResolution }
-              : {}
+          isImageTool && candidatePricingImageResolution
+            ? { resolution: candidatePricingImageResolution }
+            : {}
         ),
         pricingPolicy,
         pricingPolicyReady: !isPricingPolicyUnavailable,

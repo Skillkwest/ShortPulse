@@ -460,7 +460,8 @@ export const useAiStudioTaskSubmission = ({
           motionReferenceVideoUrl,
         });
         const usesPricingGridDisplay =
-          outputMode === "image" && (effectiveTool === "create" || effectiveTool === "edit");
+          (outputMode === "image" && (effectiveTool === "create" || effectiveTool === "edit")) ||
+          (outputMode === "video" && effectiveTool === "video");
         const shortpulseContext = {
           selected_tool: effectiveTool,
           mode: outputMode,

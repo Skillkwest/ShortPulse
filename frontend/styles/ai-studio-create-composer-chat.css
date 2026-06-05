@@ -749,10 +749,16 @@
   min-width: 0;
 }
 
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-message-body.agent-message-body--with-use-as-prompt {
+  padding-bottom: 28px;
+}
+
 .create-composer-panel .create-composer-prompt-step .agent-message-use-as-prompt-btn {
   position: absolute;
-  top: -6px;
   right: -4px;
+  bottom: -4px;
   z-index: 2;
   display: inline-flex;
   width: 24px;

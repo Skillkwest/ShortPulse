@@ -767,7 +767,9 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         }}
                       />
                     ) : (
-                      <div className="agent-message-body">
+                      <div
+                        className={`agent-message-body${showUseAsPromptButton ? " agent-message-body--with-use-as-prompt" : ""}`}
+                      >
                         {showUseAsPromptButton ? (
                           <button
                             type="button"

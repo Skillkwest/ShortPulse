@@ -319,10 +319,12 @@ export function StandardCreatePropertiesPanel({
     ({ prompt: nextPrompt }: { messageId: string; prompt: string }) => {
       const promptText = nextPrompt.trim();
       if (!promptText) return;
+      if (chatModeEnabled) {
+        onChatModeEnabledChange?.(false);
+      }
       onPromptChange(promptText);
-      onChatModeEnabledChange?.(false);
     },
-    [onChatModeEnabledChange, onPromptChange]
+    [chatModeEnabled, onChatModeEnabledChange, onPromptChange]
   );
 
   const sharedPromptStepProps = {

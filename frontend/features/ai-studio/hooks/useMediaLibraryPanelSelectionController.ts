@@ -269,7 +269,7 @@ export const useMediaLibraryPanelSelectionController = ({
 
   React.useEffect(() => {
     if (!isExternallyControlled) return;
-    if (!controlledSelectionTarget || activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) {
+    if (!controlledSelectionTarget) {
       resetDetailModalState();
       return;
     }
@@ -282,7 +282,6 @@ export const useMediaLibraryPanelSelectionController = ({
     if (detailModalItem?.file.id === matchingFile.id) return;
     openDetailModalForFile(matchingFile);
   }, [
-    activeFolderId,
     controlledSelectionTarget,
     detailModalItem?.file.id,
     isExternallyControlled,
@@ -301,7 +300,6 @@ export const useMediaLibraryPanelSelectionController = ({
 
   const handleMediaCardDoubleClick = React.useCallback(
     (file: MediaFileRow) => {
-      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
       if (isExternallyControlled) {
         setDetailSelectionTarget?.({
           kind: "media-file",
@@ -312,13 +310,7 @@ export const useMediaLibraryPanelSelectionController = ({
       }
       openDetailModalForFile(file);
     },
-    [
-      activeFolderId,
-      detailSurface,
-      isExternallyControlled,
-      openDetailModalForFile,
-      setDetailSelectionTarget,
-    ]
+    [detailSurface, isExternallyControlled, openDetailModalForFile, setDetailSelectionTarget]
   );
 
   const handleDetailModalMediaError = React.useCallback(

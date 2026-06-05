@@ -220,9 +220,38 @@ describe("StandardCreatePropertiesPanel single mode", () => {
       prompt: "  A clean generation-ready prompt.  ",
     });
 
-    expect(onPromptChange).toHaveBeenCalledWith("A clean generation-ready prompt.");
     expect(onChatModeEnabledChange).toHaveBeenCalledWith(false);
+    expect(onPromptChange).toHaveBeenCalledWith("A clean generation-ready prompt.");
+    expect(onChatModeEnabledChange.mock.invocationCallOrder[0]).toBeLessThan(
+      onPromptChange.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+    );
     expect(onGenerate).not.toHaveBeenCalled();
+  });
+
+  it("does not retoggle chat mode when use-as-prompt runs with chat mode already off", () => {
+    const onPromptChange = vi.fn();
+    const onChatModeEnabledChange = vi.fn();
+
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        chatModeEnabled={false}
+        onPromptChange={onPromptChange}
+        onChatModeEnabledChange={onChatModeEnabledChange}
+      />
+    );
+
+    const promptStepProps = standardCreatePanelViewMockState.latestProps?.promptStepProps as {
+      onUseAssistantMessageAsPrompt?: (request: { messageId: string; prompt: string }) => void;
+    };
+
+    promptStepProps.onUseAssistantMessageAsPrompt?.({
+      messageId: "assistant-output-2",
+      prompt: "Prompt stays put.",
+    });
+
+    expect(onChatModeEnabledChange).not.toHaveBeenCalled();
+    expect(onPromptChange).toHaveBeenCalledWith("Prompt stays put.");
   });
 
   it("toggles the Standard create control set cleanly across chat mode changes", () => {

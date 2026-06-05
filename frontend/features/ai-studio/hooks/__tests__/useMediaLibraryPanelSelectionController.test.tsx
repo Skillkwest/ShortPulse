@@ -56,6 +56,38 @@ describe("useMediaLibraryPanelSelectionController", () => {
     });
   });
 
+  it("opens custom-folder media cards through the same preview modal path", async () => {
+    resolveSignedSelectionUrlMock.mockReset();
+    resolveSignedSelectionUrlMock.mockResolvedValueOnce("https://signed.example.com/fallback.png");
+    const signStoragePath = vi.fn(async (storagePath: string) =>
+      storagePath === "user-1/media/original.png" ? "https://signed.example.com/full.png" : null
+    );
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "folder-1",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [imageFile],
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
+        signStoragePath,
+      })
+    );
+
+    act(() => {
+      result.current.handleMediaCardDoubleClick(imageFile);
+    });
+
+    expect(result.current.detailModalItem?.file.id).toBe("file-1");
+    expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/preview.png");
+
+    await waitFor(() => {
+      expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/full.png");
+      expect(result.current.detailModalLoading).toBe(false);
+    });
+  });
+
   it("does not mount poster image URLs as video modal sources", async () => {
     resolveSignedSelectionUrlMock.mockReset();
     const videoFile = {
@@ -177,11 +209,70 @@ describe("useMediaLibraryPanelSelectionController", () => {
     expect(setDetailSelectionTarget).toHaveBeenCalledWith(null);
   });
 
+  it("opens a controlled shared detail-selection target for custom-folder media rows", async () => {
+    resolveSignedSelectionUrlMock.mockReset();
+    const signStoragePath = vi.fn(async (storagePath: string) =>
+      storagePath === "user-1/media/original.png" ? "https://signed.example.com/full.png" : null
+    );
+    const setDetailSelectionTarget = vi.fn();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "folder-1",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [imageFile],
+        detailSelectionTarget: {
+          kind: "media-file",
+          fileId: imageFile.id,
+          surface: "media-library-panel",
+        },
+        setDetailSelectionTarget,
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
+        signStoragePath,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.detailModalItem?.file.id).toBe(imageFile.id);
+      expect(result.current.detailModalLoading).toBe(false);
+      expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/full.png");
+    });
+  });
+
   it("publishes a shared detail-selection target instead of opening local state when externally controlled", () => {
     const setDetailSelectionTarget = vi.fn();
     const { result } = renderHook(() =>
       useMediaLibraryPanelSelectionController({
         activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [imageFile],
+        detailSelectionTarget: null,
+        setDetailSelectionTarget,
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
+        signStoragePath: vi.fn(async () => null),
+      })
+    );
+
+    act(() => {
+      result.current.handleMediaCardDoubleClick(imageFile);
+    });
+
+    expect(setDetailSelectionTarget).toHaveBeenCalledWith({
+      kind: "media-file",
+      fileId: imageFile.id,
+      surface: "media-library-panel",
+    });
+    expect(result.current.detailModalItem).toBeNull();
+  });
+
+  it("publishes a shared detail-selection target from custom-folder media cards", () => {
+    const setDetailSelectionTarget = vi.fn();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "folder-1",
         detailSurface: "media-library-panel",
         currentUserIdRef: { current: "user-1" },
         mediaRows: [imageFile],

@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { ElementsEmbeddedMediaLibraryPanel } from "../ElementsEmbeddedMediaLibraryPanel";
 import { MediaLibraryPanel } from "../MediaLibraryPanel";
+import type { SharedMediaDetailSelectionTarget } from "../detail-modal/detailModalPlatformTypes";
 
 const listMediaFoldersMock = vi.fn();
 const createMediaFolderMock = vi.fn();
@@ -1579,6 +1580,49 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Remove prompt Prompt One" })).toBeInTheDocument();
     });
     expect(screen.queryByRole("tablist", { name: "All Media type tabs" })).not.toBeInTheDocument();
+  });
+
+  it("opens preview modal from custom-folder media double-click without ingest side effects", async () => {
+    const onSelectMedia = vi.fn();
+    const ControlledPanel = () => {
+      const [detailSelectionTarget, setDetailSelectionTarget] =
+        React.useState<SharedMediaDetailSelectionTarget | null>(null);
+      const handleDetailSelectionTargetChange = React.useCallback(
+        (target: SharedMediaDetailSelectionTarget | null) => {
+          setDetailSelectionTarget(target);
+        },
+        []
+      );
+      return (
+        <MediaLibraryPanel
+          onSelectMedia={onSelectMedia}
+          onSelectPrompt={vi.fn()}
+          detailSelectionTarget={detailSelectionTarget}
+          onDetailSelectionTargetChange={handleDetailSelectionTargetChange}
+        />
+      );
+    };
+
+    render(<ControlledPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Open preview media ref-1.png" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Open preview media ref-1.png" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Preview ref-1.png" })).toBeInTheDocument();
+    });
+    expect(onSelectMedia).not.toHaveBeenCalled();
   });
 
   it("does not open a folder on single click", async () => {

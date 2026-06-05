@@ -98,12 +98,14 @@ export function ProjectsModal({
     null
   );
   const [deletePendingProjectId, setDeletePendingProjectId] = React.useState<string | null>(null);
+  const projectOpenInFlightIdRef = React.useRef<string | null>(null);
   const deleteInFlightProjectIdRef = React.useRef<string | null>(null);
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const createButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const restoreFocusRef = React.useRef<HTMLElement | null>(null);
   const projectNameModalWasOpenRef = React.useRef(false);
   useAiStudioModalActivity("projects-modal", isOpen);
+  const hasProjectActionInFlight = Boolean(pendingProjectId || deletePendingProjectId);
   const {
     isOpen: isProjectNameModalOpen,
     title: createProjectTitle,
@@ -163,6 +165,7 @@ export function ProjectsModal({
     if (!isOpen) {
       setActionError(null);
       setPendingProjectId(null);
+      projectOpenInFlightIdRef.current = null;
       setDeleteConfirmProject(null);
       setDeletePendingProjectId(null);
       deleteInFlightProjectIdRef.current = null;
@@ -225,6 +228,7 @@ export function ProjectsModal({
 
   const handleProjectSelect = React.useCallback(
     async (projectId: string) => {
+      if (projectOpenInFlightIdRef.current) return;
       if (projectId === currentProjectId) {
         onClose();
         return;
@@ -232,12 +236,16 @@ export function ProjectsModal({
 
       setActionError(null);
       setPendingProjectId(projectId);
+      projectOpenInFlightIdRef.current = projectId;
       try {
         await onSelectProject(projectId);
         onClose();
       } catch (error) {
         setActionError(error instanceof Error ? error.message : "Failed to open project.");
       } finally {
+        if (projectOpenInFlightIdRef.current === projectId) {
+          projectOpenInFlightIdRef.current = null;
+        }
         setPendingProjectId(null);
       }
     },
@@ -386,6 +394,7 @@ export function ProjectsModal({
                   type="button"
                   className="ghost-btn mini ai-projects-modal-empty-action"
                   onClick={openCreateProjectDialog}
+                  disabled={hasProjectActionInFlight}
                 >
                   New Project
                 </button>
@@ -398,6 +407,7 @@ export function ProjectsModal({
                 const isCurrentProject = project.id === currentProjectId;
                 const isPending =
                   pendingProjectId === project.id || deletePendingProjectId === project.id;
+                const isInteractionDisabled = hasProjectActionInFlight || isPending;
                 const showStatusPill = isCurrentProject || isPending;
                 return (
                   <div
@@ -417,7 +427,7 @@ export function ProjectsModal({
                           ? `Current project ${project.title}`
                           : `Open project ${project.title}`
                       }
-                      disabled={isPending}
+                      disabled={isInteractionDisabled}
                     >
                       <div className="ai-projects-modal-card-topline">
                         <span className="ai-projects-modal-card-title">{project.title}</span>
@@ -465,7 +475,7 @@ export function ProjectsModal({
                           openDeleteConfirm(project);
                         }}
                         aria-label={`Delete project ${project.title}`}
-                        disabled={isPending}
+                        disabled={isInteractionDisabled}
                       >
                         <Trash size={15} weight="bold" />
                       </button>

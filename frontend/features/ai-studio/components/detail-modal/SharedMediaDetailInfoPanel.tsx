@@ -27,21 +27,19 @@ export function SharedMediaDetailInfoPanel({
 }: SharedMediaDetailInfoPanelProps) {
   return (
     <div className="art-prompt-blade">
-      <div className="art-blade-inner">
-        {leadingContent}
-        <div className="art-blade-header">
-          <span className="art-label">{label}</span>
-        </div>
-        <textarea
-          className="art-blade-textarea"
-          ref={textareaRef}
-          value={value}
-          onChange={onChange}
-          readOnly={readOnly}
-          rows={rows}
-          placeholder={placeholder}
-        />
+      {leadingContent}
+      <div className="art-blade-header">
+        <span className="art-label">{label}</span>
       </div>
+      <textarea
+        className="art-blade-textarea"
+        ref={textareaRef}
+        value={value}
+        onChange={onChange}
+        readOnly={readOnly}
+        rows={rows}
+        placeholder={placeholder}
+      />
     </div>
   );
 }

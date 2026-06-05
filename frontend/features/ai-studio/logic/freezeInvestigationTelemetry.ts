@@ -97,3 +97,9 @@ export const resetFreezeInvestigationSnapshot = (): FreezeInvestigationSnapshot 
   ensureApi();
   return window.__shortpulseFreezeInvestigation?.reset() ?? cloneSnapshot();
 };
+
+export const getFreezeInvestigationSnapshot = (): FreezeInvestigationSnapshot => {
+  if (!isEnabled()) return cloneSnapshot();
+  ensureApi();
+  return window.__shortpulseFreezeInvestigation?.getSnapshot() ?? cloneSnapshot();
+};

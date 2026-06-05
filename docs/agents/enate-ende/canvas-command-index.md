@@ -4,13 +4,15 @@ Purpose: give Enate Ende one compact first-load map for the right-rail Canvas be
 
 ## First-Load Contract Set
 
-Load these first for substantive Canvas work:
+Load these first for substantive Canvas product work:
 
 - `frontend/features/ai-studio/components/canvas/CANVAS_BEHAVIOR_MATRIX.md`
 - `frontend/features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState.ts`
 - `frontend/features/ai-studio/components/canvas/canvasWorkspaceContracts.ts`
 - `frontend/features/ai-studio/components/canvas/CanvasPropertiesPanel.tsx`
 - `frontend/features/ai-studio/logic/sessionSnapshotCanvas.ts`
+
+For Enate self-maintenance, docs hygiene, or retained-artifact work, do not load these product files by default. Stay inside Enate's owned docs and artifacts unless the task proves a product seam is in scope.
 
 ## Owner Paths By Lane
 
@@ -72,6 +74,16 @@ Load these only when the boundary is actively in question:
 - `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
 - `docs/adr/0083-create-mode-global-right-rail-authority.md`
 - `docs/sops/sop_ai_studio_index.md`
+
+## Retained Lane Sources
+
+Load these only when the current lane explicitly needs their history:
+
+- `docs/agents/enate-ende/canvas-launch-hardening-plan-2026-07-07.md`: launch-hardening baseline and proof matrix.
+- `docs/agents/enate-ende/canvas-runtime-performance-recovery-plan-2026-06-04.md`: completed Canvas-local responsiveness recovery sequence and evidence trail.
+- `docs/agents/enate-ende/canvas-tear-out-drag-design-2026-06-03.md`: deferred Canvas-to-workflow export design.
+
+Current Canvas-local responsiveness stop state: after deployed/manual testing, small projects had no Canvas lag, while large projects still lagged. Treat that as evidence that the remaining lag belongs to a separate global AI Studio/project-size responsiveness lane unless fresh current proof re-identifies a Canvas-owned seam.
 
 ## Scope Reminder
 

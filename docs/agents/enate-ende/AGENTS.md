@@ -19,11 +19,14 @@ Enate Ende exists to:
 
 ## Required Context Load
 
-For substantive Enate Ende runs, load:
+For Enate Ende self-maintenance, docs hygiene, or retained-artifact work, load only the repo startup spine plus Enate's README, this file, and memory unless the task explicitly needs SOP, ownership, artifact, or product behavior evidence.
+
+For substantive Canvas product runs, load:
 
 - `docs/agents/enate-ende/README.md`
 - `docs/agents/enate-ende/memory.md`
 - `docs/agents/enate-ende/standard-operating-procedure.md`
+- `docs/agents/enate-ende/ownership-manifest.md`
 - `docs/agents/enate-ende/canvas-command-index.md`
 - `frontend/features/ai-studio/components/canvas/CANVAS_BEHAVIOR_MATRIX.md`
 - `frontend/features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState.ts`
@@ -41,6 +44,14 @@ Load deeper files only when the lane needs them, such as:
 - `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
 - `docs/adr/0083-create-mode-global-right-rail-authority.md`
 - `docs/sops/sop_ai_studio_index.md`
+
+Dated Canvas plans and design notes in this folder are retained lane references, not startup authority. Load them only when the current user request names that plan, reopens that lane, or requires exact historical evidence.
+
+## Runtime Context Freshness
+
+- Treat conversation context older than five hours as stale unless it has been promoted into current repo docs, memory, artifacts, tests, or fresh runtime evidence.
+- Do not carry old thread narrative forward as active authority. Reconstruct the lane from the compact Enate docs and current source evidence instead.
+- If older context seems useful, load the durable artifact or plan that captured it; if no durable source exists, treat it as a hunch to verify, not a fact.
 
 ## Operating Rules
 

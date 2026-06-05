@@ -13,7 +13,11 @@ import {
 import { isGeneratedOutput } from "../../logic/referenceOutputAuthority";
 import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
-import { applySignedStorageUrlsToReferenceGridMediaOutput } from "./useReferenceGridSignedStorageUrlController";
+import {
+  applySignedMediaAuthorityToReferenceGridMediaOutput,
+  applySignedStorageUrlsToReferenceGridMediaOutput,
+} from "./useReferenceGridSignedStorageUrlController";
+import type { SessionSignedMediaRestoreAuthority } from "../../logic/sessionRestoreMediaSigning";
 import {
   isOutputAudioPreview,
   isOutputVideoPreview,
@@ -44,6 +48,7 @@ type UseReferenceGridResolvedMediaControllerArgs = {
   strictPreviewLadder: boolean;
   adaptivePreviewRoutingEnabled: boolean;
   signedStorageUrlByPath?: ReadonlyMap<string, string>;
+  signedMediaAuthorityByMediaId?: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>;
 };
 
 type ResolveReferenceGridCardMediaArgs = {
@@ -57,8 +62,10 @@ const getResolvedMediaCacheKey = ({
   mediaSurface,
   cardLongEdgePx,
   signedStorageUrlByPath,
+  signedMediaAuthorityByMediaId,
 }: ResolveReferenceGridCardMediaArgs & {
   signedStorageUrlByPath?: ReadonlyMap<string, string>;
+  signedMediaAuthorityByMediaId?: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>;
 }): string => {
   const signedStorageKey = [
     item.previewStoragePath,
@@ -69,6 +76,19 @@ const getResolvedMediaCacheKey = ({
     .map((value) => {
       const path = asCanonicalStoragePath(value);
       return path ? (signedStorageUrlByPath?.get(path) ?? "") : "";
+    })
+    .join("||");
+  const signedMediaAuthority = item.savedMediaIds
+    ?.map((mediaId) => {
+      const authority = signedMediaAuthorityByMediaId?.get(mediaId);
+      return authority
+        ? [
+            mediaId,
+            authority.signedPreviewUrl ?? "",
+            authority.signedFullUrl ?? "",
+            authority.signedPreviewPosterUrl ?? "",
+          ].join("|")
+        : "";
     })
     .join("||");
   return [
@@ -84,6 +104,7 @@ const getResolvedMediaCacheKey = ({
     item.generationId ?? "",
     item.savedMediaIds?.[0] ?? "",
     signedStorageKey,
+    signedMediaAuthority ?? "",
     mediaSurface,
     cardLongEdgePx,
   ].join("::");
@@ -97,6 +118,7 @@ export const useReferenceGridResolvedMediaController = ({
   strictPreviewLadder,
   adaptivePreviewRoutingEnabled,
   signedStorageUrlByPath,
+  signedMediaAuthorityByMediaId,
 }: UseReferenceGridResolvedMediaControllerArgs) => {
   const devicePixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
   const cacheRef = useRef(new Map<string, ReferenceGridResolvedCardMedia>());
@@ -107,6 +129,7 @@ export const useReferenceGridResolvedMediaController = ({
     adaptivePreviewRoutingEnabled,
     devicePixelRatio,
     previewQualityPressureLevel,
+    signedMediaAuthorityByMediaId,
     signedStorageUrlByPath,
     strictPreviewLadder,
   ]);
@@ -118,16 +141,24 @@ export const useReferenceGridResolvedMediaController = ({
         mediaSurface,
         cardLongEdgePx,
         signedStorageUrlByPath,
+        signedMediaAuthorityByMediaId,
       });
       const cached = cacheRef.current.get(cacheKey);
       if (cached) {
         return cached;
       }
 
-      const mediaItem =
+      const storageSignedMediaItem =
         signedStorageUrlByPath && signedStorageUrlByPath.size > 0
           ? applySignedStorageUrlsToReferenceGridMediaOutput(item, signedStorageUrlByPath)
           : item;
+      const mediaItem =
+        signedMediaAuthorityByMediaId && signedMediaAuthorityByMediaId.size > 0
+          ? applySignedMediaAuthorityToReferenceGridMediaOutput(
+              storageSignedMediaItem,
+              signedMediaAuthorityByMediaId
+            )
+          : storageSignedMediaItem;
       const resolvedCardUrls = resolveReferenceCardUrls(mediaItem, {
         strictPreviewLadder,
         adaptivePreviewQuality: adaptivePreviewRoutingEnabled,
@@ -203,6 +234,7 @@ export const useReferenceGridResolvedMediaController = ({
       adaptivePreviewRoutingEnabled,
       devicePixelRatio,
       previewQualityPressureLevel,
+      signedMediaAuthorityByMediaId,
       signedStorageUrlByPath,
       strictPreviewLadder,
     ]

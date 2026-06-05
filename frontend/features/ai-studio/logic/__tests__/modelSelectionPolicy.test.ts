@@ -13,6 +13,7 @@ import {
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../../lib/model-runtime/falModelIds";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -50,6 +51,11 @@ const createImageOptions: ModelOption[] = [
   {
     value: FAL_SEEDREAM_45_EDIT_MODEL_ID,
     label: "Seedream 4.5 Edit",
+    mediaType: "image",
+  },
+  {
+    value: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+    label: "GPT Image 2 Edit (Kie)",
     mediaType: "image",
   },
   {
@@ -104,10 +110,11 @@ const getModelConfig = (id: string) => {
     id === FAL_NANO_BANANA_2_EDIT_MODEL_ID ||
     id === FAL_NANO_BANANA_PRO_EDIT_MODEL_ID ||
     id === FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID ||
-    id === FAL_SEEDREAM_45_EDIT_MODEL_ID
+    id === FAL_SEEDREAM_45_EDIT_MODEL_ID ||
+    id === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID
   ) {
     return {
-      provider: "fal",
+      provider: id === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID ? "kie" : "fal",
       supportsTextToImage: false,
       supportsImageToImage: true,
     };
@@ -174,7 +181,7 @@ describe("modelSelectionPolicy", () => {
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
   });
 
-  it("includes gpt-image-2 in both standard Edit and create Character Mode", () => {
+  it("includes GPT Image 2 models in both standard Edit and create Character Mode", () => {
     const standardEditValues = new Set(
       resolveAiStudioAllowedModelOptions({
         selectedTool: "edit",
@@ -196,7 +203,9 @@ describe("modelSelectionPolicy", () => {
     );
 
     expect(standardEditValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(true);
+    expect(standardEditValues.has(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
     expect(characterModeValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(true);
+    expect(characterModeValues.has(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
   });
 
   it("hides FLUX.2 Lite for create/image while character mode is enabled", () => {
@@ -215,6 +224,7 @@ describe("modelSelectionPolicy", () => {
       FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
       FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
       FAL_SEEDREAM_45_EDIT_MODEL_ID,
+      KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
     ]);
   });
 

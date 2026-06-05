@@ -434,13 +434,14 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
+      "GPT Image 2 Edit (Kie)",
       "GPT Image 2",
     ]);
-    expect(screen.queryByRole("button", { name: /GPT Image 2 Edit \(Kie\)/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /GPT Image 2 Edit \(Kie\)/i })).toBeInTheDocument();
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
-      { family: "GPT Image", chips: ["GPT Image 2"] },
+      { family: "GPT Image", chips: ["GPT Image 2 Edit (Kie)", "GPT Image 2"] },
     ]);
   });
 

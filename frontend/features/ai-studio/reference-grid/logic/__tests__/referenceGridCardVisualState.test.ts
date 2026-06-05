@@ -105,6 +105,27 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("hydrating");
   });
 
+  it("does not hydrate saved-media-only rows until media-id recovery supplies a renderable url", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "success",
+        mediaSource: "library",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        savedMediaIds: ["media-1"],
+      }),
+      cardPreviewUrl: null,
+      isLoaded: false,
+      decodeBudgetEnabled: true,
+      isImagePreview: false,
+      isPriorityHydration: true,
+    });
+
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isMediaHydrating).toBe(false);
+    expect(state.loadingVisual).toBe("none");
+  });
+
   it("does not keep rendered generated rows in any loading visual state", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({

@@ -27,9 +27,25 @@ export type AiStudioOutputStoreSnapshot = {
 export type OutputSelector<T> = (snapshot: AiStudioOutputStoreSnapshot) => T;
 
 type OutputStoreListener = () => void;
+type ReferenceGridOutputProjectionState = {
+  quickSlotIds?: readonly string[];
+  removedFromAllRefsIds?: readonly string[];
+};
+type VisibleAllRefsOutputIdsCache = {
+  outputOrder: string[] | null;
+  outputById: Record<string, StudioOutput> | null;
+  removedFromAllRefsKey: string;
+  result: string[];
+};
+type QuickSlotOutputIdsCache = {
+  outputById: Record<string, StudioOutput> | null;
+  quickSlotKey: string;
+  result: string[];
+};
 
 const EMPTY_IDS: string[] = [];
 const EMPTY_OUTPUT_MAP: Record<string, StudioOutput> = {};
+const STRING_ARRAY_CACHE_SEPARATOR = "\u0000";
 
 const createInitialIndexes = (): AiStudioOutputIndexes => ({
   inFlightIds: new Set<string>(),
@@ -50,6 +66,17 @@ let outputStoreSnapshot: AiStudioOutputStoreSnapshot = createInitialSnapshot();
 const outputStoreListeners = new Set<OutputStoreListener>();
 let isNotifyingOutputStoreListeners = false;
 let hasPendingOutputStoreNotify = false;
+let visibleAllRefsOutputIdsCache: VisibleAllRefsOutputIdsCache = {
+  outputOrder: null,
+  outputById: null,
+  removedFromAllRefsKey: "",
+  result: EMPTY_IDS,
+};
+let quickSlotOutputIdsCache: QuickSlotOutputIdsCache = {
+  outputById: null,
+  quickSlotKey: "",
+  result: EMPTY_IDS,
+};
 
 const areSetsEqual = (left: Set<string>, right: Set<string>) => {
   if (left === right) return true;
@@ -68,6 +95,9 @@ const areStringArraysEqual = (left: string[], right: string[]) => {
   }
   return true;
 };
+
+const createStringArrayCacheKey = (values: readonly string[] | undefined): string =>
+  values && values.length > 0 ? values.join(STRING_ARRAY_CACHE_SEPARATOR) : "";
 
 const areOutputEntityArraysEqual = (left: StudioOutput[], right: StudioOutput[]) => {
   if (left === right) return true;
@@ -258,6 +288,97 @@ export const getAiStudioOutputById = (id: string | null | undefined): StudioOutp
 export const resetAiStudioOutputStore = () => {
   outputStoreSnapshot = createInitialSnapshot();
   notifyOutputStoreListeners();
+};
+
+/**
+ * Projects store-backed All Refs ids without materializing full output rows.
+ * Inputs: output store snapshot plus Reference Grid projection ids.
+ * Output: stable visible All Refs output ids, excluding hidden and removed rows.
+ * Side effects: updates dev-only freeze-investigation counters.
+ */
+export const selectVisibleAllRefsOutputIdsFromStoreSnapshot = (
+  snapshot: AiStudioOutputStoreSnapshot,
+  state: ReferenceGridOutputProjectionState
+): string[] => {
+  const removedFromAllRefsKey = createStringArrayCacheKey(state.removedFromAllRefsIds);
+  if (
+    visibleAllRefsOutputIdsCache.outputOrder === snapshot.outputOrder &&
+    visibleAllRefsOutputIdsCache.outputById === snapshot.outputById &&
+    visibleAllRefsOutputIdsCache.removedFromAllRefsKey === removedFromAllRefsKey
+  ) {
+    incrementFreezeInvestigationCounter("referenceGrid.outputProjection.allRefs.cacheHit");
+    return visibleAllRefsOutputIdsCache.result;
+  }
+
+  incrementFreezeInvestigationCounter("referenceGrid.outputProjection.allRefs.scan");
+  setFreezeInvestigationGauge(
+    "referenceGrid.outputProjection.allRefs.inputCount",
+    snapshot.outputOrder.length
+  );
+  const removedFromAllRefsIds = state.removedFromAllRefsIds ?? EMPTY_IDS;
+  const removedSet =
+    removedFromAllRefsIds.length > 0 ? new Set<string>(removedFromAllRefsIds) : null;
+  const nextIds: string[] = [];
+  for (const id of snapshot.outputOrder) {
+    const item = snapshot.outputById[id];
+    if (!item) continue;
+    if (item.hiddenInReferenceGrid === true) continue;
+    if (removedSet?.has(id)) continue;
+    nextIds.push(id);
+  }
+  const result = areStringArraysEqual(visibleAllRefsOutputIdsCache.result, nextIds)
+    ? visibleAllRefsOutputIdsCache.result
+    : nextIds;
+  visibleAllRefsOutputIdsCache = {
+    outputOrder: snapshot.outputOrder,
+    outputById: snapshot.outputById,
+    removedFromAllRefsKey,
+    result,
+  };
+  return result;
+};
+
+/**
+ * Projects store-backed Quick Slot ids through the normalized output map.
+ * Inputs: output store snapshot plus ordered quick-slot ids.
+ * Output: stable Quick Slot output ids, excluding hidden or missing active rows.
+ * Side effects: updates dev-only freeze-investigation counters.
+ */
+export const selectQuickSlotOutputIdsFromStoreSnapshot = (
+  snapshot: AiStudioOutputStoreSnapshot,
+  state: ReferenceGridOutputProjectionState
+): string[] => {
+  const quickSlotIds = state.quickSlotIds ?? EMPTY_IDS;
+  if (quickSlotIds.length === 0) return EMPTY_IDS;
+  const quickSlotKey = createStringArrayCacheKey(quickSlotIds);
+  if (
+    quickSlotOutputIdsCache.outputById === snapshot.outputById &&
+    quickSlotOutputIdsCache.quickSlotKey === quickSlotKey
+  ) {
+    incrementFreezeInvestigationCounter("referenceGrid.outputProjection.quickSlot.cacheHit");
+    return quickSlotOutputIdsCache.result;
+  }
+
+  incrementFreezeInvestigationCounter("referenceGrid.outputProjection.quickSlot.lookup");
+  setFreezeInvestigationGauge(
+    "referenceGrid.outputProjection.quickSlot.inputCount",
+    quickSlotIds.length
+  );
+  const nextIds: string[] = [];
+  for (const id of quickSlotIds) {
+    const item = snapshot.outputById[id];
+    if (!item || item.hiddenInReferenceGrid === true) continue;
+    nextIds.push(id);
+  }
+  const result = areStringArraysEqual(quickSlotOutputIdsCache.result, nextIds)
+    ? quickSlotOutputIdsCache.result
+    : nextIds;
+  quickSlotOutputIdsCache = {
+    outputById: snapshot.outputById,
+    quickSlotKey,
+    result,
+  };
+  return result;
 };
 
 const defaultSelectorEquality = <T>(left: T, right: T) => Object.is(left, right);

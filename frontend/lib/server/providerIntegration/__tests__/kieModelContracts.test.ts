@@ -255,6 +255,8 @@ describe("kieModelContracts", () => {
         prompt: "A cinematic night city poster",
         aspect_ratio: "16:9",
         resolution: "4K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
       },
     });
 
@@ -275,6 +277,8 @@ describe("kieModelContracts", () => {
         prompt: "A square studio portrait",
         aspect_ratio: "1:1",
         resolution: "2K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
       },
     });
 
@@ -293,6 +297,8 @@ describe("kieModelContracts", () => {
         prompt: "Auto aspect should stay provider-safe",
         aspect_ratio: "auto",
         resolution: "1K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
       },
     });
 
@@ -334,6 +340,8 @@ describe("kieModelContracts", () => {
         input_urls: ["https://example.com/reference.png"],
         aspect_ratio: "4:5",
         resolution: "2K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
       },
     });
 
@@ -356,6 +364,8 @@ describe("kieModelContracts", () => {
         input_urls: ["https://example.com/ref-1.png", "https://example.com/ref-2.png"],
         aspect_ratio: "1:1",
         resolution: "2K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
       },
     });
 
@@ -376,6 +386,8 @@ describe("kieModelContracts", () => {
         input_urls: ["https://example.com/ref.png"],
         aspect_ratio: "auto",
         resolution: "1K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
       },
     });
 

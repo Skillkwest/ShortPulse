@@ -26,6 +26,7 @@ import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlayer";
 
 const HYDRATION_FALLBACK_LOADED_MS = 1500;
+const HYDRATION_MISSING_SOURCE_FALLBACK_MS = 6000;
 const GENERIC_FAILURE_MESSAGES = new Set([
   "generation failed",
   "invalid request",
@@ -353,7 +354,13 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     if (typeof window === "undefined") return;
     if (!effectiveIsLoading || loadingVisual !== "hydrating") return;
     const hasRenderableMedia = Boolean(normalizedPrimaryImageSrc || resolvedHoverVideoUrl);
-    if (!hasRenderableMedia) return;
+    if (!hasRenderableMedia) {
+      const timeoutId = window.setTimeout(() => {
+        setHasMediaRenderError(true);
+        markLoaded(item.id, { notifyAutoSave: false });
+      }, HYDRATION_MISSING_SOURCE_FALLBACK_MS);
+      return () => window.clearTimeout(timeoutId);
+    }
     // Some preview URLs never emit a terminal load/error event in the grid runtime.
     // Fail open so completed generations do not look indefinitely in-flight.
     const timeoutId = window.setTimeout(() => {

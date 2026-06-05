@@ -222,13 +222,20 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
               }}
             />
           ) : (
-            <div
-              className="canvas-scene-item__video-placeholder"
-              role="img"
+            <video
+              className="canvas-scene-item__video"
+              src={item.videoUrl}
               aria-label={item.title?.trim() || "Canvas video"}
-            >
-              <span>Video</span>
-            </div>
+              draggable={false}
+              muted
+              playsInline
+              preload="metadata"
+              onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
+              onError={() => {
+                markCanvasMediaError(mediaErrorKey);
+                onCanvasMediaRenderError?.(item);
+              }}
+            />
           )}
           <MediaDurationBadge
             className="canvas-scene-item__media-duration"

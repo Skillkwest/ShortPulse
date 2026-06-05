@@ -5,6 +5,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
+import {
+  resolveSessionRestoreSignedMediaAuthorityByMediaId,
+  type SessionSignedMediaRestoreAuthority,
+} from "../../logic/sessionRestoreMediaSigning";
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
 
 const REFERENCE_GRID_MEDIA_BUCKET = "media_library";
@@ -51,6 +55,39 @@ const areSignedUrlMapsEqual = (
   return true;
 };
 
+const areSignedMediaAuthorityMapsEqual = (
+  left: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>,
+  right: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>
+) => {
+  if (left === right) return true;
+  if (left.size !== right.size) return false;
+  for (const [mediaId, authority] of left.entries()) {
+    const nextAuthority = right.get(mediaId);
+    if (
+      !nextAuthority ||
+      nextAuthority.signedPreviewUrl !== authority.signedPreviewUrl ||
+      nextAuthority.signedFullUrl !== authority.signedFullUrl ||
+      nextAuthority.signedPreviewPosterUrl !== authority.signedPreviewPosterUrl ||
+      nextAuthority.previewStoragePath !== authority.previewStoragePath ||
+      nextAuthority.fullStoragePath !== authority.fullStoragePath ||
+      nextAuthority.previewPosterStoragePath !== authority.previewPosterStoragePath
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const resolveSavedMediaId = (output: ReferenceGridMediaOutput): string | null =>
+  output.savedMediaIds?.find((value) => typeof value === "string" && value.trim().length > 0) ??
+  null;
+
+const needsSavedMediaAuthorityRecovery = (output: ReferenceGridMediaOutput): boolean =>
+  Boolean(resolveSavedMediaId(output)) &&
+  !asCanonicalStoragePath(output.previewStoragePath) &&
+  !asCanonicalStoragePath(output.previewPosterStoragePath) &&
+  !asCanonicalStoragePath(output.fullStoragePath);
+
 export const collectReferenceGridStoragePaths = (
   outputs: readonly (ReferenceGridMediaOutput | null | undefined)[],
   {
@@ -70,6 +107,21 @@ export const collectReferenceGridStoragePaths = (
     });
   });
   return paths;
+};
+
+export const collectReferenceGridSavedMediaIdsForSigning = (
+  outputs: readonly (ReferenceGridMediaOutput | null | undefined)[]
+): string[] => {
+  const seen = new Set<string>();
+  const mediaIds: string[] = [];
+  outputs.forEach((output) => {
+    if (!output || !needsSavedMediaAuthorityRecovery(output)) return;
+    const mediaId = resolveSavedMediaId(output);
+    if (!mediaId || seen.has(mediaId)) return;
+    seen.add(mediaId);
+    mediaIds.push(mediaId);
+  });
+  return mediaIds;
 };
 
 export const applySignedStorageUrlsToReferenceGridMediaOutput = (
@@ -118,6 +170,32 @@ export const applySignedStorageUrlsToReferenceGridMediaOutput = (
   };
 };
 
+export const applySignedMediaAuthorityToReferenceGridMediaOutput = (
+  output: ReferenceGridMediaOutput,
+  signedMediaAuthorityByMediaId: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>
+): ReferenceGridMediaOutput => {
+  if (!needsSavedMediaAuthorityRecovery(output)) return output;
+  const mediaId = resolveSavedMediaId(output);
+  const authority = mediaId ? signedMediaAuthorityByMediaId.get(mediaId) : null;
+  if (!authority) return output;
+
+  const signedPreviewUrl = authority.signedPreviewUrl ?? authority.signedFullUrl;
+  const signedFullUrl = authority.signedFullUrl ?? authority.signedPreviewUrl;
+  const signedPosterUrl = authority.signedPreviewPosterUrl;
+
+  if (!signedPreviewUrl && !signedFullUrl && !signedPosterUrl) return output;
+
+  return {
+    ...output,
+    previewStoragePath: signedPreviewUrl ?? output.previewStoragePath,
+    fullStoragePath: signedFullUrl ?? output.fullStoragePath,
+    previewPosterStoragePath: signedPosterUrl ?? output.previewPosterStoragePath,
+    previewUrl: signedPreviewUrl ?? output.previewUrl,
+    previewPosterUrl: signedPosterUrl ?? output.previewPosterUrl,
+    resultUrls: signedFullUrl ? [signedFullUrl] : output.resultUrls,
+  };
+};
+
 export const useReferenceGridSignedStorageUrlController = ({
   outputs,
   signingMode = "card-preview",
@@ -130,9 +208,17 @@ export const useReferenceGridSignedStorageUrlController = ({
     [outputs, signingMode]
   );
   const storagePathKey = useMemo(() => storagePaths.join("\n"), [storagePaths]);
+  const savedMediaIds = useMemo(
+    () => collectReferenceGridSavedMediaIdsForSigning(outputs),
+    [outputs]
+  );
+  const savedMediaIdKey = useMemo(() => savedMediaIds.join("\n"), [savedMediaIds]);
   const [signedStorageUrlByPath, setSignedStorageUrlByPath] = useState<Map<string, string>>(
     () => new Map()
   );
+  const [signedMediaAuthorityByMediaId, setSignedMediaAuthorityByMediaId] = useState<
+    Map<string, SessionSignedMediaRestoreAuthority>
+  >(() => new Map());
 
   useEffect(() => {
     const pathsForRequest = storagePathKey ? storagePathKey.split("\n") : [];
@@ -164,7 +250,30 @@ export const useReferenceGridSignedStorageUrlController = ({
     };
   }, [storagePathKey]);
 
+  useEffect(() => {
+    const mediaIdsForRequest = savedMediaIdKey ? savedMediaIdKey.split("\n") : [];
+
+    if (!mediaIdsForRequest.length) return;
+
+    let cancelled = false;
+    void resolveSessionRestoreSignedMediaAuthorityByMediaId(mediaIdsForRequest).then(
+      (resolvedAuthority) => {
+        if (cancelled) return;
+        setSignedMediaAuthorityByMediaId((previous) =>
+          areSignedMediaAuthorityMapsEqual(previous, resolvedAuthority)
+            ? previous
+            : new Map(resolvedAuthority)
+        );
+      }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [savedMediaIdKey]);
+
   return {
     signedStorageUrlByPath,
+    signedMediaAuthorityByMediaId,
   };
 };

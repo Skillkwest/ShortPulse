@@ -1,6 +1,11 @@
 import React from "react";
 import type { StudioOutput } from "../../types";
-import { useOutputSelector, useOutputsByIds } from "../../hooks/aiStudioOutputStore";
+import {
+  selectQuickSlotOutputIdsFromStoreSnapshot,
+  selectVisibleAllRefsOutputIdsFromStoreSnapshot,
+  useOutputSelector,
+  useOutputsByIds,
+} from "../../hooks/aiStudioOutputStore";
 import {
   selectVisibleAllRefsProjection,
   selectQuickSlotProjection,
@@ -32,17 +37,11 @@ export const useReferenceGridOutputCollections = ({
     React.useCallback(
       (snapshot) => {
         if (outputsProp) return [];
-        return selectVisibleAllRefsProjection(
-          snapshot.outputOrder
-            .map((id) => snapshot.outputById[id])
-            .filter((item): item is StudioOutput => Boolean(item)),
-          {
-            quickSlotIds: [...curatedReferenceIds],
-            removedFromAllRefsIds: [...removedFromAllRefsIds],
-          }
-        ).map((item) => item.id);
+        return selectVisibleAllRefsOutputIdsFromStoreSnapshot(snapshot, {
+          removedFromAllRefsIds,
+        });
       },
-      [curatedReferenceIds, outputsProp, removedFromAllRefsIds]
+      [outputsProp, removedFromAllRefsIds]
     ),
     (left, right) =>
       left.length === right.length && left.every((item, index) => item === right[index])
@@ -51,17 +50,11 @@ export const useReferenceGridOutputCollections = ({
     React.useCallback(
       (snapshot) => {
         if (outputsProp) return [];
-        return selectQuickSlotProjection(
-          snapshot.outputOrder
-            .map((id) => snapshot.outputById[id])
-            .filter((item): item is StudioOutput => Boolean(item)),
-          {
-            quickSlotIds: [...curatedReferenceIds],
-            removedFromAllRefsIds: [...removedFromAllRefsIds],
-          }
-        ).map((item) => item.id);
+        return selectQuickSlotOutputIdsFromStoreSnapshot(snapshot, {
+          quickSlotIds: curatedReferenceIds,
+        });
       },
-      [curatedReferenceIds, outputsProp, removedFromAllRefsIds]
+      [curatedReferenceIds, outputsProp]
     ),
     (left, right) =>
       left.length === right.length && left.every((item, index) => item === right[index])

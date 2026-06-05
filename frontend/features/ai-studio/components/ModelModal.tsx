@@ -143,9 +143,7 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   ],
 };
 
-const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "character-image": [KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID],
-};
+const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {};
 
 const videoModalContexts = new Set<ModelModalContext>([
   "reference-video",

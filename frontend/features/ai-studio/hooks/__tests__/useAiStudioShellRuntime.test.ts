@@ -96,4 +96,37 @@ describe("useAiStudioShellRuntime", () => {
     expect(result.current.shouldGateProjectBootstrap).toBe(true);
     expect(result.current.projectEntryPhase).toBe("restoring-workspace");
   });
+
+  it("reports interrupted project modal navigation when the router cancels the push", async () => {
+    const base = createBaseRuntime();
+    const push = vi.fn(async () => false);
+    base.router.push = push;
+
+    const { result } = renderHook(() =>
+      useAiStudioShellRuntime({
+        base,
+        sessionRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: null,
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        projectBootstrapSettled: true,
+        projectBootstrapApplied: true,
+        filteredModelOptions: [],
+        resolveModelPickerCredits: vi.fn(() => null),
+        handleSelectModelFromModal: vi.fn(),
+      })
+    );
+
+    await expect(result.current.handleSelectProjectFromModal("project-2")).rejects.toThrow(
+      "Project open was interrupted. Try again."
+    );
+    expect(push).toHaveBeenCalledWith({
+      pathname: "/ai-studio",
+      query: { projectId: "project-2" },
+    });
+  });
 });

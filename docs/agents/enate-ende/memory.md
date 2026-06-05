@@ -40,9 +40,24 @@ Enate Ende owns the right-rail Canvas for:
 - `CanvasPropertiesPanel.tsx` is the main visible right-rail Canvas renderer.
 - `sessionSnapshotCanvas.ts` is the durable restore and serialization authority.
 
+## Current Lane Boundary Notes
+
+- The 2026-06-04 Canvas-local responsiveness plan should be treated as completed for Enate unless fresh proof shows a Canvas-owned regression. User deployment/manual testing found small projects had no Canvas lag, while large projects still had severe lag; route remaining responsiveness work to a separate global AI Studio/project-size lane.
+- Posterless Canvas videos were addressed in the Canvas-local lane by rendering muted metadata video previews when a video URL exists and no poster is available. Re-check current code before relying on this memory.
+- Keep dated Canvas plan/design files as retained evidence, not default startup context.
+
 ## Startup Load Policy
 
-Always load for substantive Enate Ende work:
+For Enate self-maintenance or docs hygiene, load only:
+
+- root repo startup spine required by `AGENTS.md`
+- `docs/agents/enate-ende/README.md`
+- `docs/agents/enate-ende/AGENTS.md`
+- this memory file
+
+Escalate to SOP, ownership, command index, artifacts, dated plans, or product files only when the task needs that evidence.
+
+Always load for substantive Enate Canvas product work:
 
 - root repo startup spine required by `AGENTS.md`
 - `docs/agents/enate-ende/README.md`
@@ -53,6 +68,12 @@ Always load for substantive Enate Ende work:
 - `docs/agents/enate-ende/canvas-command-index.md`
 
 Then load the smallest owner files needed for the lane.
+
+## Runtime Context Policy
+
+- Treat conversation context older than five hours as stale unless current repo docs, current source, current tests, current runtime evidence, or Enate memory re-prove it.
+- Do not keep training-only narratives in active mental context. Promote reusable lessons into this memory or retained artifacts, then stop carrying the raw thread.
+- For old Canvas investigations, load the specific retained plan/design file only when exact history is needed.
 
 ## Memory Policy
 

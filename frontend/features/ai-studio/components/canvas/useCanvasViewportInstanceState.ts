@@ -70,6 +70,7 @@ import { useCanvasViewportTextHandlers } from "./useCanvasViewportTextHandlers";
 import { PERF_FLAG_AUDIT_RUNTIME } from "../../logic/perfProfileFlags";
 
 const VIEWPORT_PAN_ACTIVATION_DISTANCE_PX = 6;
+const CAMERA_REACT_STATE_IDLE_COMMIT_MS = 120;
 
 type PendingItemDragPreviewFrame = {
   preview: CanvasItemDragPreview;
@@ -168,6 +169,8 @@ export const useCanvasViewportInstanceState = ({
   );
   const camera = cameraState?.camera ?? internalCamera;
   const setCamera = cameraState?.setCamera ?? setInternalCamera;
+  const cameraRef = useRef(camera);
+  const cameraIdleCommitTimeoutRef = useRef<number | null>(null);
   const {
     items,
     pendingItems,
@@ -189,6 +192,69 @@ export const useCanvasViewportInstanceState = ({
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  const applyCanvasCameraVisualState = useCallback(
+    (nextCamera: CanvasCamera) => {
+      const viewportNode = viewportRef.current;
+      if (!viewportNode) return;
+      viewportNode.setAttribute("data-camera-x", String(nextCamera.x));
+      viewportNode.setAttribute("data-camera-y", String(nextCamera.y));
+      viewportNode.setAttribute("data-camera-zoom", String(nextCamera.zoom));
+      const worldNode = viewportNode.querySelector<HTMLElement>(".canvas-workspace-world");
+      if (worldNode) {
+        worldNode.style.transform = `translate(${nextCamera.x}px, ${nextCamera.y}px) scale(${nextCamera.zoom})`;
+      }
+    },
+    [viewportRef]
+  );
+
+  useEffect(() => {
+    cameraRef.current = camera;
+    applyCanvasCameraVisualState(camera);
+  }, [applyCanvasCameraVisualState, camera]);
+
+  const clearCameraIdleCommitTimeout = useCallback(() => {
+    if (
+      cameraIdleCommitTimeoutRef.current != null &&
+      typeof window !== "undefined" &&
+      typeof window.clearTimeout === "function"
+    ) {
+      window.clearTimeout(cameraIdleCommitTimeoutRef.current);
+    }
+    cameraIdleCommitTimeoutRef.current = null;
+  }, []);
+
+  const commitCameraState = useCallback(
+    (nextCamera: CanvasCamera) => {
+      clearCameraIdleCommitTimeout();
+      setCamera((currentCamera) => {
+        if (
+          currentCamera.x === nextCamera.x &&
+          currentCamera.y === nextCamera.y &&
+          currentCamera.zoom === nextCamera.zoom
+        ) {
+          return currentCamera;
+        }
+        return nextCamera;
+      });
+    },
+    [clearCameraIdleCommitTimeout, setCamera]
+  );
+
+  const scheduleCameraStateIdleCommit = useCallback(
+    (nextCamera: CanvasCamera) => {
+      clearCameraIdleCommitTimeout();
+      if (typeof window === "undefined" || typeof window.setTimeout !== "function") {
+        commitCameraState(nextCamera);
+        return;
+      }
+      cameraIdleCommitTimeoutRef.current = window.setTimeout(() => {
+        cameraIdleCommitTimeoutRef.current = null;
+        commitCameraState(cameraRef.current);
+      }, CAMERA_REACT_STATE_IDLE_COMMIT_MS);
+    },
+    [clearCameraIdleCommitTimeout, commitCameraState]
+  );
 
   const cancelPendingItemDragPreviewFrame = useCallback(() => {
     const pendingFrame = pendingItemDragPreviewFrameRef.current;
@@ -253,17 +319,21 @@ export const useCanvasViewportInstanceState = ({
 
   const flushPendingCameraFrame = useCallback(() => {
     const pendingFrame = pendingCameraFrameRef.current;
-    if (!pendingFrame) return;
-    pendingCameraFrameRef.current = null;
-    if (
-      pendingFrame.frameId != null &&
-      typeof window !== "undefined" &&
-      typeof window.cancelAnimationFrame === "function"
-    ) {
-      window.cancelAnimationFrame(pendingFrame.frameId);
+    if (pendingFrame) {
+      pendingCameraFrameRef.current = null;
+      if (
+        pendingFrame.frameId != null &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(pendingFrame.frameId);
+      }
+      const nextCamera = pendingFrame.updater(cameraRef.current);
+      cameraRef.current = nextCamera;
+      applyCanvasCameraVisualState(nextCamera);
     }
-    setCamera((currentCamera) => pendingFrame.updater(currentCamera));
-  }, [setCamera]);
+    commitCameraState(cameraRef.current);
+  }, [applyCanvasCameraVisualState, commitCameraState]);
 
   const scheduleCameraFrame = useCallback(
     (updater: (currentCamera: CanvasCamera) => CanvasCamera) => {
@@ -289,10 +359,13 @@ export const useCanvasViewportInstanceState = ({
         const currentPendingFrame = pendingCameraFrameRef.current;
         if (currentPendingFrame !== nextPendingFrame) return;
         pendingCameraFrameRef.current = null;
-        setCamera((currentCamera) => currentPendingFrame.updater(currentCamera));
+        const nextCamera = currentPendingFrame.updater(cameraRef.current);
+        cameraRef.current = nextCamera;
+        applyCanvasCameraVisualState(nextCamera);
+        scheduleCameraStateIdleCommit(nextCamera);
       });
     },
-    [flushPendingCameraFrame, setCamera]
+    [applyCanvasCameraVisualState, flushPendingCameraFrame, scheduleCameraStateIdleCommit]
   );
 
   useEffect(
@@ -315,8 +388,9 @@ export const useCanvasViewportInstanceState = ({
         window.cancelAnimationFrame(pendingCameraFrame.frameId);
       }
       pendingCameraFrameRef.current = null;
+      clearCameraIdleCommitTimeout();
     },
-    []
+    [clearCameraIdleCommitTimeout]
   );
 
   const clearDraftTextEntry = useCallback(() => {
@@ -446,7 +520,7 @@ export const useCanvasViewportInstanceState = ({
         clientX: normalizedPoint.clientX,
         clientY: normalizedPoint.clientY,
         rect,
-        camera,
+        camera: cameraRef.current,
       });
       clearSelection();
       clearTextEditSession();
@@ -459,7 +533,6 @@ export const useCanvasViewportInstanceState = ({
       });
     },
     [
-      camera,
       clearSelection,
       clearTextEditSession,
       instanceId,
@@ -518,8 +591,8 @@ export const useCanvasViewportInstanceState = ({
         interactionRef.current = {
           kind: "pan",
           pointerId: event.pointerId,
-          cameraX: camera.x,
-          cameraY: camera.y,
+          cameraX: cameraRef.current.x,
+          cameraY: cameraRef.current.y,
           startClientX: event.clientX,
           startClientY: event.clientY,
           isActive: true,
@@ -541,7 +614,7 @@ export const useCanvasViewportInstanceState = ({
         clientX: event.clientX,
         clientY: event.clientY,
         rect,
-        camera,
+        camera: cameraRef.current,
       });
       clearDraftTextEntry();
       clearTextEditSession();
@@ -570,7 +643,6 @@ export const useCanvasViewportInstanceState = ({
       });
     },
     [
-      camera,
       clearDraftTextEntry,
       clearSelection,
       clearTextEditSession,
@@ -700,9 +772,11 @@ export const useCanvasViewportInstanceState = ({
       if (interaction.kind === "item-ghost-drag") {
         event.preventDefault();
         const deltaX =
-          Math.round(((event.clientX - interaction.startClientX) / camera.zoom) * 100) / 100;
+          Math.round(((event.clientX - interaction.startClientX) / cameraRef.current.zoom) * 100) /
+          100;
         const deltaY =
-          Math.round(((event.clientY - interaction.startClientY) / camera.zoom) * 100) / 100;
+          Math.round(((event.clientY - interaction.startClientY) / cameraRef.current.zoom) * 100) /
+          100;
         const nextInteraction = {
           ...interaction,
           deltaX,
@@ -723,8 +797,8 @@ export const useCanvasViewportInstanceState = ({
       }
       if (interaction.kind === "text-resize") {
         event.preventDefault();
-        const deltaWorldX = (event.clientX - interaction.startClientX) / camera.zoom;
-        const deltaWorldY = (event.clientY - interaction.startClientY) / camera.zoom;
+        const deltaWorldX = (event.clientX - interaction.startClientX) / cameraRef.current.zoom;
+        const deltaWorldY = (event.clientY - interaction.startClientY) / cameraRef.current.zoom;
         setItems((currentItems) =>
           currentItems.map((item) => {
             if (item.id !== interaction.itemId || item.kind !== "text") return item;
@@ -798,7 +872,7 @@ export const useCanvasViewportInstanceState = ({
         clientX: event.clientX,
         clientY: event.clientY,
         rect,
-        camera,
+        camera: cameraRef.current,
       });
       const worldMarqueeRect = normalizeCanvasRectFromPoints({
         startX: interaction.startWorldX,
@@ -818,7 +892,6 @@ export const useCanvasViewportInstanceState = ({
       });
     },
     [
-      camera,
       clearItemDragPreview,
       logCanvasGesture,
       scheduleCameraFrame,
@@ -1066,8 +1139,8 @@ export const useCanvasViewportInstanceState = ({
         interactionRef.current = {
           kind: "pan",
           pointerId: event.pointerId,
-          cameraX: camera.x,
-          cameraY: camera.y,
+          cameraX: cameraRef.current.x,
+          cameraY: cameraRef.current.y,
           startClientX: event.clientX,
           startClientY: event.clientY,
           isActive: true,
@@ -1098,8 +1171,6 @@ export const useCanvasViewportInstanceState = ({
       }
     },
     [
-      camera.x,
-      camera.y,
       clearTextEditSession,
       clearItemDragPreview,
       isSpacePanActiveRef,
@@ -1135,9 +1206,11 @@ export const useCanvasViewportInstanceState = ({
       }
       event.preventDefault();
       const deltaX =
-        Math.round(((event.clientX - interaction.startClientX) / camera.zoom) * 100) / 100;
+        Math.round(((event.clientX - interaction.startClientX) / cameraRef.current.zoom) * 100) /
+        100;
       const deltaY =
-        Math.round(((event.clientY - interaction.startClientY) / camera.zoom) * 100) / 100;
+        Math.round(((event.clientY - interaction.startClientY) / cameraRef.current.zoom) * 100) /
+        100;
       const nextInteraction = {
         ...interaction,
         deltaX,
@@ -1155,7 +1228,7 @@ export const useCanvasViewportInstanceState = ({
         deltaY,
       });
     },
-    [camera.zoom, clearItemDragPreview, scheduleCameraFrame, scheduleItemDragPreviewFrame]
+    [clearItemDragPreview, scheduleCameraFrame, scheduleItemDragPreviewFrame]
   );
 
   const handleItemPointerUp = useCallback(

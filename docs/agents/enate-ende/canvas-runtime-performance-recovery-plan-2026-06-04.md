@@ -1,6 +1,6 @@
 # Enate Ende Canvas Runtime Performance Recovery Plan
 
-Status: Lanes 1-5 implemented, locally validated, deployed, and re-audited in production; Lane 6 Canvas interaction backpressure is locally implemented and validated with deployment/runtime proof pending
+Status: Canvas-local responsiveness recovery sequence complete for Enate. Lanes 1-6 were implemented, locally validated, deployed, and re-audited in production. Lane 7 was locally implemented and validated; after deployment/manual testing, small projects had no Canvas lag while large projects still lagged, so remaining responsiveness work is a separate global AI Studio/project-size lane unless fresh proof re-identifies a Canvas-owned seam.
 
 Date: 2026-06-04
 
@@ -73,6 +73,13 @@ Post-deploy production evidence from 2026-06-04 showed:
 - Space-drag browser automation took about 1067-1070 ms and did not move the camera; this remains a pan reliability signal, with the caveat that browser automation may not hold Space exactly like a manual user gesture
 - the right rail still reports worst-level pressure while Canvas is open: `data-grid-perf-degrade-level=2`, `data-grid-density-pressure-level=2`, input-stall readings around 303-328 ms, and long-task p95 readings around 209-225 ms
 - the production Canvas had only 8 Canvas items, while the visible right rail still included dense Quick Slot Inventory and Reference Grid media cards, so Canvas latency must be treated as both Canvas render cost and sibling right-rail main-thread pressure
+
+Second post-deploy production evidence from 2026-06-04 showed:
+
+- manual testing still reported severe lag after the Canvas interaction backpressure lane deployed, so pausing sibling visual work was not sufficient
+- the AI Studio shell reported worst-level right-rail pressure even before Canvas mounted in the automation tab: `data-grid-perf-degrade-level=2`, input stall around 487 ms, and long-task p95 around 212 ms
+- after Canvas mounted, the shell still reported `data-grid-perf-degrade-level=2`, input stall around 328 ms, and long-task p95 around 218 ms
+- production Canvas video items with no `posterUrl` rendered as the static `Video` placeholder; the DOM showed video Canvas items carrying usable `videoUrl` values but no child image/video preview element
 
 Code evidence showed:
 
@@ -527,6 +534,32 @@ Validation completed:
 Stop boundary:
 
 - continue only to validate type safety/build and, after deployment, production-runtime proof that Canvas input flips the suspension attrs and improves perceived zoom/pan/drag latency. If production still lags, the next canonical investigation is imperative transient Canvas camera/ghost rendering, not more right-rail patches.
+
+### Lane 7: Imperative Camera Motion And Posterless Video Rendering
+
+Status: implemented locally on 2026-06-04 after deployed backpressure proof still showed severe lag.
+
+Goal:
+
+- keep Canvas save/restore and camera state canonical in React, but remove React from the hottest visual camera loop during zoom and pan
+- render posterless Canvas videos using their available video URL instead of a static placeholder
+
+Current source update:
+
+- `useCanvasViewportInstanceState` now keeps a live camera ref, applies camera `data-*` attrs and world transform imperatively during scheduled camera frames, and commits React camera state after idle or pointer release
+- gesture math now reads from the live camera ref so item drags, text resize, marquee, draft placement, Space-pan, and wheel zoom use the latest visual camera while React state commits are delayed
+- `CanvasPropertiesPanel` now renders posterless video Canvas items as muted `preload="metadata"` video previews while continuing to prefer poster images when available
+
+Validation completed:
+
+- `npm -C frontend run test -- features/ai-studio/components/canvas/__tests__/canvas.drop.test.tsx features/ai-studio/components/canvas/__tests__/canvas.interactions.test.tsx features/ai-studio/components/canvas/__tests__/canvas.livePropsBridge.test.tsx`
+- `npm -C frontend run type-check:touched`
+- `npm -C frontend run docs:check`
+- `npm -C frontend run build`
+
+Stop boundary:
+
+- this Canvas-local plan is stopped. User deployment/manual testing showed small projects had no Canvas lag while large projects still lagged; treat remaining responsiveness work as a separate global AI Studio/project-size lane unless fresh proof re-identifies a Canvas-owned seam.
 
 ## Self-Audit
 

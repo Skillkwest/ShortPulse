@@ -23,6 +23,7 @@ import {
   resolveClosestDisplayAspectToken,
   resolveClosestDisplayAspectTokenFromDimensions,
 } from "../logic/displayAspectRatio";
+import { formatImageResolutionLabel } from "../logic/imageResolution";
 import { useExclusiveSoundMediaElement } from "./shared/exclusiveSoundPlayback";
 import { DetailModalContext } from "./detail-modal/detailModalPlatformTypes";
 import {
@@ -949,6 +950,12 @@ function DetailModalContent({
       fallback: "",
     });
   }, [isUploadedReference, output?.model, output?.modelId]);
+  const displayImageResolutionLabel = useMemo(() => {
+    if (isUploadedReference || output?.mode !== "image") return null;
+    const resolutionValue = output?.generationReplay?.imageResolution?.trim() ?? "";
+    if (!resolutionValue) return null;
+    return formatImageResolutionLabel(resolutionValue);
+  }, [isUploadedReference, output?.generationReplay?.imageResolution, output?.mode]);
   const metaPillItems = useMemo(() => {
     if (shouldUseExternalFileLayout) {
       return [mediaType];
@@ -969,6 +976,9 @@ function DetailModalContent({
     if (!isNonGeneratedLoadedMedia && displayAspect) {
       items.push(displayAspect);
     }
+    if (!isNonGeneratedLoadedMedia && displayImageResolutionLabel) {
+      items.push(displayImageResolutionLabel);
+    }
     if (!isNonGeneratedLoadedMedia && uploadedHeaderFilename) {
       items.push(uploadedHeaderFilename);
     }
@@ -978,6 +988,7 @@ function DetailModalContent({
     return items;
   }, [
     displayModelLabel,
+    displayImageResolutionLabel,
     displayAspect,
     isActiveVoiceChangerSourceVideo,
     isGeneratedPureAudioOutput,
@@ -1020,11 +1031,7 @@ function DetailModalContent({
         output,
         canSavePrompt: Boolean(onSavePrompt),
         presentation: {
-          title:
-            uploadedHeaderFilename ??
-            displayPromptText.trim() ??
-            output.previewText?.trim() ??
-            output.id,
+          title: uploadedHeaderFilename ?? null,
           kindLabel: mediaType.toLowerCase(),
           topBarItems: sharedTopBarItems,
           bladePlaceholder: generatedVoiceChangerTranscript
@@ -1033,7 +1040,6 @@ function DetailModalContent({
         },
       }),
     [
-      displayPromptText,
       generatedVoiceChangerTranscript,
       mediaType,
       onSavePrompt,
@@ -1371,7 +1377,7 @@ function DetailModalContent({
           topBar={
             <SharedMediaDetailTopBar
               eyebrow="Media detail"
-              title={detailModalItem.presentation?.title ?? displayPromptText}
+              title={detailModalItem.presentation?.title ?? null}
               items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
               centerTitle={shouldUseExternalFileLayout}
               actions={

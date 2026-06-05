@@ -227,4 +227,49 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.fallbackUrl).toBe("https://signed.shortpulse.test/gen-video-1-poster.webp");
     expect(resolved.isImagePreview).toBe(true);
   });
+
+  it("uses recovered signed media-id authority for saved-media-only image cards", () => {
+    const output = {
+      ...createImageOutput("out-saved-media-only"),
+      mediaSource: "library",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-1"],
+    } as unknown as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+        signedMediaAuthorityByMediaId: new Map([
+          [
+            "saved-media-1",
+            {
+              mediaId: "saved-media-1",
+              fileType: "image/png",
+              previewStoragePath: "user-1/variants/images/saved-media-1/thumb.webp",
+              fullStoragePath: "user-1/generations/images/saved-media-1.png",
+              previewPosterStoragePath: null,
+              signedPreviewUrl: "https://signed.shortpulse.test/saved-preview.webp",
+              signedFullUrl: "https://signed.shortpulse.test/saved-full.png",
+              signedPreviewPosterUrl: null,
+            },
+          ],
+        ]),
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: projectReferenceGridMediaOutput(output),
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(resolved.authorityTier).toBe("reusable");
+    expect(resolved.previewUrl).toBe("https://signed.shortpulse.test/saved-preview.webp");
+    expect(resolved.fullUrl).toBe("https://signed.shortpulse.test/saved-full.png");
+    expect(resolved.isImagePreview).toBe(true);
+  });
 });

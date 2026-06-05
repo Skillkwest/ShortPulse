@@ -7,6 +7,10 @@ import {
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../../../lib/model-runtime/falModelIds";
+import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+} from "../../../../../lib/model-runtime/providerModelIds";
 import { resolveImageSubmissionSafetyPayload } from "../safetyPolicy";
 
 describe("resolveImageSubmissionSafetyPayload", () => {
@@ -34,6 +38,17 @@ describe("resolveImageSubmissionSafetyPayload", () => {
   it("uses maximum tolerance where supported by fill lanes", () => {
     expect(resolveImageSubmissionSafetyPayload("fal-ai/flux-pro/v1/fill")).toEqual({
       safety_tolerance: "5",
+    });
+  });
+
+  it("disables Kie GPT Image 2 safety checker and uses maximum tolerance", () => {
+    expect(resolveImageSubmissionSafetyPayload(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID)).toEqual({
+      enable_safety_checker: false,
+      safety_tolerance: 5,
+    });
+    expect(resolveImageSubmissionSafetyPayload(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toEqual({
+      enable_safety_checker: false,
+      safety_tolerance: 5,
     });
   });
 

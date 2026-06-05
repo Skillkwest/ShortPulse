@@ -278,14 +278,16 @@ function ReferenceGridComponent({
       visibleMediaOutputs,
     ]
   );
-  const { signedStorageUrlByPath } = useReferenceGridSignedStorageUrlController({
-    outputs: storageSigningMediaOutputs,
-  });
+  const { signedStorageUrlByPath, signedMediaAuthorityByMediaId } =
+    useReferenceGridSignedStorageUrlController({
+      outputs: storageSigningMediaOutputs,
+    });
   const { resolveCardMedia } = useReferenceGridResolvedMediaController({
     previewQualityPressureLevel,
     strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
     adaptivePreviewRoutingEnabled,
     signedStorageUrlByPath,
+    signedMediaAuthorityByMediaId,
   });
   const { visibleQuickSlotIdSet, hydrationQuickSlotPreferredIdSet } =
     useReferenceGridSurfaceOwnershipController({

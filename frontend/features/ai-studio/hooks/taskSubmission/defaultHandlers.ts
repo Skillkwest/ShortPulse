@@ -182,6 +182,7 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
           prompt: cleanedPrompt,
           aspect_ratio,
           resolution,
+          ...resolveImageSubmissionSafetyPayload(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID),
           ...shortpulseSubmitPayload,
         }
       );

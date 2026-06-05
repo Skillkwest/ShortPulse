@@ -621,17 +621,11 @@
   z-index: 20;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid rgba(201, 205, 214, 0.12);
-}
-
-.art-blade-inner {
-  height: 100%;
-  padding: 22px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
   gap: 18px;
   min-height: 0;
+  padding: 22px;
+  box-sizing: border-box;
+  border-left: 1px solid rgba(201, 205, 214, 0.12);
 }
 
 .art-blade-header {
@@ -714,29 +708,24 @@
   flex: 1;
   width: 100%;
   height: 100%;
-  background: rgba(24, 27, 31, 0.96);
-  border: 1px solid var(--ai-border-soft, rgba(201, 205, 214, 0.16));
-  border-radius: 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   color: var(--color-ash);
   font-size: 14px;
   line-height: 1.72;
-  padding: 16px;
+  padding: 0;
   resize: none;
   font-family: inherit;
   outline: none;
   opacity: 0.95;
-  transition:
-    opacity 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
+  transition: opacity 0.2s ease;
   overflow-y: auto;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: none;
 }
 
 .art-blade-textarea:focus {
   opacity: 1;
-  border-color: var(--ai-border-medium, rgba(201, 205, 214, 0.18));
-  background: rgba(29, 33, 39, 0.98);
 }
 
 /* Custom Scrollbar styled matching the reference grid */

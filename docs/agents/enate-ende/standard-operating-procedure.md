@@ -51,8 +51,10 @@ Standing trigger phrase: `run Enate Ende`.
 ### Step 1. Start with repo rules
 
 - Follow the root `AGENTS.md` startup contract.
-- Load Enate Ende's contract, local instructions, memory, and Canvas command index.
+- Load Enate Ende's contract, local instructions, and memory.
+- Load the Canvas command index for Canvas product work; skip it for self-maintenance or docs hygiene unless owner-path evidence is needed.
 - Load only the Canvas owner files needed for the current lane.
+- Treat conversation context older than five hours as stale unless current repo docs, source, tests, runtime evidence, or Enate memory re-prove it.
 - Use the solo-owner model: ShortPulse is one human owner/operator supported by named AI agents, and Enate Ende is a bounded Canvas authority surface.
 - During the pre-launch phase, stay on local `production`, keep `shortpulse.allowedBranch=production`, and treat GitHub branch operations as targeting `production` only.
 

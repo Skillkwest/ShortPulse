@@ -309,7 +309,7 @@ describe("ReferenceGridCard", () => {
     expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
   });
 
-  it("keeps the hydrating spinner active before the image source is ready", async () => {
+  it("fails closed when hydrating media never receives a renderable source", async () => {
     const markLoaded = vi.fn();
     const { container } = render(
       <ReferenceGridCard
@@ -333,11 +333,12 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByText("Preview unavailable")).toBeNull();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1500);
+      await vi.advanceTimersByTimeAsync(6000);
     });
 
-    expect(markLoaded).not.toHaveBeenCalled();
-    expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
+    expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
+    expect(container.querySelector(".reference-loading--hydrating")).toBeNull();
+    expect(container.querySelector(".reference-card-media-unavailable")).not.toBeNull();
   });
 
   it("converts hydrating image errors into controlled unavailable placeholders", () => {

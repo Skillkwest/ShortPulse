@@ -155,6 +155,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
             aspect,
             resolution: requestedResolution,
           }),
+          ...resolveImageSubmissionSafetyPayload(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID),
           ...shortpulseSubmitPayload,
         }
       );

@@ -17,7 +17,10 @@ import {
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../../../lib/model-runtime/falModelIds";
-import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+} from "../../../../../lib/model-runtime/providerModelIds";
 import {
   handleDefaultModelSubmission,
   resolveDefaultSubmissionAdapterKey,
@@ -38,6 +41,7 @@ const falClientMocks = vi.hoisted(() => ({
   submitFalSeedreamEdit: vi.fn(),
   submitFalSeedreamV5Lite: vi.fn(),
   submitFalSeedreamV5LiteEdit: vi.fn(),
+  submitKieGptImage2: vi.fn(),
   submitKieGptImage2Edit: vi.fn(),
 }));
 
@@ -64,6 +68,8 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitFalNanoBanana2Edit(payload);
       case FAL_NANO_BANANA_PRO_EDIT_MODEL_ID:
         return falClientMocks.submitFalNanoBananaProEdit(payload);
+      case KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID:
+        return falClientMocks.submitKieGptImage2(payload);
       case KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID:
         return falClientMocks.submitKieGptImage2Edit(payload);
       default:
@@ -86,6 +92,7 @@ const {
   submitFalSeedreamEdit,
   submitFalSeedreamV5Lite,
   submitFalSeedreamV5LiteEdit,
+  submitKieGptImage2,
   submitKieGptImage2Edit,
 } = falClientMocks;
 
@@ -170,10 +177,20 @@ const CASES: Record<string, CaseConfig> = {
     expectedSafetyChecker: true,
     expectedReferenceField: "image_urls",
   },
+  [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: {
+    route: "default",
+    submitName: "submitKieGptImage2",
+    requestedResolution: "4K",
+    expectedSafetyChecker: false,
+    expectedSafetyTolerance: 5,
+    expectedReferenceField: "none",
+  },
   [KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID]: {
     route: "image",
     submitName: "submitKieGptImage2Edit",
     requestedResolution: "4K",
+    expectedSafetyChecker: false,
+    expectedSafetyTolerance: 5,
     expectedReferenceField: "input_urls",
   },
 };
@@ -233,6 +250,7 @@ const submitSpyByName = {
   submitFalSeedreamEdit: vi.mocked(submitFalSeedreamEdit),
   submitFalSeedreamV5Lite: vi.mocked(submitFalSeedreamV5Lite),
   submitFalSeedreamV5LiteEdit: vi.mocked(submitFalSeedreamV5LiteEdit),
+  submitKieGptImage2: vi.mocked(submitKieGptImage2),
   submitKieGptImage2Edit: vi.mocked(submitKieGptImage2Edit),
 } as const;
 
@@ -277,7 +295,9 @@ describe("task submission payload matrix", () => {
       .filter(
         (config) =>
           config.mediaType !== "text" &&
-          (config.provider === "fal" || config.id === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID) &&
+          (config.provider === "fal" ||
+            config.id === KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID ||
+            config.id === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID) &&
           config.lifecycle === "active" &&
           config.surfaces.includes("runtime")
       )

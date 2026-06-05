@@ -10,6 +10,8 @@ import type { AiStudioPersistenceController } from "./aiStudioPersistenceControl
 
 type ModelModalState = AiStudioPageContentProps["modelModalState"];
 
+const PROJECT_OPEN_INTERRUPTED_MESSAGE = "Project open was interrupted. Try again.";
+
 type UseAiStudioShellRuntimeParams = {
   base: AiStudioPageBaseRuntime;
   sessionRestoreCandidate: AiStudioPersistenceController["sessionRestoreCandidate"];
@@ -99,7 +101,7 @@ export const useAiStudioShellRuntime = ({
         query: { projectId: nextProjectId },
       });
       if (!didNavigate) {
-        throw new Error("Failed to open project.");
+        throw new Error(PROJECT_OPEN_INTERRUPTED_MESSAGE);
       }
     },
     [router]

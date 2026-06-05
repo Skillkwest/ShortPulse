@@ -8,11 +8,13 @@ Standing procedure lives in `standard-operating-procedure.md` in this same folde
 
 Canvas startup and owner-path references live in `canvas-command-index.md`. Use that file as the compact first-load map before escalating into deeper code or contract docs.
 
-Current Canvas launch planning documents:
+Retained Canvas planning documents:
 
 - `canvas-launch-hardening-plan-2026-07-07.md`
 - `canvas-runtime-performance-recovery-plan-2026-06-04.md`
 - `canvas-tear-out-drag-design-2026-06-03.md`
+
+These dated files are not default-load startup authority. Load them only when the current task names the plan, reopens that lane, or needs exact historical evidence. Current code, current validation, this README, `AGENTS.md`, `standard-operating-procedure.md`, `memory.md`, `ownership-manifest.md`, and `canvas-command-index.md` outrank retained planning notes.
 
 ## Identity
 

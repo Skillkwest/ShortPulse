@@ -21,6 +21,11 @@ import {
   resetProjectWorkspaceAutosavePerfCounters,
   type ProjectWorkspaceAutosavePerfCounters,
 } from "../logic/projectWorkspaceAutosavePerf";
+import {
+  getFreezeInvestigationSnapshot,
+  resetFreezeInvestigationSnapshot,
+  type FreezeInvestigationSnapshot,
+} from "../logic/freezeInvestigationTelemetry";
 import type { StudioOutput } from "../types";
 
 const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -139,6 +144,38 @@ type AiStudioPerfWindow = Window & {
         };
         longTask: { samples: number; p95Ms: number | null };
         interaction: { maxInputStallMs: number };
+      }>;
+      gates: Array<{
+        name: string;
+        pass: boolean;
+        actual: number | null;
+        expected: string;
+        note?: string;
+      }>;
+    }>;
+    runDividerDragAudit: (options?: {
+      counts?: number[];
+      dragSamples?: number;
+      dragDistancePx?: number;
+    }) => Promise<{
+      ok: boolean;
+      generatedAt: string;
+      scenarios: Array<{
+        count: number;
+        shellDivider: {
+          targetFound: boolean;
+          samples: number;
+          dragP95Ms: number | null;
+          longTaskP95Ms: number | null;
+          projectionCounters: Record<string, number>;
+        };
+        horizontalDivider: {
+          targetFound: boolean;
+          samples: number;
+          dragP95Ms: number | null;
+          longTaskP95Ms: number | null;
+          projectionCounters: Record<string, number>;
+        };
       }>;
       gates: Array<{
         name: string;
@@ -299,6 +336,18 @@ export function useAiStudioPerfAuditRuntime({
       candidateSelectionCount: after.candidateSelectionCount - before.candidateSelectionCount,
       candidateSelectionMs: after.candidateSelectionMs - before.candidateSelectionMs,
     });
+    const diffFreezeCounters = (
+      before: FreezeInvestigationSnapshot,
+      after: FreezeInvestigationSnapshot
+    ): Record<string, number> => {
+      const keys = new Set([...Object.keys(before.counters), ...Object.keys(after.counters)]);
+      const diff: Record<string, number> = {};
+      keys.forEach((key) => {
+        const delta = (after.counters[key] ?? 0) - (before.counters[key] ?? 0);
+        if (delta !== 0) diff[key] = delta;
+      });
+      return diff;
+    };
     const createPerfOutputs = (count: number): StudioOutput[] => {
       const safeCount = Math.max(0, Math.floor(count));
       const runId = Date.now();
@@ -419,6 +468,47 @@ export function useAiStudioPerfAuditRuntime({
         }
       }
       return fallbackEvent;
+    };
+    const createSyntheticPointerEvent = (
+      type: "pointerdown" | "pointermove" | "pointerup",
+      options: {
+        pointerId: number;
+        clientX: number;
+        clientY: number;
+        button?: number;
+      }
+    ): Event => {
+      if (typeof PointerEvent !== "undefined") {
+        try {
+          return new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            pointerId: options.pointerId,
+            pointerType: "mouse",
+            button: options.button ?? 0,
+            clientX: options.clientX,
+            clientY: options.clientY,
+          });
+        } catch {
+          // Fall back for runtimes that expose PointerEvent but reject construction.
+        }
+      }
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: options.button ?? 0,
+        clientX: options.clientX,
+        clientY: options.clientY,
+      });
+      try {
+        Object.defineProperties(event, {
+          pointerId: { value: options.pointerId },
+          pointerType: { value: "mouse" },
+        });
+      } catch {
+        // Ignore runtimes that block pointer metadata on MouseEvent fallback.
+      }
+      return event;
     };
 
     const runStudioShellScenario = async (
@@ -771,6 +861,161 @@ export function useAiStudioPerfAuditRuntime({
       };
     };
 
+    const dispatchSyntheticDividerDrag = async ({
+      target,
+      axis,
+      distancePx,
+      pointerId,
+    }: {
+      target: HTMLElement;
+      axis: "x" | "y";
+      distancePx: number;
+      pointerId: number;
+    }) => {
+      const rect = target.getBoundingClientRect();
+      const startX = rect.left + Math.max(1, rect.width / 2 || 1);
+      const startY = rect.top + Math.max(1, rect.height / 2 || 1);
+      target.dispatchEvent(
+        createSyntheticPointerEvent("pointerdown", {
+          pointerId,
+          clientX: startX,
+          clientY: startY,
+        })
+      );
+      const moveCount = 8;
+      for (let moveIndex = 1; moveIndex <= moveCount; moveIndex += 1) {
+        const progress = moveIndex / moveCount;
+        window.dispatchEvent(
+          createSyntheticPointerEvent("pointermove", {
+            pointerId,
+            clientX: axis === "x" ? startX + distancePx * progress : startX,
+            clientY: axis === "y" ? startY + distancePx * progress : startY,
+          })
+        );
+        await nextFrame();
+      }
+      window.dispatchEvent(
+        createSyntheticPointerEvent("pointerup", {
+          pointerId,
+          clientX: axis === "x" ? startX + distancePx : startX,
+          clientY: axis === "y" ? startY + distancePx : startY,
+        })
+      );
+      await afterTwoFrames();
+    };
+
+    const findFirstMeasurableElement = (selector: string): HTMLElement | null => {
+      const candidates = Array.from(document.querySelectorAll<HTMLElement>(selector));
+      return (
+        candidates.find((candidate) => {
+          const rect = candidate.getBoundingClientRect();
+          return rect.width > 0 || rect.height > 0;
+        }) ??
+        candidates[0] ??
+        null
+      );
+    };
+
+    const runDividerTargetAudit = async ({
+      target,
+      axis,
+      dragSamples,
+      dragDistancePx,
+      pointerIdBase,
+    }: {
+      target: HTMLElement | null;
+      axis: "x" | "y";
+      dragSamples: number;
+      dragDistancePx: number;
+      pointerIdBase: number;
+    }) => {
+      if (!target) {
+        return {
+          targetFound: false,
+          samples: 0,
+          dragP95Ms: null,
+          longTaskP95Ms: null,
+          projectionCounters: {},
+        };
+      }
+
+      const longTaskDurationsMs: number[] = [];
+      let observer: PerformanceObserver | null = null;
+      if (typeof PerformanceObserver !== "undefined") {
+        observer = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => {
+            longTaskDurationsMs.push(entry.duration);
+          });
+        });
+        try {
+          observer.observe({ type: "longtask" });
+        } catch {
+          observer.disconnect();
+          observer = null;
+        }
+      }
+
+      resetFreezeInvestigationSnapshot();
+      const beforeCounters = getFreezeInvestigationSnapshot();
+      const dragDurationsMs: number[] = [];
+      for (let index = 0; index < dragSamples; index += 1) {
+        const startedAt = performance.now();
+        await dispatchSyntheticDividerDrag({
+          target,
+          axis,
+          distancePx: index % 2 === 0 ? dragDistancePx : -dragDistancePx,
+          pointerId: pointerIdBase + index,
+        });
+        dragDurationsMs.push(performance.now() - startedAt);
+        await sleep(18);
+      }
+      const afterCounters = getFreezeInvestigationSnapshot();
+      if (observer) observer.disconnect();
+
+      return {
+        targetFound: true,
+        samples: dragDurationsMs.length,
+        dragP95Ms: p95(dragDurationsMs),
+        longTaskP95Ms: p95(longTaskDurationsMs),
+        projectionCounters: diffFreezeCounters(beforeCounters, afterCounters),
+      };
+    };
+
+    const runDividerDragScenario = async ({
+      count,
+      dragSamples,
+      dragDistancePx,
+    }: {
+      count: number;
+      dragSamples: number;
+      dragDistancePx: number;
+    }) => {
+      perfWindow.__shortpulseAiStudioPerf?.seedReferenceGrid(count);
+      await sleep(280);
+      const shellDivider = findFirstMeasurableElement(".ai-shell-divider");
+      const horizontalDivider = findFirstMeasurableElement(
+        ".reference-grid-horizontal-divider-wrap"
+      );
+
+      return {
+        count,
+        shellDivider: await runDividerTargetAudit({
+          target: shellDivider,
+          axis: "x",
+          dragSamples,
+          dragDistancePx,
+          pointerIdBase: 3_100,
+        }),
+        horizontalDivider: await runDividerTargetAudit({
+          target: horizontalDivider,
+          axis: "y",
+          dragSamples,
+          dragDistancePx,
+          pointerIdBase: 4_100,
+        }),
+      };
+    };
+
     const runProjectWorkspaceAutosaveTypingScenario = async ({
       field,
       currentValue,
@@ -941,6 +1186,48 @@ export function useAiStudioPerfAuditRuntime({
         };
         console.table(gates);
         console.log("[shortpulse][studio-shell-audit]", result);
+        return result;
+      },
+      runDividerDragAudit: async (options) => {
+        const counts = options?.counts?.filter((value) => Number.isFinite(value) && value > 0) ?? [
+          40, 60, 100, 300,
+        ];
+        const dragSamples = Math.max(1, Math.floor(options?.dragSamples ?? 6));
+        const dragDistancePx = Math.max(8, Math.floor(options?.dragDistancePx ?? 48));
+        const scenarios = [];
+
+        for (const count of counts) {
+          scenarios.push(
+            await runDividerDragScenario({
+              count: Math.max(1, Math.floor(count)),
+              dragSamples,
+              dragDistancePx,
+            })
+          );
+        }
+
+        const gates = scenarios.flatMap((scenario) => [
+          {
+            name: `shell_divider_target_exists_at_${scenario.count}`,
+            pass: scenario.shellDivider.targetFound,
+            actual: scenario.shellDivider.targetFound ? 1 : 0,
+            expected: "1",
+          },
+          {
+            name: `horizontal_divider_target_exists_at_${scenario.count}`,
+            pass: scenario.horizontalDivider.targetFound,
+            actual: scenario.horizontalDivider.targetFound ? 1 : 0,
+            expected: "1",
+          },
+        ]);
+        const result = {
+          ok: gates.every((gate) => gate.pass),
+          generatedAt: new Date().toISOString(),
+          scenarios,
+          gates,
+        };
+        console.table(gates);
+        console.log("[shortpulse][divider-drag-audit]", result);
         return result;
       },
       runProjectWorkspaceAutosaveTypingAudit: async (options) => {

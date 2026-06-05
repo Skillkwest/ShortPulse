@@ -9,6 +9,16 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 
 const mockedFetchWithAuth = vi.mocked(fetchWithAuth);
 
+const createDeferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("ProjectsModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -94,6 +104,53 @@ describe("ProjectsModal", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
     expect(screen.getByRole("button", { name: "Current project Current Workspace" })).toBeEnabled();
+  });
+
+  it("keeps project opening single-flight while navigation is pending", async () => {
+    const deferredOpen = createDeferred<void>();
+    const onSelectProject = vi.fn(() => deferredOpen.promise);
+    const onClose = vi.fn();
+    mockedFetchWithAuth.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        projects: [
+          {
+            id: "project-1",
+            title: "Campaign Alpha",
+            createdAt: "2026-04-24T17:00:00.000Z",
+            updatedAt: "2026-04-24T18:00:00.000Z",
+            previewImageUrls: [],
+          },
+          {
+            id: "project-2",
+            title: "Campaign Beta",
+            createdAt: "2026-04-23T17:00:00.000Z",
+            updatedAt: "2026-04-24T16:00:00.000Z",
+            previewImageUrls: [],
+          },
+        ],
+      }),
+    } as Response);
+
+    render(<ProjectsModal isOpen onClose={onClose} onSelectProject={onSelectProject} />);
+
+    const alphaButton = await screen.findByRole("button", { name: "Open project Campaign Alpha" });
+    const betaButton = screen.getByRole("button", { name: "Open project Campaign Beta" });
+
+    fireEvent.click(alphaButton);
+    fireEvent.click(betaButton);
+
+    expect(onSelectProject).toHaveBeenCalledTimes(1);
+    expect(onSelectProject).toHaveBeenCalledWith("project-1");
+    await waitFor(() => {
+      expect(screen.getByText("Opening...")).toBeInTheDocument();
+    });
+    expect(betaButton).toBeDisabled();
+
+    deferredOpen.resolve();
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("creates a project from the modal header and routes through the create callback", async () => {

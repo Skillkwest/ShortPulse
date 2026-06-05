@@ -496,12 +496,13 @@ describe("Canvas drop behavior", () => {
     });
 
     const item = await screen.findByTestId(/canvas-item-/);
-    expect(item.querySelector("video")).toBeNull();
-    const placeholder = item.querySelector(".canvas-scene-item__video-placeholder");
-    expect(placeholder).toBeTruthy();
-    expect(placeholder).toHaveTextContent("Video");
-    expect(placeholder).not.toHaveTextContent("Posterless video");
-    expect(placeholder).toHaveAttribute("aria-label", "Posterless video");
+    const video = item.querySelector("video");
+    expect(video).toBeTruthy();
+    expect(video).toHaveAttribute("src", "https://example.com/external-video.mp4");
+    expect(video).toHaveAttribute("preload", "metadata");
+    expect(video).toHaveAttribute("aria-label", "Posterless video");
+    expect(video?.muted).toBe(true);
+    expect(item.querySelector(".canvas-scene-item__video-placeholder")).toBeNull();
   });
 
   it("prioritizes internal reference payloads over file fallback when both are present", async () => {

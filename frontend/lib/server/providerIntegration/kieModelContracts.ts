@@ -10,7 +10,9 @@ import {
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_RESOLUTIONS,
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MAX_PROMPT_CHARS,
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_PROVIDER_MODEL_ID,
+  KIE_GPT_IMAGE_2_ENABLE_SAFETY_CHECKER,
   KIE_GPT_IMAGE_2_MAX_INPUT_IMAGES,
+  KIE_GPT_IMAGE_2_SAFETY_TOLERANCE,
   KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_RESOLUTIONS,
   KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MAX_PROMPT_CHARS,
   KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_PROVIDER_MODEL_ID,
@@ -799,6 +801,8 @@ const normalizeKieGptImage2TextToImagePayload = (
       prompt,
       aspect_ratio: aspectRatio,
       resolution,
+      enable_safety_checker: KIE_GPT_IMAGE_2_ENABLE_SAFETY_CHECKER,
+      safety_tolerance: KIE_GPT_IMAGE_2_SAFETY_TOLERANCE,
     },
   };
 };
@@ -868,6 +872,8 @@ const normalizeKieGptImage2ImageToImagePayload = (
       input_urls: inputUrls,
       aspect_ratio: aspectRatio,
       resolution,
+      enable_safety_checker: KIE_GPT_IMAGE_2_ENABLE_SAFETY_CHECKER,
+      safety_tolerance: KIE_GPT_IMAGE_2_SAFETY_TOLERANCE,
     },
   };
 };

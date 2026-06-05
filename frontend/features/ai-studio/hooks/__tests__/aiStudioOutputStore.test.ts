@@ -2,7 +2,10 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
+  getAiStudioOutputSnapshot,
   resetAiStudioOutputStore,
+  selectQuickSlotOutputIdsFromStoreSnapshot,
+  selectVisibleAllRefsOutputIdsFromStoreSnapshot,
   setAiStudioOutputStoreSnapshot,
   subscribeAiStudioOutputs,
   useOutputById,
@@ -10,6 +13,10 @@ import {
   useOutputMapByIds,
   useVisibleOutputWindow,
 } from "../aiStudioOutputStore";
+import {
+  getFreezeInvestigationSnapshot,
+  resetFreezeInvestigationSnapshot,
+} from "../../logic/freezeInvestigationTelemetry";
 
 const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id,
@@ -26,6 +33,7 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 describe("aiStudioOutputStore", () => {
   beforeEach(() => {
     resetAiStudioOutputStore();
+    resetFreezeInvestigationSnapshot();
   });
 
   it("keeps output-by-id subscriptions stable for unrelated output updates", () => {
@@ -198,5 +206,67 @@ describe("aiStudioOutputStore", () => {
 
     expect(listener).toHaveBeenCalledTimes(2);
     unsubscribe();
+  });
+
+  it("projects visible all-refs ids from the store snapshot with stable identity", () => {
+    const outputA = makeOutput("a");
+    const outputB = makeOutput("b", { hiddenInReferenceGrid: true });
+    const outputC = makeOutput("c");
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["a", "b", "c"],
+        outputById: { a: outputA, b: outputB, c: outputC },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    const snapshot = getAiStudioOutputSnapshot();
+    const first = selectVisibleAllRefsOutputIdsFromStoreSnapshot(snapshot, {
+      removedFromAllRefsIds: ["c"],
+    });
+    const second = selectVisibleAllRefsOutputIdsFromStoreSnapshot(snapshot, {
+      removedFromAllRefsIds: ["c"],
+    });
+
+    expect(first).toEqual(["a"]);
+    expect(second).toBe(first);
+
+    const telemetry = getFreezeInvestigationSnapshot();
+    expect(telemetry.counters["referenceGrid.outputProjection.allRefs.scan"]).toBe(1);
+    expect(telemetry.counters["referenceGrid.outputProjection.allRefs.cacheHit"]).toBe(1);
+    expect(telemetry.gauges["referenceGrid.outputProjection.allRefs.inputCount"]).toBe(3);
+  });
+
+  it("keeps quick-slot projection ordered without scanning all output rows", () => {
+    const outputA = makeOutput("a");
+    const outputB = makeOutput("b", { hiddenInReferenceGrid: true });
+    const outputC = makeOutput("c");
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["a", "b", "c"],
+        outputById: { a: outputA, b: outputB, c: outputC },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    const snapshot = getAiStudioOutputSnapshot();
+    const first = selectQuickSlotOutputIdsFromStoreSnapshot(snapshot, {
+      quickSlotIds: ["c", "missing", "b", "a"],
+    });
+    const second = selectQuickSlotOutputIdsFromStoreSnapshot(snapshot, {
+      quickSlotIds: ["c", "missing", "b", "a"],
+    });
+
+    expect(first).toEqual(["c", "a"]);
+    expect(second).toBe(first);
+
+    const telemetry = getFreezeInvestigationSnapshot();
+    expect(telemetry.counters["referenceGrid.outputProjection.quickSlot.lookup"]).toBe(1);
+    expect(telemetry.counters["referenceGrid.outputProjection.quickSlot.cacheHit"]).toBe(1);
+    expect(telemetry.gauges["referenceGrid.outputProjection.quickSlot.inputCount"]).toBe(4);
   });
 });

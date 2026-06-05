@@ -434,7 +434,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("blocks billed create-text generate while spendable credits are still loading", () => {
+  it("blocks billed create-text generate while spendable credits are still loading without helper text", () => {
     const modelId = "fal-ai/nano-banana-2";
 
     const { result } = renderHook(() =>
@@ -455,14 +455,12 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.generationGuardrail).toBe(
-      "Loading spendable credits. Retry in a moment."
-    );
+    expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(true);
     expect(result.current.isCreditGuardrail).toBe(false);
   });
 
-  it("blocks billed edit generate when spendable credit refresh failed", () => {
+  it("blocks billed edit generate when spendable credit refresh failed without helper text", () => {
     const modelId = "fal-ai/nano-banana-pro/edit";
 
     const { result } = renderHook(() =>
@@ -475,12 +473,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
         costParamsForModel: makeCostParamsForModel(modelId),
         balanceCredits: 999,
         balanceError: "Unable to load spendable credit snapshot.",
+        pricingPolicy: pricingGridPolicy,
       })
     );
 
-    expect(result.current.generationGuardrail).toBe(
-      "Unable to load spendable credits. Retry in a moment."
-    );
+    expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(true);
     expect(result.current.isCreditGuardrail).toBe(false);
   });

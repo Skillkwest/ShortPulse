@@ -4,7 +4,10 @@ import type { Dispatch, SetStateAction } from "react";
 import { createInternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import type { StudioOutput } from "../../types";
-import { CHARACTER_MODE_MISSING_REFERENCES_ERROR } from "../../logic/generationStartPolicy";
+import {
+  CHARACTER_MODE_MISSING_REFERENCES_ERROR,
+  GENERATION_GUARDRAIL_FALLBACK_ERROR,
+} from "../../logic/generationStartPolicy";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
 
@@ -424,13 +427,13 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks generate when billed credit state is unresolved and surfaces the guardrail message", async () => {
+  it("blocks generate when disabled without a visible guardrail message", async () => {
     const setUiError = vi.fn();
     const generateOutput = vi.fn();
     const params = createParams({
       isGenerateDisabled: true,
       isCreditGuardrail: false,
-      generationGuardrail: "Unable to load spendable credits. Retry in a moment.",
+      generationGuardrail: null,
       setUiError: asDispatch<string | null>(setUiError),
       generateOutput,
     });
@@ -442,7 +445,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
-    expect(setUiError).toHaveBeenCalledWith("Unable to load spendable credits. Retry in a moment.");
+    expect(setUiError).toHaveBeenCalledWith(GENERATION_GUARDRAIL_FALLBACK_ERROR);
     expect(generateOutput).not.toHaveBeenCalled();
   });
 

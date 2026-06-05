@@ -666,13 +666,9 @@ export const useAiStudioViewModel = ({
       (mode === "image" || mode === "video" || (mode === "text" && !isDescribeMode))) ||
     isVideoTool ||
     isEditWorkflowSelected;
-  const creditStateGuardrail = useMemo(() => {
-    if (!billableSubmitFlow) return null;
-    if (balanceLoading) return "Loading spendable credits. Retry in a moment.";
-    if (balanceError != null || balanceCredits == null) {
-      return "Unable to load spendable credits. Retry in a moment.";
-    }
-    return null;
+  const creditStateBlocksGenerate = useMemo(() => {
+    if (!billableSubmitFlow) return false;
+    return balanceLoading || balanceError != null || balanceCredits == null;
   }, [balanceCredits, balanceError, balanceLoading, billableSubmitFlow]);
 
   const hasSufficientCreditsForCost =
@@ -736,9 +732,6 @@ export const useAiStudioViewModel = ({
     ) {
       return "Add at least one custom Kling shot prompt before generating.";
     }
-    if (creditStateGuardrail) {
-      return creditStateGuardrail;
-    }
     if (missingCanonicalCreatePricingAuthorityGuardrail) {
       return missingCanonicalCreatePricingAuthorityGuardrail;
     }
@@ -798,14 +791,13 @@ export const useAiStudioViewModel = ({
     resolvedVideoLane,
     seedance2InputMode,
     videoReferenceMode,
-    creditStateGuardrail,
     missingCanonicalCreatePricingAuthorityGuardrail,
     missingCanonicalCreateBilledCreditsGuardrail,
     missingCanonicalEditPricingAuthorityGuardrail,
     missingCanonicalEditBilledCreditsGuardrail,
   ]);
 
-  const isGenerateDisabled = Boolean(generationGuardrail);
+  const isGenerateDisabled = Boolean(generationGuardrail) || creditStateBlocksGenerate;
   const modelConfig = effectiveEditModelConfig ?? selectedModelConfig;
 
   // Warning when user hasn't provided reference image for image-to-image or image-to-video models

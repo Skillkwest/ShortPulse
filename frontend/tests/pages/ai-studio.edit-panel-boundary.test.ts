@@ -7,7 +7,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const readPageSource = () => readFileSync(path.join(process.cwd(), "pages/ai-studio.tsx"), "utf8");
+const readPageSource = () =>
+  readFileSync(path.join(process.cwd(), "features/ai-studio/routes/AiStudioRouteApp.tsx"), "utf8");
 
 describe("AI Studio edit panel boundary", () => {
   it("forwards the composed edit panel props into the reference experience seam", () => {

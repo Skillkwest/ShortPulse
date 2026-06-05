@@ -54,6 +54,10 @@ import type {
   ResolveCanvasDropReference,
 } from "./canvasTypes";
 import {
+  buildCanvasTearOutPayload,
+  resolveCanvasTearOutComposerPayload,
+} from "./canvasTearOutPayload";
+import {
   shouldStartCanvasPanFromPointerDown,
   type CanvasPointerSession,
 } from "./canvasViewportPointerTypes";
@@ -65,12 +69,15 @@ import type {
   CanvasViewportWheelEvent,
   CanvasWorkspaceInstanceId,
 } from "./canvasWorkspaceContracts";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { StudioOutput } from "../../types";
 import { useCanvasViewportDropHandlers } from "./useCanvasViewportDropHandlers";
 import { useCanvasViewportTextHandlers } from "./useCanvasViewportTextHandlers";
 import { PERF_FLAG_AUDIT_RUNTIME } from "../../logic/perfProfileFlags";
 
 const VIEWPORT_PAN_ACTIVATION_DISTANCE_PX = 6;
 const CAMERA_REACT_STATE_IDLE_COMMIT_MS = 120;
+const CANVAS_TEAR_OUT_HYSTERESIS_PX = 24;
 
 type PendingItemDragPreviewFrame = {
   preview: CanvasItemDragPreview;
@@ -125,6 +132,8 @@ type UseCanvasViewportInstanceStateParams = {
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
   onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  getCanvasTearOutOutputById?: (outputId: string) => StudioOutput | null;
   isSpacePanActiveRef: MutableRefObject<boolean>;
   draftOwnerInstanceId: CanvasWorkspaceInstanceId | null;
   textEditOwnerInstanceId: CanvasWorkspaceInstanceId | null;
@@ -148,6 +157,8 @@ export const useCanvasViewportInstanceState = ({
   resolveCanvasDropFiles,
   onPinTextReference,
   onOpenMediaDetail,
+  canvasTearOutTargetRegistry,
+  getCanvasTearOutOutputById,
   isSpacePanActiveRef,
   draftOwnerInstanceId,
   textEditOwnerInstanceId,
@@ -305,6 +316,7 @@ export const useCanvasViewportInstanceState = ({
   const commitItemGhostDrag = useCallback(
     (interaction: Extract<CanvasPointerSession, { kind: "item-ghost-drag" }>) => {
       clearItemDragPreview();
+      canvasTearOutTargetRegistry?.clearActiveTarget();
       setItems((currentItems) =>
         moveCanvasSceneItemsByIdSet(
           currentItems,
@@ -314,7 +326,138 @@ export const useCanvasViewportInstanceState = ({
         )
       );
     },
-    [clearItemDragPreview, setItems]
+    [canvasTearOutTargetRegistry, clearItemDragPreview, setItems]
+  );
+
+  const resolveItemGhostDragTearOutState = useCallback(
+    (
+      interaction: Extract<CanvasPointerSession, { kind: "item-ghost-drag" }>,
+      clientX: number,
+      clientY: number
+    ): Extract<CanvasPointerSession, { kind: "item-ghost-drag" }> => {
+      const payload = interaction.tearOutPayload;
+      const viewportNode = viewportRef.current;
+      if (!payload || !canvasTearOutTargetRegistry || !viewportNode) {
+        canvasTearOutTargetRegistry?.clearActiveTarget();
+        return {
+          ...interaction,
+          tearOutPhase: "none",
+          tearOutActiveTargetId: null,
+        };
+      }
+
+      const rect = viewportNode.getBoundingClientRect();
+      const isOutsideCanvas =
+        clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom;
+      if (!isOutsideCanvas) {
+        canvasTearOutTargetRegistry.clearActiveTarget();
+        return {
+          ...interaction,
+          tearOutPhase: "none",
+          tearOutActiveTargetId: null,
+        };
+      }
+
+      const composerPayload = resolveCanvasTearOutComposerPayload(payload);
+      const resolvedTarget = canvasTearOutTargetRegistry.resolveTargetAtPoint(
+        { clientX, clientY },
+        composerPayload
+      );
+      if (resolvedTarget) {
+        canvasTearOutTargetRegistry.setActiveTarget(resolvedTarget.id);
+        return {
+          ...interaction,
+          tearOutPhase: "active",
+          tearOutActiveTargetId: resolvedTarget.id,
+        };
+      }
+
+      const isBeyondHysteresis =
+        clientX < rect.left - CANVAS_TEAR_OUT_HYSTERESIS_PX ||
+        clientX > rect.right + CANVAS_TEAR_OUT_HYSTERESIS_PX ||
+        clientY < rect.top - CANVAS_TEAR_OUT_HYSTERESIS_PX ||
+        clientY > rect.bottom + CANVAS_TEAR_OUT_HYSTERESIS_PX;
+      canvasTearOutTargetRegistry.clearActiveTarget();
+      return {
+        ...interaction,
+        tearOutPhase:
+          isBeyondHysteresis || interaction.tearOutPhase !== "none" ? "candidate" : "none",
+        tearOutActiveTargetId: null,
+      };
+    },
+    [canvasTearOutTargetRegistry]
+  );
+
+  const updateItemGhostDragAtPoint = useCallback(
+    (
+      interaction: Extract<CanvasPointerSession, { kind: "item-ghost-drag" }>,
+      clientX: number,
+      clientY: number
+    ) => {
+      const deltaX =
+        Math.round(((clientX - interaction.startClientX) / cameraRef.current.zoom) * 100) / 100;
+      const deltaY =
+        Math.round(((clientY - interaction.startClientY) / cameraRef.current.zoom) * 100) / 100;
+      const nextInteraction = resolveItemGhostDragTearOutState(
+        {
+          ...interaction,
+          deltaX,
+          deltaY,
+        },
+        clientX,
+        clientY
+      );
+      interactionRef.current = nextInteraction;
+      if ((!deltaX && !deltaY) || nextInteraction.tearOutPhase === "active") {
+        clearItemDragPreview();
+        return nextInteraction;
+      }
+      scheduleItemDragPreviewFrame({
+        activeItemId: interaction.itemId,
+        itemIds: interaction.selectedItemIds,
+        deltaX,
+        deltaY,
+      });
+      return nextInteraction;
+    },
+    [clearItemDragPreview, resolveItemGhostDragTearOutState, scheduleItemDragPreviewFrame]
+  );
+
+  const finishItemGhostDragAtPoint = useCallback(
+    (
+      interaction: Extract<CanvasPointerSession, { kind: "item-ghost-drag" }>,
+      clientX: number,
+      clientY: number
+    ) => {
+      const finalInteraction = resolveItemGhostDragTearOutState(interaction, clientX, clientY);
+      const payload = finalInteraction.tearOutPayload
+        ? resolveCanvasTearOutComposerPayload(finalInteraction.tearOutPayload)
+        : null;
+      if (payload && finalInteraction.tearOutPhase === "active" && canvasTearOutTargetRegistry) {
+        const resolvedTarget = canvasTearOutTargetRegistry.resolveTargetAtPoint(
+          { clientX, clientY },
+          payload
+        );
+        if (resolvedTarget) {
+          resolvedTarget.target.accept(payload);
+          clearItemDragPreview();
+          canvasTearOutTargetRegistry.clearActiveTarget();
+          return;
+        }
+      }
+      if (payload && finalInteraction.tearOutPhase === "candidate") {
+        clearItemDragPreview();
+        canvasTearOutTargetRegistry?.clearActiveTarget();
+        return;
+      }
+      commitItemGhostDrag(finalInteraction);
+    },
+    [
+      canvasTearOutTargetRegistry,
+      clearItemDragPreview,
+      commitItemGhostDrag,
+      resolveItemGhostDragTearOutState,
+    ]
   );
 
   const flushPendingCameraFrame = useCallback(() => {
@@ -771,28 +914,7 @@ export const useCanvasViewportInstanceState = ({
       }
       if (interaction.kind === "item-ghost-drag") {
         event.preventDefault();
-        const deltaX =
-          Math.round(((event.clientX - interaction.startClientX) / cameraRef.current.zoom) * 100) /
-          100;
-        const deltaY =
-          Math.round(((event.clientY - interaction.startClientY) / cameraRef.current.zoom) * 100) /
-          100;
-        const nextInteraction = {
-          ...interaction,
-          deltaX,
-          deltaY,
-        };
-        interactionRef.current = nextInteraction;
-        if (!deltaX && !deltaY) {
-          clearItemDragPreview();
-          return;
-        }
-        scheduleItemDragPreviewFrame({
-          activeItemId: interaction.itemId,
-          itemIds: interaction.selectedItemIds,
-          deltaX,
-          deltaY,
-        });
+        updateItemGhostDragAtPoint(interaction, event.clientX, event.clientY);
         return;
       }
       if (interaction.kind === "text-resize") {
@@ -891,14 +1013,7 @@ export const useCanvasViewportInstanceState = ({
         });
       });
     },
-    [
-      clearItemDragPreview,
-      logCanvasGesture,
-      scheduleCameraFrame,
-      scheduleItemDragPreviewFrame,
-      setItems,
-      viewportRef,
-    ]
+    [logCanvasGesture, scheduleCameraFrame, setItems, updateItemGhostDragAtPoint, viewportRef]
   );
 
   const handleViewportPointerUp = useCallback(
@@ -1019,7 +1134,7 @@ export const useCanvasViewportInstanceState = ({
         setIsTextResizeActive(false);
       } else if (interaction.kind === "item-ghost-drag") {
         lastViewportTapRef.current = null;
-        commitItemGhostDrag(interaction);
+        finishItemGhostDragAtPoint(interaction, event.clientX, event.clientY);
       }
 
       interactionRef.current = { kind: "none" };
@@ -1030,7 +1145,7 @@ export const useCanvasViewportInstanceState = ({
     },
     [
       createDraftTextAtClientPoint,
-      commitItemGhostDrag,
+      finishItemGhostDragAtPoint,
       flushPendingCameraFrame,
       isSpacePanActiveRef,
       logCanvasGesture,
@@ -1054,6 +1169,7 @@ export const useCanvasViewportInstanceState = ({
           flushPendingCameraFrame();
         } else if (interaction.kind === "item-ghost-drag") {
           clearItemDragPreview();
+          canvasTearOutTargetRegistry?.clearActiveTarget();
         }
         lastViewportTapRef.current = null;
         setMarqueeSelectionBox(null);
@@ -1076,7 +1192,13 @@ export const useCanvasViewportInstanceState = ({
         }
       }
     },
-    [clearItemDragPreview, flushPendingCameraFrame, logCanvasGesture, setMarqueeSelectionBox]
+    [
+      canvasTearOutTargetRegistry,
+      clearItemDragPreview,
+      flushPendingCameraFrame,
+      logCanvasGesture,
+      setMarqueeSelectionBox,
+    ]
   );
 
   const handleTextResizeHandlePointerDown = useCallback(
@@ -1165,6 +1287,13 @@ export const useCanvasViewportInstanceState = ({
         startClientY: event.clientY,
         deltaX: 0,
         deltaY: 0,
+        tearOutPayload: canvasTearOutTargetRegistry
+          ? buildCanvasTearOutPayload(targetItem, {
+              getOutputById: getCanvasTearOutOutputById,
+            })
+          : null,
+        tearOutPhase: "none",
+        tearOutActiveTargetId: null,
       };
       if (!targetItem.selected) {
         setItems((currentItems) => selectCanvasSceneItem(currentItems, itemId));
@@ -1173,7 +1302,9 @@ export const useCanvasViewportInstanceState = ({
     [
       clearTextEditSession,
       clearItemDragPreview,
+      canvasTearOutTargetRegistry,
       isSpacePanActiveRef,
+      getCanvasTearOutOutputById,
       setMarqueeSelectionBox,
       setItems,
       textEditSession?.itemId,
@@ -1205,30 +1336,9 @@ export const useCanvasViewportInstanceState = ({
         return;
       }
       event.preventDefault();
-      const deltaX =
-        Math.round(((event.clientX - interaction.startClientX) / cameraRef.current.zoom) * 100) /
-        100;
-      const deltaY =
-        Math.round(((event.clientY - interaction.startClientY) / cameraRef.current.zoom) * 100) /
-        100;
-      const nextInteraction = {
-        ...interaction,
-        deltaX,
-        deltaY,
-      };
-      interactionRef.current = nextInteraction;
-      if (!deltaX && !deltaY) {
-        clearItemDragPreview();
-        return;
-      }
-      scheduleItemDragPreviewFrame({
-        activeItemId: interaction.itemId,
-        itemIds: interaction.selectedItemIds,
-        deltaX,
-        deltaY,
-      });
+      updateItemGhostDragAtPoint(interaction, event.clientX, event.clientY);
     },
-    [clearItemDragPreview, scheduleCameraFrame, scheduleItemDragPreviewFrame]
+    [scheduleCameraFrame, updateItemGhostDragAtPoint]
   );
 
   const handleItemPointerUp = useCallback(
@@ -1242,7 +1352,7 @@ export const useCanvasViewportInstanceState = ({
         interaction.itemId === itemId;
       if (isMatchingPanInteraction || isMatchingDragInteraction) {
         if (isMatchingDragInteraction) {
-          commitItemGhostDrag(interaction);
+          finishItemGhostDragAtPoint(interaction, event.clientX, event.clientY);
         } else {
           flushPendingCameraFrame();
         }
@@ -1253,7 +1363,7 @@ export const useCanvasViewportInstanceState = ({
         });
       }
     },
-    [commitItemGhostDrag, flushPendingCameraFrame]
+    [finishItemGhostDragAtPoint, flushPendingCameraFrame]
   );
 
   const handleItemPointerCancel = useCallback(
@@ -1268,6 +1378,7 @@ export const useCanvasViewportInstanceState = ({
       if (isMatchingPanInteraction || isMatchingDragInteraction) {
         if (isMatchingDragInteraction) {
           clearItemDragPreview();
+          canvasTearOutTargetRegistry?.clearActiveTarget();
         } else {
           flushPendingCameraFrame();
         }
@@ -1278,7 +1389,7 @@ export const useCanvasViewportInstanceState = ({
         });
       }
     },
-    [clearItemDragPreview, flushPendingCameraFrame]
+    [canvasTearOutTargetRegistry, clearItemDragPreview, flushPendingCameraFrame]
   );
 
   const handleViewportWheel = useCallback(
@@ -1348,9 +1459,11 @@ export const useCanvasViewportInstanceState = ({
       onTextItemEditChange,
       onTextItemEditKeyDown,
       onTextItemEditBlur,
+      canvasTearOutTargetRegistry,
     }),
     [
       camera,
+      canvasTearOutTargetRegistry,
       clearDraftTextEntry,
       draftTextEntry,
       handleItemPointerCancel,

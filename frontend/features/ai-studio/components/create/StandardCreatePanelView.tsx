@@ -5,9 +5,12 @@ import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
 import {
+  insertDroppedPromptTextAtSelection,
   resolveAgentComposerPanelDropKind,
   resolveAgentComposerTextDropInsertion,
 } from "../promptStep/agentComposerDrop";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import type { AspectOption } from "../../types";
 import {
   resolveCreateComposerInlineGuardrailReason,
@@ -16,6 +19,8 @@ import {
 
 type StandardCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PromptStep>;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  onAgentComposerDirectDrop?: (payload: AgentComposerDirectDropPayload) => void;
   characterModeEnabled: boolean;
   onCharacterModeEnabledToggle: () => void;
   onCharacterPickerOpen: () => void;
@@ -48,6 +53,8 @@ type StandardCreatePanelViewProps = {
 
 export function StandardCreatePanelView({
   promptStepProps,
+  canvasTearOutTargetRegistry,
+  onAgentComposerDirectDrop,
   characterModeEnabled,
   onCharacterModeEnabledToggle,
   onCharacterPickerOpen,
@@ -80,6 +87,8 @@ export function StandardCreatePanelView({
   const resolvedSelectedCharacterDisplayName =
     selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
+  const [canvasTearOutActive, setCanvasTearOutActive] = React.useState(false);
+  const panelBodyRef = React.useRef<HTMLDivElement>(null);
   const [restoreAgentInputAfterShellSwap, setRestoreAgentInputAfterShellSwap] =
     React.useState(false);
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
@@ -118,6 +127,76 @@ export function StandardCreatePanelView({
     composerLeadingContent: promptStepProps.composerLeadingContent,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
+  const handleCanvasTearOutTextDrop = React.useCallback(
+    (text: string) => {
+      const isChatModeEnabled = promptStepProps.chatModeEnabled ?? true;
+      const composerText = isChatModeEnabled
+        ? (promptStepProps.agentInput ?? "")
+        : promptStepProps.prompt;
+      const applyComposerTextChange = isChatModeEnabled
+        ? promptStepProps.onAgentInputChange
+        : promptStepProps.onPromptChange;
+      const panelNode = panelBodyRef.current;
+      const textarea = panelNode?.querySelector("textarea") as HTMLTextAreaElement | null;
+      const useTextareaSelection =
+        typeof document !== "undefined" && textarea ? document.activeElement === textarea : false;
+      const selectionStart =
+        useTextareaSelection && textarea ? textarea.selectionStart : composerText.length;
+      const selectionEnd =
+        useTextareaSelection && textarea ? textarea.selectionEnd : composerText.length;
+      const insertedPrompt = insertDroppedPromptTextAtSelection({
+        composerText,
+        droppedPromptText: text,
+        selectionStart,
+        selectionEnd,
+      });
+      applyComposerTextChange?.(insertedPrompt.prompt);
+      requestAnimationFrame(() => {
+        const nextTextarea =
+          textarea && textarea.isConnected
+            ? textarea
+            : (panelNode?.querySelector("textarea") as HTMLTextAreaElement | null);
+        nextTextarea?.focus();
+        nextTextarea?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
+      });
+    },
+    [promptStepProps]
+  );
+  const canAcceptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (payload.kind === "unsupported") return false;
+      if (payload.kind === "image") return Boolean(onAgentComposerDirectDrop);
+      if (!payload.text.trim()) return false;
+      const isChatModeEnabled = promptStepProps.chatModeEnabled ?? true;
+      return Boolean(
+        isChatModeEnabled ? promptStepProps.onAgentInputChange : promptStepProps.onPromptChange
+      );
+    },
+    [onAgentComposerDirectDrop, promptStepProps]
+  );
+  const acceptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (!canAcceptCanvasTearOutPayload(payload)) return;
+      if (payload.kind === "text") {
+        handleCanvasTearOutTextDrop(payload.text);
+        return;
+      }
+      if (payload.kind === "image") {
+        onAgentComposerDirectDrop?.(payload);
+      }
+    },
+    [canAcceptCanvasTearOutPayload, handleCanvasTearOutTextDrop, onAgentComposerDirectDrop]
+  );
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "standard-create-composer",
+      element: panelBodyRef.current,
+      canAccept: canAcceptCanvasTearOutPayload,
+      accept: acceptCanvasTearOutPayload,
+      setActive: setCanvasTearOutActive,
+    });
+  }, [acceptCanvasTearOutPayload, canAcceptCanvasTearOutPayload, canvasTearOutTargetRegistry]);
   const isTargetInsideComposerInputShell = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) =>
       event.target instanceof Element &&
@@ -459,8 +538,9 @@ export function StandardCreatePanelView({
       <div className="create-composer-panel-shell is-pulse-rail-inactive">
         <div className="create-composer-right-panel">
           <div
+            ref={panelBodyRef}
             className={`create-composer-right-panel-inner ${
-              promptStepProps.agentDropActive ? "is-drop-active" : ""
+              promptStepProps.agentDropActive || canvasTearOutActive ? "is-drop-active" : ""
             }`.trim()}
             onDragEnter={handlePanelMediaDragEnter}
             onDragOver={handlePanelMediaDragOver}

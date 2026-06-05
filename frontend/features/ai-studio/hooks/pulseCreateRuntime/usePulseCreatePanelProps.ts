@@ -8,6 +8,7 @@ import type {
   CreatePulsePresetKind,
   CreatePulseResolvedPreset,
 } from "../../components/create/createPulsePresets";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import type { PulseChatHistoryPanelProps } from "../../components/create/PulseChatHistoryPanel";
 import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/createPulsePreferenceRuntime";
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
@@ -33,6 +34,7 @@ type UsePulseCreatePanelPropsParams = {
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
+  handleAgentComposerDirectDrop: (payload: AgentComposerDirectDropPayload) => void;
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
@@ -69,6 +71,7 @@ export const buildPulseCreatePanelProps = ({
   handleAgentAttachmentDragOver,
   handleAgentAttachmentDragEnter,
   handleAgentAttachmentDragLeave,
+  handleAgentComposerDirectDrop,
   handleRemoveAgentAttachment,
   handleClearAgentAttachments,
   handleAssistantMessageEdit,
@@ -99,6 +102,7 @@ export const buildPulseCreatePanelProps = ({
     onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
     onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
     onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+    onAgentComposerDirectDrop: handleAgentComposerDirectDrop,
     onRemoveAgentAttachment: handleRemoveAgentAttachment,
     onClearAgentAttachments: handleClearAgentAttachments,
     onAssistantMessageEdit: handleAssistantMessageEdit,

@@ -8,6 +8,7 @@ import {
   createTransfer,
   mockViewportRect,
 } from "./canvasTestHarness";
+import { createCanvasTearOutComposerTargetRegistry } from "../../../hooks/useAiStudioCanvasTearOutTargets";
 
 const canvasWorkspaceCss = readFileSync(
   `${process.cwd()}/styles/ai-studio-canvas-workspace.css`,
@@ -270,6 +271,131 @@ describe("Canvas interaction behavior", () => {
       expect(Number(item.getAttribute("data-x"))).toBe(startX + 56);
       expect(Number(item.getAttribute("data-y"))).toBe(startY + 48);
     });
+  });
+
+  it("cancels boundary tear-out when released outside Canvas without a composer target", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    render(<CanvasHarness canvasTearOutTargetRegistry={registry} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Cancel tear out",
+      }),
+      clientX: 220,
+      clientY: 140,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 772,
+      clientX: 220,
+      clientY: 140,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 772,
+      clientX: 650,
+      clientY: 150,
+    });
+
+    await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+
+    fireEvent.pointerUp(viewport, {
+      button: 0,
+      pointerId: 772,
+      clientX: 650,
+      clientY: 150,
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
+      expect(Number(item.getAttribute("data-x"))).toBe(startX);
+      expect(Number(item.getAttribute("data-y"))).toBe(startY);
+    });
+  });
+
+  it("copies a text item to a registered composer target without moving the source item", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const accept = vi.fn();
+    const setActive = vi.fn();
+    const targetElement = document.createElement("div");
+    targetElement.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          x: 650,
+          y: 100,
+          left: 650,
+          top: 100,
+          right: 850,
+          bottom: 250,
+          width: 200,
+          height: 150,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+    document.body.append(targetElement);
+    const unregister = registry.registerTarget({
+      id: "test-composer",
+      element: targetElement,
+      canAccept: (payload) => payload.kind === "text",
+      accept,
+      setActive,
+    });
+
+    try {
+      render(<CanvasHarness canvasTearOutTargetRegistry={registry} />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/plain": "Copy me",
+        }),
+        clientX: 220,
+        clientY: 140,
+      });
+
+      const item = await screen.findByTestId(/canvas-item-/);
+      const startX = Number(item.getAttribute("data-x"));
+      const startY = Number(item.getAttribute("data-y"));
+
+      fireEvent.pointerDown(item, {
+        button: 0,
+        pointerId: 773,
+        clientX: 220,
+        clientY: 140,
+      });
+      fireEvent.pointerMove(viewport, {
+        pointerId: 773,
+        clientX: 700,
+        clientY: 150,
+      });
+      fireEvent.pointerUp(viewport, {
+        button: 0,
+        pointerId: 773,
+        clientX: 700,
+        clientY: 150,
+      });
+
+      expect(accept).toHaveBeenCalledTimes(1);
+      expect(accept).toHaveBeenCalledWith({
+        kind: "text",
+        text: "Copy me",
+      });
+      expect(setActive).toHaveBeenCalledWith(true);
+      expect(setActive).toHaveBeenLastCalledWith(false);
+      expect(Number(item.getAttribute("data-x"))).toBe(startX);
+      expect(Number(item.getAttribute("data-y"))).toBe(startY);
+    } finally {
+      unregister();
+      targetElement.remove();
+    }
   });
 
   it("keeps text items and text ghosts in absolute canvas positioning", async () => {

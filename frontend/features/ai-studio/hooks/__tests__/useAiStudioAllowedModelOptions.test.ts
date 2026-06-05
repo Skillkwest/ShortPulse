@@ -22,6 +22,7 @@ describe("useAiStudioAllowedModelOptions", () => {
     const values = result.current.map((option) => option.value);
     expect(values).toEqual([
       "gpt-image-2",
+      "kie-ai/gpt-image-2-image-to-image",
       "fal-ai/nano-banana-2/edit",
       "fal-ai/nano-banana-pro/edit",
       "fal-ai/bytedance/seedream/v5/lite/edit",

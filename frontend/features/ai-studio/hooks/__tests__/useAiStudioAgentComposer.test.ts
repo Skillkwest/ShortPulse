@@ -1219,6 +1219,115 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
+  it("accepts direct Canvas image payloads through the shared attachment pipeline", async () => {
+    const internalPayload = {
+      version: 1,
+      origin: "ai-studio-reference-grid" as const,
+      referenceId: "out-canvas-1",
+      outputId: "out-canvas-1",
+      imageIndex: 0,
+      mediaId: "media-canvas-1",
+      mediaKind: "image" as const,
+      referenceUrl: "https://signed.example.com/canvas.png",
+      referenceRenderUrl: "https://fragile.example.com/canvas-preview.png",
+      sourceSurface: "all-refs" as const,
+      sessionBacked: true,
+    };
+    const resolveInternalImageDropSource = vi.fn(
+      async () =>
+        ({
+          kind: "internal",
+          sourceKind: "media_library",
+          sourceId: "media-canvas-1",
+          provenance: {
+            origin: "ai-studio-reference-grid",
+            outputId: "out-canvas-1",
+            mediaId: "media-canvas-1",
+            imageIndex: 0,
+            sourceSurface: "all-refs",
+            resolutionReason: "saved_media_lookup",
+          },
+          outputId: "out-canvas-1",
+          mediaId: "media-canvas-1",
+          mediaSource: "library",
+          preview: {
+            url: "blob:canvas-owned-preview",
+          },
+          previewStoragePath: "user-1/canvas/preview.png",
+          fullStoragePath: "user-1/canvas/full.png",
+          promptText: "Canvas prompt",
+          preparedImageUrl: "blob:canvas-owned-preview",
+          loadBlob: vi.fn(async () => new Blob(["image-bytes"], { type: "image/png" })),
+        }) satisfies ResolvedInternalReferenceSource
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-canvas-1")]),
+        resolveOutputPreviewUrlById: () => null,
+        resolveInternalImageDropSource,
+      })
+    );
+
+    act(() => {
+      result.current.acceptAgentComposerDropPayload({
+        kind: "image",
+        internalPayload,
+        composerImagePayload: {
+          version: 1,
+          origin: "ai-studio-reference-grid",
+          referenceId: "out-canvas-1",
+          outputId: "out-canvas-1",
+          mediaId: "media-canvas-1",
+          displayArtifactUrl: "https://fragile.example.com/canvas-preview.png",
+          displayArtifactKind: "url",
+          referenceUrl: "https://signed.example.com/canvas.png",
+          promptText: "Canvas prompt",
+          sourceSurface: "all-refs",
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toHaveLength(1);
+    });
+    expect(resolveInternalImageDropSource).toHaveBeenCalledWith(internalPayload);
+    expect(result.current.agentAttachmentError).toBeNull();
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      source: "ephemeral_local",
+      referenceId: "out-canvas-1",
+      mediaId: "media-canvas-1",
+      text: "Canvas prompt",
+      deliveryStatus: "ready",
+    });
+  });
+
+  it("accepts direct Canvas text payloads into the agent input", () => {
+    const ensureAgentSession = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession,
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.acceptAgentComposerDropPayload({
+        kind: "text",
+        text: "  Canvas text  ",
+      });
+    });
+
+    expect(ensureAgentSession).toHaveBeenCalledTimes(1);
+    expect(result.current.agentInput).toBe("Canvas text");
+    expect(result.current.agentAttachmentError).toBeNull();
+  });
+
   it("prefers resolved internal image-drop authority over fragile drag and page preview urls", async () => {
     const fragileDragUrl =
       "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";

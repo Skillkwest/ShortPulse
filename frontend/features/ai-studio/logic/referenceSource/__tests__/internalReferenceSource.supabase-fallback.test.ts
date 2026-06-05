@@ -169,6 +169,7 @@ describe("resolveInternalReferenceSource media storage lookup", () => {
       payload: makePayload({
         outputId: "out-missing",
         mediaId: "media-1",
+        sessionBacked: true,
       }),
       getOutputById: () => null,
       getOutputSnapshot: () => ({

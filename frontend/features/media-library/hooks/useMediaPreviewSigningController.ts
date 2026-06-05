@@ -7,7 +7,6 @@ import {
   type SetStateAction,
 } from "react";
 import { createMediaPerfTimer } from "../../../lib/mediaPerfTelemetry";
-import { MEDIA_LIBRARY_PANEL_MAX_COLUMNS } from "../logic/mediaLibraryRuntimeConfig";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import {
@@ -28,6 +27,11 @@ import {
   mapMediaSignResults,
   resolveMediaSignSourceClass,
 } from "../logic/mediaPreviewSigningBatch";
+import {
+  resolveBackgroundHydrateFallbackLimit,
+  VISIBLE_SCOPED_SIGN_SURFACES,
+  type MediaPreviewSigningSurface,
+} from "./mediaPreviewSigningControllerConfig";
 
 type PreviewSigningRowBase = {
   id: string;
@@ -63,35 +67,13 @@ type UseMediaPreviewSigningControllerArgs<
   visibleMediaVersion: number;
   isSigningPassEnabled?: boolean;
   isSignPrefetchEnabled?: boolean;
-  surface?:
-    | "media-library-modal"
-    | "media-library-panel"
-    | "elements-media-panel"
-    | "character-media-panel";
+  surface?: MediaPreviewSigningSurface;
   unresolvedWarningPrefix?: string;
   isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
   maxSignAttemptsPerItem?: number;
   maxSignCandidatesPerRow?: number;
   backgroundHydrateFallbackEnabled?: boolean;
 };
-
-const VISIBLE_SCOPED_SIGN_SURFACES = new Set([
-  "media-library-panel",
-  "elements-media-panel",
-  "character-media-panel",
-]);
-const DEFAULT_BACKGROUND_HYDRATE_FALLBACK_LIMIT = 4;
-
-const resolveBackgroundHydrateFallbackLimit = (
-  surface:
-    | "media-library-modal"
-    | "media-library-panel"
-    | "elements-media-panel"
-    | "character-media-panel"
-): number =>
-  VISIBLE_SCOPED_SIGN_SURFACES.has(surface)
-    ? MEDIA_LIBRARY_PANEL_MAX_COLUMNS
-    : DEFAULT_BACKGROUND_HYDRATE_FALLBACK_LIMIT;
 
 export const useMediaPreviewSigningController = <
   TRow extends PreviewSigningRowBase,

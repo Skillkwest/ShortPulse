@@ -47,6 +47,7 @@ export const buildPulseCreateRuntimeResult = ({
     handleAgentAttachmentDragOver: actions.onAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter: actions.onAgentAttachmentDragEnter,
     handleAgentAttachmentDragLeave: actions.onAgentAttachmentDragLeave,
+    handleAgentComposerDirectDrop: actions.onAgentComposerDirectDrop,
     handleRemoveAgentAttachment: actions.onRemoveAgentAttachment,
     handleClearAgentAttachments: actions.onClearAgentAttachments,
     handleAssistantMessageEdit: actions.onAssistantMessageEdit,

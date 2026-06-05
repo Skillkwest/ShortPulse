@@ -95,7 +95,7 @@ describe("useResolvedAccountPlan", () => {
     await waitFor(() => {
       expect(result.current.resolvedPlan).toEqual({
         id: "free",
-        label: "Starter",
+        label: "Baseline access",
         className: "plan-starter",
       });
     });

@@ -19,6 +19,7 @@ import {
   summarizeCreateWorkflowAttachment,
 } from "../logic/createWorkflowDebug";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import {
   extractComposerImageDropPayload,
   extractDragDropPayload,
@@ -31,6 +32,8 @@ import {
   looksLikeVideoUrl,
   normalizeReferenceTransferUrlCandidate,
   resolveReferenceTransferUrl,
+  type InternalReferenceDragPayload,
+  type ComposerImageDropPayload,
 } from "../utils/dragDrop";
 import {
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
@@ -120,6 +123,8 @@ const isLocalInlineImageUrl = (value: string | null | undefined) =>
 type ComposerDropSnapshot = {
   transferTypes: string[];
   files: File[];
+  directInternalPayload?: InternalReferenceDragPayload | null;
+  directComposerImagePayload?: ComposerImageDropPayload | null;
   internalReferenceDragSessionToken: string;
   composerImageDropSessionToken: string;
   composerImageDropPayload: string;
@@ -141,6 +146,31 @@ type ComposerDropSnapshot = {
   plainText: string;
   uriList: string;
 };
+
+const createEmptyComposerDropSnapshot = (): ComposerDropSnapshot => ({
+  transferTypes: [],
+  files: [],
+  internalReferenceDragSessionToken: "",
+  composerImageDropSessionToken: "",
+  composerImageDropPayload: "",
+  referenceOrigin: "",
+  referenceVersion: "",
+  referenceId: "",
+  referenceOutputId: "",
+  referenceMediaId: "",
+  referenceMediaKind: "",
+  referencePreviewStoragePath: "",
+  referenceFullStoragePath: "",
+  referenceImageIndex: "",
+  referenceWidth: "",
+  referenceHeight: "",
+  referenceSourceSurface: "",
+  referenceUrl: "",
+  referenceRenderUrl: "",
+  imageUrl: "",
+  plainText: "",
+  uriList: "",
+});
 
 const captureComposerDropSnapshot = (transfer: DataTransfer): ComposerDropSnapshot => ({
   transferTypes: Array.from(transfer.types ?? []),
@@ -621,16 +651,14 @@ export const useAiStudioAgentComposer = ({
     }
   }, []);
 
-  const handleAgentAttachmentDrop = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      agentDropDepthRef.current = 0;
-      setIsAgentDropActive(false);
-      const transfer = event.dataTransfer;
-      const dropSnapshot = captureComposerDropSnapshot(transfer);
+  const acceptComposerDropSnapshot = useCallback(
+    (dropSnapshot: ComposerDropSnapshot) => {
       const transferSnapshot = buildComposerDropSnapshotTransfer(dropSnapshot);
-      const internalPayload = extractInternalReferenceDragPayload(transferSnapshot);
-      const composerImagePayload = extractComposerImageDropPayload(transferSnapshot);
+      const internalPayload =
+        dropSnapshot.directInternalPayload ?? extractInternalReferenceDragPayload(transferSnapshot);
+      const composerImagePayload =
+        dropSnapshot.directComposerImagePayload ??
+        extractComposerImageDropPayload(transferSnapshot);
       const mediaLibraryPayload = readMediaLibraryDragPayload(transferSnapshot);
       const hasStructuredReferenceDrop = Boolean(
         internalPayload || composerImagePayload || mediaLibraryPayload
@@ -1267,6 +1295,46 @@ export const useAiStudioAgentComposer = ({
     ]
   );
 
+  const handleAgentAttachmentDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      agentDropDepthRef.current = 0;
+      setIsAgentDropActive(false);
+      acceptComposerDropSnapshot(captureComposerDropSnapshot(event.dataTransfer));
+    },
+    [acceptComposerDropSnapshot]
+  );
+
+  const acceptAgentComposerDropPayload = useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      agentDropDepthRef.current = 0;
+      setIsAgentDropActive(false);
+      if (payload.kind === "unsupported") {
+        setAgentAttachmentError(
+          payload.mediaKind === "video"
+            ? VIDEO_ATTACHMENT_REJECTION_MESSAGE
+            : NON_IMAGE_ATTACHMENT_REJECTION_MESSAGE
+        );
+        return;
+      }
+      if (payload.kind === "text") {
+        const text = payload.text.trim();
+        if (!text) return;
+        if (!agentSessionEnabled) ensureAgentSession();
+        setAgentInput((current) => `${current}${text}`);
+        setAgentAttachmentError(null);
+        return;
+      }
+      acceptComposerDropSnapshot({
+        ...createEmptyComposerDropSnapshot(),
+        transferTypes: ["application/x-shortpulse-canvas-tear-out"],
+        directInternalPayload: payload.internalPayload,
+        directComposerImagePayload: payload.composerImagePayload ?? null,
+      });
+    },
+    [acceptComposerDropSnapshot, agentSessionEnabled, ensureAgentSession]
+  );
+
   const handleRemoveAgentAttachment = useCallback((id: string) => {
     setAgentAttachmentError(null);
     setAgentAttachments((prev) => {
@@ -1335,6 +1403,7 @@ export const useAiStudioAgentComposer = ({
     handleAgentAttachmentDragEnter,
     handleAgentAttachmentDragLeave,
     handleAgentAttachmentDrop,
+    acceptAgentComposerDropPayload,
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
     resetAgentComposer,

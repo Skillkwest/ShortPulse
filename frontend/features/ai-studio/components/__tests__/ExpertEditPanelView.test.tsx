@@ -2755,7 +2755,7 @@ describe("ExpertEditPanelView", () => {
     });
     expect(removeBackgroundButton).toBeInTheDocument();
     expect(within(removeBackgroundButton).getByText("✦")).toBeInTheDocument();
-    expect(within(removeBackgroundButton).getByText("3")).toBeInTheDocument();
+    expect(within(removeBackgroundButton).getByText("4")).toBeInTheDocument();
     expect(
       within(utilityActions).getByRole("button", { name: /flatten layers/i })
     ).toBeInTheDocument();

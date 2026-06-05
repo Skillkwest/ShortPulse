@@ -23,6 +23,7 @@ import {
 } from "../pulseChats/pulseChatThread";
 import type { StudioMode, ToolId } from "../types";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
+import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
 
 type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
 type CreatePanelProps = AiStudioPageContentProps["propertiesCreate"];
@@ -77,6 +78,7 @@ type UseAiStudioCreatePanelRuntimeParams = {
     target: HTMLElement,
     context?: ModelModalContext | null
   ) => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
 };
 
 export const resolveStandardCreatePrimaryCostCredits = ({
@@ -113,6 +115,7 @@ export const useAiStudioCreatePanelRuntime = ({
   handleCreatePulsePresetRestart,
   handleGenerate,
   handleOpenModelModal,
+  canvasTearOutTargetRegistry,
 }: UseAiStudioCreatePanelRuntimeParams): CreatePanelProps => {
   const {
     aspect,
@@ -162,6 +165,7 @@ export const useAiStudioCreatePanelRuntime = ({
     handleAgentAttachmentDragLeave,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDrop,
+    acceptAgentComposerDropPayload,
     handleAgentInputChange,
     handleAgentSend,
     handleAssistantMessageEdit,
@@ -390,6 +394,7 @@ export const useAiStudioCreatePanelRuntime = ({
           onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
           onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
           onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+          onAgentComposerDirectDrop: acceptAgentComposerDropPayload,
           onRemoveAgentAttachment: handleRemoveAgentAttachment,
           onClearAgentAttachments: handleClearAgentAttachments,
           onAssistantMessageEdit: handleAssistantMessageEdit,
@@ -403,6 +408,7 @@ export const useAiStudioCreatePanelRuntime = ({
         onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
         pulse: {
           ...pulseRuntime.panelProps,
+          canvasTearOutTargetRegistry,
           hasActivePulseSession,
           isPulseStartupPending,
           pulseWorkflowSession: base.pulseWorkflowSession,
@@ -477,6 +483,7 @@ export const useAiStudioCreatePanelRuntime = ({
         onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
         onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
         onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+        onAgentComposerDirectDrop: acceptAgentComposerDropPayload,
         onRemoveAgentAttachment: handleRemoveAgentAttachment,
         onClearAgentAttachments: handleClearAgentAttachments,
         onAssistantMessageEdit: handleAssistantMessageEdit,
@@ -487,7 +494,10 @@ export const useAiStudioCreatePanelRuntime = ({
     return {
       expertCreateMode: "standard",
       onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
-      standard: standardRuntime.panelProps,
+      standard: {
+        ...standardRuntime.panelProps,
+        canvasTearOutTargetRegistry,
+      },
     };
   }, [
     agentAttachmentError,
@@ -503,6 +513,7 @@ export const useAiStudioCreatePanelRuntime = ({
     aspect,
     assistantBubbleMedia,
     base,
+    canvasTearOutTargetRegistry,
     characterOptions,
     chatModeEnabled,
     createGenerateCostCredits,
@@ -521,6 +532,7 @@ export const useAiStudioCreatePanelRuntime = ({
     handleAgentAttachmentDragLeave,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDrop,
+    acceptAgentComposerDropPayload,
     handleAgentInputChange,
     handleAgentSend,
     handleAssistantMessageEdit,

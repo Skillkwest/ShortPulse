@@ -8,6 +8,7 @@ import { useAiStudioPageLocalState } from "./useAiStudioPageLocalState";
 import { useAiStudioPageCharacterRuntime } from "./useAiStudioPageCharacterRuntime";
 import { useAiStudioPageCreditDerivations } from "./useAiStudioPageCreditDerivations";
 import { useAiStudioPageMediaReferenceRuntime } from "./useAiStudioPageMediaReferenceRuntime";
+import { useAiStudioCanvasTearOutTargets } from "./useAiStudioCanvasTearOutTargets";
 import { useAiStudioPageOutputAdapters } from "./useAiStudioPageOutputAdapters";
 import { useAiStudioPerfAuditRuntime } from "./useAiStudioPerfAuditRuntime";
 import { useAiStudioState } from "./useAiStudioState";
@@ -397,6 +398,7 @@ export const useAiStudioPageBaseRuntime = () => {
     getOutputSnapshot,
     ensureOutputPersisted,
   });
+  const canvasTearOutTargetRegistry = useAiStudioCanvasTearOutTargets();
   const {
     canvasSessionState,
     handleQuickSlotDroppedFiles,
@@ -419,6 +421,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setActiveOutputId,
     setDetailSelectionTarget,
     setUiError,
+    canvasTearOutTargetRegistry,
   });
   const sharedDetailModalItem = useMemo(() => {
     if (detailSelectionTarget?.kind !== "canvas-item") return null;
@@ -550,6 +553,7 @@ export const useAiStudioPageBaseRuntime = () => {
     buildProjectWorkspaceSnapshot,
     buildSessionSnapshot,
     canvasSessionState,
+    canvasTearOutTargetRegistry,
     characterCreateRequestKey,
     pendingCharacterUploadRequest,
     clearPendingCharacterUploadRequest,

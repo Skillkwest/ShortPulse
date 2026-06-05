@@ -314,7 +314,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
   });
 
-  it("includes projectId in prompt-list requests when provided", async () => {
+  it("keeps prompt-list requests on the global media prompt route when projectId is provided", async () => {
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -336,7 +336,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
       "/api/media/prompts/list",
       expect.objectContaining({
         method: "POST",
-        body: expect.stringContaining('"projectId":"project-1"'),
+        body: JSON.stringify({ folderId: "folder-1", query: "", cursor: null, limit: 20 }),
       })
     );
   });

@@ -127,6 +127,7 @@ describe("useAiStudioPageDerivations", () => {
     expect(values).toEqual(
       new Set([
         "gpt-image-2",
+        "kie-ai/gpt-image-2-image-to-image",
         "fal-ai/bytedance/seedream/v4.5/edit",
         "fal-ai/bytedance/seedream/v5/lite/edit",
         "fal-ai/nano-banana-2/edit",

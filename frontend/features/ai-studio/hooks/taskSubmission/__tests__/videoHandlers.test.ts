@@ -162,7 +162,12 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Motion clip is not ready yet. Re-add it and wait for upload before generating."
+      "Motion clip is not ready yet. Re-add it and wait for upload before generating.",
+      undefined,
+      {
+        reasonCode: "USER_INPUT_VALIDATION",
+        telemetryMode: "validation",
+      }
     );
     expect(fetchWithAuth).not.toHaveBeenCalled();
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
@@ -180,7 +185,12 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Motion clip is not ready yet. Re-add it and wait for upload before generating."
+      "Motion clip is not ready yet. Re-add it and wait for upload before generating.",
+      undefined,
+      {
+        reasonCode: "USER_INPUT_VALIDATION",
+        telemetryMode: "validation",
+      }
     );
     expect(fetchWithAuth).not.toHaveBeenCalled();
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
@@ -194,7 +204,12 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Motion clip is not ready yet. Re-add it and wait for upload before generating."
+      "Motion clip is not ready yet. Re-add it and wait for upload before generating.",
+      undefined,
+      {
+        reasonCode: "USER_INPUT_VALIDATION",
+        telemetryMode: "validation",
+      }
     );
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
   });
@@ -207,7 +222,12 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Motion clip is not ready yet. Re-add it and wait for upload before generating."
+      "Motion clip is not ready yet. Re-add it and wait for upload before generating.",
+      undefined,
+      {
+        reasonCode: "USER_INPUT_VALIDATION",
+        telemetryMode: "validation",
+      }
     );
     expect(fetchWithAuth).not.toHaveBeenCalled();
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
@@ -1031,7 +1051,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Prompt exceeds Kling's 2,500 character limit."
+      "Prompt exceeds Kling's 2,500 character limit.",
+      undefined,
+      {
+        reasonCode: "USER_INPUT_VALIDATION",
+        telemetryMode: "validation",
+      }
     );
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
   });
@@ -1108,7 +1133,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Prompt exceeds Kling's 2,500 character limit."
+      "Prompt exceeds Kling's 2,500 character limit.",
+      undefined,
+      {
+        reasonCode: "USER_INPUT_VALIDATION",
+        telemetryMode: "validation",
+      }
     );
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
   });

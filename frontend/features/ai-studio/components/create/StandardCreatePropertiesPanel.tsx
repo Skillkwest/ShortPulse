@@ -4,6 +4,8 @@
  */
 import React, { useEffect, useMemo } from "react";
 import type { AspectOption, StudioMode } from "../../types";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import { aspectOptions, modelLogos } from "../../constants";
 import type { ModelModalContext } from "../ModelModal";
 import { AgentResponseInlineGenerateButton } from "../../../../prefabs/agent";
@@ -74,6 +76,7 @@ export type StandardCreatePropertiesPanelProps = {
   onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentComposerDirectDrop?: (payload: AgentComposerDirectDropPayload) => void;
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
@@ -101,6 +104,7 @@ export type StandardCreatePropertiesPanelProps = {
   stylesCatalog?: readonly ExpertEditStyleTile[];
   createModeToggle?: React.ReactNode;
   onOpenPresetsLibrary?: () => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
 };
 
 const EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX = 520;
@@ -140,6 +144,7 @@ export function StandardCreatePropertiesPanel({
   onAgentAttachmentDragOver,
   onAgentAttachmentDragEnter,
   onAgentAttachmentDragLeave,
+  onAgentComposerDirectDrop,
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAssistantMessageEdit,
@@ -166,6 +171,7 @@ export function StandardCreatePropertiesPanel({
   selectedStyleId = null,
   stylesCatalog,
   createModeToggle = null,
+  canvasTearOutTargetRegistry,
   onGenerate,
 }: StandardCreatePropertiesPanelProps) {
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
@@ -401,6 +407,8 @@ export function StandardCreatePropertiesPanel({
     <>
       <StandardCreatePanelView
         promptStepProps={promptStepProps}
+        canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
+        onAgentComposerDirectDrop={onAgentComposerDirectDrop}
         characterModeEnabled={characterModeEnabled}
         onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
         onCharacterPickerOpen={openCharacterPicker}

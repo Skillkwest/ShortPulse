@@ -7,6 +7,30 @@ vi.mock("../useAiStudioProjectRouteRecovery", () => ({
   useAiStudioProjectRouteRecovery: () => undefined,
 }));
 
+type RouterEventHandler = (...args: unknown[]) => void;
+
+const createRouterEvents = () => {
+  const handlers = new Map<string, Set<RouterEventHandler>>();
+  return {
+    events: {
+      on: vi.fn((eventName: string, handler: RouterEventHandler) => {
+        const eventHandlers = handlers.get(eventName) ?? new Set<RouterEventHandler>();
+        eventHandlers.add(handler);
+        handlers.set(eventName, eventHandlers);
+      }),
+      off: vi.fn((eventName: string, handler: RouterEventHandler) => {
+        handlers.get(eventName)?.delete(handler);
+      }),
+      emit: vi.fn((eventName: string, ...args: unknown[]) => {
+        handlers.get(eventName)?.forEach((handler) => handler(...args));
+      }),
+    },
+    emit: (eventName: string, ...args: unknown[]) => {
+      handlers.get(eventName)?.forEach((handler) => handler(...args));
+    },
+  };
+};
+
 const createBaseRuntime = (): AiStudioPageBaseRuntime =>
   ({
     closeModelModal: vi.fn(),
@@ -27,6 +51,7 @@ const createBaseRuntime = (): AiStudioPageBaseRuntime =>
     projectStatus: "ready",
     requestedProjectId: "project-1",
     router: {
+      events: createRouterEvents().events,
       query: { projectId: "project-1" },
       push: vi.fn(async () => true),
       replace: vi.fn(async () => true),
@@ -128,5 +153,81 @@ describe("useAiStudioShellRuntime", () => {
       pathname: "/ai-studio",
       query: { projectId: "project-2" },
     });
+  });
+
+  it("resolves project modal navigation once the target route starts", async () => {
+    const base = createBaseRuntime();
+    const routerEvents = createRouterEvents();
+    const push = vi.fn(() => new Promise<boolean>(() => undefined));
+    base.router.events = routerEvents.events;
+    base.router.push = push;
+
+    const { result } = renderHook(() =>
+      useAiStudioShellRuntime({
+        base,
+        sessionRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: null,
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        projectBootstrapSettled: true,
+        projectBootstrapApplied: true,
+        filteredModelOptions: [],
+        resolveModelPickerCredits: vi.fn(() => null),
+        handleSelectModelFromModal: vi.fn(),
+      })
+    );
+
+    const openProject = result.current.handleSelectProjectFromModal("project-2");
+    routerEvents.emit("routeChangeStart", "/ai-studio?projectId=project-2");
+
+    await expect(openProject).resolves.toBeUndefined();
+    expect(push).toHaveBeenCalledWith({
+      pathname: "/ai-studio",
+      query: { projectId: "project-2" },
+    });
+  });
+
+  it("rejects project modal navigation when the target route never starts or settles", async () => {
+    vi.useFakeTimers();
+    try {
+      const base = createBaseRuntime();
+      const routerEvents = createRouterEvents();
+      const push = vi.fn(() => new Promise<boolean>(() => undefined));
+      base.router.events = routerEvents.events;
+      base.router.push = push;
+
+      const { result } = renderHook(() =>
+        useAiStudioShellRuntime({
+          base,
+          sessionRestoreCandidate: {
+            status: "ready",
+            result: "found_snapshot",
+            snapshot: null,
+            source: "project",
+            error: null,
+            retry: vi.fn(),
+          },
+          projectBootstrapSettled: true,
+          projectBootstrapApplied: true,
+          filteredModelOptions: [],
+          resolveModelPickerCredits: vi.fn(() => null),
+          handleSelectModelFromModal: vi.fn(),
+        })
+      );
+
+      const openProject = result.current.handleSelectProjectFromModal("project-2");
+      const expectation = expect(openProject).rejects.toThrow(
+        "Project open is taking longer than expected. Try again."
+      );
+
+      await vi.advanceTimersByTimeAsync(8000);
+      await expectation;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

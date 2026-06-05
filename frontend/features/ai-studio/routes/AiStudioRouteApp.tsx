@@ -637,6 +637,7 @@ const AiStudioPageRuntimeBody = ({
     handleCreatePulsePresetRestart,
     handleGenerate,
     handleOpenModelModal,
+    canvasTearOutTargetRegistry: base.canvasTearOutTargetRegistry,
   });
   const {
     propertiesCreate: pagePropertiesCreate,

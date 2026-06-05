@@ -53,12 +53,7 @@ describe("characterGridPreviewUrl", () => {
       devicePixelRatio: 1,
     });
 
-    expect(resolved).toContain("/_next/image?url=");
-    expect(
-      decodeURIComponent(
-        new URL(`https://shortpulse.local${resolved}`).searchParams.get("url") ?? ""
-      )
-    ).toBe(signedUrl);
+    expect(resolved).toBe(signedUrl);
   });
 
   it("keeps signed durable variant URLs unchanged when adaptive preview is enabled", () => {

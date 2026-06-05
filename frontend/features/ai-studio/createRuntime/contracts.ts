@@ -29,6 +29,7 @@ import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import type { AiStudioPulsePresetChangeOptions } from "../hooks/useAiStudioCreateModeRuntime";
 import type { CreateRuntimeAgentHydrationPayload } from "./sessionAgentHydrationBoundary";
 
@@ -70,6 +71,7 @@ export type StandardCreateAgentRuntimeActions = {
   onAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
+  onAgentComposerDirectDrop: (payload: AgentComposerDirectDropPayload) => void;
   onRemoveAgentAttachment: (id: string) => void;
   onClearAgentAttachments: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
@@ -151,6 +153,7 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
+  acceptAgentComposerDropPayload: (payload: AgentComposerDirectDropPayload) => void;
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
@@ -183,6 +186,7 @@ export type PulseCreateAgentRuntimeActions = {
   onAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
+  onAgentComposerDirectDrop: (payload: AgentComposerDirectDropPayload) => void;
   onRemoveAgentAttachment: (id: string) => void;
   onClearAgentAttachments: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
@@ -254,6 +258,7 @@ export type PulseCreatePageAgentRuntime = PulseCreateAgentRuntimeState & {
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
+  acceptAgentComposerDropPayload: (payload: AgentComposerDirectDropPayload) => void;
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;

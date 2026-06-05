@@ -8,6 +8,7 @@ import type {
   CanvasTextEditSession,
 } from "./canvasSceneState";
 import type { CanvasCamera, CanvasResizeHandle, CanvasSceneItem } from "./canvasTypes";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 
 export type CanvasWorkspaceInstanceId = "main" | "rail";
 
@@ -97,6 +98,7 @@ export type CanvasPropertiesPanelProps = {
   onTextItemEditKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onTextItemEditBlur: () => void;
   onCanvasMediaRenderError?: (item: CanvasSceneItem) => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
 };
 
 export type AiStudioDualCanvasWorkspaceState = {

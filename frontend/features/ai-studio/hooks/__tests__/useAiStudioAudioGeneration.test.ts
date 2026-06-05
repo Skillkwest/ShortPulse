@@ -135,6 +135,7 @@ describe("useAiStudioAudioGeneration", () => {
         project_id: "project-1",
       }),
       shortpulseLogScope: "generation",
+      shortpulseSkipErrorLogging: true,
     });
     expect(uiError).toBeNull();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();

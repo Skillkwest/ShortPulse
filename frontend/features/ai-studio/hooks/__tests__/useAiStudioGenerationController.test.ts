@@ -8,6 +8,7 @@ import {
   CHARACTER_MODE_MISSING_REFERENCES_ERROR,
   GENERATION_GUARDRAIL_FALLBACK_ERROR,
 } from "../../logic/generationStartPolicy";
+import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
 
@@ -885,6 +886,45 @@ describe("useAiStudioGenerationController", () => {
     expect(updater?.([])).toEqual([
       expect.objectContaining({ credits: 5, outputId: null, createdAtMs: expect.any(Number) }),
     ]);
+  });
+
+  it("uses resolved model-override cost for remove background regenerates when explicit cost override is absent", async () => {
+    const regenerateOutput = vi.fn();
+    const resolveCostCreditsForModel = vi.fn((modelId: string) =>
+      modelId === BRIA_BACKGROUND_REMOVE_MODEL_ID ? 4 : null
+    );
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana-pro/edit",
+      currentCostCredits: 15,
+      balanceCredits: 4,
+      isGenerateDisabled: true,
+      isCreditGuardrail: true,
+      generationGuardrail: "You do not have enough credits for this run.",
+      refreshBalance: vi.fn(async () => 4),
+      regenerateOutput,
+      resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
+      resolveCostCreditsForModel,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        modelIdOverride: BRIA_BACKGROUND_REMOVE_MODEL_ID,
+        referenceInputsOverride: ["blob:layer-remove-background"],
+        referenceInputsMode: "replace",
+      });
+    });
+
+    expect(resolveCostCreditsForModel).toHaveBeenCalledWith(BRIA_BACKGROUND_REMOVE_MODEL_ID);
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelIdOverride: BRIA_BACKGROUND_REMOVE_MODEL_ID,
+        displayedBilledCredits: 4,
+        referenceInputsOverride: ["blob:layer-remove-background"],
+        referenceInputsMode: "replace",
+      })
+    );
   });
 
   it("does not persist selected model when regenerate submit uses explicit modelIdOverride", async () => {

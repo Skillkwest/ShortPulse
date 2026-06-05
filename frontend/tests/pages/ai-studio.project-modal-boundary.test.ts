@@ -7,7 +7,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const readPageSource = () => readFileSync(path.join(process.cwd(), "pages/ai-studio.tsx"), "utf8");
+const readPageSource = () =>
+  readFileSync(path.join(process.cwd(), "features/ai-studio/routes/AiStudioRouteApp.tsx"), "utf8");
 const readShellRuntimeSource = () =>
   readFileSync(
     path.join(process.cwd(), "features/ai-studio/hooks/useAiStudioShellRuntime.ts"),

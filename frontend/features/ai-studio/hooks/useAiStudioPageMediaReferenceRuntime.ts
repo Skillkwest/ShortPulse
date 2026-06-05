@@ -67,6 +67,7 @@ import {
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
+import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
 
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
 const CANVAS_MEDIA_LIBRARY_BUCKET = "media_library";
@@ -144,6 +145,7 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
   setActiveOutputId: (outputId: string | null) => void;
   setDetailSelectionTarget: (target: SharedMediaDetailSelectionTarget | null) => void;
   setUiError?: (message: string | null) => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
 };
 
 /**
@@ -162,6 +164,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   setActiveOutputId,
   setDetailSelectionTarget,
   setUiError,
+  canvasTearOutTargetRegistry,
 }: UseAiStudioPageMediaReferenceRuntimeParams) => {
   const canvasMediaRestoreAuthorityCacheRef = useRef(
     new Map<string, SessionSignedMediaRestoreAuthority>()
@@ -761,6 +764,8 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     resolveCanvasDropFiles,
     onPinTextReference: addPastedPromptReference,
     onOpenMediaDetail: handleOpenCanvasMediaDetail,
+    canvasTearOutTargetRegistry,
+    getCanvasTearOutOutputById: getOutputById,
   });
   const canvasSessionStateRef = useRef<CanvasWorkspaceSessionState>(canvasSessionState);
   const canvasMediaRenderRetryKeysRef = useRef(new Set<string>());

@@ -1,4 +1,5 @@
 import type { CanvasResizeHandle } from "./canvasTypes";
+import type { CanvasTearOutPayload } from "./canvasTearOutPayload";
 
 /**
  * Shared pointer interaction primitives for Canvas viewport hooks.
@@ -14,6 +15,9 @@ export type CanvasPointerSession =
       startClientY: number;
       deltaX: number;
       deltaY: number;
+      tearOutPayload?: CanvasTearOutPayload | null;
+      tearOutPhase?: "none" | "candidate" | "active";
+      tearOutActiveTargetId?: string | null;
     }
   | {
       kind: "pan";

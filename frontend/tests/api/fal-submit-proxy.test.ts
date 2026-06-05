@@ -83,7 +83,7 @@ vi.mock("../../lib/server/motionReferenceVideoAssetLease", () => ({
 }));
 
 vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
-  associateGenerationWithProjectForUser: (...args: unknown[]) =>
+  associateGenerationWithProjectForUserBestEffort: (...args: unknown[]) =>
     associateGenerationWithProjectForUserMock(...args),
 }));
 
@@ -258,11 +258,13 @@ describe("createFalSubmitHandler", () => {
         queueState: "dispatched",
       })
     );
-    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      projectId: "project-1",
-      generationId: expect.any(String),
-    });
+    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        projectId: "project-1",
+        generationId: expect.any(String),
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -1,9 +1,11 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PromptStep } from "../../PromptStep";
 import { StandardCreatePanelView } from "../StandardCreatePanelView";
 import { prepareReferenceDrag } from "../../../utils/dragDrop";
+import { createCanvasTearOutComposerTargetRegistry } from "../../../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../../../logic/agentComposerDirectDropPayload";
 
 class MockResizeObserver {
   observe() {
@@ -73,6 +75,7 @@ const createMutableTransfer = () => {
 
 describe("StandardCreatePanelView", () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -167,6 +170,82 @@ describe("StandardCreatePanelView", () => {
     expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
     expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Dropped prompt text");
+  });
+
+  it("registers a Canvas tear-out target that accepts text and image payloads", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const onAgentInputChange = vi.fn();
+    const onAgentComposerDirectDrop = vi.fn();
+
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        canvasTearOutTargetRegistry={registry}
+        onAgentComposerDirectDrop={onAgentComposerDirectDrop}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentInput: "Existing draft ",
+          onAgentInputChange,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner") as HTMLElement;
+    expect(panelBody).toBeTruthy();
+    panelBody.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          left: 10,
+          top: 10,
+          right: 210,
+          bottom: 210,
+          width: 200,
+          height: 200,
+          x: 10,
+          y: 10,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+
+    await waitFor(() =>
+      expect(
+        registry.resolveTargetAtPoint(
+          { clientX: 20, clientY: 20 },
+          { kind: "text", text: "Canvas text" }
+        )?.id
+      ).toBe("standard-create-composer")
+    );
+
+    const textTarget = registry.resolveTargetAtPoint(
+      { clientX: 20, clientY: 20 },
+      { kind: "text", text: "Canvas text" }
+    );
+    act(() => {
+      textTarget?.target.accept({ kind: "text", text: "Canvas text" });
+    });
+
+    expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Canvas text");
+
+    const imagePayload: AgentComposerDirectDropPayload = {
+      kind: "image",
+      internalPayload: null,
+      composerImagePayload: {
+        version: 1,
+        origin: "ai-studio-reference-grid",
+        referenceId: "canvas-image",
+        outputId: null,
+        mediaId: "media-1",
+        displayArtifactUrl: "https://example.com/canvas.png",
+        displayArtifactKind: "url",
+        sourceSurface: "all-refs",
+      },
+    };
+    const imageTarget = registry.resolveTargetAtPoint({ clientX: 20, clientY: 20 }, imagePayload);
+    act(() => {
+      imageTarget?.target.accept(imagePayload);
+    });
+
+    expect(onAgentComposerDirectDrop).toHaveBeenCalledWith(imagePayload);
   });
 
   it("routes hybrid internal prompt-reference drags from the wider create panel body into the composer", () => {

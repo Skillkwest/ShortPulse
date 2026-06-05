@@ -14,6 +14,8 @@ import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulseCreatePanelView } from "./PulseCreatePanelView";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { PulseChatHistoryPanelProps } from "./PulseChatHistoryPanel";
 import type { CreatePulsePreferenceRuntimeValue } from "./createPulsePreferenceRuntime";
 import type {
@@ -48,6 +50,7 @@ export type PulseCreatePropertiesPanelProps = {
   onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentComposerDirectDrop?: (payload: AgentComposerDirectDropPayload) => void;
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
@@ -74,6 +77,7 @@ export type PulseCreatePropertiesPanelProps = {
   onOpenPresetsLibrary?: () => void;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
   pulseChatHistory?: PulseChatHistoryPanelProps;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
 };
 
 export function PulseCreatePropertiesPanel({
@@ -96,6 +100,7 @@ export function PulseCreatePropertiesPanel({
   onAgentAttachmentDragOver,
   onAgentAttachmentDragEnter,
   onAgentAttachmentDragLeave,
+  onAgentComposerDirectDrop,
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAssistantMessageEdit,
@@ -112,6 +117,7 @@ export function PulseCreatePropertiesPanel({
   onOpenPresetsLibrary,
   pulsePreferenceRuntime,
   pulseChatHistory,
+  canvasTearOutTargetRegistry,
 }: PulseCreatePropertiesPanelProps) {
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
     if (!activePulsePresetId) {
@@ -202,6 +208,8 @@ export function PulseCreatePropertiesPanel({
   return (
     <PulseCreatePanelView
       promptStepProps={promptStepProps}
+      canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
+      onAgentComposerDirectDrop={onAgentComposerDirectDrop}
       isPromptGenerating={isPromptGenerating}
       createModeToggle={createModeToggle}
       activePulsePresetId={activePulsePresetId}

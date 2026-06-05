@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { reportAppError } from "../../../lib/appErrorReporter";
 import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import {
   normalizeAiStudioProjectName,
@@ -11,6 +12,22 @@ import type { AiStudioPersistenceController } from "./aiStudioPersistenceControl
 type ModelModalState = AiStudioPageContentProps["modelModalState"];
 
 const PROJECT_OPEN_INTERRUPTED_MESSAGE = "Project open was interrupted. Try again.";
+const PROJECT_OPEN_TIMEOUT_MESSAGE = "Project open is taking longer than expected. Try again.";
+const PROJECT_OPEN_HANDOFF_TIMEOUT_MS = 8000;
+
+const buildProjectRouteHref = (projectId: string): string =>
+  `/ai-studio?projectId=${encodeURIComponent(projectId)}`;
+
+const isProjectRouteTarget = (url: string, projectId: string): boolean => {
+  try {
+    const parsedUrl = new URL(url, "https://shortpulse.local");
+    return (
+      parsedUrl.pathname === "/ai-studio" && parsedUrl.searchParams.get("projectId") === projectId
+    );
+  } catch {
+    return url.includes("/ai-studio") && url.includes(`projectId=${encodeURIComponent(projectId)}`);
+  }
+};
 
 type UseAiStudioShellRuntimeParams = {
   base: AiStudioPageBaseRuntime;
@@ -96,12 +113,82 @@ export const useAiStudioShellRuntime = ({
 
   const navigateToProjectRoute = useCallback(
     async (nextProjectId: string) => {
-      const didNavigate = await router.push({
-        pathname: "/ai-studio",
-        query: { projectId: nextProjectId },
+      const targetHref = buildProjectRouteHref(nextProjectId);
+      let cleanupRouteHandoffListeners = () => undefined;
+
+      const routeHandoffStarted = new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const timeoutId = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanupRouteHandoffListeners();
+          void reportAppError({
+            source: "client.ai_studio.project_route_handoff_timeout",
+            scope: "app",
+            severity: "medium",
+            message: PROJECT_OPEN_TIMEOUT_MESSAGE,
+            route: typeof window !== "undefined" ? window.location.pathname : null,
+            endpoint: targetHref,
+            metadata: {
+              target_project_id: nextProjectId,
+            },
+          });
+          reject(new Error(PROJECT_OPEN_TIMEOUT_MESSAGE));
+        }, PROJECT_OPEN_HANDOFF_TIMEOUT_MS);
+
+        cleanupRouteHandoffListeners = () => {
+          router.events.off("routeChangeStart", handleRouteChangeStart);
+          router.events.off("routeChangeError", handleRouteChangeError);
+          window.clearTimeout(timeoutId);
+        };
+
+        const settleWithResolve = () => {
+          if (settled) return;
+          settled = true;
+          cleanupRouteHandoffListeners();
+          resolve();
+        };
+
+        const settleWithReject = () => {
+          if (settled) return;
+          settled = true;
+          cleanupRouteHandoffListeners();
+          reject(new Error(PROJECT_OPEN_INTERRUPTED_MESSAGE));
+        };
+
+        function handleRouteChangeStart(url: string) {
+          if (isProjectRouteTarget(url, nextProjectId)) {
+            settleWithResolve();
+          }
+        }
+
+        function handleRouteChangeError(_routeError: Error & { cancelled?: boolean }, url: string) {
+          if (isProjectRouteTarget(url, nextProjectId)) {
+            settleWithReject();
+          }
+        }
+
+        router.events.on("routeChangeStart", handleRouteChangeStart);
+        router.events.on("routeChangeError", handleRouteChangeError);
       });
-      if (!didNavigate) {
-        throw new Error(PROJECT_OPEN_INTERRUPTED_MESSAGE);
+
+      const routePush = Promise.resolve(
+        router.push({
+          pathname: "/ai-studio",
+          query: { projectId: nextProjectId },
+        })
+      ).then((didNavigate) => {
+        if (!didNavigate) {
+          throw new Error(PROJECT_OPEN_INTERRUPTED_MESSAGE);
+        }
+      });
+
+      void routePush.catch(() => undefined);
+
+      try {
+        await Promise.race([routeHandoffStarted, routePush]);
+      } finally {
+        cleanupRouteHandoffListeners();
       }
     },
     [router]

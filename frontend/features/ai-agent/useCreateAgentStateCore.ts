@@ -10,8 +10,6 @@ import type {
   AgentAttachment,
   AgentConversationState,
   AgentMessage,
-  AgentResponse,
-  AgentRuntimeMode,
 } from "../../prefabs/agent";
 import { removeAspectRatioLanguage } from "../agent-core/promptText";
 import {
@@ -36,87 +34,15 @@ import {
 } from "./client/messageStore";
 import { resolveStudioAgentTransportFailure } from "./client/transportFailureResolution";
 import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionController";
-import {
-  EMPTY_MESSAGES,
-  type CreateAgentTransportSuccess,
-  type SendParams,
-  type SendResult,
-} from "./createAgentStateTypes";
+import { EMPTY_MESSAGES, type SendParams, type SendResult } from "./createAgentStateTypes";
 import { resolveOutboundAgentContext } from "./logic/pulseContextPreservation";
-import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
-
-const resolveAssistantMessagePayload = ({
-  assistantReply,
-  promptArtifact,
-  assistantContent,
-  assistantOutputPrompt,
-}: Pick<
-  CreateAgentTransportSuccess,
-  "assistantReply" | "promptArtifact" | "assistantContent" | "assistantOutputPrompt"
->): {
-  content: string;
-  outputPrompt: string | null;
-} => ({
-  content: assistantReply?.text ?? assistantContent,
-  outputPrompt: promptArtifact?.text ?? assistantOutputPrompt,
-});
-
-type UseCreateAgentStateCoreOptions = {
-  initialMessages?: AgentMessage[];
-  enabled?: boolean;
-  conversationId?: string;
-  sessionNamespace?: string;
-  requestRuntimeMode: AgentRuntimeMode;
-  allowSessionNamespaceOverride: boolean;
-  sessionNamespaceOverrideErrorText?: string;
-  buildAgentContext: (
-    context: NonNullable<SendParams["context"]>
-  ) => AgentApiContext | Promise<AgentApiContext>;
-  resolveRequestHistory?: (messages: AgentMessage[]) => AgentMessage[];
-  sendAgentTurn: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
-  resolveTransportSuccess: (
-    response: AgentResponse
-  ) => CreateAgentTransportSuccess | Promise<CreateAgentTransportSuccess>;
-};
-const createAgentMessageId = (role: "user" | "assistant") => `agent-${role}-${randomId()}`;
-const cloneAgentAttachments = (attachments: AgentAttachment[] = []): AgentAttachment[] =>
-  attachments.map((attachment) => ({ ...attachment }));
-const areAgentMessagesEqual = (left: AgentMessage[], right: AgentMessage[]): boolean => {
-  if (left === right) return true;
-  if (left.length !== right.length) return false;
-  return left.every((message, index) => {
-    const other = right[index];
-    if (!other) return false;
-    const leftAttachments = message.attachments ?? [];
-    const rightAttachments = other.attachments ?? [];
-    return (
-      message.id === other.id &&
-      message.role === other.role &&
-      message.content === other.content &&
-      (message.outputPrompt ?? null) === (other.outputPrompt ?? null) &&
-      (message.canUseAsPrompt ?? null) === (other.canUseAsPrompt ?? null) &&
-      (message.outcomeClass ?? null) === (other.outcomeClass ?? null) &&
-      (message.reasonCode ?? null) === (other.reasonCode ?? null) &&
-      (message.decision ?? null) === (other.decision ?? null) &&
-      leftAttachments.length === rightAttachments.length &&
-      leftAttachments.every((attachment, attachmentIndex) => {
-        const otherAttachment = rightAttachments[attachmentIndex];
-        return (
-          attachment.id === otherAttachment?.id &&
-          attachment.kind === otherAttachment?.kind &&
-          (attachment.source ?? null) === (otherAttachment?.source ?? null) &&
-          (attachment.referenceId ?? null) === (otherAttachment?.referenceId ?? null) &&
-          (attachment.text ?? null) === (otherAttachment?.text ?? null) &&
-          (attachment.imageUrl ?? null) === (otherAttachment?.imageUrl ?? null) &&
-          (attachment.modelDataUrl ?? null) === (otherAttachment?.modelDataUrl ?? null) &&
-          (attachment.aspect ?? null) === (otherAttachment?.aspect ?? null) &&
-          (attachment.deliveryStatus ?? null) === (otherAttachment?.deliveryStatus ?? null) &&
-          (attachment.deliveryError ?? null) === (otherAttachment?.deliveryError ?? null)
-        );
-      })
-    );
-  });
-};
+import {
+  areAgentMessagesEqual,
+  cloneAgentAttachments,
+  createAgentMessageId,
+  resolveAssistantMessagePayload,
+  type UseCreateAgentStateCoreOptions,
+} from "./createAgentStateCoreHelpers";
 export const useCreateAgentStateCore = ({
   initialMessages = EMPTY_MESSAGES,
   enabled = true,
@@ -144,7 +70,6 @@ export const useCreateAgentStateCore = ({
   if (!clientSessionKeyRef.current) {
     clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);
   }
-
   useLayoutEffect(() => {
     const identity = `${sessionNamespace}::${conversationId?.trim() ?? ""}`;
     const previousIdentity = sessionIdentityRef.current;

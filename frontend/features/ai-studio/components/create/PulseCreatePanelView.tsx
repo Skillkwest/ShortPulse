@@ -4,9 +4,12 @@ import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
 import {
+  insertDroppedPromptTextAtSelection,
   resolveAgentComposerPanelDropKind,
   resolveAgentComposerTextDropInsertion,
 } from "../promptStep/agentComposerDrop";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import { CreatePulsePresetPanel } from "./CreatePulsePresetPanel";
 import { PulseChatHistoryPanel, type PulseChatHistoryPanelProps } from "./PulseChatHistoryPanel";
 import {
@@ -23,6 +26,8 @@ import type {
 
 type PulseCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PulsePromptStep>;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  onAgentComposerDirectDrop?: (payload: AgentComposerDirectDropPayload) => void;
   isPromptGenerating: boolean;
   createModeToggle?: React.ReactNode;
   activePulsePresetId?: CreatePulsePresetId | null;
@@ -49,6 +54,8 @@ type PulseCreatePanelViewProps = {
 
 const PulseCreatePanelViewContent = ({
   promptStepProps,
+  canvasTearOutTargetRegistry,
+  onAgentComposerDirectDrop,
   isPromptGenerating,
   createModeToggle = null,
   activePulsePresetId,
@@ -71,6 +78,8 @@ const PulseCreatePanelViewContent = ({
     setSavedPresets: onSavedPulsePresetsChange,
   } = pulsePreferenceRuntime;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
+  const [canvasTearOutActive, setCanvasTearOutActive] = React.useState(false);
+  const panelBodyRef = React.useRef<HTMLDivElement>(null);
   const isActivePulseSession = hasActivePulseSession;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const pulseLoadingState = promptStepProps.pulseLoadingState ?? null;
@@ -102,6 +111,66 @@ const PulseCreatePanelViewContent = ({
     onClearAgentChat: undefined,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
+  const handleCanvasTearOutTextDrop = React.useCallback(
+    (text: string) => {
+      const composerText = promptStepProps.agentInput ?? "";
+      const panelNode = panelBodyRef.current;
+      const textarea = panelNode?.querySelector("textarea") as HTMLTextAreaElement | null;
+      const useTextareaSelection =
+        typeof document !== "undefined" && textarea ? document.activeElement === textarea : false;
+      const selectionStart =
+        useTextareaSelection && textarea ? textarea.selectionStart : composerText.length;
+      const selectionEnd =
+        useTextareaSelection && textarea ? textarea.selectionEnd : composerText.length;
+      const insertedPrompt = insertDroppedPromptTextAtSelection({
+        composerText,
+        droppedPromptText: text,
+        selectionStart,
+        selectionEnd,
+      });
+      promptStepProps.onAgentInputChange?.(insertedPrompt.prompt);
+      requestAnimationFrame(() => {
+        const nextTextarea =
+          textarea && textarea.isConnected
+            ? textarea
+            : (panelNode?.querySelector("textarea") as HTMLTextAreaElement | null);
+        nextTextarea?.focus();
+        nextTextarea?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
+      });
+    },
+    [promptStepProps]
+  );
+  const canAcceptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (payload.kind === "unsupported") return false;
+      if (payload.kind === "image") return Boolean(onAgentComposerDirectDrop);
+      return Boolean(payload.text.trim() && promptStepProps.onAgentInputChange);
+    },
+    [onAgentComposerDirectDrop, promptStepProps]
+  );
+  const acceptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (!canAcceptCanvasTearOutPayload(payload)) return;
+      if (payload.kind === "text") {
+        handleCanvasTearOutTextDrop(payload.text);
+        return;
+      }
+      if (payload.kind === "image") {
+        onAgentComposerDirectDrop?.(payload);
+      }
+    },
+    [canAcceptCanvasTearOutPayload, handleCanvasTearOutTextDrop, onAgentComposerDirectDrop]
+  );
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "pulse-create-composer",
+      element: panelBodyRef.current,
+      canAccept: canAcceptCanvasTearOutPayload,
+      accept: acceptCanvasTearOutPayload,
+      setActive: setCanvasTearOutActive,
+    });
+  }, [acceptCanvasTearOutPayload, canAcceptCanvasTearOutPayload, canvasTearOutTargetRegistry]);
   const isTargetInsideComposerInputShell = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) =>
       event.target instanceof Element &&
@@ -248,8 +317,9 @@ const PulseCreatePanelViewContent = ({
         </div>
         <div className="create-composer-right-panel">
           <div
+            ref={panelBodyRef}
             className={`create-composer-right-panel-inner ${
-              promptStepProps.agentDropActive ? "is-drop-active" : ""
+              promptStepProps.agentDropActive || canvasTearOutActive ? "is-drop-active" : ""
             }`.trim()}
             onDragEnter={handlePanelMediaDragEnter}
             onDragOver={handlePanelMediaDragOver}

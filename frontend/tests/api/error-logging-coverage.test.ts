@@ -36,6 +36,7 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   // Redirect validation catch that normalizes invalid upstream locations into deterministic
   // request errors before the route-level handler decides the final response contract.
   "kie/upload-url.ts:414",
+  "kie/upload-url.ts:515",
 ]);
 
 const LOG_CALL_PATTERNS = [

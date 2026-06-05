@@ -121,6 +121,7 @@ describe("resolveInternalReferenceSource", () => {
         outputId: "out-missing",
         mediaId: "media-lookup",
         referenceUrl: "https://cdn.example.com/stale-reference.png",
+        sessionBacked: true,
       }),
       getOutputById: () => null,
       getOutputSnapshot: () => ({

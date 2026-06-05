@@ -433,7 +433,7 @@ describe("Profile subscription actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
-    expect((await screen.findAllByText("Starter")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("Baseline access")).length).toBeGreaterThan(0);
     expect(screen.queryByText("Next renewal")).not.toBeInTheDocument();
     expect(screen.queryByText("Not scheduled")).not.toBeInTheDocument();
     expect(screen.getByText("Monthly credits")).toBeInTheDocument();

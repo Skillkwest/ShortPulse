@@ -201,9 +201,9 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain(
       'base.expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime'
     );
-    expect(pageSource).toContain(
-      "return <CreateAgentRuntimeHost base={base} createPulsePageRuntime={createPulsePageRuntime} />;"
-    );
+    expect(pageSource).toContain("key={projectScopeKey}");
+    expect(pageSource).toContain("base={base}");
+    expect(pageSource).toContain("createPulsePageRuntime={createPulsePageRuntime}");
     expect(pageSource).toContain("getAgentContext: base.getAgentContext");
     expect(pageSource).toContain(
       "getAgentContext: createPulsePageRuntime.pulseCreateAgentContextResolver"

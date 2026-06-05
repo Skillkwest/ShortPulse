@@ -27,6 +27,8 @@ import type {
   CanvasWorkspaceInstanceId,
   CanvasWorkspaceSessionState,
 } from "../canvasWorkspaceContracts";
+import type { CanvasTearOutComposerTargetRegistry } from "../../../hooks/useAiStudioCanvasTearOutTargets";
+import type { StudioOutput } from "../../../types";
 
 export const createTransfer = (entries: Record<string, string>) =>
   ({
@@ -176,6 +178,8 @@ export type CanvasHarnessProps = {
   onItemDragEnd?: (id: string, event: React.DragEvent<HTMLElement>) => void;
   onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
   onCanvasMediaRenderError?: (item: CanvasSceneItem) => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  getCanvasTearOutOutputById?: (outputId: string) => StudioOutput | null;
 };
 
 type SeededCanvasHarnessProps = CanvasHarnessProps & {
@@ -194,6 +198,8 @@ export function CanvasHarness({
   onItemDragEnd,
   onOpenMediaDetail,
   onCanvasMediaRenderError,
+  canvasTearOutTargetRegistry,
+  getCanvasTearOutOutputById,
 }: CanvasHarnessProps) {
   const [visible, setVisible] = useState(true);
   const canvasProps = useAiStudioCanvasWorkspaceState({
@@ -205,6 +211,8 @@ export function CanvasHarness({
     resolveCanvasDropFiles,
     onPinTextReference,
     onOpenMediaDetail,
+    canvasTearOutTargetRegistry,
+    getCanvasTearOutOutputById,
   });
 
   return (

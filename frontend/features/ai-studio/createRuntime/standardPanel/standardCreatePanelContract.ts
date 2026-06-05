@@ -11,6 +11,7 @@ import type {
   AgentOutputBubbleMediaState,
 } from "../../../../prefabs/agent";
 import type { ModelModalContext } from "../../components/ModelModal";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import type {
   CreateCharacterLookOption,
   CreateCharacterOption,
@@ -49,6 +50,7 @@ export type BuildStandardCreatePanelPropsParams = {
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
+  handleAgentComposerDirectDrop: (payload: AgentComposerDirectDropPayload) => void;
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
@@ -122,6 +124,7 @@ export const buildStandardCreatePanelProps = ({
   handleAgentAttachmentDragOver,
   handleAgentAttachmentDragEnter,
   handleAgentAttachmentDragLeave,
+  handleAgentComposerDirectDrop,
   handleRemoveAgentAttachment,
   handleClearAgentAttachments,
   handleAssistantMessageEdit,
@@ -218,6 +221,7 @@ export const buildStandardCreatePanelProps = ({
     onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
     onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
     onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+    onAgentComposerDirectDrop: handleAgentComposerDirectDrop,
     onRemoveAgentAttachment: handleRemoveAgentAttachment,
     onClearAgentAttachments: handleClearAgentAttachments,
     onAssistantMessageEdit: handleAssistantMessageEdit,

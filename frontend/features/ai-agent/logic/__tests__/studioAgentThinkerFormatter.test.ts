@@ -246,7 +246,7 @@ describe("runThinkerFormatterTurn", () => {
     if (!result.ok) return;
 
     const firstBody = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
-    expect(firstBody.model).toBe("gpt-5.4-nano");
+    expect(firstBody.model).toBe("gpt-5.5");
     expect(result.result.parsed.actions?.applyPrompt).toBe("fallback prompt");
   });
 

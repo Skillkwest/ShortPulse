@@ -13,6 +13,8 @@ import type {
   ResolveCanvasDropReference,
 } from "./canvasTypes";
 import { CANVAS_DEFAULT_CAMERA } from "./canvasGeometry";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { StudioOutput } from "../../types";
 import type {
   AiStudioDualCanvasWorkspaceState,
   CanvasPropertiesPanelProps,
@@ -40,6 +42,8 @@ export const useAiStudioCanvasWorkspaceState = ({
   onPinTextReference,
   onOpenMediaDetail,
   onItemLimitReached,
+  canvasTearOutTargetRegistry,
+  getCanvasTearOutOutputById,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
@@ -49,6 +53,8 @@ export const useAiStudioCanvasWorkspaceState = ({
   onPinTextReference?: (text: string) => void;
   onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
   onItemLimitReached?: () => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  getCanvasTearOutOutputById?: (outputId: string) => StudioOutput | null;
 } = {}): CanvasPropertiesPanelProps => {
   const sharedScene = useCanvasSharedSceneState({ onItemLimitReached });
   const isSpacePanActiveRef = useCanvasSpacePanTracker();
@@ -68,6 +74,8 @@ export const useAiStudioCanvasWorkspaceState = ({
     resolveCanvasDropFiles,
     onPinTextReference,
     onOpenMediaDetail,
+    canvasTearOutTargetRegistry,
+    getCanvasTearOutOutputById,
     isSpacePanActiveRef,
     draftOwnerInstanceId,
     textEditOwnerInstanceId,
@@ -92,6 +100,8 @@ export const useAiStudioDualCanvasWorkspaceState = ({
   onPinTextReference,
   onOpenMediaDetail,
   onItemLimitReached,
+  canvasTearOutTargetRegistry,
+  getCanvasTearOutOutputById,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
@@ -101,6 +111,8 @@ export const useAiStudioDualCanvasWorkspaceState = ({
   onPinTextReference?: (text: string) => void;
   onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
   onItemLimitReached?: () => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  getCanvasTearOutOutputById?: (outputId: string) => StudioOutput | null;
 } = {}): AiStudioDualCanvasWorkspaceState => {
   const sharedScene = useCanvasSharedSceneState({ onItemLimitReached });
   const isSpacePanActiveRef = useCanvasSpacePanTracker();
@@ -123,6 +135,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     resolveCanvasDropFiles,
     onPinTextReference,
     onOpenMediaDetail,
+    getCanvasTearOutOutputById,
     isSpacePanActiveRef,
     draftOwnerInstanceId,
     textEditOwnerInstanceId,
@@ -144,6 +157,8 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     resolveCanvasDropFiles,
     onPinTextReference,
     onOpenMediaDetail,
+    canvasTearOutTargetRegistry,
+    getCanvasTearOutOutputById,
     isSpacePanActiveRef,
     draftOwnerInstanceId,
     textEditOwnerInstanceId,

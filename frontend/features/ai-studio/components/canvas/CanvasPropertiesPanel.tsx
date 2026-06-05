@@ -357,6 +357,64 @@ const CanvasSceneItemGhostView = React.memo(function CanvasSceneItemGhostView({
   );
 });
 
+const CanvasTearOutDragGhostView = React.memo(function CanvasTearOutDragGhostView({
+  item,
+  clientX,
+  clientY,
+  phase,
+}: {
+  item: CanvasSceneItem;
+  clientX: number;
+  clientY: number;
+  phase: "candidate" | "active";
+}) {
+  const sourceHeight =
+    item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height;
+  const scale = Math.min(1, 220 / item.width, 180 / sourceHeight);
+  const ghostWidth = Math.round(item.width * scale);
+  const ghostHeight = Math.round(sourceHeight * scale);
+  return (
+    <article
+      className={`canvas-scene-item canvas-scene-item--${item.kind} canvas-scene-item--ghost canvas-scene-item--tear-out-ghost is-${phase}`}
+      data-testid={`canvas-item-tear-out-ghost-${item.id}`}
+      data-kind={item.kind}
+      data-source-item-id={item.id}
+      data-phase={phase}
+      data-client-x={clientX}
+      data-client-y={clientY}
+      data-width={ghostWidth}
+      data-height={ghostHeight}
+      aria-hidden="true"
+      style={{
+        width: `${ghostWidth}px`,
+        height: `${ghostHeight}px`,
+        ["--canvas-item-x" as string]: `${Math.round((clientX + 14) * 100) / 100}px`,
+        ["--canvas-item-y" as string]: `${Math.round((clientY + 14) * 100) / 100}px`,
+      }}
+    >
+      {item.kind === "image" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="canvas-scene-item__image" src={item.src} alt="" draggable={false} />
+      ) : item.kind === "video" ? (
+        item.posterUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="canvas-scene-item__video" src={item.posterUrl} alt="" draggable={false} />
+        ) : (
+          <div className="canvas-scene-item__video-placeholder">
+            <span>Video</span>
+          </div>
+        )
+      ) : item.kind === "audio" ? (
+        <div className="canvas-scene-item__ghost-label">
+          <span>Audio</span>
+        </div>
+      ) : (
+        <p className="canvas-scene-item__text">{item.text}</p>
+      )}
+    </article>
+  );
+});
+
 /**
  * Renders the Canvas workspace UI and delegates all state changes to the page-owned controller.
  */
@@ -367,6 +425,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     items,
     pendingItems,
     itemDragPreview,
+    tearOutDragPreview,
     marqueeSelectionBox,
     viewportRef,
     isDropActive,
@@ -420,6 +479,13 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
   const itemDragPreviewItems = React.useMemo(
     () => (itemDragPreview ? items.filter((item) => itemDragPreviewIdSet.has(item.id)) : []),
     [itemDragPreview, itemDragPreviewIdSet, items]
+  );
+  const tearOutDragPreviewItem = React.useMemo(
+    () =>
+      tearOutDragPreview
+        ? (items.find((item) => item.id === tearOutDragPreview.activeItemId) ?? null)
+        : null,
+    [items, tearOutDragPreview]
   );
   const activeMediaErrorKeys = React.useMemo(() => {
     const nextKeys = new Set<string>();
@@ -721,6 +787,14 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
           />
         ) : null}
       </div>
+      {tearOutDragPreview && tearOutDragPreviewItem ? (
+        <CanvasTearOutDragGhostView
+          item={tearOutDragPreviewItem}
+          clientX={tearOutDragPreview.clientX}
+          clientY={tearOutDragPreview.clientY}
+          phase={tearOutDragPreview.phase}
+        />
+      ) : null}
     </section>
   );
 }

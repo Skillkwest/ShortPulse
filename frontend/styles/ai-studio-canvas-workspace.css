@@ -112,6 +112,20 @@
   filter: saturate(1.08);
 }
 
+.canvas-scene-item--tear-out-ghost {
+  position: fixed;
+  z-index: 2147483000;
+  opacity: 0.88;
+  transform: translate3d(var(--canvas-item-x, 0px), var(--canvas-item-y, 0px), 0);
+}
+
+.canvas-scene-item--tear-out-ghost.is-active {
+  border-color: rgba(112, 235, 255, 0.86);
+  box-shadow:
+    0 0 0 1px rgba(112, 235, 255, 0.34),
+    0 24px 42px rgba(0, 0, 0, 0.42);
+}
+
 .canvas-scene-item__ghost-label {
   display: grid;
   width: 100%;

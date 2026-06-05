@@ -2,6 +2,10 @@
 
 Purpose: provide the autonomous execution plan for reducing app-wide ShortPulse latency before the July 7 2026 launch target.
 
+Last refreshed: 2026-06-05
+
+Refresh status: active strategic Latency plan; packet order must be re-baselined before the next implementation run because Packet 1's original `voices` CSS premise is stale.
+
 ## Goal
 
 Reduce user-visible latency across ShortPulse, with priority on the signed-in app, AI Studio, heavy project restore, Media Library, shared frontend payload, and idle/background request churn.
@@ -235,7 +239,7 @@ This section is the planning stop line. Once the lane cards below are understood
 
 Focused subordinate lane plans:
 
-- Verified AI Studio divider-drag lag with dense `Reference Grid` projects is governed by [docs/planning/ai-studio-divider-drag-latency-execution-plan-2026-06-04.md](./ai-studio-divider-drag-latency-execution-plan-2026-06-04.md). Use that plan for this seam instead of broadening into generic right-rail or CSS work.
+- Verified AI Studio divider-drag lag with dense `Reference Grid` projects is governed by [docs/planning/ai-studio-divider-drag-latency-execution-plan-2026-06-04.md](./ai-studio-divider-drag-latency-execution-plan-2026-06-04.md). As of the 2026-06-05 refresh, treat this lane as owner-accepted/closed for queue selection unless new current evidence shows divider lag recurring. Use the subordinate plan as retained proof context and regression checklist, not as the next default implementation packet.
 
 ### Planning Lane Done Criteria
 
@@ -273,7 +277,7 @@ If the answer is not clearly yes, do not start that packet.
 
 Use this as the current planning baseline, not as proof that a fix is already chosen.
 
-- `npm -C frontend run latency:ai-studio-inventory` currently reports `35` AI Studio routes, `33` protected.
+- 2026-06-05 refresh: `npm -C frontend run latency:ai-studio-inventory` reports `35` AI Studio routes, `33` protected.
 - Current startup-labeled routes from that inventory:
   - `/api/account/media-compliance`
   - `/api/pricing/model-policy`
@@ -284,15 +288,22 @@ Use this as the current planning baseline, not as proof that a fix is already ch
 - Current workspace lane routes include:
   - `/api/projects/:param`
   - `/api/projects/:param/workspace`
-- Raw CSS source-size suspects currently include:
+- Raw CSS source-size suspects from the 2026-06-05 refresh include:
   - `styles/ai-studio-edit-expert.css` ~160947 bytes
-  - `styles/ai-studio-voices-properties.css` ~94205 bytes
   - `styles/ai-studio-layout.css` ~74169 bytes
   - `styles/ai-studio-video-theme.css` ~60811 bytes
   - `styles/character-manager.css` ~50793 bytes
   - `styles/workspace-media.css` ~39516 bytes
+  - `styles/ai-studio-voices-properties.module.css` ~135029 bytes, already imported by `Voices` components
+  - `styles/ai-studio-voices-properties.css` ~7844 bytes, still imported by `globals.css` as a small global bridge
 
 These are ranking inputs only. A large file is not automatically a safe first move.
+
+Refresh correction:
+
+- The previous Packet 1 premise that `styles/ai-studio-voices-properties.css` was a large global extraction target is stale.
+- The large `voices` rules now live in `styles/ai-studio-voices-properties.module.css`, while the global `styles/ai-studio-voices-properties.css` bridge is small.
+- Do not execute the old `voices` global CSS extraction packet by rote. Re-measure shared payload and re-rank the first implementation packet before editing.
 
 ### Safety Classification Rule
 
@@ -309,12 +320,12 @@ Only `feature island` rules should fully leave the shared global path early in t
 
 ## ROI-Ranked Packet Order
 
-### Packet 1: Shared Payload Pilot
+### Packet 1: Shared Payload Re-Baseline
 
-Status: first implementation packet recommended
+Status: re-baseline required before implementation
 
 Problem statement:
-The app-wide CSS path still runs through `frontend/pages/_app.tsx` importing `frontend/styles/globals.css`, so unrelated tool styling can inflate shared payload on routes that do not need it.
+The app-wide CSS path still runs through `frontend/pages/_app.tsx` importing `frontend/styles/globals.css`, so unrelated tool styling can still inflate shared payload on routes that do not need it. However, the original `voices` CSS pilot target is no longer valid as written.
 
 Primary owner files:
 
@@ -322,6 +333,7 @@ Primary owner files:
 - `frontend/styles/globals.css`
 - `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
 - `frontend/styles/ai-studio-voices-properties.css`
+- `frontend/styles/ai-studio-voices-properties.module.css`
 - `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx`
 - `frontend/features/ai-studio/components/CreateVoiceModal.tsx`
 - `frontend/features/ai-studio/components/VoicesLibraryModal.tsx`
@@ -330,24 +342,26 @@ Primary owner files:
 - `frontend/features/ai-studio/components/VoiceChangerAudioSourcePreview.tsx`
 - `frontend/features/ai-studio/components/AiStudioRecordPanelPrefab.tsx`
 
-Why this packet is first:
+Why this packet changed:
 
 - Shared payload is app-wide, so a safe reduction improves many routes at once.
 - `Voices` is already a lazily mounted AI Studio panel subtree.
-- `styles/ai-studio-voices-properties.css` is large enough to matter and has a tight class namespace.
-- The shell-coupled rules in that sheet are few and explicit, which makes it suitable for a pilot extraction.
+- The old plan assumed `styles/ai-studio-voices-properties.css` was a large global stylesheet.
+- Current repo evidence shows that file is now a small global bridge, while the large voices stylesheet is already module-scoped.
+- A shared-payload lane may still be valid, but it needs a fresh owner selection instead of a stale `voices` extraction.
 
 What to do:
 
 1. Re-measure the current `globals.css` import set and the current built CSS if a fresh build is available.
-2. Map `styles/ai-studio-voices-properties.css` into:
+2. Treat `styles/ai-studio-voices-properties.css` as a small global bridge unless fresh build evidence proves it still materially affects shared payload.
+3. Re-rank current CSS candidates by global bytes, route reach, shell coupling, visual-regression risk, and validation availability.
+4. If a new low-risk feature island is found, map that island into:
    - `true global`
    - `shell bridge`
    - `feature island`
-3. Keep `true global` and `shell bridge` rules in the global path for now.
-4. Move only `feature island` rules into a component-owned stylesheet imported by the voices subtree.
-5. Remove only the migrated import from `globals.css`.
-6. Stop after the pilot. Do not continue into a second CSS island in the same packet unless the proof is unusually strong and risk stays low.
+5. Keep `true global` and `shell bridge` rules in the global path for now.
+6. Move only clearly bounded `feature island` rules into component-owned styles.
+7. Stop after one pilot. Do not continue into a second CSS island in the same packet unless the proof is unusually strong and risk stays low.
 
 What not to do:
 
@@ -355,6 +369,7 @@ What not to do:
 - Do not start with `styles/ai-studio-edit-expert.css`.
 - Do not start with `styles/workspace-media.css`.
 - Do not start with `styles/character-manager.css`.
+- Do not start by extracting more from `styles/ai-studio-voices-properties.css` unless fresh measurement proves it is still a top shared-payload source.
 - Do not chase generic dedupe or rename work.
 
 Why those are deferred:
@@ -366,9 +381,10 @@ Why those are deferred:
 
 Pre-edit proof requirements:
 
-- Confirm `Voices` still resolves through the lazy panel path in `AiStudioPageContent.tsx`.
-- Confirm the real non-test `voices` UI consumers are still bounded to the same subtree.
-- Confirm which `voices` selectors reach outside the subtree into shell authority.
+- Confirm the current built CSS/shared route payload first.
+- Confirm the candidate stylesheet is still globally imported and actually reaches routes that do not need it.
+- Confirm the candidate UI consumers are bounded to a lazily mounted or route-scoped subtree.
+- Confirm which selectors reach outside the subtree into shell authority.
 - Confirm no required visual contract depends on selector order from unrelated imports.
 
 Validation:
@@ -380,10 +396,10 @@ Validation:
 
 Packet stop conditions:
 
-- Stop when the `voices` island is either:
+- Stop when the shared-payload lane is either:
   - cleanly extracted with no visual regression evidence, or
-  - proven too shell-coupled for a low-risk pilot.
-- If it is too coupled, do not keep splitting by momentum. Re-rank the next safest island.
+  - proven not to be the current highest-ROI latency lane.
+- If no safe low-risk shared-payload island remains, move to Packet 2 rather than forcing a risky CSS migration by momentum.
 
 ### Packet 2: Protected Startup And First Usable Shell
 
@@ -636,9 +652,9 @@ If a validation gap remains, report it plainly. Do not fill it with confidence l
 
 ## Recommended Start
 
-Start with `Packet 1`.
+Start with `Packet 1` re-baseline, not old Packet 1 implementation.
 
-If `Packet 1` proves too coupled for a safe pilot, move to `Packet 2` rather than forcing a risky CSS migration by momentum.
+If the refreshed shared-payload evidence does not identify a safe high-ROI pilot, move to `Packet 2` rather than forcing a risky CSS migration by momentum.
 
 ## Planning Stop Condition
 

@@ -33,3 +33,24 @@ Purpose: track supervised Latency runs, learned behavior, SOP changes, tool chan
 - Tool changes: none.
 - Remaining friction: Latency still needs stable supervised continuation runs before a KPI baseline is worth freezing.
 - Next training focus: run the next plan continuation through the four-question gate and refine only from observed friction.
+
+### 2026-06-05 - Self audit and prune
+
+- Prompt used: run `docs/agents/gottspan-the-admin/prompts/audit-and-prune-agent-prompt.md` against the receiving agent, Latency.
+- Behavior learned: Latency's package was already compact, so deletion would add more risk than value.
+- Behavior learned: the real context drag was authority drift from loading too much history and from memory carrying old run checkpoints as current truth.
+- SOP or template updates: made `job-description.md`, `goal-prompt.md`, run logs, training history, reports, and workspace scratch conditional/on-demand loads instead of routine context.
+- Memory updates: replaced stale current-checkpoint bullets with a default-load policy and a rule to re-prove old observations before using them.
+- Tool changes: none.
+- Remaining friction: no KPI baseline exists yet; defer until Latency has multiple stable, validated continuation runs.
+- Next training focus: keep future Latency startup bounded to current source-of-truth docs, then load history only for explicit reconstruction, training, or proof tasks.
+
+### 2026-06-05 - Runtime context expiry hardening
+
+- Prompt used: rerun the receiving-agent audit/prune prompt and clear conversational context memory older than two hours.
+- Behavior learned: Latency cannot physically erase the chat transcript, but it can stop treating old conversational context as usable authority.
+- SOP or template updates: added a two-hour runtime-context expiry rule to Latency instructions, memory, and SOP.
+- Compression updates: shortened `README.md` so default startup spends less context on details already owned by `AGENTS.md`, the SOP, and the launch plan.
+- Tool changes: none.
+- Remaining friction: the active launch plan is still large, but it remains the source of truth and should not be compressed inside this agent-maintenance lane.
+- Next training focus: during future Latency runs, actively discard old chat-only claims and ask current repo evidence to carry the decision.

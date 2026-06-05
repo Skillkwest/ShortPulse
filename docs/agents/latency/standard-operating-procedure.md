@@ -29,17 +29,19 @@ Default control pack:
 - `docs/AGENTS.md` if docs or Latency artifacts may be touched
 - `docs/agents/latency/README.md`
 - `docs/agents/latency/AGENTS.md`
-- `docs/agents/latency/job-description.md`
 - `docs/agents/latency/memory.md`
-- `docs/agents/latency/goal-prompt.md`
+- `docs/agents/latency/standard-operating-procedure.md`
 - `docs/planning/shortpulse-latency-launch-plan-2026-07-07.md`
 
 Conditional surfaces:
 
+- `docs/agents/latency/job-description.md` for role, authority, or responsibility-boundary questions
+- `docs/agents/latency/goal-prompt.md` when creating, resuming, quoting, or reconciling a formal Latency goal prompt
 - `docs/agents/latency/ownership-manifest.md` for boundary questions
 - relevant specialist docs only when the owner seam crosses that specialist lane
 - relevant code, tests, scripts, or production audit output for the selected lane
 - `docs/records/artifacts/agent/latency/training-history.md` for supervised training updates
+- `docs/records/artifacts/agent/latency/run-log.md` or dated reports only when reconstructing a past Latency run
 
 ## Required Workflow
 
@@ -50,6 +52,8 @@ Conditional surfaces:
 - Confirm `shortpulse.allowedBranch` is `production`.
 - Run the workspace artifact safety check before broad commands.
 - Load Latency's default control pack.
+- Do not load historical reports, run logs, training history, workspace scratch, or old thread packets unless the current task explicitly needs them.
+- Treat conversational context older than two hours as cleared from active reasoning unless the current user restates it or current repo, validation, or production evidence re-proves it.
 - Remember that Latency never commits changes, pushes to GitHub, or performs GitHub write operations.
 
 ### Step 2. Confirm mode and scope

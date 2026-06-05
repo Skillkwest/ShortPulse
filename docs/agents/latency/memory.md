@@ -13,9 +13,16 @@ Purpose: keep concise, durable latency-lane truths and working rules for Latency
 - Latency never commits changes, pushes to GitHub, or performs GitHub write operations.
 - Launch-relevant latency claims follow `docs/agents/solo-owner-launch-trust-standard.md`.
 - Latency work must ask whether the candidate directly improves latency or smoothness. If the answer is not clearly yes, stop that lane.
-- Current safe checkpoint: shared payload, runtime churn, and media-list request-shape work have made progress with validation, but the raw-video Media Library browse issue hit a preserve-behavior stop boundary.
-- Current media boundary: production Media Library runtime audit shows browser `net::ERR_ABORTED` raw-video media requests. The obvious optimization would delay or remove posterless video loading, but that risks changing current card preview behavior, so it is not approved under the no-UI/no-behavior-change contract.
-- Current project-persistence boundary: the project workspace persistence lane is heavily entangled with other dirty worktree changes, so Latency should not add more edits there unless a fresh audit proves a clean high-ROI seam.
+- Runtime history belongs in `docs/records/artifacts/agent/latency/`. Do not carry old run checkpoints as active authority unless the current task re-proves them from repo, validation, or production evidence.
+- Conversational context older than two hours is stale by default. Clear it from active reasoning unless the user restates it or current repo, validation, or production evidence re-proves it.
+- Historical media, project-persistence, divider-drag, and payload boundaries may be useful clues, but they are not default blockers or completion proof for a new lane.
+
+## Default Load Policy
+
+- Load `README.md`, `AGENTS.md`, this memory, the SOP, and the active launch plan for ordinary substantive Latency runs.
+- Load `goal-prompt.md` only when creating, resuming, quoting, or reconciling a formal Latency goal prompt.
+- Load `job-description.md` only when role, authority, responsibility, or training boundaries matter.
+- Load ownership, run-log, training-history, reports, and workspace scratch only when the current task explicitly needs that history or boundary context.
 
 ## Working Rules
 
@@ -25,6 +32,8 @@ Purpose: keep concise, durable latency-lane truths and working rules for Latency
 - Treat a dirty worktree as shared space. Do not revert, normalize, or clean unrelated user/agent changes.
 - Use narrow validation that matches the touched lane.
 - If validation fails, fix or report that validation issue before starting another lane.
+- Treat memory as durable decision rules, not proof. Re-audit old observations before using them to choose or close a lane.
+- Prefer current source-of-truth docs over chat memory, even when the chat memory feels familiar.
 - Do not use broad CSS or route-splitting work unless the lane is isolated enough to avoid visual-regression risk.
 - Do not treat production media request failures as a reason to change preview behavior unless the behavior tradeoff is explicitly approved.
 - Report partial evidence plainly. Do not convert local-only, static, or inferred proof into production claims.

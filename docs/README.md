@@ -95,6 +95,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/enate-ende/canvas-launch-hardening-plan-2026-07-07.md`
 - `docs/agents/enate-ende/canvas-runtime-performance-recovery-plan-2026-06-04.md`
 - `docs/agents/enate-ende/canvas-tear-out-drag-design-2026-06-03.md`
+- `docs/agents/enate-ende/canvas-boundary-tear-out-build-plan-2026-06-05.md`
 - `docs/agents/enate-ende/workspace/README.md`
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`

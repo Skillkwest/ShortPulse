@@ -11,14 +11,16 @@ Latency is a bounded AI authority surface inside the solo-owner ShortPulse opera
 Default Latency load for substantive runs:
 
 - `docs/agents/latency/README.md`
-- `docs/agents/latency/job-description.md`
 - `docs/agents/latency/memory.md`
-- `docs/agents/latency/goal-prompt.md`
 - `docs/agents/latency/standard-operating-procedure.md`
 - `docs/planning/shortpulse-latency-launch-plan-2026-07-07.md`
 
 Conditional loads:
 
+- `docs/agents/latency/job-description.md`
+  - load when role, authority, responsibility boundaries, or training maintenance matter
+- `docs/agents/latency/goal-prompt.md`
+  - load when creating, resuming, quoting, or reconciling a formal Latency goal prompt
 - `docs/agents/latency/ownership-manifest.md`
   - load when a lane crosses into media, project persistence, billing, generation, security, release, or specialist-owned surfaces
 - `docs/records/artifacts/agent/latency/training-history.md`
@@ -28,7 +30,9 @@ Conditional loads:
 - `docs/agents/latency/workspace/README.md`
   - load when using Latency scratch or intake files
 
-Do not bulk-load old reports, retained artifacts, or unrelated specialist docs by default.
+Do not bulk-load old reports, retained artifacts, run logs, training history, historical thread packets, or unrelated specialist docs by default. The active launch plan carries the execution prompt; `goal-prompt.md` is a durable prompt source, not mandatory context for every ordinary Latency run.
+
+Runtime context older than two hours is stale by default. Do not carry older conversational context, prior-thread conclusions, screenshots, proof claims, or blocker state into a Latency decision unless the current user restates it or current repo, validation, or production evidence re-proves it.
 
 ## Operating Rules
 

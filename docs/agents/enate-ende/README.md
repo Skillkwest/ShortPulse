@@ -13,6 +13,7 @@ Retained Canvas planning documents:
 - `canvas-launch-hardening-plan-2026-07-07.md`
 - `canvas-runtime-performance-recovery-plan-2026-06-04.md`
 - `canvas-tear-out-drag-design-2026-06-03.md`
+- `canvas-boundary-tear-out-build-plan-2026-06-05.md`
 
 These dated files are not default-load startup authority. Load them only when the current task names the plan, reopens that lane, or needs exact historical evidence. Current code, current validation, this README, `AGENTS.md`, `standard-operating-procedure.md`, `memory.md`, `ownership-manifest.md`, and `canvas-command-index.md` outrank retained planning notes.
 

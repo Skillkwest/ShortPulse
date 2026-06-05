@@ -82,6 +82,7 @@ Load these only when the current lane explicitly needs their history:
 - `docs/agents/enate-ende/canvas-launch-hardening-plan-2026-07-07.md`: launch-hardening baseline and proof matrix.
 - `docs/agents/enate-ende/canvas-runtime-performance-recovery-plan-2026-06-04.md`: completed Canvas-local responsiveness recovery sequence and evidence trail.
 - `docs/agents/enate-ende/canvas-tear-out-drag-design-2026-06-03.md`: deferred Canvas-to-workflow export design.
+- `docs/agents/enate-ende/canvas-boundary-tear-out-build-plan-2026-06-05.md`: plan-ready build sequence for no-Shift boundary tear-out from Canvas into the Create composer.
 
 Current Canvas-local responsiveness stop state: after deployed/manual testing, small projects had no Canvas lag, while large projects still lagged. Treat that as evidence that the remaining lag belongs to a separate global AI Studio/project-size responsiveness lane unless fresh current proof re-identifies a Canvas-owned seam.
 

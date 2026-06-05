@@ -304,7 +304,10 @@ describe("Canvas interaction behavior", () => {
       clientY: 150,
     });
 
-    await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+    const tearOutGhost = await screen.findByTestId(`canvas-item-tear-out-ghost-${itemId}`);
+    expect(tearOutGhost).toHaveAttribute("data-phase", "candidate");
+    expect(tearOutGhost).toHaveAttribute("data-client-x", "650");
+    expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
 
     fireEvent.pointerUp(viewport, {
       button: 0,
@@ -315,6 +318,7 @@ describe("Canvas interaction behavior", () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`canvas-item-tear-out-ghost-${itemId}`)).not.toBeInTheDocument();
       expect(Number(item.getAttribute("data-x"))).toBe(startX);
       expect(Number(item.getAttribute("data-y"))).toBe(startY);
     });
@@ -362,6 +366,7 @@ describe("Canvas interaction behavior", () => {
       });
 
       const item = await screen.findByTestId(/canvas-item-/);
+      const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
       const startX = Number(item.getAttribute("data-x"));
       const startY = Number(item.getAttribute("data-y"));
 
@@ -376,6 +381,9 @@ describe("Canvas interaction behavior", () => {
         clientX: 700,
         clientY: 150,
       });
+      const tearOutGhost = await screen.findByTestId(`canvas-item-tear-out-ghost-${itemId}`);
+      expect(tearOutGhost).toHaveAttribute("data-phase", "active");
+      expect(tearOutGhost).toHaveAttribute("data-client-x", "700");
       fireEvent.pointerUp(viewport, {
         button: 0,
         pointerId: 773,
@@ -390,6 +398,7 @@ describe("Canvas interaction behavior", () => {
       });
       expect(setActive).toHaveBeenCalledWith(true);
       expect(setActive).toHaveBeenLastCalledWith(false);
+      expect(screen.queryByTestId(`canvas-item-tear-out-ghost-${itemId}`)).not.toBeInTheDocument();
       expect(Number(item.getAttribute("data-x"))).toBe(startX);
       expect(Number(item.getAttribute("data-y"))).toBe(startY);
     } finally {
@@ -641,7 +650,7 @@ describe("Canvas interaction behavior", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`canvas-item-tear-out-ghost-${itemId}`)).not.toBeInTheDocument();
       expect(Number(item.getAttribute("data-x"))).toBe(startX);
       expect(Number(item.getAttribute("data-y"))).toBe(startY);
     });

@@ -36,6 +36,14 @@ export type CanvasItemDragPreview = {
   deltaY: number;
 };
 
+export type CanvasTearOutDragPreview = {
+  activeItemId: string;
+  itemIds: string[];
+  clientX: number;
+  clientY: number;
+  phase: "candidate" | "active";
+};
+
 export type CanvasViewportWheelEvent = Pick<
   globalThis.WheelEvent,
   "clientX" | "clientY" | "deltaMode" | "deltaY" | "preventDefault" | "stopPropagation"
@@ -53,6 +61,7 @@ export type CanvasPropertiesPanelProps = {
   items: CanvasSceneItem[];
   pendingItems: CanvasPendingSceneItem[];
   itemDragPreview?: CanvasItemDragPreview | null;
+  tearOutDragPreview?: CanvasTearOutDragPreview | null;
   marqueeSelectionBox?: CanvasMarqueeSelectionBox | null;
   viewportRef: RefObject<HTMLDivElement>;
   isDropActive: boolean;

@@ -66,6 +66,7 @@ import type {
   CanvasItemDragPreview,
   CanvasMarqueeSelectionBox,
   CanvasPropertiesPanelProps,
+  CanvasTearOutDragPreview,
   CanvasViewportWheelEvent,
   CanvasWorkspaceInstanceId,
 } from "./canvasWorkspaceContracts";
@@ -81,6 +82,11 @@ const CANVAS_TEAR_OUT_HYSTERESIS_PX = 24;
 
 type PendingItemDragPreviewFrame = {
   preview: CanvasItemDragPreview;
+  frameId: number | null;
+};
+
+type PendingTearOutDragPreviewFrame = {
+  preview: CanvasTearOutDragPreview;
   frameId: number | null;
 };
 
@@ -169,12 +175,16 @@ export const useCanvasViewportInstanceState = ({
   const viewportRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<CanvasPointerSession>({ kind: "none" });
   const pendingItemDragPreviewFrameRef = useRef<PendingItemDragPreviewFrame | null>(null);
+  const pendingTearOutDragPreviewFrameRef = useRef<PendingTearOutDragPreviewFrame | null>(null);
   const pendingCameraFrameRef = useRef<PendingCameraFrame | null>(null);
   const lastViewportTapRef = useRef<CanvasInteractionPoint | null>(null);
   const lastViewportDraftCreationRef = useRef<CanvasInteractionPoint | null>(null);
   const [isTextResizeActive, setIsTextResizeActive] = useState(false);
   const [internalCamera, setInternalCamera] = useState(CANVAS_DEFAULT_CAMERA);
   const [itemDragPreview, setItemDragPreview] = useState<CanvasItemDragPreview | null>(null);
+  const [tearOutDragPreview, setTearOutDragPreview] = useState<CanvasTearOutDragPreview | null>(
+    null
+  );
   const [marqueeSelectionBox, setMarqueeSelectionBox] = useState<CanvasMarqueeSelectionBox | null>(
     null
   );
@@ -285,6 +295,24 @@ export const useCanvasViewportInstanceState = ({
     setItemDragPreview(null);
   }, [cancelPendingItemDragPreviewFrame]);
 
+  const cancelPendingTearOutDragPreviewFrame = useCallback(() => {
+    const pendingFrame = pendingTearOutDragPreviewFrameRef.current;
+    if (!pendingFrame) return;
+    pendingTearOutDragPreviewFrameRef.current = null;
+    if (
+      pendingFrame.frameId != null &&
+      typeof window !== "undefined" &&
+      typeof window.cancelAnimationFrame === "function"
+    ) {
+      window.cancelAnimationFrame(pendingFrame.frameId);
+    }
+  }, []);
+
+  const clearTearOutDragPreview = useCallback(() => {
+    cancelPendingTearOutDragPreviewFrame();
+    setTearOutDragPreview(null);
+  }, [cancelPendingTearOutDragPreviewFrame]);
+
   const scheduleItemDragPreviewFrame = useCallback((preview: CanvasItemDragPreview) => {
     if (!preview.itemIds.length) return;
     const pendingFrame = pendingItemDragPreviewFrameRef.current;
@@ -313,9 +341,38 @@ export const useCanvasViewportInstanceState = ({
     });
   }, []);
 
+  const scheduleTearOutDragPreviewFrame = useCallback((preview: CanvasTearOutDragPreview) => {
+    if (!preview.itemIds.length) return;
+    const pendingFrame = pendingTearOutDragPreviewFrameRef.current;
+    if (pendingFrame) {
+      pendingFrame.preview = preview;
+      return;
+    }
+
+    const nextPendingFrame: PendingTearOutDragPreviewFrame = {
+      preview,
+      frameId: null,
+    };
+    pendingTearOutDragPreviewFrameRef.current = nextPendingFrame;
+
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+      pendingTearOutDragPreviewFrameRef.current = null;
+      setTearOutDragPreview(preview);
+      return;
+    }
+
+    nextPendingFrame.frameId = window.requestAnimationFrame(() => {
+      const currentPendingFrame = pendingTearOutDragPreviewFrameRef.current;
+      if (currentPendingFrame !== nextPendingFrame) return;
+      pendingTearOutDragPreviewFrameRef.current = null;
+      setTearOutDragPreview(currentPendingFrame.preview);
+    });
+  }, []);
+
   const commitItemGhostDrag = useCallback(
     (interaction: Extract<CanvasPointerSession, { kind: "item-ghost-drag" }>) => {
       clearItemDragPreview();
+      clearTearOutDragPreview();
       canvasTearOutTargetRegistry?.clearActiveTarget();
       setItems((currentItems) =>
         moveCanvasSceneItemsByIdSet(
@@ -326,7 +383,7 @@ export const useCanvasViewportInstanceState = ({
         )
       );
     },
-    [canvasTearOutTargetRegistry, clearItemDragPreview, setItems]
+    [canvasTearOutTargetRegistry, clearItemDragPreview, clearTearOutDragPreview, setItems]
   );
 
   const resolveItemGhostDragTearOutState = useCallback(
@@ -408,7 +465,20 @@ export const useCanvasViewportInstanceState = ({
         clientY
       );
       interactionRef.current = nextInteraction;
-      if ((!deltaX && !deltaY) || nextInteraction.tearOutPhase === "active") {
+      const tearOutPhase = nextInteraction.tearOutPhase ?? "none";
+      if (tearOutPhase === "candidate" || tearOutPhase === "active") {
+        clearItemDragPreview();
+        scheduleTearOutDragPreviewFrame({
+          activeItemId: interaction.itemId,
+          itemIds: interaction.selectedItemIds,
+          clientX,
+          clientY,
+          phase: tearOutPhase,
+        });
+        return nextInteraction;
+      }
+      clearTearOutDragPreview();
+      if (!deltaX && !deltaY) {
         clearItemDragPreview();
         return nextInteraction;
       }
@@ -420,7 +490,13 @@ export const useCanvasViewportInstanceState = ({
       });
       return nextInteraction;
     },
-    [clearItemDragPreview, resolveItemGhostDragTearOutState, scheduleItemDragPreviewFrame]
+    [
+      clearItemDragPreview,
+      clearTearOutDragPreview,
+      resolveItemGhostDragTearOutState,
+      scheduleItemDragPreviewFrame,
+      scheduleTearOutDragPreviewFrame,
+    ]
   );
 
   const finishItemGhostDragAtPoint = useCallback(
@@ -441,12 +517,14 @@ export const useCanvasViewportInstanceState = ({
         if (resolvedTarget) {
           resolvedTarget.target.accept(payload);
           clearItemDragPreview();
+          clearTearOutDragPreview();
           canvasTearOutTargetRegistry.clearActiveTarget();
           return;
         }
       }
       if (payload && finalInteraction.tearOutPhase === "candidate") {
         clearItemDragPreview();
+        clearTearOutDragPreview();
         canvasTearOutTargetRegistry?.clearActiveTarget();
         return;
       }
@@ -455,6 +533,7 @@ export const useCanvasViewportInstanceState = ({
     [
       canvasTearOutTargetRegistry,
       clearItemDragPreview,
+      clearTearOutDragPreview,
       commitItemGhostDrag,
       resolveItemGhostDragTearOutState,
     ]
@@ -1169,6 +1248,7 @@ export const useCanvasViewportInstanceState = ({
           flushPendingCameraFrame();
         } else if (interaction.kind === "item-ghost-drag") {
           clearItemDragPreview();
+          clearTearOutDragPreview();
           canvasTearOutTargetRegistry?.clearActiveTarget();
         }
         lastViewportTapRef.current = null;
@@ -1195,6 +1275,7 @@ export const useCanvasViewportInstanceState = ({
     [
       canvasTearOutTargetRegistry,
       clearItemDragPreview,
+      clearTearOutDragPreview,
       flushPendingCameraFrame,
       logCanvasGesture,
       setMarqueeSelectionBox,
@@ -1250,6 +1331,7 @@ export const useCanvasViewportInstanceState = ({
       event.preventDefault();
       event.stopPropagation();
       clearItemDragPreview();
+      clearTearOutDragPreview();
       setMarqueeSelectionBox(null);
       clearTextEditSession();
       viewportRef.current?.focus();
@@ -1302,6 +1384,7 @@ export const useCanvasViewportInstanceState = ({
     [
       clearTextEditSession,
       clearItemDragPreview,
+      clearTearOutDragPreview,
       canvasTearOutTargetRegistry,
       isSpacePanActiveRef,
       getCanvasTearOutOutputById,
@@ -1378,6 +1461,7 @@ export const useCanvasViewportInstanceState = ({
       if (isMatchingPanInteraction || isMatchingDragInteraction) {
         if (isMatchingDragInteraction) {
           clearItemDragPreview();
+          clearTearOutDragPreview();
           canvasTearOutTargetRegistry?.clearActiveTarget();
         } else {
           flushPendingCameraFrame();
@@ -1389,7 +1473,12 @@ export const useCanvasViewportInstanceState = ({
         });
       }
     },
-    [canvasTearOutTargetRegistry, clearItemDragPreview, flushPendingCameraFrame]
+    [
+      canvasTearOutTargetRegistry,
+      clearItemDragPreview,
+      clearTearOutDragPreview,
+      flushPendingCameraFrame,
+    ]
   );
 
   const handleViewportWheel = useCallback(
@@ -1423,6 +1512,7 @@ export const useCanvasViewportInstanceState = ({
       items,
       pendingItems,
       itemDragPreview,
+      tearOutDragPreview,
       marqueeSelectionBox,
       viewportRef,
       isDropActive,
@@ -1500,6 +1590,7 @@ export const useCanvasViewportInstanceState = ({
       onViewportDrop,
       onViewportKeyDown,
       pendingItems,
+      tearOutDragPreview,
       textEditSession,
     ]
   );

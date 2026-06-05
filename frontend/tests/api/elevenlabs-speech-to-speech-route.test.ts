@@ -176,8 +176,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       sourceName: "source.wav",
       sourceOrigin: "local",
       shortpulseContext: JSON.stringify({
+        mode: "audio",
+        selected_tool: "voice-changer",
         displayed_billed_credits: 15,
-        pricing_display_source: "shared_adapter",
+        pricing_display_source: "pricing_grid",
       }),
       removeBackgroundNoise: "false",
       voiceSettings: JSON.stringify({
@@ -345,8 +347,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         shortpulseContext: {
+          mode: "audio",
+          selected_tool: "voice-changer",
           displayed_billed_credits: 15,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
         },
       })
     );
@@ -365,8 +369,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         transcriptText: "I can hear the city waking up below us.",
         extraMetadata: expect.objectContaining({
           shortpulse_context: {
+            mode: "audio",
+            selected_tool: "voice-changer",
             displayed_billed_credits: 15,
-            pricing_display_source: "shared_adapter",
+            pricing_display_source: "pricing_grid",
           },
         }),
       })
@@ -392,8 +398,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
           source_duration_seconds: 12,
           source_video_storage_path: "user-1/voice-changer/source-video/source.mp4",
           shortpulse_context: {
+            mode: "audio",
+            selected_tool: "voice-changer",
             displayed_billed_credits: 15,
-            pricing_display_source: "shared_adapter",
+            pricing_display_source: "pricing_grid",
           },
         }),
       })

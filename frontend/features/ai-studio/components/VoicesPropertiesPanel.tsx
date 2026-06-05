@@ -14,6 +14,7 @@ import {
   resolveRequiredAudioVoiceDesignModelId,
   resolveRequiredAudioVoiceoverModelId,
 } from "../../../lib/model-runtime/modelCatalog";
+import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useVoiceChangerSourceController } from "../hooks/useVoiceChangerSourceController";
@@ -22,7 +23,6 @@ import {
   useSharedVoicesGrid,
   type SharedVoiceOption,
 } from "../hooks/useSharedVoicesGrid";
-import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import type { ToolId } from "../types";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceModal";
@@ -285,6 +285,7 @@ export type VoicesGenerateRequest =
       outputFormat: string;
       config: ElevenVoiceoverRequestConfig;
       displayedBilledCredits?: number | null;
+      pricingPolicyReady?: boolean;
     }
   | {
       mode: "voice-changer";
@@ -301,6 +302,7 @@ export type VoicesGenerateRequest =
       };
       inputFormat: string;
       displayedBilledCredits?: number | null;
+      pricingPolicyReady?: boolean;
     };
 
 export type VoicesPropertiesPanelProps = {
@@ -479,25 +481,27 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const normalizedVoicePromptLength = voicePrompt.trim().length;
   const estimatedCredits =
     surfaceMode === "create"
-      ? (resolveClientBilledCredits({
-          modelId: hardcodedVoiceoverModelId,
-          params: {
-            textCharacters: voiceScript.trim().length,
-          },
-          pricingPolicy,
-          pricingPolicyReady,
-        }) ?? null)
-      : (resolveClientBilledCredits({
-          modelId: hardcodedVoiceChangerModel,
-          params: {
-            sourceDurationSeconds:
-              voiceChangerSource?.durationMs != null
-                ? voiceChangerSource.durationMs / 1000
-                : undefined,
-          },
-          pricingPolicy,
-          pricingPolicyReady,
-        }) ?? null);
+      ? ((pricingPolicyReady
+          ? resolvePricingGridBilledCredits({
+              modelId: hardcodedVoiceoverModelId,
+              params: {
+                textCharacters: voiceScript.trim().length,
+              },
+              pricingPolicy,
+            })
+          : null) ?? null)
+      : ((pricingPolicyReady
+          ? resolvePricingGridBilledCredits({
+              modelId: hardcodedVoiceChangerModel,
+              params: {
+                sourceDurationSeconds:
+                  voiceChangerSource?.durationMs != null
+                    ? voiceChangerSource.durationMs / 1000
+                    : undefined,
+              },
+              pricingPolicy,
+            })
+          : null) ?? null);
   const isGenerateEnabled =
     Boolean(selectedLibraryVoice?.id) &&
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
@@ -1647,6 +1651,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         outputFormat: hardcodedVoiceOutputFormat,
         config: buildVoiceoverElevenV3RequestConfig(),
         displayedBilledCredits: estimatedCredits,
+        pricingPolicyReady,
       });
       return;
     }
@@ -1660,6 +1665,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       modelId: hardcodedVoiceChangerModel,
       inputFormat: hardcodedVoiceChangerInputFormat,
       displayedBilledCredits: estimatedCredits,
+      pricingPolicyReady,
       voiceSettings: buildVoiceChangerRequestSettings(),
     });
   }, [
@@ -1667,6 +1673,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     selectedLibraryVoice,
     surfaceMode,
     estimatedCredits,
+    pricingPolicyReady,
     voiceChangerSource,
     voiceScript,
   ]);

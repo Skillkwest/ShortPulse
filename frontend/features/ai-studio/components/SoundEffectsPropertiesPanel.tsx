@@ -5,9 +5,9 @@
 import React from "react";
 import { ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS } from "../../../lib/model-runtime/elevenLabsAudioDurations";
 import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runtime/modelCatalog";
+import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
-import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 
 export type SoundEffectFormat = "mp3_44100_128" | "pcm_48000";
 export const hardcodedSoundEffectsModelId = resolveRequiredAudioSoundEffectsModelId();
@@ -19,6 +19,7 @@ export type SoundEffectsGenerateRequest = {
   outputFormat: SoundEffectFormat;
   modelId: typeof hardcodedSoundEffectsModelId;
   displayedBilledCredits?: number | null;
+  pricingPolicyReady?: boolean;
 };
 
 export type SoundEffectsPropertiesPanelProps = {
@@ -169,15 +170,16 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   }, [isDurationMenuOpen]);
 
   const generateCost =
-    resolveClientBilledCredits({
-      modelId: hardcodedSoundEffectsModelId,
-      params: {
-        durationSeconds,
-        generationCount: 1,
-      },
-      pricingPolicy,
-      pricingPolicyReady,
-    }) ?? null;
+    (pricingPolicyReady
+      ? resolvePricingGridBilledCredits({
+          modelId: hardcodedSoundEffectsModelId,
+          params: {
+            durationSeconds,
+            generationCount: 1,
+          },
+          pricingPolicy,
+        })
+      : null) ?? null;
   const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0;
   const selectedDurationOption =
     ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS.find((option) => option.value === durationSeconds) ??
@@ -328,8 +330,9 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       outputFormat: defaultSoundEffectsFormat,
       modelId: hardcodedSoundEffectsModelId,
       displayedBilledCredits: generateCost,
+      pricingPolicyReady,
     });
-  }, [durationSeconds, generateCost, loopEnabled, onGenerate, prompt]);
+  }, [durationSeconds, generateCost, loopEnabled, onGenerate, pricingPolicyReady, prompt]);
 
   return (
     <section className="sound-effects-properties-panel tool-properties" aria-busy={isGenerating}>

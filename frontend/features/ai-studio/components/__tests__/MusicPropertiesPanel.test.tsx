@@ -5,7 +5,8 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { MusicPropertiesPanel } from "../MusicPropertiesPanel";
+import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import { hardcodedMusicModelId, MusicPropertiesPanel } from "../MusicPropertiesPanel";
 
 describe("MusicPropertiesPanel", () => {
   it("renders the music mode toggle instead of the retired preview area", () => {
@@ -242,8 +243,14 @@ describe("MusicPropertiesPanel", () => {
         modelId: "music_v1",
       })
     );
+    const expectedDisplayedCredits = resolvePricingGridBilledCredits({
+      modelId: hardcodedMusicModelId,
+      params: {
+        durationSeconds: null,
+      },
+    });
     expect(firstRequest.displayedBilledCredits).toBe(secondRequest.displayedBilledCredits);
-    expect(firstRequest.displayedBilledCredits).not.toBeNull();
+    expect(firstRequest.displayedBilledCredits).toBe(expectedDisplayedCredits);
   });
 
   it("submits the selected fixed music duration", async () => {

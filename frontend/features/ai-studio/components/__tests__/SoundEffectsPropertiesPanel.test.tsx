@@ -5,7 +5,11 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { SoundEffectsPropertiesPanel } from "../SoundEffectsPropertiesPanel";
+import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import {
+  hardcodedSoundEffectsModelId,
+  SoundEffectsPropertiesPanel,
+} from "../SoundEffectsPropertiesPanel";
 
 describe("SoundEffectsPropertiesPanel", () => {
   it("renders the simplified sound effects workflow surface", () => {
@@ -153,8 +157,15 @@ describe("SoundEffectsPropertiesPanel", () => {
       durationSeconds: null,
       loop: false,
       outputFormat: "mp3_44100_128",
-      modelId: "eleven_text_to_sound_v2",
-      displayedBilledCredits: 2,
+      modelId: hardcodedSoundEffectsModelId,
+      displayedBilledCredits: resolvePricingGridBilledCredits({
+        modelId: hardcodedSoundEffectsModelId,
+        params: {
+          durationSeconds: null,
+          generationCount: 1,
+        },
+      }),
+      pricingPolicyReady: true,
     });
   });
 

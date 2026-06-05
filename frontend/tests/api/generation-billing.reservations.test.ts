@@ -644,6 +644,77 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("reserves audio requests from the pricing-grid resolver when shortpulse_context marks sound billing", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-audio-grid", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-audio-grid",
+      },
+      url: "/api/elevenlabs/music",
+      body: {
+        shortpulse_context: {
+          selected_tool: "music",
+          mode: "audio",
+          displayed_billed_credits: 18,
+          pricing_display_source: "pricing_grid",
+          pricing_policy_ready: true,
+        },
+      },
+    };
+    const res = createMockResponse();
+    const payload = {
+      text: "Night-drive synth anthem",
+      duration_seconds: 30,
+      shortpulse_context: {
+        selected_tool: "music",
+        mode: "audio",
+      },
+    };
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "music_v1",
+      payload,
+      reason: "ElevenLabs music generation",
+      shortpulseContext: {
+        selected_tool: "music",
+        mode: "audio",
+      },
+    });
+
+    const expectedPricingParams = buildPricingParams("music_v1", payload);
+    const expectedBreakdown = resolvePricingGridCostBreakdown({
+      modelId: "music_v1",
+      params: expectedPricingParams,
+      pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
+    });
+
+    expect(charge).not.toBeNull();
+    expect(expectedBreakdown).not.toBeNull();
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_amount_cents: Math.abs(expectedBreakdown?.credits ?? 0),
+        p_metadata: expect.objectContaining({
+          model_id: "music_v1",
+          debited_credits: expectedBreakdown?.credits,
+          pricing_breakdown: expect.objectContaining({
+            billed_credits: expectedBreakdown?.credits,
+            billed_usd: expectedBreakdown?.usd,
+            ...(expectedBreakdown?.variantId ? { variant_id: expectedBreakdown.variantId } : {}),
+          }),
+        }),
+      })
+    );
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("returns charge helpers when reservation RPC succeeds and calls mark/release RPCs", async () => {
     const rpcMock = vi
       .fn()

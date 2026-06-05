@@ -6,6 +6,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../../lib/customVoiceName";
+import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
 import { useVoiceChangerSourceController } from "../../hooks/useVoiceChangerSourceController";
 import {
@@ -815,6 +816,19 @@ describe("VoicesPropertiesPanel", () => {
         removeBackgroundNoise: false,
       })
     );
+    const submittedRequest = onGenerate.mock.calls[0]?.[0];
+    expect(submittedRequest?.displayedBilledCredits).toBe(
+      resolvePricingGridBilledCredits({
+        modelId: submittedRequest?.modelId,
+        params: {
+          sourceDurationSeconds:
+            typeof submittedRequest?.source?.durationMs === "number"
+              ? submittedRequest.source.durationMs / 1000
+              : undefined,
+        },
+      })
+    );
+    expect(submittedRequest?.pricingPolicyReady).toBe(true);
   });
 
   it("keeps the local video preview alive until extraction finishes", async () => {
@@ -2705,6 +2719,16 @@ describe("VoicesPropertiesPanel", () => {
         }),
       })
     );
+    const submittedRequest = onGenerate.mock.calls[0]?.[0];
+    expect(submittedRequest?.displayedBilledCredits).toBe(
+      resolvePricingGridBilledCredits({
+        modelId: hardcodedVoiceoverModelId,
+        params: {
+          textCharacters: submittedRequest?.script?.length,
+        },
+      })
+    );
+    expect(submittedRequest?.pricingPolicyReady).toBe(true);
   });
 
   it("keeps generate available while a voice generation is already in flight", async () => {

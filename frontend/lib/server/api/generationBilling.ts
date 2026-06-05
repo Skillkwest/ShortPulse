@@ -176,6 +176,24 @@ const isVideoBillingPath = ({
   return selectedTool === "video" && resolvedMode === "video";
 };
 
+const isAudioBillingPath = ({
+  shortpulseContext,
+}: {
+  shortpulseContext: JsonObject | null;
+}): boolean => {
+  const selectedTool =
+    typeof shortpulseContext?.selected_tool === "string" ? shortpulseContext.selected_tool : null;
+  const resolvedMode =
+    typeof shortpulseContext?.mode === "string" ? shortpulseContext.mode.trim() : null;
+  return (
+    resolvedMode === "audio" &&
+    (selectedTool === "music" ||
+      selectedTool === "sound-effects" ||
+      selectedTool === "voiceover" ||
+      selectedTool === "voice-changer")
+  );
+};
+
 const isLaunchDeferredEditPricingPath = ({
   pricingParams,
 }: {
@@ -287,10 +305,20 @@ export const chargeGenerationRequest = async ({
         pricingPolicy: effectivePricingPolicy,
       })
     : null;
+  const audioPricingBreakdown = isAudioBillingPath({
+    shortpulseContext,
+  })
+    ? resolvePricingGridCostBreakdown({
+        modelId,
+        params: pricingParams,
+        pricingPolicy: effectivePricingPolicy,
+      })
+    : null;
   const canonicalPricingBreakdown =
     createImagePricingLookup?.breakdown ??
     editImagePricingLookup?.breakdown ??
-    videoPricingBreakdown;
+    videoPricingBreakdown ??
+    audioPricingBreakdown;
   const canonicalPricingParams =
     createImagePricingLookup?.params ?? editImagePricingLookup?.params ?? pricingParams;
   const requiresCanonicalEditImagePricing =
@@ -302,6 +330,9 @@ export const chargeGenerationRequest = async ({
     }) &&
     supportsCanonicalEditImageBilledPricing(modelId);
   const requiresCanonicalVideoPricing = isVideoBillingPath({
+    shortpulseContext,
+  });
+  const requiresCanonicalAudioPricing = isAudioBillingPath({
     shortpulseContext,
   });
   if (requiresCanonicalEditImagePricing && !editImagePricingLookup?.breakdown) {
@@ -329,6 +360,26 @@ export const chargeGenerationRequest = async ({
       req,
       routeLabel,
       source: "api.generation_billing_missing_canonical_video_price",
+      message: "Pricing is unavailable for this configuration.",
+      statusCode: 500,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        model_id: modelId,
+        source_ref: sourceRef,
+        pricing_params: pricingParams,
+        pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
+        pricing_policy_source: runtimePricingPolicy.source,
+      },
+    });
+    res.status(500).json({ error: "Pricing is unavailable for this configuration." });
+    return null;
+  }
+  if (requiresCanonicalAudioPricing && !audioPricingBreakdown) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.generation_billing_missing_canonical_audio_price",
       message: "Pricing is unavailable for this configuration.",
       statusCode: 500,
       userId: user.id,

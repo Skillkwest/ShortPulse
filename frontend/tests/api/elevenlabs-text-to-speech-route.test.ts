@@ -215,8 +215,10 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         outputFormat: "mp3_44100_128",
         project_id: "project-1",
         shortpulse_context: {
+          mode: "audio",
+          selected_tool: "voiceover",
           displayed_billed_credits: 15,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
         },
         config: {
           model_id: "eleven_multilingual_v2",
@@ -234,8 +236,10 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
           text_characters: "Voiceover billing path verification script.".length,
         }),
         shortpulseContext: {
+          mode: "audio",
+          selected_tool: "voiceover",
           displayed_billed_credits: 15,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
         },
       })
     );
@@ -250,8 +254,10 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
           provider_request_id: "provider-tts-1",
           text_character_count: "Voiceover billing path verification script.".length,
           shortpulse_context: {
+            mode: "audio",
+            selected_tool: "voiceover",
             displayed_billed_credits: 15,
-            pricing_display_source: "shared_adapter",
+            pricing_display_source: "pricing_grid",
           },
         }),
       })

@@ -5,9 +5,9 @@
 import React from "react";
 import { ELEVENLABS_MUSIC_DURATION_OPTIONS } from "../../../lib/model-runtime/elevenLabsAudioDurations";
 import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/modelCatalog";
+import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
-import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 
 export type MusicMode = "instrumental" | "vocal";
 export type MusicStructure = "loop" | "full-track" | "cinematic";
@@ -24,6 +24,7 @@ export type MusicGenerateRequest = {
   outputFormat: MusicFormat;
   modelId: typeof hardcodedMusicModelId;
   displayedBilledCredits?: number | null;
+  pricingPolicyReady?: boolean;
 };
 
 export type MusicPropertiesPanelProps = {
@@ -225,14 +226,15 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   });
 
   const estimatedCreditsPerSong =
-    resolveClientBilledCredits({
-      modelId: hardcodedMusicModelId,
-      params: {
-        durationSeconds: selectedDurationSeconds,
-      },
-      pricingPolicy,
-      pricingPolicyReady,
-    }) ?? null;
+    (pricingPolicyReady
+      ? resolvePricingGridBilledCredits({
+          modelId: hardcodedMusicModelId,
+          params: {
+            durationSeconds: selectedDurationSeconds,
+          },
+          pricingPolicy,
+        })
+      : null) ?? null;
   const estimatedCredits =
     estimatedCreditsPerSong != null ? estimatedCreditsPerSong * songBatchCount : null;
   const promptPlaceholder =
@@ -431,6 +433,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       outputFormat: defaultMusicFormat,
       modelId: hardcodedMusicModelId,
       displayedBilledCredits: estimatedCreditsPerSong,
+      pricingPolicyReady,
     } satisfies MusicGenerateRequest;
 
     void Promise.allSettled(Array.from({ length: songBatchCount }, () => onGenerate(request)));
@@ -439,6 +442,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     requestedMusicMode,
     isWithinPromptLimit,
     onGenerate,
+    pricingPolicyReady,
     songBatchCount,
     selectedDurationSeconds,
     submissionText,

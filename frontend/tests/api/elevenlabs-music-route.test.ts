@@ -240,8 +240,10 @@ describe("POST /api/elevenlabs/music", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
         shortpulse_context: {
+          mode: "audio",
+          selected_tool: "music",
           displayed_billed_credits: 20,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
         },
       },
     };
@@ -255,8 +257,10 @@ describe("POST /api/elevenlabs/music", () => {
           duration_seconds: 30,
         },
         shortpulseContext: {
+          mode: "audio",
+          selected_tool: "music",
           displayed_billed_credits: 20,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
         },
       })
     );
@@ -272,8 +276,10 @@ describe("POST /api/elevenlabs/music", () => {
       expect.objectContaining({
         extraMetadata: expect.objectContaining({
           shortpulse_context: {
+            mode: "audio",
+            selected_tool: "music",
             displayed_billed_credits: 20,
-            pricing_display_source: "shared_adapter",
+            pricing_display_source: "pricing_grid",
           },
         }),
       })

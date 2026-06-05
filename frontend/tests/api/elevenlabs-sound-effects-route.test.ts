@@ -202,8 +202,10 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         modelId: "eleven_text_to_sound_v2",
         project_id: "project-1",
         shortpulse_context: {
+          mode: "audio",
+          selected_tool: "sound-effects",
           displayed_billed_credits: 15,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
         },
       },
     };
@@ -218,8 +220,10 @@ describe("POST /api/elevenlabs/sound-effects", () => {
           generation_count: 1,
         }),
         shortpulseContext: {
+          mode: "audio",
+          selected_tool: "sound-effects",
           displayed_billed_credits: 15,
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
         },
       })
     );
@@ -236,8 +240,10 @@ describe("POST /api/elevenlabs/sound-effects", () => {
           provider_character_cost: 100,
           provider_request_id: "provider-sfx-1",
           shortpulse_context: {
+            mode: "audio",
+            selected_tool: "sound-effects",
             displayed_billed_credits: 15,
-            pricing_display_source: "shared_adapter",
+            pricing_display_source: "pricing_grid",
           },
         }),
       })

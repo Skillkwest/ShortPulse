@@ -128,7 +128,7 @@ describe("useAiStudioAudioGeneration", () => {
         shortpulse_context: {
           mode: "audio",
           selected_tool: "music",
-          pricing_display_source: "shared_adapter",
+          pricing_display_source: "pricing_grid",
           pricing_policy_ready: true,
           displayed_billed_credits: null,
         },

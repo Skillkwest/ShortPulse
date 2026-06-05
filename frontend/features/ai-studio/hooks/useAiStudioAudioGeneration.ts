@@ -170,14 +170,16 @@ const resolveAudioGenerateErrorMessage = ({
 const buildAudioShortpulseContext = ({
   selectedTool,
   displayedBilledCredits,
+  pricingPolicyReady = true,
 }: {
   selectedTool: "music" | "sound-effects" | "voiceover" | "voice-changer";
   displayedBilledCredits: number | null | undefined;
+  pricingPolicyReady?: boolean;
 }) => ({
   mode: "audio",
   selected_tool: selectedTool,
-  pricing_display_source: "shared_adapter",
-  pricing_policy_ready: true,
+  pricing_display_source: "pricing_grid",
+  pricing_policy_ready: pricingPolicyReady,
   displayed_billed_credits:
     typeof displayedBilledCredits === "number" ? displayedBilledCredits : null,
 });
@@ -354,6 +356,7 @@ export const useAiStudioAudioGeneration = ({
                   shortpulse_context: buildAudioShortpulseContext({
                     selectedTool: "voiceover",
                     displayedBilledCredits: request.displayedBilledCredits,
+                    pricingPolicyReady: request.pricingPolicyReady,
                   }),
                   ...(projectId ? { project_id: projectId } : {}),
                 }),
@@ -381,6 +384,7 @@ export const useAiStudioAudioGeneration = ({
                     buildAudioShortpulseContext({
                       selectedTool: "voice-changer",
                       displayedBilledCredits: request.displayedBilledCredits,
+                      pricingPolicyReady: request.pricingPolicyReady,
                     })
                   )
                 );
@@ -480,6 +484,7 @@ export const useAiStudioAudioGeneration = ({
     async (request: MusicGenerateRequest) => {
       const promptText = request.text.trim();
       if (!promptText) return false;
+      const { displayedBilledCredits, pricingPolicyReady = true, ...providerRequest } = request;
 
       setUiError(null);
       setMusicGenerationCount((count) => count + 1);
@@ -506,10 +511,11 @@ export const useAiStudioAudioGeneration = ({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            ...request,
+            ...providerRequest,
             shortpulse_context: buildAudioShortpulseContext({
               selectedTool: "music",
-              displayedBilledCredits: request.displayedBilledCredits,
+              displayedBilledCredits,
+              pricingPolicyReady,
             }),
             ...(projectId ? { project_id: projectId } : {}),
           }),
@@ -568,6 +574,7 @@ export const useAiStudioAudioGeneration = ({
     async (request: SoundEffectsGenerateRequest) => {
       const promptText = request.text.trim();
       if (!promptText) return;
+      const { displayedBilledCredits, pricingPolicyReady = true, ...providerRequest } = request;
 
       setUiError(null);
       setSoundEffectsGenerationCount((count) => count + 1);
@@ -594,10 +601,11 @@ export const useAiStudioAudioGeneration = ({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            ...request,
+            ...providerRequest,
             shortpulse_context: buildAudioShortpulseContext({
               selectedTool: "sound-effects",
-              displayedBilledCredits: request.displayedBilledCredits,
+              displayedBilledCredits,
+              pricingPolicyReady,
             }),
             ...(projectId ? { project_id: projectId } : {}),
           }),

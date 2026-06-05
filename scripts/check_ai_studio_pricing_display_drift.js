@@ -67,20 +67,45 @@ const fileChecks = [
   {
     file: "frontend/features/ai-studio/components/MusicPropertiesPanel.tsx",
     label: "music panel",
-    requireIncludes: ["resolveClientBilledCredits({", "pricingPolicyReady"],
+    requireIncludes: [
+      "resolvePricingGridBilledCredits({",
+      "pricingPolicyReady",
+    ],
     forbidIncludes: ["computeCostForModel("],
   },
   {
     file: "frontend/features/ai-studio/components/SoundEffectsPropertiesPanel.tsx",
     label: "sound effects panel",
-    requireIncludes: ["resolveClientBilledCredits({", "pricingPolicyReady"],
+    requireIncludes: [
+      "resolvePricingGridBilledCredits({",
+      "pricingPolicyReady",
+    ],
     forbidIncludes: ["computeCostForModel("],
   },
   {
     file: "frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx",
     label: "voices panel",
-    requireIncludes: ["resolveClientBilledCredits({", "pricingPolicyReady"],
+    requireIncludes: [
+      "resolvePricingGridBilledCredits({",
+      "pricingPolicyReady",
+    ],
     forbidIncludes: ["computeCostForModel("],
+  },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioAudioGeneration.ts",
+    label: "audio submit hook",
+    requireIncludes: [
+      'pricing_display_source: "pricing_grid"',
+      "pricing_policy_ready:",
+    ],
+  },
+  {
+    file: "frontend/lib/server/api/generationBilling.ts",
+    label: "generation billing audio path",
+    requireIncludes: [
+      "const isAudioBillingPath = ({",
+      "api.generation_billing_missing_canonical_audio_price",
+    ],
   },
   {
     file: "frontend/features/ai-studio/routes/AiStudioRouteApp.tsx",

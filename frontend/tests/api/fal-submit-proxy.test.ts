@@ -398,6 +398,53 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("merges fresh internal image refs into Kie GPT Image 2 input_urls before direct submit", async () => {
+    readInternalMediaRefsFromPayloadMock.mockReturnValue([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/character.png",
+      },
+    ]);
+    resolveSignedUrlsForInternalMediaRefsMock.mockResolvedValue([
+      "https://fresh.internal/character.png",
+    ]);
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/gpt-image-2-image-to-image",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      routeLabel: "Kie GPT Image 2 Image to Image",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "keep the same character",
+        input_urls: ["https://stale.internal/character.png"],
+        shortpulse_internal_media_refs: [{ version: 1 }],
+      },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/kie-gpt-image-2-edit-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "kie-ai/gpt-image-2-image-to-image",
+        payload: expect.objectContaining({
+          input_urls: ["https://fresh.internal/character.png"],
+        }),
+      })
+    );
+  });
+
   it("falls back to external image refs when internal ref signing fails", async () => {
     readInternalMediaRefsFromPayloadMock.mockReturnValue([
       {

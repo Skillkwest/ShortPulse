@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
-  isOpenAiGptImage2Size,
+  isOpenAiGptImage2ProviderSize,
   type OpenAiImage2Quality,
-  type OpenAiImage2Size,
+  type OpenAiImage2ProviderSize,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
 } from "../../../lib/model-runtime/openAiImage2";
 import { requireApiUser } from "../../../lib/server/api/auth";
@@ -66,9 +66,9 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
     ? (value as Record<string, unknown>)
     : null;
 
-const normalizeSize = (value: unknown): OpenAiImage2Size | null => {
+const normalizeSize = (value: unknown): OpenAiImage2ProviderSize | null => {
   const normalized = normalizeRequiredString(value)?.toLowerCase();
-  return normalized && isOpenAiGptImage2Size(normalized) ? normalized : null;
+  return normalized && isOpenAiGptImage2ProviderSize(normalized) ? normalized : null;
 };
 
 const normalizeQuality = (value: unknown): OpenAiImage2Quality | null => {

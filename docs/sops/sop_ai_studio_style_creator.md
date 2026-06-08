@@ -3,8 +3,8 @@
 Purpose: define the modular Style Creator workflow used by AI Studio Styles Library so creation/edit/delete behavior stays stable while extraction quality contracts evolve safely.
 
 ## Scope
-- In scope: style-card intake (upload/drop), extraction orchestration, save/delete persistence, and extraction telemetry.
-- Out of scope: generation model pricing/policy, new style-control UI knobs (strength/axis/blend), and dedicated style tables.
+- In scope: style-card intake (upload/drop), prompt-only preview generation, extraction orchestration, save/delete persistence, and extraction telemetry.
+- Out of scope: generation model pricing/policy, new style-control UI knobs (strength/axis/blend), normal Reference Grid/Media Library artifact persistence for style thumbnails, and dedicated style tables.
 
 ## Key components
 | Component | Role |
@@ -15,9 +15,11 @@ Purpose: define the modular Style Creator workflow used by AI Studio Styles Libr
 | `frontend/features/ai-studio/components/style-creator/extraction.ts` | Deterministic extraction outcome classification (`success`, `fallback`, `blocked_source`). |
 | `frontend/features/ai-studio/components/style-creator/telemetry.ts` | Normalized extraction telemetry emitter (`telemetry.ai_studio.style_extraction`). |
 | `frontend/features/ai-studio/logic/styleDetailsNormalization.ts` | Backward-compatible style-details normalization/equality helpers used by persistence hooks. |
+| `frontend/features/ai-studio/logic/stylePreviewGeneration.ts` | Authenticated client helper for prompt-only style-card preview generation. |
 | `frontend/features/ai-studio/hooks/useStylesLibraryPanelIdsPreference.ts` | Per-user shared style-order persistence (`user_preferences.ai_studio_style_panel_ids`) with local fallback. |
 | `frontend/features/ai-studio/hooks/useStylesLibraryStyleDetailsPreference.ts` | Per-user style-details persistence (`user_preferences.ai_studio_style_details_overrides`) with local fallback. |
 | `frontend/pages/api/ai/extract-style.ts` | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`). |
+| `frontend/pages/api/ai/generate-style-preview.ts` | Authenticated GPT Image 2 style-preview endpoint (`stylePrompt` -> compact 512x512 JPEG data URL) for prompt-only manual style creation. |
 
 ## Persistence contract
 `StylesLibraryStyleDetails` required fields remain unchanged:
@@ -45,12 +47,18 @@ Rules:
    - Extraction normalization enforces a deterministic leading hard style class descriptor as the first `stylePrompt` token.
    - Current hard style class set: `Photographic`, `Vintage`, `Hyper-realistic`, `Anime Style`, `Cartoon Style`, `Photorealistic`, `Candid Cell Phone Snapshot`, `Digital Illustration`, `3D Render`, `Concept Art`, `Hand-Drawn`, `Painting`.
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.
-5. Create/save path persists normalized details using only the core fields.
-6. Edit/delete path uses guarded persistence commands with deterministic local error messaging.
-7. The first tile in Styles Library is a fixed `None` slot (system tile); it is never persisted, edited, deleted, or reordered.
-8. Styles Library tile clicks are edit-only (open/create/update/delete workflows) and do not mutate active Create/Edit style selection.
-9. Right-rail Styles tile clicks own Create/Edit style selection state and auto-close the right-rail Styles panel after selection; submit-path style append behavior remains unchanged.
-10. Drag reorder in the primary Styles Library updates the shared page-level catalog order so the right-rail Styles chooser reflects the same sequence.
+5. Manual prompt-only create/save path:
+   - First persists normalized details using only the core fields, with `previewImageUrl` blank.
+   - Then starts background preview generation for that same `styleId` when `stylePrompt` is non-empty and no uploaded/reference preview exists.
+   - The preview route uses GPT Image 2 `1024x1024`/`low`, bills through the canonical Create image pricing path, converts the provider result to a `512x512` JPEG data URL, captures/refunds through generation billing, and returns only `previewImageUrl`.
+   - The controller upserts the same style details with the generated `previewImageUrl`. If preview generation fails, the style remains saved and the library shows a recoverable inline error.
+   - Prompt-only style previews do not create normal Reference Grid, generation projection, Media Library, or Supabase transform artifacts.
+6. Create/save path persists normalized details using only the core fields.
+7. Edit/delete path uses guarded persistence commands with deterministic local error messaging.
+8. The first tile in Styles Library is a fixed `None` slot (system tile); it is never persisted, edited, deleted, or reordered.
+9. Styles Library tile clicks are edit-only (open/create/update/delete workflows) and do not mutate active Create/Edit style selection.
+10. Right-rail Styles tile clicks own Create/Edit style selection state and auto-close the right-rail Styles panel after selection; submit-path style append behavior remains unchanged.
+11. Drag reorder in the primary Styles Library updates the shared page-level catalog order so the right-rail Styles chooser reflects the same sequence.
 
 ## Submission-time style behavior and prompting guidance
 1. Submission behavior:
@@ -130,6 +138,8 @@ Failure class mapping:
 - `npm -C frontend run test -- features/ai-studio/components/style-creator/__tests__/extraction.test.ts`
 - `npm -C frontend run test -- features/ai-studio/logic/__tests__/styleDetailsNormalization.test.ts`
 - `npm -C frontend run test -- features/ai-studio/components/__tests__/StylesLibraryPanel.test.tsx`
+- `npm -C frontend run test -- tests/api/generate-style-preview.route.test.ts`
+- `npm -C frontend run test -- tests/api/protected-api-paths.parity.test.ts`
 - `npm -C frontend run test -- features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioGenerationPromptComposer.test.ts`
 - `npm -C frontend run docs:check`

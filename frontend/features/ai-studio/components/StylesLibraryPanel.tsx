@@ -59,9 +59,11 @@ export function StylesLibraryPanel({
     createStyleFromDropSubmitting,
     stylesLibraryDropActive,
     stylePreviewDropActive,
+    stylePreviewGenerationStyleIds,
     localDeleteError,
     localSaveError,
     stylesLibraryDropError,
+    stylePreviewGenerationError,
     stylePromptExtractionSubmitting,
     stylePromptExtractionError,
     setPendingDeleteStyle,
@@ -138,6 +140,14 @@ export function StylesLibraryPanel({
             message={stylesLibraryDropError}
           />
         ) : null}
+        {stylePreviewGenerationError ? (
+          <AppMessage
+            className="styles-library-drop-error tiny"
+            tone="error"
+            mode="inline"
+            message={stylePreviewGenerationError}
+          />
+        ) : null}
       </header>
       <div
         className={`styles-library-scroll ${
@@ -147,13 +157,16 @@ export function StylesLibraryPanel({
         <div className="styles-library-grid" role="list" aria-label="Styles library tiles">
           {stylesWithNoneFirst.map((style) => {
             const isNoneStyle = style.id === NONE_STYLE_ID;
+            const isStylePreviewGenerating = stylePreviewGenerationStyleIds.includes(style.id);
             return (
               <article
                 key={style.id}
                 role="listitem"
                 className={`styles-library-tile ${draggedStyleId === style.id ? "is-dragging" : ""} ${
                   dropTargetStyleId === style.id ? "is-drop-target" : ""
-                } ${style.placeholder ? "is-placeholder" : ""}`.trim()}
+                } ${style.placeholder ? "is-placeholder" : ""} ${
+                  isStylePreviewGenerating ? "is-preview-generating" : ""
+                }`.trim()}
                 draggable={!isNoneStyle}
                 onDragStart={
                   isNoneStyle ? undefined : (event) => handleStyleDragStart(style.id, event)
@@ -180,7 +193,9 @@ export function StylesLibraryPanel({
                 <button
                   type="button"
                   className="styles-library-tile-select"
-                  aria-label={`Style tile: ${style.title}${style.placeholder ? " (coming soon)" : ""}`}
+                  aria-label={`Style tile: ${style.title}${style.placeholder ? " (coming soon)" : ""}${
+                    isStylePreviewGenerating ? " (generating preview)" : ""
+                  }`}
                   disabled={style.placeholder}
                   onClick={() => {
                     if (style.placeholder) return;
@@ -198,10 +213,19 @@ export function StylesLibraryPanel({
                           }
                         : undefined
                     }
-                    aria-hidden="true"
+                    aria-hidden={isStylePreviewGenerating ? undefined : "true"}
                   >
                     {style.placeholder ? (
                       <span className="styles-library-tile-coming-soon">Coming soon</span>
+                    ) : isStylePreviewGenerating ? (
+                      <span className="styles-library-preview-generating" role="status">
+                        <span className="styles-library-processing-spinner" aria-hidden="true">
+                          <CircleNotch size={22} weight="bold" />
+                        </span>
+                        <span className="styles-library-processing-copy tiny">
+                          Generating preview...
+                        </span>
+                      </span>
                     ) : isNoneStyle ? (
                       <span className="styles-library-none-icon" aria-hidden="true">
                         <Prohibit size={34} weight="duotone" />

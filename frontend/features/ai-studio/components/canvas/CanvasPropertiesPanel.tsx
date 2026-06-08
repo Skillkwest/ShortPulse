@@ -461,6 +461,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     onItemDoubleClick,
     onPinTextItem,
     onDraftTextChange,
+    onDraftTextPaste,
     onDraftTextKeyDown,
     onDraftTextBlur,
     onTextItemEditChange,
@@ -765,6 +766,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
                   data-testid="canvas-draft-text-input"
                   value={draftTextEntry.value}
                   onChange={(event) => onDraftTextChange(event.target.value)}
+                  onPaste={onDraftTextPaste}
                   onKeyDown={onDraftTextKeyDown}
                   onBlur={onDraftTextBlur}
                   autoFocus

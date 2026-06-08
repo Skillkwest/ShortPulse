@@ -346,9 +346,21 @@ const mergeInternalImagePayloadUrls = ({
     asTrimmedStringArray(payload.image_urls),
     internalMediaRefs
   );
+  const externalInputUrl =
+    filterExternalUrlsFromInternalRefs(
+      [asProviderString(payload.input_url)],
+      internalMediaRefs
+    )[0] ?? null;
+  const externalInputUrls = filterExternalUrlsFromInternalRefs(
+    asTrimmedStringArray(payload.input_urls),
+    internalMediaRefs
+  );
   const mergedImageUrls = dedupeStrings([...signedUrls, ...externalImageUrls], 10);
+  const mergedInputUrls = dedupeStrings([...signedUrls, ...externalInputUrls], 16);
   const supportsImageUrls = resolveModelSupportsPayloadField({ modelId, field: "image_urls" });
   const supportsImageUrl = resolveModelSupportsPayloadField({ modelId, field: "image_url" });
+  const supportsInputUrls = resolveModelSupportsPayloadField({ modelId, field: "input_urls" });
+  const supportsInputUrl = resolveModelSupportsPayloadField({ modelId, field: "input_url" });
   if (supportsImageUrls && (mergedImageUrls.length > 0 || Array.isArray(payload.image_urls))) {
     nextPayload.image_urls = mergedImageUrls;
   }
@@ -360,12 +372,28 @@ const mergeInternalImagePayloadUrls = ({
   ) {
     nextPayload.image_url = mergedImageUrls[0] ?? externalImageUrl;
   }
+  if (supportsInputUrls && (mergedInputUrls.length > 0 || Array.isArray(payload.input_urls))) {
+    nextPayload.input_urls = mergedInputUrls;
+  }
+  if (
+    supportsInputUrl &&
+    (mergedInputUrls[0] ||
+      externalInputUrl ||
+      Object.prototype.hasOwnProperty.call(payload, "input_url"))
+  ) {
+    nextPayload.input_url = mergedInputUrls[0] ?? externalInputUrl;
+  }
   return nextPayload;
 };
 
 const countAvailableImagePayloadUrls = (payload: Record<string, unknown>): number =>
   dedupeStrings(
-    [asProviderString(payload.image_url), ...asTrimmedStringArray(payload.image_urls)],
+    [
+      asProviderString(payload.image_url),
+      asProviderString(payload.input_url),
+      ...asTrimmedStringArray(payload.image_urls),
+      ...asTrimmedStringArray(payload.input_urls),
+    ],
     20
   ).length;
 

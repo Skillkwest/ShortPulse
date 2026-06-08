@@ -1,7 +1,7 @@
 /**
  * Encapsulates text editing, selection deletion, and pin actions for a Canvas viewport.
  */
-import { useCallback, type KeyboardEvent, type MouseEvent } from "react";
+import { useCallback, type ClipboardEvent, type KeyboardEvent, type MouseEvent } from "react";
 import {
   deleteCanvasSceneItemById,
   selectCanvasSceneItem,
@@ -30,6 +30,7 @@ type UseCanvasViewportTextHandlersParams = {
 type CanvasTextHandlers = {
   onViewportKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   onDraftTextChange: (value: string) => void;
+  onDraftTextPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onDraftTextKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onItemDoubleClick: (id: string, event: MouseEvent<HTMLElement>) => void;
   onItemContextMenu: (id: string, event: MouseEvent<HTMLElement>) => void;
@@ -82,6 +83,22 @@ export const useCanvasViewportTextHandlers = ({
       );
     },
     [setDraftTextEntry]
+  );
+
+  const onDraftTextPaste = useCallback(
+    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      const pastedText = event.clipboardData.getData("text/plain");
+      if (!pastedText.trim()) return;
+      const input = event.currentTarget;
+      const selectionStart = input.selectionStart ?? input.value.length;
+      const selectionEnd = input.selectionEnd ?? selectionStart;
+      const nextValue = `${input.value.slice(0, selectionStart)}${pastedText}${input.value.slice(
+        selectionEnd
+      )}`;
+      event.preventDefault();
+      commitDraftTextEntry(nextValue, draftTextEntry);
+    },
+    [commitDraftTextEntry, draftTextEntry]
   );
 
   const onDraftTextKeyDown = useCallback(
@@ -173,6 +190,7 @@ export const useCanvasViewportTextHandlers = ({
   return {
     onViewportKeyDown,
     onDraftTextChange,
+    onDraftTextPaste,
     onDraftTextKeyDown,
     onItemDoubleClick,
     onItemContextMenu,

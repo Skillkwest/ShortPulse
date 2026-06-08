@@ -13,6 +13,7 @@ import {
   isEditableElement,
   isMediaUrl,
   isNodeInsideAnySurface,
+  normalizeMediaFile,
   normalizeClipboardText,
   parseUrlCandidate,
 } from "../referenceGridClipboard";
@@ -64,6 +65,15 @@ describe("referenceGridClipboard", () => {
     expect(files[0]?.name).toBe("reference.png");
     expect(files[1]?.type).toBe("audio/mpeg");
     expect(files[1]?.name).toBe("voice.mp3");
+  });
+
+  it("assigns a safe filename to nameless clipboard media files", () => {
+    const namelessPng = new File(["abc"], "", { type: "image/png" });
+    const normalized = normalizeMediaFile(namelessPng, null, 0);
+
+    expect(normalized).not.toBeNull();
+    expect(normalized?.name).toBe("pasted-media-1.png");
+    expect(normalized?.type).toBe("image/png");
   });
 
   it("resolves media URL references from uri-list and html payloads", () => {

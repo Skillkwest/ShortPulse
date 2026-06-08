@@ -41,6 +41,7 @@ import {
   moveCanvasSceneItemsByIdSet,
   selectCanvasSceneItem,
   setCanvasSceneSelectionByIds,
+  type CanvasDraftTextEntry,
   type CanvasSharedSceneState,
 } from "./canvasSceneState";
 import type {
@@ -625,10 +626,17 @@ export const useCanvasViewportInstanceState = ({
     setTextEditOwnerInstanceId(null);
   }, [clearTextEditSessionState, setTextEditOwnerInstanceId]);
 
-  const commitDraftTextEntry = useCallback(() => {
-    commitDraftTextEntryState();
-    setDraftOwnerInstanceId(null);
-  }, [commitDraftTextEntryState, setDraftOwnerInstanceId]);
+  const commitDraftTextEntry = useCallback(
+    (valueOverride?: string | null, draftOverride?: CanvasDraftTextEntry | null) => {
+      const committedDraft = commitDraftTextEntryState(valueOverride, draftOverride);
+      if (committedDraft) {
+        onPinTextReference?.(committedDraft.text);
+      }
+      setDraftOwnerInstanceId(null);
+      return committedDraft;
+    },
+    [commitDraftTextEntryState, onPinTextReference, setDraftOwnerInstanceId]
+  );
 
   const commitTextItemEdit = useCallback(() => {
     commitTextItemEditState();
@@ -654,6 +662,7 @@ export const useCanvasViewportInstanceState = ({
   const {
     onViewportKeyDown,
     onDraftTextChange,
+    onDraftTextPaste,
     onDraftTextKeyDown,
     onItemDoubleClick: onItemDoubleClickBase,
     onItemContextMenu,
@@ -1544,6 +1553,7 @@ export const useCanvasViewportInstanceState = ({
       onItemDoubleClick,
       onPinTextItem,
       onDraftTextChange,
+      onDraftTextPaste,
       onDraftTextKeyDown,
       onDraftTextBlur: clearDraftTextEntry,
       onTextItemEditChange,
@@ -1577,6 +1587,7 @@ export const useCanvasViewportInstanceState = ({
       items,
       marqueeSelectionBox,
       onDraftTextChange,
+      onDraftTextPaste,
       onDraftTextKeyDown,
       onItemContextMenu,
       onItemDoubleClick,

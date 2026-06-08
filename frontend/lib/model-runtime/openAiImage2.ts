@@ -3,13 +3,18 @@
  * Keeps aspect -> size and quality normalization aligned across UI and server lanes.
  */
 export const OPENAI_GPT_IMAGE_2_MODEL_ID = "gpt-image-2";
-export const OPENAI_GPT_IMAGE_2_DEFAULT_SIZE = "2048x2048";
+export const OPENAI_GPT_IMAGE_2_DEFAULT_SIZE = "1024x1024";
 export const OPENAI_GPT_IMAGE_2_DEFAULT_QUALITY = "medium";
 export const OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY = "high";
 export const OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION = "low";
 
 export const OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS = ["9:16", "4:5", "1:1", "5:4", "16:9"] as const;
 export const OPENAI_GPT_IMAGE_2_UI_ALLOWED_RESOLUTIONS = ["1K", "2K", "4K"] as const;
+export const OPENAI_GPT_IMAGE_2_PROVIDER_ALLOWED_SIZES = [
+  "1024x1024",
+  "1024x1536",
+  "1536x1024",
+] as const;
 export const OPENAI_GPT_IMAGE_2_ALLOWED_SIZES = [
   "1008x1792",
   "1024x1024",
@@ -35,6 +40,7 @@ export type OpenAiImage2ResolutionPreset =
   (typeof OPENAI_GPT_IMAGE_2_UI_ALLOWED_RESOLUTIONS)[number];
 export type OpenAiImage2PricingSize = "1024x1024" | "1024x1536" | "1536x1024";
 export type OpenAiImage2Size = (typeof OPENAI_GPT_IMAGE_2_ALLOWED_SIZES)[number];
+export type OpenAiImage2ProviderSize = (typeof OPENAI_GPT_IMAGE_2_PROVIDER_ALLOWED_SIZES)[number];
 export type OpenAiImage2Quality = "low" | "medium" | "high";
 export type OpenAiImage2InputFidelity = "high" | "low";
 export type OpenAiImage2Moderation = "auto" | "low";
@@ -114,28 +120,28 @@ const OPENAI_GPT_IMAGE_2_ASPECT_TO_PRICING_SIZE: Record<string, OpenAiImage2Pric
 
 const OPENAI_GPT_IMAGE_2_OUTPUT_SIZE_MATRIX: Record<
   OpenAiImage2ResolutionPreset,
-  Record<OpenAiImage2UiAspect, OpenAiImage2Size>
+  Record<OpenAiImage2UiAspect, OpenAiImage2ProviderSize>
 > = {
   "1K": {
-    "9:16": "1008x1792",
-    "4:5": "1024x1280",
+    "9:16": "1024x1536",
+    "4:5": "1024x1536",
     "1:1": "1024x1024",
-    "5:4": "1280x1024",
-    "16:9": "1792x1008",
+    "5:4": "1536x1024",
+    "16:9": "1536x1024",
   },
   "2K": {
-    "9:16": "1152x2048",
-    "4:5": "1664x2080",
-    "1:1": "2048x2048",
-    "5:4": "2080x1664",
-    "16:9": "2048x1152",
+    "9:16": "1024x1536",
+    "4:5": "1024x1536",
+    "1:1": "1024x1024",
+    "5:4": "1536x1024",
+    "16:9": "1536x1024",
   },
   "4K": {
-    "9:16": "2160x3840",
-    "4:5": "2560x3200",
-    "1:1": "2880x2880",
-    "5:4": "3200x2560",
-    "16:9": "3840x2160",
+    "9:16": "1024x1536",
+    "4:5": "1024x1536",
+    "1:1": "1024x1024",
+    "5:4": "1536x1024",
+    "16:9": "1536x1024",
   },
 };
 
@@ -157,15 +163,6 @@ const OPENAI_GPT_IMAGE_2_SIZE_TO_ASPECT: Partial<Record<OpenAiImage2Size, OpenAi
   "2880x2880": "1:1",
   "3200x2560": "5:4",
   "3840x2160": "16:9",
-};
-
-const OPENAI_GPT_IMAGE_2_QUALITY_TO_RESOLUTION_PRESET: Record<
-  OpenAiImage2Quality,
-  OpenAiImage2ResolutionPreset
-> = {
-  low: "1K",
-  medium: "2K",
-  high: "4K",
 };
 
 const OPENAI_GPT_IMAGE_2_RESOLUTION_PRESET_TO_QUALITY: Record<
@@ -279,7 +276,7 @@ export const resolveOpenAiGptImage2OutputSize = ({
 }: {
   aspect: string | null | undefined;
   resolution: string | null | undefined;
-}): OpenAiImage2Size => {
+}): OpenAiImage2ProviderSize => {
   const normalizedAspect = normalizeOpenAiGptImage2UiAspect(aspect);
   const preset = normalizeOpenAiGptImage2ResolutionPreset(resolution);
   return OPENAI_GPT_IMAGE_2_OUTPUT_SIZE_MATRIX[preset][normalizedAspect];
@@ -302,6 +299,17 @@ export const resolveOpenAiGptImage2AspectForSize = (
 export const isOpenAiGptImage2Size = (value: unknown): value is OpenAiImage2Size => {
   if (typeof value !== "string") return false;
   return value.trim().toLowerCase() in OPENAI_GPT_IMAGE_2_ALLOWED_SIZE_TO_DIMENSIONS;
+};
+
+/**
+ * Returns whether the size is accepted by the OpenAI Images API provider contract.
+ */
+export const isOpenAiGptImage2ProviderSize = (
+  value: unknown
+): value is OpenAiImage2ProviderSize => {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim().toLowerCase();
+  return OPENAI_GPT_IMAGE_2_PROVIDER_ALLOWED_SIZES.includes(normalized as OpenAiImage2ProviderSize);
 };
 
 /**

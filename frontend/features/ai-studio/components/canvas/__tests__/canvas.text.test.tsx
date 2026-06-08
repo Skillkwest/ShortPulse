@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   CanvasHarness,
@@ -45,7 +45,8 @@ describe("Canvas text behavior", () => {
   });
 
   it("creates a manual text reference on blank-space double click and saves it on Enter", () => {
-    render(<CanvasHarness />);
+    const pinSpy = vi.fn();
+    render(<CanvasHarness onPinTextReference={pinSpy} />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
 
@@ -64,6 +65,37 @@ describe("Canvas text behavior", () => {
 
     expect(screen.getByText("Manual canvas note")).toBeInTheDocument();
     expect(screen.queryByTestId("canvas-draft-text-input")).not.toBeInTheDocument();
+    expect(pinSpy).toHaveBeenCalledTimes(1);
+    expect(pinSpy).toHaveBeenCalledWith("Manual canvas note");
+  });
+
+  it("pins pasted manual text into the reference grid when the canvas draft is committed", async () => {
+    const pinSpy = vi.fn();
+    render(<CanvasHarness onPinTextReference={pinSpy} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.doubleClick(viewport, {
+      clientX: 300,
+      clientY: 190,
+    });
+
+    const input = screen.getByTestId("canvas-draft-text-input");
+    const pasteEvent = createEvent.paste(input);
+    Object.defineProperty(pasteEvent, "clipboardData", {
+      configurable: true,
+      value: {
+        getData: (type: string) =>
+          type === "text/plain" ? "  Pasted outside prompt reference  " : "",
+      },
+    });
+    fireEvent(input, pasteEvent);
+
+    const canvasText = await screen.findByText("Pasted outside prompt reference");
+    expect(canvasText).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-draft-text-input")).not.toBeInTheDocument();
+    expect(pinSpy).toHaveBeenCalledTimes(1);
+    expect(pinSpy).toHaveBeenCalledWith("Pasted outside prompt reference");
   });
 
   it("creates a manual text reference from viewport pointer double-tap fallback", () => {

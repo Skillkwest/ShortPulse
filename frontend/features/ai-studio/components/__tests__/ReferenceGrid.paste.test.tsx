@@ -151,6 +151,39 @@ describe("ReferenceGrid paste handling", () => {
     expect(onPasteMediaReference).not.toHaveBeenCalled();
   });
 
+  it("normalizes pasted image files when clipboard filename metadata is missing", () => {
+    const onDropFiles = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const onPasteMediaReference = vi.fn();
+    const namelessPngFile = new File(["png-bytes"], "", { type: "image/png" });
+    const clipboardData = {
+      files: makeFileList([namelessPngFile]),
+      items: [],
+      getData: vi.fn(() => ""),
+    } as unknown as DataTransfer;
+
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        onDropFiles={onDropFiles}
+        onPasteTextReference={onPasteTextReference}
+        onPasteMediaReference={onPasteMediaReference}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+
+    fireEvent.paste(panel as HTMLElement, { clipboardData });
+
+    expect(onDropFiles).toHaveBeenCalledTimes(1);
+    const pastedFiles = onDropFiles.mock.calls[0]?.[0] as FileList;
+    expect(pastedFiles.length).toBe(1);
+    expect(pastedFiles.item(0)?.name).toBe("pasted-media-1.png");
+    expect(pastedFiles.item(0)?.type).toBe("image/png");
+    expect(onPasteTextReference).not.toHaveBeenCalled();
+    expect(onPasteMediaReference).not.toHaveBeenCalled();
+  });
+
   it("routes pasted plain text through onPasteTextReference", () => {
     const onDropFiles = vi.fn();
     const onPasteTextReference = vi.fn();

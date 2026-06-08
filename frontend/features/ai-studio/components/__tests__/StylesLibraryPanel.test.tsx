@@ -9,11 +9,19 @@ import { StylesLibraryPanel } from "../StylesLibraryPanel";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import type { ResolvedInternalStyleSource } from "../style-creator/intake";
 import { postExtractStyle, type StyleExtractionResult } from "../../logic/styleExtraction";
+import { postGenerateStylePreview } from "../../logic/stylePreviewGeneration";
 import { reportAppError } from "../../../../lib/appErrorReporter";
 
 vi.mock("../../logic/styleExtraction", () => ({
   postExtractStyle: vi.fn(),
   isStyleExtractionError: vi.fn(() => false),
+}));
+
+vi.mock("../../logic/stylePreviewGeneration", () => ({
+  postGenerateStylePreview: vi.fn(),
+  isStylePreviewGenerationError: vi.fn((error: unknown) =>
+    Boolean(error && typeof error === "object" && (error as { code?: unknown }).code)
+  ),
 }));
 
 vi.mock("../../../../lib/appErrorReporter", () => ({
@@ -62,6 +70,12 @@ describe("StylesLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(postExtractStyle).mockResolvedValue(createStyleExtractionResult());
+    vi.mocked(postGenerateStylePreview).mockResolvedValue({
+      previewImageUrl: "data:image/jpeg;base64,generated-style-preview",
+      modelId: "gpt-image-2",
+      size: "1024x1024",
+      quality: "low",
+    });
   });
 
   it("renders delete action only for non-placeholder styles", () => {
@@ -115,7 +129,7 @@ describe("StylesLibraryPanel", () => {
     expect(screen.getByText("1000 / 1000")).toHaveClass("is-limit-reached");
   });
 
-  it("saves a new style from the add style modal", async () => {
+  it("saves a prompt-only new style, then updates it with a generated preview", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
     render(<StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />);
 
@@ -128,7 +142,7 @@ describe("StylesLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save style" }));
 
     await waitFor(() => {
-      expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+      expect(onSaveStyleDetails).toHaveBeenCalledTimes(2);
     });
     const [savedStyleId, savedDetails] = onSaveStyleDetails.mock.calls[0] as [
       string,
@@ -147,6 +161,128 @@ describe("StylesLibraryPanel", () => {
       referenceImageName: "Dream Glow",
       stylePrompt: "ethereal highlights and dreamy bloom",
       previewImageUrl: "",
+    });
+    expect(postGenerateStylePreview).toHaveBeenCalledWith({
+      styleId: savedStyleId,
+      styleName: "Dream Glow",
+      stylePrompt: "ethereal highlights and dreamy bloom",
+    });
+    expect(onSaveStyleDetails.mock.calls[1]).toEqual([
+      savedStyleId,
+      {
+        style: "Dream Glow",
+        title: "Dream Glow",
+        referenceImageName: "Dream Glow",
+        stylePrompt: "ethereal highlights and dreamy bloom",
+        previewImageUrl: "data:image/jpeg;base64,generated-style-preview",
+      },
+    ]);
+  });
+
+  it("shows a pending style preview state while prompt-only preview generation runs", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    let resolvePreview!: (value: {
+      previewImageUrl: string;
+      modelId: string;
+      size: string;
+      quality: string;
+    }) => void;
+    vi.mocked(postGenerateStylePreview).mockReturnValue(
+      new Promise((resolve) => {
+        resolvePreview = resolve;
+      })
+    );
+    const { rerender } = render(
+      <StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "Dream Glow" } });
+    fireEvent.change(screen.getByLabelText("Style Prompt"), {
+      target: { value: "ethereal highlights and dreamy bloom" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save style" }));
+
+    await waitFor(() => {
+      expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+    });
+    const [savedStyleId, savedDetails] = onSaveStyleDetails.mock.calls[0] as [
+      string,
+      {
+        style: string;
+        title: string;
+        referenceImageName: string;
+        stylePrompt: string;
+        previewImageUrl: string;
+      },
+    ];
+    rerender(
+      <StylesLibraryPanel
+        styles={[
+          ...createStyles(),
+          {
+            id: savedStyleId,
+            title: savedDetails.title,
+            style: savedDetails.style,
+            stylePrompt: savedDetails.stylePrompt,
+            previewUrl: null,
+            placeholder: false,
+          },
+        ]}
+        onSaveStyleDetails={onSaveStyleDetails}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: "Style tile: Dream Glow (generating preview)",
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Generating preview...");
+
+    resolvePreview({
+      previewImageUrl: "data:image/jpeg;base64,generated-style-preview",
+      modelId: "gpt-image-2",
+      size: "1024x1024",
+      quality: "low",
+    });
+    await waitFor(() => {
+      expect(onSaveStyleDetails).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("keeps a prompt-only style saved when generated preview creation fails", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const error = new Error("Not enough credits to generate the style preview.") as Error & {
+      code: string;
+      userMessage: string;
+    };
+    error.code = "STYLE_PREVIEW_GENERATION_CLIENT_ERROR";
+    error.userMessage = "Not enough credits to generate the style preview.";
+    vi.mocked(postGenerateStylePreview).mockRejectedValue(error);
+    render(<StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "Dream Glow" } });
+    fireEvent.change(screen.getByLabelText("Style Prompt"), {
+      target: { value: "ethereal highlights and dreamy bloom" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save style" }));
+
+    await waitFor(() => {
+      expect(onSaveStyleDetails).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaveStyleDetails.mock.calls[0]?.[1]).toEqual({
+      style: "Dream Glow",
+      title: "Dream Glow",
+      referenceImageName: "Dream Glow",
+      stylePrompt: "ethereal highlights and dreamy bloom",
+      previewImageUrl: "",
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText("Style saved, but not enough credits to generate the style preview.")
+      ).toBeInTheDocument();
     });
   });
 

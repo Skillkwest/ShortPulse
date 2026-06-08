@@ -4,6 +4,10 @@
  */
 import React from "react";
 import { postExtractStyle } from "../../logic/styleExtraction";
+import {
+  isStylePreviewGenerationError,
+  postGenerateStylePreview,
+} from "../../logic/stylePreviewGeneration";
 import type { StylesLibraryStyleDetails } from "../../types";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import {
@@ -269,6 +273,7 @@ export const useStyleCreatorController = ({
   const stylesLibraryDropDepthRef = React.useRef(0);
   const customStyleIdCounterRef = React.useRef(0);
   const stylePromptExtractionRequestIdRef = React.useRef(0);
+  const stylePreviewGenerationPendingRef = React.useRef(new Set<string>());
 
   const [orderedStyleIds, setOrderedStyleIds] = React.useState<string[]>([]);
   const [draggedStyleId, setDraggedStyleId] = React.useState<string | null>(null);
@@ -287,6 +292,12 @@ export const useStyleCreatorController = ({
   const [localDeleteError, setLocalDeleteError] = React.useState<string | null>(null);
   const [localSaveError, setLocalSaveError] = React.useState<string | null>(null);
   const [stylesLibraryDropError, setStylesLibraryDropError] = React.useState<string | null>(null);
+  const [stylePreviewGenerationStyleIds, setStylePreviewGenerationStyleIds] = React.useState<
+    string[]
+  >([]);
+  const [stylePreviewGenerationError, setStylePreviewGenerationError] = React.useState<
+    string | null
+  >(null);
   const [stylePromptExtractionSubmitting, setStylePromptExtractionSubmitting] =
     React.useState(false);
   const [stylePromptExtractionError, setStylePromptExtractionError] = React.useState<string | null>(
@@ -304,6 +315,19 @@ export const useStyleCreatorController = ({
   }, [styles, orderedStyleIds]);
 
   const pendingEditPreviewImageUrl = pendingStyleEdit?.details.previewImageUrl?.trim() ?? "";
+
+  const setStylePreviewGenerationPending = React.useCallback(
+    (styleId: string, pending: boolean) => {
+      const nextPending = stylePreviewGenerationPendingRef.current;
+      if (pending) {
+        nextPending.add(styleId);
+      } else {
+        nextPending.delete(styleId);
+      }
+      setStylePreviewGenerationStyleIds(Array.from(nextPending));
+    },
+    []
+  );
 
   const closeDeleteModal = React.useCallback(() => {
     if (deleteSubmitting) return;
@@ -649,6 +673,49 @@ export const useStyleCreatorController = ({
     ]
   );
 
+  const runStylePreviewGeneration = React.useCallback(
+    async ({ styleId, details }: { styleId: string; details: StylesLibraryStyleDetails }) => {
+      if (!onSaveStyleDetails || stylePreviewGenerationPendingRef.current.has(styleId)) return;
+      const styleName = details.style.trim();
+      const stylePrompt = details.stylePrompt.trim();
+      if (!styleId.trim() || !styleName || !stylePrompt || details.previewImageUrl.trim()) return;
+
+      setStylePreviewGenerationPending(styleId, true);
+      setStylePreviewGenerationError(null);
+      try {
+        const generatedPreview = await postGenerateStylePreview({
+          styleId,
+          styleName,
+          stylePrompt,
+        });
+        const previewImageUrl = generatedPreview.previewImageUrl.trim();
+        const saved = await runSaveStyleDetailsCommand({
+          styleId,
+          onSaveStyleDetails,
+          details: toPersistableStyleDetails({
+            ...details,
+            previewImageUrl,
+          }),
+        });
+        if (!saved) {
+          setStylePreviewGenerationError(
+            "Style preview generated, but could not be saved. Reopen the style or try again."
+          );
+        }
+      } catch (error) {
+        const detail = isStylePreviewGenerationError(error)
+          ? error.userMessage
+          : "Style preview generation failed.";
+        setStylePreviewGenerationError(
+          `Style saved, but ${detail.charAt(0).toLowerCase()}${detail.slice(1)}`
+        );
+      } finally {
+        setStylePreviewGenerationPending(styleId, false);
+      }
+    },
+    [onSaveStyleDetails, setStylePreviewGenerationPending]
+  );
+
   const handleStylesLibraryDragEnter = React.useCallback((event: React.DragEvent<HTMLElement>) => {
     if (!canAcceptStyleLibraryImageDropHint(event.dataTransfer)) return;
     event.preventDefault();
@@ -721,6 +788,10 @@ export const useStyleCreatorController = ({
       title: canonicalStyleName,
       referenceImageName: canonicalStyleName,
     };
+    const shouldGenerateStylePreview =
+      pendingStyleEdit.mode === "create" &&
+      !normalizedSavePayload.previewImageUrl.trim() &&
+      normalizedSavePayload.stylePrompt.trim().length > 0;
 
     setEditSubmitting(true);
     setLocalSaveError(null);
@@ -738,13 +809,25 @@ export const useStyleCreatorController = ({
     });
 
     if (saved) {
+      if (shouldGenerateStylePreview) {
+        void runStylePreviewGeneration({
+          styleId: pendingStyleEdit.styleId,
+          details: toPersistableStyleDetails(normalizedSavePayload),
+        });
+      }
       setPendingStyleEdit(null);
     } else {
       setLocalSaveError("Unable to save this style right now.");
     }
 
     setEditSubmitting(false);
-  }, [editSubmitting, onSaveStyleDetails, pendingStyleEdit, stylePromptExtractionSubmitting]);
+  }, [
+    editSubmitting,
+    onSaveStyleDetails,
+    pendingStyleEdit,
+    runStylePreviewGeneration,
+    stylePromptExtractionSubmitting,
+  ]);
 
   const openStyleEditModal = React.useCallback((style: ExpertEditStyleTile) => {
     const styleDisplayName = style.style?.trim() || style.title;
@@ -886,9 +969,11 @@ export const useStyleCreatorController = ({
     createStyleFromDropSubmitting,
     stylesLibraryDropActive,
     stylePreviewDropActive,
+    stylePreviewGenerationStyleIds,
     localDeleteError,
     localSaveError,
     stylesLibraryDropError,
+    stylePreviewGenerationError,
     stylePromptExtractionSubmitting,
     stylePromptExtractionError,
     setPendingDeleteStyle,

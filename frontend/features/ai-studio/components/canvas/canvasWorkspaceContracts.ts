@@ -1,7 +1,14 @@
 /**
  * Shared Canvas workspace contracts consumed across orchestration and render layers.
  */
-import type { DragEvent, KeyboardEvent, MouseEvent, PointerEvent, RefObject } from "react";
+import type {
+  ClipboardEvent,
+  DragEvent,
+  KeyboardEvent,
+  MouseEvent,
+  PointerEvent,
+  RefObject,
+} from "react";
 import type {
   CanvasDraftTextEntry,
   CanvasPendingSceneItem,
@@ -101,6 +108,7 @@ export type CanvasPropertiesPanelProps = {
   onItemDoubleClick: (id: string, event: MouseEvent<HTMLElement>) => void;
   onPinTextItem: (id: string) => void;
   onDraftTextChange: (value: string) => void;
+  onDraftTextPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onDraftTextKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onDraftTextBlur: () => void;
   onTextItemEditChange: (value: string) => void;

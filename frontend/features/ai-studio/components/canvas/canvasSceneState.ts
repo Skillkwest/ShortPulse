@@ -50,6 +50,11 @@ export type CanvasTextEditSession = {
   value: string;
 };
 
+export type CanvasCommittedTextDraft = {
+  itemId: string;
+  text: string;
+};
+
 export type CanvasSharedSceneState = {
   items: CanvasSceneItem[];
   pendingItems: CanvasPendingSceneItem[];
@@ -75,7 +80,10 @@ export type CanvasSharedSceneState = {
     draftTextEntry: CanvasDraftTextEntry | null;
     textEditSession: CanvasTextEditSession | null;
   }) => void;
-  commitDraftTextEntry: () => void;
+  commitDraftTextEntry: (
+    valueOverride?: string | null,
+    draftOverride?: CanvasDraftTextEntry | null
+  ) => CanvasCommittedTextDraft | null;
   commitTextItemEdit: () => void;
 };
 
@@ -429,13 +437,30 @@ export const useCanvasSharedSceneState = ({
 } = {}): CanvasSharedSceneState => {
   const [items, setItems] = useState<CanvasSceneItem[]>([]);
   const [pendingItems, setPendingItems] = useState<CanvasPendingSceneItem[]>([]);
-  const [draftTextEntry, setDraftTextEntry] = useState<CanvasDraftTextEntry | null>(null);
+  const [draftTextEntry, setDraftTextEntryState] = useState<CanvasDraftTextEntry | null>(null);
   const [textEditSession, setTextEditSession] = useState<CanvasTextEditSession | null>(null);
   const itemsRef = useRef<CanvasSceneItem[]>([]);
+  const draftTextEntryRef = useRef<CanvasDraftTextEntry | null>(null);
 
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  const setDraftTextEntry = useCallback<Dispatch<SetStateAction<CanvasDraftTextEntry | null>>>(
+    (nextDraft) => {
+      const resolvedDraft =
+        typeof nextDraft === "function"
+          ? (
+              nextDraft as (
+                currentDraft: CanvasDraftTextEntry | null
+              ) => CanvasDraftTextEntry | null
+            )(draftTextEntryRef.current)
+          : nextDraft;
+      draftTextEntryRef.current = resolvedDraft;
+      setDraftTextEntryState(resolvedDraft);
+    },
+    []
+  );
 
   const notifyItemLimitReached = useCallback(() => {
     onItemLimitReached?.();
@@ -451,7 +476,7 @@ export const useCanvasSharedSceneState = ({
 
   const clearDraftTextEntry = useCallback(() => {
     setDraftTextEntry(null);
-  }, []);
+  }, [setDraftTextEntry]);
 
   const clearTextEditSession = useCallback(() => {
     setTextEditSession(null);
@@ -630,14 +655,29 @@ export const useCanvasSharedSceneState = ({
     [notifyItemLimitReached]
   );
 
-  const commitDraftTextEntry = useCallback(() => {
-    setDraftTextEntry((draft) => {
-      const text = draft?.value.trim() ?? "";
-      if (!draft || !text) return null;
-      let blockedByCap = false;
+  const commitDraftTextEntry = useCallback(
+    (
+      valueOverride?: string | null,
+      draftOverride?: CanvasDraftTextEntry | null
+    ): CanvasCommittedTextDraft | null => {
+      const draft = draftOverride ?? draftTextEntryRef.current;
+      const text = (valueOverride ?? draft?.value ?? "").trim();
+      if (!draft || !text) {
+        setDraftTextEntry(null);
+        draftTextEntryRef.current = null;
+        return null;
+      }
+
+      if (itemsRef.current.length >= AI_STUDIO_CANVAS_ITEM_HARD_CAP) {
+        setDraftTextEntry(null);
+        draftTextEntryRef.current = null;
+        notifyItemLimitReached();
+        return null;
+      }
+
+      const itemId = randomId();
       setItems((currentItems) => {
         if (currentItems.length >= AI_STUDIO_CANVAS_ITEM_HARD_CAP) {
-          blockedByCap = true;
           return currentItems;
         }
         const highestZ = getHighestCanvasZIndex(currentItems) + 1;
@@ -645,6 +685,7 @@ export const useCanvasSharedSceneState = ({
         return [
           ...nextItems,
           buildCanvasSceneItem({
+            itemId,
             resolved: {
               kind: "text",
               outputId: null,
@@ -656,12 +697,15 @@ export const useCanvasSharedSceneState = ({
           }),
         ];
       });
-      if (blockedByCap) {
-        notifyItemLimitReached();
-      }
-      return null;
-    });
-  }, [notifyItemLimitReached]);
+      setDraftTextEntry(null);
+      draftTextEntryRef.current = null;
+      return {
+        itemId,
+        text,
+      };
+    },
+    [notifyItemLimitReached, setDraftTextEntry]
+  );
 
   const commitTextItemEdit = useCallback(() => {
     setTextEditSession((session) => {
@@ -693,7 +737,7 @@ export const useCanvasSharedSceneState = ({
       setDraftTextEntry(next.draftTextEntry);
       setTextEditSession(next.textEditSession);
     },
-    []
+    [setDraftTextEntry]
   );
 
   return {

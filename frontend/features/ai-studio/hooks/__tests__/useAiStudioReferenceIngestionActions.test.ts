@@ -637,6 +637,42 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(nextOutputs[0]?.prompt).toBe("finder-reference.png");
   });
 
+  it("normalizes pasted image files with missing filenames before upload", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    const file = new File(["hello"], "", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+      [Symbol.iterator]: function* () {
+        yield file;
+      },
+    } as unknown as FileList;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "drop");
+    });
+
+    const uploadedFile = uploadMediaFileMock.mock.calls[0]?.[0]?.file as File;
+    expect(uploadedFile.name).toBe("pasted-media-1.png");
+    expect(uploadedFile.type).toBe("image/png");
+    expect(nextOutputs[0]?.prompt).toBe("pasted-media-1.png");
+  });
+
   it("imports multiple dropped project-route image refs in the original order", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(

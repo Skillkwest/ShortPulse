@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import extractStyleHandler from "../../pages/api/ai/extract-style";
+import generateStylePreviewHandler from "../../pages/api/ai/generate-style-preview";
 import standardStudioAgentHandler from "../../pages/api/ai/studio-agent-standard";
 
 const requireApiUserMock = vi.fn();
@@ -40,6 +41,23 @@ describe("API auth guards: AI routes", () => {
     const res = createMockResponse();
 
     await extractStyleHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(requireApiUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects unauthenticated generate-style-preview requests", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        styleId: "style-library-custom-1",
+        styleName: "Dream Glow",
+        stylePrompt: "ethereal bloom and soft highlights",
+      },
+    };
+    const res = createMockResponse();
+
+    await generateStylePreviewHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(requireApiUserMock).toHaveBeenCalledTimes(1);

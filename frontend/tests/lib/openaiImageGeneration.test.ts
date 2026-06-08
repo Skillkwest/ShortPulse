@@ -3,6 +3,10 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { editOpenAiImage, generateOpenAiImage } from "../../lib/server/openaiImageGeneration";
+import {
+  normalizeOpenAiGptImage2Quality,
+  resolveOpenAiGptImage2OutputSize,
+} from "../../lib/model-runtime/openAiImage2";
 
 const originalOpenAiApiKey = process.env.OPENAI_API_KEY;
 
@@ -179,5 +183,15 @@ describe("generateOpenAiImage", () => {
       output_format: "png",
       moderation: "low",
     });
+  });
+
+  it("maps UI resolution to quality while keeping provider size OpenAI-compatible", () => {
+    expect(
+      resolveOpenAiGptImage2OutputSize({
+        aspect: "16:9",
+        resolution: "4K",
+      })
+    ).toBe("1536x1024");
+    expect(normalizeOpenAiGptImage2Quality("4K")).toBe("high");
   });
 });

@@ -164,6 +164,25 @@ describe("POST /api/openai/image-edit", () => {
     expect(editOpenAiImageMock).not.toHaveBeenCalled();
   });
 
+  it("rejects stale non-provider GPT Image 2 sizes before billing", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "restyle this photo",
+        size: "2048x2048",
+        quality: "medium",
+        images: [{ image_url: "https://example.com/base.png" }],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(editOpenAiImageMock).not.toHaveBeenCalled();
+  });
+
   it("stops before provider submission when billing already returned a fail-closed response", async () => {
     chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
       res.status(402).json({

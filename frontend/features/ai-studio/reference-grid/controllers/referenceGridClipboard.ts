@@ -152,7 +152,7 @@ export const normalizeMediaFile = (
     normalizeMediaMimeType(fallbackMimeType) ??
     inferMimeTypeFromFilename(file.name);
   if (!resolvedMimeType) return null;
-  if (file.type === resolvedMimeType && file.type.length > 0) {
+  if (file.type === resolvedMimeType && file.type.length > 0 && file.name.trim().length > 0) {
     return file;
   }
   const extension =

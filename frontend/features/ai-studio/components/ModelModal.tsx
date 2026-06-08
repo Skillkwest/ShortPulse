@@ -38,6 +38,7 @@ import {
   resolveRequiredCreateCharacterModeStartupModelId,
   resolveRequiredCreateStartupModelId,
 } from "../../../lib/model-runtime/modelCatalog";
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../lib/model-runtime/openAiImage2";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 
 export type ModelModalContext =
@@ -143,7 +144,11 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   ],
 };
 
-const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {};
+const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
+  "character-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
+  "text-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
+  "reference-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
+};
 
 const videoModalContexts = new Set<ModelModalContext>([
   "reference-video",

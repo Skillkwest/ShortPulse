@@ -18,6 +18,7 @@ The space is no longer an initial setup area. It is the maintained retained-evid
 - `training-history.md`: compressed maintenance-facing summary of Copperknot setup, hardening milestones, and current training state.
 - `training-history-archive-through-2026-05.md`: detailed historical training chronology archived out of the default load path.
 - `metrics/`: time-based learning logs for launch-state trends, score movement, and queue-decision hindsight.
+- `checkpoint-scratchpads/`: tiny non-authoritative paper-trail notes for meaningful Copperknot checkpoints.
 - `reports/`: full audit, roadmap, dispatch tracking, and report intake area.
   - `reports/external-lane-closeouts/`: closeout reports written by execution agents for Copperknot review.
 
@@ -49,3 +50,5 @@ This artifact area should support that chain, not compete with it.
 ## Maintenance Rule
 
 If a retained file looks current but does not materially help the primary authority chain, compress it, demote it, or leave it out of default load.
+
+Do not prune checkpoint scratchpads merely because they are small, plain, or non-authoritative. Their purpose is to remain minimal. They may be pruned only when duplicate, empty, or unrelated to Copperknot work.

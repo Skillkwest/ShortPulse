@@ -141,8 +141,8 @@ function DetailModalContent({
   } | null>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const promptOnlyCloseTimerRef = useRef<number | null>(null);
   const promptLibrarySavedTimerRef = useRef<number | null>(null);
+  const lastAutoSavedPromptRef = useRef<{ outputId: string; value: string } | null>(null);
   const audioPreviewPlayback = useExclusiveSoundMediaElement(
     `detail-modal-audio:${output.id}`,
     audioPreviewRef
@@ -155,6 +155,7 @@ function DetailModalContent({
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
   const [promptLibrarySavedOutputId, setPromptLibrarySavedOutputId] = useState<string | null>(null);
+  const [textDetailEditingOutputId, setTextDetailEditingOutputId] = useState<string | null>(null);
   const [loadedPreviewAspect, setLoadedPreviewAspect] = useState<{
     outputId: string;
     url: string;
@@ -641,6 +642,7 @@ function DetailModalContent({
   const isPromptEditable = baseDetailModalItem.capabilities.canEditPrompt;
   const trimmedPrompt = draftPrompt.trim();
   const hasPromptEdits = trimmedPrompt !== displayPromptText.trim();
+  const isTextDetailEditing = Boolean(outputId && textDetailEditingOutputId === outputId);
   const detailModalStyle = useMemo(() => {
     if (isPromptOnly) return undefined;
     if (!previewAspectRatio || !Number.isFinite(previewAspectRatio)) return undefined;
@@ -844,13 +846,6 @@ function DetailModalContent({
     element.style.height = `${nextHeight}px`;
   }, []);
 
-  const clearPromptOnlyCloseTimer = useCallback(() => {
-    if (typeof window === "undefined") return;
-    if (promptOnlyCloseTimerRef.current == null) return;
-    window.clearTimeout(promptOnlyCloseTimerRef.current);
-    promptOnlyCloseTimerRef.current = null;
-  }, []);
-
   const clearPromptLibrarySavedTimer = useCallback(() => {
     if (typeof window === "undefined") return;
     if (promptLibrarySavedTimerRef.current == null) return;
@@ -880,16 +875,44 @@ function DetailModalContent({
 
   useEffect(() => {
     return () => {
-      clearPromptOnlyCloseTimer();
       clearPromptLibrarySavedTimer();
     };
-  }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer]);
+  }, [clearPromptLibrarySavedTimer]);
+
+  const commitTextReferenceEdit = useCallback(
+    (options: { showFeedback?: boolean } = {}) => {
+      if (!isPromptOnly || !isPromptEditable || !outputId || !trimmedPrompt || !hasPromptEdits) {
+        return false;
+      }
+      const lastAutoSavedPrompt = lastAutoSavedPromptRef.current;
+      if (lastAutoSavedPrompt?.outputId === outputId && lastAutoSavedPrompt.value === draftPrompt) {
+        return false;
+      }
+
+      onUpdatePrompt(outputId, draftPrompt);
+      lastAutoSavedPromptRef.current = { outputId, value: draftPrompt };
+      if (options.showFeedback) {
+        setPromptOnlySavedOutputId(outputId);
+      }
+      return true;
+    },
+    [
+      draftPrompt,
+      hasPromptEdits,
+      isPromptEditable,
+      isPromptOnly,
+      onUpdatePrompt,
+      outputId,
+      trimmedPrompt,
+    ]
+  );
 
   const handleCloseModal = useCallback(() => {
-    clearPromptOnlyCloseTimer();
+    commitTextReferenceEdit();
     clearPromptLibrarySavedTimer();
     setPromptOnlySavedOutputId(null);
     setPromptLibrarySavedOutputId(null);
+    setTextDetailEditingOutputId(null);
     setDeleteConfirmOutputId(null);
     setImageZoomScaleByOutput(null);
     setImagePanByOutput(null);
@@ -903,7 +926,7 @@ function DetailModalContent({
     );
     imagePanDragRef.current = null;
     onClose();
-  }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer, onClose, output]);
+  }, [clearPromptLibrarySavedTimer, commitTextReferenceEdit, onClose, output]);
   const looksLikeFilename = (value?: string | null) => {
     const candidate = value?.trim();
     if (!candidate) return false;
@@ -1051,25 +1074,6 @@ function DetailModalContent({
     ]
   );
 
-  const handleSavePrompt = useCallback(() => {
-    if (!trimmedPrompt) return;
-    if (isPromptEditable && output?.id && hasPromptEdits) {
-      onUpdatePrompt(output.id, draftPrompt);
-      return;
-    }
-    if (onSavePrompt) {
-      onSavePrompt(draftPrompt);
-    }
-  }, [
-    draftPrompt,
-    hasPromptEdits,
-    isPromptEditable,
-    onSavePrompt,
-    onUpdatePrompt,
-    output,
-    trimmedPrompt,
-  ]);
-
   const handleSavePromptToLibrary = useCallback(() => {
     if (!trimmedPrompt || !onSavePrompt) return;
     onSavePrompt(draftPrompt);
@@ -1083,45 +1087,60 @@ function DetailModalContent({
     }, 1400);
   }, [clearPromptLibrarySavedTimer, draftPrompt, onSavePrompt, outputId, trimmedPrompt]);
 
-  const handlePromptOnlySaveAndClose = useCallback(() => {
-    if (!trimmedPrompt || !isPromptEditable || !hasPromptEdits || isPromptOnlySaved) return;
-
-    handleSavePrompt();
-    if (outputId) {
-      setPromptOnlySavedOutputId(outputId);
-    }
-
-    if (typeof window === "undefined") {
-      handleCloseModal();
-      return;
-    }
-
-    clearPromptOnlyCloseTimer();
-    promptOnlyCloseTimerRef.current = window.setTimeout(() => {
-      handleCloseModal();
-    }, 900);
-  }, [
-    clearPromptOnlyCloseTimer,
-    handleCloseModal,
-    handleSavePrompt,
-    hasPromptEdits,
-    isPromptEditable,
-    isPromptOnlySaved,
-    outputId,
-    trimmedPrompt,
-  ]);
-
   const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!isPromptEditable || !outputId) return;
     const nextValue = event.target.value;
     setPromptOnlySavedOutputId(null);
     setPromptLibrarySavedOutputId(null);
+    lastAutoSavedPromptRef.current = null;
     clearPromptLibrarySavedTimer();
     setDraftPromptsById((prev) => ({
       ...prev,
       [outputId]: nextValue,
     }));
   };
+
+  const handleTextDetailEditStart = useCallback(
+    (event: React.MouseEvent<HTMLTextAreaElement>) => {
+      if (!isPromptEditable || !outputId) return;
+      const textarea = event.currentTarget;
+      setTextDetailEditingOutputId(outputId);
+      if (typeof window === "undefined") {
+        textarea.focus();
+        return;
+      }
+      window.requestAnimationFrame(() => {
+        textarea.focus();
+        const selectionEnd = textarea.value.length;
+        textarea.setSelectionRange(selectionEnd, selectionEnd);
+      });
+    },
+    [isPromptEditable, outputId]
+  );
+
+  const handleTextDetailBlur = useCallback(() => {
+    commitTextReferenceEdit({ showFeedback: true });
+    setTextDetailEditingOutputId(null);
+  }, [commitTextReferenceEdit]);
+
+  const handleTextDetailKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (
+        event.key !== "Enter" ||
+        event.shiftKey ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      event.preventDefault();
+      commitTextReferenceEdit({ showFeedback: true });
+      setTextDetailEditingOutputId(null);
+      event.currentTarget.blur();
+    },
+    [commitTextReferenceEdit]
+  );
 
   const handleDownload = useCallback(() => {
     if (output?.id && onDownloadReference) {
@@ -1355,30 +1374,6 @@ function DetailModalContent({
 
   const sharedPromptActionItems = useMemo<SharedMediaDetailActionItem[]>(
     () => [
-      ...(isPromptEditable
-        ? [
-            {
-              id: "apply-prompt-changes",
-              label: isPromptOnlySaved ? "Saved. Closing..." : "Apply Changes",
-              onClick: handlePromptOnlySaveAndClose,
-              disabled: !trimmedPrompt || !hasPromptEdits || isPromptOnlySaved,
-              intent: "save" as const,
-              state: isPromptOnlySaved ? ("saved" as const) : ("default" as const),
-            },
-          ]
-        : []),
-      ...(detailModalItem.capabilities.canSavePrompt && onSavePrompt
-        ? [
-            {
-              id: "save-prompt",
-              label: isPromptLibrarySaved ? "Saved" : "Save Prompt",
-              onClick: handleSavePromptToLibrary,
-              disabled: !trimmedPrompt || isPromptLibrarySaved,
-              intent: "save" as const,
-              state: isPromptLibrarySaved ? ("saved" as const) : ("default" as const),
-            },
-          ]
-        : []),
       {
         id: "delete-prompt-output",
         label: "Delete",
@@ -1386,16 +1381,24 @@ function DetailModalContent({
         intent: "danger",
         icon: <TrashSimple size={16} weight="bold" aria-hidden />,
       },
+      ...(detailModalItem.capabilities.canSavePrompt && onSavePrompt
+        ? [
+            {
+              id: "save-prompt",
+              label: isPromptLibrarySaved ? "Saved" : "Save",
+              onClick: handleSavePromptToLibrary,
+              disabled: !trimmedPrompt || isPromptLibrarySaved,
+              intent: "save" as const,
+              state: isPromptLibrarySaved ? ("saved" as const) : ("default" as const),
+            },
+          ]
+        : []),
     ],
     [
       detailModalItem.capabilities.canSavePrompt,
-      handlePromptOnlySaveAndClose,
       handleRequestDelete,
       handleSavePromptToLibrary,
-      hasPromptEdits,
-      isPromptEditable,
       isPromptLibrarySaved,
-      isPromptOnlySaved,
       onSavePrompt,
       trimmedPrompt,
     ]
@@ -1600,11 +1603,14 @@ function DetailModalContent({
           stageClassName="art-image-vessel art-text-detail-vessel"
           stage={
             <textarea
-              className="art-text-detail-textarea"
+              className={`art-text-detail-textarea ${isTextDetailEditing ? "is-editing" : ""}`.trim()}
               ref={promptOnlyTextareaRef}
               value={draftPrompt}
               onChange={handlePromptChange}
-              readOnly={!isPromptEditable}
+              onDoubleClick={handleTextDetailEditStart}
+              onBlur={handleTextDetailBlur}
+              onKeyDown={handleTextDetailKeyDown}
+              readOnly={!isPromptEditable || !isTextDetailEditing}
               rows={12}
               placeholder="Describe your adjustments..."
             />

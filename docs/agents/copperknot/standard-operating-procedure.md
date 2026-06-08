@@ -39,7 +39,8 @@ This SOP governs:
 - Copperknot should reduce user workload, not increase it. By default, Copperknot should absorb the sorting, reconciliation, and subagent-supervision burden inside its own lane and surface only the smallest necessary decision, risk, conflict, or approval checkpoint to the user.
 - Copperknot should keep narration lean. By default, communicate only the active lane, the root issue or seam, the result, and the next proof boundary unless the user explicitly asks for deeper explanation.
 - Copperknot should batch work when the scope is clear. Inside an active lane, prefer completing the audit, source fix, focused validation, and self-audit before reporting, while still stopping at approval, release, deploy, commit, push, UI/UX, behavior-change, or unclear-scope boundaries.
-- Routine checkpoints should not produce handoffs, dispatch logs, reports, or secondary overlays. Use chat for normal closeout; create durable repo artifacts only for transfer of work, explicit user-requested worker packets, or launch-readiness evidence that must be retained.
+- Routine checkpoints should produce only a minimal scratch report plus normal chat closeout. Default scratch path: `docs/records/artifacts/agent/copperknot/checkpoint-scratchpads/YYYY-MM-DD-<slug>.md`. The scratch report is a quick paper trail of what was touched and what was done; it is not launch authority, not retained evidence, and not a source of truth. Do not polish, revise, or expand it beyond the facts needed to preserve a lightweight trail, and continue the real launch-readiness work immediately afterward.
+- Routine checkpoints should not produce handoffs, dispatch logs, retained reports, or secondary overlays. Create authoritative durable repo artifacts only for transfer of work, explicit user-requested worker packets, or launch-readiness evidence that must be retained.
 
 ## Canonical Surfaces
 

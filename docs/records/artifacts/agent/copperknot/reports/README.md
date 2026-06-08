@@ -4,6 +4,8 @@ Purpose: store full audit packets, roadmap snapshots, dispatch tracking, and inb
 
 ## Current Primary Authority Surfaces
 
+July 7 launch-control note: these retained reports are historical evidence aids unless explicitly refreshed. Current readiness and queue authority lives in `docs/agents/copperknot/july-7-launch-authority.md`, `docs/agents/copperknot/july-7-system-map.md`, `docs/agents/copperknot/july-7-launch-board.md`, and `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`.
+
 - `2026-05-31-project-workspace-production-verification-pass.md`: current freshest retained packet proving `Project / workspace persistence` reached ship floor after the production persistence audit passed on `https://www.shortpulse.ai`.
 - `2026-06-01-characters-workflow-measurement-refresh.md`: current retained packet proving the Character Mode model-picker audit, local Character guards, and production Character Manager save/reopen continuity are healthy enough to move `Characters workflow` to `6/10`, with a residual delete-confirmation pointer-layering finding held below the next exact lane.
 - `2026-06-01-elements-workflow-measurement-refresh.md`: current retained packet proving the approved-panel KPI measurement correction and production remeasurement moved `Elements workflow` to `6/10`, with evidence-depth limits keeping it at floor.

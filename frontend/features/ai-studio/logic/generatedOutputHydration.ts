@@ -154,6 +154,7 @@ const mergeHydratedGeneratedOutput = (
   characterContext: hydrated.characterContext ?? existing.characterContext,
   styleContext: hydrated.styleContext ?? existing.styleContext,
   generationReplay: hydrated.generationReplay ?? existing.generationReplay,
+  workflowReload: hydrated.workflowReload ?? existing.workflowReload,
 });
 
 export const mergeCanonicalGeneratedOutputs = (

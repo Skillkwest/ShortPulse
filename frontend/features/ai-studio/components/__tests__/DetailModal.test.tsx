@@ -169,7 +169,7 @@ describe("DetailModal", () => {
     expect(screen.getByText("SG")).toBeInTheDocument();
   });
 
-  it("renders text references in the shared detail modal and saves the edited prompt", () => {
+  it("renders text references in the shared detail modal with regular actions", () => {
     const onSavePrompt = vi.fn();
     const { baseElement } = render(
       <DetailModal
@@ -192,16 +192,19 @@ describe("DetailModal", () => {
     expect(screen.getByText("Text detail")).toBeInTheDocument();
     expect(baseElement.querySelector(".art-prompt-only-header")).toBeNull();
     expect(baseElement.querySelector(".art-prompt-only-container")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Apply Changes" })).not.toBeInTheDocument();
 
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
+    expect(promptTextarea).toHaveAttribute("readonly");
+    fireEvent.doubleClick(promptTextarea);
     fireEvent.change(promptTextarea, { target: { value: "Updated prompt for library" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save Prompt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSavePrompt).toHaveBeenCalledWith("Updated prompt for library");
     expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
   });
 
-  it("applies text reference edits from the shared detail action bar", () => {
+  it("edits text references after double click and applies changes on blur", () => {
     const onUpdatePrompt = vi.fn();
     render(
       <DetailModal
@@ -217,12 +220,72 @@ describe("DetailModal", () => {
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText("Describe your adjustments..."), {
+    const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
+    expect(promptTextarea).toHaveAttribute("readonly");
+
+    fireEvent.doubleClick(promptTextarea);
+    expect(promptTextarea).not.toHaveAttribute("readonly");
+
+    fireEvent.change(promptTextarea, {
       target: { value: "Updated prompt in reference" },
     });
+    fireEvent.blur(promptTextarea);
 
-    fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }));
     expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt in reference");
+  });
+
+  it("applies text reference edits on Enter", () => {
+    const onUpdatePrompt = vi.fn();
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "text",
+          previewUrl: undefined,
+          prompt: "Original prompt",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={onUpdatePrompt}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
+    fireEvent.doubleClick(promptTextarea);
+    fireEvent.change(promptTextarea, {
+      target: { value: "Updated prompt in reference" },
+    });
+    fireEvent.keyDown(promptTextarea, { key: "Enter" });
+
+    expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt in reference");
+  });
+
+  it("applies text reference edits when the modal closes", () => {
+    const onClose = vi.fn();
+    const onUpdatePrompt = vi.fn();
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "text",
+          previewUrl: undefined,
+          prompt: "Original prompt",
+        }}
+        onClose={onClose}
+        onUpdatePrompt={onUpdatePrompt}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
+    fireEvent.doubleClick(promptTextarea);
+    fireEvent.change(promptTextarea, {
+      target: { value: "Updated prompt before close" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close text detail" }));
+
+    expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt before close");
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("prefers the replay display prompt over compiled submission prompt text", () => {

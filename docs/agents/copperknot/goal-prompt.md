@@ -33,7 +33,8 @@ Working loop:
 5. Harden canonical source; add narrow invariants and variant checks; run bounded validation.
 6. Defer final prod/e2e proof while lanes move unless cheap, stable, launch-week-gated, or useful for hardening.
 7. Update board/queue/scores only when evidence earns it.
-8. Self-audit stale proof, duplicate truth, missed checks, and patch-loop risk.
+8. At meaningful checkpoints, write one tiny scratch report of touched files/actions/results; do not polish it or treat it as source of truth.
+9. Self-audit stale proof, duplicate truth, missed checks, and patch-loop risk.
 
 Handoff rule:
 Do not hand off by size. Continue when scope, source ownership, confidence, validation, and behavior preservation are bounded. Create/refine a handoff only at true gates: another agent's authority, broad architecture redesign, UI/UX/behavior change, credentials/spend, production/release gate, or repeated fix/regression churn. After creating or refreshing a handoff, stop and notify the user with path, evidence level, proof boundary, and recommended next decision.

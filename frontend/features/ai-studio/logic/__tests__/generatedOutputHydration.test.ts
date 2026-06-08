@@ -149,6 +149,61 @@ describe("generatedOutputHydration", () => {
     );
   });
 
+  it("hydrates workflow reload metadata onto matching generated outputs", () => {
+    const workflowReload: StudioOutput["workflowReload"] = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      restoreBehavior: "navigate_and_hydrate",
+      createMode: null,
+      pulse: null,
+      prompt: { display: "A cinematic tracking shot" },
+      model: { id: "kie-ai/kling-3.0" },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "standard",
+        durationSeconds: 8,
+        resolution: "1080p",
+        generateAudio: true,
+        cameraFixed: false,
+        autoFix: true,
+        referenceInputs: ["https://example.com/frame.png"],
+      },
+    };
+    const existing = [
+      createOutput({
+        id: "local-1",
+        mode: "video",
+        generationId: "gen-1",
+        taskId: "req-1",
+        taskState: "running",
+        mediaSource: "generated",
+      }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-1",
+        mode: "video",
+        generationId: "gen-1",
+        taskId: "req-1",
+        taskState: "success",
+        mediaSource: "generated",
+        workflowReload,
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)[0]).toEqual(
+      expect.objectContaining({
+        id: "local-1",
+        workflowReload,
+      })
+    );
+  });
+
   it("prepends unseen canonical generated outputs", () => {
     const existing = [createOutput({ id: "local-existing" })];
     const hydrated = [

@@ -10,6 +10,7 @@ Use this folder for retained evidence, learning logs, and artifact memory only.
 - dispatch tracking
 - external lane closeouts
 - retained metrics
+- checkpoint scratchpads
 - training history
 - sparse artifact-side memory
 - tooling notes
@@ -27,10 +28,14 @@ Use this folder for retained evidence, learning logs, and artifact memory only.
 - Keep current truth in the canonical docs under `docs/agents/copperknot/` and `docs/systems/`.
 - Treat the primary authority chain as:
   - `docs/systems/catalog.md`
-  - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
-  - one freshest retained verification, remeasurement, or baseline packet
+  - `docs/agents/copperknot/july-7-launch-authority.md`
+  - `docs/agents/copperknot/july-7-system-map.md`
+  - `docs/agents/copperknot/july-7-launch-board.md`
+  - `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
+  - one freshest retained verification, remeasurement, baseline packet, or checkpoint scratchpad when it explains the current worktree
 - Use this folder to retain evidence and learning, not to create competing authorities.
 - If a file here becomes stale and is not helping current launch decisions or future learning, prune or demote it.
+- Do not prune `checkpoint-scratchpads/` merely because notes are small, plain, or non-authoritative. They are intentionally minimal paper-trail notes for recent touched files/actions/results. Prune them only when they are duplicates, empty, or clearly unrelated to Copperknot work.
 - Historical reports may stay preserved, but mark them as non-default reading when they are no longer part of the active launch path.
 - Keep `training-history.md` compressed. Move long chronology into dated archive snapshots instead of letting the active file bloat again.
 - If retained metric logs lag the latest meaningful launch-state reset or queue change, treat them as historical maintenance aids, not as current truth.
@@ -41,6 +46,8 @@ Use this folder for retained evidence, learning logs, and artifact memory only.
   - `reports/external-lane-closeouts/`
 - Time-based learning logs:
   - `metrics/`
+- Checkpoint scratchpads:
+  - `checkpoint-scratchpads/`
 
 ## Validation
 

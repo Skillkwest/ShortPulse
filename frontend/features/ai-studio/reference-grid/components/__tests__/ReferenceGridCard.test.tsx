@@ -273,6 +273,57 @@ describe("ReferenceGridCard", () => {
     expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output);
   });
 
+  it("shows workflow reload for restorable generated video references", () => {
+    const onReloadWorkflowOutput = vi.fn();
+    const onSelectOutput = vi.fn();
+    const output = createOutput({
+      mode: "video",
+      taskState: "success",
+      mediaSource: "generated",
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "video",
+        panelKind: "video",
+        outputMode: "video",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: null,
+        pulse: null,
+        prompt: { display: "A cinematic tracking shot" },
+        model: { id: "kie-ai/kling-3.0" },
+        payload: {
+          kind: "video",
+          aspect: "16:9",
+          videoReferenceMode: "standard",
+          durationSeconds: 8,
+          resolution: "1080p",
+          generateAudio: true,
+          cameraFixed: false,
+          autoFix: true,
+          referenceInputs: ["https://example.com/frame.png"],
+        },
+      },
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: output,
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/video.mp4",
+          onReloadWorkflowOutput,
+          onSelectOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Reload workflow"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("out-1");
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output);
+  });
+
   it("places workflow reload immediately to the right of image re-roll", () => {
     const output = createOutput({
       taskState: "success",

@@ -448,6 +448,7 @@ export const useAiStudioPageBaseRuntime = () => {
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
     hydrateCanvasSessionState,
+    removeCanvasItemsForOutput,
     railCanvasProps,
     resolveVoiceChangerInternalReferenceSource,
   } = useAiStudioPageMediaReferenceRuntime({
@@ -501,6 +502,14 @@ export const useAiStudioPageBaseRuntime = () => {
     balanceCredits,
     referenceGridPreconnectHintsEnabled: FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   });
+
+  const deleteOutputAndCanvasItems = useCallback(
+    (outputId: string) => {
+      removeCanvasItemsForOutput(outputId);
+      deleteOutput(outputId);
+    },
+    [deleteOutput, removeCanvasItemsForOutput]
+  );
   useAiStudioPerfAuditRuntime({
     enabled: FLAG_PERF_AUDIT_RUNTIME,
     aspect,
@@ -609,7 +618,7 @@ export const useAiStudioPageBaseRuntime = () => {
     createSelectedCharacterLookId,
     curatedReferenceIds,
     currentModelLabel,
-    deleteOutput,
+    deleteOutput: deleteOutputAndCanvasItems,
     detailOutput,
     sharedDetailModalItem,
     detailSelectionTarget,

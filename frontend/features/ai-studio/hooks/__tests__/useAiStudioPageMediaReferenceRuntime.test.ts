@@ -188,6 +188,88 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     document.body.innerHTML = "";
   });
 
+  it("removes canvas items linked to a deleted Reference Grid output only", () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-output-image",
+          kind: "image" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: true,
+          outputId: "output-1",
+          sourceSurface: "curated" as const,
+          mediaId: "media-1",
+          src: "https://signed.shortpulse.test/output.png",
+          alt: "Grid output",
+          width: 320,
+          height: 180,
+        },
+        {
+          id: "canvas-library-image",
+          kind: "image" as const,
+          x: 40,
+          y: 50,
+          z: 2,
+          selected: false,
+          outputId: null,
+          mediaId: "media-1",
+          src: "https://signed.shortpulse.test/library.png",
+          alt: "Library item",
+          width: 320,
+          height: 180,
+        },
+        {
+          id: "canvas-other-output",
+          kind: "text" as const,
+          x: 60,
+          y: 70,
+          z: 3,
+          selected: false,
+          outputId: "output-2",
+          text: "Keep me",
+          width: 220,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: {
+        itemId: "canvas-output-image",
+        value: "Editing removed item",
+      },
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: "rail",
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+      })
+    );
+
+    act(() => {
+      expect(result.current.removeCanvasItemsForOutput("output-1")).toBe(true);
+    });
+
+    expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+      ...mockedCanvasSessionState,
+      items: [
+        expect.objectContaining({
+          id: "canvas-library-image",
+          outputId: null,
+          mediaId: "media-1",
+        }),
+        expect.objectContaining({
+          id: "canvas-other-output",
+          outputId: "output-2",
+        }),
+      ],
+      textEditSession: null,
+    });
+  });
+
   it("resolves a storage-backed reference-grid video for the voice changer pipeline", async () => {
     const output = makeOutput({
       id: "output-video-1",

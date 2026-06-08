@@ -260,6 +260,139 @@ describe("GET /api/billing/catalog", () => {
     });
   });
 
+  it("falls back to default concurrency when the hosted plan-offer column is missing", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "billing_plans") {
+          return {
+            select: () => ({
+              eq: () => ({
+                data: [
+                  {
+                    id: "business",
+                    display_name: "Business",
+                    is_active: true,
+                    sort_order: 40,
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_plan_offers") {
+          return {
+            select: (columns: string) => ({
+              eq: () => ({
+                eq: () => ({
+                  is: () => ({
+                    order: () => ({
+                      order: async () =>
+                        columns.includes("max_concurrent_generations")
+                          ? {
+                              data: null,
+                              error: {
+                                code: "42703",
+                                message:
+                                  "column billing_plan_offers.max_concurrent_generations does not exist",
+                              },
+                            }
+                          : {
+                              data: [
+                                {
+                                  id: "business__current",
+                                  plan_id: "business",
+                                  billing_interval: "month",
+                                  recurring_price_cents: 24900,
+                                  monthly_credits_cents: 15000,
+                                  storage_limit_bytes: 536870912000,
+                                  stripe_price_id: "price_business",
+                                  acquisition_enabled: true,
+                                  is_active: true,
+                                  effective_start_at: "2026-04-15T00:00:00.000Z",
+                                  created_at: "2026-04-15T00:00:00.000Z",
+                                },
+                              ],
+                              error: null,
+                            },
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_credit_packages") {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: async () => ({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_storage_addons") {
+          return {
+            select: () => ({
+              eq: () => ({
+                data: [],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_storage_addon_offers") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  is: () => ({
+                    order: () => ({
+                      order: async () => ({
+                        data: [],
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      },
+    });
+
+    const res = createMockResponse();
+
+    await handler({ method: "GET" } as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plans: [
+          expect.objectContaining({
+            id: "business",
+            max_concurrent_generations: 8,
+            offers: {
+              month: expect.objectContaining({
+                max_concurrent_generations: 8,
+              }),
+            },
+          }),
+        ],
+      })
+    );
+  });
+
   it("logs and sanitizes backend catalog failures", async () => {
     getSupabaseAdminMock.mockReturnValue({
       from: (table: string) => {

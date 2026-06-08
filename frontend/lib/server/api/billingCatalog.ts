@@ -110,6 +110,45 @@ const loadBillingPlanMetadataRows = async (supabaseAdmin: ReturnType<typeof getS
   }));
 };
 
+const loadBillingPlanOfferRows = async (supabaseAdmin: ReturnType<typeof getSupabaseAdmin>) => {
+  const buildQuery = (selectColumns: string) =>
+    supabaseAdmin
+      .from("billing_plan_offers")
+      .select(selectColumns)
+      .eq("acquisition_enabled", true)
+      .eq("is_active", true)
+      .is("effective_end_at", null)
+      .order("effective_start_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+  const withConcurrency = await buildQuery(
+    "id, plan_id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, stripe_price_id, acquisition_enabled, is_active, effective_start_at, created_at"
+  );
+
+  if (!withConcurrency.error) {
+    return withConcurrency.data as unknown as BillingPlanOfferRow[];
+  }
+
+  if (!isSchemaDriftError(withConcurrency.error)) {
+    throw new Error(withConcurrency.error.message || "Unable to load billing plan offers.");
+  }
+
+  const fallback = await buildQuery(
+    "id, plan_id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id, acquisition_enabled, is_active, effective_start_at, created_at"
+  );
+
+  if (fallback.error) {
+    throw new Error(fallback.error.message || "Unable to load billing plan offers.");
+  }
+
+  return (
+    (fallback.data ?? []) as unknown as Omit<BillingPlanOfferRow, "max_concurrent_generations">[]
+  ).map((row) => ({
+    ...row,
+    max_concurrent_generations: null,
+  }));
+};
+
 /**
  * Loads the current public billing catalog snapshot from Supabase.
  */
@@ -124,16 +163,7 @@ export const loadBillingCatalogSnapshot = async (
     storageAddonOffersResult,
   ] = await Promise.all([
     loadBillingPlanMetadataRows(supabaseAdmin),
-    supabaseAdmin
-      .from("billing_plan_offers")
-      .select(
-        "id, plan_id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, stripe_price_id, acquisition_enabled, is_active, effective_start_at, created_at"
-      )
-      .eq("acquisition_enabled", true)
-      .eq("is_active", true)
-      .is("effective_end_at", null)
-      .order("effective_start_at", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false }),
+    loadBillingPlanOfferRows(supabaseAdmin),
     supabaseAdmin
       .from("billing_credit_packages")
       .select("id, display_name, credit_amount_cents, price_cents, sort_order")
@@ -155,14 +185,8 @@ export const loadBillingCatalogSnapshot = async (
       .order("created_at", { ascending: false }),
   ]);
 
-  if (
-    planOffersResult.error ||
-    packagesResult.error ||
-    storageAddonMetadataResult.error ||
-    storageAddonOffersResult.error
-  ) {
+  if (packagesResult.error || storageAddonMetadataResult.error || storageAddonOffersResult.error) {
     const detail = [
-      planOffersResult.error?.message,
       packagesResult.error?.message,
       storageAddonMetadataResult.error?.message,
       storageAddonOffersResult.error?.message,
@@ -176,9 +200,7 @@ export const loadBillingCatalogSnapshot = async (
     (planMetadataRows ?? []).map((row) => [row.id, row])
   );
   const latestPlanOfferByPlanAndInterval = new Map<string, BillingPlanOfferRow>();
-  for (const offer of ((planOffersResult.data ?? []) as BillingPlanOfferRow[]).sort(
-    compareOfferRecency
-  )) {
+  for (const offer of planOffersResult.sort(compareOfferRecency)) {
     const intervalKey = `${offer.plan_id}:${offer.billing_interval}`;
     if (!latestPlanOfferByPlanAndInterval.has(intervalKey)) {
       latestPlanOfferByPlanAndInterval.set(intervalKey, offer);
@@ -187,7 +209,7 @@ export const loadBillingCatalogSnapshot = async (
 
   const planIds = new Set<string>([
     ...planMetadata.keys(),
-    ...((planOffersResult.data ?? []) as BillingPlanOfferRow[]).map((offer) => offer.plan_id),
+    ...planOffersResult.map((offer) => offer.plan_id),
   ]);
 
   const plans = [...planIds]

@@ -541,7 +541,7 @@
 
 .profile-preference-toggle.reference-toggle.is-active .reference-toggle-dot {
   background: #071a18;
-  transform: translateX(26px);
+  transform: translate(22px, -50%);
 }
 
 .profile-divider {

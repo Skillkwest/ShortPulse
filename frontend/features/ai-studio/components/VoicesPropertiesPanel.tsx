@@ -457,6 +457,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       : uncontrolledVoiceChangerSource;
   const loadedVoiceCueTimeoutRef = React.useRef<number | null>(null);
   const requiresProviderVoice = Boolean(onGenerate);
+  const shouldLoadVoiceLibrary = requiresProviderVoice && Boolean(sessionUserId);
   const isCreateVoiceModalOpen = isCreatePanelOpen;
   const isSelectedVoiceProviderReady =
     selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
@@ -892,7 +893,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   }, [selectedTool]);
 
   React.useEffect(() => {
-    if (!onGenerate) {
+    if (!shouldLoadVoiceLibrary) {
       return;
     }
     let cancelled = false;
@@ -1008,7 +1009,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       window.clearTimeout(timeoutId);
       abortController.abort();
     };
-  }, [onGenerate, replaceVoices]);
+  }, [replaceVoices, sessionUserId, shouldLoadVoiceLibrary]);
 
   const handleSurfaceModeChange = React.useCallback((nextMode: VoicesSurfaceMode) => {
     setSurfaceMode(nextMode);

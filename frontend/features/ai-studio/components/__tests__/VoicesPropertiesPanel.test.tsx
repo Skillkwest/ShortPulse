@@ -510,6 +510,46 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("button", { name: /darian voice/i })).not.toBeInTheDocument();
   });
 
+  it("keeps the in-flight voices request when the generation handler identity changes", async () => {
+    const voicesResponse = createDeferred<Response>();
+    fetchWithAuthMock.mockReturnValue(voicesResponse.promise);
+
+    const { rerender } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(document.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(12);
+
+    rerender(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(document.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(12);
+
+    voicesResponse.resolve({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_default_adam",
+            name: "Adam",
+            previewUrl: "https://cdn.elevenlabs.test/adam.mp3",
+            description: "steady",
+            isFallback: false,
+            librarySection: "default",
+          },
+        ],
+      }),
+    } as Response);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(0);
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Default Voices" }));
+    expect(screen.getByRole("button", { name: /adam voice/i })).toBeInTheDocument();
+  });
+
   it("returns to built-in voices when the live voices request times out", async () => {
     vi.useFakeTimers();
     fetchWithAuthMock.mockImplementation((_url: string, init?: RequestInit) => {

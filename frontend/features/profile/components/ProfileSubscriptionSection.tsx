@@ -23,6 +23,7 @@ import {
   type SubscriptionTransaction,
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
+import { ProfileExplainer, ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type ActivePlanView = ReturnType<typeof buildPlanView>;
 
@@ -114,14 +115,13 @@ export function ProfileSubscriptionSection({
 
   return (
     <>
-      <details className={profileClass("panel", "profile-detail-panel", "profile-billing-how")}>
-        <summary>How subscriptions work</summary>
+      <ProfileExplainer summary="How subscriptions work">
         <p>
           Paid plans include recurring credits whether you choose monthly or annual billing. You can
           upgrade or downgrade anytime. Upgrades take effect immediately with prorated charges.
           Downgrades apply at the end of your billing period. Credits never expire.
         </p>
-      </details>
+      </ProfileExplainer>
 
       <article
         className={profileClass(
@@ -144,50 +144,42 @@ export function ProfileSubscriptionSection({
 
         <div className={profileClass("profile-hero-meta")}>
           {showRenewalChip ? (
-            <div className={profileClass("profile-hero-stat-card")}>
-              <p className={profileClass("profile-hero-stat-label")}>Next renewal</p>
-              <p className={profileClass("profile-hero-stat-value")}>{subscriptionRenewalText}</p>
-              <p className={profileClass("profile-hero-stat-helper")}>{renewalHelperText}</p>
-            </div>
+            <ProfileMetricCard
+              className="profile-hero-stat-card"
+              label="Next renewal"
+              value={subscriptionRenewalText}
+              helper={renewalHelperText}
+            />
           ) : null}
-          <div className={profileClass("profile-hero-stat-card")}>
-            <p className={profileClass("profile-hero-stat-label")}>Monthly credits</p>
-            <p className={profileClass("profile-hero-stat-value")}>
-              {currentSubscriptionCreditsCents.toLocaleString()}
-            </p>
-            <p className={profileClass("profile-hero-stat-helper")}>{monthlyCreditsHelperText}</p>
-          </div>
-          <div className={profileClass("profile-hero-stat-card")}>
-            <p className={profileClass("profile-hero-stat-label")}>Storage included</p>
-            <p className={profileClass("profile-hero-stat-value")}>
-              {formatStorageBytes(currentSubscriptionStorageLimitBytes)}
-            </p>
-            <p className={profileClass("profile-hero-stat-helper")}>{storageIncludedHelperText}</p>
-          </div>
+          <ProfileMetricCard
+            className="profile-hero-stat-card"
+            label="Monthly credits"
+            value={currentSubscriptionCreditsCents.toLocaleString()}
+            helper={monthlyCreditsHelperText}
+          />
+          <ProfileMetricCard
+            className="profile-hero-stat-card"
+            label="Storage included"
+            value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
+            helper={storageIncludedHelperText}
+          />
           {activeAddonStorageBytes > 0 ? (
-            <div className={profileClass("profile-hero-stat-card")}>
-              <p className={profileClass("profile-hero-stat-label")}>Active add-ons</p>
-              <p className={profileClass("profile-hero-stat-value")}>
-                +{formatStorageBytes(activeAddonStorageBytes)}
-              </p>
-              <p className={profileClass("profile-hero-stat-helper")}>{activeAddonsHelperText}</p>
-            </div>
+            <ProfileMetricCard
+              className="profile-hero-stat-card"
+              label="Active add-ons"
+              value={`+${formatStorageBytes(activeAddonStorageBytes)}`}
+              helper={activeAddonsHelperText}
+            />
           ) : null}
         </div>
       </article>
 
-      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
-        <div className={profileClass("panel-header", "profile-panel-header")}>
-          <div>
-            <p className="eyebrow">All plans</p>
-            <h2 className={profileClass("profile-panel-title")}>Available plans</h2>
-            <p className="subdued tiny">
-              Compare the public offers available if you change plans now, including your current
-              plan.
-            </p>
-          </div>
-        </div>
-
+      <ProfilePanel
+        eyebrow="All plans"
+        title="Available plans"
+        description="Compare the public offers available if you change plans now, including your current plan."
+        className="profile-panel-stack"
+      >
         <BillingIntervalToggle
           selectedBillingInterval={selectedBillingInterval}
           annualSavingsPercent={annualSavingsPercent}
@@ -323,24 +315,19 @@ export function ProfileSubscriptionSection({
             </button>
           </div>
         ) : null}
-      </section>
+      </ProfilePanel>
 
-      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
-        <div className={profileClass("panel-header", "profile-panel-header")}>
-          <div>
-            <p className="eyebrow">Payment history</p>
-            <h2 className={profileClass("profile-panel-title")}>Recent subscription payments</h2>
-            <p className="subdued tiny">
-              {isInternalCompContract
-                ? "This account is managed internally, so there are no Stripe subscription charges to show here."
-                : "Recent Stripe invoices that include subscription charges."}
-            </p>
-          </div>
-          <span className={profileClass("profile-panel-icon-chip")} aria-hidden="true">
-            <Receipt size={18} weight="bold" />
-          </span>
-        </div>
-
+      <ProfilePanel
+        eyebrow="Payment history"
+        title="Recent subscription payments"
+        description={
+          isInternalCompContract
+            ? "This account is managed internally, so there are no Stripe subscription charges to show here."
+            : "Recent Stripe invoices that include subscription charges."
+        }
+        icon={Receipt}
+        className="profile-panel-stack"
+      >
         <div className={profileClass("profile-receipts", "profile-receipts-standalone")}>
           <div className={profileClass("profile-receipts-header")}>
             <h3 className={profileClass("profile-subsection-title")}>Recent transactions</h3>
@@ -403,7 +390,7 @@ export function ProfileSubscriptionSection({
             </ul>
           ) : null}
         </div>
-      </section>
+      </ProfilePanel>
 
       {!isInternalCompContract ? (
         <aside className={profileClass("profile-callout")}>

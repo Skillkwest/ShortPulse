@@ -113,4 +113,8 @@ Auth required legend:
 | `/api/ai/studio-agent-standard` | Yes | Standard AI Studio agent route | `POST` JSON only. Accepts Standard-mode agent payloads, rejects Pulse runtime context, and runs the Standard-owned Create agent runtime as a raw OpenAI chat pass-through. Standard does not inject local system instructions, does not run the local Standard precheck/canonical-prompt path, and does not return Pulse workflow fields. Standard requests must not carry Pulse preset/session/workflow authority. |
 | `/api/ai/studio-agent-pulse` | Yes | Pulse AI Studio agent route | `POST` JSON only. Requires Pulse runtime context, requires a Pulse session namespace, rejects Standard-mode payloads, rejects namespace/preset mismatches between `clientSessionNamespace` and `context.pulse.presetId`, and runs the Pulse-owned agent runtime. Custom Pulses execute as saved-instruction profiles; built-in preset ids resolve through the guided-workflow compatibility path. |
 
+## Profile Sections
+
+`/profile` is the protected customer account workspace. Supported section query values are `account`, `subscription`, `credits`, `storage`, and `transactions`; legacy aliases map `profile` to `account` and `billing` to `credits`. Dashboard profile-menu links should route subscription management to `/profile?section=subscription` and credit/billing top-ups to `/profile?section=credits`.
+
 Keep this table updated when adding routes and reflect protection rules in `frontend/lib/protectedRoutes.ts` for frontend pages and `frontend/lib/server/api/protectedApiPaths.ts` for API routes.

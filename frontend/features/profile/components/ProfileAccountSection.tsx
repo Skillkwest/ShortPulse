@@ -4,7 +4,7 @@
  */
 import { ProfilePreferenceToggleCard } from "./ProfilePreferenceToggleCard";
 import { profileClass } from "../profileRouteStyles";
-import { accountStyles, textStyles } from "./profileAccountInlineStyles";
+import { ProfilePanel } from "./ProfileSurface";
 
 type ProfileAccountSectionProps = {
   displayNameInput: string;
@@ -45,149 +45,98 @@ export function ProfileAccountSection({
   onMediaAutosaveToggle,
 }: ProfileAccountSectionProps) {
   return (
-    <div
-      className={profileClass("profile-section-grid", "profile-account-grid")}
-      style={accountStyles.grid}
-    >
-      <section
-        className={profileClass("panel", "profile-panel", "profile-identity-panel")}
-        style={accountStyles.panel}
+    <div className={profileClass("profile-section-grid", "profile-account-grid")}>
+      <ProfilePanel
+        eyebrow="Identity"
+        title="Profile"
+        description="This name appears in your dashboard and account records."
+        className="profile-identity-panel"
       >
-        <div
-          className={profileClass("panel-header", "profile-panel-header")}
-          style={accountStyles.panelHeader}
-        >
-          <div>
-            <p className="eyebrow" style={textStyles.eyebrow}>
-              Identity
-            </p>
-            <h2 className={profileClass("profile-panel-title")} style={textStyles.h2}>
-              Profile
-            </h2>
-            <p className="subdued tiny" style={textStyles.helper}>
-              This name appears in your dashboard.
-            </p>
-          </div>
-        </div>
-        <div className={profileClass("profile-field")} style={accountStyles.field}>
-          <label htmlFor="display-name" style={textStyles.label}>
-            Display name
-          </label>
+        <div className={profileClass("profile-field")}>
+          <label htmlFor="display-name">Display name</label>
           <input
             id="display-name"
             type="text"
             value={displayNameInput}
             onChange={(event) => onDisplayNameInputChange(event.target.value)}
             className={profileClass("profile-input")}
-            style={accountStyles.input}
             placeholder="Your display name"
           />
         </div>
-        <div className={profileClass("profile-actions")} style={accountStyles.actions}>
+        <div className={profileClass("profile-actions")}>
           <button
             type="button"
             className={profileClass("primary-btn", "profile-button")}
-            style={accountStyles.button}
             onClick={onProfileSave}
           >
             Save changes
           </button>
         </div>
-      </section>
+      </ProfilePanel>
 
-      <section className={profileClass("panel", "profile-panel")} style={accountStyles.panel}>
-        <div
-          className={profileClass("panel-header", "profile-panel-header")}
-          style={accountStyles.panelHeader}
-        >
-          <div>
-            <p className="eyebrow" style={textStyles.eyebrow}>
-              Workspace email
-            </p>
-            <h2 className={profileClass("profile-panel-title")} style={textStyles.h2}>
-              Email
-            </h2>
-            <p className="subdued tiny" style={textStyles.helper}>
-              Changes are confirmed by email.
-            </p>
-          </div>
-        </div>
-        <div style={accountStyles.fieldStack}>
-          <div className={profileClass("profile-field")} style={accountStyles.field}>
-            <label htmlFor="workspace-email" style={textStyles.label}>
-              Email address
-            </label>
+      <ProfilePanel
+        eyebrow="Workspace email"
+        title="Email"
+        description="Email changes require your current password and must be confirmed from your inbox."
+        className="profile-email-panel"
+      >
+        <div className={profileClass("profile-field-stack")}>
+          <div className={profileClass("profile-field")}>
+            <label htmlFor="workspace-email">Email address</label>
             <input
               id="workspace-email"
               type="email"
               value={workspaceEmail}
               onChange={(event) => onWorkspaceEmailChange(event.target.value)}
               className={profileClass("profile-input")}
-              style={accountStyles.input}
               placeholder="you@example.com"
             />
           </div>
-          <div className={profileClass("profile-field")} style={accountStyles.field}>
-            <label htmlFor="workspace-current-password" style={textStyles.label}>
-              Current password
-            </label>
+          <div className={profileClass("profile-field")}>
+            <label htmlFor="workspace-current-password">Current password</label>
             <input
               id="workspace-current-password"
               type="password"
               value={currentPasswordInput}
               onChange={(event) => onCurrentPasswordInputChange(event.target.value)}
               className={profileClass("profile-input")}
-              style={accountStyles.input}
               autoComplete="current-password"
               placeholder="Enter your current password"
             />
           </div>
         </div>
         {pendingWorkspaceEmail ? (
-          <p className="subdued tiny" style={textStyles.helper}>
+          <p className="subdued tiny">
             Pending confirmation: <strong>{pendingWorkspaceEmail}</strong>
           </p>
         ) : null}
-        <div className={profileClass("profile-actions")} style={accountStyles.actions}>
+        <div className={profileClass("profile-actions")}>
           <button
             type="button"
             className={profileClass("primary-btn", "profile-button")}
-            style={accountStyles.button}
             onClick={onEmailUpdate}
           >
             Update email
           </button>
         </div>
-      </section>
+      </ProfilePanel>
 
-      <section className={profileClass("panel", "profile-panel")} style={accountStyles.panel}>
-        <div
-          className={profileClass("panel-header", "profile-panel-header")}
-          style={accountStyles.panelHeader}
-        >
-          <div>
-            <p className="eyebrow" style={textStyles.eyebrow}>
-              Security
-            </p>
-            <h2 className={profileClass("profile-panel-title")} style={textStyles.h2}>
-              Password reset
-            </h2>
-            <p className="subdued tiny" style={textStyles.helper}>
-              Send a password reset link to your email.
-            </p>
-          </div>
-        </div>
-        <div className={profileClass("profile-actions")} style={accountStyles.actions}>
+      <ProfilePanel
+        eyebrow="Security"
+        title="Password reset"
+        description="Send a recovery link to the email currently entered above."
+        className="profile-security-panel"
+      >
+        <div className={profileClass("profile-actions")}>
           <button
             type="button"
             className={profileClass("ghost-btn", "profile-button")}
-            style={accountStyles.ghostButton}
             onClick={onPasswordReset}
           >
             Send reset link
           </button>
         </div>
-      </section>
+      </ProfilePanel>
 
       <ProfilePreferenceToggleCard
         title="Media Library autosave"

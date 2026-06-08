@@ -187,7 +187,7 @@ describe("Profile credits actions", () => {
 
     expect(screen.getByRole("heading", { name: "Credits & billing" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Your credits" })).toBeInTheDocument();
-    expect(screen.getByText("1,000")).toBeInTheDocument();
+    expect(screen.getAllByText("1,000").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Refresh credits" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Manage card, invoices, and subscription" })

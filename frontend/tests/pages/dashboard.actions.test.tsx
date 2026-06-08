@@ -240,7 +240,7 @@ describe("Dashboard actions", () => {
     expect(document.documentElement.classList.contains("dashboard-body")).toBe(false);
   });
 
-  it("opens the profile menu with account, billing, and issue-report links", async () => {
+  it("opens the profile menu with account, subscription, billing, and issue-report links", async () => {
     render(<DashboardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
@@ -249,7 +249,11 @@ describe("Dashboard actions", () => {
       "href",
       "/profile?section=account"
     );
-    expect(screen.getByRole("link", { name: "Billing & subscription" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Subscription plans" })).toHaveAttribute(
+      "href",
+      "/profile?section=subscription"
+    );
+    expect(screen.getByRole("link", { name: "Credits & billing" })).toHaveAttribute(
       "href",
       "/profile?section=credits"
     );

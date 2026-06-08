@@ -11,6 +11,7 @@ import {
   resolveLedgerReference,
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
+import { ProfileExplainer, ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type CreditPackageCard = {
   id: string;
@@ -99,13 +100,12 @@ export function ProfileCreditsSection({
 
   return (
     <>
-      <details className={profileClass("panel", "profile-detail-panel", "profile-billing-how")}>
-        <summary>How credits work</summary>
+      <ProfileExplainer summary="How credits work">
         <p>
           Credit packs are one-time top-ups. Every generation debits credits based on model cost,
           and your spendable balance syncs from Supabase in real time.
         </p>
-      </details>
+      </ProfileExplainer>
 
       <article className={profileClass("panel", "profile-credit-hero-card", activePlanClassName)}>
         <div className={profileClass("profile-credit-hero-copy")}>
@@ -116,33 +116,26 @@ export function ProfileCreditsSection({
         </div>
 
         <div className={profileClass("profile-credit-hero-meta")}>
-          <div className={profileClass("profile-credit-hero-stat-card")}>
-            <p className={profileClass("profile-credit-hero-stat-label")}>Next renewal</p>
-            <p className={profileClass("profile-credit-hero-stat-value")}>
-              {formatCompactDate(nextCreditRenewalAt)}
-            </p>
-            <p className={profileClass("profile-credit-hero-stat-helper")}>
-              {nextCreditRenewalAt ? "Plan credits refresh automatically" : "No renewal scheduled"}
-            </p>
-          </div>
-          <div className={profileClass("profile-credit-hero-stat-card")}>
-            <p className={profileClass("profile-credit-hero-stat-label")}>Incoming credits</p>
-            <p className={profileClass("profile-credit-hero-stat-value")}>
-              +{nextCreditRenewalAmount.toLocaleString()}
-            </p>
-            <p className={profileClass("profile-credit-hero-stat-helper")}>
-              Credits added on renewal
-            </p>
-          </div>
-          <div className={profileClass("profile-credit-hero-stat-card")}>
-            <p className={profileClass("profile-credit-hero-stat-label")}>Last synced</p>
-            <p className={profileClass("profile-credit-hero-stat-value")}>
-              {formatCompactTime(balanceUpdatedAt)}
-            </p>
-            <p className={profileClass("profile-credit-hero-stat-helper")}>
-              {formatCompactDate(balanceUpdatedAt)}
-            </p>
-          </div>
+          <ProfileMetricCard
+            className="profile-credit-hero-stat-card"
+            label="Next renewal"
+            value={formatCompactDate(nextCreditRenewalAt)}
+            helper={
+              nextCreditRenewalAt ? "Plan credits refresh automatically" : "No renewal scheduled"
+            }
+          />
+          <ProfileMetricCard
+            className="profile-credit-hero-stat-card"
+            label="Incoming credits"
+            value={`+${nextCreditRenewalAmount.toLocaleString()}`}
+            helper="Credits added on renewal"
+          />
+          <ProfileMetricCard
+            className="profile-credit-hero-stat-card"
+            label="Last synced"
+            value={formatCompactTime(balanceUpdatedAt)}
+            helper={formatCompactDate(balanceUpdatedAt)}
+          />
         </div>
       </article>
 
@@ -154,15 +147,12 @@ export function ProfileCreditsSection({
       ) : null}
 
       <div className={profileClass("profile-section-stack")}>
-        <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
-          <div className={profileClass("panel-header", "profile-panel-header")}>
-            <div>
-              <p className="eyebrow">Credits & top-ups</p>
-              <h2 className={profileClass("profile-panel-title")}>Buy credits</h2>
-              <p className="subdued tiny">
-                One-time purchases. Taxes may apply. Receipts are available in Stripe.
-              </p>
-            </div>
+        <ProfilePanel
+          eyebrow="Credits & top-ups"
+          title="Buy credits"
+          description="One-time purchases. Taxes may apply. Receipts are available in Stripe."
+          className="profile-panel-stack"
+          headerAction={
             <button
               type="button"
               className={profileClass("profile-inline-action")}
@@ -172,8 +162,8 @@ export function ProfileCreditsSection({
               <ArrowsClockwise size={15} />
               {refreshingCredits ? "Syncing…" : "Refresh credits"}
             </button>
-          </div>
-
+          }
+        >
           <div className={profileClass("profile-plan-grid")}>
             {packagesLoading ? (
               <div className={profileClass("profile-plan-card")}>
@@ -224,19 +214,14 @@ export function ProfileCreditsSection({
               ))
             )}
           </div>
-        </section>
+        </ProfilePanel>
 
-        <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
-          <div className={profileClass("panel-header", "profile-panel-header")}>
-            <div>
-              <p className="eyebrow">Payment details</p>
-              <h2 className={profileClass("profile-panel-title")}>Invoices and payment method</h2>
-            </div>
-            <span className={profileClass("profile-panel-icon-chip")} aria-hidden="true">
-              <CreditCard size={18} weight="bold" />
-            </span>
-          </div>
-
+        <ProfilePanel
+          eyebrow="Payment details"
+          title="Invoices and payment method"
+          icon={CreditCard}
+          className="profile-panel-stack"
+        >
           {portalManagementAvailable ? (
             <div className={profileClass("profile-actions")}>
               <button
@@ -281,7 +266,7 @@ export function ProfileCreditsSection({
               </ul>
             ) : null}
           </div>
-        </section>
+        </ProfilePanel>
       </div>
     </>
   );

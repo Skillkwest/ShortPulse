@@ -25,7 +25,6 @@ import { ProfileStorageSection } from "../features/profile/components/ProfileSto
 import { ProfileSubscriptionSection } from "../features/profile/components/ProfileSubscriptionSection";
 import { ProfileTransactionsSection } from "../features/profile/components/ProfileTransactionsSection";
 import { ProfileWorkspaceShell } from "../features/profile/components/ProfileWorkspaceShell";
-import { shellStyles } from "../features/profile/components/profileAccountInlineStyles";
 import {
   formatDateLabel,
   formatLongDateLabel,
@@ -42,6 +41,7 @@ import {
   type SubscriptionTransaction,
 } from "../features/profile/profilePageModel";
 import { profileClass } from "../features/profile/profileRouteStyles";
+import { formatStorageUsageValue } from "../features/billing/storage";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { fetchCanonicalAuthCallbackUrl } from "../lib/authRedirects";
 import {
@@ -630,6 +630,13 @@ export default function ProfilePage() {
   const mediaAutosaveSaving = mediaAutosaveSyncState === "saving";
   const mediaAutosaveDisabled = mediaAutosaveLoading || mediaAutosaveSaving;
   const content = getProfileSectionContent(section);
+  const accountEmailLabel = workspaceEmail.trim() || user?.email || "";
+  const accountCreditsLabel = balanceLoading
+    ? "Syncing"
+    : balanceCents == null
+      ? "Unavailable"
+      : balanceCents.toLocaleString();
+  const accountStorageLabel = formatStorageUsageValue(usedStorageBytes, totalStorageLimitBytes);
   const portalManagementAvailable = !isInternalCompContract;
   const stripeManagedSubscriptionId =
     billingContract?.stripe_subscription_id ?? billingProfile?.stripe_subscription_id ?? null;
@@ -938,7 +945,6 @@ export default function ProfilePage() {
           "profile-page",
           "profile-page-shell"
         )}
-        style={shellStyles.page}
       >
         <p className="subdued">Checking your session…</p>
       </main>
@@ -963,10 +969,14 @@ export default function ProfilePage() {
           "profile-page",
           "profile-page-shell"
         )}
-        style={shellStyles.page}
       >
         <ProfileWorkspaceShell
           displayInitials={displayInitials}
+          displayName={displayName}
+          accountEmail={accountEmailLabel}
+          planLabel={activePlan.displayName}
+          creditsLabel={accountCreditsLabel}
+          storageLabel={accountStorageLabel}
           section={section}
           sections={sections}
           title={content.title}

@@ -342,6 +342,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/README.md`
 - `docs/planning/execution-authority.md`
 - `docs/planning/backlog.md`
+- `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/planning/shortpulse-latency-launch-plan-2026-07-07.md`
 - `docs/planning/validation-matrix-by-program-2026-05-11.md`
 - Use `docs/planning/README.md` as the active planning index and `docs/archive/planning/README.md` for completed or superseded planning history.
@@ -350,6 +351,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
   - `docs/planning/backlog.md`
   - `docs/planning/validation-matrix-by-program-2026-05-11.md`
 - Current active program examples:
+  - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
   - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
   - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
   - `docs/planning/kie-gpt-image-2-image-to-image-implementation-plan-2026-06-04.md`

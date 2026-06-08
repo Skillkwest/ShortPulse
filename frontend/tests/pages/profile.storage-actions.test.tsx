@@ -306,6 +306,10 @@ describe("Profile storage actions", () => {
         "Using 50.0 GB / 600.0 GB across uploads, references, and saved AI Studio media."
       )
     ).toBeInTheDocument();
+    expect(screen.getByRole("meter", { name: "Media storage used" })).toHaveAttribute(
+      "aria-valuenow",
+      "8"
+    );
     expect((await screen.findAllByText("100 GB add-on")).length).toBeGreaterThan(1);
     expect(await screen.findByText("Active add-on")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Remove" })).toBeEnabled();
@@ -315,7 +319,6 @@ describe("Profile storage actions", () => {
       "href",
       "https://stripe.test/invoices/in_storage_1"
     );
-    expect(screen.queryByText("Storage")).not.toBeInTheDocument();
   });
 
   it("shows the internal-comp empty state for Stripe storage payments", async () => {

@@ -14,6 +14,7 @@ import {
   type SubscriptionTransaction,
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
+import { ProfileExplainer, ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type ProfileStorageSectionProps = {
   activeAddonStorageBytes: number;
@@ -91,6 +92,10 @@ export function ProfileStorageSection({
           : null;
   const planCapacityHelperText = "Included with your base plan";
   const currentUsageHelperText = `of ${formatStorageBytes(totalStorageLimitBytes)} available`;
+  const usagePercent =
+    totalStorageLimitBytes > 0
+      ? Math.min(100, Math.max(0, Math.round((usedStorageBytes / totalStorageLimitBytes) * 100)))
+      : 0;
   const activeAddonsHelperText =
     activeStorageAddons.length > 0
       ? "Recurring storage add-ons renew monthly"
@@ -98,13 +103,12 @@ export function ProfileStorageSection({
 
   return (
     <>
-      <details className={profileClass("panel", "profile-detail-panel", "profile-billing-how")}>
-        <summary>How media storage works</summary>
+      <ProfileExplainer summary="How media storage works">
         <p>
           Your workspace includes storage with your base plan. Recurring storage add-ons increase
           total media capacity for uploads, references, and saved generations.
         </p>
-      </details>
+      </ProfileExplainer>
 
       <article
         className={profileClass(
@@ -124,28 +128,37 @@ export function ProfileStorageSection({
             Using {formatStorageUsageValue(usedStorageBytes, totalStorageLimitBytes)} across
             uploads, references, and saved AI Studio media.
           </p>
+          <div
+            className={profileClass("profile-storage-meter")}
+            role="meter"
+            aria-label="Media storage used"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={usagePercent}
+          >
+            <span style={{ width: `${usagePercent}%` }} />
+          </div>
         </div>
 
         <div className={profileClass("profile-hero-meta")}>
-          <div className={profileClass("profile-hero-stat-card")}>
-            <p className={profileClass("profile-hero-stat-label")}>Plan capacity</p>
-            <p className={profileClass("profile-hero-stat-value")}>
-              {formatStorageBytes(currentSubscriptionStorageLimitBytes)}
-            </p>
-            <p className={profileClass("profile-hero-stat-helper")}>{planCapacityHelperText}</p>
-          </div>
-          <div className={profileClass("profile-hero-stat-card")}>
-            <p className={profileClass("profile-hero-stat-label")}>Current usage</p>
-            <p className={profileClass("profile-hero-stat-value")}>
-              {formatStorageBytes(usedStorageBytes)}
-            </p>
-            <p className={profileClass("profile-hero-stat-helper")}>{currentUsageHelperText}</p>
-          </div>
-          <div className={profileClass("profile-hero-stat-card")}>
-            <p className={profileClass("profile-hero-stat-label")}>Active add-ons</p>
-            <p className={profileClass("profile-hero-stat-value")}>{activeAddonSummary}</p>
-            <p className={profileClass("profile-hero-stat-helper")}>{activeAddonsHelperText}</p>
-          </div>
+          <ProfileMetricCard
+            className="profile-hero-stat-card"
+            label="Plan capacity"
+            value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
+            helper={planCapacityHelperText}
+          />
+          <ProfileMetricCard
+            className="profile-hero-stat-card"
+            label="Current usage"
+            value={formatStorageBytes(usedStorageBytes)}
+            helper={currentUsageHelperText}
+          />
+          <ProfileMetricCard
+            className="profile-hero-stat-card"
+            label="Active add-ons"
+            value={activeAddonSummary}
+            helper={activeAddonsHelperText}
+          />
         </div>
       </article>
 
@@ -155,19 +168,12 @@ export function ProfileStorageSection({
         </aside>
       ) : null}
 
-      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
-        <div className={profileClass("panel-header", "profile-panel-header")}>
-          <div>
-            <p className="eyebrow">Storage add-ons</p>
-            <h2 className={profileClass("profile-panel-title")}>Expand media capacity</h2>
-            <p className="subdued tiny">
-              Recurring add-ons increase workspace capacity and renew alongside your subscription.
-              Removing one updates Stripe immediately; if usage stays over the remaining limit, new
-              uploads may be blocked until usage drops.
-            </p>
-          </div>
-        </div>
-
+      <ProfilePanel
+        eyebrow="Storage add-ons"
+        title="Expand media capacity"
+        description="Recurring add-ons increase workspace capacity and renew alongside your subscription. Removing one updates Stripe immediately; if usage stays over the remaining limit, new uploads may be blocked until usage drops."
+        className="profile-panel-stack"
+      >
         <div className={profileClass("profile-plan-grid")}>
           {billingPlansLoading ? (
             <div className={profileClass("profile-plan-card")}>
@@ -259,24 +265,19 @@ export function ProfileStorageSection({
         {billingContractLoading ? (
           <p className="tiny subdued">Syncing active storage entitlements…</p>
         ) : null}
-      </section>
+      </ProfilePanel>
 
-      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
-        <div className={profileClass("panel-header", "profile-panel-header")}>
-          <div>
-            <p className="eyebrow">Payment history</p>
-            <h2 className={profileClass("profile-panel-title")}>Recent storage payments</h2>
-            <p className="subdued tiny">
-              {storagePaymentsAvailable
-                ? "Recent recurring storage add-on charges billed through Stripe."
-                : "This account is managed internally, so there are no Stripe storage charges to show here."}
-            </p>
-          </div>
-          <span className={profileClass("profile-panel-icon-chip")} aria-hidden="true">
-            <Receipt size={18} weight="bold" />
-          </span>
-        </div>
-
+      <ProfilePanel
+        eyebrow="Payment history"
+        title="Recent storage payments"
+        description={
+          storagePaymentsAvailable
+            ? "Recent recurring storage add-on charges billed through Stripe."
+            : "This account is managed internally, so there are no Stripe storage charges to show here."
+        }
+        icon={Receipt}
+        className="profile-panel-stack"
+      >
         <div className={profileClass("profile-receipts", "profile-receipts-standalone")}>
           <div className={profileClass("profile-receipts-header")}>
             <h3 className={profileClass("profile-subsection-title")}>Recent transactions</h3>
@@ -339,7 +340,7 @@ export function ProfileStorageSection({
             </ul>
           ) : null}
         </div>
-      </section>
+      </ProfilePanel>
     </>
   );
 }

@@ -10,6 +10,7 @@ import {
   type SubscriptionTransaction,
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
+import { ProfileExplainer, ProfilePanel } from "./ProfileSurface";
 
 type ProfileTransactionsSectionProps = {
   portalActionLabel: string;
@@ -37,31 +38,24 @@ export function ProfileTransactionsSection({
 }: ProfileTransactionsSectionProps) {
   return (
     <>
-      <details className={profileClass("panel", "profile-detail-panel", "profile-billing-how")}>
-        <summary>How transaction history works</summary>
+      <ProfileExplainer summary="How transaction history works">
         <p>
           This feed combines recurring subscription invoices, storage add-on charges, and one-time
           credit top-ups so you can review every recent billing payment in one place.
         </p>
-      </details>
+      </ProfileExplainer>
 
-      <section className={profileClass("panel", "profile-panel", "profile-panel-stack")}>
-        <div className={profileClass("panel-header", "profile-panel-header")}>
-          <div>
-            <p className="eyebrow">Billing overview</p>
-            <h2 className={profileClass("profile-panel-title")}>Recent transactions</h2>
-            <p className="subdued tiny">
-              {userEmail ? `Billing email: ${userEmail}. ` : ""}
-              {portalManagementAvailable
-                ? "Includes automatic subscription payments and manual credit purchases."
-                : "This account is managed internally, so Stripe-backed billing history may be limited."}
-            </p>
-          </div>
-          <span className={profileClass("profile-panel-icon-chip")} aria-hidden="true">
-            <CreditCard size={18} weight="bold" />
-          </span>
-        </div>
-
+      <ProfilePanel
+        eyebrow="Billing overview"
+        title="Recent transactions"
+        description={`${userEmail ? `Billing email: ${userEmail}. ` : ""}${
+          portalManagementAvailable
+            ? "Includes automatic subscription payments and manual credit purchases."
+            : "This account is managed internally, so Stripe-backed billing history may be limited."
+        }`}
+        icon={CreditCard}
+        className="profile-panel-stack"
+      >
         {portalManagementAvailable ? (
           <div className={profileClass("profile-actions")}>
             <button
@@ -130,7 +124,7 @@ export function ProfileTransactionsSection({
             </ul>
           ) : null}
         </div>
-      </section>
+      </ProfilePanel>
     </>
   );
 }

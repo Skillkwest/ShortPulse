@@ -3,7 +3,6 @@
  * Receives state and handlers from the page and renders profile-aligned UI.
  */
 import { profileClass } from "../profileRouteStyles";
-import { accountStyles, textStyles } from "./profileAccountInlineStyles";
 
 type ProfilePreferenceToggleCardProps = {
   title: string;
@@ -32,19 +31,11 @@ export function ProfilePreferenceToggleCard({
   disabledHelperText,
 }: ProfilePreferenceToggleCardProps) {
   return (
-    <div
-      className={profileClass("profile-card", "profile-preference-card")}
-      style={accountStyles.preference}
-    >
-      <div className={profileClass("profile-preference-row")} style={accountStyles.preferenceRow}>
-        <div
-          className={profileClass("profile-preference-copy")}
-          style={accountStyles.preferenceCopy}
-        >
-          <h3 style={textStyles.h3}>{title}</h3>
-          <p className="tiny subdued" style={textStyles.helper}>
-            {description}
-          </p>
+    <div className={profileClass("profile-card", "profile-preference-card")}>
+      <div className={profileClass("profile-preference-row")}>
+        <div className={profileClass("profile-preference-copy")}>
+          <h3>{title}</h3>
+          <p className="tiny subdued">{description}</p>
         </div>
         <button
           type="button"
@@ -53,47 +44,21 @@ export function ProfilePreferenceToggleCard({
             "profile-preference-toggle",
             enabled && "is-active"
           )}
-          style={{
-            ...accountStyles.switchButton,
-            ...(enabled ? accountStyles.switchButtonActive : null),
-            opacity: disabled ? 0.6 : 1,
-            cursor: disabled ? "not-allowed" : "pointer",
-          }}
           aria-pressed={enabled}
           aria-label={enabled ? `Disable ${title}` : `Enable ${title}`}
           onClick={() => onToggle(!enabled)}
           disabled={disabled}
         >
-          <span
-            className={profileClass("reference-toggle-track")}
-            aria-hidden="true"
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              justifyContent: enabled ? "flex-end" : "flex-start",
-              alignItems: "center",
-            }}
-          >
-            <span
-              className={profileClass("reference-toggle-dot")}
-              style={accountStyles.switchDot}
-            />
+          <span className={profileClass("reference-toggle-track")} aria-hidden="true">
+            <span className={profileClass("reference-toggle-dot")} />
           </span>
         </button>
       </div>
-      <p
-        className={profileClass("tiny", "subdued", "profile-preference-helper")}
-        style={textStyles.helper}
-      >
+      <p className={profileClass("tiny", "subdued", "profile-preference-helper")}>
         {enabled ? enabledHelperText : disabledHelperText}
       </p>
       {saving ? (
-        <p
-          className={profileClass("tiny", "profile-preference-status")}
-          style={accountStyles.status}
-          role="status"
-        >
+        <p className={profileClass("tiny", "profile-preference-status")} role="status">
           Saving autosave preference...
         </p>
       ) : null}
@@ -104,7 +69,6 @@ export function ProfilePreferenceToggleCard({
             "profile-preference-status",
             "profile-preference-status-error"
           )}
-          style={{ ...accountStyles.status, ...accountStyles.statusError }}
           role="status"
         >
           {error}

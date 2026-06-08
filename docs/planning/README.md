@@ -57,6 +57,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 
 ### Program 4: Workflows And Product Surfaces
 
+- `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/sops/sop_saved_creators.md`

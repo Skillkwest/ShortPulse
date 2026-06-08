@@ -88,22 +88,14 @@ describe("Profile account settings autosave toggle", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders restored account presentation styles without relying on browser defaults", () => {
+  it("renders restored account presentation classes without relying on browser defaults", () => {
     render(<ProfilePage />);
 
-    expect(screen.getByRole("main")).toHaveStyle({
-      backgroundColor: "rgb(11, 15, 20)",
-    });
-    expect(screen.getByLabelText("Display name").getAttribute("style")).toContain(
-      "background: rgba(8, 12, 17, 0.92)"
-    );
-    expect(screen.getByRole("link", { name: "Account" }).getAttribute("style")).toContain(
-      "background: rgba(24, 64, 76, 0.94)"
-    );
-    expect(screen.getByText("Profile").closest(".profile-account-grid")).toHaveStyle({
-      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
-      alignItems: "start",
-    });
+    expect(screen.getByRole("main")).toHaveClass("profile-page-shell");
+    expect(screen.getByLabelText("Display name")).toHaveClass("profile-input");
+    expect(screen.getByRole("link", { name: "Account" })).toHaveClass("is-active");
+    expect(screen.getByText("Profile").closest(".profile-account-grid")).toBeInTheDocument();
+    expect(screen.getByLabelText("Account summary")).toBeInTheDocument();
   });
 
   it("keeps stale profile shell CSS from overriding restored inline page chrome", () => {

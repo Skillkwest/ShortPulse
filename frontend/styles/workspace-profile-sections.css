@@ -10,10 +10,10 @@
 
 .profile-account-grid {
   grid-template-columns:
-    minmax(260px, 0.94fr)
-    minmax(300px, 1.16fr)
-    minmax(220px, 0.72fr)
-    minmax(220px, 0.72fr);
+    minmax(280px, 0.9fr)
+    minmax(320px, 1.2fr)
+    minmax(240px, 0.8fr)
+    minmax(240px, 0.8fr);
 }
 
 .profile-section-stack {
@@ -33,6 +33,7 @@
   padding-bottom: 16px;
   background: var(--profile-wrapper-surface);
   border: 1px solid var(--profile-wrapper-border);
+  border-radius: var(--profile-radius);
   box-shadow: var(--profile-card-shadow);
 }
 
@@ -42,11 +43,17 @@
 
 .profile-panel-header {
   align-items: flex-start;
+  gap: 16px;
+}
+
+.profile-panel-header-action {
+  flex-shrink: 0;
 }
 
 .profile-panel-title {
   margin: 0;
   font-size: 22px;
+  letter-spacing: 0;
 }
 
 .profile-subsection-title {
@@ -65,6 +72,7 @@
   gap: 6px;
   background: var(--profile-wrapper-surface);
   border: 1px solid var(--profile-wrapper-border);
+  border-radius: var(--profile-radius);
   box-shadow: var(--profile-card-shadow);
 }
 
@@ -74,6 +82,7 @@
   justify-content: space-between;
   gap: 18px;
   padding: 22px 24px;
+  border-radius: var(--profile-radius);
   background: var(--profile-themed-surface);
   border: 1px solid rgba(93, 203, 225, 0.26);
   box-shadow:
@@ -104,6 +113,7 @@
   justify-content: space-between;
   gap: 18px;
   padding: 22px 24px;
+  border-radius: var(--profile-radius);
   box-shadow:
     0 18px 42px rgba(3, 8, 14, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -176,31 +186,49 @@
 .profile-credit-hero-title {
   font-size: 28px;
   line-height: 1.05;
+  letter-spacing: 0;
 }
 
 .profile-hero-title {
   font-size: 28px;
   line-height: 1.05;
+  letter-spacing: 0;
 }
 
 .profile-credit-hero-value {
-  font-size: clamp(38px, 4.6vw, 58px);
+  font-size: 46px;
   line-height: 0.95;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
   color: #f4fbff;
 }
 
 .profile-hero-value {
-  font-size: clamp(38px, 4.8vw, 58px);
+  font-size: 42px;
   line-height: 0.95;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
   color: #f4fbff;
 }
 
 .profile-hero-value-text {
   overflow-wrap: anywhere;
+}
+
+.profile-storage-meter {
+  width: min(420px, 100%);
+  height: 10px;
+  border-radius: var(--profile-radius);
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  background: rgba(8, 12, 17, 0.86);
+  overflow: hidden;
+}
+
+.profile-storage-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4ea09e;
 }
 
 .profile-credit-hero-meta {
@@ -221,7 +249,7 @@
   gap: 6px;
   min-height: 102px;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--profile-radius);
   border: 1px solid rgba(112, 183, 195, 0.22);
   background: var(--profile-themed-chip-surface);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
@@ -249,23 +277,28 @@
 .profile-credit-hero-stat-helper,
 .profile-hero-stat-label,
 .profile-hero-stat-value,
-.profile-hero-stat-helper {
+.profile-hero-stat-helper,
+.profile-metric-label,
+.profile-metric-value,
+.profile-metric-helper {
   margin: 0;
 }
 
 .profile-credit-hero-stat-label,
-.profile-hero-stat-label {
+.profile-hero-stat-label,
+.profile-metric-label {
   font-size: 11px;
   line-height: 1.2;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: rgba(214, 229, 235, 0.74);
 }
 
 .profile-credit-hero-stat-value,
-.profile-hero-stat-value {
-  font-size: clamp(20px, 2vw, 28px);
+.profile-hero-stat-value,
+.profile-metric-value {
+  font-size: 24px;
   line-height: 1.05;
   font-weight: 800;
   color: #f4fbff;
@@ -273,10 +306,23 @@
 }
 
 .profile-credit-hero-stat-helper,
-.profile-hero-stat-helper {
+.profile-hero-stat-helper,
+.profile-metric-helper {
   font-size: 12px;
   line-height: 1.35;
   color: rgba(214, 229, 235, 0.72);
+}
+
+.profile-metric-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 92px;
+  padding: 14px 16px;
+  border-radius: var(--profile-radius);
+  border: 1px solid rgba(112, 183, 195, 0.22);
+  background: var(--profile-themed-chip-surface);
 }
 
 .profile-hero-meta {
@@ -298,7 +344,7 @@
   gap: 6px;
   min-height: 102px;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--profile-radius);
   border: 1px solid rgba(112, 183, 195, 0.22);
   background: var(--profile-themed-chip-surface);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
@@ -371,7 +417,7 @@
 .profile-input {
   width: 100%;
   padding: 13px 15px;
-  border-radius: 12px;
+  border-radius: var(--profile-radius);
   border: 1px solid rgba(201, 205, 214, 0.18);
   background: rgba(10, 14, 20, 0.92);
   color: var(--color-ash);
@@ -380,6 +426,12 @@
     border-color 0.16s ease,
     box-shadow 0.16s ease,
     background 0.16s ease;
+}
+
+.profile-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .profile-input:focus {
@@ -418,7 +470,7 @@
 
 .profile-preference-card {
   border: 1px solid var(--profile-wrapper-border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--profile-radius);
   padding: 24px 22px 20px;
   background: var(--profile-wrapper-surface);
   box-shadow: var(--profile-card-shadow);
@@ -442,6 +494,7 @@
 .profile-preference-copy h3,
 .profile-plan-card-title {
   margin: 0;
+  letter-spacing: 0;
 }
 
 .profile-preference-copy .subdued {
@@ -468,6 +521,14 @@
   margin-top: 4px;
 }
 
+.profile-preference-toggle .reference-toggle-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
 .profile-preference-toggle.reference-toggle:hover:not(:disabled) {
   border-color: rgba(37, 169, 191, 0.72);
 }
@@ -480,6 +541,7 @@
 
 .profile-preference-toggle.reference-toggle.is-active .reference-toggle-dot {
   background: #071a18;
+  transform: translateX(26px);
 }
 
 .profile-divider {
@@ -500,7 +562,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--profile-radius);
   border: 1px solid rgba(37, 169, 191, 0.3);
   background: rgba(20, 60, 72, 0.38);
   color: var(--color-teal);
@@ -524,7 +586,7 @@
   border: 1px solid rgba(201, 205, 214, 0.18);
   background: var(--profile-wrapper-surface);
   color: var(--color-ash);
-  border-radius: 10px;
+  border-radius: var(--profile-radius);
   padding: 8px 12px;
   display: inline-flex;
   align-items: center;
@@ -549,7 +611,7 @@
 
 .profile-plan-card {
   border: 1px solid rgba(201, 205, 214, 0.14);
-  border-radius: 16px;
+  border-radius: var(--profile-radius);
   padding: 16px;
   background: var(--profile-themed-surface);
   box-shadow: var(--profile-card-shadow);
@@ -636,7 +698,7 @@
 }
 
 .profile-plan-badge {
-  border-radius: 999px;
+  border-radius: var(--profile-radius);
   border: 1px solid rgba(37, 169, 191, 0.45);
   background: rgba(37, 169, 191, 0.16);
   color: var(--color-teal);
@@ -705,7 +767,7 @@
 
 .profile-receipt-item {
   border: 1px solid rgba(201, 205, 214, 0.14);
-  border-radius: 12px;
+  border-radius: var(--profile-radius);
   background: var(--profile-wrapper-surface);
   padding: 11px 12px;
   display: flex;

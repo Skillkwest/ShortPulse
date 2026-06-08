@@ -399,8 +399,14 @@ export function AuthenticatedDashboardRoute({
                   <Link href="/profile?section=account" onClick={() => setProfileMenuOpen(false)}>
                     Account & profile settings
                   </Link>
+                  <Link
+                    href="/profile?section=subscription"
+                    onClick={() => setProfileMenuOpen(false)}
+                  >
+                    Subscription plans
+                  </Link>
                   <Link href="/profile?section=credits" onClick={() => setProfileMenuOpen(false)}>
-                    Billing & subscription
+                    Credits & billing
                   </Link>
                   <Link
                     href="/report-issue?from=%2Fdashboard"

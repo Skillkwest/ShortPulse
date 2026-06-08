@@ -47,6 +47,9 @@ type SetReferenceSelectionState = (nextState: ReferenceSelectionAuthorityStateSe
 type UseAiStudioWorkflowReloadControllerParams = {
   beginManualWorkflowReload: () => void;
   findOutputById: (id: string) => StudioOutput | null;
+  prepareCreateCharacterWorkflowReload?: (
+    characterContext: StudioOutput["characterContext"] | null
+  ) => void;
   prepareStandardCreateWorkflowReload?: (prompt: string) => void;
   setAspect: Dispatch<SetStateAction<string>>;
   setEditReferenceText: (value: string) => void;
@@ -149,6 +152,15 @@ const resolveTargetTool = (config: WorkflowReloadConfigV1): ToolId => {
 const resolveCreateMode = (createMode: WorkflowReloadCreateMode | null | undefined) =>
   createMode === "pulse" ? "pulse" : "standard";
 
+const resolveCreateImageCharacterContextForReload = (
+  output: StudioOutput,
+  payload: WorkflowReloadImagePayload
+): StudioOutput["characterContext"] | null => {
+  if (payload.characterContext?.applied) return payload.characterContext;
+  if (output.characterContext?.applied) return output.characterContext;
+  return null;
+};
+
 const hasVoiceChangerSourceAuthority = (source: WorkflowReloadVoiceChangerSource): boolean =>
   Boolean(
     source.sourceUrl ||
@@ -217,6 +229,7 @@ const mapKlingElements = (
 export const useAiStudioWorkflowReloadController = ({
   beginManualWorkflowReload,
   findOutputById,
+  prepareCreateCharacterWorkflowReload,
   prepareStandardCreateWorkflowReload,
   setAspect,
   setEditReferenceText,
@@ -330,6 +343,9 @@ export const useAiStudioWorkflowReloadController = ({
         if (targetTool === "create") {
           if (nextCreateMode === "standard") {
             prepareStandardCreateWorkflowReload?.(config.prompt.display);
+            prepareCreateCharacterWorkflowReload?.(
+              resolveCreateImageCharacterContextForReload(output, imagePayload)
+            );
           }
           setStandardCreatePrompt(config.prompt.display);
         } else {
@@ -437,6 +453,7 @@ export const useAiStudioWorkflowReloadController = ({
     [
       beginManualWorkflowReload,
       fail,
+      prepareCreateCharacterWorkflowReload,
       prepareStandardCreateWorkflowReload,
       setAspect,
       setEditReferenceText,

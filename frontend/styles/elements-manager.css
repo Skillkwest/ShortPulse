@@ -297,6 +297,33 @@
   border-radius: 12px;
 }
 
+.elements-reference-card[draggable="true"] {
+  cursor: grab;
+}
+
+.elements-reference-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.elements-reference-card.is-dragging {
+  border-color: rgba(231, 92, 134, 0.58);
+  box-shadow:
+    0 0 0 1px rgba(231, 92, 134, 0.18),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.elements-reference-drag-ghost {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(231, 92, 134, 0.72);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(231, 92, 134, 0.26),
+    0 0 18px rgba(231, 92, 134, 0.2);
+  filter: saturate(1.06);
+  backdrop-filter: blur(3px);
+}
+
 .elements-reference-drop-copy {
   display: inline-grid;
   justify-items: center;

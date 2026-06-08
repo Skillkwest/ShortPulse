@@ -18,7 +18,7 @@
   .agent-input-prefab {
   min-height: var(--create-composer-agent-input-min-height);
   height: auto;
-  padding: 6px 16px;
+  padding: 6px 52px 6px 16px;
   overflow: hidden;
 }
 
@@ -99,11 +99,31 @@
 
 .create-composer-panel .create-composer-prompt-step .agent-composer-trailing-content {
   position: absolute;
-  right: 48px;
+  right: 10px;
   bottom: 8px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-input-shell.has-inside-send-button
+  .agent-composer-trailing-content {
+  right: 48px;
+}
+
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-input-shell:hover
+  .composer-pin-button,
+.create-composer-panel
+  .create-composer-prompt-step
+  .agent-composer-input-shell:focus-within
+  .composer-pin-button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .create-composer-panel .create-composer-prompt-step .agent-input-prefab {

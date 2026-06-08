@@ -3,6 +3,7 @@
  * Owns canonical generated-output hydration/sync plus generated and storage poster repair loops.
  */
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { StudioOutput } from "../types";
 import {
   listVisibleGeneratedOutputs,
@@ -15,6 +16,7 @@ import { resolveVideoPosterRepairsForOutputs } from "../logic/videoPosterRepair"
 const CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS = 5_000;
 const CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS = 120_000;
 const CANONICAL_GENERATED_OUTPUT_SYNC_BATCH_SIZE = 6;
+const CANONICAL_GENERATED_OUTPUT_RECONCILE_MIN_INTERVAL_MS = 60_000;
 const AUDIO_COMPANION_ART_SYNC_INTERVAL_MS = 5_000;
 const AUDIO_COMPANION_ART_SYNC_BATCH_SIZE = 6;
 const GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
@@ -135,6 +137,28 @@ const buildCanonicalGeneratedOutputSyncSignature = (
     .sort()
     .join("|");
 
+const buildRuntimeIdentityKey = (runtimeIdentity: VisibleGeneratedOutputRuntimeIdentity): string =>
+  [
+    runtimeIdentity.generationId ?? "",
+    runtimeIdentity.requestId ?? "",
+    runtimeIdentity.sourceRef ?? "",
+  ].join(":");
+
+const requestVisibleGenerationReconcile = async (
+  runtimeIdentities: VisibleGeneratedOutputRuntimeIdentity[]
+): Promise<void> => {
+  if (!runtimeIdentities.length) return;
+  await fetchWithAuth("/api/generation/reconcile", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ runtimeIdentities }),
+    shortpulseLogScope: "generation",
+    shortpulseRetryNetworkOnce: true,
+  });
+};
+
 type UseAiStudioGeneratedOutputMaintenanceParams = {
   baseRuntimeAuthorityKey: string;
   hasPendingWorkflowRestore: boolean;
@@ -199,6 +223,9 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   const canonicalGeneratedOutputSyncRuntimeIdentitiesRef = useRef<
     VisibleGeneratedOutputRuntimeIdentity[]
   >([]);
+  const canonicalGeneratedOutputServerReconcileLastAttemptAtRef = useRef<Map<string, number>>(
+    new Map()
+  );
   const generatedVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
   const storageVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
   const activeBaseRuntimeAuthorityKeyRef = useRef(baseRuntimeAuthorityKey);
@@ -212,6 +239,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     audioCompanionArtSyncInFlightRef.current = false;
     canonicalGeneratedOutputSyncLastActiveAtRef.current = null;
     canonicalGeneratedOutputSyncRuntimeIdentitiesRef.current = [];
+    canonicalGeneratedOutputServerReconcileLastAttemptAtRef.current.clear();
     generatedVideoPosterRepairKeySetRef.current.clear();
     storageVideoPosterRepairKeySetRef.current.clear();
   }, [baseRuntimeAuthorityKey]);
@@ -307,6 +335,21 @@ export const useAiStudioGeneratedOutputMaintenance = ({
 
       canonicalGeneratedOutputSyncInFlightRef.current = true;
       try {
+        const now = Date.now();
+        const reconcileIdentities = runtimeIdentities.filter((runtimeIdentity) => {
+          const key = buildRuntimeIdentityKey(runtimeIdentity);
+          if (!key.trim()) return false;
+          const lastAttemptAt =
+            canonicalGeneratedOutputServerReconcileLastAttemptAtRef.current.get(key) ?? 0;
+          if (now - lastAttemptAt < CANONICAL_GENERATED_OUTPUT_RECONCILE_MIN_INTERVAL_MS) {
+            return false;
+          }
+          canonicalGeneratedOutputServerReconcileLastAttemptAtRef.current.set(key, now);
+          return true;
+        });
+        if (reconcileIdentities.length) {
+          void requestVisibleGenerationReconcile(reconcileIdentities).catch(() => undefined);
+        }
         const hydratedOutputs = await listVisibleGeneratedOutputs({
           projectId: projectId ?? null,
           workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,

@@ -164,7 +164,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 - Expert Edit is now the only Edit workflow surface.
 - Expert Edit panel contracts:
-  1. One primary edit drop zone + two default secondary drop zones plus add/remove controls up to ten secondary drop zones.
+  1. One primary edit drop zone + two default secondary drop zones plus add/remove controls up to ten secondary drop zones. Secondary references render five items per row; when the visible slots plus add button require a second row, Expert Edit enters compact wrapped-reference layout so the stage shrinks instead of pushing the composer/selectors below the viewport.
   2. Inline prompt/composer row includes model/aspect/resolution selectors and inline Generate button.
   3. Generate remains disabled until primary reference image exists.
   4. Chat mode UI is hidden/off for Expert Edit.
@@ -186,7 +186,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   13. Submit-scoped model overrides (`modelIdOverride` or `inpaintOverride.modelId`) must not persistently mutate the selected model in panel state; they apply to that submit only.
   14. Hidden-output primary-reference replacement is intentionally scoped to remove-background (Bria RMBG) hidden outputs and must not trigger for arbitrary hidden image outputs.
   15. Inpaint lock and reference-aware masked routing still live in `frontend/features/ai-studio/logic/inpaintSubmission.ts` as parked implementation, but the inpaint runtime lanes are currently disabled and must not submit to provider routes.
-  16. Expert Edit prompt-reference tokens support `@img1`, `@img2`, and `@img3` for standard edit secondary slot references, with generate-time validation blocking and submit-time Figure mapping for provider prompts. Inpaint-specific secondary reference behavior remains parked with the disabled inpaint implementation and is not an active product contract while the temporary disable is in effect.
+  16. Expert Edit prompt-reference tokens support `@img1` through `@img10` for standard edit secondary slot references, with generate-time validation blocking and submit-time Figure mapping for provider prompts. Inpaint-specific secondary reference behavior remains parked with the disabled inpaint implementation and is not an active product contract while the temporary disable is in effect.
   17. Markup mode uses stage overlays (not pixel-destructive edits): Pen draws freehand note strokes, Lasso draws closed filled color shapes, and the color picker controls new markup color. Inline and expanded markup canvases share the same in-session stroke state, and that markup state persists through the unified Expert Edit session/history contract while remaining an overlay artifact rather than a destructive layer edit. Legacy eraser behavior remains internal for now but is not surfaced in the active markup tool UI.
   18. Inpaint media preflight is override-authoritative: when `inpaintOverride` exists, submit prepares only the override media (`baseImageInput`, `maskInput`, and optional `referenceImageInput`) and does not separately preflight normal edit `imageInputs`.
   19. Main-stage and MarkupModal-stage interaction parity is mandatory: move transform pointers, inpaint brush/lasso + overlay + clear/invert, and markup pointer/wheel behavior must route through the shared stage-interaction architecture (`useExpertEditStageInteractionRouter`) so both surfaces follow one tool lifecycle contract while preserving shared state.

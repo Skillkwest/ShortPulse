@@ -1305,6 +1305,8 @@
 }
 
 .video-properties-panel .video-prompt-inline-action-slot {
+  right: 8px;
+  bottom: 8px;
   pointer-events: auto;
 }
 
@@ -1316,6 +1318,13 @@
 
 .video-properties-panel .video-prompt-inline-action-cluster .video-prompt-character-meta {
   pointer-events: none;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper:hover .video-prompt-pin-button,
+.video-properties-panel .prompt-enhanced-wrapper:focus-within .video-prompt-pin-button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .video-properties-panel .video-prompt-character-inline-slot {

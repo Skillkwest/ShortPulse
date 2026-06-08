@@ -254,6 +254,7 @@ const AiStudioPageRuntimeBody = ({
     sessionId,
     sessionPersistenceTitleOverride,
     setActiveOutputId,
+    setCreateCharacterWorkflowReloadPrep,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,
     setDetailOutputId,
@@ -308,6 +309,29 @@ const AiStudioPageRuntimeBody = ({
     () => parsePulseChatProjectState(projectPulseChatState),
     [projectPulseChatState]
   );
+  React.useEffect(() => {
+    setCreateCharacterWorkflowReloadPrep((characterContext) => {
+      const characterId = characterContext?.characterId?.trim() ?? "";
+      const lookId = characterContext?.lookId?.trim() ?? "";
+      if (!characterContext?.applied || !characterId) {
+        setIsCreateCharacterModeEnabled(false);
+        setCreateSelectedCharacterId("");
+        setCreateSelectedCharacterLookId("");
+        return;
+      }
+      setIsCreateCharacterModeEnabled(true);
+      setCreateSelectedCharacterId(characterId);
+      setCreateSelectedCharacterLookId(lookId);
+    });
+    return () => {
+      setCreateCharacterWorkflowReloadPrep(null);
+    };
+  }, [
+    setCreateCharacterWorkflowReloadPrep,
+    setCreateSelectedCharacterId,
+    setCreateSelectedCharacterLookId,
+    setIsCreateCharacterModeEnabled,
+  ]);
   const handleStandardCreatePromptChange = useCallback(
     (value: string) => {
       setStandardCreatePrompt(value);

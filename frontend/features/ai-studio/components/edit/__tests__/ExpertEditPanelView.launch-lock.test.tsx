@@ -53,6 +53,24 @@ describe("ExpertEditPanelView launch lock", () => {
     expect(screen.queryByLabelText("Secondary edit image 3")).not.toBeInTheDocument();
   });
 
+  it("enters compact wrapped-reference layout when the second reference row appears", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const panel = screen.getByRole("group", { name: "Expert edit composer" });
+    expect(panel).not.toHaveClass("has-wrapped-secondary-references");
+
+    const addButton = screen.getByRole("button", { name: "Add reference slot" });
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+
+    expect(screen.getByLabelText("Secondary edit image 5")).toBeInTheDocument();
+    expect(panel).toHaveClass("has-wrapped-secondary-references");
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove reference slot 5" }));
+    expect(panel).not.toHaveClass("has-wrapped-secondary-references");
+  });
+
   it("hides non-standard edit mode UI while keeping move controls available", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 

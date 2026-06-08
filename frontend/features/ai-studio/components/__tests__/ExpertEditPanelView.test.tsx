@@ -595,6 +595,16 @@ describe("ExpertEditPanelView", () => {
     expect(onPinPromptReference).toHaveBeenCalledWith("refine the face lighting");
   });
 
+  it("does not render the edit composer pin button for an empty prompt", () => {
+    render(
+      <ExpertEditPanelView {...baseProps} referenceText="   " onPinPromptReference={vi.fn()} />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Pin text reference to reference grid" })
+    ).toBeNull();
+  });
+
   it("shows the shared billing-aligned Remove Background cost pill", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 

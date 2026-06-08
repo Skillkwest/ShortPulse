@@ -27,22 +27,33 @@ const EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX = 860;
 const EDIT_EXPERT_PRIMARY_SIZE_MIN_PX = 420;
 const EDIT_EXPERT_PRIMARY_SIZE_MAX_PX = 540;
 const EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR = 0.355;
+const EDIT_EXPERT_PRIMARY_COMPACT_SIZE_MIN_PX = 340;
+const EDIT_EXPERT_PRIMARY_COMPACT_SIZE_MAX_PX = 470;
+const EDIT_EXPERT_PRIMARY_COMPACT_SIZE_VIEWPORT_FACTOR = 0.31;
 
-const resolvePrimaryCanvasNominalHeightPx = () => {
+const resolvePrimaryCanvasNominalHeightPx = (isSecondaryReferenceTrayWrapped: boolean) => {
   if (typeof window === "undefined" || !Number.isFinite(window.innerWidth)) {
-    return EDIT_EXPERT_PRIMARY_SIZE_MIN_PX;
+    return isSecondaryReferenceTrayWrapped
+      ? EDIT_EXPERT_PRIMARY_COMPACT_SIZE_MIN_PX
+      : EDIT_EXPERT_PRIMARY_SIZE_MIN_PX;
   }
-  return clampNumber(
-    window.innerWidth * EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR,
-    EDIT_EXPERT_PRIMARY_SIZE_MIN_PX,
-    EDIT_EXPERT_PRIMARY_SIZE_MAX_PX
-  );
+  const viewportFactor = isSecondaryReferenceTrayWrapped
+    ? EDIT_EXPERT_PRIMARY_COMPACT_SIZE_VIEWPORT_FACTOR
+    : EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR;
+  const minSize = isSecondaryReferenceTrayWrapped
+    ? EDIT_EXPERT_PRIMARY_COMPACT_SIZE_MIN_PX
+    : EDIT_EXPERT_PRIMARY_SIZE_MIN_PX;
+  const maxSize = isSecondaryReferenceTrayWrapped
+    ? EDIT_EXPERT_PRIMARY_COMPACT_SIZE_MAX_PX
+    : EDIT_EXPERT_PRIMARY_SIZE_MAX_PX;
+  return clampNumber(window.innerWidth * viewportFactor, minSize, maxSize);
 };
 
 type UseExpertEditStageViewportParams = {
   aspect: string;
   hasPrimaryCompositePreview: boolean;
   isMarkupExpandSelected: boolean;
+  isSecondaryReferenceTrayWrapped?: boolean;
 };
 
 /**
@@ -52,6 +63,7 @@ export const useExpertEditStageViewport = ({
   aspect,
   hasPrimaryCompositePreview,
   isMarkupExpandSelected,
+  isSecondaryReferenceTrayWrapped = false,
 }: UseExpertEditStageViewportParams) => {
   const inlineStageWrapperRef = React.useRef<HTMLDivElement | null>(null);
   const primaryCanvasFrameStackRef = React.useRef<HTMLDivElement | null>(null);
@@ -207,7 +219,7 @@ export const useExpertEditStageViewport = ({
   );
 
   const inlineCompositionSurfaceFrameRect = React.useMemo(() => {
-    const nominalHeight = resolvePrimaryCanvasNominalHeightPx();
+    const nominalHeight = resolvePrimaryCanvasNominalHeightPx(isSecondaryReferenceTrayWrapped);
     const availableWidth = isResolvedStageViewportSize(inlineStageViewportSize)
       ? inlineStageViewportSize.width
       : EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX;
@@ -220,7 +232,11 @@ export const useExpertEditStageViewport = ({
       viewportHeight: availableHeight,
     });
     return containedFrameRect;
-  }, [inlineStageViewportSize, primaryCompositionSurfaceAspectRatioValue]);
+  }, [
+    inlineStageViewportSize,
+    isSecondaryReferenceTrayWrapped,
+    primaryCompositionSurfaceAspectRatioValue,
+  ]);
 
   const primaryCanvasFrameBoundsStyle = React.useMemo<React.CSSProperties>(() => {
     return {

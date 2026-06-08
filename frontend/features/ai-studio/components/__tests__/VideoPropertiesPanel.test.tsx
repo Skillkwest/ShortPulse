@@ -664,6 +664,16 @@ describe("VideoPropertiesPanel", () => {
     expect(onPinPromptReference).toHaveBeenCalledWith("dolly backward through the forest");
   });
 
+  it("does not render the video composer pin button for an empty prompt", () => {
+    render(
+      <VideoPropertiesPanel {...baseProps} referenceText="   " onPinPromptReference={vi.fn()} />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Pin text reference to reference grid" })
+    ).toBeNull();
+  });
+
   it("blocks generate when the Kling single-shot prompt exceeds the effective visible limit", () => {
     const effectiveLimit = resolveKlingSinglePromptVisibleCharacterLimit("single");
     render(

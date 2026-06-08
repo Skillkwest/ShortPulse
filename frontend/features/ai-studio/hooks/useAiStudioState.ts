@@ -55,6 +55,7 @@ export const useAiStudioState = ({
   setActivePulsePresetId,
   setPulseSessionInstanceId,
   setVoiceChangerSource,
+  prepareCreateCharacterWorkflowReload,
   prepareStandardCreateWorkflowReload,
 }: {
   projectId?: string | null;
@@ -70,6 +71,9 @@ export const useAiStudioState = ({
   setActivePulsePresetId?: Dispatch<SetStateAction<string | null>>;
   setPulseSessionInstanceId?: Dispatch<SetStateAction<string | null>>;
   setVoiceChangerSource?: (source: VoiceChangerSource | null) => void;
+  prepareCreateCharacterWorkflowReload?: (
+    characterContext: StudioOutput["characterContext"] | null
+  ) => void;
   prepareStandardCreateWorkflowReload?: (prompt: string) => void;
 } = {}) => {
   const {
@@ -545,6 +549,7 @@ export const useAiStudioState = ({
     useAiStudioWorkflowReloadController({
       beginManualWorkflowReload,
       findOutputById,
+      prepareCreateCharacterWorkflowReload,
       prepareStandardCreateWorkflowReload,
       setAspect,
       setEditReferenceText,

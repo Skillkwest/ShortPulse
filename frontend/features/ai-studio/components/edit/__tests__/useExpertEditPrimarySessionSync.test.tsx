@@ -11,9 +11,11 @@ const createLayer = (
   {
     imageUrl = null,
     transform = defaultLayerTransform(),
+    ownsImageUrl = false,
   }: {
     imageUrl?: string | null;
     transform?: ExpertEditLayer["transform"];
+    ownsImageUrl?: boolean;
   } = {}
 ): ExpertEditLayer => ({
   id,
@@ -21,7 +23,7 @@ const createLayer = (
   imageUrl,
   opacity: 1,
   isAutoNamed: true,
-  ownsImageUrl: false,
+  ownsImageUrl,
   transform,
 });
 
@@ -191,6 +193,46 @@ describe("useExpertEditPrimarySessionSync", () => {
     expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/base-updated.png");
     expect(result.current.layers[1]?.imageUrl).toBe("https://example.com/overlay.png");
     expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
+  });
+
+  it("does not rewrite a locally owned layer when the host echoes the same primary url", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const setLayersSpy = vi.fn();
+    const rebasePanelHistoryLayerImage = vi.fn();
+    const lastDispatchedPrimaryRef = { current: "blob:local-primary" as string | null };
+    const previousPrimaryPropRef = { current: null as string | null };
+    const suppressNextPrimaryPublishUrlRef = { current: null as string | null };
+    const removeBackgroundPendingSourceUrlRef = { current: null as string | null };
+
+    renderHook(() =>
+      useExpertEditPrimarySessionSync({
+        layers: [
+          createLayer("layer-1", {
+            imageUrl: "blob:local-primary",
+            ownsImageUrl: true,
+          }),
+        ],
+        selectedLayerIndex: 0,
+        referenceImageUrl: "blob:local-primary",
+        hostPrimaryImageUrl: "blob:local-primary",
+        removeBackgroundPendingLayerId: null,
+        foundationLayerId: "layer-1",
+        lastDispatchedPrimaryRef,
+        previousPrimaryPropRef,
+        suppressNextPrimaryPublishUrlRef,
+        removeBackgroundPendingSourceUrlRef,
+        setLayers: setLayersSpy,
+        rebasePanelHistoryLayerImage,
+        onPrimaryImageChange,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setLayersSpy).not.toHaveBeenCalled();
+    expect(onPrimaryImageChange).not.toHaveBeenCalled();
   });
 
   it("removes the foundation layer when host image authority becomes non-image", async () => {

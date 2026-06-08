@@ -556,7 +556,10 @@ describe("CharacterPanelWorkspace", () => {
     const clearButton = screen.getByRole("button", { name: "Clear Portrait reference" });
     expect(clearButton).toHaveStyle({ opacity: "0", pointerEvents: "none" });
 
-    const portraitCard = screen.getByAltText("Portrait reference").closest("article");
+    const portraitMedia = screen.getByAltText("Portrait reference");
+    expect(portraitMedia).toHaveAttribute("draggable", "false");
+
+    const portraitCard = portraitMedia.closest("article");
     expect(portraitCard).not.toBeNull();
     fireEvent.mouseEnter(portraitCard!);
 

@@ -165,6 +165,19 @@ const comingSoonCopy: Record<
   },
 };
 
+const areActiveVoiceChangerSourceVideosEqual = (
+  left: ActiveVoiceChangerSourceVideo | null,
+  right: ActiveVoiceChangerSourceVideo | null
+): boolean => {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return (
+    left.referenceOutputId === right.referenceOutputId &&
+    left.referenceMediaId === right.referenceMediaId &&
+    left.aspect === right.aspect
+  );
+};
+
 const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
   tool === "templates" || tool === "workflows" || tool === "my-generations" || tool === "community";
 const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
@@ -761,6 +774,20 @@ export function AiStudioPageContent({
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const [activeVoiceChangerSourceVideo, setActiveVoiceChangerSourceVideo] =
     React.useState<ActiveVoiceChangerSourceVideo | null>(null);
+  const externalActiveVoiceChangerSourceVideoChange =
+    propertiesVoices?.onActiveVoiceChangerSourceVideoChange;
+  const handleActiveVoiceChangerSourceVideoChange = React.useCallback(
+    (source: ActiveVoiceChangerSourceVideo | null) => {
+      const nextSource = source ?? null;
+      setActiveVoiceChangerSourceVideo((currentSource) =>
+        areActiveVoiceChangerSourceVideosEqual(currentSource, nextSource)
+          ? currentSource
+          : nextSource
+      );
+      externalActiveVoiceChangerSourceVideoChange?.(nextSource);
+    },
+    [externalActiveVoiceChangerSourceVideoChange]
+  );
   const [selectedPresetId, setSelectedPresetId] = React.useState<ExpertEditPresetId | null>(null);
   const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] = React.useState<
     "standard" | "pulse"
@@ -1488,10 +1515,7 @@ export function AiStudioPageContent({
               <LazyVoicesPropertiesPanel
                 selectedTool={selectedTool}
                 {...propertiesVoices}
-                onActiveVoiceChangerSourceVideoChange={(source) => {
-                  setActiveVoiceChangerSourceVideo(source);
-                  propertiesVoices?.onActiveVoiceChangerSourceVideoChange?.(source);
-                }}
+                onActiveVoiceChangerSourceVideoChange={handleActiveVoiceChangerSourceVideoChange}
                 resolveVoiceChangerInternalReferenceSource={
                   resolveVoiceChangerInternalReferenceSource
                 }
@@ -1523,6 +1547,7 @@ export function AiStudioPageContent({
       propertiesMusic,
       propertiesSoundEffects,
       propertiesVoices,
+      handleActiveVoiceChangerSourceVideoChange,
       resolveVoiceChangerInternalReferenceSource,
       presetsPropertiesPanelContent,
       selectedTool,

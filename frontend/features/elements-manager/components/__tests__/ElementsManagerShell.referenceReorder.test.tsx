@@ -30,6 +30,7 @@ const createDataTransfer = () => {
     dropEffect: "",
     effectAllowed: "",
     getData: vi.fn((type: string) => values.get(type) ?? ""),
+    setDragImage: vi.fn(),
     setData: vi.fn((type: string, value: string) => {
       values.set(type, value);
     }),
@@ -103,6 +104,26 @@ describe("ElementsManagerShell reference reordering", () => {
       "https://example.com/primary.png",
       "",
     ]);
+  });
+
+  it("uses a custom lightweight drag image and keeps the media from competing as a native drag source", () => {
+    renderShell();
+    const transfer = createDataTransfer();
+    const primaryMedia = screen.getByAltText("Primary View reference");
+    const primaryCard = getReferenceCard("Primary View reference");
+
+    expect(primaryMedia).toHaveAttribute("draggable", "false");
+
+    fireEvent.dragStart(primaryCard, { dataTransfer: transfer });
+
+    expect(transfer.setDragImage).toHaveBeenCalledTimes(1);
+    expect(primaryCard).toHaveClass("is-dragging");
+    expect(document.querySelector(".elements-reference-drag-ghost")).not.toBeNull();
+
+    fireEvent.dragEnd(primaryCard, { dataTransfer: transfer });
+
+    expect(primaryCard).not.toHaveClass("is-dragging");
+    expect(document.querySelector(".elements-reference-drag-ghost")).toBeNull();
   });
 
   it("moves an image reference into an empty slot through the same draft path", () => {

@@ -218,6 +218,18 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(onPinPromptReference).toHaveBeenCalledWith("a precise text reference");
   });
 
+  it("does not render the Standard composer pin button for an empty prompt", () => {
+    render(
+      <StandardCreatePropertiesPanel {...baseProps} prompt="   " onPinPromptReference={vi.fn()} />
+    );
+
+    expect(
+      within(screen.getByTestId("composer-trailing-content")).queryByRole("button", {
+        name: "Pin text reference to reference grid",
+      })
+    ).toBeNull();
+  });
+
   it("moves assistant output into the Standard prompt composer without generating", () => {
     const onPromptChange = vi.fn();
     const onChatModeEnabledChange = vi.fn();

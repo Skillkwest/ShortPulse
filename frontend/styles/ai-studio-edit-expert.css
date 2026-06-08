@@ -29,8 +29,8 @@
   --create-composer-selector-height: 40px;
   --create-composer-selector-bg: var(--color-bg);
   --create-composer-selector-hover-border: rgba(201, 205, 214, 0.3);
-  --edit-expert-post-stage-composer-clearance: 20px;
-  --edit-expert-post-stage-overlay-gap: 12px;
+  --edit-expert-post-stage-composer-clearance: 8px;
+  --edit-expert-post-stage-overlay-gap: 8px;
   --edit-expert-post-stage-overlay-reserve: calc(
     var(--edit-expert-prompt-input-min-height) + var(--create-composer-selector-height) +
       var(--edit-expert-post-stage-composer-clearance) + var(--edit-expert-post-stage-overlay-gap)
@@ -44,9 +44,16 @@
 .edit-expert-panel:not(.is-generation-mode-tall-stage) {
   --edit-expert-secondary-width: clamp(50px, calc(var(--app-fixed-width) * 0.06), 62px);
   --edit-expert-secondary-shell-padding: 6px;
-  --edit-expert-secondary-shell-height: calc((var(--edit-expert-secondary-width) * 2) + 36px);
-  --edit-expert-post-stage-composer-clearance: 16px;
-  --edit-expert-post-stage-overlay-gap: 8px;
+  --edit-expert-secondary-shell-height: calc(var(--edit-expert-secondary-width) + 18px);
+  --edit-expert-post-stage-composer-clearance: 4px;
+  --edit-expert-post-stage-overlay-gap: 6px;
+}
+
+.edit-expert-panel.has-wrapped-secondary-references:not(.is-generation-mode-tall-stage) {
+  --edit-expert-secondary-width: clamp(46px, calc(var(--app-fixed-width) * 0.054), 58px);
+  --edit-expert-secondary-shell-height: calc((var(--edit-expert-secondary-width) * 2) + 24px);
+  --edit-expert-post-stage-composer-clearance: 2px;
+  --edit-expert-post-stage-overlay-gap: 4px;
 }
 
 .ai-properties .edit-expert-panel {
@@ -1465,6 +1472,7 @@
 
 .edit-expert-layers-clear-btn {
   margin-left: auto;
+  margin-right: 10px;
   border: 1px solid rgba(245, 249, 255, 0.13);
   border-radius: 999px;
   background: rgba(245, 249, 255, 0.06);
@@ -1473,7 +1481,7 @@
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.02em;
-  padding: 5px 8px;
+  padding: 5px 10px;
   cursor: pointer;
   transition:
     border-color 0.16s ease,
@@ -2182,6 +2190,12 @@
   width: calc((var(--edit-expert-secondary-width) * 5) + (8px * 4));
 }
 
+.edit-expert-panel.has-wrapped-secondary-references:not(.is-generation-mode-tall-stage)
+  .edit-expert-secondary-row {
+  gap: 6px;
+  width: calc((var(--edit-expert-secondary-width) * 5) + (6px * 4));
+}
+
 .edit-expert-secondary-control {
   position: relative;
   align-self: center;
@@ -2190,16 +2204,28 @@
   align-items: center;
   justify-content: center;
   gap: var(--edit-expert-tools-title-to-control-gap);
-  min-height: var(--edit-expert-secondary-shell-height);
+  min-height: 0;
   padding: 8px 0;
   margin-inline: 12px;
   will-change: transform, opacity;
 }
 
 .edit-expert-panel:not(.is-generation-mode-tall-stage) .edit-expert-secondary-control {
-  gap: 6px;
-  padding: 4px 0;
+  gap: 4px;
+  padding: 0;
   margin-inline: 10px;
+}
+
+.edit-expert-panel.has-wrapped-secondary-references:not(.is-generation-mode-tall-stage)
+  .edit-expert-secondary-control {
+  gap: 3px;
+  padding: 0;
+}
+
+.edit-expert-panel.has-wrapped-secondary-references:not(.is-generation-mode-tall-stage)
+  .edit-expert-secondary-title {
+  font-size: 11px;
+  line-height: 1.1;
 }
 
 .edit-expert-secondary-title {
@@ -2447,7 +2473,7 @@
 }
 
 .edit-expert-panel:not(.is-generation-mode-tall-stage) .edit-expert-inpaint-row {
-  margin-bottom: 12px;
+  margin-bottom: 2px;
 }
 
 .edit-expert-inpaint-row.is-collapsed {
@@ -5194,15 +5220,17 @@
 .edit-expert-panel
   .edit-expert-secondary-slot
   button.reference-dropzone.extra.edit-expert-secondary-add-slot {
-  border: 1px solid rgba(245, 185, 66, 0.46);
-  border-radius: 8px;
-  background: rgba(245, 185, 66, 0.13);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 241, 204, 0.12),
-    0 8px 18px rgba(0, 0, 0, 0.18);
-  color: rgba(255, 220, 142, 0.96);
-  min-height: auto;
+  width: 34px;
+  max-width: 34px;
   height: 34px;
+  min-height: 34px;
+  border: 1px solid rgba(145, 154, 168, 0.48);
+  border-radius: 6px;
+  background: rgba(33, 38, 46, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+  color: rgba(206, 213, 224, 0.92);
   align-self: center;
   aspect-ratio: auto;
 }
@@ -5210,10 +5238,10 @@
 .edit-expert-panel
   .edit-expert-secondary-slot
   button.reference-dropzone.extra.edit-expert-secondary-add-slot:hover {
-  border-color: rgba(245, 185, 66, 0.72);
-  background: rgba(245, 185, 66, 0.22);
+  border-color: rgba(190, 199, 213, 0.64);
+  background: rgba(43, 49, 59, 0.96);
   box-shadow:
-    inset 0 1px 0 rgba(255, 241, 204, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 10px 22px rgba(0, 0, 0, 0.24);
 }
 
@@ -5221,10 +5249,10 @@
   .edit-expert-secondary-slot
   button.reference-dropzone.extra.edit-expert-secondary-add-slot:focus-visible {
   outline: none;
-  border-color: rgba(245, 185, 66, 0.86);
+  border-color: rgba(190, 199, 213, 0.82);
   box-shadow:
-    0 0 0 2px rgba(245, 185, 66, 0.22),
-    inset 0 1px 0 rgba(255, 241, 204, 0.16);
+    0 0 0 2px rgba(148, 163, 184, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .edit-expert-panel .edit-expert-secondary-slot .reference-dropzone.extra:hover {
@@ -5318,7 +5346,7 @@
 }
 
 .edit-expert-panel .edit-expert-secondary-add-slot {
-  color: rgba(224, 230, 238, 0.78);
+  color: rgba(206, 213, 224, 0.92);
 }
 
 .edit-expert-panel .dropzone-clear:hover:not(:disabled) {
@@ -5330,7 +5358,7 @@
 
 .edit-expert-bottom-row {
   width: 100%;
-  margin: 8px 0 0;
+  margin: 0;
   position: relative;
   z-index: 1;
   display: flex;
@@ -5434,9 +5462,16 @@
 
 .edit-expert-prompt-pin-button {
   position: absolute;
-  right: 10px;
-  bottom: 8px;
+  right: 8px;
+  bottom: 6px;
   z-index: 4;
+}
+
+.edit-expert-prompt-input-shell:hover .edit-expert-prompt-pin-button,
+.edit-expert-prompt-input-shell:focus-within .edit-expert-prompt-pin-button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .edit-expert-prompt-shell .edit-expert-prompt-input:focus {
@@ -5609,7 +5644,7 @@
 
 .edit-expert-panel .edit-expert-column-wrapper.edit-expert-post-stage-wrapper {
   background: transparent;
-  padding-top: 22px;
+  padding-top: 6px;
 }
 
 .edit-expert-panel .edit-expert-post-stage-wrapper .create-composer-controls-row {

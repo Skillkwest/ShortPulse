@@ -48,6 +48,9 @@ type ElementsManagerShellProps = {
 
 const IMAGE_REFERENCE_SLOT_LABELS = ["Primary View", "Secondary View", "Detail View"] as const;
 const DND_ELEMENT_REFERENCE_SLOT_INDEX = "application/x-shortpulse-element-reference-slot-index";
+const ELEMENT_REFERENCE_DRAG_GHOST_SCALE = 0.74;
+const ELEMENT_REFERENCE_DRAG_GHOST_SELECTOR =
+  ".elements-reference-media, .elements-reference-image";
 const ELEMENT_DESCRIPTION_MAX_LENGTH = 150;
 const ELEMENT_LIBRARY_AVATAR_SIZE_PX = 44;
 const ELEMENT_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
@@ -381,6 +384,7 @@ export function ElementsManagerShell({
     resolveProfileImageDropSource,
   });
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
+  const referenceDragGhostMapRef = React.useRef(new Map<HTMLElement, HTMLElement>());
   const [activeSheetDropIndex, setActiveSheetDropIndex] = React.useState<number | null>(null);
   const [draggedReferenceSlotIndex, setDraggedReferenceSlotIndex] = React.useState<number | null>(
     null
@@ -733,6 +737,44 @@ export function ElementsManagerShell({
     [draggedReferenceSlotIndex]
   );
 
+  const applyReferenceSlotDragGhost = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    const dragNode = event.currentTarget as HTMLElement;
+    const transfer = event.dataTransfer;
+    if (typeof transfer.setDragImage !== "function") {
+      dragNode.classList.add("is-dragging");
+      return;
+    }
+    try {
+      const ghostSourceNode =
+        dragNode.querySelector<HTMLElement>(ELEMENT_REFERENCE_DRAG_GHOST_SELECTOR) ?? dragNode;
+      const sourceRect = ghostSourceNode.getBoundingClientRect();
+      const fallbackRect = dragNode.getBoundingClientRect();
+      const sourceWidth = sourceRect.width > 0 ? sourceRect.width : fallbackRect.width;
+      const sourceHeight = sourceRect.height > 0 ? sourceRect.height : fallbackRect.height;
+      const scaledWidth = Math.max(56, sourceWidth * ELEMENT_REFERENCE_DRAG_GHOST_SCALE);
+      const scaledHeight = Math.max(72, sourceHeight * ELEMENT_REFERENCE_DRAG_GHOST_SCALE);
+      const ghost = ghostSourceNode.cloneNode(true) as HTMLElement;
+      ghost.classList.add("elements-reference-drag-ghost");
+      ghost.style.boxSizing = "border-box";
+      ghost.style.width = `${scaledWidth}px`;
+      ghost.style.height = `${scaledHeight}px`;
+      ghost.style.transform = `scale(${ELEMENT_REFERENCE_DRAG_GHOST_SCALE}) rotate(-2deg)`;
+      ghost.style.transformOrigin = "center";
+      ghost.style.position = "absolute";
+      ghost.style.top = "-9999px";
+      ghost.style.left = "-9999px";
+      ghost.style.pointerEvents = "none";
+      ghost.style.opacity = "0.96";
+
+      document.body.appendChild(ghost);
+      referenceDragGhostMapRef.current.set(dragNode, ghost);
+      transfer.setDragImage(ghost, scaledWidth / 2, scaledHeight / 2);
+    } catch {
+      transfer.setDragImage(dragNode, dragNode.offsetWidth / 2, dragNode.offsetHeight / 2);
+    }
+    dragNode.classList.add("is-dragging");
+  }, []);
+
   const handleSheetDragEnter = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
       const sourceReferenceSlotIndex =
@@ -848,14 +890,38 @@ export function ElementsManagerShell({
       event.dataTransfer.setData(DND_ELEMENT_REFERENCE_SLOT_INDEX, String(slotIndex));
       event.dataTransfer.setData("text/plain", slotValue);
       setDraggedReferenceSlotIndex(slotIndex);
+      applyReferenceSlotDragGhost(event);
     },
-    [draft.assetType, draft.imageReferenceUrls, isReferenceSlotPending, pageBusy]
+    [
+      applyReferenceSlotDragGhost,
+      draft.assetType,
+      draft.imageReferenceUrls,
+      isReferenceSlotPending,
+      pageBusy,
+    ]
   );
 
-  const handleReferenceSlotDragEnd = React.useCallback(() => {
+  const handleReferenceSlotDragEnd = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    const dragNode = event.currentTarget as HTMLElement;
+    dragNode.classList.remove("is-dragging");
+    const ghost = referenceDragGhostMapRef.current.get(dragNode);
+    if (ghost) {
+      ghost.remove();
+      referenceDragGhostMapRef.current.delete(dragNode);
+    }
     setDraggedReferenceSlotIndex(null);
     setActiveSheetDropIndex(null);
   }, []);
+
+  React.useEffect(
+    () => () => {
+      for (const ghost of referenceDragGhostMapRef.current.values()) {
+        ghost.remove();
+      }
+      referenceDragGhostMapRef.current.clear();
+    },
+    []
+  );
 
   const handleElementSelection = React.useCallback(
     (elementId: string) => {
@@ -1108,7 +1174,7 @@ export function ElementsManagerShell({
                                   slotValue ? "is-filled" : "is-empty"
                                 } ${activeSheetDropIndex === index ? "is-drop-active" : ""} ${
                                   isDropPending ? "is-drop-pending" : ""
-                                }`}
+                                } ${draggedReferenceSlotIndex === index ? "is-dragging" : ""}`}
                                 aria-busy={isDropPending}
                                 style={{
                                   ...ELEMENT_REFERENCE_CARD_INLINE_STYLE,
@@ -1202,6 +1268,7 @@ export function ElementsManagerShell({
                                         width={240}
                                         height={300}
                                         unoptimized
+                                        draggable={false}
                                       />
                                     )
                                   ) : (

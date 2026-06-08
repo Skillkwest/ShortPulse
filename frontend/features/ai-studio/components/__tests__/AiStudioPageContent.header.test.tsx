@@ -3,9 +3,11 @@
  * Verifies the current project title is rendered in the centered hero/header slot only when available.
  */
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
+
+const voicePanelActiveSourceEffectMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../AiStudioToolbar", () => ({
   AiStudioToolbar: () => <div data-testid="ai-studio-toolbar" />,
@@ -39,15 +41,19 @@ vi.mock("../AiStudioShellFrame", () => ({
   AiStudioShellFrame: ({
     referenceGridProps,
     showPreviewRail,
+    propertiesPanelContent,
   }: {
     referenceGridProps?: { railCanvasProps?: unknown };
     showPreviewRail?: boolean;
+    propertiesPanelContent?: React.ReactNode;
   }) => (
     <div
       data-testid="ai-studio-shell-frame"
       data-canvas-visible={referenceGridProps?.railCanvasProps ? "true" : "false"}
       data-show-preview-rail={showPreviewRail === false ? "false" : "true"}
-    />
+    >
+      {propertiesPanelContent}
+    </div>
   ),
 }));
 
@@ -87,9 +93,33 @@ vi.mock("../SoundEffectsPropertiesPanel", () => ({
   SoundEffectsPropertiesPanel: () => <div data-testid="sound-effects-properties-panel" />,
 }));
 
-vi.mock("../VoicesPropertiesPanel", () => ({
-  VoicesPropertiesPanel: () => <div data-testid="voices-properties-panel" />,
-}));
+vi.mock("../VoicesPropertiesPanel", async () => {
+  const React = await import("react");
+  return {
+    VoicesPropertiesPanel: ({
+      onActiveVoiceChangerSourceVideoChange,
+    }: {
+      onActiveVoiceChangerSourceVideoChange?: (
+        source: {
+          referenceOutputId: string | null;
+          referenceMediaId: string | null;
+          aspect: string | null;
+        } | null
+      ) => void;
+    }) => {
+      React.useEffect(() => {
+        if (!onActiveVoiceChangerSourceVideoChange) return;
+        voicePanelActiveSourceEffectMock();
+        onActiveVoiceChangerSourceVideoChange({
+          referenceOutputId: "output-1",
+          referenceMediaId: null,
+          aspect: "16:9",
+        });
+      });
+      return <div data-testid="voices-properties-panel" />;
+    },
+  };
+});
 
 vi.mock("../MediaLibraryPanel", () => ({
   MediaLibraryPanel: () => <div data-testid="media-library-panel" />,
@@ -296,5 +326,17 @@ describe("AiStudioPageContent header project name", () => {
     expect(shellFrame).toHaveAttribute("data-show-preview-rail", "true");
     expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
+  });
+
+  it("settles when the Voices panel reports the same active voice changer video source", async () => {
+    voicePanelActiveSourceEffectMock.mockClear();
+
+    render(<AiStudioPageContent {...createProps()} selectedTool="voices" />);
+
+    expect(await screen.findByTestId("voices-properties-panel")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(voicePanelActiveSourceEffectMock).toHaveBeenCalledTimes(2);
+    });
+    expect(voicePanelActiveSourceEffectMock.mock.calls.length).toBeLessThan(3);
   });
 });

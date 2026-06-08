@@ -62,7 +62,7 @@ import { associateGenerationWithProjectForUserBestEffort } from "../projectGener
 type JsonObject = Record<string, unknown>;
 
 export type RecoveryProbeState = "running" | "failed" | "completed";
-export type RecoveryActor = "reconciler" | "admin_replay" | "webhook" | "poll";
+export type RecoveryActor = "reconciler" | "admin_replay" | "webhook" | "poll" | "user_reconcile";
 export type RecoveryResultState =
   | "recovered"
   | "already_persisted"

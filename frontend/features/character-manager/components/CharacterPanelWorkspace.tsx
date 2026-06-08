@@ -1458,6 +1458,7 @@ export function CharacterPanelWorkspace({
                                           width={240}
                                           height={300}
                                           style={CHARACTER_REFERENCE_IMAGE_INLINE_STYLE}
+                                          draggable={false}
                                           onError={(event) => {
                                             refreshCardPreviewSignedUrl(
                                               assignedReference.previewStoragePath ??

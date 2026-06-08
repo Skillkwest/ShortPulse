@@ -5,6 +5,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import type { StudioOutput } from "../../types";
 import {
   listVisibleGeneratedOutputs,
@@ -22,9 +23,14 @@ vi.mock("../../logic/videoPosterRepair", () => ({
   resolveVideoPosterRepairsForOutputs: vi.fn(),
 }));
 
+vi.mock("../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: vi.fn(),
+}));
+
 const listVisibleGeneratedOutputsMock = vi.mocked(listVisibleGeneratedOutputs);
 const resolveVisibleGenerationReconcileMock = vi.mocked(resolveVisibleGenerationReconcile);
 const resolveVideoPosterRepairsForOutputsMock = vi.mocked(resolveVideoPosterRepairsForOutputs);
+const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 
 const mockDocumentVisibility = (visibilityState: DocumentVisibilityState) =>
   vi.spyOn(document, "visibilityState", "get").mockReturnValue(visibilityState);
@@ -97,6 +103,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     listVisibleGeneratedOutputsMock.mockResolvedValue([]);
     resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
     resolveVideoPosterRepairsForOutputsMock.mockResolvedValue(new Map());
+    fetchWithAuthMock.mockResolvedValue({ ok: true, status: 200 } as Response);
   });
 
   afterEach(() => {
@@ -179,6 +186,72 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
             generationId: null,
             requestId: "task-1",
             sourceRef: "source-runtime-1",
+          },
+        ],
+      });
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/generation/reconcile",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          runtimeIdentities: [
+            {
+              generationId: null,
+              requestId: "task-1",
+              sourceRef: "source-runtime-1",
+            },
+          ],
+        }),
+        shortpulseLogScope: "generation",
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+  });
+
+  it("does not block canonical sync on a slow server reconcile nudge", async () => {
+    listVisibleGeneratedOutputsMock.mockResolvedValue([]);
+    fetchWithAuthMock.mockReturnValue(new Promise(() => undefined));
+
+    renderMaintenanceHook({
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "pending:slow-reconcile",
+          generationId: "generation-slow-reconcile",
+          taskId: "task-slow-reconcile",
+          taskState: "running",
+          companionArtStatus: null,
+          resultUrls: [],
+          previewUrl: undefined,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/generation/reconcile",
+        expect.objectContaining({
+          body: JSON.stringify({
+            runtimeIdentities: [
+              {
+                generationId: "generation-slow-reconcile",
+                requestId: "task-slow-reconcile",
+                sourceRef: null,
+              },
+            ],
+          }),
+        })
+      );
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+        projectId: "project-1",
+        workspaceRuntimeKey: null,
+        limit: 1,
+        runtimeIdentities: [
+          {
+            generationId: "generation-slow-reconcile",
+            requestId: "task-slow-reconcile",
+            sourceRef: null,
           },
         ],
       });

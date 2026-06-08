@@ -1,6 +1,7 @@
 import React from "react";
 import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import type { StudioOutput } from "../../types";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../logic/referenceGridLimits";
 
 type ReferenceGridArchiveControlsProps = {
   archiveCount: number;
@@ -45,7 +46,9 @@ export function ReferenceGridArchiveControls({
           }`}
         >
           <div className="reference-all-refs-header-meta">
-            <p className="tiny subdued reference-all-refs-count">Media: {visibleItemCount}</p>
+            <p className="tiny subdued reference-all-refs-count">
+              Media: {visibleItemCount}/{REFERENCE_GRID_MAX_VISIBLE_ITEMS}
+            </p>
             <div
               className={`reference-all-refs-title-wrap${
                 showTopTitleDivider && showTitle ? " is-top-section-header" : ""

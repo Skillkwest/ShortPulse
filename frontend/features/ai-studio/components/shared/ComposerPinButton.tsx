@@ -24,7 +24,7 @@ export const ComposerPinButton = ({
   disabled = false,
 }: ComposerPinButtonProps) => {
   const cleanedText = text?.trim() ?? "";
-  const isDisabled = disabled || !onPinTextReference || cleanedText.length === 0;
+  const isDisabled = disabled;
 
   const handleClick = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -36,12 +36,16 @@ export const ComposerPinButton = ({
     [cleanedText, isDisabled, onPinTextReference]
   );
 
+  if (cleanedText.length === 0 || !onPinTextReference) {
+    return null;
+  }
+
   return (
     <button
       type="button"
       className={`composer-pin-button ${className}`.trim()}
       aria-label={ariaLabel}
-      title={isDisabled ? "Write text to pin" : "Pin text to Reference Grid"}
+      title="Pin text to Reference Grid"
       disabled={isDisabled}
       onMouseDown={(event) => {
         event.preventDefault();

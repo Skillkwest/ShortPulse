@@ -328,6 +328,52 @@ export function ExpertEditPanelView({
     setMarkupStrokeSize(resolvedMarkupStrokeSize);
   }, [markupStrokeSize, resolvedMarkupStrokeSize]);
   const selectedStyleId = controlledSelectedStyleId ?? null;
+  const promptTextValue = referenceText ?? "";
+  const normalizedExtraImageUrls = React.useMemo(
+    () => normalizeExpertEditSecondaryImageUrls(extraImageUrls),
+    [extraImageUrls]
+  );
+  const [visibleSecondarySlotIndexes, setVisibleSecondarySlotIndexes] = React.useState<number[]>(
+    () => resolveDefaultVisibleSecondarySlotIndexes(normalizedExtraImageUrls)
+  );
+  React.useEffect(() => {
+    setVisibleSecondarySlotIndexes((previous) => {
+      const nextIndexes = new Set(previous);
+      normalizedExtraImageUrls.forEach((value, index) => {
+        if ((value?.trim() ?? "").length > 0) {
+          nextIndexes.add(index);
+        }
+      });
+      return Array.from(nextIndexes)
+        .filter((index) => index >= 0 && index < MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT)
+        .sort((left, right) => left - right);
+    });
+  }, [normalizedExtraImageUrls]);
+  const visibleSecondaryGridItemCount =
+    visibleSecondarySlotIndexes.length +
+    (visibleSecondarySlotIndexes.length < normalizedExtraImageUrls.length ? 1 : 0);
+  const isSecondaryReferenceTrayWrapped = visibleSecondaryGridItemCount > 5;
+  const handleAddSecondaryReferenceSlot = React.useCallback(() => {
+    setVisibleSecondarySlotIndexes((previous) => {
+      if (previous.length >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return previous;
+      const visibleSet = new Set(previous);
+      const nextIndex = Array.from(
+        { length: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT },
+        (_, index) => index
+      ).find((index) => !visibleSet.has(index));
+      if (nextIndex == null) return previous;
+      return [...previous, nextIndex].sort((left, right) => left - right);
+    });
+  }, []);
+  const handleRemoveSecondaryReferenceSlot = React.useCallback(
+    (index: number) => {
+      onExtraImageChange(index, null);
+      setVisibleSecondarySlotIndexes((previous) =>
+        previous.filter((slotIndex) => slotIndex !== index)
+      );
+    },
+    [onExtraImageChange]
+  );
   const {
     inlineStageWrapperRef,
     primaryCanvasFrameStackElement,
@@ -362,6 +408,7 @@ export function ExpertEditPanelView({
     aspect,
     hasPrimaryCompositePreview,
     isMarkupExpandSelected,
+    isSecondaryReferenceTrayWrapped,
   });
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isInpaintToolSelected = selectedRailTool === "inpaint";
@@ -378,48 +425,6 @@ export function ExpertEditPanelView({
   const shouldLockMarkupModelPicker = isMarkupSubmitMode && isMarkupModelLockEnabled();
   const shouldOpenMarkupModalFromCollapsedTools = isMarkupCollapsedOpenModalEnabled();
   const isModelPickerLocked = isInpaintSubmitMode || shouldLockMarkupModelPicker;
-  const promptTextValue = referenceText ?? "";
-  const normalizedExtraImageUrls = React.useMemo(
-    () => normalizeExpertEditSecondaryImageUrls(extraImageUrls),
-    [extraImageUrls]
-  );
-  const [visibleSecondarySlotIndexes, setVisibleSecondarySlotIndexes] = React.useState<number[]>(
-    () => resolveDefaultVisibleSecondarySlotIndexes(normalizedExtraImageUrls)
-  );
-  React.useEffect(() => {
-    setVisibleSecondarySlotIndexes((previous) => {
-      const nextIndexes = new Set(previous);
-      normalizedExtraImageUrls.forEach((value, index) => {
-        if ((value?.trim() ?? "").length > 0) {
-          nextIndexes.add(index);
-        }
-      });
-      return Array.from(nextIndexes)
-        .filter((index) => index >= 0 && index < MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT)
-        .sort((left, right) => left - right);
-    });
-  }, [normalizedExtraImageUrls]);
-  const handleAddSecondaryReferenceSlot = React.useCallback(() => {
-    setVisibleSecondarySlotIndexes((previous) => {
-      if (previous.length >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return previous;
-      const visibleSet = new Set(previous);
-      const nextIndex = Array.from(
-        { length: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT },
-        (_, index) => index
-      ).find((index) => !visibleSet.has(index));
-      if (nextIndex == null) return previous;
-      return [...previous, nextIndex].sort((left, right) => left - right);
-    });
-  }, []);
-  const handleRemoveSecondaryReferenceSlot = React.useCallback(
-    (index: number) => {
-      onExtraImageChange(index, null);
-      setVisibleSecondarySlotIndexes((previous) =>
-        previous.filter((slotIndex) => slotIndex !== index)
-      );
-    },
-    [onExtraImageChange]
-  );
   const {
     aspectOptionsForModel,
     closeCharacterPicker,
@@ -1461,7 +1466,7 @@ export function ExpertEditPanelView({
       ref={panelRootRef}
       className={`tool-properties edit-expert-panel ${
         isMarkupExpandSelected ? "is-markup-modal-open" : ""
-      }`.trim()}
+      } ${isSecondaryReferenceTrayWrapped ? "has-wrapped-secondary-references" : ""}`.trim()}
       role="group"
       aria-label="Expert edit composer"
       onDragEnterCapture={handleMarkupModalRootDragCapture}

@@ -31,6 +31,7 @@ const makeSetter = <T>() => vi.fn<(value: T | ((current: T) => T)) => void>();
 const makeParams = (output: StudioOutput | null) => ({
   beginManualWorkflowReload: vi.fn(),
   findOutputById: vi.fn(() => output),
+  prepareCreateCharacterWorkflowReload: vi.fn(),
   prepareStandardCreateWorkflowReload: vi.fn(),
   setAspect: makeSetter<string>(),
   setEditReferenceText: vi.fn(),
@@ -116,6 +117,14 @@ const makeImageReload = (): WorkflowReloadConfigV1 => ({
       },
       null,
     ],
+    characterContext: {
+      applied: true,
+      characterId: "char-1",
+      characterName: "Rozalin Belaroa",
+      lookId: "main",
+      lookName: "Main",
+      characterProfileImageUrl: "https://example.com/rozalin.png",
+    },
   },
 });
 
@@ -139,6 +148,13 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.beginManualWorkflowReload).toHaveBeenCalledTimes(1);
     expect(params.setSelectedTool).toHaveBeenCalledWith("create");
     expect(params.prepareStandardCreateWorkflowReload).toHaveBeenCalledWith("A luminous harbor");
+    expect(params.prepareCreateCharacterWorkflowReload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applied: true,
+        characterId: "char-1",
+        lookId: "main",
+      })
+    );
     expect(params.setStandardCreatePrompt).toHaveBeenCalledWith("A luminous harbor");
     expect(params.prepareStandardCreateWorkflowReload.mock.invocationCallOrder[0]).toBeLessThan(
       params.setStandardCreatePrompt.mock.invocationCallOrder[0]
@@ -158,6 +174,32 @@ describe("useAiStudioWorkflowReloadController", () => {
     );
   });
 
+  it("falls back to output character context for restored generated rows", () => {
+    const workflowReload = makeImageReload();
+    delete (workflowReload.payload as WorkflowReloadImagePayload).characterContext;
+    const output = makeOutput(workflowReload);
+    output.characterContext = {
+      applied: true,
+      characterId: "char-output",
+      characterName: "Output Character",
+      lookId: "look-output",
+      lookName: "Output Look",
+    };
+    const params = makeParams(output);
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    expect(params.prepareCreateCharacterWorkflowReload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterId: "char-output",
+        lookId: "look-output",
+      })
+    );
+  });
+
   it("does not prepare Standard chat mode for Pulse create image reloads", () => {
     const workflowReload = makeImageReload();
     workflowReload.createMode = "pulse";
@@ -169,6 +211,7 @@ describe("useAiStudioWorkflowReloadController", () => {
     });
 
     expect(params.setExpertCreateMode).toHaveBeenCalledWith("pulse");
+    expect(params.prepareCreateCharacterWorkflowReload).not.toHaveBeenCalled();
     expect(params.prepareStandardCreateWorkflowReload).not.toHaveBeenCalled();
   });
 
@@ -344,6 +387,7 @@ describe("useAiStudioWorkflowReloadController", () => {
 
     expect(blocked).toEqual({ status: "voice_unavailable", outputId: "out-1" });
     expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
+    expect(params.prepareCreateCharacterWorkflowReload).not.toHaveBeenCalled();
     expect(params.prepareStandardCreateWorkflowReload).not.toHaveBeenCalled();
   });
 });

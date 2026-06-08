@@ -36,18 +36,19 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 2. Users can type token text manually.
 3. Users can drag a populated secondary slot into the prompt to insert the corresponding token at caret.
 4. The secondary reference row shows two slots by default, then an add-slot control. Users can add visible slots up to ten total secondary slots.
-5. Each visible secondary slot has a remove control. Removing a slot clears that slot image and hides the slot; the slot number/token mapping remains stable for the remaining visible slots.
-6. Valid tokens are highlighted in the Expert Edit amber color (`rgb(255, 194, 80)`).
-7. Invalid tokens are highlighted in warning red.
-8. Invalid-token warning feedback is deferred until Generate is attempted.
-9. Generate is blocked when invalid token references exist.
-10. Standard and Markup edit lanes always include the primary image first. Secondary reference behavior is lane-aware:
+5. Secondary references render five grid items per row. When visible slots plus the add-slot control require a second row, Expert Edit enters compact wrapped-reference layout and shrinks the stage area instead of pushing the prompt composer and selectors below the viewport.
+6. Each visible secondary slot has a remove control. Removing a slot clears that slot image and hides the slot; the slot number/token mapping remains stable for the remaining visible slots.
+7. Valid tokens are highlighted in the Expert Edit amber color (`rgb(255, 194, 80)`).
+8. Invalid tokens are highlighted in warning red.
+9. Invalid-token warning feedback is deferred until Generate is attempted.
+10. Generate is blocked when invalid token references exist.
+11. Standard and Markup edit lanes always include the primary image first. Secondary reference behavior is lane-aware:
 
 - when one or more valid `@img1..@img10` tokens are linked, only those linked secondary refs are included in provider `image_urls`/`input_urls`;
 - when no valid secondary token is linked, all populated secondary reference slots are included as ambient edit context.
 - `@main` still resolves to the primary figure and does not by itself suppress the no-linked-secondary fallback.
 
-11. Inpaint has two explicit contracts:
+12. Inpaint has two explicit contracts:
 
 - default FLUX Fill inpaint supports `@main` only because `fal-ai/flux-pro/v1/fill` receives only the flattened base image plus mask.
 - reference-aware inpaint allows `@main` plus exactly one unique secondary token and routes to `fal-ai/flux-kontext-lora/inpaint` with `image_url + mask_url + reference_image_url`.

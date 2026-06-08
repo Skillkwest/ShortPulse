@@ -90,7 +90,7 @@ export function useExpertEditPrimarySessionSync({
     if (!targetLayer) {
       return;
     }
-    if (targetLayer.imageUrl === normalizedReferenceImageUrl && !targetLayer.ownsImageUrl) {
+    if (targetLayer.imageUrl === normalizedReferenceImageUrl) {
       return;
     }
     const preserveLayerTransform = lockedRemoveBackgroundIndex >= 0;

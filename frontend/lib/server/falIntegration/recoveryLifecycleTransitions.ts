@@ -4,6 +4,7 @@
  */
 
 type JsonObject = Record<string, unknown>;
+type RecoveryLifecycleActor = "reconciler" | "admin_replay" | "webhook" | "poll" | "user_reconcile";
 
 export type RecoveryRetryPlan = {
   isExhausted: boolean;
@@ -150,7 +151,7 @@ export const buildRecoveredSuccessUpdate = ({
 }: {
   nowIso: string;
   metadata: JsonObject;
-  actor: "reconciler" | "admin_replay" | "webhook" | "poll";
+  actor: RecoveryLifecycleActor;
   autosaveEnabled?: boolean;
   autosaveDecision?: string;
   autosaveDecisionReason?: string;

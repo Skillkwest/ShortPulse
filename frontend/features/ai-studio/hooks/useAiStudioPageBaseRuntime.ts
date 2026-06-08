@@ -30,7 +30,7 @@ import {
   PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   PERF_FLAG_SELECTOR_CALLBACKS,
 } from "../logic/perfProfileFlags";
-import type { ToolId } from "../types";
+import type { StudioOutput, ToolId } from "../types";
 
 const FLAG_OUTPUT_SELECTOR_STORE = PERF_FLAG_OUTPUT_SELECTOR_STORE;
 const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
@@ -84,10 +84,25 @@ export const useAiStudioPageBaseRuntime = () => {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
   const shouldLoadModelPricingPolicy = useDeferredModelPricingPolicyLoad();
+  const createCharacterWorkflowReloadPrepRef = useRef<
+    ((characterContext: StudioOutput["characterContext"] | null) => void) | null
+  >(null);
   const standardCreateWorkflowReloadPrepRef = useRef<((prompt: string) => void) | null>(null);
+  const setCreateCharacterWorkflowReloadPrep = useCallback(
+    (handler: ((characterContext: StudioOutput["characterContext"] | null) => void) | null) => {
+      createCharacterWorkflowReloadPrepRef.current = handler;
+    },
+    []
+  );
   const setStandardCreateWorkflowReloadPrep = useCallback(
     (handler: ((prompt: string) => void) | null) => {
       standardCreateWorkflowReloadPrepRef.current = handler;
+    },
+    []
+  );
+  const prepareCreateCharacterWorkflowReload = useCallback(
+    (characterContext: StudioOutput["characterContext"] | null) => {
+      createCharacterWorkflowReloadPrepRef.current?.(characterContext);
     },
     []
   );
@@ -369,6 +384,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setActivePulsePresetId: setActiveCreatePulsePresetId,
     setPulseSessionInstanceId,
     setVoiceChangerSource: handleVoiceChangerSourceChange,
+    prepareCreateCharacterWorkflowReload,
     prepareStandardCreateWorkflowReload,
   });
   const {
@@ -729,6 +745,7 @@ export const useAiStudioPageBaseRuntime = () => {
     sessionPersistenceTitleOverride,
     setActiveOutputId,
     setAspect,
+    setCreateCharacterWorkflowReloadPrep,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,
     setDetailSelectionTarget,

@@ -63,6 +63,7 @@ type GenerationProjectionCompanionArtRow = {
   user_id?: unknown;
   companion_art_status?: unknown;
   companion_art_storage_path?: unknown;
+  workflow_reload?: unknown;
 };
 
 type FolderScopedMediaListRow = MediaListRow & {
@@ -306,25 +307,24 @@ const sanitizeMediaListRowForUser = ({
   };
 };
 
-const enrichRowsWithAudioCompanionArt = async ({
+const enrichRowsWithGenerationProjectionMetadata = async ({
   rows,
   userId,
 }: {
   rows: MediaListRow[];
   userId: string;
 }): Promise<MediaListRow[]> => {
-  const audioAiRows = rows.filter(
+  const aiStudioRows = rows.filter(
     (row) =>
       row.source === "ai_studio" &&
-      isAudioFileType(row.file_type) &&
       typeof row.source_ref === "string" &&
       row.source_ref.trim().length > 0
   );
-  if (!audioAiRows.length) return rows;
+  if (!aiStudioRows.length) return rows;
 
   const generationIds = Array.from(
     new Set(
-      audioAiRows
+      aiStudioRows
         .map((row) => row.source_ref?.trim() ?? "")
         .filter((value): value is string => value.length > 0)
     )
@@ -334,7 +334,9 @@ const enrichRowsWithAudioCompanionArt = async ({
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from("generation_projection")
-    .select("generation_id, user_id, companion_art_status, companion_art_storage_path")
+    .select(
+      "generation_id, user_id, companion_art_status, companion_art_storage_path, workflow_reload"
+    )
     .eq("user_id", userId)
     .in("generation_id", generationIds);
 
@@ -345,6 +347,7 @@ const enrichRowsWithAudioCompanionArt = async ({
     {
       status: string | null;
       storagePath: string | null;
+      workflowReload: unknown;
     }
   >();
   const signablePaths = new Set<string>();
@@ -361,7 +364,11 @@ const enrichRowsWithAudioCompanionArt = async ({
         ? rawRow.companion_art_storage_path.trim() || null
         : null;
     if (!generationId || ownerUserId !== userId) continue;
-    projectionByGenerationId.set(generationId, { status, storagePath });
+    projectionByGenerationId.set(generationId, {
+      status,
+      storagePath,
+      workflowReload: rawRow.workflow_reload,
+    });
     if (storagePath && isSafeScopedPath(storagePath, userId)) {
       signablePaths.add(storagePath);
     }
@@ -390,13 +397,22 @@ const enrichRowsWithAudioCompanionArt = async ({
     if (!generationId) return row;
     const projection = projectionByGenerationId.get(generationId);
     if (!projection) return row;
+    const nextMetadata =
+      projection.workflowReload && typeof projection.workflowReload === "object"
+        ? {
+            ...(row.metadata ?? {}),
+            workflow_reload: projection.workflowReload,
+          }
+        : row.metadata;
     return {
       ...row,
+      metadata: nextMetadata,
       companion_art_status: projection.status,
       companion_art_storage_path: projection.storagePath,
-      companion_art_url: projection.storagePath
-        ? (signedUrlByPath.get(projection.storagePath) ?? null)
-        : null,
+      companion_art_url:
+        isAudioFileType(row.file_type) && projection.storagePath
+          ? (signedUrlByPath.get(projection.storagePath) ?? null)
+          : null,
     };
   });
 };
@@ -659,7 +675,7 @@ export default async function handler(
         .map((row) => sanitizeMediaListRowForUser({ row, userId: user.id }))
         .filter((row): row is MediaListRow => row !== null);
       rows = (
-        await enrichRowsWithAudioCompanionArt({
+        await enrichRowsWithGenerationProjectionMetadata({
           rows,
           userId: user.id,
         })

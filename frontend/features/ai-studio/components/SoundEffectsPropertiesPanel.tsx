@@ -28,9 +28,11 @@ export type SoundEffectsPropertiesPanelProps = {
   isGenerating?: boolean;
   onDurationChange?: (value: number | null) => void;
   onGenerate?: (request: SoundEffectsGenerateRequest) => Promise<void> | void;
+  onLoopEnabledChange?: (value: boolean) => void;
   onPromptChange?: (value: string) => void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
+  loopEnabled?: boolean;
   prompt?: string;
 };
 type SoundEffectInspirationEntry = {
@@ -96,9 +98,11 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   isGenerating = false,
   onDurationChange,
   onGenerate,
+  onLoopEnabledChange,
   onPromptChange,
   pricingPolicy = null,
   pricingPolicyReady = true,
+  loopEnabled: controlledLoopEnabled,
   prompt: controlledPrompt,
 }: SoundEffectsPropertiesPanelProps) {
   void _balanceCredits;
@@ -111,7 +115,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const suppressChipClickRef = React.useRef(false);
   const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
-  const [loopEnabled, setLoopEnabled] = React.useState(false);
+  const [uncontrolledLoopEnabled, setUncontrolledLoopEnabled] = React.useState(false);
   const [uncontrolledDurationSeconds, setUncontrolledDurationSeconds] = React.useState<
     number | null
   >(null);
@@ -123,6 +127,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     canScrollForward: false,
   });
   const prompt = controlledPrompt ?? uncontrolledPrompt;
+  const loopEnabled = controlledLoopEnabled ?? uncontrolledLoopEnabled;
   const durationSeconds = controlledDurationSeconds ?? uncontrolledDurationSeconds;
   const resolveTextAction = React.useCallback(
     (current: string, action: React.SetStateAction<string>) =>
@@ -150,6 +155,20 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       setUncontrolledDurationSeconds(value);
     },
     [onDurationChange]
+  );
+  const setLoopEnabled = React.useCallback(
+    (action: React.SetStateAction<boolean>) => {
+      const value =
+        typeof action === "function"
+          ? (action as (current: boolean) => boolean)(loopEnabled)
+          : action;
+      if (onLoopEnabledChange) {
+        onLoopEnabledChange(value);
+        return;
+      }
+      setUncontrolledLoopEnabled(value);
+    },
+    [loopEnabled, onLoopEnabledChange]
   );
 
   React.useEffect(() => {

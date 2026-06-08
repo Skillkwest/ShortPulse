@@ -33,6 +33,7 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "error_message_short",
   "error_detail",
   "generation_replay",
+  "workflow_reload",
   "character_context",
   "style_context",
   "started_at",
@@ -76,6 +77,7 @@ type ProjectGenerationProjectionRow = {
   error_message_short?: unknown;
   error_detail?: unknown;
   generation_replay?: unknown;
+  workflow_reload?: unknown;
   character_context?: unknown;
   style_context?: unknown;
   started_at?: unknown;
@@ -1037,6 +1039,7 @@ const patchSnapshotOutputRow = ({
   const nextTaskId = asTrimmedString(projection.request_id);
   const nextGenerationId = asTrimmedString(projection.generation_id);
   const nextGenerationReplay = asRecord(projection.generation_replay);
+  const nextWorkflowReload = asRecord(projection.workflow_reload);
   const nextCharacterContext = asRecord(projection.character_context);
   const nextStyleContext = asRecord(projection.style_context);
   const nextSavedMediaIds = asTrimmedStringArray(projection.saved_media_ids);
@@ -1076,6 +1079,8 @@ const patchSnapshotOutputRow = ({
     fullStoragePath: nextFullStoragePath ?? row.fullStoragePath ?? null,
     generationReplay:
       Object.keys(nextGenerationReplay).length > 0 ? nextGenerationReplay : row.generationReplay,
+    workflowReload:
+      Object.keys(nextWorkflowReload).length > 0 ? nextWorkflowReload : row.workflowReload,
     characterContext:
       Object.keys(nextCharacterContext).length > 0 ? nextCharacterContext : row.characterContext,
     styleContext: Object.keys(nextStyleContext).length > 0 ? nextStyleContext : row.styleContext,
@@ -1097,6 +1102,7 @@ const patchSnapshotOutputMetadataRow = ({
   const nextTaskId = asTrimmedString(projection.request_id);
   const nextGenerationId = asTrimmedString(projection.generation_id);
   const nextGenerationReplay = asRecord(projection.generation_replay);
+  const nextWorkflowReload = asRecord(projection.workflow_reload);
   const nextCharacterContext = asRecord(projection.character_context);
   const nextStyleContext = asRecord(projection.style_context);
   const nextAspect = asTrimmedString(nextGenerationReplay.aspect);
@@ -1112,6 +1118,8 @@ const patchSnapshotOutputMetadataRow = ({
     aspect: nextAspect ?? row.aspect,
     generationReplay:
       Object.keys(nextGenerationReplay).length > 0 ? nextGenerationReplay : row.generationReplay,
+    workflowReload:
+      Object.keys(nextWorkflowReload).length > 0 ? nextWorkflowReload : row.workflowReload,
     characterContext:
       Object.keys(nextCharacterContext).length > 0 ? nextCharacterContext : row.characterContext,
     styleContext: Object.keys(nextStyleContext).length > 0 ? nextStyleContext : row.styleContext,

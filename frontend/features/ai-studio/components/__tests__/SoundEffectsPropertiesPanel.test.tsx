@@ -132,6 +132,21 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Sound effect duration" })).toHaveTextContent("30s");
   });
 
+  it("supports a controlled loop draft from page state", () => {
+    const onLoopEnabledChange = vi.fn();
+
+    render(
+      <SoundEffectsPropertiesPanel loopEnabled={true} onLoopEnabledChange={onLoopEnabledChange} />
+    );
+
+    const loopSwitch = screen.getByRole("switch", { name: "Loop sound effect" });
+    expect(loopSwitch).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(loopSwitch);
+
+    expect(onLoopEnabledChange).toHaveBeenCalledWith(false);
+  });
+
   it("keeps generate available when shared pricing is unavailable", () => {
     render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} pricingPolicyReady={false} />);
 

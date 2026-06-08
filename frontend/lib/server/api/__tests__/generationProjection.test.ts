@@ -124,6 +124,7 @@ describe("repairStaleTerminalGenerationProjections", () => {
           hidden_in_reference_grid: false,
           reference_grid_visible: true,
           generation_replay: { foo: "bar" },
+          workflow_reload: { version: 1, originTool: "create" },
           character_context: { characterId: "char-1" },
           style_context: { styleId: "style-1" },
           started_at: "2026-04-10T23:00:00.000Z",
@@ -165,6 +166,7 @@ describe("repairStaleTerminalGenerationProjections", () => {
         publication_state: "suppressed",
         error_message_short: "No media returned.",
         error_detail: "Provider terminal success without media payload.",
+        workflow_reload: { version: 1, originTool: "create" },
         completed_at: "2026-04-10T23:20:00.000Z",
       }),
       expect.objectContaining({
@@ -227,6 +229,7 @@ describe("repairStaleTerminalGenerationProjections", () => {
           hidden_in_reference_grid: false,
           reference_grid_visible: true,
           generation_replay: { input: "value" },
+          workflow_reload: { version: 1, originTool: "video" },
           character_context: { characterId: "char-3" },
           style_context: { styleId: "style-3" },
           started_at: "2026-04-10T23:00:00.000Z",
@@ -286,6 +289,7 @@ describe("repairStaleTerminalGenerationProjections", () => {
         preview_url: "https://cdn.shortpulse.test/generated.png",
         result_urls: ["https://cdn.shortpulse.test/generated.png"],
         saved_media_ids: ["media-1"],
+        workflow_reload: { version: 1, originTool: "video" },
         completed_at: "2026-04-10T23:20:00.000Z",
       }),
       expect.objectContaining({

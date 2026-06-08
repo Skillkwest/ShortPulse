@@ -32,6 +32,7 @@ type SoundEffectsRequestBody = {
   project_id?: unknown;
   projectId?: unknown;
   shortpulse_context?: unknown;
+  workflow_reload?: unknown;
 };
 
 type GenerateSoundEffectSuccessResponse = {
@@ -114,6 +115,7 @@ export default async function handler(
     const modelId = normalizeRequiredString(body.modelId) ?? DEFAULT_SOUND_EFFECTS_MODEL_ID;
     const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
     const shortpulseContext = asRecord(body.shortpulse_context);
+    const workflowReload = asRecord(body.workflow_reload) ?? {};
     const durationSeconds = parseOptionalNumber(body.durationSeconds);
     const loop = typeof body.loop === "boolean" ? body.loop : false;
 
@@ -202,6 +204,7 @@ export default async function handler(
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
+      workflowReload,
       extraMetadata: {
         billing_mode: charge.billingMode,
         billing_source_ref: charge.sourceRef,

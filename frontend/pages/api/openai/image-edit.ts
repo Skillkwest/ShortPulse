@@ -43,6 +43,7 @@ type ImageEditRequestBody = {
   mask?: unknown;
   project_id?: unknown;
   generation_replay?: unknown;
+  workflow_reload?: unknown;
   character_context?: unknown;
   style_context?: unknown;
   shortpulse_context?: unknown;
@@ -199,6 +200,7 @@ export default async function handler(
     const hasMaskPayload = body.mask != null;
     const projectId = normalizeRequiredString(body.project_id);
     const generationReplay = asRecord(body.generation_replay) ?? {};
+    const workflowReload = asRecord(body.workflow_reload) ?? {};
     const characterContext = asRecord(body.character_context) ?? {};
     const styleContext = asRecord(body.style_context) ?? {};
     const shortpulseContext = asRecord(body.shortpulse_context) ?? {};
@@ -294,6 +296,7 @@ export default async function handler(
       outputBuffer: edited.buffer,
       outputContentType: edited.contentType,
       generationReplay,
+      workflowReload,
       characterContext,
       styleContext,
       extraMetadata: {

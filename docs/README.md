@@ -353,6 +353,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
   - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
   - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
   - `docs/planning/kie-gpt-image-2-image-to-image-implementation-plan-2026-06-04.md`
+  - `docs/planning/ai-studio-full-workflow-reload-plan-2026-06-06.md`
   - `docs/planning/ai-studio-agent-modularization-program.md`
   - `docs/planning/ai-studio-agent-modularization-tracker.md`
   - `docs/planning/ai-studio-reference-grid-modularization-program.md`

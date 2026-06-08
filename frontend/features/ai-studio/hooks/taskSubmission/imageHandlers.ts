@@ -363,6 +363,7 @@ export const handleImageModelSubmission = async ({
   preparedImageInputs,
   notifyGenerationFailure,
   generationReplay,
+  workflowReload,
   internalMediaRefs,
   characterContext,
   styleContext,
@@ -380,6 +381,7 @@ export const handleImageModelSubmission = async ({
       : shortpulseContext;
   const shortpulseSubmitPayload = {
     ...(generationReplay ? { generation_replay: generationReplay } : {}),
+    ...(workflowReload ? { workflow_reload: workflowReload } : {}),
     ...(hasInternalMediaRefs(internalMediaRefs)
       ? { shortpulse_internal_media_refs: internalMediaRefs }
       : {}),

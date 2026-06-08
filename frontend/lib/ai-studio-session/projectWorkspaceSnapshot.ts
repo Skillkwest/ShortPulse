@@ -165,6 +165,7 @@ const trimGeneratedProjectWorkspaceOutput = (
 
   if (trimMetadata && hasText(output.generationId)) {
     delete trimmedOutput.generationReplay;
+    delete trimmedOutput.workflowReload;
     delete trimmedOutput.characterContext;
     delete trimmedOutput.styleContext;
   }

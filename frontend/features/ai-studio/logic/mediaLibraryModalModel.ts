@@ -21,6 +21,7 @@ export type MediaFileRow = {
   width?: number | null;
   height?: number | null;
   source?: string | null;
+  source_ref?: string | null;
   created_at?: string | null;
   metadata?: Record<string, unknown> | null;
   thumb_variant_path?: string | null;

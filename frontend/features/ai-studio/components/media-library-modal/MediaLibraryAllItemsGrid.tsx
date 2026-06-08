@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { Check, DownloadSimple, Play, X } from "phosphor-react";
+import { Check, DownloadSimple, FlowArrow, Play, X } from "phosphor-react";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
@@ -9,6 +9,7 @@ import {
 import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
 import { resolveVideoPosterSourceUrl } from "../../logic/mediaVideoBrowsePreview";
 import { useMediaVideoBrowsePreviewUrls } from "../../hooks/useMediaVideoBrowsePreviewUrls";
+import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
 import { isVideoUrl } from "../../logic/stateParsers";
 import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
@@ -70,6 +71,7 @@ type MediaLibraryAllItemsGridProps = {
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
   onDeletePromptFromLibrary?: (prompt: PromptRow) => void;
   onDownloadMediaFile?: (file: MediaFileRow) => void;
+  onReloadWorkflowFromMedia?: (file: MediaFileRow) => void;
   onMediaContextMenu?: (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
@@ -119,9 +121,11 @@ type MediaCardShellProps = {
   cacheAspectRatio: (id: string, ratio: number) => void;
   showCardActions: boolean;
   canShowDownloadAction: boolean;
+  canShowWorkflowReloadAction: boolean;
   canShowRemoveAction: boolean;
   canShowDeleteAction: boolean;
   onDownloadMediaFile?: (file: MediaFileRow) => void;
+  onReloadWorkflowFromMedia?: (file: MediaFileRow) => void;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
 };
@@ -129,9 +133,11 @@ type MediaCardShellProps = {
 type MediaCardActionsProps = {
   file: MediaFileRow;
   canShowDownloadAction: boolean;
+  canShowWorkflowReloadAction: boolean;
   canShowRemoveAction: boolean;
   canShowDeleteAction: boolean;
   onDownloadMediaFile?: (file: MediaFileRow) => void;
+  onReloadWorkflowFromMedia?: (file: MediaFileRow) => void;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
 };
@@ -139,9 +145,11 @@ type MediaCardActionsProps = {
 function MediaLibraryAllItemsCardActions({
   file,
   canShowDownloadAction,
+  canShowWorkflowReloadAction,
   canShowRemoveAction,
   canShowDeleteAction,
   onDownloadMediaFile,
+  onReloadWorkflowFromMedia,
   onRemoveMediaFromFolder,
   onDeleteMediaFromLibrary,
 }: MediaCardActionsProps) {
@@ -159,6 +167,20 @@ function MediaLibraryAllItemsCardActions({
           }}
         >
           <DownloadSimple size={16} weight="bold" aria-hidden />
+        </button>
+      ) : null}
+      {canShowWorkflowReloadAction ? (
+        <button
+          type="button"
+          className="reference-card-action-btn media-library-panel-card-reload-workflow-btn"
+          aria-label={`Reload workflow for ${file.filename || "media"}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onReloadWorkflowFromMedia?.(file);
+          }}
+        >
+          <FlowArrow size={16} weight="bold" aria-hidden />
         </button>
       ) : null}
       {canShowRemoveAction ? (
@@ -215,9 +237,11 @@ function MediaLibraryAllItemsMediaCard({
   cacheAspectRatio,
   showCardActions,
   canShowDownloadAction,
+  canShowWorkflowReloadAction,
   canShowRemoveAction,
   canShowDeleteAction,
   onDownloadMediaFile,
+  onReloadWorkflowFromMedia,
   onRemoveMediaFromFolder,
   onDeleteMediaFromLibrary,
 }: MediaCardShellProps) {
@@ -482,9 +506,11 @@ function MediaLibraryAllItemsMediaCard({
         <MediaLibraryAllItemsCardActions
           file={file}
           canShowDownloadAction={canShowDownloadAction}
+          canShowWorkflowReloadAction={canShowWorkflowReloadAction}
           canShowRemoveAction={canShowRemoveAction}
           canShowDeleteAction={canShowDeleteAction}
           onDownloadMediaFile={onDownloadMediaFile}
+          onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
           onRemoveMediaFromFolder={onRemoveMediaFromFolder}
           onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
         />
@@ -510,9 +536,11 @@ function MediaLibraryAllItemsAudioCard({
   onRequestSignedUrl,
   showCardActions,
   canShowDownloadAction,
+  canShowWorkflowReloadAction,
   canShowRemoveAction,
   canShowDeleteAction,
   onDownloadMediaFile,
+  onReloadWorkflowFromMedia,
   onRemoveMediaFromFolder,
   onDeleteMediaFromLibrary,
 }: MediaCardShellProps) {
@@ -688,9 +716,11 @@ function MediaLibraryAllItemsAudioCard({
         <MediaLibraryAllItemsCardActions
           file={file}
           canShowDownloadAction={canShowDownloadAction}
+          canShowWorkflowReloadAction={canShowWorkflowReloadAction}
           canShowRemoveAction={canShowRemoveAction}
           canShowDeleteAction={canShowDeleteAction}
           onDownloadMediaFile={onDownloadMediaFile}
+          onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
           onRemoveMediaFromFolder={onRemoveMediaFromFolder}
           onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
         />
@@ -724,6 +754,7 @@ export function MediaLibraryAllItemsGrid({
   onDeleteMediaFromLibrary,
   onDeletePromptFromLibrary,
   onDownloadMediaFile,
+  onReloadWorkflowFromMedia,
   onMediaContextMenu,
   onMediaPreviewError,
   onMediaPaint,
@@ -895,8 +926,14 @@ export function MediaLibraryAllItemsGrid({
         const canShowDownloadAction = Boolean(
           onDownloadMediaFile && (file.signedUrl ?? "").trim().length > 0
         );
+        const canShowWorkflowReloadAction = Boolean(
+          onReloadWorkflowFromMedia && canReloadMediaLibraryWorkflow(file)
+        );
         const shouldShowCardActions =
-          canShowDownloadAction || canShowRemoveAction || canShowDeleteAction;
+          canShowDownloadAction ||
+          canShowWorkflowReloadAction ||
+          canShowRemoveAction ||
+          canShowDeleteAction;
         const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
         const previewAspectRatio =
           !isAudioFile(file.file_type) &&
@@ -992,9 +1029,11 @@ export function MediaLibraryAllItemsGrid({
                 cacheAspectRatio={cacheAspectRatio}
                 showCardActions={shouldShowCardActions}
                 canShowDownloadAction={canShowDownloadAction}
+                canShowWorkflowReloadAction={canShowWorkflowReloadAction}
                 canShowRemoveAction={canShowRemoveAction}
                 canShowDeleteAction={canShowDeleteAction}
                 onDownloadMediaFile={onDownloadMediaFile}
+                onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
                 onRemoveMediaFromFolder={onRemoveMediaFromFolder}
                 onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
               />
@@ -1021,9 +1060,11 @@ export function MediaLibraryAllItemsGrid({
                 cacheAspectRatio={cacheAspectRatio}
                 showCardActions={shouldShowCardActions}
                 canShowDownloadAction={canShowDownloadAction}
+                canShowWorkflowReloadAction={canShowWorkflowReloadAction}
                 canShowRemoveAction={canShowRemoveAction}
                 canShowDeleteAction={canShowDeleteAction}
                 onDownloadMediaFile={onDownloadMediaFile}
+                onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
                 onRemoveMediaFromFolder={onRemoveMediaFromFolder}
                 onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
               />

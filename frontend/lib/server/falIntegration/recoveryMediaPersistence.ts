@@ -224,6 +224,8 @@ export const persistRecoveryMediaFilesForGeneration = async ({
 }): Promise<string[]> => {
   const supabaseAdmin = getSupabaseAdmin();
   const existingRows = await readExistingRecoveryMediaRows(generation.id, generation.user_id);
+  const generationMetadata = asObject(generation.metadata);
+  const workflowReload = asObject(generationMetadata.workflow_reload);
   const existingByIndex = new Map<number, string>();
   for (const row of existingRows) {
     if (row.index !== null) {
@@ -245,6 +247,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
         providerRequestId: generation.request_id,
         metadata: {
           recovery_execution: true,
+          ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
         },
         supabaseAdmin,
       });
@@ -258,7 +261,6 @@ export const persistRecoveryMediaFilesForGeneration = async ({
 
   const mediaFileIdsByIndex = new Array<string | null>(mediaUrls.length).fill(null);
   const promptBase = clampPrompt(generation.prompt_text);
-  const generationMetadata = asObject(generation.metadata);
   const generationTraceId = asString(generationMetadata.generation_trace_id);
   const submissionTraceId = asString(generationMetadata.submission_trace_id);
 
@@ -312,6 +314,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
         generation_trace_id: generationTraceId,
         submission_trace_id: submissionTraceId,
         recovery_execution: true,
+        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
       imageDimensions
     );
@@ -408,6 +411,9 @@ export const persistRecoveryMediaFilesForGeneration = async ({
             providerRequestId: generation.request_id,
             metadata: {
               recovery_execution: true,
+              ...(Object.keys(workflowReload).length > 0
+                ? { workflow_reload: workflowReload }
+                : {}),
             },
             supabaseAdmin,
           });
@@ -470,6 +476,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
         providerRequestId: generation.request_id,
         metadata: {
           recovery_execution: true,
+          ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
         },
         supabaseAdmin,
       });

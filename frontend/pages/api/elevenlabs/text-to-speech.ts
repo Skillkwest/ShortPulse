@@ -30,6 +30,7 @@ type TextToSpeechRequestBody = {
   project_id?: unknown;
   projectId?: unknown;
   shortpulse_context?: unknown;
+  workflow_reload?: unknown;
 };
 
 type GenerateAudioSuccessResponse = {
@@ -103,6 +104,7 @@ export default async function handler(
     const modelId = normalizeRequiredString(config?.model_id);
     const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
     const shortpulseContext = asRecord(body.shortpulse_context);
+    const workflowReload = asRecord(body.workflow_reload) ?? {};
 
     if (!voiceId || !voiceName || !text || !outputFormat || !config || !modelId) {
       return res.status(400).json({
@@ -193,6 +195,7 @@ export default async function handler(
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
+      workflowReload,
       extraMetadata: {
         billing_mode: charge.billingMode,
         billing_source_ref: charge.sourceRef,

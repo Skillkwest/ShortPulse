@@ -45,6 +45,88 @@ describe("MediaLibraryPanelPreviewModal", () => {
       },
     });
 
+  const workflowReloadMetadata = {
+    version: 1,
+    source: "ai_studio_generation",
+    capturedAt: "2026-06-06T14:00:00.000Z",
+    originTool: "create",
+    panelKind: "create",
+    outputMode: "image",
+    restoreBehavior: "navigate_and_hydrate",
+    projectId: "project-1",
+    createMode: "standard",
+    pulse: null,
+    prompt: {
+      display: "A glass fox in a desert observatory",
+    },
+    model: {
+      id: "fal-ai/imagen4/preview",
+    },
+    payload: {
+      kind: "image",
+      submitTool: "create",
+      aspect: "16:9",
+      imageResolution: "1K",
+      referenceInputs: [],
+      internalMediaRefs: [],
+    },
+  };
+
+  it("shows workflow reload only for saved AI Studio media with explicit reload metadata", () => {
+    const onReloadWorkflowItem = vi.fn();
+    const generatedFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/media-library/portrait.png",
+      preview_storage_path: "user-1/media-library/thumb-portrait.png",
+      file_type: "image/png",
+      source: "ai_studio",
+      source_ref: "generation-1",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+      metadata: {
+        workflow_reload: workflowReloadMetadata,
+      },
+    };
+    const { rerender } = render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(generatedFile, "https://cdn.example.com/thumb-portrait.png", {
+          source: "ai_studio",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onReloadWorkflowItem={onReloadWorkflowItem}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reload workflow" }));
+
+    expect(onReloadWorkflowItem).toHaveBeenCalledWith(
+      expect.objectContaining({ file: generatedFile })
+    );
+
+    rerender(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(
+          {
+            ...generatedFile,
+            id: "upload-1",
+            source: "upload",
+            metadata: null,
+          },
+          "https://cdn.example.com/thumb-portrait.png",
+          { source: "upload" }
+        )}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onReloadWorkflowItem={onReloadWorkflowItem}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Reload workflow" })).not.toBeInTheDocument();
+  });
+
   it("pauses an existing inline audio preview when modal audio starts playing", () => {
     const pauseSpy = HTMLMediaElement.prototype.pause as ReturnType<typeof vi.fn>;
     const audioFile: MediaFileRow = {

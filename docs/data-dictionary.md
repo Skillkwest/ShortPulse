@@ -430,12 +430,13 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `character_context` (jsonb, default `{}`): Persisted character-mode lineage and applied-state context.
 - `style_context` (jsonb, default `{}`): Persisted style lineage and applied-state context.
 - `generation_replay` (jsonb, default `{}`): Replay/reference snapshot used for recovery and workflow-context analytics.
+- `workflow_reload` (jsonb, default `{}`): Versioned navigate-and-hydrate workflow metadata for reloading the originating AI Studio panel from a generated reference.
 - `publication_status` / `publication_id` / `published_at` (nullable): Publication tracking fields.
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Notes:
   - Admin stats v1 treats this as the primary workflow-context authority for style-applied, character-mode, and reference-assisted generation analytics.
-  - Accepted submit paths now pass additive `generation_replay`, `character_context`, and `style_context` snapshots through the provider submit proxy so direct accepted runs preserve workflow analytics context.
+  - Accepted submit paths pass additive `generation_replay`, `workflow_reload`, `character_context`, and `style_context` snapshots through the provider submit proxy so direct accepted runs preserve workflow analytics and reload context.
 
 ### generation_abandonments
 

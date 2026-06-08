@@ -74,6 +74,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   audioPlaybackController: ReferenceGridSingleAudioPlaybackController;
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
+  onReloadWorkflowOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
@@ -124,6 +125,7 @@ export const useReferenceGridCardRenderController = ({
   audioPlaybackController,
   onRetryStatus,
   onRerollOutput,
+  onReloadWorkflowOutput,
   onDeleteOutput,
   onClearGenerationOutput,
   onRemoveCuratedReference,
@@ -326,6 +328,7 @@ export const useReferenceGridCardRenderController = ({
           onAudioPlaybackStopped={resolvedAudioPlaybackController.clearActivePlayer}
           onRetryStatus={onRetryStatus}
           onRerollOutput={options.isCuratedSurface ? undefined : onRerollOutput}
+          onReloadWorkflowOutput={options.isCuratedSurface ? undefined : onReloadWorkflowOutput}
           onDeleteOutput={options.isCuratedSurface ? undefined : onDeleteOutput}
           onClearGenerationOutput={isGenerationLoading ? onClearGenerationOutput : undefined}
           onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
@@ -360,6 +363,7 @@ export const useReferenceGridCardRenderController = ({
       onDownload,
       onOpenDetails,
       onRemoveCuratedReference,
+      onReloadWorkflowOutput,
       onRerollOutput,
       onRetryStatus,
       isMediaStorageFull,

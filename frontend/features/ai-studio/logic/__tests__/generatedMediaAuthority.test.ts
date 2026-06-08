@@ -875,6 +875,11 @@ describe("generatedMediaAuthority", () => {
           generation_replay: {
             aspect: "9:16",
           },
+          workflow_reload: {
+            version: 1,
+            originTool: "video",
+            panelKind: "video",
+          },
           character_context: {},
           style_context: {},
           updated_at: "2026-04-18T16:10:00.000Z",
@@ -929,6 +934,11 @@ describe("generatedMediaAuthority", () => {
         queueState: "dispatched",
         timestamp: "Just now",
         aspect: "9:16",
+        workflowReload: {
+          version: 1,
+          originTool: "video",
+          panelKind: "video",
+        },
       }),
     ]);
   });

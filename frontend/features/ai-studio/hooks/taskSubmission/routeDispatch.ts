@@ -36,6 +36,7 @@ export type DispatchSubmissionByRouteParams = {
   internalMediaRefs?: Array<InternalMediaRef | null>;
   modelConfig: SubmissionModelConfig;
   generationReplay?: Record<string, unknown> | null;
+  workflowReload?: Record<string, unknown> | null;
   characterContext?: StudioOutput["characterContext"];
   styleContext?: StudioOutput["styleContext"];
   shortpulseContext?: Record<string, unknown>;
@@ -87,6 +88,7 @@ const submissionRouteAdapters: Record<
     notifyGenerationFailure,
     updateOutputById,
     generationReplay,
+    workflowReload,
     characterContext,
     styleContext,
     shortpulseContext,
@@ -121,6 +123,7 @@ const submissionRouteAdapters: Record<
       notifyGenerationFailure,
       updateOutputById,
       generationReplay,
+      workflowReload,
       characterContext,
       styleContext,
       shortpulseContext,
@@ -155,6 +158,7 @@ const submissionRouteAdapters: Record<
     internalMediaRefs,
     modelConfig,
     generationReplay,
+    workflowReload,
     characterContext,
     styleContext,
     shortpulseContext,
@@ -181,6 +185,7 @@ const submissionRouteAdapters: Record<
       notifyGenerationFailure,
       updateOutputById,
       generationReplay,
+      workflowReload,
       characterContext,
       styleContext,
       shortpulseContext,
@@ -208,6 +213,7 @@ const submissionRouteAdapters: Record<
     internalMediaRefs,
     modelConfig,
     generationReplay,
+    workflowReload,
     characterContext,
     styleContext,
     shortpulseContext,
@@ -233,6 +239,7 @@ const submissionRouteAdapters: Record<
       notifyGenerationFailure,
       updateOutputById,
       generationReplay,
+      workflowReload,
       characterContext,
       styleContext,
       shortpulseContext,
@@ -258,6 +265,7 @@ export const dispatchSubmissionByRoute = async ({
   internalMediaRefs,
   modelConfig,
   generationReplay,
+  workflowReload,
   characterContext,
   styleContext,
   shortpulseContext,
@@ -307,6 +315,7 @@ export const dispatchSubmissionByRoute = async ({
     internalMediaRefs,
     modelConfig,
     generationReplay,
+    workflowReload,
     characterContext,
     styleContext,
     shortpulseContext,

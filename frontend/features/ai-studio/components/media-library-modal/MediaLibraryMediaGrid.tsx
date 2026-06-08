@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { Check, DownloadSimple, X } from "phosphor-react";
+import { Check, DownloadSimple, FlowArrow, X } from "phosphor-react";
 import {
   resolveDurablePreviewStoragePath,
   resolveVideoPosterStoragePath,
@@ -13,6 +13,7 @@ import {
   type MediaLibraryGridDensityConfig,
 } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
+import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
 import {
   isAudioFile,
   isVideoFile,
@@ -50,6 +51,7 @@ type MediaLibraryMediaGridProps = {
   showDeleteAction?: boolean;
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
   onDownloadMediaFile?: (file: MediaFileRow) => void;
+  onReloadWorkflowFromMedia?: (file: MediaFileRow) => void;
   onMediaContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
@@ -83,6 +85,7 @@ export function MediaLibraryMediaGrid({
   showDeleteAction = false,
   onDeleteMediaFromLibrary,
   onDownloadMediaFile,
+  onReloadWorkflowFromMedia,
   onMediaContextMenu,
   onMediaPreviewError,
   onMediaPaint,
@@ -183,8 +186,14 @@ export function MediaLibraryMediaGrid({
           const canShowDownloadAction = Boolean(
             onDownloadMediaFile && (file.signedUrl ?? "").trim().length > 0
           );
+          const canShowWorkflowReloadAction = Boolean(
+            onReloadWorkflowFromMedia && canReloadMediaLibraryWorkflow(file)
+          );
           const shouldShowCardActions =
-            canShowDownloadAction || canShowRemoveAction || canShowDeleteAction;
+            canShowDownloadAction ||
+            canShowWorkflowReloadAction ||
+            canShowRemoveAction ||
+            canShowDeleteAction;
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
           const previewAspectRatio =
             !isAudioFile(file.file_type) &&
@@ -342,6 +351,20 @@ export function MediaLibraryMediaGrid({
                       }}
                     >
                       <DownloadSimple size={16} weight="bold" aria-hidden />
+                    </button>
+                  ) : null}
+                  {canShowWorkflowReloadAction ? (
+                    <button
+                      type="button"
+                      className="reference-card-action-btn media-library-panel-card-reload-workflow-btn"
+                      aria-label={`Reload workflow for ${file.filename || "media"}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onReloadWorkflowFromMedia?.(file);
+                      }}
+                    >
+                      <FlowArrow size={16} weight="bold" aria-hidden />
                     </button>
                   ) : null}
                   {canShowRemoveAction || canShowDeleteAction ? (

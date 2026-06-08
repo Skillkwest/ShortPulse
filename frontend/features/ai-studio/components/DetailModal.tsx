@@ -3,7 +3,7 @@
  * Supports prompt-only view and media preview with metadata.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TrashSimple } from "phosphor-react";
+import { FlowArrow, TrashSimple } from "phosphor-react";
 import {
   asCanonicalStoragePath,
   logAdaptiveDetailFullQualityUsed,
@@ -13,6 +13,7 @@ import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers
 import { resolveStudioOutputMediaDisplayAuthority } from "../logic/referenceGridMedia";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { createStudioOutputDetailModalItem } from "../logic/studioOutputDetailModal";
+import { canReloadWorkflowOutput } from "../logic/workflowReload";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
@@ -61,6 +62,7 @@ type DetailModalProps = {
   onDeleteOutput: (id: string) => void;
   onDownloadReference?: (id: string) => void;
   onSaveReference?: (id: string) => void;
+  onReloadWorkflowReference?: (id: string) => void;
   isMediaStorageFull?: boolean;
   onSavePrompt?: (promptText: string) => void;
   refreshCharacterOptions?: () => Promise<
@@ -81,6 +83,7 @@ export function DetailModal({
   onDeleteOutput,
   onDownloadReference,
   onSaveReference,
+  onReloadWorkflowReference,
   isMediaStorageFull = false,
   onSavePrompt,
   refreshCharacterOptions,
@@ -97,6 +100,7 @@ export function DetailModal({
       onDeleteOutput={onDeleteOutput}
       onDownloadReference={onDownloadReference}
       onSaveReference={onSaveReference}
+      onReloadWorkflowReference={onReloadWorkflowReference}
       isMediaStorageFull={isMediaStorageFull}
       onSavePrompt={onSavePrompt}
       refreshCharacterOptions={refreshCharacterOptions}
@@ -118,6 +122,7 @@ function DetailModalContent({
   onDeleteOutput,
   onDownloadReference,
   onSaveReference,
+  onReloadWorkflowReference,
   isMediaStorageFull = false,
   onSavePrompt,
   refreshCharacterOptions,
@@ -1125,6 +1130,10 @@ function DetailModalContent({
     if (!outputId || !onSaveReference || isMediaSaveDisabled) return;
     onSaveReference(outputId);
   }, [isMediaSaveDisabled, onSaveReference, outputId]);
+  const handleReloadWorkflowReference = useCallback(() => {
+    if (!outputId || !onReloadWorkflowReference) return;
+    onReloadWorkflowReference(outputId);
+  }, [onReloadWorkflowReference, outputId]);
 
   const handlePreviewAspectLoad = useCallback(
     (width: number, height: number) => {
@@ -1298,8 +1307,21 @@ function DetailModalContent({
   };
 
   const sharedMediaActionItems = useMemo<SharedMediaDetailActionItem[]>(
-    () =>
-      resolveSharedMediaDetailMediaActionItems({
+    () => [
+      ...(onReloadWorkflowReference && canReloadWorkflowOutput(output)
+        ? [
+            {
+              id: "reload-workflow",
+              label: "",
+              onClick: handleReloadWorkflowReference,
+              ariaLabel: "Reload workflow",
+              title: "Reload workflow",
+              icon: <FlowArrow size={16} weight="bold" aria-hidden />,
+              className: "is-icon-only",
+            },
+          ]
+        : []),
+      ...resolveSharedMediaDetailMediaActionItems({
         saveState: isMediaSaveButtonVisible ? mediaSaveState : "hidden",
         isStorageFull: isMediaStorageFull,
         onSaveToLibrary: handleSaveMediaReference,
@@ -1309,15 +1331,19 @@ function DetailModalContent({
         onDelete: handleRequestDelete,
         deleteIcon: <TrashSimple size={16} weight="bold" aria-hidden />,
       }),
+    ],
     [
       canDownloadReferenceMedia,
       displayPreviewUrl,
       handleDownload,
+      handleReloadWorkflowReference,
       handleRequestDelete,
       handleSaveMediaReference,
       isMediaSaveButtonVisible,
       isMediaStorageFull,
       mediaSaveState,
+      onReloadWorkflowReference,
+      output,
     ]
   );
 

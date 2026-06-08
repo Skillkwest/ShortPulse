@@ -312,11 +312,13 @@ export type VoicesPropertiesPanelProps = {
   selectedTool?: ToolId | null;
   isGenerating?: boolean;
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
+  onSelectedVoiceIdChange?: (voiceId: string) => void;
   onVoiceChangerSourceChange?: (source: VoiceChangerSource | null) => void;
   onVoicePromptChange?: (value: string) => void;
   onVoiceScriptChange?: (value: string) => void;
   onActiveVoiceChangerSourceVideoChange?: (source: ActiveVoiceChangerSourceVideo | null) => void;
   resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
+  selectedVoiceId?: string | null;
   voiceChangerSource?: VoiceChangerSource | null;
   voicePrompt?: string;
   voiceScript?: string;
@@ -363,11 +365,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   pricingPolicyReady = true,
   selectedTool = null,
   onGenerate,
+  onSelectedVoiceIdChange,
   onVoiceChangerSourceChange: onControlledVoiceChangerSourceChange,
   onVoicePromptChange: onControlledVoicePromptChange,
   onVoiceScriptChange: onControlledVoiceScriptChange,
   onActiveVoiceChangerSourceVideoChange,
   resolveVoiceChangerInternalReferenceSource,
+  selectedVoiceId: controlledSelectedVoiceId,
   voiceChangerSource: controlledVoiceChangerSource,
   voicePrompt: controlledVoicePrompt,
   voiceScript: controlledVoiceScript,
@@ -377,11 +381,26 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   void _balanceCredits;
   const {
     voices: libraryVoices,
-    selectedVoice: selectedLibraryVoice,
-    setSelectedVoice: setSelectedLibraryVoice,
+    selectedVoice: sharedSelectedLibraryVoice,
+    setSelectedVoice: setSharedSelectedLibraryVoice,
     replaceVoices,
     upsertVoice: upsertSharedVoice,
   } = useSharedVoicesGrid();
+  const controlledSelectedLibraryVoice =
+    controlledSelectedVoiceId !== undefined
+      ? (libraryVoices.find((voice) => voice.id === controlledSelectedVoiceId) ?? null)
+      : null;
+  const selectedLibraryVoice =
+    controlledSelectedVoiceId !== undefined
+      ? controlledSelectedLibraryVoice
+      : sharedSelectedLibraryVoice;
+  const setSelectedLibraryVoice = React.useCallback(
+    (voiceId: string) => {
+      setSharedSelectedLibraryVoice(voiceId);
+      onSelectedVoiceIdChange?.(voiceId);
+    },
+    [onSelectedVoiceIdChange, setSharedSelectedLibraryVoice]
+  );
   const [surfaceMode, setSurfaceMode] = React.useState<VoicesSurfaceMode>(
     selectedTool === "voice-changer" ? "edit" : "create"
   );

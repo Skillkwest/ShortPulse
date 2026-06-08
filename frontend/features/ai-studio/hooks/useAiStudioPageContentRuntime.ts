@@ -45,6 +45,8 @@ type UseAiStudioPageContentRuntimeParams = {
   onDeleteOutput: AiStudioPageContentProps["onDeleteOutput"];
   onDetailDownload: AiStudioPageContentProps["onDetailDownload"];
   onDetailSaveReference: AiStudioPageContentProps["onDetailSaveReference"];
+  onDetailReloadWorkflow: AiStudioPageContentProps["onDetailReloadWorkflow"];
+  onMediaLibraryReloadWorkflow: AiStudioPageContentProps["onMediaLibraryReloadWorkflow"];
   onDetailSavePrompt: AiStudioPageContentProps["onDetailSavePrompt"];
   onAddLibraryMediaReference: AiStudioPageContentProps["onAddLibraryMediaReference"];
   onAddLibraryPromptReference: AiStudioPageContentProps["onAddLibraryPromptReference"];
@@ -117,6 +119,8 @@ export const useAiStudioPageContentRuntime = ({
   onDeleteOutput,
   onDetailDownload,
   onDetailSaveReference,
+  onDetailReloadWorkflow,
+  onMediaLibraryReloadWorkflow,
   onDetailSavePrompt,
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
@@ -186,6 +190,8 @@ export const useAiStudioPageContentRuntime = ({
       onDeleteOutput,
       onDetailDownload,
       onDetailSaveReference,
+      onDetailReloadWorkflow,
+      onMediaLibraryReloadWorkflow,
       onDetailSavePrompt,
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
@@ -254,6 +260,8 @@ export const useAiStudioPageContentRuntime = ({
       onDeleteOutput,
       onDetailDownload,
       onDetailSaveReference,
+      onDetailReloadWorkflow,
+      onMediaLibraryReloadWorkflow,
       onDetailSavePrompt,
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,

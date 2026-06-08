@@ -90,6 +90,7 @@ const RICH_OUTPUT_CHECKPOINT_EXCLUDED_FIELDS = [
   "characterContext",
   "styleContext",
   "generationReplay",
+  "workflowReload",
 ] as const;
 
 type ProjectOutputDisplayItemRow = {

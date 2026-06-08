@@ -111,31 +111,58 @@ describe("useAiStudioAudioGeneration", () => {
         submissionModeOverride: "direct-request",
       })
     );
-    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/music", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text: "  cinematic synth pulse  ",
-        durationSeconds: 30,
-        bpm: 112,
-        mode: "instrumental",
-        structure: "loop",
-        energyPercent: 58,
-        outputFormat: "mp3_44100_128",
-        modelId: hardcodedMusicModelId,
-        shortpulse_context: {
-          mode: "audio",
-          selected_tool: "music",
-          pricing_display_source: "pricing_grid",
-          pricing_policy_ready: true,
-          displayed_billed_credits: null,
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/elevenlabs/music",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        project_id: "project-1",
+        shortpulseLogScope: "generation",
+        shortpulseSkipErrorLogging: true,
+      })
+    );
+    const [, fetchOptions] = fetchWithAuthMock.mock.calls[0] ?? [];
+    const requestBody = JSON.parse(String((fetchOptions as { body?: unknown }).body ?? "{}"));
+    expect(requestBody).toMatchObject({
+      text: "  cinematic synth pulse  ",
+      durationSeconds: 30,
+      bpm: 112,
+      mode: "instrumental",
+      structure: "loop",
+      energyPercent: 58,
+      outputFormat: "mp3_44100_128",
+      modelId: hardcodedMusicModelId,
+      shortpulse_context: {
+        mode: "audio",
+        selected_tool: "music",
+        pricing_display_source: "pricing_grid",
+        pricing_policy_ready: true,
+        displayed_billed_credits: null,
+      },
+      workflow_reload: expect.objectContaining({
+        version: 1,
+        source: "ai_studio_generation",
+        originTool: "music",
+        panelKind: "music",
+        outputMode: "audio",
+        restoreBehavior: "navigate_and_hydrate",
+        projectId: "project-1",
+        prompt: {
+          display: "  cinematic synth pulse  ",
+          submission: "  cinematic synth pulse  ",
+        },
+        model: {
+          id: hardcodedMusicModelId,
+        },
+        payload: expect.objectContaining({
+          kind: "music",
+          text: "  cinematic synth pulse  ",
+          durationSeconds: 30,
+          outputFormat: "mp3_44100_128",
+        }),
       }),
-      shortpulseLogScope: "generation",
-      shortpulseSkipErrorLogging: true,
+      project_id: "project-1",
     });
     expect(uiError).toBeNull();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
@@ -145,6 +172,10 @@ describe("useAiStudioAudioGeneration", () => {
       prompt: "cinematic synth pulse",
       taskState: "success",
       generationId: "gen-music",
+      workflowReload: expect.objectContaining({
+        originTool: "music",
+        panelKind: "music",
+      }),
       savedMediaIds: ["media-music"],
       previewUrl: "https://example.com/music.mp3",
       fullStoragePath: "full/music.mp3",

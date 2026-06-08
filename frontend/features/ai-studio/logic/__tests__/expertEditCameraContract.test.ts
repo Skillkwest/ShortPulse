@@ -10,8 +10,8 @@ import {
 
 describe("expertEditCameraContract", () => {
   it("exports the canonical camera scale bounds", () => {
-    expect(EXPERT_EDIT_CAMERA_SCALE_MIN).toBe(0.97);
-    expect(EXPERT_EDIT_CAMERA_SCALE_MAX).toBe(2);
+    expect(EXPERT_EDIT_CAMERA_SCALE_MIN).toBe(0.25);
+    expect(EXPERT_EDIT_CAMERA_SCALE_MAX).toBe(4);
   });
 
   it("clamps scales to canonical camera bounds", () => {

@@ -13,7 +13,14 @@ import {
 import type { MusicGenerateRequest } from "../components/MusicPropertiesPanel";
 import type { SoundEffectsGenerateRequest } from "../components/SoundEffectsPropertiesPanel";
 import type { VoicesGenerateRequest } from "../components/VoicesPropertiesPanel";
-import type { StudioMode, StudioOutput, StudioOutputSaveState, ToolId } from "../types";
+import type {
+  StudioMode,
+  StudioOutput,
+  StudioOutputSaveState,
+  ToolId,
+  WorkflowReloadConfig,
+} from "../types";
+import { buildWorkflowReloadConfigV1 } from "../logic/workflowReload";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { readGenerationAdmissionErrorMessage } from "../../../lib/generationAdmissionErrors";
@@ -184,6 +191,163 @@ const buildAudioShortpulseContext = ({
     typeof displayedBilledCredits === "number" ? displayedBilledCredits : null,
 });
 
+const attachWorkflowReloadToAudioOutput = ({
+  outputId,
+  updateOutputById,
+  workflowReload,
+}: {
+  outputId: string;
+  updateOutputById: UseAiStudioAudioGenerationParams["updateOutputById"];
+  workflowReload: WorkflowReloadConfig | null;
+}) => {
+  if (!workflowReload) return;
+  updateOutputById(outputId, (item) => ({
+    ...item,
+    workflowReload,
+  }));
+};
+
+const buildVoiceWorkflowReload = ({
+  projectId,
+  request,
+}: {
+  projectId?: string | null;
+  request: VoicesGenerateRequest;
+}): WorkflowReloadConfig | null => {
+  if (request.mode === "voiceover") {
+    return buildWorkflowReloadConfigV1({
+      originTool: "text-to-speech",
+      panelKind: "voices",
+      outputMode: "audio",
+      projectId,
+      prompt: {
+        display: request.script,
+        submission: request.script,
+      },
+      model: {
+        id: request.config.model_id,
+      },
+      payload: {
+        kind: "voiceover",
+        script: request.script,
+        voiceId: request.voice.id,
+        voiceName: request.voice.name,
+        outputFormat: request.outputFormat,
+        config: request.config,
+      },
+    });
+  }
+  const source = request.source;
+  return buildWorkflowReloadConfigV1({
+    originTool: "voice-changer",
+    panelKind: "voices",
+    outputMode: "audio",
+    projectId,
+    prompt: {
+      display: buildVoicesOutputPrompt(request),
+      submission: buildVoicesOutputPrompt(request),
+    },
+    model: {
+      id: request.modelId,
+    },
+    payload: {
+      kind: "voice-changer",
+      source: {
+        name: source.extractedFrom?.name ?? source.name,
+        origin: source.origin,
+        sourceUrl: source.sourceUrl,
+        storagePath: source.storagePath,
+        referenceOutputId: source.referenceOutputId,
+        referenceMediaId: source.referenceMediaId,
+        mimeType: source.mimeType,
+        aspect: source.aspect,
+        extractedFrom: source.extractedFrom
+          ? {
+              name: source.extractedFrom.name,
+              sourceUrl: source.extractedFrom.sourceUrl,
+              storagePath: source.extractedFrom.storagePath,
+              referenceOutputId: source.extractedFrom.referenceOutputId,
+              referenceMediaId: source.extractedFrom.referenceMediaId,
+              mimeType: source.extractedFrom.mimeType,
+              aspect: source.extractedFrom.aspect,
+            }
+          : null,
+      },
+      voiceId: request.voice.id,
+      voiceName: request.voice.name,
+      outputFormat: request.outputFormat,
+      modelId: request.modelId,
+      inputFormat: request.inputFormat,
+      removeBackgroundNoise: request.removeBackgroundNoise,
+      voiceSettings: request.voiceSettings,
+    },
+  });
+};
+
+const buildMusicWorkflowReload = ({
+  projectId,
+  request,
+}: {
+  projectId?: string | null;
+  request: MusicGenerateRequest;
+}): WorkflowReloadConfig | null =>
+  buildWorkflowReloadConfigV1({
+    originTool: "music",
+    panelKind: "music",
+    outputMode: "audio",
+    projectId,
+    prompt: {
+      display: request.text,
+      submission: request.text,
+    },
+    model: {
+      id: request.modelId,
+    },
+    payload: {
+      kind: "music",
+      text: request.text,
+      lyrics: request.lyrics ?? "",
+      durationSeconds: request.durationSeconds,
+      bpm: request.bpm,
+      mode: request.mode,
+      structure: request.structure,
+      energyPercent: request.energyPercent,
+      outputFormat: request.outputFormat,
+      composerMode: request.composerMode ?? null,
+      singerEnabled: request.singerEnabled ?? null,
+      songBatchCount: request.songBatchCount ?? null,
+    },
+  });
+
+const buildSoundEffectsWorkflowReload = ({
+  projectId,
+  request,
+}: {
+  projectId?: string | null;
+  request: SoundEffectsGenerateRequest;
+}): WorkflowReloadConfig | null =>
+  buildWorkflowReloadConfigV1({
+    originTool: "sound-effects",
+    panelKind: "sound-effects",
+    outputMode: "audio",
+    projectId,
+    prompt: {
+      display: request.text,
+      submission: request.text,
+    },
+    model: {
+      id: request.modelId,
+    },
+    payload: {
+      kind: "sound-effects",
+      text: request.text,
+      durationSeconds: request.durationSeconds,
+      loop: request.loop,
+      promptInfluence: null,
+      outputFormat: request.outputFormat,
+    },
+  });
+
 const toSavedMediaIds = (mediaFileId: string | null | undefined): string[] =>
   typeof mediaFileId === "string" && mediaFileId.trim().length > 0 ? [mediaFileId] : [];
 
@@ -338,6 +502,12 @@ export const useAiStudioAudioGeneration = ({
         setVoicesGenerationCount((count) => Math.max(0, count - 1));
         return;
       }
+      const workflowReload = buildVoiceWorkflowReload({ projectId, request });
+      attachWorkflowReloadToAudioOutput({
+        outputId: optimisticOutputId,
+        updateOutputById,
+        workflowReload,
+      });
 
       try {
         const response =
@@ -358,6 +528,7 @@ export const useAiStudioAudioGeneration = ({
                     displayedBilledCredits: request.displayedBilledCredits,
                     pricingPolicyReady: request.pricingPolicyReady,
                   }),
+                  ...(workflowReload ? { workflow_reload: workflowReload } : {}),
                   ...(projectId ? { project_id: projectId } : {}),
                 }),
                 shortpulseLogScope: "generation",
@@ -388,6 +559,9 @@ export const useAiStudioAudioGeneration = ({
                     })
                   )
                 );
+                if (workflowReload) {
+                  formData.append("workflowReload", JSON.stringify(workflowReload));
+                }
                 formData.append(
                   "sourceName",
                   request.source.extractedFrom?.name ?? request.source.name
@@ -484,7 +658,17 @@ export const useAiStudioAudioGeneration = ({
     async (request: MusicGenerateRequest) => {
       const promptText = request.text.trim();
       if (!promptText) return false;
-      const { displayedBilledCredits, pricingPolicyReady = true, ...providerRequest } = request;
+      const { displayedBilledCredits, pricingPolicyReady = true } = request;
+      const providerRequest = {
+        text: request.text,
+        durationSeconds: request.durationSeconds,
+        bpm: request.bpm,
+        mode: request.mode,
+        structure: request.structure,
+        energyPercent: request.energyPercent,
+        outputFormat: request.outputFormat,
+        modelId: request.modelId,
+      };
 
       setUiError(null);
       setMusicGenerationCount((count) => count + 1);
@@ -503,6 +687,12 @@ export const useAiStudioAudioGeneration = ({
         setMusicGenerationCount((count) => Math.max(0, count - 1));
         return false;
       }
+      const workflowReload = buildMusicWorkflowReload({ projectId, request });
+      attachWorkflowReloadToAudioOutput({
+        outputId: optimisticOutputId,
+        updateOutputById,
+        workflowReload,
+      });
 
       try {
         const response = await fetchWithAuth("/api/elevenlabs/music", {
@@ -517,6 +707,7 @@ export const useAiStudioAudioGeneration = ({
               displayedBilledCredits,
               pricingPolicyReady,
             }),
+            ...(workflowReload ? { workflow_reload: workflowReload } : {}),
             ...(projectId ? { project_id: projectId } : {}),
           }),
           shortpulseLogScope: "generation",
@@ -593,6 +784,12 @@ export const useAiStudioAudioGeneration = ({
         setSoundEffectsGenerationCount((count) => Math.max(0, count - 1));
         return;
       }
+      const workflowReload = buildSoundEffectsWorkflowReload({ projectId, request });
+      attachWorkflowReloadToAudioOutput({
+        outputId: optimisticOutputId,
+        updateOutputById,
+        workflowReload,
+      });
 
       try {
         const response = await fetchWithAuth("/api/elevenlabs/sound-effects", {
@@ -607,6 +804,7 @@ export const useAiStudioAudioGeneration = ({
               displayedBilledCredits,
               pricingPolicyReady,
             }),
+            ...(workflowReload ? { workflow_reload: workflowReload } : {}),
             ...(projectId ? { project_id: projectId } : {}),
           }),
           shortpulseLogScope: "generation",

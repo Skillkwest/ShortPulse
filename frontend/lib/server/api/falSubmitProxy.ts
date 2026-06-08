@@ -494,6 +494,7 @@ export const createFalSubmitHandler = ({
       typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
     const {
       generation_replay: rawGenerationReplay,
+      workflow_reload: rawWorkflowReload,
       character_context: rawCharacterContext,
       style_context: rawStyleContext,
       shortpulse_context: rawShortpulseContext,
@@ -502,6 +503,7 @@ export const createFalSubmitHandler = ({
       ...rawPayloadWithoutContext
     } = rawPayload;
     const generationReplayContext = asJsonObject(rawGenerationReplay);
+    const workflowReloadContext = asJsonObject(rawWorkflowReload);
     const characterContext = asJsonObject(rawCharacterContext);
     const styleContext = asJsonObject(rawStyleContext);
     const shortpulseContext = asJsonObject(rawShortpulseContext);
@@ -1028,6 +1030,9 @@ export const createFalSubmitHandler = ({
             ...(Object.keys(generationReplayContext).length > 0
               ? { generation_replay: generationReplayContext }
               : {}),
+            ...(Object.keys(workflowReloadContext).length > 0
+              ? { workflow_reload: workflowReloadContext }
+              : {}),
             ...(Object.keys(characterContext).length > 0
               ? { character_context: characterContext }
               : {}),
@@ -1238,6 +1243,7 @@ export const createFalSubmitHandler = ({
               resultUrls: [],
               savedMediaIds: [],
               generationReplay: generationReplayContext,
+              workflowReload: workflowReloadContext,
               characterContext,
               styleContext,
               startedAt: dispatchAtIso,

@@ -56,6 +56,7 @@ type GenerationProjectionRow = {
   user_id: string;
   companion_art_status: string | null;
   companion_art_storage_path: string | null;
+  workflow_reload?: unknown;
 };
 
 const createMockResponse = () => {
@@ -485,6 +486,7 @@ describe("POST /api/media/list", () => {
         cursor: null,
         limit: 36,
         surface: "media-library-modal",
+        profile: "expanded",
       },
     };
     const res = createMockResponse();
@@ -552,6 +554,7 @@ describe("POST /api/media/list", () => {
         cursor: null,
         limit: 36,
         surface: "media-library-modal",
+        profile: "expanded",
       },
     };
     const res = createMockResponse();
@@ -787,6 +790,97 @@ describe("POST /api/media/list", () => {
               "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
             companion_art_url:
               "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-audio-1%2Fcompanion-art%2Fcover.webp",
+          }),
+        ],
+      })
+    );
+  });
+
+  it("enriches saved AI Studio media rows with workflow reload metadata from projection", async () => {
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-06T14:00:00.000Z",
+      originTool: "create",
+      panelKind: "create",
+      outputMode: "image",
+      restoreBehavior: "navigate_and_hydrate",
+      projectId: "project-1",
+      createMode: "standard",
+      pulse: null,
+      prompt: {
+        display: "A glass fox in a desert observatory",
+      },
+      model: {
+        id: "fal-ai/imagen4/preview",
+      },
+      payload: {
+        kind: "image",
+        submitTool: "create",
+        aspect: "16:9",
+        imageResolution: "1K",
+        referenceInputs: [],
+        internalMediaRefs: [],
+      },
+    };
+    createSupabaseAdminMock(
+      [
+        {
+          id: "image-1",
+          user_id: "user-1",
+          filename: "glass-fox.png",
+          storage_path: "user-1/generations/images/glass-fox.png",
+          file_type: "image/png",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: "gen-image-1",
+          prompt_id: null,
+          metadata: { prompt: "stale prompt" },
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+      ],
+      {
+        generationProjectionRows: [
+          {
+            generation_id: "gen-image-1",
+            user_id: "user-1",
+            companion_art_status: null,
+            companion_art_storage_path: null,
+            workflow_reload: workflowReload,
+          },
+        ],
+      }
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        profile: "expanded",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.objectContaining({
+            id: "image-1",
+            metadata: {
+              prompt: "stale prompt",
+              workflow_reload: workflowReload,
+            },
           }),
         ],
       })

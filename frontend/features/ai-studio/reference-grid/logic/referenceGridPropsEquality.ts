@@ -122,6 +122,9 @@ export const areReferenceGridPropsEqual = (
   if (previous.onRerollOutput !== next.onRerollOutput) {
     return false;
   }
+  if (previous.onReloadWorkflowOutput !== next.onReloadWorkflowOutput) {
+    return false;
+  }
   if (previous.onDeleteOutput !== next.onDeleteOutput) {
     return false;
   }

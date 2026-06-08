@@ -13,7 +13,10 @@ import { useAiStudioCreationState } from "./useAiStudioCreationState";
 import { useAiStudioClearGenerationOutput } from "./useAiStudioClearGenerationOutput";
 import { useAiStudioOutputDerivations } from "./useAiStudioOutputDerivations";
 import { useAiStudioReferenceGridStateActions } from "./useAiStudioReferenceGridStateActions";
-import { useAiStudioReferenceSelectionState } from "./useAiStudioReferenceSelectionState";
+import {
+  useAiStudioReferenceSelectionState,
+  type ReferenceSelectionAuthorityStateSeed,
+} from "./useAiStudioReferenceSelectionState";
 import { useAiStudioWorkflowSettings } from "./useAiStudioWorkflowSettings";
 import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionState";
@@ -31,6 +34,8 @@ import { useAiStudioGeneratedOutputMaintenance } from "./useAiStudioGeneratedOut
 import { useAiStudioRuntimeAuthorityUiState } from "./useAiStudioRuntimeAuthorityUiState";
 import { useAiStudioStateRuntimeControllers } from "./useAiStudioStateRuntimeControllers";
 import { useAiStudioStateSupportControllers } from "./useAiStudioStateSupportControllers";
+import { useAiStudioWorkflowReloadController } from "./useAiStudioWorkflowReloadController";
+import type { VoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
 import {
   createEmptyReferenceProjectionState,
   type ReferenceProjectionState,
@@ -49,6 +54,7 @@ export const useAiStudioState = ({
   setExpertCreateMode,
   setActivePulsePresetId,
   setPulseSessionInstanceId,
+  setVoiceChangerSource,
 }: {
   projectId?: string | null;
   projectRouteRequested?: boolean;
@@ -62,6 +68,7 @@ export const useAiStudioState = ({
   setExpertCreateMode?: Dispatch<SetStateAction<"standard" | "pulse">>;
   setActivePulsePresetId?: Dispatch<SetStateAction<string | null>>;
   setPulseSessionInstanceId?: Dispatch<SetStateAction<string | null>>;
+  setVoiceChangerSource?: (source: VoiceChangerSource | null) => void;
 } = {}) => {
   const {
     promptRef,
@@ -85,14 +92,24 @@ export const useAiStudioState = ({
     setMusicLyricsDraftState,
     musicDurationSeconds,
     setMusicDurationSecondsState,
+    musicComposerMode,
+    setMusicComposerModeState,
+    musicSingerEnabled,
+    setMusicSingerEnabledState,
+    musicSongBatchCount,
+    setMusicSongBatchCountState,
     soundEffectsPromptDraft,
     setSoundEffectsPromptDraftState,
     soundEffectsDurationSeconds,
     setSoundEffectsDurationSecondsState,
+    soundEffectsLoopEnabled,
+    setSoundEffectsLoopEnabledState,
     voiceDesignPromptDraft,
     setVoiceDesignPromptDraftState,
     voiceScriptDraft,
     setVoiceScriptDraftState,
+    voiceSelectedVoiceId,
+    setVoiceSelectedVoiceIdState,
     expertEditSessionState,
     setExpertEditSessionState,
     publishExpertEditSessionState,
@@ -193,6 +210,10 @@ export const useAiStudioState = ({
   const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const sessionHydrationSigningRevisionRef = useRef(0);
+  const [manualWorkflowReloadRevision, setManualWorkflowReloadRevision] = useState(0);
+  const beginManualWorkflowReload = useCallback(() => {
+    setManualWorkflowReloadRevision((revision) => revision + 1);
+  }, []);
   const { setOutputCollectionsForCreateMode, setRuntimeUiStateForCreateMode } =
     useAiStudioRuntimeAuthorityUiState({
       activeOutputId,
@@ -315,6 +336,7 @@ export const useAiStudioState = ({
     projectRouteRequested,
     sessionId,
     isCharacterModeEnabled,
+    manualWorkflowReloadRevision,
     selectedTool,
     mode,
     model,
@@ -506,6 +528,62 @@ export const useAiStudioState = ({
     setUiError,
     outputs,
   });
+
+  const setReferenceSelectionStateForActiveAuthority = useCallback(
+    (nextState: ReferenceSelectionAuthorityStateSeed) => {
+      setReferenceSelectionAuthorityState(createModeRuntimeAuthorityKey, nextState);
+    },
+    [createModeRuntimeAuthorityKey, setReferenceSelectionAuthorityState]
+  );
+
+  const { reloadWorkflowFromOutput, reloadWorkflowFromStudioOutput } =
+    useAiStudioWorkflowReloadController({
+      beginManualWorkflowReload,
+      findOutputById,
+      setAspect,
+      setEditReferenceText,
+      setExpertCreateMode: setExpertCreateMode ?? (() => undefined),
+      setImageResolution,
+      setKlingCfgScale,
+      setKlingElements,
+      setKlingMultiPrompts,
+      setKlingNegativePrompt,
+      setKlingShotType,
+      setKlingVoiceIds,
+      setKlingWorkflowMode,
+      setModel: setModelState,
+      setMotionReferenceVideoUrl,
+      setMusicComposerMode: setMusicComposerModeState,
+      setMusicDurationSeconds: setMusicDurationSecondsState,
+      setMusicLyricsDraft,
+      setMusicPromptDraft,
+      setMusicSingerEnabled: setMusicSingerEnabledState,
+      setMusicSongBatchCount: setMusicSongBatchCountState,
+      setReferenceSelectionState: setReferenceSelectionStateForActiveAuthority,
+      setSeedance2InputMode,
+      setSeedance2ReferenceAudioUrls,
+      setSeedance2ReferenceImageUrls,
+      setSeedance2ReferenceVideoUrls,
+      setSeedance2ReturnLastFrame,
+      setSeedance2WebSearch,
+      setSelectedTool,
+      setShowCreateTools,
+      setSoundEffectsDurationSeconds: setSoundEffectsDurationSecondsState,
+      setSoundEffectsLoopEnabled: setSoundEffectsLoopEnabledState,
+      setSoundEffectsPromptDraft,
+      setStandardCreatePrompt,
+      setUiNotice,
+      setVideoAutoFix,
+      setVideoCameraFixed,
+      setVideoDurationSeconds,
+      setVideoGenerateAudio,
+      setVideoReferenceMode,
+      setVideoReferenceText,
+      setVideoResolution,
+      setVoiceChangerSource: setVoiceChangerSource ?? (() => undefined),
+      setVoiceScriptDraft,
+      setVoiceSelectedVoiceId: setVoiceSelectedVoiceIdState,
+    });
 
   const {
     buildProjectWorkspaceSnapshot,
@@ -773,14 +851,24 @@ export const useAiStudioState = ({
     setMusicLyricsDraft,
     musicDurationSeconds,
     setMusicDurationSeconds: setMusicDurationSecondsState,
+    musicComposerMode,
+    setMusicComposerMode: setMusicComposerModeState,
+    musicSingerEnabled,
+    setMusicSingerEnabled: setMusicSingerEnabledState,
+    musicSongBatchCount,
+    setMusicSongBatchCount: setMusicSongBatchCountState,
     soundEffectsPromptDraft,
     setSoundEffectsPromptDraft,
     soundEffectsDurationSeconds,
     setSoundEffectsDurationSeconds: setSoundEffectsDurationSecondsState,
+    soundEffectsLoopEnabled,
+    setSoundEffectsLoopEnabled: setSoundEffectsLoopEnabledState,
     voiceDesignPromptDraft,
     setVoiceDesignPromptDraft,
     voiceScriptDraft,
     setVoiceScriptDraft,
+    voiceSelectedVoiceId,
+    setVoiceSelectedVoiceId: setVoiceSelectedVoiceIdState,
     expertEditSessionState,
     setExpertEditSessionState,
     publishExpertEditSessionState,
@@ -799,6 +887,8 @@ export const useAiStudioState = ({
     modelModalContext,
     generateOutput,
     regenerateOutput,
+    reloadWorkflowFromOutput,
+    reloadWorkflowFromStudioOutput,
     rerollOutputFromReplay,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,

@@ -1430,6 +1430,13 @@ describe("associateGenerationWithProjectForUser", () => {
       internalMediaRefs: [],
       capturedAt: "2026-04-18T16:13:00.000Z",
     };
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      restoreBehavior: "navigate_and_hydrate",
+      originTool: "create",
+      panelKind: "create",
+    };
     const associationBuilder = createAwaitableSelectBuilder({
       data: [{ generation_id: "generation-1" }],
       error: null,
@@ -1461,6 +1468,7 @@ describe("associateGenerationWithProjectForUser", () => {
           task_state: "success",
           queue_state: "dispatched",
           generation_replay: generationReplay,
+          workflow_reload: workflowReload,
           character_context: { applied: true, characterId: "character-1" },
           style_context: { applied: true, styleId: "style-1" },
           hidden_in_reference_grid: false,
@@ -1521,6 +1529,7 @@ describe("associateGenerationWithProjectForUser", () => {
               prompt: generationReplay.displayPrompt,
               aspect: "16:9",
               generationReplay,
+              workflowReload,
               characterContext: { applied: true, characterId: "character-1" },
               styleContext: { applied: true, styleId: "style-1" },
               saveState: "idle",

@@ -35,6 +35,7 @@ type MusicRequestBody = {
   project_id?: unknown;
   projectId?: unknown;
   shortpulse_context?: unknown;
+  workflow_reload?: unknown;
 };
 
 type GenerateMusicSuccessResponse = {
@@ -143,6 +144,7 @@ export default async function handler(
     const modelId = normalizeRequiredString(body.modelId) ?? DEFAULT_MUSIC_MODEL_ID;
     const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
     const shortpulseContext = asRecord(body.shortpulse_context);
+    const workflowReload = asRecord(body.workflow_reload) ?? {};
     const isAutoDuration = body.durationSeconds == null;
     const durationSeconds = isAutoDuration ? null : parseRequiredFiniteNumber(body.durationSeconds);
     const bpm = parseRequiredFiniteNumber(body.bpm);
@@ -285,6 +287,7 @@ export default async function handler(
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
+      workflowReload,
       extraMetadata: {
         duration_seconds: durationSeconds,
         resolved_duration_seconds: resolvedDurationSeconds,

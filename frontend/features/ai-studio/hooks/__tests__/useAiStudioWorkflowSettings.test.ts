@@ -28,9 +28,13 @@ const useHarness = (
   sessionId = "session-1",
   projectId: string | null = null,
   projectRouteRequested = false,
-  isCharacterModeEnabled = false
+  isCharacterModeEnabled = false,
+  initialManualWorkflowReloadRevision = 0
 ) => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(initialTool);
+  const [manualWorkflowReloadRevision, setManualWorkflowReloadRevision] = useState(
+    initialManualWorkflowReloadRevision
+  );
   const [mode, setMode] = useState<StudioMode>("text");
   const [model, setModelState] = useState<string | null>(null);
   const [aspect, setAspect] = useState("9:16");
@@ -70,6 +74,7 @@ const useHarness = (
     projectRouteRequested,
     sessionId,
     isCharacterModeEnabled,
+    manualWorkflowReloadRevision,
     selectedTool,
     mode,
     model,
@@ -124,6 +129,9 @@ const useHarness = (
     projectRouteRequested,
     selectedTool,
     setSelectedTool,
+    beginManualWorkflowReload: () => {
+      setManualWorkflowReloadRevision((revision) => revision + 1);
+    },
     mode,
     model,
     setModelState,
@@ -244,6 +252,59 @@ describe("useAiStudioWorkflowSettings", () => {
     await waitFor(() => expect(result.current.selectedTool).toBe("video"));
     await waitFor(() => expect(result.current.videoReferenceMode).toBe("standard"));
     expect(result.current.model).toBe(KIE_KLING_30_MODEL_ID);
+  });
+
+  it("lets a manual workflow reload transaction win over stale saved workflow settings", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        video: {
+          mode: "video",
+          model: KIE_KLING_30_MODEL_ID,
+          aspect: "16:9",
+          imageResolution: "model_default",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 8,
+          videoResolution: "4k",
+          videoGenerateAudio: true,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "saved stale",
+          klingCfgScale: 0.8,
+          klingWorkflowMode: "single",
+          seedance2InputMode: "text",
+          seedance2ReferenceImageUrls: [],
+          seedance2ReferenceVideoUrls: [],
+          seedance2ReferenceAudioUrls: [],
+          seedance2ReturnLastFrame: false,
+          seedance2WebSearch: false,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("create"));
+
+    await waitFor(() => expect(result.current.model).not.toBeNull());
+
+    act(() => {
+      result.current.beginManualWorkflowReload();
+      result.current.setSelectedTool("video");
+      result.current.setModelState("manual-model");
+      result.current.setAspect("1:1");
+      result.current.setVideoReferenceMode("motion");
+      result.current.setVideoResolution("720p");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.model).toBe("manual-model");
+    expect(result.current.aspect).toBe("1:1");
+    expect(result.current.videoReferenceMode).toBe("motion");
+    expect(result.current.videoResolution).toBe("720p");
   });
 
   it("does not restore workflow settings from session storage while a project route is pending", async () => {

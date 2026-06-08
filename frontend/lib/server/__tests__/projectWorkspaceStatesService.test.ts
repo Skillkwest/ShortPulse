@@ -2937,6 +2937,13 @@ describe("projectWorkspaceStatesService", () => {
       internalMediaRefs: [],
       capturedAt: "2026-06-03T12:00:00.000Z",
     };
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      restoreBehavior: "navigate_and_hydrate",
+      originTool: "create",
+      panelKind: "create",
+    };
     createSupabaseMock({
       workspaceSnapshot: {
         schemaVersion: 2,
@@ -3030,6 +3037,7 @@ describe("projectWorkspaceStatesService", () => {
           provider: "fal",
           model_id: "fal-ai/seedream",
           generation_replay: generationReplay,
+          workflow_reload: workflowReload,
           hidden_in_reference_grid: false,
           reference_grid_visible: true,
         },
@@ -3050,6 +3058,7 @@ describe("projectWorkspaceStatesService", () => {
           modelId: "fal-ai/seedream",
           aspect: "16:9",
           generationReplay,
+          workflowReload,
           previewStoragePath: "user-1/generated/existing-display-preview.png",
           fullStoragePath: "user-1/generated/existing-display-full.png",
         }),

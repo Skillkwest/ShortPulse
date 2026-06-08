@@ -197,6 +197,8 @@ Current set:
 - `144_retire_media_folder_canvas_states.sql`
 - `145_add_project_output_display_items.sql`
 - `146_harden_control_plane_scheduler_timeouts.sql`
+- `147_add_plan_concurrency_entitlements.sql`
+- `148_add_generation_projection_workflow_reload.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

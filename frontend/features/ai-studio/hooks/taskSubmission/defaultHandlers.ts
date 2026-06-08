@@ -319,6 +319,7 @@ export const handleDefaultModelSubmission = async ({
   preparedImageInputs,
   falReferencePayload,
   generationReplay,
+  workflowReload,
   internalMediaRefs,
   characterContext,
   styleContext,
@@ -329,6 +330,7 @@ export const handleDefaultModelSubmission = async ({
 }: ImageSubmissionArgs): Promise<void> => {
   const shortpulseSubmitPayload = {
     ...(generationReplay ? { generation_replay: generationReplay } : {}),
+    ...(workflowReload ? { workflow_reload: workflowReload } : {}),
     ...(hasInternalMediaRefs(internalMediaRefs)
       ? { shortpulse_internal_media_refs: internalMediaRefs }
       : {}),

@@ -43,14 +43,24 @@ export type UseAiStudioCreationStateResult = {
   setMusicLyricsDraftState: Dispatch<SetStateAction<string>>;
   musicDurationSeconds: number | null;
   setMusicDurationSecondsState: Dispatch<SetStateAction<number | null>>;
+  musicComposerMode: "simple" | "custom";
+  setMusicComposerModeState: Dispatch<SetStateAction<"simple" | "custom">>;
+  musicSingerEnabled: boolean;
+  setMusicSingerEnabledState: Dispatch<SetStateAction<boolean>>;
+  musicSongBatchCount: 1 | 2 | 3 | 4;
+  setMusicSongBatchCountState: Dispatch<SetStateAction<1 | 2 | 3 | 4>>;
   soundEffectsPromptDraft: string;
   setSoundEffectsPromptDraftState: Dispatch<SetStateAction<string>>;
   soundEffectsDurationSeconds: number | null;
   setSoundEffectsDurationSecondsState: Dispatch<SetStateAction<number | null>>;
+  soundEffectsLoopEnabled: boolean;
+  setSoundEffectsLoopEnabledState: Dispatch<SetStateAction<boolean>>;
   voiceDesignPromptDraft: string;
   setVoiceDesignPromptDraftState: Dispatch<SetStateAction<string>>;
   voiceScriptDraft: string;
   setVoiceScriptDraftState: Dispatch<SetStateAction<string>>;
+  voiceSelectedVoiceId: string | null;
+  setVoiceSelectedVoiceIdState: Dispatch<SetStateAction<string | null>>;
   expertEditSessionState: ExpertEditSessionState | null;
   setExpertEditSessionState: Dispatch<SetStateAction<ExpertEditSessionState | null>>;
   publishExpertEditSessionState: Dispatch<SetStateAction<ExpertEditSessionState | null>>;
@@ -140,12 +150,17 @@ export const useAiStudioCreationState = ({
   const [musicPromptDraft, setMusicPromptDraftState] = useState<string>("");
   const [musicLyricsDraft, setMusicLyricsDraftState] = useState<string>("");
   const [musicDurationSeconds, setMusicDurationSecondsState] = useState<number | null>(null);
+  const [musicComposerMode, setMusicComposerModeState] = useState<"simple" | "custom">("simple");
+  const [musicSingerEnabled, setMusicSingerEnabledState] = useState<boolean>(false);
+  const [musicSongBatchCount, setMusicSongBatchCountState] = useState<1 | 2 | 3 | 4>(2);
   const [soundEffectsPromptDraft, setSoundEffectsPromptDraftState] = useState<string>("");
   const [soundEffectsDurationSeconds, setSoundEffectsDurationSecondsState] = useState<
     number | null
   >(null);
+  const [soundEffectsLoopEnabled, setSoundEffectsLoopEnabledState] = useState<boolean>(false);
   const [voiceDesignPromptDraft, setVoiceDesignPromptDraftState] = useState<string>("");
   const [voiceScriptDraft, setVoiceScriptDraftState] = useState<string>("");
+  const [voiceSelectedVoiceId, setVoiceSelectedVoiceIdState] = useState<string | null>(null);
   const [expertEditSessionState, setExpertEditSessionStateState] =
     useState<ExpertEditSessionState | null>(null);
   const expertEditSessionStateRef = useRef<ExpertEditSessionState | null>(expertEditSessionState);
@@ -296,14 +311,24 @@ export const useAiStudioCreationState = ({
     setMusicLyricsDraftState,
     musicDurationSeconds,
     setMusicDurationSecondsState,
+    musicComposerMode,
+    setMusicComposerModeState,
+    musicSingerEnabled,
+    setMusicSingerEnabledState,
+    musicSongBatchCount,
+    setMusicSongBatchCountState,
     soundEffectsPromptDraft,
     setSoundEffectsPromptDraftState,
     soundEffectsDurationSeconds,
     setSoundEffectsDurationSecondsState,
+    soundEffectsLoopEnabled,
+    setSoundEffectsLoopEnabledState,
     voiceDesignPromptDraft,
     setVoiceDesignPromptDraftState,
     voiceScriptDraft,
     setVoiceScriptDraftState,
+    voiceSelectedVoiceId,
+    setVoiceSelectedVoiceIdState,
     expertEditSessionState,
     setExpertEditSessionState,
     publishExpertEditSessionState,

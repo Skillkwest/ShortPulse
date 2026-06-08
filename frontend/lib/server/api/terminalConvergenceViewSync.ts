@@ -245,6 +245,7 @@ export const syncTerminalSuccessViewState = async ({
         "generation_replay",
         "generationReplay"
       ),
+      workflowReload: readMetadataObject(generationMetadata, "workflow_reload", "workflowReload"),
       characterContext: readMetadataObject(
         generationMetadata,
         "character_context",
@@ -332,6 +333,7 @@ export const syncTerminalFailureViewState = async ({
         "generation_replay",
         "generationReplay"
       ),
+      workflowReload: readMetadataObject(generationMetadata, "workflow_reload", "workflowReload"),
       characterContext: readMetadataObject(
         generationMetadata,
         "character_context",

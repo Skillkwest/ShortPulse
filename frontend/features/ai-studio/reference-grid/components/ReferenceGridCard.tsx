@@ -3,8 +3,16 @@
  * Keeps render and card-level interaction wiring isolated from ReferenceGrid orchestration.
  */
 import React from "react";
-import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phosphor-react";
+import {
+  ArrowClockwise,
+  CheckCircle,
+  DownloadSimple,
+  FloppyDisk,
+  FlowArrow,
+  X,
+} from "phosphor-react";
 import { canRerollOutput } from "../../logic/generationReplay";
+import { canReloadWorkflowOutput } from "../../logic/workflowReload";
 import { resolveOutputAudioSourceMode } from "../../logic/audioSourceMode";
 import { canDragReferenceOutput } from "../../logic/referenceOutputAuthority";
 import {
@@ -98,6 +106,7 @@ export type ReferenceGridCardProps = {
   onAudioPlaybackStopped?: (instanceKey: string) => void;
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
+  onReloadWorkflowOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
@@ -180,6 +189,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onAudioPlaybackStopped,
   onRetryStatus,
   onRerollOutput,
+  onReloadWorkflowOutput,
   onDeleteOutput,
   onClearGenerationOutput,
   onRemoveCuratedReference,
@@ -214,6 +224,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     (isPromptOnly || isImagePreview || isVideoPreview || isAudioPreview)
   );
   const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
+  const shouldShowWorkflowReloadAction = Boolean(
+    onReloadWorkflowOutput && canReloadWorkflowOutput(item)
+  );
   const shouldShowReferenceActionRow = Boolean(
     shouldShowSaveAction ||
     (onDownload && canDownloadReference && (isImagePreview || isVideoPreview || isAudioPreview)) ||
@@ -688,6 +701,20 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           }}
         >
           <ArrowClockwise size={16} weight="bold" aria-hidden />
+        </button>
+      ) : null}
+      {!hideReferenceActions && shouldShowWorkflowReloadAction ? (
+        <button
+          type="button"
+          className="reference-card-action-btn reference-card-workflow-reload-btn"
+          aria-label="Reload workflow"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectOutput(item.id);
+            onReloadWorkflowOutput?.(item);
+          }}
+        >
+          <FlowArrow size={16} weight="bold" aria-hidden />
         </button>
       ) : null}
       {!hideReferenceActions && shouldShowReferenceActionRow ? (

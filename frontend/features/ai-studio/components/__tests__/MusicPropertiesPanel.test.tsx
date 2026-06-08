@@ -146,6 +146,35 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Music duration" })).toHaveTextContent("10m");
   });
 
+  it("supports controlled generation-critical music controls from page state", () => {
+    const onComposerModeChange = vi.fn();
+    const onSingerEnabledChange = vi.fn();
+    const onSongBatchCountChange = vi.fn();
+
+    render(
+      <MusicPropertiesPanel
+        composerMode="custom"
+        singerEnabled={false}
+        songBatchCount={4}
+        onComposerModeChange={onComposerModeChange}
+        onSingerEnabledChange={onSingerEnabledChange}
+        onSongBatchCountChange={onSongBatchCountChange}
+      />
+    );
+
+    expect(screen.getByRole("tab", { name: "Custom" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("4");
+
+    fireEvent.click(screen.getByRole("switch", { name: "Singer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Songs per generate" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "1 song" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Standard" }));
+
+    expect(onComposerModeChange).toHaveBeenCalledWith("simple");
+    expect(onSingerEnabledChange).toHaveBeenCalledWith(true);
+    expect(onSongBatchCountChange).toHaveBeenCalledWith(1);
+  });
+
   it("keeps generate available when shared pricing is unavailable", () => {
     render(<MusicPropertiesPanel onGenerate={() => undefined} pricingPolicyReady={false} />);
 

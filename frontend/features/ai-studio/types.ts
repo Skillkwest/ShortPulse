@@ -76,6 +76,192 @@ export type GenerationReplayConfigV2 = {
 
 export type GenerationReplayConfig = GenerationReplayConfigV1 | GenerationReplayConfigV2;
 
+export type WorkflowReloadPanelKind =
+  | WorkflowId
+  | "styles"
+  | "presets"
+  | "elements"
+  | "media-library"
+  | "sound"
+  | "music"
+  | "sound-effects"
+  | "voices";
+
+export type WorkflowReloadCreateMode = "standard" | "pulse";
+
+export type WorkflowReloadPrompt = {
+  display: string;
+  submission?: string;
+};
+
+export type WorkflowReloadModel = {
+  id: string;
+};
+
+export type WorkflowReloadPulseContext = {
+  presetId?: string | null;
+  presetLabel?: string | null;
+  pulseKind?: string | null;
+};
+
+export type WorkflowReloadImagePayload = {
+  kind: "image";
+  submitTool: GenerationReplaySubmitTool;
+  aspect: string;
+  imageResolution: string | null;
+  referenceInputs: string[];
+  internalMediaRefs?: Array<InternalMediaRef | null>;
+  characterContext?: StudioOutputCharacterContext;
+  styleContext?: StudioOutputStyleContext;
+};
+
+export type WorkflowReloadVideoReferenceMode =
+  | "standard"
+  | "modify"
+  | "keyframes"
+  | "kling3"
+  | "motion";
+
+export type WorkflowReloadKlingWorkflowMode = "single" | "multi" | "custom";
+export type WorkflowReloadSeedance2InputMode = "text" | "first-frame" | "first-last" | "multimodal";
+export type WorkflowReloadKlingShotType = "customize" | "intelligent";
+
+export type WorkflowReloadKlingPromptShot = {
+  id: string;
+  prompt: string;
+  duration: number;
+};
+
+export type WorkflowReloadKlingElement = Record<string, unknown>;
+
+export type WorkflowReloadVideoPayload = {
+  kind: "video";
+  aspect: string;
+  videoReferenceMode: WorkflowReloadVideoReferenceMode;
+  durationSeconds: number | null;
+  resolution: string | null;
+  generateAudio: boolean | null;
+  cameraFixed: boolean | null;
+  autoFix: boolean | null;
+  referenceInputs: string[];
+  internalMediaRefs?: Array<InternalMediaRef | null>;
+  motionReferenceVideoUrl?: string | null;
+  seedance2InputMode?: WorkflowReloadSeedance2InputMode | null;
+  seedance2ReferenceImageUrls?: string[];
+  seedance2ReferenceVideoUrls?: string[];
+  seedance2ReferenceAudioUrls?: string[];
+  seedance2ReturnLastFrame?: boolean | null;
+  seedance2WebSearch?: boolean | null;
+  klingNegativePrompt?: string | null;
+  klingCfgScale?: number | null;
+  klingWorkflowMode?: WorkflowReloadKlingWorkflowMode | null;
+  klingShotType?: WorkflowReloadKlingShotType | null;
+  klingVoiceIds?: [string, string] | null;
+  klingMultiPrompts?: WorkflowReloadKlingPromptShot[];
+  klingElements?: WorkflowReloadKlingElement[];
+};
+
+export type WorkflowReloadMusicMode = "instrumental" | "vocal";
+export type WorkflowReloadMusicStructure = "loop" | "full-track" | "cinematic";
+export type WorkflowReloadMusicFormat = "mp3_44100_128" | "wav_48000";
+export type WorkflowReloadMusicComposerMode = "simple" | "custom";
+export type WorkflowReloadMusicSongBatchCount = 1 | 2 | 3 | 4;
+
+export type WorkflowReloadMusicPayload = {
+  kind: "music";
+  text: string;
+  lyrics?: string;
+  durationSeconds: number | null;
+  bpm?: number | null;
+  mode?: WorkflowReloadMusicMode | null;
+  structure?: WorkflowReloadMusicStructure | null;
+  energyPercent?: number | null;
+  outputFormat?: WorkflowReloadMusicFormat | null;
+  composerMode?: WorkflowReloadMusicComposerMode | null;
+  singerEnabled?: boolean | null;
+  songBatchCount?: WorkflowReloadMusicSongBatchCount | null;
+};
+
+export type WorkflowReloadSoundEffectFormat = "mp3_44100_128" | "pcm_48000";
+
+export type WorkflowReloadSoundEffectsPayload = {
+  kind: "sound-effects";
+  text: string;
+  durationSeconds: number | null;
+  loop?: boolean | null;
+  promptInfluence?: number | null;
+  outputFormat?: WorkflowReloadSoundEffectFormat | null;
+};
+
+export type WorkflowReloadVoiceoverPayload = {
+  kind: "voiceover";
+  script: string;
+  voiceId: string;
+  voiceName: string;
+  outputFormat: string;
+  config?: Record<string, unknown>;
+};
+
+export type WorkflowReloadVoiceChangerSource = {
+  name?: string | null;
+  origin?: string | null;
+  sourceUrl?: string | null;
+  storagePath?: string | null;
+  internalMediaRef?: InternalMediaRef | null;
+  referenceOutputId?: string | null;
+  referenceMediaId?: string | null;
+  mimeType?: string | null;
+  aspect?: string | null;
+  extractedFrom?: {
+    name?: string | null;
+    sourceUrl?: string | null;
+    storagePath?: string | null;
+    internalMediaRef?: InternalMediaRef | null;
+    referenceOutputId?: string | null;
+    referenceMediaId?: string | null;
+    mimeType?: string | null;
+    aspect?: string | null;
+  } | null;
+};
+
+export type WorkflowReloadVoiceChangerPayload = {
+  kind: "voice-changer";
+  source: WorkflowReloadVoiceChangerSource;
+  voiceId: string;
+  voiceName: string;
+  outputFormat: string;
+  modelId: string;
+  inputFormat?: string | null;
+  removeBackgroundNoise?: boolean | null;
+  voiceSettings?: Record<string, unknown>;
+};
+
+export type WorkflowReloadPayload =
+  | WorkflowReloadImagePayload
+  | WorkflowReloadVideoPayload
+  | WorkflowReloadMusicPayload
+  | WorkflowReloadSoundEffectsPayload
+  | WorkflowReloadVoiceoverPayload
+  | WorkflowReloadVoiceChangerPayload;
+
+export type WorkflowReloadConfigV1 = {
+  version: 1;
+  source: "ai_studio_generation";
+  capturedAt: string;
+  originTool: ToolId;
+  panelKind: WorkflowReloadPanelKind;
+  outputMode: StudioMode;
+  restoreBehavior: "navigate_and_hydrate";
+  projectId?: string | null;
+  createMode?: WorkflowReloadCreateMode | null;
+  pulse?: WorkflowReloadPulseContext | null;
+  prompt: WorkflowReloadPrompt;
+  model: WorkflowReloadModel;
+  payload: WorkflowReloadPayload;
+};
+
+export type WorkflowReloadConfig = WorkflowReloadConfigV1;
+
 export type StudioOutputMediaSource = "upload" | "library" | "generated" | "clipboard" | "prompt";
 
 export type StudioOutputPreviewTier = "thumb" | "poster" | "preview_loop" | "full";
@@ -138,6 +324,7 @@ export type StudioOutput = {
   characterContext?: StudioOutputCharacterContext;
   styleContext?: StudioOutputStyleContext;
   generationReplay?: GenerationReplayConfig;
+  workflowReload?: WorkflowReloadConfig;
 };
 
 export type ToolId =

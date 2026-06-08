@@ -171,6 +171,24 @@ describe("useAiStudioTaskSubmission", () => {
           pricing_display_source: "pricing_grid",
           pricing_policy_ready: true,
         }),
+        workflowReload: expect.objectContaining({
+          version: 1,
+          originTool: "create",
+          panelKind: "create",
+          outputMode: "image",
+          projectId: "project-1",
+          payload: expect.objectContaining({
+            kind: "image",
+            submitTool: "create",
+            aspect: "9:16",
+          }),
+        }),
+      })
+    );
+    expect(outputs[0]?.workflowReload).toEqual(
+      expect.objectContaining({
+        originTool: "create",
+        panelKind: "create",
       })
     );
   });
@@ -317,6 +335,17 @@ describe("useAiStudioTaskSubmission", () => {
             storage_path: "user-1/videos/motion-control/motion-ref.mp4",
             source: "motion_control_upload",
           },
+        }),
+        workflowReload: expect.objectContaining({
+          version: 1,
+          originTool: "video",
+          panelKind: "video",
+          outputMode: "video",
+          payload: expect.objectContaining({
+            kind: "video",
+            motionReferenceVideoUrl:
+              "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/motion-ref.mp4?token=stub.invalid.token",
+          }),
         }),
       })
     );

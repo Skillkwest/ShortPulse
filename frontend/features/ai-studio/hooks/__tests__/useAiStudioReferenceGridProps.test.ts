@@ -50,6 +50,7 @@ describe("useAiStudioReferenceGridProps", () => {
     const handleAddLibraryPromptReference = vi.fn();
     const retryOutputStatus = vi.fn();
     const handleRerollOutput = vi.fn();
+    const handleReloadWorkflowOutput = vi.fn();
 
     const { result } = renderHook(() =>
       useAiStudioReferenceGridProps(
@@ -62,6 +63,7 @@ describe("useAiStudioReferenceGridProps", () => {
           handleAddLibraryPromptReference,
           retryOutputStatus,
           handleRerollOutput,
+          handleReloadWorkflowOutput,
         })
       )
     );
@@ -84,6 +86,7 @@ describe("useAiStudioReferenceGridProps", () => {
     });
     result.current.onRetryStatus?.(output);
     result.current.onRerollOutput?.(output);
+    result.current.onReloadWorkflowOutput?.(output);
 
     expect(handleSaveReference).toHaveBeenCalledWith("out-1");
     expect(handleDownloadReference).toHaveBeenCalledWith("out-1");
@@ -103,6 +106,7 @@ describe("useAiStudioReferenceGridProps", () => {
     });
     expect(retryOutputStatus).toHaveBeenCalledWith("out-1");
     expect(handleRerollOutput).toHaveBeenCalledWith("out-1");
+    expect(handleReloadWorkflowOutput).toHaveBeenCalledWith("out-1");
   });
 
   it("preserves non-action props for canvas rendering state", () => {

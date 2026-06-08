@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { MediaLibraryMediaGrid } from "../media-library-modal/MediaLibraryMediaGrid";
@@ -158,5 +158,77 @@ describe("MediaLibraryMediaGrid", () => {
     const image = screen.getByAltText("portrait.png");
     expect(image).toHaveStyle({ aspectRatio: "0.8" });
     expect(container.querySelector(".media-library-modal-grid")).toBeInTheDocument();
+  });
+
+  it("shows workflow reload actions only for restorable AI Studio media rows", () => {
+    const onReloadWorkflowFromMedia = vi.fn();
+    const props = baseProps();
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-06T14:00:00.000Z",
+      originTool: "create",
+      panelKind: "create",
+      outputMode: "image",
+      restoreBehavior: "navigate_and_hydrate",
+      projectId: "project-1",
+      createMode: "standard",
+      pulse: null,
+      prompt: {
+        display: "A glass fox in a desert observatory",
+      },
+      model: {
+        id: "fal-ai/imagen4/preview",
+      },
+      payload: {
+        kind: "image",
+        submitTool: "create",
+        aspect: "16:9",
+        imageResolution: "1K",
+        referenceInputs: [],
+        internalMediaRefs: [],
+      },
+    };
+    props.activeMedia = [
+      {
+        id: "image-1",
+        filename: "glass-fox.png",
+        storage_path: "user-1/media-library/glass-fox.png",
+        file_type: "image/png",
+        source: "ai_studio",
+        source_ref: "generation-1",
+        created_at: "2026-06-06T14:01:00.000Z",
+        signedUrl: "https://cdn.example.com/glass-fox.png",
+        metadata: {
+          workflow_reload: workflowReload,
+        },
+      },
+    ];
+
+    const { rerender } = render(
+      <MediaLibraryMediaGrid {...props} onReloadWorkflowFromMedia={onReloadWorkflowFromMedia} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reload workflow for glass-fox.png" }));
+
+    expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(props.activeMedia[0]);
+
+    rerender(
+      <MediaLibraryMediaGrid
+        {...props}
+        activeMedia={[
+          {
+            ...props.activeMedia[0],
+            source: "upload",
+            metadata: null,
+          },
+        ]}
+        onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Reload workflow for glass-fox.png" })
+    ).not.toBeInTheDocument();
   });
 });

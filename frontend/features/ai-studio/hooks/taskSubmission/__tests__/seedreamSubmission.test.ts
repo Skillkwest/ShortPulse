@@ -340,6 +340,7 @@ describe("Seedream submission payloads", () => {
       preparedImageInputs: [],
       falReferencePayload: {},
       generationReplay: { source: "reference-grid-reroll" },
+      workflowReload: { source: "workflow-reload-test" },
       shortpulseContext: { surface: "ai-studio-create" },
       completeGenerationImmediately,
     });
@@ -351,6 +352,7 @@ describe("Seedream submission payloads", () => {
       size: "2160x3840",
       quality: "high",
       generation_replay: { source: "reference-grid-reroll" },
+      workflow_reload: { source: "workflow-reload-test" },
       shortpulse_context: { surface: "ai-studio-create" },
     });
     expect(completeGenerationImmediately).toHaveBeenCalledWith({

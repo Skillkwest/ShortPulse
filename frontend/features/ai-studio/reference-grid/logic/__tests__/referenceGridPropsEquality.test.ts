@@ -37,6 +37,7 @@ const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGrid
   onDownload: vi.fn(),
   onRetryStatus: vi.fn(),
   onRerollOutput: vi.fn(),
+  onReloadWorkflowOutput: vi.fn(),
   onDeleteOutput: vi.fn(),
   onAddCuratedReference: vi.fn(),
   onRemoveCuratedReference: vi.fn(),
@@ -107,6 +108,15 @@ describe("areReferenceGridPropsEqual", () => {
     });
     const next = createProps({
       isShellResizeActive: true,
+    });
+
+    expect(areReferenceGridPropsEqual(base, next)).toBe(false);
+  });
+
+  it("detects workflow reload action changes", () => {
+    const base = createProps();
+    const next = createProps({
+      onReloadWorkflowOutput: vi.fn(),
     });
 
     expect(areReferenceGridPropsEqual(base, next)).toBe(false);

@@ -42,6 +42,7 @@ export type BaseSubmissionArgs = {
   notifyGenerationFailure: NotifyGenerationFailure;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   generationReplay?: Record<string, unknown> | null;
+  workflowReload?: Record<string, unknown> | null;
   internalMediaRefs?: Array<InternalMediaRef | null>;
   characterContext?: StudioOutput["characterContext"];
   styleContext?: StudioOutput["styleContext"];

@@ -4,8 +4,9 @@
  * Reference Grid ingest side effects on open.
  */
 import React from "react";
-import { TrashSimple } from "phosphor-react";
+import { FlowArrow, TrashSimple } from "phosphor-react";
 import type { MediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
+import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
 import { SharedMediaDetailActionBar } from "../detail-modal/SharedMediaDetailActionBar";
 import { SharedMediaDetailPreviewModal } from "../detail-modal/SharedMediaDetailPreviewModal";
 import { resolveSharedMediaDetailMediaActionItems } from "../detail-modal/sharedMediaDetailActions";
@@ -16,6 +17,7 @@ type MediaLibraryPanelPreviewModalProps = {
   error: string | null;
   onClose: () => void;
   onPreviewError?: (item: MediaLibraryDetailModalItem, failedUrl: string) => void;
+  onReloadWorkflowItem?: (item: MediaLibraryDetailModalItem) => void;
   onDownloadItem?: (item: MediaLibraryDetailModalItem) => void;
   onDeleteItem?: (item: MediaLibraryDetailModalItem) => void;
 };
@@ -32,6 +34,7 @@ export function MediaLibraryPanelPreviewModal({
   error,
   onClose,
   onPreviewError,
+  onReloadWorkflowItem,
   onDownloadItem,
   onDeleteItem,
 }: MediaLibraryPanelPreviewModalProps) {
@@ -44,15 +47,30 @@ export function MediaLibraryPanelPreviewModal({
   );
   const topBarActionItems = React.useMemo(() => {
     if (!item) return [];
-    return resolveSharedMediaDetailMediaActionItems({
-      saveState: "saved",
-      canDownload: item.capabilities.canDownload,
-      onDownload: onDownloadItem ? () => onDownloadItem(item) : null,
-      canDelete: item.capabilities.canDelete,
-      onDelete: onDeleteItem ? () => onDeleteItem(item) : null,
-      deleteIcon: <TrashSimple size={16} weight="bold" aria-hidden />,
-    });
-  }, [item, onDeleteItem, onDownloadItem]);
+    return [
+      ...(onReloadWorkflowItem && canReloadMediaLibraryWorkflow(item.file)
+        ? [
+            {
+              id: "reload-workflow",
+              label: "",
+              ariaLabel: "Reload workflow",
+              title: "Reload workflow",
+              onClick: () => onReloadWorkflowItem(item),
+              icon: <FlowArrow size={16} weight="bold" aria-hidden />,
+              className: "is-icon-only",
+            },
+          ]
+        : []),
+      ...resolveSharedMediaDetailMediaActionItems({
+        saveState: "saved",
+        canDownload: item.capabilities.canDownload,
+        onDownload: onDownloadItem ? () => onDownloadItem(item) : null,
+        canDelete: item.capabilities.canDelete,
+        onDelete: onDeleteItem ? () => onDeleteItem(item) : null,
+        deleteIcon: <TrashSimple size={16} weight="bold" aria-hidden />,
+      }),
+    ];
+  }, [item, onDeleteItem, onDownloadItem, onReloadWorkflowItem]);
 
   return (
     <SharedMediaDetailPreviewModal

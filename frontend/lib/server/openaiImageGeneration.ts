@@ -68,6 +68,7 @@ type PersistGeneratedImageInput = {
   outputBuffer: Buffer;
   outputContentType: string;
   generationReplay?: Record<string, unknown>;
+  workflowReload?: Record<string, unknown>;
   characterContext?: Record<string, unknown>;
   styleContext?: Record<string, unknown>;
   hiddenInReferenceGrid?: boolean;
@@ -499,6 +500,7 @@ export const persistGeneratedImageAsset = async ({
   outputBuffer,
   outputContentType,
   generationReplay = {},
+  workflowReload = {},
   characterContext = {},
   styleContext = {},
   hiddenInReferenceGrid = false,
@@ -568,6 +570,7 @@ export const persistGeneratedImageAsset = async ({
       autosave_decision_reason: autosavePolicyDecision.reason,
       mime_type: outputContentType,
       ...extraMetadata,
+      ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
     },
     imageDimensions
   );
@@ -723,6 +726,7 @@ export const persistGeneratedImageAsset = async ({
       resultUrls: [signedResult.data.signedUrl],
       savedMediaIds: mediaFileId ? [mediaFileId] : [],
       generationReplay,
+      workflowReload,
       characterContext,
       styleContext,
       startedAt: createdAtIso,

@@ -294,6 +294,7 @@ type UseAiStudioWorkflowSettingsParams = {
   projectRouteRequested?: boolean;
   sessionId?: string | null;
   isCharacterModeEnabled?: boolean;
+  manualWorkflowReloadRevision?: number;
   selectedTool: ToolId | null;
   mode: StudioMode;
   model: string | null;
@@ -351,6 +352,7 @@ export const useAiStudioWorkflowSettings = ({
   projectRouteRequested = false,
   sessionId = null,
   isCharacterModeEnabled = false,
+  manualWorkflowReloadRevision = 0,
   selectedTool,
   mode,
   model,
@@ -422,6 +424,7 @@ export const useAiStudioWorkflowSettings = ({
   const initialSelectedToolRef = useRef(selectedTool);
   const previousWorkflowSettingsKeyRef = useRef<WorkflowSettingsKey | null>(null);
   const workflowSettingsAuthorityKeyRef = useRef<string | null>(null);
+  const handledManualWorkflowReloadRevisionRef = useRef(manualWorkflowReloadRevision);
   const sharedAspectRef = useRef(DEFAULT_SHARED_ASPECT);
   const persistedWorkflowSessionIdRef = useRef<string | null>(null);
   const activeWorkflowSettingsKey = useMemo(
@@ -584,6 +587,16 @@ export const useAiStudioWorkflowSettings = ({
         activeWorkflowSettingsKey === "create" || activeWorkflowSettingsKey === "edit";
       saveOutgoingWorkflowSnapshot(previous, preserveExistingMode);
     }
+
+    if (handledManualWorkflowReloadRevisionRef.current !== manualWorkflowReloadRevision) {
+      handledManualWorkflowReloadRevisionRef.current = manualWorkflowReloadRevision;
+      previousWorkflowSettingsKeyRef.current = activeWorkflowSettingsKey;
+      inMemoryKlingElementsRef.current[activeWorkflowSettingsKey] =
+        currentWorkflowSnapshot.klingElements.map((element) => ({ ...element }));
+      workflowSettingsRef.current[activeWorkflowSettingsKey] = currentWorkflowSnapshot;
+      return;
+    }
+
     previousWorkflowSettingsKeyRef.current = activeWorkflowSettingsKey;
     if (previous === activeWorkflowSettingsKey) return;
 
@@ -739,6 +752,7 @@ export const useAiStudioWorkflowSettings = ({
     setVideoResolution,
     isCharacterModeEnabled,
     hasProjectWorkflowAuthority,
+    manualWorkflowReloadRevision,
     workflowSettingsLiveRestoreActive,
     workflowSettingsHydrated,
   ]);

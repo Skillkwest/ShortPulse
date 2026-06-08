@@ -41,8 +41,10 @@ import {
 } from "./taskSubmission/outputLifecyclePatches";
 import {
   attachGenerationReplayToOutput,
+  attachWorkflowReloadToOutput,
   buildPendingSubmissionOutput,
   buildSubmissionReplaySnapshot,
+  buildSubmissionWorkflowReloadSnapshot,
   reconcilePendingSubmissionOutput,
   resolveSubmissionModeForModelId,
 } from "./taskSubmission/outputBootstrap";
@@ -180,13 +182,18 @@ export const useAiStudioTaskSubmission = ({
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
   videoCameraFixed,
+  videoAutoFix,
   seedance2InputMode = "text",
   seedance2ReferenceImageUrls = [],
   seedance2ReferenceVideoUrls = [],
   seedance2ReferenceAudioUrls = [],
   seedance2ReturnLastFrame = false,
   seedance2WebSearch = false,
+  klingNegativePrompt,
   klingCfgScale,
+  klingWorkflowMode,
+  klingShotType,
+  klingVoiceIds,
   klingMultiPrompts,
   klingElements,
   beginPanelGeneration,
@@ -451,6 +458,50 @@ export const useAiStudioTaskSubmission = ({
             updateOutputById,
           });
         }
+        const workflowReload = options?.inpaintOverride
+          ? null
+          : buildSubmissionWorkflowReloadSnapshot({
+              outputMode,
+              originTool: effectiveTool,
+              panelKind: outputMode === "video" ? "video" : isEditWorkflow ? "edit" : "create",
+              projectId,
+              modelId: finalModel,
+              displayPrompt: cleanedDisplayPrompt,
+              submissionPrompt: cleanedSubmissionPrompt,
+              aspect: effectiveAspect,
+              imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
+              referenceInputs: preparedImageInputs.slice(0, 8),
+              internalMediaRefs,
+              characterContext: options?.characterContextOverride,
+              styleContext: options?.styleContextOverride,
+              videoReferenceMode,
+              durationSeconds: isVideoGeneration ? requestedDurationSeconds : null,
+              resolution: isVideoGeneration ? (requestedResolution ?? null) : null,
+              generateAudio: isVideoGeneration ? requestedAudio : null,
+              cameraFixed: isVideoGeneration ? videoCameraFixed : null,
+              autoFix: isVideoGeneration ? videoAutoFix : null,
+              motionReferenceVideoUrl: isVideoGeneration ? motionReferenceVideoUrl : null,
+              seedance2InputMode,
+              seedance2ReferenceImageUrls,
+              seedance2ReferenceVideoUrls,
+              seedance2ReferenceAudioUrls,
+              seedance2ReturnLastFrame,
+              seedance2WebSearch,
+              klingNegativePrompt,
+              klingCfgScale,
+              klingWorkflowMode,
+              klingShotType,
+              klingVoiceIds,
+              klingMultiPrompts,
+              klingElements,
+            });
+        if (workflowReload) {
+          attachWorkflowReloadToOutput({
+            id,
+            workflowReload,
+            updateOutputById,
+          });
+        }
         const displayedBilledCredits =
           options?.displayedBilledCredits ??
           promptReferenceGenerateCostCredits ??
@@ -609,6 +660,7 @@ export const useAiStudioTaskSubmission = ({
             preparedImageInputs,
             modelConfig,
             generationReplay,
+            workflowReload,
             internalMediaRefs,
             characterContext: options?.characterContextOverride,
             styleContext: options?.styleContextOverride,
@@ -831,7 +883,12 @@ export const useAiStudioTaskSubmission = ({
       motionReferenceVideoUrl,
       videoReferenceImageUrl,
       videoCameraFixed,
+      videoAutoFix,
+      klingNegativePrompt,
       klingCfgScale,
+      klingWorkflowMode,
+      klingShotType,
+      klingVoiceIds,
       klingMultiPrompts,
       klingElements,
     ]

@@ -177,6 +177,7 @@ export default async function handler(
     const originalVideoAspect = readFieldString(fields.originalVideoAspect);
     const projectId = readFieldString(fields.project_id) ?? readFieldString(fields.projectId);
     const shortpulseContext = parseJsonObjectField(readFieldString(fields.shortpulseContext));
+    const workflowReload = parseJsonObjectField(readFieldString(fields.workflowReload)) ?? {};
     const removeBackgroundNoise = parseBooleanField(fields.removeBackgroundNoise);
     const voiceSettingsField = readFieldString(fields.voiceSettings);
     const voiceSettings = voiceSettingsField ? JSON.parse(voiceSettingsField) : null;
@@ -388,6 +389,7 @@ export default async function handler(
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
+      workflowReload,
       extraMetadata: {
         billing_mode: charge.billingMode,
         billing_source_ref: charge.sourceRef,
@@ -448,6 +450,7 @@ export default async function handler(
           outputBuffer: remuxedVideo.buffer,
           outputContentType: remuxedVideo.contentType,
           generationReplay: originalVideoAspect ? { aspect: originalVideoAspect } : undefined,
+          workflowReload,
           extraMetadata: {
             derivative_kind: "voice_changer_remuxed_video",
             billing_source_ref: charge.sourceRef,

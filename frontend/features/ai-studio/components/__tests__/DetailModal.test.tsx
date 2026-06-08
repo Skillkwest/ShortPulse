@@ -294,6 +294,59 @@ describe("DetailModal", () => {
     expect(onSaveReference).toHaveBeenCalledWith("out-1");
   });
 
+  it("shows workflow reload in media details only for restorable generated outputs", () => {
+    const onReloadWorkflowReference = vi.fn();
+    const restorableOutput: StudioOutput = {
+      ...baseOutput,
+      mediaSource: "generated",
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "create",
+        panelKind: "create",
+        outputMode: "image",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: "standard",
+        pulse: null,
+        prompt: { display: "A cozy cinematic lounge portrait." },
+        model: { id: "fal-ai/bytedance/seedream/v4.5/text-to-image" },
+        payload: {
+          kind: "image",
+          submitTool: "create",
+          aspect: "9:16",
+          imageResolution: "2K",
+          referenceInputs: [],
+        },
+      },
+    };
+
+    const { rerender } = render(
+      <DetailModal
+        output={restorableOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onReloadWorkflowReference={onReloadWorkflowReference}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reload workflow" }));
+    expect(onReloadWorkflowReference).toHaveBeenCalledWith("out-1");
+
+    rerender(
+      <DetailModal
+        output={{ ...baseOutput, mediaSource: "generated" }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onReloadWorkflowReference={onReloadWorkflowReference}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Reload workflow" })).toBeNull();
+  });
+
   it("hides the save action for media references that are already persisted", () => {
     render(
       <DetailModal

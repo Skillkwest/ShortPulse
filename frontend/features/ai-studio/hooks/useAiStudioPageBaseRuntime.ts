@@ -18,6 +18,7 @@ import { useExpertEditSystemPresetCatalog } from "./useExpertEditSystemPresetCat
 import { useMediaAutosavePreference } from "./useMediaAutosavePreference";
 import { useAiStudioProjectIdentity } from "./useAiStudioProjectIdentity";
 import { useAiStudioSessionIdentity } from "./useAiStudioSessionIdentity";
+import { useVoiceChangerSourceController } from "./useVoiceChangerSourceController";
 import { useActiveModelPricingPolicy } from "./useActiveModelPricingPolicy";
 import { useAiStudioCharacterPanelUploadBridge } from "./useAiStudioCharacterPanelUploadBridge";
 import { shouldActivateExpertEditPresetRuntime } from "../logic/expertEditPresetRuntimeActivation";
@@ -169,6 +170,7 @@ export const useAiStudioPageBaseRuntime = () => {
     pendingCharacterUploadRequest,
     clearPendingCharacterUploadRequest,
   } = useAiStudioCharacterPanelUploadBridge();
+  const { voiceChangerSource, handleVoiceChangerSourceChange } = useVoiceChangerSourceController();
   const {
     mode,
     setMode,
@@ -266,14 +268,24 @@ export const useAiStudioPageBaseRuntime = () => {
     setMusicLyricsDraft,
     musicDurationSeconds,
     setMusicDurationSeconds,
+    musicComposerMode,
+    setMusicComposerMode,
+    musicSingerEnabled,
+    setMusicSingerEnabled,
+    musicSongBatchCount,
+    setMusicSongBatchCount,
     soundEffectsPromptDraft,
     setSoundEffectsPromptDraft,
     soundEffectsDurationSeconds,
     setSoundEffectsDurationSeconds,
+    soundEffectsLoopEnabled,
+    setSoundEffectsLoopEnabled,
     voiceDesignPromptDraft,
     setVoiceDesignPromptDraft,
     voiceScriptDraft,
     setVoiceScriptDraft,
+    voiceSelectedVoiceId,
+    setVoiceSelectedVoiceId,
     createIsGenerating,
     editIsGenerating,
     expertEditSessionState,
@@ -292,6 +304,8 @@ export const useAiStudioPageBaseRuntime = () => {
     isPrimaryEditStageGenerating,
     generateOutput,
     regenerateOutput,
+    reloadWorkflowFromOutput,
+    reloadWorkflowFromStudioOutput,
     rerollOutputFromReplay,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
@@ -344,6 +358,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setExpertCreateMode,
     setActivePulsePresetId: setActiveCreatePulsePresetId,
     setPulseSessionInstanceId,
+    setVoiceChangerSource: handleVoiceChangerSourceChange,
   });
   const {
     mediaAutosaveEnabled,
@@ -663,6 +678,8 @@ export const useAiStudioPageBaseRuntime = () => {
     refreshCharacterOptions,
     refreshProject,
     regenerateOutput,
+    reloadWorkflowFromOutput,
+    reloadWorkflowFromStudioOutput,
     removeCuratedReference,
     removeOptimisticGenerationPlaceholder,
     removedFromAllRefsIds,
@@ -762,6 +779,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setVideoReferenceText,
     setVideoResolution,
     setVoiceDesignPromptDraft,
+    setVoiceSelectedVoiceId,
     setVoiceScriptDraft,
     showCreateTools,
     standardPrompt,
@@ -775,6 +793,9 @@ export const useAiStudioPageBaseRuntime = () => {
     useReferenceImageIndicator,
     voiceDesignPromptDraft,
     voiceScriptDraft,
+    voiceSelectedVoiceId,
+    voiceChangerSource,
+    handleVoiceChangerSourceChange,
     videoAutoFix,
     videoCameraFixed,
     videoDurationSeconds,
@@ -783,14 +804,22 @@ export const useAiStudioPageBaseRuntime = () => {
     musicLyricsDraft,
     musicPromptDraft,
     musicDurationSeconds,
+    musicComposerMode,
+    musicSingerEnabled,
+    musicSongBatchCount,
     soundEffectsPromptDraft,
     soundEffectsDurationSeconds,
+    soundEffectsLoopEnabled,
     videoReferenceImageUrl,
     videoReferenceMode,
     videoReferenceText,
     videoResolution,
     setMusicDurationSeconds,
+    setMusicComposerMode,
+    setMusicSingerEnabled,
+    setMusicSongBatchCount,
     setSoundEffectsDurationSeconds,
+    setSoundEffectsLoopEnabled,
   };
 };
 

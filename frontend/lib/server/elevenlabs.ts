@@ -96,6 +96,7 @@ type PersistGeneratedAudioInput = {
   outputBuffer: Buffer;
   outputContentType: string;
   outputFormat: string;
+  workflowReload?: Record<string, unknown>;
   extraMetadata?: Record<string, unknown>;
   beforeVisibleSettlement?: (context: {
     generationId: string;
@@ -121,6 +122,7 @@ type PersistGeneratedVideoInput = {
   outputBuffer: Buffer;
   outputContentType: "video/mp4" | "video/webm";
   generationReplay?: Record<string, unknown>;
+  workflowReload?: Record<string, unknown>;
   extraMetadata?: Record<string, unknown>;
   beforeVisibleSettlement?: (context: {
     generationId: string;
@@ -966,6 +968,7 @@ export const persistGeneratedAudioAsset = async ({
   outputBuffer,
   outputContentType,
   outputFormat,
+  workflowReload = {},
   extraMetadata = {},
   beforeVisibleSettlement,
 }: PersistGeneratedAudioInput): Promise<PersistGeneratedAudioResult> => {
@@ -1040,6 +1043,7 @@ export const persistGeneratedAudioAsset = async ({
         mime_type: outputContentType,
         project_id: resolvedProjectId,
         ...extraMetadata,
+        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
     })
     .select("id")
@@ -1082,6 +1086,7 @@ export const persistGeneratedAudioAsset = async ({
         : autosavePolicyDecision.reason,
       project_id: resolvedProjectId,
       ...extraMetadata,
+      ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
     },
   });
 
@@ -1112,6 +1117,7 @@ export const persistGeneratedAudioAsset = async ({
             autosave_decision_reason: autosavePolicyDecision.reason,
             project_id: resolvedProjectId,
             ...extraMetadata,
+            ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
           },
           user_id: userId,
         })
@@ -1136,6 +1142,7 @@ export const persistGeneratedAudioAsset = async ({
           autosave_decision_reason: autosavePolicyDecision.reason,
           project_id: resolvedProjectId,
           ...extraMetadata,
+          ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
         },
       });
     } catch (error) {
@@ -1188,6 +1195,7 @@ export const persistGeneratedAudioAsset = async ({
         autosave_decision_reason: autosaveDecisionReason,
         project_id: resolvedProjectId,
         ...extraMetadata,
+        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
     });
   }
@@ -1216,6 +1224,7 @@ export const persistGeneratedAudioAsset = async ({
       publicationState: "published",
       resultUrls: [signedResult.data.signedUrl],
       savedMediaIds: mediaFileId ? [mediaFileId] : [],
+      workflowReload,
       startedAt: createdAtIso,
       completedAt: createdAtIso,
     });
@@ -1271,6 +1280,7 @@ export const persistGeneratedVideoAsset = async ({
   outputBuffer,
   outputContentType,
   generationReplay = {},
+  workflowReload = {},
   extraMetadata = {},
   beforeVisibleSettlement,
 }: PersistGeneratedVideoInput): Promise<PersistGeneratedVideoResult> => {
@@ -1342,6 +1352,7 @@ export const persistGeneratedVideoAsset = async ({
         mime_type: outputContentType,
         project_id: resolvedProjectId,
         ...extraMetadata,
+        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
     })
     .select("id")
@@ -1387,6 +1398,7 @@ export const persistGeneratedVideoAsset = async ({
         : autosavePolicyDecision.reason,
       project_id: resolvedProjectId,
       ...extraMetadata,
+      ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
     },
   });
 
@@ -1414,6 +1426,7 @@ export const persistGeneratedVideoAsset = async ({
             autosave_decision_reason: autosavePolicyDecision.reason,
             project_id: resolvedProjectId,
             ...extraMetadata,
+            ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
           },
           user_id: userId,
         })
@@ -1471,6 +1484,7 @@ export const persistGeneratedVideoAsset = async ({
           autosave_decision_reason: autosavePolicyDecision.reason,
           project_id: resolvedProjectId,
           ...extraMetadata,
+          ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
         },
       });
     } catch (error) {
@@ -1523,6 +1537,7 @@ export const persistGeneratedVideoAsset = async ({
         autosave_decision_reason: autosaveDecisionReason,
         project_id: resolvedProjectId,
         ...extraMetadata,
+        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
     });
   }
@@ -1552,6 +1567,7 @@ export const persistGeneratedVideoAsset = async ({
       resultUrls: [signedResult.data.signedUrl],
       savedMediaIds: mediaFileId ? [mediaFileId] : [],
       generationReplay,
+      workflowReload,
       startedAt: createdAtIso,
       completedAt: createdAtIso,
     });

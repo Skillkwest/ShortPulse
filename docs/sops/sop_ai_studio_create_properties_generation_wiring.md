@@ -132,6 +132,7 @@ sequenceDiagram
 - Prepare reference URLs with dynamic deadline budgeting (`base 14s + 12s per extra work unit + 14s per local blob/data input`, capped at 120s) and abortable prep stages.
 - Emit preflight stage breadcrumbs (`generation_preflight_prepare_stage`) per input role/index for timeout diagnostics.
 - Build and persist `generationReplay` snapshot metadata.
+- Build and persist `workflowReload` snapshot metadata for manual full-workflow reload. This metadata is versioned restore context for "navigate to the originating panel and hydrate generation-critical controls"; it is not an auto-submit or pricing authority.
 - Resolve handler family (`resolveSubmissionHandlerRoute`) and invoke `handleVideoModelSubmission` / `handleImageModelSubmission` / `handleDefaultModelSubmission`.
 
 6. Provider handoff handling:
@@ -139,6 +140,33 @@ sequenceDiagram
 - Queued response -> `startQueuedStatusPolling`.
 - Dispatched response (`request_id`) -> patch output as running, start polling, and call `ensureGenerationRecord`.
 - Submit-not-started/auth-timeout invariants fail fast and mark output failed with deterministic user error text.
+
+## Workflow reload metadata
+
+1. Canonical reload contract:
+
+- Client type: `WorkflowReloadConfig` in `frontend/features/ai-studio/types.ts`.
+- Client parser/builder: `frontend/features/ai-studio/logic/workflowReload.ts`.
+- Database/wire field: `workflow_reload`.
+- Durable read model: `generation_projection.workflow_reload`.
+
+2. Capture path:
+
+- Image and video Create/Edit submissions build reload metadata beside, not inside, `generationReplay`.
+- The optimistic `StudioOutput` receives `workflowReload` immediately so current-session references can reload without waiting for project restore.
+- Submit handlers send `workflow_reload` to API routes and persistence services. Provider request bodies must not change except for this metadata sidecar.
+
+3. Restore behavior:
+
+- Reload is a manual edit-and-iterate action. It selects the originating workflow panel, restores prompt/model/aspect/resolution/reference/audio controls, and stops. The user must click Generate to submit a new output.
+- Reroll remains the immediate-submit behavior and continues to use `generationReplay`.
+- Outputs without valid `workflowReload` or a valid image replay compatibility derivation must not show the reload action.
+
+4. Persistence and project restore:
+
+- `generation_projection.workflow_reload` is the canonical source for generated-output restore metadata.
+- `ai_generations.metadata.workflow_reload` and generated `media_files.metadata.workflow_reload` are mirrors for traceability and saved-library reload, not separate authorities.
+- Project workspace snapshots may trim rich generated metadata, but project restore patches `workflowReload` back from `generation_projection` alongside replay, character, and style context.
 
 ## Style prompt append semantics and adherence expectations
 

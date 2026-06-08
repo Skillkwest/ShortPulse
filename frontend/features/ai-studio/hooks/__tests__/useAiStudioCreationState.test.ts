@@ -41,15 +41,30 @@ describe("useAiStudioCreationState", () => {
     const { result } = renderHook(() => useAiStudioCreationState());
 
     expect(result.current.musicDurationSeconds).toBeNull();
+    expect(result.current.musicComposerMode).toBe("simple");
+    expect(result.current.musicSingerEnabled).toBe(false);
+    expect(result.current.musicSongBatchCount).toBe(2);
     expect(result.current.soundEffectsDurationSeconds).toBeNull();
+    expect(result.current.soundEffectsLoopEnabled).toBe(false);
+    expect(result.current.voiceSelectedVoiceId).toBeNull();
 
     act(() => {
       result.current.setMusicDurationSecondsState(180);
+      result.current.setMusicComposerModeState("custom");
+      result.current.setMusicSingerEnabledState(true);
+      result.current.setMusicSongBatchCountState(4);
       result.current.setSoundEffectsDurationSecondsState(10);
+      result.current.setSoundEffectsLoopEnabledState(true);
+      result.current.setVoiceSelectedVoiceIdState("voice-1");
     });
 
     expect(result.current.musicDurationSeconds).toBe(180);
+    expect(result.current.musicComposerMode).toBe("custom");
+    expect(result.current.musicSingerEnabled).toBe(true);
+    expect(result.current.musicSongBatchCount).toBe(4);
     expect(result.current.soundEffectsDurationSeconds).toBe(10);
+    expect(result.current.soundEffectsLoopEnabled).toBe(true);
+    expect(result.current.voiceSelectedVoiceId).toBe("voice-1");
   });
 
   it("keeps lane busy state active until the last concurrent submission settles", () => {

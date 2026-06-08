@@ -65,6 +65,7 @@ type GenerationProjectionDeliveryRow = {
   hidden_in_reference_grid?: unknown;
   reference_grid_visible?: unknown;
   generation_replay?: unknown;
+  workflow_reload?: unknown;
   character_context?: unknown;
   style_context?: unknown;
   started_at?: unknown;
@@ -94,6 +95,7 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
   "hidden_in_reference_grid",
   "reference_grid_visible",
   "generation_replay",
+  "workflow_reload",
   "character_context",
   "style_context",
   "started_at",
@@ -535,6 +537,9 @@ const toHydratedGeneratedOutput = (
   const generationReplay = (asObject(row.generation_replay) ?? undefined) as
     | StudioOutput["generationReplay"]
     | undefined;
+  const workflowReload = (asObject(row.workflow_reload) ?? undefined) as
+    | StudioOutput["workflowReload"]
+    | undefined;
   const replayAspect = asTrimmedString(generationReplay?.aspect);
   const characterContext = (asObject(row.character_context) ?? undefined) as
     | StudioOutput["characterContext"]
@@ -580,6 +585,7 @@ const toHydratedGeneratedOutput = (
     characterContext,
     styleContext,
     generationReplay,
+    workflowReload,
   };
 };
 

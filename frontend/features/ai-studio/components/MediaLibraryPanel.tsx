@@ -29,6 +29,7 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
+import { createMediaLibraryWorkflowReloadOutput } from "../logic/mediaLibraryWorkflowReload";
 import {
   getMediaLibrarySurfaceConfig,
   resolvePanelMixedAllMediaSignBudget,
@@ -57,6 +58,7 @@ import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGr
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import type { StudioOutput } from "../types";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 type RootMediaLibraryTab = MediaLibraryPanelItemType;
@@ -102,6 +104,7 @@ type MediaLibraryPanelProps = {
     id: string;
   } | null>;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
+  onReloadWorkflowFromMedia?: (output: StudioOutput) => void;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
@@ -132,6 +135,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onCollapseMediaLibraryPanel,
   resolveInternalDropItem,
   onDeleteMediaRowsFromWorkspace,
+  onReloadWorkflowFromMedia,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
 }: MediaLibraryPanelProps) {
@@ -563,6 +567,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [toggleSelectedMediaFile]
   );
 
+  const handleReloadWorkflowFromMedia = useCallback(
+    (file: MediaFileRow) => {
+      if (!onReloadWorkflowFromMedia) return;
+      const output = createMediaLibraryWorkflowReloadOutput(file);
+      if (!output) return;
+      onReloadWorkflowFromMedia(output);
+    },
+    [onReloadWorkflowFromMedia]
+  );
+
   const combinedSelectedIds = useMemo(() => {
     if (!selectedPromptIds.size) return selectedIds;
     if (!selectedIds.size) return selectedPromptIds;
@@ -838,6 +852,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
+        onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -858,6 +873,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaCardContextMenu,
       handleDownloadMediaFile,
       handleMediaPreviewError,
+      handleReloadWorkflowFromMedia,
       handleRemoveItemFromActiveFolder,
       handleToggleSelectedMedia,
       mediaAdaptivePressure.previewPressureLevel,
@@ -921,6 +937,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
+        onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -946,6 +963,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaCardDragStart,
       handleMediaCardContextMenu,
       handleMediaPreviewError,
+      handleReloadWorkflowFromMedia,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
       combinedSelectedIds,
@@ -1440,6 +1458,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onPreviewError={handleDetailModalMediaError}
         onDownloadItem={(item) => {
           handleDownloadMediaFile(item.file);
+        }}
+        onReloadWorkflowItem={(item) => {
+          handleReloadWorkflowFromMedia(item.file);
         }}
         onDeleteItem={(item) => {
           setPendingLibraryDelete({

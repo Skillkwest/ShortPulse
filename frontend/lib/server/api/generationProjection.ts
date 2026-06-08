@@ -39,6 +39,7 @@ export type UpsertGenerationProjectionInput = {
   resultUrls?: string[];
   savedMediaIds?: string[];
   generationReplay?: JsonObject;
+  workflowReload?: JsonObject;
   characterContext?: JsonObject;
   styleContext?: JsonObject;
   startedAt?: string | null;
@@ -115,6 +116,7 @@ type RepairableProjectionRow = {
   hiddenInReferenceGrid: boolean;
   referenceGridVisible: boolean | null;
   generationReplay: JsonObject;
+  workflowReload: JsonObject;
   characterContext: JsonObject;
   styleContext: JsonObject;
   startedAt: string | null;
@@ -170,6 +172,7 @@ const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow |
     hiddenInReferenceGrid: asBoolean(row.hidden_in_reference_grid) ?? false,
     referenceGridVisible: asBoolean(row.reference_grid_visible),
     generationReplay: asObject(row.generation_replay),
+    workflowReload: asObject(row.workflow_reload),
     characterContext: asObject(row.character_context),
     styleContext: asObject(row.style_context),
     startedAt: asString(row.started_at),
@@ -270,6 +273,7 @@ export const upsertGenerationProjection = async ({
   resultUrls = [],
   savedMediaIds = [],
   generationReplay = {},
+  workflowReload = {},
   characterContext = {},
   styleContext = {},
   startedAt,
@@ -281,6 +285,7 @@ export const upsertGenerationProjection = async ({
     result_urls: resultUrls,
     saved_media_ids: savedMediaIds,
     generation_replay: generationReplay,
+    workflow_reload: workflowReload,
     character_context: characterContext,
     style_context: styleContext,
     updated_at: new Date().toISOString(),
@@ -677,6 +682,7 @@ export const repairStaleTerminalGenerationProjections = async ({
         "hidden_in_reference_grid",
         "reference_grid_visible",
         "generation_replay",
+        "workflow_reload",
         "character_context",
         "style_context",
         "started_at",
@@ -788,6 +794,7 @@ export const repairStaleTerminalGenerationProjections = async ({
         resultUrls,
         savedMediaIds: allOutputsOwned ? verifiedSavedMediaIds : [],
         generationReplay: projection.generationReplay,
+        workflowReload: projection.workflowReload,
         characterContext: projection.characterContext,
         styleContext: projection.styleContext,
         startedAt: projection.startedAt,
@@ -850,6 +857,7 @@ export const repairStaleTerminalGenerationProjections = async ({
       resultUrls: [],
       savedMediaIds: [],
       generationReplay: projection.generationReplay,
+      workflowReload: projection.workflowReload,
       characterContext: projection.characterContext,
       styleContext: projection.styleContext,
       startedAt: projection.startedAt,

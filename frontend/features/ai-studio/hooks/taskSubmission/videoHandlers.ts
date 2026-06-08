@@ -1091,6 +1091,7 @@ export const handleVideoModelSubmission = async ({
   notifyGenerationFailure,
   updateOutputById,
   generationReplay,
+  workflowReload,
   characterContext,
   styleContext,
   shortpulseContext,
@@ -1112,6 +1113,7 @@ export const handleVideoModelSubmission = async ({
 }: VideoSubmissionArgs): Promise<boolean> => {
   const shortpulseSubmitPayload = {
     ...(generationReplay ? { generation_replay: generationReplay } : {}),
+    ...(workflowReload ? { workflow_reload: workflowReload } : {}),
     ...(characterContext ? { character_context: characterContext } : {}),
     ...(styleContext ? { style_context: styleContext } : {}),
     ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),

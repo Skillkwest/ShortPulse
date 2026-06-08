@@ -88,6 +88,67 @@ const createProps = (
 });
 
 describe("ReferenceGridCard", () => {
+  it("shows workflow reload for restorable generated references", () => {
+    const onReloadWorkflowOutput = vi.fn();
+    const onSelectOutput = vi.fn();
+    const output = createOutput({
+      taskState: "success",
+      mediaSource: "generated",
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "create",
+        panelKind: "create",
+        outputMode: "image",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: "standard",
+        pulse: null,
+        prompt: { display: "Prompt" },
+        model: { id: "fal-ai/bytedance/seedream/v4.5/text-to-image" },
+        payload: {
+          kind: "image",
+          submitTool: "create",
+          aspect: "9:16",
+          imageResolution: "2K",
+          referenceInputs: [],
+        },
+      },
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: output,
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/image.png",
+          onReloadWorkflowOutput,
+          onSelectOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Reload workflow"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("out-1");
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output);
+  });
+
+  it("hides workflow reload when generated metadata is not restorable", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ taskState: "success", mediaSource: "generated" }),
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/image.png",
+          onReloadWorkflowOutput: vi.fn(),
+        })}
+      />
+    );
+
+    expect(screen.queryByLabelText("Reload workflow")).toBeNull();
+  });
+
   it("starts and stops video playback on hover", async () => {
     render(
       <ReferenceGridCard

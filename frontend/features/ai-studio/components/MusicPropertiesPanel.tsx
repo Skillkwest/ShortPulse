@@ -13,15 +13,21 @@ export type MusicMode = "instrumental" | "vocal";
 export type MusicStructure = "loop" | "full-track" | "cinematic";
 export type MusicFormat = "mp3_44100_128" | "wav_48000";
 export const hardcodedMusicModelId = resolveRequiredAudioMusicModelId();
+export type MusicComposerMode = "simple" | "custom";
+export type MusicSongBatchCount = 1 | 2 | 3 | 4;
 
 export type MusicGenerateRequest = {
   text: string;
+  lyrics?: string;
   durationSeconds: number | null;
   bpm: number;
   mode: MusicMode;
   structure: MusicStructure;
   energyPercent: number;
   outputFormat: MusicFormat;
+  composerMode?: MusicComposerMode;
+  singerEnabled?: boolean;
+  songBatchCount?: MusicSongBatchCount;
   modelId: typeof hardcodedMusicModelId;
   displayedBilledCredits?: number | null;
   pricingPolicyReady?: boolean;
@@ -33,16 +39,19 @@ export type MusicPropertiesPanelProps = {
   isGenerating?: boolean;
   onDurationChange?: (value: number | null) => void;
   onGenerate?: (request: MusicGenerateRequest) => Promise<boolean | void> | boolean | void;
+  onComposerModeChange?: (value: MusicComposerMode) => void;
   onLyricsChange?: (value: string) => void;
   onPromptChange?: (value: string) => void;
+  onSingerEnabledChange?: (value: boolean) => void;
+  onSongBatchCountChange?: (value: MusicSongBatchCount) => void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
+  composerMode?: MusicComposerMode;
   lyrics?: string;
   prompt?: string;
+  singerEnabled?: boolean;
+  songBatchCount?: MusicSongBatchCount;
 };
-
-type MusicComposerMode = "simple" | "custom";
-type MusicSongBatchCount = 1 | 2 | 3 | 4;
 type MusicInspirationEntry = {
   label: string;
   prompt: string;
@@ -132,12 +141,18 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   isGenerating = false,
   onDurationChange,
   onGenerate,
+  onComposerModeChange,
   onLyricsChange,
   onPromptChange,
+  onSingerEnabledChange,
+  onSongBatchCountChange,
   pricingPolicy = null,
   pricingPolicyReady = true,
+  composerMode: controlledComposerMode,
   lyrics: controlledLyrics,
   prompt: controlledPrompt,
+  singerEnabled: controlledSingerEnabled,
+  songBatchCount: controlledSongBatchCount,
 }: MusicPropertiesPanelProps) {
   void _balanceCredits;
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -151,9 +166,11 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
   const [uncontrolledLyrics, setUncontrolledLyrics] = React.useState("");
-  const [composerMode, setComposerMode] = React.useState<MusicComposerMode>("simple");
-  const [singerEnabled, setSingerEnabled] = React.useState(false);
-  const [songBatchCount, setSongBatchCount] = React.useState<MusicSongBatchCount>(2);
+  const [uncontrolledComposerMode, setUncontrolledComposerMode] =
+    React.useState<MusicComposerMode>("simple");
+  const [uncontrolledSingerEnabled, setUncontrolledSingerEnabled] = React.useState(false);
+  const [uncontrolledSongBatchCount, setUncontrolledSongBatchCount] =
+    React.useState<MusicSongBatchCount>(2);
   const [uncontrolledDurationSeconds, setUncontrolledDurationSeconds] = React.useState<
     number | null
   >(null);
@@ -166,6 +183,9 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   });
   const prompt = controlledPrompt ?? uncontrolledPrompt;
   const lyrics = controlledLyrics ?? uncontrolledLyrics;
+  const composerMode = controlledComposerMode ?? uncontrolledComposerMode;
+  const singerEnabled = controlledSingerEnabled ?? uncontrolledSingerEnabled;
+  const songBatchCount = controlledSongBatchCount ?? uncontrolledSongBatchCount;
   const selectedDurationSeconds = controlledDurationSeconds ?? uncontrolledDurationSeconds;
   const resolveTextAction = React.useCallback(
     (current: string, action: React.SetStateAction<string>) =>
@@ -205,6 +225,40 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       setUncontrolledDurationSeconds(value);
     },
     [onDurationChange]
+  );
+  const setComposerMode = React.useCallback(
+    (value: MusicComposerMode) => {
+      if (onComposerModeChange) {
+        onComposerModeChange(value);
+        return;
+      }
+      setUncontrolledComposerMode(value);
+    },
+    [onComposerModeChange]
+  );
+  const setSingerEnabled = React.useCallback(
+    (action: React.SetStateAction<boolean>) => {
+      const value =
+        typeof action === "function"
+          ? (action as (current: boolean) => boolean)(singerEnabled)
+          : action;
+      if (onSingerEnabledChange) {
+        onSingerEnabledChange(value);
+        return;
+      }
+      setUncontrolledSingerEnabled(value);
+    },
+    [onSingerEnabledChange, singerEnabled]
+  );
+  const setSongBatchCount = React.useCallback(
+    (value: MusicSongBatchCount) => {
+      if (onSongBatchCountChange) {
+        onSongBatchCountChange(value);
+        return;
+      }
+      setUncontrolledSongBatchCount(value);
+    },
+    [onSongBatchCountChange]
   );
   const inspirationChips = React.useMemo(() => shuffleChipOrder(musicInspirationEntries), []);
   const composerModeToggleStyle = React.useMemo(
@@ -425,12 +479,16 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     if (!onGenerate || !submissionText || !isWithinPromptLimit) return;
     const request = {
       text: submissionText,
+      lyrics,
       durationSeconds: selectedDurationSeconds,
       bpm: defaultMusicBpm,
       mode: requestedMusicMode,
       structure: defaultMusicStructure,
       energyPercent: defaultMusicEnergyPercent,
       outputFormat: defaultMusicFormat,
+      composerMode,
+      singerEnabled,
+      songBatchCount,
       modelId: hardcodedMusicModelId,
       displayedBilledCredits: estimatedCreditsPerSong,
       pricingPolicyReady,
@@ -438,11 +496,14 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
 
     void Promise.allSettled(Array.from({ length: songBatchCount }, () => onGenerate(request)));
   }, [
+    composerMode,
     estimatedCreditsPerSong,
+    lyrics,
     requestedMusicMode,
     isWithinPromptLimit,
     onGenerate,
     pricingPolicyReady,
+    singerEnabled,
     songBatchCount,
     selectedDurationSeconds,
     submissionText,

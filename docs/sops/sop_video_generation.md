@@ -125,7 +125,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - selected video settings
   - first frame only
   - `kling_elements` when present
-- Motion Control remains separate and uses the Kie motion-control route (`model = kling-3.0/motion-control`) with one character image, one motion video, `mode=720p|1080p`, and the Motion audio setting. Motion does not submit standard-video `aspect_ratio` or `duration`.
+- Motion Control remains separate and uses the Kie motion-control route (`model = kling-3.0/motion-control`) with one character image, one motion video, `mode=720p|1080p`, and the Motion audio setting. Motion does not submit standard-video `aspect_ratio` or `duration`; text direction is optional once both motion inputs are present.
 
 ## Reference-based video workflow (Create → Video, image-to-video models)
 

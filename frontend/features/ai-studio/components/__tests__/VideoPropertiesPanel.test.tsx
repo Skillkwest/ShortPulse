@@ -573,6 +573,28 @@ describe("VideoPropertiesPanel", () => {
     ).toBeNull();
   });
 
+  it("enables Generate in Motion Control when character and motion references are present without prompt text", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "motion",
+      isMotionMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Add Motion Inputs",
+    });
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceText=""
+        referenceImageUrl="https://example.com/character-reference.png"
+        motionVideoUrl="https://example.com/motion-reference.mp4"
+        isGenerateDisabled={false}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /Generate/ })).not.toBeDisabled();
+  });
+
   it("hides the hero title block in custom multi-shot mode even when prompts are empty", () => {
     const { container } = render(
       <VideoPropertiesPanel

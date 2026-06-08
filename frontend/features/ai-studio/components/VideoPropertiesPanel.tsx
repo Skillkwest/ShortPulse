@@ -665,6 +665,7 @@ export function VideoPropertiesPanel({
   const hasAnyPromptText = isCustomKlingWorkflow
     ? customKlingPrompts.some((shot) => shot.prompt.trim().length > 0)
     : Boolean(referenceText?.trim());
+  const hasRequiredPromptForGenerate = isMotionMode || hasAnyPromptText;
   const videoModeSummaryLabel = visibleVideoMode === "motion" ? "Motion Control" : "Standard";
   const shotModeSummaryLabel = !isKlingPatternModelSelected
     ? "Single"
@@ -2044,7 +2045,7 @@ export function VideoPropertiesPanel({
                       disabled={
                         Boolean(klingPromptGuardrailReason) ||
                         isGenerateDisabled ||
-                        !hasAnyPromptText ||
+                        !hasRequiredPromptForGenerate ||
                         shouldShowKlingReferenceImageWarning
                       }
                       cost={costCredits != null ? costCredits : "—"}

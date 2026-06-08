@@ -58,6 +58,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - When a touched hook rewires retry or failure refs, make nullability explicit in the first pass; focused Vitest can stay green while the production build still rejects narrower TypeScript control flow.
 - When canonical helpers, route metadata, or memoization boundaries move, update the repo checks and optimization-sensitive tests that depend on them in the same first pass.
 - When a broad shared-runtime lane adds required hook or panel-contract inputs, repo-wide type-check may fail in stale fixture-builder tests that were not in the first focused manifest; audit those companion builders early instead of treating the first green focused-suite pass as the end of proof.
+- When a hook-restored tail collapses to one CSS or style-owned file, search for the owning contract tests immediately and validate that tiny lane before assuming it needs a broader rerun or can be deferred.
 - Optional browser smoke or visual QA is conditional. Verify the toolchain first, and report the limitation plainly when it is unavailable.
 - Treat repeated user corrections as structured training data about role fidelity, closeout discipline, and SOP scope. Keep the lesson durable without promoting all chat friction into always-loaded memory.
 - When the thread feels heavy, dump old conversational residue first and re-anchor on the repo startup spine before changing active rules or widening retained history.

@@ -118,7 +118,7 @@ describe("buildStandardCreatePanelProps", () => {
     expect(propsRecord.guardrailReason).toBeNull();
   });
 
-  it("blocks generate while an attached image is still preparing", () => {
+  it("blocks generate while an attached image is preparing without surfacing helper copy", () => {
     const props = buildStandardCreatePanelProps({
       ...baseParams,
       agentAttachments: [
@@ -136,9 +136,7 @@ describe("buildStandardCreatePanelProps", () => {
 
     const propsRecord = props as Record<string, unknown>;
     expect(props.isGenerateDisabled).toBe(true);
-    expect(propsRecord.guardrailReason).toBe(
-      "Attached image is still preparing. Retry in a moment."
-    );
+    expect(propsRecord.guardrailReason).toBeNull();
   });
 
   it("blocks generate when an attached image has failed", () => {

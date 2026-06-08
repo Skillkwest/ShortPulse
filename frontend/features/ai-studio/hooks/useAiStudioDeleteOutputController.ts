@@ -9,11 +9,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import {
-  markReferenceRemovedFromAllRefs,
-  removeQuickSlotReference,
-  type ReferenceProjectionState,
-} from "../reference-projections";
+import { removeQuickSlotReference, type ReferenceProjectionState } from "../reference-projections";
 import {
   abandonGenerationOutput,
   canAbandonGenerationOutput,
@@ -67,8 +63,10 @@ export const useAiStudioDeleteOutputController = ({
         return;
       }
       if (quickSlotIds.includes(outputId)) {
-        setReferenceProjectionState((prev) => markReferenceRemovedFromAllRefs(prev, outputId));
+        setReferenceProjectionState((prev) => removeQuickSlotReference(prev, outputId));
         setActiveOutputId((prev) => (prev === outputId ? null : prev));
+        pendingFinalizeRemovalIdsRef.current.delete(outputId);
+        deleteOutputFromLifecycle(outputId);
         return;
       }
       deleteOutputFromLifecycle(outputId);
@@ -88,7 +86,7 @@ export const useAiStudioDeleteOutputController = ({
     (id: string) => {
       const outputId = id.trim();
       if (!outputId) return;
-      setReferenceProjectionState((prev) => markReferenceRemovedFromAllRefs(prev, outputId));
+      setReferenceProjectionState((prev) => removeQuickSlotReference(prev, outputId));
       setActiveOutputId((prev) => (prev === outputId ? null : prev));
       pendingFinalizeRemovalIdsRef.current.delete(outputId);
       deleteOutputFromLifecycle(outputId);

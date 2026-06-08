@@ -641,10 +641,6 @@ function DetailModalContent({
   const isPromptEditable = baseDetailModalItem.capabilities.canEditPrompt;
   const trimmedPrompt = draftPrompt.trim();
   const hasPromptEdits = trimmedPrompt !== displayPromptText.trim();
-  const canSave = useMemo(
-    () => Boolean(trimmedPrompt) && (Boolean(onSavePrompt) || (isPromptEditable && hasPromptEdits)),
-    [hasPromptEdits, isPromptEditable, onSavePrompt, trimmedPrompt]
-  );
   const detailModalStyle = useMemo(() => {
     if (isPromptOnly) return undefined;
     if (!previewAspectRatio || !Number.isFinite(previewAspectRatio)) return undefined;
@@ -1087,8 +1083,8 @@ function DetailModalContent({
     }, 1400);
   }, [clearPromptLibrarySavedTimer, draftPrompt, onSavePrompt, outputId, trimmedPrompt]);
 
-  const handlePromptOnlySaveAndClose = () => {
-    if (!canSave || !isPromptEditable || isPromptOnlySaved) return;
+  const handlePromptOnlySaveAndClose = useCallback(() => {
+    if (!trimmedPrompt || !isPromptEditable || !hasPromptEdits || isPromptOnlySaved) return;
 
     handleSavePrompt();
     if (outputId) {
@@ -1104,7 +1100,16 @@ function DetailModalContent({
     promptOnlyCloseTimerRef.current = window.setTimeout(() => {
       handleCloseModal();
     }, 900);
-  };
+  }, [
+    clearPromptOnlyCloseTimer,
+    handleCloseModal,
+    handleSavePrompt,
+    hasPromptEdits,
+    isPromptEditable,
+    isPromptOnlySaved,
+    outputId,
+    trimmedPrompt,
+  ]);
 
   const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!isPromptEditable || !outputId) return;
@@ -1350,6 +1355,18 @@ function DetailModalContent({
 
   const sharedPromptActionItems = useMemo<SharedMediaDetailActionItem[]>(
     () => [
+      ...(isPromptEditable
+        ? [
+            {
+              id: "apply-prompt-changes",
+              label: isPromptOnlySaved ? "Saved. Closing..." : "Apply Changes",
+              onClick: handlePromptOnlySaveAndClose,
+              disabled: !trimmedPrompt || !hasPromptEdits || isPromptOnlySaved,
+              intent: "save" as const,
+              state: isPromptOnlySaved ? ("saved" as const) : ("default" as const),
+            },
+          ]
+        : []),
       ...(detailModalItem.capabilities.canSavePrompt && onSavePrompt
         ? [
             {
@@ -1372,9 +1389,13 @@ function DetailModalContent({
     ],
     [
       detailModalItem.capabilities.canSavePrompt,
+      handlePromptOnlySaveAndClose,
       handleRequestDelete,
       handleSavePromptToLibrary,
+      hasPromptEdits,
+      isPromptEditable,
       isPromptLibrarySaved,
+      isPromptOnlySaved,
       onSavePrompt,
       trimmedPrompt,
     ]
@@ -1387,7 +1408,7 @@ function DetailModalContent({
       onClose={handleCloseModal}
       ariaLabel="Reference details"
       backdropClassName="reference-modal-backdrop"
-      dialogClassName={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
+      dialogClassName={`reference-modal-new ${isPromptOnly ? "is-text-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
       dialogStyle={detailModalStyle}
       backdropDecoration={
         displayPreviewUrl ? (
@@ -1549,23 +1570,37 @@ function DetailModalContent({
         />
       ) : null}
 
-      {isPromptOnly && (
-        <div className="art-prompt-only-header">
-          <span className="reference-filename">Prompt</span>
-          <div className="art-modal-action-row">
-            <SharedMediaDetailActionBar items={sharedPromptActionItems} />
-            <button type="button" className="art-close-btn" onClick={handleCloseModal}>
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-
       {isPromptOnly ? (
-        <div className="art-modal-main-content">
-          <div className="art-prompt-only-container">
+        <SharedMediaDetailContentLayout
+          topBar={
+            <SharedMediaDetailTopBar
+              eyebrow="Text detail"
+              title={detailModalItem.presentation?.title ?? null}
+              items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
+              actions={
+                <SharedMediaDetailActionBar
+                  items={sharedPromptActionItems}
+                  notice={
+                    isPromptOnlySaved ? (
+                      <AppMessage
+                        className="art-save-feedback"
+                        tone="success"
+                        mode="inline"
+                        message="Changes saved successfully."
+                      />
+                    ) : null
+                  }
+                />
+              }
+              onClose={handleCloseModal}
+              closeLabel="Close text detail"
+            />
+          }
+          mainContentClassName="art-text-detail-main"
+          stageClassName="art-image-vessel art-text-detail-vessel"
+          stage={
             <textarea
-              className="art-prompt-textarea large"
+              className="art-text-detail-textarea"
               ref={promptOnlyTextareaRef}
               value={draftPrompt}
               onChange={handlePromptChange}
@@ -1573,26 +1608,8 @@ function DetailModalContent({
               rows={12}
               placeholder="Describe your adjustments..."
             />
-            <div className="art-modal-footer">
-              <button
-                type="button"
-                className={`primary-btn wide art-prompt-save-btn ${isPromptOnlySaved ? "is-saved" : ""}`}
-                onClick={handlePromptOnlySaveAndClose}
-                disabled={!canSave || !isPromptEditable || isPromptOnlySaved}
-              >
-                {isPromptOnlySaved ? "Saved. Closing..." : "Save & Apply Changes"}
-              </button>
-              {isPromptOnlySaved ? (
-                <AppMessage
-                  className="art-save-feedback"
-                  tone="success"
-                  mode="inline"
-                  message="Changes saved successfully."
-                />
-              ) : null}
-            </div>
-          </div>
-        </div>
+          }
+        />
       ) : null}
       {isDeleteConfirmOpen ? (
         <ConfirmationModal

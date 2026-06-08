@@ -184,7 +184,7 @@ export const buildStandardCreatePanelProps = ({
       case "image_attachment_failed":
         return "Attached image failed to prepare. Remove it or retry the attachment.";
       case "image_attachment_preparing":
-        return "Attached image is still preparing. Retry in a moment.";
+        return null;
       case "empty_visible_prompt":
         // Keep the CTA disabled for an empty composer, but do not surface
         // inline helper copy that reintroduces the removed empty-state warning.

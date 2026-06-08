@@ -1228,7 +1228,7 @@ describe("useAiStudioState output store bridge", () => {
     expect(result.current.archivedOutputs).toEqual([]);
   });
 
-  it("suppresses curated references from all refs when delete is requested", async () => {
+  it("deletes quick-slotted references from the shared workspace when grid delete is requested", async () => {
     const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 
     act(() => {
@@ -1250,18 +1250,16 @@ describe("useAiStudioState output store bridge", () => {
       result.current.deleteOutput("out-2");
     });
 
+    expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith("out-1");
     expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith("out-2");
-    expect(mockDeleteOutputFromLifecycle).not.toHaveBeenCalledWith("out-1");
     expect(mockUpdateOutputById).not.toHaveBeenCalledWith("out-1", expect.any(Function));
     await waitFor(() => {
-      expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
-      expect(
-        result.current.outputs.find((item) => item.id === "out-1")?.hiddenInReferenceGrid
-      ).not.toBe(true);
+      expect(result.current.curatedReferenceIds).toEqual([]);
+      expect(result.current.removedFromAllRefsIds).toEqual([]);
     });
   });
 
-  it("finalizes suppressed curated deletions when quick-slot linkage is removed", async () => {
+  it("does not resurrect quick-slot linkage after grid delete removes a curated reference", async () => {
     const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 
     act(() => {
@@ -1278,9 +1276,10 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
+      expect(result.current.curatedReferenceIds).toEqual([]);
+      expect(result.current.removedFromAllRefsIds).toEqual([]);
     });
-    expect(mockDeleteOutputFromLifecycle).not.toHaveBeenCalledWith("out-1");
+    expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith("out-1");
 
     act(() => {
       result.current.removeCuratedReference("out-1");
@@ -1290,7 +1289,7 @@ describe("useAiStudioState output store bridge", () => {
       expect(result.current.curatedReferenceIds).toEqual([]);
       expect(result.current.removedFromAllRefsIds).toEqual([]);
     });
-    expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith("out-1");
+    expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledTimes(1);
   });
 
   it("hides failed generated outputs and persists abandonment on delete", async () => {

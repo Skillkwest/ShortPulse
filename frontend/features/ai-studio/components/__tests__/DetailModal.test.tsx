@@ -169,9 +169,9 @@ describe("DetailModal", () => {
     expect(screen.getByText("SG")).toBeInTheDocument();
   });
 
-  it("shows Save Prompt action in prompt-only mode and saves the edited prompt", () => {
+  it("renders text references in the shared detail modal and saves the edited prompt", () => {
     const onSavePrompt = vi.fn();
-    render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -186,12 +186,43 @@ describe("DetailModal", () => {
       />
     );
 
+    const modal = baseElement.querySelector(".reference-modal-new");
+    expect(modal?.classList.contains("is-text-only")).toBe(true);
+    expect(modal?.classList.contains("is-prompt-only")).toBe(false);
+    expect(screen.getByText("Text detail")).toBeInTheDocument();
+    expect(baseElement.querySelector(".art-prompt-only-header")).toBeNull();
+    expect(baseElement.querySelector(".art-prompt-only-container")).toBeNull();
+
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
     fireEvent.change(promptTextarea, { target: { value: "Updated prompt for library" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Save Prompt" }));
     expect(onSavePrompt).toHaveBeenCalledWith("Updated prompt for library");
     expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+  });
+
+  it("applies text reference edits from the shared detail action bar", () => {
+    const onUpdatePrompt = vi.fn();
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "text",
+          previewUrl: undefined,
+          prompt: "Original prompt",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={onUpdatePrompt}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Describe your adjustments..."), {
+      target: { value: "Updated prompt in reference" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }));
+    expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt in reference");
   });
 
   it("prefers the replay display prompt over compiled submission prompt text", () => {

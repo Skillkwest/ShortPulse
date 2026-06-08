@@ -12,6 +12,8 @@ Preserve the current UI, UX, and intended behavior as the default. Major visible
 
 During rolling weakness audit mode, the `Done proof` column may name the next source-hardening or bounded-validation boundary, not final production readiness. Defer production/user-journey proof for moving lanes unless the lane is stable, launch-week gated, or the check is cheap, non-mutating, and directly informs hardening.
 
+Current freshness note: as of `2026-06-08`, broad local validation over the dirty worktree is excluded from Copperknot proof because active Gear Ball batching/worktree WIP is present. Use production-safe checks and narrow, owner-scoped validation until the batch lands or the owning lane is explicitly handed back.
+
 ## Queue
 
 | Priority | Launch system | State | Evidence | Work type | Recommended owner | Done proof |

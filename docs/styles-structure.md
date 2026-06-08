@@ -6,6 +6,7 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 
 - `styles/globals.css`: Aggregator; only imports other CSS files.
 - `styles/foundation.css`: Resets, tokens, typography, layout primitives, base page shells.
+- `styles/components-messages.css`: Shared non-blocking feedback message styles for `AppMessage`.
 - `styles/ui-patterns.css`: Buttons, chips, panels, stat cards, preview tiles, shared UI atoms.
 - `styles/workspace-shared.css`: Shared workspace primitives across routes.
 - `styles/workspace-chrome.css`: Workspace shell, nav, and page chrome.
@@ -69,7 +70,7 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 `globals.css` imports in this order to maintain token availability and predictable overrides:
 
 1. foundation
-2. component system (`components-buttons.css`, `components-cards.css`, `components-inputs.css`, `accessibility.css`)
+2. component system (`components-buttons.css`, `components-cards.css`, `components-inputs.css`, `components-messages.css`, `accessibility.css`)
 3. ui + workspace core (`ui-patterns.css`, `workspace-shared.css`, `workspace-chrome.css`, `workspace-dashboard.css`)
 4. ai-studio primary shell/surfaces (`ai-studio-layout` through `ai-studio-reference-properties`)
 5. prefabs (`prefabs-agent.css`, `prefabs-agent-variants.css`)

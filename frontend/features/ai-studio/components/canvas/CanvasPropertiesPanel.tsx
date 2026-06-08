@@ -11,6 +11,8 @@ import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { CanvasAudioCard } from "./CanvasAudioCard";
 import { CANVAS_TEXT_ITEM_MIN_HEIGHT } from "./canvasGeometry";
 
+const CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX = 14;
+
 const resolveCanvasMediaErrorKey = (item: CanvasSceneItem): string | null => {
   if (item.kind === "image") {
     return `${item.id}:image:${item.src}`;
@@ -374,6 +376,8 @@ const CanvasTearOutDragGhostView = React.memo(function CanvasTearOutDragGhostVie
   const scale = Math.min(1, 220 / item.width, 180 / sourceHeight);
   const ghostWidth = Math.round(item.width * scale);
   const ghostHeight = Math.round(sourceHeight * scale);
+  const ghostX = Math.round((clientX - CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX) * 100) / 100;
+  const ghostY = Math.round((clientY - CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX) * 100) / 100;
   return (
     <article
       className={`canvas-scene-item canvas-scene-item--${item.kind} canvas-scene-item--ghost canvas-scene-item--tear-out-ghost is-${phase}`}
@@ -389,8 +393,8 @@ const CanvasTearOutDragGhostView = React.memo(function CanvasTearOutDragGhostVie
       style={{
         width: `${ghostWidth}px`,
         height: `${ghostHeight}px`,
-        ["--canvas-item-x" as string]: `${Math.round((clientX + 14) * 100) / 100}px`,
-        ["--canvas-item-y" as string]: `${Math.round((clientY + 14) * 100) / 100}px`,
+        ["--canvas-item-x" as string]: `${ghostX}px`,
+        ["--canvas-item-y" as string]: `${ghostY}px`,
       }}
     >
       {item.kind === "image" ? (

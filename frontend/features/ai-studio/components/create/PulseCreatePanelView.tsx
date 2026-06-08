@@ -79,6 +79,7 @@ const PulseCreatePanelViewContent = ({
   } = pulsePreferenceRuntime;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const [canvasTearOutActive, setCanvasTearOutActive] = React.useState(false);
+  const panelRootRef = React.useRef<HTMLDivElement>(null);
   const panelBodyRef = React.useRef<HTMLDivElement>(null);
   const isActivePulseSession = hasActivePulseSession;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
@@ -165,7 +166,7 @@ const PulseCreatePanelViewContent = ({
     if (!canvasTearOutTargetRegistry) return;
     return canvasTearOutTargetRegistry.registerTarget({
       id: "pulse-create-composer",
-      element: panelBodyRef.current,
+      element: panelRootRef.current,
       canAccept: canAcceptCanvasTearOutPayload,
       accept: acceptCanvasTearOutPayload,
       setActive: setCanvasTearOutActive,
@@ -288,6 +289,7 @@ const PulseCreatePanelViewContent = ({
 
   return (
     <div
+      ref={panelRootRef}
       className={`tool-properties text-properties-panel create-composer-panel ${isNoHistoryShell ? "create-composer-panel--no-history" : ""}`.trim()}
       role="group"
       aria-label="Create composer"

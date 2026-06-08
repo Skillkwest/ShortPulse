@@ -89,6 +89,7 @@ export function StandardCreatePanelView({
     selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const [canvasTearOutActive, setCanvasTearOutActive] = React.useState(false);
+  const panelRootRef = React.useRef<HTMLDivElement>(null);
   const panelBodyRef = React.useRef<HTMLDivElement>(null);
   const [restoreAgentInputAfterShellSwap, setRestoreAgentInputAfterShellSwap] =
     React.useState(false);
@@ -192,7 +193,7 @@ export function StandardCreatePanelView({
     if (!canvasTearOutTargetRegistry) return;
     return canvasTearOutTargetRegistry.registerTarget({
       id: "standard-create-composer",
-      element: panelBodyRef.current,
+      element: panelRootRef.current,
       canAccept: canAcceptCanvasTearOutPayload,
       accept: acceptCanvasTearOutPayload,
       setActive: setCanvasTearOutActive,
@@ -530,6 +531,7 @@ export function StandardCreatePanelView({
 
   return (
     <div
+      ref={panelRootRef}
       className={`tool-properties text-properties-panel create-composer-panel ${shouldShowPersistentEmptyShell ? "create-composer-panel--no-history" : ""}`.trim()}
       role="group"
       aria-label="Create composer"

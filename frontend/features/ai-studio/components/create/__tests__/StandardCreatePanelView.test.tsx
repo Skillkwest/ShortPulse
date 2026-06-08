@@ -190,19 +190,35 @@ describe("StandardCreatePanelView", () => {
       />
     );
 
+    const panelRoot = screen.getByRole("group", { name: "Create composer" }) as HTMLElement;
     const panelBody = container.querySelector(".create-composer-right-panel-inner") as HTMLElement;
+    expect(panelRoot).toBeTruthy();
     expect(panelBody).toBeTruthy();
-    panelBody.getBoundingClientRect = vi.fn(
+    panelRoot.getBoundingClientRect = vi.fn(
       () =>
         ({
           left: 10,
           top: 10,
-          right: 210,
-          bottom: 210,
-          width: 200,
-          height: 200,
+          right: 410,
+          bottom: 410,
+          width: 400,
+          height: 400,
           x: 10,
           y: 10,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+    panelBody.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          left: 240,
+          top: 240,
+          right: 340,
+          bottom: 340,
+          width: 100,
+          height: 100,
+          x: 240,
+          y: 240,
           toJSON: () => ({}),
         }) as DOMRect
     );
@@ -215,6 +231,10 @@ describe("StandardCreatePanelView", () => {
         )?.id
       ).toBe("standard-create-composer")
     );
+    act(() => {
+      registry.setActiveTarget("standard-create-composer");
+    });
+    expect(panelBody).toHaveClass("is-drop-active");
 
     const textTarget = registry.resolveTargetAtPoint(
       { clientX: 20, clientY: 20 },
@@ -246,6 +266,10 @@ describe("StandardCreatePanelView", () => {
     });
 
     expect(onAgentComposerDirectDrop).toHaveBeenCalledWith(imagePayload);
+    act(() => {
+      registry.clearActiveTarget();
+    });
+    expect(panelBody).not.toHaveClass("is-drop-active");
   });
 
   it("routes hybrid internal prompt-reference drags from the wider create panel body into the composer", () => {

@@ -38,6 +38,7 @@ const createPanelProps = (
   onItemDoubleClick: vi.fn(),
   onPinTextItem: vi.fn(),
   onDraftTextChange: vi.fn(),
+  onDraftTextPaste: vi.fn(),
   onDraftTextKeyDown: vi.fn(),
   onDraftTextBlur: vi.fn(),
   onTextItemEditChange: vi.fn(),

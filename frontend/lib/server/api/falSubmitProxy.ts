@@ -529,6 +529,7 @@ export const createFalSubmitHandler = ({
       shortpulse_context: rawShortpulseContext,
       shortpulse_internal_media_refs: rawInternalMediaRefs,
       shortpulse_internal_edit_media_refs: rawInternalEditMediaRefs,
+      input_image_count: rawInputImageCount,
       ...rawPayloadWithoutContext
     } = rawPayload;
     const generationReplayContext = asJsonObject(rawGenerationReplay);
@@ -818,11 +819,18 @@ export const createFalSubmitHandler = ({
         })
       );
     }
+    const billingPayload =
+      rawInputImageCount === undefined
+        ? payload
+        : {
+            ...payload,
+            input_image_count: rawInputImageCount,
+          };
     const charge = await chargeGenerationRequest({
       req,
       res,
       modelId,
-      payload,
+      payload: billingPayload,
       reason: `${routeLabel} generation`,
       skipBilling,
     });

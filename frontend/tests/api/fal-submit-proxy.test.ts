@@ -353,6 +353,47 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("keeps edit input image count available for billing without sending it to Fal", async () => {
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana-2/edit",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2/edit",
+      routeLabel: "Fal Nano Banana 2 Edit",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "portrait",
+        image_urls: ["https://example.com/base.png"],
+        input_image_count: 1,
+      },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/nano-banana-2-edit-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          input_image_count: 1,
+        }),
+      })
+    );
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.not.objectContaining({
+          input_image_count: expect.anything(),
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("replaces stale internal image refs with fresh signed urls before direct submit", async () => {
     readInternalMediaRefsFromPayloadMock.mockReturnValue([
       {

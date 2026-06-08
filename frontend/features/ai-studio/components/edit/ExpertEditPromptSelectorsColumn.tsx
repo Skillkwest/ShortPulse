@@ -12,7 +12,7 @@ type PromptHighlightSegment = {
 
 type PromptTokenPickerState = {
   isOpen: boolean;
-  selectedSlotIndex: 0 | 1 | 2 | "main" | null;
+  selectedSlotIndex: number | "main" | null;
 };
 
 type ExpertEditPromptSelectorsColumnProps = {
@@ -30,10 +30,11 @@ type ExpertEditPromptSelectorsColumnProps = {
   onPromptBlur: React.FocusEventHandler<HTMLTextAreaElement>;
   promptTokenPickerState: PromptTokenPickerState;
   hostPrimaryImageUrl: string | null;
-  populatedPromptTokenSlotIndexes: readonly (0 | 1 | 2)[];
+  populatedPromptTokenSlotIndexes: readonly number[];
   extraImageUrls: readonly (string | null)[];
-  onInsertPromptTokenFromPicker: (selection: 0 | 1 | 2 | "main") => void;
+  onInsertPromptTokenFromPicker: (selection: number | "main") => void;
   promptTokenInlineError: string | null;
+  onPinPromptReference?: (text: string) => void;
   onGenerate: () => void;
   inlineGenerateDisabled: boolean;
   costCredits?: number | null;
@@ -73,6 +74,7 @@ export function ExpertEditPromptSelectorsColumn({
   extraImageUrls,
   onInsertPromptTokenFromPicker,
   promptTokenInlineError,
+  onPinPromptReference,
   onGenerate,
   inlineGenerateDisabled,
   costCredits = null,
@@ -113,6 +115,7 @@ export function ExpertEditPromptSelectorsColumn({
         extraImageUrls={extraImageUrls}
         onInsertPromptTokenFromPicker={onInsertPromptTokenFromPicker}
         promptTokenInlineError={promptTokenInlineError}
+        onPinPromptReference={onPinPromptReference}
         onGenerate={onGenerate}
         inlineGenerateDisabled={inlineGenerateDisabled}
         costCredits={costCredits}

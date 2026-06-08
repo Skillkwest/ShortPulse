@@ -65,7 +65,7 @@ export const resolveEffectiveEditSubmitModelId = ({
   selectedModelId: string | null;
   editSubmitIntent?: EditSubmitIntent;
   promptText?: string;
-  extraImageUrls?: [string | null, string | null, string | null];
+  extraImageUrls?: readonly (string | null)[];
 }): string | null => {
   const normalizedEditSubmitIntent = normalizeEditSubmitIntent(editSubmitIntent);
   if (isEditWorkflow(selectedTool) && normalizedEditSubmitIntent === "inpaint") {

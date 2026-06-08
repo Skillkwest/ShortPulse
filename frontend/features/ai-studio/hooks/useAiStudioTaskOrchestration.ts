@@ -326,6 +326,7 @@ export const useAiStudioTaskOrchestration = ({
 
   const submitTask = useAiStudioTaskSubmission({
     ...taskSubmissionConfig,
+    outputs,
     startPollingTask,
     isOutputAbandoned: (outputId) => abandonedOutputIdsRef.current.has(outputId),
     markOutputSubmissionActive: (outputId) => abandonedOutputIdsRef.current.delete(outputId),

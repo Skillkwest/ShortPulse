@@ -45,7 +45,8 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
    - Arbitrary external hosts are blocked from drop ingestion.
    - Internal AI Studio Reference Grid drags are accepted when payload origin is `ai-studio-reference-grid` and the drag is backed by the same-document internal drag session token, or when resolver recovery proves real internal media/storage authority.
    - Internal drops resolve to trusted `mediaId` first when available; URL host allowlist checks apply only to non-internal drops.
-   - If an internal drop has no `mediaId`, Character Manager may ingest the trusted internal preview URL directly into Character Manager storage without forcing an AI Studio Media Library save, but only for session-backed internal drags.
+   - If an internal drop has a caller-owned storage path, Character Manager copies that storage object into Character Manager storage through `/api/media/admit-image-asset-from-storage` rather than downloading and re-uploading it in the browser.
+   - If an internal drop has no `mediaId` or storage path, Character Manager may ingest the trusted internal preview URL directly into Character Manager storage without forcing an AI Studio Media Library save, but only for session-backed internal drags.
    - Internal payload parse/resolve/fallback failures fail closed (no partial Character Sheet mutation).
 4. Character selection persistence:
    - Selecting a character in Character Manager persists that selection in browser local storage.
@@ -87,7 +88,7 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 10. Character panel media isolation contract:
 
 - Character panel uploads persist to `character_media_assets`.
-- Character Sheet internal Media Library/Reference Grid drops use copy semantics (ingest/upload) rather than direct attach-by-`media_files.id`.
+- Character Sheet internal Media Library/Reference Grid drops use copy semantics (server-side owned-storage copy when a storage path is known; trusted preview ingestion only as fallback) rather than direct attach-by-`media_files.id`.
 - `character_media_id` is the required persisted reference for Character Manager assets. Legacy metadata keys and row-level `media_file_id` linkage are retired from the live runtime path.
 - Legacy `character_quick_swap_items` compatibility handling remains in cleanup/orphan-protection code for historical datasets, but QuickSwap is not an active embedded Character panel UX contract.
 
@@ -119,13 +120,14 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 - Accept only `image/*` MIME files.
 - Enforce max file size using `CHARACTER_MANAGER_MAX_IMAGE_BYTES`.
 - Persist Character Sheet/profile media through the Character Manager draft persistence path.
+- Local files must use product-image browser-direct upload admission (`prepare-product-image-asset-upload` followed by `finalize-product-image-asset-upload`) instead of multipart function-body uploads.
 
 3. Character Sheet presets and drag/drop (persisted)
 
 - Keep per-character preset state in Character Manager draft state.
 - Persist active tab id, visible tab ids, tab labels, and active-tab drop-zone assignments to Supabase character metadata.
 - Keep DnD behavior stable (assign/replace/swap) without activation gating.
-- For internal Reference Grid drags, resolve to `mediaId` first when present; when absent, fall back to direct trusted preview-URL ingestion into Character Manager storage, then mutate target slot/deck atomically.
+- For internal Reference Grid drags, resolve to `mediaId`/owned storage authority first; copy storage-backed refs server-side into Character Manager storage; when no storage path exists, fall back to direct trusted preview-URL ingestion into Character Manager storage, then mutate target slot/deck atomically.
 - Keep preset media lifecycle isolated from legacy compatibility rows such as historical quick-swap records.
 
 4. Character lifecycle
@@ -182,6 +184,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Dragging zone-to-zone swaps assignments.
 - Dropped external reference URLs are accepted only from trusted local/internal/supabase-hosted sources.
 - Dragging from AI Studio Reference Grid to Character Sheet slot replaces the targeted slot.
+- Dragging storage-backed AI Studio Reference Grid media to a Character Sheet slot saves through server-side storage copy without browser download/re-upload.
 - Internal drag payload failures show user-visible error and do not mutate Character Sheet state.
 - New users start with four visible preset tabs (`1`..`4`), can add up to ten tabs, and active-tab switching has no cross-tab assignment bleed.
 - Double-click tab rename autosaves on `Enter`/blur and cancels on `Escape`.

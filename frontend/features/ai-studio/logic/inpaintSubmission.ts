@@ -45,7 +45,7 @@ export const resolveInpaintPromptReferencePolicy = ({
   extraImageUrls,
 }: {
   promptText: string;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
 }): ResolvedInpaintPromptReferencePolicy => {
   const analysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
     allowSecondaryTokens: true,

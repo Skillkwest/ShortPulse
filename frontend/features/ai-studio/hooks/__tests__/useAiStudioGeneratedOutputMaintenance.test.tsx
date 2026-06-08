@@ -50,25 +50,31 @@ const renderMaintenanceHook = ({
   hasPendingWorkflowRestore = false,
   projectId = "project-1",
   initialOutputs = [],
+  workspaceRuntimeKey = null,
 }: {
   hasPendingWorkflowRestore?: boolean;
   projectId?: string | null;
   initialOutputs?: StudioOutput[];
+  workspaceRuntimeKey?: string | null;
 } = {}) =>
   renderHook(
     (props: {
       hasPendingWorkflowRestore: boolean;
       projectId: string | null;
       initialOutputs: StudioOutput[];
+      workspaceRuntimeKey: string | null;
     }) => {
       const [outputs, setOutputs] = useState<StudioOutput[]>(props.initialOutputs);
       const maintenance = useAiStudioGeneratedOutputMaintenance({
-        baseRuntimeAuthorityKey: props.projectId ? `project:${props.projectId}` : "plain",
+        baseRuntimeAuthorityKey: props.projectId
+          ? `project:${props.projectId}`
+          : (props.workspaceRuntimeKey ?? "plain"),
         hasPendingWorkflowRestore: props.hasPendingWorkflowRestore,
         outputs,
         projectId: props.projectId,
         projectRouteRequested: Boolean(props.projectId),
         setOutputsState: setOutputs,
+        workspaceRuntimeKey: props.workspaceRuntimeKey,
       });
       return {
         outputs,
@@ -80,6 +86,7 @@ const renderMaintenanceHook = ({
         hasPendingWorkflowRestore,
         projectId,
         initialOutputs,
+        workspaceRuntimeKey,
       },
     }
   );
@@ -107,7 +114,10 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       expect(result.current.outputs).toEqual([hydratedOutput]);
       expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
     });
-    expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({ projectId: "project-1" });
+    expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      workspaceRuntimeKey: null,
+    });
   });
 
   it("waits until workflow restore settles before hydrating project-scoped generated outputs", async () => {
@@ -125,6 +135,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       hasPendingWorkflowRestore: false,
       projectId: "project-1",
       initialOutputs: [],
+      workspaceRuntimeKey: null,
     });
 
     expect(result.current.canonicalGeneratedHydrationSettled).toBe(false);
@@ -157,9 +168,11 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     await waitFor(() => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(1, {
         projectId: "project-1",
+        workspaceRuntimeKey: null,
       });
       expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(2, {
         projectId: "project-1",
+        workspaceRuntimeKey: null,
         limit: 1,
         runtimeIdentities: [
           {
@@ -197,6 +210,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledTimes(1);
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
         projectId: null,
+        workspaceRuntimeKey: null,
         limit: 1,
         runtimeIdentities: [
           {
@@ -206,6 +220,26 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
           },
         ],
       });
+    });
+  });
+
+  it("hydrates plain-session generated outputs by bounded workspace runtime key", async () => {
+    listVisibleGeneratedOutputsMock.mockResolvedValueOnce([hydratedOutput]);
+
+    const { result } = renderMaintenanceHook({
+      projectId: null,
+      workspaceRuntimeKey: "session:session-1",
+    });
+
+    expect(result.current.canonicalGeneratedHydrationSettled).toBe(false);
+
+    await waitFor(() => {
+      expect(result.current.outputs).toEqual([hydratedOutput]);
+      expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
+    });
+    expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+      projectId: null,
+      workspaceRuntimeKey: "session:session-1",
     });
   });
 
@@ -266,6 +300,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     await waitFor(() => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
         projectId: null,
+        workspaceRuntimeKey: null,
         limit: 1,
         runtimeIdentities: [
           {

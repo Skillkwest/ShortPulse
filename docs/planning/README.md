@@ -43,6 +43,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
 - `docs/planning/ai-studio-audio-companion-art-plan-2026-05-11.md`
 - `docs/planning/ai-studio-full-workflow-reload-plan-2026-06-06.md`
+- `docs/planning/ai-studio-generation-reference-grid-restoration-plan-2026-06-08.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/sops/sop_ai_studio_style_creator.md`
 

@@ -181,6 +181,10 @@ export const useStandardCreateAgentRuntime = ({
     },
     [handleAgentInputChange, setPromptOrigin, setStandardCreatePrompt]
   );
+  const prepareForWorkflowReload = useCallback(() => {
+    setChatModeEnabled(false);
+    setPromptOrigin("manual");
+  }, [setChatModeEnabled, setPromptOrigin]);
 
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
@@ -401,6 +405,7 @@ export const useStandardCreateAgentRuntime = ({
     handleAgentSend,
     resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
+    prepareForWorkflowReload,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
     handleAgentAttachmentDragLeave,

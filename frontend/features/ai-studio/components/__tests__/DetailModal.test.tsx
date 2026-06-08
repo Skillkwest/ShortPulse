@@ -1107,6 +1107,9 @@ describe("DetailModal", () => {
 
     const audio = baseElement.querySelector("audio.art-hero-audio") as HTMLAudioElement | null;
     expect(audio).not.toBeNull();
+    expect(baseElement.querySelector(".detail-modal-audio-preview")).not.toBeNull();
+    expect(baseElement.querySelectorAll(".detail-modal-audio-wavebar").length).toBeGreaterThan(40);
+    expect(screen.getByRole("button", { name: "Play audio preview" })).toBeInTheDocument();
     fireEvent.error(audio as HTMLAudioElement);
 
     await waitFor(() => {

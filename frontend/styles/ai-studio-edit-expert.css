@@ -1463,6 +1463,41 @@
   line-height: 1;
 }
 
+.edit-expert-layers-clear-btn {
+  margin-left: auto;
+  border: 1px solid rgba(245, 249, 255, 0.13);
+  border-radius: 999px;
+  background: rgba(245, 249, 255, 0.06);
+  color: var(--edit-expert-muted-text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.edit-expert-layers-clear-btn:hover:not(:disabled),
+.edit-expert-layers-clear-btn:focus-visible {
+  border-color: rgba(231, 76, 76, 0.6);
+  background: rgba(231, 76, 76, 0.14);
+  color: rgba(255, 130, 130, 0.98);
+}
+
+.edit-expert-layers-clear-btn:focus-visible {
+  outline: none;
+}
+
+.edit-expert-layers-clear-btn:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
 .edit-expert-layers-toolbar-title-icon {
   color: var(--edit-expert-muted-text);
   display: inline-flex;
@@ -1547,7 +1582,10 @@
 }
 
 .edit-expert-layer-row {
-  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 5px;
   width: 100%;
   cursor: grab;
 }
@@ -1565,7 +1603,7 @@
 .edit-expert-layer-btn {
   width: 100%;
   min-height: 33.2px;
-  padding-right: 28px;
+  padding-right: 6px;
   min-width: 0;
   cursor: inherit;
 }
@@ -1574,7 +1612,12 @@
   border-radius: 5px;
   border-color: var(--edit-expert-control-selected-border);
   background: var(--edit-expert-control-surface);
-  transform: translateY(-1px);
+  transform: none;
+}
+
+.edit-expert-layer-btn:hover,
+.edit-expert-layer-btn.is-selected:hover {
+  transform: none;
 }
 
 .edit-expert-layer-label {
@@ -1629,10 +1672,9 @@
 }
 
 .edit-expert-layer-delete-btn {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
+  flex: 0 0 auto;
+  transform: none;
 }
 
 .edit-expert-layer-row:hover .edit-expert-layer-delete-btn,
@@ -1645,7 +1687,7 @@
   border-color: rgba(231, 76, 76, 0.72);
   background: rgba(231, 76, 76, 0.18);
   color: rgba(255, 117, 117, 0.98);
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .edit-expert-stage-delete-btn:hover {
@@ -1659,7 +1701,7 @@
   border-color: rgba(231, 76, 76, 0.8);
   background: rgba(231, 76, 76, 0.2);
   color: rgba(255, 117, 117, 0.98);
-  transform: translateY(-50%);
+  transform: none;
   opacity: 1;
   pointer-events: auto;
 }
@@ -1674,7 +1716,7 @@
 }
 
 .edit-expert-layer-delete-btn:active {
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .edit-expert-stage-overlay-ui {
@@ -5143,6 +5185,11 @@
     background 0.2s ease;
 }
 
+.edit-expert-panel .edit-expert-secondary-slot button.reference-dropzone.extra {
+  appearance: none;
+  font: inherit;
+}
+
 .edit-expert-panel .edit-expert-secondary-slot .reference-dropzone.extra:hover {
   border-color: var(--edit-expert-secondary-border-hover);
   background: var(--edit-expert-secondary-bg-hover);
@@ -5223,9 +5270,18 @@
 .edit-expert-panel
   .edit-expert-secondary-slot
   .reference-dropzone.extra.has-preview:focus-within
+  .dropzone-clear,
+.edit-expert-panel .edit-expert-secondary-slot .reference-dropzone.extra:hover .dropzone-clear,
+.edit-expert-panel
+  .edit-expert-secondary-slot
+  .reference-dropzone.extra:focus-within
   .dropzone-clear {
   opacity: 1;
   pointer-events: auto;
+}
+
+.edit-expert-panel .edit-expert-secondary-add-slot {
+  color: rgba(224, 230, 238, 0.78);
 }
 
 .edit-expert-panel .dropzone-clear:hover:not(:disabled) {
@@ -5283,7 +5339,7 @@
 .edit-expert-prompt-highlight {
   position: absolute;
   inset: 1px;
-  padding: 8px 16px;
+  padding: 8px 46px 36px 16px;
   border-radius: 10px;
   white-space: pre-wrap;
   overflow-wrap: break-word;
@@ -5321,7 +5377,7 @@
   border: 1px solid #25292f;
   background: #25292f;
   border-radius: 10px;
-  padding: 8px 16px;
+  padding: 8px 46px 36px 16px;
   box-shadow: none;
   width: 100%;
   flex: 1 1 auto;
@@ -5337,6 +5393,13 @@
   position: relative;
   z-index: 1;
   transition: height 120ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.edit-expert-prompt-pin-button {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  z-index: 4;
 }
 
 .edit-expert-prompt-shell .edit-expert-prompt-input:focus {

@@ -65,6 +65,7 @@ type UseExpertEditPanelShellRuntimeArgs = {
   handleLayerDrop: (event: React.DragEvent<HTMLDivElement>, index: number) => void;
   handleLayerDragEnd: () => void;
   handleSelectLayer: (index: number) => void;
+  handleClearAllLayers: () => void;
   handleDeleteLayer: (index: number) => void;
   handleManualFlatten: () => void | Promise<void>;
   handleRemoveBackground: () => void | Promise<void>;
@@ -147,6 +148,7 @@ export function useExpertEditPanelShellRuntime({
   handleLayerDrop,
   handleLayerDragEnd,
   handleSelectLayer,
+  handleClearAllLayers,
   handleDeleteLayer,
   handleManualFlatten,
   handleRemoveBackground,
@@ -219,6 +221,7 @@ export function useExpertEditPanelShellRuntime({
           onLayerDrop={handleLayerDrop}
           onLayerDragEnd={handleLayerDragEnd}
           onSelectLayer={handleSelectLayer}
+          onClearAllLayers={handleClearAllLayers}
           onDeleteLayer={handleDeleteLayer}
           onFlatten={() => void handleManualFlatten()}
           onRemoveBackground={handleRemoveBackground}

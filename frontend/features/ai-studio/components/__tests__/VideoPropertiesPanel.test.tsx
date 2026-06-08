@@ -639,6 +639,31 @@ describe("VideoPropertiesPanel", () => {
     ).toBeInTheDocument();
   });
 
+  it("pins the current video composer prompt as a text reference while preserving the counter slot", () => {
+    const onPinPromptReference = vi.fn();
+    const promptText = "  dolly backward through the forest  ";
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceText={promptText}
+        onPinPromptReference={onPinPromptReference}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        `${promptText.length.toLocaleString()} / ${resolveKlingSinglePromptVisibleCharacterLimit(
+          "single"
+        ).toLocaleString()}`
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin text reference to reference grid" }));
+
+    expect(onPinPromptReference).toHaveBeenCalledWith("dolly backward through the forest");
+  });
+
   it("blocks generate when the Kling single-shot prompt exceeds the effective visible limit", () => {
     const effectiveLimit = resolveKlingSinglePromptVisibleCharacterLimit("single");
     render(

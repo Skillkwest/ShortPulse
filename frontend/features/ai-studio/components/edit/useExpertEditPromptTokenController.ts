@@ -17,7 +17,7 @@ import {
 
 type UseExpertEditPromptTokenControllerArgs = {
   promptTextValue: string;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   populatedLayerCount: number;
   allowSecondaryReferenceTokens?: boolean;
   maxSecondaryReferenceTokens?: number;

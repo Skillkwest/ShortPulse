@@ -80,14 +80,18 @@ describe("resolveInitialLayerSessionState", () => {
     expect(state.layers[1]?.transform.scale).toBe(0.2);
   });
 
-  it("drops non-image reference URLs when seeding the fallback layer state", () => {
+  it("does not seed a fallback layer for non-image reference URLs", () => {
     const state = resolveInitialLayerSessionState({
       referenceImageUrl: "https://example.com/reference-audio.mp3",
       layerState: null,
     });
 
-    expect(state.layers).toHaveLength(1);
-    expect(state.layers[0]?.imageUrl).toBeNull();
+    expect(state).toEqual({
+      layers: [],
+      foundationLayerId: null,
+      selectedLayerIndex: null,
+      layerIdCounter: 1,
+    });
   });
 
   it("ignores stale restored edit layers when the current entry has no image authority", () => {
@@ -116,8 +120,11 @@ describe("resolveInitialLayerSessionState", () => {
       },
     });
 
-    expect(state.layers).toHaveLength(1);
-    expect(state.layers[0]?.imageUrl).toBeNull();
-    expect(state.layers[0]?.transform.scale).toBe(1);
+    expect(state).toEqual({
+      layers: [],
+      foundationLayerId: null,
+      selectedLayerIndex: null,
+      layerIdCounter: 1,
+    });
   });
 });

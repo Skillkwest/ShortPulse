@@ -30,7 +30,7 @@ type UseAiStudioStateRuntimeControllersParams = {
   };
   curatedReferenceIds: string[];
   editReferenceText: string;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   findOutputById: (id: string) => StudioOutput | null;
   imageResolution: string;
   klingCfgScale: number;
@@ -47,11 +47,12 @@ type UseAiStudioStateRuntimeControllersParams = {
   notifyGenerationFailure: ReturnType<typeof useAiStudioOutputLifecycle>["notifyGenerationFailure"];
   outputs: StudioOutput[];
   projectId: string | null;
+  workspaceRuntimeKey?: string | null;
   referenceImageUrl: string | null;
   removedFromAllRefsIds: string[];
   resolveReferenceInputsForTool: (tool: ToolId | null) => {
     referenceImageUrl: string | null;
-    extraImageUrls: [string | null, string | null, string | null];
+    extraImageUrls: readonly (string | null)[];
   };
   seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceAudioUrls: string[];
@@ -173,6 +174,7 @@ export const useAiStudioStateRuntimeControllers = ({
   notifyGenerationFailure,
   outputs,
   projectId,
+  workspaceRuntimeKey = null,
   referenceImageUrl,
   removedFromAllRefsIds,
   resolveReferenceInputsForTool,
@@ -280,6 +282,7 @@ export const useAiStudioStateRuntimeControllers = ({
     notifyGenerationFailure,
     outputs,
     projectId,
+    workspaceRuntimeKey,
     prompt: createRuntime.prompt,
     resolveReferenceInputsForTool,
     seedance2InputMode,

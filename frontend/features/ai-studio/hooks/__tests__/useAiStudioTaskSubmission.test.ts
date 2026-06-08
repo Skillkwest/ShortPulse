@@ -39,6 +39,18 @@ vi.mock("../../utils/imageUpload", () => ({
 const asDispatch = <T>(fn: (value: SetStateAction<T>) => void): Dispatch<SetStateAction<T>> =>
   fn as Dispatch<SetStateAction<T>>;
 
+const createVisibleOutput = (id: string): StudioOutput =>
+  ({
+    id,
+    prompt: id,
+    mode: "image",
+    aspect: "1:1",
+    model: "Seedream",
+    status: "ready",
+    taskState: "success",
+    timestamp: "Ready",
+  }) as StudioOutput;
+
 const createStatefulUpdateOutputById = (accessor: {
   get: () => StudioOutput[];
   set: (next: StudioOutput[]) => void;
@@ -80,6 +92,64 @@ describe("useAiStudioTaskSubmission", () => {
         startPollingWithGeneration("default-req-1", "fal-seedream");
       }
     );
+  });
+
+  it("blocks new visible submissions when the Reference Grid is full", async () => {
+    const setOutputs = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        prompt: "",
+        currentCostCredits: 11,
+        selectedTool: "create",
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        outputs: Array.from({ length: 250 }, (_, index) => createVisibleOutput(`out-${index}`)),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById: vi.fn(),
+        startPollingTask,
+        ensureGenerationRecord,
+        projectId: "project-1",
+      })
+    );
+
+    await act(async () => {
+      await result.current("A polished studio portrait", []);
+    });
+
+    expect(setUiError).toHaveBeenCalledWith(expect.stringContaining("250 items"));
+    expect(setOutputs).not.toHaveBeenCalled();
+    expect(handleImageModelSubmission).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 
   it("applies submit-proxy generation id for non-queued submissions", async () => {
@@ -405,7 +475,6 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        projectId: "project-1",
         beginPanelGeneration: vi.fn(),
         endPanelGeneration: vi.fn(),
         setUiError: asDispatch(setUiError),
@@ -501,7 +570,6 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        projectId: "project-1",
         beginPanelGeneration: vi.fn(),
         endPanelGeneration: vi.fn(),
         setUiError: asDispatch(setUiError),
@@ -765,7 +833,6 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        projectId: "project-1",
         beginPanelGeneration: vi.fn(),
         endPanelGeneration: vi.fn(),
         setUiError: asDispatch(setUiError),
@@ -792,6 +859,8 @@ describe("useAiStudioTaskSubmission", () => {
       expect.objectContaining({
         shortpulseContext: expect.objectContaining({
           displayed_billed_credits: 2,
+          workspace_runtime_key: null,
+          workspace_runtime_key_present: false,
           pricing_display_source: "pricing_grid",
           pricing_policy_ready: true,
         }),

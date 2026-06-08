@@ -47,6 +47,7 @@ type SetReferenceSelectionState = (nextState: ReferenceSelectionAuthorityStateSe
 type UseAiStudioWorkflowReloadControllerParams = {
   beginManualWorkflowReload: () => void;
   findOutputById: (id: string) => StudioOutput | null;
+  prepareStandardCreateWorkflowReload?: (prompt: string) => void;
   setAspect: Dispatch<SetStateAction<string>>;
   setEditReferenceText: (value: string) => void;
   setExpertCreateMode: Dispatch<SetStateAction<"standard" | "pulse">>;
@@ -98,7 +99,6 @@ type UseAiStudioWorkflowReloadControllerParams = {
   setVoiceSelectedVoiceId: Dispatch<SetStateAction<string | null>>;
 };
 
-const RELOAD_SUCCESS_NOTICE = "Workflow settings loaded. Review them, then generate when ready.";
 const RELOAD_MISSING_NOTICE =
   "Workflow reload is unavailable because original generation settings are missing.";
 const RELOAD_SOURCE_NOTICE =
@@ -217,6 +217,7 @@ const mapKlingElements = (
 export const useAiStudioWorkflowReloadController = ({
   beginManualWorkflowReload,
   findOutputById,
+  prepareStandardCreateWorkflowReload,
   setAspect,
   setEditReferenceText,
   setExpertCreateMode,
@@ -324,8 +325,12 @@ export const useAiStudioWorkflowReloadController = ({
 
       if (payload.kind === "image") {
         const imagePayload: WorkflowReloadImagePayload = payload;
-        setExpertCreateMode(resolveCreateMode(config.createMode));
+        const nextCreateMode = resolveCreateMode(config.createMode);
+        setExpertCreateMode(nextCreateMode);
         if (targetTool === "create") {
+          if (nextCreateMode === "standard") {
+            prepareStandardCreateWorkflowReload?.(config.prompt.display);
+          }
           setStandardCreatePrompt(config.prompt.display);
         } else {
           setEditReferenceText(config.prompt.display);
@@ -427,12 +432,12 @@ export const useAiStudioWorkflowReloadController = ({
           payload_kind: payload.kind,
         },
       });
-      setUiNotice(RELOAD_SUCCESS_NOTICE);
       return { status: "success", outputId: normalizedOutputId, targetTool };
     },
     [
       beginManualWorkflowReload,
       fail,
+      prepareStandardCreateWorkflowReload,
       setAspect,
       setEditReferenceText,
       setExpertCreateMode,
@@ -466,7 +471,6 @@ export const useAiStudioWorkflowReloadController = ({
       setSoundEffectsLoopEnabled,
       setSoundEffectsPromptDraft,
       setStandardCreatePrompt,
-      setUiNotice,
       setVideoAutoFix,
       setVideoCameraFixed,
       setVideoDurationSeconds,

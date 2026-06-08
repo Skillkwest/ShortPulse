@@ -1436,6 +1436,10 @@ function DetailModalContent({
               imageClassName="art-hero-image"
               videoClassName="art-hero-image"
               audioClassName="art-hero-audio"
+              audioId={detailModalItem.media.id}
+              audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
+              audioDurationMs={detailModalItem.media.durationMs ?? null}
+              audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
               videoPosterUrl={detailVideoPosterUrl}
               imageStyle={imageStyle}
               videoStyle={aspectStyle}

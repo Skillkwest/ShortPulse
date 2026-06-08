@@ -94,6 +94,7 @@ export function useExpertEditDocumentState({
   const {
     beginLayerRename,
     clearLayerEditing,
+    clearLayerDragState,
     dragOverLayerIndex,
     draggingLayerIndex,
     editingLayerIndex,
@@ -155,6 +156,7 @@ export function useExpertEditDocumentState({
     createLayer,
     queuePanelHistoryBaselineFromCurrent,
     setLayers,
+    setFoundationLayerId,
     setSelectedLayerIndex,
     setEditingLayerIndex,
     setEditingLayerValue,
@@ -163,6 +165,27 @@ export function useExpertEditDocumentState({
     resolveInternalReferenceImageDropSource,
     seedLayerImageDimensions,
   });
+
+  const handleClearAllLayers = React.useCallback(() => {
+    if (!layers.length) return;
+    queuePanelHistoryBaselineFromCurrent();
+    setLayers([]);
+    setFoundationLayerId(null);
+    setSelectedLayerIndex(null);
+    layerIdCounterRef.current = 1;
+    setLayerIdCounter(1);
+    clearLayerEditing();
+    clearLayerDragState();
+    clearPrimaryDragActive();
+  }, [
+    clearLayerDragState,
+    clearLayerEditing,
+    clearPrimaryDragActive,
+    layers.length,
+    queuePanelHistoryBaselineFromCurrent,
+    setLayers,
+    setSelectedLayerIndex,
+  ]);
 
   const handleRemoveSelectedLayerImage = React.useCallback(() => {
     const selectedLayerId = selectedLayer?.id ?? null;
@@ -194,6 +217,10 @@ export function useExpertEditDocumentState({
   React.useEffect(() => {
     if (!layers.length) {
       setSelectedLayerIndex(null);
+      if (layerIdCounterRef.current !== 1) {
+        layerIdCounterRef.current = 1;
+        setLayerIdCounter(1);
+      }
       return;
     }
     if (!isLayerIndexInBounds({ index: selectedLayerIndex, layerCount: layers.length })) {
@@ -213,6 +240,7 @@ export function useExpertEditDocumentState({
     foundationLayerId,
     setFoundationLayerId,
     handleCommitLayerRename,
+    handleClearAllLayers,
     handleDeleteLayer,
     handleDeleteSelectedLayer,
     handleLayerDragEnd,

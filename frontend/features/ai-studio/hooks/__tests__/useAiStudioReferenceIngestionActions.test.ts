@@ -60,6 +60,7 @@ const createParams = (
   mode: "image",
   aspect: "1:1",
   model: "fal-ai/flux/dev",
+  outputs: [],
   setOutputs: vi.fn(),
   setUiError: vi.fn(),
   ...overrides,
@@ -393,6 +394,39 @@ describe("useAiStudioReferenceIngestionActions", () => {
     );
     expect(nextOutputs[0]?.localObjectUrl).toBeUndefined();
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+  });
+
+  it("does not upload file refs when the visible Reference Grid is full", async () => {
+    const setOutputs = vi.fn();
+    const setUiError = vi.fn();
+    const file = new File(["hello"], "reference.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+      [Symbol.iterator]: function* () {
+        yield file;
+      },
+    } as unknown as FileList;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          outputs: Array.from({ length: 250 }, (_, index) => makeOutput({ id: `out-${index}` })),
+          setOutputs,
+          setUiError,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "filePicker");
+    });
+
+    expect(uploadMediaFileMock).not.toHaveBeenCalled();
+    expect(setOutputs).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(expect.stringContaining("250 items"));
   });
 
   it("uses Reference Grid insertion time for local file uploads instead of the media row created_at", async () => {

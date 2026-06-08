@@ -266,6 +266,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 144.  `sql/migrations/145_add_project_output_display_items.sql`
 145.  `sql/migrations/146_harden_control_plane_scheduler_timeouts.sql`
 146.  `sql/migrations/147_add_plan_concurrency_entitlements.sql`
+147.  `sql/migrations/148_add_generation_projection_workflow_reload.sql`
+148.  `sql/migrations/149_add_generation_projection_workspace_runtime_key.sql`
       Rollback files:
 
 

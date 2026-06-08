@@ -4,13 +4,14 @@
  * and provider-facing prompt compilation.
  */
 import { insertPromptTokenAtSelection } from "./promptTokenInsertion";
+import { MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT } from "./expertEditReferenceSlots";
 
 export const EXPERT_EDIT_PROMPT_TOKEN_TRANSFER_MIME = "text/ai-studio-expert-edit-img-token";
 export const EXPERT_EDIT_PRIMARY_SLOT_TOKEN = "@main";
 const EXPERT_EDIT_PROMPT_TOKEN_REGEX = /@(?:img\d*|main)/gi;
-const VALID_IMG_TOKEN_REGEX = /^@img([1-3])$/i;
-const MAX_SECONDARY_REFERENCES = 3;
-const MAX_EXPERT_EDIT_REFERENCE_INPUTS = 8;
+const VALID_IMG_TOKEN_REGEX = /^@img(\d+)$/i;
+const MAX_SECONDARY_REFERENCES = MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT;
+const MAX_EXPERT_EDIT_REFERENCE_INPUTS = 10;
 
 export type ExpertEditPromptTokenInvalidReason =
   | "missing_index"
@@ -51,7 +52,7 @@ export type ExpertEditPromptHighlightSegment = {
 
 export type CompileExpertEditSubmissionPromptInput = {
   displayPrompt: string;
-  secondarySlots: [string | null, string | null, string | null];
+  secondarySlots: readonly (string | null)[];
   referenceInputs: string[];
   secondaryFigureNumbersBySlotIndex?: Partial<Record<number, number>>;
 };
@@ -83,22 +84,27 @@ const buildInlineError = (
     diagnostic.invalidReason === "too_many_secondary_references" &&
     maxSecondaryReferences === 1
   ) {
-    return "Reference inpaint supports only one secondary reference image. Use exactly one of @img1, @img2, or @img3.";
+    return `Reference inpaint supports only one secondary reference image. Use exactly one of ${buildSupportedImageTokenList()}.`;
   }
   if (diagnostic.invalidReason === "too_many_secondary_references") {
-    return `Use no more than ${maxSecondaryReferences ?? MAX_SECONDARY_REFERENCES} secondary reference images in this prompt.`;
+    return `Use no more than ${
+      maxSecondaryReferences ?? MAX_SECONDARY_REFERENCES
+    } secondary reference images in this prompt.`;
   }
   if (diagnostic.invalidReason === "missing_index") {
-    return "Use @main, @img1, @img2, or @img3 to reference an image.";
+    return `Use @main or ${buildSupportedImageTokenList()} to reference an image.`;
   }
   if (diagnostic.invalidReason === "out_of_range") {
-    return `${diagnostic.token} is out of range. Use @main, @img1, @img2, or @img3.`;
+    return `${diagnostic.token} is out of range. Use @main or ${buildSupportedImageTokenList()}.`;
   }
   if (diagnostic.invalidReason === "empty_slot" && diagnostic.slotIndex != null) {
     return `@img${diagnostic.slotIndex + 1} has no image in secondary slot ${diagnostic.slotIndex + 1}.`;
   }
   return "Invalid image reference token.";
 };
+
+const buildSupportedImageTokenList = (): string =>
+  Array.from({ length: MAX_SECONDARY_REFERENCES }, (_, index) => `@img${index + 1}`).join(", ");
 
 const resolveSlotIndexFromToken = (token: string): number | null => {
   const match = token.match(VALID_IMG_TOKEN_REGEX);
@@ -112,7 +118,7 @@ const resolveSlotIndexFromToken = (token: string): number | null => {
 
 export const analyzeExpertEditPromptTokens = (
   prompt: string,
-  secondarySlots: [string | null, string | null, string | null],
+  secondarySlots: readonly (string | null)[],
   options?: ExpertEditPromptTokenAnalysisOptions
 ): ExpertEditPromptTokenAnalysis => {
   const { allowSecondaryTokens = true, maxSecondaryReferences } = options ?? {};
@@ -259,7 +265,7 @@ export const buildExpertEditSubmissionReferenceInputs = ({
 }: {
   flattenedPrimaryUrl: string | null;
   flattenedMarkupReferenceUrl?: string | null;
-  secondarySlots: [string | null, string | null, string | null];
+  secondarySlots: readonly (string | null)[];
   referencedSlotIndexes: number[];
 }): string[] => {
   return buildExpertEditSubmissionReferencePlan({
@@ -281,7 +287,7 @@ export const buildExpertEditSubmissionReferencePlan = ({
 }: {
   flattenedPrimaryUrl: string | null;
   flattenedMarkupReferenceUrl?: string | null;
-  secondarySlots: [string | null, string | null, string | null];
+  secondarySlots: readonly (string | null)[];
   referencedSlotIndexes: number[];
 }): ExpertEditSubmissionReferencePlan => {
   const referencedSecondaryUrls = referencedSlotIndexes.map(
@@ -358,7 +364,7 @@ export const buildExpertEditPromptHighlightSegments = (
 
 const resolveFigureNumberBySlotIndex = (
   slotIndex: number,
-  secondarySlots: [string | null, string | null, string | null],
+  secondarySlots: readonly (string | null)[],
   referenceInputs: string[],
   secondaryFigureNumbersBySlotIndex?: Partial<Record<number, number>>
 ): number | null => {
@@ -375,7 +381,7 @@ const resolveFigureNumberBySlotIndex = (
 
 const resolveFigureNumberByTokenKind = (
   diagnostic: ExpertEditPromptTokenDiagnostic,
-  secondarySlots: [string | null, string | null, string | null],
+  secondarySlots: readonly (string | null)[],
   referenceInputs: string[],
   secondaryFigureNumbersBySlotIndex?: Partial<Record<number, number>>
 ): number | null => {
@@ -400,7 +406,7 @@ const appendFigureMap = ({
 }: {
   prompt: string;
   diagnostics: ExpertEditPromptTokenDiagnostic[];
-  secondarySlots: [string | null, string | null, string | null];
+  secondarySlots: readonly (string | null)[];
   referenceInputs: string[];
   secondaryFigureNumbersBySlotIndex?: Partial<Record<number, number>>;
 }): string => {

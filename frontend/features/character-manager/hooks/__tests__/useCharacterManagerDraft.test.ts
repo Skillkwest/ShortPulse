@@ -26,6 +26,7 @@ import {
   saveCharacterManagerCharacterSheetAssignments,
   saveCharacterManagerCharacterSheetPresetAsset,
   saveCharacterManagerCharacterSheetPresetAssignments,
+  saveCharacterManagerCharacterSheetPresetStorageAsset,
   saveCharacterManagerCharacterSheetPresetTabDescription,
   saveCharacterManagerProfileImage,
   saveCharacterManagerSlot,
@@ -50,6 +51,7 @@ vi.mock("../../../../lib/supabaseClient", async () => {
 });
 
 vi.mock("../../logic/characterManagerPersistence", () => ({
+  cleanupCharacterManagerMediaReference: vi.fn(),
   clearCharacterManagerProfileImage: vi.fn(),
   clearCharacterManagerSlot: vi.fn(),
   deleteCharacterManagerDraft: vi.fn(),
@@ -62,6 +64,7 @@ vi.mock("../../logic/characterManagerPersistence", () => ({
   saveCharacterManagerCharacterSheetAssignments: vi.fn(),
   saveCharacterManagerCharacterSheetPresetAsset: vi.fn(),
   saveCharacterManagerCharacterSheetPresetAssignments: vi.fn(),
+  saveCharacterManagerCharacterSheetPresetStorageAsset: vi.fn(),
   saveCharacterManagerCharacterSheetPresetTabDescription: vi.fn(),
   saveCharacterManagerCharacterSheetPresetTabLabel: vi.fn(),
   saveCharacterManagerCharacterSheetPresetTabOrder: vi.fn(),
@@ -99,6 +102,9 @@ const saveCharacterManagerCharacterSheetAssignmentsMock = vi.mocked(
 );
 const saveCharacterManagerCharacterSheetPresetAssetMock = vi.mocked(
   saveCharacterManagerCharacterSheetPresetAsset
+);
+const saveCharacterManagerCharacterSheetPresetStorageAssetMock = vi.mocked(
+  saveCharacterManagerCharacterSheetPresetStorageAsset
 );
 const saveCharacterManagerCharacterSheetPresetAssignmentsMock = vi.mocked(
   saveCharacterManagerCharacterSheetPresetAssignments
@@ -889,7 +895,7 @@ describe("useCharacterManagerDraft", () => {
     });
   });
 
-  it("uploads staged preset assets in parallel during first save", async () => {
+  it("uploads staged preset assets sequentially during first save", async () => {
     readSupabaseUserIdMock.mockResolvedValue("user-1");
     readPersistedSelectedCharacterIdMock.mockReturnValue(null);
     loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
@@ -947,23 +953,103 @@ describe("useCharacterManagerDraft", () => {
     });
 
     await waitFor(() => {
-      expect(saveCharacterManagerCharacterSheetPresetAssetMock).toHaveBeenCalledTimes(2);
+      expect(saveCharacterManagerCharacterSheetPresetAssetMock).toHaveBeenCalledTimes(1);
+    });
+    expect(saveCharacterManagerCharacterSheetPresetAssetMock).toHaveBeenCalledWith({
+      characterId: "char-parallel",
+      file: portraitFile,
     });
     expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).not.toHaveBeenCalled();
 
     await act(async () => {
       portraitUpload.resolve(portraitAsset);
-      closeUpUpload.resolve(closeUpAsset);
-      await savePromise;
+      await Promise.resolve();
     });
 
-    expect(await savePromise).toBe(true);
+    await waitFor(() => {
+      expect(saveCharacterManagerCharacterSheetPresetAssetMock).toHaveBeenCalledTimes(2);
+    });
+    expect(saveCharacterManagerCharacterSheetPresetAssetMock).toHaveBeenLastCalledWith({
+      characterId: "char-parallel",
+      file: closeUpFile,
+    });
+    expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      closeUpUpload.resolve(closeUpAsset);
+      expect(await savePromise).toBe(true);
+    });
+
     expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledWith({
       characterId: "char-parallel",
       presetId: "1",
       assignments: expect.objectContaining({
         portrait: portraitAsset,
         close_up: closeUpAsset,
+      }),
+    });
+  });
+
+  it("persists staged storage-backed preset references during first save", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+    const hydratedSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-storage",
+      characterSheetId: "sheet-storage",
+      characterName: "Storage Hero",
+    } as DraftSnapshot;
+    saveCharacterManagerDraftMock.mockResolvedValue({
+      ...hydratedSnapshot,
+      characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
+      characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
+    } as never);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(hydratedSnapshot as never);
+    saveCharacterManagerCharacterSheetAssignmentsMock.mockResolvedValue(
+      createEmptyCharacterSheetAssignments() as never
+    );
+    const copiedAsset = createPresetMedia(
+      "copied-storage-reference",
+      "https://signed.example/copied-storage.png"
+    );
+    saveCharacterManagerCharacterSheetPresetStorageAssetMock.mockResolvedValue(
+      copiedAsset as never
+    );
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    await act(async () => {
+      await result.current.setCharacterSheetPresetStorageReference("portrait", {
+        storagePath: "user-1/generations/images/source.png",
+        previewUrl: "https://signed.example/source.png",
+        filename: "source.png",
+        mimeType: "image/png",
+      });
+    });
+
+    await act(async () => {
+      expect(await result.current.saveCharacter()).toBe(true);
+    });
+
+    expect(saveCharacterManagerCharacterSheetPresetAssetMock).not.toHaveBeenCalled();
+    expect(saveCharacterManagerCharacterSheetPresetStorageAssetMock).toHaveBeenCalledWith({
+      characterId: "char-storage",
+      sourceStoragePath: "user-1/generations/images/source.png",
+      filename: "source.png",
+      mimeType: "image/png",
+    });
+    expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledWith({
+      characterId: "char-storage",
+      presetId: "1",
+      assignments: expect.objectContaining({
+        portrait: copiedAsset,
       }),
     });
   });

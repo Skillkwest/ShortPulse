@@ -134,6 +134,63 @@ describe("ReferenceGridCard", () => {
     expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output);
   });
 
+  it("places workflow reload immediately to the right of image re-roll", () => {
+    const output = createOutput({
+      taskState: "success",
+      mediaSource: "generated",
+      generationReplay: {
+        version: 1,
+        mode: "image",
+        submitTool: "create",
+        modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        displayPrompt: "Prompt",
+        submissionPrompt: "Prompt",
+        aspect: "9:16",
+        imageResolution: "2K",
+        referenceInputs: [],
+        capturedAt: "2026-06-06T12:00:00.000Z",
+      },
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "create",
+        panelKind: "create",
+        outputMode: "image",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: "standard",
+        pulse: null,
+        prompt: { display: "Prompt" },
+        model: { id: "fal-ai/bytedance/seedream/v4.5/text-to-image" },
+        payload: {
+          kind: "image",
+          submitTool: "create",
+          aspect: "9:16",
+          imageResolution: "2K",
+          referenceInputs: [],
+        },
+      },
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: output,
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/image.png",
+          onRerollOutput: vi.fn(),
+          onReloadWorkflowOutput: vi.fn(),
+        })}
+      />
+    );
+
+    const rerollButton = screen.getByLabelText("Re-roll image");
+    const reloadButton = screen.getByLabelText("Reload workflow");
+
+    expect(reloadButton.parentElement).toHaveClass("reference-card-bottom-actions");
+    expect(reloadButton.previousElementSibling).toBe(rerollButton);
+  });
+
   it("hides workflow reload when generated metadata is not restorable", () => {
     render(
       <ReferenceGridCard
@@ -859,6 +916,94 @@ describe("ReferenceGridCard", () => {
     fireEvent.doubleClick(screen.getByRole("button", { name: "Play audio preview" }));
 
     expect(onOpenDetails).not.toHaveBeenCalled();
+  });
+
+  it("seeks audio from waveform clicks without selecting or opening the card", () => {
+    const onSelectOutput = vi.fn();
+    const onOpenDetails = vi.fn();
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "audio", taskState: "success", durationMs: 4000 }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio-seek.mp3",
+          onSelectOutput,
+          onOpenDetails,
+        })}
+      />
+    );
+
+    const audioNode = document.querySelector(".reference-card-audio") as HTMLAudioElement | null;
+    const waveform = screen.getByRole("slider", { name: "Audio seek position" });
+    expect(audioNode).not.toBeNull();
+
+    Object.defineProperty(audioNode, "duration", {
+      configurable: true,
+      value: 4,
+    });
+    Object.defineProperty(audioNode, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    Object.defineProperty(waveform, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        left: 10,
+        right: 110,
+        top: 0,
+        bottom: 40,
+        width: 100,
+        height: 40,
+        x: 10,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerDown(waveform, { button: 0, clientX: 60, pointerId: 1 });
+    fireEvent.pointerUp(waveform, { button: 0, clientX: 60, pointerId: 1 });
+    fireEvent.keyDown(waveform, { key: " " });
+    fireEvent.doubleClick(waveform);
+
+    expect(audioNode?.currentTime).toBeCloseTo(2, 3);
+    expect(waveform).toHaveAttribute("aria-valuenow", "50");
+    expect(onSelectOutput).not.toHaveBeenCalled();
+    expect(onOpenDetails).not.toHaveBeenCalled();
+  });
+
+  it("supports keyboard seeking on the audio waveform", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "audio", taskState: "success", durationMs: 20000 }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio-keyboard-seek.mp3",
+        })}
+      />
+    );
+
+    const audioNode = document.querySelector(".reference-card-audio") as HTMLAudioElement | null;
+    const waveform = screen.getByRole("slider", { name: "Audio seek position" });
+    expect(audioNode).not.toBeNull();
+
+    Object.defineProperty(audioNode, "duration", {
+      configurable: true,
+      value: 20,
+    });
+    Object.defineProperty(audioNode, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 2,
+    });
+
+    fireEvent.keyDown(waveform, { key: "ArrowRight" });
+    expect(audioNode?.currentTime).toBeCloseTo(7, 3);
+
+    fireEvent.keyDown(waveform, { key: "End" });
+    expect(audioNode?.currentTime).toBeCloseTo(20, 3);
+    expect(waveform).toHaveAttribute("aria-valuenow", "100");
   });
 
   it("fills waveform bars as audio playback progresses", () => {

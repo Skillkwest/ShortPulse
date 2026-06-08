@@ -35,9 +35,10 @@ type UseAiStudioGenerationRuntimeControllersParams = {
   notifyGenerationFailure: ReturnType<typeof useAiStudioOutputLifecycle>["notifyGenerationFailure"];
   outputs: StudioOutput[];
   projectId: string | null;
+  workspaceRuntimeKey?: string | null;
   resolveReferenceInputsForTool: (tool: ToolId | null) => {
     referenceImageUrl: string | null;
-    extraImageUrls: [string | null, string | null, string | null];
+    extraImageUrls: readonly (string | null)[];
   };
   seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceAudioUrls: string[];
@@ -94,6 +95,7 @@ export const useAiStudioGenerationRuntimeControllers = ({
   notifyGenerationFailure,
   outputs,
   projectId,
+  workspaceRuntimeKey = null,
   resolveReferenceInputsForTool,
   seedance2InputMode,
   seedance2ReferenceAudioUrls,
@@ -134,6 +136,7 @@ export const useAiStudioGenerationRuntimeControllers = ({
         aspect,
         mode,
         projectId,
+        workspaceRuntimeKey,
         model,
         prompt,
         selectedTool,
@@ -211,8 +214,10 @@ export const useAiStudioGenerationRuntimeControllers = ({
       selectedTool,
       aspect,
       model,
+      outputs,
       setOutputs,
       setSaved,
+      setUiError,
     });
 
   return {

@@ -45,7 +45,7 @@ type ResolveExpertEditSubmissionPromptStateResult =
     };
 
 const resolvePopulatedSecondarySlotIndexes = (
-  extraImageUrls: [string | null, string | null, string | null]
+  extraImageUrls: readonly (string | null)[]
 ): number[] =>
   extraImageUrls.reduce<number[]>((indexes, value, index) => {
     if ((value?.trim() ?? "").length > 0) {
@@ -61,7 +61,7 @@ const resolveSubmissionSecondarySlotIndexes = ({
 }: {
   editSubmitIntent: EditSubmitIntent;
   linkedSecondarySlotIndexes: number[];
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
 }): number[] => {
   if (linkedSecondarySlotIndexes.length > 0) {
     return linkedSecondarySlotIndexes;
@@ -80,7 +80,7 @@ const resolveExpertEditSubmissionPromptState = ({
   maxSecondaryReferenceTokens,
 }: {
   promptText: string;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   editSubmitIntent?: EditSubmitIntent;
   allowSecondaryReferenceTokens?: boolean;
   maxSecondaryReferenceTokens?: number;
@@ -124,7 +124,7 @@ export const validateExpertEditSubmissionPrompt = ({
   maxSecondaryReferenceTokens,
 }: {
   promptText: string;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   allowSecondaryReferenceTokens?: boolean;
   maxSecondaryReferenceTokens?: number;
 }): ValidateExpertEditSubmissionPromptResult => {
@@ -147,7 +147,7 @@ export const prepareExpertEditSubmission = ({
   maxSecondaryReferenceTokens,
 }: {
   promptText: string;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   flattenedPrimaryUrl: string | null;
   flattenedMarkupReferenceUrl?: string | null;
   editSubmitIntent?: EditSubmitIntent;

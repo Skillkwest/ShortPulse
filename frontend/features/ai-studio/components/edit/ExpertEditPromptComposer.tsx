@@ -4,6 +4,7 @@ import {
   buildExpertEditPrimarySlotToken,
   buildExpertEditSecondarySlotToken,
 } from "../../logic/expertEditPromptReferences";
+import { ComposerPinButton } from "../shared/ComposerPinButton";
 
 type PromptHighlightSegment = {
   kind: string;
@@ -12,7 +13,7 @@ type PromptHighlightSegment = {
 
 type PromptTokenPickerState = {
   isOpen: boolean;
-  selectedSlotIndex: 0 | 1 | 2 | "main" | null;
+  selectedSlotIndex: number | "main" | null;
 };
 
 type ExpertEditPromptComposerProps = {
@@ -30,10 +31,11 @@ type ExpertEditPromptComposerProps = {
   onPromptBlur: React.FocusEventHandler<HTMLTextAreaElement>;
   promptTokenPickerState: PromptTokenPickerState;
   hostPrimaryImageUrl: string | null;
-  populatedPromptTokenSlotIndexes: readonly (0 | 1 | 2)[];
+  populatedPromptTokenSlotIndexes: readonly number[];
   extraImageUrls: readonly (string | null)[];
-  onInsertPromptTokenFromPicker: (selection: 0 | 1 | 2 | "main") => void;
+  onInsertPromptTokenFromPicker: (selection: number | "main") => void;
   promptTokenInlineError: string | null;
+  onPinPromptReference?: (text: string) => void;
   onGenerate: () => void;
   inlineGenerateDisabled: boolean;
   costCredits?: number | null;
@@ -59,6 +61,7 @@ export function ExpertEditPromptComposer({
   extraImageUrls,
   onInsertPromptTokenFromPicker,
   promptTokenInlineError,
+  onPinPromptReference,
   onGenerate,
   inlineGenerateDisabled,
   costCredits = null,
@@ -102,6 +105,11 @@ export function ExpertEditPromptComposer({
               autoCorrect="off"
               autoCapitalize="off"
               data-gramm="false"
+            />
+            <ComposerPinButton
+              text={promptTextValue}
+              onPinTextReference={onPinPromptReference}
+              className="edit-expert-prompt-pin-button"
             />
             {promptTokenPickerState.isOpen ? (
               <div

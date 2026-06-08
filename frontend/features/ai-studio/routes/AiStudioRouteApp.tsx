@@ -118,6 +118,13 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
   });
   const activeCreateAgentRuntime =
     base.expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime;
+  const { setStandardCreateWorkflowReloadPrep } = base;
+  React.useEffect(() => {
+    setStandardCreateWorkflowReloadPrep(standardCreateAgentRuntime.prepareForWorkflowReload);
+    return () => {
+      setStandardCreateWorkflowReloadPrep(null);
+    };
+  }, [setStandardCreateWorkflowReloadPrep, standardCreateAgentRuntime.prepareForWorkflowReload]);
 
   return (
     <AiStudioPageRuntimeBody
@@ -279,6 +286,7 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   } = base;
+  const workspaceRuntimeKey = projectId ? null : sessionId ? `session:${sessionId}` : null;
   const { quotaSummary } = useMediaStorageQuotaSummary({
     enabled: true,
   });
@@ -536,6 +544,7 @@ const AiStudioPageRuntimeBody = ({
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     openModelModal,
     projectId,
+    workspaceRuntimeKey,
     referenceImageUrl,
     refreshBalance,
     refreshCharacterModeInjectionBundleForSubmission,

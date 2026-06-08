@@ -33,6 +33,7 @@ import {
   editOpenAiImage,
   persistGeneratedImageAsset,
 } from "../../../lib/server/openaiImageGeneration";
+import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 
 type ImageEditRequestBody = {
   prompt?: unknown;
@@ -116,7 +117,7 @@ const normalizeImageSources = (value: unknown): string[] | null => {
       return normalizeRequiredString(record?.image_url);
     })
     .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
-  if (!imageUrls.length || imageUrls.length > 8) return null;
+  if (!imageUrls.length || imageUrls.length > 16) return null;
   return imageUrls;
 };
 
@@ -146,7 +147,7 @@ const createOpenAiUrlSource = (
 
 const dedupeProviderImageSources = (
   sources: Array<OpenAiEditImageSource | null | undefined>,
-  limit = 8
+  limit = 16
 ): OpenAiEditImageSource[] => {
   const seen = new Set<string>();
   const deduped: OpenAiEditImageSource[] = [];
@@ -204,6 +205,10 @@ export default async function handler(
     const characterContext = asRecord(body.character_context) ?? {};
     const styleContext = asRecord(body.style_context) ?? {};
     const shortpulseContext = asRecord(body.shortpulse_context) ?? {};
+    const workspaceRuntimeKey = readGenerationWorkspaceRuntimeKeyFromContext({
+      context: shortpulseContext,
+      projectId,
+    });
     const internalMediaRefs = readInternalMediaRefsFromPayload(body.shortpulse_internal_media_refs);
     const internalEditMediaRefs = readInternalEditMediaRefsFromPayload(
       body.shortpulse_internal_edit_media_refs
@@ -259,6 +264,7 @@ export default async function handler(
         ...(resolvedMask ? { mask: buildBillingImageRef(resolvedMask) } : {}),
       },
       reason: "openai-gpt-image-2 edit",
+      shortpulseContext,
     });
     if (!charge) return;
     const settledCharge = charge;
@@ -287,6 +293,7 @@ export default async function handler(
     const persisted = await persistGeneratedImageAsset({
       userId: charge.userId,
       projectId,
+      workspaceRuntimeKey,
       promptText: prompt,
       modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
       providerRequestId,

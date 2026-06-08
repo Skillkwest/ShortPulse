@@ -30,6 +30,7 @@ import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryD
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import { hasDroppedImageReferenceTransfer } from "../../character-manager/logic/characterDropPayload";
 import { buildElementProfileImageBackgroundStyle } from "../logic/elementProfileImageTransform";
+import { swapElementImageReferenceSlots } from "../logic/elementReferenceSlots";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
 import {
   ELEMENT_PANEL_ACCENT,
@@ -46,6 +47,7 @@ type ElementsManagerShellProps = {
 };
 
 const IMAGE_REFERENCE_SLOT_LABELS = ["Primary View", "Secondary View", "Detail View"] as const;
+const DND_ELEMENT_REFERENCE_SLOT_INDEX = "application/x-shortpulse-element-reference-slot-index";
 const ELEMENT_DESCRIPTION_MAX_LENGTH = 150;
 const ELEMENT_LIBRARY_AVATAR_SIZE_PX = 44;
 const ELEMENT_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
@@ -380,6 +382,9 @@ export function ElementsManagerShell({
   });
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
   const [activeSheetDropIndex, setActiveSheetDropIndex] = React.useState<number | null>(null);
+  const [draggedReferenceSlotIndex, setDraggedReferenceSlotIndex] = React.useState<number | null>(
+    null
+  );
   const [isElementLibraryModalOpen, setIsElementLibraryModalOpen] = React.useState(false);
   const [showSaveSuccessIndicator, setShowSaveSuccessIndicator] = React.useState(false);
   const [hoveredTopActionButton, setHoveredTopActionButton] = React.useState<
@@ -694,9 +699,12 @@ export function ElementsManagerShell({
       if (!transfer) return false;
       const libraryPayload = readMediaLibraryDragPayload(transfer);
       if (draft.assetType === "image") {
+        const sourceReferenceSlotIndex = transfer.getData(DND_ELEMENT_REFERENCE_SLOT_INDEX);
         const canAcceptLibraryImage =
           libraryPayload?.kind === "libraryMedia" && libraryPayload.payload.fileType === "image";
         return Boolean(
+          sourceReferenceSlotIndex ||
+          draggedReferenceSlotIndex != null ||
           canAcceptLibraryImage ||
           extractInternalReferenceDragPayload(transfer) ||
           hasInternalReferenceDragTypeHints(transfer) ||
@@ -711,34 +719,69 @@ export function ElementsManagerShell({
         hasInternalReferenceDragTypeHints(transfer)
       );
     },
-    [draft.assetType]
+    [draft.assetType, draggedReferenceSlotIndex]
+  );
+
+  const resolveDraggedReferenceSlotIndex = React.useCallback(
+    (transfer: DataTransfer): number | null => {
+      const transferIndexValue = transfer.getData(DND_ELEMENT_REFERENCE_SLOT_INDEX);
+      if (/^\d+$/.test(transferIndexValue)) {
+        return Number.parseInt(transferIndexValue, 10);
+      }
+      return draggedReferenceSlotIndex;
+    },
+    [draggedReferenceSlotIndex]
   );
 
   const handleSheetDragEnter = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      if (draft.assetType === "image" && isReferenceSlotPending(slotIndex)) return;
+      const sourceReferenceSlotIndex =
+        draft.assetType === "image" ? resolveDraggedReferenceSlotIndex(event.dataTransfer) : null;
+      if (
+        draft.assetType === "image" &&
+        isReferenceSlotPending(slotIndex) &&
+        sourceReferenceSlotIndex == null
+      ) {
+        return;
+      }
       if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
+      event.dataTransfer.dropEffect = sourceReferenceSlotIndex == null ? "copy" : "move";
       setActiveSheetDropIndex(slotIndex);
     },
-    [canAcceptSheetDrop, draft.assetType, isReferenceSlotPending]
+    [canAcceptSheetDrop, draft.assetType, isReferenceSlotPending, resolveDraggedReferenceSlotIndex]
   );
 
   const handleSheetDragOver = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      if (draft.assetType === "image" && isReferenceSlotPending(slotIndex)) return;
+      const sourceReferenceSlotIndex =
+        draft.assetType === "image" ? resolveDraggedReferenceSlotIndex(event.dataTransfer) : null;
+      if (
+        draft.assetType === "image" &&
+        isReferenceSlotPending(slotIndex) &&
+        sourceReferenceSlotIndex == null
+      ) {
+        return;
+      }
       if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
+      event.dataTransfer.dropEffect = sourceReferenceSlotIndex == null ? "copy" : "move";
       setActiveSheetDropIndex(slotIndex);
     },
-    [canAcceptSheetDrop, draft.assetType, isReferenceSlotPending]
+    [canAcceptSheetDrop, draft.assetType, isReferenceSlotPending, resolveDraggedReferenceSlotIndex]
   );
 
   const handleSheetDrop = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      if (draft.assetType === "image" && isReferenceSlotPending(slotIndex)) return;
+      const sourceReferenceSlotIndex =
+        draft.assetType === "image" ? resolveDraggedReferenceSlotIndex(event.dataTransfer) : null;
+      if (
+        draft.assetType === "image" &&
+        isReferenceSlotPending(slotIndex) &&
+        sourceReferenceSlotIndex == null
+      ) {
+        return;
+      }
       if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
       setActiveSheetDropIndex(null);
@@ -758,6 +801,19 @@ export function ElementsManagerShell({
         return;
       }
 
+      if (sourceReferenceSlotIndex != null) {
+        setDraggedReferenceSlotIndex(null);
+        const nextImageReferenceUrls = swapElementImageReferenceSlots(
+          draft.imageReferenceUrls,
+          sourceReferenceSlotIndex,
+          slotIndex
+        );
+        if (nextImageReferenceUrls) {
+          updateDraftField("imageReferenceUrls", nextImageReferenceUrls);
+        }
+        return;
+      }
+
       setReferenceSlotPending(slotIndex, 1);
       void onHandleImageReferenceTransferAtIndex(slotIndex, event.dataTransfer).finally(() => {
         setReferenceSlotPending(slotIndex, -1);
@@ -767,11 +823,39 @@ export function ElementsManagerShell({
       assignActiveVideoReference,
       canAcceptSheetDrop,
       draft.assetType,
+      draft.imageReferenceUrls,
       isReferenceSlotPending,
       onHandleImageReferenceTransferAtIndex,
+      resolveDraggedReferenceSlotIndex,
       setReferenceSlotPending,
+      updateDraftField,
     ]
   );
+
+  const handleReferenceSlotDragStart = React.useCallback(
+    (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
+      const slotValue = draft.imageReferenceUrls[slotIndex]?.trim() ?? "";
+      if (
+        pageBusy ||
+        draft.assetType !== "image" ||
+        isReferenceSlotPending(slotIndex) ||
+        !slotValue
+      ) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(DND_ELEMENT_REFERENCE_SLOT_INDEX, String(slotIndex));
+      event.dataTransfer.setData("text/plain", slotValue);
+      setDraggedReferenceSlotIndex(slotIndex);
+    },
+    [draft.assetType, draft.imageReferenceUrls, isReferenceSlotPending, pageBusy]
+  );
+
+  const handleReferenceSlotDragEnd = React.useCallback(() => {
+    setDraggedReferenceSlotIndex(null);
+    setActiveSheetDropIndex(null);
+  }, []);
 
   const handleElementSelection = React.useCallback(
     (elementId: string) => {
@@ -1036,7 +1120,16 @@ export function ElementsManagerShell({
                                     activeSheetDropIndex === index
                                       ? "0 0 0 1px rgba(231, 92, 134, 0.18), 0 14px 30px rgba(0, 0, 0, 0.28), 0 3px 8px rgba(0, 0, 0, 0.18)"
                                       : ELEMENT_REFERENCE_CARD_INLINE_STYLE.boxShadow,
+                                  opacity: draggedReferenceSlotIndex === index ? 0.74 : 1,
                                 }}
+                                draggable={
+                                  draft.assetType === "image" &&
+                                  Boolean(slotValue) &&
+                                  !pageBusy &&
+                                  !isDropPending
+                                }
+                                onDragStart={handleReferenceSlotDragStart(index)}
+                                onDragEnd={handleReferenceSlotDragEnd}
                                 onMouseEnter={() => setHoveredReferenceCardIndex(index)}
                                 onMouseLeave={() =>
                                   setHoveredReferenceCardIndex((current) =>

@@ -10,7 +10,7 @@ type UseAiStudioPageOutputAdaptersParams = {
   outputs: StudioOutput[];
   getOutputById: (id: string) => StudioOutput | null;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   outputSelectorStoreEnabled: boolean;
   selectorCallbacksEnabled: boolean;
 };

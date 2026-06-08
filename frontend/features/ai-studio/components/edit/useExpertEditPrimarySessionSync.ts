@@ -135,7 +135,10 @@ export function useExpertEditPrimarySessionSync({
 
   React.useEffect(() => {
     if (lastDispatchedPrimaryRef.current === hostPrimaryImageUrl) return;
-    if (suppressNextPrimaryPublishUrlRef.current === hostPrimaryImageUrl) {
+    if (
+      suppressNextPrimaryPublishUrlRef.current != null &&
+      suppressNextPrimaryPublishUrlRef.current === hostPrimaryImageUrl
+    ) {
       suppressNextPrimaryPublishUrlRef.current = null;
       return;
     }

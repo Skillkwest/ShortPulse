@@ -38,7 +38,7 @@ type StageFlattenSnapshot = {
 type UseExpertEditInlineGenerateParams = {
   layers: ExpertEditStageFlattenLayer[];
   promptText: string;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   reusablePrimarySourceUrl?: string | null;
   flattenTargetLongestEdgePx?: number | null;
   markupStrokes: MarkupStroke[];

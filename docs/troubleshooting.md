@@ -526,13 +526,13 @@ Mitigation:
 
 Symptoms:
 
-- Clicking Generate with prompt tokens (`@img1..@img3`) shows warning/error and submit does not start.
+- Clicking Generate with prompt tokens (`@img1..@img10`) shows warning/error and submit does not start.
 - Prompt token highlight appears misaligned or text appears visually duplicated/dim.
 - Dragging a secondary image into the prompt does not insert token text.
 
 Checklist:
 
-- Confirm tokens are in supported range: only `@img1`, `@img2`, `@img3`.
+- Confirm tokens are in supported range: `@img1` through `@img10`.
 - Confirm referenced secondary slots are populated (for example, `@img2` requires slot 2 image present).
 - Confirm the expected lane behavior:
   - Standard/Markup with linked `@imgN` tokens send only linked secondary refs.
@@ -548,7 +548,7 @@ Checklist:
 
 Mitigation:
 
-- Replace unsupported or incomplete tokens (`@img`, `@img4+`) with valid slot tokens.
+- Replace unsupported or incomplete tokens (`@img`, `@img11+`) with valid slot tokens.
 - Populate missing secondary slots for referenced tokens.
 - If token highlighting/caret alignment regresses, re-check prompt mirror invariants:
   - same typography and wrapping rules on textarea + mirror,

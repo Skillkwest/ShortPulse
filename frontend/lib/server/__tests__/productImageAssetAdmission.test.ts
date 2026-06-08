@@ -2,6 +2,7 @@ import fs from "fs";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  admitProductImageAssetFromStorageForUser,
   admitProductImageAssetUploadForUser,
   ProductImageAssetAdmissionError,
 } from "../productImageAssetAdmission";
@@ -48,6 +49,12 @@ const createQueryMock = (result: { data: unknown; error: { message: string } | n
 
 const setupSupabaseAdmin = () => {
   const uploadMock = vi.fn(async () => ({ error: null }));
+  const downloadMock = vi.fn(async () => ({ data: new Blob(["unused"]), error: null }));
+  const removeMock = vi.fn(async () => ({ error: null }));
+  const createSignedUploadUrlMock = vi.fn(async (storagePath: string) => ({
+    data: { path: storagePath, token: "upload-token" },
+    error: null,
+  }));
   const createSignedUrlMock = vi.fn(async () => ({
     data: { signedUrl: "https://signed.example/product-image" },
     error: null,
@@ -67,6 +74,9 @@ const setupSupabaseAdmin = () => {
     storage: {
       from: vi.fn(() => ({
         upload: uploadMock,
+        download: downloadMock,
+        remove: removeMock,
+        createSignedUploadUrl: createSignedUploadUrlMock,
         createSignedUrl: createSignedUrlMock,
       })),
     },
@@ -74,6 +84,9 @@ const setupSupabaseAdmin = () => {
 
   return {
     uploadMock,
+    downloadMock,
+    removeMock,
+    createSignedUploadUrlMock,
     createSignedUrlMock,
     fromMock,
     characterQuery,
@@ -168,5 +181,51 @@ describe("admitProductImageAssetUploadForUser", () => {
       details: "Unknown image asset intent.",
     } satisfies Partial<ProductImageAssetAdmissionError>);
     expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it("admits a character look by copying from an owned storage path", async () => {
+    const image = await sharp({
+      create: {
+        width: 40,
+        height: 40,
+        channels: 3,
+        background: { r: 90, g: 80, b: 70 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const { downloadMock, uploadMock, fromMock } = setupSupabaseAdmin();
+    downloadMock.mockResolvedValue({
+      data: image as never,
+      error: null,
+    });
+
+    const result = await admitProductImageAssetFromStorageForUser({
+      userId: "user-1",
+      sourceStoragePath: "user-1/generations/images/source.png",
+      intent: "character_sheet_preset",
+      characterId: "char-1",
+      filename: "source.png",
+    });
+
+    expect(downloadMock).toHaveBeenCalledWith("user-1/generations/images/source.png");
+    expect(fromMock).toHaveBeenCalledWith("characters");
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/characters\/char-1\/presets\//),
+      image,
+      expect.objectContaining({
+        contentType: "image/png",
+        upsert: false,
+      })
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        filename: "source.png",
+        mimeType: "image/png",
+        size: image.length,
+        width: 40,
+        height: 40,
+      })
+    );
   });
 });

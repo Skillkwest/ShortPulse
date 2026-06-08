@@ -10,7 +10,7 @@ type UseAiStudioAllowedModelOptionsArgs = {
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   mode: StudioMode;
   referenceImageUrl?: string | null;
-  extraImageUrls?: [string | null, string | null, string | null];
+  extraImageUrls?: readonly (string | null)[];
   isCharacterModeEnabled?: boolean;
 };
 

@@ -10,10 +10,15 @@ import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSes
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import {
-  resolveRequiredAudioVoiceChangerModelId,
-  resolveRequiredAudioVoiceDesignModelId,
-  resolveRequiredAudioVoiceoverModelId,
-} from "../../../lib/model-runtime/modelCatalog";
+  buildVoiceChangerRequestSettings,
+  buildVoiceoverElevenV3RequestConfig,
+  hardcodedVoiceChangerInputFormat,
+  hardcodedVoiceChangerModel,
+  hardcodedVoiceChangerNoiseReductionEnabled,
+  hardcodedVoiceOutputFormat,
+  hardcodedVoiceoverModelId,
+  type ElevenVoiceoverRequestConfig,
+} from "../utils/voiceAudioModelConfig";
 import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
@@ -24,6 +29,12 @@ import {
   type SharedVoiceOption,
 } from "../hooks/useSharedVoicesGrid";
 import type { ToolId } from "../types";
+import {
+  resolveVoiceChangerMediaDurationMs,
+  resolveVoiceChangerSourceStoragePath,
+  signVoiceSourceStoragePath,
+  uploadVoiceCloneSourceFile,
+} from "../utils/voiceChangerSourceAsset";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceModal";
 import { VoiceLibraryContent } from "./VoiceLibraryContent";
@@ -35,33 +46,25 @@ import {
 } from "./VoiceChangerSourceDropzone";
 import { VoicesLibraryModal } from "./VoicesLibraryModal";
 import {
-  resolveVoiceChangerMediaDurationMs,
-  resolveVoiceChangerSourceStoragePath,
-  signVoiceSourceStoragePath,
-  uploadVoiceCloneSourceFile,
-} from "../utils/voiceChangerSourceAsset";
-import {
   clearExclusiveSoundPlayback,
   markExclusiveSoundPlaying,
   requestExclusiveSoundPlayback,
 } from "./shared/exclusiveSoundPlayback";
 import styles from "../../../styles/ai-studio-voices-properties.module.css";
 
+export {
+  buildVoiceoverElevenV3RequestConfig,
+  hardcodedVoiceDesignModelId,
+  hardcodedVoiceGenerationDefaults,
+  hardcodedVoiceOutputFormat,
+  hardcodedVoiceoverLanguageCode,
+  hardcodedVoiceoverModelId,
+  hardcodedVoiceoverStyleValue,
+} from "../utils/voiceAudioModelConfig";
+
 type VoicesSurfaceMode = "create" | "edit";
 type CreateVoiceMode = "generate" | "clone";
 type VoicesLibrarySection = "default" | "my";
-
-type ElevenVoiceoverRequestConfig = {
-  model_id: string;
-  language_code: null;
-  voice_settings: {
-    stability: number;
-    similarity_boost: number;
-    speed: number;
-    style: 0;
-    use_speaker_boost: boolean;
-  };
-};
 
 const voicePromptPlaceholder =
   "Enter the prompt used to generate this voice: tone, age, and delivery.";
@@ -98,35 +101,6 @@ const cloneVoiceSourceDropzoneCopy = {
   uploadingAudioDetail: "Staging the voice sample so it is ready for cloning.",
   failedFallbackDetail: "Unable to prepare the selected voice sample.",
 };
-export const hardcodedVoiceoverModelId = resolveRequiredAudioVoiceoverModelId();
-export const hardcodedVoiceoverLanguageCode = null;
-export const hardcodedVoiceoverStyleValue = 0 as const;
-export const hardcodedVoiceDesignModelId = resolveRequiredAudioVoiceDesignModelId();
-export const hardcodedVoiceGenerationDefaults = {
-  stability: 1,
-  similarity_boost: 1,
-  speed: 1,
-  style: 0,
-  use_speaker_boost: true,
-} as const;
-export const hardcodedVoiceOutputFormat = "mp3_44100_128";
-const hardcodedVoiceChangerNoiseReductionEnabled = false;
-
-export const buildVoiceoverElevenV3RequestConfig = (): ElevenVoiceoverRequestConfig => ({
-  model_id: hardcodedVoiceoverModelId,
-  language_code: hardcodedVoiceoverLanguageCode,
-  voice_settings: {
-    stability: hardcodedVoiceGenerationDefaults.stability,
-    similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
-    speed: hardcodedVoiceGenerationDefaults.speed,
-    style: hardcodedVoiceoverStyleValue,
-    use_speaker_boost: hardcodedVoiceGenerationDefaults.use_speaker_boost,
-  },
-});
-
-const hardcodedVoiceChangerModel = resolveRequiredAudioVoiceChangerModelId();
-const hardcodedVoiceChangerSpeakerBoostEnabled = true;
-const hardcodedVoiceChangerInputFormat = "other";
 const voicePreviewUnavailableNotice = "This voice does not have a preview sample yet.";
 const voicePreviewBrowserUnavailableNotice = "Audio previews are not available in this browser.";
 const voicePreviewPlaybackErrorNotice = "Unable to play this voice sample right now.";
@@ -184,18 +158,6 @@ const isPromptTextDrag = (transfer: DataTransfer): boolean => {
   }
   return Boolean(extractDroppedPromptText(transfer));
 };
-
-const buildVoiceChangerRequestSettings = (): {
-  stability: number;
-  similarity_boost: number;
-  speed: number;
-  use_speaker_boost: boolean;
-} => ({
-  stability: hardcodedVoiceGenerationDefaults.stability,
-  similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
-  speed: hardcodedVoiceGenerationDefaults.speed,
-  use_speaker_boost: hardcodedVoiceChangerSpeakerBoostEnabled,
-});
 
 const buildVoiceDesignPreviewAudioSrc = (
   audioBase64: string,

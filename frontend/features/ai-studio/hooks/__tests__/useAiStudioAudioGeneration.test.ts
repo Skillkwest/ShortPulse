@@ -526,6 +526,84 @@ describe("useAiStudioAudioGeneration", () => {
     });
   });
 
+  it("blocks voice changer remux submissions unless two visible grid slots are available", async () => {
+    let uiError: string | null = null;
+    const existingOutputs = Array.from({ length: 249 }, (_, index) =>
+      createPlaceholderOutput(`existing-${index + 1}`, `Existing ${index + 1}`)
+    );
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-voice");
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        projectId: "project-1",
+        outputs: existingOutputs,
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById: vi.fn(),
+        setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleVoicesGenerate({
+        mode: "voice-changer",
+        voice: {
+          id: "voice-1",
+          name: "Narrator",
+          librarySection: "my",
+          provider: "elevenlabs",
+        },
+        source: {
+          id: "src-1",
+          kind: "audio",
+          origin: "local",
+          status: "ready",
+          aspect: null,
+          durationMs: 12_000,
+          name: "take.wav",
+          mimeType: "audio/wav",
+          file: null,
+          previewUrl: null,
+          sourceUrl: "https://example.com/take.wav",
+          objectUrl: null,
+          storagePath: "users/demo/take.wav",
+          referenceOutputId: null,
+          referenceMediaId: null,
+          errorMessage: null,
+          extractedFrom: {
+            kind: "video",
+            name: "clip.mp4",
+            mimeType: "video/mp4",
+            previewUrl: "https://example.com/clip.mp4",
+            sourceUrl: "https://example.com/clip.mp4",
+            storagePath: "users/demo/clip.mp4",
+            aspect: "16:9",
+            referenceOutputId: null,
+            referenceMediaId: null,
+          },
+        },
+        outputFormat: "mp3_44100_128",
+        removeBackgroundNoise: true,
+        modelId: "eleven_multilingual_sts_v2",
+        voiceSettings: {
+          stability: 1,
+          similarity_boost: 1,
+          speed: 1,
+          use_speaker_boost: true,
+        },
+        inputFormat: "other",
+      });
+    });
+
+    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(uiError).toContain("250 items");
+  });
+
   it("keeps music busy state active until parallel generations settle", async () => {
     let outputs: StudioOutput[] = [];
     let uiError: string | null = null;

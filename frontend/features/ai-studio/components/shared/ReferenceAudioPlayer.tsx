@@ -14,6 +14,9 @@ import { MediaDurationBadge } from "./MediaDurationBadge";
 import type { StudioAudioSourceMode } from "../../types";
 
 const AUDIO_WAVEFORM_BAR_COUNT = 28;
+const AUDIO_SEEK_KEYBOARD_STEP_SECONDS = 5;
+
+const clampAudioSeekRatio = (value: number): number => Math.min(1, Math.max(0, value));
 
 export type ReferenceAudioPlayerProps = {
   audioId: string;
@@ -54,6 +57,7 @@ export function ReferenceAudioPlayer({
 }: ReferenceAudioPlayerProps) {
   const audioNodeRef = React.useRef<HTMLAudioElement | null>(null);
   const readyNotifiedRef = React.useRef(false);
+  const isWaveformSeekingRef = React.useRef(false);
   const resolvedAudioInstanceKey = audioInstanceKey ?? audioId;
   const requestPlayback = onRequestPlay ?? requestExclusiveSoundPlayback;
   const markPlaybackStarted = onPlaybackStarted ?? markExclusiveSoundPlaying;
@@ -117,6 +121,13 @@ export function ReferenceAudioPlayer({
       }),
     [audioId, audioProgressRatio, audioWaveformBars]
   );
+  const audioProgressPercent = Math.round(audioProgressRatio * 100);
+  const resolvedAudioDurationSeconds = React.useMemo(() => {
+    if (resolvedAudioDurationMs != null && resolvedAudioDurationMs > 0) {
+      return resolvedAudioDurationMs / 1000;
+    }
+    return null;
+  }, [resolvedAudioDurationMs]);
 
   React.useEffect(() => {
     setResolvedAudioDurationMs(durationMs ?? null);
@@ -222,6 +233,117 @@ export function ReferenceAudioPlayer({
     ]
   );
 
+  const resolveAudioSeekDurationSeconds = React.useCallback((): number | null => {
+    const nodeDuration = audioNodeRef.current?.duration;
+    if (Number.isFinite(nodeDuration) && nodeDuration != null && nodeDuration > 0) {
+      return nodeDuration;
+    }
+    return resolvedAudioDurationSeconds;
+  }, [resolvedAudioDurationSeconds]);
+
+  const seekAudioToRatio = React.useCallback(
+    (nextRatio: number) => {
+      const durationSeconds = resolveAudioSeekDurationSeconds();
+      if (durationSeconds == null || durationSeconds <= 0) return;
+      if (!shouldDecodeWaveform) setShouldDecodeWaveform(true);
+      const clampedRatio = clampAudioSeekRatio(nextRatio);
+      const node = audioNodeRef.current;
+      if (node) {
+        try {
+          node.currentTime = durationSeconds * clampedRatio;
+        } catch {
+          return;
+        }
+      }
+      setAudioProgressRatio(clampedRatio);
+    },
+    [resolveAudioSeekDurationSeconds, shouldDecodeWaveform]
+  );
+
+  const seekAudioFromPointerEvent = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      if (bounds.width <= 0) return;
+      seekAudioToRatio((event.clientX - bounds.left) / bounds.width);
+    },
+    [seekAudioToRatio]
+  );
+
+  const handleWaveformPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.focus();
+      isWaveformSeekingRef.current = true;
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Pointer capture may be unavailable for synthetic or unsupported pointer streams.
+      }
+      seekAudioFromPointerEvent(event);
+    },
+    [seekAudioFromPointerEvent]
+  );
+
+  const handleWaveformPointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isWaveformSeekingRef.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      seekAudioFromPointerEvent(event);
+    },
+    [seekAudioFromPointerEvent]
+  );
+
+  const handleWaveformPointerEnd = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isWaveformSeekingRef.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      isWaveformSeekingRef.current = false;
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // Pointer capture may already be released by the browser on cancellation.
+      }
+    },
+    []
+  );
+
+  const handleWaveformKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const durationSeconds = resolveAudioSeekDurationSeconds();
+      if (durationSeconds == null || durationSeconds <= 0) return;
+      const node = audioNodeRef.current;
+      const currentSeconds =
+        node && Number.isFinite(node.currentTime)
+          ? node.currentTime
+          : durationSeconds * audioProgressRatio;
+      let nextSeconds: number | null = null;
+
+      if (event.key === "ArrowLeft") {
+        nextSeconds = currentSeconds - AUDIO_SEEK_KEYBOARD_STEP_SECONDS;
+      } else if (event.key === "ArrowRight") {
+        nextSeconds = currentSeconds + AUDIO_SEEK_KEYBOARD_STEP_SECONDS;
+      } else if (event.key === "Home") {
+        nextSeconds = 0;
+      } else if (event.key === "End") {
+        nextSeconds = durationSeconds;
+      } else if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      if (nextSeconds == null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      seekAudioToRatio(nextSeconds / durationSeconds);
+    },
+    [audioProgressRatio, resolveAudioSeekDurationSeconds, seekAudioToRatio]
+  );
+
   return (
     <>
       <div className="reference-card-audio-shell" style={audioShellStyle}>
@@ -247,7 +369,30 @@ export function ReferenceAudioPlayer({
               )}
             </button>
             <div className="reference-card-audio-waveform-shell">
-              <div className="reference-card-audio-waveform" aria-hidden="true">
+              <div
+                className="reference-card-audio-waveform reference-card-audio-waveform-control"
+                role="slider"
+                tabIndex={0}
+                aria-label="Audio seek position"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={audioProgressPercent}
+                aria-valuetext={`${audioProgressPercent}%`}
+                onPointerDown={handleWaveformPointerDown}
+                onPointerMove={handleWaveformPointerMove}
+                onPointerUp={handleWaveformPointerEnd}
+                onPointerCancel={handleWaveformPointerEnd}
+                onLostPointerCapture={handleWaveformPointerEnd}
+                onKeyDown={handleWaveformKeyDown}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+              >
                 {audioWaveformColumns.map((column) => (
                   <span
                     key={column.key}

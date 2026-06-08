@@ -39,6 +39,38 @@ describe("prepareExpertEditSubmission integration", () => {
     );
   });
 
+  it("keeps linked tenth secondary reference in slot order for tokenized standard submits", () => {
+    const extraImageUrls = Array.from({ length: 10 }, (_, index) =>
+      index === 9 ? "https://example.com/ref-10.png" : null
+    );
+
+    const result = prepareExpertEditSubmission({
+      promptText: "Use @img10 as the wardrobe reference.",
+      extraImageUrls,
+      flattenedPrimaryUrl: "blob:flatten-primary",
+      flattenedMarkupReferenceUrl: null,
+      editSubmitIntent: "standard",
+    });
+
+    expect(result).toEqual({
+      status: "ready",
+      referenceInputs: ["blob:flatten-primary", "https://example.com/ref-10.png"],
+      linkedSecondaryReferenceInputs: ["https://example.com/ref-10.png"],
+      promptOverrideOptions: {
+        displayPromptOverride: "Use @img10 as the wardrobe reference.",
+        submissionPromptOverride: expect.stringContaining(
+          "Use Figure 2 as the wardrobe reference."
+        ),
+      },
+    });
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.promptOverrideOptions?.submissionPromptOverride).toContain(
+      "Figure 2 = @img10 secondary reference."
+    );
+  });
+
   it("falls back to all populated secondary references when no secondary tokens are linked", () => {
     const result = prepareExpertEditSubmission({
       promptText: "Refine the background and styling.",

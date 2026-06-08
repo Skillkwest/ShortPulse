@@ -68,6 +68,7 @@ export function PromptStep({
   CreateChatPanel,
   composerMiddleContent = null,
   composerLeadingContent = null,
+  composerTrailingContent = null,
   chatComposerOverlayEnabled = false,
   stackTrailingComposerControls = false,
   hideChatComposerHint = false,
@@ -399,6 +400,7 @@ export function PromptStep({
                 hideOutputGenerateControls={hideOutputGenerateControls}
                 composerMiddleContent={composerMiddleContent}
                 composerLeadingContent={composerLeadingContent}
+                composerTrailingContent={composerTrailingContent}
                 chatComposerOverlayEnabled={chatComposerOverlayEnabled}
                 stackTrailingComposerControls={stackTrailingComposerControls}
                 hideChatComposerHint={hideChatComposerHint}

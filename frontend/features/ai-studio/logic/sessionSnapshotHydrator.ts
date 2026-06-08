@@ -39,6 +39,10 @@ import {
   PULSE_CREATE_FORCED_CHAT_MODE_ENABLED,
   STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
 } from "./chatModeDefaults";
+import {
+  createEmptyExpertEditSecondaryImageUrls,
+  normalizeExpertEditSecondaryImageUrls,
+} from "./expertEditReferenceSlots";
 import { resolveVideoPosterStoragePath } from "./videoPosterStoragePaths";
 import { resolveHydratedPulseRuntimeState, resolvePulseRuntimeState } from "./pulseSessionState";
 import {
@@ -272,13 +276,11 @@ const asSeedance2InputMode = (
     : FALLBACK_SEEDANCE2_INPUT_MODE;
 };
 
-const asExtraImageUrls = (value: unknown): [string | null, string | null, string | null] => {
-  if (!Array.isArray(value)) return [null, null, null];
-  return [
-    sanitizeHydratedMediaUrl(asNullableString(value[0])),
-    sanitizeHydratedMediaUrl(asNullableString(value[1])),
-    sanitizeHydratedMediaUrl(asNullableString(value[2])),
-  ];
+const asExtraImageUrls = (value: unknown): (string | null)[] => {
+  if (!Array.isArray(value)) return createEmptyExpertEditSecondaryImageUrls();
+  return normalizeExpertEditSecondaryImageUrls(
+    value.map((item) => sanitizeHydratedMediaUrl(asNullableString(item)))
+  );
 };
 
 const asCreateModeReferenceState = (value: unknown) => {
@@ -291,7 +293,7 @@ const asCreateModeReferenceState = (value: unknown) => {
     extraImageUrls: asExtraImageUrls(row.extraImageUrls),
     referenceImageInternalMediaRefs: normalizeInternalMediaRefList(
       row.referenceImageInternalMediaRefs,
-      4
+      11
     ),
     motionReferenceVideoUrl: sanitizeHydratedMediaUrl(
       asNullableString(row.motionReferenceVideoUrl)
@@ -709,7 +711,7 @@ export type AiStudioSessionHydrationPayload = {
     pulseSessionInstanceId: string | null;
     createModeReferenceStates?: AiStudioSessionCreateModeReferenceStatesV1;
     referenceImageUrl: string | null;
-    extraImageUrls: [string | null, string | null, string | null];
+    extraImageUrls: (string | null)[];
     referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
     editReferenceText: string;
     videoReferenceText: string;
@@ -993,13 +995,15 @@ export const buildAiStudioSessionHydrationPayload = (
       showCreateTools: false,
       referenceImageUrl: workspaceExpertCreateMode === "standard" ? visibleReferenceImageUrl : null,
       extraImageUrls:
-        workspaceExpertCreateMode === "standard" ? visibleExtraImageUrls : [null, null, null],
+        workspaceExpertCreateMode === "standard"
+          ? visibleExtraImageUrls
+          : createEmptyExpertEditSecondaryImageUrls(),
       referenceImageInternalMediaRefs:
         workspaceExpertCreateMode === "standard"
           ? normalizeInternalMediaRefList(
               (workspace as { referenceImageInternalMediaRefs?: unknown })
                 .referenceImageInternalMediaRefs,
-              4
+              11
             )
           : [],
       motionReferenceVideoUrl:
@@ -1015,13 +1019,15 @@ export const buildAiStudioSessionHydrationPayload = (
       showCreateTools: false,
       referenceImageUrl: workspaceExpertCreateMode === "pulse" ? visibleReferenceImageUrl : null,
       extraImageUrls:
-        workspaceExpertCreateMode === "pulse" ? visibleExtraImageUrls : [null, null, null],
+        workspaceExpertCreateMode === "pulse"
+          ? visibleExtraImageUrls
+          : createEmptyExpertEditSecondaryImageUrls(),
       referenceImageInternalMediaRefs:
         workspaceExpertCreateMode === "pulse"
           ? normalizeInternalMediaRefList(
               (workspace as { referenceImageInternalMediaRefs?: unknown })
                 .referenceImageInternalMediaRefs,
-              4
+              11
             )
           : [],
       motionReferenceVideoUrl:
@@ -1056,7 +1062,7 @@ export const buildAiStudioSessionHydrationPayload = (
       referenceImageInternalMediaRefs: normalizeInternalMediaRefList(
         (workspace as { referenceImageInternalMediaRefs?: unknown })
           .referenceImageInternalMediaRefs,
-        4
+        11
       ),
       editReferenceText: asString(workspace.editReferenceText, ""),
       videoReferenceText: asString(workspace.videoReferenceText, ""),

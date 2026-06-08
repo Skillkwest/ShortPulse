@@ -30,6 +30,13 @@ import type {
   ExpertEditSessionState,
   ExpertEditMarkupHistoryState,
 } from "./expertEditSessionState";
+import {
+  DEFAULT_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
+  MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
+  expertEditSecondarySlotIndexes,
+  type ExpertEditSecondaryImageUrls,
+  type ExpertEditSecondarySlotIndex,
+} from "../../logic/expertEditReferenceSlots";
 import { resolveStageViewportSize, type StageViewportSize } from "./expertEditViewportUtils";
 
 export type ExpertEditPanelViewProps = {
@@ -37,7 +44,7 @@ export type ExpertEditPanelViewProps = {
   modelId: string | null;
   modelLabel: string;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: ExpertEditSecondaryImageUrls;
   referenceText: string | null;
   imageResolution?: string;
   aspectOptions: AspectOption[];
@@ -53,6 +60,7 @@ export type ExpertEditPanelViewProps = {
   onAddFlattenedReferenceImage?: (payload: { url: string; mimeType?: string | null }) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
+  onPinPromptReference?: (text: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   onRegenerate: () => void;
   onRegenerateWithReferenceInputs?: ExpertEditRegenerateWithReferenceInputsHandler;
@@ -97,7 +105,13 @@ export type ExpertEditPanelViewProps = {
   onOpenPresetsLibrary?: () => void;
 };
 
-export const secondaries = [0, 1, 2] as const;
+export {
+  DEFAULT_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
+  MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
+  type ExpertEditSecondaryImageUrls,
+  type ExpertEditSecondarySlotIndex,
+};
+export const secondaries = expertEditSecondarySlotIndexes;
 
 export const COMPOSITE_REGENERATE_COHESION_PROMPT = [
   "Integrate all visible layers into one cohesive scene with consistent spatial logic.",
@@ -182,7 +196,7 @@ export type InpaintMode = "lasso" | "brush" | "auto";
 export type InpaintSelectionTab = "select" | "unselect";
 export type MarkupMode = "pen" | "lasso" | "eraser";
 
-export const MAX_LAYERS = 6;
+export const MAX_LAYERS = 5;
 export const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";
 export const INPAINT_COLLAPSE_ANIMATION_MS = 140;
 export const STATUS_TOAST_VISIBLE_MS = 1_000;

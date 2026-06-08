@@ -14,6 +14,10 @@ import {
   resolveTerminalFailureVisibilityState,
   resolveTerminalSuccessVisibilityState,
 } from "./terminalConvergenceVisibility";
+import {
+  readGenerationProjectIdFromContext,
+  readGenerationWorkspaceRuntimeKeyFromMetadata,
+} from "./generationWorkspaceRuntimeKey";
 
 type JsonObject = Record<string, unknown>;
 
@@ -66,10 +70,12 @@ export const readTerminalConvergenceProjectIdFromMetadata = (
   metadata: JsonObject
 ): string | null => {
   const shortpulseContext = readMetadataObject(metadata, "shortpulse_context", "shortpulseContext");
-  return (
-    asOptionalString(shortpulseContext.project_id) ?? asOptionalString(shortpulseContext.projectId)
-  );
+  return readGenerationProjectIdFromContext(shortpulseContext);
 };
+
+export const readTerminalConvergenceWorkspaceRuntimeKeyFromMetadata = (
+  metadata: JsonObject
+): string | null => readGenerationWorkspaceRuntimeKeyFromMetadata(metadata);
 
 /**
  * Sync terminal success publications and projection without changing caller-owned settlement flow.
@@ -201,6 +207,8 @@ export const syncTerminalSuccessViewState = async ({
   }
 
   const projectId = readTerminalConvergenceProjectIdFromMetadata(generationMetadata);
+  const workspaceRuntimeKey =
+    readTerminalConvergenceWorkspaceRuntimeKeyFromMetadata(generationMetadata);
   const firstOwnedDeliveryPaths =
     outputRows.length > 0 && outputRows[0]?.mediaFileId
       ? (deliveryPathsByMediaId.get(outputRows[0].mediaFileId) ?? null)
@@ -211,6 +219,7 @@ export const syncTerminalSuccessViewState = async ({
       generationId: generation.id,
       userId: generation.user_id,
       projectId,
+      workspaceRuntimeKey,
       sourceRef: asOptionalString(generationMetadata.source_ref),
       requestId: generation.request_id,
       provider: generation.provider,
@@ -307,6 +316,8 @@ export const syncTerminalFailureViewState = async ({
       generationId: generation.id,
       userId: generation.user_id,
       projectId: readTerminalConvergenceProjectIdFromMetadata(generationMetadata),
+      workspaceRuntimeKey:
+        readTerminalConvergenceWorkspaceRuntimeKeyFromMetadata(generationMetadata),
       sourceRef: asOptionalString(generationMetadata.source_ref),
       requestId: generation.request_id,
       provider: generation.provider,

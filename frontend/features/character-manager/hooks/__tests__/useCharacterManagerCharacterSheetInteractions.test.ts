@@ -1,6 +1,16 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useCharacterManagerCharacterSheetInteractions } from "../useCharacterManagerCharacterSheetInteractions";
+import type { CharacterSheetPresetMediaReference } from "../../types";
+
+const createMediaReference = (
+  characterMediaId: string,
+  previewUrl = `https://example.com/${characterMediaId}.png`
+): CharacterSheetPresetMediaReference => ({
+  characterMediaId,
+  storagePath: `${characterMediaId}.png`,
+  previewUrl,
+});
 
 const createParams = (
   overrides: Partial<Parameters<typeof useCharacterManagerCharacterSheetInteractions>[0]> = {}
@@ -148,5 +158,77 @@ describe("useCharacterManagerCharacterSheetInteractions", () => {
     expect(preventDefault).toHaveBeenCalled();
     expect(setActiveCharacterSheetDropZone).toHaveBeenCalledWith(null);
     expect(saveCharacterSheetPresetAssignments).not.toHaveBeenCalled();
+  });
+
+  it("swaps assignments when a character reference is dropped onto another filled slot", () => {
+    const saveCharacterSheetPresetAssignments = vi.fn();
+    const setActiveCharacterSheetDropZone = vi.fn();
+    const preventDefault = vi.fn();
+    const portraitReference = createMediaReference("portrait-media");
+    const closeUpReference = createMediaReference("close-up-media");
+    const { result } = renderHook(() =>
+      useCharacterManagerCharacterSheetInteractions(
+        createParams({
+          resolvedCharacterSheetPresetAssignments: {
+            portrait: portraitReference,
+            close_up: closeUpReference,
+            front_shot: null,
+          },
+          saveCharacterSheetPresetAssignments,
+          draggedCharacterSheetZoneKey: "portrait",
+          setActiveCharacterSheetDropZone,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleCharacterSheetDrop("close_up")({
+        preventDefault,
+        dataTransfer: {
+          getData: () => "portrait",
+        },
+      } as never);
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(setActiveCharacterSheetDropZone).toHaveBeenCalledWith(null);
+    expect(saveCharacterSheetPresetAssignments).toHaveBeenCalledWith({
+      portrait: closeUpReference,
+      close_up: portraitReference,
+      front_shot: null,
+    });
+  });
+
+  it("moves an assignment when a character reference is dropped onto an empty slot", () => {
+    const saveCharacterSheetPresetAssignments = vi.fn();
+    const portraitReference = createMediaReference("portrait-media");
+    const { result } = renderHook(() =>
+      useCharacterManagerCharacterSheetInteractions(
+        createParams({
+          resolvedCharacterSheetPresetAssignments: {
+            portrait: portraitReference,
+            close_up: null,
+            front_shot: null,
+          },
+          saveCharacterSheetPresetAssignments,
+          draggedCharacterSheetZoneKey: "portrait",
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleCharacterSheetDrop("front_shot")({
+        preventDefault: vi.fn(),
+        dataTransfer: {
+          getData: () => "portrait",
+        },
+      } as never);
+    });
+
+    expect(saveCharacterSheetPresetAssignments).toHaveBeenCalledWith({
+      portrait: null,
+      close_up: null,
+      front_shot: portraitReference,
+    });
   });
 });

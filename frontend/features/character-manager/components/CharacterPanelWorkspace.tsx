@@ -392,6 +392,7 @@ export function CharacterPanelWorkspace({
     renameCharacterSheetPreset,
     deleteCharacterSheetPreset,
     setCharacterSheetPresetFile,
+    setCharacterSheetPresetStorageReference,
     createCharacter,
     saveCharacter,
     selectCharacter,
@@ -802,8 +803,29 @@ export function CharacterPanelWorkspace({
     [setCharacterSheetPresetFile, setCharacterSheetSlotPending]
   );
 
+  const setCharacterSheetPresetStorageReferenceWithPending = React.useCallback(
+    async (
+      zoneKey: CharacterSheetDropZoneKey,
+      reference: {
+        storagePath: string;
+        previewUrl: string | null;
+        filename?: string | null;
+        mimeType?: string | null;
+      }
+    ) => {
+      setCharacterSheetSlotPending(zoneKey, 1);
+      try {
+        return await setCharacterSheetPresetStorageReference(zoneKey, reference);
+      } finally {
+        setCharacterSheetSlotPending(zoneKey, -1);
+      }
+    },
+    [setCharacterSheetPresetStorageReference, setCharacterSheetSlotPending]
+  );
+
   const { handleCharacterSheetReferenceDrop } = useCharacterManagerDroppedReferenceController({
     setCharacterSheetPresetFile,
+    setCharacterSheetPresetStorageReference: setCharacterSheetPresetStorageReferenceWithPending,
     resolveCharacterDropReference,
   });
 

@@ -14,6 +14,7 @@ import { ReferenceMediaStep } from "./ReferenceMediaStep";
 import { AiStudioRecordPanelPrefab } from "./AiStudioRecordPanelPrefab";
 import { MotionRecorderModal } from "./MotionRecorderModal";
 import { ReferencePromptStep } from "./ReferencePromptStep";
+import { ComposerPinButton } from "./shared/ComposerPinButton";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
@@ -158,6 +159,7 @@ export type VideoPropertiesPanelProps = {
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
+  onPinPromptReference?: (text: string) => void;
   onRegenerate: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveMotionVideoUrlById?: (id: string | null) => string | null;
@@ -222,6 +224,7 @@ export function VideoPropertiesPanel({
   onPrimaryImageChange,
   onExtraImageChange,
   onPromptTextChange,
+  onPinPromptReference,
   onRegenerate,
   resolvePreviewUrlById,
   resolveMotionVideoUrlById,
@@ -951,6 +954,16 @@ export function VideoPropertiesPanel({
         } character count: ${primaryPromptCharacterCount.toLocaleString()} / ${klingPrimaryPromptCharacterLimit.toLocaleString()}`}
       />
     ) : null;
+  const primaryPromptInlineAction = (
+    <div className="video-prompt-inline-action-cluster">
+      {primaryPromptCharacterCounter}
+      <ComposerPinButton
+        text={primaryPromptValue}
+        onPinTextReference={onPinPromptReference}
+        className="video-prompt-pin-button"
+      />
+    </div>
+  );
   const customKlingPromptOverLimitShots = React.useMemo(
     () =>
       isKieKlingModelSelected && !isSeedance2FamilyModelSelected && isCustomKlingWorkflow
@@ -1842,8 +1855,8 @@ export function VideoPropertiesPanel({
                                   promptHelperText={primaryPromptHelperText}
                                   promptTextareaRef={primaryPromptTextareaRef}
                                   promptHighlightSegments={primaryPromptHighlightSegments}
-                                  promptInlineAction={primaryPromptCharacterCounter}
-                                  promptInlineActionClassName="video-prompt-character-inline-slot"
+                                  promptInlineAction={primaryPromptInlineAction}
+                                  promptInlineActionClassName="video-prompt-inline-action-slot"
                                   onPromptFocus={() => handlePromptSelection("primary")}
                                   onPromptBlur={handlePromptBlur}
                                   onPromptSelect={() => handlePromptSelection("primary")}

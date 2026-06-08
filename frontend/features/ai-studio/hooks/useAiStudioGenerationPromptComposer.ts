@@ -39,7 +39,7 @@ type UseAiStudioGenerationPromptComposerParams = {
   activeOutputPreviewUrl: string | null;
   resolveReferenceInputsForTool: (tool: ToolId | null) => {
     referenceImageUrl: string | null;
-    extraImageUrls: [string | null, string | null, string | null];
+    extraImageUrls: readonly (string | null)[];
   };
   submitTask: (
     promptText: string,
@@ -59,9 +59,9 @@ const normalizeOrderedReferenceInputs = ({
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
   if (preserveDuplicates) {
-    return normalizedCandidates.slice(0, 8);
+    return normalizedCandidates.slice(0, 10);
   }
-  return Array.from(new Set(normalizedCandidates)).slice(0, 8);
+  return Array.from(new Set(normalizedCandidates)).slice(0, 10);
 };
 
 const resolvePromptForTool = ({

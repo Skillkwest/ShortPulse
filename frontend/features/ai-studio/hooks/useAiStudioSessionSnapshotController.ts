@@ -40,6 +40,10 @@ import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
 import { prepareVideoUrl } from "../utils/videoUpload";
+import {
+  createEmptyExpertEditSecondaryImageUrls,
+  normalizeExpertEditSecondaryImageUrls,
+} from "../logic/expertEditReferenceSlots";
 
 type RestoredOutputAuthorityLike = Partial<
   Pick<
@@ -97,7 +101,7 @@ const EMPTY_PROJECT_WORKSPACE_REFERENCE_STATE: AiStudioSessionCreateModeReferenc
   selectedTool: "create",
   showCreateTools: false,
   referenceImageUrl: null,
-  extraImageUrls: [null, null, null],
+  extraImageUrls: createEmptyExpertEditSecondaryImageUrls(),
   referenceImageInternalMediaRefs: [],
   motionReferenceVideoUrl: null,
   useReferenceImageIndicator: false,
@@ -111,22 +115,20 @@ const EMPTY_PROJECT_AGENT_RUNTIME = createEmptyAiStudioSessionAgentState();
 
 const resolveReferenceUrlsFromInternalMediaRefs = async (
   primaryUrl: string | null,
-  extraUrls: [string | null, string | null, string | null],
+  extraUrls: readonly (string | null)[],
   refs: unknown
 ): Promise<{
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
 }> => {
   const signedUrls = await resolveSessionRestoreReferenceSignedUrls(
     Array.isArray(refs) ? refs : []
   );
   return {
     referenceImageUrl: primaryUrl ?? signedUrls[0] ?? null,
-    extraImageUrls: [
-      extraUrls[0] ?? signedUrls[1] ?? null,
-      extraUrls[1] ?? signedUrls[2] ?? null,
-      extraUrls[2] ?? signedUrls[3] ?? null,
-    ],
+    extraImageUrls: normalizeExpertEditSecondaryImageUrls(
+      Array.from({ length: 10 }, (_, index) => extraUrls[index] ?? signedUrls[index + 1] ?? null)
+    ),
   };
 };
 
@@ -149,7 +151,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   aspect: string;
   pulseWorkspaceState: PulseWorkspaceState;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   editReferenceText: string;
   videoReferenceText: string;
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -768,7 +770,7 @@ export const useAiStudioSessionSnapshotController = ({
         },
         createModeReferenceStates: EMPTY_PROJECT_WORKSPACE_REFERENCE_STATES,
         referenceImageUrl: null,
-        extraImageUrls: [null, null, null],
+        extraImageUrls: createEmptyExpertEditSecondaryImageUrls(),
         editReferenceText: "",
         videoReferenceText: "",
         videoReferenceMode: "standard",

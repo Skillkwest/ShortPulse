@@ -44,6 +44,8 @@ type ParsedProductImageAssetUpload = {
   tempFilePath?: string;
 };
 
+type ProductImageAssetUploadInput = Omit<ParsedProductImageAssetUpload, "tempFilePath">;
+
 export type ProductImageAssetAdmissionResponse = {
   bucket: typeof MEDIA_BUCKET;
   url: string;
@@ -72,6 +74,7 @@ const CHARACTER_SLOT_KEYS = new Set([
 ]);
 
 const PRODUCT_IMAGE_ASSET_TRANSPORT_MAX_BYTES = MAX_VIDEO_MEDIA_BYTES;
+const PRODUCT_IMAGE_ASSET_STAGING_FOLDER = "upload-staging/product-image-assets";
 const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]{1,96}$/;
 
 export class ProductImageAssetAdmissionError extends Error {
@@ -285,6 +288,125 @@ const validateImageMimeType = ({
   return detectedMimeType;
 };
 
+const resolvePreparedImageMimeType = (declaredMimeType: string): string => {
+  const normalizedMimeType = normalizeContentType(declaredMimeType);
+  if (!normalizedMimeType) {
+    throw new ProductImageAssetAdmissionError(
+      400,
+      "Invalid request",
+      "Upload file mime type is required."
+    );
+  }
+  if (!ALLOWED_IMAGE_MIME_TYPES.has(normalizedMimeType)) {
+    throw new ProductImageAssetAdmissionError(
+      400,
+      "Invalid file type",
+      "Upload file is not a supported image format."
+    );
+  }
+  return normalizedMimeType;
+};
+
+const resolvePreparedUploadStoragePath = ({
+  userId,
+  intent,
+  filename,
+  mimeType,
+}: {
+  userId: string;
+  intent: ProductImageAssetIntent;
+  filename: string;
+  mimeType: string;
+}): string => {
+  const extension = resolveMediaStorageExtension(mimeType, "jpg") || "jpg";
+  const stem = sanitizeFileStem(filename);
+  const uniqueName = `${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`;
+  return assertUserScopedMediaStoragePath({
+    path: `${userId}/${PRODUCT_IMAGE_ASSET_STAGING_FOLDER}/${intent}/${uniqueName}`,
+    userId,
+    label: "Prepared product image asset storage path",
+  });
+};
+
+const createSignedUploadTarget = async (
+  storagePath: string
+): Promise<{ path: string; token: string }> => {
+  const { data, error } = await getSupabaseAdmin()
+    .storage.from(MEDIA_BUCKET)
+    .createSignedUploadUrl(storagePath);
+  if (error || !data?.path || !data.token) {
+    throw new Error(error?.message || "Unable to create signed upload target.");
+  }
+  return {
+    path: data.path,
+    token: data.token,
+  };
+};
+
+const storageDownloadDataToBuffer = async (data: unknown): Promise<Buffer> => {
+  if (Buffer.isBuffer(data)) return data;
+  if (data instanceof ArrayBuffer) return Buffer.from(data);
+  if (ArrayBuffer.isView(data)) {
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  }
+  if (
+    data &&
+    typeof data === "object" &&
+    "arrayBuffer" in data &&
+    typeof data.arrayBuffer === "function"
+  ) {
+    const arrayBuffer = await (data as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+  throw new ProductImageAssetAdmissionError(
+    500,
+    "Unable to read image asset source",
+    "Storage download returned an unsupported data type."
+  );
+};
+
+const readStorageBuffer = async ({
+  userId,
+  storagePath,
+  expectedPrefix,
+}: {
+  userId: string;
+  storagePath: string;
+  expectedPrefix?: string;
+}): Promise<Buffer> => {
+  const safeStoragePath = assertUserScopedMediaStoragePath({
+    path: storagePath,
+    userId,
+    label: "Product image asset source storage path",
+  });
+  if (expectedPrefix && !safeStoragePath.startsWith(expectedPrefix)) {
+    throw new ProductImageAssetAdmissionError(
+      400,
+      "Invalid request",
+      "Product image asset source is outside the expected namespace."
+    );
+  }
+
+  const { data, error } = await getSupabaseAdmin()
+    .storage.from(MEDIA_BUCKET)
+    .download(safeStoragePath);
+  if (error || !data) {
+    throw new ProductImageAssetAdmissionError(404, "Image asset source not found", error?.message);
+  }
+  const buffer = await storageDownloadDataToBuffer(data);
+  if (buffer.length <= 0) {
+    throw new ProductImageAssetAdmissionError(
+      400,
+      "Invalid request",
+      "Image asset source is empty."
+    );
+  }
+  if (buffer.length > PRODUCT_IMAGE_ASSET_TRANSPORT_MAX_BYTES) {
+    throw new ProductImageAssetAdmissionError(413, "Upload failed: file too large");
+  }
+  return buffer;
+};
+
 export const parseProductImageAssetUpload = async (
   req: NextApiRequest
 ): Promise<ParsedProductImageAssetUpload> => {
@@ -341,6 +463,238 @@ export const parseProductImageAssetUpload = async (
   };
 };
 
+const admitProductImageAssetBufferForUser = async ({
+  upload,
+  userId,
+}: {
+  upload: ProductImageAssetUploadInput;
+  userId: string;
+}): Promise<ProductImageAssetAdmissionResponse> => {
+  await assertOwnedDomainTarget({ userId, upload });
+  const detectedMimeType = validateImageMimeType({
+    declaredMimeType: upload.declaredMimeType,
+    buffer: upload.buffer,
+  });
+
+  const admittedImage = await admitImageBufferForProductUse({
+    buffer: upload.buffer,
+    mimeType: detectedMimeType,
+    maxBytes: MAX_IMAGE_MEDIA_BYTES,
+  });
+  if (admittedImage.status === "rejected") {
+    throw new ProductImageAssetAdmissionError(
+      413,
+      "Upload failed: file too large",
+      admittedImage.reason === "animated_over_cap" ? admittedImage.userMessage : undefined
+    );
+  }
+
+  const storagePath = resolveStoragePath({
+    userId,
+    upload,
+    mimeType: admittedImage.mimeType,
+  });
+  await uploadMediaBufferToStoragePath({
+    storagePath,
+    buffer: admittedImage.buffer,
+    mimeType: admittedImage.mimeType,
+  });
+  const signedUrl = await createSignedMediaUrl(storagePath);
+  const dimensions =
+    admittedImage.dimensions ?? extractImageDimensionsFromBuffer(admittedImage.buffer);
+  const admissionMetadata: ImageAdmissionMetadata = {
+    ...admittedImage.metadata,
+    admitted_storage_path: storagePath,
+  };
+
+  return {
+    bucket: MEDIA_BUCKET,
+    url: signedUrl,
+    signedUrl,
+    storagePath,
+    previewStoragePath: storagePath,
+    filename: upload.filename,
+    mimeType: admittedImage.mimeType,
+    size: admittedImage.buffer.length,
+    width: dimensions?.width ?? null,
+    height: dimensions?.height ?? null,
+    admissionMetadata,
+  };
+};
+
+export const prepareProductImageAssetUploadForUser = async ({
+  userId,
+  intent,
+  characterId = "",
+  characterSheetId = "",
+  slotKey = "",
+  elementId = "",
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  intent: string;
+  characterId?: string;
+  characterSheetId?: string;
+  slotKey?: string;
+  elementId?: string;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<{ path: string; token: string; mimeType: string; name: string }> => {
+  const resolvedIntent = resolveIntent(intent);
+  const normalizedFilename = filename.trim() || "upload";
+  const normalizedMimeType = resolvePreparedImageMimeType(declaredMimeType);
+  await assertOwnedDomainTarget({
+    userId,
+    upload: {
+      buffer: Buffer.alloc(0),
+      declaredMimeType: normalizedMimeType,
+      filename: normalizedFilename,
+      intent: resolvedIntent,
+      characterId,
+      characterSheetId,
+      slotKey,
+      elementId,
+    },
+  });
+
+  const storagePath = resolvePreparedUploadStoragePath({
+    userId,
+    intent: resolvedIntent,
+    filename: normalizedFilename,
+    mimeType: normalizedMimeType,
+  });
+  const target = await createSignedUploadTarget(storagePath);
+  return {
+    path: target.path,
+    token: target.token,
+    mimeType: normalizedMimeType,
+    name: normalizedFilename,
+  };
+};
+
+export const finalizePreparedProductImageAssetUploadForUser = async ({
+  userId,
+  sourceStoragePath,
+  intent,
+  characterId = "",
+  characterSheetId = "",
+  slotKey = "",
+  elementId = "",
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  sourceStoragePath: string;
+  intent: string;
+  characterId?: string;
+  characterSheetId?: string;
+  slotKey?: string;
+  elementId?: string;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<ProductImageAssetAdmissionResponse> => {
+  const resolvedIntent = resolveIntent(intent);
+  const normalizedFilename = filename.trim() || "upload";
+  const normalizedMimeType = resolvePreparedImageMimeType(declaredMimeType);
+  if (!sourceStoragePath.trim()) {
+    throw new ProductImageAssetAdmissionError(
+      400,
+      "Invalid request",
+      "Image asset source storage path is required."
+    );
+  }
+  const safeStoragePath = assertUserScopedMediaStoragePath({
+    path: sourceStoragePath,
+    userId,
+    label: "Prepared product image asset storage path",
+  });
+  const expectedPrefix = `${userId}/${PRODUCT_IMAGE_ASSET_STAGING_FOLDER}/`;
+  try {
+    const buffer = await readStorageBuffer({
+      userId,
+      storagePath: safeStoragePath,
+      expectedPrefix,
+    });
+    return await admitProductImageAssetBufferForUser({
+      userId,
+      upload: {
+        buffer,
+        declaredMimeType: normalizedMimeType,
+        filename: normalizedFilename,
+        intent: resolvedIntent,
+        characterId,
+        characterSheetId,
+        slotKey,
+        elementId,
+      },
+    });
+  } finally {
+    try {
+      await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([safeStoragePath]);
+    } catch {
+      // Staging cleanup is best-effort; keep the real admission error visible.
+    }
+  }
+};
+
+export const admitProductImageAssetFromStorageForUser = async ({
+  userId,
+  sourceStoragePath,
+  intent,
+  characterId = "",
+  characterSheetId = "",
+  slotKey = "",
+  elementId = "",
+  filename,
+  declaredMimeType = "",
+}: {
+  userId: string;
+  sourceStoragePath: string;
+  intent: string;
+  characterId?: string;
+  characterSheetId?: string;
+  slotKey?: string;
+  elementId?: string;
+  filename?: string;
+  declaredMimeType?: string;
+}): Promise<ProductImageAssetAdmissionResponse> => {
+  const resolvedIntent = resolveIntent(intent);
+  if (!sourceStoragePath.trim()) {
+    throw new ProductImageAssetAdmissionError(
+      400,
+      "Invalid request",
+      "Image asset source storage path is required."
+    );
+  }
+  const buffer = await readStorageBuffer({
+    userId,
+    storagePath: sourceStoragePath,
+  });
+  const detectedMimeType = validateImageMimeType({
+    declaredMimeType: "",
+    buffer,
+  });
+  const normalizedFilename =
+    filename?.trim() ||
+    sourceStoragePath.split("/").filter(Boolean).pop() ||
+    `reference.${resolveMediaStorageExtension(detectedMimeType, "jpg")}`;
+
+  return await admitProductImageAssetBufferForUser({
+    userId,
+    upload: {
+      buffer,
+      declaredMimeType: normalizeContentType(declaredMimeType) || detectedMimeType,
+      filename: normalizedFilename,
+      intent: resolvedIntent,
+      characterId,
+      characterSheetId,
+      slotKey,
+      elementId,
+    },
+  });
+};
+
 export const admitProductImageAssetUploadForUser = async ({
   req,
   userId,
@@ -350,56 +704,10 @@ export const admitProductImageAssetUploadForUser = async ({
 }): Promise<ProductImageAssetAdmissionResponse> => {
   const parsedUpload = await parseProductImageAssetUpload(req);
   try {
-    await assertOwnedDomainTarget({ userId, upload: parsedUpload });
-    const detectedMimeType = validateImageMimeType({
-      declaredMimeType: parsedUpload.declaredMimeType,
-      buffer: parsedUpload.buffer,
-    });
-
-    const admittedImage = await admitImageBufferForProductUse({
-      buffer: parsedUpload.buffer,
-      mimeType: detectedMimeType,
-      maxBytes: MAX_IMAGE_MEDIA_BYTES,
-    });
-    if (admittedImage.status === "rejected") {
-      throw new ProductImageAssetAdmissionError(
-        413,
-        "Upload failed: file too large",
-        admittedImage.reason === "animated_over_cap" ? admittedImage.userMessage : undefined
-      );
-    }
-
-    const storagePath = resolveStoragePath({
+    return await admitProductImageAssetBufferForUser({
       userId,
       upload: parsedUpload,
-      mimeType: admittedImage.mimeType,
     });
-    await uploadMediaBufferToStoragePath({
-      storagePath,
-      buffer: admittedImage.buffer,
-      mimeType: admittedImage.mimeType,
-    });
-    const signedUrl = await createSignedMediaUrl(storagePath);
-    const dimensions =
-      admittedImage.dimensions ?? extractImageDimensionsFromBuffer(admittedImage.buffer);
-    const admissionMetadata: ImageAdmissionMetadata = {
-      ...admittedImage.metadata,
-      admitted_storage_path: storagePath,
-    };
-
-    return {
-      bucket: MEDIA_BUCKET,
-      url: signedUrl,
-      signedUrl,
-      storagePath,
-      previewStoragePath: storagePath,
-      filename: parsedUpload.filename,
-      mimeType: admittedImage.mimeType,
-      size: admittedImage.buffer.length,
-      width: dimensions?.width ?? null,
-      height: dimensions?.height ?? null,
-      admissionMetadata,
-    };
   } finally {
     if (parsedUpload.tempFilePath) {
       try {

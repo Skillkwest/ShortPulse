@@ -60,7 +60,10 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
   renderMarkupControlsContent: (scope: "inline" | "modal" | "rail") => React.ReactNode;
   renderMoveControlsContent: (scope: "inline" | "modal" | "rail") => React.ReactNode;
   shouldShowSecondaryReferenceAndStylesRow: boolean;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
+  visibleSecondarySlotIndexes: readonly number[];
+  onAddSecondaryReferenceSlot: () => void;
+  onRemoveSecondaryReferenceSlot: (index: number) => void;
   inputRefs: readonly React.RefObject<HTMLInputElement | null>[];
   extraDragActive: boolean[];
   promptTokenPickerIsOpen: boolean;
@@ -75,7 +78,6 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
   handleExtraDragEnter: (index: number) => React.DragEventHandler<HTMLDivElement>;
   handleExtraDragOver: (index: number) => React.DragEventHandler<HTMLDivElement>;
   handleExtraDragLeave: (index: number) => () => void;
-  onExtraImageChange: (index: number, url: string | null) => void;
   isStylesPanelOpen: boolean;
   selectedStyleId: string | null;
   stylesCatalog: readonly ExpertEditStyleTile[] | undefined;
@@ -106,6 +108,7 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
   handleLayerDrop: (event: React.DragEvent<HTMLDivElement>, index: number) => void;
   handleLayerDragEnd: () => void;
   handleSelectLayer: (index: number) => void;
+  handleClearAllLayers: () => void;
   handleDeleteLayer: (index: number) => void;
   handleManualFlatten: () => void | Promise<void>;
   handleRemoveBackground: () => void | Promise<void>;
@@ -153,6 +156,9 @@ export function useExpertEditStageWorkspaceRuntime({
   renderMoveControlsContent,
   shouldShowSecondaryReferenceAndStylesRow,
   extraImageUrls,
+  visibleSecondarySlotIndexes,
+  onAddSecondaryReferenceSlot,
+  onRemoveSecondaryReferenceSlot,
   inputRefs,
   extraDragActive,
   promptTokenPickerIsOpen,
@@ -164,7 +170,6 @@ export function useExpertEditStageWorkspaceRuntime({
   handleExtraDragEnter,
   handleExtraDragOver,
   handleExtraDragLeave,
-  onExtraImageChange,
   isStylesPanelOpen,
   selectedStyleId,
   stylesCatalog,
@@ -195,6 +200,7 @@ export function useExpertEditStageWorkspaceRuntime({
   handleLayerDrop,
   handleLayerDragEnd,
   handleSelectLayer,
+  handleClearAllLayers,
   handleDeleteLayer,
   handleManualFlatten,
   handleRemoveBackground,
@@ -269,6 +275,9 @@ export function useExpertEditStageWorkspaceRuntime({
         shouldShowSecondaryReferenceAndStylesRow ? (
           <ExpertEditSecondaryReferences
             extraImageUrls={extraImageUrls}
+            visibleSlotIndexes={visibleSecondarySlotIndexes}
+            onAddSlot={onAddSecondaryReferenceSlot}
+            onRemoveSlot={onRemoveSecondaryReferenceSlot}
             inputRefs={inputRefs}
             extraDragActive={extraDragActive}
             isPromptTokenPickerOpen={promptTokenPickerIsOpen}
@@ -280,7 +289,6 @@ export function useExpertEditStageWorkspaceRuntime({
             onSecondaryDragEnter={handleExtraDragEnter}
             onSecondaryDragOver={handleExtraDragOver}
             onSecondaryDragLeave={handleExtraDragLeave}
-            onExtraImageChange={onExtraImageChange}
             isStylesPanelOpen={isStylesPanelOpen}
             selectedStyleId={selectedStyleId}
             stylesCatalog={stylesCatalog}
@@ -349,6 +357,7 @@ export function useExpertEditStageWorkspaceRuntime({
         onLayerDrop={handleLayerDrop}
         onLayerDragEnd={handleLayerDragEnd}
         onSelectLayer={handleSelectLayer}
+        onClearAllLayers={handleClearAllLayers}
         onDeleteLayer={handleDeleteLayer}
         onFlatten={() => void handleManualFlatten()}
         onRemoveBackground={handleRemoveBackground}

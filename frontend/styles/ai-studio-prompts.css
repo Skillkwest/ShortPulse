@@ -361,3 +361,45 @@
   font-size: 13px;
   border: 1px solid var(--ai-border-faint, rgba(201, 205, 214, 0.14));
 }
+
+.composer-pin-button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  border-radius: 999px;
+  background: rgba(12, 16, 22, 0.86);
+  color: rgba(245, 249, 255, 0.88);
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.composer-pin-button:hover:not(:disabled),
+.composer-pin-button:focus-visible:not(:disabled) {
+  border-color: rgba(52, 200, 255, 0.58);
+  background: rgba(25, 34, 44, 0.94);
+  color: #f5f9ff;
+  transform: translateY(-1px);
+}
+
+.composer-pin-button:focus-visible {
+  outline: 2px solid rgba(52, 200, 255, 0.42);
+  outline-offset: 2px;
+}
+
+.composer-pin-button:disabled {
+  cursor: default;
+  opacity: 0.42;
+  transform: none;
+}
+
+.composer-pin-button svg {
+  pointer-events: none;
+}

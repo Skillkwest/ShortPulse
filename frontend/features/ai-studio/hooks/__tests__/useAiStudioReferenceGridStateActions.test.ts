@@ -73,7 +73,7 @@ describe("useAiStudioReferenceGridStateActions", () => {
     expect(Array.from(result.current.pendingFinalizeRemovalIds)).toEqual(["output-2"]);
   });
 
-  it("keeps large all-refs collections active instead of soft-archiving by count", () => {
+  it("caps large all-refs collections at 250 visible outputs", () => {
     const { result } = renderHook(() => {
       const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
       const [outputs, setOutputsState] = useState<StudioOutput[]>([]);
@@ -111,8 +111,54 @@ describe("useAiStudioReferenceGridStateActions", () => {
       result.current.setOutputs(manyOutputs);
     });
 
-    expect(result.current.outputs).toHaveLength(525);
+    expect(result.current.outputs).toHaveLength(250);
     expect(result.current.archivedOutputs).toEqual([]);
+  });
+
+  it("blocks archived restore when the visible Reference Grid is full", () => {
+    const { result } = renderHook(() => {
+      const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
+      const [outputs, setOutputsState] = useState<StudioOutput[]>(
+        Array.from({ length: 250 }, (_, index) => createOutput(`output-${index + 1}`))
+      );
+      const [archivedOutputs, setArchivedOutputs] = useState<StudioOutput[]>([
+        createOutput("archived-1", {
+          archivedAt: "2026-04-24T18:30:00.000Z",
+          archiveReason: "manual",
+        }),
+      ]);
+      const [, setReferenceProjectionState] = useState<ReferenceProjectionState>({
+        quickSlotIds: [],
+        removedFromAllRefsIds: [],
+      });
+      const pendingFinalizeRemovalIdsRef = useRef(new Set<string>());
+
+      const actions = useAiStudioReferenceGridStateActions({
+        outputs,
+        archivedOutputs,
+        outputsLength: outputs.length,
+        setActiveOutputId,
+        setOutputsState,
+        setArchivedOutputs,
+        setReferenceProjectionState,
+        pendingFinalizeRemovalIdsRef,
+      });
+
+      return {
+        activeOutputId,
+        outputs,
+        archivedOutputs,
+        ...actions,
+      };
+    });
+
+    act(() => {
+      result.current.restoreArchivedOutput("archived-1");
+    });
+
+    expect(result.current.outputs).toHaveLength(250);
+    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual(["archived-1"]);
+    expect(result.current.activeOutputId).toBeNull();
   });
 
   it("cascade-removes right-rail references that still point at deleted library media", () => {

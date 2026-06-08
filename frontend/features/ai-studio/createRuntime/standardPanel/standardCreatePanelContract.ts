@@ -93,6 +93,7 @@ export type BuildStandardCreatePanelPropsParams = {
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
   onOpenPresetsLibrary?: () => void;
+  onPinPromptReference?: (text: string) => void;
 };
 
 /**
@@ -161,6 +162,7 @@ export const buildStandardCreatePanelProps = ({
   selectedStyleId,
   stylesCatalog,
   onOpenPresetsLibrary,
+  onPinPromptReference,
 }: BuildStandardCreatePanelPropsParams): StandardCreatePropertiesPanelProps => {
   const primaryActionDecision = resolveStandardCreatePrimaryActionDecision({
     enabled: true,
@@ -256,5 +258,6 @@ export const buildStandardCreatePanelProps = ({
     selectedStyleId,
     stylesCatalog,
     onOpenPresetsLibrary,
+    onPinPromptReference,
   };
 };

@@ -25,7 +25,7 @@ import type {
 
 type UseExpertEditPromptComposerRuntimeParams = {
   promptTextValue: string;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   selectedLayerImageUrl: string | null;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
@@ -118,9 +118,7 @@ export const useExpertEditPromptComposerRuntime = ({
     : modelLogoSrc;
 
   const {
-    extraOneInputRef,
-    extraTwoInputRef,
-    extraThreeInputRef,
+    inputRefs,
     extraDragActive,
     handleFileSelection,
     handleExtraDrop,
@@ -170,7 +168,6 @@ export const useExpertEditPromptComposerRuntime = ({
     onCharacterModeEnabledChange,
   });
 
-  const inputRefs = [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] as const;
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = promptTextValue.trim().length > 0;
   const [isPromptComposerExpanded, setIsPromptComposerExpanded] = React.useState(false);

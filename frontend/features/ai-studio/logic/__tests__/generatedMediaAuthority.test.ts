@@ -917,7 +917,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-visible-1",
         generationId: "gen-visible-1",
@@ -1001,7 +1003,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-provider-only-1",
         generationId: "gen-provider-only-1",
@@ -1109,7 +1113,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-visible-image-1",
         generationId: "gen-visible-image-1",
@@ -1206,7 +1212,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({ generationId: "gen-newest-started" }),
       expect.objectContaining({ generationId: "gen-older-touched-late" }),
     ]);
@@ -1295,7 +1303,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-video-poster-1",
         mode: "video",
@@ -1406,7 +1416,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-video-remote-only-1",
         mode: "video",
@@ -1506,7 +1518,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-video-poster-only-1",
         mode: "video",
@@ -1560,7 +1574,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-audio-1",
         mode: "audio",
@@ -1627,7 +1643,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-image-storage-1",
         mode: "image",
@@ -1685,7 +1703,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-audio-storage-1",
         mode: "audio",
@@ -1790,7 +1810,9 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+    await expect(
+      listVisibleGeneratedOutputs({ workspaceRuntimeKey: "session:test" })
+    ).resolves.toEqual([
       expect.objectContaining({
         id: "generated:gen-video-canonical-1",
         mode: "video",
@@ -2137,6 +2159,83 @@ describe("generatedMediaAuthority", () => {
     expect(directProjectProjectionBuilder.in).toHaveBeenCalledWith("generation_id", [
       "gen-project-runtime-1",
     ]);
+  });
+
+  it("does not run user-global plain-session generated-output hydration without a workspace key", async () => {
+    const from = vi.fn();
+    ensureSupabaseQueryClientMock.mockReturnValue({ from });
+
+    await expect(listVisibleGeneratedOutputs({ projectId: null })).resolves.toEqual([]);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("hydrates plain-session generated outputs by workspace runtime key", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-session-1",
+          workspace_runtime_key: "session:session-1",
+          request_id: "req-session-1",
+          source_ref: "source-session-1",
+          provider: "kie",
+          model_id: "kie-ai/gpt-image-2-text-to-image",
+          display_prompt: "A session-scoped Kie output",
+          preview_url: "https://kie.test/session-preview.png",
+          result_urls: ["https://kie.test/session-full.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          workflow_reload: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-06-08T16:13:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      listVisibleGeneratedOutputs({
+        projectId: null,
+        workspaceRuntimeKey: "session:session-1",
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-session-1",
+        generationId: "gen-session-1",
+        taskId: "req-session-1",
+        sourceRef: "source-session-1",
+        previewUrl: "https://kie.test/session-preview.png",
+        resultUrls: ["https://kie.test/session-full.png"],
+      }),
+    ]);
+    expect(projectionBuilder.eq).toHaveBeenCalledWith("workspace_runtime_key", "session:session-1");
   });
 
   it("prefers canonical media authority for project-scoped generated images with stale projection storage", async () => {

@@ -79,6 +79,15 @@ type UseCharacterManagerDraftResult = {
   ) => Promise<boolean>;
   deleteCharacterSheetPreset: (presetId: CharacterSheetPresetId) => Promise<boolean>;
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<boolean>;
+  setCharacterSheetPresetStorageReference: (
+    zoneKey: CharacterSheetDropZoneKey,
+    reference: {
+      storagePath: string;
+      previewUrl: string | null;
+      filename?: string | null;
+      mimeType?: string | null;
+    }
+  ) => Promise<boolean>;
   setSlotFile: (slotKey: CharacterReferenceSlotKey, file: File) => Promise<boolean>;
   clearSlot: (slotKey: CharacterReferenceSlotKey) => Promise<void>;
   createCharacter: () => Promise<void>;
@@ -566,6 +575,7 @@ export const useCharacterManagerDraft = ({
   const {
     setProfileImageFile,
     setCharacterSheetPresetFile,
+    setCharacterSheetPresetStorageReference,
     setSlotFile,
     clearSlot,
     clearUnsavedDraftAssets,
@@ -1039,6 +1049,7 @@ export const useCharacterManagerDraft = ({
     renameCharacterSheetPreset,
     deleteCharacterSheetPreset,
     setCharacterSheetPresetFile,
+    setCharacterSheetPresetStorageReference,
     setSlotFile,
     clearSlot,
     createCharacter,

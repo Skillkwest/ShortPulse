@@ -103,6 +103,29 @@ describe("useAiStudioOutputCollectionState", () => {
     ]);
   });
 
+  it("caps active visible Reference Grid outputs while preserving hidden rows", () => {
+    const { result } = renderHook(() => useAiStudioOutputCollectionState());
+    const visibleOutputs = Array.from({ length: 252 }, (_, index) =>
+      makeOutput(`visible-${index + 1}`, {
+        createdAt: new Date(Date.UTC(2026, 4, 24, 12, 0, index)).toISOString(),
+      })
+    );
+    const hiddenOutput = makeOutput("hidden-lifecycle", {
+      createdAt: "2026-05-24T13:00:00.000Z",
+      hiddenInReferenceGrid: true,
+    });
+
+    act(() => {
+      result.current.setOutputsState([hiddenOutput, ...visibleOutputs]);
+    });
+
+    expect(
+      result.current.outputs.filter((output) => output.hiddenInReferenceGrid !== true)
+    ).toHaveLength(250);
+    expect(result.current.outputs.some((output) => output.id === "hidden-lifecycle")).toBe(true);
+    expect(result.current.outputs.some((output) => output.id === "visible-1")).toBe(false);
+  });
+
   it("preserves sequential functional updater semantics for active and archived collections", () => {
     const { result } = renderHook(() => useAiStudioOutputCollectionState());
 

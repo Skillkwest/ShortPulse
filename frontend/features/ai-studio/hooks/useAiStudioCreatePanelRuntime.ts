@@ -456,6 +456,7 @@ export const useAiStudioCreatePanelRuntime = ({
         onLoadCharacterLookOptions: base.loadCreateCharacterLookOptions,
         resolveCharacterAvatarUrlById,
         onImageResolutionChange: setImageResolution,
+        onPinPromptReference: base.addAgentPromptReference,
         generationServices: { handleGenerate },
       },
       agentRuntime: {

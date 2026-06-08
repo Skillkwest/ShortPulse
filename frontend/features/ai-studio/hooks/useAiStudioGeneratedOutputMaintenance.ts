@@ -22,9 +22,6 @@ const STORAGE_VIDEO_POSTER_REPAIR_BATCH_SIZE = 12;
 const POSTER_REPAIR_IDLE_TIMEOUT_MS = 1_500;
 const POSTER_REPAIR_FALLBACK_DELAY_MS = 250;
 
-const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
-  process.env.NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED === "true";
-
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
 
@@ -145,6 +142,7 @@ type UseAiStudioGeneratedOutputMaintenanceParams = {
   projectId: string | null;
   projectRouteRequested: boolean;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
+  workspaceRuntimeKey?: string | null;
 };
 
 type UseAiStudioGeneratedOutputMaintenanceResult = {
@@ -161,10 +159,14 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   projectId,
   projectRouteRequested,
   setOutputsState,
+  workspaceRuntimeKey = null,
 }: UseAiStudioGeneratedOutputMaintenanceParams): UseAiStudioGeneratedOutputMaintenanceResult => {
   const shouldHydrateProjectGeneratedOutputs = Boolean(projectId) && !hasPendingWorkflowRestore;
   const shouldHydratePlainSessionGeneratedOutputs =
-    !projectRouteRequested && !projectId && isPlainSessionGeneratedOutputHydrationEnabled();
+    !projectRouteRequested &&
+    !projectId &&
+    Boolean(workspaceRuntimeKey) &&
+    !hasPendingWorkflowRestore;
   const shouldRunCanonicalGeneratedOutputSync =
     !hasPendingWorkflowRestore && (!projectRouteRequested || Boolean(projectId));
   const canonicalGeneratedOutputSyncRuntimeIdentities = useMemo(
@@ -246,6 +248,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       try {
         const hydratedOutputs = await listVisibleGeneratedOutputs({
           projectId: projectId ?? null,
+          workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
         });
         if (cancelled || hydratedOutputs.length === 0) return;
         setOutputsState((currentOutputs) =>
@@ -268,6 +271,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     setOutputsState,
     shouldHydratePlainSessionGeneratedOutputs,
     shouldHydrateProjectGeneratedOutputs,
+    workspaceRuntimeKey,
   ]);
 
   useEffect(() => {
@@ -305,6 +309,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       try {
         const hydratedOutputs = await listVisibleGeneratedOutputs({
           projectId: projectId ?? null,
+          workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
           limit: runtimeIdentities.length,
           runtimeIdentities,
         });
@@ -334,6 +339,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     projectId,
     setOutputsState,
     shouldRunCanonicalGeneratedOutputSync,
+    workspaceRuntimeKey,
   ]);
 
   useEffect(() => {

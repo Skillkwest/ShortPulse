@@ -33,6 +33,7 @@ type ExpertEditLayersPanelProps = {
   onLayerDrop: (event: React.DragEvent<HTMLDivElement>, index: number) => void;
   onLayerDragEnd: () => void;
   onSelectLayer: (index: number) => void;
+  onClearAllLayers: () => void;
   onDeleteLayer: (index: number) => void;
   onFlatten: () => void;
   onRemoveBackground: () => void;
@@ -156,6 +157,7 @@ export function ExpertEditLayersPanel({
   onLayerDrop,
   onLayerDragEnd,
   onSelectLayer,
+  onClearAllLayers,
   onDeleteLayer,
   onFlatten,
   onRemoveBackground,
@@ -174,6 +176,16 @@ export function ExpertEditLayersPanel({
         {!isModalScope ? (
           <div className="edit-expert-layers-toolbar-title-card edit-expert-layers-toolbar-title-card--embedded">
             <p className="edit-expert-layers-toolbar-title">Layers</p>
+            <button
+              type="button"
+              className="edit-expert-layers-clear-btn"
+              aria-label="Clear all layers"
+              disabled={!layers.length}
+              tabIndex={isCollapsed ? -1 : undefined}
+              onClick={onClearAllLayers}
+            >
+              Clear all
+            </button>
             <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
               <StackSimple size={14} weight="regular" />
             </span>
@@ -300,6 +312,15 @@ export function ExpertEditLayersPanel({
           <div className="edit-expert-layers-toolbar-header-row">
             <div className="edit-expert-layers-toolbar-title-card">
               <p className="edit-expert-layers-toolbar-title">Layers</p>
+              <button
+                type="button"
+                className="edit-expert-layers-clear-btn"
+                aria-label="Clear all layers"
+                disabled={!layers.length}
+                onClick={onClearAllLayers}
+              >
+                Clear all
+              </button>
             </div>
             <button
               type="button"

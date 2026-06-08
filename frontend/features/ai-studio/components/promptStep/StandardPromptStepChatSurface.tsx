@@ -69,6 +69,7 @@ type StandardPromptStepChatSurfaceProps = {
   hideOutputGenerateControls?: boolean;
   composerMiddleContent: React.ReactNode;
   composerLeadingContent: React.ReactNode;
+  composerTrailingContent: React.ReactNode;
   chatComposerOverlayEnabled: boolean;
   stackTrailingComposerControls: boolean;
   hideChatComposerHint: boolean;
@@ -131,6 +132,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   hideOutputGenerateControls = false,
   composerMiddleContent,
   composerLeadingContent,
+  composerTrailingContent,
   chatComposerOverlayEnabled,
   stackTrailingComposerControls,
   hideChatComposerHint,
@@ -302,6 +304,9 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         collapseToMinHeightWhenBlurred={agentInputCollapseOnBlur}
         disabled={agentBootstrapPending}
       />
+      {composerTrailingContent ? (
+        <div className="agent-composer-trailing-content">{composerTrailingContent}</div>
+      ) : null}
       {hasInsideInputSendButton ? (
         <AgentSendButton
           onClick={handleAgentSendClick}

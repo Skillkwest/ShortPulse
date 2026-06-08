@@ -31,6 +31,11 @@ import { resolveInternalMediaRefsForUrls } from "../logic/referenceInputInternal
 import { DeadlineExceededError } from "../logic/withDeadline";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
+  getReferenceGridAvailableSlots,
+  isReferenceGridVisibleOutput,
+  REFERENCE_GRID_CAP_REACHED_MESSAGE,
+} from "../reference-grid/logic/referenceGridLimits";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
@@ -111,6 +116,7 @@ type UseAiStudioTaskSubmissionParams = {
   aspect: string;
   mode: StudioMode;
   projectId?: string | null;
+  workspaceRuntimeKey?: string | null;
   model: string | null;
   prompt: string;
   currentCostCredits?: number | null;
@@ -143,6 +149,7 @@ type UseAiStudioTaskSubmissionParams = {
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
+  outputs?: StudioOutput[];
   setSaved: Dispatch<SetStateAction<boolean>>;
   getDefaultDurationSeconds: (modelId: string | null) => number;
   notifyGenerationFailure: NotifyGenerationFailure;
@@ -169,6 +176,7 @@ export const useAiStudioTaskSubmission = ({
   aspect,
   mode,
   projectId = null,
+  workspaceRuntimeKey = null,
   model,
   prompt,
   currentCostCredits = null,
@@ -201,6 +209,7 @@ export const useAiStudioTaskSubmission = ({
   setUiError,
   setUiNotice,
   setOutputs,
+  outputs = [],
   setSaved,
   getDefaultDurationSeconds,
   notifyGenerationFailure,
@@ -258,9 +267,9 @@ export const useAiStudioTaskSubmission = ({
       const internalMediaRefs = dedupeInternalMediaRefs(
         [
           ...(options?.internalMediaRefsOverride ?? []),
-          ...resolveInternalMediaRefsForUrls(imageInputs, 8),
+          ...resolveInternalMediaRefsForUrls(imageInputs, 10),
         ],
-        8
+        10
       );
       const hasReferenceImages =
         (imageInputs && imageInputs.length > 0) || hasUsableInternalMediaRefs(internalMediaRefs);
@@ -360,6 +369,15 @@ export const useAiStudioTaskSubmission = ({
           hiddenInReferenceGrid:
             finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID || options?.hideOutputFromReferenceGrid,
         });
+        const isExistingOutput = outputs.some((output) => output.id === nextOutput.id);
+        if (
+          !isExistingOutput &&
+          isReferenceGridVisibleOutput(nextOutput) &&
+          getReferenceGridAvailableSlots(outputs) <= 0
+        ) {
+          setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+          return;
+        }
 
         // Render or reconcile the spinner placeholder before URL prep/submission work begins.
         setOutputs((prev) => reconcilePendingSubmissionOutput(prev, nextOutput));
@@ -446,7 +464,7 @@ export const useAiStudioTaskSubmission = ({
               submissionPrompt: cleanedSubmissionPrompt,
               aspect: effectiveAspect,
               imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
-              referenceInputs: preparedImageInputs.slice(0, 8),
+              referenceInputs: preparedImageInputs.slice(0, 10),
               internalMediaRefs,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
@@ -470,7 +488,7 @@ export const useAiStudioTaskSubmission = ({
               submissionPrompt: cleanedSubmissionPrompt,
               aspect: effectiveAspect,
               imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
-              referenceInputs: preparedImageInputs.slice(0, 8),
+              referenceInputs: preparedImageInputs.slice(0, 10),
               internalMediaRefs,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
@@ -519,6 +537,8 @@ export const useAiStudioTaskSubmission = ({
           source_ref: sourceRef,
           project_id: projectId ?? null,
           project_id_present: Boolean(projectId),
+          workspace_runtime_key: projectId ? null : (workspaceRuntimeKey ?? null),
+          workspace_runtime_key_present: Boolean(!projectId && workspaceRuntimeKey),
           is_character_mode: Boolean(options?.characterContextOverride?.applied),
           selected_character_id: options?.characterContextOverride?.characterId ?? null,
           has_style: Boolean(options?.styleContextOverride?.applied),
@@ -537,7 +557,7 @@ export const useAiStudioTaskSubmission = ({
         const pulseReferenceImageUrl =
           preparedImageInputs.length > 0 ? preparedImageInputs[0] : undefined;
         const falReferencePayload = pulseReferenceImageUrl
-          ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
+          ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 10) }
           : ({} as Record<string, never>);
 
         const requiresStandardVideoReference =
@@ -859,7 +879,9 @@ export const useAiStudioTaskSubmission = ({
       model,
       mode,
       projectId,
+      workspaceRuntimeKey,
       notifyGenerationFailure,
+      outputs,
       prompt,
       currentCostCredits,
       promptReferenceGenerateCostCredits,

@@ -11,6 +11,7 @@ export type UpsertGenerationProjectionInput = {
   userId: string;
   supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
   projectId?: string | null;
+  workspaceRuntimeKey?: string | null;
   sourceRef?: string | null;
   requestId?: string | null;
   provider?: string | null;
@@ -105,6 +106,7 @@ export type GenerationProjectionOwnershipContext = {
 type RepairableProjectionRow = {
   generationId: string;
   userId: string;
+  workspaceRuntimeKey: string | null;
   sourceRef: string | null;
   requestId: string | null;
   provider: string | null;
@@ -161,6 +163,7 @@ const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow |
   return {
     generationId,
     userId,
+    workspaceRuntimeKey: asString(row.workspace_runtime_key),
     sourceRef: asString(row.source_ref),
     requestId: asString(row.request_id),
     provider: asString(row.provider),
@@ -245,6 +248,7 @@ export const upsertGenerationProjection = async ({
   userId,
   supabaseAdmin,
   projectId,
+  workspaceRuntimeKey,
   sourceRef,
   requestId,
   provider,
@@ -293,6 +297,7 @@ export const upsertGenerationProjection = async ({
 
   const stringFields: Record<string, string | null | undefined> = {
     project_id: projectId,
+    workspace_runtime_key: workspaceRuntimeKey,
     source_ref: sourceRef,
     request_id: requestId,
     provider,
@@ -671,6 +676,7 @@ export const repairStaleTerminalGenerationProjections = async ({
       [
         "generation_id",
         "user_id",
+        "workspace_runtime_key",
         "source_ref",
         "request_id",
         "provider",
@@ -773,6 +779,7 @@ export const repairStaleTerminalGenerationProjections = async ({
         supabaseAdmin: adminClient,
         generationId: projection.generationId,
         userId: projection.userId,
+        workspaceRuntimeKey: projection.workspaceRuntimeKey,
         sourceRef: projection.sourceRef,
         requestId: projection.requestId ?? generation.requestId,
         provider: projection.provider ?? generation.provider,
@@ -837,6 +844,7 @@ export const repairStaleTerminalGenerationProjections = async ({
       supabaseAdmin: adminClient,
       generationId: projection.generationId,
       userId: projection.userId,
+      workspaceRuntimeKey: projection.workspaceRuntimeKey,
       sourceRef: projection.sourceRef,
       requestId: projection.requestId ?? generation.requestId,
       provider: projection.provider ?? generation.provider,

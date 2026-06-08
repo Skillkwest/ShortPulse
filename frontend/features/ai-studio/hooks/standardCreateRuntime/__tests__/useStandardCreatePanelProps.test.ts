@@ -28,6 +28,7 @@ describe("buildStandardCreatePanelProps", () => {
     handleAgentAttachmentDragOver: vi.fn(),
     handleAgentAttachmentDragEnter: vi.fn(),
     handleAgentAttachmentDragLeave: vi.fn(),
+    handleAgentComposerDirectDrop: vi.fn(),
     handleRemoveAgentAttachment: vi.fn(),
     handleClearAgentAttachments: vi.fn(),
     handleAssistantMessageEdit: vi.fn(),

@@ -20,6 +20,7 @@ import {
 } from "../../../lib/server/elevenlabs";
 import { resolveVoiceAccessForUser } from "../../../lib/server/elevenlabsVoiceLibrary";
 import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
+import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 
 type TextToSpeechRequestBody = {
   voiceId?: unknown;
@@ -104,6 +105,10 @@ export default async function handler(
     const modelId = normalizeRequiredString(config?.model_id);
     const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
     const shortpulseContext = asRecord(body.shortpulse_context);
+    const workspaceRuntimeKey = readGenerationWorkspaceRuntimeKeyFromContext({
+      context: shortpulseContext,
+      projectId,
+    });
     const workflowReload = asRecord(body.workflow_reload) ?? {};
 
     if (!voiceId || !voiceName || !text || !outputFormat || !config || !modelId) {
@@ -189,6 +194,7 @@ export default async function handler(
       providerRequestId,
       requestId: charge.sourceRef,
       projectId,
+      workspaceRuntimeKey,
       sourceMode: "voiceover",
       voiceId,
       voiceName: effectiveVoiceName,

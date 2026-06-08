@@ -24,6 +24,10 @@ import { buildWorkflowReloadConfigV1 } from "../logic/workflowReload";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { readGenerationAdmissionErrorMessage } from "../../../lib/generationAdmissionErrors";
+import {
+  getReferenceGridAvailableSlots,
+  REFERENCE_GRID_CAP_REACHED_MESSAGE,
+} from "../reference-grid/logic/referenceGridLimits";
 
 type VoicesGenerateSuccessResponse = {
   output: {
@@ -126,6 +130,8 @@ type AudioGenerateErrorResponse = {
 
 type UseAiStudioAudioGenerationParams = {
   projectId?: string | null;
+  workspaceRuntimeKey?: string | null;
+  outputs?: StudioOutput[];
   setUiError: Dispatch<SetStateAction<string | null>>;
   insertOptimisticGenerationPlaceholder: (args: {
     prompt: string;
@@ -178,13 +184,17 @@ const buildAudioShortpulseContext = ({
   selectedTool,
   displayedBilledCredits,
   pricingPolicyReady = true,
+  workspaceRuntimeKey = null,
 }: {
   selectedTool: "music" | "sound-effects" | "voiceover" | "voice-changer";
   displayedBilledCredits: number | null | undefined;
   pricingPolicyReady?: boolean;
+  workspaceRuntimeKey?: string | null;
 }) => ({
   mode: "audio",
   selected_tool: selectedTool,
+  workspace_runtime_key: workspaceRuntimeKey,
+  workspace_runtime_key_present: Boolean(workspaceRuntimeKey),
   pricing_display_source: "pricing_grid",
   pricing_policy_ready: pricingPolicyReady,
   displayed_billed_credits:
@@ -467,6 +477,8 @@ const applyAudioOutputToPlaceholder = ({
  */
 export const useAiStudioAudioGeneration = ({
   projectId = null,
+  workspaceRuntimeKey = null,
+  outputs = [],
   setUiError,
   insertOptimisticGenerationPlaceholder,
   notifyGenerationFailure,
@@ -484,6 +496,12 @@ export const useAiStudioAudioGeneration = ({
     async (request: VoicesGenerateRequest) => {
       const promptText = buildVoicesOutputPrompt(request).trim();
       if (!promptText) return;
+      const requiredVisibleSlots =
+        request.mode === "voice-changer" && request.source.extractedFrom ? 2 : 1;
+      if (getReferenceGridAvailableSlots(outputs) < requiredVisibleSlots) {
+        setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+        return;
+      }
 
       setUiError(null);
       setVoicesGenerationCount((count) => count + 1);
@@ -527,6 +545,7 @@ export const useAiStudioAudioGeneration = ({
                     selectedTool: "voiceover",
                     displayedBilledCredits: request.displayedBilledCredits,
                     pricingPolicyReady: request.pricingPolicyReady,
+                    workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
                   }),
                   ...(workflowReload ? { workflow_reload: workflowReload } : {}),
                   ...(projectId ? { project_id: projectId } : {}),
@@ -556,6 +575,7 @@ export const useAiStudioAudioGeneration = ({
                       selectedTool: "voice-changer",
                       displayedBilledCredits: request.displayedBilledCredits,
                       pricingPolicyReady: request.pricingPolicyReady,
+                      workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
                     })
                   )
                 );
@@ -647,10 +667,12 @@ export const useAiStudioAudioGeneration = ({
     [
       insertOptimisticGenerationPlaceholder,
       notifyGenerationFailure,
+      outputs,
       projectId,
       setOutputs,
       setUiError,
       updateOutputById,
+      workspaceRuntimeKey,
     ]
   );
 
@@ -706,6 +728,7 @@ export const useAiStudioAudioGeneration = ({
               selectedTool: "music",
               displayedBilledCredits,
               pricingPolicyReady,
+              workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
             }),
             ...(workflowReload ? { workflow_reload: workflowReload } : {}),
             ...(projectId ? { project_id: projectId } : {}),
@@ -758,6 +781,7 @@ export const useAiStudioAudioGeneration = ({
       projectId,
       setUiError,
       updateOutputById,
+      workspaceRuntimeKey,
     ]
   );
 
@@ -803,6 +827,7 @@ export const useAiStudioAudioGeneration = ({
               selectedTool: "sound-effects",
               displayedBilledCredits,
               pricingPolicyReady,
+              workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
             }),
             ...(workflowReload ? { workflow_reload: workflowReload } : {}),
             ...(projectId ? { project_id: projectId } : {}),
@@ -853,6 +878,7 @@ export const useAiStudioAudioGeneration = ({
       projectId,
       setUiError,
       updateOutputById,
+      workspaceRuntimeKey,
     ]
   );
 

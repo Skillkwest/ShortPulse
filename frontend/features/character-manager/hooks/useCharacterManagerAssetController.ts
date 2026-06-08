@@ -6,11 +6,13 @@ import React from "react";
 import { maybePreprocessLocalImageFileForUpload } from "../../../lib/adaptive-media/localTranscode";
 import { createEmptyCharacterSheetPresetAssignments } from "../constants";
 import {
+  cleanupCharacterManagerMediaReference,
   clearCharacterManagerProfileImage,
   clearCharacterManagerSlot,
   type CharacterManagerListItem,
   saveCharacterManagerCharacterSheetPresetAsset,
   saveCharacterManagerCharacterSheetPresetAssignments,
+  saveCharacterManagerCharacterSheetPresetStorageAsset,
   saveCharacterManagerCharacterSheetAssignments,
   saveCharacterManagerProfileImage,
   saveCharacterManagerProfileImageAdjustments,
@@ -23,6 +25,7 @@ import type {
   CharacterReferenceSlotKey,
   CharacterSheetAssignments,
   CharacterSheetDropZoneKey,
+  CharacterSheetPresetMediaReference,
   CharacterSheetPresetAssignments,
   CharacterSheetPresetId,
   CharacterSheetPresetState,
@@ -72,6 +75,15 @@ type UseCharacterManagerAssetControllerResult = {
   clearProfileImage: () => Promise<void>;
   saveCharacterSheetAssignments: (assignments: CharacterSheetAssignments) => Promise<boolean>;
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<boolean>;
+  setCharacterSheetPresetStorageReference: (
+    zoneKey: CharacterSheetDropZoneKey,
+    reference: {
+      storagePath: string;
+      previewUrl: string | null;
+      filename?: string | null;
+      mimeType?: string | null;
+    }
+  ) => Promise<boolean>;
   setSlotFile: (slotKey: CharacterReferenceSlotKey, file: File) => Promise<boolean>;
   clearSlot: (slotKey: CharacterReferenceSlotKey) => Promise<void>;
   clearUnsavedDraftAssets: () => void;
@@ -92,6 +104,18 @@ const createPendingValidationNotes = (file: File): CharacterSlotValidationNotes 
   warnings: [],
   evaluatedAt: null,
 });
+
+type StagedCharacterSheetPresetAsset =
+  | {
+      kind: "file";
+      file: File;
+    }
+  | {
+      kind: "storage_reference";
+      storagePath: string;
+      filename: string | null;
+      mimeType: string | null;
+    };
 
 /**
  * Compose Character Manager asset persistence actions behind a stable controller boundary.
@@ -125,8 +149,13 @@ export const useCharacterManagerAssetController = ({
 }: UseCharacterManagerAssetControllerParams): UseCharacterManagerAssetControllerResult => {
   const stagedProfileImageFileRef = React.useRef<File | null>(null);
   const stagedProfileImagePreviewUrlRef = React.useRef<string | null>(null);
-  const stagedPresetFilesRef = React.useRef<
-    Partial<Record<CharacterSheetPresetId, Partial<Record<CharacterSheetDropZoneKey, File>>>>
+  const stagedPresetAssetsRef = React.useRef<
+    Partial<
+      Record<
+        CharacterSheetPresetId,
+        Partial<Record<CharacterSheetDropZoneKey, StagedCharacterSheetPresetAsset>>
+      >
+    >
   >({});
   const stagedSlotFilesRef = React.useRef<Partial<Record<CharacterReferenceSlotKey, File>>>({});
   const publishCharacterRefresh = React.useCallback(() => {
@@ -148,13 +177,16 @@ export const useCharacterManagerAssetController = ({
     revokeObjectUrl(stagedProfileImagePreviewUrlRef.current);
     stagedProfileImagePreviewUrlRef.current = null;
 
-    const stagedPresetEntries = Object.entries(stagedPresetFilesRef.current) as Array<
-      [CharacterSheetPresetId, Partial<Record<CharacterSheetDropZoneKey, File>>]
+    const stagedPresetEntries = Object.entries(stagedPresetAssetsRef.current) as Array<
+      [
+        CharacterSheetPresetId,
+        Partial<Record<CharacterSheetDropZoneKey, StagedCharacterSheetPresetAsset>>,
+      ]
     >;
-    for (const [presetId, stagedFiles] of stagedPresetEntries) {
+    for (const [presetId, stagedAssets] of stagedPresetEntries) {
       const currentAssignments =
         characterSheetPresetsRef.current[presetId] ?? createEmptyCharacterSheetPresetAssignments();
-      for (const zoneKey of Object.keys(stagedFiles) as CharacterSheetDropZoneKey[]) {
+      for (const zoneKey of Object.keys(stagedAssets) as CharacterSheetDropZoneKey[]) {
         revokeObjectUrl(currentAssignments[zoneKey]?.previewUrl ?? null);
       }
     }
@@ -163,7 +195,7 @@ export const useCharacterManagerAssetController = ({
       revokeObjectUrl(slotsRef.current[slotKey]?.previewUrl ?? null);
     }
 
-    stagedPresetFilesRef.current = {};
+    stagedPresetAssetsRef.current = {};
     stagedSlotFilesRef.current = {};
   }, [characterSheetPresetsRef, revokeObjectUrl, slotsRef]);
 
@@ -400,11 +432,14 @@ export const useCharacterManagerAssetController = ({
           createEmptyCharacterSheetPresetAssignments();
         revokeObjectUrl(currentAssignments[zoneKey]?.previewUrl ?? null);
         const previewUrl = URL.createObjectURL(preparedFile);
-        stagedPresetFilesRef.current = {
-          ...stagedPresetFilesRef.current,
+        stagedPresetAssetsRef.current = {
+          ...stagedPresetAssetsRef.current,
           [activePresetId]: {
-            ...(stagedPresetFilesRef.current[activePresetId] ?? {}),
-            [zoneKey]: preparedFile,
+            ...(stagedPresetAssetsRef.current[activePresetId] ?? {}),
+            [zoneKey]: {
+              kind: "file",
+              file: preparedFile,
+            },
           },
         };
         return await saveCharacterSheetPresetAssignments({
@@ -434,6 +469,89 @@ export const useCharacterManagerAssetController = ({
         return await saveCharacterSheetPresetAssignmentsForPreset(targetPresetId, nextAssignments);
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to upload character look image."));
+        return false;
+      } finally {
+        endCharacterSheetPresetMutation();
+      }
+    },
+    [
+      activeCharacterSheetPresetIdRef,
+      beginCharacterSheetPresetMutation,
+      characterId,
+      characterSheetPresetsRef,
+      clearMessages,
+      endCharacterSheetPresetMutation,
+      revokeObjectUrl,
+      saveCharacterSheetPresetAssignments,
+      saveCharacterSheetPresetAssignmentsForPreset,
+      setError,
+      toErrorMessage,
+    ]
+  );
+
+  const setCharacterSheetPresetStorageReference = React.useCallback(
+    async (
+      zoneKey: CharacterSheetDropZoneKey,
+      reference: {
+        storagePath: string;
+        previewUrl: string | null;
+        filename?: string | null;
+        mimeType?: string | null;
+      }
+    ) => {
+      clearMessages();
+      const sourceStoragePath = reference.storagePath.trim();
+      if (!sourceStoragePath) {
+        setError("Character reference is missing storage authority.");
+        return false;
+      }
+      if (!characterId) {
+        const activePresetId = activeCharacterSheetPresetIdRef.current;
+        const currentAssignments =
+          characterSheetPresetsRef.current[activePresetId] ??
+          createEmptyCharacterSheetPresetAssignments();
+        revokeObjectUrl(currentAssignments[zoneKey]?.previewUrl ?? null);
+        stagedPresetAssetsRef.current = {
+          ...stagedPresetAssetsRef.current,
+          [activePresetId]: {
+            ...(stagedPresetAssetsRef.current[activePresetId] ?? {}),
+            [zoneKey]: {
+              kind: "storage_reference",
+              storagePath: sourceStoragePath,
+              filename: reference.filename?.trim() || null,
+              mimeType: reference.mimeType?.trim() || null,
+            },
+          },
+        };
+        return await saveCharacterSheetPresetAssignments({
+          ...currentAssignments,
+          [zoneKey]: {
+            characterMediaId: `storage-${activePresetId}-${zoneKey}`,
+            storagePath: sourceStoragePath,
+            previewUrl: reference.previewUrl,
+          },
+        });
+      }
+
+      const targetPresetId = activeCharacterSheetPresetIdRef.current;
+      beginCharacterSheetPresetMutation();
+      try {
+        const uploadedAsset = await saveCharacterManagerCharacterSheetPresetStorageAsset({
+          characterId,
+          sourceStoragePath,
+          filename: reference.filename ?? null,
+          mimeType: reference.mimeType ?? null,
+        });
+        const currentAssignments =
+          characterSheetPresetsRef.current[targetPresetId] ??
+          createEmptyCharacterSheetPresetAssignments();
+        const nextAssignments = {
+          ...currentAssignments,
+          [zoneKey]: uploadedAsset,
+        };
+        return await saveCharacterSheetPresetAssignmentsForPreset(targetPresetId, nextAssignments);
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Failed to save character look image."));
         return false;
       } finally {
         endCharacterSheetPresetMutation();
@@ -628,25 +746,52 @@ export const useCharacterManagerAssetController = ({
         }
       }
 
-      const stagedPresetEntries = Object.entries(stagedPresetFilesRef.current) as Array<
-        [CharacterSheetPresetId, Partial<Record<CharacterSheetDropZoneKey, File>>]
+      const stagedPresetEntries = Object.entries(stagedPresetAssetsRef.current) as Array<
+        [
+          CharacterSheetPresetId,
+          Partial<Record<CharacterSheetDropZoneKey, StagedCharacterSheetPresetAsset>>,
+        ]
       >;
-      for (const [presetId, stagedFiles] of stagedPresetEntries) {
+      for (const [presetId, stagedAssets] of stagedPresetEntries) {
         const currentAssignments =
           characterSheetPresetsRef.current[presetId] ??
           createEmptyCharacterSheetPresetAssignments();
         const stagedUploads = (
-          Object.entries(stagedFiles) as Array<[CharacterSheetDropZoneKey, File | undefined]>
-        ).filter((entry): entry is [CharacterSheetDropZoneKey, File] => Boolean(entry[1]));
-        const uploadedAssets = await Promise.all(
-          stagedUploads.map(async ([zoneKey, stagedFile]) => {
-            const uploadedAsset = await saveCharacterManagerCharacterSheetPresetAsset({
-              characterId: persistedCharacterId,
-              file: stagedFile,
-            });
-            return [zoneKey, uploadedAsset] as const;
-          })
+          Object.entries(stagedAssets) as Array<
+            [CharacterSheetDropZoneKey, StagedCharacterSheetPresetAsset | undefined]
+          >
+        ).filter((entry): entry is [CharacterSheetDropZoneKey, StagedCharacterSheetPresetAsset] =>
+          Boolean(entry[1])
         );
+        const uploadedAssets: Array<
+          [CharacterSheetDropZoneKey, CharacterSheetPresetMediaReference]
+        > = [];
+        try {
+          for (const [zoneKey, stagedAsset] of stagedUploads) {
+            const uploadedAsset =
+              stagedAsset.kind === "file"
+                ? await saveCharacterManagerCharacterSheetPresetAsset({
+                    characterId: persistedCharacterId,
+                    file: stagedAsset.file,
+                  })
+                : await saveCharacterManagerCharacterSheetPresetStorageAsset({
+                    characterId: persistedCharacterId,
+                    sourceStoragePath: stagedAsset.storagePath,
+                    filename: stagedAsset.filename,
+                    mimeType: stagedAsset.mimeType,
+                  });
+            uploadedAssets.push([zoneKey, uploadedAsset]);
+          }
+        } catch (error) {
+          await Promise.allSettled(
+            uploadedAssets.map(([, uploadedAsset]) =>
+              uploadedAsset
+                ? cleanupCharacterManagerMediaReference(uploadedAsset)
+                : Promise.resolve()
+            )
+          );
+          throw error;
+        }
         persistedAssetCount += uploadedAssets.length;
         let nextAssignments = currentAssignments;
         for (const [zoneKey, uploadedAsset] of uploadedAssets) {
@@ -656,11 +801,20 @@ export const useCharacterManagerAssetController = ({
           };
         }
         if (uploadedAssets.length > 0) {
-          await saveCharacterManagerCharacterSheetPresetAssignments({
-            characterId: persistedCharacterId,
-            presetId,
-            assignments: nextAssignments,
-          });
+          try {
+            await saveCharacterManagerCharacterSheetPresetAssignments({
+              characterId: persistedCharacterId,
+              presetId,
+              assignments: nextAssignments,
+            });
+          } catch (error) {
+            await Promise.allSettled(
+              uploadedAssets.map(([, uploadedAsset]) =>
+                cleanupCharacterManagerMediaReference(uploadedAsset)
+              )
+            );
+            throw error;
+          }
         }
         for (const assignment of Object.values(currentAssignments)) {
           revokeObjectUrl(assignment?.previewUrl ?? null);
@@ -717,6 +871,7 @@ export const useCharacterManagerAssetController = ({
     clearProfileImage,
     saveCharacterSheetAssignments,
     setCharacterSheetPresetFile,
+    setCharacterSheetPresetStorageReference,
     setSlotFile,
     clearSlot,
     clearUnsavedDraftAssets,

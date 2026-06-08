@@ -1,4 +1,45 @@
 import React from "react";
+import { Pause, Play } from "phosphor-react";
+import type { StudioAudioSourceMode } from "../../types";
+import { MediaDurationBadge } from "../shared/MediaDurationBadge";
+import {
+  buildFallbackWaveformPeaks,
+  extractAudioWaveformPeaksFromUrl,
+  normalizeStoredWaveformPeaks,
+} from "../../reference-grid/logic/referenceGridAudioWaveform";
+
+const DETAIL_AUDIO_WAVEFORM_BAR_COUNT = 64;
+
+const assignMediaRef = <ElementType extends HTMLElement>(
+  targetRef: React.Ref<ElementType> | undefined,
+  node: ElementType | null
+) => {
+  if (!targetRef) return;
+  if (typeof targetRef === "function") {
+    targetRef(node);
+    return;
+  }
+  (targetRef as React.MutableRefObject<ElementType | null>).current = node;
+};
+
+type SharedMediaDetailAudioPreviewProps = {
+  mediaUrl: string;
+  audioId?: string;
+  audioClassName?: string;
+  audioRef?: React.Ref<HTMLAudioElement>;
+  audioAutoPlay: boolean;
+  audioPreload: "none" | "metadata" | "auto";
+  audioSourceMode?: StudioAudioSourceMode | null;
+  audioDurationMs?: number | null;
+  audioWaveformPeaks?: number[] | null;
+  playLabel?: string;
+  pauseLabel?: string;
+  onAudioPlay?: React.ReactEventHandler<HTMLAudioElement>;
+  onAudioPause?: React.ReactEventHandler<HTMLAudioElement>;
+  onAudioEnded?: React.ReactEventHandler<HTMLAudioElement>;
+  onAudioError?: React.ReactEventHandler<HTMLAudioElement>;
+  onAudioVolumeChange?: React.ReactEventHandler<HTMLAudioElement>;
+};
 
 type SharedMediaDetailPreviewMediaProps = {
   mediaUrl: string | null;
@@ -24,6 +65,12 @@ type SharedMediaDetailPreviewMediaProps = {
   audioControls?: boolean;
   audioAutoPlay?: boolean;
   audioPreload?: "none" | "metadata" | "auto";
+  audioId?: string;
+  audioSourceMode?: StudioAudioSourceMode | null;
+  audioDurationMs?: number | null;
+  audioWaveformPeaks?: number[] | null;
+  audioPlayLabel?: string;
+  audioPauseLabel?: string;
   imageDraggable?: boolean;
   onImageDragStart?: React.DragEventHandler<HTMLImageElement>;
   onImageLoad?: React.ReactEventHandler<HTMLImageElement>;
@@ -40,6 +87,242 @@ type SharedMediaDetailPreviewMediaProps = {
   onAudioError?: React.ReactEventHandler<HTMLAudioElement>;
   onAudioVolumeChange?: React.ReactEventHandler<HTMLAudioElement>;
 };
+
+function SharedMediaDetailAudioPreview({
+  mediaUrl,
+  audioId = "detail-audio",
+  audioClassName,
+  audioRef,
+  audioAutoPlay,
+  audioPreload,
+  audioSourceMode = null,
+  audioDurationMs = null,
+  audioWaveformPeaks = null,
+  playLabel = "Play audio preview",
+  pauseLabel = "Pause audio preview",
+  onAudioPlay,
+  onAudioPause,
+  onAudioEnded,
+  onAudioError,
+  onAudioVolumeChange,
+}: SharedMediaDetailAudioPreviewProps) {
+  const internalAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [progressRatio, setProgressRatio] = React.useState(0);
+  const [resolvedDurationMs, setResolvedDurationMs] = React.useState<number | null>(
+    audioDurationMs
+  );
+  const storedWaveformPeaks = React.useMemo(
+    () => normalizeStoredWaveformPeaks(audioWaveformPeaks, DETAIL_AUDIO_WAVEFORM_BAR_COUNT),
+    [audioWaveformPeaks]
+  );
+  const fallbackWaveformPeaks = React.useMemo(
+    () =>
+      buildFallbackWaveformPeaks(
+        resolvedDurationMs ? resolvedDurationMs / 1000 : null,
+        DETAIL_AUDIO_WAVEFORM_BAR_COUNT
+      ),
+    [resolvedDurationMs]
+  );
+  const [hasDecodedWaveform, setHasDecodedWaveform] = React.useState(
+    storedWaveformPeaks.length > 0
+  );
+  const [waveformPeaks, setWaveformPeaks] = React.useState<number[]>(
+    storedWaveformPeaks.length > 0 ? storedWaveformPeaks : fallbackWaveformPeaks
+  );
+
+  const resolvedAudioClassName = ["detail-modal-audio-native", audioClassName]
+    .filter(Boolean)
+    .join(" ");
+
+  const waveformColumns = React.useMemo(
+    () =>
+      waveformPeaks.map((peak, index) => {
+        const normalizedHeight = Math.max(0, Math.min(1, peak / 100));
+        const columnStart = index / waveformPeaks.length;
+        const columnEnd = (index + 1) / waveformPeaks.length;
+        const progress =
+          columnEnd <= columnStart
+            ? 0
+            : Math.max(0, Math.min(1, (progressRatio - columnStart) / (columnEnd - columnStart)));
+        const progressState = progress >= 1 ? "played" : progress > 0 ? "playing" : "pending";
+
+        return {
+          key: `${audioId}-detail-wavebar-${index}`,
+          height: normalizedHeight,
+          progress,
+          progressState,
+        };
+      }),
+    [audioId, progressRatio, waveformPeaks]
+  );
+
+  React.useEffect(() => {
+    setIsPlaying(false);
+    setProgressRatio(0);
+    setResolvedDurationMs(audioDurationMs ?? null);
+    setHasDecodedWaveform(storedWaveformPeaks.length > 0);
+    setWaveformPeaks(storedWaveformPeaks.length > 0 ? storedWaveformPeaks : fallbackWaveformPeaks);
+  }, [audioDurationMs, fallbackWaveformPeaks, mediaUrl, storedWaveformPeaks]);
+
+  React.useEffect(() => {
+    if (storedWaveformPeaks.length > 0) {
+      setHasDecodedWaveform(true);
+      setWaveformPeaks(storedWaveformPeaks);
+      return;
+    }
+    if (hasDecodedWaveform) return;
+    setWaveformPeaks(fallbackWaveformPeaks);
+  }, [fallbackWaveformPeaks, hasDecodedWaveform, storedWaveformPeaks]);
+
+  React.useEffect(() => {
+    if (!mediaUrl || storedWaveformPeaks.length > 0) return;
+    let cancelled = false;
+    setHasDecodedWaveform(false);
+
+    const decodeWaveform = async () => {
+      const nextPeaks = await extractAudioWaveformPeaksFromUrl(
+        mediaUrl,
+        DETAIL_AUDIO_WAVEFORM_BAR_COUNT
+      );
+      if (!cancelled && Array.isArray(nextPeaks) && nextPeaks.length > 0) {
+        setWaveformPeaks(nextPeaks);
+        setHasDecodedWaveform(true);
+      }
+    };
+
+    void decodeWaveform();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaUrl, storedWaveformPeaks]);
+
+  const setAudioNode = React.useCallback(
+    (node: HTMLAudioElement | null) => {
+      internalAudioRef.current = node;
+      assignMediaRef(audioRef, node);
+    },
+    [audioRef]
+  );
+
+  const handleTogglePlayback = React.useCallback(
+    async (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const node = internalAudioRef.current;
+      if (!node) return;
+      if (isPlaying) {
+        node.pause();
+        return;
+      }
+      if (
+        node.ended ||
+        (Number.isFinite(node.duration) && node.duration > 0 && node.currentTime >= node.duration)
+      ) {
+        node.currentTime = 0;
+        setProgressRatio(0);
+      }
+      try {
+        await node.play();
+      } catch {
+        setIsPlaying(false);
+      }
+    },
+    [isPlaying]
+  );
+
+  return (
+    <div className="detail-modal-audio-preview">
+      <div className="detail-modal-audio-player">
+        <button
+          type="button"
+          className={`detail-modal-audio-play ${isPlaying ? "is-playing" : ""}`}
+          aria-label={isPlaying ? pauseLabel : playLabel}
+          aria-pressed={isPlaying}
+          onClick={(event) => {
+            void handleTogglePlayback(event);
+          }}
+        >
+          {isPlaying ? (
+            <Pause size={28} weight="fill" aria-hidden="true" />
+          ) : (
+            <Play size={28} weight="fill" aria-hidden="true" />
+          )}
+        </button>
+        <div className="detail-modal-audio-waveform-shell">
+          <div className="detail-modal-audio-waveform" aria-hidden="true">
+            {waveformColumns.map((column) => (
+              <span
+                key={column.key}
+                className="detail-modal-audio-wavebar"
+                data-progress-state={column.progressState}
+                style={
+                  {
+                    "--detail-audio-waveform-height": column.height.toFixed(3),
+                    "--detail-audio-waveform-progress": column.progress.toFixed(3),
+                  } as React.CSSProperties
+                }
+              >
+                <span className="detail-modal-audio-wavebar-track" />
+                <span className="detail-modal-audio-wavebar-fill" />
+              </span>
+            ))}
+          </div>
+          <div className="detail-modal-audio-duration-row">
+            <MediaDurationBadge
+              className="detail-modal-audio-duration-badge"
+              durationMs={resolvedDurationMs ?? 0}
+              mediaKind="audio"
+              audioSourceMode={audioSourceMode}
+            />
+          </div>
+        </div>
+      </div>
+      <audio
+        className={resolvedAudioClassName}
+        src={mediaUrl}
+        ref={setAudioNode}
+        autoPlay={audioAutoPlay}
+        preload={audioPreload}
+        onLoadedMetadata={(event) => {
+          const durationSeconds = event.currentTarget.duration;
+          if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
+            setResolvedDurationMs(Math.round(durationSeconds * 1000));
+          }
+          setProgressRatio(0);
+        }}
+        onTimeUpdate={(event) => {
+          const durationSeconds = event.currentTarget.duration;
+          const currentTimeSeconds = event.currentTarget.currentTime;
+          if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+            setProgressRatio(0);
+            return;
+          }
+          setProgressRatio(Math.max(0, Math.min(1, currentTimeSeconds / durationSeconds)));
+        }}
+        onPlay={(event) => {
+          setIsPlaying(true);
+          onAudioPlay?.(event);
+        }}
+        onPause={(event) => {
+          setIsPlaying(false);
+          onAudioPause?.(event);
+        }}
+        onEnded={(event) => {
+          setIsPlaying(false);
+          setProgressRatio(1);
+          onAudioEnded?.(event);
+        }}
+        onError={(event) => {
+          setIsPlaying(false);
+          onAudioError?.(event);
+        }}
+        onVolumeChange={onAudioVolumeChange}
+      />
+    </div>
+  );
+}
 
 /**
  * Shared media renderer for AI Studio detail surfaces.
@@ -69,6 +352,12 @@ export function SharedMediaDetailPreviewMedia({
   audioControls = true,
   audioAutoPlay = true,
   audioPreload = "metadata",
+  audioId,
+  audioSourceMode,
+  audioDurationMs,
+  audioWaveformPeaks,
+  audioPlayLabel,
+  audioPauseLabel,
   imageDraggable = false,
   onImageDragStart,
   onImageLoad,
@@ -118,18 +407,23 @@ export function SharedMediaDetailPreviewMedia({
 
   if (mediaKind === "audio") {
     return (
-      <audio
-        className={audioClassName ?? imageClassName}
-        src={mediaUrl}
-        ref={audioRef}
-        controls={audioControls}
-        autoPlay={audioAutoPlay}
-        preload={audioPreload}
-        onPlay={onAudioPlay}
-        onPause={onAudioPause}
-        onEnded={onAudioEnded}
-        onError={onAudioError}
-        onVolumeChange={onAudioVolumeChange}
+      <SharedMediaDetailAudioPreview
+        mediaUrl={mediaUrl}
+        audioId={audioId}
+        audioClassName={audioClassName ?? imageClassName}
+        audioRef={audioRef}
+        audioAutoPlay={audioControls ? audioAutoPlay : false}
+        audioPreload={audioPreload}
+        audioSourceMode={audioSourceMode}
+        audioDurationMs={audioDurationMs}
+        audioWaveformPeaks={audioWaveformPeaks}
+        playLabel={audioPlayLabel}
+        pauseLabel={audioPauseLabel}
+        onAudioPlay={onAudioPlay}
+        onAudioPause={onAudioPause}
+        onAudioEnded={onAudioEnded}
+        onAudioError={onAudioError}
+        onAudioVolumeChange={onAudioVolumeChange}
       />
     );
   }

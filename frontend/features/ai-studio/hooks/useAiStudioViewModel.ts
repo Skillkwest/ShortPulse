@@ -44,6 +44,7 @@ import {
 } from "../logic/editSubmitIntent";
 import { resolveCreatePricingTarget } from "../logic/createPricingTarget";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
+import { analyzeExpertEditPromptTokens } from "../logic/expertEditPromptReferences";
 import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
@@ -65,7 +66,7 @@ type ViewModelInput = {
   motionReferenceVideoPending?: boolean;
   motionReferenceVideoError?: string | null;
   motionReferenceVideoUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   imageResolution: string;
   videoGenerateAudio: boolean;
   klingWorkflowMode?: "single" | "multi" | "custom";
@@ -220,16 +221,20 @@ export const useAiStudioViewModel = ({
     () => [referenceImageUrl, ...extraImageUrls],
     [extraImageUrls, referenceImageUrl]
   );
-  const currentEditReferenceImageCount = useMemo(
-    () =>
-      Math.max(
-        1,
-        [referenceImageUrl, ...extraImageUrls].filter(
-          (value): value is string => typeof value === "string" && value.trim().length > 0
-        ).length
-      ),
-    [extraImageUrls, referenceImageUrl]
-  );
+  const currentEditReferenceImageCount = useMemo(() => {
+    const populatedSecondaryCount = extraImageUrls.filter(
+      (value): value is string => typeof value === "string" && value.trim().length > 0
+    ).length;
+    const tokenAnalysis = analyzeExpertEditPromptTokens(prompt, extraImageUrls);
+    const referencedSecondaryCount =
+      !tokenAnalysis.hasInvalidTokens && tokenAnalysis.referencedSlotIndexes.length > 0
+        ? tokenAnalysis.referencedSlotIndexes.filter((slotIndex) =>
+            Boolean(extraImageUrls[slotIndex]?.trim())
+          ).length
+        : populatedSecondaryCount;
+    const primaryCount = referenceImageUrl?.trim() ? 1 : 0;
+    return Math.max(1, primaryCount + referencedSecondaryCount);
+  }, [extraImageUrls, prompt, referenceImageUrl]);
   const buildEditPricingParams = useCallback(
     (resolutionOverride?: string | null): Omit<PricingParams, "modelId"> => ({
       aspect,

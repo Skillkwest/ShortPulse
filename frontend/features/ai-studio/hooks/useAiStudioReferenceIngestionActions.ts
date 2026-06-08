@@ -21,11 +21,18 @@ import {
   normalizeMediaFile,
   type PastedMediaReference,
 } from "../reference-grid/controllers/referenceGridClipboard";
+import {
+  admitReferenceGridIncomingOutputs,
+  buildReferenceGridPartialCapMessage,
+  getReferenceGridAvailableSlots,
+  REFERENCE_GRID_CAP_REACHED_MESSAGE,
+} from "../reference-grid/logic/referenceGridLimits";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
   activeOutput?: StudioOutput | null;
   projectId?: string | null;
+  outputs: StudioOutput[];
   mode: StudioMode;
   aspect: string;
   model: string | null;
@@ -129,6 +136,7 @@ type UseAiStudioReferenceIngestionActionsResult = {
 export const useAiStudioReferenceIngestionActions = ({
   activeOutput = null,
   projectId = null,
+  outputs,
   mode,
   aspect,
   model,
@@ -139,6 +147,20 @@ export const useAiStudioReferenceIngestionActions = ({
   const currentUserId = sessionSnapshot.user?.id ?? null;
   const libraryMediaIngestionErrorMessage =
     "Unable to add that media from Media Library right now. Please try again.";
+  const admitIncomingOutputs = useCallback(
+    (incoming: StudioOutput[]): StudioOutput[] => {
+      const admission = admitReferenceGridIncomingOutputs(incoming, outputs);
+      if (admission.skipped.length > 0) {
+        setUiError?.(
+          admission.skipped.length === 1
+            ? REFERENCE_GRID_CAP_REACHED_MESSAGE
+            : buildReferenceGridPartialCapMessage(admission.skipped.length)
+        );
+      }
+      return admission.admitted;
+    },
+    [outputs, setUiError]
+  );
   const buildLibraryMediaOutputWithId = useCallback(
     (payload: LibraryMediaReferencePayload, outputId: string): StudioOutput | null => {
       const result = buildStudioOutputsFromReferenceInputSync(
@@ -231,8 +253,6 @@ export const useAiStudioReferenceIngestionActions = ({
         }
       };
 
-      associateWithProject();
-
       if (options.waitForPreparedPayload) {
         const prepared = await buildPreparedOutput();
         const output = prepared?.output ?? buildLibraryMediaOutputWithId(payload, outputId);
@@ -240,6 +260,9 @@ export const useAiStudioReferenceIngestionActions = ({
           setUiError?.(libraryMediaIngestionErrorMessage);
           return null;
         }
+        const [admittedOutput] = admitIncomingOutputs([output]);
+        if (!admittedOutput) return null;
+        associateWithProject();
         setOutputs((prev) => [output, ...prev]);
         return prepared ?? { outputId, payload, output };
       }
@@ -249,7 +272,10 @@ export const useAiStudioReferenceIngestionActions = ({
         setUiError?.(libraryMediaIngestionErrorMessage);
         return null;
       }
+      const [admittedOutput] = admitIncomingOutputs([optimisticOutput]);
+      if (!admittedOutput) return null;
 
+      associateWithProject();
       setOutputs((prev) => [optimisticOutput, ...prev]);
 
       void (async () => {
@@ -295,6 +321,7 @@ export const useAiStudioReferenceIngestionActions = ({
     [
       buildLibraryMediaOutputWithId,
       libraryMediaIngestionErrorMessage,
+      admitIncomingOutputs,
       currentUserId,
       projectId,
       setOutputs,
@@ -307,10 +334,12 @@ export const useAiStudioReferenceIngestionActions = ({
       const outputId = `prompt-library-${randomId()}`;
       const promptOutput = buildLibraryPromptOutputWithId(payload, outputId);
       if (!promptOutput) return null;
+      const [admittedOutput] = admitIncomingOutputs([promptOutput]);
+      if (!admittedOutput) return null;
       setOutputs((prev) => [promptOutput, ...prev]);
       return outputId;
     },
-    [buildLibraryPromptOutputWithId, setOutputs]
+    [admitIncomingOutputs, buildLibraryPromptOutputWithId, setOutputs]
   );
 
   const addAgentPromptReference = useCallback(
@@ -333,9 +362,11 @@ export const useAiStudioReferenceIngestionActions = ({
       );
       const [promptReference] = result.outputs;
       if (!promptReference) return;
-      setOutputs((prev) => [promptReference, ...prev]);
+      const admittedOutputs = admitIncomingOutputs([promptReference]);
+      if (!admittedOutputs.length) return;
+      setOutputs((prev) => [...admittedOutputs, ...prev]);
     },
-    [aspect, mode, model, setOutputs]
+    [admitIncomingOutputs, aspect, mode, model, setOutputs]
   );
 
   const addPastedPromptReference = useCallback(
@@ -356,9 +387,11 @@ export const useAiStudioReferenceIngestionActions = ({
         }
       );
       if (!result.outputs.length) return;
-      setOutputs((prev) => [...result.outputs, ...prev]);
+      const admittedOutputs = admitIncomingOutputs(result.outputs);
+      if (!admittedOutputs.length) return;
+      setOutputs((prev) => [...admittedOutputs, ...prev]);
     },
-    [aspect, mode, model, setOutputs]
+    [admitIncomingOutputs, aspect, mode, model, setOutputs]
   );
 
   const addPastedMediaReference = useCallback(
@@ -380,10 +413,12 @@ export const useAiStudioReferenceIngestionActions = ({
         }
       );
       if (!result.outputs.length) return [];
-      setOutputs((prev) => [...result.outputs, ...prev]);
-      return result.outputs;
+      const admittedOutputs = admitIncomingOutputs(result.outputs);
+      if (!admittedOutputs.length) return [];
+      setOutputs((prev) => [...admittedOutputs, ...prev]);
+      return admittedOutputs;
     },
-    [aspect, mode, model, setOutputs]
+    [admitIncomingOutputs, aspect, mode, model, setOutputs]
   );
 
   const insertPastedMediaReference = useCallback(
@@ -444,12 +479,15 @@ export const useAiStudioReferenceIngestionActions = ({
           } => candidate.destinationTab !== null
         );
       const rejectedFileCount = Math.max(0, orderedFiles.length - supportedCandidates.length);
+      const availableSlots = getReferenceGridAvailableSlots(outputs);
+      const uploadCandidates = supportedCandidates.slice(0, availableSlots);
+      const skippedForCapCount = Math.max(0, supportedCandidates.length - uploadCandidates.length);
       let importedCount = 0;
       let firstErrorMessage: string | null = null;
       const insertedResults: IngestedReferenceFileResult[] = [];
 
-      for (let index = supportedCandidates.length - 1; index >= 0; index -= 1) {
-        const candidate = supportedCandidates[index];
+      for (let index = uploadCandidates.length - 1; index >= 0; index -= 1) {
+        const candidate = uploadCandidates[index];
         if (!candidate) continue;
         try {
           const uploaded = await uploadMediaFile({
@@ -477,6 +515,10 @@ export const useAiStudioReferenceIngestionActions = ({
       }
 
       if (importedCount === 0) {
+        if (skippedForCapCount > 0 && !firstErrorMessage && rejectedFileCount === 0) {
+          setUiError?.(buildReferenceGridPartialCapMessage(skippedForCapCount));
+          return [];
+        }
         if (firstErrorMessage || rejectedFileCount > 0) {
           setUiError?.(
             firstErrorMessage ?? "Unable to add those files right now. Please try again."
@@ -485,12 +527,17 @@ export const useAiStudioReferenceIngestionActions = ({
         return [];
       }
 
+      if (skippedForCapCount > 0) {
+        setUiError?.(buildReferenceGridPartialCapMessage(skippedForCapCount));
+        return insertedResults;
+      }
+
       if (firstErrorMessage || rejectedFileCount > 0) {
         setUiError?.("Some files could not be added. The rest were added.");
       }
       return insertedResults;
     },
-    [insertLibraryMediaReference, setUiError]
+    [insertLibraryMediaReference, outputs, setUiError]
   );
 
   const addOutputsFromFiles = useCallback(

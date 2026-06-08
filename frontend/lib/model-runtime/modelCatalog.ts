@@ -811,6 +811,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
         "inputUrl",
         "input_urls",
         "inputUrls",
+        "input_image_count",
         "aspect",
         "aspectRatio",
         "aspect_ratio",

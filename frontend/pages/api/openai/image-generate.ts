@@ -17,6 +17,7 @@ import {
   generateOpenAiImage,
   persistGeneratedImageAsset,
 } from "../../../lib/server/openaiImageGeneration";
+import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 
 type ImageGenerateRequestBody = {
   prompt?: unknown;
@@ -101,6 +102,10 @@ export default async function handler(
     const characterContext = asRecord(body.character_context) ?? {};
     const styleContext = asRecord(body.style_context) ?? {};
     const shortpulseContext = asRecord(body.shortpulse_context) ?? {};
+    const workspaceRuntimeKey = readGenerationWorkspaceRuntimeKeyFromContext({
+      context: shortpulseContext,
+      projectId,
+    });
 
     if (!prompt || !size || !quality) {
       return res.status(400).json({
@@ -120,6 +125,7 @@ export default async function handler(
         n: 1,
       },
       reason: "openai-gpt-image-2 generation",
+      shortpulseContext,
     });
     if (!charge) return;
     const settledCharge = charge;
@@ -142,6 +148,7 @@ export default async function handler(
     const persisted = await persistGeneratedImageAsset({
       userId: charge.userId,
       projectId,
+      workspaceRuntimeKey,
       promptText: prompt,
       modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
       providerRequestId,

@@ -28,6 +28,7 @@ import { readMediaAutosaveEnabledForUser } from "./api/mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "./api/mediaAutosavePreference";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { associateGenerationAndMediaWithProjectForUserBestEffort } from "./projectGenerationAssociationsService";
+import { normalizeGenerationWorkspaceRuntimeKey } from "./api/generationWorkspaceRuntimeKey";
 
 const DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1";
 const MEDIA_BUCKET = "media_library";
@@ -59,6 +60,7 @@ type OpenAiEditImageInput = OpenAiGenerateImageInput & {
 type PersistGeneratedImageInput = {
   userId: string;
   projectId?: string | null;
+  workspaceRuntimeKey?: string | null;
   promptText: string;
   modelId: string;
   providerRequestId?: string | null;
@@ -491,6 +493,7 @@ export const editOpenAiImage = async ({
 export const persistGeneratedImageAsset = async ({
   userId,
   projectId = null,
+  workspaceRuntimeKey = null,
   promptText,
   modelId,
   providerRequestId = null,
@@ -512,6 +515,9 @@ export const persistGeneratedImageAsset = async ({
   const resolvedRequestId = normalizeOptionalString(requestId) ?? randomUUID();
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
+  const resolvedWorkspaceRuntimeKey = resolvedProjectId
+    ? null
+    : normalizeGenerationWorkspaceRuntimeKey(workspaceRuntimeKey);
   const createdAtIso = new Date().toISOString();
   const displayPrompt = resolveGenerationPromptFromPayload("openai-image", {
     prompt: promptText,
@@ -566,6 +572,7 @@ export const persistGeneratedImageAsset = async ({
       user_abandoned: abandonment.abandoned,
       abandoned_no_refund: abandonment.noRefund,
       hidden_in_reference_grid: effectiveHiddenInReferenceGrid,
+      workspace_runtime_key: resolvedWorkspaceRuntimeKey,
       autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
       autosave_decision_reason: autosavePolicyDecision.reason,
       mime_type: outputContentType,
@@ -706,6 +713,7 @@ export const persistGeneratedImageAsset = async ({
       generationId,
       userId,
       projectId: resolvedProjectId,
+      workspaceRuntimeKey: resolvedWorkspaceRuntimeKey,
       sourceRef: resolvedRequestId,
       requestId: resolvedRequestId,
       provider: "openai",

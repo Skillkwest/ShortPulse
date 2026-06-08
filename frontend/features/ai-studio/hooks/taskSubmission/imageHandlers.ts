@@ -194,7 +194,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         aspect_ratio: falNanoBananaProAllowedAspects.has(aspect) ? aspect : "auto",
         output_format: "png",
         resolution: normalizeNanoBananaProResolution(requestedResolution, "1K"),
-        image_urls: preparedImageInputs.slice(0, 8),
+        image_urls: preparedImageInputs.slice(0, 10),
         ...shortpulseSubmitPayload,
       });
       return {
@@ -232,7 +232,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         aspect_ratio: normalizeAspectForFalNanoBanana2(aspect),
         output_format: "png",
         resolution: normalizeNanoBanana2Resolution(requestedResolution, "1K"),
-        image_urls: preparedImageInputs.slice(0, 8),
+        image_urls: preparedImageInputs.slice(0, 10),
         ...shortpulseSubmitPayload,
       });
       return {
@@ -380,6 +380,7 @@ export const handleImageModelSubmission = async ({
         }
       : shortpulseContext;
   const shortpulseSubmitPayload = {
+    ...(preparedImageInputs.length > 0 ? { input_image_count: preparedImageInputs.length } : {}),
     ...(generationReplay ? { generation_replay: generationReplay } : {}),
     ...(workflowReload ? { workflow_reload: workflowReload } : {}),
     ...(hasInternalMediaRefs(internalMediaRefs)

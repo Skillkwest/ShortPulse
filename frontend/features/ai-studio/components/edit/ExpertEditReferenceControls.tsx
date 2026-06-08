@@ -10,6 +10,9 @@ import type { ExpertEditStyleTile } from "./expertEditStyles";
 
 type ExpertEditSecondaryReferencesProps = {
   extraImageUrls: readonly (string | null)[];
+  visibleSlotIndexes: readonly number[];
+  onAddSlot: () => void;
+  onRemoveSlot: (index: number) => void;
   inputRefs: readonly React.RefObject<HTMLInputElement | null>[];
   extraDragActive: readonly boolean[];
   isPromptTokenPickerOpen: boolean;
@@ -21,7 +24,6 @@ type ExpertEditSecondaryReferencesProps = {
   onSecondaryDragEnter: (index: number) => React.DragEventHandler<HTMLDivElement>;
   onSecondaryDragOver: (index: number) => React.DragEventHandler<HTMLDivElement>;
   onSecondaryDragLeave: (index: number) => React.DragEventHandler<HTMLDivElement>;
-  onExtraImageChange: (index: number, url: string | null) => void;
   isStylesPanelOpen?: boolean;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
@@ -30,6 +32,9 @@ type ExpertEditSecondaryReferencesProps = {
 
 export function ExpertEditSecondaryReferences({
   extraImageUrls,
+  visibleSlotIndexes,
+  onAddSlot,
+  onRemoveSlot,
   inputRefs,
   extraDragActive,
   isPromptTokenPickerOpen,
@@ -41,7 +46,6 @@ export function ExpertEditSecondaryReferences({
   onSecondaryDragEnter,
   onSecondaryDragOver,
   onSecondaryDragLeave,
-  onExtraImageChange,
   isStylesPanelOpen,
   selectedStyleId,
   stylesCatalog,
@@ -52,7 +56,8 @@ export function ExpertEditSecondaryReferences({
       <div className="edit-expert-secondary-control">
         <p className="edit-expert-secondary-title">Reference Images</p>
         <div className="edit-expert-secondary-row">
-          {extraImageUrls.map((previewUrl, index) => {
+          {visibleSlotIndexes.map((index) => {
+            const previewUrl = extraImageUrls[index] ?? null;
             const inputRef = inputRefs[index];
             return (
               <div className="edit-expert-secondary-slot" key={`expert-edit-secondary-${index}`}>
@@ -74,29 +79,38 @@ export function ExpertEditSecondaryReferences({
                   onDragEnter={onSecondaryDragEnter(index)}
                   onDragOver={onSecondaryDragOver(index)}
                   onDragLeave={onSecondaryDragLeave(index)}
-                  onClick={() => inputRef.current?.click()}
+                  onClick={() => inputRef?.current?.click()}
                   style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
                   aria-label={`Secondary edit image ${index + 1}`}
                 >
-                  {previewUrl ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      aria-label={`Remove secondary image ${index + 1}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onExtraImageChange(index, null);
-                      }}
-                    >
-                      <TrashSimple size={14} weight="regular" />
-                    </button>
-                  ) : (
-                    <Plus size={18} weight="regular" />
-                  )}
+                  <button
+                    type="button"
+                    className="dropzone-clear"
+                    aria-label={`Remove reference slot ${index + 1}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemoveSlot(index);
+                    }}
+                  >
+                    <TrashSimple size={14} weight="regular" />
+                  </button>
+                  {previewUrl ? null : <Plus size={18} weight="regular" />}
                 </div>
               </div>
             );
           })}
+          {visibleSlotIndexes.length < extraImageUrls.length ? (
+            <div className="edit-expert-secondary-slot" key="expert-edit-secondary-add">
+              <button
+                type="button"
+                className="reference-dropzone extra edit-expert-secondary-add-slot"
+                aria-label="Add reference slot"
+                onClick={onAddSlot}
+              >
+                <Plus size={18} weight="regular" />
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
       <StylesControl

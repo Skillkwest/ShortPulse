@@ -124,6 +124,7 @@ export type StandardCreateRuntimeProps = {
   onImageResolutionChange: Dispatch<SetStateAction<string>>;
   onStylesPanelToggle?: () => void;
   onOpenPresetsLibrary?: () => void;
+  onPinPromptReference?: (text: string) => void;
   generationServices: NeutralCreateGenerationServices;
 };
 
@@ -159,6 +160,7 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
   handleClearAgentChat: () => void;
   hydrateFromSessionAgentSnapshot: (payload: CreateRuntimeAgentHydrationPayload) => void;
+  prepareForWorkflowReload: (prompt: string) => void;
   resetProjectAgentConversation: () => void;
 };
 

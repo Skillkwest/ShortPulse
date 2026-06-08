@@ -326,6 +326,24 @@ describe("useAiStudioGenerationController", () => {
     });
   });
 
+  it("blocks generate when the optimistic placeholder is refused", async () => {
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => null);
+    const generateOutput = vi.fn();
+    const params = createParams({
+      generateOutput,
+      insertOptimisticGenerationPlaceholder,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+    await act(async () => {
+      generateResult = await result.current.handleGenerate("prompt");
+    });
+
+    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
+    expect(generateOutput).not.toHaveBeenCalled();
+  });
+
   it("cleans up optimistic placeholder when pre-submit character prep fails", async () => {
     const setUiError = vi.fn();
     const setOptimisticDebitEntries = vi.fn();

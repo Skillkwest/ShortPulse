@@ -426,6 +426,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 - `generation_id` (uuid, pk/fk): Parent `ai_generations` row with same-user parity.
 - `user_id` (uuid): Owner for RLS scoping.
+- `project_id` (uuid, nullable): Project restore scope when a generation starts from a project route.
+- `workspace_runtime_key` (text, nullable): Bounded non-project workspace/session restore scope, such as `session:<sid>`, used to rehydrate generated outputs for the same AI Studio runtime without scanning user-global generated-output state.
 - `source_ref` (text, nullable): Submit/request correlation seam.
 - `character_context` (jsonb, default `{}`): Persisted character-mode lineage and applied-state context.
 - `style_context` (jsonb, default `{}`): Persisted style lineage and applied-state context.
@@ -437,6 +439,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Notes:
   - Admin stats v1 treats this as the primary workflow-context authority for style-applied, character-mode, and reference-assisted generation analytics.
   - Accepted submit paths pass additive `generation_replay`, `workflow_reload`, `character_context`, and `style_context` snapshots through the provider submit proxy so direct accepted runs preserve workflow analytics and reload context.
+  - Reference Grid generated-output hydration must scope by `project_id` on project routes or by `workspace_runtime_key` on plain-session routes; plain sessions must not re-enable user-global generated-output startup hydration.
 
 ### generation_abandonments
 

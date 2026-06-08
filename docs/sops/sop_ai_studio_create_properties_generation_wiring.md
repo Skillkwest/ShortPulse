@@ -257,7 +257,7 @@ When changing Create panel behavior or generation wiring, update all relevant la
 4. Agent/control layer: bridge hooks and API routes if prompt ownership or safety paths changed.
 5. Docs/indexes: this SOP, `sop_ai_studio_index.md`, and vertical SOPs (`text/image/video/agent`) for any behavior delta.
 6. Expert Edit action wiring: keep `Remove Background` on the same regenerate pipeline using `modelIdOverride` (no parallel submit stack) and use model-priced debit (no `costOverrideCredits` bypass; Bria submit uses standard billing reservation/debit).
-7. Expert Edit token workflow changes (`@img1..@img3`) must also update `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`.
+7. Expert Edit token workflow changes (`@img1..@img10`) must also update `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`.
 
 ## Verification checklist
 

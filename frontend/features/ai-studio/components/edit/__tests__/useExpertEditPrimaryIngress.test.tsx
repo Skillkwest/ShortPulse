@@ -185,6 +185,7 @@ describe("useExpertEditPrimaryIngress", () => {
           createLayer,
           queuePanelHistoryBaselineFromCurrent: vi.fn(),
           setLayers,
+          setFoundationLayerId: vi.fn(),
           setSelectedLayerIndex,
           setEditingLayerIndex,
           setEditingLayerValue,
@@ -239,6 +240,7 @@ describe("useExpertEditPrimaryIngress", () => {
         createLayer,
         queuePanelHistoryBaselineFromCurrent: vi.fn(),
         setLayers,
+        setFoundationLayerId: vi.fn(),
         setSelectedLayerIndex: vi.fn(),
         setEditingLayerIndex: vi.fn(),
         setEditingLayerValue: vi.fn(),
@@ -300,6 +302,7 @@ describe("useExpertEditPrimaryIngress", () => {
         createLayer,
         queuePanelHistoryBaselineFromCurrent: vi.fn(),
         setLayers: setHookLayers,
+        setFoundationLayerId: vi.fn(),
         setSelectedLayerIndex: vi.fn(),
         setEditingLayerIndex: vi.fn(),
         setEditingLayerValue: vi.fn(),
@@ -368,6 +371,7 @@ describe("useExpertEditPrimaryIngress", () => {
         createLayer,
         queuePanelHistoryBaselineFromCurrent: vi.fn(),
         setLayers: setHookLayers,
+        setFoundationLayerId: vi.fn(),
         setSelectedLayerIndex: vi.fn(),
         setEditingLayerIndex: vi.fn(),
         setEditingLayerValue: vi.fn(),
@@ -439,6 +443,7 @@ describe("useExpertEditPrimaryIngress", () => {
         createLayer,
         queuePanelHistoryBaselineFromCurrent: vi.fn(),
         setLayers: setHookLayers,
+        setFoundationLayerId: vi.fn(),
         setSelectedLayerIndex: vi.fn(),
         setEditingLayerIndex: vi.fn(),
         setEditingLayerValue: vi.fn(),
@@ -487,6 +492,7 @@ describe("useExpertEditPrimaryIngress", () => {
         createLayer,
         queuePanelHistoryBaselineFromCurrent: vi.fn(),
         setLayers,
+        setFoundationLayerId: vi.fn(),
         setSelectedLayerIndex,
         setEditingLayerIndex,
         setEditingLayerValue,
@@ -515,6 +521,54 @@ describe("useExpertEditPrimaryIngress", () => {
     expect(createLayer).toHaveBeenCalledTimes(1);
   });
 
+  it("creates layer 1 when the first image is dropped onto an empty canvas", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const event = makeImageDropEvent("https://example.com/first.png");
+
+    const { result } = renderHook(() => {
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([]);
+      const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>(null);
+      const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(null);
+
+      const ingress = useExpertEditPrimaryIngress({
+        layers,
+        selectedLayerIndex,
+        foundationLayerId,
+        isMorePresetsSurfaceOpen: false,
+        createLayer,
+        queuePanelHistoryBaselineFromCurrent: vi.fn(),
+        setLayers,
+        setFoundationLayerId,
+        setSelectedLayerIndex,
+        setEditingLayerIndex: vi.fn(),
+        setEditingLayerValue: vi.fn(),
+        revokeObjectUrlSafe: vi.fn(),
+      });
+
+      return {
+        foundationLayerId,
+        ingress,
+        layers,
+        selectedLayerIndex,
+      };
+    });
+
+    await act(async () => {
+      result.current.ingress.handlePrimaryDrop(event);
+      await Promise.resolve();
+    });
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(result.current.layers).toHaveLength(1);
+    expect(result.current.layers[0]?.id).toBe("layer-1");
+    expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/first.png");
+    expect(result.current.foundationLayerId).toBe("layer-1");
+    expect(result.current.selectedLayerIndex).toBe(0);
+    expect(createLayer).toHaveBeenCalledTimes(1);
+  });
+
   it("does not persist stale blob-backed primary drops when cloning fails", async () => {
     const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
       createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
@@ -536,6 +590,7 @@ describe("useExpertEditPrimaryIngress", () => {
         createLayer,
         queuePanelHistoryBaselineFromCurrent: vi.fn(),
         setLayers,
+        setFoundationLayerId: vi.fn(),
         setSelectedLayerIndex,
         setEditingLayerIndex: vi.fn(),
         setEditingLayerValue: vi.fn(),

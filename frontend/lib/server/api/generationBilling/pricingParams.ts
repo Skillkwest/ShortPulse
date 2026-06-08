@@ -57,13 +57,28 @@ const resolveInputImageCount = (payload: JsonObject): number | undefined => {
   }
 
   const images = payload.images;
-  if (!Array.isArray(images)) return undefined;
-  const count = images.filter((entry) => {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
-    const image = entry as Record<string, unknown>;
-    return Boolean(asString(image.image_url) ?? asString(image.file_id));
-  }).length;
-  return count > 0 ? count : undefined;
+  if (Array.isArray(images)) {
+    const count = images.filter((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+      const image = entry as Record<string, unknown>;
+      return Boolean(asString(image.image_url) ?? asString(image.file_id));
+    }).length;
+    if (count > 0) return count;
+  }
+
+  const urlFieldCount = ["image_urls", "input_urls"].reduce((count, field) => {
+    const value = payload[field];
+    if (!Array.isArray(value)) return count;
+    return (
+      count + value.filter((entry) => typeof entry === "string" && entry.trim().length > 0).length
+    );
+  }, 0);
+  if (urlFieldCount > 0) return urlFieldCount;
+
+  const singleUrlCount = ["image_url", "input_url"].filter((field) =>
+    Boolean(asString(payload[field]))
+  ).length;
+  return singleUrlCount > 0 ? singleUrlCount : undefined;
 };
 
 const resolveInputVideoCount = (payload: JsonObject): number | undefined => {

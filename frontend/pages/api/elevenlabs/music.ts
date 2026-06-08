@@ -22,6 +22,7 @@ import {
 } from "../../../lib/server/elevenlabs";
 import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
 import { probeMediaDurationSeconds } from "../../../lib/server/mediaAudioExtraction";
+import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 
 type MusicRequestBody = {
   text?: unknown;
@@ -144,6 +145,10 @@ export default async function handler(
     const modelId = normalizeRequiredString(body.modelId) ?? DEFAULT_MUSIC_MODEL_ID;
     const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
     const shortpulseContext = asRecord(body.shortpulse_context);
+    const workspaceRuntimeKey = readGenerationWorkspaceRuntimeKeyFromContext({
+      context: shortpulseContext,
+      projectId,
+    });
     const workflowReload = asRecord(body.workflow_reload) ?? {};
     const isAutoDuration = body.durationSeconds == null;
     const durationSeconds = isAutoDuration ? null : parseRequiredFiniteNumber(body.durationSeconds);
@@ -283,6 +288,7 @@ export default async function handler(
       providerRequestId,
       requestId: charge.sourceRef,
       projectId,
+      workspaceRuntimeKey,
       sourceMode: "music",
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,

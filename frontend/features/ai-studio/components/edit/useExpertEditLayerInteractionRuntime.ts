@@ -42,6 +42,12 @@ export function useExpertEditLayerInteractionRuntime({
     setEditingLayerValue("");
   }, []);
 
+  const clearLayerDragState = React.useCallback(() => {
+    draggingLayerIndexRef.current = null;
+    setDraggingLayerIndex(null);
+    setDragOverLayerIndex(null);
+  }, []);
+
   const handleReorderLayers = React.useCallback(
     (fromIndex: number, toIndex: number) => {
       const nextLayerState = resolveReorderedLayerState({
@@ -232,6 +238,7 @@ export function useExpertEditLayerInteractionRuntime({
   return {
     beginLayerRename,
     clearLayerEditing,
+    clearLayerDragState,
     dragOverLayerIndex,
     draggingLayerIndex,
     editingLayerIndex,

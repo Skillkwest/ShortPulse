@@ -89,5 +89,6 @@ export const buildStandardCreateRuntimeResult = ({
     selectedStyleId: props.selectedStyleId,
     stylesCatalog: props.stylesCatalog,
     onOpenPresetsLibrary: props.onOpenPresetsLibrary,
+    onPinPromptReference: props.onPinPromptReference,
   }),
 });

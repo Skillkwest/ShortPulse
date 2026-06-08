@@ -3108,6 +3108,13 @@ describe("sessionSnapshot", () => {
       null,
       "https://cdn.shortpulse.dev/extra.png",
       null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
     ]);
     expect(snapshot.workspace.motionReferenceVideoUrl).toBeNull();
     expect(snapshot.workspace.klingElements[0]).toEqual({

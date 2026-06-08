@@ -1381,7 +1381,18 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.mode).toBe("text");
     expect(payload.workspace.selectedTool).toBeNull();
     expect(payload.workspace.videoDurationSeconds).toBe(6);
-    expect(payload.workspace.extraImageUrls).toEqual(["a", null, null]);
+    expect(payload.workspace.extraImageUrls).toEqual([
+      "a",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
   });
 
   it("strips local blob/data workspace references during hydration", () => {
@@ -1406,7 +1417,18 @@ describe("sessionSnapshotHydrator", () => {
     );
 
     expect(payload.workspace.referenceImageUrl).toBeNull();
-    expect(payload.workspace.extraImageUrls).toEqual([null, "https://example.com/extra.png", null]);
+    expect(payload.workspace.extraImageUrls).toEqual([
+      null,
+      "https://example.com/extra.png",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
     expect(payload.workspace.motionReferenceVideoUrl).toBeNull();
     expect(payload.workspace.klingElements[0]).toEqual({
       id: "k1",

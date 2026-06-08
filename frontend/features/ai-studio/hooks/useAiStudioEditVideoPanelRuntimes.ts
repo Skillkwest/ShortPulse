@@ -69,6 +69,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     addPastedMediaReference: base.addPastedMediaReference,
     setExtraImageUrl: base.setImageExtraImageUrl,
     handleEditPromptTextChange,
+    onPinPromptReference: base.addAgentPromptReference,
     handleImageRegenerateWithDebit,
     resolveVariantCostCredits: resolveExpertEditVariantCostCredits,
     insertOptimisticGenerationPlaceholder: (promptText: string) =>
@@ -183,6 +184,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     setExtraImageUrl: base.setVideoExtraImageUrl,
     setMotionReferenceVideoUrl: base.setMotionReferenceVideoUrl,
     handleVideoPromptTextChange,
+    onPinPromptReference: base.addAgentPromptReference,
     handleRegenerateWithDebit,
     currentCostCredits,
     referenceImageWarning,

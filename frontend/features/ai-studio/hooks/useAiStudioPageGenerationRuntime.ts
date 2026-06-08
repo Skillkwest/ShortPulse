@@ -42,7 +42,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
   createSelectedCharacterId: string;
   editReferenceText: string;
   editSubmitIntent: Parameters<typeof useAiStudioViewModel>[0]["editSubmitIntent"];
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   generateOutput: (promptOverride?: string | null, options?: AiStudioGenerateOutputOptions) => void;
   getDefaultDurationSeconds: (modelId: string | null) => number;
   imageResolution: string;
@@ -79,6 +79,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
     context: ModelModalContext | null
   ) => void;
   projectId: string | null;
+  workspaceRuntimeKey?: string | null;
   referenceImageUrl: string | null;
   refreshBalance: (options?: {
     silent?: boolean;
@@ -104,7 +105,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
   resolveIsCharacterModeEnabledForTool: (tool: ToolId | null) => boolean;
   resolveReferenceInputsForTool: (tool: ToolId | null) => {
     referenceImageUrl: string | null;
-    extraImageUrls: [string | null, string | null, string | null];
+    extraImageUrls: readonly (string | null)[];
   };
   resolveSelectedCharacterIdForTool: (tool: ToolId | null) => string | null;
   seedance2InputMode?: Parameters<typeof useAiStudioViewModel>[0]["seedance2InputMode"];
@@ -190,6 +191,7 @@ export const useAiStudioPageGenerationRuntime = ({
   closeModelModal,
   openModelModal,
   projectId,
+  workspaceRuntimeKey = null,
   referenceImageUrl,
   refreshBalance,
   refreshCharacterModeInjectionBundleForSubmission,
@@ -382,6 +384,8 @@ export const useAiStudioPageGenerationRuntime = ({
     handleSoundEffectsGenerate,
   } = useAiStudioAudioGeneration({
     projectId,
+    workspaceRuntimeKey,
+    outputs: outputs ?? [],
     setUiError,
     insertOptimisticGenerationPlaceholder,
     notifyGenerationFailure,

@@ -467,6 +467,33 @@ describe("upsertGenerationProjection", () => {
     );
   });
 
+  it("writes bounded workspace runtime scope onto projection rows", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+    });
+
+    await upsertGenerationProjection({
+      generationId: "gen-workspace-scope",
+      userId: "user-workspace-scope",
+      workspaceRuntimeKey: "session:session-scope-1",
+      status: "ready",
+      taskState: "running",
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-workspace-scope",
+        user_id: "user-workspace-scope",
+        workspace_runtime_key: "session:session-scope-1",
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+  });
+
   it("retries without save_error when hosted schema is missing that column", async () => {
     const supabaseAdmin = createSupabaseAdmin({
       projectionRows: [],

@@ -223,6 +223,54 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
   });
 
+  it("copies storage-backed internal character drops without downloading them into browser files", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const setCharacterSheetPresetFile = vi.fn().mockResolvedValue(true);
+    const setCharacterSheetPresetStorageReference = vi.fn().mockResolvedValue(true);
+    const resolveCharacterDropReference = vi.fn().mockResolvedValue({
+      mediaId: "media-1",
+      previewUrl: "https://signed.example/internal-preview.png",
+      storagePath: "user-1/generations/images/internal.png",
+      outputId: "out-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs",
+    });
+    const data = new Map<string, string>([
+      ["text/reference-origin", "ai-studio-reference-grid"],
+      ["text/reference-output-id", "out-1"],
+      ["text/reference-image-index", "0"],
+      ["text/reference-source-surface", "all-refs"],
+    ]);
+    const transfer = {
+      files: [],
+      items: [],
+      types: Array.from(data.keys()),
+      getData: (type: string) => data.get(type) ?? "",
+    } as unknown as DataTransfer;
+
+    const { result } = renderHook(() =>
+      useCharacterManagerDroppedReferenceController({
+        setCharacterSheetPresetFile,
+        setCharacterSheetPresetStorageReference,
+        resolveCharacterDropReference,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleCharacterSheetReferenceDrop("portrait", transfer);
+    });
+
+    expect(setCharacterSheetPresetStorageReference).toHaveBeenCalledWith("portrait", {
+      storagePath: "user-1/generations/images/internal.png",
+      previewUrl: "https://signed.example/internal-preview.png",
+      filename: "internal.png",
+      mimeType: null,
+    });
+    expect(setCharacterSheetPresetFile).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
+  });
+
   it("prefers degraded internal reference hints over synthetic browser files", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,

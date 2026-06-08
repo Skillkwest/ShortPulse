@@ -44,6 +44,7 @@ vi.mock("../StandardCreatePanelView", () => ({
         hideChatModeToggle?: boolean;
         agentInputCollapseOnBlur?: boolean;
         composerLeadingContent?: React.ReactNode;
+        composerTrailingContent?: React.ReactNode;
         onChatModeEnabledChange?: (value: boolean) => void;
         onUseAssistantMessageAsPrompt?: (request: { messageId: string; prompt: string }) => void;
       };
@@ -71,6 +72,7 @@ vi.mock("../StandardCreatePanelView", () => ({
           </div>
         ) : null}
         <div data-testid="composer-leading-content">{promptStepProps.composerLeadingContent}</div>
+        <div data-testid="composer-trailing-content">{promptStepProps.composerTrailingContent}</div>
         <button type="button" onClick={onCreateModelOpen}>
           open-model-picker
         </button>
@@ -194,6 +196,26 @@ describe("StandardCreatePropertiesPanel single mode", () => {
         name: "Generate",
       })
     ).toBeNull();
+  });
+
+  it("pins the current Standard composer prompt as a text reference", () => {
+    const onPinPromptReference = vi.fn();
+
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        prompt="  a precise text reference  "
+        onPinPromptReference={onPinPromptReference}
+      />
+    );
+
+    fireEvent.click(
+      within(screen.getByTestId("composer-trailing-content")).getByRole("button", {
+        name: "Pin text reference to reference grid",
+      })
+    );
+
+    expect(onPinPromptReference).toHaveBeenCalledWith("a precise text reference");
   });
 
   it("moves assistant output into the Standard prompt composer without generating", () => {

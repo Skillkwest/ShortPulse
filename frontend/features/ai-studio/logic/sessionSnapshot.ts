@@ -44,6 +44,10 @@ import { resolveVideoPosterStoragePath } from "./videoPosterStoragePaths";
 import { isEphemeralLocalImageAttachment } from "./ephemeralComposerImage";
 import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
 import {
+  createEmptyExpertEditSecondaryImageUrls,
+  normalizeExpertEditSecondaryImageUrls,
+} from "./expertEditReferenceSlots";
+import {
   hasSettledSessionOutputPayload,
   shouldKeepSessionOutputForDurableRestore,
 } from "./sessionOutputAuthority";
@@ -66,7 +70,7 @@ export type AiStudioSessionCreateModeReferenceStateV1 = {
   selectedTool: ToolId | null;
   showCreateTools?: boolean;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
   motionReferenceVideoUrl: string | null;
   useReferenceImageIndicator?: boolean;
@@ -172,7 +176,7 @@ export type AiStudioSessionWorkspaceV1 = {
   pulseSessionInstanceId?: string | null;
   createModeReferenceStates?: AiStudioSessionCreateModeReferenceStatesV1;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
   editReferenceText: string;
   videoReferenceText: string;
@@ -276,7 +280,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   pulseSessionInstanceId?: string | null;
   createModeReferenceStates?: AiStudioSessionCreateModeReferenceStatesV1;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   editReferenceText: string;
   videoReferenceText: string;
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -390,18 +394,13 @@ const sanitizeSelectedCharacterId = (value: string | null | undefined): string |
   return normalized.length > 0 ? normalized : null;
 };
 
-const sanitizeWorkspaceExtraImageUrls = (
-  values: [string | null, string | null, string | null]
-): [string | null, string | null, string | null] => [
-  sanitizeWorkspaceMediaUrl(values[0]),
-  sanitizeWorkspaceMediaUrl(values[1]),
-  sanitizeWorkspaceMediaUrl(values[2]),
-];
+const sanitizeWorkspaceExtraImageUrls = (values: readonly (string | null)[]): (string | null)[] =>
+  normalizeExpertEditSecondaryImageUrls(values).map((value) => sanitizeWorkspaceMediaUrl(value));
 
 const sanitizeWorkspaceInternalMediaRefs = (
   primary: string | null,
-  extras: [string | null, string | null, string | null]
-): Array<InternalMediaRef | null> => resolveInternalMediaRefsForUrls([primary, ...extras], 4);
+  extras: readonly (string | null)[]
+): Array<InternalMediaRef | null> => resolveInternalMediaRefsForUrls([primary, ...extras], 11);
 
 const sanitizeCreateModeReferenceState = (
   value: AiStudioSessionCreateModeReferenceStateV1
@@ -794,7 +793,9 @@ export const buildAiStudioSessionSnapshot = (
           referenceImageUrl:
             resolvedExpertCreateMode === "standard" ? input.referenceImageUrl : null,
           extraImageUrls:
-            resolvedExpertCreateMode === "standard" ? input.extraImageUrls : [null, null, null],
+            resolvedExpertCreateMode === "standard"
+              ? input.extraImageUrls
+              : createEmptyExpertEditSecondaryImageUrls(),
           motionReferenceVideoUrl:
             resolvedExpertCreateMode === "standard" ? input.motionReferenceVideoUrl : null,
         }),
@@ -802,7 +803,9 @@ export const buildAiStudioSessionSnapshot = (
           selectedTool: resolvedExpertCreateMode === "pulse" ? input.selectedTool : "create",
           referenceImageUrl: resolvedExpertCreateMode === "pulse" ? input.referenceImageUrl : null,
           extraImageUrls:
-            resolvedExpertCreateMode === "pulse" ? input.extraImageUrls : [null, null, null],
+            resolvedExpertCreateMode === "pulse"
+              ? input.extraImageUrls
+              : createEmptyExpertEditSecondaryImageUrls(),
           motionReferenceVideoUrl:
             resolvedExpertCreateMode === "pulse" ? input.motionReferenceVideoUrl : null,
         }),
@@ -966,7 +969,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
     activePulsePresetId: null,
     pulseSessionInstanceId: null,
     referenceImageUrl: null,
-    extraImageUrls: [null, null, null],
+    extraImageUrls: createEmptyExpertEditSecondaryImageUrls(),
     editReferenceText: "",
     videoReferenceText: "",
     videoReferenceMode: "standard",

@@ -7,17 +7,16 @@ import {
   extractExpertEditPromptTokenFromTransfer,
   insertExpertEditPromptTokenAtSelection,
 } from "../../logic/expertEditPromptReferences";
-import { secondaries } from "./expertEditPanelViewContract";
 import { clampCaretPosition } from "./expertEditInteractionUtils";
 
 export type PromptTokenPickerState = {
   isOpen: boolean;
-  selectedSlotIndex: (typeof secondaries)[number] | "main" | null;
+  selectedSlotIndex: number | "main" | null;
   replaceStart: number;
   replaceEnd: number;
 };
 
-export type PromptTokenPickerSelection = (typeof secondaries)[number] | "main";
+export type PromptTokenPickerSelection = number | "main";
 
 type UseExpertEditPromptTokenPickerRuntimeArgs = {
   promptTextValue: string;

@@ -42,6 +42,7 @@ type UseExpertEditPrimaryIngressArgs = {
   createLayer: CreateLayer;
   queuePanelHistoryBaselineFromCurrent: () => void;
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
+  setFoundationLayerId: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setEditingLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setEditingLayerValue: React.Dispatch<React.SetStateAction<string>>;
@@ -63,6 +64,7 @@ export function useExpertEditPrimaryIngress({
   createLayer,
   queuePanelHistoryBaselineFromCurrent,
   setLayers,
+  setFoundationLayerId,
   setSelectedLayerIndex,
   setEditingLayerIndex,
   setEditingLayerValue,
@@ -128,6 +130,23 @@ export function useExpertEditPrimaryIngress({
       const currentLayers = layersRef.current;
       const currentSelectedLayerIndex = selectedLayerIndexRef.current;
       const currentFoundationLayerId = foundationLayerIdRef.current;
+      if (currentLayers.length <= 0) {
+        const insertedLayer = createLayer({
+          indexOneBased: 1,
+          imageUrl: candidateUrl,
+          ownsImageUrl: payload.ownsImageUrl,
+        });
+        queuePanelHistoryBaselineFromCurrent();
+        setLayers([insertedLayer]);
+        setFoundationLayerId(insertedLayer.id);
+        if (seededDimensions) {
+          seedLayerImageDimensions?.(insertedLayer.id, candidateUrl, seededDimensions);
+        }
+        setSelectedLayerIndex(0);
+        setEditingLayerIndex(null);
+        setEditingLayerValue("");
+        return;
+      }
       const targetIndex = resolveLayerIndexOrFallback({
         selectedLayerIndex: currentSelectedLayerIndex,
         layerCount: currentLayers.length,
@@ -223,6 +242,7 @@ export function useExpertEditPrimaryIngress({
       queuePanelHistoryBaselineFromCurrent,
       revokeObjectUrlSafe,
       seedLayerImageDimensions,
+      setFoundationLayerId,
       setEditingLayerIndex,
       setEditingLayerValue,
       setLayers,

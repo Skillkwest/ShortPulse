@@ -37,6 +37,7 @@ import {
   readStoredMediaBuffer,
 } from "../../../lib/server/mediaAudioExtraction";
 import { transcribeAudioBuffer } from "../../../lib/server/openAiAudioTranscription";
+import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 
 type GenerateAudioSuccessResponse = {
   output: {
@@ -177,6 +178,10 @@ export default async function handler(
     const originalVideoAspect = readFieldString(fields.originalVideoAspect);
     const projectId = readFieldString(fields.project_id) ?? readFieldString(fields.projectId);
     const shortpulseContext = parseJsonObjectField(readFieldString(fields.shortpulseContext));
+    const workspaceRuntimeKey = readGenerationWorkspaceRuntimeKeyFromContext({
+      context: shortpulseContext,
+      projectId,
+    });
     const workflowReload = parseJsonObjectField(readFieldString(fields.workflowReload)) ?? {};
     const removeBackgroundNoise = parseBooleanField(fields.removeBackgroundNoise);
     const voiceSettingsField = readFieldString(fields.voiceSettings);
@@ -383,6 +388,7 @@ export default async function handler(
       providerRequestId,
       requestId: charge.sourceRef,
       projectId,
+      workspaceRuntimeKey,
       sourceMode: "voice-changer",
       voiceId,
       voiceName: effectiveVoiceName,
@@ -446,6 +452,7 @@ export default async function handler(
           modelId,
           providerRequestId,
           projectId,
+          workspaceRuntimeKey,
           sourceMode: "voice-changer",
           outputBuffer: remuxedVideo.buffer,
           outputContentType: remuxedVideo.contentType,

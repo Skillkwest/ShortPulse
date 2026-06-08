@@ -275,7 +275,10 @@ describe("useAiStudioState output store bridge", () => {
     renderHook(() => useAiStudioState({ projectId: "project-1" }), { wrapper: strictWrapper });
 
     await waitFor(() => {
-      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({ projectId: "project-1" });
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+        projectId: "project-1",
+        workspaceRuntimeKey: null,
+      });
     });
   });
 
@@ -369,6 +372,7 @@ describe("useAiStudioState output store bridge", () => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledTimes(1);
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
         projectId: null,
+        workspaceRuntimeKey: null,
         limit: 1,
         runtimeIdentities: [
           {
@@ -840,13 +844,15 @@ describe("useAiStudioState output store bridge", () => {
     });
   });
 
-  it("allows plain-session generated-output hydration when explicitly enabled", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED", "true");
-    renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+  it("hydrates plain-session generated outputs by bounded session workspace key", async () => {
+    renderHook(() => useAiStudioState({ sessionId: "session-1" }), { wrapper: strictWrapper });
 
     await waitFor(() => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledTimes(1);
-      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({ projectId: null });
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+        projectId: null,
+        workspaceRuntimeKey: "session:session-1",
+      });
     });
   });
 
@@ -1217,7 +1223,7 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.outputs.length).toBe(522);
+      expect(result.current.outputs.length).toBe(250);
     });
     expect(result.current.archivedOutputs).toEqual([]);
   });

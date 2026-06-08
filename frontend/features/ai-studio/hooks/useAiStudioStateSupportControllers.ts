@@ -29,6 +29,7 @@ export const useAiStudioStateSupportControllers = ({
   const referenceIngestion = useAiStudioReferenceIngestionActions({
     activeOutput,
     projectId,
+    outputs,
     mode,
     aspect,
     model,

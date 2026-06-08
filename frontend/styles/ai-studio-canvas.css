@@ -396,7 +396,7 @@
 }
 
 .reference-card.is-dragging .reference-card-actions,
-.reference-card.is-dragging .reference-card-reroll-btn,
+.reference-card.is-dragging .reference-card-bottom-actions,
 .reference-card.is-dragging .reference-status-retry-btn,
 .reference-card.is-dragging .reference-save-chip {
   opacity: 0 !important;
@@ -450,17 +450,19 @@
   pointer-events: auto;
 }
 
-.reference-card-reroll-btn {
+.reference-card-bottom-actions {
   position: absolute;
   left: 6px;
   bottom: 6px;
+  display: flex;
+  gap: 6px;
   z-index: 3;
   opacity: 0;
   transition: opacity 0.16s ease;
   pointer-events: none;
 }
 
-.reference-card.is-active .reference-card-reroll-btn {
+.reference-card.is-active .reference-card-bottom-actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -768,7 +770,20 @@
   max-width: 78px;
   height: 40px;
   min-width: 0;
-  pointer-events: none;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.reference-card-audio-waveform:focus-visible {
+  outline: 2px solid rgba(52, 200, 255, 0.82);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.reference-card-audio-waveform:hover .reference-card-audio-wavebar-track,
+.reference-card-audio-waveform:focus-visible .reference-card-audio-wavebar-track {
+  background: linear-gradient(180deg, rgba(158, 177, 192, 0.92), rgba(108, 128, 144, 0.84));
 }
 
 .reference-card-audio-wavebar {

@@ -4,7 +4,11 @@
  */
 import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
-import { admitProductImageAssetFile } from "../../../lib/productImageAssetAdmissionClient";
+import {
+  admitProductImageAssetFile,
+  admitProductImageAssetFromStorage,
+  type AdmittedProductImageAsset,
+} from "../../../lib/productImageAssetAdmissionClient";
 import {
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetPresetAssignments,
@@ -132,6 +136,13 @@ type SaveCharacterProfileImageAdjustmentsInput = {
 type SaveCharacterSheetPresetAssetInput = {
   characterId: string;
   file: File;
+};
+
+type SaveCharacterSheetPresetStorageAssetInput = {
+  characterId: string;
+  sourceStoragePath: string;
+  filename?: string | null;
+  mimeType?: string | null;
 };
 
 type PresetPreviewMediaRow = {
@@ -1167,22 +1178,38 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
 export const saveCharacterManagerCharacterSheetPresetAsset = async (
   input: SaveCharacterSheetPresetAssetInput
 ): Promise<CharacterSheetPresetMediaReference> => {
-  const { supabase, userId } = await resolveSupabaseContext();
   const admittedAsset = await admitProductImageAssetFile({
     intent: "character_sheet_preset",
     characterId: input.characterId,
     file: input.file,
   });
+  return await persistCharacterSheetPresetAdmittedAsset({
+    characterId: input.characterId,
+    admittedAsset,
+    filename: input.file.name,
+  });
+};
+
+const persistCharacterSheetPresetAdmittedAsset = async ({
+  characterId,
+  admittedAsset,
+  filename,
+}: {
+  characterId: string;
+  admittedAsset: AdmittedProductImageAsset;
+  filename: string;
+}): Promise<CharacterSheetPresetMediaReference> => {
+  const { supabase, userId } = await resolveSupabaseContext();
   const storagePath = admittedAsset.storagePath;
 
   let mediaReferenceId: string;
   try {
     const createdAsset = await createCharacterMediaAsset({
       userId,
-      characterId: input.characterId,
+      characterId,
       assetKind: "sheet_preset",
       storagePath,
-      filename: input.file.name,
+      filename,
       fileType: "image",
       fileSize: admittedAsset.size,
       metadata: {
@@ -1211,6 +1238,38 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
     storagePath,
     previewUrl: signedUrl,
   };
+};
+
+/**
+ * Persist a character-sheet look image by copying an already-owned storage object server-side.
+ */
+export const saveCharacterManagerCharacterSheetPresetStorageAsset = async (
+  input: SaveCharacterSheetPresetStorageAssetInput
+): Promise<CharacterSheetPresetMediaReference> => {
+  const admittedAsset = await admitProductImageAssetFromStorage({
+    intent: "character_sheet_preset",
+    characterId: input.characterId,
+    sourceStoragePath: input.sourceStoragePath,
+    sourceName: input.filename ?? undefined,
+    sourceMimeType: input.mimeType ?? undefined,
+  });
+  return await persistCharacterSheetPresetAdmittedAsset({
+    characterId: input.characterId,
+    admittedAsset,
+    filename: input.filename?.trim() || admittedAsset.filename,
+  });
+};
+
+/**
+ * Best-effort cleanup for a Character Manager media reference created before assignment persistence.
+ */
+export const cleanupCharacterManagerMediaReference = async (
+  reference: CharacterSheetPresetMediaReference
+): Promise<void> => {
+  await cleanupOrphanedMedia({
+    characterMediaId: reference.characterMediaId,
+    storagePath: reference.storagePath,
+  });
 };
 
 /**

@@ -193,7 +193,7 @@ describe("useExpertEditPrimarySessionSync", () => {
     expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
   });
 
-  it("clears the foundation image when host image authority becomes non-image", async () => {
+  it("removes the foundation layer when host image authority becomes non-image", async () => {
     const onPrimaryImageChange = vi.fn();
     const rebasePanelHistoryLayerImage = vi.fn();
     const lastDispatchedPrimaryRef = { current: null as string | null };
@@ -231,12 +231,11 @@ describe("useExpertEditPrimarySessionSync", () => {
       await Promise.resolve();
     });
 
-    expect(result.current.layers[0]?.imageUrl).toBeNull();
-    expect(result.current.layers[0]?.transform).toEqual(defaultLayerTransform());
+    expect(result.current.layers).toHaveLength(0);
     expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
   });
 
-  it("clears a stale foundation image on the initial sync pass when no host image exists", async () => {
+  it("removes a stale foundation layer on the initial sync pass when no host image exists", async () => {
     const onPrimaryImageChange = vi.fn();
     const rebasePanelHistoryLayerImage = vi.fn();
     const lastDispatchedPrimaryRef = { current: null as string | null };
@@ -280,8 +279,7 @@ describe("useExpertEditPrimarySessionSync", () => {
       await Promise.resolve();
     });
 
-    expect(result.current.layers[0]?.imageUrl).toBeNull();
-    expect(result.current.layers[0]?.transform).toEqual(defaultLayerTransform());
+    expect(result.current.layers).toHaveLength(0);
     expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
   });
 

@@ -35,6 +35,24 @@ const baseProps: React.ComponentProps<typeof ExpertEditPanelView> = {
 };
 
 describe("ExpertEditPanelView launch lock", () => {
+  it("starts with two secondary reference slots and can add or remove visible slots", () => {
+    const onExtraImageChange = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onExtraImageChange={onExtraImageChange} />);
+
+    expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Secondary edit image 2")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Secondary edit image 3")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add reference slot" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add reference slot" }));
+
+    expect(screen.getByLabelText("Secondary edit image 3")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove reference slot 3" }));
+
+    expect(onExtraImageChange).toHaveBeenCalledWith(2, null);
+    expect(screen.queryByLabelText("Secondary edit image 3")).not.toBeInTheDocument();
+  });
+
   it("hides non-standard edit mode UI while keeping move controls available", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 

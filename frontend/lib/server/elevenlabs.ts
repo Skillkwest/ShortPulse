@@ -27,6 +27,7 @@ import {
   upsertVideoPosterVariantFromBuffer,
   upsertVideoPreviewVariantFromBuffer,
 } from "./videoPosterVariant";
+import { normalizeGenerationWorkspaceRuntimeKey } from "./api/generationWorkspaceRuntimeKey";
 const MEDIA_BUCKET = "media_library";
 const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io";
 const AUDIO_EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
@@ -90,6 +91,7 @@ type PersistGeneratedAudioInput = {
   providerRequestId?: string | null;
   requestId?: string | null;
   projectId?: string | null;
+  workspaceRuntimeKey?: string | null;
   sourceMode: ElevenLabsAudioSourceMode;
   voiceId?: string | null;
   voiceName?: string | null;
@@ -118,6 +120,7 @@ type PersistGeneratedVideoInput = {
   providerRequestId?: string | null;
   requestId?: string | null;
   projectId?: string | null;
+  workspaceRuntimeKey?: string | null;
   sourceMode: ElevenLabsVideoSourceMode;
   outputBuffer: Buffer;
   outputContentType: "video/mp4" | "video/webm";
@@ -962,6 +965,7 @@ export const persistGeneratedAudioAsset = async ({
   providerRequestId = null,
   requestId = null,
   projectId = null,
+  workspaceRuntimeKey = null,
   sourceMode,
   voiceId = null,
   voiceName = null,
@@ -977,6 +981,9 @@ export const persistGeneratedAudioAsset = async ({
   const resolvedRequestId = normalizeOptionalString(requestId) ?? randomUUID();
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
+  const resolvedWorkspaceRuntimeKey = resolvedProjectId
+    ? null
+    : normalizeGenerationWorkspaceRuntimeKey(workspaceRuntimeKey);
   const createdAtIso = new Date().toISOString();
   const normalizedTranscriptText = normalizeOptionalString(transcriptText);
   const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
@@ -1042,6 +1049,7 @@ export const persistGeneratedAudioAsset = async ({
         output_format: outputFormat,
         mime_type: outputContentType,
         project_id: resolvedProjectId,
+        workspace_runtime_key: resolvedWorkspaceRuntimeKey,
         ...extraMetadata,
         ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
@@ -1205,6 +1213,7 @@ export const persistGeneratedAudioAsset = async ({
       generationId,
       userId,
       projectId: resolvedProjectId,
+      workspaceRuntimeKey: resolvedWorkspaceRuntimeKey,
       sourceRef: resolvedRequestId,
       requestId: resolvedRequestId,
       provider,
@@ -1276,6 +1285,7 @@ export const persistGeneratedVideoAsset = async ({
   providerRequestId = null,
   requestId = null,
   projectId = null,
+  workspaceRuntimeKey = null,
   sourceMode,
   outputBuffer,
   outputContentType,
@@ -1289,6 +1299,9 @@ export const persistGeneratedVideoAsset = async ({
   const resolvedRequestId = normalizeOptionalString(requestId) ?? randomUUID();
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
+  const resolvedWorkspaceRuntimeKey = resolvedProjectId
+    ? null
+    : normalizeGenerationWorkspaceRuntimeKey(workspaceRuntimeKey);
   const createdAtIso = new Date().toISOString();
   const normalizedTranscriptText = normalizeOptionalString(transcriptText);
   const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
@@ -1351,6 +1364,7 @@ export const persistGeneratedVideoAsset = async ({
         autosave_decision_reason: autosavePolicyDecision.reason,
         mime_type: outputContentType,
         project_id: resolvedProjectId,
+        workspace_runtime_key: resolvedWorkspaceRuntimeKey,
         ...extraMetadata,
         ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
@@ -1547,6 +1561,7 @@ export const persistGeneratedVideoAsset = async ({
       generationId,
       userId,
       projectId: resolvedProjectId,
+      workspaceRuntimeKey: resolvedWorkspaceRuntimeKey,
       sourceRef: resolvedRequestId,
       requestId: resolvedRequestId,
       provider,

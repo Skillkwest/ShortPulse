@@ -4,6 +4,7 @@ import {
   parseAiStudioSessionCanvasState,
   serializeAiStudioSessionCanvasState,
 } from "../../features/ai-studio/logic/sessionSnapshotCanvas";
+import { createEmptyExpertEditSecondaryImageUrls } from "../../features/ai-studio/logic/expertEditReferenceSlots";
 
 type MinimalAiStudioSessionSnapshot = {
   schemaVersion: number;
@@ -335,7 +336,7 @@ const createEmptyProjectWorkspaceReferenceState = () => ({
   selectedTool: "create",
   showCreateTools: false,
   referenceImageUrl: null,
-  extraImageUrls: [null, null, null] as [null, null, null],
+  extraImageUrls: createEmptyExpertEditSecondaryImageUrls(),
   referenceImageInternalMediaRefs: [],
   motionReferenceVideoUrl: null,
   useReferenceImageIndicator: false,
@@ -363,7 +364,7 @@ const resetProjectWorkspaceFields = (
     pulse: createEmptyProjectWorkspaceReferenceState(),
   },
   referenceImageUrl: null,
-  extraImageUrls: [null, null, null],
+  extraImageUrls: createEmptyExpertEditSecondaryImageUrls(),
   referenceImageInternalMediaRefs: [],
   editReferenceText: "",
   videoReferenceText: "",

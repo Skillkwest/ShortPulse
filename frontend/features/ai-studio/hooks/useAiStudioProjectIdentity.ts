@@ -80,6 +80,18 @@ const readRequestedProjectIdFromWindowSearch = (): string | null => {
   return parseProjectIdQuery(new URLSearchParams(window.location.search).get("projectId"));
 };
 
+const readRequestedProjectIdFromRouteUrl = (url: string): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsedUrl = new URL(url, window.location.origin);
+    return parseProjectIdQuery(parsedUrl.searchParams.get("projectId"));
+  } catch {
+    const queryIndex = url.indexOf("?");
+    if (queryIndex === -1) return null;
+    return parseProjectIdQuery(new URLSearchParams(url.slice(queryIndex)).get("projectId"));
+  }
+};
+
 const toProjectIdentityRecord = ({
   value,
   expectedProjectId,
@@ -130,13 +142,16 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
     () => parseProjectIdQuery(router.query?.projectId),
     [router.query?.projectId]
   );
-  const requestedProjectId = routeProjectId ?? readRequestedProjectIdFromWindowSearch();
+  const [locationProjectId, setLocationProjectId] = useState<string | null>(() =>
+    readRequestedProjectIdFromWindowSearch()
+  );
+  const requestedProjectId = typeof window === "undefined" ? routeProjectId : locationProjectId;
   const bootstrapProjectId = isValidProjectId(requestedProjectId) ? requestedProjectId : null;
   const projectRouteRequested = Boolean(requestedProjectId);
   const invalidRouteProjectId = Boolean(
-    router.isReady && routeProjectId && !isValidProjectId(routeProjectId)
+    router.isReady && requestedProjectId && !isValidProjectId(requestedProjectId)
   );
-  const verifiedRouteProjectId = isValidProjectId(routeProjectId) ? routeProjectId : null;
+  const verifiedRouteProjectId = isValidProjectId(requestedProjectId) ? requestedProjectId : null;
   const [refreshNonce, setRefreshNonce] = useState(0);
   const requestKey = verifiedRouteProjectId ? `${verifiedRouteProjectId}:${refreshNonce}` : null;
   const [requestState, setRequestState] = useState<{
@@ -177,6 +192,32 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
   const refreshProject = useCallback(() => {
     setRefreshNonce((value) => value + 1);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const syncFromWindowLocation = () => {
+      setLocationProjectId(readRequestedProjectIdFromWindowSearch());
+    };
+    const syncFromRouteUrl = (url: string) => {
+      setLocationProjectId(readRequestedProjectIdFromRouteUrl(url));
+    };
+    const syncFromRouteError = () => {
+      syncFromWindowLocation();
+    };
+
+    syncFromWindowLocation();
+    router.events.on("routeChangeStart", syncFromRouteUrl);
+    router.events.on("routeChangeComplete", syncFromRouteUrl);
+    router.events.on("routeChangeError", syncFromRouteError);
+    window.addEventListener("popstate", syncFromWindowLocation);
+    return () => {
+      router.events.off("routeChangeStart", syncFromRouteUrl);
+      router.events.off("routeChangeComplete", syncFromRouteUrl);
+      router.events.off("routeChangeError", syncFromRouteError);
+      window.removeEventListener("popstate", syncFromWindowLocation);
+    };
+  }, [router.events]);
 
   useEffect(() => {
     if (!router.isReady) return;

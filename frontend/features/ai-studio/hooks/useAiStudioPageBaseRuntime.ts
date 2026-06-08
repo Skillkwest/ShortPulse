@@ -84,6 +84,16 @@ export const useAiStudioPageBaseRuntime = () => {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
   const shouldLoadModelPricingPolicy = useDeferredModelPricingPolicyLoad();
+  const standardCreateWorkflowReloadPrepRef = useRef<((prompt: string) => void) | null>(null);
+  const setStandardCreateWorkflowReloadPrep = useCallback(
+    (handler: ((prompt: string) => void) | null) => {
+      standardCreateWorkflowReloadPrepRef.current = handler;
+    },
+    []
+  );
+  const prepareStandardCreateWorkflowReload = useCallback((prompt: string) => {
+    standardCreateWorkflowReloadPrepRef.current?.(prompt);
+  }, []);
 
   const { balanceCents, balanceReservedCents, balanceLoading, balanceError, refreshBalance } =
     useCredits();
@@ -359,6 +369,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setActivePulsePresetId: setActiveCreatePulsePresetId,
     setPulseSessionInstanceId,
     setVoiceChangerSource: handleVoiceChangerSourceChange,
+    prepareStandardCreateWorkflowReload,
   });
   const {
     mediaAutosaveEnabled,
@@ -781,6 +792,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setVoiceDesignPromptDraft,
     setVoiceSelectedVoiceId,
     setVoiceScriptDraft,
+    setStandardCreateWorkflowReloadPrep,
     showCreateTools,
     standardPrompt,
     trackCharacterModeFallback,

@@ -88,7 +88,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   ) => CharacterModeSubmissionOverrides<TFallbackCode>;
   resolveReferenceInputsForTool: (tool: ToolId | null) => {
     referenceImageUrl: string | null;
-    extraImageUrls: [string | null, string | null, string | null];
+    extraImageUrls: readonly (string | null)[];
   };
   trackCharacterModeFallback: (
     overrides: CharacterModeFallbackSummary<TFallbackCode>,
@@ -264,6 +264,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         selectedToolOverride: effectiveTool,
         submissionModeOverride: resolveSubmissionModeForModelId(effectiveModelId),
       });
+      if (insertOptimisticGenerationPlaceholder && !optimisticOutputId) {
+        return { accepted: false, optimisticOutputId: null };
+      }
 
       if (options?.suppressCharacter) {
         enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);

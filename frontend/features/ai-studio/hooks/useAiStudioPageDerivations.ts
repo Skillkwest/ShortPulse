@@ -25,7 +25,7 @@ type UseAiStudioPageDerivationsParams = {
   videoReferenceText: string;
   videoReferenceMode: string;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   isCharacterModeEnabled?: boolean;
 };
 

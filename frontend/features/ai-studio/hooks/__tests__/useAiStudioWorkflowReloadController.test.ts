@@ -2,7 +2,12 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
-import type { StudioOutput, ToolId, WorkflowReloadConfigV1 } from "../../types";
+import type {
+  StudioOutput,
+  ToolId,
+  WorkflowReloadConfigV1,
+  WorkflowReloadImagePayload,
+} from "../../types";
 import { useAiStudioWorkflowReloadController } from "../useAiStudioWorkflowReloadController";
 
 const setSelectedVoiceMock = vi.fn();
@@ -21,11 +26,12 @@ vi.mock("../useSharedVoicesGrid", () => ({
   }),
 }));
 
-const makeSetter = <T>() => vi.fn<[T | ((current: T) => T)], void>();
+const makeSetter = <T>() => vi.fn<(value: T | ((current: T) => T)) => void>();
 
 const makeParams = (output: StudioOutput | null) => ({
   beginManualWorkflowReload: vi.fn(),
   findOutputById: vi.fn(() => output),
+  prepareStandardCreateWorkflowReload: vi.fn(),
   setAspect: makeSetter<string>(),
   setEditReferenceText: vi.fn(),
   setExpertCreateMode: makeSetter<"standard" | "pulse">(),
@@ -40,7 +46,7 @@ const makeParams = (output: StudioOutput | null) => ({
   setModel: vi.fn(),
   setMotionReferenceVideoUrl: makeSetter<string | null>(),
   setMusicComposerMode: makeSetter<"simple" | "custom">(),
-  setMusicDurationSeconds: makeSetter<number>(),
+  setMusicDurationSeconds: makeSetter<number | null>(),
   setMusicLyricsDraft: vi.fn(),
   setMusicPromptDraft: vi.fn(),
   setMusicSingerEnabled: makeSetter<boolean>(),
@@ -54,7 +60,7 @@ const makeParams = (output: StudioOutput | null) => ({
   setSeedance2WebSearch: makeSetter<boolean>(),
   setSelectedTool: makeSetter<ToolId | null>(),
   setShowCreateTools: makeSetter<boolean>(),
-  setSoundEffectsDurationSeconds: makeSetter<number>(),
+  setSoundEffectsDurationSeconds: makeSetter<number | null>(),
   setSoundEffectsLoopEnabled: makeSetter<boolean>(),
   setSoundEffectsPromptDraft: vi.fn(),
   setStandardCreatePrompt: vi.fn(),
@@ -132,18 +138,38 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(status).toEqual({ status: "success", outputId: "out-1", targetTool: "create" });
     expect(params.beginManualWorkflowReload).toHaveBeenCalledTimes(1);
     expect(params.setSelectedTool).toHaveBeenCalledWith("create");
+    expect(params.prepareStandardCreateWorkflowReload).toHaveBeenCalledWith("A luminous harbor");
     expect(params.setStandardCreatePrompt).toHaveBeenCalledWith("A luminous harbor");
+    expect(params.prepareStandardCreateWorkflowReload.mock.invocationCallOrder[0]).toBeLessThan(
+      params.setStandardCreatePrompt.mock.invocationCallOrder[0]
+    );
     expect(params.setModel).toHaveBeenCalledWith("fal-ai/bytedance/seedream/v4.5/text-to-image");
     expect(params.setAspect).toHaveBeenCalledWith("9:16");
     expect(params.setImageResolution).toHaveBeenCalledWith("2K");
+    expect(params.setUiNotice).not.toHaveBeenCalled();
     expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
       expect.objectContaining({
         selectedTool: "create",
         referenceImageUrl: "https://example.com/ref-a.png",
         extraImageUrls: ["https://example.com/ref-b.png", null, null],
-        referenceImageInternalMediaRefs: workflowReload.payload.internalMediaRefs,
+        referenceImageInternalMediaRefs: (workflowReload.payload as WorkflowReloadImagePayload)
+          .internalMediaRefs,
       })
     );
+  });
+
+  it("does not prepare Standard chat mode for Pulse create image reloads", () => {
+    const workflowReload = makeImageReload();
+    workflowReload.createMode = "pulse";
+    const params = makeParams(makeOutput(workflowReload));
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    expect(params.setExpertCreateMode).toHaveBeenCalledWith("pulse");
+    expect(params.prepareStandardCreateWorkflowReload).not.toHaveBeenCalled();
   });
 
   it("hydrates video workflow state and provider-specific controls", () => {
@@ -277,8 +303,9 @@ describe("useAiStudioWorkflowReloadController", () => {
 
   it("blocks local-only references and unavailable voices without mutating state", () => {
     const localReload = makeImageReload();
-    localReload.payload.referenceInputs = ["blob:http://local"];
-    localReload.payload.internalMediaRefs = [];
+    const localReloadPayload = localReload.payload as WorkflowReloadImagePayload;
+    localReloadPayload.referenceInputs = ["blob:http://local"];
+    localReloadPayload.internalMediaRefs = [];
     let currentOutput = makeOutput(localReload);
     const params = makeParams(makeOutput(localReload));
     params.findOutputById.mockImplementation(() => currentOutput);
@@ -317,5 +344,6 @@ describe("useAiStudioWorkflowReloadController", () => {
 
     expect(blocked).toEqual({ status: "voice_unavailable", outputId: "out-1" });
     expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
+    expect(params.prepareStandardCreateWorkflowReload).not.toHaveBeenCalled();
   });
 });

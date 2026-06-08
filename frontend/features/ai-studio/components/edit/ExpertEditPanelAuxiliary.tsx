@@ -10,11 +10,9 @@ type ExpertEditPanelAuxiliaryProps = {
   statusToastTone: "info" | "warning";
   isStatusToastFading: boolean;
   primaryInputRef: React.Ref<HTMLInputElement>;
-  extraOneInputRef: React.Ref<HTMLInputElement>;
-  extraTwoInputRef: React.Ref<HTMLInputElement>;
-  extraThreeInputRef: React.Ref<HTMLInputElement>;
+  inputRefs: readonly React.RefObject<HTMLInputElement | null>[];
   handlePrimaryFileSelection: React.ChangeEventHandler<HTMLInputElement>;
-  handleExtraFileSelection: (index: 0 | 1 | 2) => React.ChangeEventHandler<HTMLInputElement>;
+  handleExtraFileSelection: (index: number) => React.ChangeEventHandler<HTMLInputElement>;
   characterPicker: ExpertEditCharacterPickerModalProps;
 };
 
@@ -23,9 +21,7 @@ export function ExpertEditPanelAuxiliary({
   statusToastTone,
   isStatusToastFading,
   primaryInputRef,
-  extraOneInputRef,
-  extraTwoInputRef,
-  extraThreeInputRef,
+  inputRefs,
   handlePrimaryFileSelection,
   handleExtraFileSelection,
   characterPicker,
@@ -51,27 +47,18 @@ export function ExpertEditPanelAuxiliary({
         style={{ display: "none" }}
         onChange={handlePrimaryFileSelection}
       />
-      <input
-        ref={extraOneInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleExtraFileSelection(0)}
-      />
-      <input
-        ref={extraTwoInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleExtraFileSelection(1)}
-      />
-      <input
-        ref={extraThreeInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleExtraFileSelection(2)}
-      />
+      {inputRefs.map((inputRef, index) => (
+        <input
+          key={`expert-edit-secondary-input-${index}`}
+          ref={(element) => {
+            (inputRef as { current: HTMLInputElement | null }).current = element;
+          }}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleExtraFileSelection(index)}
+        />
+      ))}
 
       <ExpertEditCharacterPickerModal {...characterPicker} />
     </>

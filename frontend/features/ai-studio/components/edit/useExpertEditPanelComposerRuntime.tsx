@@ -23,13 +23,14 @@ type UseExpertEditPanelComposerRuntimeArgs = {
   handlePromptBlur: React.FocusEventHandler<HTMLTextAreaElement>;
   promptTokenPickerState: {
     isOpen: boolean;
-    selectedSlotIndex: 0 | 1 | 2 | "main" | null;
+    selectedSlotIndex: number | "main" | null;
   };
   hostPrimaryImageUrl: string | null;
-  populatedPromptTokenSlotIndexes: readonly (0 | 1 | 2)[];
-  extraImageUrls: [string | null, string | null, string | null];
-  insertPromptTokenFromPicker: (selection: 0 | 1 | 2 | "main") => void;
+  populatedPromptTokenSlotIndexes: readonly number[];
+  extraImageUrls: readonly (string | null)[];
+  insertPromptTokenFromPicker: (selection: number | "main") => void;
   promptTokenInlineError: string | null;
+  onPinPromptReference?: (text: string) => void;
   handleInlineGenerate: () => void;
   inlineGenerateDisabled: boolean;
   costCredits?: number | null;
@@ -52,9 +53,7 @@ type UseExpertEditPanelComposerRuntimeArgs = {
   statusToastTone: "info" | "warning";
   isStatusToastFading: boolean;
   primaryInputRef: React.Ref<HTMLInputElement>;
-  extraOneInputRef: React.Ref<HTMLInputElement>;
-  extraTwoInputRef: React.Ref<HTMLInputElement>;
-  extraThreeInputRef: React.Ref<HTMLInputElement>;
+  inputRefs: readonly React.RefObject<HTMLInputElement | null>[];
   handlePrimaryFileSelection: React.ChangeEventHandler<HTMLInputElement>;
   handleFileSelection: (
     onImageResolved: (url: string | null) => void
@@ -99,6 +98,7 @@ export function useExpertEditPanelComposerRuntime({
   extraImageUrls,
   insertPromptTokenFromPicker,
   promptTokenInlineError,
+  onPinPromptReference,
   handleInlineGenerate,
   inlineGenerateDisabled,
   costCredits = null,
@@ -121,9 +121,7 @@ export function useExpertEditPanelComposerRuntime({
   statusToastTone,
   isStatusToastFading,
   primaryInputRef,
-  extraOneInputRef,
-  extraTwoInputRef,
-  extraThreeInputRef,
+  inputRefs,
   handlePrimaryFileSelection,
   handleFileSelection,
   onExtraImageChange,
@@ -138,7 +136,7 @@ export function useExpertEditPanelComposerRuntime({
   resolveCharacterAvatarUrlById,
 }: UseExpertEditPanelComposerRuntimeArgs) {
   const handleExtraFileSelection = React.useCallback(
-    (index: 0 | 1 | 2) =>
+    (index: number) =>
       handleFileSelection((url) => {
         onExtraImageChange(index, url);
       }),
@@ -165,6 +163,7 @@ export function useExpertEditPanelComposerRuntime({
       extraImageUrls={extraImageUrls}
       onInsertPromptTokenFromPicker={insertPromptTokenFromPicker}
       promptTokenInlineError={promptTokenInlineError}
+      onPinPromptReference={onPinPromptReference}
       onGenerate={handleInlineGenerate}
       inlineGenerateDisabled={inlineGenerateDisabled}
       costCredits={costCredits}
@@ -192,9 +191,7 @@ export function useExpertEditPanelComposerRuntime({
       statusToastTone={statusToastTone}
       isStatusToastFading={isStatusToastFading}
       primaryInputRef={primaryInputRef}
-      extraOneInputRef={extraOneInputRef}
-      extraTwoInputRef={extraTwoInputRef}
-      extraThreeInputRef={extraThreeInputRef}
+      inputRefs={inputRefs}
       handlePrimaryFileSelection={handlePrimaryFileSelection}
       handleExtraFileSelection={handleExtraFileSelection}
       characterPicker={{

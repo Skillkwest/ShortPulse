@@ -55,6 +55,7 @@ export const useAiStudioState = ({
   setActivePulsePresetId,
   setPulseSessionInstanceId,
   setVoiceChangerSource,
+  prepareStandardCreateWorkflowReload,
 }: {
   projectId?: string | null;
   projectRouteRequested?: boolean;
@@ -69,6 +70,7 @@ export const useAiStudioState = ({
   setActivePulsePresetId?: Dispatch<SetStateAction<string | null>>;
   setPulseSessionInstanceId?: Dispatch<SetStateAction<string | null>>;
   setVoiceChangerSource?: (source: VoiceChangerSource | null) => void;
+  prepareStandardCreateWorkflowReload?: (prompt: string) => void;
 } = {}) => {
   const {
     promptRef,
@@ -184,6 +186,7 @@ export const useAiStudioState = ({
           : "session:pending";
   const runtimeAuthorityKey = baseRuntimeAuthorityKey;
   const createModeRuntimeAuthorityKey = `${baseRuntimeAuthorityKey}:create:${expertCreateMode}`;
+  const workspaceRuntimeKey = !projectId && sessionId ? `session:${sessionId}` : null;
 
   const {
     activeOutputState,
@@ -302,7 +305,7 @@ export const useAiStudioState = ({
         selectedTool: ToolId | null;
         showCreateTools?: boolean;
         referenceImageUrl: string | null;
-        extraImageUrls: [string | null, string | null, string | null];
+        extraImageUrls: readonly (string | null)[];
         referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
         motionReferenceVideoUrl: string | null;
         useReferenceImageIndicator?: boolean;
@@ -434,6 +437,7 @@ export const useAiStudioState = ({
     setArchivedOutputs,
     setReferenceProjectionState,
     pendingFinalizeRemovalIdsRef,
+    setUiError,
   });
   useAiStudioStateEffects({
     promptRef,
@@ -481,6 +485,7 @@ export const useAiStudioState = ({
     projectId,
     projectRouteRequested,
     setOutputsState,
+    workspaceRuntimeKey,
   });
   useAiStudioOutputPersistenceEffects({
     outputs,
@@ -540,6 +545,7 @@ export const useAiStudioState = ({
     useAiStudioWorkflowReloadController({
       beginManualWorkflowReload,
       findOutputById,
+      prepareStandardCreateWorkflowReload,
       setAspect,
       setEditReferenceText,
       setExpertCreateMode: setExpertCreateMode ?? (() => undefined),
@@ -623,6 +629,7 @@ export const useAiStudioState = ({
     notifyGenerationFailure,
     outputs,
     projectId,
+    workspaceRuntimeKey,
     referenceImageUrl,
     removedFromAllRefsIds,
     resolveReferenceInputsForTool,

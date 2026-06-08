@@ -57,6 +57,10 @@ import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransit
 import { associateGenerationWithProjectForUserBestEffort } from "../projectGenerationAssociationsService";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { createMotionReferenceVideoLeaseForGeneration } from "../motionReferenceVideoAssetLease";
+import {
+  readGenerationProjectIdFromContext,
+  readGenerationWorkspaceRuntimeKeyFromContext,
+} from "./generationWorkspaceRuntimeKey";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -288,9 +292,6 @@ const summarizeProviderSubmitPayload = ({
   if (multiPromptCount > 0) summary.multi_prompt_count = multiPromptCount;
   return Object.keys(summary).length ? summary : null;
 };
-
-const readProjectIdFromShortpulseContext = (context: Record<string, unknown>): string | null =>
-  asProviderString(context.project_id);
 
 const resolveInlineSubmitTargets = ({
   submitTargets,
@@ -1222,13 +1223,18 @@ export const createFalSubmitHandler = ({
           }
           await tryCreateMotionReferenceLease();
 
-          const projectId = readProjectIdFromShortpulseContext(shortpulseContext);
+          const projectId = readGenerationProjectIdFromContext(shortpulseContext);
+          const workspaceRuntimeKey = readGenerationWorkspaceRuntimeKeyFromContext({
+            context: shortpulseContext,
+            projectId,
+          });
 
           try {
             await upsertGenerationProjection({
               generationId,
               userId: charge.userId,
               projectId,
+              workspaceRuntimeKey,
               sourceRef: charge.sourceRef,
               requestId: providerRequestId,
               provider: providerKey,

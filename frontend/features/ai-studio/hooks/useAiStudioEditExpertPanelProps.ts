@@ -20,13 +20,14 @@ import type {
   ExpertEditVariantCostResolver,
 } from "../components/edit/expertEditSubmissionContract";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import { normalizeExpertEditSecondaryImageUrls } from "../logic/expertEditReferenceSlots";
 
 type UseAiStudioEditExpertPanelPropsParams = {
   aspect: string;
   model: string | null;
   currentModelLabel: string;
   referenceImageUrl: string | null;
-  extraImageUrls?: [string | null, string | null, string | null];
+  extraImageUrls?: readonly (string | null)[];
   editReferenceText: string;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
@@ -40,6 +41,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   addPastedMediaReference?: (reference: { url: string; mimeType?: string | null }) => void;
   setExtraImageUrl: (index: number, url: string | null) => void;
   handleEditPromptTextChange: (value: string) => void;
+  onPinPromptReference?: (text: string) => void;
   handleImageRegenerateWithDebit: (
     options?: ExpertEditRegenerateOptions & { referenceInputsOverride?: string[] }
   ) => void | Promise<void>;
@@ -99,6 +101,7 @@ export const useAiStudioEditExpertPanelProps = ({
   addPastedMediaReference,
   setExtraImageUrl,
   handleEditPromptTextChange,
+  onPinPromptReference,
   handleImageRegenerateWithDebit,
   resolveVariantCostCredits,
   insertOptimisticGenerationPlaceholder,
@@ -136,9 +139,9 @@ export const useAiStudioEditExpertPanelProps = ({
       isExpertEditImageUrl(referenceImageUrl) && typeof referenceImageUrl === "string"
         ? referenceImageUrl.trim()
         : null;
-    const normalizedExtraImageUrls = (extraImageUrls ?? [null, null, null]).map((url) =>
-      isExpertEditImageUrl(url) && typeof url === "string" ? url.trim() : null
-    ) as [string | null, string | null, string | null];
+    const normalizedExtraImageUrls = normalizeExpertEditSecondaryImageUrls(
+      extraImageUrls ?? []
+    ).map((url) => (isExpertEditImageUrl(url) && typeof url === "string" ? url.trim() : null));
 
     return {
       aspect,
@@ -156,6 +159,7 @@ export const useAiStudioEditExpertPanelProps = ({
       onAddFlattenedReferenceImage: addPastedMediaReference,
       onExtraImageChange: setExtraImageUrl,
       onPromptTextChange: handleEditPromptTextChange,
+      onPinPromptReference,
       onEditSubmitIntentChange,
       onRegenerate: handleImageRegenerateWithDebit,
       insertOptimisticGenerationPlaceholder,
@@ -218,6 +222,7 @@ export const useAiStudioEditExpertPanelProps = ({
     handleImageRegenerateWithDebit,
     resolveVariantCostCredits,
     onEditSubmitIntentChange,
+    onPinPromptReference,
     handleOpenModelModal,
     imageResolution,
     insertOptimisticGenerationPlaceholder,

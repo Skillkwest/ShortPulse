@@ -25,6 +25,10 @@ import {
 } from "../logic/pulseToolInvariant";
 import { resolveInternalMediaRefsForUrls } from "../logic/referenceInputInternalMediaRegistry";
 import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
+import {
+  createEmptyExpertEditSecondaryImageUrls,
+  normalizeExpertEditSecondaryImageUrls,
+} from "../logic/expertEditReferenceSlots";
 
 type UseAiStudioReferenceSelectionStateParams = {
   activeOutputPreviewUrl: string | null;
@@ -35,7 +39,7 @@ type ReferenceSelectionAuthorityState = {
   selectedTool: ToolId | null;
   showCreateTools: boolean;
   imageReferenceImageUrl: string | null;
-  imageExtraImageUrls: [string | null, string | null, string | null];
+  imageExtraImageUrls: (string | null)[];
   imageReferenceImageInternalMediaRefs: Array<InternalMediaRef | null>;
   videoReferenceImageUrl: string | null;
   videoExtraImageUrls: [string | null, string | null, string | null];
@@ -56,7 +60,7 @@ export type ReferenceSelectionAuthorityStateSeed = {
   selectedTool: ToolId | null;
   showCreateTools?: boolean;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
   motionReferenceVideoUrl: string | null;
   useReferenceImageIndicator?: boolean;
@@ -80,7 +84,7 @@ const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthor
   selectedTool: "create",
   showCreateTools: false,
   imageReferenceImageUrl: null,
-  imageExtraImageUrls: [null, null, null],
+  imageExtraImageUrls: createEmptyExpertEditSecondaryImageUrls(),
   imageReferenceImageInternalMediaRefs: [],
   videoReferenceImageUrl: null,
   videoExtraImageUrls: [null, null, null],
@@ -97,6 +101,14 @@ const createEmptyMotionReferenceUploadUiState = (): MotionReferenceUploadUiState
   requestId: 0,
 });
 
+const normalizeVideoExtraImageUrls = (
+  values: readonly (string | null)[]
+): [string | null, string | null, string | null] => [
+  values[0] ?? null,
+  values[1] ?? null,
+  values[2] ?? null,
+];
+
 const buildReferenceSelectionAuthorityStateFromSeed = ({
   selectedTool,
   showCreateTools = false,
@@ -111,7 +123,10 @@ const buildReferenceSelectionAuthorityStateFromSeed = ({
   const isVideoReferenceTool = selectedTool === "video" || selectedTool === "kling";
   const resolvedInternalMediaRefs =
     referenceImageInternalMediaRefs ??
-    resolveInternalMediaRefsForUrls([referenceImageUrl, ...extraImageUrls], 4);
+    resolveInternalMediaRefsForUrls(
+      [referenceImageUrl, ...extraImageUrls],
+      isVideoReferenceTool ? 4 : 11
+    );
   const resolvedDetailSelectionTarget =
     detailSelectionTarget ?? createDetailSelectionTargetFromOutputId(detailOutputId);
   const resolvedDetailOutputId =
@@ -122,10 +137,14 @@ const buildReferenceSelectionAuthorityStateFromSeed = ({
     selectedTool,
     showCreateTools,
     imageReferenceImageUrl: isVideoReferenceTool ? null : referenceImageUrl,
-    imageExtraImageUrls: isVideoReferenceTool ? [null, null, null] : extraImageUrls,
+    imageExtraImageUrls: isVideoReferenceTool
+      ? createEmptyExpertEditSecondaryImageUrls()
+      : normalizeExpertEditSecondaryImageUrls(extraImageUrls),
     imageReferenceImageInternalMediaRefs: isVideoReferenceTool ? [] : resolvedInternalMediaRefs,
     videoReferenceImageUrl: isVideoReferenceTool ? referenceImageUrl : null,
-    videoExtraImageUrls: isVideoReferenceTool ? extraImageUrls : [null, null, null],
+    videoExtraImageUrls: isVideoReferenceTool
+      ? normalizeVideoExtraImageUrls(extraImageUrls)
+      : [null, null, null],
     videoReferenceImageInternalMediaRefs: isVideoReferenceTool ? resolvedInternalMediaRefs : [],
     motionReferenceVideoUrl,
     useReferenceImageIndicator,
@@ -144,9 +163,9 @@ export const useAiStudioReferenceSelectionState = ({
   const [selectedTool, setSelectedTool] = useState<ToolId | null>("create");
   const [showCreateTools, setShowCreateTools] = useState<boolean>(false);
   const [imageReferenceImageUrl, setImageReferenceImageUrlState] = useState<string | null>(null);
-  const [imageExtraImageUrls, setImageExtraImageUrls] = useState<
-    [string | null, string | null, string | null]
-  >([null, null, null]);
+  const [imageExtraImageUrls, setImageExtraImageUrls] = useState<(string | null)[]>(
+    createEmptyExpertEditSecondaryImageUrls
+  );
   const [videoReferenceImageUrl, setVideoReferenceImageUrl] = useState<string | null>(null);
   const [videoExtraImageUrls, setVideoExtraImageUrls] = useState<
     [string | null, string | null, string | null]
@@ -202,7 +221,7 @@ export const useAiStudioReferenceSelectionState = ({
     const previousAuthorityKey = activeAuthorityKeyRef.current;
     const currentImageInternalMediaRefs = resolveInternalMediaRefsForUrls(
       [imageReferenceImageUrl, ...imageExtraImageUrls],
-      4
+      11
     );
     const currentVideoInternalMediaRefs = resolveInternalMediaRefsForUrls(
       [videoReferenceImageUrl, ...videoExtraImageUrls],
@@ -245,7 +264,9 @@ export const useAiStudioReferenceSelectionState = ({
     setSelectedTool(shouldPreserveCurrentTool ? selectedTool : normalizedRestoredSelectedTool);
     setShowCreateTools(restoredState.showCreateTools);
     setImageReferenceImageUrlState(restoredState.imageReferenceImageUrl);
-    setImageExtraImageUrls(restoredState.imageExtraImageUrls);
+    setImageExtraImageUrls(
+      normalizeExpertEditSecondaryImageUrls(restoredState.imageExtraImageUrls)
+    );
     setVideoReferenceImageUrl(restoredState.videoReferenceImageUrl);
     setVideoExtraImageUrls(restoredState.videoExtraImageUrls);
     setMotionReferenceVideoUrlState(restoredState.motionReferenceVideoUrl);
@@ -334,7 +355,7 @@ export const useAiStudioReferenceSelectionState = ({
 
   const setImageExtraImageUrl = useCallback((index: number, url: string | null) => {
     setImageExtraImageUrls((prev) => {
-      const next: [string | null, string | null, string | null] = [...prev];
+      const next = normalizeExpertEditSecondaryImageUrls(prev);
       next[index] = url;
       return next;
     });
@@ -362,7 +383,7 @@ export const useAiStudioReferenceSelectionState = ({
   const clearReferenceImages = useCallback(() => {
     const previousMotionVideoUrl = motionReferenceVideoUrl;
     setImageReferenceImageUrlState(null);
-    setImageExtraImageUrls([null, null, null]);
+    setImageExtraImageUrls(createEmptyExpertEditSecondaryImageUrls());
     setVideoReferenceImageUrl(null);
     setVideoExtraImageUrls([null, null, null]);
     setMotionReferenceVideoUrlState(null);
@@ -402,7 +423,9 @@ export const useAiStudioReferenceSelectionState = ({
       setSelectedTool(resolvedState.selectedTool);
       setShowCreateTools(resolvedState.showCreateTools);
       setImageReferenceImageUrlState(resolvedState.imageReferenceImageUrl);
-      setImageExtraImageUrls(resolvedState.imageExtraImageUrls);
+      setImageExtraImageUrls(
+        normalizeExpertEditSecondaryImageUrls(resolvedState.imageExtraImageUrls)
+      );
       setVideoReferenceImageUrl(resolvedState.videoReferenceImageUrl);
       setVideoExtraImageUrls(resolvedState.videoExtraImageUrls);
       setMotionReferenceVideoUrlState(resolvedState.motionReferenceVideoUrl);
@@ -418,7 +441,7 @@ export const useAiStudioReferenceSelectionState = ({
         const activeReferenceInternalMediaRefs =
           selectedTool === "video" || selectedTool === "kling"
             ? resolveInternalMediaRefsForUrls([videoReferenceImageUrl, ...videoExtraImageUrls], 4)
-            : resolveInternalMediaRefsForUrls([imageReferenceImageUrl, ...imageExtraImageUrls], 4);
+            : resolveInternalMediaRefsForUrls([imageReferenceImageUrl, ...imageExtraImageUrls], 11);
         return {
           selectedTool: normalizeSelectedToolForAuthorityKey(targetAuthorityKey, selectedTool),
           showCreateTools,
@@ -526,7 +549,10 @@ export const useAiStudioReferenceSelectionState = ({
 
   useEffect(() => {
     const currentReferenceUrls = [referenceImageUrl, ...extraImageUrls] as const;
-    const currentInternalRefs = resolveInternalMediaRefsForUrls([...currentReferenceUrls], 4);
+    const currentInternalRefs = resolveInternalMediaRefsForUrls(
+      [...currentReferenceUrls],
+      isVideoReferenceTool ? 4 : 11
+    );
     const storagePaths = Array.from(
       new Set(
         currentInternalRefs
@@ -557,27 +583,17 @@ export const useAiStudioReferenceSelectionState = ({
           );
           if (!storagePath) return currentUrl;
           return signedByPath.get(storagePath) ?? currentUrl;
-        }) as [string | null, string | null, string | null, string | null];
+        });
 
-        const [
-          nextReferenceImageUrl,
-          nextExtraImageUrlOne,
-          nextExtraImageUrlTwo,
-          nextExtraImageUrlThree,
-        ] = refreshedReferenceUrls;
-
+        const nextReferenceImageUrl = refreshedReferenceUrls[0] ?? null;
         if (nextReferenceImageUrl !== referenceImageUrl) {
           setReferenceImageUrl(nextReferenceImageUrl);
         }
-        if (nextExtraImageUrlOne !== extraImageUrls[0]) {
-          setExtraImageUrl(0, nextExtraImageUrlOne);
-        }
-        if (nextExtraImageUrlTwo !== extraImageUrls[1]) {
-          setExtraImageUrl(1, nextExtraImageUrlTwo);
-        }
-        if (nextExtraImageUrlThree !== extraImageUrls[2]) {
-          setExtraImageUrl(2, nextExtraImageUrlThree);
-        }
+        refreshedReferenceUrls.slice(1).forEach((nextExtraImageUrl, index) => {
+          if (nextExtraImageUrl !== extraImageUrls[index]) {
+            setExtraImageUrl(index, nextExtraImageUrl ?? null);
+          }
+        });
         if (
           typeof refreshedMotionVideoUrl === "string" &&
           refreshedMotionVideoUrl !== motionReferenceVideoUrl
@@ -596,6 +612,7 @@ export const useAiStudioReferenceSelectionState = ({
     referenceImageUrl,
     setExtraImageUrl,
     setReferenceImageUrl,
+    isVideoReferenceTool,
   ]);
 
   const stageMotionVideoSelection = useCallback(

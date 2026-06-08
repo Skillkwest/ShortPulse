@@ -136,6 +136,36 @@ describe("useStandardCreateAgentRuntime", () => {
     expect(setStandardCreatePrompt).toHaveBeenCalledWith("new visible composer text");
   });
 
+  it("prepares Standard composer for workflow reload without owning the restored prompt write", async () => {
+    const setStandardCreatePrompt = vi.fn();
+    const { result } = renderHook(() =>
+      useStandardCreateAgentRuntime({
+        ...baseParams,
+        setStandardCreatePrompt,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.setChatModeEnabled(true);
+      result.current.setPromptOrigin("agent");
+    });
+
+    expect(result.current.chatModeEnabled).toBe(true);
+    expect(result.current.promptOrigin).toBe("agent");
+
+    act(() => {
+      result.current.prepareForWorkflowReload("Restored workflow prompt");
+    });
+
+    expect(result.current.chatModeEnabled).toBe(false);
+    expect(result.current.promptOrigin).toBe("manual");
+    expect(setStandardCreatePrompt).not.toHaveBeenCalledWith("Restored workflow prompt");
+  });
+
   it("hydrates legacy Standard chat sessions into the visible composer lane", async () => {
     const setStandardCreatePrompt = vi.fn();
     const { result } = renderHook(() =>

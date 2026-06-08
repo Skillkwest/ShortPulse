@@ -227,6 +227,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const shouldShowWorkflowReloadAction = Boolean(
     onReloadWorkflowOutput && canReloadWorkflowOutput(item)
   );
+  const shouldShowBottomActionRow = Boolean(
+    !hideReferenceActions && (shouldShowRerollAction || shouldShowWorkflowReloadAction)
+  );
   const shouldShowReferenceActionRow = Boolean(
     shouldShowSaveAction ||
     (onDownload && canDownloadReference && (isImagePreview || isVideoPreview || isAudioPreview)) ||
@@ -689,33 +692,37 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           </button>
         </div>
       ) : null}
-      {!hideReferenceActions && shouldShowRerollAction ? (
-        <button
-          type="button"
-          className="reference-card-action-btn reference-card-reroll-btn"
-          aria-label="Re-roll image"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectOutput(item.id);
-            onRerollOutput?.(item);
-          }}
-        >
-          <ArrowClockwise size={16} weight="bold" aria-hidden />
-        </button>
-      ) : null}
-      {!hideReferenceActions && shouldShowWorkflowReloadAction ? (
-        <button
-          type="button"
-          className="reference-card-action-btn reference-card-workflow-reload-btn"
-          aria-label="Reload workflow"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectOutput(item.id);
-            onReloadWorkflowOutput?.(item);
-          }}
-        >
-          <FlowArrow size={16} weight="bold" aria-hidden />
-        </button>
+      {shouldShowBottomActionRow ? (
+        <div className="reference-card-bottom-actions" aria-label="Reference replay actions">
+          {shouldShowRerollAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-reroll-btn"
+              aria-label="Re-roll image"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectOutput(item.id);
+                onRerollOutput?.(item);
+              }}
+            >
+              <ArrowClockwise size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
+          {shouldShowWorkflowReloadAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-workflow-reload-btn"
+              aria-label="Reload workflow"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectOutput(item.id);
+                onReloadWorkflowOutput?.(item);
+              }}
+            >
+              <FlowArrow size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {!hideReferenceActions && shouldShowReferenceActionRow ? (
         <div className="reference-card-actions" aria-label="Reference actions">

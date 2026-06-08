@@ -32,6 +32,15 @@ export type ResolveCharacterDropReference = (
 
 type UseCharacterManagerDroppedReferenceControllerParams = {
   setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<unknown>;
+  setCharacterSheetPresetStorageReference?: (
+    zoneKey: CharacterSheetDropZoneKey,
+    reference: {
+      storagePath: string;
+      previewUrl: string | null;
+      filename?: string | null;
+      mimeType?: string | null;
+    }
+  ) => Promise<unknown>;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
 };
 
@@ -58,6 +67,11 @@ const sanitizeFilenameSegment = (value: string): string =>
     .replace(/[^\w.-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+
+const filenameFromStoragePath = (storagePath: string | null | undefined): string | null => {
+  const filename = sanitizeFilenameSegment(storagePath?.split("/").pop() ?? "");
+  return filename || null;
+};
 
 const parseDroppedStorageCandidateFromUrl = (url: string): DroppedStorageCandidate | null => {
   try {
@@ -253,6 +267,7 @@ const toDroppedReferenceFile = async (reference: DroppedImageReference): Promise
 
 export const useCharacterManagerDroppedReferenceController = ({
   setCharacterSheetPresetFile,
+  setCharacterSheetPresetStorageReference,
   resolveCharacterDropReference,
 }: UseCharacterManagerDroppedReferenceControllerParams): UseCharacterManagerDroppedReferenceControllerResult => {
   const mediaReferenceCacheRef = useRef(
@@ -455,6 +470,15 @@ export const useCharacterManagerDroppedReferenceController = ({
           });
           return;
         }
+        if (resolvedReference.storagePath && setCharacterSheetPresetStorageReference) {
+          await setCharacterSheetPresetStorageReference(zoneKey, {
+            storagePath: resolvedReference.storagePath,
+            previewUrl,
+            filename: filenameFromStoragePath(resolvedReference.storagePath),
+            mimeType: null,
+          });
+          return;
+        }
         await ingestCharacterSheetDroppedReference(zoneKey, {
           url: previewUrl,
           mimeType: null,
@@ -466,6 +490,15 @@ export const useCharacterManagerDroppedReferenceController = ({
 
       const mediaLibraryReference = resolveMediaLibraryDroppedImageReference(transfer);
       if (mediaLibraryReference) {
+        if (mediaLibraryReference.storagePath && setCharacterSheetPresetStorageReference) {
+          await setCharacterSheetPresetStorageReference(zoneKey, {
+            storagePath: mediaLibraryReference.storagePath,
+            previewUrl: mediaLibraryReference.url,
+            filename: filenameFromStoragePath(mediaLibraryReference.storagePath),
+            mimeType: mediaLibraryReference.mimeType,
+          });
+          return;
+        }
         await ingestCharacterSheetDroppedReference(zoneKey, mediaLibraryReference);
         return;
       }
@@ -522,6 +555,7 @@ export const useCharacterManagerDroppedReferenceController = ({
     },
     [
       setCharacterSheetPresetFile,
+      setCharacterSheetPresetStorageReference,
       ingestCharacterSheetDroppedReference,
       logCharacterDropBreadcrumb,
       resolveCharacterDropReference,

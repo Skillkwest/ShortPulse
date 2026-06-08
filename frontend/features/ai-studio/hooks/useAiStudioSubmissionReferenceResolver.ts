@@ -7,7 +7,7 @@ import type { ToolId } from "../types";
 
 type ResolvedReferenceInputs = {
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
 };
 
 type UseAiStudioSubmissionReferenceResolverParams = {

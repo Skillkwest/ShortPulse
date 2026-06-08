@@ -1133,7 +1133,7 @@
   line-height: 1.55;
   overflow-y: auto;
   min-height: 500px;
-  padding: 12px 16px 42px;
+  padding: 12px 16px 52px;
   outline: none !important;
   -webkit-appearance: none;
   appearance: none;
@@ -1302,6 +1302,20 @@
   right: 12px;
   bottom: 12px;
   z-index: 3;
+}
+
+.video-properties-panel .video-prompt-inline-action-slot {
+  pointer-events: auto;
+}
+
+.video-properties-panel .video-prompt-inline-action-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.video-properties-panel .video-prompt-inline-action-cluster .video-prompt-character-meta {
+  pointer-events: none;
 }
 
 .video-properties-panel .video-prompt-character-inline-slot {

@@ -78,6 +78,7 @@ export type PromptStepProps = {
   CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
   composerMiddleContent?: React.ReactNode;
   composerLeadingContent?: React.ReactNode;
+  composerTrailingContent?: React.ReactNode;
   chatComposerOverlayEnabled?: boolean;
   stackTrailingComposerControls?: boolean;
   hideChatComposerHint?: boolean;

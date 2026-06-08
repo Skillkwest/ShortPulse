@@ -6,6 +6,7 @@ import {
   buildExpertEditSubmissionReferenceInputs,
   buildExpertEditPromptHighlightSegments,
   buildExpertEditPrimarySlotToken,
+  buildExpertEditSecondarySlotToken,
   compileExpertEditSubmissionPrompt,
   extractExpertEditPromptTokenFromTransfer,
   insertExpertEditPromptTokenAtSelection,
@@ -24,7 +25,19 @@ const createTransfer = (seed?: Record<string, string>) => {
 };
 
 describe("expertEditPromptReferences", () => {
-  it("detects valid @img1..@img3 tokens when corresponding slots are populated", () => {
+  it("detects valid @img1..@img10 tokens when corresponding slots are populated", () => {
+    const secondarySlots: (string | null)[] = Array.from({ length: 10 }, () => null);
+    secondarySlots[0] = "https://example.com/a.png";
+    secondarySlots[9] = "https://example.com/j.png";
+    const analysis = analyzeExpertEditPromptTokens("Use @img1 and @img10.", [...secondarySlots]);
+
+    expect(analysis.hasTokenReferences).toBe(true);
+    expect(analysis.hasInvalidTokens).toBe(false);
+    expect(analysis.referencedSlotIndexes).toEqual([0, 9]);
+    expect(analysis.inlineError).toBeNull();
+  });
+
+  it("continues to detect non-contiguous populated secondary tokens", () => {
     const analysis = analyzeExpertEditPromptTokens("Use @img1 and @img3.", [
       "https://example.com/a.png",
       null,
@@ -58,9 +71,9 @@ describe("expertEditPromptReferences", () => {
       null,
     ]);
     expect(missingIndex.hasInvalidTokens).toBe(true);
-    expect(missingIndex.inlineError).toMatch(/Use @main, @img1, @img2, or @img3/i);
+    expect(missingIndex.inlineError).toContain("@img10");
 
-    const outOfRange = analyzeExpertEditPromptTokens("Use @img4 for hair.", [
+    const outOfRange = analyzeExpertEditPromptTokens("Use @img11 for hair.", [
       "https://example.com/a.png",
       "https://example.com/b.png",
       "https://example.com/c.png",
@@ -104,13 +117,13 @@ describe("expertEditPromptReferences", () => {
   });
 
   it("builds highlight segments for plain, valid-token, and invalid-token text", () => {
-    const analysis = analyzeExpertEditPromptTokens("Blend @img1 then @img4.", [
+    const analysis = analyzeExpertEditPromptTokens("Blend @img1 then @img11.", [
       "https://example.com/a.png",
       null,
       null,
     ]);
     const segments = buildExpertEditPromptHighlightSegments(
-      "Blend @img1 then @img4.",
+      "Blend @img1 then @img11.",
       analysis.diagnostics
     );
 
@@ -122,7 +135,7 @@ describe("expertEditPromptReferences", () => {
       "plain",
     ]);
     expect(segments[1]?.text).toBe("@img1");
-    expect(segments[3]?.text).toBe("@img4");
+    expect(segments[3]?.text).toBe("@img11");
   });
 
   it("compiles tokenized prompts to figure references and appends mapping", () => {
@@ -240,6 +253,10 @@ describe("expertEditPromptReferences", () => {
       extractExpertEditPromptTokenFromTransfer(createTransfer({ "text/plain": "@main" }))
     ).toBe("@main");
     expect(resolveExpertEditPromptTokenSlotIndex("@img2")).toBe(1);
+    expect(buildExpertEditSecondarySlotToken(9)).toBe("@img10");
+    expect(buildExpertEditSecondarySlotToken(10)).toBeNull();
+    expect(resolveExpertEditPromptTokenSlotIndex("@img10")).toBe(9);
+    expect(resolveExpertEditPromptTokenSlotIndex("@img11")).toBeNull();
   });
 
   it("inserts token at selection with spacing-safe behavior", () => {

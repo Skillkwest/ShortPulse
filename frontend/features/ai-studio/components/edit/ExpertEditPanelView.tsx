@@ -2,6 +2,7 @@ import React from "react";
 import { modelLogos } from "../../constants";
 import { needsImageUpload } from "../../utils/imageUpload";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
+import { normalizeExpertEditSecondaryImageUrls } from "../../logic/expertEditReferenceSlots";
 import {
   isEditGenerationModeToggleEnabled,
   isMarkupCollapsedOpenModalEnabled,
@@ -42,6 +43,8 @@ import {
   INPAINT_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
+  DEFAULT_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
+  MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
   STATUS_TOAST_FADE_MS,
   STATUS_TOAST_VISIBLE_MS,
   TRANSIENT_OBJECT_URL_REVOKE_MS,
@@ -77,6 +80,22 @@ import { isClientPointInsideElementBounds } from "./expertEditInteractionUtils";
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = true;
 const EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON = 0.001;
 
+const resolveDefaultVisibleSecondarySlotIndexes = (
+  values: readonly (string | null)[]
+): number[] => {
+  const indexes = new Set<number>();
+  Array.from({ length: DEFAULT_EXPERT_EDIT_SECONDARY_SLOT_COUNT }, (_, index) => index).forEach(
+    (index) => indexes.add(index)
+  );
+  values.forEach((value, index) => {
+    if (index >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return;
+    if ((value?.trim() ?? "").length > 0) {
+      indexes.add(index);
+    }
+  });
+  return Array.from(indexes).sort((left, right) => left - right);
+};
+
 export function ExpertEditPanelView({
   aspect,
   modelId,
@@ -94,6 +113,7 @@ export function ExpertEditPanelView({
   onAddFlattenedReferenceImage,
   onExtraImageChange,
   onPromptTextChange,
+  onPinPromptReference,
   onEditSubmitIntentChange,
   onRegenerate,
   onRegenerateWithReferenceInputs,
@@ -257,6 +277,7 @@ export function ExpertEditPanelView({
     foundationLayerId,
     setFoundationLayerId,
     handleCommitLayerRename,
+    handleClearAllLayers,
     handleDeleteLayer,
     handleDeleteSelectedLayer,
     handleLayerDragEnd,
@@ -358,6 +379,47 @@ export function ExpertEditPanelView({
   const shouldOpenMarkupModalFromCollapsedTools = isMarkupCollapsedOpenModalEnabled();
   const isModelPickerLocked = isInpaintSubmitMode || shouldLockMarkupModelPicker;
   const promptTextValue = referenceText ?? "";
+  const normalizedExtraImageUrls = React.useMemo(
+    () => normalizeExpertEditSecondaryImageUrls(extraImageUrls),
+    [extraImageUrls]
+  );
+  const [visibleSecondarySlotIndexes, setVisibleSecondarySlotIndexes] = React.useState<number[]>(
+    () => resolveDefaultVisibleSecondarySlotIndexes(normalizedExtraImageUrls)
+  );
+  React.useEffect(() => {
+    setVisibleSecondarySlotIndexes((previous) => {
+      const nextIndexes = new Set(previous);
+      normalizedExtraImageUrls.forEach((value, index) => {
+        if ((value?.trim() ?? "").length > 0) {
+          nextIndexes.add(index);
+        }
+      });
+      return Array.from(nextIndexes)
+        .filter((index) => index >= 0 && index < MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT)
+        .sort((left, right) => left - right);
+    });
+  }, [normalizedExtraImageUrls]);
+  const handleAddSecondaryReferenceSlot = React.useCallback(() => {
+    setVisibleSecondarySlotIndexes((previous) => {
+      if (previous.length >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return previous;
+      const visibleSet = new Set(previous);
+      const nextIndex = Array.from(
+        { length: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT },
+        (_, index) => index
+      ).find((index) => !visibleSet.has(index));
+      if (nextIndex == null) return previous;
+      return [...previous, nextIndex].sort((left, right) => left - right);
+    });
+  }, []);
+  const handleRemoveSecondaryReferenceSlot = React.useCallback(
+    (index: number) => {
+      onExtraImageChange(index, null);
+      setVisibleSecondarySlotIndexes((previous) =>
+        previous.filter((slotIndex) => slotIndex !== index)
+      );
+    },
+    [onExtraImageChange]
+  );
   const {
     aspectOptionsForModel,
     closeCharacterPicker,
@@ -413,7 +475,7 @@ export function ExpertEditPanelView({
     shouldShowResolutionControl,
   } = useExpertEditPromptComposerRuntime({
     promptTextValue,
-    extraImageUrls,
+    extraImageUrls: normalizedExtraImageUrls,
     selectedLayerImageUrl,
     onExtraImageChange,
     onPromptTextChange,
@@ -444,7 +506,6 @@ export function ExpertEditPanelView({
     updateCustomPresetOverrides,
     showStatusToast,
   });
-  const [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] = inputRefs;
 
   const {
     overlayCanvasRef,
@@ -639,7 +700,7 @@ export function ExpertEditPanelView({
   const { handleInlineGenerate, isInlineGeneratePending } = useExpertEditInlineGenerate({
     layers,
     promptText: promptTextValue,
-    extraImageUrls,
+    extraImageUrls: normalizedExtraImageUrls,
     reusablePrimarySourceUrl,
     flattenTargetLongestEdgePx,
     markupStrokes,
@@ -669,7 +730,7 @@ export function ExpertEditPanelView({
 
   const handleSecondaryPromptTokenDragStart = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>, index: number) => {
-      if (!extraImageUrls[index]) {
+      if (!normalizedExtraImageUrls[index]) {
         event.preventDefault();
         return;
       }
@@ -680,7 +741,7 @@ export function ExpertEditPanelView({
       }
       event.dataTransfer.effectAllowed = "copy";
     },
-    [extraImageUrls]
+    [normalizedExtraImageUrls]
   );
 
   const stageViewportCursor = React.useMemo(() => {
@@ -1147,7 +1208,10 @@ export function ExpertEditPanelView({
     renderMarkupControlsContent,
     renderMoveControlsContent,
     shouldShowSecondaryReferenceAndStylesRow,
-    extraImageUrls,
+    extraImageUrls: normalizedExtraImageUrls,
+    visibleSecondarySlotIndexes,
+    onAddSecondaryReferenceSlot: handleAddSecondaryReferenceSlot,
+    onRemoveSecondaryReferenceSlot: handleRemoveSecondaryReferenceSlot,
     inputRefs,
     extraDragActive,
     promptTokenPickerIsOpen: promptTokenPickerState.isOpen,
@@ -1161,7 +1225,6 @@ export function ExpertEditPanelView({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
-    onExtraImageChange,
     isStylesPanelOpen,
     selectedStyleId,
     stylesCatalog,
@@ -1193,6 +1256,7 @@ export function ExpertEditPanelView({
     handleLayerDrop,
     handleLayerDragEnd,
     handleSelectLayer,
+    handleClearAllLayers,
     handleDeleteLayer,
     handleManualFlatten,
     handleRemoveBackground,
@@ -1217,9 +1281,10 @@ export function ExpertEditPanelView({
     promptTokenPickerState,
     hostPrimaryImageUrl,
     populatedPromptTokenSlotIndexes,
-    extraImageUrls,
+    extraImageUrls: normalizedExtraImageUrls,
     insertPromptTokenFromPicker,
     promptTokenInlineError,
+    onPinPromptReference,
     handleInlineGenerate,
     inlineGenerateDisabled,
     costCredits,
@@ -1242,9 +1307,7 @@ export function ExpertEditPanelView({
     statusToastTone,
     isStatusToastFading,
     primaryInputRef,
-    extraOneInputRef,
-    extraTwoInputRef,
-    extraThreeInputRef,
+    inputRefs,
     handlePrimaryFileSelection,
     handleFileSelection,
     onExtraImageChange,
@@ -1305,6 +1368,7 @@ export function ExpertEditPanelView({
     handleLayerDrop,
     handleLayerDragEnd,
     handleSelectLayer,
+    handleClearAllLayers,
     handleDeleteLayer,
     handleManualFlatten,
     handleRemoveBackground,

@@ -7,6 +7,7 @@ import { ELEVENLABS_MUSIC_DURATION_OPTIONS } from "../../../lib/model-runtime/el
 import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/modelCatalog";
 import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
+import { useAudioInspirationRail } from "../hooks/useAudioInspirationRail";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 
 export type MusicMode = "instrumental" | "vocal";
@@ -156,12 +157,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
 }: MusicPropertiesPanelProps) {
   void _balanceCredits;
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const inspirationScrollerRef = React.useRef<HTMLDivElement | null>(null);
-  const inspirationDragPointerIdRef = React.useRef<number | null>(null);
-  const inspirationDragStartXRef = React.useRef(0);
-  const inspirationDragStartScrollLeftRef = React.useRef(0);
-  const inspirationDidDragRef = React.useRef(false);
-  const suppressChipClickRef = React.useRef(false);
   const songBatchMenuRef = React.useRef<HTMLDivElement | null>(null);
   const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
@@ -175,18 +170,31 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     number | null
   >(null);
   const [activeFooterMenu, setActiveFooterMenu] = React.useState<"songs" | "duration" | null>(null);
-  const [isDraggingInspiration, setIsDraggingInspiration] = React.useState(false);
   const [inspirationInsertError, setInspirationInsertError] = React.useState<string | null>(null);
-  const [inspirationScrollState, setInspirationScrollState] = React.useState({
-    canScrollBack: false,
-    canScrollForward: false,
-  });
   const prompt = controlledPrompt ?? uncontrolledPrompt;
   const lyrics = controlledLyrics ?? uncontrolledLyrics;
   const composerMode = controlledComposerMode ?? uncontrolledComposerMode;
   const singerEnabled = controlledSingerEnabled ?? uncontrolledSingerEnabled;
   const songBatchCount = controlledSongBatchCount ?? uncontrolledSongBatchCount;
   const selectedDurationSeconds = controlledDurationSeconds ?? uncontrolledDurationSeconds;
+  const {
+    scrollerRef: inspirationScrollerRef,
+    isDragging: isDraggingInspiration,
+    scrollState: inspirationScrollState,
+    syncScrollState: syncInspirationScrollState,
+    scrollByDirection: scrollInspirationRail,
+    consumeSuppressedChipClick,
+    handlePointerDown: handleInspirationPointerDown,
+    handlePointerMove: handleInspirationPointerMove,
+    handlePointerUp: handleInspirationPointerUp,
+    handlePointerCancel: handleInspirationPointerCancel,
+    handleChipPointerDown: handleInspirationChipPointerDown,
+  } = useAudioInspirationRail({
+    ignoreNonPrimaryMousePointerDown: true,
+    scrollStepPx: inspirationScrollStepPx,
+    scrollStrategy: "scrollTo",
+    syncKey: composerMode,
+  });
   const resolveTextAction = React.useCallback(
     (current: string, action: React.SetStateAction<string>) =>
       typeof action === "function" ? (action as (value: string) => string)(current) : action,
@@ -314,36 +322,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     ELEVENLABS_MUSIC_DURATION_OPTIONS.find((option) => option.value === selectedDurationSeconds) ??
     ELEVENLABS_MUSIC_DURATION_OPTIONS[0];
 
-  const syncInspirationScrollState = React.useCallback(() => {
-    const node = inspirationScrollerRef.current;
-    if (!node) {
-      setInspirationScrollState({
-        canScrollBack: false,
-        canScrollForward: false,
-      });
-      return;
-    }
-    const maxScrollLeft = Math.max(0, node.scrollWidth - node.clientWidth);
-    setInspirationScrollState({
-      canScrollBack: node.scrollLeft > 4,
-      canScrollForward: node.scrollLeft < maxScrollLeft - 4,
-    });
-  }, []);
-
-  React.useEffect(() => {
-    const frameId = window.requestAnimationFrame(() => {
-      syncInspirationScrollState();
-    });
-    const handleResize = () => {
-      syncInspirationScrollState();
-    };
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [composerMode, syncInspirationScrollState]);
-
   React.useEffect(() => {
     setInspirationInsertError(null);
   }, [composerMode, lyrics, prompt]);
@@ -364,7 +342,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
 
   const handleInspirationClick = React.useCallback(
     (chip: MusicInspirationEntry) => {
-      if (suppressChipClickRef.current) return;
+      if (consumeSuppressedChipClick()) return;
       const trimmedPrompt = prompt.trim();
       const nextPrompt = trimmedPrompt ? `${trimmedPrompt}\n\n${chip.prompt}` : chip.prompt;
       const nextSubmissionText = buildMusicSubmissionText({
@@ -387,92 +365,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
 
       setPrompt(nextPrompt);
     },
-    [composerMode, lyrics, prompt, setPrompt]
-  );
-
-  const handleInspirationChipPointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-    },
-    []
-  );
-
-  const scrollInspirationRail = React.useCallback(
-    (direction: "backward" | "forward") => {
-      const node = inspirationScrollerRef.current;
-      if (!node) return;
-      const nextLeft =
-        node.scrollLeft +
-        (direction === "forward" ? inspirationScrollStepPx : -inspirationScrollStepPx);
-      if (typeof node.scrollTo === "function") {
-        node.scrollTo({
-          left: nextLeft,
-          behavior: "smooth",
-        });
-      } else {
-        node.scrollLeft = nextLeft;
-      }
-      window.requestAnimationFrame(() => {
-        syncInspirationScrollState();
-      });
-    },
-    [syncInspirationScrollState]
-  );
-
-  const endInspirationDrag = React.useCallback(() => {
-    inspirationDragPointerIdRef.current = null;
-    setIsDraggingInspiration(false);
-    if (inspirationDidDragRef.current) {
-      suppressChipClickRef.current = true;
-      window.setTimeout(() => {
-        suppressChipClickRef.current = false;
-      }, 0);
-    }
-    inspirationDidDragRef.current = false;
-    syncInspirationScrollState();
-  }, [syncInspirationScrollState]);
-
-  const handleInspirationPointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      const node = inspirationScrollerRef.current;
-      if (!node) return;
-      inspirationDragPointerIdRef.current = event.pointerId;
-      inspirationDragStartXRef.current = event.clientX;
-      inspirationDragStartScrollLeftRef.current = node.scrollLeft;
-      inspirationDidDragRef.current = false;
-      suppressChipClickRef.current = false;
-      setIsDraggingInspiration(false);
-      node.setPointerCapture?.(event.pointerId);
-    },
-    []
-  );
-
-  const handleInspirationPointerMove = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const node = inspirationScrollerRef.current;
-      if (!node || inspirationDragPointerIdRef.current !== event.pointerId) return;
-      const deltaX = event.clientX - inspirationDragStartXRef.current;
-      if (!inspirationDidDragRef.current && Math.abs(deltaX) > 4) {
-        inspirationDidDragRef.current = true;
-        suppressChipClickRef.current = true;
-        setIsDraggingInspiration(true);
-      }
-      if (!inspirationDidDragRef.current) return;
-      node.scrollLeft = inspirationDragStartScrollLeftRef.current - deltaX;
-      syncInspirationScrollState();
-    },
-    [syncInspirationScrollState]
-  );
-
-  const handleInspirationPointerUp = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const node = inspirationScrollerRef.current;
-      if (inspirationDragPointerIdRef.current !== event.pointerId) return;
-      node?.releasePointerCapture?.(event.pointerId);
-      endInspirationDrag();
-    },
-    [endInspirationDrag]
+    [composerMode, consumeSuppressedChipClick, lyrics, prompt, setPrompt]
   );
 
   const handleGenerate = React.useCallback(() => {
@@ -533,7 +426,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
           onPointerDown={handleInspirationPointerDown}
           onPointerMove={handleInspirationPointerMove}
           onPointerUp={handleInspirationPointerUp}
-          onPointerCancel={endInspirationDrag}
+          onPointerCancel={handleInspirationPointerCancel}
         >
           {inspirationChips.map((chip) => (
             <button

@@ -42,7 +42,7 @@ type UseAiStudioStateEffectsArgs = {
   setUseReferenceImageIndicator: (value: boolean) => void;
   model: string | null;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   selectedTool: ToolId | null;
   videoReferenceMode: VideoReferenceMode;
   setVideoReferenceMode: (value: VideoReferenceMode) => void;

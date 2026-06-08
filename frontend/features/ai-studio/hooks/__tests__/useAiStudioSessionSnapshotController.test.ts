@@ -586,14 +586,14 @@ describe("useAiStudioSessionSnapshotController", () => {
     expect(setReferenceSelectionStateForCreateMode).toHaveBeenCalledWith("standard", {
       selectedTool: "create",
       referenceImageUrl: null,
-      extraImageUrls: [null, null, null],
+      extraImageUrls: Array.from({ length: 10 }, () => null),
       referenceImageInternalMediaRefs: [],
       motionReferenceVideoUrl: "https://example.com/signed/standard-motion.mp4?token=fresh",
     });
     expect(setReferenceSelectionStateForCreateMode).toHaveBeenCalledWith("pulse", {
       selectedTool: "create",
       referenceImageUrl: null,
-      extraImageUrls: [null, null, null],
+      extraImageUrls: Array.from({ length: 10 }, () => null),
       referenceImageInternalMediaRefs: [],
       motionReferenceVideoUrl: "https://example.com/signed/pulse-motion.mp4?token=fresh",
     });

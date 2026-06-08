@@ -16,6 +16,7 @@ import {
   type StudioOutputCollectionState,
 } from "../reference-domain";
 import { sortStudioOutputsByCreatedAtDesc } from "../logic/outputOrdering";
+import { limitReferenceGridVisibleOutputs } from "../reference-grid/logic/referenceGridLimits";
 import type { StudioOutput } from "../types";
 import { setAiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 
@@ -26,12 +27,20 @@ type OutputCollectionAuthorityState = {
   archived: OutputCollectionState;
 };
 
-const normalizeActiveRows = (rows: StudioOutput[]): StudioOutputCollectionState =>
-  normalizeStudioOutputCollection(
-    rows.every((row) => typeof row.createdAt === "string" && row.createdAt.trim().length > 0)
-      ? sortStudioOutputsByCreatedAtDesc(rows)
-      : rows
-  );
+const normalizeActiveRows = (
+  rows: StudioOutput[]
+): { rows: StudioOutput[]; state: StudioOutputCollectionState } => {
+  const orderedRows = rows.every(
+    (row) => typeof row.createdAt === "string" && row.createdAt.trim().length > 0
+  )
+    ? sortStudioOutputsByCreatedAtDesc(rows)
+    : rows;
+  const limited = limitReferenceGridVisibleOutputs(orderedRows);
+  return {
+    rows: limited.rows,
+    state: normalizeStudioOutputCollection(limited.rows),
+  };
+};
 
 type UseAiStudioOutputCollectionStateResult = {
   activeOutputState: OutputCollectionState;
@@ -133,14 +142,15 @@ export const useAiStudioOutputCollectionState = ({
           ? activeOutputsRef.current
           : denormalizeStudioOutputCollection(prevState);
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-      const nextState = normalizeActiveRows(resolved);
+      const normalized = normalizeActiveRows(resolved);
+      const nextState = normalized.state;
       if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         activeOutputStateRef.current = prevState;
         activeOutputsRef.current = prevRows;
         return prevState;
       }
       activeOutputStateRef.current = nextState;
-      activeOutputsRef.current = resolved;
+      activeOutputsRef.current = normalized.rows;
       return nextState;
     });
   }, []);
@@ -166,7 +176,8 @@ export const useAiStudioOutputCollectionState = ({
 
   const setOutputCollectionsForAuthority = useCallback(
     (targetAuthorityKey: string, activeRows: StudioOutput[], archivedRows: StudioOutput[]) => {
-      const nextActiveState = normalizeActiveRows(activeRows);
+      const nextActive = normalizeActiveRows(activeRows);
+      const nextActiveState = nextActive.state;
       const nextArchivedState = normalizeStudioOutputCollection(archivedRows);
       stateByAuthorityKeyRef.current[targetAuthorityKey] = {
         active: nextActiveState,
@@ -177,7 +188,7 @@ export const useAiStudioOutputCollectionState = ({
       activeOutputStateRef.current = nextActiveState;
       archivedOutputStateRef.current = nextArchivedState;
       activeOutputByIdRef.current = nextActiveState.byId;
-      activeOutputsRef.current = activeRows;
+      activeOutputsRef.current = nextActive.rows;
       archivedOutputsRef.current = archivedRows;
       setActiveOutputState(nextActiveState);
       setArchivedOutputState(nextArchivedState);

@@ -47,7 +47,7 @@ export type ExpertEditLayer = {
 };
 
 export const resolveLayerIdCounterFromLayers = (layers: ExpertEditLayer[]) => {
-  let highestLayerNumber = 1;
+  let highestLayerNumber = 0;
   layers.forEach((layer) => {
     const match = /^layer-(\d+)$/.exec(layer.id.trim());
     if (!match) return;
@@ -55,7 +55,7 @@ export const resolveLayerIdCounterFromLayers = (layers: ExpertEditLayer[]) => {
     if (!Number.isFinite(parsed)) return;
     highestLayerNumber = Math.max(highestLayerNumber, parsed);
   });
-  return Math.max(2, highestLayerNumber + 1);
+  return Math.max(1, highestLayerNumber + 1);
 };
 
 export const cloneLayerForSessionState = (layer: ExpertEditLayer): ExpertEditLayerSessionLayer => ({
@@ -158,20 +158,12 @@ export const enforceLayerStackInvariants = ({
   layers: ExpertEditLayer[];
   foundationLayerId: string | null;
 }) => {
+  const nextLayers = layers.filter((layer) => layerHasImage(layer));
+  if (nextLayers.length !== 1) return nextLayers;
+  const promotedLayer = nextLayers[0];
+  if (!promotedLayer) return nextLayers;
   const resolvedFoundationId = foundationLayerId ?? layers[0]?.id ?? null;
-  if (!resolvedFoundationId) return layers;
-  const foundationLayer =
-    layers.find((layer) => layer.id === resolvedFoundationId) ?? layers[0] ?? null;
-  if (!foundationLayer) return layers;
-  const nextLayers = layers.filter(
-    (layer) => layer.id === resolvedFoundationId || layerHasImage(layer)
-  );
-  const populatedNonFoundationLayers = nextLayers.filter(
-    (layer) => layer.id !== resolvedFoundationId
-  );
-  if (!layerHasImage(foundationLayer) && populatedNonFoundationLayers.length === 1) {
-    const promotedLayer = populatedNonFoundationLayers[0];
-    if (!promotedLayer) return nextLayers;
+  if (resolvedFoundationId && promotedLayer.id !== resolvedFoundationId) {
     return [
       promotedLayer.isAutoNamed
         ? {
@@ -181,10 +173,7 @@ export const enforceLayerStackInvariants = ({
         : promotedLayer,
     ];
   }
-  if (nextLayers.some((layer) => layer.id === resolvedFoundationId)) {
-    return nextLayers;
-  }
-  return [foundationLayer, ...nextLayers];
+  return nextLayers;
 };
 
 export const resolveLowestUnusedAutoLayerNumber = ({
@@ -290,27 +279,11 @@ export const resolveLayerStateAfterDelete = ({
   const targetLayer = layers[index];
   if (!targetLayer) return null;
 
-  const isFoundationLayer = targetLayer.id === foundationLayerId;
   const selectedLayerId = layers[resolvedSelectedLayerIndex]?.id ?? null;
   const editingLayerId = editingLayerIndex != null ? (layers[editingLayerIndex]?.id ?? null) : null;
 
-  const nextLayers = isFoundationLayer
-    ? layers.map((layer) =>
-        layer.id === targetLayer.id
-          ? {
-              ...layer,
-              name: layer.isAutoNamed ? formatLayerName(1) : layer.name,
-              imageUrl: null,
-              opacity: LAYER_OPACITY_DEFAULT,
-              ownsImageUrl: false,
-              transform: defaultLayerTransform(),
-            }
-          : layer
-      )
-    : layers.filter((_, layerIndex) => layerIndex !== index);
-
   const normalizedLayers = enforceLayerStackInvariants({
-    layers: nextLayers,
+    layers: layers.filter((_, layerIndex) => layerIndex !== index),
     foundationLayerId,
   });
 
@@ -321,15 +294,6 @@ export const resolveLayerStateAfterDelete = ({
           const nextIndex = normalizedLayers.findIndex((layer) => layer.id === editingLayerId);
           return nextIndex >= 0 ? nextIndex : null;
         })();
-
-  if (isFoundationLayer) {
-    const foundationIndex = normalizedLayers.findIndex((layer) => layer.id === targetLayer.id);
-    return {
-      normalizedLayers,
-      nextEditingLayerIndex,
-      nextSelectedLayerIndex: foundationIndex >= 0 ? foundationIndex : 0,
-    };
-  }
 
   if (selectedLayerId) {
     const selectedIndex = normalizedLayers.findIndex((layer) => layer.id === selectedLayerId);
@@ -345,7 +309,10 @@ export const resolveLayerStateAfterDelete = ({
   return {
     normalizedLayers,
     nextEditingLayerIndex,
-    nextSelectedLayerIndex: Math.max(0, Math.min(index - 1, normalizedLayers.length - 1)),
+    nextSelectedLayerIndex:
+      normalizedLayers.length > 0
+        ? Math.max(0, Math.min(index - 1, normalizedLayers.length - 1))
+        : null,
   };
 };
 
@@ -358,19 +325,29 @@ export const resolveLayersAfterContextMenuRemoveImage = ({
   selectedLayerId: string;
   foundationLayerId: string | null;
 }) =>
-  layers.map((layer) =>
-    layer.id === selectedLayerId
-      ? {
-          ...layer,
-          name:
-            layer.id === foundationLayerId && layer.isAutoNamed ? formatLayerName(1) : layer.name,
-          imageUrl: null,
-          ownsImageUrl: false,
-          opacity: LAYER_OPACITY_DEFAULT,
-          transform: defaultLayerTransform(),
-        }
-      : layer
-  );
+  enforceLayerStackInvariants({
+    layers: layers.map((layer) =>
+      layer.id === selectedLayerId
+        ? {
+            ...layer,
+            name:
+              layer.id === foundationLayerId && layer.isAutoNamed ? formatLayerName(1) : layer.name,
+            imageUrl: null,
+            ownsImageUrl: false,
+            opacity: LAYER_OPACITY_DEFAULT,
+            transform: defaultLayerTransform(),
+          }
+        : layer
+    ),
+    foundationLayerId,
+  });
+
+const createEmptyLayerSessionState = (): ExpertEditLayerSessionState => ({
+  layers: [],
+  foundationLayerId: null,
+  selectedLayerIndex: null,
+  layerIdCounter: 1,
+});
 
 export const resolveInitialLayerSessionState = ({
   referenceImageUrl,
@@ -384,24 +361,30 @@ export const resolveInitialLayerSessionState = ({
     hasReferenceImageAuthority && typeof referenceImageUrl === "string"
       ? referenceImageUrl.trim()
       : null;
-  const fallbackLayers: ExpertEditLayer[] = [
-    {
-      id: "layer-1",
-      name: formatLayerName(1),
-      imageUrl: normalizedReferenceImageUrl,
-      opacity: LAYER_OPACITY_DEFAULT,
-      isAutoNamed: true,
-      ownsImageUrl: false,
-      transform: defaultLayerTransform(),
-    },
-  ];
-  if (!hasReferenceImageAuthority || !layerState?.layers?.length) {
+  const createFallbackLayerState = (): ExpertEditLayerSessionState => {
+    if (!normalizedReferenceImageUrl) return createEmptyLayerSessionState();
     return {
-      layers: fallbackLayers,
+      layers: [
+        {
+          id: "layer-1",
+          name: formatLayerName(1),
+          imageUrl: normalizedReferenceImageUrl,
+          opacity: LAYER_OPACITY_DEFAULT,
+          isAutoNamed: true,
+          ownsImageUrl: false,
+          transform: defaultLayerTransform(),
+        },
+      ],
       foundationLayerId: "layer-1",
       selectedLayerIndex: 0,
       layerIdCounter: 2,
     };
+  };
+  if (!hasReferenceImageAuthority) {
+    return createEmptyLayerSessionState();
+  }
+  if (!layerState?.layers?.length) {
+    return createFallbackLayerState();
   }
   const hydratedLayers: ExpertEditLayer[] = layerState.layers
     .filter((layer): layer is ExpertEditLayerSessionLayer => Boolean(layer?.id))
@@ -421,17 +404,15 @@ export const resolveInitialLayerSessionState = ({
       };
     });
   if (!hydratedLayers.length) {
-    return {
-      layers: fallbackLayers,
-      foundationLayerId: "layer-1",
-      selectedLayerIndex: 0,
-      layerIdCounter: 2,
-    };
+    return createFallbackLayerState();
   }
   const normalizedLayers = enforceLayerStackInvariants({
     layers: hydratedLayers,
     foundationLayerId: layerState.foundationLayerId,
   });
+  if (!normalizedLayers.length) {
+    return createEmptyLayerSessionState();
+  }
   const normalizedFoundationLayerId =
     normalizedLayers.find((layer) => layer.id === layerState.foundationLayerId)?.id ??
     normalizedLayers[0]?.id ??
@@ -449,7 +430,7 @@ export const resolveInitialLayerSessionState = ({
   const normalizedLayerIdCounter = Math.max(
     resolveLayerIdCounterFromLayers(normalizedLayers),
     Number.isFinite(sessionLayerIdCounter) ? Math.floor(sessionLayerIdCounter) : 2,
-    2
+    normalizedLayers.length > 0 ? 2 : 1
   );
   return {
     layers: normalizedLayers,

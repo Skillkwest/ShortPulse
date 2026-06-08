@@ -1,6 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { randomId } from "../logic/ids";
 import { resolveModelLabel } from "../logic/stateParsers";
+import {
+  getReferenceGridAvailableSlots,
+  REFERENCE_GRID_CAP_REACHED_MESSAGE,
+} from "../reference-grid/logic/referenceGridLimits";
 import type { StudioMode, StudioOutput, StudioOutputSubmissionMode, ToolId } from "../types";
 
 type UseAiStudioOptimisticPlaceholderActionsArgs = {
@@ -8,8 +12,10 @@ type UseAiStudioOptimisticPlaceholderActionsArgs = {
   selectedTool: ToolId | null;
   aspect: string;
   model: string | null;
+  outputs: StudioOutput[];
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setSaved: Dispatch<SetStateAction<boolean>>;
+  setUiError?: Dispatch<SetStateAction<string | null>>;
 };
 
 type UseAiStudioOptimisticPlaceholderActionsResult = {
@@ -30,8 +36,10 @@ export const useAiStudioOptimisticPlaceholderActions = ({
   selectedTool,
   aspect,
   model,
+  outputs,
   setOutputs,
   setSaved,
+  setUiError,
 }: UseAiStudioOptimisticPlaceholderActionsArgs): UseAiStudioOptimisticPlaceholderActionsResult => {
   const insertOptimisticGenerationPlaceholder = useCallback(
     ({
@@ -53,6 +61,10 @@ export const useAiStudioOptimisticPlaceholderActions = ({
     }) => {
       const cleanedPrompt = promptText.trim();
       if (!cleanedPrompt) return null;
+      if (getReferenceGridAvailableSlots(outputs) <= 0) {
+        setUiError?.(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+        return null;
+      }
       const effectiveMode = modeOverride ?? mode;
       const effectiveTool = selectedToolOverride ?? selectedTool;
       const outputMode: StudioMode =
@@ -97,7 +109,7 @@ export const useAiStudioOptimisticPlaceholderActions = ({
       setSaved(false);
       return id;
     },
-    [aspect, mode, model, selectedTool, setOutputs, setSaved]
+    [aspect, mode, model, outputs, selectedTool, setOutputs, setSaved, setUiError]
   );
 
   const removeOptimisticGenerationPlaceholder = useCallback(

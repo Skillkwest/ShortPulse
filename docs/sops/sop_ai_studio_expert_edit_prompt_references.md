@@ -1,59 +1,67 @@
 # SOP: AI Studio Expert Edit `@main` and `@img` Prompt References
 
-Purpose: define the complete behavior contract for Expert Edit prompt-reference tokens (`@main`, `@img1`, `@img2`, `@img3`), including authoring UX, generate preflight, submission compilation, and maintenance guardrails.
+Purpose: define the complete behavior contract for Expert Edit prompt-reference tokens (`@main`, `@img1` through `@img10`), including authoring UX, generate preflight, submission compilation, and maintenance guardrails.
 
 ## Scope
 
 - In scope:
   - Expert Edit prompt token authoring in `/ai-studio`.
-  - Primary-slot token mapping (`@main`) and secondary-slot token mapping (`@img1..@img3`) plus drag-to-insert behavior.
+  - Primary-slot token mapping (`@main`) and secondary-slot token mapping (`@img1..@img10`) plus drag-to-insert behavior.
+  - Dynamic secondary reference-slot UI: two visible slots by default, an add-slot control up to ten slots, and per-slot removal that clears and hides the slot.
   - Submit-time prompt compilation to provider-friendly `Figure N` text.
   - Prompt override plumbing (`displayPromptOverride` vs `submissionPromptOverride`).
+  - Provider payload, billing image-count, and session/project snapshot behavior needed to carry up to ten Expert Edit secondary references.
   - Error handling and test coverage requirements.
 - Out of scope:
   - Retired legacy surfaces.
-  - Provider payload schema changes.
-  - Database migrations or session schema changes.
+  - Database migrations.
 
 ## Canonical code paths
 
-| Area                             | Source of truth                                                              | Responsibility                                                                                                              |
-| -------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Token domain logic               | `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`            | Parse/validate tokens, build highlight segments, compile submission prompt, drag payload helpers.                           |
-| Expert Edit prompt UI            | `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`        | Prompt textarea + mirror highlight, token drag insertion, inline invalid-token message timing, token warning toast trigger. |
-| Expert inline generate preflight | `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts` | Blocks generate for invalid tokens, compiles submission prompt overrides, handles flattened reference input assembly.       |
-| Expert panel prop adapter        | `frontend/features/ai-studio/hooks/useAiStudioEditExpertPanelProps.ts`       | Threads prompt overrides from panel callback into generation controller options.                                            |
-| Generation controller            | `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`       | Resolves display/submission prompt override precedence and character-mode composition.                                      |
-| Prompt composer / submission     | `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`   | Applies prompt overrides and submits provider-facing prompt with reference inputs.                                          |
-| Prompt highlight styles          | `frontend/styles/ai-studio-edit-expert.css`                                  | Mirror layer visuals, token colors, caret visibility, prompt-layer stacking/wrapping sync.                                  |
+| Area                             | Source of truth                                                              | Responsibility                                                                                                               |
+| -------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Token domain logic               | `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`            | Parse/validate tokens, build highlight segments, compile submission prompt, drag payload helpers.                            |
+| Expert Edit prompt UI            | `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`        | Prompt textarea + mirror highlight, token drag insertion, inline invalid-token message timing, token warning toast trigger.  |
+| Expert inline generate preflight | `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts` | Blocks generate for invalid tokens, compiles submission prompt overrides, handles flattened reference input assembly.        |
+| Expert panel prop adapter        | `frontend/features/ai-studio/hooks/useAiStudioEditExpertPanelProps.ts`       | Threads prompt overrides from panel callback into generation controller options.                                             |
+| Generation controller            | `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`       | Resolves display/submission prompt override precedence and character-mode composition.                                       |
+| Prompt composer / submission     | `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`   | Applies prompt overrides and submits provider-facing prompt with reference inputs.                                           |
+| Prompt highlight styles          | `frontend/styles/ai-studio-edit-expert.css`                                  | Mirror layer visuals, token colors, caret visibility, prompt-layer stacking/wrapping sync.                                   |
+| Slot-count authority             | `frontend/features/ai-studio/logic/expertEditReferenceSlots.ts`              | Default/tenth-slot limit constants plus normalization helpers used by UI, persistence, and prop adapters.                    |
+| Billing parameter extraction     | `frontend/lib/server/api/generationBilling/pricingParams.ts`                 | Counts `input_image_count`, `image_urls`, `input_urls`, and OpenAI-style image arrays for deterministic image-input pricing. |
 
 ## User-facing behavior contract
 
-1. Expert Edit prompt accepts `@main` for the primary image plus `@img1`, `@img2`, `@img3` references to secondary slots 1..3.
+1. Expert Edit prompt accepts `@main` for the primary image plus `@img1` through `@img10` references to secondary slots 1..10.
 2. Users can type token text manually.
 3. Users can drag a populated secondary slot into the prompt to insert the corresponding token at caret.
-4. Valid tokens are highlighted in the Expert Edit amber color (`rgb(255, 194, 80)`).
-5. Invalid tokens are highlighted in warning red.
-6. Invalid-token warning feedback is deferred until Generate is attempted.
-7. Generate is blocked when invalid token references exist.
-8. Standard and Markup edit lanes always include the primary image first. Secondary reference behavior is lane-aware:
-   - when one or more valid `@img1..@img3` tokens are linked, only those linked secondary refs are included in provider `image_urls`;
-   - when no valid secondary token is linked, all populated secondary reference slots are included as ambient edit context.
-   - `@main` still resolves to the primary figure and does not by itself suppress the no-linked-secondary fallback.
-9. Inpaint has two explicit contracts:
-   - default FLUX Fill inpaint supports `@main` only because `fal-ai/flux-pro/v1/fill` receives only the flattened base image plus mask.
-   - reference-aware inpaint allows `@main` plus exactly one unique secondary token and routes to `fal-ai/flux-kontext-lora/inpaint` with `image_url + mask_url + reference_image_url`.
+4. The secondary reference row shows two slots by default, then an add-slot control. Users can add visible slots up to ten total secondary slots.
+5. Each visible secondary slot has a remove control. Removing a slot clears that slot image and hides the slot; the slot number/token mapping remains stable for the remaining visible slots.
+6. Valid tokens are highlighted in the Expert Edit amber color (`rgb(255, 194, 80)`).
+7. Invalid tokens are highlighted in warning red.
+8. Invalid-token warning feedback is deferred until Generate is attempted.
+9. Generate is blocked when invalid token references exist.
+10. Standard and Markup edit lanes always include the primary image first. Secondary reference behavior is lane-aware:
+
+- when one or more valid `@img1..@img10` tokens are linked, only those linked secondary refs are included in provider `image_urls`/`input_urls`;
+- when no valid secondary token is linked, all populated secondary reference slots are included as ambient edit context.
+- `@main` still resolves to the primary figure and does not by itself suppress the no-linked-secondary fallback.
+
+11. Inpaint has two explicit contracts:
+
+- default FLUX Fill inpaint supports `@main` only because `fal-ai/flux-pro/v1/fill` receives only the flattened base image plus mask.
+- reference-aware inpaint allows `@main` plus exactly one unique secondary token and routes to `fal-ai/flux-kontext-lora/inpaint` with `image_url + mask_url + reference_image_url`.
 
 ## Token grammar and validation
 
 | Token input                                       | Validity rule                                      | Result                                     |
 | ------------------------------------------------- | -------------------------------------------------- | ------------------------------------------ |
 | `@main`                                           | Valid when the primary image is available          | Valid primary reference token.             |
-| `@img1`, `@img2`, `@img3`                         | Valid only if matching secondary slot is populated | Valid reference token.                     |
-| `@img1`, `@img2`, `@img3` in default inpaint      | Invalid for the FLUX Fill lane                     | Invalid (`secondary_tokens_disabled`).     |
+| `@img1` through `@img10`                          | Valid only if matching secondary slot is populated | Valid reference token.                     |
+| `@img1` through `@img10` in default inpaint       | Invalid for the FLUX Fill lane                     | Invalid (`secondary_tokens_disabled`).     |
 | More than one unique `@imgN` in reference inpaint | Exceeds the single-reference masked lane           | Invalid (`too_many_secondary_references`). |
 | `@img`                                            | Missing numeric suffix                             | Invalid (`missing_index`).                 |
-| `@img4+`                                          | Out of supported range                             | Invalid (`out_of_range`).                  |
+| `@img11+`                                         | Out of supported range                             | Invalid (`out_of_range`).                  |
 | `@imgN` with empty slot                           | Slot has no image                                  | Invalid (`empty_slot`).                    |
 
 Normalization rules:
@@ -111,7 +119,7 @@ Normalization rules:
    - for Standard/Markup with one or more valid secondary links, resolved secondary refs are only the linked secondary slots.
    - compile provider-facing prompt when token references exist.
 4. Inpaint preflight is lane-aware:
-   - default FLUX Fill lane: `@main` remains valid, `@img1..@img3` are blocked before flatten/submit/debit, and submit sends only the prepared base image plus prepared mask.
+   - default FLUX Fill lane: `@main` remains valid, `@img1..@img10` are blocked before flatten/submit/debit, and submit sends only the prepared base image plus prepared mask.
    - reference inpaint lane: exactly one unique `@imgN` is allowed, generate blocks if more than one unique secondary reference is linked, and submit sends the prepared base image, prepared mask, and one prepared `reference_image_url`.
 
 ### Compilation contract
@@ -250,5 +258,7 @@ Minimum suite coverage:
    - press `Enter` to insert selected `@main` or `@imgN` token and close the picker.
    - verify Generate blocks on invalid token and succeeds on valid token.
    - verify reference token highlight color and prompt readability are stable.
-   - default inpaint mode: verify picker only offers `@main` and `@img1..@img3` are rejected before submit.
+   - verify two secondary reference slots show by default, add-slot reveals the next hidden slot, and remove clears/hides a visible slot.
+   - verify `@img10` can be inserted, validated, compiled, and sent when slot 10 is populated.
+   - default inpaint mode: verify picker only offers `@main` and `@img1..@img10` are rejected before submit.
    - reference inpaint mode: verify picker offers populated secondary refs, exactly one unique `@imgN` is allowed, and submit uses the reference-aware masked lane.

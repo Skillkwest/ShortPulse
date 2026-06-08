@@ -46,6 +46,7 @@ type GenerationPublicationRow = {
 type GenerationProjectionDeliveryRow = {
   generation_id?: unknown;
   project_id?: unknown;
+  workspace_runtime_key?: unknown;
   request_id?: unknown;
   source_ref?: unknown;
   provider?: unknown;
@@ -76,6 +77,7 @@ type GenerationProjectionDeliveryRow = {
 const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
   "generation_id",
   "project_id",
+  "workspace_runtime_key",
   "request_id",
   "source_ref",
   "provider",
@@ -199,6 +201,9 @@ const resolveGenerationProjectionCreatedAt = (
   asTrimmedString(row.updated_at);
 
 const resolveProjectId = (value: string | null | undefined): string | null =>
+  asTrimmedString(value);
+
+const resolveWorkspaceRuntimeKey = (value: string | null | undefined): string | null =>
   asTrimmedString(value);
 
 const asTrimmedStringArray = (value: unknown): string[] => {
@@ -1692,10 +1697,12 @@ const resolveCanonicalGenerationIdsForRuntimeIdentities = async ({
 export const listVisibleGeneratedOutputs = async ({
   limit = 48,
   projectId = null,
+  workspaceRuntimeKey = null,
   runtimeIdentities = null,
 }: {
   limit?: number;
   projectId?: string | null;
+  workspaceRuntimeKey?: string | null;
   runtimeIdentities?: VisibleGeneratedOutputRuntimeIdentity[] | null;
 } = {}): Promise<StudioOutput[]> => {
   try {
@@ -1703,6 +1710,9 @@ export const listVisibleGeneratedOutputs = async ({
     const userId = await readSupabaseUserId();
     if (!userId) return [];
     const normalizedProjectId = resolveProjectId(projectId);
+    const normalizedWorkspaceRuntimeKey = normalizedProjectId
+      ? null
+      : resolveWorkspaceRuntimeKey(workspaceRuntimeKey);
     const boundedLimit = Math.max(1, Math.min(limit, 100));
     const normalizedRuntimeIdentities = Array.isArray(runtimeIdentities)
       ? runtimeIdentities
@@ -1720,6 +1730,9 @@ export const listVisibleGeneratedOutputs = async ({
         : [];
     const hasScopedGenerationFilter = scopedGenerationIds.length > 0;
     if (normalizedRuntimeIdentities.length > 0 && !hasScopedGenerationFilter) {
+      return [];
+    }
+    if (!normalizedProjectId && !normalizedWorkspaceRuntimeKey && !hasScopedGenerationFilter) {
       return [];
     }
 
@@ -1838,6 +1851,12 @@ export const listVisibleGeneratedOutputs = async ({
         .order("started_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .order("updated_at", { ascending: false });
+      if (normalizedWorkspaceRuntimeKey) {
+        projectionQuery = projectionQuery.eq(
+          "workspace_runtime_key",
+          normalizedWorkspaceRuntimeKey
+        );
+      }
       if (hasScopedGenerationFilter) {
         projectionQuery = projectionQuery.in("generation_id", scopedGenerationIds);
       }

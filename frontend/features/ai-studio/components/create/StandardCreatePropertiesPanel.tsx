@@ -17,6 +17,7 @@ import type {
 } from "../../../../prefabs/agent";
 import { PromptStep } from "../PromptStep";
 import { StandardCreateChatPanel } from "../promptStep/StandardCreateChatPanel";
+import { ComposerPinButton } from "../shared/ComposerPinButton";
 import { StylesControl } from "../StylesControl";
 import { resolveCreateModelModalContext } from "../../logic/createModelModalContext";
 import { deriveCreateSelectorViewState } from "../../logic/createSelectorState";
@@ -82,6 +83,7 @@ export type StandardCreatePropertiesPanelProps = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerate: () => void;
   onClearAgentChat?: () => void;
+  onPinPromptReference?: (text: string) => void;
   imageResolution?: string;
   onImageResolutionChange?: (value: string) => void;
   characterOptions?: CreateCharacterOption[];
@@ -173,6 +175,7 @@ export function StandardCreatePropertiesPanel({
   createModeToggle = null,
   canvasTearOutTargetRegistry,
   onGenerate,
+  onPinPromptReference,
 }: StandardCreatePropertiesPanelProps) {
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const effectiveModelLabel = modelLabel;
@@ -402,6 +405,13 @@ export function StandardCreatePropertiesPanel({
           />
         </div>
       </div>
+    ),
+    composerTrailingContent: (
+      <ComposerPinButton
+        text={chatModeEnabled ? agentInput : prompt}
+        onPinTextReference={onPinPromptReference}
+        className="create-composer-pin-button"
+      />
     ),
   };
 

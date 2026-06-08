@@ -345,6 +345,31 @@ describe("kieModelContracts", () => {
       },
     });
 
+    const tenReferenceUrls = Array.from(
+      { length: 10 },
+      (_, index) => `https://example.com/ref-${index + 1}.png`
+    );
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "Use all visible Expert Edit references",
+          input_urls: tenReferenceUrls,
+          input_image_count: 10,
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-image-to-image",
+      input: {
+        prompt: "Use all visible Expert Edit references",
+        input_urls: tenReferenceUrls,
+        aspect_ratio: "auto",
+        resolution: "1K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
+      },
+    });
+
     expect(
       normalizeKieSubmitPayloadForModel({
         modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,

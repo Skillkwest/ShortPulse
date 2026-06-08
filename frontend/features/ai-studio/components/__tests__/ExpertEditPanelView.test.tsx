@@ -568,15 +568,31 @@ describe("ExpertEditPanelView", () => {
     vi.useRealTimers();
   });
 
-  it("renders one primary edit stage and three secondary edit dropzones", () => {
+  it("renders one primary edit stage and two default secondary edit dropzones", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
     expect(screen.getByLabelText("Primary edit stage")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 2")).toBeInTheDocument();
-    expect(screen.getByLabelText("Secondary edit image 3")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Secondary edit image 3")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
+  });
+
+  it("pins the current edit composer prompt as a text reference", () => {
+    const onPinPromptReference = vi.fn();
+
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="  refine the face lighting  "
+        onPinPromptReference={onPinPromptReference}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin text reference to reference grid" }));
+
+    expect(onPinPromptReference).toHaveBeenCalledWith("refine the face lighting");
   });
 
   it("shows the shared billing-aligned Remove Background cost pill", () => {
@@ -639,8 +655,9 @@ describe("ExpertEditPanelView", () => {
     expect(composerOverlay?.querySelector(".edit-expert-selector-row")).not.toBeNull();
   });
 
-  it("collapses the sidebar layers panel and flatten action in Inpaint and Markup modes", () => {
+  it("collapses the sidebar layers panel and flatten action in Inpaint and Markup modes", async () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
+    await uploadPrimaryFile(container, "layer-1.png");
     const sidebarLayersPanel = container.querySelector(
       ".edit-expert-layers-toolbar--sidebar"
     ) as HTMLDivElement;
@@ -6711,8 +6728,9 @@ describe("ExpertEditPanelView", () => {
     );
 
     expect(screen.queryByRole("button", { name: /add layer/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "layer 1" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /clear all layers/i })).toBeDisabled();
 
     await uploadPrimaryFile(container, "added-layer-1.png");
     expect(screen.getByRole("button", { name: "layer 1" })).toHaveClass("is-selected");
@@ -6727,6 +6745,39 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "layer 2" })).toHaveClass("is-selected");
     expect(onPrimaryImageChange).not.toHaveBeenCalled();
+  });
+
+  it("clears every layer from the layer panel and canvas", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const { container } = render(
+      <ExpertEditPanelView {...baseProps} onPrimaryImageChange={onPrimaryImageChange} />
+    );
+
+    await uploadPrimaryFile(container, "layer-1.png");
+    await uploadPrimaryFile(container, "layer-2.png");
+
+    expect(container.querySelectorAll(".edit-expert-primary-layer-frame")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /clear all layers/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "layer 1" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
+      expect(container.querySelectorAll(".edit-expert-primary-layer-frame")).toHaveLength(0);
+    });
+    expect(screen.getByRole("button", { name: /clear all layers/i })).toBeDisabled();
+    await waitFor(() => {
+      expect(onPrimaryImageChange).toHaveBeenLastCalledWith(null);
+    });
+
+    onPrimaryImageChange.mockClear();
+    await uploadPrimaryFile(container, "after-clear.png");
+
+    expect(screen.getByRole("button", { name: "layer 1" })).toHaveClass("is-selected");
+    expect(screen.queryByRole("button", { name: "layer 2" })).not.toBeInTheDocument();
+    expect(onPrimaryImageChange).toHaveBeenCalledTimes(1);
   });
 
   it("keeps layer selection panel-local without republishing shared primary authority", async () => {
@@ -7056,18 +7107,18 @@ describe("ExpertEditPanelView", () => {
     );
   });
 
-  it("blocks creation when a 7th layer is attempted by primary drop/file add", async () => {
+  it("blocks creation when a 6th layer is attempted by primary drop/file add", async () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
 
-    for (let index = 1; index <= 6; index += 1) {
+    for (let index = 1; index <= 5; index += 1) {
       await uploadPrimaryFile(container, `layer-${index}.png`);
     }
-    expect(screen.getByRole("button", { name: "layer 6" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "layer 5" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /add layer/i })).not.toBeInTheDocument();
 
-    await uploadPrimaryFile(container, "layer-7-over-limit.png");
-    expect(screen.queryByRole("button", { name: "layer 7" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Layer limit reached (6).")).not.toBeInTheDocument();
+    await uploadPrimaryFile(container, "layer-6-over-limit.png");
+    expect(screen.queryByRole("button", { name: "layer 6" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Layer limit reached (5).")).not.toBeInTheDocument();
   });
 
   it("does not render the primary dropzone clear button", () => {

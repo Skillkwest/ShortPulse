@@ -3,7 +3,7 @@
  * Centralizes collapse state, drag/drop handling, and Kling list mutations.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChangeEvent, DragEvent } from "react";
+import type { ChangeEvent, DragEvent, RefObject } from "react";
 import {
   extractDragDropPayload,
   extractPromptDropText,
@@ -44,7 +44,7 @@ type KlingElement = AiStudioKlingElement;
 
 type UseReferencePropertiesInteractionsParams = {
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls: readonly (string | null)[];
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
@@ -67,6 +67,9 @@ const isLocalMemoryVideoUrl = (value: string | null | undefined): value is strin
   return value.startsWith("blob:") || /^data:video\//i.test(value);
 };
 
+const reconcileBooleanListLength = (values: boolean[], length: number): boolean[] =>
+  Array.from({ length }, (_, index) => values[index] ?? false);
+
 /**
  * Returns UI interaction state and handlers for reference properties editing.
  */
@@ -87,9 +90,14 @@ export const useReferencePropertiesInteractions = ({
   onKlingElementsChange,
 }: UseReferencePropertiesInteractionsParams) => {
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
-  const extraOneInputRef = useRef<HTMLInputElement | null>(null);
-  const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
-  const extraThreeInputRef = useRef<HTMLInputElement | null>(null);
+  const extraInputRefsRef = useRef<RefObject<HTMLInputElement | null>[]>([]);
+  while (extraInputRefsRef.current.length < Math.max(3, extraImageUrls.length)) {
+    extraInputRefsRef.current.push({ current: null });
+  }
+  const inputRefs = extraInputRefsRef.current.slice(0, Math.max(3, extraImageUrls.length));
+  const extraOneInputRef = inputRefs[0] ?? { current: null };
+  const extraTwoInputRef = inputRefs[1] ?? { current: null };
+  const extraThreeInputRef = inputRefs[2] ?? { current: null };
   const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
   const ownedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const pendingCommittedImageObjectUrlsRef = useRef<Set<string>>(new Set());
@@ -125,6 +133,11 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const canSwapFrames = Boolean(referenceImageUrl || extraImageUrls[0]);
+
+  useEffect(() => {
+    setExtraDragActive((prev) => reconcileBooleanListLength(prev, inputRefs.length));
+    setExtraImageLoading((prev) => reconcileBooleanListLength(prev, inputRefs.length));
+  }, [inputRefs.length]);
 
   const handleSwapFrames = () => {
     if (!canSwapFrames) return;
@@ -491,6 +504,7 @@ export const useReferencePropertiesInteractions = ({
 
   return {
     primaryInputRef,
+    inputRefs,
     extraOneInputRef,
     extraTwoInputRef,
     extraThreeInputRef,

@@ -18,7 +18,7 @@ const isVideoTool = (tool: ToolId | null): boolean => tool === "video" || tool =
 
 const collectOrderedDistinctVideoFrameInputs = (
   primary: string | null,
-  extras: (string | null)[]
+  extras: readonly (string | null)[]
 ): string[] => {
   const ordered = [primary, ...extras].filter((url): url is string => Boolean(url));
   return Array.from(new Set(ordered));
@@ -30,7 +30,7 @@ export const resolveVideoGenerationLaneFromFrameInputs = ({
   referenceMode,
 }: {
   primary: string | null;
-  extras: (string | null)[];
+  extras: readonly (string | null)[];
   referenceMode: VideoReferenceMode;
 }): ResolvedVideoGenerationLane => {
   if (referenceMode === "motion") return "motion";
@@ -105,7 +105,7 @@ export const resolveAutoVideoModelForLane = ({
  */
 export const buildImageReferenceInputs = (
   primary: string | null,
-  extras: (string | null)[],
+  extras: readonly (string | null)[],
   options?: {
     preserveDuplicateExtras?: boolean;
   }
@@ -125,7 +125,7 @@ export const buildImageReferenceInputs = (
  */
 export const buildVideoReferenceInputs = (
   primary: string | null,
-  extras: (string | null)[],
+  extras: readonly (string | null)[],
   referenceMode: VideoReferenceMode,
   modelId?: string | null
 ): string[] => {
@@ -163,7 +163,7 @@ export const buildRegenerateReferencePool = ({
   useReferenceImageIndicator: boolean;
   activeOutputPreviewUrl: string | null | undefined;
   referenceUrl: string | null;
-  extraUrls: (string | null)[];
+  extraUrls: readonly (string | null)[];
   videoReferenceMode: VideoReferenceMode;
   videoModelId?: string | null;
 }): string[] => {

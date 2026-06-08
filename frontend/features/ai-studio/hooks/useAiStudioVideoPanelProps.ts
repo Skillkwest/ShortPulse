@@ -80,6 +80,7 @@ type UseAiStudioVideoPanelPropsParams = {
   setReferenceImageUrl: (url: string | null) => void;
   setExtraImageUrl: (index: number, url: string | null) => void;
   handleVideoPromptTextChange: (value: string) => void;
+  onPinPromptReference?: (text: string) => void;
   handleRegenerateWithDebit: () => void;
   currentCostCredits: number | null;
   referenceImageWarning: string | null;
@@ -153,6 +154,7 @@ export const useAiStudioVideoPanelProps = ({
   setReferenceImageUrl,
   setExtraImageUrl,
   handleVideoPromptTextChange,
+  onPinPromptReference,
   handleRegenerateWithDebit,
   currentCostCredits,
   referenceImageWarning,
@@ -224,6 +226,7 @@ export const useAiStudioVideoPanelProps = ({
       onPrimaryImageChange: setReferenceImageUrl,
       onExtraImageChange: setExtraImageUrl,
       onPromptTextChange: handleVideoPromptTextChange,
+      onPinPromptReference,
       onRegenerate: handleRegenerateWithDebit,
       costCredits: currentCostCredits,
       guardrailReason: generationGuardrail,
@@ -261,6 +264,7 @@ export const useAiStudioVideoPanelProps = ({
       motionReferenceVideoUrl,
       onCreateCharacter,
       onCreateElement,
+      onPinPromptReference,
       clearMotionVideoSelection,
       referenceImageUrl,
       referenceImageWarning,

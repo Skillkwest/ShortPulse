@@ -14,6 +14,12 @@ import {
   shouldFinalizeRemovalOnQuickSlotDetach,
   type ReferenceProjectionState,
 } from "../reference-projections";
+import {
+  admitReferenceGridIncomingOutputs,
+  buildReferenceGridPartialCapMessage,
+  limitReferenceGridVisibleOutputs,
+  REFERENCE_GRID_CAP_REACHED_MESSAGE,
+} from "../reference-grid/logic/referenceGridLimits";
 
 type UseAiStudioReferenceGridStateActionsArgs = {
   outputs: StudioOutput[];
@@ -24,6 +30,7 @@ type UseAiStudioReferenceGridStateActionsArgs = {
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setReferenceProjectionState: Dispatch<SetStateAction<ReferenceProjectionState>>;
   pendingFinalizeRemovalIdsRef: MutableRefObject<Set<string>>;
+  setUiError?: Dispatch<SetStateAction<string | null>>;
 };
 
 export type DeletedMediaReferenceTarget = {
@@ -82,20 +89,24 @@ export const useAiStudioReferenceGridStateActions = ({
   setArchivedOutputs,
   setReferenceProjectionState,
   pendingFinalizeRemovalIdsRef,
+  setUiError,
 }: UseAiStudioReferenceGridStateActionsArgs): UseAiStudioReferenceGridStateActionsResult => {
   const restoreArchivedOutput = useCallback(
     (outputId: string) => {
       setArchivedOutputs((prev) => {
         const target = prev.find((item) => item.id === outputId) ?? null;
         if (!target) return prev;
-        setOutputsState((current) => [
-          {
-            ...target,
-            archivedAt: null,
-            archiveReason: null,
-          },
-          ...current,
-        ]);
+        const restoredTarget = {
+          ...target,
+          archivedAt: null,
+          archiveReason: null,
+        };
+        const admission = admitReferenceGridIncomingOutputs([restoredTarget], outputs);
+        if (!admission.admitted.length) {
+          setUiError?.(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+          return prev;
+        }
+        setOutputsState((current) => [restoredTarget, ...current]);
         setActiveOutputId(target.id);
         logMediaPerf("media.grid.archive.transition", {
           surface: "reference-grid",
@@ -106,37 +117,54 @@ export const useAiStudioReferenceGridStateActions = ({
         return target ? prev.filter((item) => item.id !== outputId) : prev;
       });
     },
-    [outputsLength, setActiveOutputId, setArchivedOutputs, setOutputsState]
+    [outputs, outputsLength, setActiveOutputId, setArchivedOutputs, setOutputsState, setUiError]
   );
 
   const restoreAllArchivedOutputs = useCallback(() => {
     let moved: StudioOutput[] = [];
+    let skippedCount = 0;
     setArchivedOutputs((prev) => {
-      moved = prev;
-      return [];
-    });
-    if (!moved.length) return;
-    setOutputsState((prev) => [
-      ...moved.map((item) => ({
+      const restored = prev.map((item) => ({
         ...item,
         archivedAt: null,
         archiveReason: null,
-      })),
-      ...prev,
-    ]);
+      }));
+      const admission = admitReferenceGridIncomingOutputs(restored, outputs);
+      moved = admission.admitted;
+      skippedCount = admission.skipped.length;
+      const movedIds = new Set(moved.map((item) => item.id));
+      return prev.filter((item) => !movedIds.has(item.id));
+    });
+    if (!moved.length) {
+      if (skippedCount > 0) {
+        setUiError?.(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+      }
+      return;
+    }
+    setOutputsState((prev) => [...moved, ...prev]);
+    if (skippedCount > 0) {
+      setUiError?.(buildReferenceGridPartialCapMessage(skippedCount));
+    }
     logMediaPerf("media.grid.archive.transition", {
       surface: "reference-grid",
       restored_count: moved.length,
       active_count_hint: outputsLength + moved.length,
       archived_count_hint: 0,
     });
-  }, [outputsLength, setArchivedOutputs, setOutputsState]);
+  }, [outputs, outputsLength, setArchivedOutputs, setOutputsState, setUiError]);
 
   const setOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
     (nextValue) => {
-      setOutputsState(nextValue);
+      setOutputsState((prev) => {
+        const resolved = typeof nextValue === "function" ? nextValue(prev) : nextValue;
+        const limited = limitReferenceGridVisibleOutputs(resolved);
+        if (limited.trimmedCount > 0) {
+          setUiError?.(buildReferenceGridPartialCapMessage(limited.trimmedCount));
+        }
+        return limited.rows;
+      });
     },
-    [setOutputsState]
+    [setOutputsState, setUiError]
   );
 
   const addCuratedReference = useCallback(

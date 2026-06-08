@@ -218,7 +218,10 @@ const makeImageArgs = (
   notifyGenerationFailure: vi.fn(),
   updateOutputById: vi.fn(),
   startPollingWithGeneration: vi.fn(),
-  shortpulseContext: { surface: "ai-studio-test" },
+  shortpulseContext: {
+    surface: "ai-studio-test",
+    workspace_runtime_key: "session:matrix-session",
+  },
   falReferencePayload: {
     image_url: "https://cdn.test/ref-1.png",
     image_urls: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
@@ -331,6 +334,12 @@ describe("task submission payload matrix", () => {
       expect(submitSpy).toHaveBeenCalledTimes(1);
       const payload = submitSpy.mock.calls[0]?.[0] as Record<string, unknown>;
       expect(payload).toBeDefined();
+      expect(payload.shortpulse_context).toEqual(
+        expect.objectContaining({
+          surface: "ai-studio-test",
+          workspace_runtime_key: "session:matrix-session",
+        })
+      );
 
       if (contract?.submitAspectField === "image_size") {
         expect(payload.image_size).toBeDefined();

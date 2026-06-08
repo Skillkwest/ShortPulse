@@ -199,6 +199,7 @@ Current set:
 - `146_harden_control_plane_scheduler_timeouts.sql`
 - `147_add_plan_concurrency_entitlements.sql`
 - `148_add_generation_projection_workflow_reload.sql`
+- `149_add_generation_projection_workspace_runtime_key.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

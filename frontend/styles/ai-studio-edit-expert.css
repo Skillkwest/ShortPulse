@@ -42,9 +42,9 @@
 }
 
 .edit-expert-panel:not(.is-generation-mode-tall-stage) {
-  --edit-expert-secondary-width: clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px);
+  --edit-expert-secondary-width: clamp(50px, calc(var(--app-fixed-width) * 0.06), 62px);
   --edit-expert-secondary-shell-padding: 6px;
-  --edit-expert-secondary-shell-height: calc(var(--edit-expert-secondary-width) + 20px);
+  --edit-expert-secondary-shell-height: calc((var(--edit-expert-secondary-width) * 2) + 36px);
   --edit-expert-post-stage-composer-clearance: 16px;
   --edit-expert-post-stage-overlay-gap: 8px;
 }
@@ -2165,20 +2165,21 @@
 
 .edit-expert-secondary-row {
   position: static;
-  width: auto;
+  width: calc((var(--edit-expert-secondary-width) * 5) + (10px * 4));
   transform: none;
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: repeat(5, var(--edit-expert-secondary-width));
   justify-content: flex-start;
   align-items: center;
   align-self: center;
-  gap: 18px;
+  gap: 10px;
   margin-left: 0;
   z-index: 4;
 }
 
 .edit-expert-panel:not(.is-generation-mode-tall-stage) .edit-expert-secondary-row {
-  gap: 14px;
+  gap: 8px;
+  width: calc((var(--edit-expert-secondary-width) * 5) + (8px * 4));
 }
 
 .edit-expert-secondary-control {
@@ -5188,6 +5189,42 @@
 .edit-expert-panel .edit-expert-secondary-slot button.reference-dropzone.extra {
   appearance: none;
   font: inherit;
+}
+
+.edit-expert-panel
+  .edit-expert-secondary-slot
+  button.reference-dropzone.extra.edit-expert-secondary-add-slot {
+  border: 1px solid rgba(245, 185, 66, 0.46);
+  border-radius: 8px;
+  background: rgba(245, 185, 66, 0.13);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 241, 204, 0.12),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+  color: rgba(255, 220, 142, 0.96);
+  min-height: auto;
+  height: 34px;
+  align-self: center;
+  aspect-ratio: auto;
+}
+
+.edit-expert-panel
+  .edit-expert-secondary-slot
+  button.reference-dropzone.extra.edit-expert-secondary-add-slot:hover {
+  border-color: rgba(245, 185, 66, 0.72);
+  background: rgba(245, 185, 66, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 241, 204, 0.16),
+    0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
+.edit-expert-panel
+  .edit-expert-secondary-slot
+  button.reference-dropzone.extra.edit-expert-secondary-add-slot:focus-visible {
+  outline: none;
+  border-color: rgba(245, 185, 66, 0.86);
+  box-shadow:
+    0 0 0 2px rgba(245, 185, 66, 0.22),
+    inset 0 1px 0 rgba(255, 241, 204, 0.16);
 }
 
 .edit-expert-panel .edit-expert-secondary-slot .reference-dropzone.extra:hover {

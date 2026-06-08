@@ -83,13 +83,15 @@ describe("expert edit layout contract", () => {
     const deleteButtonFocus = extractRuleBlock(css, ".edit-expert-layer-delete-btn:focus-visible");
     const deleteButtonActive = extractRuleBlock(css, ".edit-expert-layer-delete-btn:active");
 
-    expect(deleteButton).toContain("transform: translateY(-50%);");
+    expect(deleteButton).toContain("position: static;");
+    expect(deleteButton).toContain("flex: 0 0 auto;");
+    expect(deleteButton).toContain("transform: none;");
     expect(deleteButtonHover).toContain("border-color: rgba(231, 76, 76, 0.72);");
     expect(deleteButtonHover).toContain("background: rgba(231, 76, 76, 0.18);");
     expect(deleteButtonHover).toContain("color: rgba(255, 117, 117, 0.98);");
-    expect(deleteButtonHover).toContain("transform: translateY(-50%);");
-    expect(deleteButtonFocus).toContain("transform: translateY(-50%);");
-    expect(deleteButtonActive).toContain("transform: translateY(-50%);");
+    expect(deleteButtonHover).toContain("transform: none;");
+    expect(deleteButtonFocus).toContain("transform: none;");
+    expect(deleteButtonActive).toContain("transform: none;");
   });
 
   it("keeps the left sidebar shell flat while giving every left-rail card the shared shadow", () => {

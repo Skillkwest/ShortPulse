@@ -3,7 +3,7 @@
  * Verifies the dedicated Voices workflow shell renders independently from TTS.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../../lib/customVoiceName";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
@@ -185,6 +185,7 @@ describe("VoicesPropertiesPanel", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -507,6 +508,37 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("status", { name: "" })).toHaveTextContent("Loading voices…");
     expect(document.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(12);
     expect(screen.queryByRole("button", { name: /darian voice/i })).not.toBeInTheDocument();
+  });
+
+  it("returns to built-in voices when the live voices request times out", async () => {
+    vi.useFakeTimers();
+    fetchWithAuthMock.mockImplementation((_url: string, init?: RequestInit) => {
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      return new Promise((_resolve, reject) => {
+        const rejectAsAborted = () => reject(abortError);
+        init?.signal?.addEventListener("abort", rejectAsAborted, { once: true });
+        if (init?.signal) {
+          init.signal.onabort = rejectAsAborted;
+        }
+      });
+    });
+
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
+
+    expect(document.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(12);
+
+    await act(async () => {
+      vi.advanceTimersByTime(15_000);
+      await Promise.resolve();
+    });
+
+    expect(document.querySelectorAll(".voices-properties-voice-chip--skeleton")).toHaveLength(0);
+    expect(
+      screen.getByText("Voice library took too long to load. Showing built-in voices for now.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
   });
 
   it("splits the voices modal into Default Voices and My Voices tabs", async () => {
@@ -2499,9 +2531,14 @@ describe("VoicesPropertiesPanel", () => {
     render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
 
     await waitFor(() => {
-      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/voices", {
-        shortpulseLogScope: "generation",
-      });
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/elevenlabs/voices",
+        expect.objectContaining({
+          shortpulseAuthTimeoutMs: 5_000,
+          shortpulseLogScope: "generation",
+          signal: expect.any(AbortSignal),
+        })
+      );
     });
 
     fireEvent.change(screen.getByRole("textbox", { name: "Voice script" }), {

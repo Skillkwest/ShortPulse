@@ -26,6 +26,7 @@ type VerifiedUserCacheEntry = {
 
 export const SUPABASE_USER_VERIFICATION_CACHE_TTL_MS = 5_000;
 const SUPABASE_USER_VERIFICATION_CACHE_MAX_ENTRIES = 128;
+const SUPABASE_USER_VERIFICATION_TIMEOUT_MS = 8_000;
 
 const verifiedUserCache = new Map<string, VerifiedUserCacheEntry>();
 const inFlightUserLookups = new Map<string, Promise<AuthenticatedApiUser | null>>();
@@ -112,6 +113,10 @@ export const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApi
 
   const pendingLookup = (async () => {
     let response: Response;
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+    }, SUPABASE_USER_VERIFICATION_TIMEOUT_MS);
     try {
       response = await fetch(`${supabaseUrl}/auth/v1/user`, {
         method: "GET",
@@ -119,11 +124,14 @@ export const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApi
           apikey: supabaseAnonKey,
           Authorization: `Bearer ${token}`,
         },
+        signal: abortController.signal,
       });
     } catch {
       throw createAuthVerificationUnavailableError(
         "Authentication verification is temporarily unavailable."
       );
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     if (response.status === 401 || response.status === 403) return null;

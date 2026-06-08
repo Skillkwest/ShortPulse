@@ -8,6 +8,7 @@ import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { buildDefaultPricingParams } from "../logic/pricing";
 import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
+import { resolveWorkflowReloadCharacterSelection } from "../logic/workflowReloadCharacterRestore";
 import { useAiStudioPageUiNotices } from "../hooks/useAiStudioPageUiNotices";
 import {
   useAiStudioPageBaseRuntime,
@@ -309,24 +310,52 @@ const AiStudioPageRuntimeBody = ({
     () => parsePulseChatProjectState(projectPulseChatState),
     [projectPulseChatState]
   );
+  const createCharacterWorkflowReloadRequestRef = React.useRef(0);
   React.useEffect(() => {
     setCreateCharacterWorkflowReloadPrep((characterContext) => {
-      const characterId = characterContext?.characterId?.trim() ?? "";
-      const lookId = characterContext?.lookId?.trim() ?? "";
-      if (!characterContext?.applied || !characterId) {
+      const requestId = createCharacterWorkflowReloadRequestRef.current + 1;
+      createCharacterWorkflowReloadRequestRef.current = requestId;
+      const clearCharacterWorkflowReloadSelection = () => {
         setIsCreateCharacterModeEnabled(false);
         setCreateSelectedCharacterId("");
         setCreateSelectedCharacterLookId("");
+      };
+      const applyCharacterWorkflowReloadSelection = ({
+        characterId,
+        lookId,
+      }: {
+        characterId: string;
+        lookId: string;
+      }) => {
+        if (createCharacterWorkflowReloadRequestRef.current !== requestId) return;
+        setIsCreateCharacterModeEnabled(true);
+        setCreateSelectedCharacterId(characterId);
+        setCreateSelectedCharacterLookId(lookId);
+      };
+
+      clearCharacterWorkflowReloadSelection();
+      if (characterContext?.applied !== true || !characterContext.characterId?.trim()) {
         return;
       }
-      setIsCreateCharacterModeEnabled(true);
-      setCreateSelectedCharacterId(characterId);
-      setCreateSelectedCharacterLookId(lookId);
+      void refreshCharacterOptions()
+        .then((refreshedCharacterOptions) => {
+          const refreshedSelection = resolveWorkflowReloadCharacterSelection({
+            characterContext,
+            characterOptions: refreshedCharacterOptions,
+          });
+          if (!refreshedSelection) return;
+          applyCharacterWorkflowReloadSelection(refreshedSelection);
+        })
+        .catch(() => {
+          // Keep selection cleared when the saved character cannot be confirmed.
+        });
     });
     return () => {
+      createCharacterWorkflowReloadRequestRef.current += 1;
       setCreateCharacterWorkflowReloadPrep(null);
     };
   }, [
+    refreshCharacterOptions,
     setCreateCharacterWorkflowReloadPrep,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,

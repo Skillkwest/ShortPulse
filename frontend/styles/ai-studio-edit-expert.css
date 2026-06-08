@@ -45,14 +45,14 @@
   --edit-expert-secondary-width: clamp(50px, calc(var(--app-fixed-width) * 0.06), 62px);
   --edit-expert-secondary-shell-padding: 6px;
   --edit-expert-secondary-shell-height: calc(var(--edit-expert-secondary-width) + 18px);
-  --edit-expert-post-stage-composer-clearance: 4px;
+  --edit-expert-post-stage-composer-clearance: 14px;
   --edit-expert-post-stage-overlay-gap: 6px;
 }
 
 .edit-expert-panel.has-wrapped-secondary-references:not(.is-generation-mode-tall-stage) {
   --edit-expert-secondary-width: clamp(46px, calc(var(--app-fixed-width) * 0.054), 58px);
   --edit-expert-secondary-shell-height: calc((var(--edit-expert-secondary-width) * 2) + 24px);
-  --edit-expert-post-stage-composer-clearance: 2px;
+  --edit-expert-post-stage-composer-clearance: 10px;
   --edit-expert-post-stage-overlay-gap: 4px;
 }
 
@@ -5191,6 +5191,10 @@
   justify-content: center;
 }
 
+.edit-expert-secondary-slot--add {
+  min-height: var(--edit-expert-secondary-width);
+}
+
 .edit-expert-panel .edit-expert-secondary-slot .reference-dropzone.extra {
   border: var(--edit-expert-secondary-border);
   border-radius: var(--edit-expert-secondary-radius);
@@ -5231,8 +5235,24 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 18px rgba(0, 0, 0, 0.18);
   color: rgba(206, 213, 224, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   align-self: center;
   aspect-ratio: auto;
+  padding: 0;
+  line-height: 0;
+  margin: auto;
+}
+
+.edit-expert-panel
+  .edit-expert-secondary-slot
+  button.reference-dropzone.extra.edit-expert-secondary-add-slot
+  svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
 }
 
 .edit-expert-panel

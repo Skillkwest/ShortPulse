@@ -55,6 +55,7 @@ const OUTPUT_CONTENT_TYPE_BY_FORMAT_PREFIX: Record<string, string> = {
 const ELEVENLABS_TRANSIENT_UPSTREAM_STATUSES = new Set([502, 503, 504]);
 const ELEVENLABS_TRANSIENT_UPSTREAM_CODES = new Set(["rate_limit_exceeded", "system_busy"]);
 const ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS = 2;
+const ELEVENLABS_JSON_REQUEST_TIMEOUT_MS = 10_000;
 
 export type ElevenLabsVoice = {
   voiceId: string;
@@ -430,14 +431,29 @@ const fetchElevenLabsJson = async <TResponse>(
   pathname: string,
   options?: ElevenLabsJsonOptions
 ): Promise<TResponse> => {
-  const response = await fetch(`${ELEVENLABS_BASE_URL}${pathname}`, {
-    method: options?.method ?? "GET",
-    headers: {
-      ...buildElevenLabsHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: options?.body ? JSON.stringify(options.body) : undefined,
-  });
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => {
+    abortController.abort();
+  }, ELEVENLABS_JSON_REQUEST_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(`${ELEVENLABS_BASE_URL}${pathname}`, {
+      method: options?.method ?? "GET",
+      headers: {
+        ...buildElevenLabsHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("ElevenLabs request timed out.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =

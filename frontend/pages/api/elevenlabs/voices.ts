@@ -22,10 +22,48 @@ type VoicesErrorResponse = {
   details?: string;
 };
 
-const buildFallbackVoicesResponse = () => ({
+const SAVED_VOICES_LOAD_TIMEOUT_MS = 8_000;
+const PROVIDER_VOICES_LOAD_TIMEOUT_MS = 10_000;
+
+const withTimeout = async <T>({
+  promise,
+  timeoutMs,
+  message,
+}: {
+  promise: Promise<T>;
+  timeoutMs: number;
+  message: string;
+}): Promise<T> =>
+  await new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+
+const buildFallbackVoicesResponse = ({
+  savedVoices = [],
+  warning,
+}: {
+  savedVoices?: SavedAiStudioVoice[];
+  warning?: string | null;
+} = {}) => ({
   source: "fallback" as const,
-  warning: "Showing default voices until live voices are configured.",
-  voices: buildFallbackVoiceLibraryEntries(),
+  warning: ["Showing default voices until live voices are configured.", warning?.trim() || null]
+    .filter(Boolean)
+    .join(" "),
+  voices: buildResolvedVoiceLibraryEntries({
+    providerVoices: buildFallbackVoiceLibraryEntries(),
+    savedVoices,
+  }),
 });
 
 export default async function handler(
@@ -41,7 +79,11 @@ export default async function handler(
   let savedVoices: SavedAiStudioVoice[] = [];
   let savedVoicesWarning: string | null = null;
   try {
-    const savedVoiceResult = await listSavedVoicesForUserWithDiagnostics(user.id);
+    const savedVoiceResult = await withTimeout({
+      promise: listSavedVoicesForUserWithDiagnostics(user.id),
+      timeoutMs: SAVED_VOICES_LOAD_TIMEOUT_MS,
+      message: "Saved voices lookup timed out.",
+    });
     savedVoices = savedVoiceResult.voices;
     savedVoicesWarning = savedVoiceResult.warning;
   } catch (persistenceError) {
@@ -56,12 +98,18 @@ export default async function handler(
   }
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
-    return res.status(200).json(buildFallbackVoicesResponse());
+    return res
+      .status(200)
+      .json(buildFallbackVoicesResponse({ savedVoices, warning: savedVoicesWarning }));
   }
 
   try {
     const voices = buildResolvedVoiceLibraryEntries({
-      providerVoices: await listElevenLabsVoices(),
+      providerVoices: await withTimeout({
+        promise: listElevenLabsVoices(),
+        timeoutMs: PROVIDER_VOICES_LOAD_TIMEOUT_MS,
+        message: "ElevenLabs voices lookup timed out.",
+      }),
       savedVoices,
     });
     return res.status(200).json({
@@ -77,6 +125,8 @@ export default async function handler(
       scope: "generation",
       user,
     });
-    return res.status(200).json(buildFallbackVoicesResponse());
+    return res
+      .status(200)
+      .json(buildFallbackVoicesResponse({ savedVoices, warning: savedVoicesWarning }));
   }
 }

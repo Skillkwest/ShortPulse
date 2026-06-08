@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/elevenlabs/voices";
 import { EXCLUDED_ELEVENLABS_VOICE_IDS } from "../../lib/server/elevenlabsVoiceExclusions";
 
@@ -39,6 +39,10 @@ describe("GET /api/elevenlabs/voices", () => {
       voices: [],
       warning: null,
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns merged live and saved voices when available", async () => {
@@ -343,6 +347,91 @@ describe("GET /api/elevenlabs/voices", () => {
     expect(payload.voices[0]?.isFallback).toBe(true);
     expect(payload.voices[0]?.librarySection).toBe("default");
     expect(payload.voices[0]?.destructiveAction).toBe("none");
+    expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps saved voices when live voice lookup fails", async () => {
+    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    listSavedVoicesForUserWithDiagnosticsMock.mockResolvedValue({
+      voices: [
+        {
+          voiceId: "custom-1",
+          name: "Custom Voice",
+          previewUrl: "https://example.com/preview.mp3",
+          description: "Saved by user",
+          provider: "elevenlabs",
+          isFallback: false,
+          createdAt: new Date().toISOString(),
+          originKind: "provider-saved",
+          savedSource: "provider-save",
+          providerDeleteEligible: false,
+          sampleStoragePath: null,
+        },
+      ],
+      warning: null,
+    });
+    listElevenLabsVoicesMock.mockRejectedValue(new Error("provider unavailable"));
+
+    const req = {
+      method: "GET",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      source: "api" | "fallback";
+      voices: Array<{ voiceId: string; librarySection: string }>;
+    };
+    expect(payload.source).toBe("fallback");
+    expect(payload.voices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          voiceId: "custom-1",
+          librarySection: "my",
+        }),
+      ])
+    );
+    expect(payload.voices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          voiceId: "elevenlabs-default:darian",
+          librarySection: "default",
+        }),
+      ])
+    );
+  });
+
+  it("falls back when live voice lookup times out", async () => {
+    vi.useFakeTimers();
+    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    listElevenLabsVoicesMock.mockImplementation(() => new Promise(() => undefined));
+
+    const req = {
+      method: "GET",
+    };
+    const res = createMockResponse();
+    const pending = handler(req as never, res as never);
+
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await pending;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      source: "api" | "fallback";
+      voices: Array<{ voiceId: string; librarySection: string }>;
+    };
+    expect(payload.source).toBe("fallback");
+    expect(payload.voices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          voiceId: "elevenlabs-default:darian",
+          librarySection: "default",
+        }),
+      ])
+    );
     expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
   });
 

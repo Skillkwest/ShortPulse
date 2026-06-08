@@ -100,7 +100,10 @@ export function ExpertEditSecondaryReferences({
             );
           })}
           {visibleSlotIndexes.length < extraImageUrls.length ? (
-            <div className="edit-expert-secondary-slot" key="expert-edit-secondary-add">
+            <div
+              className="edit-expert-secondary-slot edit-expert-secondary-slot--add"
+              key="expert-edit-secondary-add"
+            >
               <button
                 type="button"
                 className="reference-dropzone extra edit-expert-secondary-add-slot"

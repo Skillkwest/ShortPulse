@@ -75,6 +75,7 @@ const maxVoicePromptCharacters = 1000;
 const minVoicePromptCharacters = 20;
 const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
+const voiceLibraryLoadTimeoutMs = 15_000;
 const maxVoicePromptHeightPx = 264;
 const minVoiceoverTopSectionHeightPx = 72;
 const minVoiceoverBottomSectionHeightPx = 240;
@@ -895,6 +896,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
     let cancelled = false;
+    const abortController = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      abortController.abort();
+    }, voiceLibraryLoadTimeoutMs);
     const loadVoices = async () => {
       setIsVoicesLoading(true);
       setVoicesLoadError(null);
@@ -903,6 +908,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       try {
         const response = await fetchWithAuth("/api/elevenlabs/voices", {
           shortpulseLogScope: "generation",
+          shortpulseAuthTimeoutMs: 5_000,
+          signal: abortController.signal,
         });
         const payload = (await response.json().catch(() => null)) as VoicesListResponse | null;
         if (!response.ok) {
@@ -975,14 +982,20 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       } catch (error) {
         if (!cancelled) {
           resetSharedVoicesGridStore();
+          setActiveVoicesLibrarySection("default");
           setVoicesLoadError(
             sanitizeCustomerFacingProviderText(
-              error instanceof Error ? error.message : null,
+              error instanceof Error && error.name === "AbortError"
+                ? "Voice library took too long to load. Showing built-in voices for now."
+                : error instanceof Error
+                  ? error.message
+                  : null,
               "Unable to load voices."
             )
           );
         }
       } finally {
+        window.clearTimeout(timeoutId);
         if (!cancelled) {
           setIsVoicesLoading(false);
         }
@@ -992,6 +1005,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     void loadVoices();
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
+      abortController.abort();
     };
   }, [onGenerate, replaceVoices]);
 

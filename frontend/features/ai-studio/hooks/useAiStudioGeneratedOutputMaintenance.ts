@@ -23,6 +23,7 @@ const GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
 const STORAGE_VIDEO_POSTER_REPAIR_BATCH_SIZE = 12;
 const POSTER_REPAIR_IDLE_TIMEOUT_MS = 1_500;
 const POSTER_REPAIR_FALLBACK_DELAY_MS = 250;
+const CANONICAL_GENERATED_OUTPUT_ID_PREFIX = "generated:";
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -44,11 +45,49 @@ const schedulePosterRepairWork = (run: () => void): (() => void) => {
   return () => window.clearTimeout(timeoutId);
 };
 
+const asTrimmedText = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const hasStringEntries = (value: readonly string[] | null | undefined): boolean =>
+  Array.isArray(value) && value.some((entry) => Boolean(asTrimmedText(entry)));
+
+const resolveCanonicalGeneratedOutputGenerationId = (output: StudioOutput): string | null => {
+  const generationId = asTrimmedText(output.generationId);
+  if (generationId) return generationId;
+  const outputId = asTrimmedText(output.id);
+  if (!outputId?.startsWith(CANONICAL_GENERATED_OUTPUT_ID_PREFIX)) return null;
+  const candidate = outputId.slice(CANONICAL_GENERATED_OUTPUT_ID_PREFIX.length).trim();
+  return candidate.length > 0 ? candidate : null;
+};
+
+const hasGeneratedOutputDisplayPayload = (output: StudioOutput): boolean => {
+  if (hasStringEntries(output.savedMediaIds) || hasStringEntries(output.resultUrls)) return true;
+  return [
+    output.previewUrl,
+    output.previewPosterUrl,
+    output.previewStoragePath,
+    output.previewPosterStoragePath,
+    output.fullStoragePath,
+  ].some((value) => Boolean(asTrimmedText(value)));
+};
+
 const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean => {
-  const hasGenerationIdentity = Boolean(output.generationId || output.taskId);
+  const hasGenerationIdentity = Boolean(
+    resolveCanonicalGeneratedOutputGenerationId(output) || output.taskId || output.sourceRef
+  );
   if (output.mediaSource !== "generated" && !hasGenerationIdentity) return false;
   if (output.companionArtStatus === "pending" || output.companionArtStatus === "processing") {
     return hasGenerationIdentity || Boolean(output.sourceRef);
+  }
+  if (
+    output.taskState !== "fail" &&
+    hasGenerationIdentity &&
+    !hasGeneratedOutputDisplayPayload(output)
+  ) {
+    return true;
   }
   if (output.taskState !== "pending" && output.taskState !== "running") return false;
   return hasGenerationIdentity || Boolean(output.sourceRef);
@@ -104,7 +143,7 @@ const toCanonicalGeneratedOutputSyncRuntimeIdentity = (
   output: StudioOutput
 ): VisibleGeneratedOutputRuntimeIdentity | null => {
   if (!isCanonicalGeneratedOutputSyncCandidate(output)) return null;
-  const generationId = output.generationId?.trim() || null;
+  const generationId = resolveCanonicalGeneratedOutputGenerationId(output);
   const requestId = output.taskId?.trim() || null;
   const sourceRef = output.sourceRef?.trim() || null;
   if (!generationId && !requestId && !sourceRef) return null;

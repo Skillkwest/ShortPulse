@@ -153,6 +153,47 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     });
   });
 
+  it("refreshes restored generated shells that have identity but no media payload", async () => {
+    const restoredShell: StudioOutput = {
+      ...hydratedOutput,
+      prompt: "",
+      generationId: undefined,
+      taskState: "success",
+      previewUrl: undefined,
+      resultUrls: [],
+    };
+    listVisibleGeneratedOutputsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([hydratedOutput]);
+
+    const { result } = renderMaintenanceHook({
+      initialOutputs: [restoredShell],
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs).toEqual([
+        expect.objectContaining({
+          id: "generated:generation-1",
+          generationId: "generation-1",
+          previewUrl: "https://cdn.example.com/project-output.png",
+          resultUrls: ["https://cdn.example.com/project-output.png"],
+        }),
+      ]);
+    });
+    expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      workspaceRuntimeKey: null,
+      limit: 1,
+      runtimeIdentities: [
+        {
+          generationId: "generation-1",
+          requestId: "task-1",
+          sourceRef: null,
+        },
+      ],
+    });
+  });
+
   it("scopes steady-state project generated-output sync to active runtime identities", async () => {
     listVisibleGeneratedOutputsMock.mockResolvedValue([]);
 

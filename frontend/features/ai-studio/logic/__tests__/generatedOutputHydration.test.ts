@@ -174,6 +174,43 @@ describe("generatedOutputHydration", () => {
     );
   });
 
+  it("merges canonical generated outputs into id-only restored shells", () => {
+    const existing = [
+      createOutput({
+        id: "generated:gen-1",
+        prompt: "",
+        generationId: undefined,
+        taskId: undefined,
+        sourceRef: undefined,
+        taskState: undefined,
+        mediaSource: "generated",
+        previewUrl: undefined,
+        resultUrls: [],
+      }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        taskState: "success",
+        mediaSource: "generated",
+        previewUrl: "https://cdn.test/generated-preview.png",
+        resultUrls: ["https://cdn.test/generated-full.png"],
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)).toEqual([
+      expect.objectContaining({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        previewUrl: "https://cdn.test/generated-preview.png",
+        resultUrls: ["https://cdn.test/generated-full.png"],
+      }),
+    ]);
+  });
+
   it("keeps batched canonical generated outputs newest first", () => {
     const existing = [createOutput({ id: "local-existing" })];
     const hydrated = [

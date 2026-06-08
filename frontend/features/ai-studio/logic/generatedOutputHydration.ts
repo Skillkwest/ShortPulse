@@ -35,19 +35,23 @@ const appendIndexedOutputMatch = (
 const buildIndexedOutputMatches = (
   existingOutputs: StudioOutput[]
 ): {
+  byId: Map<string, IndexedOutputMatchQueue>;
   byGenerationId: Map<string, IndexedOutputMatchQueue>;
   byTaskId: Map<string, IndexedOutputMatchQueue>;
   bySourceRef: Map<string, IndexedOutputMatchQueue>;
 } => {
+  const byId = new Map<string, IndexedOutputMatchQueue>();
   const byGenerationId = new Map<string, IndexedOutputMatchQueue>();
   const byTaskId = new Map<string, IndexedOutputMatchQueue>();
   const bySourceRef = new Map<string, IndexedOutputMatchQueue>();
   existingOutputs.forEach((output, index) => {
+    appendIndexedOutputMatch(byId, asTrimmedString(output.id), index);
     appendIndexedOutputMatch(byGenerationId, asTrimmedString(output.generationId), index);
     appendIndexedOutputMatch(byTaskId, asTrimmedString(output.taskId), index);
     appendIndexedOutputMatch(bySourceRef, asTrimmedString(output.sourceRef), index);
   });
   return {
+    byId,
     byGenerationId,
     byTaskId,
     bySourceRef,
@@ -86,8 +90,14 @@ const findIndexedHydratedGeneratedOutputMatch = (
   );
   if (taskMatch >= 0) return taskMatch;
 
-  return resolveFirstUnmatchedIndex(
+  const sourceRefMatch = resolveFirstUnmatchedIndex(
     indexedMatches.bySourceRef.get(asTrimmedString(hydrated.sourceRef) ?? ""),
+    matchedExistingIndexes
+  );
+  if (sourceRefMatch >= 0) return sourceRefMatch;
+
+  return resolveFirstUnmatchedIndex(
+    indexedMatches.byId.get(asTrimmedString(hydrated.id) ?? ""),
     matchedExistingIndexes
   );
 };

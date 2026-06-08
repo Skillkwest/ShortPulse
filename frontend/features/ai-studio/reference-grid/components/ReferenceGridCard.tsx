@@ -487,6 +487,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onError={() => {
             setIsHoveringVideo(false);
             setIsHoverVideoVisible(false);
+            if (hasVideoPosterPreview && !hasPosterImageError) {
+              markLoaded(item.id, { notifyAutoSave: false });
+              return;
+            }
             if (!effectiveIsLoading) {
               setHasMediaRenderError(true);
               markLoaded(item.id, { notifyAutoSave: false });

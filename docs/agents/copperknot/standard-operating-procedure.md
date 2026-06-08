@@ -121,6 +121,20 @@ For the deeper run-type definitions, use:
 
 - `docs/agents/copperknot/standard-operating-procedure-reference.md`
 
+### Step 2a. Select the lane from the launch queue
+
+Start lane choice from the current dated July 7 queue, not from whichever clean files are available.
+
+Apply gates in this order:
+
+- skip rows already stopped by an active handoff unless the user explicitly reopens Copperknot work there
+- skip dirty or actively owned paths unless the user assigns Copperknot that active work
+- skip commit, push, deploy, release, credential, credit-spend, destructive-data, billing-policy, or major UI/UX/behavior changes until approved
+- skip rows whose next proof is purely production-gated when no cheap non-mutating proof will improve source hardening
+- work the highest-priority remaining source seam that is bounded, behavior-preserving, and launch-relevant
+
+If Copperknot chooses a lower-priority clean seam, it must first state which higher-priority rows were gated and why. Do not let `clean and useful` substitute for `highest launch-queue ROI`.
+
 ### Step 3. Freeze the audit target
 
 Before rerating, define the evidence snapshot:

@@ -15,7 +15,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Timed-task rule: when the user asks for work in some amount of time from now, default to an automation that executes the requested task at wake-up time instead of only reminding or reporting readiness, unless the user explicitly asks for reminder-only behavior.
 - Communication rule: routine status narration is a real speed cost. Keep execution chatter near zero and normal progress internal unless the user asked for status or the run hit a blocker, approval need, branch/credential issue, or material plan change.
 - Fresh-reload rule: treat each new task or lane as a fresh startup anchored on repo-local instructions, not on conversational residue, unless the current lane explicitly needs retained historical detail.
-- Thread-history cutoff rule: conversational material older than the previous calendar day is cold by default. Do not carry it as active working context unless the current task explicitly needs that historical evidence.
+- Thread-history cutoff rule: conversational material older than one hour is cold by default. Do not carry it as active working context unless the current task explicitly needs that historical evidence.
 - Completion-claim rule: do not state that a timer, automation, commit, push, branch action, or similar tool-backed side effect is complete until the tool has succeeded and returned confirmation.
 - Run-profile rule: default to the cheapest valid profile (`docs-only`, `product-targeted`, `shared-runtime`, `production-targeted`, `production-broad`) instead of loading the heaviest ladder by habit.
 - Batching rule: default to one intended commit. Split only when there is a real risk boundary, ownership boundary, or review boundary.
@@ -61,7 +61,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - When a hook-restored tail collapses to one CSS or style-owned file, search for the owning contract tests immediately and validate that tiny lane before assuming it needs a broader rerun or can be deferred.
 - Optional browser smoke or visual QA is conditional. Verify the toolchain first, and report the limitation plainly when it is unavailable.
 - Treat repeated user corrections as structured training data about role fidelity, closeout discipline, and SOP scope. Keep the lesson durable without promoting all chat friction into always-loaded memory.
-- When the thread feels heavy, dump old conversational residue first and re-anchor on the repo startup spine before changing active rules or widening retained history.
+- When the thread feels heavy, dump conversational residue older than one hour first and re-anchor on the repo startup spine before changing active rules or widening retained history.
 
 ## Open Follow-Ups
 

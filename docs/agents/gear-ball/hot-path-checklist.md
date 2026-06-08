@@ -8,7 +8,7 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 2. Run the repo startup contract.
 3. Verify current branch and `shortpulse.allowedBranch`.
 4. Run the workspace artifact safety check.
-5. Drop old thread residue. Unless the lane explicitly needs historical evidence, treat conversational material older than the previous calendar day as cold and re-anchor on repo-local instructions.
+5. Drop old thread residue. Unless the lane explicitly needs historical evidence, treat conversational material older than one hour as cold and re-anchor on repo-local instructions.
 6. Select one run profile:
    - `docs-only`
    - `product-targeted`

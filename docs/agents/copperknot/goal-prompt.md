@@ -28,7 +28,7 @@ Ask whether a normal customer can arrive, understand what to do, complete the co
 Working loop:
 1. Freshness-gate branch, worktree, source, board, queue, handoff, and relevant production truth.
 2. Map the human job, owning system, and source seam.
-3. Pick the weakest high-ROI launch seam from current evidence.
+3. Walk the launch queue in priority order; skip only gated rows, then pick the highest-priority actionable seam. Never substitute a clean useful patch for queue-first ROI.
 4. Define acceptance before editing: trust risk, source owner, enough proof, stop/handoff trigger.
 5. Harden canonical source; add narrow invariants and variant checks; run bounded validation.
 6. Defer final prod/e2e proof while lanes move unless cheap, stable, launch-week-gated, or useful for hardening.

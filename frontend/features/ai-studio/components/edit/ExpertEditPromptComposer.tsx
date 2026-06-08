@@ -1,4 +1,5 @@
 import React from "react";
+import { AppMessage } from "../../../../components/AppMessage";
 import { AgentGenerateButton } from "../../../../prefabs/agent/buttons/AgentGenerateButton";
 import {
   buildExpertEditPrimarySlotToken,
@@ -30,6 +31,7 @@ type ExpertEditPromptComposerProps = {
   onPromptScroll: React.UIEventHandler<HTMLTextAreaElement>;
   onPromptBlur: React.FocusEventHandler<HTMLTextAreaElement>;
   promptTokenPickerState: PromptTokenPickerState;
+  isCanvasTearOutActive?: boolean;
   hostPrimaryImageUrl: string | null;
   populatedPromptTokenSlotIndexes: readonly number[];
   extraImageUrls: readonly (string | null)[];
@@ -56,6 +58,7 @@ export function ExpertEditPromptComposer({
   onPromptScroll,
   onPromptBlur,
   promptTokenPickerState,
+  isCanvasTearOutActive = false,
   hostPrimaryImageUrl,
   populatedPromptTokenSlotIndexes,
   extraImageUrls,
@@ -70,7 +73,12 @@ export function ExpertEditPromptComposer({
     <div className={`edit-expert-bottom-row ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
       <div className="edit-expert-prompt-shell">
         <div className="edit-expert-prompt-row">
-          <div className="edit-expert-prompt-input-shell" ref={promptInputShellRef}>
+          <div
+            className={`edit-expert-prompt-input-shell ${
+              isCanvasTearOutActive ? "is-dragging" : ""
+            }`.trim()}
+            ref={promptInputShellRef}
+          >
             <div
               ref={promptHighlightRef}
               className="edit-expert-prompt-highlight"
@@ -187,9 +195,12 @@ export function ExpertEditPromptComposer({
           </div>
         </div>
         {promptTokenInlineError ? (
-          <p className="edit-expert-prompt-token-error" role="alert">
-            {promptTokenInlineError}
-          </p>
+          <AppMessage
+            className="edit-expert-prompt-token-error"
+            tone="error"
+            mode="inline"
+            message={promptTokenInlineError}
+          />
         ) : null}
       </div>
       <div className="edit-expert-inline-generate edit-expert-inline-generate--outside">

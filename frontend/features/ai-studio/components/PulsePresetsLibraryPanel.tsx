@@ -14,6 +14,7 @@ import {
   type CreatePulsePresetId,
   type CreatePulseSavedPreset,
 } from "./create/createPulsePresets";
+import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -382,7 +383,12 @@ export function PulsePresetsLibraryPanel({
                 }}
               />
               {localSaveError ? (
-                <p className="tiny pulse-presets-library-edit-error">{localSaveError}</p>
+                <AppMessage
+                  className="tiny pulse-presets-library-edit-error"
+                  tone="error"
+                  mode="inline"
+                  message={localSaveError}
+                />
               ) : null}
               <div className="pulse-presets-library-edit-actions">
                 <button
@@ -423,7 +429,12 @@ export function PulsePresetsLibraryPanel({
                   <p>This does not delete the shared built-in for other users.</p>
                 ) : null}
                 {localSaveError ? (
-                  <p className="tiny pulse-presets-library-edit-error">{localSaveError}</p>
+                  <AppMessage
+                    className="tiny pulse-presets-library-edit-error"
+                    tone="error"
+                    mode="inline"
+                    message={localSaveError}
+                  />
                 ) : null}
               </>
             }

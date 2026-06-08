@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { ChatCircleDots } from "phosphor-react";
+import { AppMessage } from "../../../../components/AppMessage";
 import type { PulseChatThreadListItem } from "../../pulseChats/pulseChatThread";
 
 export type PulseChatHistoryPanelProps = {
@@ -52,7 +53,14 @@ export function PulseChatHistoryPanel({
           {loading && !hasThreads ? (
             <p className="create-composer-chats-empty">Loading chats...</p>
           ) : null}
-          {error && !hasThreads ? <p className="create-composer-chats-empty">{error}</p> : null}
+          {error && !hasThreads ? (
+            <AppMessage
+              className="create-composer-chats-empty"
+              tone="error"
+              mode="inline"
+              message={error}
+            />
+          ) : null}
           {!loading && !error && !hasThreads ? (
             <p className="create-composer-chats-empty">
               Start a Pulse in this project to build your first saved chat.

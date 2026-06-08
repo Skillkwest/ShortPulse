@@ -307,6 +307,7 @@ describe("Canvas interaction behavior", () => {
     const tearOutGhost = await screen.findByTestId(`canvas-item-tear-out-ghost-${itemId}`);
     expect(tearOutGhost).toHaveAttribute("data-phase", "candidate");
     expect(tearOutGhost).toHaveAttribute("data-client-x", "650");
+    expect(tearOutGhost.parentElement).toBe(document.body);
     expect(screen.queryByTestId(`canvas-item-ghost-${itemId}`)).not.toBeInTheDocument();
 
     fireEvent.pointerUp(viewport, {

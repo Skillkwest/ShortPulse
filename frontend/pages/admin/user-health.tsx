@@ -4,6 +4,7 @@
  */
 import { useRouter } from "next/router";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AppMessage } from "../../components/AppMessage";
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import type { AdminHealthFinding, AdminUserHealthResponse } from "../../features/admin/types";
@@ -204,7 +205,14 @@ export default function AdminUserHealthPage() {
           </div>
         </form>
 
-        {error ? <p className={styles.announcementError}>{error}</p> : null}
+        {error ? (
+          <AppMessage
+            className={styles.announcementError}
+            tone="error"
+            mode="banner"
+            message={error}
+          />
+        ) : null}
       </section>
 
       {result ? (

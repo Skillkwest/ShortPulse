@@ -1,4 +1,5 @@
 import React from "react";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import type { ResolveInternalReferenceDrop } from "../../logic/referenceSource/internalReferenceSource";
 import {
   prepareLocalImageBlobForEditIngress,
@@ -24,6 +25,17 @@ import {
   type ExpertEditLayer,
 } from "./expertEditLayerSessionUtils";
 import { defaultLayerTransform } from "./expertEditLayerTransformUtils";
+
+type ExpertEditPrimaryImageDropSnapshot = {
+  internalPayload: ReturnType<typeof extractInternalReferenceDragPayload> | null;
+  imageUrl: string | null;
+  imageFile?: File | null;
+  fromFile?: boolean;
+  referenceId?: string | null;
+  width?: number;
+  height?: number;
+  mediaKind?: string | null;
+};
 
 type CreateLayer = (args: {
   indexOneBased: number;
@@ -54,6 +66,46 @@ type UseExpertEditPrimaryIngressArgs = {
     url: string,
     dimensions: { width: number; height: number }
   ) => void;
+};
+
+const trimOptionalString = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length ? trimmed : null;
+};
+
+const resolveCanvasTearOutImageDropSnapshot = (
+  payload: AgentComposerDirectDropPayload
+): ExpertEditPrimaryImageDropSnapshot | null => {
+  if (payload.kind !== "image") return null;
+  const internalPayload = payload.internalPayload ?? null;
+  const composerImagePayload = payload.composerImagePayload ?? null;
+  const imageUrl =
+    trimOptionalString(composerImagePayload?.displayArtifactUrl) ??
+    trimOptionalString(internalPayload?.referenceRenderUrl) ??
+    trimOptionalString(internalPayload?.referenceUrl);
+  const referenceId =
+    trimOptionalString(composerImagePayload?.referenceId) ??
+    trimOptionalString(internalPayload?.referenceId) ??
+    trimOptionalString(composerImagePayload?.outputId) ??
+    trimOptionalString(internalPayload?.outputId) ??
+    trimOptionalString(composerImagePayload?.mediaId) ??
+    trimOptionalString(internalPayload?.mediaId);
+  const width =
+    typeof composerImagePayload?.width === "number"
+      ? composerImagePayload.width
+      : internalPayload?.width;
+  const height =
+    typeof composerImagePayload?.height === "number"
+      ? composerImagePayload.height
+      : internalPayload?.height;
+  return {
+    internalPayload,
+    imageUrl,
+    referenceId,
+    width,
+    height,
+    mediaKind: internalPayload?.mediaKind ?? null,
+  };
 };
 
 export function useExpertEditPrimaryIngress({
@@ -272,60 +324,20 @@ export function useExpertEditPrimaryIngress({
     [applyPrimaryImageIngress]
   );
 
-  const allowPrimaryImageDrag = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (isImageDragTransfer(event.dataTransfer)) {
-      event.preventDefault();
-      return true;
-    }
-    return false;
-  }, []);
-
-  const handlePrimaryDragEnter = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpenRef.current) {
-        event.preventDefault();
-        setPrimaryDragActive(false);
-        return;
-      }
-      if (allowPrimaryImageDrag(event)) {
-        setPrimaryDragActive(true);
-      }
-    },
-    [allowPrimaryImageDrag]
-  );
-
-  const handlePrimaryDragOver = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpenRef.current) {
-        event.preventDefault();
-        setPrimaryDragActive(false);
-        return;
-      }
-      if (allowPrimaryImageDrag(event)) {
-        setPrimaryDragActive(true);
-      }
-    },
-    [allowPrimaryImageDrag]
-  );
-
-  const handlePrimaryDragLeave = React.useCallback(() => {
-    setPrimaryDragActive(false);
-  }, []);
-
-  const handlePrimaryDrop = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpenRef.current) {
-        event.preventDefault();
-        setPrimaryDragActive(false);
-        return;
-      }
-      event.preventDefault();
-      setPrimaryDragActive(false);
-      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
-      const { imageUrl, imageFile, fromFile, referenceId, width, height, mediaKind } =
-        extractDragDropPayload(event.dataTransfer);
+  const acceptPrimaryImageDropSnapshot = React.useCallback(
+    (snapshot: ExpertEditPrimaryImageDropSnapshot) => {
       void (async () => {
         try {
+          const {
+            internalPayload,
+            imageUrl,
+            imageFile,
+            fromFile,
+            referenceId,
+            width,
+            height,
+            mediaKind,
+          } = snapshot;
           const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
           if (effectiveMediaKind && effectiveMediaKind !== "image") return;
 
@@ -411,6 +423,83 @@ export function useExpertEditPrimaryIngress({
     [applyPrimaryImageIngress]
   );
 
+  const acceptPrimaryCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (isMorePresetsSurfaceOpenRef.current) return;
+      setPrimaryDragActive(false);
+      const snapshot = resolveCanvasTearOutImageDropSnapshot(payload);
+      if (!snapshot) return;
+      acceptPrimaryImageDropSnapshot(snapshot);
+    },
+    [acceptPrimaryImageDropSnapshot]
+  );
+
+  const allowPrimaryImageDrag = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (isImageDragTransfer(event.dataTransfer)) {
+      event.preventDefault();
+      return true;
+    }
+    return false;
+  }, []);
+
+  const handlePrimaryDragEnter = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpenRef.current) {
+        event.preventDefault();
+        setPrimaryDragActive(false);
+        return;
+      }
+      if (allowPrimaryImageDrag(event)) {
+        setPrimaryDragActive(true);
+      }
+    },
+    [allowPrimaryImageDrag]
+  );
+
+  const handlePrimaryDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpenRef.current) {
+        event.preventDefault();
+        setPrimaryDragActive(false);
+        return;
+      }
+      if (allowPrimaryImageDrag(event)) {
+        setPrimaryDragActive(true);
+      }
+    },
+    [allowPrimaryImageDrag]
+  );
+
+  const handlePrimaryDragLeave = React.useCallback(() => {
+    setPrimaryDragActive(false);
+  }, []);
+
+  const handlePrimaryDrop = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (isMorePresetsSurfaceOpenRef.current) {
+        event.preventDefault();
+        setPrimaryDragActive(false);
+        return;
+      }
+      event.preventDefault();
+      setPrimaryDragActive(false);
+      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      const { imageUrl, imageFile, fromFile, referenceId, width, height, mediaKind } =
+        extractDragDropPayload(event.dataTransfer);
+      acceptPrimaryImageDropSnapshot({
+        internalPayload,
+        imageUrl,
+        imageFile,
+        fromFile,
+        referenceId,
+        width,
+        height,
+        mediaKind,
+      });
+    },
+    [acceptPrimaryImageDropSnapshot]
+  );
+
   return {
     primaryDragActive,
     clearPrimaryDragActive,
@@ -419,5 +508,6 @@ export function useExpertEditPrimaryIngress({
     handlePrimaryDragOver,
     handlePrimaryDragLeave,
     handlePrimaryDrop,
+    acceptPrimaryCanvasTearOutPayload,
   };
 }

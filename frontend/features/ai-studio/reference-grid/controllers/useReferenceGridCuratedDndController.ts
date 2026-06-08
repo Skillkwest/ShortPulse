@@ -8,6 +8,10 @@ import {
   readMediaLibraryDragPayload,
   type MediaLibraryDragPayload,
 } from "../../logic/mediaLibraryDragPayload";
+import {
+  buildAiStudioDropSnapshotTransfer,
+  captureAiStudioDropSnapshot,
+} from "../../logic/aiStudioDropSnapshot";
 import { getDroppedMediaReference } from "./referenceGridClipboard";
 import type {
   LibraryMediaReferencePayload,
@@ -207,7 +211,9 @@ export const useReferenceGridCuratedDndController = ({
       event.stopPropagation();
       curatedDragDepthRef.current = 0;
       setCuratedDropActiveSafe(false);
-      const mediaLibraryPayload = readQuickSlotLibraryPayload(event.dataTransfer);
+      const dropSnapshot = captureAiStudioDropSnapshot(event.dataTransfer);
+      const transfer = buildAiStudioDropSnapshotTransfer(dropSnapshot);
+      const mediaLibraryPayload = readQuickSlotLibraryPayload(transfer);
       if (
         mediaLibraryPayload &&
         handleLibraryQuickSlotDrop(mediaLibraryPayload, {
@@ -217,10 +223,10 @@ export const useReferenceGridCuratedDndController = ({
       ) {
         return;
       }
-      if (hasInternalReferenceDrag(event.dataTransfer)) {
-        const referenceId = resolveReferenceDragOutputId(event.dataTransfer);
+      if (hasInternalReferenceDrag(transfer)) {
+        const referenceId = resolveReferenceDragOutputId(transfer);
         if (!referenceId) return;
-        const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
+        const sourceSurface = resolveReferenceDragSourceSurface(transfer);
         if (sourceSurface === "all-refs") {
           if (curatedReferenceIds.includes(referenceId)) {
             onSelectOutput(referenceId);
@@ -235,8 +241,8 @@ export const useReferenceGridCuratedDndController = ({
         return;
       }
       if (
-        !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
-        handleQuickSlotMediaDrop(event.dataTransfer, {
+        !hasQuickSlotStructuredDropHints(transfer) &&
+        handleQuickSlotMediaDrop(transfer, {
           targetId: null,
           placement: "start",
         })
@@ -244,8 +250,8 @@ export const useReferenceGridCuratedDndController = ({
         return;
       }
       if (
-        !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
-        handleQuickSlotFileDrop(event.dataTransfer, {
+        !hasQuickSlotStructuredDropHints(transfer) &&
+        handleQuickSlotFileDrop(transfer, {
           targetId: null,
           placement: "start",
         })
@@ -364,7 +370,9 @@ export const useReferenceGridCuratedDndController = ({
       const rect = event.currentTarget.getBoundingClientRect();
       const placement: "before" | "after" =
         event.clientY < rect.top + rect.height / 2 ? "before" : "after";
-      const mediaLibraryPayload = readQuickSlotLibraryPayload(event.dataTransfer);
+      const dropSnapshot = captureAiStudioDropSnapshot(event.dataTransfer);
+      const transfer = buildAiStudioDropSnapshotTransfer(dropSnapshot);
+      const mediaLibraryPayload = readQuickSlotLibraryPayload(transfer);
       if (mediaLibraryPayload) {
         handleLibraryQuickSlotDrop(mediaLibraryPayload, {
           targetId: target.id,
@@ -372,10 +380,10 @@ export const useReferenceGridCuratedDndController = ({
         });
         return;
       }
-      if (hasInternalReferenceDrag(event.dataTransfer)) {
-        const referenceId = resolveReferenceDragOutputId(event.dataTransfer);
+      if (hasInternalReferenceDrag(transfer)) {
+        const referenceId = resolveReferenceDragOutputId(transfer);
         if (!referenceId) return;
-        const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
+        const sourceSurface = resolveReferenceDragSourceSurface(transfer);
         if (sourceSurface === "all-refs") {
           if (curatedReferenceIds.includes(referenceId)) {
             onSelectOutput(referenceId);
@@ -391,8 +399,8 @@ export const useReferenceGridCuratedDndController = ({
         return;
       }
       if (
-        !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
-        handleQuickSlotMediaDrop(event.dataTransfer, {
+        !hasQuickSlotStructuredDropHints(transfer) &&
+        handleQuickSlotMediaDrop(transfer, {
           targetId: target.id,
           placement,
         })
@@ -400,8 +408,8 @@ export const useReferenceGridCuratedDndController = ({
         return;
       }
       if (
-        !hasQuickSlotStructuredDropHints(event.dataTransfer) &&
-        handleQuickSlotFileDrop(event.dataTransfer, {
+        !hasQuickSlotStructuredDropHints(transfer) &&
+        handleQuickSlotFileDrop(transfer, {
           targetId: target.id,
           placement,
         })

@@ -7,6 +7,7 @@ import type {
   AdminErrorStatus,
   AdminPagination,
 } from "../types";
+import { AppMessage } from "../../../components/AppMessage";
 import {
   eventIncidentFilterLabel,
   eventSignalFilterLabel,
@@ -366,7 +367,9 @@ export function ErrorEventsStreamSection({
               <span className="subdued">—</span>
               <span className="subdued">—</span>
               <span className="subdued">—</span>
-              <span className="subdued">{errorEventsError}</span>
+              <span>
+                <AppMessage tone="error" mode="compact" message={errorEventsError} />
+              </span>
               <span className="subdued">—</span>
               <span className="subdued">—</span>
               <span className="subdued">—</span>

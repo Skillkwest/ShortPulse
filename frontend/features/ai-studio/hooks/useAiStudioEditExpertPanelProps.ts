@@ -20,6 +20,7 @@ import type {
   ExpertEditVariantCostResolver,
 } from "../components/edit/expertEditSubmissionContract";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
 import { normalizeExpertEditSecondaryImageUrls } from "../logic/expertEditReferenceSlots";
 
 type UseAiStudioEditExpertPanelPropsParams = {
@@ -58,6 +59,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   imageResolution: string;
   setImageResolution: Dispatch<SetStateAction<string>>;
   characterOptions: Array<{ id: string; name: string; profileImageUrl: string | null }>;
@@ -116,6 +118,7 @@ export const useAiStudioEditExpertPanelProps = ({
   referenceImageWarning,
   resolveOutputPreviewUrl,
   resolveInternalReferenceImageDropSource,
+  canvasTearOutTargetRegistry,
   imageResolution,
   setImageResolution,
   characterOptions,
@@ -191,6 +194,7 @@ export const useAiStudioEditExpertPanelProps = ({
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       resolveInternalReferenceImageDropSource,
+      canvasTearOutTargetRegistry,
       imageResolution,
       onImageResolutionChange: setImageResolution,
       characterOptions,
@@ -238,6 +242,7 @@ export const useAiStudioEditExpertPanelProps = ({
     removeOptimisticGenerationPlaceholder,
     referenceImageUrl,
     referenceImageWarning,
+    canvasTearOutTargetRegistry,
     resolveInternalReferenceImageDropSource,
     resolveOutputPreviewUrl,
     customPresetOverrides,

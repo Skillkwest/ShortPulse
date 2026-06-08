@@ -17,6 +17,7 @@ import {
 } from "./style-creator/constants";
 import { captureStyleDropSnapshot, type ResolveInternalStyleDrop } from "./style-creator/intake";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
+import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -130,7 +131,12 @@ export function StylesLibraryPanel({
           </p>
         ) : null}
         {stylesLibraryDropError ? (
-          <p className="styles-library-drop-error tiny">{stylesLibraryDropError}</p>
+          <AppMessage
+            className="styles-library-drop-error tiny"
+            tone="error"
+            mode="inline"
+            message={stylesLibraryDropError}
+          />
         ) : null}
       </header>
       <div
@@ -423,11 +429,28 @@ export function StylesLibraryPanel({
                 <p className="styles-library-edit-copy tiny subdued">Analyzing style...</p>
               ) : null}
               {pendingStyleEdit.mode === "create" && stylePromptExtractionError ? (
-                <p className="styles-library-edit-error tiny">{stylePromptExtractionError}</p>
+                <AppMessage
+                  className="styles-library-edit-error tiny"
+                  tone="error"
+                  mode="inline"
+                  message={stylePromptExtractionError}
+                />
               ) : null}
-              {saveError ? <p className="styles-library-edit-error tiny">{saveError}</p> : null}
+              {saveError ? (
+                <AppMessage
+                  className="styles-library-edit-error tiny"
+                  tone="error"
+                  mode="inline"
+                  message={saveError}
+                />
+              ) : null}
               {localSaveError ? (
-                <p className="styles-library-edit-error tiny">{localSaveError}</p>
+                <AppMessage
+                  className="styles-library-edit-error tiny"
+                  tone="error"
+                  mode="inline"
+                  message={localSaveError}
+                />
               ) : null}
               <div className="styles-library-edit-actions">
                 <button

@@ -89,6 +89,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     referenceImageWarning,
     resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
     resolveInternalReferenceImageDropSource: base.resolveComposerInternalImageDropSource,
+    canvasTearOutTargetRegistry: base.canvasTearOutTargetRegistry,
     imageResolution: base.imageResolution,
     setImageResolution: base.setImageResolution,
     characterOptions: base.characterOptions,

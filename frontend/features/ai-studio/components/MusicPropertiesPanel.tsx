@@ -3,6 +3,7 @@
  * Keeps music composition UI isolated from generic Sound and Sound Effects panels.
  */
 import React from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import { ELEVENLABS_MUSIC_DURATION_OPTIONS } from "../../../lib/model-runtime/elevenLabsAudioDurations";
 import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/modelCatalog";
 import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
@@ -414,9 +415,12 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
         </p>
       </div>
       {inspirationInsertError ? (
-        <p className="music-properties-inspiration-error" role="alert">
-          {inspirationInsertError}
-        </p>
+        <AppMessage
+          className="music-properties-inspiration-error"
+          tone="error"
+          mode="inline"
+          message={inspirationInsertError}
+        />
       ) : null}
       <div className="music-properties-inspiration-rail">
         <div
@@ -580,10 +584,14 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                       <p className="music-properties-custom-pane-title">Lyrics</p>
                       <p className="music-properties-custom-pane-note">{customLyricsBudgetNote}</p>
                       {!isWithinPromptLimit ? (
-                        <p className="music-properties-custom-pane-error" role="alert">
-                          Shorten the prompt or lyrics by {overflowCharacterCount.toLocaleString()}{" "}
-                          {overflowCharacterCount === 1 ? "character" : "characters"}.
-                        </p>
+                        <AppMessage
+                          className="music-properties-custom-pane-error"
+                          tone="error"
+                          mode="inline"
+                          message={`Shorten the prompt or lyrics by ${overflowCharacterCount.toLocaleString()} ${
+                            overflowCharacterCount === 1 ? "character" : "characters"
+                          }.`}
+                        />
                       ) : null}
                     </div>
                     <div className="music-properties-script-input-shell music-properties-script-input-shell--custom-lyrics">

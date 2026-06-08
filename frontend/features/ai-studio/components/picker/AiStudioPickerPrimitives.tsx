@@ -1,5 +1,6 @@
 import React, { type ReactNode } from "react";
 import { X } from "phosphor-react";
+import { AppMessage } from "../../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 
@@ -176,7 +177,7 @@ export const AiStudioPickerFeedback = ({
   if (errorMessage) {
     return (
       <div className="ai-character-picker-empty">
-        <p className="tiny">{errorMessage}</p>
+        <AppMessage tone="error" mode="inline" message={errorMessage} />
         {onRetry ? (
           <button type="button" className="ghost-btn mini" onClick={onRetry}>
             Retry

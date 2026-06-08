@@ -3,6 +3,7 @@
  * Loads user media/prompts and lets creators add them to the reference grid.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
@@ -397,7 +398,7 @@ export function MediaLibraryModal({
           <div className="media-library-modal-body" ref={modalBodyRef}>
             {showBlockingLoading ? <p className="tiny subdued">Loading media library…</p> : null}
             {showBackgroundRefreshing ? <p className="tiny subdued">Refreshing media…</p> : null}
-            {error ? <p className="tiny subdued">{error}</p> : null}
+            {error ? <AppMessage tone="error" mode="inline" message={error} /> : null}
 
             {!showBlockingLoading && !error && activeTab === "saved_prompts" ? (
               <MediaLibraryPromptGrid

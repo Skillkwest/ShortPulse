@@ -4,6 +4,7 @@
  * reusing the existing product stats panel.
  */
 import React from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import styles from "../../../styles/admin.module.css";
 import { AdminGlobalStatsPanel } from "./AdminGlobalStatsPanel";
 import type {
@@ -115,14 +116,19 @@ const MetricCard = ({ label, value, meta }: { label: string; value: string; meta
 
 const GrowthHealthWarning = ({ reason }: { reason: string | null }) =>
   reason ? (
-    <div className={styles.adminWarningPanel} role="status">
-      <p className={styles.adminWarningTitle}>Growth stats are partially degraded.</p>
+    <AppMessage
+      className={styles.adminWarningPanel}
+      tone="warning"
+      mode="banner"
+      title="Growth stats are partially degraded."
+      role="status"
+    >
       <p className={styles.adminWarningDescription}>
         Marketing and sales metrics are showing safe fallback values until the growth contract is
         available again.
       </p>
       <p className={styles.adminWarningMeta}>{reason}</p>
-    </div>
+    </AppMessage>
   ) : null;
 
 const TableShell = ({ children }: { children: React.ReactNode }) => (

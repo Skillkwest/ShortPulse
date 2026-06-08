@@ -3,9 +3,10 @@
  * Lists saved projects and routes selection back through the page-level project identity boundary.
  */
 import React from "react";
-import { Folders, Sparkle, Trash } from "phosphor-react";
+import { Sparkle, Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { normalizeErrorText } from "../../../lib/errorText";
+import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -351,19 +352,22 @@ export function ProjectsModal({
         </div>
         <div className="model-modal-scroll ai-projects-modal-scroll">
           {actionError ? (
-            <div className="ai-projects-modal-banner ai-projects-modal-banner-error" role="alert">
-              {actionError}
-            </div>
+            <AppMessage
+              className="ai-projects-modal-banner ai-projects-modal-banner-error"
+              tone="error"
+              mode="banner"
+              message={actionError}
+            />
           ) : null}
           {loadState.status === "error" ? (
-            <div className="ai-projects-modal-empty-state" role="alert">
-              <Folders size={30} weight="duotone" />
-              <h3>Projects unavailable</h3>
-              <p>{loadState.error}</p>
-              <button type="button" className="ghost-btn mini" onClick={loadProjects}>
-                Retry
-              </button>
-            </div>
+            <AppMessage
+              className="ai-projects-modal-empty-state"
+              tone="error"
+              mode="banner"
+              title="Projects unavailable"
+              message={loadState.error}
+              action={{ label: "Retry", onClick: loadProjects }}
+            />
           ) : null}
           {loadState.status !== "error" && loadState.projects.length === 0 ? (
             <div

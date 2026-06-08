@@ -14,6 +14,7 @@ import { resolveStudioOutputMediaDisplayAuthority } from "../logic/referenceGrid
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { createStudioOutputDetailModalItem } from "../logic/studioOutputDetailModal";
 import { canReloadWorkflowOutput } from "../logic/workflowReload";
+import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
@@ -1582,9 +1583,12 @@ function DetailModalContent({
                 {isPromptOnlySaved ? "Saved. Closing..." : "Save & Apply Changes"}
               </button>
               {isPromptOnlySaved ? (
-                <p className="art-save-feedback" role="status" aria-live="polite">
-                  Changes saved successfully.
-                </p>
+                <AppMessage
+                  className="art-save-feedback"
+                  tone="success"
+                  mode="inline"
+                  message="Changes saved successfully."
+                />
               ) : null}
             </div>
           </div>

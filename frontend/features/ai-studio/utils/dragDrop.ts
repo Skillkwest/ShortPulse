@@ -1,5 +1,8 @@
 import { StudioOutput } from "../types";
-import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import {
+  hasMediaLibraryDragTypeHints,
+  readMediaLibraryDragPayload,
+} from "../logic/mediaLibraryDragPayload";
 import { canExposeDirectReferenceUrls, hasSavedMediaIds } from "../logic/referenceOutputAuthority";
 import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
@@ -156,6 +159,51 @@ const resolveReferenceTransferMediaKind = (
 ): ReferenceDragPreviewKind | null =>
   extractInternalReferenceDragPayload(transfer)?.mediaKind ??
   parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
+
+const hasStructuredReferenceTransferHints = (transfer: DataTransfer): boolean => {
+  if (hasInternalReferenceDragTypeHints(transfer)) return true;
+  if (hasMediaLibraryDragTypeHints(transfer)) return true;
+
+  const transferTypes = Array.from(transfer.types ?? []).map((type) => type.trim().toLowerCase());
+  if (
+    transferTypes.some(
+      (type) =>
+        type === COMPOSER_IMAGE_DROP_PAYLOAD_TYPE ||
+        type === COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE ||
+        type === COMPOSER_IMAGE_DROP_SESSION_TYPE ||
+        type === COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE ||
+        type.startsWith("text/reference-") ||
+        type === "image/url"
+    )
+  ) {
+    return true;
+  }
+
+  if (extractComposerImageDropPayload(transfer)) return true;
+  if (readMediaLibraryDragPayload(transfer)) return true;
+
+  const uriList = getFirstUriListValue(transfer.getData("text/uri-list") ?? "");
+  const text = transfer.getData("text/plain");
+  const referenceCandidates = [
+    transfer.getData("text/reference-url"),
+    transfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
+    transfer.getData("image/url"),
+    uriList,
+    text,
+  ];
+
+  return referenceCandidates.some((candidate) => {
+    const normalized = normalizeReferenceTransferUrlCandidate(candidate, {
+      unwrapNextImage: false,
+    });
+    return Boolean(
+      normalized &&
+      (looksLikeImageUrl(normalized) ||
+        looksLikeVideoUrl(normalized) ||
+        looksLikeAudioUrl(normalized))
+    );
+  });
+};
 
 const parseTransferDimension = (value: string | null | undefined): number | undefined => {
   const parsed = Number.parseFloat((value ?? "").trim());
@@ -591,6 +639,7 @@ export const resolveReferenceTransferUrl = (
 
 export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload => {
   const imageFile = findImageFile(transfer.files);
+  const hasStructuredHints = hasStructuredReferenceTransferHints(transfer);
   const internalPayload = extractInternalReferenceDragPayload(transfer);
   const hasAuthoritativeInternalPayload = Boolean(
     transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE).trim() ||
@@ -630,18 +679,6 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
         : null))
     : null;
   const dimensions = resolveReferenceTransferDimensions(transfer);
-
-  if (imageFile) {
-    const objectUrl = URL.createObjectURL(imageFile);
-    return {
-      imageUrl: objectUrl,
-      imageFile,
-      promptText: null,
-      referenceId,
-      fromFile: true,
-      mediaKind: "image",
-    };
-  }
 
   if (mediaKind && mediaKind !== "image") {
     return {
@@ -749,6 +786,18 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     }
   }
 
+  if (imageFile && !hasStructuredHints) {
+    const objectUrl = URL.createObjectURL(imageFile);
+    return {
+      imageUrl: objectUrl,
+      imageFile,
+      promptText: null,
+      referenceId,
+      fromFile: true,
+      mediaKind: "image",
+    };
+  }
+
   return {
     imageUrl: null,
     promptText: extractPromptText(transfer),
@@ -761,6 +810,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
 
 export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDropPayload => {
   const videoFile = findVideoFile(transfer.files);
+  const hasStructuredHints = hasStructuredReferenceTransferHints(transfer);
   const mediaKind = resolveReferenceTransferMediaKind(transfer);
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
     transfer.getData("text/reference-url")
@@ -768,16 +818,6 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
   const referenceId = transfer.getData("text/reference-id") || null;
   const normalizedReferenceUrl =
     referenceUrl && looksLikeVideoUrl(referenceUrl) ? referenceUrl : null;
-
-  if (videoFile) {
-    return {
-      videoUrl: null,
-      videoFile,
-      promptText: null,
-      referenceId,
-      fromFile: true,
-    };
-  }
 
   if (mediaKind && mediaKind !== "video") {
     return {
@@ -843,6 +883,16 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
         fromFile: false,
       };
     }
+  }
+
+  if (videoFile && !hasStructuredHints) {
+    return {
+      videoUrl: null,
+      videoFile,
+      promptText: null,
+      referenceId,
+      fromFile: true,
+    };
   }
 
   return {

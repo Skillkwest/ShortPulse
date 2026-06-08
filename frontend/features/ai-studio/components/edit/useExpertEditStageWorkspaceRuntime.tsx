@@ -9,6 +9,8 @@ import { ExpertEditLayersPanel } from "./ExpertEditLayersPanel";
 import { ExpertEditSecondaryReferences } from "./ExpertEditReferenceControls";
 import { ExpertEditStageScene } from "./ExpertEditStageScene";
 import type { StageInteractionHandlers, StagePanHandlers } from "./ExpertEditStageSurface";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { RailTool } from "./expertEditPanelViewContract";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import type { MarkupStroke } from "./markupStrokeController";
@@ -78,6 +80,8 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
   handleExtraDragEnter: (index: number) => React.DragEventHandler<HTMLDivElement>;
   handleExtraDragOver: (index: number) => React.DragEventHandler<HTMLDivElement>;
   handleExtraDragLeave: (index: number) => () => void;
+  acceptExtraCanvasTearOutPayload: (index: number, payload: AgentComposerDirectDropPayload) => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   isStylesPanelOpen: boolean;
   selectedStyleId: string | null;
   stylesCatalog: readonly ExpertEditStyleTile[] | undefined;
@@ -170,6 +174,8 @@ export function useExpertEditStageWorkspaceRuntime({
   handleExtraDragEnter,
   handleExtraDragOver,
   handleExtraDragLeave,
+  acceptExtraCanvasTearOutPayload,
+  canvasTearOutTargetRegistry,
   isStylesPanelOpen,
   selectedStyleId,
   stylesCatalog,
@@ -289,6 +295,8 @@ export function useExpertEditStageWorkspaceRuntime({
             onSecondaryDragEnter={handleExtraDragEnter}
             onSecondaryDragOver={handleExtraDragOver}
             onSecondaryDragLeave={handleExtraDragLeave}
+            onSecondaryCanvasTearOutDrop={acceptExtraCanvasTearOutPayload}
+            canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
             isStylesPanelOpen={isStylesPanelOpen}
             selectedStyleId={selectedStyleId}
             stylesCatalog={stylesCatalog}

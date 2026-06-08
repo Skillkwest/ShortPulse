@@ -3,6 +3,7 @@
  * Provides the shared operator task board on the admin Ophestivus page.
  */
 import { useEffect, useMemo, useState } from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import {
   ArrowLeft,
   ArrowRight,
@@ -291,7 +292,14 @@ export function AdminKanbanBoardSection() {
         </div>
       </div>
 
-      {errorMessage ? <div className={styles.emptyState}>{errorMessage}</div> : null}
+      {errorMessage ? (
+        <AppMessage
+          className={styles.emptyState}
+          tone="error"
+          mode="banner"
+          message={errorMessage}
+        />
+      ) : null}
 
       <div className={styles.addForm}>
         <label className={styles.field}>

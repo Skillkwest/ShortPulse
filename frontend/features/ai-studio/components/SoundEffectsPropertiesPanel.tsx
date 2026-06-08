@@ -3,6 +3,7 @@
  * Mirrors the simplified single-surface music composer while keeping SFX request shaping isolated.
  */
 import React from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import { ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS } from "../../../lib/model-runtime/elevenLabsAudioDurations";
 import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runtime/modelCatalog";
 import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
@@ -301,9 +302,12 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                   </p>
                 </div>
                 {inspirationInsertError ? (
-                  <p className="sound-effects-properties-inspiration-error" role="alert">
-                    {inspirationInsertError}
-                  </p>
+                  <AppMessage
+                    className="sound-effects-properties-inspiration-error"
+                    tone="error"
+                    mode="inline"
+                    message={inspirationInsertError}
+                  />
                 ) : null}
 
                 <div className="sound-effects-properties-inspiration-track">

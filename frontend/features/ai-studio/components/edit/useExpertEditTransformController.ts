@@ -77,6 +77,17 @@ const resolveDragModeFromPointerTarget = (
   return null;
 };
 
+const resolveTransformInteractionTarget = (currentTarget: HTMLDivElement): HTMLDivElement => {
+  if (!currentTarget.classList.contains("edit-expert-primary-layer-selection-overlay")) {
+    return currentTarget;
+  }
+  return (
+    currentTarget.closest<HTMLDivElement>(".edit-expert-markup-modal-stage") ??
+    currentTarget.closest<HTMLDivElement>(".edit-expert-primary-canvas-frame-stack") ??
+    currentTarget
+  );
+};
+
 /**
  * Returns the pointer handlers for move/resize/rotate stage interactions.
  */
@@ -141,10 +152,11 @@ export const useExpertEditTransformController = ({
         return;
       }
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      const rect = event.currentTarget.getBoundingClientRect();
+      const interactionTarget = resolveTransformInteractionTarget(event.currentTarget);
+      const rect = interactionTarget.getBoundingClientRect();
       const width = Math.max(1, rect.width);
       const height = Math.max(1, rect.height);
-      const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, event.currentTarget);
+      const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, interactionTarget);
       const pointer = resolveCanvasSpacePoint({
         clientX: event.clientX,
         clientY: event.clientY,
@@ -223,8 +235,9 @@ export const useExpertEditTransformController = ({
 
   const handleMovePointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, event.currentTarget);
+      const interactionTarget = resolveTransformInteractionTarget(event.currentTarget);
+      const rect = interactionTarget.getBoundingClientRect();
+      const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, interactionTarget);
       const pointer = resolveCanvasSpacePoint({
         clientX: event.clientX,
         clientY: event.clientY,

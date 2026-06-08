@@ -1,4 +1,5 @@
 import React from "react";
+import { AppMessage } from "../../../../components/AppMessage";
 import type { StudioOutput } from "../../types";
 import { CanvasPropertiesPanel } from "../../components/canvas/CanvasPropertiesPanel";
 import type { CanvasPropertiesPanelProps } from "../../components/canvas/useAiStudioCanvasWorkspaceState";
@@ -465,7 +466,14 @@ export function ReferenceGridSections({
                   />
                 </div>
                 {topNotice ? (
-                  <div className="inline-warning-hint reference-grid-top-warning">{topNotice}</div>
+                  <AppMessage
+                    className="inline-warning-hint reference-grid-top-warning"
+                    tone="warning"
+                    mode="inline"
+                    message={topNotice}
+                    role="status"
+                    ariaLive="polite"
+                  />
                 ) : null}
                 <div
                   className="reference-canvas-scroll"
@@ -541,9 +549,14 @@ export function ReferenceGridSections({
                     />
                   </div>
                   {topNotice ? (
-                    <div className="inline-warning-hint reference-grid-top-warning">
-                      {topNotice}
-                    </div>
+                    <AppMessage
+                      className="inline-warning-hint reference-grid-top-warning"
+                      tone="warning"
+                      mode="inline"
+                      message={topNotice}
+                      role="status"
+                      ariaLive="polite"
+                    />
                   ) : null}
                   <div
                     className="reference-canvas-scroll"

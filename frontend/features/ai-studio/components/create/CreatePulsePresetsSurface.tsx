@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { PencilSimpleLine } from "phosphor-react";
+import { AppMessage } from "../../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { type CreatePulsePresetId, type CreatePulseResolvedPreset } from "./createPulsePresets";
 
@@ -341,7 +342,12 @@ export const CreatePulsePresetsSurface = ({
                 }}
               />
               {editorError ? (
-                <p className="create-composer-presets-custom-editor-error">{editorError}</p>
+                <AppMessage
+                  className="create-composer-presets-custom-editor-error"
+                  tone="error"
+                  mode="inline"
+                  message={editorError}
+                />
               ) : null}
             </div>
             <div className="create-composer-presets-custom-editor-actions">

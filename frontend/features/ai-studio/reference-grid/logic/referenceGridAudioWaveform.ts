@@ -62,10 +62,15 @@ export const normalizeStoredWaveformPeaks = (
   targetCount = DEFAULT_AUDIO_WAVEFORM_BAR_COUNT
 ): number[] => {
   if (!Array.isArray(peaks) || peaks.length === 0) return [];
-  const normalized = peaks
+  const finitePeaks = peaks
     .map((peak) => (Number.isFinite(peak) ? Number(peak) : null))
-    .filter((peak): peak is number => peak != null)
-    .map((peak) => Math.round(clamp(peak, 0, MAX_AUDIO_WAVEFORM_PEAK)));
+    .filter((peak): peak is number => peak != null);
+  const appearsUnitNormalized =
+    finitePeaks.length > 0 && finitePeaks.every((peak) => peak >= 0 && peak <= 1);
+  const normalized = finitePeaks.map((peak) => {
+    const scaledPeak = appearsUnitNormalized ? peak * MAX_AUDIO_WAVEFORM_PEAK : peak;
+    return Math.round(clamp(scaledPeak, 0, MAX_AUDIO_WAVEFORM_PEAK));
+  });
   return resampleWaveformPeaks(normalized, targetCount);
 };
 
@@ -80,16 +85,27 @@ export const buildFallbackWaveformPeaks = (
     Number.isFinite(durationSeconds) && durationSeconds != null && durationSeconds > 0
       ? durationSeconds
       : DEFAULT_AUDIO_WAVEFORM_DURATION_SECONDS;
-  const midpoint = (targetCount - 1) / 2;
-  const durationBias = clamp(normalizedDuration / 18, 0.35, 1.1);
+  const durationBias = clamp(normalizedDuration / 10, 0.72, 1.08);
 
   return Array.from({ length: targetCount }, (_, index) => {
-    const distanceFromCenter = Math.abs(index - midpoint);
-    const centerFalloff = midpoint === 0 ? 1 : 1 - distanceFromCenter / midpoint;
-    const eased = Math.pow(Math.max(centerFalloff, 0), 0.82);
+    const position = targetCount <= 1 ? 0 : index / (targetCount - 1);
+    const fadeIn = clamp(position / 0.09, 0, 1);
+    const fadeOut = clamp((1 - position) / 0.1, 0, 1);
+    const phraseEnvelope =
+      0.54 +
+      0.28 * Math.sin(position * Math.PI * 2.2 - 0.5) +
+      0.18 * Math.sin(position * Math.PI * 7.1 + 0.85);
+    const consonantTexture =
+      0.16 * Math.sin(index * 1.77) + 0.1 * Math.sin(index * 3.31 + normalizedDuration);
+    const breathBreak =
+      (position > 0.28 && position < 0.34) || (position > 0.68 && position < 0.74) ? 0.58 : 1;
+    const envelope = clamp(phraseEnvelope + consonantTexture, 0.18, 1) * fadeIn * fadeOut;
     const peak =
       MIN_FALLBACK_WAVEFORM_PEAK +
-      (MAX_AUDIO_WAVEFORM_PEAK - MIN_FALLBACK_WAVEFORM_PEAK) * eased * durationBias;
+      (MAX_AUDIO_WAVEFORM_PEAK - MIN_FALLBACK_WAVEFORM_PEAK) *
+        envelope *
+        durationBias *
+        breathBreak;
     return Math.round(clamp(peak, MIN_FALLBACK_WAVEFORM_PEAK, MAX_AUDIO_WAVEFORM_PEAK));
   });
 };

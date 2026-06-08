@@ -13,6 +13,7 @@ import {
   UploadSimple,
   X,
 } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import {
   extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
@@ -992,9 +993,12 @@ export function ElementsManagerShell({
     <div className="elements-manager-shell elements-manager-shell--panel" data-surface="panel">
       <div className="elements-panel-workspace">
         {error ? (
-          <div className="elements-feedback error" role="status">
-            <span>{error}</span>
-          </div>
+          <AppMessage
+            className="elements-feedback error"
+            tone="error"
+            mode="banner"
+            message={error}
+          />
         ) : null}
 
         <p className="sr-only" role="status" aria-live="polite">

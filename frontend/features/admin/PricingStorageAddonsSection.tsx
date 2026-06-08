@@ -1,4 +1,5 @@
 import React from "react";
+import { AppMessage } from "../../components/AppMessage";
 import { formatStorageBytes } from "../billing/storage";
 import { getStripeStatus } from "./PricingPageChrome";
 import type { AdminPricingStateResponse } from "./types";
@@ -99,8 +100,22 @@ export function PricingStorageAddonsSection({
         </div>
       ) : null}
 
-      {storageMessage ? <p className={styles.announcementResult}>{storageMessage}</p> : null}
-      {storageError ? <p className={styles.announcementError}>{storageError}</p> : null}
+      {storageMessage ? (
+        <AppMessage
+          className={styles.announcementResult}
+          tone="success"
+          mode="banner"
+          message={storageMessage}
+        />
+      ) : null}
+      {storageError ? (
+        <AppMessage
+          className={styles.announcementError}
+          tone="error"
+          mode="banner"
+          message={storageError}
+        />
+      ) : null}
 
       {storageDraft ? (
         <div className={styles.pricingEditorCard}>

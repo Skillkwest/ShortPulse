@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { PencilSimpleLine, Sliders } from "phosphor-react";
+import { AppMessage } from "../../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import type {
   ExpertEditCustomPresetId,
@@ -307,7 +308,12 @@ export const ExpertEditPresetsSurface = ({
                 }}
               />
               {editorError ? (
-                <p className="edit-expert-presets-custom-editor-error">{editorError}</p>
+                <AppMessage
+                  className="edit-expert-presets-custom-editor-error"
+                  tone="error"
+                  mode="inline"
+                  message={editorError}
+                />
               ) : null}
             </div>
             <div className="edit-expert-presets-custom-editor-actions">

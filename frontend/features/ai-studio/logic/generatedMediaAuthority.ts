@@ -508,7 +508,6 @@ const toHydratedGeneratedOutput = (
   const rawPreviewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
   const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row.full_storage_path));
   const taskState = normalizeProjectionTaskState(row.task_state);
-  if (taskState === "fail") return null;
   const queueState = normalizeProjectionQueueState(row.queue_state);
   const modelId = asTrimmedString(row.model_id);
   const mode = inferGeneratedOutputMode({
@@ -1886,6 +1885,7 @@ export const listVisibleGeneratedOutputs = async ({
     const authorityRepairGenerationIds = outputs
       .filter((output) => {
         if (!output.generationId) return false;
+        if (output.taskState === "fail") return false;
         if (output.mode === "video") return true;
         if (output.mode === "image") return true;
         return (

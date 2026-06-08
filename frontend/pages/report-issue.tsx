@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useState, type FormEvent } from "react";
+import { AppMessage } from "../components/AppMessage";
 import { ISSUE_REPORT_MESSAGE_MAX_LENGTH, resolveIssueReportSourcePath } from "../lib/issueReports";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { useProtectedRoute } from "../lib/authGuard";
@@ -139,13 +140,14 @@ export default function ReportIssuePage() {
                 </div>
 
                 {submitState.kind !== "idle" && submitState.message ? (
-                  <p
+                  <AppMessage
                     className={
                       submitState.kind === "success" ? styles.successMessage : styles.errorMessage
                     }
-                  >
-                    {submitState.message}
-                  </p>
+                    tone={submitState.kind === "success" ? "success" : "error"}
+                    mode="banner"
+                    message={submitState.message}
+                  />
                 ) : null}
               </form>
             )}

@@ -1,4 +1,5 @@
 import React from "react";
+import { AppMessage } from "../../components/AppMessage";
 import { getStripeStatus } from "./PricingPageChrome";
 import type { AdminPricingStateResponse } from "./types";
 import {
@@ -94,8 +95,22 @@ export function PricingCreditPackagesSection({
         </div>
       ) : null}
 
-      {creditMessage ? <p className={styles.announcementResult}>{creditMessage}</p> : null}
-      {creditError ? <p className={styles.announcementError}>{creditError}</p> : null}
+      {creditMessage ? (
+        <AppMessage
+          className={styles.announcementResult}
+          tone="success"
+          mode="banner"
+          message={creditMessage}
+        />
+      ) : null}
+      {creditError ? (
+        <AppMessage
+          className={styles.announcementError}
+          tone="error"
+          mode="banner"
+          message={creditError}
+        />
+      ) : null}
 
       {creditDraft ? (
         <div className={styles.pricingEditorCard}>

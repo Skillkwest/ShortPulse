@@ -63,4 +63,48 @@ describe("useMediaLibraryPanelItemInteractions", () => {
       },
     });
   });
+
+  it("writes rendered video card aspect into media drag dimensions", () => {
+    const file: MediaFileRow = {
+      id: "media-video-1",
+      filename: "wide-video.mp4",
+      storage_path: "user-1/media/wide-video.mp4",
+      preview_storage_path: "user-1/variants/wide-video-poster.webp",
+      poster_variant_path: "user-1/variants/wide-video-poster.webp",
+      file_type: "video/mp4",
+      metadata: null,
+      signedUrl: "https://signed.example.com/wide-video.mp4",
+    };
+    const currentTarget = document.createElement("button");
+    const dataTransfer = createMutableTransfer();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelItemInteractions({
+        activeFolderId: "all_items",
+      })
+    );
+
+    result.current.handleMediaCardDragStart(
+      {
+        currentTarget,
+        dataTransfer,
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent<HTMLElement>,
+      file,
+      {
+        aspectRatio: 16 / 9,
+        posterPreviewUrl: "https://signed.example.com/wide-video-poster.webp",
+      }
+    );
+
+    const payload = readMediaLibraryDragPayload(dataTransfer);
+    expect(payload).toMatchObject({
+      kind: "libraryMedia",
+      payload: {
+        id: "media-video-1",
+        fileType: "video",
+        width: 1820,
+        height: 1024,
+      },
+    });
+  });
 });

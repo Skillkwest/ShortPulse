@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { GearSix, Sliders, X } from "phosphor-react";
+import { AppMessage, useTransientAppMessage } from "../../../../components/AppMessage";
 import { PulsePresetsLibraryPanel } from "../PulsePresetsLibraryPanel";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
@@ -68,11 +69,10 @@ export function CreatePulsePresetPanel({
   shouldRestartActivePreset,
 }: CreatePulsePresetPanelProps) {
   const morePresetsSurfaceId = React.useId();
-  const toastVisibleTimerRef = React.useRef<number | null>(null);
-  const toastFadeTimerRef = React.useRef<number | null>(null);
-  const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
-  const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
-  const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
+  const statusToast = useTransientAppMessage({
+    visibleMs: STATUS_TOAST_VISIBLE_MS,
+    fadeMs: STATUS_TOAST_FADE_MS,
+  });
   const [persistentStatusMessage, setPersistentStatusMessage] = React.useState<string | null>(null);
   const [persistentStatusTone, setPersistentStatusTone] = React.useState<"info" | "warning">(
     "warning"
@@ -105,17 +105,6 @@ export function CreatePulsePresetPanel({
   );
 
   React.useEffect(() => {
-    return () => {
-      if (toastVisibleTimerRef.current != null) {
-        window.clearTimeout(toastVisibleTimerRef.current);
-      }
-      if (toastFadeTimerRef.current != null) {
-        window.clearTimeout(toastFadeTimerRef.current);
-      }
-    };
-  }, []);
-
-  React.useEffect(() => {
     if (!isPulseLibraryOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -136,26 +125,9 @@ export function CreatePulsePresetPanel({
 
   const showStatusToast = React.useCallback(
     (message: string, tone: "info" | "warning" = "info") => {
-      if (toastVisibleTimerRef.current != null) {
-        window.clearTimeout(toastVisibleTimerRef.current);
-      }
-      if (toastFadeTimerRef.current != null) {
-        window.clearTimeout(toastFadeTimerRef.current);
-      }
-      setStatusToastMessage(message);
-      setStatusToastTone(tone);
-      setIsStatusToastFading(false);
-      toastVisibleTimerRef.current = window.setTimeout(() => {
-        setIsStatusToastFading(true);
-        toastFadeTimerRef.current = window.setTimeout(() => {
-          setStatusToastMessage(null);
-          setIsStatusToastFading(false);
-          toastFadeTimerRef.current = null;
-        }, STATUS_TOAST_FADE_MS);
-        toastVisibleTimerRef.current = null;
-      }, STATUS_TOAST_VISIBLE_MS);
+      statusToast.show(message, tone);
     },
-    []
+    [statusToast]
   );
 
   const showPersistentStatus = React.useCallback(
@@ -341,34 +313,27 @@ export function CreatePulsePresetPanel({
           </AiStudioModalLayer>
         ) : null}
         {persistentStatusMessage ? (
-          <div
+          <AppMessage
             className={`create-composer-presets-status-banner is-${persistentStatusTone}`.trim()}
+            tone={persistentStatusTone}
+            mode="banner"
+            message={persistentStatusMessage}
             role={persistentStatusTone === "warning" ? "alert" : "status"}
-            aria-live="polite"
-          >
-            <span className="create-composer-presets-status-banner-copy">
-              {persistentStatusMessage}
-            </span>
-            <button
-              type="button"
-              className="create-composer-presets-status-banner-dismiss"
-              aria-label="Dismiss pulse status"
-              onClick={clearStatusMessage}
-            >
-              Dismiss
-            </button>
-          </div>
+            ariaLive="polite"
+            onDismiss={clearStatusMessage}
+          />
         ) : null}
-        {statusToastMessage ? (
-          <div
-            className={`create-composer-presets-status-toast is-${statusToastTone} ${
-              isStatusToastFading ? "is-fading" : ""
+        {statusToast.message ? (
+          <AppMessage
+            className={`create-composer-presets-status-toast is-${statusToast.message.tone} ${
+              statusToast.message.fading ? "is-fading" : ""
             }`.trim()}
+            tone={statusToast.message.tone}
+            mode="toast"
+            message={statusToast.message.message}
             role="status"
-            aria-live="polite"
-          >
-            {statusToastMessage}
-          </div>
+            ariaLive="polite"
+          />
         ) : null}
       </div>
     </section>

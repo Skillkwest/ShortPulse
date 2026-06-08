@@ -3,6 +3,7 @@
  * Collects the initial project title before server-authoritative creation.
  */
 import { useEffect, useId, useRef, type FormEvent } from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 
 type ProjectNameModalProps = {
@@ -82,9 +83,12 @@ export function ProjectNameModal({
             />
           </label>
           {error ? (
-            <p className="project-name-modal__error" role="alert">
-              {error}
-            </p>
+            <AppMessage
+              className="project-name-modal__error"
+              tone="error"
+              mode="inline"
+              message={error}
+            />
           ) : null}
         </div>
         <div className="confirm-modal__actions">

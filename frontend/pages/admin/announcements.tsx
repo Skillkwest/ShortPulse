@@ -3,6 +3,7 @@
  * Owns the global dashboard bulletin publishing workflow.
  */
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
+import { AppMessage } from "../../components/AppMessage";
 import {
   ADMIN_DASHBOARD_ANNOUNCEMENT_MESSAGE_MAX_LENGTH,
   ADMIN_DASHBOARD_ANNOUNCEMENT_TITLE_MAX_LENGTH,
@@ -127,9 +128,21 @@ export default function AdminAnnouncementsPage() {
           </button>
         </div>
 
-        {announcementError ? <p className={styles.announcementError}>{announcementError}</p> : null}
+        {announcementError ? (
+          <AppMessage
+            className={styles.announcementError}
+            tone="error"
+            mode="banner"
+            message={announcementError}
+          />
+        ) : null}
         {announcementResult ? (
-          <p className={styles.announcementResult}>{announcementResult}</p>
+          <AppMessage
+            className={styles.announcementResult}
+            tone="success"
+            mode="banner"
+            message={announcementResult}
+          />
         ) : null}
 
         <div className={styles.announcementPreview}>

@@ -341,6 +341,63 @@ describe("Canvas drop behavior", () => {
     );
   });
 
+  it("sizes poster-backed media-library videos from poster dimensions when drag dimensions are missing", async () => {
+    const OriginalImage = globalThis.Image;
+    class LandscapePosterImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 0;
+      naturalHeight = 0;
+
+      set src(_value: string) {
+        this.naturalWidth = 1920;
+        this.naturalHeight = 1080;
+        setTimeout(() => this.onload?.(), 0);
+      }
+    }
+    vi.stubGlobal("Image", LandscapePosterImage);
+
+    try {
+      const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
+        if (payload.kind !== "libraryMedia") return null;
+        return {
+          kind: "video" as const,
+          outputId: "library-video-1",
+          mediaId: payload.payload.id,
+          videoUrl: payload.payload.url,
+          posterUrl: payload.payload.previewPosterUrl ?? null,
+          title: payload.payload.filename ?? null,
+        };
+      }) satisfies PrepareCanvasMediaLibraryDrop;
+
+      render(<CanvasHarness prepareCanvasMediaLibraryDrop={prepareCanvasMediaLibraryDrop} />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+          "text/shortpulse-media-library-kind": "libraryMedia",
+          "text/shortpulse-media-library-id": "media-video-1",
+          "text/shortpulse-media-library-url": "https://example.com/library-video.mp4",
+          "text/shortpulse-media-library-file-type": "video",
+          "text/shortpulse-media-library-filename": "Library Video",
+          "text/shortpulse-media-library-preview-poster-url":
+            "https://example.com/library-video-poster.webp",
+        }),
+        clientX: 300,
+        clientY: 200,
+      });
+
+      const item = await screen.findByTestId(/canvas-item-/);
+      expect(item).toHaveAttribute("data-kind", "video");
+      expect(Number(item.getAttribute("data-width"))).toBe(275);
+      expect(Number(item.getAttribute("data-height"))).toBeCloseTo(154.69, 2);
+    } finally {
+      vi.stubGlobal("Image", OriginalImage);
+    }
+  });
+
   it("shows controlled unavailable UI when canvas video media fails to render", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

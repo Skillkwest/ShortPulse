@@ -12,7 +12,7 @@ import {
 } from "./markupStrokeController";
 import {
   clampLayerOpacity,
-  resolveContainedLayerRect,
+  resolveLayerVisualGeometry,
   type LayerTransform,
 } from "./expertEditLayerTransformUtils";
 import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
@@ -229,13 +229,13 @@ export function ExpertEditStageScene({
         layer.imageUrl
           ? (() => {
               const constrainedTransform = resolveRenderableLayerTransform(layer);
-              const layerRect = resolveContainedLayerRect({
+              const layerGeometry = resolveLayerVisualGeometry({
                 imageAspectRatio: resolveLayerImageAspectRatio(layer),
                 viewportWidth: renderStageSize.width,
                 viewportHeight: renderStageSize.height,
+                transform: constrainedTransform,
               });
-              const translateX = constrainedTransform.translateXRatio * renderStageSize.width;
-              const translateY = constrainedTransform.translateYRatio * renderStageSize.height;
+              const layerRect = layerGeometry.containedRect;
 
               return (
                 <div
@@ -249,9 +249,7 @@ export function ExpertEditStageScene({
                     backgroundImage: `url(${layer.imageUrl})`,
                     zIndex: layers.length - index,
                     opacity: clampLayerOpacity(layer.opacity),
-                    transform: `translate(${Math.round(translateX * 100) / 100}px, ${
-                      Math.round(translateY * 100) / 100
-                    }px) scale(${constrainedTransform.scale}) rotate(${constrainedTransform.rotationDeg}deg)`,
+                    transform: layerGeometry.transformCss,
                     transformOrigin: "center center",
                   }}
                 />

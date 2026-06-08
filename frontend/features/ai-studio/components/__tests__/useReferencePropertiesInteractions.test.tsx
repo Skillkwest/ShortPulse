@@ -6,6 +6,7 @@ import {
   readRememberedObjectUrlBlob,
 } from "../../utils/objectUrlBlobRegistry";
 import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
+import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
 
 const makeInternalReferenceDragEvent = (overrides?: {
   mediaKind?: "image" | "video" | "audio" | "text";
@@ -82,6 +83,37 @@ const createMotionDropEvent = (overrides?: {
   }) as unknown as Parameters<
     ReturnType<typeof useReferencePropertiesInteractions>["handleMotionVideoDrop"]
   >[0];
+
+const makeCanvasTearOutImagePayload = () => ({
+  kind: "image" as const,
+  internalPayload: {
+    version: 1,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId: "out-1",
+    outputId: "out-1",
+    imageIndex: 0,
+    mediaId: "media-1",
+    mediaKind: "image" as const,
+    referenceUrl: "blob:weak-reference-render",
+    referenceRenderUrl: "https://cdn.shortpulse.test/secondary-reference.png",
+    sourceSurface: "all-refs" as const,
+    width: 640,
+    height: 480,
+    sessionBacked: true,
+  },
+  composerImagePayload: {
+    version: 1,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId: "out-1",
+    outputId: "out-1",
+    mediaId: "media-1",
+    displayArtifactUrl: "https://cdn.shortpulse.test/secondary-reference.png",
+    displayArtifactKind: "url" as const,
+    sourceSurface: "all-refs" as const,
+    width: 640,
+    height: 480,
+  },
+});
 
 describe("useReferencePropertiesInteractions", () => {
   const originalCreateObjectUrl = URL.createObjectURL;
@@ -266,6 +298,59 @@ describe("useReferencePropertiesInteractions", () => {
 
     expect(result.current.extraImageLoading[0]).toBe(false);
     expect(onExtraImageChange).toHaveBeenCalledWith(0, "https://example.com/reference-image.png");
+  });
+
+  it("accepts canvas tear-out image payloads for secondary references", async () => {
+    const onExtraImageChange = vi.fn();
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-1",
+      mediaId: "media-1",
+      mediaSource: "generated" as const,
+      preview: { url: "https://cdn.shortpulse.test/secondary-reference.png" },
+      previewStoragePath: "user/images/secondary-reference-preview.png",
+      fullStoragePath: "user/images/secondary-reference-full.png",
+      promptText: null,
+      preparedImageUrl: "https://cdn.shortpulse.test/secondary-reference-durable.png",
+      loadBlob: async () => new Blob(["image"], { type: "image/png" }),
+    }));
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange,
+        onPromptTextChange: vi.fn(),
+        resolvePreviewUrlById: vi.fn(() => "https://example.com/weak-preview.png"),
+        resolveInternalReferenceImageDropSource,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    await act(async () => {
+      result.current.acceptExtraCanvasTearOutPayload(1, makeCanvasTearOutImagePayload());
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(onExtraImageChange).toHaveBeenCalledWith(
+      1,
+      "https://cdn.shortpulse.test/secondary-reference-durable.png"
+    );
+    expect(result.current.extraImageLoading[1]).toBe(false);
   });
 
   it("clears frame-slot loading when an internal image drop resolves without a usable url", async () => {

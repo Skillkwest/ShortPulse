@@ -125,6 +125,7 @@ export const useExpertEditPromptComposerRuntime = ({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
+    acceptExtraCanvasTearOutPayload,
   } = useReferencePropertiesInteractions({
     referenceImageUrl: selectedLayerImageUrl,
     extraImageUrls,
@@ -277,6 +278,7 @@ export const useExpertEditPromptComposerRuntime = ({
     handleExtraDragLeave,
     handleExtraDragOver,
     handleExtraDrop,
+    acceptExtraCanvasTearOutPayload,
     handleFileSelection,
     handleInvalidPromptReferenceToken,
     handlePanelPresetApply,

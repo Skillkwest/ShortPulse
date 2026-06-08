@@ -10,6 +10,7 @@ import {
   UploadSimple,
   VideoCamera,
 } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import { loadVideoPreviewMetadata } from "../logic/videoPreviewMetadata";
 import { MediaDurationBadge } from "./shared/MediaDurationBadge";
 import { ReferenceStepHeaderActionButton } from "./ReferenceStepHeaderActionButton";
@@ -288,12 +289,12 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               Adding motion clip...
             </p>
           ) : motionVideoError ? (
-            <p
+            <AppMessage
               className="motion-drop-status motion-drop-status--error tiny helper-text"
-              role="alert"
-            >
-              {motionVideoError}
-            </p>
+              tone="error"
+              mode="inline"
+              message={motionVideoError}
+            />
           ) : null}
         </>
       ) : isKling3Mode ? (

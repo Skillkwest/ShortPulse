@@ -44,6 +44,13 @@ export type ContainedLayerRect = {
   topPercent: number;
 };
 
+export type LayerVisualGeometry = {
+  containedRect: ContainedLayerRect;
+  translateX: number;
+  translateY: number;
+  transformCss: string;
+};
+
 const LAYER_OPACITY_MIN = 0;
 const LAYER_OPACITY_MAX = 1;
 const LAYER_TRANSLATE_RATIO_MIN = -1;
@@ -117,6 +124,38 @@ export const resolveContainedLayerRect = ({
     heightPercent: (height / safeViewportHeight) * 100,
     leftPercent: (left / safeViewportWidth) * 100,
     topPercent: (top / safeViewportHeight) * 100,
+  };
+};
+
+const roundCssPixelValue = (value: number) => Math.round(value * 100) / 100;
+
+export const resolveLayerVisualGeometry = ({
+  imageAspectRatio,
+  viewportWidth,
+  viewportHeight,
+  transform,
+}: {
+  imageAspectRatio: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  transform: LayerTransform;
+}): LayerVisualGeometry => {
+  const containedRect = resolveContainedLayerRect({
+    imageAspectRatio,
+    viewportWidth,
+    viewportHeight,
+  });
+  const translateX = transform.translateXRatio * resolveSafeViewportDimension(viewportWidth);
+  const translateY = transform.translateYRatio * resolveSafeViewportDimension(viewportHeight);
+  return {
+    containedRect,
+    translateX,
+    translateY,
+    transformCss: `translate(${roundCssPixelValue(translateX)}px, ${roundCssPixelValue(
+      translateY
+    )}px) scale(${Math.max(LAYER_SCALE_EPSILON, transform.scale)}) rotate(${
+      transform.rotationDeg
+    }deg)`,
   };
 };
 

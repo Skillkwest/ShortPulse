@@ -1,6 +1,7 @@
 import Image from "next/image";
 import React from "react";
 import { Trash } from "phosphor-react";
+import { AppMessage } from "../../../../components/AppMessage";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
@@ -287,13 +288,14 @@ export function StandardCreatePanelView({
             <div className="create-composer-bottom-block">
               <PromptStep {...promptStepLayoutProps} />
               {showCreateControlSet && inlineGuardrailReason ? (
-                <div
+                <AppMessage
                   className="create-composer-inline-warning-bubble"
+                  tone="warning"
+                  mode="inline"
+                  message={inlineGuardrailReason}
                   role="status"
-                  aria-live="polite"
-                >
-                  {inlineGuardrailReason}
-                </div>
+                  ariaLive="polite"
+                />
               ) : null}
               {showCreateControlSet ? (
                 <div className="create-composer-secondary-row create-composer-controls-row">

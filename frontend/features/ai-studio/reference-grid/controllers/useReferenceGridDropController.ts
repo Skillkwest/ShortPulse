@@ -8,6 +8,10 @@ import {
   extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
 } from "../../utils/dragDrop";
+import {
+  buildAiStudioDropSnapshotTransfer,
+  captureAiStudioDropSnapshot,
+} from "../../logic/aiStudioDropSnapshot";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import type {
   LibraryMediaReferencePayload,
@@ -80,7 +84,8 @@ export const useReferenceGridDropController = ({
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
     canvasDragDepthRef.current = 0;
     setCanvasDropModeSafe("none");
-    const transfer = event.dataTransfer;
+    const dropSnapshot = captureAiStudioDropSnapshot(event.dataTransfer);
+    const transfer = buildAiStudioDropSnapshotTransfer(dropSnapshot);
 
     // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
     if (

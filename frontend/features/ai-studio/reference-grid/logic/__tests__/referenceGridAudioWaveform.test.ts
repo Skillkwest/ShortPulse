@@ -20,6 +20,11 @@ describe("referenceGridAudioWaveform", () => {
     expect(Math.min(...peaks)).toBeGreaterThanOrEqual(0);
   });
 
+  it("scales unit-normalized stored waveform peaks into the render range", () => {
+    const peaks = normalizeStoredWaveformPeaks([0.1, 0.45, 0.9, 0.35], 4);
+    expect(peaks).toEqual([10, 45, 90, 35]);
+  });
+
   it("builds a fixed-density fallback waveform for audio cards", () => {
     const shortPeaks = buildFallbackWaveformPeaks(2, 20);
     const longPeaks = buildFallbackWaveformPeaks(12, 20);

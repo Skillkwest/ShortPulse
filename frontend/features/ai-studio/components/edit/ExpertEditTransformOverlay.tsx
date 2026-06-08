@@ -4,7 +4,7 @@
 import React from "react";
 
 import { selectedLayerTransformHandleCorners } from "./expertEditPanelViewContract";
-import { resolveContainedLayerRect, type LayerTransform } from "./expertEditLayerTransformUtils";
+import { resolveLayerVisualGeometry, type LayerTransform } from "./expertEditLayerTransformUtils";
 
 type ExpertEditTransformOverlayProps = {
   scope: "inline" | "modal";
@@ -12,7 +12,6 @@ type ExpertEditTransformOverlayProps = {
   viewportHeight: number;
   imageAspectRatio: number;
   transform: LayerTransform;
-  scale: number;
   interactionHandlers?: Pick<
     React.HTMLAttributes<HTMLDivElement>,
     "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onPointerLeave"
@@ -28,16 +27,15 @@ export function ExpertEditTransformOverlay({
   viewportHeight,
   imageAspectRatio,
   transform,
-  scale,
   interactionHandlers,
 }: ExpertEditTransformOverlayProps) {
-  const layerRect = resolveContainedLayerRect({
+  const layerGeometry = resolveLayerVisualGeometry({
     imageAspectRatio,
     viewportWidth,
     viewportHeight,
+    transform,
   });
-  const translateX = transform.translateXRatio * viewportWidth;
-  const translateY = transform.translateYRatio * viewportHeight;
+  const layerRect = layerGeometry.containedRect;
 
   return (
     <div
@@ -52,21 +50,14 @@ export function ExpertEditTransformOverlay({
         top: `${layerRect.topPercent}%`,
         width: `${layerRect.widthPercent}%`,
         height: `${layerRect.heightPercent}%`,
-        transform: `translate(${Math.round(translateX * 100) / 100}px, ${
-          Math.round(translateY * 100) / 100
-        }px) rotate(${transform.rotationDeg}deg)`,
+        transform: layerGeometry.transformCss,
         transformOrigin: "center center",
       }}
       aria-hidden="true"
+      data-edit-expert-transform-drag-mode="move"
       data-testid={`edit-expert-transform-overlay-${scope}`}
     >
-      <div
-        className="edit-expert-primary-layer-selection-box"
-        style={{
-          width: `${Math.max(0.0001, scale * 100)}%`,
-          height: `${Math.max(0.0001, scale * 100)}%`,
-        }}
-      >
+      <div className="edit-expert-primary-layer-selection-box">
         <span className="edit-expert-primary-layer-selection-outline" />
         {selectedLayerTransformHandleCorners.map((corner) => (
           <span

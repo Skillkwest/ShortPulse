@@ -146,19 +146,6 @@ const mergeHydratedGeneratedOutput = (
   generationReplay: hydrated.generationReplay ?? existing.generationReplay,
 });
 
-const isCanonicalGeneratedOutput = (output: StudioOutput): boolean =>
-  Boolean(
-    output.mediaSource === "generated" ||
-    asTrimmedString(output.generationId) ||
-    asTrimmedString(output.taskId) ||
-    asTrimmedString(output.sourceRef)
-  );
-
-const shouldPruneUnmatchedCanonicalOutput = (output: StudioOutput): boolean => {
-  if (!isCanonicalGeneratedOutput(output)) return false;
-  return output.taskState === "fail";
-};
-
 export const mergeCanonicalGeneratedOutputs = (
   existingOutputs: StudioOutput[],
   hydratedOutputs: StudioOutput[]
@@ -182,9 +169,6 @@ export const mergeCanonicalGeneratedOutputs = (
 
   return sortStudioOutputsByCreatedAtDesc([
     ...canonicalOutputs,
-    ...existingOutputs.filter(
-      (output, index) =>
-        !matchedExistingIndexes.has(index) && !shouldPruneUnmatchedCanonicalOutput(output)
-    ),
+    ...existingOutputs.filter((_, index) => !matchedExistingIndexes.has(index)),
   ]);
 };

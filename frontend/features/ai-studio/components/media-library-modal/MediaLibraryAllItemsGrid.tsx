@@ -40,6 +40,7 @@ type ResolveMediaLibraryGridPreviewUrlArgs = {
 export type MediaLibraryMediaDragPreview = {
   hoverVideoUrl?: string | null;
   posterPreviewUrl?: string | null;
+  aspectRatio?: number | null;
 };
 
 type MediaLibraryAllItemsGridProps = {
@@ -345,6 +346,7 @@ function MediaLibraryAllItemsMediaCard({
           onMediaDragStart?.(event, file, {
             hoverVideoUrl,
             posterPreviewUrl,
+            aspectRatio: previewAspectRatio,
           })
         }
         onDragEnd={(event) => onMediaDragEnd?.(event, file)}

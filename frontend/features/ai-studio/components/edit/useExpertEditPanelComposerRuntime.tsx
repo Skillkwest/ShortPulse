@@ -25,6 +25,7 @@ type UseExpertEditPanelComposerRuntimeArgs = {
     isOpen: boolean;
     selectedSlotIndex: number | "main" | null;
   };
+  isPromptCanvasTearOutActive?: boolean;
   hostPrimaryImageUrl: string | null;
   populatedPromptTokenSlotIndexes: readonly number[];
   extraImageUrls: readonly (string | null)[];
@@ -93,6 +94,7 @@ export function useExpertEditPanelComposerRuntime({
   handlePromptScroll,
   handlePromptBlur,
   promptTokenPickerState,
+  isPromptCanvasTearOutActive = false,
   hostPrimaryImageUrl,
   populatedPromptTokenSlotIndexes,
   extraImageUrls,
@@ -158,6 +160,7 @@ export function useExpertEditPanelComposerRuntime({
       onPromptScroll={handlePromptScroll}
       onPromptBlur={handlePromptBlur}
       promptTokenPickerState={promptTokenPickerState}
+      isCanvasTearOutActive={isPromptCanvasTearOutActive}
       hostPrimaryImageUrl={hostPrimaryImageUrl}
       populatedPromptTokenSlotIndexes={populatedPromptTokenSlotIndexes}
       extraImageUrls={extraImageUrls}

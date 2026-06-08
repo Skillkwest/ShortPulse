@@ -3,6 +3,7 @@
  * Handles prompt entry modes and Agent interactions.
  */
 import React from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import type { AgentMessage } from "../../../prefabs/agent";
 import { resolveAgentComposerTextDropInsertion } from "./promptStep/agentComposerDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
@@ -452,7 +453,7 @@ export function PromptStep({
         )
       ) : null}
       {canUsePromptSurface && agentError && !isCollapsed ? (
-        <div className="inline-error-hint">{agentError}</div>
+        <AppMessage className="inline-error-hint" tone="error" mode="inline" message={agentError} />
       ) : null}
     </div>
   );

@@ -4,6 +4,7 @@
  */
 import { useState } from "react";
 import Image from "next/image";
+import { AppMessage } from "../../../components/AppMessage";
 import type { MediaComplianceAgreementDefinition } from "../../../lib/compliance/mediaAgreement";
 
 type MediaComplianceGateProps = {
@@ -116,9 +117,12 @@ export function MediaComplianceGate({
         )}
 
         {error ? (
-          <div className="auth-error compliance-gate-error" role="alert" aria-live="assertive">
-            {error}
-          </div>
+          <AppMessage
+            className="auth-error compliance-gate-error"
+            tone="error"
+            mode="banner"
+            message={error}
+          />
         ) : null}
 
         <div className="compliance-gate-actions">

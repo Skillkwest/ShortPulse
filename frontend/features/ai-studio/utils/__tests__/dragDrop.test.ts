@@ -178,6 +178,50 @@ describe("dragDrop payload extraction", () => {
     expect(payload.promptText).toBe("cinematic portrait");
   });
 
+  it("prefers structured image references over synthetic browser files", () => {
+    const syntheticFile = new File(["browser-preview"], "preview.png", { type: "image/png" });
+    const transfer = makeTransferWithFiles(
+      {
+        "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+        "text/reference-id": "ref-image-structured",
+        "text/reference-media-kind": "image",
+        "text/reference-render-url": "https://cdn.example.com/rendered-reference.png",
+        "text/reference-url": "https://cdn.example.com/durable-reference.png",
+        "text/plain": "cinematic portrait",
+      },
+      [syntheticFile]
+    );
+
+    const payload = extractDragDropPayload(transfer);
+
+    expect(payload.referenceId).toBe("ref-image-structured");
+    expect(payload.fromFile).toBe(false);
+    expect(payload.imageFile).toBeUndefined();
+    expect(payload.imageUrl).toBe("https://cdn.example.com/rendered-reference.png");
+    expect(payload.promptText).toBe("cinematic portrait");
+  });
+
+  it("does not convert degraded internal image references into local file uploads", () => {
+    const syntheticFile = new File(["browser-preview"], "preview.png", { type: "image/png" });
+    const transfer = makeTransferWithFiles(
+      {
+        "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+        "text/reference-id": "ref-image-degraded",
+        "text/reference-media-kind": "image",
+        "text/plain": "cinematic portrait",
+      },
+      [syntheticFile]
+    );
+
+    const payload = extractDragDropPayload(transfer);
+
+    expect(payload.referenceId).toBe("ref-image-degraded");
+    expect(payload.fromFile).toBe(false);
+    expect(payload.imageFile).toBeUndefined();
+    expect(payload.imageUrl).toBeNull();
+    expect(payload.promptText).toBe("cinematic portrait");
+  });
+
   it("uses text/reference-render-url when custom internal drag types are absent", () => {
     const transfer = makeTransfer({
       "text/reference-id": "ref-1",
@@ -314,6 +358,30 @@ describe("dragDrop payload extraction", () => {
     expect(payload.promptText).toBe("camera move");
   });
 
+  it("keeps audio references out of image-file upload extraction even with companion art files", () => {
+    const syntheticFile = new File(["companion-art"], "audio-art.png", { type: "image/png" });
+    const transfer = makeTransferWithFiles(
+      {
+        "text/reference-id": "ref-audio-1",
+        "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+        "text/reference-media-kind": "audio",
+        "text/reference-url": "https://cdn.example.com/reference-audio.mp3",
+        "image/url": "https://cdn.example.com/reference-audio-art.jpg",
+        "text/plain": "voice sample",
+      },
+      [syntheticFile]
+    );
+
+    const payload = extractDragDropPayload(transfer);
+
+    expect(payload.referenceId).toBe("ref-audio-1");
+    expect(payload.fromFile).toBe(false);
+    expect(payload.imageFile).toBeUndefined();
+    expect(payload.imageUrl).toBeNull();
+    expect(payload.mediaKind).toBe("audio");
+    expect(payload.promptText).toBe("voice sample");
+  });
+
   it("prefers text/reference-url for video drags when URI list points at the current page", () => {
     const transfer = makeTransfer({
       "text/reference-id": "ref-video-1",
@@ -338,6 +406,28 @@ describe("dragDrop payload extraction", () => {
     expect(payload.fromFile).toBe(true);
     expect(payload.videoFile).toBe(file);
     expect(payload.videoUrl).toBeNull();
+  });
+
+  it("prefers structured video references over synthetic browser files", () => {
+    const syntheticFile = new File(["browser-preview"], "preview.mp4", { type: "video/mp4" });
+    const transfer = makeTransferWithFiles(
+      {
+        "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+        "text/reference-id": "ref-video-structured",
+        "text/reference-media-kind": "video",
+        "text/reference-url": "https://cdn.example.com/reference-video.mp4",
+        "text/plain": "camera move",
+      },
+      [syntheticFile]
+    );
+
+    const payload = extractVideoDragDropPayload(transfer);
+
+    expect(payload.referenceId).toBe("ref-video-structured");
+    expect(payload.fromFile).toBe(false);
+    expect(payload.videoFile).toBeUndefined();
+    expect(payload.videoUrl).toBe("https://cdn.example.com/reference-video.mp4");
+    expect(payload.promptText).toBe("camera move");
   });
 
   it("accepts internal reference drags for video targets during dragover", () => {

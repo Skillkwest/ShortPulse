@@ -3,6 +3,7 @@
  */
 import { ChangeEvent } from "react";
 import { UserCircle } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import { Creator } from "../types";
 import { formatNumber } from "../utils/formatters";
 import { getProfileUrl } from "../utils/handles";
@@ -79,7 +80,7 @@ export const SavedCreatorTable = ({
             {error && (
               <tr>
                 <td className="table-status error" colSpan={5}>
-                  {error}
+                  <AppMessage tone="error" mode="inline" message={error} />
                 </td>
               </tr>
             )}

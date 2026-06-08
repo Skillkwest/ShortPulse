@@ -3,7 +3,10 @@
  * Guards metadata parsing, clamping, and fallback paths used by AI Studio modal previews.
  */
 import { describe, expect, it } from "vitest";
-import { resolveMediaCardAspectRatio } from "../mediaLibraryAspectRatio";
+import {
+  resolveMediaCardAspectRatio,
+  resolveMediaDragDimensions,
+} from "../mediaLibraryAspectRatio";
 
 describe("resolveMediaCardAspectRatio", () => {
   it("uses image fallback when metadata is missing", () => {
@@ -11,7 +14,7 @@ describe("resolveMediaCardAspectRatio", () => {
   });
 
   it("uses video fallback when metadata is missing for video files", () => {
-    expect(resolveMediaCardAspectRatio({ fileType: "video/mp4", metadata: null })).toBe(9 / 16);
+    expect(resolveMediaCardAspectRatio({ fileType: "video/mp4", metadata: null })).toBe(16 / 9);
   });
 
   it("prefers explicit aspect ratio metadata values", () => {
@@ -82,5 +85,18 @@ describe("resolveMediaCardAspectRatio", () => {
         metadata: { width: "nope", height: null, aspect_ratio: "NaN" },
       })
     ).toBe(4 / 5);
+  });
+
+  it("uses the rendered card ratio for drag dimensions when row dimensions are missing", () => {
+    expect(
+      resolveMediaDragDimensions({
+        fileType: "video/mp4",
+        metadata: null,
+        visualAspectRatio: 16 / 9,
+      })
+    ).toEqual({
+      width: 1820,
+      height: 1024,
+    });
   });
 });

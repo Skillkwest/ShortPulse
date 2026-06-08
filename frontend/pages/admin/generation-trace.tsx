@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import { AppMessage } from "../../components/AppMessage";
 import { ConfirmationModal } from "../../components/ConfirmationModal";
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
@@ -293,9 +294,12 @@ export default function AdminGenerationTracePage() {
           </button>
         </form>
         {error ? (
-          <p className="tiny" style={{ color: "#ff7f7f", marginTop: 10 }}>
-            {error}
-          </p>
+          <AppMessage
+            className={styles.announcementError}
+            tone="error"
+            mode="banner"
+            message={error}
+          />
         ) : null}
       </section>
 

@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { ArrowClockwise, CloudArrowUp, ImageSquare, UploadSimple } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import { StudioOutput } from "../types";
 import { isVideoUrl } from "../logic/stateParsers";
 import { normalizeCustomerFacingProviderError } from "../../../lib/customerFacingProviderText";
@@ -158,7 +159,14 @@ function StudioPreviewComponent({
                 {taskState === "fail" ? "Failed" : "Processing"}
               </div>
             ) : null}
-            {errorMessage ? <p className="status-error">{errorMessage}</p> : null}
+            {errorMessage ? (
+              <AppMessage
+                className="status-error"
+                tone="error"
+                mode="inline"
+                message={errorMessage}
+              />
+            ) : null}
             <button type="button" className="ghost-btn" onClick={onRegenerate}>
               <ArrowClockwise size={18} weight="bold" /> Regenerate
             </button>

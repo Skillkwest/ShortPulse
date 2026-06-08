@@ -1725,6 +1725,8 @@ describe("executeGenerationRecovery", () => {
         errorMessageShort: "Generation failed",
         errorDetail: "User defined request timeout exceeded: Pre-start",
         publicationState: "suppressed",
+        hiddenInReferenceGrid: false,
+        referenceGridVisible: true,
         resultUrls: [],
         savedMediaIds: [],
       })

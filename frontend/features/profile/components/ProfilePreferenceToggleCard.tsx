@@ -2,6 +2,7 @@
  * Reusable profile preference card for a single boolean toggle setting.
  * Receives state and handlers from the page and renders profile-aligned UI.
  */
+import { AppMessage } from "../../../components/AppMessage";
 import { profileClass } from "../profileRouteStyles";
 
 type ProfilePreferenceToggleCardProps = {
@@ -63,16 +64,16 @@ export function ProfilePreferenceToggleCard({
         </p>
       ) : null}
       {error ? (
-        <p
+        <AppMessage
           className={profileClass(
             "tiny",
             "profile-preference-status",
             "profile-preference-status-error"
           )}
-          role="status"
-        >
-          {error}
-        </p>
+          tone="error"
+          mode="inline"
+          message={error}
+        />
       ) : null}
     </div>
   );

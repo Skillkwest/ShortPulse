@@ -234,22 +234,22 @@ function SharedMediaDetailAudioPreview({
 
   return (
     <div className="detail-modal-audio-preview">
-      <div className="detail-modal-audio-player">
-        <button
-          type="button"
-          className={`detail-modal-audio-play ${isPlaying ? "is-playing" : ""}`}
-          aria-label={isPlaying ? pauseLabel : playLabel}
-          aria-pressed={isPlaying}
-          onClick={(event) => {
-            void handleTogglePlayback(event);
-          }}
-        >
-          {isPlaying ? (
-            <Pause size={28} weight="fill" aria-hidden="true" />
-          ) : (
-            <Play size={28} weight="fill" aria-hidden="true" />
-          )}
-        </button>
+      <button
+        type="button"
+        className={`detail-modal-audio-play ${isPlaying ? "is-playing" : ""}`}
+        aria-label={isPlaying ? pauseLabel : playLabel}
+        aria-pressed={isPlaying}
+        onClick={(event) => {
+          void handleTogglePlayback(event);
+        }}
+      >
+        {isPlaying ? (
+          <Pause size={28} weight="fill" aria-hidden="true" />
+        ) : (
+          <Play size={28} weight="fill" aria-hidden="true" />
+        )}
+      </button>
+      <div className="detail-modal-audio-waveform-panel">
         <div className="detail-modal-audio-waveform-shell">
           <div className="detail-modal-audio-waveform" aria-hidden="true">
             {waveformColumns.map((column) => (

@@ -405,6 +405,25 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     setLoadedPrimaryImageSrc(normalizedPrimaryImageSrc);
     markCardMediaLoaded();
   }, [markCardMediaLoaded, normalizedPrimaryImageSrc]);
+  const handleCardClick = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      onSelectOutput(item.id);
+      if (isPromptOnly && event.detail <= 1) {
+        onOpenDetails(item.id);
+      }
+    },
+    [isPromptOnly, item.id, onOpenDetails, onSelectOutput]
+  );
+  const handleCardKeyboardActivate = React.useCallback(() => {
+    onSelectOutput(item.id);
+    if (isPromptOnly) {
+      onOpenDetails(item.id);
+    }
+  }, [isPromptOnly, item.id, onOpenDetails, onSelectOutput]);
+  const handleCardDoubleClick = React.useCallback(() => {
+    if (isPromptOnly) return;
+    onOpenDetails(item.id);
+  }, [isPromptOnly, item.id, onOpenDetails]);
 
   return (
     <div
@@ -417,11 +436,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       data-drag-image-src={dragImageSrc}
       data-drag-preview-kind={dragPreviewKind}
       tabIndex={0}
-      onClick={() => onSelectOutput(item.id)}
+      onClick={handleCardClick}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelectOutput(item.id);
+          handleCardKeyboardActivate();
           return;
         }
         if (!onKeyboardReorderCurated) return;
@@ -430,7 +449,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onKeyboardReorderCurated(item.id, event.key === "ArrowUp" ? "up" : "down");
         }
       }}
-      onDoubleClick={() => onOpenDetails(item.id)}
+      onDoubleClick={handleCardDoubleClick}
       draggable={canDragReference}
       onDragStart={(event) => {
         onCardDragStart(event, item, dragSourceSurface, composerImageArtifact);

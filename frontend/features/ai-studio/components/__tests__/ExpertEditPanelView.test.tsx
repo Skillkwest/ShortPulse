@@ -34,6 +34,11 @@ import {
   resolveMoveStageZoomSliderValue,
 } from "../edit/expertEditViewportUtils";
 import { MARKUP_OVERLAY_OPACITY } from "../edit/markupStrokeController";
+import {
+  createCanvasTearOutComposerTargetRegistry,
+  type CanvasTearOutPoint,
+} from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 
 const { composePrimaryStageLayersToBlobMock, composeFlattenedMarkupReferenceBlobMock } = vi.hoisted(
   () => ({
@@ -535,6 +540,26 @@ describe("ExpertEditPanelView", () => {
     };
   };
 
+  const setElementRect = (
+    element: HTMLElement,
+    rect: { left: number; top: number; width: number; height: number }
+  ) => {
+    element.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          x: rect.left,
+          y: rect.top,
+          left: rect.left,
+          top: rect.top,
+          right: rect.left + rect.width,
+          bottom: rect.top + rect.height,
+          width: rect.width,
+          height: rect.height,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+  };
+
   beforeEach(() => {
     objectUrlCounter = 0;
     composePrimaryStageLayersToBlobMock.mockClear();
@@ -577,6 +602,75 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByLabelText("Secondary edit image 3")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
+  });
+
+  it("registers Canvas tear-out targets for edit stage, secondary references, and prompt text", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const onPromptTextChangeSpy = vi.fn();
+    const imagePayload: AgentComposerDirectDropPayload = {
+      kind: "image",
+      internalPayload: null,
+      composerImagePayload: {
+        version: 1,
+        origin: "ai-studio-reference-grid",
+        referenceId: "canvas-image",
+        outputId: null,
+        mediaId: "media-1",
+        displayArtifactUrl: "https://example.com/canvas.png",
+        displayArtifactKind: "url",
+        sourceSurface: "all-refs",
+      },
+    };
+    const promptPayload: AgentComposerDirectDropPayload = {
+      kind: "text",
+      text: "Canvas text",
+    };
+    const primaryPoint: CanvasTearOutPoint = { clientX: 20, clientY: 20 };
+    const secondaryPoint: CanvasTearOutPoint = { clientX: 20, clientY: 250 };
+    const promptPoint: CanvasTearOutPoint = { clientX: 20, clientY: 350 };
+
+    const { promptInput } = renderControlledPromptPanel({
+      initialPrompt: "Existing draft ",
+      onPromptTextChangeSpy,
+      panelProps: {
+        canvasTearOutTargetRegistry: registry,
+      },
+    });
+
+    const primaryFrameStack = screen.getByTestId("edit-expert-primary-canvas-frame-stack");
+    const secondarySlot = screen.getByLabelText("Secondary edit image 1") as HTMLElement;
+    const promptShell = promptInput.closest(".edit-expert-prompt-input-shell") as HTMLElement;
+    expect(promptShell).toBeTruthy();
+
+    setElementRect(primaryFrameStack, { left: 10, top: 10, width: 200, height: 200 });
+    setElementRect(secondarySlot, { left: 10, top: 230, width: 80, height: 80 });
+    setElementRect(promptShell, { left: 10, top: 330, width: 320, height: 120 });
+
+    await waitFor(() =>
+      expect(registry.resolveTargetAtPoint(primaryPoint, imagePayload)?.id).toBe(
+        "expert-edit-primary-stage"
+      )
+    );
+    expect(registry.resolveTargetAtPoint(secondaryPoint, imagePayload)?.id).toBe(
+      "expert-edit-secondary-reference-0"
+    );
+    const promptTarget = registry.resolveTargetAtPoint(promptPoint, promptPayload);
+    expect(promptTarget?.id).toBe("expert-edit-prompt-composer");
+
+    act(() => {
+      promptTarget?.target.accept(promptPayload);
+    });
+    expect(onPromptTextChangeSpy).toHaveBeenCalledWith("Existing draft Canvas text");
+
+    act(() => {
+      registry.setActiveTarget("expert-edit-prompt-composer");
+    });
+    expect(promptShell).toHaveClass("is-dragging");
+
+    act(() => {
+      registry.clearActiveTarget();
+    });
+    expect(promptShell).not.toHaveClass("is-dragging");
   });
 
   it("pins the current edit composer prompt as a text reference", () => {
@@ -4706,61 +4800,84 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it.skip("moves the selected layer when dragging in move mode", async () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/move-target.png"
-        referenceText="prompt text"
-      />
-    );
+  it("moves the selected layer when dragging the selected image body in move mode", async () => {
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 1200;
+      naturalHeight = 1200;
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-
-    const primaryDropzone = screen.getByLabelText("Primary composition surface");
-    const rect = {
-      left: 0,
-      top: 0,
-      width: 200,
-      height: 200,
-      right: 200,
-      bottom: 200,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    } satisfies DOMRect;
-    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
       configurable: true,
-      value: () => rect,
+      writable: true,
+      value: MockImage,
     });
 
-    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-    expect(readFrameTranslate(frame).x).toBeCloseTo(0, 4);
-    expect(readFrameTranslate(frame).y).toBeCloseTo(0, 4);
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/move-target.png"
+          referenceText="prompt text"
+        />
+      );
 
-    dragStagePointer({
-      currentTarget: primaryDropzone,
-      pointerId: 40,
-      startX: 196,
-      startY: 4,
-      endX: 110,
-      endY: 90,
-      shiftKey: true,
-    });
-    dragStagePointer({
-      currentTarget: primaryDropzone,
-      pointerId: 41,
-      startX: 20,
-      startY: 20,
-      endX: 60,
-      endY: 70,
-    });
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
 
-    const { x: translateX, y: translateY } = readFrameTranslate(frame);
-    expect(Math.abs(translateX)).toBeGreaterThan(1);
-    expect(Math.abs(translateY)).toBeGreaterThan(1);
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
+      const rect = {
+        left: 0,
+        top: 0,
+        width: 200,
+        height: 200,
+        right: 200,
+        bottom: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } satisfies DOMRect;
+      Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+        configurable: true,
+        value: () => rect,
+      });
+      const frameStack = document.querySelector(
+        ".edit-expert-primary-canvas-frame-stack"
+      ) as HTMLDivElement;
+      mockElementRect(frameStack, rect);
+
+      const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+      expect(readFrameTranslate(frame).x).toBeCloseTo(0, 4);
+      expect(readFrameTranslate(frame).y).toBeCloseTo(0, 4);
+
+      const overlay = screen.getByTestId("edit-expert-transform-overlay-inline");
+      dragStagePointer({
+        currentTarget: overlay,
+        downTarget: overlay,
+        pointerId: 41,
+        startX: 20,
+        startY: 20,
+        endX: 60,
+        endY: 70,
+      });
+
+      const { x: translateX, y: translateY } = readFrameTranslate(frame);
+      expect(Math.abs(translateX)).toBeGreaterThan(1);
+      expect(Math.abs(translateY)).toBeGreaterThan(1);
+      expect(overlay.style.transform).toBe(frame.style.transform);
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 
   it("shows selected-layer transform overlay and handles in move mode", async () => {
@@ -4852,6 +4969,7 @@ describe("ExpertEditPanelView", () => {
         width: "50%",
         height: "100%",
       });
+      expect(overlay.style.transform).toBe(frame.style.transform);
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,
@@ -4861,50 +4979,82 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it.skip("resizes the selected layer from inline stage adjust drag", async () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/resize-corner-handle-target.png"
-        referenceText="prompt text"
-      />
-    );
+  it("resizes the selected layer from the inline stage corner handle", async () => {
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 1200;
+      naturalHeight = 1200;
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-
-    const primaryDropzone = screen.getByLabelText("Primary composition surface");
-    const rect = {
-      left: 0,
-      top: 0,
-      width: 200,
-      height: 200,
-      right: 200,
-      bottom: 200,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    } satisfies DOMRect;
-    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
       configurable: true,
-      value: () => rect,
+      writable: true,
+      value: MockImage,
     });
 
-    const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
-    const initialScale = readFrameScale(frame);
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/resize-corner-handle-target.png"
+          referenceText="prompt text"
+        />
+      );
 
-    dragStagePointer({
-      currentTarget: primaryDropzone,
-      pointerId: 62,
-      startX: 196,
-      startY: 4,
-      endX: 110,
-      endY: 90,
-      shiftKey: true,
-    });
-    expect(readFrameScale(frame)).not.toBeCloseTo(initialScale, 4);
-    expect(screen.getByTestId("edit-expert-transform-handle-inline-ne")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
+      const rect = {
+        left: 0,
+        top: 0,
+        width: 200,
+        height: 200,
+        right: 200,
+        bottom: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } satisfies DOMRect;
+      Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+        configurable: true,
+        value: () => rect,
+      });
+      const frameStack = document.querySelector(
+        ".edit-expert-primary-canvas-frame-stack"
+      ) as HTMLDivElement;
+      mockElementRect(frameStack, rect);
+
+      const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+      const initialScale = readFrameScale(frame);
+      const overlay = screen.getByTestId("edit-expert-transform-overlay-inline");
+      const resizeHandle = screen.getByTestId("edit-expert-transform-handle-inline-ne");
+
+      dragStagePointer({
+        currentTarget: overlay,
+        downTarget: resizeHandle,
+        pointerId: 62,
+        startX: 160,
+        startY: 40,
+        endX: 196,
+        endY: 4,
+      });
+      expect(readFrameScale(frame)).not.toBeCloseTo(initialScale, 4);
+      expect(overlay.style.transform).toBe(frame.style.transform);
+      expect(screen.getByTestId("edit-expert-transform-handle-inline-ne")).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 
   it("keeps transform overlay chrome rendered during transform interactions", async () => {

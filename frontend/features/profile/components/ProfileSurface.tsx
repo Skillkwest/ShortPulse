@@ -4,6 +4,7 @@
  */
 import type { ComponentType, ReactNode } from "react";
 import type { IconProps } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import type { NoticeState } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
 
@@ -98,11 +99,11 @@ export function ProfileNoticeBanner({ notice }: ProfileNoticeBannerProps) {
   if (!notice) return null;
 
   return (
-    <div
+    <AppMessage
       className={profileClass("profile-notice-banner", `profile-notice-banner-${notice.tone}`)}
-      role="status"
-    >
-      <p>{notice.message}</p>
-    </div>
+      tone={notice.tone}
+      mode="banner"
+      message={notice.message}
+    />
   );
 }

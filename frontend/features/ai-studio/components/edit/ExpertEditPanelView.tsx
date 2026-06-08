@@ -3,6 +3,8 @@ import { modelLogos } from "../../constants";
 import { needsImageUpload } from "../../utils/imageUpload";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import { normalizeExpertEditSecondaryImageUrls } from "../../logic/expertEditReferenceSlots";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
+import { insertDroppedPromptTextAtSelection } from "../promptStep/agentComposerDrop";
 import {
   isEditGenerationModeToggleEnabled,
   isMarkupCollapsedOpenModalEnabled,
@@ -123,6 +125,7 @@ export function ExpertEditPanelView({
   notifyGenerationFailure,
   resolvePreviewUrlById,
   resolveInternalReferenceImageDropSource,
+  canvasTearOutTargetRegistry,
   costCredits,
   removeBackgroundCostCredits = null,
   isGenerateDisabled = false,
@@ -288,6 +291,7 @@ export function ExpertEditPanelView({
     handlePrimaryDragLeave,
     handlePrimaryDragOver,
     handlePrimaryDrop,
+    acceptPrimaryCanvasTearOutPayload,
     handlePrimaryFileSelection,
     handleRemoveSelectedLayerImage,
     handleSelectLayer,
@@ -438,6 +442,7 @@ export function ExpertEditPanelView({
     handleExtraDragLeave,
     handleExtraDragOver,
     handleExtraDrop,
+    acceptExtraCanvasTearOutPayload,
     handleFileSelection,
     handleInvalidPromptReferenceToken,
     handlePanelPresetApply,
@@ -619,6 +624,81 @@ export function ExpertEditPanelView({
     }
     return inlineCompositionSurfaceViewportSize;
   }, [inlineCompositionSurfaceViewportSize, isMarkupExpandSelected, markupModalViewportSize]);
+  const [isPrimaryCanvasTearOutActive, setIsPrimaryCanvasTearOutActive] = React.useState(false);
+  const [isPromptCanvasTearOutActive, setIsPromptCanvasTearOutActive] = React.useState(false);
+  const canAcceptEditCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => payload.kind === "image",
+    []
+  );
+  const canAcceptEditPromptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) =>
+      payload.kind === "text" && payload.text.trim().length > 0,
+    []
+  );
+  const acceptPromptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (payload.kind !== "text") return;
+      const droppedText = payload.text.trim();
+      if (!droppedText) return;
+      const textarea = promptTextareaRef.current;
+      const shouldUseTextareaSelection =
+        typeof document !== "undefined" && textarea ? document.activeElement === textarea : false;
+      const selectionStart = shouldUseTextareaSelection
+        ? (textarea?.selectionStart ?? promptTextValue.length)
+        : promptTextValue.length;
+      const selectionEnd = shouldUseTextareaSelection
+        ? (textarea?.selectionEnd ?? promptTextValue.length)
+        : promptTextValue.length;
+      const inserted = insertDroppedPromptTextAtSelection({
+        composerText: promptTextValue,
+        droppedPromptText: droppedText,
+        selectionStart,
+        selectionEnd,
+      });
+      handlePromptTextChange(inserted.prompt);
+      const restoreCaret = () => {
+        const activeTextarea = promptTextareaRef.current;
+        activeTextarea?.focus();
+        activeTextarea?.setSelectionRange(inserted.caret, inserted.caret);
+      };
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(restoreCaret);
+      } else {
+        restoreCaret();
+      }
+    },
+    [handlePromptTextChange, promptTextareaRef, promptTextValue]
+  );
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || !primaryCanvasFrameStackElement) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "expert-edit-primary-stage",
+      element: primaryCanvasFrameStackElement,
+      canAccept: canAcceptEditCanvasTearOutPayload,
+      accept: acceptPrimaryCanvasTearOutPayload,
+      setActive: setIsPrimaryCanvasTearOutActive,
+    });
+  }, [
+    acceptPrimaryCanvasTearOutPayload,
+    canAcceptEditCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+    primaryCanvasFrameStackElement,
+  ]);
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || !promptInputShellRef.current) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "expert-edit-prompt-composer",
+      element: promptInputShellRef.current,
+      canAccept: canAcceptEditPromptCanvasTearOutPayload,
+      accept: acceptPromptCanvasTearOutPayload,
+      setActive: setIsPromptCanvasTearOutActive,
+    });
+  }, [
+    acceptPromptCanvasTearOutPayload,
+    canAcceptEditPromptCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+    promptInputShellRef,
+  ]);
   const isStageViewportAtDefaultForSubmit = React.useMemo(
     () =>
       Math.abs(stageViewport.scale - 1) <= EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON &&
@@ -1230,6 +1310,8 @@ export function ExpertEditPanelView({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
+    acceptExtraCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
     isStylesPanelOpen,
     selectedStyleId,
     stylesCatalog,
@@ -1289,6 +1371,7 @@ export function ExpertEditPanelView({
     extraImageUrls: normalizedExtraImageUrls,
     insertPromptTokenFromPicker,
     promptTokenInlineError,
+    isPromptCanvasTearOutActive,
     onPinPromptReference,
     handleInlineGenerate,
     inlineGenerateDisabled,
@@ -1411,7 +1494,7 @@ export function ExpertEditPanelView({
     inlineViewportStyle: inlineStageViewportStyle,
     inlineStageRef: inlineStageWrapperRef,
     frameStackRef: handlePrimaryCanvasFrameStackRef,
-    isPrimaryDragActive: primaryDragActive,
+    isPrimaryDragActive: primaryDragActive || isPrimaryCanvasTearOutActive,
     frameStyle: primaryCanvasFrameBoundsStyle,
     onPrimaryDrop: handlePrimaryDrop,
     onPrimaryDragEnter: handlePrimaryDragEnter,

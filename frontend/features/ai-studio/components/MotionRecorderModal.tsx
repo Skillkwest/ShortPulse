@@ -5,6 +5,7 @@
  */
 import React from "react";
 import { Camera, CircleNotch, X } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { attemptOpenCapturePermissionSettings } from "../utils/capturePermissionRecovery";
 import { uploadVideoFileToStorage } from "../utils/videoUpload";
@@ -853,13 +854,20 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
               {isShowingPlayback ? (
                 <div className="motion-recorder-status-card" aria-live="polite">
                   <>
-                    <p className={`motion-recorder-status-line${uploadError ? " is-error" : ""}`}>
-                      {uploadError
-                        ? uploadError
-                        : isUploadingClip
-                          ? "Adding recorded clip..."
-                          : "Recorded clip ready to add."}
-                    </p>
+                    <AppMessage
+                      className={`motion-recorder-status-line${uploadError ? " is-error" : ""}`}
+                      tone={uploadError ? "error" : isUploadingClip ? "info" : "success"}
+                      mode="inline"
+                      message={
+                        uploadError
+                          ? uploadError
+                          : isUploadingClip
+                            ? "Adding recorded clip..."
+                            : "Recorded clip ready to add."
+                      }
+                      role={uploadError ? "alert" : "status"}
+                      ariaLive={uploadError ? "assertive" : "polite"}
+                    />
                     <p className="motion-recorder-status-hint">
                       {uploadError
                         ? "The recording is still here. You can retry staging it without recording again."

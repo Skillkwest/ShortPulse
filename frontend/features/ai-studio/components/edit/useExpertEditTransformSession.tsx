@@ -173,7 +173,6 @@ export const useExpertEditTransformSession = ({
           viewportHeight={viewportSize.height}
           imageAspectRatio={selectedLayerImageAspectRatio}
           transform={constrainedTransform}
-          scale={Math.max(0.0001, constrainedTransform.scale)}
           interactionHandlers={interactionHandlers}
         />
       );

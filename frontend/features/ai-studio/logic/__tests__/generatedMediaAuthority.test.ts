@@ -2505,7 +2505,7 @@ describe("generatedMediaAuthority", () => {
     expect(projectionBuilder.in).not.toHaveBeenCalled();
   });
 
-  it("skips failed project-scoped projection outputs during active hydration", async () => {
+  it("restores failed project-scoped projection outputs as error references during active hydration", async () => {
     const projectGenerationBuilder = createAwaitableSelectBuilder({
       data: [],
       error: null,
@@ -2555,7 +2555,23 @@ describe("generatedMediaAuthority", () => {
       }),
     });
 
-    await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([]);
+    await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-project-failed-1",
+        generationId: "gen-project-failed-1",
+        taskId: "req-project-failed-1",
+        sourceRef: "source-project-failed-1",
+        prompt: "A failed voiceover",
+        taskState: "fail",
+        timestamp: "Failed",
+        errorMessage: "Unknown error",
+        errorMessageShort: "Unknown error",
+        errorDetail: "Unknown error",
+        resultUrls: [],
+        previewUrl: undefined,
+        hiddenInReferenceGrid: false,
+      }),
+    ]);
   });
 
   it("reconciles provider-url-only success rows during restore", async () => {

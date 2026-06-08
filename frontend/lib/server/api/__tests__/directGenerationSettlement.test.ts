@@ -1050,7 +1050,23 @@ describe("directGenerationSettlement", () => {
     );
   });
 
-  it("suppresses publications and projection output on direct terminal failure", async () => {
+  it("suppresses publications but keeps direct terminal failures visible in the reference grid", async () => {
+    readRecoveryGenerationRowMock.mockResolvedValueOnce({
+      id: "gen-1",
+      user_id: "user-1",
+      request_id: "req-1",
+      provider: "fal",
+      model_id: "fal-ai/nano-banana-2",
+      prompt_text: "portrait",
+      created_at: "2026-04-26T00:00:00.000Z",
+      metadata: {
+        source_ref: "source-ref-1",
+        generation_replay: { input: "value" },
+        character_context: { characterId: "char-1" },
+        style_context: { styleId: "style-1" },
+      },
+    });
+
     const result = await settleDirectGenerationFailure({
       generationId: "gen-1",
       requestId: "req-1",
@@ -1077,6 +1093,8 @@ describe("directGenerationSettlement", () => {
         taskState: "fail",
         queueState: "failed",
         publicationState: "suppressed",
+        hiddenInReferenceGrid: false,
+        referenceGridVisible: true,
         resultUrls: [],
         savedMediaIds: [],
         errorMessage: "Provider rejected request",

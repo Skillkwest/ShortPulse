@@ -3,6 +3,7 @@
  */
 import React from "react";
 import { Trash } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import type { AspectOption } from "../types";
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
@@ -1992,30 +1993,50 @@ export function VideoPropertiesPanel({
                     </div>
                   </div>
                   {shouldShowKlingReferenceImageWarning ? (
-                    <div className="video-inline-warning-bubble" role="status" aria-live="polite">
-                      Reference image required for generation
-                    </div>
+                    <AppMessage
+                      className="video-inline-warning-bubble"
+                      tone="warning"
+                      mode="inline"
+                      message="Reference image required for generation"
+                      role="status"
+                      ariaLive="polite"
+                    />
                   ) : null}
                   {!shouldShowKlingReferenceImageWarning && referenceImageWarning ? (
-                    <div className="video-inline-warning-bubble" role="status" aria-live="polite">
-                      {referenceImageWarning}
-                    </div>
+                    <AppMessage
+                      className="video-inline-warning-bubble"
+                      tone="warning"
+                      mode="inline"
+                      message={referenceImageWarning}
+                      role="status"
+                      ariaLive="polite"
+                    />
                   ) : null}
                   {!shouldShowKlingReferenceImageWarning &&
                   !referenceImageWarning &&
                   klingPromptGuardrailReason ? (
-                    <div className="video-inline-warning-bubble" role="status" aria-live="polite">
-                      {klingPromptGuardrailReason}
-                    </div>
+                    <AppMessage
+                      className="video-inline-warning-bubble"
+                      tone="warning"
+                      mode="inline"
+                      message={klingPromptGuardrailReason}
+                      role="status"
+                      ariaLive="polite"
+                    />
                   ) : null}
                   {!shouldShowKlingReferenceImageWarning &&
                   !referenceImageWarning &&
                   !klingPromptGuardrailReason &&
                   isGenerateDisabled &&
                   guardrailReason ? (
-                    <div className="video-inline-warning-bubble" role="status" aria-live="polite">
-                      {guardrailReason}
-                    </div>
+                    <AppMessage
+                      className="video-inline-warning-bubble"
+                      tone="warning"
+                      mode="inline"
+                      message={guardrailReason}
+                      role="status"
+                      ariaLive="polite"
+                    />
                   ) : null}
                   <div className="video-right-generate-button">
                     <AgentGenerateButton

@@ -3,6 +3,7 @@
  * Renders the V1 infinite-board workspace using a page-owned controller contract.
  */
 import React from "react";
+import { createPortal } from "react-dom";
 import { PushPinSimple } from "phosphor-react";
 import type { CanvasResizeHandle, CanvasSceneItem } from "./canvasTypes";
 import type { CanvasPropertiesPanelProps } from "./useAiStudioCanvasWorkspaceState";
@@ -787,14 +788,17 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
           />
         ) : null}
       </div>
-      {tearOutDragPreview && tearOutDragPreviewItem ? (
-        <CanvasTearOutDragGhostView
-          item={tearOutDragPreviewItem}
-          clientX={tearOutDragPreview.clientX}
-          clientY={tearOutDragPreview.clientY}
-          phase={tearOutDragPreview.phase}
-        />
-      ) : null}
+      {tearOutDragPreview && tearOutDragPreviewItem && typeof document !== "undefined"
+        ? createPortal(
+            <CanvasTearOutDragGhostView
+              item={tearOutDragPreviewItem}
+              clientX={tearOutDragPreview.clientX}
+              clientY={tearOutDragPreview.clientY}
+              phase={tearOutDragPreview.phase}
+            />,
+            document.body
+          )
+        : null}
     </section>
   );
 }

@@ -3,6 +3,7 @@
  * Lets operators manage the four public dashboard offer slots shown to logged-out visitors.
  */
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
+import { AppMessage } from "../../components/AppMessage";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import {
   ADMIN_DASHBOARD_OFFER_CTA_LABEL_MAX_LENGTH,
@@ -231,8 +232,22 @@ export default function AdminOffersPage() {
           ))}
         </div>
 
-        {error ? <p className={styles.announcementError}>{error}</p> : null}
-        {result ? <p className={styles.announcementResult}>{result}</p> : null}
+        {error ? (
+          <AppMessage
+            className={styles.announcementError}
+            tone="error"
+            mode="banner"
+            message={error}
+          />
+        ) : null}
+        {result ? (
+          <AppMessage
+            className={styles.announcementResult}
+            tone="success"
+            mode="banner"
+            message={result}
+          />
+        ) : null}
       </section>
     </AdminRouteShell>
   );

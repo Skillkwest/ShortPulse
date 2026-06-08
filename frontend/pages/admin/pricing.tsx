@@ -1,4 +1,5 @@
 import React from "react";
+import { AppMessage } from "../../components/AppMessage";
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import {
   PricingConfirmationDialog,
@@ -66,7 +67,12 @@ export default function AdminPricingPage() {
       ) : (
         <>
           {pageState.pricingRefreshWarning ? (
-            <p className={styles.announcementError}>{pageState.pricingRefreshWarning}</p>
+            <AppMessage
+              className={styles.announcementError}
+              tone="warning"
+              mode="banner"
+              message={pageState.pricingRefreshWarning}
+            />
           ) : null}
 
           <PricingPolicyStatusBar

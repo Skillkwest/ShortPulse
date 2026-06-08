@@ -1,5 +1,6 @@
 import React from "react";
 
+import { AppMessage } from "../../../../components/AppMessage";
 import {
   ExpertEditCharacterPickerModal,
   type ExpertEditCharacterPickerModalProps,
@@ -29,15 +30,16 @@ export function ExpertEditPanelAuxiliary({
   return (
     <>
       {statusToastMessage ? (
-        <div
+        <AppMessage
           className={`edit-expert-stage-status-toast ${
             statusToastTone === "warning" ? "is-warning" : "is-info"
           } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
+          tone={statusToastTone}
+          mode="toast"
+          message={statusToastMessage}
           role="status"
-          aria-live="polite"
-        >
-          {statusToastMessage}
-        </div>
+          ariaLive="polite"
+        />
       ) : null}
 
       <input

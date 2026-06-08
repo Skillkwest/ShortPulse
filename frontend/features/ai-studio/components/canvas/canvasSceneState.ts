@@ -24,6 +24,10 @@ import {
 import type { CanvasDropResolution, CanvasInsertResult, CanvasSceneItem } from "./canvasTypes";
 
 const CANVAS_PENDING_BASE_Z_INDEX = 1_000_000;
+const CANVAS_VIDEO_FALLBACK_DIMENSIONS = fitCanvasImageToProxyFrame({
+  width: 16,
+  height: 9,
+});
 
 export type CanvasPendingSceneItem = {
   id: string;
@@ -201,28 +205,41 @@ export const moveCanvasSceneItemsByIdSet = (
   return changed ? nextItems : items;
 };
 
-const resolveCanvasImageDimensions = async (
-  resolved: Extract<CanvasDropResolution, { kind: "image" }>
-): Promise<{ width: number; height: number }> => {
+const resolveCanvasImageDimensionsFromSize = ({
+  width,
+  height,
+}: {
+  width?: number;
+  height?: number;
+}): { width: number; height: number } | null => {
   if (
-    typeof resolved.width === "number" &&
-    Number.isFinite(resolved.width) &&
-    resolved.width > 0 &&
-    typeof resolved.height === "number" &&
-    Number.isFinite(resolved.height) &&
-    resolved.height > 0
+    typeof width === "number" &&
+    Number.isFinite(width) &&
+    width > 0 &&
+    typeof height === "number" &&
+    Number.isFinite(height) &&
+    height > 0
   ) {
     return fitCanvasImageToProxyFrame({
-      width: resolved.width,
-      height: resolved.height,
+      width,
+      height,
     });
   }
+  return null;
+};
+
+const resolveCanvasImageDimensionsFromUrl = async ({
+  src,
+  fallback,
+}: {
+  src: string | null | undefined;
+  fallback: { width: number; height: number };
+}): Promise<{ width: number; height: number }> => {
+  const normalizedSrc = src?.trim();
   if (typeof Image === "undefined") {
-    return {
-      width: CANVAS_IMAGE_ITEM_WIDTH,
-      height: CANVAS_IMAGE_ITEM_HEIGHT,
-    };
+    return fallback;
   }
+  if (!normalizedSrc) return fallback;
   return await new Promise<{ width: number; height: number }>((resolve) => {
     const image = new Image();
     const finalize = (width: number, height: number) =>
@@ -239,52 +256,57 @@ const resolveCanvasImageDimensions = async (
         finalize(fitted.width, fitted.height);
         return;
       }
-      finalize(CANVAS_IMAGE_ITEM_WIDTH, CANVAS_IMAGE_ITEM_HEIGHT);
+      finalize(fallback.width, fallback.height);
     };
-    image.onerror = () => finalize(CANVAS_IMAGE_ITEM_WIDTH, CANVAS_IMAGE_ITEM_HEIGHT);
-    image.src = resolved.src;
+    image.onerror = () => finalize(fallback.width, fallback.height);
+    image.src = normalizedSrc;
+  });
+};
+
+const resolveCanvasImageDimensions = async (
+  resolved: Extract<CanvasDropResolution, { kind: "image" }>
+): Promise<{ width: number; height: number }> => {
+  const explicitDimensions = resolveCanvasImageDimensionsFromSize({
+    width: resolved.width,
+    height: resolved.height,
+  });
+  if (explicitDimensions) return explicitDimensions;
+  return await resolveCanvasImageDimensionsFromUrl({
+    src: resolved.src,
+    fallback: {
+      width: CANVAS_IMAGE_ITEM_WIDTH,
+      height: CANVAS_IMAGE_ITEM_HEIGHT,
+    },
   });
 };
 
 const resolveCanvasImageDimensionsFromResolution = (
   resolved: Extract<CanvasDropResolution, { kind: "image" }>
 ): { width: number; height: number } | null => {
-  if (
-    typeof resolved.width === "number" &&
-    Number.isFinite(resolved.width) &&
-    resolved.width > 0 &&
-    typeof resolved.height === "number" &&
-    Number.isFinite(resolved.height) &&
-    resolved.height > 0
-  ) {
-    return fitCanvasImageToProxyFrame({
-      width: resolved.width,
-      height: resolved.height,
-    });
-  }
-  return null;
+  return resolveCanvasImageDimensionsFromSize({
+    width: resolved.width,
+    height: resolved.height,
+  });
 };
 
-const resolveCanvasVideoDimensions = (
+const resolveCanvasVideoDimensionsFromResolution = (
   resolved: Extract<CanvasDropResolution, { kind: "video" }>
-): { width: number; height: number } => {
-  if (
-    typeof resolved.width === "number" &&
-    Number.isFinite(resolved.width) &&
-    resolved.width > 0 &&
-    typeof resolved.height === "number" &&
-    Number.isFinite(resolved.height) &&
-    resolved.height > 0
-  ) {
-    return fitCanvasImageToProxyFrame({
-      width: resolved.width,
-      height: resolved.height,
-    });
-  }
-  return {
-    width: CANVAS_IMAGE_ITEM_WIDTH,
-    height: CANVAS_IMAGE_ITEM_HEIGHT,
-  };
+): { width: number; height: number } | null => {
+  return resolveCanvasImageDimensionsFromSize({
+    width: resolved.width,
+    height: resolved.height,
+  });
+};
+
+const resolveCanvasVideoDimensions = async (
+  resolved: Extract<CanvasDropResolution, { kind: "video" }>
+): Promise<{ width: number; height: number }> => {
+  const explicitDimensions = resolveCanvasVideoDimensionsFromResolution(resolved);
+  if (explicitDimensions) return explicitDimensions;
+  return await resolveCanvasImageDimensionsFromUrl({
+    src: resolved.posterUrl,
+    fallback: CANVAS_VIDEO_FALLBACK_DIMENSIONS,
+  });
 };
 
 const resolveCanvasAudioDimensions = (
@@ -459,8 +481,12 @@ export const useCanvasSharedSceneState = ({
       const pendingId = showLoadingPlaceholder ? randomId() : null;
       const preResolvedImageDimensions =
         resolved.kind === "image" ? resolveCanvasImageDimensionsFromResolution(resolved) : null;
+      const preResolvedVideoDimensions =
+        resolved.kind === "video" ? resolveCanvasVideoDimensionsFromResolution(resolved) : null;
       const videoDimensions =
-        resolved.kind === "video" ? resolveCanvasVideoDimensions(resolved) : null;
+        resolved.kind === "video"
+          ? (preResolvedVideoDimensions ?? (await resolveCanvasVideoDimensions(resolved)))
+          : null;
       const audioDimensions =
         resolved.kind === "audio" ? resolveCanvasAudioDimensions(resolved) : null;
       const textDimensions =

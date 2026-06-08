@@ -13,6 +13,7 @@ import {
   StackSimple,
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   isExplicitContentFailureMessage,
@@ -108,6 +109,10 @@ import {
   readMediaLibraryDragPayload,
   getMediaLibraryDragTypes,
 } from "../logic/mediaLibraryDragPayload";
+import {
+  buildAiStudioDropSnapshotTransfer,
+  captureAiStudioDropSnapshot,
+} from "../logic/aiStudioDropSnapshot";
 import {
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
@@ -384,25 +389,28 @@ const resolveRightColumnDropMode = (
 };
 
 const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropPayload => {
-  if (hasInternalReferenceDragTypeHints(transfer)) return { kind: "internal" };
-  const mediaLibraryDragPayload = readMediaLibraryDragPayload(transfer);
+  const snapshot = captureAiStudioDropSnapshot(transfer);
+  const resolvedTransfer = buildAiStudioDropSnapshotTransfer(snapshot);
+
+  if (hasInternalReferenceDragTypeHints(resolvedTransfer)) return { kind: "internal" };
+  const mediaLibraryDragPayload = readMediaLibraryDragPayload(resolvedTransfer);
   if (mediaLibraryDragPayload?.kind === "libraryMedia") {
     return { kind: "libraryMedia", payload: mediaLibraryDragPayload.payload };
   }
   if (mediaLibraryDragPayload?.kind === "libraryPrompt") {
     return { kind: "libraryPrompt", payload: mediaLibraryDragPayload.payload };
   }
-  const droppedFiles = transfer.files;
+  const droppedMedia = getDroppedMediaReference(resolvedTransfer);
+  if (droppedMedia) {
+    return { kind: "media", reference: droppedMedia };
+  }
+  const droppedFiles = resolvedTransfer.files;
   if (droppedFiles && droppedFiles.length > 0) {
     return { kind: "files", files: droppedFiles };
   }
-  const droppedPromptText = normalizeDroppedPromptText(transfer);
+  const droppedPromptText = normalizeDroppedPromptText(resolvedTransfer);
   if (droppedPromptText) {
     return { kind: "text", text: droppedPromptText };
-  }
-  const droppedMedia = getDroppedMediaReference(transfer);
-  if (droppedMedia) {
-    return { kind: "media", reference: droppedMedia };
   }
   return { kind: "none" };
 };
@@ -441,12 +449,15 @@ const AiStudioAlertBanner = ({
   live,
   onDismiss,
 }: AiStudioAlertBannerProps) => (
-  <div className={`ai-alert-banner ai-alert-banner--${variant}`} role={role} aria-live={live}>
-    <p className="ai-alert-banner__message">{message}</p>
-    <button type="button" className="ai-alert-banner__dismiss" onClick={onDismiss}>
-      Dismiss
-    </button>
-  </div>
+  <AppMessage
+    className={`ai-alert-banner ai-alert-banner--${variant}`}
+    tone={variant}
+    mode="banner"
+    message={message}
+    role={role}
+    ariaLive={live}
+    onDismiss={onDismiss}
+  />
 );
 
 const normalizeAlertText = (value: string | null | undefined): string =>
@@ -556,7 +567,13 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
         />
       ) : null}
       {groupedFailures.length ? (
-        <div className="ai-error-stack" role="alert" aria-live="polite">
+        <AppMessage
+          className="ai-error-stack"
+          tone="error"
+          mode="banner"
+          role="alert"
+          ariaLive="polite"
+        >
           <ul className="ai-error-list">
             {groupedFailures.map((group) => {
               const title =
@@ -569,7 +586,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
                   </div>
                   <button
                     type="button"
-                    className="ai-alert-banner__dismiss ai-error-row-dismiss"
+                    className="app-message__action ai-error-row-dismiss"
                     onClick={() => {
                       group.ids.forEach((id) => onDismissFailure(id));
                     }}
@@ -580,7 +597,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
               );
             })}
           </ul>
-        </div>
+        </AppMessage>
       ) : null}
     </>
   );

@@ -148,6 +148,7 @@ export function useExpertEditDocumentState({
     handlePrimaryDragOver,
     handlePrimaryDragLeave,
     handlePrimaryDrop,
+    acceptPrimaryCanvasTearOutPayload,
   } = useExpertEditPrimaryIngress({
     layers,
     selectedLayerIndex,
@@ -251,6 +252,7 @@ export function useExpertEditDocumentState({
     handlePrimaryDragLeave,
     handlePrimaryDragOver,
     handlePrimaryDrop,
+    acceptPrimaryCanvasTearOutPayload,
     handlePrimaryFileSelection,
     handleRemoveSelectedLayerImage,
     handleSelectLayer,

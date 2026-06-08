@@ -76,6 +76,7 @@ export const useMediaLibraryPanelItemInteractions = ({
         width: file.width ?? null,
         height: file.height ?? null,
         metadata: file.metadata,
+        visualAspectRatio: preview?.aspectRatio ?? null,
       });
       const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
       const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);

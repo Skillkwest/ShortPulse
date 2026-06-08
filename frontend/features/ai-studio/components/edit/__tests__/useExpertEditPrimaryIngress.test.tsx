@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useExpertEditPrimaryIngress } from "../useExpertEditPrimaryIngress";
 import type { ExpertEditLayer } from "../expertEditLayerSessionUtils";
 import { readRememberedObjectUrlBlob } from "../../../utils/objectUrlBlobRegistry";
-import { prepareReferenceDrag } from "../../../utils/dragDrop";
+import { INTERNAL_REFERENCE_DRAG_ORIGIN, prepareReferenceDrag } from "../../../utils/dragDrop";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
@@ -94,6 +94,37 @@ const makeImageDropEvent = (imageUrl: string) =>
   }) as unknown as Parameters<
     ReturnType<typeof useExpertEditPrimaryIngress>["handlePrimaryDrop"]
   >[0];
+
+const makeCanvasTearOutImagePayload = () => ({
+  kind: "image" as const,
+  internalPayload: {
+    version: 1,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId: "out-image-1",
+    outputId: "out-image-1",
+    imageIndex: 0,
+    mediaId: "media-1",
+    mediaKind: "image" as const,
+    referenceUrl: "blob:weak-reference-render",
+    referenceRenderUrl: "https://cdn.shortpulse.test/canvas-export.png",
+    sourceSurface: "all-refs" as const,
+    width: 640,
+    height: 480,
+    sessionBacked: true,
+  },
+  composerImagePayload: {
+    version: 1,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId: "out-image-1",
+    outputId: "out-image-1",
+    mediaId: "media-1",
+    displayArtifactUrl: "https://cdn.shortpulse.test/canvas-export.png",
+    displayArtifactKind: "url" as const,
+    sourceSurface: "all-refs" as const,
+    width: 640,
+    height: 480,
+  },
+});
 
 const makePreparedInternalImageDropEvent = () => {
   const transferData = new Map<string, string>();
@@ -393,6 +424,75 @@ describe("useExpertEditPrimaryIngress", () => {
     });
 
     expect(event.preventDefault).toHaveBeenCalled();
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(createLayer).not.toHaveBeenCalled();
+    expect(result.current.layers[0]?.imageUrl).toBe(
+      "https://cdn.shortpulse.test/canvas-export-durable.png"
+    );
+    expect(result.current.layers[0]?.ownsImageUrl).toBe(false);
+  });
+
+  it("accepts canvas tear-out image payloads into the primary stage", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-image-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-image-1",
+      mediaId: "media-1",
+      mediaSource: "generated" as const,
+      preview: { url: "https://cdn.shortpulse.test/canvas-export.png" },
+      previewStoragePath: "user/images/canvas-export-preview.png",
+      fullStoragePath: "user/images/canvas-export-full.png",
+      promptText: "Canvas export image",
+      preparedImageUrl: "https://cdn.shortpulse.test/canvas-export-durable.png",
+      loadBlob: async () => new Blob(["durable"], { type: "image/png" }),
+    }));
+
+    const { result } = renderHook(() => {
+      const [layers, setHookLayers] = React.useState<ExpertEditLayer[]>([
+        createLayerFixture("layer-1"),
+      ]);
+
+      const ingress = useExpertEditPrimaryIngress({
+        layers,
+        selectedLayerIndex: 0,
+        foundationLayerId: "layer-1",
+        isMorePresetsSurfaceOpen: false,
+        createLayer,
+        queuePanelHistoryBaselineFromCurrent: vi.fn(),
+        setLayers: setHookLayers,
+        setFoundationLayerId: vi.fn(),
+        setSelectedLayerIndex: vi.fn(),
+        setEditingLayerIndex: vi.fn(),
+        setEditingLayerValue: vi.fn(),
+        revokeObjectUrlSafe: vi.fn(),
+        resolvePreviewUrlById: vi.fn(() => "https://example.com/weak-preview.png"),
+        resolveInternalReferenceImageDropSource,
+      });
+
+      return {
+        ingress,
+        layers,
+      };
+    });
+
+    await act(async () => {
+      result.current.ingress.acceptPrimaryCanvasTearOutPayload(makeCanvasTearOutImagePayload());
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
     expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
     expect(createLayer).not.toHaveBeenCalled();
     expect(result.current.layers[0]?.imageUrl).toBe(

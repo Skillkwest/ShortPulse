@@ -3,6 +3,10 @@
  */
 import { useCallback, useRef, useState, type DragEvent, type RefObject } from "react";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
+import {
+  buildAiStudioDropSnapshotTransfer,
+  captureAiStudioDropSnapshot,
+} from "../../logic/aiStudioDropSnapshot";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import { getDroppedMediaReference } from "../../reference-grid/controllers/referenceGridClipboard";
 import {
@@ -202,7 +206,10 @@ export const useCanvasViewportDropHandlers = ({
     (event: DragEvent<HTMLDivElement>) => {
       dragDepthRef.current = 0;
       setIsDropActive(false);
-      const transfer = event.dataTransfer;
+      const originalTransfer = event.dataTransfer;
+      const transfer = buildAiStudioDropSnapshotTransfer(
+        captureAiStudioDropSnapshot(originalTransfer)
+      );
       if (!viewportRef.current) return;
       const internalPayload = extractInternalReferenceDragPayload(transfer);
       if (internalPayload) {
@@ -367,7 +374,7 @@ export const useCanvasViewportDropHandlers = ({
         })();
         return;
       }
-      const droppedFiles = transfer.files;
+      const droppedFiles = originalTransfer.files;
       if (droppedFiles && droppedFiles.length > 0 && resolveCanvasDropFiles) {
         event.preventDefault();
         event.stopPropagation();
@@ -385,7 +392,7 @@ export const useCanvasViewportDropHandlers = ({
         })();
         return;
       }
-      const droppedText = extractCanvasDroppedText(event.dataTransfer);
+      const droppedText = extractCanvasDroppedText(transfer);
       if (!droppedText) return;
       event.preventDefault();
       event.stopPropagation();

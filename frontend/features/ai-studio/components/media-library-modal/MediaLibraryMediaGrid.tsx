@@ -20,6 +20,7 @@ import {
   type MediaFileRow,
   type MediaCardRefCallback,
 } from "../../logic/mediaLibraryModalModel";
+import type { MediaLibraryMediaDragPreview } from "./MediaLibraryAllItemsGrid";
 import { useMediaAspectRatioCache } from "./useMediaAspectRatioCache";
 
 type ResolveMediaLibraryGridPreviewUrlArgs = {
@@ -43,7 +44,11 @@ type MediaLibraryMediaGridProps = {
   getMediaCardRef: (fileId: string) => MediaCardRefCallback;
   onSelectMediaFile: (file: MediaFileRow) => void;
   onMediaDoubleClick?: (file: MediaFileRow) => void;
-  onMediaDragStart?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
+  onMediaDragStart?: (
+    event: React.DragEvent<HTMLButtonElement>,
+    file: MediaFileRow,
+    preview?: MediaLibraryMediaDragPreview
+  ) => void;
   onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onToggleMediaSelection?: (file: MediaFileRow) => void;
   showRemoveAction?: boolean;
@@ -276,7 +281,11 @@ export function MediaLibraryMediaGrid({
                   onToggleMediaSelection ? onToggleMediaSelection(file) : onSelectMediaFile(file)
                 }
                 onDoubleClick={() => onMediaDoubleClick?.(file)}
-                onDragStart={(event) => onMediaDragStart?.(event, file)}
+                onDragStart={(event) =>
+                  onMediaDragStart?.(event, file, {
+                    aspectRatio: previewAspectRatio,
+                  })
+                }
                 onDragEnd={(event) => onMediaDragEnd?.(event, file)}
                 onContextMenu={(event) => onMediaContextMenu?.(event, file)}
               >

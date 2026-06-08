@@ -29,6 +29,7 @@ type ExpertEditPromptSelectorsColumnProps = {
   onPromptScroll: React.UIEventHandler<HTMLTextAreaElement>;
   onPromptBlur: React.FocusEventHandler<HTMLTextAreaElement>;
   promptTokenPickerState: PromptTokenPickerState;
+  isCanvasTearOutActive?: boolean;
   hostPrimaryImageUrl: string | null;
   populatedPromptTokenSlotIndexes: readonly number[];
   extraImageUrls: readonly (string | null)[];
@@ -69,6 +70,7 @@ export function ExpertEditPromptSelectorsColumn({
   onPromptScroll,
   onPromptBlur,
   promptTokenPickerState,
+  isCanvasTearOutActive = false,
   hostPrimaryImageUrl,
   populatedPromptTokenSlotIndexes,
   extraImageUrls,
@@ -110,6 +112,7 @@ export function ExpertEditPromptSelectorsColumn({
         onPromptScroll={onPromptScroll}
         onPromptBlur={onPromptBlur}
         promptTokenPickerState={promptTokenPickerState}
+        isCanvasTearOutActive={isCanvasTearOutActive}
         hostPrimaryImageUrl={hostPrimaryImageUrl}
         populatedPromptTokenSlotIndexes={populatedPromptTokenSlotIndexes}
         extraImageUrls={extraImageUrls}

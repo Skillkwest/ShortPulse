@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { CircleNotch, Pause, Play, X } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../lib/customVoiceName";
 import styles from "../../../styles/ai-studio-voices-properties.module.css";
@@ -271,15 +272,21 @@ export function CreateVoiceModal({
               ) : null}
 
               {isCloneMode && cloneVoiceError ? (
-                <p className="voices-create-modal-alert" role="alert">
-                  {cloneVoiceError}
-                </p>
+                <AppMessage
+                  className="voices-create-modal-alert"
+                  tone="error"
+                  mode="inline"
+                  message={cloneVoiceError}
+                />
               ) : null}
 
               {!isCloneMode && voiceDesignError ? (
-                <p className="voices-create-modal-alert" role="alert">
-                  {voiceDesignError}
-                </p>
+                <AppMessage
+                  className="voices-create-modal-alert"
+                  tone="error"
+                  mode="inline"
+                  message={voiceDesignError}
+                />
               ) : null}
 
               {!isCloneMode ? (
@@ -371,9 +378,12 @@ export function CreateVoiceModal({
             ) : null}
 
             {!isCloneMode && saveVoiceError ? (
-              <p className="voices-create-modal-alert" role="alert">
-                {saveVoiceError}
-              </p>
+              <AppMessage
+                className="voices-create-modal-alert"
+                tone="error"
+                mode="inline"
+                message={saveVoiceError}
+              />
             ) : null}
           </div>
         </div>

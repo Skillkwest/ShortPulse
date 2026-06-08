@@ -78,6 +78,8 @@ const resolveUploadDestinationTabForReferenceFile = (
   const normalizedType = file.type.trim().toLowerCase();
   if (normalizedType.startsWith("image/")) return "uploaded_images";
   if (normalizedType.startsWith("video/")) return "uploaded_videos";
+  // The Media Library upload API uses uploaded_images as the legacy mixed non-video
+  // destination; the persisted media row's file_type preserves audio semantics.
   if (normalizedType.startsWith("audio/")) return "uploaded_images";
   return null;
 };
@@ -442,9 +444,7 @@ export const useAiStudioReferenceIngestionActions = ({
 
   const addLibraryMediaReferenceToQuickSlot = useCallback(
     async (payload: LibraryMediaReferencePayload): Promise<string | null> => {
-      const inserted = await insertLibraryMediaReference(payload, {
-        waitForPreparedPayload: true,
-      });
+      const inserted = await insertLibraryMediaReference(payload);
       return inserted?.outputId ?? null;
     },
     [insertLibraryMediaReference]

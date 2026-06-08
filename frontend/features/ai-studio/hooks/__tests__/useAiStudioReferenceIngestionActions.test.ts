@@ -207,7 +207,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(setOutputs).toHaveBeenCalled();
   });
 
-  it("prepares quick-slot library media before returning even when project association is still pending", async () => {
+  it("inserts quick-slot library media before prepared URL hydration finishes", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(
       (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
@@ -215,7 +215,22 @@ describe("useAiStudioReferenceIngestionActions", () => {
       }
     );
     associateMediaFilesWithProjectMock.mockReturnValueOnce(new Promise(() => undefined));
-    prepareLibraryMediaIngestionPayloadMock.mockResolvedValueOnce({
+    let resolvePreparedPayload: (payload: {
+      id: string;
+      url: string;
+      previewUrl: string;
+      fullUrl: string;
+      fileType: "image";
+      filename: string;
+      previewStoragePath: string;
+      fullStoragePath: string;
+    }) => void = () => undefined;
+    prepareLibraryMediaIngestionPayloadMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePreparedPayload = resolve;
+      })
+    );
+    const preparedPayload = {
       id: "media-1",
       url: "https://cdn.test/media-1-prepared.png",
       previewUrl: "https://cdn.test/media-1-preview-prepared.png",
@@ -224,7 +239,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
       filename: "Reference 1",
       previewStoragePath: "user-1/library/media-1-preview.png",
       fullStoragePath: "user-1/library/media-1-full.png",
-    });
+    } as const;
     const { result } = renderHook(() =>
       useAiStudioReferenceIngestionActions(
         createParams({
@@ -246,18 +261,70 @@ describe("useAiStudioReferenceIngestionActions", () => {
 
     expect(insertedId).toEqual(expect.stringMatching(/^library-/));
     expect(setOutputs).toHaveBeenCalledTimes(1);
+    expect(nextOutputs[0]).toEqual(
+      expect.objectContaining({
+        previewUrl: "https://cdn.test/media-1.png",
+        resultUrls: ["https://cdn.test/media-1.png"],
+        savedMediaIds: ["media-1"],
+      })
+    );
     expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       mediaFileIds: ["media-1"],
       userId: CURRENT_USER_ID,
     });
     expect(prepareLibraryMediaIngestionPayloadMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolvePreparedPayload(preparedPayload);
+    });
+
+    await waitFor(() =>
+      expect(nextOutputs[0]).toEqual(
+        expect.objectContaining({
+          previewUrl: "https://cdn.test/media-1-preview-prepared.png",
+          resultUrls: ["https://cdn.test/media-1-full-prepared.png"],
+          previewStoragePath: "user-1/library/media-1-preview.png",
+          fullStoragePath: "user-1/library/media-1-full.png",
+          savedMediaIds: ["media-1"],
+        })
+      )
+    );
+  });
+
+  it("does not block quick-slot insertion when media-library preparation never resolves", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    prepareLibraryMediaIngestionPayloadMock.mockReturnValueOnce(new Promise(() => undefined));
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
+
+    let insertedId: string | null | undefined;
+    await act(async () => {
+      insertedId = await result.current.addLibraryMediaReferenceToQuickSlot({
+        id: "media-1",
+        url: "https://cdn.test/media-1.png",
+        fileType: "image",
+        filename: "Reference 1",
+      });
+    });
+
+    expect(insertedId).toEqual(expect.stringMatching(/^library-/));
+    expect(setOutputs).toHaveBeenCalledTimes(1);
     expect(nextOutputs[0]).toEqual(
       expect.objectContaining({
-        previewUrl: "https://cdn.test/media-1-preview-prepared.png",
-        resultUrls: ["https://cdn.test/media-1-full-prepared.png"],
-        previewStoragePath: "user-1/library/media-1-preview.png",
-        fullStoragePath: "user-1/library/media-1-full.png",
+        previewUrl: "https://cdn.test/media-1.png",
+        resultUrls: ["https://cdn.test/media-1.png"],
         savedMediaIds: ["media-1"],
       })
     );
@@ -394,6 +461,66 @@ describe("useAiStudioReferenceIngestionActions", () => {
     );
     expect(nextOutputs[0]?.localObjectUrl).toBeUndefined();
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+  });
+
+  it("imports direct audio file refs through the canonical Media Library upload path", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    const file = new File(["audio"], "reference.mp3", { type: "audio/mpeg" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+      [Symbol.iterator]: function* () {
+        yield file;
+      },
+    } as unknown as FileList;
+    uploadMediaFileMock.mockResolvedValueOnce(
+      makeUploadRow({
+        id: "media-reference-audio",
+        filename: "reference.mp3",
+        storage_path: "user-1/uploads/audio/reference.mp3",
+        preview_storage_path: "user-1/uploads/audio/reference.mp3",
+        file_type: "audio",
+        signedUrl: "https://signed.test/reference.mp3",
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addOutputsFromFiles(files, "drop");
+    });
+
+    expect(uploadMediaFileMock).toHaveBeenCalledWith({
+      file,
+      destinationTab: "uploaded_images",
+    });
+    expect(nextOutputs[0]).toEqual(
+      expect.objectContaining({
+        mode: "audio",
+        prompt: "reference.mp3",
+        previewUrl: "https://signed.test/reference.mp3",
+        resultUrls: ["https://signed.test/reference.mp3"],
+        previewStoragePath: "user-1/uploads/audio/reference.mp3",
+        fullStoragePath: "user-1/uploads/audio/reference.mp3",
+        mediaSource: "library",
+        savedMediaIds: ["media-reference-audio"],
+        saveState: "saved",
+      })
+    );
+    expect(uploadAudioAssetToStorageMock).not.toHaveBeenCalled();
   });
 
   it("does not upload file refs when the visible Reference Grid is full", async () => {

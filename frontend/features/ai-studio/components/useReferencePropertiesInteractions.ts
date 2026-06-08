@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, RefObject } from "react";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import {
   extractDragDropPayload,
   extractPromptDropText,
@@ -42,6 +43,15 @@ type KlingMultiPrompt = { id: string; prompt: string; duration: number };
 
 type KlingElement = AiStudioKlingElement;
 
+type ReferenceImageDropSnapshot = {
+  internalPayload: ReturnType<typeof extractInternalReferenceDragPayload> | null;
+  imageUrl: string | null;
+  imageFile?: File | null;
+  fromFile?: boolean;
+  referenceId?: string | null;
+  mediaKind?: string | null;
+};
+
 type UseReferencePropertiesInteractionsParams = {
   referenceImageUrl: string | null;
   extraImageUrls: readonly (string | null)[];
@@ -69,6 +79,36 @@ const isLocalMemoryVideoUrl = (value: string | null | undefined): value is strin
 
 const reconcileBooleanListLength = (values: boolean[], length: number): boolean[] =>
   Array.from({ length }, (_, index) => values[index] ?? false);
+
+const trimOptionalString = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length ? trimmed : null;
+};
+
+const resolveCanvasTearOutReferenceImageSnapshot = (
+  payload: AgentComposerDirectDropPayload
+): ReferenceImageDropSnapshot | null => {
+  if (payload.kind !== "image") return null;
+  const internalPayload = payload.internalPayload ?? null;
+  const composerImagePayload = payload.composerImagePayload ?? null;
+  const imageUrl =
+    trimOptionalString(composerImagePayload?.displayArtifactUrl) ??
+    trimOptionalString(internalPayload?.referenceRenderUrl) ??
+    trimOptionalString(internalPayload?.referenceUrl);
+  const referenceId =
+    trimOptionalString(composerImagePayload?.referenceId) ??
+    trimOptionalString(internalPayload?.referenceId) ??
+    trimOptionalString(composerImagePayload?.outputId) ??
+    trimOptionalString(internalPayload?.outputId) ??
+    trimOptionalString(composerImagePayload?.mediaId) ??
+    trimOptionalString(internalPayload?.mediaId);
+  return {
+    internalPayload,
+    imageUrl,
+    referenceId,
+    mediaKind: internalPayload?.mediaKind ?? null,
+  };
+};
 
 /**
  * Returns UI interaction state and handlers for reference properties editing.
@@ -298,6 +338,90 @@ export const useReferencePropertiesInteractions = ({
     }
   };
 
+  const acceptImageDropSnapshot = async (
+    snapshot: ReferenceImageDropSnapshot,
+    setter: (url: string | null) => void,
+    setLoading: (value: boolean) => void
+  ) => {
+    const { internalPayload, imageUrl, imageFile, fromFile, referenceId, mediaKind } = snapshot;
+    const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
+    let nextUrl: string | null = null;
+    let resolvedInternalMediaRef = null;
+    let didSetLoading = false;
+
+    try {
+      if (internalPayload) {
+        if (effectiveMediaKind && effectiveMediaKind !== "image") {
+          return;
+        }
+        setLoading(true);
+        didSetLoading = true;
+        const resolvedSource = resolveInternalReferenceImageDropSource
+          ? await resolveInternalReferenceImageDropSource(internalPayload).catch(() => null)
+          : null;
+        resolvedInternalMediaRef = resolvedSource
+          ? createInternalMediaRefFromResolvedSource(resolvedSource)
+          : null;
+        if (resolveInternalReferenceImageDropSource && !resolvedSource) {
+          return;
+        }
+        nextUrl =
+          resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
+        if (!nextUrl) {
+          return;
+        }
+      } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
+        return;
+      }
+
+      if (!nextUrl) {
+        nextUrl =
+          (internalPayload?.referenceUrl && looksLikeImageUrl(internalPayload.referenceUrl)
+            ? internalPayload.referenceUrl
+            : null) ?? imageUrl;
+      }
+
+      if (
+        !internalPayload &&
+        (!nextUrl || nextUrl.startsWith("blob:")) &&
+        referenceId &&
+        resolvePreviewUrlById
+      ) {
+        nextUrl = resolvePreviewUrlById(referenceId) ?? nextUrl;
+      }
+
+      if (!nextUrl) return;
+      if (!looksLikeImageUrl(nextUrl)) return;
+
+      if (!internalPayload) {
+        setLoading(true);
+        didSetLoading = true;
+      }
+
+      const isBlobUrl = nextUrl.startsWith("blob:");
+      const canAcceptBlob = fromFile || Boolean(referenceId);
+
+      if (!isBlobUrl || canAcceptBlob) {
+        const stableUrl = isBlobUrl
+          ? await stabilizeDroppedImageUrl({
+              imageUrl: nextUrl,
+              fromFile: Boolean(fromFile),
+              sourceBlob: imageFile ?? null,
+            })
+          : nextUrl;
+        if (!stableUrl) return;
+        registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
+        commitImageUrl(setter, stableUrl);
+      }
+    } catch (error) {
+      console.error("AI Studio reference image drop ingress failed:", error);
+    } finally {
+      if (didSetLoading) {
+        setLoading(false);
+      }
+    }
+  };
+
   const handleImageDrop =
     (setter: (url: string | null) => void, setLoading: (value: boolean) => void) =>
     async (event: DragEvent<HTMLDivElement>) => {
@@ -306,82 +430,11 @@ export const useReferencePropertiesInteractions = ({
       const { imageUrl, imageFile, fromFile, referenceId, mediaKind } = extractDragDropPayload(
         event.dataTransfer
       );
-      const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
-      let nextUrl: string | null = null;
-      let resolvedInternalMediaRef = null;
-      let didSetLoading = false;
-
-      try {
-        if (internalPayload) {
-          if (effectiveMediaKind && effectiveMediaKind !== "image") {
-            return;
-          }
-          setLoading(true);
-          didSetLoading = true;
-          const resolvedSource = resolveInternalReferenceImageDropSource
-            ? await resolveInternalReferenceImageDropSource(internalPayload).catch(() => null)
-            : null;
-          resolvedInternalMediaRef = resolvedSource
-            ? createInternalMediaRefFromResolvedSource(resolvedSource)
-            : null;
-          if (resolveInternalReferenceImageDropSource && !resolvedSource) {
-            return;
-          }
-          nextUrl =
-            resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
-          if (!nextUrl) {
-            return;
-          }
-        } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
-          return;
-        }
-
-        if (!nextUrl) {
-          nextUrl =
-            (internalPayload?.referenceUrl && looksLikeImageUrl(internalPayload.referenceUrl)
-              ? internalPayload.referenceUrl
-              : null) ?? imageUrl;
-        }
-
-        if (
-          !internalPayload &&
-          (!nextUrl || nextUrl.startsWith("blob:")) &&
-          referenceId &&
-          resolvePreviewUrlById
-        ) {
-          nextUrl = resolvePreviewUrlById(referenceId) ?? nextUrl;
-        }
-
-        if (!nextUrl) return;
-        if (!looksLikeImageUrl(nextUrl)) return;
-
-        if (!internalPayload) {
-          setLoading(true);
-          didSetLoading = true;
-        }
-
-        const isBlobUrl = nextUrl.startsWith("blob:");
-        const canAcceptBlob = fromFile || Boolean(referenceId);
-
-        if (!isBlobUrl || canAcceptBlob) {
-          const stableUrl = isBlobUrl
-            ? await stabilizeDroppedImageUrl({
-                imageUrl: nextUrl,
-                fromFile: Boolean(fromFile),
-                sourceBlob: imageFile ?? null,
-              })
-            : nextUrl;
-          if (!stableUrl) return;
-          registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
-          commitImageUrl(setter, stableUrl);
-        }
-      } catch (error) {
-        console.error("AI Studio reference image drop ingress failed:", error);
-      } finally {
-        if (didSetLoading) {
-          setLoading(false);
-        }
-      }
+      await acceptImageDropSnapshot(
+        { internalPayload, imageUrl, imageFile, fromFile, referenceId, mediaKind },
+        setter,
+        setLoading
+      );
     };
 
   const setExtraDragActiveAt = (index: number, value: boolean) => {
@@ -390,6 +443,20 @@ export const useReferencePropertiesInteractions = ({
 
   const setExtraImageLoadingAt = (index: number, value: boolean) => {
     setExtraImageLoading((prev) => prev.map((item, idx) => (idx === index ? value : item)));
+  };
+
+  const acceptExtraCanvasTearOutPayload = (
+    index: number,
+    payload: AgentComposerDirectDropPayload
+  ) => {
+    const snapshot = resolveCanvasTearOutReferenceImageSnapshot(payload);
+    if (!snapshot) return;
+    setExtraDragActiveAt(index, false);
+    void acceptImageDropSnapshot(
+      snapshot,
+      (url) => onExtraImageChange(index, url),
+      (value) => setExtraImageLoadingAt(index, value)
+    );
   };
 
   const allowImageDrag = (event: DragEvent<HTMLDivElement>) => {
@@ -536,6 +603,7 @@ export const useReferencePropertiesInteractions = ({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
+    acceptExtraCanvasTearOutPayload,
     allowVideoDrag,
     handleMotionVideoDrop,
     handleMotionVideoSelection,

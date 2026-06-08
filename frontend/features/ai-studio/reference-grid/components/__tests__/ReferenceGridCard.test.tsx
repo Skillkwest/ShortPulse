@@ -88,6 +88,145 @@ const createProps = (
 });
 
 describe("ReferenceGridCard", () => {
+  it("opens prompt-only text references in details on single click", () => {
+    const onSelectOutput = vi.fn();
+    const onOpenDetails = vi.fn();
+    const textOutput = createOutput({
+      id: "prompt-ref-1",
+      prompt: "Prompt reference text",
+      mode: "text",
+      taskState: "success",
+      previewText: "Prompt reference text",
+      mediaSource: "prompt",
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: textOutput,
+          isPromptOnly: true,
+          onSelectOutput,
+          onOpenDetails,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("prompt-ref-1");
+    expect(onOpenDetails).toHaveBeenCalledWith("prompt-ref-1");
+  });
+
+  it("does not open prompt-only text references a second time on double click", () => {
+    const onOpenDetails = vi.fn();
+    const textOutput = createOutput({
+      id: "prompt-ref-1",
+      prompt: "Prompt reference text",
+      mode: "text",
+      taskState: "success",
+      previewText: "Prompt reference text",
+      mediaSource: "prompt",
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: textOutput,
+          isPromptOnly: true,
+          onOpenDetails,
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    fireEvent.click(card, { detail: 1 });
+    fireEvent.click(card, { detail: 2 });
+    fireEvent.doubleClick(card);
+
+    expect(onOpenDetails).toHaveBeenCalledTimes(1);
+    expect(onOpenDetails).toHaveBeenCalledWith("prompt-ref-1");
+  });
+
+  it("opens prompt-only text references from keyboard activation", () => {
+    const onSelectOutput = vi.fn();
+    const onOpenDetails = vi.fn();
+    const textOutput = createOutput({
+      id: "prompt-ref-1",
+      prompt: "Prompt reference text",
+      mode: "text",
+      taskState: "success",
+      previewText: "Prompt reference text",
+      mediaSource: "prompt",
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: textOutput,
+          isPromptOnly: true,
+          onSelectOutput,
+          onOpenDetails,
+        })}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole("button"), { key: "Enter" });
+
+    expect(onSelectOutput).toHaveBeenCalledWith("prompt-ref-1");
+    expect(onOpenDetails).toHaveBeenCalledWith("prompt-ref-1");
+  });
+
+  it("keeps media cards select-only on single click", () => {
+    const onSelectOutput = vi.fn();
+    const onOpenDetails = vi.fn();
+    const imageOutput = createOutput({
+      id: "image-ref-1",
+      taskState: "success",
+      previewUrl: "https://example.com/image.png",
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: imageOutput,
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/image.png",
+          onSelectOutput,
+          onOpenDetails,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("image-ref-1");
+    expect(onOpenDetails).not.toHaveBeenCalled();
+  });
+
+  it("keeps media cards opening details on double click", () => {
+    const onOpenDetails = vi.fn();
+    const imageOutput = createOutput({
+      id: "image-ref-1",
+      taskState: "success",
+      previewUrl: "https://example.com/image.png",
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: imageOutput,
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/image.png",
+          onOpenDetails,
+        })}
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByRole("button"));
+
+    expect(onOpenDetails).toHaveBeenCalledWith("image-ref-1");
+  });
+
   it("shows workflow reload for restorable generated references", () => {
     const onReloadWorkflowOutput = vi.fn();
     const onSelectOutput = vi.fn();

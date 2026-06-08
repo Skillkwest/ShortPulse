@@ -15,6 +15,7 @@ import {
   type ExpertEditPresetOverride,
   type ExpertEditResolvedPreset,
 } from "./edit/expertEditPresets";
+import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -342,7 +343,12 @@ export function PresetsLibraryPanel({
                 }}
               />
               {localSaveError || saveError ? (
-                <p className="tiny presets-library-edit-error">{localSaveError || saveError}</p>
+                <AppMessage
+                  className="tiny presets-library-edit-error"
+                  tone="error"
+                  mode="inline"
+                  message={localSaveError || saveError}
+                />
               ) : null}
               <div className="presets-library-edit-actions">
                 <button

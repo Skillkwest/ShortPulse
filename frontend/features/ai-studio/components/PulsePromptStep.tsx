@@ -3,6 +3,7 @@
  * Handles Pulse chat composer and Pulse-mode presentation.
  */
 import React from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import type {
   AgentAssistantMessageEditRequest,
   AgentAttachment,
@@ -474,7 +475,7 @@ export function PulsePromptStep({
         )
       ) : null}
       {canUsePromptSurface && agentError && !isCollapsed ? (
-        <div className="inline-error-hint">{agentError}</div>
+        <AppMessage className="inline-error-hint" tone="error" mode="inline" message={agentError} />
       ) : null}
     </div>
   );

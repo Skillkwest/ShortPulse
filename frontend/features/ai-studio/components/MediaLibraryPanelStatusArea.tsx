@@ -3,7 +3,7 @@
  * Hosts error and membership toasts outside of the main panel body component.
  */
 import React from "react";
-import { CheckCircle } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import {
   MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF,
   MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL,
@@ -28,29 +28,38 @@ export const MediaLibraryPanelStatusArea = React.memo(function MediaLibraryPanel
   return (
     <>
       {storageQuotaMessage ? (
-        <div className="media-library-panel-membership-toast is-warning" role="alert">
-          <span>{storageQuotaMessage}</span>
-          <a href={MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF}>
-            {MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL}
-          </a>
-        </div>
+        <AppMessage
+          className="media-library-panel-membership-toast is-warning"
+          tone="warning"
+          mode="compact"
+          message={storageQuotaMessage}
+          action={{
+            label: MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL,
+            href: MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF,
+          }}
+        />
       ) : null}
-      {error ? <p className="tiny subdued">{error}</p> : null}
+      {error ? <AppMessage tone="error" mode="inline" message={error} /> : null}
       {membershipPendingMessage ? (
-        <div
+        <AppMessage
           className="media-library-panel-membership-toast is-pending"
+          tone="info"
+          mode="compact"
+          message={membershipPendingMessage}
           role="status"
-          aria-live="polite"
-        >
-          <div className="reference-spinner media-library-panel-membership-spinner" />
-          <span>{membershipPendingMessage}</span>
-        </div>
+          ariaLive="polite"
+          busy
+        />
       ) : null}
       {membershipMessage ? (
-        <div className="media-library-panel-membership-toast" role="status" aria-live="polite">
-          <CheckCircle size={14} weight="fill" aria-hidden />
-          <span>{membershipMessage}</span>
-        </div>
+        <AppMessage
+          className="media-library-panel-membership-toast"
+          tone="success"
+          mode="compact"
+          message={membershipMessage}
+          role="status"
+          ariaLive="polite"
+        />
       ) : null}
     </>
   );

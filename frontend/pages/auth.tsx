@@ -9,6 +9,7 @@ import { useRouter } from "next/router";
 import { Eye, EyeSlash, EnvelopeSimple, LockSimple, SignIn } from "phosphor-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { AppMessage } from "../components/AppMessage";
 import {
   fetchCanonicalAuthCallbackUrl,
   resolveNextPath,
@@ -321,8 +322,22 @@ export default function AuthPage() {
               </div>
             </div>
 
-            {error ? <div className={authClass("auth-error")}>{error}</div> : null}
-            {info ? <div className={authClass("auth-info")}>{info}</div> : null}
+            {error ? (
+              <AppMessage
+                className={authClass("auth-error")}
+                tone="error"
+                mode="banner"
+                message={error}
+              />
+            ) : null}
+            {info ? (
+              <AppMessage
+                className={authClass("auth-info")}
+                tone="info"
+                mode="banner"
+                message={info}
+              />
+            ) : null}
 
             <button
               className={authClass("auth-submit", "primary-btn")}

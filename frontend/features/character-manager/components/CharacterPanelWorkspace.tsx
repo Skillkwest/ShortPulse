@@ -8,8 +8,8 @@ import {
   Trash,
   UploadSimple,
   X,
-  XCircle,
 } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
@@ -1065,10 +1065,12 @@ export function CharacterPanelWorkspace({
   return (
     <div className="character-panel-workspace">
       {error ? (
-        <div className="character-feedback error" role="status">
-          <XCircle size={16} weight="fill" />
-          <span>{error}</span>
-        </div>
+        <AppMessage
+          className="character-feedback error"
+          tone="error"
+          mode="banner"
+          message={error}
+        />
       ) : null}
       <p className="sr-only" role="status" aria-live="polite">
         {isSavingName ? "Saving character name..." : ""}

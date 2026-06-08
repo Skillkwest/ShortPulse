@@ -1,6 +1,8 @@
 import Image from "next/image";
 import React from "react";
 import { Plus, TrashSimple } from "phosphor-react";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AspectOption } from "../../types";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
@@ -24,6 +26,8 @@ type ExpertEditSecondaryReferencesProps = {
   onSecondaryDragEnter: (index: number) => React.DragEventHandler<HTMLDivElement>;
   onSecondaryDragOver: (index: number) => React.DragEventHandler<HTMLDivElement>;
   onSecondaryDragLeave: (index: number) => React.DragEventHandler<HTMLDivElement>;
+  onSecondaryCanvasTearOutDrop?: (index: number, payload: AgentComposerDirectDropPayload) => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   isStylesPanelOpen?: boolean;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
@@ -46,11 +50,58 @@ export function ExpertEditSecondaryReferences({
   onSecondaryDragEnter,
   onSecondaryDragOver,
   onSecondaryDragLeave,
+  onSecondaryCanvasTearOutDrop,
+  canvasTearOutTargetRegistry,
   isStylesPanelOpen,
   selectedStyleId,
   stylesCatalog,
   onStylesPanelToggle,
 }: ExpertEditSecondaryReferencesProps) {
+  const [canvasTearOutActiveSlotIndexes, setCanvasTearOutActiveSlotIndexes] = React.useState<
+    Set<number>
+  >(() => new Set());
+  const slotRefs = React.useRef(new Map<number, HTMLDivElement>());
+  const canAcceptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => payload.kind === "image",
+    []
+  );
+
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || !onSecondaryCanvasTearOutDrop) return;
+    const unregisterTargets = visibleSlotIndexes
+      .map((index) => {
+        const element = slotRefs.current.get(index) ?? null;
+        if (!element) return null;
+        return canvasTearOutTargetRegistry.registerTarget({
+          id: `expert-edit-secondary-reference-${index}`,
+          element,
+          canAccept: canAcceptCanvasTearOutPayload,
+          accept: (payload) => onSecondaryCanvasTearOutDrop(index, payload),
+          setActive: (active) => {
+            setCanvasTearOutActiveSlotIndexes((previous) => {
+              const next = new Set(previous);
+              if (active) {
+                next.add(index);
+              } else {
+                next.delete(index);
+              }
+              return next;
+            });
+          },
+        });
+      })
+      .filter((unregister): unregister is () => void => typeof unregister === "function");
+    return () => {
+      unregisterTargets.forEach((unregister) => unregister());
+      setCanvasTearOutActiveSlotIndexes(new Set());
+    };
+  }, [
+    canAcceptCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+    onSecondaryCanvasTearOutDrop,
+    visibleSlotIndexes,
+  ]);
+
   return (
     <>
       <div className="edit-expert-secondary-control">
@@ -63,7 +114,9 @@ export function ExpertEditSecondaryReferences({
               <div className="edit-expert-secondary-slot" key={`expert-edit-secondary-${index}`}>
                 <div
                   className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
-                    extraDragActive[index] ? "is-dragging" : ""
+                    extraDragActive[index] || canvasTearOutActiveSlotIndexes.has(index)
+                      ? "is-dragging"
+                      : ""
                   } ${
                     highlightPromptPickerSecondaryTargets && isPromptTokenPickerOpen && previewUrl
                       ? "is-picker-target"
@@ -74,6 +127,13 @@ export function ExpertEditSecondaryReferences({
                       : ""
                   }`.trim()}
                   draggable={Boolean(previewUrl) && allowPromptTokenSecondaryDrag}
+                  ref={(element) => {
+                    if (element) {
+                      slotRefs.current.set(index, element);
+                    } else {
+                      slotRefs.current.delete(index);
+                    }
+                  }}
                   onDragStart={(event) => onSecondaryDragStart(event, index)}
                   onDrop={onSecondaryDrop(index)}
                   onDragEnter={onSecondaryDragEnter(index)}

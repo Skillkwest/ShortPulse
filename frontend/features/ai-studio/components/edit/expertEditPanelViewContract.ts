@@ -13,6 +13,7 @@ import {
 import type { AspectOption } from "../../types";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import type { ResolveInternalReferenceDrop } from "../../logic/referenceSource/internalReferenceSource";
+import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { ModelModalContext } from "../ModelModal";
 import type { CreateCharacterOption } from "../create/useCreateCharacterModeController";
 import type {
@@ -70,6 +71,7 @@ export type ExpertEditPanelViewProps = {
   notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   costCredits?: number | null;
   removeBackgroundCostCredits?: number | null;
   isGenerateDisabled?: boolean;

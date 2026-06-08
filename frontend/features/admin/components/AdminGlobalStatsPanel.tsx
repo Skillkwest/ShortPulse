@@ -4,6 +4,7 @@
  * assets, and project activity.
  */
 import React from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import styles from "../../../styles/admin.module.css";
 import type {
   AdminAssetEventUsageRow,
@@ -487,14 +488,20 @@ export function AdminGlobalStatsPanel({
           <p className={styles.adminSubtext}>Snapshot generated {formatDateTime(generatedAt)}</p>
         ) : null}
         {error ? (
-          <div className={styles.adminWarningPanel} role="status" aria-live="polite">
-            <p className={styles.adminWarningTitle}>{formatStatsErrorSummary(error)}</p>
+          <AppMessage
+            className={styles.adminWarningPanel}
+            tone="warning"
+            mode="banner"
+            title={formatStatsErrorSummary(error)}
+            role="status"
+            ariaLive="polite"
+          >
             <p className={styles.adminWarningDescription}>
               The stats workspace has fallen back to safe empty values until the next refresh
               succeeds.
             </p>
             <p className={styles.adminWarningMeta}>{error}</p>
-          </div>
+          </AppMessage>
         ) : null}
 
         <section className={styles.adminGrid} aria-label="Stats data health">

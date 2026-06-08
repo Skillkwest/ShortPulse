@@ -1,4 +1,5 @@
 import { WarningCircle } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
 import type {
   AdminErrorEventIncidentFilter,
   AdminErrorEventsHealth,
@@ -319,7 +320,9 @@ export function ErrorIncidentsOverviewSection({
             <span className="subdued">—</span>
             <span className="subdued">—</span>
             <span className="subdued">—</span>
-            <span className="subdued">{errorsError}</span>
+            <span>
+              <AppMessage tone="error" mode="compact" message={errorsError} />
+            </span>
             <span className="subdued">—</span>
             <span className="subdued">—</span>
             <span className="subdued">—</span>

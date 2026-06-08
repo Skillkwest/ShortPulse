@@ -6,6 +6,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
+import { AppMessage } from "../../../components/AppMessage";
 import {
   buildPlanView,
   filterPublicSubscriptionPlans,
@@ -244,7 +245,14 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                   </div>
                 </div>
               ) : null}
-              {notice ? <p className="pricing-route-notice">{notice}</p> : null}
+              {notice ? (
+                <AppMessage
+                  className="pricing-route-notice"
+                  tone="error"
+                  mode="banner"
+                  message={notice}
+                />
+              ) : null}
               <BillingIntervalToggle
                 selectedBillingInterval={selectedBillingInterval}
                 annualSavingsPercent={annualSavingsPercent}

@@ -6,6 +6,7 @@ import { Eye, EyeSlash, LockSimple, SignIn } from "phosphor-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { AppMessage } from "../../components/AppMessage";
 import {
   hasPasswordRecoveryHint,
   readHashParams,
@@ -462,8 +463,22 @@ export default function AuthCallbackPage() {
               </>
             ) : null}
 
-            {error ? <div className={authClass("auth-error")}>{error}</div> : null}
-            {info ? <div className={authClass("auth-info")}>{info}</div> : null}
+            {error ? (
+              <AppMessage
+                className={authClass("auth-error")}
+                tone="error"
+                mode="banner"
+                message={error}
+              />
+            ) : null}
+            {info ? (
+              <AppMessage
+                className={authClass("auth-info")}
+                tone="info"
+                mode="banner"
+                message={info}
+              />
+            ) : null}
 
             {status === "recovery" ? (
               <button

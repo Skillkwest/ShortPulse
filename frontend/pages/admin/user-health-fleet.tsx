@@ -4,6 +4,7 @@
  */
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { AppMessage } from "../../components/AppMessage";
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import type { AdminHealthFinding, AdminUserHealthFleetResponse } from "../../features/admin/types";
@@ -272,9 +273,12 @@ export default function AdminUserHealthFleetPage() {
 
       {report?.health.degraded ? (
         <section className={styles.adminSection}>
-          <p className={styles.announcementError}>
-            {report.health.reason ?? "Fleet report is degraded."}
-          </p>
+          <AppMessage
+            className={styles.announcementError}
+            tone="warning"
+            mode="banner"
+            message={report.health.reason ?? "Fleet report is degraded."}
+          />
         </section>
       ) : null}
 
@@ -286,7 +290,14 @@ export default function AdminUserHealthFleetPage() {
           </span>
         </div>
 
-        {error ? <p className={styles.announcementError}>{error}</p> : null}
+        {error ? (
+          <AppMessage
+            className={styles.announcementError}
+            tone="error"
+            mode="banner"
+            message={error}
+          />
+        ) : null}
 
         <div className={styles.fleetTable}>
           <div className={styles.fleetHead}>

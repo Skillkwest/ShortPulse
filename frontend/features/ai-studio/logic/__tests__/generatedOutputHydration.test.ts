@@ -296,7 +296,7 @@ describe("generatedOutputHydration", () => {
     ]);
   });
 
-  it("prunes unmatched failed canonical generated outputs already in state", () => {
+  it("keeps unmatched failed generated outputs in the active workset", () => {
     const existing = [
       createOutput({
         id: "generated:gen-failed",
@@ -319,6 +319,7 @@ describe("generatedOutputHydration", () => {
 
     expect(mergeCanonicalGeneratedOutputs(existing, hydrated).map((output) => output.id)).toEqual([
       "generated:gen-success",
+      "generated:gen-failed",
       "local-upload",
     ]);
   });

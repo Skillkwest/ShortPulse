@@ -2,6 +2,7 @@
  * Model pricing workbook table and inline policy editor for the admin pricing page.
  */
 import React from "react";
+import { AppMessage } from "../../components/AppMessage";
 import type {
   AdminPricingModelRow,
   AdminPricingPreviewVariant,
@@ -171,9 +172,21 @@ export const PricingModelWorkbook = ({
             </div>
           </div>
           {modelPolicyMessage ? (
-            <p className={styles.announcementResult}>{modelPolicyMessage}</p>
+            <AppMessage
+              className={styles.announcementResult}
+              tone="success"
+              mode="banner"
+              message={modelPolicyMessage}
+            />
           ) : null}
-          {modelPolicyError ? <p className={styles.announcementError}>{modelPolicyError}</p> : null}
+          {modelPolicyError ? (
+            <AppMessage
+              className={styles.announcementError}
+              tone="error"
+              mode="banner"
+              message={modelPolicyError}
+            />
+          ) : null}
           <PricingModelWorkbookTable
             displayedModels={displayedModels}
             effectiveModelPolicyDraft={effectiveModelPolicyDraft}

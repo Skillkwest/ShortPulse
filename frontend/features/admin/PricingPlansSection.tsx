@@ -1,4 +1,5 @@
 import React from "react";
+import { AppMessage } from "../../components/AppMessage";
 import { formatStorageBytes } from "../billing/storage";
 import { getPlanStatusClassName, getStripeStatus } from "./PricingPageChrome";
 import type { AdminPricingStateResponse } from "./types";
@@ -149,8 +150,22 @@ export function PricingPlansSection({
         </div>
       ) : null}
 
-      {planMessage ? <p className={styles.announcementResult}>{planMessage}</p> : null}
-      {planError ? <p className={styles.announcementError}>{planError}</p> : null}
+      {planMessage ? (
+        <AppMessage
+          className={styles.announcementResult}
+          tone="success"
+          mode="banner"
+          message={planMessage}
+        />
+      ) : null}
+      {planError ? (
+        <AppMessage
+          className={styles.announcementError}
+          tone="error"
+          mode="banner"
+          message={planError}
+        />
+      ) : null}
 
       {planDraft ? (
         <div className={styles.pricingEditorCard}>

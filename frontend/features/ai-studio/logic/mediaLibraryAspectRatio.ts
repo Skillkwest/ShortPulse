@@ -11,10 +11,12 @@ type MediaAspectRatioInput = {
   metadata?: Record<string, unknown> | null;
 };
 
-type MediaDragDimensionsInput = MediaAspectRatioInput;
+type MediaDragDimensionsInput = MediaAspectRatioInput & {
+  visualAspectRatio?: number | null;
+};
 
 const MEDIA_IMAGE_FALLBACK_ASPECT_RATIO = 4 / 5;
-const MEDIA_VIDEO_FALLBACK_ASPECT_RATIO = 9 / 16;
+const MEDIA_VIDEO_FALLBACK_ASPECT_RATIO = 16 / 9;
 const MEDIA_ASPECT_RATIO_MIN = 0.3;
 const MEDIA_ASPECT_RATIO_MAX = 3;
 const MEDIA_DRAG_DIMENSION_BASE = 1024;
@@ -87,6 +89,7 @@ export const resolveMediaDragDimensions = ({
   width,
   height,
   metadata,
+  visualAspectRatio,
 }: MediaDragDimensionsInput): { width: number; height: number } => {
   const resolvedWidth = toPositiveNumber(width);
   const resolvedHeight = toPositiveNumber(height);
@@ -97,7 +100,10 @@ export const resolveMediaDragDimensions = ({
     };
   }
 
-  const aspect = resolveMediaCardAspectRatio({ fileType, width, height, metadata });
+  const visualAspect = toPositiveNumber(visualAspectRatio);
+  const aspect = visualAspect
+    ? clampAspectRatio(visualAspect)
+    : resolveMediaCardAspectRatio({ fileType, width, height, metadata });
   if (aspect >= 1) {
     return {
       width: Math.max(1, Math.round(MEDIA_DRAG_DIMENSION_BASE * aspect)),

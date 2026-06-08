@@ -61,6 +61,7 @@
 @import "./elements-manager-embedded.css";
 @import "./workspace-tools.css";
 @import "./workspace-media.css";
+@import "./workspace-profile.css";
 @import "./landing-core.css";
 @import "./landing-sections.css";
 @import "./subscription-plan-cards.css";

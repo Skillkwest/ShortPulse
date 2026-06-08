@@ -1,5 +1,4 @@
 /**
  * Route-owned profile stylesheet entry.
- * Keeps profile workspace styles off the global bundle while preserving the existing profile CSS contract.
+ * Preserves the profile CSS-module bridge while canonical profile styles load globally.
  */
-@import "./workspace-profile.css";

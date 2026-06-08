@@ -115,9 +115,6 @@ const buildLibraryMediaOutput = ({
   payload: Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>["payload"];
   context: ReferenceIngestionContext;
 }): StudioOutput | null => {
-  const cleanedUrl = payload.url?.trim();
-  if (!cleanedUrl) return null;
-
   const id = `library-${context.randomId()}`;
   const filenameLabel = payload.filename?.trim() || "";
   const fallbackModelLabel = context.model
@@ -126,8 +123,9 @@ const buildLibraryMediaOutput = ({
   const displayModelLabel = filenameLabel || fallbackModelLabel;
   const resolvedPromptText =
     payload.promptText?.trim() || payload.filename?.trim() || "Media reference";
-  const previewUrl = payload.previewUrl?.trim() || cleanedUrl;
-  const fullUrl = payload.fullUrl?.trim() || cleanedUrl;
+  const cleanedUrl = payload.url?.trim() || null;
+  const previewUrl = payload.previewUrl?.trim() || cleanedUrl || undefined;
+  const fullUrl = payload.fullUrl?.trim() || cleanedUrl || null;
   const previewStoragePath = asCanonicalStoragePath(payload.previewStoragePath);
   const previewPosterStoragePath =
     payload.fileType === "video" ? asCanonicalStoragePath(payload.previewPosterStoragePath) : null;
@@ -138,6 +136,14 @@ const buildLibraryMediaOutput = ({
     payload.fileType === "audio" ? payload.companionArtUrl?.trim() || null : null;
   const companionArtStoragePath =
     payload.fileType === "audio" ? asCanonicalStoragePath(payload.companionArtStoragePath) : null;
+  const hasDurableAuthority = Boolean(
+    payload.id?.trim() || previewStoragePath || previewPosterStoragePath || fullStoragePath
+  );
+  const hasRenderableAuthority = Boolean(
+    cleanedUrl || previewUrl || fullUrl || previewPosterUrl || companionArtUrl
+  );
+  if (!hasDurableAuthority && !hasRenderableAuthority) return null;
+
   const resultUrls = fullUrl ? [fullUrl] : undefined;
   const referenceGridCreatedAt = resolveNowIso(context);
 

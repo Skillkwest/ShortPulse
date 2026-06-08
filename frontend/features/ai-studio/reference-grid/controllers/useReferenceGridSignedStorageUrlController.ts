@@ -55,6 +55,15 @@ const areSignedUrlMapsEqual = (
   return true;
 };
 
+const areStringSetsEqual = (left: ReadonlySet<string>, right: ReadonlySet<string>) => {
+  if (left === right) return true;
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
+};
+
 const areSignedMediaAuthorityMapsEqual = (
   left: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>,
   right: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>
@@ -162,8 +171,6 @@ export const applySignedStorageUrlsToReferenceGridMediaOutput = (
 
   return {
     ...output,
-    previewStoragePath: signedPreviewUrl ?? output.previewStoragePath,
-    fullStoragePath: signedFullUrl ?? output.fullStoragePath,
     previewUrl: signedPreviewUrl ?? output.previewUrl,
     previewPosterUrl: signedPosterUrl ?? output.previewPosterUrl,
     resultUrls: nextResultUrls.length > 0 ? nextResultUrls : output.resultUrls,
@@ -187,9 +194,9 @@ export const applySignedMediaAuthorityToReferenceGridMediaOutput = (
 
   return {
     ...output,
-    previewStoragePath: signedPreviewUrl ?? output.previewStoragePath,
-    fullStoragePath: signedFullUrl ?? output.fullStoragePath,
-    previewPosterStoragePath: signedPosterUrl ?? output.previewPosterStoragePath,
+    previewStoragePath: authority.previewStoragePath ?? output.previewStoragePath,
+    fullStoragePath: authority.fullStoragePath ?? output.fullStoragePath,
+    previewPosterStoragePath: authority.previewPosterStoragePath ?? output.previewPosterStoragePath,
     previewUrl: signedPreviewUrl ?? output.previewUrl,
     previewPosterUrl: signedPosterUrl ?? output.previewPosterUrl,
     resultUrls: signedFullUrl ? [signedFullUrl] : output.resultUrls,
@@ -216,6 +223,9 @@ export const useReferenceGridSignedStorageUrlController = ({
   const [signedStorageUrlByPath, setSignedStorageUrlByPath] = useState<Map<string, string>>(
     () => new Map()
   );
+  const [signingPendingStoragePathSet, setSigningPendingStoragePathSet] = useState<Set<string>>(
+    () => new Set()
+  );
   const [signedMediaAuthorityByMediaId, setSignedMediaAuthorityByMediaId] = useState<
     Map<string, SessionSignedMediaRestoreAuthority>
   >(() => new Map());
@@ -224,26 +234,51 @@ export const useReferenceGridSignedStorageUrlController = ({
     const pathsForRequest = storagePathKey ? storagePathKey.split("\n") : [];
 
     if (!pathsForRequest.length) {
+      setSigningPendingStoragePathSet((previous) =>
+        previous.size === 0 ? previous : new Set<string>()
+      );
       return;
     }
 
     let cancelled = false;
+    setSigningPendingStoragePathSet((previous) => {
+      const next = new Set(pathsForRequest);
+      return areStringSetsEqual(previous, next) ? previous : next;
+    });
     void getSignedMediaUrlsBatch({
       bucket: REFERENCE_GRID_MEDIA_BUCKET,
       storagePaths: pathsForRequest,
       surface: "reference-grid",
       queryMode: "default",
-    }).then((resolvedUrls) => {
-      if (cancelled) return;
-      setSignedStorageUrlByPath((previous) => {
-        const next = new Map<string, string>();
-        pathsForRequest.forEach((path) => {
-          const signedUrl = resolvedUrls.get(path) ?? previous.get(path) ?? null;
-          if (signedUrl) next.set(path, signedUrl);
+    })
+      .then((resolvedUrls) => {
+        if (cancelled) return;
+        setSignedStorageUrlByPath((previous) => {
+          const next = new Map<string, string>();
+          pathsForRequest.forEach((path) => {
+            const signedUrl = resolvedUrls.get(path) ?? previous.get(path) ?? null;
+            if (signedUrl) next.set(path, signedUrl);
+          });
+          return areSignedUrlMapsEqual(previous, next) ? previous : next;
         });
-        return areSignedUrlMapsEqual(previous, next) ? previous : next;
+        setSigningPendingStoragePathSet((previous) => {
+          const next = new Set(previous);
+          pathsForRequest.forEach((path) => {
+            next.delete(path);
+          });
+          return areStringSetsEqual(previous, next) ? previous : next;
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSigningPendingStoragePathSet((previous) => {
+          const next = new Set(previous);
+          pathsForRequest.forEach((path) => {
+            next.delete(path);
+          });
+          return areStringSetsEqual(previous, next) ? previous : next;
+        });
       });
-    });
 
     return () => {
       cancelled = true;
@@ -275,5 +310,6 @@ export const useReferenceGridSignedStorageUrlController = ({
   return {
     signedStorageUrlByPath,
     signedMediaAuthorityByMediaId,
+    signingPendingStoragePathSet,
   };
 };

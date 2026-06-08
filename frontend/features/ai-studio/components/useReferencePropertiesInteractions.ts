@@ -445,6 +445,13 @@ export const useReferencePropertiesInteractions = ({
     setExtraImageLoading((prev) => prev.map((item, idx) => (idx === index ? value : item)));
   };
 
+  const acceptPrimaryCanvasTearOutPayload = (payload: AgentComposerDirectDropPayload) => {
+    const snapshot = resolveCanvasTearOutReferenceImageSnapshot(payload);
+    if (!snapshot) return;
+    setPrimaryDragActive(false);
+    void acceptImageDropSnapshot(snapshot, onPrimaryImageChange, setPrimaryImageLoading);
+  };
+
   const acceptExtraCanvasTearOutPayload = (
     index: number,
     payload: AgentComposerDirectDropPayload
@@ -457,6 +464,16 @@ export const useReferencePropertiesInteractions = ({
       (url) => onExtraImageChange(index, url),
       (value) => setExtraImageLoadingAt(index, value)
     );
+  };
+
+  const acceptMotionVideoCanvasTearOutPayload = (payload: AgentComposerDirectDropPayload) => {
+    if (payload.kind !== "video") return;
+    setMotionVideoDragActive(false);
+    if (isLocalMemoryVideoUrl(payload.videoUrl)) {
+      void onStageMotionVideoSelection?.({ videoUrl: payload.videoUrl });
+      return;
+    }
+    commitMotionVideoUrl(payload.videoUrl);
   };
 
   const allowImageDrag = (event: DragEvent<HTMLDivElement>) => {
@@ -603,7 +620,9 @@ export const useReferencePropertiesInteractions = ({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
+    acceptPrimaryCanvasTearOutPayload,
     acceptExtraCanvasTearOutPayload,
+    acceptMotionVideoCanvasTearOutPayload,
     allowVideoDrag,
     handleMotionVideoDrop,
     handleMotionVideoSelection,

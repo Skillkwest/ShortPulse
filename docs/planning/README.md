@@ -41,6 +41,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 
 - `docs/known-issues.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
+- `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
 - `docs/planning/ai-studio-audio-companion-art-plan-2026-05-11.md`
 - `docs/planning/ai-studio-full-workflow-reload-plan-2026-06-06.md`
@@ -61,6 +62,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-implementation-plan-2026-06-08.md`
 - `docs/planning/edit-panel-canvas-tear-out-buildout-plan-2026-06-08.md`
+- `docs/planning/expert-edit-stage-transform-chrome-rebuild-plan-2026-06-08.md`
 - `docs/planning/expert-edit-master-stage-move-resize-buildout-plan-2026-06-08.md`
 - `docs/planning/message-feedback-normalization-plan-2026-06-08.md`
 - `docs/product/shortpulse_ai_studio.md`

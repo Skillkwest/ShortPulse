@@ -283,6 +283,57 @@ describe("ExpertEditPanelView interaction flow", () => {
     });
   });
 
+  it("renders inline transform chrome outside render clipping ancestors", async () => {
+    render(
+      <ExpertEditPanelView
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl="https://example.com/original.png"
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={buildSessionState()}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    const transformOverlay = await screen.findByTestId("edit-expert-transform-overlay-inline");
+    const chromeLayer = screen.getByTestId("edit-expert-transform-chrome-layer-inline");
+    const renderClip = document.querySelector(".edit-expert-stage-render-clip");
+    const compositionSurface = screen.getByLabelText("Primary composition surface");
+
+    expect(renderClip).toContainElement(compositionSurface);
+    expect(chromeLayer).toContainElement(transformOverlay);
+    expect(transformOverlay.closest(".edit-expert-stage-render-clip")).toBeNull();
+    expect(transformOverlay.closest(".edit-expert-primary-composition-surface")).toBeNull();
+    expect(transformOverlay.closest(".edit-expert-stage-camera-layer--chrome")).not.toBeNull();
+  });
+
   it("keeps layers while Reset All clears transform, markup, and inpaint session state", async () => {
     const onSessionStateChange = vi.fn();
 

@@ -98,11 +98,34 @@ describe("referenceGridCardVisualState", () => {
       decodeBudgetEnabled: true,
       isImagePreview: true,
       isPriorityHydration: true,
+      isStorageSigningPending: true,
     });
 
     expect(state.isGenerationLoading).toBe(false);
     expect(state.isMediaHydrating).toBe(true);
     expect(state.loadingVisual).toBe("hydrating");
+  });
+
+  it("does not hydrate storage-backed rows forever after signing is no longer pending", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "success",
+        mediaSource: "library",
+        previewStoragePath: "user-1/variants/images/media-1.webp",
+        fullStoragePath: "user-1/generations/images/media-1.png",
+        savedMediaIds: ["media-1"],
+      }),
+      cardPreviewUrl: null,
+      isLoaded: false,
+      decodeBudgetEnabled: true,
+      isImagePreview: true,
+      isPriorityHydration: true,
+      isStorageSigningPending: false,
+    });
+
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isMediaHydrating).toBe(false);
+    expect(state.loadingVisual).toBe("none");
   });
 
   it("does not hydrate saved-media-only rows until media-id recovery supplies a renderable url", () => {
@@ -166,51 +189,6 @@ describe("referenceGridCardVisualState", () => {
     expect(state.isLocalVideoPersistenceLoading).toBe(true);
     expect(state.isMediaHydrating).toBe(false);
     expect(state.loadingVisual).toBe("spinner");
-  });
-
-  it("keeps storage-backed videos hydrating until signing supplies a renderable url", () => {
-    const state = classifyReferenceGridCardVisualState({
-      item: createOutput({
-        mode: "video",
-        taskState: "success",
-        mediaSource: "library",
-        previewPosterStoragePath: "user-1/variants/videos/out-1/poster.webp",
-        fullStoragePath: "user-1/videos/out-1.mp4",
-        savedMediaIds: ["media-1"],
-      }),
-      cardPreviewUrl: null,
-      isLoaded: false,
-      decodeBudgetEnabled: true,
-      isImagePreview: false,
-      isPriorityHydration: true,
-    });
-
-    expect(state.isGenerationLoading).toBe(false);
-    expect(state.isMediaHydrating).toBe(true);
-    expect(state.loadingVisual).toBe("hydrating");
-  });
-
-  it("does not blink hydration visuals over renderable video previews", () => {
-    const state = classifyReferenceGridCardVisualState({
-      item: createOutput({
-        mode: "video",
-        taskState: "success",
-        mediaSource: "library",
-        previewPosterUrl: "https://signed.test/video-poster.webp",
-        previewPosterStoragePath: "user-1/variants/videos/out-1/poster.webp",
-        fullStoragePath: "user-1/videos/out-1.mp4",
-        savedMediaIds: ["media-1"],
-      }),
-      cardPreviewUrl: "https://signed.test/video-poster.webp",
-      isLoaded: false,
-      decodeBudgetEnabled: true,
-      isImagePreview: false,
-      isPriorityHydration: true,
-    });
-
-    expect(state.isGenerationLoading).toBe(false);
-    expect(state.isMediaHydrating).toBe(false);
-    expect(state.loadingVisual).toBe("none");
   });
 
   it("does not mark failures as loading", () => {

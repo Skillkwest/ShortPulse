@@ -11,7 +11,7 @@ Use this folder first when you need:
 - the current Reference Grid onboarding plan and stop criteria
 - current Reference Grid incident reports, if present
 - the latest incident/hotfix retained read
-- the latest Holomony self-maintenance audit/prune retained read
+- the latest Holomony self-maintenance/context-load cleanup retained reads
 
 If the answer is not in this folder, only then step into `../archive/`.
 

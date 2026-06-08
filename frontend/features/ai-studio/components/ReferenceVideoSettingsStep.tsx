@@ -14,8 +14,6 @@ import type { ModelModalContext } from "./ModelModal";
 type ReferenceVideoSettingsStepProps = {
   isVideoVariant: boolean;
   isMotionMode: boolean;
-  showMultiShotToggle?: boolean;
-  multiShotEnabled?: boolean;
   multiShotShotCount?: number;
   modelId: string | null;
   modelLabel: string;
@@ -48,7 +46,6 @@ type ReferenceVideoSettingsStepProps = {
   onVideoGenerateAudioChange?: (value: boolean) => void;
   onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
-  onToggleMultiShot?: () => void;
 };
 
 /**
@@ -57,8 +54,6 @@ type ReferenceVideoSettingsStepProps = {
 export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProps> = ({
   isVideoVariant,
   isMotionMode,
-  showMultiShotToggle = false,
-  multiShotEnabled = false,
   modelId,
   modelLabel,
   modelLogoSrc,
@@ -86,7 +81,6 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   onVideoGenerateAudioChange,
   onVideoCameraFixedChange,
   onVideoAutoFixChange,
-  onToggleMultiShot,
 }) => {
   const settingsOrder = isMotionMode ? motionAudioOrder : videoSettingsOrder;
   const shouldShowModelRow = showModelRow && !isMotionMode;
@@ -109,8 +103,6 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
       durationOptions={durationOptions}
       resolutionOptions={resolutionOptions}
       videoGenerateAudioValue={videoGenerateAudioValue}
-      showMultiShotToggle={showMultiShotToggle}
-      multiShotEnabled={multiShotEnabled}
       isMotionMode={isMotionMode}
       videoCameraFixed={videoCameraFixed}
       isVeoModel={isVeoModel}
@@ -122,7 +114,6 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
       onVideoGenerateAudioChange={onVideoGenerateAudioChange}
       onVideoCameraFixedChange={onVideoCameraFixedChange}
       onVideoAutoFixChange={onVideoAutoFixChange}
-      onToggleMultiShot={onToggleMultiShot}
     />
   );
 

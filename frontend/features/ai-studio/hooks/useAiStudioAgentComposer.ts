@@ -1325,6 +1325,14 @@ export const useAiStudioAgentComposer = ({
         setAgentAttachmentError(null);
         return;
       }
+      if (payload.kind !== "image") {
+        setAgentAttachmentError(
+          payload.kind === "video"
+            ? VIDEO_ATTACHMENT_REJECTION_MESSAGE
+            : NON_IMAGE_ATTACHMENT_REJECTION_MESSAGE
+        );
+        return;
+      }
       acceptComposerDropSnapshot({
         ...createEmptyComposerDropSnapshot(),
         transferTypes: ["application/x-shortpulse-canvas-tear-out"],

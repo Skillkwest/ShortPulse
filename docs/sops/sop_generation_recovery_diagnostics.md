@@ -57,7 +57,7 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
    - scheduler/reconciler (`/api/internal/generation-recovery/run`)
    - webhook ingestion (`/api/fal/webhook`) when enabled, now via the explicit ingress boundary in `frontend/lib/server/falIntegration/falWebhookIngress.ts`.
    - hosted/default POSTs to `/api/internal/generation-recovery/run` execute the primary accepted-job recovery path; bounded recovery-only runs require explicit `{"runMode":"rescue"}`.
-   - authenticated visible-output nudges (`/api/generation/reconcile`) when AI Studio reopens with running Reference Grid outputs; this route resolves caller-owned identities and delegates to the same recovery engine, but scheduler/webhook recovery remains authoritative.
+   - authenticated visible-output nudges (`/api/generation/reconcile`) when AI Studio reopens with running Reference Grid outputs; this route resolves caller-owned runtime identities or a caller-owned project id and delegates matching visible pending/running rows to the same recovery engine, but scheduler/webhook recovery remains authoritative.
 4. Recovery claim flows use lease-based claim semantics to prevent duplicate concurrent processing.
 5. Reference Grid restore for accepted generated outputs is `generation_projection`-backed:
    project routes bind through `generation_projection.project_id` and

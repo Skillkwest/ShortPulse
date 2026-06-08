@@ -93,6 +93,33 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(refreshSupabaseSignedUrlIfNeededMock).not.toHaveBeenCalled();
   });
 
+  it("signs storage-only media-library payloads without requiring a stale URL", async () => {
+    getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
+      if (storagePath === "user-1/previews/storage-only.jpg") {
+        return "https://signed.example.com/previews/storage-only.jpg";
+      }
+      if (storagePath === "user-1/full/storage-only.jpg") {
+        return "https://signed.example.com/full/storage-only.jpg";
+      }
+      return null;
+    });
+
+    const result = await prepareLibraryMediaIngestionPayload({
+      id: "media-storage-only",
+      url: null,
+      fileType: "image",
+      previewStoragePath: "user-1/previews/storage-only.jpg",
+      fullStoragePath: "user-1/full/storage-only.jpg",
+    });
+
+    expect(result.previewStoragePath).toBe("user-1/previews/storage-only.jpg");
+    expect(result.fullStoragePath).toBe("user-1/full/storage-only.jpg");
+    expect(result.previewUrl).toBe("https://signed.example.com/previews/storage-only.jpg");
+    expect(result.fullUrl).toBe("https://signed.example.com/full/storage-only.jpg");
+    expect(result.url).toBe("https://signed.example.com/full/storage-only.jpg");
+    expect(refreshSupabaseSignedUrlIfNeededMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to existing payload URLs when signing/refresh cannot resolve", async () => {
     getSignedMediaUrlMock.mockResolvedValue(null);
     refreshSupabaseSignedUrlIfNeededMock.mockRejectedValue(

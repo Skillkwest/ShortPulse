@@ -206,12 +206,65 @@ export function PrimaryCompositionSurface({
 type PrimaryStageViewportLayerProps = {
   children: React.ReactNode;
   style: React.CSSProperties;
+  variant?: "render" | "chrome";
 };
 
-export function PrimaryStageViewportLayer({ children, style }: PrimaryStageViewportLayerProps) {
+export function PrimaryStageViewportLayer({
+  children,
+  style,
+  variant = "render",
+}: PrimaryStageViewportLayerProps) {
   return (
-    <div className="edit-expert-markup-viewport" style={style}>
+    <div
+      className={`edit-expert-markup-viewport edit-expert-stage-camera-layer edit-expert-stage-camera-layer--${variant}`}
+      style={style}
+    >
       {children}
+    </div>
+  );
+}
+
+type PrimaryStageRenderClipProps = {
+  children: React.ReactNode;
+};
+
+/**
+ * Owns pixel clipping for stage render content without clipping transform chrome.
+ */
+export function PrimaryStageRenderClip({ children }: PrimaryStageRenderClipProps) {
+  return <div className="edit-expert-stage-render-clip">{children}</div>;
+}
+
+type ExpertEditTransformChromeLayerProps = {
+  children: React.ReactNode;
+  viewportStyle: React.CSSProperties;
+  frameStyle?: React.CSSProperties;
+  scope: "inline" | "modal";
+};
+
+/**
+ * Hosts selected-layer affordances outside render clip roots while sharing camera/artboard geometry.
+ */
+export function ExpertEditTransformChromeLayer({
+  children,
+  viewportStyle,
+  frameStyle,
+  scope,
+}: ExpertEditTransformChromeLayerProps) {
+  return (
+    <div
+      className="edit-expert-transform-chrome-layer"
+      data-testid={`edit-expert-transform-chrome-layer-${scope}`}
+    >
+      <PrimaryStageViewportLayer style={viewportStyle} variant="chrome">
+        {frameStyle ? (
+          <div className="edit-expert-transform-chrome-frame" style={frameStyle}>
+            {children}
+          </div>
+        ) : (
+          children
+        )}
+      </PrimaryStageViewportLayer>
     </div>
   );
 }

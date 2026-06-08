@@ -194,7 +194,7 @@ export function StylesLibraryPanel({
                   type="button"
                   className="styles-library-tile-select"
                   aria-label={`Style tile: ${style.title}${style.placeholder ? " (coming soon)" : ""}${
-                    isStylePreviewGenerating ? " (generating preview)" : ""
+                    isStylePreviewGenerating ? " (generating)" : ""
                   }`}
                   disabled={style.placeholder}
                   onClick={() => {
@@ -222,9 +222,7 @@ export function StylesLibraryPanel({
                         <span className="styles-library-processing-spinner" aria-hidden="true">
                           <CircleNotch size={22} weight="bold" />
                         </span>
-                        <span className="styles-library-processing-copy tiny">
-                          Generating preview...
-                        </span>
+                        <span className="styles-library-processing-copy tiny">Generating...</span>
                       </span>
                     ) : isNoneStyle ? (
                       <span className="styles-library-none-icon" aria-hidden="true">

@@ -8,6 +8,8 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import {
   normalizeGenerationReconcileIdentities,
+  normalizeGenerationReconcileProjectId,
+  reconcileVisibleProjectGenerationsForUser,
   reconcileVisibleGenerationsForUser,
   type GenerationReconcileBatchResult,
 } from "../../../lib/server/api/generationReconcile";
@@ -33,18 +35,25 @@ export default async function handler(
   if (!user) return;
 
   const identities = normalizeGenerationReconcileIdentities(req.body?.runtimeIdentities);
-  if (!identities.length) {
+  const projectId = normalizeGenerationReconcileProjectId(req.body?.projectId);
+  if (!identities.length && !projectId) {
     return res.status(400).json({
       error: "Invalid request",
-      details: "runtimeIdentities must include at least one generation, request, or source ref.",
+      details:
+        "runtimeIdentities must include at least one generation, request, or source ref, or projectId must identify the project to reconcile.",
     });
   }
 
   try {
-    const result = await reconcileVisibleGenerationsForUser({
-      userId: user.id,
-      identities,
-    });
+    const result = identities.length
+      ? await reconcileVisibleGenerationsForUser({
+          userId: user.id,
+          identities,
+        })
+      : await reconcileVisibleProjectGenerationsForUser({
+          userId: user.id,
+          projectId: projectId as string,
+        });
     return res.status(200).json({
       ok: true,
       ...result,

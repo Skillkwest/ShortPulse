@@ -32,29 +32,29 @@ Holomony-owned helper scripts live under:
 
 - `scripts/ops/holomony/`
 
-## Recommended Read Order
+## Default Read Path
 
-For a substantive Holomony run, the shortest high-signal path is:
+For ordinary Holomony runs, use the lean startup path in `docs/agents/holomony/AGENTS.md` and `docs/agents/holomony/memory.md`:
 
-1. `docs/agents/holomony/README.md`
-2. `docs/agents/holomony/AGENTS.md`
-3. `docs/agents/holomony/standard-operating-procedure.md`
-4. `docs/agents/holomony/memory.md`
-5. `docs/agents/holomony/ownership-manifest.md`
-6. For media-display/detail-modal lanes: `docs/agents/holomony/media-display-command-index.md`
-7. For right-rail lanes: `docs/agents/holomony/right-rail-command-index.md`
-8. For substantive Reference Grid lanes only: `docs/agents/holomony/reference-grid-ownership-map.md`
-9. For substantive Reference Grid lanes only: `docs/agents/holomony/reference-grid-diagnostic-sop.md`
-10. `performance-scorecard.md`
-11. `media-surface-inventory.md`
-12. the one or two retained reports relevant to the current surface
+1. Complete the root repo startup spine required by `AGENTS.md`.
+2. Read `docs/agents/holomony/AGENTS.md`.
+3. Read `docs/agents/holomony/memory.md`.
+4. Load the lane command index: `docs/agents/holomony/media-display-command-index.md` for media-display/detail-modal lanes, or `docs/agents/holomony/right-rail-command-index.md` for right-rail lanes.
+5. Load exact owner docs, code, tests, or current reports only when the command index or task needs decision-grade proof.
 
-Ignore by default unless the current run specifically needs them:
+Do not load these by default unless the current run specifically needs scoring, KPI history, historical evidence, or self-maintenance context:
 
 - `baseline-kpi.md`
 - `capability-ladder.md`
 - `experiment-ledger.md`
 - `failure-taxonomy.md`
+- `media-surface-inventory.md`
+- `performance-scorecard.md`
+- retained reports under `reports/`
+- `docs/agents/holomony/ownership-manifest.md`
+- `docs/agents/holomony/reference-grid-ownership-map.md`
+- `docs/agents/holomony/reference-grid-diagnostic-sop.md`
+- `docs/agents/holomony/standard-operating-procedure.md`
 - `surface-onboarding-checklist.md`
 
 ## Authority

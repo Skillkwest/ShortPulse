@@ -8,7 +8,7 @@ import {
   type InternalReferenceDragPayload,
   type ReferenceDragSourceSurface,
 } from "../../utils/dragDrop";
-import type { StudioOutput } from "../../types";
+import type { StudioAudioSourceMode, StudioOutput } from "../../types";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import type { CanvasSceneItem } from "./canvasTypes";
 
@@ -29,6 +29,23 @@ export type CanvasTearOutPayload =
       kind: "image";
       internalPayload: InternalReferenceDragPayload;
       composerImagePayload: ComposerImageDropPayload;
+    }
+  | {
+      kind: "video";
+      videoUrl: string;
+      internalPayload: InternalReferenceDragPayload;
+      outputId: string | null;
+      mediaId: string | null;
+      durationMs?: number | null;
+    }
+  | {
+      kind: "audio";
+      audioUrl: string;
+      internalPayload: InternalReferenceDragPayload;
+      outputId: string | null;
+      mediaId: string | null;
+      durationMs?: number | null;
+      audioSourceMode?: StudioAudioSourceMode | null;
     }
   | {
       kind: "unsupported";
@@ -78,6 +95,63 @@ const resolveImageReferenceUrl = (item: CanvasSceneItem, output: StudioOutput | 
   );
 };
 
+const resolveMediaReferenceIdentity = (item: CanvasSceneItem, output: StudioOutput | null) => {
+  const outputId = normalizeOptionalText(item.outputId);
+  const mediaId =
+    (item.kind === "image" || item.kind === "video" || item.kind === "audio"
+      ? normalizeOptionalText(item.mediaId)
+      : null) ??
+    normalizeOptionalText(output?.savedMediaIds?.[0]) ??
+    null;
+  return {
+    outputId,
+    mediaId,
+    referenceId: outputId ?? mediaId ?? null,
+  };
+};
+
+const buildCanvasMediaInternalPayload = ({
+  mediaKind,
+  referenceId,
+  outputId,
+  mediaId,
+  referenceUrl,
+  renderUrl,
+  sourceSurface,
+  previewStoragePath,
+  fullStoragePath,
+  width,
+  height,
+}: {
+  mediaKind: NonNullable<InternalReferenceDragPayload["mediaKind"]>;
+  referenceId: string | null;
+  outputId: string | null;
+  mediaId: string | null;
+  referenceUrl: string | null;
+  renderUrl: string | null;
+  sourceSurface: ReferenceDragSourceSurface;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+  width?: number;
+  height?: number;
+}): InternalReferenceDragPayload => ({
+  version: CANVAS_TEAR_OUT_PAYLOAD_VERSION,
+  origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+  referenceId,
+  outputId,
+  imageIndex: 0,
+  mediaId,
+  mediaKind,
+  ...(previewStoragePath ? { previewStoragePath } : {}),
+  ...(fullStoragePath ? { fullStoragePath } : {}),
+  referenceUrl,
+  ...(renderUrl ? { referenceRenderUrl: renderUrl } : {}),
+  sourceSurface,
+  ...(width ? { width } : {}),
+  ...(height ? { height } : {}),
+  sessionBacked: true,
+});
+
 /**
  * Builds the copy-style Canvas tear-out payload for composer targets.
  */
@@ -90,17 +164,77 @@ export const buildCanvasTearOutPayload = (
     return text ? { kind: "text", text } : { kind: "unsupported", reason: "empty_text" };
   }
 
-  if (item.kind === "video") return { kind: "unsupported", reason: "unsupported_video" };
-  if (item.kind === "audio") return { kind: "unsupported", reason: "unsupported_audio" };
+  if (item.kind === "video") {
+    const videoUrl = normalizeOptionalText(item.videoUrl);
+    if (!videoUrl) return { kind: "unsupported", reason: "unsupported_item" };
+    const outputId = normalizeOptionalText(item.outputId);
+    const output = outputId ? (options.getOutputById?.(outputId) ?? null) : null;
+    const sourceSurface = resolveSourceSurface(item.sourceSurface);
+    const identity = resolveMediaReferenceIdentity(item, output);
+    const width = item.width > 0 ? item.width : undefined;
+    const height = item.height > 0 ? item.height : undefined;
+    const internalPayload = buildCanvasMediaInternalPayload({
+      mediaKind: "video",
+      referenceId: identity.referenceId,
+      outputId: identity.outputId,
+      mediaId: identity.mediaId,
+      referenceUrl: videoUrl,
+      renderUrl: normalizeOptionalText(item.posterUrl) ?? videoUrl,
+      sourceSurface,
+      previewStoragePath: normalizeOptionalText(output?.previewStoragePath),
+      fullStoragePath: normalizeOptionalText(output?.fullStoragePath),
+      width,
+      height,
+    });
+    return {
+      kind: "video",
+      videoUrl,
+      internalPayload,
+      outputId: identity.outputId,
+      mediaId: identity.mediaId,
+      durationMs: item.durationMs ?? null,
+    };
+  }
+
+  if (item.kind === "audio") {
+    const audioUrl = normalizeOptionalText(item.audioUrl);
+    if (!audioUrl) return { kind: "unsupported", reason: "unsupported_item" };
+    const outputId = normalizeOptionalText(item.outputId);
+    const output = outputId ? (options.getOutputById?.(outputId) ?? null) : null;
+    const sourceSurface = resolveSourceSurface(item.sourceSurface);
+    const identity = resolveMediaReferenceIdentity(item, output);
+    const width = item.width > 0 ? item.width : undefined;
+    const height = item.height > 0 ? item.height : undefined;
+    const internalPayload = buildCanvasMediaInternalPayload({
+      mediaKind: "audio",
+      referenceId: identity.referenceId,
+      outputId: identity.outputId,
+      mediaId: identity.mediaId,
+      referenceUrl: audioUrl,
+      renderUrl: normalizeOptionalText(item.companionArtUrl) ?? audioUrl,
+      sourceSurface,
+      previewStoragePath: normalizeOptionalText(output?.previewStoragePath),
+      fullStoragePath: normalizeOptionalText(output?.fullStoragePath),
+      width,
+      height,
+    });
+    return {
+      kind: "audio",
+      audioUrl,
+      internalPayload,
+      outputId: identity.outputId,
+      mediaId: identity.mediaId,
+      durationMs: item.durationMs ?? null,
+      audioSourceMode: item.audioSourceMode ?? null,
+    };
+  }
+
   if (item.kind !== "image") return { kind: "unsupported", reason: "unsupported_item" };
 
   const outputId = normalizeOptionalText(item.outputId);
   const output = outputId ? (options.getOutputById?.(outputId) ?? null) : null;
   const sourceSurface = resolveSourceSurface(item.sourceSurface);
-  const mediaId =
-    normalizeOptionalText(item.mediaId) ??
-    normalizeOptionalText(output?.savedMediaIds?.[0]) ??
-    null;
+  const { mediaId } = resolveMediaReferenceIdentity(item, output);
   const displayArtifactUrl = normalizeOptionalText(item.src);
   if (!mediaId && !outputId && !displayArtifactUrl) {
     return { kind: "unsupported", reason: "unsupported_item" };

@@ -145,6 +145,7 @@ const PulseCreatePanelViewContent = ({
     (payload: AgentComposerDirectDropPayload) => {
       if (payload.kind === "unsupported") return false;
       if (payload.kind === "image") return Boolean(onAgentComposerDirectDrop);
+      if (payload.kind !== "text") return false;
       return Boolean(payload.text.trim() && promptStepProps.onAgentInputChange);
     },
     [onAgentComposerDirectDrop, promptStepProps]

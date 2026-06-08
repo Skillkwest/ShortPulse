@@ -146,7 +146,7 @@ describe("buildCanvasTearOutPayload", () => {
     });
   });
 
-  it("rejects video and audio items for composer tear-out", () => {
+  it("exports video and audio items for media-slot tear-out", () => {
     const videoPayload = buildCanvasTearOutPayload({
       ...baseItem,
       id: "video-1",
@@ -167,15 +167,43 @@ describe("buildCanvasTearOutPayload", () => {
       title: "Audio",
       width: 160,
       height: 220,
+      durationMs: 9000,
+      audioSourceMode: "music",
     });
 
-    expect(videoPayload).toEqual({
-      kind: "unsupported",
-      reason: "unsupported_video",
+    expect(videoPayload).toMatchObject({
+      kind: "video",
+      videoUrl: "https://cdn.shortpulse.test/video.mp4",
+      outputId: "output-video-1",
+      mediaId: "media-video-1",
+      internalPayload: {
+        referenceId: "output-video-1",
+        outputId: "output-video-1",
+        mediaId: "media-video-1",
+        mediaKind: "video",
+        referenceUrl: "https://cdn.shortpulse.test/video.mp4",
+        referenceRenderUrl: "https://cdn.shortpulse.test/video.mp4",
+        sourceSurface: "all-refs",
+        sessionBacked: true,
+      },
     });
-    expect(audioPayload).toEqual({
-      kind: "unsupported",
-      reason: "unsupported_audio",
+    expect(audioPayload).toMatchObject({
+      kind: "audio",
+      audioUrl: "https://cdn.shortpulse.test/audio.mp3",
+      outputId: "output-audio-1",
+      mediaId: "media-audio-1",
+      durationMs: 9000,
+      audioSourceMode: "music",
+      internalPayload: {
+        referenceId: "output-audio-1",
+        outputId: "output-audio-1",
+        mediaId: "media-audio-1",
+        mediaKind: "audio",
+        referenceUrl: "https://cdn.shortpulse.test/audio.mp3",
+        referenceRenderUrl: "https://cdn.shortpulse.test/audio.mp3",
+        sourceSurface: "all-refs",
+        sessionBacked: true,
+      },
     });
   });
 });

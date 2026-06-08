@@ -9,6 +9,7 @@ import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { AiStudioVideoPanelContract } from "./contracts/pageContentContracts";
 import type { LipSyncAudioState, VideoReferenceMode } from "../types";
+import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
 
 type UseAiStudioVideoPanelPropsParams = {
   aspect: string;
@@ -90,6 +91,7 @@ type UseAiStudioVideoPanelPropsParams = {
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   resolveOutputVideoUrl: (id: string | null | undefined) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   onCreateCharacter: () => void;
@@ -168,6 +170,7 @@ export const useAiStudioVideoPanelProps = ({
   resolveOutputPreviewUrl,
   resolveOutputVideoUrl,
   resolveInternalReferenceImageDropSource,
+  canvasTearOutTargetRegistry,
   isGenerateDisabled,
   generationGuardrail,
   onCreateCharacter,
@@ -245,6 +248,7 @@ export const useAiStudioVideoPanelProps = ({
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       resolveMotionVideoUrlById: resolveOutputVideoUrl,
       resolveInternalReferenceImageDropSource,
+      canvasTearOutTargetRegistry,
       isGenerateDisabled,
       onCreateCharacter,
       onCreateElement,
@@ -253,6 +257,7 @@ export const useAiStudioVideoPanelProps = ({
       aspect,
       currentCostCredits,
       currentModelLabel,
+      canvasTearOutTargetRegistry,
       extraImageUrls,
       generationGuardrail,
       handleKlingVoiceIdChange,

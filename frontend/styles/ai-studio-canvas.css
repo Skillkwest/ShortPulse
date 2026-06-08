@@ -462,6 +462,11 @@
   pointer-events: none;
 }
 
+.reference-card-bottom-actions--video {
+  left: auto;
+  right: 6px;
+}
+
 .reference-card.is-active .reference-card-bottom-actions {
   opacity: 1;
   pointer-events: auto;

@@ -235,10 +235,10 @@ describe("StylesLibraryPanel", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Style tile: Dream Glow (generating preview)",
+        name: "Style tile: Dream Glow (generating)",
       })
     ).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Generating preview...");
+    expect(screen.getByRole("status")).toHaveTextContent("Generating...");
 
     resolvePreview({
       previewImageUrl: "data:image/jpeg;base64,generated-style-preview",

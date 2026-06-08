@@ -621,6 +621,12 @@
   order: 0;
 }
 
+.video-properties-panel .video-primary-prompt-shell.is-dragging .reference-step-card {
+  box-shadow:
+    0 0 0 1px rgba(94, 203, 255, 0.72),
+    0 14px 34px rgba(0, 0, 0, 0.3);
+}
+
 .video-properties-panel .video-primary-prompt-shell .reference-dropzone-block.prompt-block {
   order: 0 !important;
 }

@@ -27,6 +27,11 @@ import {
   resolveKlingSinglePromptEffectiveVisibleCharacterLimit,
   resolveKlingSinglePromptVisibleCharacterLimit,
 } from "../../logic/klingShotModePromptComposition";
+import {
+  createCanvasTearOutComposerTargetRegistry,
+  type CanvasTearOutPoint,
+} from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 
 type ReferencePromptStepMockProps = {
   referenceText?: string | null;
@@ -55,6 +60,27 @@ const referenceVideoSettingsStepMock = vi.fn((props: { modelModalContext?: strin
   void props;
   return <div data-testid="reference-video-settings-step" />;
 });
+
+const setElementRect = (
+  element: Element,
+  rect: { left: number; top: number; width: number; height: number }
+) => {
+  const domRect = {
+    x: rect.left,
+    y: rect.top,
+    left: rect.left,
+    top: rect.top,
+    right: rect.left + rect.width,
+    bottom: rect.top + rect.height,
+    width: rect.width,
+    height: rect.height,
+    toJSON: () => ({}),
+  } as DOMRect;
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => domRect,
+  });
+};
 
 const defaultDerivedState = {
   activeVideoMode: "standard",
@@ -289,6 +315,9 @@ vi.mock("../useReferencePropertiesInteractions", () => ({
     handleExtraDragEnter: vi.fn(),
     handleExtraDragOver: vi.fn(),
     handleExtraDragLeave: vi.fn(),
+    acceptPrimaryCanvasTearOutPayload: vi.fn(),
+    acceptExtraCanvasTearOutPayload: vi.fn(),
+    acceptMotionVideoCanvasTearOutPayload: vi.fn(),
     allowVideoDrag: vi.fn(() => false),
     handleMotionVideoDrop: vi.fn(),
     handleMotionVideoSelection: vi.fn(),
@@ -500,6 +529,124 @@ describe("VideoPropertiesPanel", () => {
     );
   });
 
+  it("registers the primary prompt composer as a Canvas tear-out text target", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const onPromptTextChange = vi.fn();
+    const promptPayload: AgentComposerDirectDropPayload = {
+      kind: "text",
+      text: "Canvas prompt",
+    };
+    const promptPoint: CanvasTearOutPoint = { clientX: 40, clientY: 40 };
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceText="Existing direction "
+        onPromptTextChange={onPromptTextChange}
+        canvasTearOutTargetRegistry={registry}
+      />
+    );
+
+    const promptTextarea = screen.getByLabelText("Video prompt");
+    const promptShell = promptTextarea.closest(".video-primary-prompt-shell") as HTMLElement;
+    expect(promptShell).toBeTruthy();
+    setElementRect(promptShell, { left: 10, top: 10, width: 360, height: 160 });
+
+    await waitFor(() =>
+      expect(registry.resolveTargetAtPoint(promptPoint, promptPayload)?.id).toBe(
+        "video-primary-prompt-composer"
+      )
+    );
+
+    const promptTarget = registry.resolveTargetAtPoint(promptPoint, promptPayload);
+    act(() => {
+      promptTarget?.target.setActive?.(true);
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Video prompt").closest(".video-primary-prompt-shell")
+      ).toHaveClass("is-dragging")
+    );
+    act(() => {
+      promptTarget?.target.setActive?.(false);
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Video prompt").closest(".video-primary-prompt-shell")
+      ).not.toHaveClass("is-dragging")
+    );
+
+    act(() => {
+      registry.resolveTargetAtPoint(promptPoint, promptPayload)?.target.accept(promptPayload);
+    });
+    expect(onPromptTextChange).toHaveBeenCalledWith("Existing direction Canvas prompt");
+  });
+
+  it("registers the Lip Sync audio slot as a Canvas tear-out audio target", async () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isMotionMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image.",
+      promptBadge: "Prompt optional",
+    });
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const onLipSyncAudioChange = vi.fn();
+    const audioPayload: AgentComposerDirectDropPayload = {
+      kind: "audio",
+      audioUrl: "https://example.com/canvas-voice.mp3",
+      internalPayload: null,
+      outputId: "audio-output-1",
+      mediaId: "media-audio-1",
+      durationMs: 12000,
+      audioSourceMode: "voiceover",
+    };
+    const audioPoint: CanvasTearOutPoint = { clientX: 40, clientY: 40 };
+
+    const { container } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        canvasTearOutTargetRegistry={registry}
+        onLipSyncAudioChange={onLipSyncAudioChange}
+      />
+    );
+
+    const audioDropzone = container.querySelector(".video-lip-sync-audio-dropzone");
+    expect(audioDropzone).not.toBeNull();
+    setElementRect(audioDropzone as Element, { left: 10, top: 10, width: 360, height: 120 });
+
+    await waitFor(() =>
+      expect(registry.resolveTargetAtPoint(audioPoint, audioPayload)?.id).toBe(
+        "video-lip-sync-audio"
+      )
+    );
+    expect(
+      registry.resolveTargetAtPoint(audioPoint, { kind: "text", text: "Not audio" })
+    ).toBeNull();
+
+    const audioTarget = registry.resolveTargetAtPoint(audioPoint, audioPayload);
+    act(() => {
+      audioTarget?.target.setActive?.(true);
+    });
+    await waitFor(() => expect(audioDropzone).toHaveClass("is-drag-active"));
+    act(() => {
+      audioTarget?.target.setActive?.(false);
+    });
+    await waitFor(() => expect(audioDropzone).not.toHaveClass("is-drag-active"));
+
+    act(() => {
+      registry.resolveTargetAtPoint(audioPoint, audioPayload)?.target.accept(audioPayload);
+    });
+    expect(onLipSyncAudioChange).toHaveBeenCalledWith({
+      url: "https://example.com/canvas-voice.mp3",
+      durationMs: 12000,
+    });
+  });
+
   it("renders Lip Sync setup with product-only language", () => {
     useReferencePropertiesDerivedStateMock.mockReturnValue({
       ...defaultDerivedState,
@@ -667,6 +814,19 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();
     expect(screen.queryByText("Shot 2")).toBeNull();
     expect(screen.queryByLabelText("Add another shot prompt")).toBeNull();
+  });
+
+  it("keeps the compact Kling settings shot mode selector to Single and Multi only", () => {
+    render(<VideoPropertiesPanel {...baseProps} klingWorkflowMode="single" />);
+
+    const settingsCard = screen.getByText("Kling 3.0 Settings").closest(".step-card");
+    expect(settingsCard).not.toBeNull();
+    const settings = within(settingsCard as HTMLElement);
+
+    expect(settings.getByRole("tab", { name: "Single shot" })).toBeInTheDocument();
+    expect(settings.getByRole("tab", { name: "Multi-shot" })).toBeInTheDocument();
+    expect(settings.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();
+    expect(settings.queryByText("Custom")).toBeNull();
   });
 
   it("does not render custom multi-shot prompt boxes when Kling is no longer the active model", () => {

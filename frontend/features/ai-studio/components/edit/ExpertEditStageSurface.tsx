@@ -6,9 +6,11 @@ import React from "react";
 
 import { ExpertEditMarkupModalShell } from "./ExpertEditMarkupModalShell";
 import {
+  ExpertEditTransformChromeLayer,
   PrimaryCanvasFrameStack,
   PrimaryCompositionSurface,
   PrimaryStageShell,
+  PrimaryStageRenderClip,
   PrimaryStageViewportLayer,
 } from "./ExpertEditStagePrimitives";
 
@@ -114,45 +116,59 @@ export function ExpertEditInlineStageSurface({
       onPointerLeave={backdropPanHandlers.onPointerLeave}
       onWheel={onStageWheel}
     >
-      <PrimaryStageViewportLayer style={viewportStyle}>
-        <PrimaryCanvasFrameStack
-          frameStackRef={frameStackRef}
-          isPopulated={isPopulated}
-          isDragActive={isDragActive}
-          style={frameStyle}
-          onWheel={onStageWheel}
-          onDrop={onDrop}
-          onDragEnter={onDragEnter}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-        >
-          <PrimaryCompositionSurface
-            surfaceRef={surfaceRef}
-            isVisible={isVisible}
-            isBusy={isBusy}
+      <PrimaryStageRenderClip>
+        <PrimaryStageViewportLayer style={viewportStyle}>
+          <PrimaryCanvasFrameStack
+            frameStackRef={frameStackRef}
+            isPopulated={isPopulated}
             isDragActive={isDragActive}
-            isPresetsOpen={isPresetsOpen}
-            style={surfaceStyle}
-            onPointerDown={shouldRenderInteractive ? interactionHandlers.onPointerDown : undefined}
-            onPointerMove={shouldRenderInteractive ? interactionHandlers.onPointerMove : undefined}
-            onPointerUp={shouldRenderInteractive ? interactionHandlers.onPointerUp : undefined}
-            onPointerCancel={
-              shouldRenderInteractive ? interactionHandlers.onPointerCancel : undefined
-            }
-            onPointerLeave={
-              shouldRenderInteractive ? interactionHandlers.onPointerLeave : undefined
-            }
-            onMouseDown={shouldRenderInteractive ? onStageMouseDown : undefined}
-            onAuxClick={shouldRenderInteractive ? onStageAuxClick : undefined}
-            onContextMenu={shouldRenderInteractive ? onStageContextMenu : undefined}
-            onClick={shouldRenderInteractive ? onStageClick : undefined}
-            onDoubleClick={shouldRenderInteractive ? onStageDoubleClick : undefined}
+            style={frameStyle}
+            onWheel={onStageWheel}
+            onDrop={onDrop}
+            onDragEnter={onDragEnter}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
           >
-            {shouldRenderInteractive ? sceneContent : null}
-          </PrimaryCompositionSurface>
-          {shouldRenderInteractive ? transformOverlay : null}
-        </PrimaryCanvasFrameStack>
-      </PrimaryStageViewportLayer>
+            <PrimaryCompositionSurface
+              surfaceRef={surfaceRef}
+              isVisible={isVisible}
+              isBusy={isBusy}
+              isDragActive={isDragActive}
+              isPresetsOpen={isPresetsOpen}
+              style={surfaceStyle}
+              onPointerDown={
+                shouldRenderInteractive ? interactionHandlers.onPointerDown : undefined
+              }
+              onPointerMove={
+                shouldRenderInteractive ? interactionHandlers.onPointerMove : undefined
+              }
+              onPointerUp={shouldRenderInteractive ? interactionHandlers.onPointerUp : undefined}
+              onPointerCancel={
+                shouldRenderInteractive ? interactionHandlers.onPointerCancel : undefined
+              }
+              onPointerLeave={
+                shouldRenderInteractive ? interactionHandlers.onPointerLeave : undefined
+              }
+              onMouseDown={shouldRenderInteractive ? onStageMouseDown : undefined}
+              onAuxClick={shouldRenderInteractive ? onStageAuxClick : undefined}
+              onContextMenu={shouldRenderInteractive ? onStageContextMenu : undefined}
+              onClick={shouldRenderInteractive ? onStageClick : undefined}
+              onDoubleClick={shouldRenderInteractive ? onStageDoubleClick : undefined}
+            >
+              {shouldRenderInteractive ? sceneContent : null}
+            </PrimaryCompositionSurface>
+          </PrimaryCanvasFrameStack>
+        </PrimaryStageViewportLayer>
+      </PrimaryStageRenderClip>
+      {shouldRenderInteractive ? (
+        <ExpertEditTransformChromeLayer
+          scope="inline"
+          viewportStyle={viewportStyle}
+          frameStyle={frameStyle}
+        >
+          {transformOverlay}
+        </ExpertEditTransformChromeLayer>
+      ) : null}
     </PrimaryStageShell>
   );
 }
@@ -216,10 +232,14 @@ export function ExpertEditModalStageSurface({
       markupPanel={markupPanel}
       stageContent={
         <>
-          <PrimaryStageViewportLayer style={viewportStyle}>
-            {sceneContent}
-          </PrimaryStageViewportLayer>
-          {transformOverlay}
+          <PrimaryStageRenderClip>
+            <PrimaryStageViewportLayer style={viewportStyle}>
+              {sceneContent}
+            </PrimaryStageViewportLayer>
+          </PrimaryStageRenderClip>
+          <ExpertEditTransformChromeLayer scope="modal" viewportStyle={viewportStyle}>
+            {transformOverlay}
+          </ExpertEditTransformChromeLayer>
         </>
       }
       layersPanel={layersPanel}

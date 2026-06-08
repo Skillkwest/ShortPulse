@@ -330,6 +330,49 @@ describe("useAiStudioReferenceIngestionActions", () => {
     );
   });
 
+  it("inserts durable media-library references even when the signed URL is absent", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    prepareLibraryMediaIngestionPayloadMock.mockReturnValueOnce(new Promise(() => undefined));
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
+
+    let insertedId: string | null | undefined;
+    await act(async () => {
+      insertedId = await result.current.addLibraryMediaReferenceToQuickSlot({
+        id: "media-storage-only",
+        url: null,
+        fileType: "image",
+        filename: "Storage backed image",
+        previewStoragePath: "user-1/variants/images/storage-only/thumb.webp",
+        fullStoragePath: "user-1/generations/images/storage-only/full.png",
+      });
+    });
+
+    expect(insertedId).toEqual(expect.stringMatching(/^library-/));
+    expect(setOutputs).toHaveBeenCalledTimes(1);
+    expect(nextOutputs[0]).toEqual(
+      expect.objectContaining({
+        previewUrl: undefined,
+        resultUrls: undefined,
+        previewStoragePath: "user-1/variants/images/storage-only/thumb.webp",
+        fullStoragePath: "user-1/generations/images/storage-only/full.png",
+        savedMediaIds: ["media-storage-only"],
+        saveState: "saved",
+      })
+    );
+  });
+
   it("still refreshes the optimistic card when project association fails", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(

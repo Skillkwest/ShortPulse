@@ -168,6 +168,7 @@ export function StandardCreatePanelView({
     (payload: AgentComposerDirectDropPayload) => {
       if (payload.kind === "unsupported") return false;
       if (payload.kind === "image") return Boolean(onAgentComposerDirectDrop);
+      if (payload.kind !== "text") return false;
       if (!payload.text.trim()) return false;
       const isChatModeEnabled = promptStepProps.chatModeEnabled ?? true;
       return Boolean(

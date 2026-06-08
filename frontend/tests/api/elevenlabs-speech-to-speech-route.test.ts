@@ -300,6 +300,36 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     });
   });
 
+  it("rejects direct multipart media without a staged or trusted source", async () => {
+    mockFields = {
+      ...mockFields,
+      sourceStoragePath: undefined,
+      sourceUrl: undefined,
+    };
+    mockFiles = {
+      source: {
+        filepath: "/tmp/direct-source.wav",
+        originalFilename: "direct-source.wav",
+        mimetype: "audio/wav",
+      },
+    };
+
+    const req = { method: "POST" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: "sourceStoragePath or sourceUrl is required.",
+    });
+    expect(readStoredMediaBufferMock).not.toHaveBeenCalled();
+    expect(readRemoteSourceBufferMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
+  });
+
   it("returns both audio and remuxed video when an original staged video is supplied", async () => {
     mockFields = {
       ...mockFields,

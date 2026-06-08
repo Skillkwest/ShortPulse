@@ -1376,10 +1376,13 @@ function DetailModalContent({
     () => [
       {
         id: "delete-prompt-output",
-        label: "Delete",
+        label: "",
         onClick: handleRequestDelete,
+        ariaLabel: "Delete",
+        title: "Delete",
         intent: "danger",
         icon: <TrashSimple size={16} weight="bold" aria-hidden />,
+        className: "is-icon-only",
       },
       ...(detailModalItem.capabilities.canSavePrompt && onSavePrompt
         ? [
@@ -1579,7 +1582,7 @@ function DetailModalContent({
             <SharedMediaDetailTopBar
               eyebrow="Text detail"
               title={detailModalItem.presentation?.title ?? null}
-              items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
+              items={[]}
               actions={
                 <SharedMediaDetailActionBar
                   items={sharedPromptActionItems}

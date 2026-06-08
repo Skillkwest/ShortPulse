@@ -8,6 +8,7 @@ import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../typ
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import { extractPromptDropText } from "../utils/dragDrop";
+import { insertDroppedPromptTextAtSelection } from "./promptStep/agentComposerDrop";
 import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
@@ -54,6 +55,8 @@ import { insertPromptTokenAtSelection } from "../logic/promptTokenInsertion";
 import { buildElementProfileImageBackgroundStyle } from "../../elements-manager/logic/elementProfileImageTransform";
 import { syncTextareaMirrorScroll } from "./edit/expertEditInteractionUtils";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
+import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
 const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 6;
@@ -169,6 +172,7 @@ export type VideoPropertiesPanelProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveMotionVideoUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
@@ -238,6 +242,7 @@ export function VideoPropertiesPanel({
   resolvePreviewUrlById,
   resolveMotionVideoUrlById,
   resolveInternalReferenceImageDropSource,
+  canvasTearOutTargetRegistry,
   costCredits,
   isGenerateDisabled = false,
   guardrailReason = null,
@@ -249,6 +254,7 @@ export function VideoPropertiesPanel({
   const shotWorkspaceScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shotWorkspaceStackRef = React.useRef<HTMLDivElement | null>(null);
   const primaryPromptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const primaryPromptShellRef = React.useRef<HTMLDivElement | null>(null);
   const customPromptTextareaRefs = React.useRef<Record<string, HTMLTextAreaElement | null>>({});
   const customPromptHighlightRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const pendingPromptCaretRef = React.useRef<{ target: "primary" | string; caret: number } | null>(
@@ -264,7 +270,10 @@ export function VideoPropertiesPanel({
   const [isElementPickerOpen, setIsElementPickerOpen] = React.useState(false);
   const [isMotionRecorderOpen, setIsMotionRecorderOpen] = React.useState(false);
   const lipSyncAudioInputRef = React.useRef<HTMLInputElement | null>(null);
+  const lipSyncAudioDropzoneRef = React.useRef<HTMLDivElement | null>(null);
   const [lipSyncAudioDragActive, setLipSyncAudioDragActive] = React.useState(false);
+  const [lipSyncAudioCanvasTearOutActive, setLipSyncAudioCanvasTearOutActive] =
+    React.useState(false);
   const [elementPickerError, setElementPickerError] = React.useState<string | null>(null);
   const [promptTokenPickerState, setPromptTokenPickerState] = React.useState<{
     isOpen: boolean;
@@ -310,6 +319,9 @@ export function VideoPropertiesPanel({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
+    acceptPrimaryCanvasTearOutPayload,
+    acceptExtraCanvasTearOutPayload,
+    acceptMotionVideoCanvasTearOutPayload,
     allowVideoDrag,
     handleMotionVideoDrop,
     handleMotionVideoSelection,
@@ -394,6 +406,21 @@ export function VideoPropertiesPanel({
       void handleLipSyncAudioFile(event.dataTransfer.files?.[0]);
     },
     [applyLipSyncAudio, handleLipSyncAudioFile]
+  );
+  const canAcceptLipSyncAudioCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => payload.kind === "audio",
+    []
+  );
+  const acceptLipSyncAudioCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (payload.kind !== "audio") return;
+      setLipSyncAudioDragActive(false);
+      applyLipSyncAudio({
+        url: payload.audioUrl,
+        durationMs: payload.durationMs ?? null,
+      });
+    },
+    [applyLipSyncAudio]
   );
   const clearLipSyncAudio = React.useCallback(() => {
     applyLipSyncAudio({ url: null, durationMs: null });
@@ -706,6 +733,24 @@ export function VideoPropertiesPanel({
     }
   }, [isMotionMode, isMotionRecorderOpen]);
 
+  React.useEffect(() => {
+    if (!isLipSyncMode || !canvasTearOutTargetRegistry || !lipSyncAudioDropzoneRef.current) {
+      return;
+    }
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "video-lip-sync-audio",
+      element: lipSyncAudioDropzoneRef.current,
+      canAccept: canAcceptLipSyncAudioCanvasTearOutPayload,
+      accept: acceptLipSyncAudioCanvasTearOutPayload,
+      setActive: setLipSyncAudioCanvasTearOutActive,
+    });
+  }, [
+    acceptLipSyncAudioCanvasTearOutPayload,
+    canAcceptLipSyncAudioCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+    isLipSyncMode,
+  ]);
+
   const visibleVideoMode =
     activeVideoMode === "lip-sync"
       ? "lip-sync"
@@ -738,7 +783,6 @@ export function VideoPropertiesPanel({
     [videoModeIndex]
   );
   const klingMode = klingWorkflowMode;
-  const isMultiShotEnabled = false;
   const isCustomKlingWorkflow = false;
   const seedanceReferenceMode =
     isSeedance2FamilyModelSelected && seedance2InputMode === "multimodal"
@@ -862,6 +906,10 @@ export function VideoPropertiesPanel({
         onClearMotionVideo={onClearMotionVideo}
         handleFileSelection={handleFileSelection}
         handleMotionVideoSelection={handleMotionVideoSelection}
+        canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
+        acceptPrimaryCanvasTearOutPayload={acceptPrimaryCanvasTearOutPayload}
+        acceptExtraCanvasTearOutPayload={acceptExtraCanvasTearOutPayload}
+        acceptMotionVideoCanvasTearOutPayload={acceptMotionVideoCanvasTearOutPayload}
         topContent={
           <div className="video-reference-card-title">
             {isLipSyncMode
@@ -875,6 +923,10 @@ export function VideoPropertiesPanel({
     ),
     [
       allowVideoDrag,
+      acceptExtraCanvasTearOutPayload,
+      acceptMotionVideoCanvasTearOutPayload,
+      acceptPrimaryCanvasTearOutPayload,
+      canvasTearOutTargetRegistry,
       collapsedSteps.reference,
       expandIfCollapsed,
       extraDragActive,
@@ -1270,6 +1322,62 @@ export function VideoPropertiesPanel({
     },
     [applyPromptUpdateForTarget, closePromptTokenPicker, primaryPromptValue, setActivePromptTarget]
   );
+  const [isPromptCanvasTearOutActive, setIsPromptCanvasTearOutActive] = React.useState(false);
+  const canAcceptPromptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) =>
+      payload.kind === "text" && payload.text.trim().length > 0,
+    []
+  );
+  const acceptPromptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (payload.kind !== "text") return;
+      const droppedText = payload.text.trim();
+      if (!droppedText) return;
+      const textarea = primaryPromptTextareaRef.current;
+      const shouldUseTextareaSelection =
+        typeof document !== "undefined" && textarea ? document.activeElement === textarea : false;
+      const selectionStart = shouldUseTextareaSelection
+        ? (textarea?.selectionStart ?? primaryPromptValue.length)
+        : primaryPromptValue.length;
+      const selectionEnd = shouldUseTextareaSelection
+        ? (textarea?.selectionEnd ?? primaryPromptValue.length)
+        : primaryPromptValue.length;
+      const insertedPrompt = insertDroppedPromptTextAtSelection({
+        composerText: primaryPromptValue,
+        droppedPromptText: droppedText,
+        selectionStart,
+        selectionEnd,
+      });
+      closePromptTokenPicker();
+      applyPromptUpdateForTarget("primary", insertedPrompt.prompt, insertedPrompt.caret);
+      const restoreCaret = () => {
+        const activeTextarea = primaryPromptTextareaRef.current;
+        activeTextarea?.focus();
+        activeTextarea?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
+      };
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(restoreCaret);
+      } else {
+        restoreCaret();
+      }
+    },
+    [applyPromptUpdateForTarget, closePromptTokenPicker, primaryPromptValue]
+  );
+
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || !primaryPromptShellRef.current) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "video-primary-prompt-composer",
+      element: primaryPromptShellRef.current,
+      canAccept: canAcceptPromptCanvasTearOutPayload,
+      accept: acceptPromptCanvasTearOutPayload,
+      setActive: setIsPromptCanvasTearOutActive,
+    });
+  }, [
+    acceptPromptCanvasTearOutPayload,
+    canAcceptPromptCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+  ]);
   const handlePromptSelection = React.useCallback(
     (target: KlingPromptTarget) => {
       setActivePromptTarget(target);
@@ -1601,7 +1709,6 @@ export function VideoPropertiesPanel({
                         <ReferenceVideoSettingsStep
                           isVideoVariant={true}
                           isMotionMode={isMotionMode}
-                          multiShotEnabled={isMultiShotEnabled}
                           multiShotShotCount={0}
                           modelId={modelId}
                           modelLabel={modelLabel}
@@ -1645,7 +1752,8 @@ export function VideoPropertiesPanel({
                         />
                         <div className="video-reference-card-title">Voice audio</div>
                         <div
-                          className={`video-lip-sync-audio-dropzone ${lipSyncAudioDragActive ? "is-drag-active" : ""}`}
+                          ref={lipSyncAudioDropzoneRef}
+                          className={`video-lip-sync-audio-dropzone ${lipSyncAudioDragActive || lipSyncAudioCanvasTearOutActive ? "is-drag-active" : ""}`}
                           role="button"
                           tabIndex={0}
                           onClick={() => lipSyncAudioInputRef.current?.click()}
@@ -1983,7 +2091,10 @@ export function VideoPropertiesPanel({
                         <div className="video-prompt-generate-row">
                           <div className="video-prompt-generate-main">
                             <div className="video-prompt-stack">
-                              <div className="video-primary-prompt-shell">
+                              <div
+                                ref={primaryPromptShellRef}
+                                className={`video-primary-prompt-shell ${isPromptCanvasTearOutActive ? "is-dragging" : ""}`.trim()}
+                              >
                                 {showShotLabels ? (
                                   <div className="video-shot-label-row video-shot-label-row--primary">
                                     <span className="video-shot-label-pill">Shot 1</span>

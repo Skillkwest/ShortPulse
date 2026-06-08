@@ -17,6 +17,7 @@ export type ReferenceGridCardVisualInput = {
   isImagePreview: boolean;
   isPriorityHydration: boolean;
   imageSrc?: string;
+  isStorageSigningPending?: boolean;
 };
 
 export type ReferenceGridCardLoadingVisual = "none" | "spinner" | "hydrating";
@@ -54,14 +55,13 @@ export const classifyReferenceGridCardVisualState = ({
   isImagePreview,
   isPriorityHydration,
   imageSrc,
+  isStorageSigningPending = false,
 }: ReferenceGridCardVisualInput): ReferenceGridCardVisualState => {
   const isFailing = isReferenceOutputFailing(item);
   const hasRenderablePreview = Boolean(cardPreviewUrl);
-  const hasRenderableVideoPreview = item.mode === "video" && hasRenderablePreview;
   const hasDurableMediaAuthority = hasStorageAuthority(item);
   const hasDurableStoragePathAuthority = hasOutputStoragePaths(item);
-  const hasRenderableCardMedia =
-    hasRenderablePreview && (hasRenderableVideoPreview || !isImagePreview || Boolean(imageSrc));
+  const hasRenderableCardMedia = hasRenderablePreview && (!isImagePreview || Boolean(imageSrc));
   const hasRenderableGeneratedMedia = item.mediaSource === "generated" && hasRenderableCardMedia;
   const hasLoadedGeneratedMedia =
     item.mediaSource === "generated" &&
@@ -80,13 +80,13 @@ export const classifyReferenceGridCardVisualState = ({
   const hasPromptOnlyPreview = Boolean(item.previewText);
   const isDecodeBudgetHydrationPending =
     isImagePreview && decodeBudgetEnabled && !imageSrc && isPriorityHydration;
+  const hasActiveStorageResolveWork = hasDurableStoragePathAuthority && isStorageSigningPending;
   const isMediaHydrating =
     !isFailing &&
     !isGenerationLoading &&
     !isLocalVideoPersistenceLoading &&
-    !hasRenderableVideoPreview &&
     !hasRenderableGeneratedMedia &&
-    (hasRenderablePreview || hasDurableStoragePathAuthority) &&
+    (hasRenderablePreview || hasActiveStorageResolveWork) &&
     !hasPromptOnlyPreview &&
     (!isLoaded || isDecodeBudgetHydrationPending);
 

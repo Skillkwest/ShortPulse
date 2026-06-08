@@ -3,6 +3,7 @@
  * Resolves card URLs, hydration-aware image sources, and loading-state sets for visible card rows.
  */
 import { useCallback, useMemo } from "react";
+import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
 import type {
   ReferenceGridMediaAuthorityTier,
   ReferenceGridPreviewQualityBand,
@@ -69,6 +70,7 @@ type UseReferenceGridCardItemsControllerArgs = {
       renderUrl: string;
     }
   >;
+  signingPendingStoragePathSet?: ReadonlySet<string>;
 };
 
 type UseReferenceGridCardItemsControllerResult = {
@@ -102,6 +104,7 @@ export const useReferenceGridCardItemsController = ({
   visibleOutputById,
   loadedMap,
   hydratedById,
+  signingPendingStoragePathSet,
 }: UseReferenceGridCardItemsControllerArgs): UseReferenceGridCardItemsControllerResult => {
   incrementFreezeInvestigationCounter("referenceGrid.cardItems.recompute");
   setFreezeInvestigationGauge("referenceGrid.cardItems.visibleOutputsCount", visibleOutputs.length);
@@ -266,6 +269,15 @@ export const useReferenceGridCardItemsController = ({
         isImagePreview: card.isImagePreview,
         isPriorityHydration: card.isPriorityHydration,
         imageSrc: card.imageSrc,
+        isStorageSigningPending: [
+          currentOutput.previewStoragePath,
+          currentOutput.previewPosterStoragePath,
+          currentOutput.fullStoragePath,
+          ...(currentOutput.resultUrls ?? []),
+        ].some((value) => {
+          const path = asCanonicalStoragePath(value);
+          return path ? (signingPendingStoragePathSet?.has(path) ?? false) : false;
+        }),
       });
       if (visualState.isLoading) {
         nextLoadingIds.push(card.item.id);
@@ -286,6 +298,7 @@ export const useReferenceGridCardItemsController = ({
     allVisibleCardItems,
     decodeBudgetEnabled,
     loadedMap,
+    signingPendingStoragePathSet,
     visibleOutputById,
     visibleQuickSlotIdSet,
   ]);

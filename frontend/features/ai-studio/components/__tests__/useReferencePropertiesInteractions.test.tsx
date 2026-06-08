@@ -115,6 +115,27 @@ const makeCanvasTearOutImagePayload = () => ({
   },
 });
 
+const makeCanvasTearOutVideoPayload = () => ({
+  kind: "video" as const,
+  videoUrl: "https://cdn.shortpulse.test/canvas-motion.mp4",
+  internalPayload: {
+    version: 1,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId: "out-video-1",
+    outputId: "out-video-1",
+    imageIndex: 0,
+    mediaId: "media-video-1",
+    mediaKind: "video" as const,
+    referenceUrl: "https://cdn.shortpulse.test/canvas-motion.mp4",
+    referenceRenderUrl: "https://cdn.shortpulse.test/canvas-motion-poster.jpg",
+    sourceSurface: "all-refs" as const,
+    sessionBacked: true,
+  },
+  outputId: "out-video-1",
+  mediaId: "media-video-1",
+  durationMs: 5400,
+});
+
 describe("useReferencePropertiesInteractions", () => {
   const originalCreateObjectUrl = URL.createObjectURL;
   const originalRevokeObjectUrl = URL.revokeObjectURL;
@@ -162,6 +183,32 @@ describe("useReferencePropertiesInteractions", () => {
 
     expect(resolvePreviewUrlById).toHaveBeenCalledWith("out-1");
     expect(onMotionVideoChange).toHaveBeenCalledWith("https://example.com/reference-video.mp4");
+  });
+
+  it("accepts canvas tear-out video payloads for the Motion Control clip slot", () => {
+    const onMotionVideoChange = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    act(() => {
+      result.current.acceptMotionVideoCanvasTearOutPayload(makeCanvasTearOutVideoPayload());
+    });
+
+    expect(onMotionVideoChange).toHaveBeenCalledWith(
+      "https://cdn.shortpulse.test/canvas-motion.mp4"
+    );
+    expect(result.current.motionVideoDragActive).toBe(false);
   });
 
   it("accepts internal reference-grid drags for image drop targets", () => {
@@ -351,6 +398,58 @@ describe("useReferencePropertiesInteractions", () => {
       "https://cdn.shortpulse.test/secondary-reference-durable.png"
     );
     expect(result.current.extraImageLoading[1]).toBe(false);
+  });
+
+  it("accepts canvas tear-out image payloads for the primary reference", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-1",
+      mediaId: "media-1",
+      mediaSource: "generated" as const,
+      preview: { url: "https://cdn.shortpulse.test/primary-reference.png" },
+      previewStoragePath: "user/images/primary-reference-preview.png",
+      fullStoragePath: "user/images/primary-reference-full.png",
+      promptText: null,
+      preparedImageUrl: "https://cdn.shortpulse.test/primary-reference-durable.png",
+      loadBlob: async () => new Blob(["image"], { type: "image/png" }),
+    }));
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange,
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        resolvePreviewUrlById: vi.fn(() => "https://example.com/weak-preview.png"),
+        resolveInternalReferenceImageDropSource,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    await act(async () => {
+      result.current.acceptPrimaryCanvasTearOutPayload(makeCanvasTearOutImagePayload());
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(onPrimaryImageChange).toHaveBeenCalledWith(
+      "https://cdn.shortpulse.test/primary-reference-durable.png"
+    );
+    expect(result.current.primaryImageLoading).toBe(false);
   });
 
   it("clears frame-slot loading when an internal image drop resolves without a usable url", async () => {

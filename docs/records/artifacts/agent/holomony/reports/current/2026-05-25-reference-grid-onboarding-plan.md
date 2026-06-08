@@ -56,7 +56,7 @@ Purpose: freeze the audited onboarding plan for bringing `reference-grid` into H
 ### 1. Preflight
 
 - Confirm the lane is a `reference-grid` onboarding run, not a cross-surface media expansion.
-- Confirm production-only verification at `https://shortpulse.ai`.
+- Confirm production-only verification at `https://www.shortpulse.ai`.
 - Confirm the checked-in Reference Grid browser harnesses now enter `/ai-studio?perfAuditRuntime=1` automatically, but still keep localhost-oriented defaults unless `PLAYWRIGHT_BASE_URL` is pointed at production.
 - For the first baseline, prefer direct production browser audit truth over local release-check scripts.
 
@@ -94,7 +94,7 @@ Purpose: freeze the audited onboarding plan for bringing `reference-grid` into H
   - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
   - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
 - Or use the checked-in production browser audit command:
-  - `cd frontend && PLAYWRIGHT_BASE_URL=https://shortpulse.ai PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run test:perf:ai-studio`
+  - `cd frontend && PLAYWRIGHT_BASE_URL=https://www.shortpulse.ai PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run test:perf:ai-studio`
 - In the same production session:
   - `window.__shortpulseMediaPerf?.clear()`
   - reproduce a Reference Grid-heavy flow
@@ -152,7 +152,7 @@ Choose exactly one:
 ### Entry
 
 - user-approved `reference-grid` scope
-- production URL fixed to `https://shortpulse.ai`
+- production URL fixed to `https://www.shortpulse.ai`
 - dedicated audit account available
 - owner files frozen
 - explicit adjacent-surface exclusions recorded

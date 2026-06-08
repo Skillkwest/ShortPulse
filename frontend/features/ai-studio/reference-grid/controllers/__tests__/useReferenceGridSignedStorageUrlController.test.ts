@@ -156,6 +156,61 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     });
   });
 
+  it("exposes pending signing state only while storage signing is active", async () => {
+    let resolveBatch: (value: Map<string, string>) => void = () => undefined;
+    vi.mocked(getSignedMediaUrlsBatch).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveBatch = resolve;
+      })
+    );
+    const output = createStorageBackedImage();
+    const { result } = renderHook(() =>
+      useReferenceGridSignedStorageUrlController({
+        outputs: [output],
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.signingPendingStoragePathSet.has(output.previewStoragePath ?? "")).toBe(
+        true
+      );
+    });
+
+    resolveBatch(
+      new Map([
+        [
+          "user-1/variants/images/image-1/preview.webp",
+          "https://signed.shortpulse.test/preview.webp",
+        ],
+      ])
+    );
+
+    await waitFor(() => {
+      expect(result.current.signingPendingStoragePathSet.size).toBe(0);
+      expect(result.current.signedStorageUrlByPath.get(output.previewStoragePath ?? "")).toBe(
+        "https://signed.shortpulse.test/preview.webp"
+      );
+    });
+  });
+
+  it("clears pending signing state when storage signing fails", async () => {
+    vi.mocked(getSignedMediaUrlsBatch).mockRejectedValueOnce(new Error("signing failed"));
+    const output = createStorageBackedImage();
+    const { result } = renderHook(() =>
+      useReferenceGridSignedStorageUrlController({
+        outputs: [output],
+      })
+    );
+
+    await waitFor(() => {
+      expect(getSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(result.current.signingPendingStoragePathSet.size).toBe(0);
+    });
+  });
+
   it("recovers signed media authority from saved media ids when storage paths are absent", async () => {
     vi.mocked(resolveSessionRestoreSignedMediaAuthorityByMediaId).mockResolvedValue(
       new Map([
@@ -226,7 +281,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     expect(getSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
   });
 
-  it("projects signed storage urls into a transient renderable media view", () => {
+  it("projects signed storage urls into render fields while preserving durable storage paths", () => {
     const output = createStorageBackedImage();
     const projected = applySignedStorageUrlsToReferenceGridMediaOutput(
       output,
@@ -240,14 +295,14 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     );
 
     expect(output.previewStoragePath).toBe("user-1/variants/images/image-1/preview.webp");
-    expect(projected.previewStoragePath).toBe("https://signed.shortpulse.test/preview.webp");
+    expect(projected.previewStoragePath).toBe("user-1/variants/images/image-1/preview.webp");
     expect(output.fullStoragePath).toBe("user-1/generations/images/image-1.png");
-    expect(projected.fullStoragePath).toBe("https://signed.shortpulse.test/full.png");
+    expect(projected.fullStoragePath).toBe("user-1/generations/images/image-1.png");
     expect(projected.previewUrl).toBe("https://signed.shortpulse.test/preview.webp");
     expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/full.png"]);
   });
 
-  it("projects signed media-id authority into a transient renderable media view", () => {
+  it("projects signed media-id authority into render fields while recovering durable paths", () => {
     const output = createStorageBackedImage({
       previewStoragePath: null,
       fullStoragePath: null,
@@ -274,7 +329,8 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     );
 
     expect(projected.previewUrl).toBe("https://signed.shortpulse.test/saved-preview.webp");
-    expect(projected.fullStoragePath).toBe("https://signed.shortpulse.test/saved-full.png");
+    expect(projected.previewStoragePath).toBe("user-1/variants/images/saved-media-1/thumb.webp");
+    expect(projected.fullStoragePath).toBe("user-1/generations/images/saved-media-1.png");
     expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/saved-full.png"]);
   });
 
@@ -304,7 +360,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     );
 
     expect(projected.previewPosterUrl).toBe("https://signed.shortpulse.test/video-poster.webp");
-    expect(projected.fullStoragePath).toBe("https://signed.shortpulse.test/video-full.mp4");
+    expect(projected.fullStoragePath).toBe("user-1/generations/videos/video-1/full.mp4");
     expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/video-full.mp4"]);
     expect(projected.previewPosterUrl).not.toBe(projected.fullStoragePath);
   });

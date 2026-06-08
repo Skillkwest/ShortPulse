@@ -63,8 +63,10 @@ Use:
   - current onboarding audit for the character-panel candidate surface
 - `current/2026-05-25-reference-grid-onboarding-plan.md`
   - audited onboarding plan and stop/decision contract for the Reference Grid candidate surface
+- `current/2026-05-29-holomony-context-refresh.md`
+  - latest retained self-maintenance/context-load cleanup read for Holomony's operating space
 - `current/2026-05-28-holomony-operating-space-audit-prune.md`
-  - latest retained self-maintenance audit/prune read for Holomony's operating space
+  - prior retained operating-space audit/prune read for Holomony's operating space
 - `current/2026-05-19-ai-studio-panel-baseline.packet.json`
 - `current/2026-05-19-ai-studio-panel-persistence-audit.json`
 - `current/2026-05-19-elements-media-panel-baseline.packet.json`

@@ -14,6 +14,8 @@ import { AppMessage } from "../../../components/AppMessage";
 import { loadVideoPreviewMetadata } from "../logic/videoPreviewMetadata";
 import { MediaDurationBadge } from "./shared/MediaDurationBadge";
 import { ReferenceStepHeaderActionButton } from "./ReferenceStepHeaderActionButton";
+import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 
 const MOTION_VIDEO_POSTER_CAPTURE_TIME_SECONDS = 3;
 
@@ -111,6 +113,13 @@ type ReferenceMediaStepProps = {
     setter: (url: string | null) => void
   ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleMotionVideoSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  acceptPrimaryCanvasTearOutPayload?: (payload: AgentComposerDirectDropPayload) => void;
+  acceptExtraCanvasTearOutPayload?: (
+    index: number,
+    payload: AgentComposerDirectDropPayload
+  ) => void;
+  acceptMotionVideoCanvasTearOutPayload?: (payload: AgentComposerDirectDropPayload) => void;
   topContent?: React.ReactNode;
   inlineAside?: React.ReactNode;
 };
@@ -163,9 +172,21 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   onClearMotionVideo,
   handleFileSelection,
   handleMotionVideoSelection,
+  canvasTearOutTargetRegistry,
+  acceptPrimaryCanvasTearOutPayload,
+  acceptExtraCanvasTearOutPayload,
+  acceptMotionVideoCanvasTearOutPayload,
   topContent,
   inlineAside,
 }) => {
+  const primaryDropzoneRef = React.useRef<HTMLDivElement | null>(null);
+  const extraOneDropzoneRef = React.useRef<HTMLDivElement | null>(null);
+  const motionVideoDropzoneRef = React.useRef<HTMLDivElement | null>(null);
+  const [primaryCanvasTearOutActive, setPrimaryCanvasTearOutActive] = React.useState(false);
+  const [extraCanvasTearOutActiveIndex, setExtraCanvasTearOutActiveIndex] = React.useState<
+    number | null
+  >(null);
+  const [motionVideoCanvasTearOutActive, setMotionVideoCanvasTearOutActive] = React.useState(false);
   const motionVideoPreview = useMotionVideoPreviewMetadata(motionVideoUrl);
   const showHeader = !isVideoVariant;
   const isCollapsed = showHeader ? collapsedReference : false;
@@ -174,6 +195,85 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   const shouldShowPrimaryRequiredPill =
     isVideoVariant && isStandardMode && primaryImageRequired && !referenceImageUrl;
   const shouldShowLastFrameOptionalPill = isVideoVariant && isStandardMode && !extraImageUrls[0];
+  const effectivePrimaryDragActive = primaryDragActive || primaryCanvasTearOutActive;
+  const effectiveExtraOneDragActive =
+    Boolean(extraDragActive[0]) || extraCanvasTearOutActiveIndex === 0;
+  const effectiveMotionVideoDragActive = motionVideoDragActive || motionVideoCanvasTearOutActive;
+  const shouldRegisterExtraFrameCanvasTearOutTarget =
+    isVideoVariant && !isMotionMode && (isKling3Mode || isStandardMode || isKeyframesMode);
+  const canAcceptCanvasTearOutImagePayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => payload.kind === "image",
+    []
+  );
+  const canAcceptCanvasTearOutVideoPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => payload.kind === "video",
+    []
+  );
+
+  React.useEffect(() => {
+    if (!isVideoVariant || !canvasTearOutTargetRegistry || !acceptPrimaryCanvasTearOutPayload) {
+      return;
+    }
+    if (!primaryDropzoneRef.current) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "video-primary-reference-frame",
+      element: primaryDropzoneRef.current,
+      canAccept: canAcceptCanvasTearOutImagePayload,
+      accept: acceptPrimaryCanvasTearOutPayload,
+      setActive: setPrimaryCanvasTearOutActive,
+    });
+  }, [
+    acceptPrimaryCanvasTearOutPayload,
+    canAcceptCanvasTearOutImagePayload,
+    canvasTearOutTargetRegistry,
+    isVideoVariant,
+  ]);
+
+  React.useEffect(() => {
+    if (
+      !canvasTearOutTargetRegistry ||
+      !acceptExtraCanvasTearOutPayload ||
+      !shouldRegisterExtraFrameCanvasTearOutTarget
+    ) {
+      return;
+    }
+    if (!extraOneDropzoneRef.current) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "video-extra-reference-frame-0",
+      element: extraOneDropzoneRef.current,
+      canAccept: canAcceptCanvasTearOutImagePayload,
+      accept: (payload) => acceptExtraCanvasTearOutPayload(0, payload),
+      setActive: (active) =>
+        setExtraCanvasTearOutActiveIndex((previous) =>
+          active ? 0 : previous === 0 ? null : previous
+        ),
+    });
+  }, [
+    acceptExtraCanvasTearOutPayload,
+    canAcceptCanvasTearOutImagePayload,
+    canvasTearOutTargetRegistry,
+    shouldRegisterExtraFrameCanvasTearOutTarget,
+  ]);
+
+  React.useEffect(() => {
+    if (!isMotionMode || !canvasTearOutTargetRegistry || !acceptMotionVideoCanvasTearOutPayload) {
+      return;
+    }
+    if (!motionVideoDropzoneRef.current) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "video-motion-control-video",
+      element: motionVideoDropzoneRef.current,
+      canAccept: canAcceptCanvasTearOutVideoPayload,
+      accept: acceptMotionVideoCanvasTearOutPayload,
+      setActive: setMotionVideoCanvasTearOutActive,
+    });
+  }, [
+    acceptMotionVideoCanvasTearOutPayload,
+    canAcceptCanvasTearOutVideoPayload,
+    canvasTearOutTargetRegistry,
+    isMotionMode,
+  ]);
+
   const renderLoadingOverlay = () => (
     <div className="reference-dropzone-loading" aria-live="polite" aria-busy="true">
       <div className="reference-spinner" />
@@ -186,7 +286,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
           <div className="drop-image-row motion-drop-row">
             <div className="primary-drop">
               <div
-                className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
+                ref={primaryDropzoneRef}
+                className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${effectivePrimaryDragActive ? "is-dragging" : ""}`}
                 onDrop={handlePrimaryDrop}
                 onDragEnter={handlePrimaryDragEnter}
                 onDragOver={handlePrimaryDragOver}
@@ -220,7 +321,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
 
             <div className="primary-drop">
               <div
-                className={`reference-dropzone video-dropzone ${motionVideoUrl ? "has-preview" : ""} ${motionVideoDragActive ? "is-dragging" : ""}`}
+                ref={motionVideoDropzoneRef}
+                className={`reference-dropzone video-dropzone ${motionVideoUrl ? "has-preview" : ""} ${effectiveMotionVideoDragActive ? "is-dragging" : ""}`}
                 onDrop={handleMotionVideoDrop}
                 onDragEnter={(event) => {
                   if (allowVideoDrag(event)) {
@@ -301,7 +403,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
         <div className="drop-image-row kling-drop-row">
           <div className="primary-drop">
             <div
-              className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
+              ref={primaryDropzoneRef}
+              className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${effectivePrimaryDragActive ? "is-dragging" : ""}`}
               onDrop={handlePrimaryDrop}
               onDragEnter={handlePrimaryDragEnter}
               onDragOver={handlePrimaryDragOver}
@@ -333,7 +436,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
           </div>
           <div className="primary-drop">
             <div
-              className={`reference-dropzone ${extraImageUrls[0] ? "has-preview" : ""} ${extraDragActive[0] ? "is-dragging" : ""}`}
+              ref={extraOneDropzoneRef}
+              className={`reference-dropzone ${extraImageUrls[0] ? "has-preview" : ""} ${effectiveExtraOneDragActive ? "is-dragging" : ""}`}
               onDrop={handleExtraDrop(0)}
               onDragEnter={handleExtraDragEnter(0)}
               onDragOver={handleExtraDragOver(0)}
@@ -368,7 +472,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
         <div className="drop-image-row">
           <div className="primary-drop">
             <div
-              className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
+              ref={primaryDropzoneRef}
+              className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${effectivePrimaryDragActive ? "is-dragging" : ""}`}
               onDrop={handlePrimaryDrop}
               onDragEnter={handlePrimaryDragEnter}
               onDragOver={handlePrimaryDragOver}
@@ -424,7 +529,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               ) : null}
               <div className="primary-drop">
                 <div
-                  className={`reference-dropzone ${extraImageUrls[0] ? "has-preview" : ""} ${extraDragActive[0] ? "is-dragging" : ""}`}
+                  ref={extraOneDropzoneRef}
+                  className={`reference-dropzone ${extraImageUrls[0] ? "has-preview" : ""} ${effectiveExtraOneDragActive ? "is-dragging" : ""}`}
                   onDrop={handleExtraDrop(0)}
                   onDragEnter={handleExtraDragEnter(0)}
                   onDragOver={handleExtraDragOver(0)}

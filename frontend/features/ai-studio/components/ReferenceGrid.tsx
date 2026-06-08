@@ -279,7 +279,7 @@ function ReferenceGridComponent({
       visibleMediaOutputs,
     ]
   );
-  const { signedStorageUrlByPath, signedMediaAuthorityByMediaId } =
+  const { signedStorageUrlByPath, signedMediaAuthorityByMediaId, signingPendingStoragePathSet } =
     useReferenceGridSignedStorageUrlController({
       outputs: storageSigningMediaOutputs,
     });
@@ -319,6 +319,7 @@ function ReferenceGridComponent({
     visibleOutputById,
     loadedMap,
     hydratedById: imageHydrationState.hydratedById,
+    signingPendingStoragePathSet,
   });
   useReferenceGridPreviewSwapTelemetryController({
     visibleCardItems,

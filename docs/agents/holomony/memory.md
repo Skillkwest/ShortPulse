@@ -7,7 +7,7 @@ Purpose: retain concise, durable operating memory for Holomony's media optimizat
 - Maturity: `Level 1: Supervised`.
 - Canonical local identity: `Holomony`.
 - Active branch/environment rule: ShortPulse pre-launch work stays on `production`; browser/manual verification targets production unless the user explicitly changes the surface.
-- Canonical production URL for verification: `https://shortpulse.ai`.
+- Canonical production URL for verification: `https://www.shortpulse.ai`.
 - Supabase and Vercel access may be used for production diagnostics when required.
 
 ## Owned Scope

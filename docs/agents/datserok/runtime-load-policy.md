@@ -28,6 +28,7 @@ Load these only when the lane truly needs them:
 - `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
 - `docs/adr/0085-global-media-library-folder-authority.md`
+- `docs/adr/0089-large-project-persistence-hybrid-checkpoint-and-output-display-records.md`
   - when the lane needs the deeper persistence authority stack
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
   - only for historical drift checks involving the retired `sid` lane

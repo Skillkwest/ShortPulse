@@ -242,6 +242,37 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.saveState).toBe("saved");
   });
 
+  it("builds library media output from durable authority without a current signed URL", async () => {
+    const context: ReferenceIngestionContext = {
+      ...createContext(),
+      nowIso: () => "2026-05-25T12:34:56.000Z",
+    };
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-durable-1",
+          url: null,
+          fileType: "image",
+          filename: "Durable Reference",
+          previewStoragePath: "user/variants/images/durable/thumb.webp",
+          fullStoragePath: "user/generations/images/durable/full.png",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.previewUrl).toBeUndefined();
+    expect(output?.resultUrls).toBeUndefined();
+    expect(output?.previewStoragePath).toBe("user/variants/images/durable/thumb.webp");
+    expect(output?.fullStoragePath).toBe("user/generations/images/durable/full.png");
+    expect(output?.savedMediaIds).toEqual(["media-durable-1"]);
+    expect(output?.createdAt).toBe("2026-05-25T12:34:56.000Z");
+  });
+
   it("stamps library prompt references with the grid insertion time", async () => {
     const context: ReferenceIngestionContext = {
       ...createContext(),

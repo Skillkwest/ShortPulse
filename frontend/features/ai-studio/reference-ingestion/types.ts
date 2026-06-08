@@ -30,7 +30,7 @@ export type ReferenceIngestionInput =
       source: "mediaLibrary";
       payload: {
         id: string;
-        url: string;
+        url?: string | null;
         fileType: LibraryMediaFileType;
         createdAt?: string | null;
         originFolderId?: string | null;

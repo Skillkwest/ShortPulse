@@ -337,4 +337,132 @@ describe("useReferenceGridImageHydrationController", () => {
 
     expect(runNonUrgentUpdate).toHaveBeenCalledTimes(1);
   });
+
+  it("does not finalize the same failed image URL as hydrated", async () => {
+    const requestedUrls: string[] = [];
+    const imageInstances: MockImage[] = [];
+    class MockImage {
+      decoding = "";
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+
+      constructor() {
+        imageInstances.push(this);
+      }
+
+      set src(value: string) {
+        requestedUrls.push(value);
+      }
+    }
+
+    Object.defineProperty(window, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    const runNonUrgentUpdate = vi.fn((updater: () => void) => updater());
+    const liveWatchdogDegradeLevelRef = { current: 0 as 0 | 1 | 2 };
+    const { result } = renderHook(() =>
+      useReferenceGridImageHydrationController({
+        decodeBudgetEnabled: true,
+        suspendHydrationProcessing: false,
+        adaptivePreviewRoutingEnabled: false,
+        imageDecodeBudget: 1,
+        activeOutputId: null,
+        validOutputIds: ["out-1"],
+        runNonUrgentUpdate,
+        liveWatchdogDegradeLevelRef,
+      })
+    );
+
+    act(() => {
+      result.current.enqueueImageHydration("out-1", "https://cdn.example.com/broken.jpg");
+    });
+
+    await waitFor(() => {
+      expect(requestedUrls).toEqual(["https://cdn.example.com/broken.jpg"]);
+    });
+
+    act(() => {
+      imageInstances[0]?.onerror?.();
+    });
+
+    await waitFor(() => {
+      expect(result.current.imageHydrationState.decodeInflight).toBe(0);
+      expect(result.current.imageHydrationState.hydratedById).toEqual({});
+    });
+  });
+
+  it("retries a distinct fallback image URL instead of marking it hydrated before load", async () => {
+    const requestedUrls: string[] = [];
+    const imageInstances: MockImage[] = [];
+    class MockImage {
+      decoding = "";
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+
+      constructor() {
+        imageInstances.push(this);
+      }
+
+      set src(value: string) {
+        requestedUrls.push(value);
+      }
+    }
+
+    Object.defineProperty(window, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    const runNonUrgentUpdate = vi.fn((updater: () => void) => updater());
+    const liveWatchdogDegradeLevelRef = { current: 0 as 0 | 1 | 2 };
+    const { result } = renderHook(() =>
+      useReferenceGridImageHydrationController({
+        decodeBudgetEnabled: true,
+        suspendHydrationProcessing: false,
+        adaptivePreviewRoutingEnabled: false,
+        imageDecodeBudget: 1,
+        activeOutputId: null,
+        validOutputIds: ["out-1"],
+        runNonUrgentUpdate,
+        liveWatchdogDegradeLevelRef,
+      })
+    );
+
+    act(() => {
+      result.current.enqueueImageHydration("out-1", "https://cdn.example.com/broken-preview.jpg", {
+        fallbackUrl: "https://cdn.example.com/full-fallback.jpg",
+      });
+    });
+
+    await waitFor(() => {
+      expect(requestedUrls).toEqual(["https://cdn.example.com/broken-preview.jpg"]);
+    });
+
+    act(() => {
+      imageInstances[0]?.onerror?.();
+    });
+
+    await waitFor(() => {
+      expect(requestedUrls).toEqual([
+        "https://cdn.example.com/broken-preview.jpg",
+        "https://cdn.example.com/full-fallback.jpg",
+      ]);
+      expect(result.current.imageHydrationState.hydratedById).toEqual({});
+    });
+
+    act(() => {
+      imageInstances[1]?.onload?.();
+    });
+
+    await waitFor(() => {
+      expect(result.current.imageHydrationState.hydratedById["out-1"]).toEqual({
+        sourceUrl: "https://cdn.example.com/full-fallback.jpg",
+        renderUrl: "https://cdn.example.com/full-fallback.jpg",
+      });
+    });
+  });
 });

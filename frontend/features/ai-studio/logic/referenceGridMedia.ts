@@ -204,7 +204,7 @@ export const resolveReferenceCardUrls = (
     urls: {
       previewUrl: output.previewUrl ?? null,
       resultUrls: output.resultUrls ?? null,
-      fullUrl: null,
+      fullUrl: output.resultUrls?.[0] ?? null,
     },
     storage: {
       previewStoragePath: output.previewStoragePath ?? null,

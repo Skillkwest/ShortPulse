@@ -3,9 +3,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ExpertEditTransformChromeLayer,
   ExpertEditStageContextMenu,
   PrimaryCompositionSurface,
   PrimaryStageShell,
+  PrimaryStageRenderClip,
 } from "../ExpertEditStagePrimitives";
 
 describe("ExpertEditStageContextMenu", () => {
@@ -93,5 +95,60 @@ describe("ExpertEditStageContextMenu", () => {
     expect(hiddenComposition?.tabIndex).toBe(-1);
     expect(hiddenComposition).not.toHaveAttribute("data-keyboard-pan-owner");
     expect(hiddenComposition).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("keeps transform chrome outside the render clip ancestry", () => {
+    render(
+      <div className="edit-expert-primary-stage-shell">
+        <PrimaryStageRenderClip>
+          <div data-testid="rendered-pixels" />
+        </PrimaryStageRenderClip>
+        <ExpertEditTransformChromeLayer
+          scope="inline"
+          viewportStyle={{ transform: "scale(1)" }}
+          frameStyle={{ width: 200, height: 300 }}
+        >
+          <div data-testid="selected-layer-transform" />
+        </ExpertEditTransformChromeLayer>
+      </div>
+    );
+
+    const transformChrome = screen.getByTestId("selected-layer-transform");
+    const chromeLayer = screen.getByTestId("edit-expert-transform-chrome-layer-inline");
+
+    expect(transformChrome.closest(".edit-expert-stage-render-clip")).toBeNull();
+    expect(transformChrome.closest(".edit-expert-primary-composition-surface")).toBeNull();
+    expect(transformChrome.closest(".edit-expert-transform-chrome-layer")).toBe(chromeLayer);
+    expect(transformChrome.closest(".edit-expert-stage-camera-layer--chrome")).not.toBeNull();
+    expect(
+      screen.getByTestId("rendered-pixels").closest(".edit-expert-stage-render-clip")
+    ).not.toBeNull();
+  });
+
+  it("supports modal transform chrome without a clipping frame ancestor", () => {
+    render(
+      <div className="edit-expert-markup-modal-stage">
+        <PrimaryStageRenderClip>
+          <div data-testid="modal-rendered-pixels" />
+        </PrimaryStageRenderClip>
+        <ExpertEditTransformChromeLayer
+          scope="modal"
+          viewportStyle={{ transform: "translate3d(10px, 20px, 0) scale(2)" }}
+        >
+          <div data-testid="modal-selected-layer-transform" />
+        </ExpertEditTransformChromeLayer>
+      </div>
+    );
+
+    const modalTransformChrome = screen.getByTestId("modal-selected-layer-transform");
+    const modalChromeLayer = screen.getByTestId("edit-expert-transform-chrome-layer-modal");
+
+    expect(modalChromeLayer).toContainElement(modalTransformChrome);
+    expect(modalTransformChrome.closest(".edit-expert-stage-render-clip")).toBeNull();
+    expect(modalTransformChrome.closest(".edit-expert-primary-composition-surface")).toBeNull();
+    expect(modalTransformChrome.closest(".edit-expert-stage-camera-layer--chrome")).not.toBeNull();
+    expect(
+      screen.getByTestId("modal-rendered-pixels").closest(".edit-expert-stage-render-clip")
+    ).not.toBeNull();
   });
 });

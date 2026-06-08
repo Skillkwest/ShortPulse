@@ -34,8 +34,6 @@ export type VideoSettingsCardPrefabProps = {
   durationOptions: number[];
   resolutionOptions: VideoSettingsResolutionOption[];
   videoGenerateAudioValue: boolean;
-  showMultiShotToggle?: boolean;
-  multiShotEnabled?: boolean;
   isMotionMode: boolean;
   videoCameraFixed: boolean;
   isVeoModel: boolean;
@@ -51,7 +49,6 @@ export type VideoSettingsCardPrefabProps = {
   onVideoGenerateAudioChange?: (value: boolean) => void;
   onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
-  onToggleMultiShot?: () => void;
 };
 
 type PrefabDropdownProps<T extends string | number> = {
@@ -233,8 +230,6 @@ export function VideoSettingsCardPrefab({
   durationOptions,
   resolutionOptions,
   videoGenerateAudioValue,
-  showMultiShotToggle = false,
-  multiShotEnabled = false,
   isMotionMode,
   isVeoModel,
   videoAutoFix,
@@ -244,7 +239,6 @@ export function VideoSettingsCardPrefab({
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
   onVideoAutoFixChange,
-  onToggleMultiShot,
 }: VideoSettingsCardPrefabProps) {
   const shouldShowResolutionControl = resolutionOptions.length > 0;
   const shouldShowAspectControl = !isMotionMode;
@@ -432,17 +426,6 @@ export function VideoSettingsCardPrefab({
           onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
         />
       </div>
-
-      {showMultiShotToggle ? (
-        <div className="video-settings-prefab__toggle-row">
-          <span className="video-settings-prefab__toggle-label">Multi-shot</span>
-          <VideoSettingsPrefabToggle
-            active={multiShotEnabled}
-            ariaLabel={multiShotEnabled ? "Disable multi-shot" : "Enable multi-shot"}
-            onClick={() => onToggleMultiShot?.()}
-          />
-        </div>
-      ) : null}
 
       {!isMotionMode && isVeoModel && !isVeo31Model ? (
         <div className="video-settings-prefab__toggle-row">

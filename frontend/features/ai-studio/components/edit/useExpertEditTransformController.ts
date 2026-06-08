@@ -83,6 +83,7 @@ const resolveTransformInteractionTarget = (currentTarget: HTMLDivElement): HTMLD
   }
   return (
     currentTarget.closest<HTMLDivElement>(".edit-expert-markup-modal-stage") ??
+    currentTarget.closest<HTMLDivElement>(".edit-expert-transform-chrome-frame") ??
     currentTarget.closest<HTMLDivElement>(".edit-expert-primary-canvas-frame-stack") ??
     currentTarget
   );

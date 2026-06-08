@@ -1,4 +1,5 @@
 import type { ComposerImageDropPayload, InternalReferenceDragPayload } from "../utils/dragDrop";
+import type { StudioAudioSourceMode } from "../types";
 
 export type AgentComposerDirectDropPayload =
   | {
@@ -9,6 +10,23 @@ export type AgentComposerDirectDropPayload =
       kind: "image";
       internalPayload: InternalReferenceDragPayload | null;
       composerImagePayload?: ComposerImageDropPayload | null;
+    }
+  | {
+      kind: "video";
+      videoUrl: string;
+      internalPayload: InternalReferenceDragPayload | null;
+      outputId?: string | null;
+      mediaId?: string | null;
+      durationMs?: number | null;
+    }
+  | {
+      kind: "audio";
+      audioUrl: string;
+      internalPayload: InternalReferenceDragPayload | null;
+      outputId?: string | null;
+      mediaId?: string | null;
+      durationMs?: number | null;
+      audioSourceMode?: StudioAudioSourceMode | null;
     }
   | {
       kind: "unsupported";

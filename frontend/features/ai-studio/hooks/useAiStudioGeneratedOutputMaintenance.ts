@@ -198,6 +198,22 @@ const requestVisibleGenerationReconcile = async (
   });
 };
 
+const requestVisibleProjectGenerationReconcile = async (
+  projectId: string | null
+): Promise<void> => {
+  const normalizedProjectId = projectId?.trim();
+  if (!normalizedProjectId) return;
+  await fetchWithAuth("/api/generation/reconcile", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ projectId: normalizedProjectId }),
+    shortpulseLogScope: "generation",
+    shortpulseRetryNetworkOnce: true,
+  });
+};
+
 type UseAiStudioGeneratedOutputMaintenanceParams = {
   baseRuntimeAuthorityKey: string;
   hasPendingWorkflowRestore: boolean;
@@ -317,9 +333,22 @@ export const useAiStudioGeneratedOutputMaintenance = ({
           projectId: projectId ?? null,
           workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
         });
-        if (cancelled || hydratedOutputs.length === 0) return;
+        if (!cancelled && hydratedOutputs.length > 0) {
+          setOutputsState((currentOutputs) =>
+            mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
+          );
+        }
+        if (cancelled || !shouldHydrateProjectGeneratedOutputs || !projectId) return;
+
+        await requestVisibleProjectGenerationReconcile(projectId).catch(() => undefined);
+        if (cancelled) return;
+        const reconciledOutputs = await listVisibleGeneratedOutputs({
+          projectId,
+          workspaceRuntimeKey: null,
+        });
+        if (cancelled || reconciledOutputs.length === 0) return;
         setOutputsState((currentOutputs) =>
-          mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
+          mergeCanonicalGeneratedOutputs(currentOutputs, reconciledOutputs)
         );
       } catch {
         // Preserve the current runtime collection when the canonical refresh is unavailable.

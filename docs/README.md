@@ -56,6 +56,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/README.md`
 - `docs/agents/solo-owner-launch-trust-standard.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
+- `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
 - `docs/agents/ako/README.md`
 - `docs/agents/ako/AGENTS.md`
 - `docs/agents/ako/memory.md`
@@ -346,6 +347,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/backlog.md`
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/planning/edit-panel-canvas-tear-out-buildout-plan-2026-06-08.md`
+- `docs/planning/expert-edit-stage-transform-chrome-rebuild-plan-2026-06-08.md`
 - `docs/planning/expert-edit-master-stage-move-resize-buildout-plan-2026-06-08.md`
 - `docs/planning/message-feedback-normalization-plan-2026-06-08.md`
 - `docs/planning/shortpulse-latency-launch-plan-2026-07-07.md`

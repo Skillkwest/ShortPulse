@@ -1,8 +1,13 @@
 # Expert Edit Master Stage Move/Resize Buildout Plan (2026-06-08)
 
-Status: active
+Status: superseded by `docs/planning/expert-edit-stage-transform-chrome-rebuild-plan-2026-06-08.md`
 Owner: Engineering / AI Studio Expert Edit master-stage lane
 Source of truth: this plan, bounded by `docs/planning/ai-studio-master-stage-rebuild-spec-2026-04-12.md`, `docs/adr/0054-ai-studio-canonical-master-stage-and-stage-system-sunset.md`, `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`, and `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`.
+
+Supersession note: this plan remains useful historical context for the shared image/overlay
+geometry and direct manipulation fix. The active implementation source for the later handle-clipping
+regression and final transform-chrome rebuild is
+`docs/planning/expert-edit-stage-transform-chrome-rebuild-plan-2026-06-08.md`.
 
 ## Objective
 

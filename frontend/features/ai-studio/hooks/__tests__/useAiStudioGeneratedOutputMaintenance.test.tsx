@@ -121,7 +121,43 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       expect(result.current.outputs).toEqual([hydratedOutput]);
       expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
     });
-    expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
+    expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(1, {
+      projectId: "project-1",
+      workspaceRuntimeKey: null,
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/generation/reconcile",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ projectId: "project-1" }),
+        shortpulseLogScope: "generation",
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+  });
+
+  it("nudges project-scoped recovery on project open and hydrates results from the follow-up projection read", async () => {
+    listVisibleGeneratedOutputsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([hydratedOutput]);
+
+    const { result } = renderMaintenanceHook();
+
+    await waitFor(() => {
+      expect(result.current.outputs).toEqual([hydratedOutput]);
+      expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/generation/reconcile",
+      expect.objectContaining({
+        body: JSON.stringify({ projectId: "project-1" }),
+      })
+    );
+    expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(1, {
+      projectId: "project-1",
+      workspaceRuntimeKey: null,
+    });
+    expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(2, {
       projectId: "project-1",
       workspaceRuntimeKey: null,
     });
@@ -218,7 +254,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
         projectId: "project-1",
         workspaceRuntimeKey: null,
       });
-      expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(2, {
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
         projectId: "project-1",
         workspaceRuntimeKey: null,
         limit: 1,

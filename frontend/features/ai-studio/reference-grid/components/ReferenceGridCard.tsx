@@ -230,6 +230,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const shouldShowBottomActionRow = Boolean(
     !hideReferenceActions && (shouldShowRerollAction || shouldShowWorkflowReloadAction)
   );
+  const bottomActionRowClassName = [
+    "reference-card-bottom-actions",
+    item.mode === "video" || isVideoPreview ? "reference-card-bottom-actions--video" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const shouldShowReferenceActionRow = Boolean(
     shouldShowSaveAction ||
     (onDownload && canDownloadReference && (isImagePreview || isVideoPreview || isAudioPreview)) ||
@@ -487,10 +493,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onError={() => {
             setIsHoveringVideo(false);
             setIsHoverVideoVisible(false);
-            if (hasVideoPosterPreview && !hasPosterImageError) {
-              markLoaded(item.id, { notifyAutoSave: false });
-              return;
-            }
             if (!effectiveIsLoading) {
               setHasMediaRenderError(true);
               markLoaded(item.id, { notifyAutoSave: false });
@@ -716,7 +718,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         </div>
       ) : null}
       {shouldShowBottomActionRow ? (
-        <div className="reference-card-bottom-actions" aria-label="Reference replay actions">
+        <div className={bottomActionRowClassName} aria-label="Reference replay actions">
           {shouldShowRerollAction ? (
             <button
               type="button"

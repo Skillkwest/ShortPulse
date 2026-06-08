@@ -177,6 +177,9 @@ describe("DetailModal", () => {
           ...baseOutput,
           mode: "text",
           previewUrl: undefined,
+          aspect: "16:9",
+          model: "Kling 3.0",
+          modelId: "fal-ai/kling-video/v3/standard",
           prompt: "Original prompt",
         }}
         onClose={vi.fn()}
@@ -190,9 +193,13 @@ describe("DetailModal", () => {
     expect(modal?.classList.contains("is-text-only")).toBe(true);
     expect(modal?.classList.contains("is-prompt-only")).toBe(false);
     expect(screen.getByText("Text detail")).toBeInTheDocument();
+    expect(baseElement.querySelector(".art-modal-meta-pill")).toBeNull();
+    expect(screen.queryByText("16:9")).not.toBeInTheDocument();
+    expect(screen.queryByText("Kling 3.0")).not.toBeInTheDocument();
     expect(baseElement.querySelector(".art-prompt-only-header")).toBeNull();
     expect(baseElement.querySelector(".art-prompt-only-container")).toBeNull();
     expect(screen.queryByRole("button", { name: "Apply Changes" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("is-icon-only");
 
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
     expect(promptTextarea).toHaveAttribute("readonly");
@@ -1202,6 +1209,7 @@ describe("DetailModal", () => {
     const audio = baseElement.querySelector("audio.art-hero-audio") as HTMLAudioElement | null;
     expect(audio).not.toBeNull();
     expect(baseElement.querySelector(".detail-modal-audio-preview")).not.toBeNull();
+    expect(baseElement.querySelector(".detail-modal-audio-waveform-panel")).toBeNull();
     expect(baseElement.querySelectorAll(".detail-modal-audio-wavebar").length).toBeGreaterThan(40);
     expect(screen.getByRole("button", { name: "Play audio preview" })).toBeInTheDocument();
     fireEvent.error(audio as HTMLAudioElement);

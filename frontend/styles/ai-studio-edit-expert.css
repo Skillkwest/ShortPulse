@@ -1901,9 +1901,32 @@
 
 .edit-expert-primary-stage-shell {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 0;
   background: rgba(26, 28, 31, 0.72);
+}
+
+.edit-expert-stage-render-clip {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.edit-expert-transform-chrome-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.edit-expert-transform-chrome-frame {
+  position: relative;
+  flex: 0 0 auto;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .edit-expert-primary-canvas-frame-stack {
@@ -1997,7 +2020,7 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
   transform-origin: center center;
   will-change: transform;
 }
@@ -3879,7 +3902,7 @@
   box-sizing: border-box;
   padding-inline: var(--edit-expert-markup-stage-inline-pad);
   padding-block: 48px;
-  overflow: hidden;
+  overflow: visible;
   max-width: 100%;
   max-height: 100%;
   background: var(--edit-expert-markup-stage-bg);

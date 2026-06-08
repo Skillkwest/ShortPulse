@@ -249,34 +249,32 @@ function SharedMediaDetailAudioPreview({
           <Play size={28} weight="fill" aria-hidden="true" />
         )}
       </button>
-      <div className="detail-modal-audio-waveform-panel">
-        <div className="detail-modal-audio-waveform-shell">
-          <div className="detail-modal-audio-waveform" aria-hidden="true">
-            {waveformColumns.map((column) => (
-              <span
-                key={column.key}
-                className="detail-modal-audio-wavebar"
-                data-progress-state={column.progressState}
-                style={
-                  {
-                    "--detail-audio-waveform-height": column.height.toFixed(3),
-                    "--detail-audio-waveform-progress": column.progress.toFixed(3),
-                  } as React.CSSProperties
-                }
-              >
-                <span className="detail-modal-audio-wavebar-track" />
-                <span className="detail-modal-audio-wavebar-fill" />
-              </span>
-            ))}
-          </div>
-          <div className="detail-modal-audio-duration-row">
-            <MediaDurationBadge
-              className="detail-modal-audio-duration-badge"
-              durationMs={resolvedDurationMs ?? 0}
-              mediaKind="audio"
-              audioSourceMode={audioSourceMode}
-            />
-          </div>
+      <div className="detail-modal-audio-waveform-shell">
+        <div className="detail-modal-audio-waveform" aria-hidden="true">
+          {waveformColumns.map((column) => (
+            <span
+              key={column.key}
+              className="detail-modal-audio-wavebar"
+              data-progress-state={column.progressState}
+              style={
+                {
+                  "--detail-audio-waveform-height": column.height.toFixed(3),
+                  "--detail-audio-waveform-progress": column.progress.toFixed(3),
+                } as React.CSSProperties
+              }
+            >
+              <span className="detail-modal-audio-wavebar-track" />
+              <span className="detail-modal-audio-wavebar-fill" />
+            </span>
+          ))}
+        </div>
+        <div className="detail-modal-audio-duration-row">
+          <MediaDurationBadge
+            className="detail-modal-audio-duration-badge"
+            durationMs={resolvedDurationMs ?? 0}
+            mediaKind="audio"
+            audioSourceMode={audioSourceMode}
+          />
         </div>
       </div>
       <audio

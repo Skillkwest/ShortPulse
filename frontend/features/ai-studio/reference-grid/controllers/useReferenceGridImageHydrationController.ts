@@ -385,7 +385,7 @@ export const useReferenceGridImageHydrationController = ({
         })();
       };
       image.onerror = () => {
-        const resolvedFallback = fallbackUrl && fallbackUrl !== nextUrl ? fallbackUrl : nextUrl;
+        const resolvedFallback = fallbackUrl && fallbackUrl !== nextUrl ? fallbackUrl : null;
         if (isNextOptimizerUrl(nextUrl)) {
           hydrationFailedOptimizedUrlByIdRef.current[nextId] = nextUrl;
           const optimizerSourceUrl = resolveOptimizerSourceUrl(nextUrl);
@@ -393,11 +393,17 @@ export const useReferenceGridImageHydrationController = ({
             rememberFailedOptimizerSource(optimizerSourceUrl);
           }
           recordOptimizerFailoverError();
-          if (resolvedFallback !== nextUrl) {
-            hydrationUrlByIdRef.current[nextId] = resolvedFallback;
-          }
         }
-        finalize(resolvedFallback, resolvedFallback);
+        if (resolvedFallback) {
+          hydrationUrlByIdRef.current[nextId] = resolvedFallback;
+        }
+        hydrationInflightIdSetRef.current.delete(nextId);
+        if (resolvedFallback && validOutputIdSetRef.current.has(nextId)) {
+          hydrationQueuedIdSetRef.current.add(nextId);
+          hydrationQueueRef.current.unshift(nextId);
+        }
+        syncImageHydrationState();
+        processHydrationQueueRef.current();
       };
       image.src = nextUrl;
     }

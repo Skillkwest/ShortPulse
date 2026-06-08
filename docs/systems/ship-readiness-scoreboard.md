@@ -1,20 +1,18 @@
 # Ship-Readiness Scoreboard
 
+Status: stale secondary overlay. Do not use this file for exact July 7, 2026 launch sequencing or readiness claims.
+
 Purpose: provide a fast secondary release-control overlay derived from `docs/systems/catalog.md` and the current Copperknot authority chain so ShortPulse can be steered toward ship readiness without rereading the full catalog table.
 
 ## Snapshot
 
 - Snapshot date: `2026-05-31`
-- Snapshot freshness as of `2026-05-31`: `current`
+- Snapshot freshness as of `2026-06-05`: `stale`
 - Freshness reason:
   - launch-state fields were refreshed against a post-deploy production verification on `production`
   - the accepted May 31 root fix was compared against live route parity plus fresh approved-panel reruns
   - the queue and measurement surfaces were updated together so the current launch packet and retained metrics match
-- Primary sources:
-  - `docs/systems/catalog.md`
-  - `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-  - `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-production-verification-failure.md`
+- Original snapshot sources are stale. Use the Freshness Rule below for current launch-control truth.
 
 ## Freshness Rule
 
@@ -23,9 +21,10 @@ Treat this scoreboard as a quick overlay, not the primary authority.
 For exact launch-control truth, defer first to:
 
 - `docs/systems/catalog.md`
-- `docs/agents/copperknot/prioritized-handoff-queue-2026-07-02.md`
-- `docs/records/artifacts/agent/copperknot/reports/2026-05-06-dispatch-log.md`
-- `docs/records/artifacts/agent/copperknot/reports/2026-05-31-project-workspace-production-verification-failure.md`
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-system-map.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 
 This overlay is reliable only when:
 
@@ -35,7 +34,8 @@ This overlay is reliable only when:
 When stale:
 
 - use this file as a baseline only
-- refresh the catalog, queue, dispatch log, and scoreboard together before making exact sequencing decisions
+- refresh the catalog, queue, and scoreboard together before making exact sequencing decisions
+- prefer the July 7 launch board over this overlay when they disagree
 
 ## Current Ship Bar
 

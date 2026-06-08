@@ -50,9 +50,9 @@ System types:
 The catalog is intentionally doing two jobs:
 
 - canonical system registry
-- ship-readiness control surface
+- secondary ship-readiness baseline
 
-The row model should make both jobs clear without forcing the reader to cross-reference multiple docs just to answer whether a system is ready to ship.
+The row model should make both jobs clear without forcing the reader to cross-reference multiple docs for architecture context. For the active July 7 launch decision, exact readiness state, floor/below-floor classification, human risk, evidence level, next proof, and queue order come from Copperknot's July 7 launch-control docs.
 
 ## Natural-language mapping
 
@@ -143,6 +143,7 @@ When evidence is thin, lower `Confidence` instead of forcing stronger `Health` o
 `Current score (/10)` is the required fast-scan maturity signal for this catalog.
 
 - It represents current system health/maturity, not business importance.
+- It is not the July 7 launch-state decision.
 - It does not replace the four core ratings.
 - Derive it from the four core scores using `docs/systems/rating-rubric.md`.
 - Treat it as less trustworthy when `Rating state` is not yet `calibrated`.
@@ -151,8 +152,8 @@ When evidence is thin, lower `Confidence` instead of forcing stronger `Health` o
 
 Use the catalog to distinguish system maturity from execution urgency.
 
-- `Ship floor` is the minimum acceptable `/10` score for the current production window.
-- `Ship status` compares `Current score (/10)` against `Ship floor`.
+- `Ship floor` is the legacy minimum acceptable `/10` score for the current production window.
+- `Ship status` compares `Current score (/10)` against `Ship floor` as a maturity baseline.
 - `Priority band` expresses execution urgency, not maturity.
 - `Blocker status` expresses whether the system currently has no blocker, an active blocker, a waived blocker, multiple blockers, or is blocked by another system.
 - `Blocker refs` names the current known blocker id or ids when they exist.
@@ -166,7 +167,7 @@ When possible, `Review basis` should identify:
 - the commit id or declared worktree checkpoint
 - the validation reference used for the row
 
-Do not use `Priority band` as a proxy for health. A lower-priority row can still be below floor.
+Do not use `Priority band` as a proxy for health. A lower-priority row can still be below floor. Do not use catalog floor status as a proxy for July 7 launch readiness; use the launch board when the question is whether the app can ship.
 
 Priority bands should be used like this:
 

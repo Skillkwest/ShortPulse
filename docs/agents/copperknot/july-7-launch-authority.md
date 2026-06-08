@@ -18,7 +18,7 @@ The date is a decision target, not permission to create false confidence. If evi
 
 ## Readiness Model
 
-The old `/10` score is now a secondary planning index. The July 7 launch board uses these fields as the primary authority:
+The old `/10` score is now a secondary architecture maturity index. It can help compare system health, but it does not decide whether a launch lane is ready for July 7. The July 7 launch board uses these fields as the primary authority:
 
 | Field | Meaning |
 | --- | --- |
@@ -29,15 +29,32 @@ The old `/10` score is now a secondary planning index. The July 7 launch board u
 | `Technical risk` | Risk that the implementation is fragile, unclear, or hard to repair quickly. |
 | `Next proof` | The next concrete proof needed to move the system forward. |
 
+## Human Launch Gates
+
+For every launch system, ask these questions before lifting readiness:
+
+1. Can a normal customer arrive and understand what the product is for?
+2. Can that customer take the intended action without hidden owner rescue?
+3. Does the path create visible value quickly enough to justify continued use?
+4. Are save, return, reopen, reuse, and organization behavior trustworthy?
+5. Are credits, billing, account state, media ownership, and security boundaries understandable and safe enough for paid use?
+6. When something fails, is the failure state honest, recoverable, and diagnosable?
+7. Would the human experience feel coherent enough that a user is not confused or turned away by normal use?
+
+These questions classify launch risk. They do not authorize redesign by default. Preserve the current UI, UX, visual design, and intended behavior unless current evidence proves a smaller source-level or validation-focused fix cannot meet the launch promise.
+
 ## Launch States
 
 | State | Use When |
 | --- | --- |
-| `Blocked` | A known unresolved defect, missing proof, or control gap can directly break the launch promise. |
-| `Below Bar` | The system may work, but evidence or reliability is not strong enough for launch reliance. |
-| `Launchable With Watch` | The system can support launch if monitored; residual risk is named and bounded. |
-| `Launch Ready` | The system has production-grade proof, low owner burden, and no active launch blocker. |
+| `Blocked` | A known unresolved defect, missing proof, or control gap can directly break the launch promise or prevents decision-grade evaluation. |
+| `Below Floor` | The system may work, but current evidence, reliability, or human/owner trust is not strong enough for launch reliance. |
+| `Floor With Watch` | The system meets the minimum launch floor for a bounded scope, but watch proof or residual risk remains too important to call launchable outright. |
+| `Launchable With Watch` | The system can support launch if monitored; residual risk is named, bounded, and not expected to break normal customer use. |
+| `Launch Ready` | The system has production-grade proof, low owner burden, no active launch blocker, and no required prelaunch work remains. |
 | `Post-Launch Improve` | The system is not required for the July 7 launch promise or is good enough for launch with only improvement work remaining. |
+
+Use `Below Floor` instead of the older `Below Bar` wording for new July 7 launch-control updates. If an older handoff or retained report says `Below Bar`, interpret it as `Below Floor` until refreshed.
 
 ## Evidence Levels
 
@@ -50,6 +67,8 @@ The old `/10` score is now a secondary planning index. The July 7 launch board u
 | `Production Proven` | Mutating or end-to-end production behavior passed with real workflow evidence. |
 
 Never claim a launch state stronger than the evidence level can support. Local fixes can improve the board, but production readiness needs production evidence when user-facing runtime behavior is involved.
+
+Evidence also decays. Treat production proof as current only for the exact deployed surface and commit/deployment window it names. Treat local proof as current only for the current branch/worktree or the commit anchor it names. If a lane is actively moving, use the proof to guide source hardening, then rerun final proof when the lane stabilizes.
 
 ## Risk Scale
 
@@ -85,6 +104,20 @@ ShortPulse is not ready for the July 7 launch decision until all of these are tr
 7. Admin, observability, and issue-reporting surfaces give the solo owner enough truth to operate launch without hunting through raw internals first.
 8. UX/design issues that damage task completion, trust, or paid-use confidence are resolved or explicitly classified as watch items.
 9. The final launch board and execution queue are current, internally consistent, and used as the authority for every agent handoff.
+
+## Priority Method
+
+Rank launch work by these factors, in order:
+
+1. Customer task failure or trust damage in the core create/save/reuse loop.
+2. Money, credits, billing, entitlement, account, ownership, security, or media integrity.
+3. Recovery, settlement, output publication, and failure honesty.
+4. Evidence gap between current state and the launch claim being made.
+5. Blast radius across workflows or provider/runtime surfaces.
+6. Solo-owner operational burden if normal usage goes wrong.
+7. ROI of source hardening plus narrow invariant/variant checks while lanes are still moving.
+
+Do not prioritize cosmetic score lifts, duplicate documentation, or broad final proof when the owning source seam is still changing.
 
 ## Agent Handoff Contract
 

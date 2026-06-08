@@ -19,7 +19,7 @@ Required shorthand:
 
 - `Current score (/10)`
 
-Use that as the fast-scan maturity signal after the four core scores are justified.
+Use that as the fast-scan maturity signal after the four core scores are justified. Do not use it as the primary July 7 launch-readiness state; Copperknot's launch board owns floor/below-floor/ready classification for the active launch decision.
 
 ## Criticality
 

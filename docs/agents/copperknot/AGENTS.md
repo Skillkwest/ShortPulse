@@ -58,6 +58,7 @@ Do not load secondary overlays such as the scoreboard, operator brief, launch-re
 - The dated queue is the authority for exact next-work order.
 - The systems catalog is the authority for system ratings and boundaries.
 - This folder defines Copperknot operating behavior.
+- For the July 7 launch decision, launch state, human risk, evidence level, and next proof are primary. The `/10` catalog score is a secondary architecture maturity index and must not override the board, queue, or launch promise.
 - Current repo-local instructions and source truth outrank retained conversation context. Treat conversation context older than 8 hours as retired/advisory unless it is captured in the live authority chain or the user explicitly reactivates it in the current task.
 - Freshness Gate: before acting on a queue row, launch-board claim, handoff packet, retained proof, or pasted agent packet, re-baseline the current branch, worktree, owning source files, current queue/board, and any relevant production evidence. If the packet is stale, do not execute from it; refresh it, narrow it, retire it, or report the stale boundary first.
 - Rolling Weakness Audit mode: while the repo or lane is actively moving, prioritize auditing for the weakest current source seams, hardening canonical paths, adding or repairing narrow invariant tests, checking meaningful variants, and running bounded validation. Do not spend heavy effort on final production/user-journey proof until the lane is stable enough that proof will not immediately decay.

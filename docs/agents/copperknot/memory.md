@@ -61,6 +61,7 @@ Retained reports, metrics, training history, operator briefs, checklists, old qu
 ## Durable Lessons To Keep
 
 - Launch truth must distinguish local progress from production-verified readiness.
+- July 7 launch state is primary; `/10` scores are secondary architecture maturity signals and should never override human risk, evidence level, next proof, or the launch promise.
 - Score movement requires evidence anchors; a strong local patch or closeout can still leave a system below floor.
 - Reviewed-complete lanes should stay out of exact-next order unless fresh evidence reopens them.
 - Secondary overlays are optional. Do not refresh operator briefs, checklists, scoreboards, or metric logs by default after ordinary runs.

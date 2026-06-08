@@ -1006,6 +1006,44 @@ describe("ReferenceGridCard", () => {
     expect(videoNode?.getAttribute("src")).toBe("https://signed.test/video-full.mp4");
   });
 
+  it("keeps a valid poster visible when the hover video fails to load", () => {
+    const markLoaded = vi.fn();
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mode: "video",
+            previewPosterUrl: "https://signed.test/poster_720.jpg",
+            mediaSource: "generated",
+          }),
+          videoPosterUrl: "https://signed.test/poster_720.jpg",
+          hoverVideoUrl: "https://signed.test/video-full.mp4",
+          isVideoPreview: false,
+          isImagePreview: false,
+          cardPreviewUrl: "https://signed.test/video-full.mp4",
+          canAutoplayVideo: false,
+          videoPreload: "none",
+          markLoaded,
+        })}
+      />
+    );
+
+    const posterImage = document.querySelector(
+      ".reference-card-image--poster"
+    ) as HTMLImageElement | null;
+    const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
+
+    expect(posterImage).not.toBeNull();
+    expect(videoNode).not.toBeNull();
+
+    fireEvent.error(videoNode!);
+
+    expect(document.querySelector(".reference-card-image--poster")).not.toBeNull();
+    expect(document.querySelector(".reference-card-media-unavailable")).toBeNull();
+    expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
+  });
+
   it("renders a compact audio preview with timing and waveform", async () => {
     render(
       <ReferenceGridCard

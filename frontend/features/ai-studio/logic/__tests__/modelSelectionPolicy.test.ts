@@ -3,6 +3,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  FAL_OMNIHUMAN_V15_MODEL_ID,
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
   FAL_NANO_BANANA_2_EDIT_MODEL_ID,
   FAL_NANO_BANANA_2_MODEL_ID,
@@ -86,10 +87,16 @@ const videoReferenceOptions: ModelOption[] = [
     label: "Seedance 2.0 Fast",
     mediaType: "image-to-video",
   },
+  {
+    value: FAL_OMNIHUMAN_V15_MODEL_ID,
+    label: "Internal Lip Sync",
+    mediaType: "image-to-video",
+  },
 ];
 
 const textAndImageVideoLanes: GenerationWorkflowLane[] = ["text-to-video", "image-to-video"];
 const imageVideoLanes: GenerationWorkflowLane[] = ["image-to-video"];
+const lipSyncLanes: GenerationWorkflowLane[] = ["lip-sync"];
 
 const getModelConfig = (id: string) => {
   if (
@@ -137,6 +144,14 @@ const getModelConfig = (id: string) => {
       supportsTextToImage: false,
       supportsImageToImage: false,
       generationLanes: imageVideoLanes,
+    };
+  }
+  if (id === FAL_OMNIHUMAN_V15_MODEL_ID) {
+    return {
+      provider: "fal",
+      supportsTextToImage: false,
+      supportsImageToImage: false,
+      generationLanes: lipSyncLanes,
     };
   }
 
@@ -435,6 +450,34 @@ describe("modelSelectionPolicy", () => {
     }).map((option) => option.value);
 
     expect(values).toEqual([KIE_KLING_30_MODEL_ID]);
+  });
+
+  it("allows the hidden Lip Sync model only in Lip Sync mode", () => {
+    const standardValues = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "standard",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+    const motionValues = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "motion",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+    const lipSyncValues = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "lip-sync",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+
+    expect(standardValues).not.toContain(FAL_OMNIHUMAN_V15_MODEL_ID);
+    expect(motionValues).not.toContain(FAL_OMNIHUMAN_V15_MODEL_ID);
+    expect(lipSyncValues).toEqual([FAL_OMNIHUMAN_V15_MODEL_ID]);
   });
 
   it("keeps edit startup fallback model precedence unchanged", () => {

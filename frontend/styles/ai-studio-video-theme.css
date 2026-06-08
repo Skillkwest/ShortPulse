@@ -193,15 +193,15 @@
 }
 
 .video-properties-panel .video-setup-column--single .video-setup-reference-slot {
-  order: 1;
-}
-
-.video-properties-panel .video-setup-column--single .video-setup-recorder-slot {
   order: 2;
 }
 
-.video-properties-panel .video-setup-column--single .video-setup-settings-slot {
+.video-properties-panel .video-setup-column--single .video-setup-recorder-slot {
   order: 3;
+}
+
+.video-properties-panel .video-setup-column--single .video-setup-settings-slot {
+  order: 1;
 }
 
 .video-properties-panel .video-setup-column--single .video-setup-elements-slot {
@@ -2334,4 +2334,35 @@
   .video-properties-panel .video-properties-support-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.video-properties-panel .video-lip-sync-audio-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-properties-panel .video-lip-sync-audio-dropzone {
+  width: 100%;
+  min-height: 96px;
+  text-align: left;
+}
+
+.video-properties-panel .video-lip-sync-audio-preview {
+  display: block;
+  width: 100%;
+}
+
+.video-properties-panel .video-lip-sync-audio-actions,
+.video-properties-panel .video-lip-sync-toggle-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.video-properties-panel .video-lip-sync-resolution-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }

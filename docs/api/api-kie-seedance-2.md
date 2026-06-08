@@ -44,7 +44,8 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
   - first-frame image-to-video
   - first/last-frame image-to-video
   - multimodal reference generation
-  - Kling-pattern custom shot prompting and linked Character/Element references compiled into Seedance-native prompt + `reference_*_urls` payload fields
+  - Kling-pattern `Single`/`Multi` shot controls with Seedance-specific hidden prompt composition
+  - linked Character/Element references compiled into Seedance-native prompt + `reference_*_urls` payload fields
 - Frame mode and multimodal reference mode are mutually exclusive.
 
 ## Related Routes

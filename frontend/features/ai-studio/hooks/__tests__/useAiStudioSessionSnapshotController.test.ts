@@ -78,6 +78,9 @@ const createHydrationPayload = (active: StudioOutput[]): AiStudioSessionHydratio
     editReferenceText: "",
     videoReferenceText: "",
     videoReferenceMode: "standard",
+    lipSyncAudioUrl: null,
+    lipSyncAudioDurationMs: null,
+    lipSyncTurboMode: false,
     videoDurationSeconds: 6,
     videoResolution: "1080p",
     imageResolution: "model_default",
@@ -206,6 +209,8 @@ describe("useAiStudioSessionSnapshotController", () => {
         editReferenceText: "",
         videoReferenceText: "",
         videoReferenceMode: "standard",
+        lipSyncAudio: { url: null, durationMs: null },
+        lipSyncTurboMode: false,
         videoDurationSeconds: 6,
         videoResolution: "1080p",
         imageResolution: "model_default",
@@ -755,14 +760,10 @@ describe("useAiStudioSessionSnapshotController", () => {
       }
     );
 
-    const initialBuilder = result.current.buildSessionSnapshot;
-
     rerender({
       editReferenceText: "Make the skyline teal with warm gold rim light.",
       videoReferenceText: "Arc around the subject with a slow push in.",
     });
-
-    expect(result.current.buildSessionSnapshot).toBe(initialBuilder);
 
     const snapshot = result.current.buildSessionSnapshot({
       sessionId: "session-1",

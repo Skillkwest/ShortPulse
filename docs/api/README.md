@@ -26,6 +26,7 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-veo3.md`
 - `docs/api/api-fal-veo3-image-to-video.md`
 - `docs/api/api-fal-veo3-first-last-frame.md`
+- `docs/api/api-fal-omnihuman-v1-5.md`
 - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
 - `docs/api/api-kie-kling-3-0.md`
 - `docs/api/api-kie-gpt-image-2-text-to-image.md`

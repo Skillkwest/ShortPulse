@@ -4,7 +4,7 @@
 import React from "react";
 import { Trash } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
-import type { AspectOption } from "../types";
+import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../types";
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import { extractPromptDropText } from "../utils/dragDrop";
@@ -20,6 +20,8 @@ import { useReferencePropertiesConstraintEffects } from "./useReferencePropertie
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
+import { ReferenceAudioPlayer } from "./shared/ReferenceAudioPlayer";
+import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -97,10 +99,8 @@ export type VideoPropertiesPanelProps = {
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   referenceText: string | null;
-  videoReferenceMode?: "standard" | "modify" | "keyframes" | "kling3" | "motion";
-  onVideoReferenceModeChange?: (
-    value: "standard" | "modify" | "keyframes" | "kling3" | "motion"
-  ) => void;
+  videoReferenceMode?: VideoReferenceMode;
+  onVideoReferenceModeChange?: (value: VideoReferenceMode) => void;
   klingNegativePrompt?: string;
   klingCfgScale?: number;
   klingWorkflowMode?: "single" | "multi" | "custom";
@@ -124,6 +124,10 @@ export type VideoPropertiesPanelProps = {
   onClearMotionVideo?: () => void;
   motionVideoLoading?: boolean;
   motionVideoError?: string | null;
+  lipSyncAudio?: LipSyncAudioState;
+  onLipSyncAudioChange?: (value: LipSyncAudioState) => void;
+  lipSyncTurboMode?: boolean;
+  onLipSyncTurboModeChange?: (value: boolean) => void;
   videoDurationSeconds?: number;
   videoResolution?: string;
   videoGenerateAudio?: boolean;
@@ -205,6 +209,10 @@ export function VideoPropertiesPanel({
   onClearMotionVideo,
   motionVideoLoading = false,
   motionVideoError = null,
+  lipSyncAudio = { url: null, durationMs: null },
+  onLipSyncAudioChange,
+  lipSyncTurboMode = false,
+  onLipSyncTurboModeChange,
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
@@ -255,6 +263,8 @@ export function VideoPropertiesPanel({
   const [elementPickerSlotIndex, setElementPickerSlotIndex] = React.useState<number | null>(null);
   const [isElementPickerOpen, setIsElementPickerOpen] = React.useState(false);
   const [isMotionRecorderOpen, setIsMotionRecorderOpen] = React.useState(false);
+  const lipSyncAudioInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [lipSyncAudioDragActive, setLipSyncAudioDragActive] = React.useState(false);
   const [elementPickerError, setElementPickerError] = React.useState<string | null>(null);
   const [promptTokenPickerState, setPromptTokenPickerState] = React.useState<{
     isOpen: boolean;
@@ -319,6 +329,79 @@ export function VideoPropertiesPanel({
     klingElements,
     onKlingElementsChange,
   });
+  const applyLipSyncAudio = React.useCallback(
+    (value: LipSyncAudioState) => {
+      onLipSyncAudioChange?.(value);
+    },
+    [onLipSyncAudioChange]
+  );
+  const readLipSyncAudioDuration = React.useCallback((audioUrl: string): Promise<number | null> => {
+    if (typeof Audio === "undefined") return Promise.resolve(null);
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      const cleanup = () => {
+        audio.onloadedmetadata = null;
+        audio.onerror = null;
+      };
+      audio.onloadedmetadata = () => {
+        const durationMs = Number.isFinite(audio.duration)
+          ? Math.max(0, Math.round(audio.duration * 1000))
+          : null;
+        cleanup();
+        resolve(durationMs);
+      };
+      audio.onerror = () => {
+        cleanup();
+        resolve(null);
+      };
+      audio.src = audioUrl.replace(/#.*$/, "");
+    });
+  }, []);
+  const handleLipSyncAudioFile = React.useCallback(
+    async (file: File | null | undefined) => {
+      if (!file) return;
+      const objectUrl = `${URL.createObjectURL(file)}#audio=1`;
+      const durationMs = await readLipSyncAudioDuration(objectUrl);
+      applyLipSyncAudio({ url: objectUrl, durationMs });
+    },
+    [applyLipSyncAudio, readLipSyncAudioDuration]
+  );
+  const handleLipSyncAudioSelection = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      void handleLipSyncAudioFile(event.target.files?.[0]);
+      event.target.value = "";
+    },
+    [handleLipSyncAudioFile]
+  );
+  const handleLipSyncAudioDrop = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setLipSyncAudioDragActive(false);
+      const libraryPayload = readMediaLibraryDragPayload(event.dataTransfer);
+      if (libraryPayload?.kind === "libraryMedia" && libraryPayload.payload.fileType === "audio") {
+        const audioUrl =
+          libraryPayload.payload.fullUrl ??
+          libraryPayload.payload.previewUrl ??
+          libraryPayload.payload.url;
+        if (audioUrl) {
+          applyLipSyncAudio({
+            url: audioUrl,
+            durationMs: libraryPayload.payload.durationMs ?? null,
+          });
+        }
+        return;
+      }
+      void handleLipSyncAudioFile(event.dataTransfer.files?.[0]);
+    },
+    [applyLipSyncAudio, handleLipSyncAudioFile]
+  );
+  const clearLipSyncAudio = React.useCallback(() => {
+    applyLipSyncAudio({ url: null, durationMs: null });
+  }, [applyLipSyncAudio]);
+  const lipSyncAudioDurationLabel =
+    typeof lipSyncAudio.durationMs === "number" && Number.isFinite(lipSyncAudio.durationMs)
+      ? `${Math.max(0, Math.round(lipSyncAudio.durationMs / 1000))}s`
+      : null;
   const klingElementSlotCount = isSeedance2FamilyModelId(modelId)
     ? VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT
     : VIDEO_KLING_ELEMENT_SLOT_COUNT;
@@ -550,6 +633,7 @@ export function VideoPropertiesPanel({
     isKlingPatternMode,
     isKeyframesMode,
     isMotionMode,
+    isLipSyncMode,
     isStandardMode,
     isVeoModel,
     referenceStepTitle,
@@ -622,7 +706,12 @@ export function VideoPropertiesPanel({
     }
   }, [isMotionMode, isMotionRecorderOpen]);
 
-  const visibleVideoMode = activeVideoMode === "motion" ? "motion" : "standard";
+  const visibleVideoMode =
+    activeVideoMode === "lip-sync"
+      ? "lip-sync"
+      : activeVideoMode === "motion"
+        ? "motion"
+        : "standard";
   const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
     primary: referenceImageUrl,
     extras: extraImageUrls,
@@ -638,26 +727,25 @@ export function VideoPropertiesPanel({
     activeVideoMode === "standard" && modelId === KIE_KLING_30_MODEL_ID;
   const shouldShowKlingReferenceImageWarning =
     standardVideoRequiresReferenceImage && !referenceImageUrl;
-  const videoModeIndex = visibleVideoMode === "motion" ? 1 : 0;
+  const videoModeIndex =
+    visibleVideoMode === "lip-sync" ? 2 : visibleVideoMode === "motion" ? 1 : 0;
   const videoModeTabsStyle = React.useMemo(
     () =>
       ({
+        "--video-reference-mode-slots": 3,
         "--video-reference-mode-index": videoModeIndex,
       }) as React.CSSProperties,
     [videoModeIndex]
   );
   const klingMode = klingWorkflowMode;
-  const isMultiShotEnabled =
-    isKlingPatternModelSelected && !isSeedance2FamilyModelSelected && klingMode === "custom";
-  const isCustomKlingWorkflow =
-    isKlingPatternModelSelected && !isSeedance2FamilyModelSelected && klingMode === "custom";
+  const isMultiShotEnabled = false;
+  const isCustomKlingWorkflow = false;
   const seedanceReferenceMode =
     isSeedance2FamilyModelSelected && seedance2InputMode === "multimodal"
       ? "elements"
       : "keyframes";
-  const visibleShotMode =
-    isSeedance2FamilyModelSelected && klingMode === "custom" ? "multi" : klingMode;
-  const shotModeTabCount = isSeedance2FamilyModelSelected ? 2 : 3;
+  const visibleShotMode = klingMode === "custom" ? "multi" : klingMode;
+  const shotModeTabCount = 2;
   const customKlingPrompts = React.useMemo(
     () => (isCustomKlingWorkflow ? klingMultiPrompts : []),
     [isCustomKlingWorkflow, klingMultiPrompts]
@@ -665,28 +753,18 @@ export function VideoPropertiesPanel({
   const hasAnyPromptText = isCustomKlingWorkflow
     ? customKlingPrompts.some((shot) => shot.prompt.trim().length > 0)
     : Boolean(referenceText?.trim());
-  const hasRequiredPromptForGenerate = isMotionMode || hasAnyPromptText;
-  const videoModeSummaryLabel = visibleVideoMode === "motion" ? "Motion Control" : "Standard";
+  const hasRequiredPromptForGenerate = isMotionMode || isLipSyncMode || hasAnyPromptText;
+  const videoModeSummaryLabel =
+    visibleVideoMode === "lip-sync"
+      ? "Lip Sync"
+      : visibleVideoMode === "motion"
+        ? "Motion Control"
+        : "Standard";
   const shotModeSummaryLabel = !isKlingPatternModelSelected
     ? "Single"
     : visibleShotMode === "multi"
       ? "Multi"
-      : visibleShotMode === "custom"
-        ? "Custom"
-        : "Single";
-  const createInitialMultiShot = React.useCallback(() => {
-    const nextId =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `kling-${Math.random().toString(36).slice(2, 9)}`;
-    return [
-      {
-        id: nextId,
-        prompt: referenceText?.trim() ?? "",
-        duration: videoDurationValue,
-      },
-    ];
-  }, [referenceText, videoDurationValue]);
+      : "Single";
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKlingPatternModelSelected;
   const shouldShowKlingAdvancedSteps = isKlingPatternMode && !isSeedance2FamilyModelSelected;
@@ -719,20 +797,8 @@ export function VideoPropertiesPanel({
     textareaResizeFrameMapRef.current.set(textarea, frameId);
   }, []);
 
-  const ensureCustomKlingShots = () => {
-    if (!onKlingMultiPromptsChange || klingMultiPrompts.length > 0) return;
-    onKlingMultiPromptsChange(createInitialMultiShot());
-  };
-  const handleSetKlingWorkflowMode = (nextMode: "single" | "multi" | "custom") => {
+  const handleSetKlingWorkflowMode = (nextMode: "single" | "multi") => {
     onKlingWorkflowModeChange?.(nextMode);
-    if (nextMode === "custom") {
-      ensureCustomKlingShots();
-    }
-  };
-  const handleAddShotPrompt = () => {
-    onKlingWorkflowModeChange?.("custom");
-    ensureCustomKlingShots();
-    addKlingShot();
   };
   const handleSetSeedanceReferenceMode = React.useCallback(
     (nextMode: "keyframes" | "elements") => {
@@ -798,7 +864,11 @@ export function VideoPropertiesPanel({
         handleMotionVideoSelection={handleMotionVideoSelection}
         topContent={
           <div className="video-reference-card-title">
-            {isMotionMode ? "Add Motion Inputs" : "Add References"}
+            {isLipSyncMode
+              ? "Character image"
+              : isMotionMode
+                ? "Add Motion Inputs"
+                : "Add References"}
           </div>
         }
       />
@@ -826,6 +896,7 @@ export function VideoPropertiesPanel({
       handlePrimaryDrop,
       isKeyframesMode,
       isKlingPatternMode,
+      isLipSyncMode,
       isMotionMode,
       isStandardMode,
       motionVideoDragActive,
@@ -849,8 +920,7 @@ export function VideoPropertiesPanel({
       toggleStep,
     ]
   );
-  const shouldShowAddCustomShotButton =
-    isKieKlingModelSelected && klingMode === "custom" && Boolean(onKlingMultiPromptsChange);
+  const shouldShowAddCustomShotButton = false;
   const isCustomMultiShotWorkspace = shouldShowAddCustomShotButton;
   const handleCustomShotPromptChange = React.useCallback(
     (shotId: string, value: string) => {
@@ -925,17 +995,19 @@ export function VideoPropertiesPanel({
       }),
     [klingElementCanonicalPromptTokens, populatedKlingPromptTokenSlotIndexes, selectedKlingElements]
   );
-  const primaryPromptPlaceholder =
-    "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.";
-  const primaryPromptHelperText =
-    "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.";
+  const primaryPromptPlaceholder = isLipSyncMode
+    ? "Optional: describe expression, framing, body movement, or mood."
+    : "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.";
+  const primaryPromptHelperText = isLipSyncMode
+    ? "Optional direction for the speaking character."
+    : "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.";
   const klingPrimaryPromptCharacterLimit =
     isKieKlingModelSelected && !isSeedance2FamilyModelSelected
       ? isCustomKlingWorkflow
         ? KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
         : resolveKlingSinglePromptEffectiveVisibleCharacterLimit({
             prompt: primaryPromptValue,
-            mode: klingMode === "multi" ? "multi" : "single",
+            mode: visibleShotMode === "multi" ? "multi" : "single",
             klingElements: selectedKlingElements.filter(
               (element): element is AiStudioKlingElement => Boolean(element)
             ),
@@ -1514,9 +1586,145 @@ export function VideoPropertiesPanel({
                       >
                         Motion Control
                       </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={visibleVideoMode === "lip-sync"}
+                        className={`video-reference-mode-tab ${visibleVideoMode === "lip-sync" ? "is-active" : ""}`}
+                        onClick={() => onVideoReferenceModeChange?.("lip-sync")}
+                      >
+                        Lip Sync
+                      </button>
                     </div>
-                    {!isSeedance2FamilyModelSelected || isMotionMode ? (
+                    {!isLipSyncMode ? (
+                      <div className="video-setup-settings-slot">
+                        <ReferenceVideoSettingsStep
+                          isVideoVariant={true}
+                          isMotionMode={isMotionMode}
+                          multiShotEnabled={isMultiShotEnabled}
+                          multiShotShotCount={0}
+                          modelId={modelId}
+                          modelLabel={modelLabel}
+                          modelLogoSrc={modelLogoSrc}
+                          isModelModalOpen={isModelModalOpen}
+                          modelModalAnchor={modelModalAnchor}
+                          modelModalContext={modelPickerContext}
+                          aspect={aspect}
+                          aspectOptionsForModel={aspectOptionsForModel}
+                          videoSettingsOrder={videoSettingsOrder}
+                          motionAudioOrder={motionAudioOrder}
+                          videoDurationValue={videoDurationValue}
+                          videoResolutionValue={videoResolutionValue}
+                          durationOptions={durationOptions}
+                          resolutionOptions={resolutionOptions}
+                          videoGenerateAudioValue={videoGenerateAudioValue}
+                          videoCameraFixed={videoCameraFixed}
+                          isVeoModel={isVeoModel}
+                          videoAutoFix={videoAutoFix}
+                          onAspectChange={onAspectChange}
+                          onModelPickerOpen={onModelPickerOpen}
+                          onVideoDurationChange={onVideoDurationChange}
+                          onVideoResolutionChange={onVideoResolutionChange}
+                          onVideoGenerateAudioChange={onVideoGenerateAudioChange}
+                          onVideoCameraFixedChange={onVideoCameraFixedChange}
+                          onVideoAutoFixChange={onVideoAutoFixChange}
+                        />
+                      </div>
+                    ) : null}
+                    {!isSeedance2FamilyModelSelected || isMotionMode || isLipSyncMode ? (
                       <div className="video-setup-reference-slot">{renderReferenceMediaStep()}</div>
+                    ) : null}
+                    {isLipSyncMode ? (
+                      <div className="video-lip-sync-audio-card">
+                        <input
+                          ref={lipSyncAudioInputRef}
+                          className="sr-only"
+                          type="file"
+                          accept="audio/*"
+                          onChange={handleLipSyncAudioSelection}
+                        />
+                        <div className="video-reference-card-title">Voice audio</div>
+                        <div
+                          className={`video-lip-sync-audio-dropzone ${lipSyncAudioDragActive ? "is-drag-active" : ""}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => lipSyncAudioInputRef.current?.click()}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              lipSyncAudioInputRef.current?.click();
+                            }
+                          }}
+                          onDragEnter={(event) => {
+                            event.preventDefault();
+                            setLipSyncAudioDragActive(true);
+                          }}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            setLipSyncAudioDragActive(true);
+                          }}
+                          onDragLeave={() => setLipSyncAudioDragActive(false)}
+                          onDrop={handleLipSyncAudioDrop}
+                        >
+                          {lipSyncAudio.url ? (
+                            <div
+                              className="video-lip-sync-audio-preview"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <ReferenceAudioPlayer
+                                audioId="lip-sync-audio"
+                                audioUrl={lipSyncAudio.url.replace(/#.*$/, "")}
+                                durationMs={lipSyncAudio.durationMs}
+                                playLabel="Play voice audio"
+                                pauseLabel="Pause voice audio"
+                                eagerWaveformDecode={false}
+                              />
+                            </div>
+                          ) : (
+                            <div className="video-lip-sync-audio-empty">
+                              <span>Add voice audio</span>
+                              <small>Drop audio here or choose a file</small>
+                            </div>
+                          )}
+                        </div>
+                        <div className="video-lip-sync-audio-actions">
+                          <span>{lipSyncAudioDurationLabel ?? "Audio required"}</span>
+                          {lipSyncAudio.url ? (
+                            <button type="button" onClick={clearLipSyncAudio}>
+                              Clear
+                            </button>
+                          ) : null}
+                        </div>
+                        <div
+                          className="video-lip-sync-resolution-row"
+                          aria-label="Lip Sync resolution"
+                        >
+                          {["720p", "1080p"].map((resolution) => (
+                            <button
+                              key={resolution}
+                              type="button"
+                              className={
+                                videoResolutionValue === resolution
+                                  ? "video-lip-sync-resolution-button is-active"
+                                  : "video-lip-sync-resolution-button"
+                              }
+                              onClick={() => onVideoResolutionChange?.(resolution)}
+                            >
+                              {resolution}
+                            </button>
+                          ))}
+                        </div>
+                        <label className="video-lip-sync-toggle-row">
+                          <span>Faster generation</span>
+                          <input
+                            type="checkbox"
+                            checked={lipSyncTurboMode}
+                            onChange={(event) =>
+                              onLipSyncTurboModeChange?.(event.currentTarget.checked)
+                            }
+                          />
+                        </label>
+                      </div>
                     ) : null}
                     {isMotionMode && !motionVideoUrl ? (
                       <div className="video-setup-recorder-slot">
@@ -1539,47 +1747,6 @@ export function VideoPropertiesPanel({
                       onClose={handleCloseMotionRecorder}
                       onApplyVideo={handleApplyRecordedMotionVideo}
                     />
-                    <div className="video-setup-settings-slot">
-                      <ReferenceVideoSettingsStep
-                        isVideoVariant={true}
-                        isMotionMode={isMotionMode}
-                        multiShotEnabled={isMultiShotEnabled}
-                        multiShotShotCount={klingMultiPrompts.length}
-                        modelId={modelId}
-                        modelLabel={modelLabel}
-                        modelLogoSrc={modelLogoSrc}
-                        isModelModalOpen={isModelModalOpen}
-                        modelModalAnchor={modelModalAnchor}
-                        modelModalContext={modelPickerContext}
-                        aspect={aspect}
-                        aspectOptionsForModel={aspectOptionsForModel}
-                        videoSettingsOrder={videoSettingsOrder}
-                        motionAudioOrder={motionAudioOrder}
-                        videoDurationValue={videoDurationValue}
-                        videoResolutionValue={videoResolutionValue}
-                        durationOptions={durationOptions}
-                        resolutionOptions={resolutionOptions}
-                        videoGenerateAudioValue={videoGenerateAudioValue}
-                        videoCameraFixed={videoCameraFixed}
-                        isVeoModel={isVeoModel}
-                        videoAutoFix={videoAutoFix}
-                        onAspectChange={onAspectChange}
-                        onModelPickerOpen={onModelPickerOpen}
-                        onVideoDurationChange={onVideoDurationChange}
-                        onVideoResolutionChange={onVideoResolutionChange}
-                        onVideoGenerateAudioChange={onVideoGenerateAudioChange}
-                        onVideoCameraFixedChange={onVideoCameraFixedChange}
-                        onVideoAutoFixChange={onVideoAutoFixChange}
-                        onToggleMultiShot={
-                          shouldShowShotModeSelector
-                            ? () =>
-                                handleSetKlingWorkflowMode(
-                                  klingMode === "custom" ? "single" : "custom"
-                                )
-                            : undefined
-                        }
-                      />
-                    </div>
                     {isKlingPatternModelSelected && !isMotionMode ? (
                       <div className="video-setup-elements-slot">
                         <div className="step-card video-elements-card">
@@ -1602,12 +1769,7 @@ export function VideoPropertiesPanel({
                                 style={
                                   {
                                     "--video-shot-mode-slots": shotModeTabCount,
-                                    "--video-shot-mode-index":
-                                      visibleShotMode === "multi"
-                                        ? 1
-                                        : visibleShotMode === "custom"
-                                          ? 2
-                                          : 0,
+                                    "--video-shot-mode-index": visibleShotMode === "multi" ? 1 : 0,
                                   } as React.CSSProperties
                                 }
                               >
@@ -1632,18 +1794,6 @@ export function VideoPropertiesPanel({
                                 >
                                   Multi
                                 </button>
-                                {!isSeedance2FamilyModelSelected ? (
-                                  <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={visibleShotMode === "custom"}
-                                    aria-label="Custom multi-shot"
-                                    className={`video-shot-mode-tab ${visibleShotMode === "custom" ? "is-active" : ""}`}
-                                    onClick={() => handleSetKlingWorkflowMode("custom")}
-                                  >
-                                    Custom
-                                  </button>
-                                ) : null}
                               </div>
                             </div>
                           ) : null}
@@ -1810,7 +1960,7 @@ export function VideoPropertiesPanel({
                         </div>
                       </div>
                     ) : null}
-                    {!isKieKlingModelSelected && !isAnySeedanceModelSelected ? (
+                    {!isLipSyncMode && !isKieKlingModelSelected && !isAnySeedanceModelSelected ? (
                       <p className="video-kling-tip">
                         Tip: Switch to the Kling 3.0 model to access multi-shot capability.
                       </p>
@@ -1958,20 +2108,6 @@ export function VideoPropertiesPanel({
                             </div>
                           </div>
                         ))}
-                        {shouldShowAddCustomShotButton ? (
-                          <div className="video-add-shot-row">
-                            <div className="video-add-shot-main">
-                              <button
-                                type="button"
-                                className="video-add-shot-button"
-                                onClick={handleAddShotPrompt}
-                                aria-label="Add another shot prompt"
-                              >
-                                + Add Custom Shot
-                              </button>
-                            </div>
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1988,7 +2124,11 @@ export function VideoPropertiesPanel({
                       <div className="video-generate-summary-item">
                         <span className="video-generate-summary-label">Shot</span>
                         <span className="video-generate-summary-value">
-                          {visibleVideoMode === "motion" ? "Single" : shotModeSummaryLabel}
+                          {visibleVideoMode === "lip-sync"
+                            ? "Voice audio"
+                            : visibleVideoMode === "motion"
+                              ? "Single"
+                              : shotModeSummaryLabel}
                         </span>
                       </div>
                     </div>

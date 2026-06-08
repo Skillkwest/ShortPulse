@@ -15,7 +15,6 @@ type KlingMultiPromptPayload = { prompt: string; duration: number };
 type KlingElementPayload =
   | { video_url: string }
   | { frontal_image_url: string | undefined; reference_image_urls: string[] | undefined };
-type KieKlingMultiPromptPayload = { prompt: string; duration: number };
 type KieKlingElementPayload = {
   name: string;
   description: string;
@@ -72,6 +71,11 @@ export const resolveKlingResolution = (
   if (normalized.includes("1080")) return "1080p";
   return fallback;
 };
+
+export const resolveLipSyncResolution = (
+  requestedResolution?: string,
+  fallback: "720p" | "1080p" = "1080p"
+): "720p" | "1080p" => resolveKlingResolution(requestedResolution, fallback);
 
 /**
  * Maps UI resolution intent to KIE Kling generation mode.
@@ -250,25 +254,6 @@ export const buildKlingMultiPromptPayload = (
         : null
     )
     .filter((shot): shot is KlingMultiPromptPayload => Boolean(shot));
-  return payload.length ? payload : undefined;
-};
-
-/**
- * Builds KIE Kling multi-shot payload from non-empty shots.
- */
-export const buildKieKlingMultiPromptPayload = (
-  klingMultiPrompts: VideoSubmissionArgs["klingMultiPrompts"]
-): KieKlingMultiPromptPayload[] | undefined => {
-  const payload = klingMultiPrompts
-    .map((shot) => {
-      const prompt = shot.prompt.trim();
-      if (!prompt) return null;
-      return {
-        prompt,
-        duration: Math.max(1, Math.min(12, Math.round(shot.duration))),
-      };
-    })
-    .filter((shot): shot is KieKlingMultiPromptPayload => Boolean(shot));
   return payload.length ? payload : undefined;
 };
 

@@ -6,7 +6,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
-import type { StudioMode, ToolId } from "../../types";
+import type { StudioMode, ToolId, VideoReferenceMode } from "../../types";
 import {
   WORKFLOW_SETTINGS_SESSION_KEY,
   useAiStudioWorkflowSettings,
@@ -39,9 +39,7 @@ const useHarness = (
   const [model, setModelState] = useState<string | null>(null);
   const [aspect, setAspect] = useState("9:16");
   const [imageResolution, setImageResolution] = useState("model_default");
-  const [videoReferenceMode, setVideoReferenceMode] = useState<
-    "standard" | "modify" | "keyframes" | "kling3" | "motion"
-  >("standard");
+  const [videoReferenceMode, setVideoReferenceMode] = useState<VideoReferenceMode>("standard");
   const [videoDurationSeconds, setVideoDurationSeconds] = useState(6);
   const [videoResolution, setVideoResolution] = useState("1080p");
   const [videoGenerateAudio, setVideoGenerateAudio] = useState(false);

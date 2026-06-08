@@ -16,3 +16,5 @@ export const FAL_SEEDREAM_45_EDIT_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edi
 
 export const FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID = "fal-ai/bytedance/seedream/v5/lite/text-to-image";
 export const FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID = "fal-ai/bytedance/seedream/v5/lite/edit";
+
+export const FAL_OMNIHUMAN_V15_MODEL_ID = "fal-ai/bytedance/omnihuman/v1.5";

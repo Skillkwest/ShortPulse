@@ -109,6 +109,15 @@ const FAL_ROUTE_INVENTORY = [
     validator: "generic",
   },
   {
+    fileBase: "omnihuman-v15",
+    modelId: "fal-ai/bytedance/omnihuman/v1.5",
+    provider: "fal",
+    routeLabel: "Fal OmniHuman v1.5",
+    submitTimeoutMs: 20000,
+    statusTimeoutMs: 60000,
+    validator: "generic",
+  },
+  {
     fileBase: "seedream",
     modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
     provider: "fal",

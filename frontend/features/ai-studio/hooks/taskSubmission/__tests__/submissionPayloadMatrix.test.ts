@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listModelConfigs, getModelConfig } from "../../../logic/modelRegistry";
 import { getModelApiContract } from "../../../logic/modelApiContracts";
 import {
+  FAL_OMNIHUMAN_V15_MODEL_ID,
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
   FAL_NANO_BANANA_2_EDIT_MODEL_ID,
   FAL_NANO_BANANA_2_MODEL_ID,
@@ -33,6 +34,7 @@ import type { ImageSubmissionArgs, VideoSubmissionArgs } from "../types";
 const falClientMocks = vi.hoisted(() => ({
   submitFalBriaBackgroundRemove: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
+  submitFalOmniHuman: vi.fn(),
   submitFalNanoBanana2: vi.fn(),
   submitFalNanoBanana2Edit: vi.fn(),
   submitFalNanoBananaPro: vi.fn(),
@@ -60,6 +62,8 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitFalBriaBackgroundRemove(payload);
       case FAL_FLUX_2_KLEIN_9B_MODEL_ID:
         return falClientMocks.submitFalFlux2Klein(payload);
+      case FAL_OMNIHUMAN_V15_MODEL_ID:
+        return falClientMocks.submitFalOmniHuman(payload);
       case FAL_SEEDREAM_45_EDIT_MODEL_ID:
         return falClientMocks.submitFalSeedreamEdit(payload);
       case FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID:
@@ -84,6 +88,7 @@ vi.mock("../../../../../lib/falClient", () => {
 const {
   submitFalBriaBackgroundRemove,
   submitFalFlux2Klein,
+  submitFalOmniHuman,
   submitFalNanoBanana2,
   submitFalNanoBanana2Edit,
   submitFalNanoBananaPro,
@@ -124,6 +129,12 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalFlux2Klein",
     expectedSafetyChecker: false,
     expectedReferenceField: "none",
+  },
+  [FAL_OMNIHUMAN_V15_MODEL_ID]: {
+    route: "video",
+    submitName: "submitFalOmniHuman",
+    requestedResolution: "720p",
+    expectedReferenceField: "image_url",
   },
   [FAL_NANO_BANANA_PRO_MODEL_ID]: {
     route: "default",
@@ -231,20 +242,37 @@ const makeImageArgs = (
 const makeVideoArgs = (
   modelId: string,
   requestedResolution: string | undefined
-): VideoSubmissionArgs => ({
-  ...makeImageArgs(modelId, requestedResolution),
-  videoReferenceMode: "standard",
-  videoReferenceImageUrl: "https://cdn.test/ref-1.png",
-  motionReferenceVideoUrl: null,
-  videoCameraFixed: false,
-  klingCfgScale: 0.5,
-  klingMultiPrompts: [],
-  klingElements: [],
-});
+): VideoSubmissionArgs => {
+  const isLipSync = modelId === FAL_OMNIHUMAN_V15_MODEL_ID;
+  return {
+    ...makeImageArgs(modelId, requestedResolution),
+    preparedImageInputs: isLipSync
+      ? ["https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/ref-1.png"]
+      : ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
+    rawImageInputs: isLipSync
+      ? ["https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/ref-1.png"]
+      : undefined,
+    videoReferenceMode: isLipSync ? "lip-sync" : "standard",
+    videoReferenceImageUrl: "https://cdn.test/ref-1.png",
+    motionReferenceVideoUrl: null,
+    lipSyncAudio: {
+      url: isLipSync
+        ? "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/voice.mp3"
+        : null,
+      durationMs: isLipSync ? 8_000 : null,
+    },
+    lipSyncTurboMode: false,
+    videoCameraFixed: false,
+    klingCfgScale: 0.5,
+    klingMultiPrompts: [],
+    klingElements: [],
+  };
+};
 
 const submitSpyByName = {
   submitFalBriaBackgroundRemove: vi.mocked(submitFalBriaBackgroundRemove),
   submitFalFlux2Klein: vi.mocked(submitFalFlux2Klein),
+  submitFalOmniHuman: vi.mocked(submitFalOmniHuman),
   submitFalNanoBanana2: vi.mocked(submitFalNanoBanana2),
   submitFalNanoBanana2Edit: vi.mocked(submitFalNanoBanana2Edit),
   submitFalNanoBananaPro: vi.mocked(submitFalNanoBananaPro),
@@ -368,7 +396,7 @@ describe("task submission payload matrix", () => {
         expect(payload.resolution).toBeDefined();
       }
 
-      if (config.route === "video") {
+      if (config.route === "video" && modelId !== FAL_OMNIHUMAN_V15_MODEL_ID) {
         expect(payload.duration).toBeDefined();
       }
 
@@ -393,6 +421,11 @@ describe("task submission payload matrix", () => {
       if (modelId === "fal-ai/bria/background/remove") {
         expect(typeof payload.image_url).toBe("string");
         expect(payload.prompt).toBeUndefined();
+      }
+      if (modelId === FAL_OMNIHUMAN_V15_MODEL_ID) {
+        expect(typeof payload.audio_url).toBe("string");
+        expect(payload.duration).toBeUndefined();
+        expect(payload.generate_audio).toBeUndefined();
       }
 
       if (typeof config.expectedSafetyChecker === "boolean") {

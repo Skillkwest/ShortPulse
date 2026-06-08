@@ -8,6 +8,7 @@ import type { ModelModalContext } from "../components/ModelModal";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { AiStudioVideoPanelContract } from "./contracts/pageContentContracts";
+import type { LipSyncAudioState, VideoReferenceMode } from "../types";
 
 type UseAiStudioVideoPanelPropsParams = {
   aspect: string;
@@ -15,10 +16,12 @@ type UseAiStudioVideoPanelPropsParams = {
   currentModelLabel: string;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
-  setVideoReferenceMode: Dispatch<
-    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
-  >;
+  videoReferenceMode: VideoReferenceMode;
+  setVideoReferenceMode: Dispatch<SetStateAction<VideoReferenceMode>>;
+  lipSyncAudio: LipSyncAudioState;
+  setLipSyncAudio: Dispatch<SetStateAction<LipSyncAudioState>>;
+  lipSyncTurboMode: boolean;
+  setLipSyncTurboMode: Dispatch<SetStateAction<boolean>>;
   videoDurationSeconds: number;
   videoResolution: string;
   videoGenerateAudio: boolean;
@@ -104,6 +107,10 @@ export const useAiStudioVideoPanelProps = ({
   extraImageUrls,
   videoReferenceMode,
   setVideoReferenceMode,
+  lipSyncAudio,
+  setLipSyncAudio,
+  lipSyncTurboMode,
+  setLipSyncTurboMode,
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
@@ -175,6 +182,10 @@ export const useAiStudioVideoPanelProps = ({
       extraImageUrls,
       videoReferenceMode,
       onVideoReferenceModeChange: setVideoReferenceMode,
+      lipSyncAudio,
+      onLipSyncAudioChange: setLipSyncAudio,
+      lipSyncTurboMode,
+      onLipSyncTurboModeChange: setLipSyncTurboMode,
       videoDurationSeconds,
       videoResolution,
       videoGenerateAudio,
@@ -257,6 +268,8 @@ export const useAiStudioVideoPanelProps = ({
       klingNegativePrompt,
       klingShotType,
       klingVoiceIds,
+      lipSyncAudio,
+      lipSyncTurboMode,
       model,
       modelModalAnchor,
       motionReferenceVideoError,
@@ -285,6 +298,8 @@ export const useAiStudioVideoPanelProps = ({
       setKlingMultiPrompts,
       setKlingNegativePrompt,
       setKlingShotType,
+      setLipSyncAudio,
+      setLipSyncTurboMode,
       setMotionReferenceVideoUrl,
       setReferenceImageUrl,
       setSeedance2InputMode,

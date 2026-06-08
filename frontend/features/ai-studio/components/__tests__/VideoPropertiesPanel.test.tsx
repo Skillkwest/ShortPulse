@@ -62,6 +62,7 @@ const defaultDerivedState = {
   isKlingPatternMode: true,
   isKeyframesMode: false,
   isMotionMode: false,
+  isLipSyncMode: false,
   isStandardMode: true,
   isSeedanceModel: false,
   isSeedance2FamilyModel: false,
@@ -217,7 +218,9 @@ vi.mock("../../../../prefabs/agent", () => ({
 }));
 
 vi.mock("../ReferenceMediaStep", () => ({
-  ReferenceMediaStep: () => <div data-testid="reference-media-step" />,
+  ReferenceMediaStep: (props: { topContent?: React.ReactNode }) => (
+    <div data-testid="reference-media-step">{props.topContent}</div>
+  ),
 }));
 
 vi.mock("../ReferencePromptStep", () => ({
@@ -486,6 +489,54 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByText("Reference image required for generation")).toBeInTheDocument();
   });
 
+  it("places add references below video settings in Standard video setup", () => {
+    render(<VideoPropertiesPanel {...baseProps} />);
+
+    const settingsStep = screen.getByTestId("reference-video-settings-step");
+    const referenceStep = screen.getByTestId("reference-media-step");
+
+    expect(settingsStep.compareDocumentPosition(referenceStep)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
+  it("renders Lip Sync setup with product-only language", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image",
+      videoResolutionValue: "1080p",
+    });
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId="fal-ai/bytedance/omnihuman/v1.5"
+        modelLabel="Fal OmniHuman"
+        referenceText=""
+        videoReferenceMode="lip-sync"
+        lipSyncAudio={{ url: null, durationMs: null }}
+        onLipSyncAudioChange={vi.fn()}
+        onLipSyncTurboModeChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("tab", { name: "Lip Sync" })).toBeInTheDocument();
+    expect(screen.getByText("Character image")).toBeInTheDocument();
+    expect(screen.getAllByText("Voice audio").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("button", { name: "720p" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1080p" })).toBeInTheDocument();
+    expect(screen.getByText("Faster generation")).toBeInTheDocument();
+    expect(screen.queryByText(/Kling/i)).toBeNull();
+    expect(screen.queryByTestId("reference-video-settings-step")).toBeNull();
+    expect(document.body).not.toHaveTextContent(/Fal|OmniHuman|Bytedance|fal-ai\/bytedance/i);
+  });
+
   it("keeps the Kling reference image warning visible when only the last-frame slot has an image", () => {
     const { rerender } = render(<VideoPropertiesPanel {...baseProps} />);
 
@@ -595,19 +646,27 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: /Generate/ })).not.toBeDisabled();
   });
 
-  it("hides the hero title block in custom multi-shot mode even when prompts are empty", () => {
-    const { container } = render(
+  it("maps stale Kling custom mode to the Multi tab without custom shot controls", () => {
+    render(
       <VideoPropertiesPanel
         {...baseProps}
         referenceText=""
         klingWorkflowMode="custom"
-        klingMultiPrompts={[{ id: "shot-1", prompt: "", duration: 5 }]}
+        klingMultiPrompts={[
+          { id: "shot-1", prompt: "Beat one", duration: 5 },
+          { id: "shot-2", prompt: "Beat two", duration: 5 },
+        ]}
         onKlingMultiPromptsChange={vi.fn()}
       />
     );
 
-    expect(screen.queryByText("How will you direct this scene?")).toBeNull();
-    expect(container.querySelector(".video-shot-scroll-viewport")).not.toBeNull();
+    expect(screen.getByRole("tab", { name: "Multi-shot" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();
+    expect(screen.queryByText("Shot 2")).toBeNull();
+    expect(screen.queryByLabelText("Add another shot prompt")).toBeNull();
   });
 
   it("does not render custom multi-shot prompt boxes when Kling is no longer the active model", () => {
@@ -769,29 +828,37 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: /generate/i })).toBeDisabled();
   });
 
-  it("shows per-shot Kling counters in custom multi-shot mode", () => {
+  it("uses the Multi prompt counter when stale Kling custom mode is present", () => {
+    const effectiveLimit = resolveKlingSinglePromptEffectiveVisibleCharacterLimit({
+      prompt: "A",
+      mode: "multi",
+      klingElements: [],
+    });
+
     render(
       <VideoPropertiesPanel
         {...baseProps}
         referenceImageUrl="https://example.com/first-frame.jpg"
+        referenceText={"A".repeat(120)}
         klingWorkflowMode="custom"
         klingMultiPrompts={[
-          { id: "shot-1", prompt: "A".repeat(120), duration: 5 },
-          { id: "shot-2", prompt: "B".repeat(220), duration: 5 },
+          { id: "shot-1", prompt: "Stale shot one", duration: 5 },
+          { id: "shot-2", prompt: "Stale shot two", duration: 5 },
         ]}
         onKlingMultiPromptsChange={vi.fn()}
       />
     );
 
-    expect(screen.getByText("120 / 500")).toBeInTheDocument();
-    expect(screen.getByText("220 / 500")).toBeInTheDocument();
+    expect(screen.getByText(`120 / ${effectiveLimit.toLocaleString()}`)).toBeInTheDocument();
+    expect(screen.queryByText("Stale shot two")).toBeNull();
   });
 
-  it("blocks generate when any custom Kling shot exceeds the documented per-shot limit", () => {
+  it("ignores stale custom shot prompt limits after custom controls are removed", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
         referenceImageUrl="https://example.com/first-frame.jpg"
+        referenceText="Valid single prompt"
         klingWorkflowMode="custom"
         klingMultiPrompts={[
           { id: "shot-1", prompt: "A".repeat(120), duration: 5 },
@@ -801,10 +868,8 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(
-      screen.getByText("Shot prompt exceeds Kling's 500 character limit.")
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /generate/i })).toBeDisabled();
+    expect(screen.queryByText("Shot prompt exceeds Kling's 500 character limit.")).toBeNull();
+    expect(screen.getByRole("button", { name: /generate/i })).not.toBeDisabled();
   });
 
   it("preserves custom shot text when switching from custom to single or multi", () => {
@@ -827,11 +892,7 @@ describe("VideoPropertiesPanel", () => {
       "shot-1:Shot one prompt|shot-2:Shot two prompt"
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Custom multi-shot" }));
-    expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("custom");
-    expect(screen.getByTestId("kling-shot-cache")).toHaveTextContent(
-      "shot-1:Shot one prompt|shot-2:Shot two prompt"
-    );
+    expect(screen.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();
   });
 
   it("does not show a parked custom shots note when cached custom prompts exist", () => {

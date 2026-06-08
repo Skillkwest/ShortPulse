@@ -20,7 +20,7 @@ const clampAudioSeekRatio = (value: number): number => Math.min(1, Math.max(0, v
 
 export type ReferenceAudioPlayerProps = {
   audioId: string;
-  audioUrl: string;
+  audioUrl?: string | null;
   audioInstanceKey?: string;
   backgroundImageUrl?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
@@ -29,6 +29,7 @@ export type ReferenceAudioPlayerProps = {
   playLabel: string;
   pauseLabel: string;
   onActivate?: () => void;
+  onResolveAudioUrl?: () => Promise<string | null>;
   onReady?: () => void;
   onError?: () => void;
   eagerWaveformDecode?: boolean;
@@ -48,6 +49,7 @@ export function ReferenceAudioPlayer({
   playLabel,
   pauseLabel,
   onActivate,
+  onResolveAudioUrl,
   onReady,
   onError,
   eagerWaveformDecode = true,
@@ -62,6 +64,8 @@ export function ReferenceAudioPlayer({
   const requestPlayback = onRequestPlay ?? requestExclusiveSoundPlayback;
   const markPlaybackStarted = onPlaybackStarted ?? markExclusiveSoundPlaying;
   const clearPlayback = onPlaybackStopped ?? clearExclusiveSoundPlayback;
+  const [activeAudioUrl, setActiveAudioUrl] = React.useState(audioUrl?.trim() ?? "");
+  const [isResolvingAudioUrl, setIsResolvingAudioUrl] = React.useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = React.useState(false);
   const [audioProgressRatio, setAudioProgressRatio] = React.useState(0);
   const [resolvedAudioDurationMs, setResolvedAudioDurationMs] = React.useState<number | null>(
@@ -134,6 +138,10 @@ export function ReferenceAudioPlayer({
   }, [audioId, durationMs]);
 
   React.useEffect(() => {
+    setActiveAudioUrl(audioUrl?.trim() ?? "");
+  }, [audioUrl]);
+
+  React.useEffect(() => {
     setIsAudioPlaying(false);
     setAudioProgressRatio(0);
     setShouldDecodeWaveform(eagerWaveformDecode);
@@ -152,7 +160,7 @@ export function ReferenceAudioPlayer({
   }, [fallbackAudioWaveformBars, hasDecodedWaveform, storedAudioWaveformPeaks]);
 
   React.useEffect(() => {
-    if (!audioUrl) return;
+    if (!activeAudioUrl) return;
     if (storedAudioWaveformPeaks.length > 0) {
       setHasDecodedWaveform(true);
       return;
@@ -162,7 +170,10 @@ export function ReferenceAudioPlayer({
     setHasDecodedWaveform(false);
 
     const decodeWaveform = async () => {
-      const nextBars = await extractAudioWaveformPeaksFromUrl(audioUrl, AUDIO_WAVEFORM_BAR_COUNT);
+      const nextBars = await extractAudioWaveformPeaksFromUrl(
+        activeAudioUrl,
+        AUDIO_WAVEFORM_BAR_COUNT
+      );
       if (!cancelled && Array.isArray(nextBars) && nextBars.length > 0) {
         setAudioWaveformBars(nextBars);
         setHasDecodedWaveform(true);
@@ -174,7 +185,7 @@ export function ReferenceAudioPlayer({
     return () => {
       cancelled = true;
     };
-  }, [audioUrl, shouldDecodeWaveform, storedAudioWaveformPeaks]);
+  }, [activeAudioUrl, shouldDecodeWaveform, storedAudioWaveformPeaks]);
 
   React.useEffect(
     () => () => {
@@ -203,6 +214,27 @@ export function ReferenceAudioPlayer({
         setIsAudioPlaying(false);
         return;
       }
+      let playbackUrl = activeAudioUrl;
+      if (!playbackUrl) {
+        if (!onResolveAudioUrl || isResolvingAudioUrl) return;
+        setIsResolvingAudioUrl(true);
+        try {
+          playbackUrl = (await onResolveAudioUrl())?.trim() ?? "";
+        } finally {
+          setIsResolvingAudioUrl(false);
+        }
+        if (!playbackUrl) {
+          onError?.();
+          return;
+        }
+        setActiveAudioUrl(playbackUrl);
+        node.src = playbackUrl;
+        try {
+          node.load();
+        } catch {
+          // Some test/browser environments do not expose a useful load implementation.
+        }
+      }
       if (
         node.ended ||
         (Number.isFinite(node.duration) && node.duration > 0 && node.currentTime >= node.duration)
@@ -224,9 +256,13 @@ export function ReferenceAudioPlayer({
       }
     },
     [
+      activeAudioUrl,
       clearPlayback,
       isAudioPlaying,
+      isResolvingAudioUrl,
       onActivate,
+      onError,
+      onResolveAudioUrl,
       requestPlayback,
       resolvedAudioInstanceKey,
       shouldDecodeWaveform,
@@ -352,8 +388,15 @@ export function ReferenceAudioPlayer({
             <button
               type="button"
               className={`reference-card-audio-play ${isAudioPlaying ? "is-playing" : ""}`}
-              aria-label={isAudioPlaying ? pauseLabel : playLabel}
+              aria-label={
+                isResolvingAudioUrl
+                  ? `Loading ${playLabel}`
+                  : isAudioPlaying
+                    ? pauseLabel
+                    : playLabel
+              }
               aria-pressed={isAudioPlaying}
+              disabled={isResolvingAudioUrl}
               onDoubleClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -425,7 +468,7 @@ export function ReferenceAudioPlayer({
           className="reference-card-audio"
           preload="metadata"
           ref={audioNodeRef}
-          src={audioUrl}
+          src={activeAudioUrl || undefined}
           onLoadedMetadata={(event) => {
             const durationSeconds = event.currentTarget.duration;
             if (Number.isFinite(durationSeconds) && durationSeconds > 0) {

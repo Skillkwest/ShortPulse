@@ -12,7 +12,7 @@ import {
   normalizeInternalMediaRefList,
   type InternalMediaRef,
 } from "../../../lib/media/internalMediaRefs";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { StudioMode, StudioOutput, ToolId, VideoReferenceMode } from "../types";
 import { getModelConfig } from "../../../lib/model-runtime/modelRegistry";
 import type {
   AgentAttachment,
@@ -183,10 +183,11 @@ const asToolId = (value: unknown): ToolId | null => {
   return TOOL_IDS.has(value as ToolId) ? (value as ToolId) : null;
 };
 
-const asVideoReferenceMode = (
-  value: unknown
-): "standard" | "modify" | "keyframes" | "kling3" | "motion" => {
+const asVideoReferenceMode = (value: unknown): VideoReferenceMode => {
   if (value === "standard" || value === "modify" || value === "kling3" || value === "motion") {
+    return value;
+  }
+  if (value === "lip-sync") {
     return value;
   }
   // Hidden keyframes snapshot values should reopen on the visible Standard lane.
@@ -715,7 +716,10 @@ export type AiStudioSessionHydrationPayload = {
     referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
     editReferenceText: string;
     videoReferenceText: string;
-    videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+    videoReferenceMode: VideoReferenceMode;
+    lipSyncAudioUrl: string | null;
+    lipSyncAudioDurationMs: number | null;
+    lipSyncTurboMode: boolean;
     videoDurationSeconds: number;
     videoResolution: string;
     imageResolution: string;
@@ -1067,6 +1071,13 @@ export const buildAiStudioSessionHydrationPayload = (
       editReferenceText: asString(workspace.editReferenceText, ""),
       videoReferenceText: asString(workspace.videoReferenceText, ""),
       videoReferenceMode: asVideoReferenceMode(workspace.videoReferenceMode),
+      lipSyncAudioUrl: asNullableString(workspace.lipSyncAudioUrl),
+      lipSyncAudioDurationMs:
+        typeof workspace.lipSyncAudioDurationMs === "number" &&
+        Number.isFinite(workspace.lipSyncAudioDurationMs)
+          ? workspace.lipSyncAudioDurationMs
+          : null,
+      lipSyncTurboMode: asBoolean(workspace.lipSyncTurboMode),
       videoDurationSeconds: Math.max(
         1,
         Math.trunc(asFiniteNumber(workspace.videoDurationSeconds, FALLBACK_VIDEO_DURATION_SECONDS))

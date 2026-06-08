@@ -4,6 +4,7 @@
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { isCharacterScopedMediaUrl } from "../../../../lib/mediaStoragePath";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -25,10 +26,10 @@ import { needsImageUpload, prepareImageUrlForSubmission } from "../../utils/imag
 import {
   buildKieKlingElementsPayload,
   resolveKieKlingAspect,
-  buildKieKlingMultiPromptPayload,
   resolveKieKlingDuration,
   resolveKieKlingMode,
   resolveKlingResolution,
+  resolveLipSyncResolution,
   resolveSeedanceI2VAspect,
   resolveSeedance2Duration,
   resolveSeedance2Resolution,
@@ -40,6 +41,7 @@ import {
   isKlingSinglePromptOverComposedLimit,
   rewritePromptWithKieElementTokens,
 } from "../../logic/klingShotModePromptComposition";
+import { composeSeedanceHiddenShotModePrompt } from "../../logic/seedanceShotModePromptComposition";
 
 const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
 const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
@@ -496,7 +498,7 @@ const buildSeedancePromptPayload = ({
   preparedKlingElements: AiStudioKlingElement[];
 }): { prompt: string } | { error: string } => {
   return {
-    prompt: composeHiddenShotModePrompt({
+    prompt: composeSeedanceHiddenShotModePrompt({
       prompt: rewritePromptWithSeedanceEntityContext(cleanedPrompt, preparedKlingElements),
       mode: klingWorkflowMode === "multi" || klingWorkflowMode === "custom" ? "multi" : "single",
     }),
@@ -531,40 +533,18 @@ type ResolvedKieKlingShotModePayload = {
 const resolveKieKlingShotModePayload = ({
   cleanedPrompt,
   klingWorkflowMode,
-  klingMultiPrompts,
   preparedImageInputs,
   requestedAudio,
   preparedKlingElements,
 }: {
   cleanedPrompt: string;
   klingWorkflowMode: VideoSubmissionArgs["klingWorkflowMode"];
-  klingMultiPrompts: VideoSubmissionArgs["klingMultiPrompts"];
   preparedImageInputs: string[];
   requestedAudio: boolean;
   preparedKlingElements: AiStudioKlingElement[];
 }): ResolvedKieKlingShotModePayload | { error: string } => {
   const normalizedMode =
-    klingWorkflowMode === "multi" || klingWorkflowMode === "custom" ? klingWorkflowMode : "single";
-
-  if (normalizedMode === "custom") {
-    const customShots = buildKieKlingMultiPromptPayload(klingMultiPrompts)?.map((shot) => ({
-      ...shot,
-      prompt: rewritePromptWithKieElementTokens(shot.prompt, preparedKlingElements),
-    }));
-
-    if (!customShots?.length) {
-      return { error: "Custom Kling mode requires at least one shot prompt." };
-    }
-
-    return {
-      prompt: customShots[0].prompt,
-      imageUrls: preparedImageInputs.length ? [preparedImageInputs[0]] : [],
-      multiShots: true,
-      multiPrompt: customShots,
-      generateAudio: true,
-      sound: true,
-    };
-  }
+    klingWorkflowMode === "multi" || klingWorkflowMode === "custom" ? "multi" : "single";
 
   const promptWithElementTokens = rewritePromptWithKieElementTokens(
     cleanedPrompt,
@@ -612,7 +592,12 @@ const handoffSubmitResponse = ({
   startPollingWithGeneration(requestId, pollingProvider, patch, response);
 };
 
-type VideoPollingProvider = "kie-veo" | "kie-kling" | "kie-seedance-2" | "kie-seedance-2-fast";
+type VideoPollingProvider =
+  | "fal-omnihuman-v15"
+  | "kie-veo"
+  | "kie-kling"
+  | "kie-seedance-2"
+  | "kie-seedance-2-fast";
 
 type VideoHandlerContext = {
   id: string;
@@ -630,6 +615,8 @@ type VideoHandlerContext = {
   videoReferenceMode: VideoSubmissionArgs["videoReferenceMode"];
   videoReferenceImageUrl: string | null;
   motionReferenceVideoUrl: string | null;
+  lipSyncAudio: VideoSubmissionArgs["lipSyncAudio"];
+  lipSyncTurboMode: VideoSubmissionArgs["lipSyncTurboMode"];
   videoCameraFixed: boolean;
   seedance2InputMode?: VideoSubmissionArgs["seedance2InputMode"];
   seedance2ReferenceImageUrls: string[];
@@ -660,6 +647,87 @@ type VideoSubmissionAdapter = {
 };
 
 const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
+  {
+    key: "fal-omnihuman-v15",
+    matches: (modelId) => modelId === FAL_OMNIHUMAN_V15_MODEL_ID,
+    submit: async ({
+      id,
+      finalModel,
+      cleanedPrompt,
+      requestedResolution,
+      preparedImageInputs,
+      rawImageInputs,
+      notifyGenerationFailure,
+      videoReferenceMode,
+      lipSyncAudio,
+      lipSyncTurboMode,
+      shortpulseSubmitPayload,
+    }) => {
+      if (videoReferenceMode !== "lip-sync") {
+        notifyGenerationFailure(
+          id,
+          "Lip Sync is not ready for this video mode.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
+        return { handled: true };
+      }
+
+      const rawImageUrl = (rawImageInputs[0] ?? preparedImageInputs[0] ?? "").trim();
+      const preparedImageUrl = (preparedImageInputs[0] ?? rawImageUrl).trim();
+      const rawAudioUrl = lipSyncAudio.url?.replace(/#.*$/, "").trim() ?? "";
+
+      if (!preparedImageUrl || !rawImageUrl) {
+        notifyGenerationFailure(
+          id,
+          "Add a character image before generating in Lip Sync.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
+        return { handled: true };
+      }
+      if (!rawAudioUrl) {
+        notifyGenerationFailure(
+          id,
+          "Add voice audio before generating in Lip Sync.",
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
+        return { handled: true };
+      }
+
+      const kieUploadCache = new Map<string, Promise<string>>();
+      const imageUrl = await prepareKieInputUrl({
+        rawUrl: rawImageUrl,
+        preparedUrl: preparedImageUrl,
+        mediaKind: "image",
+        cache: kieUploadCache,
+      });
+      const audioUrl = await prepareKieInputUrl({
+        rawUrl: rawAudioUrl,
+        preparedUrl: rawAudioUrl,
+        mediaKind: "audio",
+        cache: kieUploadCache,
+      });
+      const resolution = resolveLipSyncResolution(requestedResolution);
+      const prompt = cleanedPrompt.trim();
+      const response = await submitQueuedGenerationByModelId(finalModel, {
+        image_url: imageUrl,
+        audio_url: audioUrl,
+        resolution,
+        ...(prompt ? { prompt } : {}),
+        ...(lipSyncTurboMode ? { turbo_mode: true } : {}),
+        ...shortpulseSubmitPayload,
+      });
+
+      return {
+        handled: true,
+        response,
+        pollingProvider: "fal-omnihuman-v15",
+        patch: { previewUrl: imageUrl },
+      };
+    },
+  },
   {
     key: "kie-veo-31-fast-i2v",
     matches: (modelId) => modelId === KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -913,7 +981,6 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       motionReferenceVideoUrl,
       klingCfgScale,
       klingWorkflowMode,
-      klingMultiPrompts,
       klingElements,
       shortpulseSubmitPayload,
     }) => {
@@ -1027,7 +1094,6 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       const resolvedShotModePayload = resolveKieKlingShotModePayload({
         cleanedPrompt,
         klingWorkflowMode,
-        klingMultiPrompts,
         preparedImageInputs,
         requestedAudio,
         preparedKlingElements,
@@ -1099,6 +1165,8 @@ export const handleVideoModelSubmission = async ({
   videoReferenceMode,
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
+  lipSyncAudio,
+  lipSyncTurboMode,
   videoCameraFixed,
   seedance2InputMode = "text",
   seedance2ReferenceImageUrls = [],
@@ -1122,6 +1190,7 @@ export const handleVideoModelSubmission = async ({
     ...preparedImageInputs,
     videoReferenceImageUrl ?? "",
     motionReferenceVideoUrl ?? "",
+    lipSyncAudio.url ?? "",
     ...seedance2ReferenceImageUrls,
     ...seedance2ReferenceVideoUrls,
     ...seedance2ReferenceAudioUrls,
@@ -1154,6 +1223,8 @@ export const handleVideoModelSubmission = async ({
     videoReferenceMode,
     videoReferenceImageUrl,
     motionReferenceVideoUrl,
+    lipSyncAudio,
+    lipSyncTurboMode,
     videoCameraFixed,
     seedance2InputMode,
     seedance2ReferenceImageUrls,

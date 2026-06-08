@@ -35,7 +35,13 @@ import {
 import { registerInternalMediaRefsForUrls } from "../logic/referenceInputInternalMediaRegistry";
 import type { PulseWorkspaceState } from "../logic/pulseSessionState";
 import type { ReferenceProjectionState } from "../reference-projections";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type {
+  LipSyncAudioState,
+  StudioMode,
+  StudioOutput,
+  ToolId,
+  VideoReferenceMode,
+} from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
@@ -154,7 +160,9 @@ type UseAiStudioSessionSnapshotControllerParams = {
   extraImageUrls: readonly (string | null)[];
   editReferenceText: string;
   videoReferenceText: string;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
+  lipSyncAudio?: LipSyncAudioState;
+  lipSyncTurboMode?: boolean;
   videoDurationSeconds: number;
   videoResolution: string;
   imageResolution: string;
@@ -201,9 +209,9 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setExtraImageUrl: (index: number, value: string | null) => void;
   setEditReferenceText: (value: string) => void;
   setVideoReferenceText: (value: string) => void;
-  setVideoReferenceMode: Dispatch<
-    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
-  >;
+  setVideoReferenceMode: Dispatch<SetStateAction<VideoReferenceMode>>;
+  setLipSyncAudio?: Dispatch<SetStateAction<LipSyncAudioState>>;
+  setLipSyncTurboMode?: Dispatch<SetStateAction<boolean>>;
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   setVideoResolution: Dispatch<SetStateAction<string>>;
   setImageResolution: Dispatch<SetStateAction<string>>;
@@ -261,6 +269,8 @@ export const useAiStudioSessionSnapshotController = ({
   editReferenceText,
   videoReferenceText,
   videoReferenceMode,
+  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncTurboMode = false,
   videoDurationSeconds,
   videoResolution,
   imageResolution,
@@ -303,6 +313,8 @@ export const useAiStudioSessionSnapshotController = ({
   setEditReferenceText,
   setVideoReferenceText,
   setVideoReferenceMode,
+  setLipSyncAudio = () => undefined,
+  setLipSyncTurboMode = () => undefined,
   setVideoDurationSeconds,
   setVideoResolution,
   setImageResolution,
@@ -332,6 +344,8 @@ export const useAiStudioSessionSnapshotController = ({
     pulseWorkspaceState.expertCreateMode === "pulse" ? pulseCreatePrompt : standardCreatePrompt;
   const editReferenceTextRef = useRef(editReferenceText);
   const videoReferenceTextRef = useRef(videoReferenceText);
+  const lipSyncAudioRef = useRef(lipSyncAudio);
+  const lipSyncTurboModeRef = useRef(lipSyncTurboMode);
 
   useEffect(
     () => () => {
@@ -350,6 +364,14 @@ export const useAiStudioSessionSnapshotController = ({
   useEffect(() => {
     videoReferenceTextRef.current = videoReferenceText;
   }, [videoReferenceText]);
+
+  useEffect(() => {
+    lipSyncAudioRef.current = lipSyncAudio;
+  }, [lipSyncAudio]);
+
+  useEffect(() => {
+    lipSyncTurboModeRef.current = lipSyncTurboMode;
+  }, [lipSyncTurboMode]);
 
   const hydrateFromSessionSnapshot = useCallback(
     (snapshot: AiStudioSessionSnapshot): AiStudioSessionHydrationPayload => {
@@ -421,6 +443,11 @@ export const useAiStudioSessionSnapshotController = ({
       setEditReferenceText(workspace.editReferenceText);
       setVideoReferenceText(workspace.videoReferenceText);
       setVideoReferenceMode(workspace.videoReferenceMode);
+      setLipSyncAudio({
+        url: workspace.lipSyncAudioUrl,
+        durationMs: workspace.lipSyncAudioDurationMs,
+      });
+      setLipSyncTurboMode(workspace.lipSyncTurboMode);
       setVideoDurationSeconds(workspace.videoDurationSeconds);
       setVideoResolution(workspace.videoResolution);
       setImageResolution(workspace.imageResolution);
@@ -630,6 +657,8 @@ export const useAiStudioSessionSnapshotController = ({
       setVideoCameraFixed,
       setVideoDurationSeconds,
       setVideoGenerateAudio,
+      setLipSyncAudio,
+      setLipSyncTurboMode,
       setVideoReferenceMode,
       setVideoReferenceText,
       setVideoResolution,
@@ -670,6 +699,9 @@ export const useAiStudioSessionSnapshotController = ({
         editReferenceText: editReferenceTextRef.current,
         videoReferenceText: videoReferenceTextRef.current,
         videoReferenceMode,
+        lipSyncAudioUrl: lipSyncAudioRef.current.url,
+        lipSyncAudioDurationMs: lipSyncAudioRef.current.durationMs,
+        lipSyncTurboMode: lipSyncTurboModeRef.current,
         videoDurationSeconds,
         videoResolution,
         imageResolution,
@@ -774,6 +806,9 @@ export const useAiStudioSessionSnapshotController = ({
         editReferenceText: "",
         videoReferenceText: "",
         videoReferenceMode: "standard",
+        lipSyncAudioUrl: null,
+        lipSyncAudioDurationMs: null,
+        lipSyncTurboMode: false,
         videoDurationSeconds: 6,
         videoResolution: "1080p",
         imageResolution: "model_default",

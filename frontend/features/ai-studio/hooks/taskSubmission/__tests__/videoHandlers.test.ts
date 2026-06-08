@@ -4,10 +4,12 @@ import {
   resolveKlingSinglePromptEffectiveVisibleCharacterLimit,
   resolveKlingSinglePromptVisibleCharacterLimit,
 } from "../../../logic/klingShotModePromptComposition";
+import { SEEDANCE_HIDDEN_SHOT_MODE_INSTRUCTIONS } from "../../../logic/seedanceShotModePromptComposition";
 import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../../lib/model-runtime/falModelIds";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -16,6 +18,7 @@ import {
 } from "../../../../../lib/model-runtime/providerModelIds";
 
 const falClientMocks = vi.hoisted(() => ({
+  submitFalOmniHuman: vi.fn(),
   submitKieKlingImageToVideo: vi.fn(),
   submitKieSeedance2FastVideo: vi.fn(),
   submitKieSeedance2Video: vi.fn(),
@@ -26,6 +29,8 @@ const falClientMocks = vi.hoisted(() => ({
 vi.mock("../../../../../lib/falClient", () => {
   const submitQueuedGenerationByModelId = vi.fn((modelId: string, payload: unknown) => {
     switch (modelId) {
+      case "fal-ai/bytedance/omnihuman/v1.5":
+        return falClientMocks.submitFalOmniHuman(payload);
       case "kie-ai/kling-3.0":
         return falClientMocks.submitKieKlingImageToVideo(payload);
       case "kie-ai/seedance-2-fast":
@@ -51,6 +56,7 @@ vi.mock("../../../../../lib/mediaSignedUrlCache", () => ({
 }));
 
 const {
+  submitFalOmniHuman,
   submitKieKlingImageToVideo,
   submitKieSeedance2FastVideo,
   submitKieSeedance2Video,
@@ -79,6 +85,70 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
   klingMultiPrompts: [],
   klingElements: [],
   ...overrides,
+  lipSyncAudio: overrides.lipSyncAudio ?? { url: null, durationMs: null },
+  lipSyncTurboMode: overrides.lipSyncTurboMode ?? false,
+});
+
+describe("handleVideoModelSubmission (Lip Sync)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalOmniHuman).mockResolvedValue({ request_id: "lip-req-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits clean image/audio payload with optional prompt and turbo mode", async () => {
+    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
+    const audioUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/voice.mp3";
+    const args = makeArgs({
+      finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
+      modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
+      cleanedPrompt: "A calm smile before speaking",
+      requestedResolution: "720p",
+      preparedImageInputs: [imageUrl],
+      rawImageInputs: [imageUrl],
+      videoReferenceMode: "lip-sync",
+      motionReferenceVideoUrl: null,
+      lipSyncAudio: { url: `${audioUrl}#audio=1`, durationMs: 12_400 },
+      lipSyncTurboMode: true,
+      shortpulseContext: {
+        audio_duration_seconds: 12.4,
+        surface: "ai-studio-test",
+      },
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalOmniHuman).toHaveBeenCalledWith({
+      image_url: imageUrl,
+      audio_url: audioUrl,
+      resolution: "720p",
+      prompt: "A calm smile before speaking",
+      turbo_mode: true,
+      shortpulse_context: {
+        audio_duration_seconds: 12.4,
+        surface: "ai-studio-test",
+      },
+    });
+    const payload = vi.mocked(submitFalOmniHuman).mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("duration");
+    expect(payload).not.toHaveProperty("aspect_ratio");
+    expect(payload).not.toHaveProperty("generate_audio");
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "lip-req-1",
+      "fal-omnihuman-v15",
+      {
+        previewUrl: imageUrl,
+      },
+      {
+        request_id: "lip-req-1",
+      }
+    );
+  });
 });
 
 describe("handleVideoModelSubmission (Kling 3 motion)", () => {
@@ -709,7 +779,47 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
       })
     );
     expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toContain(
+      SEEDANCE_HIDDEN_SHOT_MODE_INSTRUCTIONS.single
+    );
+    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).not.toContain(
       "Create this as one continuous uninterrupted shot only."
+    );
+  });
+
+  it("uses Seedance-specific multi-shot prompt direction for Seedance 2 Multi submits", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Open on the beach, cut to the product, then end on the skyline",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 10,
+      requestedResolution: "720p",
+      requestedAudio: true,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "text",
+      klingWorkflowMode: "multi",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          "Open on the beach, cut to the product, then end on the skyline"
+        ),
+        resolution: "720p",
+        duration: "10",
+        generate_audio: true,
+      })
+    );
+    expect(
+      vi
+        .mocked(submitKieSeedance2Video)
+        .mock.calls[0]?.[0]?.prompt?.startsWith(SEEDANCE_HIDDEN_SHOT_MODE_INSTRUCTIONS.multi)
+    ).toBe(true);
+    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).not.toContain(
+      "Create this as a multi-shot sequence with multiple distinct shots or scene beats."
     );
   });
 
@@ -775,7 +885,7 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     expect(submitKieSeedance2Video).not.toHaveBeenCalled();
   });
 
-  it("keeps Seedance 2 on the single-shot Kie payload when stale custom prompts exist", async () => {
+  it("normalizes stale Seedance custom state to the visible Multi prompt payload", async () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
       modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
@@ -821,9 +931,11 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
       return_last_frame: false,
       web_search: false,
     });
-    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toMatch(
-      /^Create this as a multi-shot sequence with multiple distinct shots or scene beats\./
-    );
+    expect(
+      vi
+        .mocked(submitKieSeedance2Video)
+        .mock.calls[0]?.[0]?.prompt?.startsWith(SEEDANCE_HIDDEN_SHOT_MODE_INSTRUCTIONS.multi)
+    ).toBe(true);
     expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toContain(
       "Linked reference subjects: Red Lantern: Warm lacquered lantern."
     );
@@ -935,7 +1047,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
-  it("builds multi-shot and element payloads for Kie Kling standard submits", async () => {
+  it("normalizes stale Kling custom state to the visible Multi payload contract", async () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
@@ -943,10 +1055,11 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       requestedResolution: "1080p",
       requestedAudio: false,
       klingWorkflowMode: "custom",
+      cleanedPrompt: "Move from the lantern to the train as two connected beats",
       preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
       klingMultiPrompts: [
-        { id: "shot-1", prompt: "First shot", duration: 5 },
-        { id: "shot-2", prompt: "Second shot", duration: 7 },
+        { id: "shot-1", prompt: "Stale custom shot one", duration: 5 },
+        { id: "shot-2", prompt: "Stale custom shot two", duration: 7 },
       ],
       klingElements: [
         {
@@ -975,18 +1088,17 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "First shot @element1 @element2",
-        image_urls: ["https://example.com/start.png"],
+        prompt: expect.stringContaining(
+          "Move from the lantern to the train as two connected beats @element1 @element2"
+        ),
+        image_urls: ["https://example.com/start.png", "https://example.com/end.png"],
         aspect_ratio: "16:9",
         resolution: "1080p",
         mode: "pro",
-        generate_audio: true,
-        sound: true,
-        multi_shots: true,
-        multi_prompt: [
-          { prompt: "First shot @element1 @element2", duration: 5 },
-          { prompt: "Second shot @element1 @element2", duration: 7 },
-        ],
+        generate_audio: false,
+        sound: false,
+        multi_shots: false,
+        multi_prompt: undefined,
         kling_elements: [
           {
             name: "element1",
@@ -1003,6 +1115,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           },
         ],
       })
+    );
+    expect(vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt).toMatch(
+      /^Create this as a multi-shot sequence with multiple distinct shots or scene beats\./
+    );
+    expect(vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt).not.toContain(
+      "Stale custom shot one"
     );
   });
 

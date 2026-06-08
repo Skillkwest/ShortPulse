@@ -17,9 +17,13 @@ import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowR
 import {
   isAudioFile,
   isVideoFile,
+  resolveMediaMetadataAudioSourceMode,
+  resolveMediaMetadataDurationMs,
+  resolveMediaMetadataWaveformPeaks,
   type MediaFileRow,
   type MediaCardRefCallback,
 } from "../../logic/mediaLibraryModalModel";
+import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import type { MediaLibraryMediaDragPreview } from "./MediaLibraryAllItemsGrid";
 import { useMediaAspectRatioCache } from "./useMediaAspectRatioCache";
 
@@ -45,11 +49,11 @@ type MediaLibraryMediaGridProps = {
   onSelectMediaFile: (file: MediaFileRow) => void;
   onMediaDoubleClick?: (file: MediaFileRow) => void;
   onMediaDragStart?: (
-    event: React.DragEvent<HTMLButtonElement>,
+    event: React.DragEvent<HTMLElement>,
     file: MediaFileRow,
     preview?: MediaLibraryMediaDragPreview
   ) => void;
-  onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
+  onMediaDragEnd?: (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => void;
   onToggleMediaSelection?: (file: MediaFileRow) => void;
   showRemoveAction?: boolean;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
@@ -57,10 +61,11 @@ type MediaLibraryMediaGridProps = {
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
   onDownloadMediaFile?: (file: MediaFileRow) => void;
   onReloadWorkflowFromMedia?: (file: MediaFileRow) => void;
-  onMediaContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, file: MediaFileRow) => void;
+  onMediaContextMenu?: (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
+  onRequestSignedUrl?: (file: MediaFileRow) => Promise<string | null>;
   visibleMediaIdsRef?: MutableRefObject<Set<string>>;
   surface?:
     | "media-library-modal"
@@ -95,6 +100,7 @@ export function MediaLibraryMediaGrid({
   onMediaPreviewError,
   onMediaPaint,
   onSignedUrlLoaded,
+  onRequestSignedUrl,
   surface = "media-library-modal",
   densityConfig,
   fixedVisualAspectRatio = null,
@@ -241,41 +247,176 @@ export function MediaLibraryMediaGrid({
           const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
           const managedVideoSrc = resolveVideoSource(file.id, cardPreviewUrl);
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
+          const isSelected = selectedIds.has(file.id);
+
+          if (isAudioFile(file.file_type)) {
+            const durationMs = resolveMediaMetadataDurationMs(file.metadata, {
+              fileType: file.file_type,
+            });
+            const audioSourceMode = resolveMediaMetadataAudioSourceMode(file.metadata);
+            const audioUrl = cardPreviewUrl ?? file.signedUrl ?? null;
+
+            return (
+              <div
+                key={file.id}
+                className={`media-library-modal-card media-library-panel-media-card-shell media-library-panel-audio-card-shell${
+                  isSelected ? " is-active" : ""
+                }`}
+                style={renderItem.style}
+              >
+                {onToggleMediaSelection && isSelected ? (
+                  <button
+                    type="button"
+                    className="media-library-panel-selection-toggle is-selected"
+                    aria-label={`Deselect ${file.filename || "audio"}`}
+                    aria-pressed={isSelected}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onToggleMediaSelection(file);
+                    }}
+                  >
+                    <Check size={17} weight="fill" aria-hidden />
+                  </button>
+                ) : null}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="reference-card has-audio media-library-panel-audio-reference-card"
+                  ref={getMediaCardRef(file.id)}
+                  aria-pressed={onToggleMediaSelection ? isSelected : undefined}
+                  draggable={Boolean(onMediaDragStart)}
+                  onClick={() =>
+                    onToggleMediaSelection ? onToggleMediaSelection(file) : onSelectMediaFile(file)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    if (onToggleMediaSelection) {
+                      onToggleMediaSelection(file);
+                      return;
+                    }
+                    onSelectMediaFile(file);
+                  }}
+                  onDoubleClick={() => onMediaDoubleClick?.(file)}
+                  onDragStart={(event) =>
+                    onMediaDragStart?.(event, file, {
+                      aspectRatio: previewAspectRatio,
+                    })
+                  }
+                  onDragEnd={(event) => onMediaDragEnd?.(event, file)}
+                  onContextMenu={(event) => onMediaContextMenu?.(event, file)}
+                  style={{ aspectRatio: previewAspectRatio }}
+                >
+                  <ReferenceAudioPlayer
+                    audioId={file.id}
+                    audioUrl={audioUrl}
+                    backgroundImageUrl={file.companion_art_url ?? null}
+                    audioSourceMode={audioSourceMode}
+                    durationMs={durationMs}
+                    waveformPeaks={resolveMediaMetadataWaveformPeaks(file.metadata)}
+                    playLabel={`Play audio ${file.filename}`}
+                    pauseLabel={`Pause audio ${file.filename}`}
+                    onResolveAudioUrl={
+                      onRequestSignedUrl ? () => onRequestSignedUrl(file) : undefined
+                    }
+                    onReady={() => onSignedUrlLoaded(file.id)}
+                    onError={() => onMediaPreviewError(file, audioUrl)}
+                    eagerWaveformDecode={false}
+                  />
+                </div>
+                {shouldShowCardActions ? (
+                  <div className="media-library-panel-card-actions" aria-label="Folder actions">
+                    {canShowDownloadAction ? (
+                      <button
+                        type="button"
+                        className="reference-card-action-btn media-library-panel-card-download-btn"
+                        aria-label={`Download ${file.filename || "media"}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onDownloadMediaFile?.(file);
+                        }}
+                      >
+                        <DownloadSimple size={16} weight="bold" aria-hidden />
+                      </button>
+                    ) : null}
+                    {canShowWorkflowReloadAction ? (
+                      <button
+                        type="button"
+                        className="reference-card-action-btn media-library-panel-card-reload-workflow-btn"
+                        aria-label={`Reload workflow for ${file.filename || "media"}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onReloadWorkflowFromMedia?.(file);
+                        }}
+                      >
+                        <FlowArrow size={16} weight="bold" aria-hidden />
+                      </button>
+                    ) : null}
+                    {canShowRemoveAction || canShowDeleteAction ? (
+                      <button
+                        type="button"
+                        className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+                        aria-label={
+                          canShowDeleteAction
+                            ? `Delete ${file.filename || "media"} from library`
+                            : `Remove ${file.filename || "media"} from this folder`
+                        }
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          if (canShowDeleteAction) {
+                            onDeleteMediaFromLibrary?.(file);
+                            return;
+                          }
+                          onRemoveMediaFromFolder?.(file);
+                        }}
+                      >
+                        <X size={16} weight="bold" aria-hidden />
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
 
           return (
             <div
               key={file.id}
               className={`media-library-modal-card media-library-panel-media-card-shell${
-                selectedIds.has(file.id) ? " is-active" : ""
+                isSelected ? " is-active" : ""
               }`}
               style={renderItem.style}
             >
-              {onToggleMediaSelection && selectedIds.has(file.id) ? (
+              {onToggleMediaSelection && isSelected ? (
                 <button
                   type="button"
                   className={`media-library-panel-selection-toggle${
-                    selectedIds.has(file.id) ? " is-selected" : ""
+                    isSelected ? " is-selected" : ""
                   }`}
                   aria-label={
-                    selectedIds.has(file.id)
+                    isSelected
                       ? `Deselect ${file.filename || "media"}`
                       : `Select ${file.filename || "media"}`
                   }
-                  aria-pressed={selectedIds.has(file.id)}
+                  aria-pressed={isSelected}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
                     onToggleMediaSelection(file);
                   }}
                 >
-                  {selectedIds.has(file.id) ? <Check size={17} weight="fill" aria-hidden /> : null}
+                  {isSelected ? <Check size={17} weight="fill" aria-hidden /> : null}
                 </button>
               ) : null}
               <button
                 type="button"
                 className="media-card media-library-panel-media-card-button"
                 ref={getMediaCardRef(file.id)}
-                aria-pressed={onToggleMediaSelection ? selectedIds.has(file.id) : undefined}
+                aria-pressed={onToggleMediaSelection ? isSelected : undefined}
                 draggable={Boolean(onMediaDragStart)}
                 onClick={() =>
                   onToggleMediaSelection ? onToggleMediaSelection(file) : onSelectMediaFile(file)

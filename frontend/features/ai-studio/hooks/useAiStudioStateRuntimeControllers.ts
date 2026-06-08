@@ -6,7 +6,13 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import { resolvePulseRuntimeState } from "../logic/pulseSessionState";
 import type { ReferenceProjectionState } from "../reference-projections";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type {
+  LipSyncAudioState,
+  StudioMode,
+  StudioOutput,
+  ToolId,
+  VideoReferenceMode,
+} from "../types";
 import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
 import { useAiStudioGenerationRuntimeControllers } from "./useAiStudioGenerationRuntimeControllers";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
@@ -44,6 +50,8 @@ type UseAiStudioStateRuntimeControllersParams = {
   mode: StudioMode;
   model: string | null;
   motionReferenceVideoUrl: string | null;
+  lipSyncAudio: LipSyncAudioState;
+  lipSyncTurboMode: boolean;
   notifyGenerationFailure: ReturnType<typeof useAiStudioOutputLifecycle>["notifyGenerationFailure"];
   outputs: StudioOutput[];
   projectId: string | null;
@@ -128,9 +136,9 @@ type UseAiStudioStateRuntimeControllersParams = {
   setVideoCameraFixed: Dispatch<SetStateAction<boolean>>;
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   setVideoGenerateAudio: Dispatch<SetStateAction<boolean>>;
-  setVideoReferenceMode: Dispatch<
-    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
-  >;
+  setVideoReferenceMode: Dispatch<SetStateAction<VideoReferenceMode>>;
+  setLipSyncAudio: Dispatch<SetStateAction<LipSyncAudioState>>;
+  setLipSyncTurboMode: Dispatch<SetStateAction<boolean>>;
   setVideoReferenceText: (value: string) => void;
   setVideoResolution: Dispatch<SetStateAction<string>>;
   updateOutputById: ReturnType<typeof useAiStudioOutputLifecycle>["updateOutputById"];
@@ -140,7 +148,7 @@ type UseAiStudioStateRuntimeControllersParams = {
   videoDurationSeconds: number;
   videoGenerateAudio: boolean;
   videoReferenceImageUrl: string | null;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
   videoReferenceText: string;
   videoResolution: string;
   ensureGenerationRecord: ReturnType<
@@ -171,6 +179,8 @@ export const useAiStudioStateRuntimeControllers = ({
   mode,
   model,
   motionReferenceVideoUrl,
+  lipSyncAudio,
+  lipSyncTurboMode,
   notifyGenerationFailure,
   outputs,
   projectId,
@@ -233,6 +243,8 @@ export const useAiStudioStateRuntimeControllers = ({
   setVideoDurationSeconds,
   setVideoGenerateAudio,
   setVideoReferenceMode,
+  setLipSyncAudio,
+  setLipSyncTurboMode,
   setVideoReferenceText,
   setVideoResolution,
   updateOutputById,
@@ -279,6 +291,8 @@ export const useAiStudioStateRuntimeControllers = ({
     mode,
     model,
     motionReferenceVideoUrl,
+    lipSyncAudio,
+    lipSyncTurboMode,
     notifyGenerationFailure,
     outputs,
     projectId,
@@ -348,6 +362,10 @@ export const useAiStudioStateRuntimeControllers = ({
       klingMultiPrompts,
       klingElements,
       motionReferenceVideoUrl,
+      lipSyncAudio,
+      setLipSyncAudio,
+      lipSyncTurboMode,
+      setLipSyncTurboMode,
       outputs,
       archivedOutputs,
       activeOutputId,

@@ -645,6 +645,7 @@ export function EmbeddedMediaLibraryPanel({
         onMediaDragStart={handleMediaCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
         onMediaContextMenu={handleMediaCardContextMenu}
+        onRequestSignedUrl={refreshSignedUrl}
         showDeleteAction
         onDeleteMediaFromLibrary={(file) => {
           setPendingLibraryDelete({
@@ -679,6 +680,7 @@ export function EmbeddedMediaLibraryPanel({
       mediaCardUsesAssignment,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
+      refreshSignedUrl,
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,
       signedUrlRetryRef,

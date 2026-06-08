@@ -2,7 +2,7 @@
  * Derived state for reference properties panel rendering and model-aware option filtering.
  */
 import { useMemo } from "react";
-import type { AspectOption } from "../types";
+import type { AspectOption, VideoReferenceMode } from "../types";
 import { getModelConfig } from "../logic/modelRegistry";
 import { clampImageResolutionForModel, getImageResolutionOptions } from "../logic/imageResolution";
 import {
@@ -15,8 +15,6 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
-
-type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 
 type KlingMultiPrompt = {
   id: string;
@@ -81,6 +79,7 @@ export const useReferencePropertiesDerivedState = ({
     isVideoVariant && activeVideoMode === "kling3" && modelId === KIE_KLING_30_MODEL_ID;
   const isKeyframesMode = isVideoVariant && activeVideoMode === "keyframes";
   const isMotionMode = isVideoVariant && activeVideoMode === "motion";
+  const isLipSyncMode = isVideoVariant && activeVideoMode === "lip-sync";
   const isStandardMode =
     !isVideoVariant || activeVideoMode === "standard" || activeVideoMode === "modify";
 
@@ -227,7 +226,7 @@ export const useReferencePropertiesDerivedState = ({
       return aspectOptions.filter((option) => modelConfig.allowedAspects?.includes(option.value));
     }
     return aspectOptions;
-  }, [aspectOptions, modelConfig]);
+  }, [aspectOptions, modelConfig, modelId]);
 
   return {
     isVideoVariant,
@@ -236,6 +235,7 @@ export const useReferencePropertiesDerivedState = ({
     isKlingPatternMode,
     isKeyframesMode,
     isMotionMode,
+    isLipSyncMode,
     isStandardMode,
     isSeedance2FamilyModel,
     isVeoImageToVideoStandard,

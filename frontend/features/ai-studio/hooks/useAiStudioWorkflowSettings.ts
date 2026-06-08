@@ -15,7 +15,7 @@ import {
 import { randomId } from "../logic/ids";
 import { type AiStudioKlingElement } from "../logic/klingElements";
 import { normalizeAiStudioRestoredModelId } from "../logic/modelRestorePolicy";
-import type { StudioMode, ToolId } from "../types";
+import type { LipSyncAudioState, StudioMode, ToolId, VideoReferenceMode } from "../types";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
 import { getModelConfig } from "../logic/pricing";
 import {
@@ -37,7 +37,6 @@ const DEFAULT_SHARED_ASPECT = "9:16";
 
 type WorkflowSettingsKey = "create" | "edit" | "video" | "kling";
 
-type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 type KlingWorkflowMode = "single" | "multi" | "custom";
 type Seedance2InputMode = "text" | "first-frame" | "first-last" | "multimodal";
 type KlingShotType = "customize" | "intelligent";
@@ -49,6 +48,9 @@ type WorkflowSettingsSnapshot = {
   aspect: string;
   imageResolution: string;
   videoReferenceMode: VideoReferenceMode;
+  lipSyncAudioUrl: string | null;
+  lipSyncAudioDurationMs: number | null;
+  lipSyncTurboMode: boolean;
   videoDurationSeconds: number;
   videoResolution: string;
   videoGenerateAudio: boolean;
@@ -75,6 +77,9 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   aspect: DEFAULT_SHARED_ASPECT,
   imageResolution: "model_default",
   videoReferenceMode: "standard",
+  lipSyncAudioUrl: null,
+  lipSyncAudioDurationMs: null,
+  lipSyncTurboMode: false,
   videoDurationSeconds: 6,
   videoResolution: "1080p",
   videoGenerateAudio: false,
@@ -142,6 +147,19 @@ const cloneWorkflowSettingsSnapshot = (
     snapshot?.videoReferenceMode,
     defaults.videoReferenceMode
   ),
+  lipSyncAudioUrl:
+    typeof snapshot?.lipSyncAudioUrl === "string" || snapshot?.lipSyncAudioUrl === null
+      ? snapshot.lipSyncAudioUrl
+      : defaults.lipSyncAudioUrl,
+  lipSyncAudioDurationMs:
+    typeof snapshot?.lipSyncAudioDurationMs === "number" &&
+    Number.isFinite(snapshot.lipSyncAudioDurationMs)
+      ? snapshot.lipSyncAudioDurationMs
+      : defaults.lipSyncAudioDurationMs,
+  lipSyncTurboMode:
+    typeof snapshot?.lipSyncTurboMode === "boolean"
+      ? snapshot.lipSyncTurboMode
+      : defaults.lipSyncTurboMode,
   videoDurationSeconds:
     typeof snapshot?.videoDurationSeconds === "number" &&
     Number.isFinite(snapshot.videoDurationSeconds)
@@ -301,6 +319,8 @@ type UseAiStudioWorkflowSettingsParams = {
   aspect: string;
   imageResolution: string;
   videoReferenceMode: VideoReferenceMode;
+  lipSyncAudio?: LipSyncAudioState;
+  lipSyncTurboMode?: boolean;
   videoDurationSeconds: number;
   videoResolution: string;
   videoGenerateAudio: boolean;
@@ -324,6 +344,8 @@ type UseAiStudioWorkflowSettingsParams = {
   setAspect: Dispatch<SetStateAction<string>>;
   setImageResolution: Dispatch<SetStateAction<string>>;
   setVideoReferenceMode: Dispatch<SetStateAction<VideoReferenceMode>>;
+  setLipSyncAudio?: Dispatch<SetStateAction<LipSyncAudioState>>;
+  setLipSyncTurboMode?: Dispatch<SetStateAction<boolean>>;
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   setVideoResolution: Dispatch<SetStateAction<string>>;
   setVideoGenerateAudio: Dispatch<SetStateAction<boolean>>;
@@ -359,6 +381,8 @@ export const useAiStudioWorkflowSettings = ({
   aspect,
   imageResolution,
   videoReferenceMode,
+  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncTurboMode = false,
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
@@ -382,6 +406,8 @@ export const useAiStudioWorkflowSettings = ({
   setAspect,
   setImageResolution,
   setVideoReferenceMode,
+  setLipSyncAudio = () => undefined,
+  setLipSyncTurboMode = () => undefined,
   setVideoDurationSeconds,
   setVideoResolution,
   setVideoGenerateAudio,
@@ -441,6 +467,9 @@ export const useAiStudioWorkflowSettings = ({
         videoReferenceMode,
         DEFAULT_WORKFLOW_SETTINGS.videoReferenceMode
       ),
+      lipSyncAudioUrl: lipSyncAudio.url,
+      lipSyncAudioDurationMs: lipSyncAudio.durationMs,
+      lipSyncTurboMode,
       videoDurationSeconds,
       videoResolution,
       videoGenerateAudio,
@@ -478,6 +507,8 @@ export const useAiStudioWorkflowSettings = ({
       klingVoiceIds,
       mode,
       model,
+      lipSyncAudio,
+      lipSyncTurboMode,
       videoAutoFix,
       videoCameraFixed,
       videoDurationSeconds,
@@ -656,6 +687,18 @@ export const useAiStudioWorkflowSettings = ({
     setVideoReferenceMode((current) =>
       current === snapshot.videoReferenceMode ? current : snapshot.videoReferenceMode
     );
+    setLipSyncAudio((current) =>
+      current.url === snapshot.lipSyncAudioUrl &&
+      current.durationMs === snapshot.lipSyncAudioDurationMs
+        ? current
+        : {
+            url: snapshot.lipSyncAudioUrl,
+            durationMs: snapshot.lipSyncAudioDurationMs,
+          }
+    );
+    setLipSyncTurboMode((current) =>
+      current === snapshot.lipSyncTurboMode ? current : snapshot.lipSyncTurboMode
+    );
     setVideoDurationSeconds((current) =>
       current === snapshot.videoDurationSeconds ? current : snapshot.videoDurationSeconds
     );
@@ -744,6 +787,8 @@ export const useAiStudioWorkflowSettings = ({
     setKlingVoiceIds,
     setMode,
     setModelState,
+    setLipSyncAudio,
+    setLipSyncTurboMode,
     setVideoAutoFix,
     setVideoCameraFixed,
     setVideoDurationSeconds,

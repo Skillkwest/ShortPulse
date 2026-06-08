@@ -20,6 +20,7 @@ import type {
   StudioOutputSubmissionMode,
   StudioOutputStyleContext,
   ToolId,
+  VideoReferenceMode,
 } from "../types";
 import type { AiStudioKlingElement } from "./klingElements";
 import {
@@ -59,9 +60,7 @@ const normalizeArchiveReason = (value: unknown): StudioOutput["archiveReason"] =
   return null;
 };
 
-const canonicalizeDurableVideoReferenceMode = (
-  value: "standard" | "modify" | "keyframes" | "kling3" | "motion"
-): "standard" | "modify" | "keyframes" | "kling3" | "motion" =>
+const canonicalizeDurableVideoReferenceMode = (value: VideoReferenceMode): VideoReferenceMode =>
   value === "keyframes" ? "standard" : value;
 
 export type AiStudioSessionSnapshotSchemaVersion = 1 | 2;
@@ -180,7 +179,10 @@ export type AiStudioSessionWorkspaceV1 = {
   referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
   editReferenceText: string;
   videoReferenceText: string;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
+  lipSyncAudioUrl?: string | null;
+  lipSyncAudioDurationMs?: number | null;
+  lipSyncTurboMode?: boolean;
   videoDurationSeconds: number;
   videoResolution: string;
   imageResolution: string;
@@ -283,7 +285,10 @@ export type BuildAiStudioSessionSnapshotInput = {
   extraImageUrls: readonly (string | null)[];
   editReferenceText: string;
   videoReferenceText: string;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
+  lipSyncAudioUrl?: string | null;
+  lipSyncAudioDurationMs?: number | null;
+  lipSyncTurboMode?: boolean;
   videoDurationSeconds: number;
   videoResolution: string;
   imageResolution: string;
@@ -895,6 +900,9 @@ export const buildAiStudioSessionSnapshot = (
       editReferenceText: input.editReferenceText,
       videoReferenceText: input.videoReferenceText,
       videoReferenceMode: canonicalizeDurableVideoReferenceMode(input.videoReferenceMode),
+      lipSyncAudioUrl: sanitizeWorkspaceMediaUrl(input.lipSyncAudioUrl),
+      lipSyncAudioDurationMs: input.lipSyncAudioDurationMs,
+      lipSyncTurboMode: input.lipSyncTurboMode,
       videoDurationSeconds: input.videoDurationSeconds,
       videoResolution: input.videoResolution,
       imageResolution: input.imageResolution,
@@ -973,6 +981,9 @@ export const createEmptyAiStudioSessionSnapshot = ({
     editReferenceText: "",
     videoReferenceText: "",
     videoReferenceMode: "standard",
+    lipSyncAudioUrl: null,
+    lipSyncAudioDurationMs: null,
+    lipSyncTurboMode: false,
     videoDurationSeconds: 6,
     videoResolution: "1080p",
     imageResolution: "model_default",

@@ -83,7 +83,8 @@ sequenceDiagram
 - Create image/text -> text-to-image capable image models.
 - Edit/image -> image-to-image capable models.
 - Video/kling/keyframes/motion -> mode-constrained image-to-video sets.
-- Character mode in Create narrows to Character Mode-approved image-to-image-capable models, including OpenAI GPT Image 2, Kie GPT Image 2 Edit, and the paired Seedream/Nano Banana edit lanes.
+- Video Lip Sync resolves to hidden internal model `fal-ai/bytedance/omnihuman/v1.5` and must not expose that model as a customer-selectable chip.
+- Character mode in Create narrows to Character Mode-approved image-to-image-capable models, including Kie GPT Image 2 Edit and the paired Seedream/Nano Banana edit lanes. Direct OpenAI GPT Image 2 remains in the catalog/routes but is temporarily hidden from Create/Edit image model-modal chips; keep Kie GPT Image 2 text/edit chips selectable while this temporary hide is active.
 
 3. `ModelModal` applies context-specific ordering (`providerPriorityByContext`, `modelPriorityByContext`) and context-specific hides (`hiddenModelIdsByContext`).
 4. Selection commit path:
@@ -101,6 +102,7 @@ sequenceDiagram
 
 - `useAiStudioStateEffects` clamps invalid aspect/resolution combinations and enforces video reference-mode/model compatibility transitions.
 - In the Video Standard lane, adding a second frame must not auto-promote the workflow into hidden `keyframes` mode or force a compatible explicit model selection over to Veo. First/last-frame behavior stays Standard-owned for Veo, Kling 3.0, and Seedance 2, while legacy hidden `keyframes` snapshots are normalized back onto the visible Standard lane during restore.
+- In the Video Lip Sync lane, state effects pin the hidden internal Lip Sync model while the panel presents product-only controls (`Character image`, `Voice audio`, resolution, and generic faster-generation control).
 
 ## Generation pipeline (Create CTA to provider polling)
 

@@ -31,6 +31,7 @@ import {
   FAL_NANO_BANANA_2_MODEL_ID,
   FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
   FAL_NANO_BANANA_PRO_MODEL_ID,
+  FAL_OMNIHUMAN_V15_MODEL_ID,
   FAL_SEEDREAM_45_EDIT_MODEL_ID,
   FAL_SEEDREAM_45_TEXT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
@@ -66,6 +67,7 @@ export type GenerationWorkflowLane =
   | "image-to-image"
   | "text-to-video"
   | "image-to-video"
+  | "lip-sync"
   | "text-to-speech"
   | "speech-to-speech"
   | "music"
@@ -196,6 +198,7 @@ const VERIFIED_AT = "2026-04-30";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
 const KIE_GPT_IMAGE_2_VERIFIED_AT = "2026-06-04";
+const OMNIHUMAN_V15_VERIFIED_AT = "2026-06-08";
 const OPENAI_TEXT_VERIFIED_AT = "2026-05-07";
 const ELEVENLABS_VERIFIED_AT = "2026-05-01";
 const SEEDANCE_ALLOWED_DURATIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
@@ -935,6 +938,39 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["duration"],
     },
   },
+  [FAL_OMNIHUMAN_V15_MODEL_ID]: {
+    modelId: FAL_OMNIHUMAN_V15_MODEL_ID,
+    provider: "fal",
+    sourceUrl: "https://fal.ai/models/fal-ai/bytedance/omnihuman/v1.5/api",
+    verifiedAt: OMNIHUMAN_V15_VERIFIED_AT,
+    apiDocFile: "api-fal-omnihuman-v1-5.md",
+    submitAspectField: "none",
+    defaultAspect: "video",
+    allowedAspects: [],
+    defaultDurationSeconds: 10,
+    minDurationSeconds: 1,
+    maxDurationSeconds: 60,
+    defaultResolution: "1080p",
+    allowedResolutions: ["720p", "1080p"],
+    falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/omnihuman/v1.5",
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
+    falTimeoutMs: 60000,
+    payloadValidation: {
+      allowedTopLevelFields: [
+        "prompt",
+        "image_url",
+        "audio_url",
+        "mask_url",
+        "turbo_mode",
+        "resolution",
+      ],
+      requiredStringFields: ["image_url", "audio_url"],
+      enumFields: {
+        resolution: ["720p", "1080p"],
+      },
+      optionalBooleanFields: ["turbo_mode"],
+    },
+  },
   "gpt-5.5": {
     modelId: "gpt-5.5",
     provider: "openai",
@@ -1499,6 +1535,24 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submissionAdapterKey: "kie-seedance-2",
     gridEligible: true,
     apiRouteSlug: "kie-seedance-2-fast",
+  }),
+  [FAL_OMNIHUMAN_V15_MODEL_ID]: activeHiddenPricingRuntime({
+    label: "Lip Sync",
+    mediaType: "image-to-video",
+    pricingStrategy: "omnihuman-v15-per-second",
+    displayFamily: "Video",
+    displayOrder: 60,
+    pricingFamily: "Video",
+    logoKey: "seedream",
+    minDurationSeconds: 1,
+    maxDurationSeconds: 60,
+    supportsImageToVideo: true,
+    generationLanes: ["lip-sync"],
+    executionMode: "queued",
+    submitHandler: "video",
+    submissionAdapterKey: "fal-omnihuman-v15",
+    gridEligible: true,
+    apiRouteSlug: "omnihuman-v15",
   }),
   "gpt-5.5": activeInternalPricingRuntime({
     label: "GPT-5.5",

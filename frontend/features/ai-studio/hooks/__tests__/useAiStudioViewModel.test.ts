@@ -8,6 +8,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
@@ -1098,6 +1099,40 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.referenceImageWarning).toBe(
       "Seedance 2.0 linked assets cannot be combined with first/last frame images."
     );
+  });
+});
+
+describe("useAiStudioViewModel lip sync guardrails", () => {
+  it("blocks generation until voice audio is present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: FAL_OMNIHUMAN_V15_MODEL_ID,
+        costParamsForModel: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID),
+        referenceImageUrl: "https://example.com/character.jpg",
+        videoReferenceMode: "lip-sync",
+        lipSyncAudio: { url: null, durationMs: null },
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe("Add voice audio before generating Lip Sync.");
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
+  it("allows generation when character reference and voice audio are present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: FAL_OMNIHUMAN_V15_MODEL_ID,
+        costParamsForModel: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID),
+        referenceImageUrl: "https://example.com/character.jpg",
+        videoReferenceMode: "lip-sync",
+        lipSyncAudio: { url: "https://example.com/voice.mp3", durationMs: 12_400 },
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 });
 

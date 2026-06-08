@@ -18,7 +18,7 @@ import type {
   ReferenceInputsMode,
 } from "./contracts/generationSubmissionContracts";
 import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
-import type { StudioOutput, ToolId } from "../types";
+import type { StudioOutput, ToolId, VideoReferenceMode } from "../types";
 
 export type {
   AiStudioGenerateOutputOptions,
@@ -34,7 +34,7 @@ type UseAiStudioGenerationPromptComposerParams = {
   selectedStylePrompt?: string | null;
   selectedStyleContext?: StudioOutput["styleContext"] | null;
   selectedTool: ToolId | null;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
   useReferenceImageIndicator: boolean;
   activeOutputPreviewUrl: string | null;
   resolveReferenceInputsForTool: (tool: ToolId | null) => {

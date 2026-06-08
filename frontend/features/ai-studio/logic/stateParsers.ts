@@ -31,6 +31,7 @@ export type Provider =
   | "fal-nano-banana-pro-edit"
   | "fal-seedance"
   | "fal-seedance-i2v"
+  | "fal-omnihuman-v15"
   | "fal-seedream"
   | "fal-seedream-edit"
   | "fal-seedream-v5-lite"
@@ -59,6 +60,7 @@ const activePollingProviders = new Set<Provider>([
   "fal-nano-banana-2-edit",
   "fal-nano-banana-pro",
   "fal-nano-banana-pro-edit",
+  "fal-omnihuman-v15",
   "fal-seedream",
   "fal-seedream-edit",
   "fal-seedream-v5-lite",
@@ -90,6 +92,7 @@ export const normalizeProviderForPolling = (
     if (normalized.includes("kling")) return "fal-kling";
     if (normalized.includes("seedance") && normalized.includes("i2v")) return "fal-seedance-i2v";
     if (normalized.includes("seedance")) return "fal-seedance";
+    if (normalized.includes("omnihuman")) return "fal-omnihuman-v15";
     if (
       normalized.includes("seedream") &&
       normalized.includes("v5") &&

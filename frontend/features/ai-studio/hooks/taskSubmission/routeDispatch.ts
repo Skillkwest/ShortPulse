@@ -13,7 +13,7 @@ import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import type { Provider } from "../../logic/stateParsers";
-import type { StudioMode, StudioOutput } from "../../types";
+import type { LipSyncAudioState, StudioMode, StudioOutput, VideoReferenceMode } from "../../types";
 import type {
   ImmediateGenerationResult,
   SubmissionHandlerRoute,
@@ -42,9 +42,11 @@ export type DispatchSubmissionByRouteParams = {
   shortpulseContext?: Record<string, unknown>;
   falReferencePayload: { image_url: string; image_urls: string[] } | Record<string, never>;
   inpaintOverride?: InpaintSubmissionOverride | null;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
   videoReferenceImageUrl: string | null;
   motionReferenceVideoUrl: string | null;
+  lipSyncAudio: LipSyncAudioState;
+  lipSyncTurboMode: boolean;
   videoCameraFixed: boolean;
   rawImageInputs?: string[];
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
@@ -97,6 +99,8 @@ const submissionRouteAdapters: Record<
     videoReferenceMode,
     videoReferenceImageUrl,
     motionReferenceVideoUrl,
+    lipSyncAudio,
+    lipSyncTurboMode,
     videoCameraFixed,
     rawImageInputs,
     seedance2InputMode,
@@ -132,6 +136,8 @@ const submissionRouteAdapters: Record<
       videoReferenceMode,
       videoReferenceImageUrl,
       motionReferenceVideoUrl,
+      lipSyncAudio,
+      lipSyncTurboMode,
       videoCameraFixed,
       rawImageInputs,
       seedance2InputMode,
@@ -274,6 +280,8 @@ export const dispatchSubmissionByRoute = async ({
   videoReferenceMode,
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
+  lipSyncAudio,
+  lipSyncTurboMode,
   videoCameraFixed,
   rawImageInputs,
   seedance2InputMode,
@@ -324,6 +332,8 @@ export const dispatchSubmissionByRoute = async ({
     videoReferenceMode,
     videoReferenceImageUrl,
     motionReferenceVideoUrl,
+    lipSyncAudio,
+    lipSyncTurboMode,
     videoCameraFixed,
     rawImageInputs,
     seedance2InputMode,

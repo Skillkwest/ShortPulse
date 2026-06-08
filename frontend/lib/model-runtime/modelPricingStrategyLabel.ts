@@ -29,6 +29,8 @@ export const getAdminPricingStrategyLabel = (
       return "Per image";
     case "seedream-per-image":
       return "Per image (4K costs more)";
+    case "omnihuman-v15-per-second":
+      return "Per audio second";
     case "openai-text-token":
       return "Per 50,000 characters";
     case "veo-3-per-second":

@@ -7,11 +7,16 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
 import { isSeedance2UiEnabled } from "./seedance2Availability";
-import type { ToolId } from "../types";
+import type { ToolId, VideoReferenceMode } from "../types";
 
-type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
-export type ResolvedVideoGenerationLane = "text" | "single-image" | "first-last" | "motion";
+export type ResolvedVideoGenerationLane =
+  | "text"
+  | "single-image"
+  | "first-last"
+  | "motion"
+  | "lip-sync";
 
 const isImageTool = (tool: ToolId | null): boolean => tool === "image" || tool === "edit";
 const isVideoTool = (tool: ToolId | null): boolean => tool === "video" || tool === "kling";
@@ -34,6 +39,7 @@ export const resolveVideoGenerationLaneFromFrameInputs = ({
   referenceMode: VideoReferenceMode;
 }): ResolvedVideoGenerationLane => {
   if (referenceMode === "motion") return "motion";
+  if (referenceMode === "lip-sync") return "lip-sync";
   const frameInputs = collectOrderedDistinctVideoFrameInputs(primary, extras);
   if (frameInputs.length >= 2) return "first-last";
   if (frameInputs.length === 1) return "single-image";
@@ -48,6 +54,7 @@ export const resolveVideoGenerationLaneFromInputs = ({
   referenceMode: VideoReferenceMode;
 }): ResolvedVideoGenerationLane => {
   if (referenceMode === "motion") return "motion";
+  if (referenceMode === "lip-sync") return "lip-sync";
   if (imageInputs.length >= 2) return "first-last";
   if (imageInputs.length === 1) return "single-image";
   return "text";
@@ -84,6 +91,10 @@ export const resolveAutoVideoModelForLane = ({
     }
     if (currentModel === KIE_KLING_30_MODEL_ID) return currentModel;
     return KIE_KLING_30_MODEL_ID;
+  }
+
+  if (lane === "lip-sync") {
+    return FAL_OMNIHUMAN_V15_MODEL_ID;
   }
 
   if (lane === "text") {
@@ -130,6 +141,9 @@ export const buildVideoReferenceInputs = (
   modelId?: string | null
 ): string[] => {
   if (referenceMode === "motion") {
+    return primary ? [primary] : [];
+  }
+  if (referenceMode === "lip-sync") {
     return primary ? [primary] : [];
   }
   const orderedFrames = collectOrderedDistinctVideoFrameInputs(primary, extras);

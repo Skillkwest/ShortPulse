@@ -5,6 +5,7 @@ import type { AiStudioKlingElement } from "../../logic/klingElements";
 import type {
   StudioOutput,
   ToolId,
+  VideoReferenceMode,
   WorkflowReloadConfigV1,
   WorkflowReloadImagePayload,
 } from "../../types";
@@ -70,7 +71,7 @@ const makeParams = (output: StudioOutput | null) => ({
   setVideoCameraFixed: makeSetter<boolean>(),
   setVideoDurationSeconds: makeSetter<number>(),
   setVideoGenerateAudio: makeSetter<boolean>(),
-  setVideoReferenceMode: makeSetter<"standard" | "modify" | "keyframes" | "kling3" | "motion">(),
+  setVideoReferenceMode: makeSetter<VideoReferenceMode>(),
   setVideoReferenceText: vi.fn(),
   setVideoResolution: makeSetter<string>(),
   setVoiceChangerSource: vi.fn(),
@@ -257,17 +258,47 @@ describe("useAiStudioWorkflowReloadController", () => {
     });
 
     expect(params.setSelectedTool).toHaveBeenCalledWith("kling");
+    expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
     expect(params.setVideoReferenceText).toHaveBeenCalledWith("A sweeping crane shot");
+    expect(params.setAspect).toHaveBeenCalledWith("16:9");
     expect(params.setVideoReferenceMode).toHaveBeenCalledWith("motion");
     expect(params.setVideoDurationSeconds).toHaveBeenCalledWith(8);
     expect(params.setVideoResolution).toHaveBeenCalledWith("1080p");
     expect(params.setVideoGenerateAudio).toHaveBeenCalledWith(true);
+    expect(params.setVideoCameraFixed).toHaveBeenCalledWith(true);
+    expect(params.setVideoAutoFix).toHaveBeenCalledWith(true);
+    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedTool: "kling",
+        referenceImageUrl: "https://example.com/frame.png",
+        motionReferenceVideoUrl: "https://example.com/motion.mp4",
+        useReferenceImageIndicator: true,
+      })
+    );
     expect(params.setMotionReferenceVideoUrl).toHaveBeenCalledWith(
       "https://example.com/motion.mp4"
     );
     expect(params.setSeedance2InputMode).toHaveBeenCalledWith("multimodal");
+    expect(params.setSeedance2ReferenceAudioUrls).toHaveBeenCalledWith([
+      "https://example.com/ref.mp3",
+    ]);
+    expect(params.setSeedance2ReferenceImageUrls).toHaveBeenCalledWith([
+      "https://example.com/seed.png",
+    ]);
+    expect(params.setSeedance2ReferenceVideoUrls).toHaveBeenCalledWith([
+      "https://example.com/seed.mp4",
+    ]);
+    expect(params.setSeedance2ReturnLastFrame).toHaveBeenCalledWith(true);
+    expect(params.setSeedance2WebSearch).toHaveBeenCalledWith(true);
+    expect(params.setKlingNegativePrompt).toHaveBeenCalledWith("blur");
+    expect(params.setKlingCfgScale).toHaveBeenCalledWith(0.8);
     expect(params.setKlingWorkflowMode).toHaveBeenCalledWith("custom");
+    expect(params.setKlingShotType).toHaveBeenCalledWith("intelligent");
     expect(params.setKlingVoiceIds).toHaveBeenCalledWith(["voice-1", "voice-2"]);
+    expect(params.setKlingMultiPrompts).toHaveBeenCalledWith([
+      { id: "shot-1", prompt: "Shot", duration: 4 },
+    ]);
+    expect(params.setKlingElements).toHaveBeenCalledWith([{ id: "el-1", frontalImageUrl: "" }]);
   });
 
   it("hydrates audio workflow families", () => {

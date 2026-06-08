@@ -44,6 +44,23 @@ const resolveContextImageDimensions = (
   return undefined;
 };
 
+const resolveContextDurationSeconds = (context?: JsonObject | null): number | undefined => {
+  if (!context) return undefined;
+  const direct =
+    asNumber(context.duration_seconds) ??
+    asNumber(context.source_duration_seconds) ??
+    asNumber(context.audio_duration_seconds) ??
+    asNumber(context.lip_sync_audio_duration_seconds);
+  if (direct && direct > 0) return direct;
+  const durationMs =
+    asNumber(context.duration_ms) ??
+    asNumber(context.source_duration_ms) ??
+    asNumber(context.audio_duration_ms) ??
+    asNumber(context.lip_sync_audio_duration_ms);
+  if (durationMs && durationMs > 0) return durationMs / 1000;
+  return undefined;
+};
+
 const resolveExplicitImageSize = (payload: JsonObject): string | undefined => {
   const directSize = asString(payload.size) ?? asString(payload.image_size);
   if (!directSize || !isOpenAiGptImage2Size(directSize)) return undefined;
@@ -319,7 +336,10 @@ export const buildPricingParams = (
   );
   if (aspect) params.aspect = aspect;
 
-  const durationRaw = asNumber(payload.duration_seconds) ?? asNumber(payload.duration);
+  const durationRaw =
+    asNumber(payload.duration_seconds) ??
+    asNumber(payload.duration) ??
+    resolveContextDurationSeconds(options?.shortpulseContext);
   const duration = normalizeDurationForModel(durationRaw, modelId);
   if (duration) params.durationSeconds = duration;
 

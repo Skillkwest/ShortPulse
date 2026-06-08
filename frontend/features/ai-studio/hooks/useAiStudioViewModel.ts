@@ -46,7 +46,13 @@ import { resolveCreatePricingTarget } from "../logic/createPricingTarget";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import { analyzeExpertEditPromptTokens } from "../logic/expertEditPromptReferences";
 import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type {
+  LipSyncAudioState,
+  StudioMode,
+  StudioOutput,
+  ToolId,
+  VideoReferenceMode,
+} from "../types";
 
 const TEXT_PROMPT_MODEL_ID = resolveRequiredAiStudioTextPromptModelId();
 
@@ -62,7 +68,8 @@ type ViewModelInput = {
   getDefaultDurationSeconds: (modelId: string | null) => number;
   videoDurationSeconds: number;
   videoResolution: string;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
+  lipSyncAudio?: LipSyncAudioState;
   motionReferenceVideoPending?: boolean;
   motionReferenceVideoError?: string | null;
   motionReferenceVideoUrl: string | null;
@@ -105,6 +112,7 @@ export const useAiStudioViewModel = ({
   videoDurationSeconds,
   videoResolution,
   videoReferenceMode,
+  lipSyncAudio = { url: null, durationMs: null },
   motionReferenceVideoPending = false,
   motionReferenceVideoError = null,
   motionReferenceVideoUrl,
@@ -727,6 +735,19 @@ export const useAiStudioViewModel = ({
         return "Motion clip is not ready yet. Re-add it and wait for upload before generating.";
       }
     }
+    if (isVideoTool && resolvedVideoLane === "lip-sync") {
+      const hasCharacterReference = Boolean(referenceImageUrl);
+      const hasVoiceAudio = Boolean(lipSyncAudio.url);
+      if (!hasCharacterReference && !hasVoiceAudio) {
+        return "Add a character reference and voice audio before generating Lip Sync.";
+      }
+      if (!hasCharacterReference) {
+        return "Add a character reference before generating Lip Sync.";
+      }
+      if (!hasVoiceAudio) {
+        return "Add voice audio before generating Lip Sync.";
+      }
+    }
     if (
       isVideoTool &&
       videoReferenceMode === "standard" &&
@@ -794,6 +815,7 @@ export const useAiStudioViewModel = ({
     motionReferenceVideoPending,
     motionReferenceVideoError,
     motionReferenceVideoUrl,
+    lipSyncAudio.url,
     referenceImageUrl,
     requiresModelSelection,
     klingMultiPrompts,

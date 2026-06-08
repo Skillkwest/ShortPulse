@@ -10,6 +10,7 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
 import type { GenerationWorkflowLane } from "../../../lib/model-runtime/modelCatalog";
 import type { ResolvedVideoGenerationLane } from "./referenceInputs";
 import {
@@ -27,7 +28,8 @@ export type ModelSelectionVideoReferenceMode =
   | "modify"
   | "keyframes"
   | "kling3"
-  | "motion";
+  | "motion"
+  | "lip-sync";
 
 type ModelConfigLike = {
   supportsImageToImage?: boolean;
@@ -134,30 +136,36 @@ export const resolveAiStudioAllowedModelOptions = ({
     if (videoReferenceMode === "motion") {
       return selectorVideoOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
     }
+    if (videoReferenceMode === "lip-sync") {
+      return selectorVideoOptions.filter((option) => option.value === FAL_OMNIHUMAN_V15_MODEL_ID);
+    }
+    const visibleVideoOptions = selectorVideoOptions.filter(
+      (option) => option.value !== FAL_OMNIHUMAN_V15_MODEL_ID
+    );
     if (selectedTool === "kling" || videoReferenceMode === "kling3") {
-      return selectorVideoOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
+      return visibleVideoOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
     }
     if (resolvedVideoLane === "text") {
-      return selectorVideoOptions.filter(
+      return visibleVideoOptions.filter(
         (option) =>
           isVideoMediaOption(option) && optionSupportsTextLaneSelection({ option, getModelConfig })
       );
     }
     if (resolvedVideoLane === "single-image") {
-      return selectorVideoOptions.filter(
+      return visibleVideoOptions.filter(
         (option) =>
           isVideoMediaOption(option) &&
           optionSupportsGenerationLane({ option, getModelConfig, lane: "image-to-video" })
       );
     }
     if (resolvedVideoLane === "first-last") {
-      return selectorVideoOptions.filter(
+      return visibleVideoOptions.filter(
         (option) =>
           isVideoMediaOption(option) &&
           optionSupportsGenerationLane({ option, getModelConfig, lane: "image-to-video" })
       );
     }
-    return selectorVideoOptions.filter(
+    return visibleVideoOptions.filter(
       (option) =>
         isVideoMediaOption(option) && optionSupportsAnyVideoLane({ option, getModelConfig })
     );
@@ -166,7 +174,9 @@ export const resolveAiStudioAllowedModelOptions = ({
   if (isCreateTool(selectedTool) && mode === "video") {
     return selectableOptions.filter(
       (option) =>
-        isVideoMediaOption(option) && optionSupportsAnyVideoLane({ option, getModelConfig })
+        option.value !== FAL_OMNIHUMAN_V15_MODEL_ID &&
+        isVideoMediaOption(option) &&
+        optionSupportsAnyVideoLane({ option, getModelConfig })
     );
   }
 

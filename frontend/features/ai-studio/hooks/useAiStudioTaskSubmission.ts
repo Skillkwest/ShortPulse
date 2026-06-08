@@ -39,6 +39,7 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
 import { dispatchSubmissionByRoute } from "./taskSubmission/routeDispatch";
 import {
   applyDispatchedSubmissionPatch,
@@ -62,7 +63,13 @@ import {
 import { prepareSubmissionReferenceInputs } from "./taskSubmission/preflightPreparation";
 import { createSubmissionLifecycleCallbacks } from "./taskSubmission/submissionLifecycle";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "./useAiStudioTasks";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type {
+  LipSyncAudioState,
+  StudioMode,
+  StudioOutput,
+  ToolId,
+  VideoReferenceMode,
+} from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
 import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
@@ -126,9 +133,11 @@ type UseAiStudioTaskSubmissionParams = {
   videoDurationSeconds: number;
   videoResolution: string;
   videoGenerateAudio: boolean;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
   videoReferenceImageUrl: string | null;
   motionReferenceVideoUrl: string | null;
+  lipSyncAudio?: LipSyncAudioState;
+  lipSyncTurboMode?: boolean;
   videoCameraFixed: boolean;
   videoAutoFix: boolean;
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
@@ -189,6 +198,8 @@ export const useAiStudioTaskSubmission = ({
   videoReferenceMode,
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
+  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncTurboMode = false,
   videoCameraFixed,
   videoAutoFix,
   seedance2InputMode = "text",
@@ -278,7 +289,13 @@ export const useAiStudioTaskSubmission = ({
       const requiresImageToImageReferences = isEditWorkflow
         ? Boolean(finalModelConfig?.supportsImageToImage)
         : Boolean(finalModelConfig?.supportsImageToImage && !finalModelConfig?.supportsTextToImage);
-      const requiresPrompt = isEditWorkflow ? shouldRequirePromptForEditModel(finalModel) : true;
+      const isLipSyncSubmission =
+        (normalizedTool === "video" || normalizedTool === "kling") &&
+        videoReferenceMode === "lip-sync" &&
+        finalModel === FAL_OMNIHUMAN_V15_MODEL_ID;
+      const requiresPrompt = isEditWorkflow
+        ? shouldRequirePromptForEditModel(finalModel)
+        : !isLipSyncSubmission;
       const submissionStartUiError = resolveSubmissionStartUiError({
         cleanedSubmissionPrompt,
         requiresPrompt,
@@ -499,6 +516,14 @@ export const useAiStudioTaskSubmission = ({
               cameraFixed: isVideoGeneration ? videoCameraFixed : null,
               autoFix: isVideoGeneration ? videoAutoFix : null,
               motionReferenceVideoUrl: isVideoGeneration ? motionReferenceVideoUrl : null,
+              lipSyncAudioUrl:
+                isVideoGeneration && videoReferenceMode === "lip-sync" ? lipSyncAudio.url : null,
+              lipSyncAudioDurationMs:
+                isVideoGeneration && videoReferenceMode === "lip-sync"
+                  ? lipSyncAudio.durationMs
+                  : null,
+              lipSyncTurboMode:
+                isVideoGeneration && videoReferenceMode === "lip-sync" ? lipSyncTurboMode : null,
               seedance2InputMode,
               seedance2ReferenceImageUrls,
               seedance2ReferenceVideoUrls,
@@ -528,6 +553,10 @@ export const useAiStudioTaskSubmission = ({
         const motionReferenceAssetContext = buildMotionReferenceAssetShortpulseContext({
           motionReferenceVideoUrl,
         });
+        const lipSyncAudioDurationSeconds =
+          typeof lipSyncAudio.durationMs === "number" && Number.isFinite(lipSyncAudio.durationMs)
+            ? Math.max(0, lipSyncAudio.durationMs / 1000)
+            : null;
         const usesPricingGridDisplay =
           (outputMode === "image" && (effectiveTool === "create" || effectiveTool === "edit")) ||
           (outputMode === "video" && effectiveTool === "video");
@@ -550,6 +579,14 @@ export const useAiStudioTaskSubmission = ({
           pricing_display_source: usesPricingGridDisplay ? "pricing_grid" : "shared_adapter",
           pricing_policy_ready: true,
           displayed_billed_credits: displayedBilledCredits,
+          ...(isLipSyncSubmission
+            ? {
+                lip_sync_audio_duration_ms: lipSyncAudio.durationMs ?? null,
+                lip_sync_audio_duration_seconds: lipSyncAudioDurationSeconds,
+                audio_duration_ms: lipSyncAudio.durationMs ?? null,
+                audio_duration_seconds: lipSyncAudioDurationSeconds,
+              }
+            : {}),
           ...(motionReferenceAssetContext
             ? { motion_reference_asset: motionReferenceAssetContext }
             : {}),
@@ -690,6 +727,8 @@ export const useAiStudioTaskSubmission = ({
             videoReferenceMode,
             videoReferenceImageUrl,
             motionReferenceVideoUrl,
+            lipSyncAudio,
+            lipSyncTurboMode,
             videoCameraFixed,
             rawImageInputs: imageInputs,
             seedance2InputMode,
@@ -904,6 +943,8 @@ export const useAiStudioTaskSubmission = ({
       videoReferenceMode,
       motionReferenceVideoUrl,
       videoReferenceImageUrl,
+      lipSyncAudio,
+      lipSyncTurboMode,
       videoCameraFixed,
       videoAutoFix,
       klingNegativePrompt,

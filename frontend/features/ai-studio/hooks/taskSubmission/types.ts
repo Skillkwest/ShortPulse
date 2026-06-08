@@ -7,7 +7,12 @@ import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { getModelConfig } from "../../logic/pricing";
 import { Provider } from "../../logic/stateParsers";
-import { StudioOutput, type StudioOutputSaveState } from "../../types";
+import {
+  StudioOutput,
+  type LipSyncAudioState,
+  type StudioOutputSaveState,
+  type VideoReferenceMode,
+} from "../../types";
 import type { NotifyGenerationFailure } from "../generationFailureReporting";
 
 export type SubmissionModelConfig = ReturnType<typeof getModelConfig>;
@@ -57,9 +62,11 @@ export type BaseSubmissionArgs = {
 };
 
 export type VideoSubmissionArgs = BaseSubmissionArgs & {
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
   videoReferenceImageUrl: string | null;
   motionReferenceVideoUrl: string | null;
+  lipSyncAudio: LipSyncAudioState;
+  lipSyncTurboMode: boolean;
   rawImageInputs?: string[];
   videoCameraFixed: boolean;
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";

@@ -244,7 +244,8 @@ const isVideoReferenceMode = (value: unknown): value is WorkflowReloadVideoRefer
   value === "modify" ||
   value === "keyframes" ||
   value === "kling3" ||
-  value === "motion";
+  value === "motion" ||
+  value === "lip-sync";
 
 const isSeedance2InputMode = (value: unknown): value is WorkflowReloadSeedance2InputMode =>
   value === "text" || value === "first-frame" || value === "first-last" || value === "multimodal";
@@ -302,6 +303,9 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
     referenceInputs: asStringArray(value.referenceInputs),
     internalMediaRefs: normalizeInternalRefs(value.internalMediaRefs),
     motionReferenceVideoUrl: asOptionalString(value.motionReferenceVideoUrl),
+    lipSyncAudioUrl: asOptionalString(value.lipSyncAudioUrl),
+    lipSyncAudioDurationMs: asFiniteNumberOrNull(value.lipSyncAudioDurationMs),
+    lipSyncTurboMode: asBooleanOrNull(value.lipSyncTurboMode),
     seedance2InputMode: isSeedance2InputMode(value.seedance2InputMode)
       ? value.seedance2InputMode
       : null,

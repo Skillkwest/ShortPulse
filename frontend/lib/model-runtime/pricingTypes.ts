@@ -20,6 +20,7 @@ export type PricingStrategyId =
   | "nano-banana-per-image"
   | "seedream-per-image"
   | "seedream-5-lite-per-image"
+  | "omnihuman-v15-per-second"
   | "veo-3-per-second"
   | "kling-3-per-second"
   | "seedance-2-per-second"

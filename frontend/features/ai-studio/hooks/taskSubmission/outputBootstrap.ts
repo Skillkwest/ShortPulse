@@ -15,6 +15,7 @@ import type {
   StudioOutput,
   StudioOutputSubmissionMode,
   ToolId,
+  VideoReferenceMode,
   WorkflowReloadConfig,
   WorkflowReloadPanelKind,
 } from "../../types";
@@ -62,13 +63,16 @@ type BuildSubmissionWorkflowReloadSnapshotParams = {
   internalMediaRefs?: Array<InternalMediaRef | null>;
   characterContext?: StudioOutput["characterContext"];
   styleContext?: StudioOutput["styleContext"];
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
   durationSeconds: number | null;
   resolution?: string | null;
   generateAudio?: boolean | null;
   cameraFixed?: boolean | null;
   autoFix?: boolean | null;
   motionReferenceVideoUrl?: string | null;
+  lipSyncAudioUrl?: string | null;
+  lipSyncAudioDurationMs?: number | null;
+  lipSyncTurboMode?: boolean | null;
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceImageUrls?: string[];
   seedance2ReferenceVideoUrls?: string[];
@@ -203,6 +207,9 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
   cameraFixed = null,
   autoFix = null,
   motionReferenceVideoUrl = null,
+  lipSyncAudioUrl = null,
+  lipSyncAudioDurationMs = null,
+  lipSyncTurboMode = null,
   seedance2InputMode = "text",
   seedance2ReferenceImageUrls = [],
   seedance2ReferenceVideoUrls = [],
@@ -272,6 +279,9 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
       referenceInputs,
       internalMediaRefs,
       motionReferenceVideoUrl,
+      lipSyncAudioUrl,
+      lipSyncAudioDurationMs,
+      lipSyncTurboMode,
       seedance2InputMode,
       seedance2ReferenceImageUrls,
       seedance2ReferenceVideoUrls,

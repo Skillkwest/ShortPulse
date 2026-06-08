@@ -3,6 +3,7 @@
 This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-3.0`.
 
 ## Scope
+
 - Provider: `kie`
 - Model id: `kie-ai/kling-3.0`
 - Canonical source reference: `https://api.kie.ai/api/v1/jobs/createTask` (Kling 3.0 market docs)
@@ -10,6 +11,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
 - Primary-source snapshot: captured from Kie docs on `2026-03-01`
 
 ## Current Runtime Contract
+
 - Endpoint: `POST /api/v1/jobs/createTask`
 - Status/details polling:
   - default model-contract endpoint: `https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}`
@@ -19,10 +21,9 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - Standard image-to-video:
     - root: `model="kling-3.0/video"`, optional `callBackUrl`
     - payload body under `input`
-    - product-level shot modes:
+    - product-level shot modes exposed in the panel:
       - `Single`: top-level `prompt`, first frame required, optional last frame accepted, hidden prompt composition enforces one continuous shot
       - `Multi`: top-level `prompt`, first frame required, optional last frame accepted, hidden prompt composition directs a multi-shot sequence, element references allowed via `@ElementName` + `kling_elements`
-      - `Custom`: `multi_prompt[]`, first frame required, last frame not sent
   - Motion Control:
     - root: `model="kling-3.0/motion-control"`, optional `callBackUrl`
     - payload body under `input` with `input_urls` (one character image URL), `video_urls` (one motion reference video URL), and resolution mode (`mode=720p|1080p`)
@@ -46,7 +47,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `mode` (`std` or `pro`, default `std`)
   - `sound` (or alias `generate_audio`)
   - `multi_shots` (requires `sound=true` when enabled)
-  - `multi_prompt[]` for true multi-shot Kling submissions
+  - `multi_prompt[]` is provider-supported, but the current AI Studio panel does not submit it for `Single`, `Multi`, or restored legacy custom state
   - `kling_elements` for inline `@ElementName` prompt references
   - `cfg_scale`
   - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
@@ -57,6 +58,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - Motion cost estimate is intentionally suppressed until provider-backed billing evidence exists for this lane.
 
 ## Product-facing payload rules
+
 - `Single`
   - submits top-level `prompt`
   - sends first frame and optional last frame
@@ -67,12 +69,14 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - sends first frame and optional last frame
   - keeps `multi_shots=false`
   - applies hidden prompt composition that directs the provider to treat the prompt as a multi-shot sequence
-- `Custom`
-  - submits `multi_prompt[]`
-  - sends first frame only
-  - sets `multi_shots=true`
+- Legacy/restored custom state
+  - normalizes to the visible `Multi` payload path before submit
+  - submits top-level `prompt`
+  - sends first frame and optional last frame
+  - keeps `multi_shots=false`
 
 ## Pricing (ShortPulse runtime)
+
 - Evidence source: user-provided Kie logs captured `2026-04-07` through `2026-04-09`.
 - Kie credit conversion used by runtime: `1 Kie credit = $0.005`.
 - Observed Kie Kling 3.0 rates used by runtime:
@@ -87,11 +91,13 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `pro`, `4s`, sound off: `72` Kie credits -> `$0.36` -> `36` billed credits before per-model overrides
 
 ## Guardrails
+
 1. Kling 3.0 is always on; this model no longer depends on a rollout enable flag or model allowlist.
 2. Public `/api/fal/*` routes remain unchanged.
 3. Character-scoped media isolation is fail-closed for video submit payloads (`/characters/` paths and character metadata fields are rejected before provider dispatch).
 4. Kie submit upstream errors include redacted media diagnostics in telemetry metadata (`media_diagnostics`) for faster `422 file format` triage without logging raw signed URLs.
 
 ## Ongoing Maintenance
+
 1. Refresh primary-source capture when Kie updates the motion-control docs.
 2. Keep status/result payload shape parity covered in provider integration tests.

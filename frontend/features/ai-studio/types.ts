@@ -8,6 +8,19 @@ export type StudioMode = "text" | "image" | "video" | "audio";
 
 export type WorkflowId = "create" | "edit" | "video" | "character" | "none";
 
+export type VideoReferenceMode =
+  | "standard"
+  | "modify"
+  | "keyframes"
+  | "kling3"
+  | "motion"
+  | "lip-sync";
+
+export type LipSyncAudioState = {
+  url: string | null;
+  durationMs: number | null;
+};
+
 export type AspectOption = {
   value: string;
   ratioLabel: string;
@@ -120,7 +133,8 @@ export type WorkflowReloadVideoReferenceMode =
   | "modify"
   | "keyframes"
   | "kling3"
-  | "motion";
+  | "motion"
+  | "lip-sync";
 
 export type WorkflowReloadKlingWorkflowMode = "single" | "multi" | "custom";
 export type WorkflowReloadSeedance2InputMode = "text" | "first-frame" | "first-last" | "multimodal";
@@ -146,6 +160,9 @@ export type WorkflowReloadVideoPayload = {
   referenceInputs: string[];
   internalMediaRefs?: Array<InternalMediaRef | null>;
   motionReferenceVideoUrl?: string | null;
+  lipSyncAudioUrl?: string | null;
+  lipSyncAudioDurationMs?: number | null;
+  lipSyncTurboMode?: boolean | null;
   seedance2InputMode?: WorkflowReloadSeedance2InputMode | null;
   seedance2ReferenceImageUrls?: string[];
   seedance2ReferenceVideoUrls?: string[];

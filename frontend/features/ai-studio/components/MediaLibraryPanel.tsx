@@ -840,6 +840,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onMediaDragStart={handleMediaCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
         onMediaContextMenu={handleMediaCardContextMenu}
+        onRequestSignedUrl={refreshSignedUrl}
         showRemoveAction={canShowFolderItemRemoveAction}
         onRemoveMediaFromFolder={(file) => {
           void handleRemoveItemFromActiveFolder({ kind: "media", id: file.id });
@@ -873,6 +874,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaCardContextMenu,
       handleDownloadMediaFile,
       handleMediaPreviewError,
+      refreshSignedUrl,
       handleReloadWorkflowFromMedia,
       handleRemoveItemFromActiveFolder,
       handleToggleSelectedMedia,

@@ -97,6 +97,7 @@ const SEEDANCE_2_FAST_CREDITS_PER_SECOND = {
   "720p": { withVideoInput: 20, noVideoInput: 33 },
   "480p": { withVideoInput: 9, noVideoInput: 15.5 },
 } as const;
+const OMNIHUMAN_V15_USD_PER_SECOND = 0.16;
 
 const kieCreditsToUsd = (credits: number): number => credits * KIE_CREDIT_USD;
 
@@ -787,6 +788,23 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
   });
 };
 
+const computeOmniHumanV15PerSecondCost: StrategyFn = (params) => {
+  const duration = resolveDefaultDuration(params, 10);
+  const resolution = resolveDefaultResolution(params, "1080p").toLowerCase();
+  const dimensions = resolution.includes("720")
+    ? { width: 1280, height: 720 }
+    : { width: 1920, height: 1080 };
+  return toCostBreakdown({
+    modelId: params.modelId,
+    usdRaw: OMNIHUMAN_V15_USD_PER_SECOND * duration,
+    megapixels: 0,
+    width: dimensions.width,
+    height: dimensions.height,
+    policy: params.pricingPolicy,
+    variantId: resolveModelPricingVariantId(params),
+  });
+};
+
 export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "elevenlabs-music-per-minute": computeElevenLabsMusicCost,
   "elevenlabs-sound-effect": computeElevenLabsSoundEffectCost,
@@ -804,6 +822,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "nano-banana-per-image": computeNanoBananaPerImageCost,
   "seedream-per-image": computeSeedreamPerImageCost,
   "seedream-5-lite-per-image": computeSeedream5LitePerImageCost,
+  "omnihuman-v15-per-second": computeOmniHumanV15PerSecondCost,
   "kling-3-per-second": computeKling3PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
   "seedance-2-per-second": computeSeedancePerSecondCost,

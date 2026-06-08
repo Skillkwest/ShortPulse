@@ -16,6 +16,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Active public ShortPulse video scope is Kie-only.
 - Active Kie video lanes are `kie-ai/veo-3.1-fast-i2v`, `kie-ai/kling-3.0`, `kie-ai/seedance-2`, and `kie-ai/seedance-2-fast`.
 - Seedance 2.x uses the Kling-pattern video workspace UI while compiling to Seedance-specific Kie payloads.
+- Lip Sync is the sole hidden-provider exception: the customer sees only the `Lip Sync` Video mode, while submission uses internal model id `fal-ai/bytedance/omnihuman/v1.5` through the generated Fal queue wrappers.
 
 ## Key components
 
@@ -72,23 +73,33 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - The modal still allows manual selection of `kie-ai/kling-3.0`, `kie-ai/seedance-2`, and `kie-ai/seedance-2-fast` in that state; once Kling is selected, the first-frame dropzone becomes required and Generate remains disabled until the first frame is populated.
 - Adding a last frame inside Standard Video must not force a model switch. Standard keeps the user-selected compatible model (`kie-ai/veo-3.1-fast-i2v`, `kie-ai/kling-3.0`, `kie-ai/seedance-2`, or `kie-ai/seedance-2-fast`) and submission derives the correct first-frame / first-last payload shape from the prepared inputs.
 - Keyframe-style Veo generation is handled through `kie-ai/veo-3.1-fast-i2v` by switching Kie generation type based on the number of prepared frame references, not by forcing Standard into a separate hidden Veo-only mode.
-- Kie Seedance 2 and 2 Fast use the Kling-pattern panel shell for `Single`, `Multi`, and `Custom` prompt authoring plus linked Character/Element slots, but compile into Seedance-native prompt, frame, and multimodal reference fields.
+- Kie Seedance 2 and 2 Fast use the Kling-pattern panel shell for `Single` and `Multi` prompt authoring plus linked Character/Element slots, but compile into Seedance-native prompt, frame, and multimodal reference fields.
+- Seedance `Single` and `Multi` use Seedance-specific hidden prompt instructions, not the Kling hidden prompt strings.
+
+### Lip Sync mode
+
+- The Video mode toggle exposes `Standard`, `Motion Control`, and `Lip Sync`.
+- `Lip Sync` does not expose a model picker chip or provider/model-specific labels.
+- The left panel requires a `Character image` and `Voice audio`, exposes `720p` / `1080p`, and may expose generic `Faster generation`.
+- Prompt text is optional; empty prompt is valid when required image/audio inputs are present.
+- Audio duration guardrails are `1080p` under `30s` and `720p` under `60s`.
+- The submit adapter sends only provider-supported fields upstream (`image_url`, `audio_url`, `resolution`, optional `prompt`, optional `turbo_mode`) plus ShortPulse sidecars that generated route wrappers strip before provider dispatch.
+- Billing uses shared pricing policy at `$0.16` per audio/output second, with duration carried in `shortpulse_context` for server-authoritative debit.
 
 ### Kling 3.0 Standard shot modes
 
-- Kie Kling Standard exposes three product shot modes in the panel:
+- Kie Kling Standard exposes two product shot modes in the panel:
   - `Single`
   - `Multi`
-  - `Custom`
 - These are app-level workflow modes. They do not map to three separate Kie provider endpoints.
 - `Single` and `Multi` both submit through the documented Kie standard video route:
   - `model = kling-3.0/video`
   - top-level `prompt`
   - `multi_shots = false`
-- `Custom` is the only true multi-shot Kling path:
+- Restored legacy custom state is no longer a separate submit path. It is normalized to the current visible `Multi` mode:
   - `model = kling-3.0/video`
-  - `multi_prompt[]`
-  - `multi_shots = true`
+  - top-level `prompt`
+  - `multi_shots = false`
 
 #### Shot mode behavior
 
@@ -105,11 +116,10 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - Elements can be referenced inline with `@ElementName` notation and are resolved through `kling_elements`.
   - First frame is required for Kling Standard.
   - Last frame is optional; when present it is sent as the second image reference on the standard single-shot path.
-- `Custom`
-  - Multiple shot prompt boxes map to `multi_prompt[]`.
-  - This is the only Kling Standard mode that sends `multi_shots = true`.
-  - First frame is required.
-  - Last frame is not sent on the multi-shot path; Kie multi-shot uses the first image only.
+- Legacy/restored custom state
+  - Displays as `Multi` in the current panel.
+  - Submits the primary prompt through the same top-level `prompt` path as `Multi`.
+  - Does not submit stale multiple shot prompt boxes or set `multi_shots = true`.
 
 #### Kling Standard payload rules
 
@@ -120,11 +130,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - first frame
   - optional last frame, only when populated
   - `kling_elements` when present
-- `Custom` sends:
-  - `multi_prompt[]`
-  - selected video settings
-  - first frame only
-  - `kling_elements` when present
+- Legacy/restored custom state is normalized before submit and sends the same payload shape as current `Multi`.
 - Motion Control remains separate and uses the Kie motion-control route (`model = kling-3.0/motion-control`) with one character image, one motion video, `mode=720p|1080p`, and the Motion audio setting. Motion does not submit standard-video `aspect_ratio` or `duration`; text direction is optional once both motion inputs are present.
 
 ## Reference-based video workflow (Create → Video, image-to-video models)
@@ -154,8 +160,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Prompt text is sent to the chosen video model through submission handlers; when chat output is explicitly applied first, that canonicalized text becomes the submitted prompt.
 - For Kling Standard:
   - `Single` and `Multi` use the primary prompt textarea as the display prompt, while submit compilation adds canonical hidden shot-mode prompt composition before provider submit.
-  - `Custom` uses the persisted shot list (`klingMultiPrompts`) to build `multi_prompt[]`.
-  - Seedance 2 and Seedance 2 Fast reuse the same hidden `Single` vs `Multi` shot-mode prompt composition before compiling into Seedance-native prompt and multimodal reference fields.
+  - Legacy/restored custom state is normalized to the visible `Multi` mode before submit and does not use the persisted shot list (`klingMultiPrompts`) for provider payloads.
+  - Seedance 2 and Seedance 2 Fast use Seedance-specific hidden `Single` vs `Multi` shot-mode prompt composition before compiling into Seedance-native prompt and multimodal reference fields.
 - Improvement: consider reusing the last describe result as a starting prompt when switching from describe → video.
 
 ## Error handling & UX
@@ -188,11 +194,11 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Supported video models (current)
 
-| Provider | Model id                                      | Allowed aspects (examples)                              | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| -------- | --------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kie      | `kie-ai/veo-3.1-fast-i2v`                     | 16:9 default (allowed: 16:9, 9:16)                      | Unified Kie Veo lane via `/api/fal/kie-veo-submit` + `/api/fal/kie-veo-status`. Prompt-only generates `TEXT_2_VIDEO`; one frame generates `FIRST_AND_LAST_FRAMES_2_VIDEO` with one image; two frames generate `FIRST_AND_LAST_FRAMES_2_VIDEO` with first/last references. Pricing uses current Kie evidence of `80` Kie credits / `$0.40` per Fast generation; default lane bills `42` credits under the shared ShortPulse conversion/markup policy.                                          |
-| Kie      | `kie-ai/kling-3.0`                            | 16:9 default (allowed: 16:9, 9:16, 1:1)                 | Standard Kling routes through `/api/fal/kie-kling-submit` + `/api/fal/kie-kling-status` and requires image input. `Single` and `Multi` use standard single-shot submit with top-level `prompt`; `Custom` uses Kie multi-shot submit with `multi_prompt[]` and first-frame-only image input. Motion Control also routes through this model and normalizes to Kie motion-control submit shape (`model=kling-3.0/motion-control`, `input_urls` + `video_urls`, one image + one video, `mode=720p | 1080p`, optional audio). Motion hides aspect/duration controls and currently suppresses cost estimates rather than showing a misleading per-second price. |
-| Kie      | `kie-ai/seedance-2`, `kie-ai/seedance-2-fast` | 16:9 default (allowed: 1:1, 21:9, 4:3, 3:4, 16:9, 9:16) | Active Seedance 2 lanes via `/api/fal/kie-seedance-2-submit                                                                                                                                                                                                                                                                                                                                                                                                                                   | status`and`/api/fal/kie-seedance-2-fast-submit                                                                                                            | status`. Panel UX follows the Kling-pattern shot workspace and linked Character/Element surfaces, but submit compiles into Seedance-native prompt, frame, and multimodal reference payloads (`first*frame_url`, `last_frame_url`, `reference*\*\_urls`). Video settings expose duration `4-15` seconds; Seedance 2 supports `480p/720p/1080p`, Seedance 2 Fast supports `480p/720p`; audio defaults on; `return_last_frame`and`web_search` default off. |
+| Provider | Model id                                      | Allowed aspects (examples)                              | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------- | --------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kie      | `kie-ai/veo-3.1-fast-i2v`                     | 16:9 default (allowed: 16:9, 9:16)                      | Unified Kie Veo lane via `/api/fal/kie-veo-submit` + `/api/fal/kie-veo-status`. Prompt-only generates `TEXT_2_VIDEO`; one frame generates `FIRST_AND_LAST_FRAMES_2_VIDEO` with one image; two frames generate `FIRST_AND_LAST_FRAMES_2_VIDEO` with first/last references. Pricing uses current Kie evidence of `80` Kie credits / `$0.40` per Fast generation; default lane bills `42` credits under the shared ShortPulse conversion/markup policy.                                    |
+| Kie      | `kie-ai/kling-3.0`                            | 16:9 default (allowed: 16:9, 9:16, 1:1)                 | Standard Kling routes through `/api/fal/kie-kling-submit` + `/api/fal/kie-kling-status` and requires image input. `Single` and `Multi` use standard single-shot submit with top-level `prompt`; restored legacy custom state is normalized to the visible `Multi` path before submit. Motion Control also routes through this model and normalizes to Kie motion-control submit shape (`model=kling-3.0/motion-control`, `input_urls` + `video_urls`, one image + one video, `mode=720p | 1080p`, optional audio). Motion hides aspect/duration controls and currently suppresses cost estimates rather than showing a misleading per-second price. |
+| Kie      | `kie-ai/seedance-2`, `kie-ai/seedance-2-fast` | 16:9 default (allowed: 1:1, 21:9, 4:3, 3:4, 16:9, 9:16) | Active Seedance 2 lanes via `/api/fal/kie-seedance-2-submit                                                                                                                                                                                                                                                                                                                                                                                                                             | status`and`/api/fal/kie-seedance-2-fast-submit                                                                                                            | status`. Panel UX follows the Kling-pattern shot workspace and linked Character/Element surfaces, but submit compiles into Seedance-native prompt, frame, and multimodal reference payloads (`first*frame_url`, `last_frame_url`, `reference*\*\_urls`). Video settings expose duration `4-15`seconds; Seedance 2 supports`480p/720p/1080p`, Seedance 2 Fast supports `480p/720p`; audio defaults on; `return_last_frame`and`web_search` default off. |
 
 ## Maintenance rules
 

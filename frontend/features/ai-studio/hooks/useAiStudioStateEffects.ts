@@ -19,6 +19,7 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
 import { normalizeDurationForModel } from "../../../lib/model-runtime/modelDurationConstraints";
 import {
   isCreateWorkflow,
@@ -26,13 +27,11 @@ import {
   isVideoWorkflow,
   resolveWorkflowId,
 } from "../logic/workflowIdentity";
-import type { StudioMode, ToolId } from "../types";
+import type { StudioMode, ToolId, VideoReferenceMode } from "../types";
 import { useAiStudioAllowedModelOptions } from "./useAiStudioAllowedModelOptions";
 
 const KEYFRAME_COMPATIBLE_MODELS = new Set([KIE_VEO_31_FAST_I2V_MODEL_ID]);
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
-
-type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 
 type UseAiStudioStateEffectsArgs = {
   promptRef: MutableRefObject<HTMLTextAreaElement | null>;
@@ -52,6 +51,7 @@ type UseAiStudioStateEffectsArgs = {
   lastNonKling3VideoModelRef: MutableRefObject<string | null>;
   lastNonKeyframesVideoModelRef: MutableRefObject<string | null>;
   lastNonMotionVideoModelRef: MutableRefObject<string | null>;
+  lastNonLipSyncVideoModelRef?: MutableRefObject<string | null>;
   showCreateTools: boolean;
   setShowCreateTools: (value: boolean) => void;
   videoDurationStorageKey: string;
@@ -95,6 +95,7 @@ export const useAiStudioStateEffects = ({
   lastNonKling3VideoModelRef,
   lastNonKeyframesVideoModelRef,
   lastNonMotionVideoModelRef,
+  lastNonLipSyncVideoModelRef,
   showCreateTools,
   setShowCreateTools,
   videoDurationStorageKey,
@@ -210,7 +211,13 @@ export const useAiStudioStateEffects = ({
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
     if (!isVideoWorkflow(selectedTool)) return;
-    if (videoReferenceMode === "motion" || videoReferenceMode === "kling3") return;
+    if (
+      videoReferenceMode === "motion" ||
+      videoReferenceMode === "kling3" ||
+      videoReferenceMode === "lip-sync"
+    ) {
+      return;
+    }
 
     const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
       primary: referenceImageUrl,
@@ -324,9 +331,22 @@ export const useAiStudioStateEffects = ({
       }
       return;
     }
+
+    if (videoReferenceMode === "lip-sync") {
+      if (model !== FAL_OMNIHUMAN_V15_MODEL_ID) {
+        if (lastNonLipSyncVideoModelRef) {
+          lastNonLipSyncVideoModelRef.current = model;
+        }
+        setModelIfChanged(FAL_OMNIHUMAN_V15_MODEL_ID);
+      } else if (!model) {
+        setModelIfChanged(FAL_OMNIHUMAN_V15_MODEL_ID);
+      }
+      return;
+    }
   }, [
     lastNonKeyframesVideoModelRef,
     lastNonKling3VideoModelRef,
+    lastNonLipSyncVideoModelRef,
     lastNonMotionVideoModelRef,
     lastVideoReferenceModeRef,
     setVideoReferenceModeIfChanged,
@@ -340,7 +360,13 @@ export const useAiStudioStateEffects = ({
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
     if (resolveWorkflowId(selectedTool) !== "video" || selectedTool === "kling") return;
-    if (videoReferenceMode === "keyframes" || videoReferenceMode === "motion") return;
+    if (
+      videoReferenceMode === "keyframes" ||
+      videoReferenceMode === "motion" ||
+      videoReferenceMode === "lip-sync"
+    ) {
+      return;
+    }
     if (videoReferenceMode === "kling3") {
       setVideoReferenceModeIfChanged("standard");
     }
@@ -374,6 +400,10 @@ export const useAiStudioStateEffects = ({
     const allowedValues = new Set(allowedModelValues);
     const isCreateImageLikeMode = mode === "image" || mode === "text";
     if (!model) {
+      if (isVideoWorkflow(selectedTool) && videoReferenceMode === "lip-sync") {
+        setModelIfChanged(FAL_OMNIHUMAN_V15_MODEL_ID);
+        return;
+      }
       if (isCreateWorkflow(selectedTool) && isCreateImageLikeMode) {
         if (isCharacterModeEnabled && allowedValues.has(EDIT_DEFAULT_MODEL_ID)) {
           setModelIfChanged(EDIT_DEFAULT_MODEL_ID);
@@ -386,6 +416,12 @@ export const useAiStudioStateEffects = ({
       }
       if (isEditWorkflow(selectedTool) && allowedValues.has(EDIT_DEFAULT_MODEL_ID)) {
         setModelIfChanged(EDIT_DEFAULT_MODEL_ID);
+      }
+      return;
+    }
+    if (isVideoWorkflow(selectedTool) && videoReferenceMode === "lip-sync") {
+      if (model !== FAL_OMNIHUMAN_V15_MODEL_ID) {
+        setModelIfChanged(FAL_OMNIHUMAN_V15_MODEL_ID);
       }
       return;
     }
@@ -418,6 +454,7 @@ export const useAiStudioStateEffects = ({
     model,
     selectedTool,
     setModelIfChanged,
+    videoReferenceMode,
   ]);
 
   useEffect(() => {

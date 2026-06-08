@@ -5,7 +5,13 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { AiStudioKlingElement } from "../logic/klingElements";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type {
+  LipSyncAudioState,
+  StudioMode,
+  StudioOutput,
+  ToolId,
+  VideoReferenceMode,
+} from "../types";
 import { getDefaultDurationSecondsForModel } from "./aiStudioStateConfig";
 import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
 import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
@@ -32,6 +38,8 @@ type UseAiStudioGenerationRuntimeControllersParams = {
   mode: StudioMode;
   model: string | null;
   motionReferenceVideoUrl: string | null;
+  lipSyncAudio: LipSyncAudioState;
+  lipSyncTurboMode: boolean;
   notifyGenerationFailure: ReturnType<typeof useAiStudioOutputLifecycle>["notifyGenerationFailure"];
   outputs: StudioOutput[];
   projectId: string | null;
@@ -63,7 +71,7 @@ type UseAiStudioGenerationRuntimeControllersParams = {
   videoDurationSeconds: number;
   videoGenerateAudio: boolean;
   videoReferenceImageUrl: string | null;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
   videoReferenceText: string;
   videoResolution: string;
   ensureGenerationRecord: ReturnType<
@@ -92,6 +100,8 @@ export const useAiStudioGenerationRuntimeControllers = ({
   mode,
   model,
   motionReferenceVideoUrl,
+  lipSyncAudio,
+  lipSyncTurboMode,
   notifyGenerationFailure,
   outputs,
   projectId,
@@ -147,6 +157,8 @@ export const useAiStudioGenerationRuntimeControllers = ({
         videoReferenceMode,
         videoReferenceImageUrl,
         motionReferenceVideoUrl,
+        lipSyncAudio,
+        lipSyncTurboMode,
         videoCameraFixed,
         videoAutoFix,
         seedance2InputMode,

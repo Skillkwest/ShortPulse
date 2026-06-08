@@ -59,6 +59,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 ### Program 4: Workflows And Product Surfaces
 
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
+- `docs/planning/ai-studio-video-lip-sync-implementation-plan-2026-06-08.md`
 - `docs/planning/edit-panel-canvas-tear-out-buildout-plan-2026-06-08.md`
 - `docs/planning/expert-edit-master-stage-move-resize-buildout-plan-2026-06-08.md`
 - `docs/planning/message-feedback-normalization-plan-2026-06-08.md`

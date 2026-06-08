@@ -6,7 +6,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import { StudioMode } from "../types";
+import type { LipSyncAudioState, StudioMode, VideoReferenceMode } from "../types";
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 import {
   hasStoredVideoPreferences,
@@ -66,10 +66,12 @@ export type UseAiStudioCreationStateResult = {
   publishExpertEditSessionState: Dispatch<SetStateAction<ExpertEditSessionState | null>>;
   getExpertEditSessionState: () => ExpertEditSessionState | null;
   expertEditSessionRevision: number;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
-  setVideoReferenceMode: Dispatch<
-    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
-  >;
+  videoReferenceMode: VideoReferenceMode;
+  setVideoReferenceMode: Dispatch<SetStateAction<VideoReferenceMode>>;
+  lipSyncAudio: LipSyncAudioState;
+  setLipSyncAudio: Dispatch<SetStateAction<LipSyncAudioState>>;
+  lipSyncTurboMode: boolean;
+  setLipSyncTurboMode: Dispatch<SetStateAction<boolean>>;
   videoDurationSeconds: number;
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   videoResolution: string;
@@ -123,12 +125,11 @@ export type UseAiStudioCreationStateResult = {
   setUiError: Dispatch<SetStateAction<string | null>>;
   uiNotice: string | null;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
-  lastVideoReferenceModeRef: MutableRefObject<
-    "standard" | "modify" | "keyframes" | "kling3" | "motion"
-  >;
+  lastVideoReferenceModeRef: MutableRefObject<VideoReferenceMode>;
   lastNonKling3VideoModelRef: MutableRefObject<string | null>;
   lastNonKeyframesVideoModelRef: MutableRefObject<string | null>;
   lastNonMotionVideoModelRef: MutableRefObject<string | null>;
+  lastNonLipSyncVideoModelRef: MutableRefObject<string | null>;
 };
 
 export const useAiStudioCreationState = ({
@@ -165,9 +166,12 @@ export const useAiStudioCreationState = ({
     useState<ExpertEditSessionState | null>(null);
   const expertEditSessionStateRef = useRef<ExpertEditSessionState | null>(expertEditSessionState);
   const [expertEditSessionRevision, setExpertEditSessionRevision] = useState<number>(0);
-  const [videoReferenceMode, setVideoReferenceMode] = useState<
-    "standard" | "modify" | "keyframes" | "kling3" | "motion"
-  >("standard");
+  const [videoReferenceMode, setVideoReferenceMode] = useState<VideoReferenceMode>("standard");
+  const [lipSyncAudio, setLipSyncAudio] = useState<LipSyncAudioState>({
+    url: null,
+    durationMs: null,
+  });
+  const [lipSyncTurboMode, setLipSyncTurboMode] = useState<boolean>(false);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() =>
     projectRouteRequested ? 6 : readSessionStorageNumberPreference(VIDEO_DURATION_STORAGE_KEY, 6)
   );
@@ -222,6 +226,7 @@ export const useAiStudioCreationState = ({
   const lastNonKling3VideoModelRef = useRef<string | null>(null);
   const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
   const lastNonMotionVideoModelRef = useRef<string | null>(null);
+  const lastNonLipSyncVideoModelRef = useRef<string | null>(null);
   const createIsGenerating = panelGeneratingCountState.create > 0;
   const editIsGenerating = panelGeneratingCountState.edit > 0;
   const videoIsGenerating = panelGeneratingCountState.video > 0;
@@ -336,6 +341,10 @@ export const useAiStudioCreationState = ({
     expertEditSessionRevision,
     videoReferenceMode,
     setVideoReferenceMode,
+    lipSyncAudio,
+    setLipSyncAudio,
+    lipSyncTurboMode,
+    setLipSyncTurboMode,
     videoDurationSeconds,
     setVideoDurationSeconds,
     videoResolution,
@@ -389,5 +398,6 @@ export const useAiStudioCreationState = ({
     lastNonKling3VideoModelRef,
     lastNonKeyframesVideoModelRef,
     lastNonMotionVideoModelRef,
+    lastNonLipSyncVideoModelRef,
   };
 };

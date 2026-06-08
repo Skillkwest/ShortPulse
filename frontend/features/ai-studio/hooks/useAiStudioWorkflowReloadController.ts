@@ -24,6 +24,7 @@ import type {
   WorkflowReloadVoiceChangerPayload,
   WorkflowReloadVoiceChangerSource,
   WorkflowReloadVoiceoverPayload,
+  VideoReferenceMode,
 } from "../types";
 import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
 import { useSharedVoicesGrid } from "./useSharedVoicesGrid";
@@ -92,9 +93,7 @@ type UseAiStudioWorkflowReloadControllerParams = {
   setVideoCameraFixed: Dispatch<SetStateAction<boolean>>;
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   setVideoGenerateAudio: Dispatch<SetStateAction<boolean>>;
-  setVideoReferenceMode: Dispatch<
-    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
-  >;
+  setVideoReferenceMode: Dispatch<SetStateAction<VideoReferenceMode>>;
   setVideoReferenceText: (value: string) => void;
   setVideoResolution: Dispatch<SetStateAction<string>>;
   setVoiceChangerSource: (source: VoiceChangerSource | null) => void;

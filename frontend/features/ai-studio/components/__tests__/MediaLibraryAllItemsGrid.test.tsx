@@ -34,6 +34,10 @@ describe("MediaLibraryAllItemsGrid", () => {
       configurable: true,
       value: vi.fn(),
     });
+    Object.defineProperty(HTMLMediaElement.prototype, "load", {
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   const baseProps = (): React.ComponentProps<typeof MediaLibraryAllItemsGrid> => ({
@@ -299,8 +303,8 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(readRenderedMediaCardOrder(container)).toEqual([
       "image-1.png",
       "video-1.mp4",
-      "Load audio audio-2.mp3",
-      "Load audio audio-1.mp3",
+      "Play audio audio-2.mp3",
+      "Play audio audio-1.mp3",
     ]);
   });
 
@@ -526,7 +530,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(props.onMediaDoubleClick).not.toHaveBeenCalled();
   });
 
-  it("renders an on-demand audio shell when no signed audio url is present", async () => {
+  it("requests a missing signed audio URL and starts playback from one play click", async () => {
     const props = baseProps();
     props.onRequestSignedUrl = vi
       .fn()
@@ -546,19 +550,25 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
 
-    expect(container.querySelector(".reference-card-audio")).toBeNull();
-    expect(screen.getByRole("button", { name: "Load audio voice-note-1.mp3" })).toBeInTheDocument();
-    expect(screen.getByText("Load audio")).toBeInTheDocument();
+    const audioNode = container.querySelector(".reference-card-audio");
+
+    expect(audioNode).not.toBeNull();
+    expect(audioNode).not.toHaveAttribute("src");
+    expect(screen.getByRole("button", { name: "Play audio voice-note-1.mp3" })).toBeInTheDocument();
     expect(screen.getByText("0:15")).toBeInTheDocument();
     expect(container.querySelector('[data-media-duration-kind="sound-effects"]')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Load audio voice-note-1.mp3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Play audio voice-note-1.mp3" }));
 
     await waitFor(() => {
       expect(props.onRequestSignedUrl).toHaveBeenCalledWith(
         expect.objectContaining({ id: "audio-1" })
       );
     });
+    await waitFor(() => {
+      expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+    });
+    expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note-1.mp3");
   });
 
   it("requests a signed preview when a mixed-feed image card would otherwise mount blank", async () => {

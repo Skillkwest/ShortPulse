@@ -150,6 +150,7 @@ Owns:
 Primary entry docs:
 
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
+- `docs/planning/ai-studio-video-lip-sync-implementation-plan-2026-06-08.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/sops/sop_saved_creators.md`

@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { modelOptions } from "../constants";
 import { getModelConfig } from "../logic/pricing";
-import type { StudioMode, ToolId } from "../types";
+import type { StudioMode, ToolId, VideoReferenceMode } from "../types";
 import { resolveAiStudioAllowedModelOptions } from "../logic/modelSelectionPolicy";
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 
 type UseAiStudioAllowedModelOptionsArgs = {
   selectedTool: ToolId | null;
-  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: VideoReferenceMode;
   mode: StudioMode;
   referenceImageUrl?: string | null;
   extraImageUrls?: readonly (string | null)[];

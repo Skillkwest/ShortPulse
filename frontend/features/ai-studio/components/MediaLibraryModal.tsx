@@ -427,6 +427,7 @@ export function MediaLibraryModal({
                   onSignedUrlLoaded={(id) => {
                     signedUrlRetryRef.current[id] = 0;
                   }}
+                  onRequestSignedUrl={refreshSignedUrl}
                 />
                 {hasMoreMediaPages ? (
                   <div className="media-load-more" ref={loadMoreSentinelRef}>

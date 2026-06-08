@@ -20,7 +20,7 @@ import type {
   AiStudioGenerateOutputOptions,
   AiStudioGenerateSubmissionOverrides,
 } from "./contracts/generationSubmissionContracts";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { LipSyncAudioState, StudioMode, StudioOutput, ToolId } from "../types";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -65,6 +65,7 @@ type UseAiStudioPageGenerationRuntimeParams = {
   modelPricingPolicyError?: string | null;
   modelPricingPolicyLoading?: boolean;
   modelPricingPolicyReady?: boolean;
+  lipSyncAudio?: LipSyncAudioState;
   motionReferenceVideoPending: boolean;
   motionReferenceVideoError: string | null;
   motionReferenceVideoUrl: string | null;
@@ -181,6 +182,7 @@ export const useAiStudioPageGenerationRuntime = ({
   modelPricingPolicyError,
   modelPricingPolicyLoading,
   modelPricingPolicyReady,
+  lipSyncAudio = { url: null, durationMs: null },
   motionReferenceVideoPending,
   motionReferenceVideoError,
   motionReferenceVideoUrl,
@@ -284,6 +286,7 @@ export const useAiStudioPageGenerationRuntime = ({
     videoDurationSeconds,
     videoResolution,
     videoReferenceMode,
+    lipSyncAudio,
     motionReferenceVideoPending,
     motionReferenceVideoError,
     motionReferenceVideoUrl,

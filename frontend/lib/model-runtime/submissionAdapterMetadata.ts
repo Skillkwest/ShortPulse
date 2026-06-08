@@ -29,6 +29,7 @@ export const videoSubmissionAdapterKeys = [
   "kie-veo-31-fast-i2v",
   "kie-seedance-2",
   "kie-kling-3",
+  "fal-omnihuman-v15",
 ] as const;
 
 export type VideoSubmissionAdapterKey = (typeof videoSubmissionAdapterKeys)[number];

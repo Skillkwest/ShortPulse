@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { MediaLibraryMediaGrid } from "../media-library-modal/MediaLibraryMediaGrid";
@@ -33,6 +33,18 @@ describe("MediaLibraryMediaGrid", () => {
       getVideoNodeRef: () => () => undefined,
       isVideoAutoplayEnabled: () => false,
       resolveVideoSource: (_id: string, src: string | null | undefined) => src ?? null,
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "load", {
+      configurable: true,
+      value: vi.fn(),
     });
   });
 
@@ -158,6 +170,39 @@ describe("MediaLibraryMediaGrid", () => {
     const image = screen.getByAltText("portrait.png");
     expect(image).toHaveStyle({ aspectRatio: "0.8" });
     expect(container.querySelector(".media-library-modal-grid")).toBeInTheDocument();
+  });
+
+  it("requests a missing signed audio URL and starts playback from one play click", async () => {
+    const props = baseProps();
+    props.activeMedia = [
+      {
+        id: "audio-1",
+        filename: "voice-note.mp3",
+        storage_path: "user-1/uploads/voice-note.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: null,
+        metadata: { durationMs: 8_000 },
+      },
+    ];
+    props.onRequestSignedUrl = vi.fn().mockResolvedValue("https://cdn.example.com/voice-note.mp3");
+
+    const { container } = render(<MediaLibraryMediaGrid {...props} />);
+    const audioNode = container.querySelector(".reference-card-audio");
+
+    expect(audioNode).not.toBeNull();
+    expect(audioNode).not.toHaveAttribute("src");
+    fireEvent.click(screen.getByRole("button", { name: "Play audio voice-note.mp3" }));
+
+    await waitFor(() => {
+      expect(props.onRequestSignedUrl).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "audio-1" })
+      );
+    });
+    await waitFor(() => {
+      expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+    });
+    expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note.mp3");
   });
 
   it("shows workflow reload actions only for restorable AI Studio media rows", () => {

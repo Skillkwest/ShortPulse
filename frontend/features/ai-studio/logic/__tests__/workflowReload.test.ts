@@ -162,6 +162,40 @@ describe("workflowReload", () => {
     });
 
     expect(isWorkflowReloadConfigV1(videoReload)).toBe(true);
+    const lipSyncReload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: { display: "" },
+      model: { id: "fal-ai/bytedance/omnihuman/v1.5" },
+      payload: {
+        kind: "video",
+        aspect: "9:16",
+        videoReferenceMode: "lip-sync",
+        lipSyncAudioUrl: " https://example.com/voice.mp3 ",
+        lipSyncAudioDurationMs: 12_400,
+        lipSyncTurboMode: true,
+        durationSeconds: 6,
+        resolution: "720p",
+        generateAudio: false,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: [" https://example.com/character.png "],
+      },
+    });
+
+    expect(lipSyncReload?.payload).toEqual(
+      expect.objectContaining({
+        kind: "video",
+        videoReferenceMode: "lip-sync",
+        lipSyncAudioUrl: "https://example.com/voice.mp3",
+        lipSyncAudioDurationMs: 12_400,
+        lipSyncTurboMode: true,
+        resolution: "720p",
+        referenceInputs: ["https://example.com/character.png"],
+      })
+    );
     expect(isWorkflowReloadConfigV1(musicReload)).toBe(true);
     expect(isWorkflowReloadConfigV1(sfxReload)).toBe(true);
   });
@@ -308,6 +342,50 @@ describe("workflowReload", () => {
       })
     ).toBe(true);
     expect(resolveWorkflowReloadConfigForOutput(baseOutput)).toBeNull();
+  });
+
+  it("allows video workflow reload only for generated video outputs with valid metadata", () => {
+    const baseOutput: StudioOutput = {
+      id: "video-out-1",
+      prompt: "A cinematic tracking shot",
+      mode: "video",
+      aspect: "16:9",
+      model: "Kling 3.0",
+      status: "ready",
+      timestamp: "Now",
+      mediaSource: "generated",
+      previewUrl: "https://example.com/video.mp4",
+    };
+    const videoReload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: { display: "A cinematic tracking shot" },
+      model: { id: "kie-ai/kling-3.0" },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "standard",
+        durationSeconds: 8,
+        resolution: "1080p",
+        generateAudio: true,
+        cameraFixed: false,
+        autoFix: true,
+        referenceInputs: ["https://example.com/frame.png"],
+      },
+    });
+
+    expect(
+      canReloadWorkflowOutput({ ...baseOutput, workflowReload: videoReload ?? undefined })
+    ).toBe(true);
+    expect(
+      canReloadWorkflowOutput({
+        ...baseOutput,
+        workflowReload: videoReload ?? undefined,
+        mediaSource: "upload",
+      })
+    ).toBe(false);
   });
 
   it("rejects malformed reload metadata", () => {

@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
-import type { StudioMode, ToolId } from "../../types";
+import type { StudioMode, ToolId, VideoReferenceMode } from "../../types";
 
 const ORIGINAL_WORKFLOW_SETTINGS_FLAG =
   process.env.NEXT_PUBLIC_AI_STUDIO_WORKFLOW_SETTINGS_PERSIST_ENABLED;
@@ -56,9 +56,7 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
       const [model, setModelState] = useState<string | null>(null);
       const [aspect, setAspect] = useState("9:16");
       const [imageResolution, setImageResolution] = useState("model_default");
-      const [videoReferenceMode, setVideoReferenceMode] = useState<
-        "standard" | "modify" | "keyframes" | "kling3" | "motion"
-      >("standard");
+      const [videoReferenceMode, setVideoReferenceMode] = useState<VideoReferenceMode>("standard");
       const [videoDurationSeconds, setVideoDurationSeconds] = useState(6);
       const [videoResolution, setVideoResolution] = useState("1080p");
       const [videoGenerateAudio, setVideoGenerateAudio] = useState(false);

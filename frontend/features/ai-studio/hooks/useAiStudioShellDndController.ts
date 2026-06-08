@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LibraryMediaFileType } from "../reference-ingestion/types";
+import type { ReferenceIngestionInput } from "../reference-ingestion/types";
+
+type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>["payload"];
+type LibraryPromptPayload = Extract<ReferenceIngestionInput, { kind: "libraryPrompt" }>["payload"];
 
 export type ShellDropMode = "none" | "text" | "media";
 
@@ -8,31 +11,8 @@ export type ShellDropPayload =
   | { kind: "internal" }
   | { kind: "files"; files: FileList }
   | { kind: "media"; reference: { url: string; mimeType?: string | null } }
-  | {
-      kind: "libraryMedia";
-      payload: {
-        id: string;
-        url: string;
-        fileType: LibraryMediaFileType;
-        originFolderId?: string | null;
-        filename?: string | null;
-        promptText?: string | null;
-        source?: string | null;
-        previewStoragePath?: string | null;
-        fullStoragePath?: string | null;
-        previewUrl?: string | null;
-        fullUrl?: string | null;
-      };
-    }
-  | {
-      kind: "libraryPrompt";
-      payload: {
-        id: string;
-        promptText: string;
-        originFolderId?: string | null;
-        title?: string | null;
-      };
-    }
+  | { kind: "libraryMedia"; payload: LibraryMediaPayload }
+  | { kind: "libraryPrompt"; payload: LibraryPromptPayload }
   | { kind: "text"; text: string };
 
 type UseAiStudioShellDndControllerParams = {
@@ -42,25 +22,8 @@ type UseAiStudioShellDndControllerParams = {
   resolveDropPayload: (transfer: DataTransfer) => ShellDropPayload;
   onDropFiles: (files: FileList) => void;
   onDropMediaReference?: (reference: { url: string; mimeType?: string | null }) => void;
-  onDropLibraryMediaReference?: (payload: {
-    id: string;
-    url: string;
-    fileType: LibraryMediaFileType;
-    originFolderId?: string | null;
-    filename?: string | null;
-    promptText?: string | null;
-    source?: string | null;
-    previewStoragePath?: string | null;
-    fullStoragePath?: string | null;
-    previewUrl?: string | null;
-    fullUrl?: string | null;
-  }) => void;
-  onDropLibraryPromptReference?: (payload: {
-    id: string;
-    promptText: string;
-    originFolderId?: string | null;
-    title?: string | null;
-  }) => void;
+  onDropLibraryMediaReference?: (payload: LibraryMediaPayload) => void;
+  onDropLibraryPromptReference?: (payload: LibraryPromptPayload) => void;
   onDropTextReference?: (text: string) => void;
   useRafBackpressure?: boolean;
   shouldOwnFileDrop?: (event: React.DragEvent<HTMLElement>) => boolean;

@@ -529,6 +529,28 @@ describe("VideoPropertiesPanel", () => {
     );
   });
 
+  it("keeps the Motion Control recorder prompt above motion reference drops", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "motion",
+      isMotionMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Add Motion Inputs",
+      referenceStepSubtitle: "Add motion inputs",
+    });
+
+    render(
+      <VideoPropertiesPanel {...baseProps} videoReferenceMode="motion" motionVideoUrl={null} />
+    );
+
+    const recorderPrompt = screen.getByText("Need a clip?");
+    const referenceStep = screen.getByTestId("reference-media-step");
+
+    expect(recorderPrompt.compareDocumentPosition(referenceStep)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
   it("registers the primary prompt composer as a Canvas tear-out text target", async () => {
     const registry = createCanvasTearOutComposerTargetRegistry();
     const onPromptTextChange = vi.fn();

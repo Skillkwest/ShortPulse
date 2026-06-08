@@ -1,0 +1,154 @@
+/**
+ * API coverage for browser-direct Motion Control reference-video staging routes.
+ * Verifies signed target creation, staged-byte validation, final storage, and cleanup.
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import prepareHandler from "../../pages/api/media/prepare-motion-reference-video-upload";
+import stageHandler from "../../pages/api/media/stage-motion-reference-video";
+import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
+
+const requireApiUserMock = vi.fn();
+const logApiRouteExceptionMock = vi.fn();
+const getSupabaseAdminMock = vi.fn();
+
+vi.mock("../../lib/server/api/auth", () => ({
+  requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
+}));
+
+vi.mock("../../lib/server/api/appErrorLogs", () => ({
+  logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/api/supabaseAdmin", () => ({
+  getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+const createMockResponse = () => ({
+  setHeader: vi.fn().mockReturnThis(),
+  status: vi.fn().mockReturnThis(),
+  json: vi.fn().mockReturnThis(),
+  end: vi.fn().mockReturnThis(),
+});
+
+const buildWebmVideoTrackSignature = (): Buffer =>
+  Buffer.from([
+    0x1a, 0x45, 0xdf, 0xa3, 0x87, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d, 0x18, 0x53, 0x80, 0x67,
+    0x8a, 0x16, 0x54, 0xae, 0x6b, 0x85, 0xae, 0x83, 0x83, 0x81, 0x01,
+  ]);
+
+describe("motion reference video direct-upload routes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetApiRateLimitForTests();
+    requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+  });
+
+  it("prepares a signed upload target for codec-bearing WebM recordings", async () => {
+    const createSignedUploadUrlMock = vi.fn(async (path: string) => ({
+      data: {
+        path,
+        token: "upload-token",
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUploadUrl: createSignedUploadUrlMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        sourceName: "motion-reference.webm",
+        sourceMimeType: "video/webm;codecs=vp9,opus",
+      },
+    };
+    const res = createMockResponse();
+
+    await prepareHandler(req as never, res as never);
+
+    expect(createSignedUploadUrlMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^user-1\/upload-staging\/videos\/motion-control\/.*motion-reference\.webm$/
+      )
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      target: {
+        storagePath: expect.stringMatching(
+          /^user-1\/upload-staging\/videos\/motion-control\/.*motion-reference\.webm$/
+        ),
+        uploadToken: "upload-token",
+        mimeType: "video/webm",
+        name: "motion-reference.webm",
+      },
+    });
+  });
+
+  it("stages a prepared WebM clip into the motion-control storage namespace", async () => {
+    const rawBody = buildWebmVideoTrackSignature();
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const removeMock = vi.fn(async () => ({ data: [], error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: {
+        signedUrl: "https://signed.example/motion-video",
+      },
+      error: null,
+    }));
+    const downloadMock = vi.fn(async () => ({
+      data: {
+        size: rawBody.length,
+        type: "video/webm",
+        arrayBuffer: async () =>
+          rawBody.buffer.slice(rawBody.byteOffset, rawBody.byteOffset + rawBody.byteLength),
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          download: downloadMock,
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+          remove: removeMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        sourceName: "motion-reference.webm",
+        sourceMimeType: "video/webm;codecs=vp9,opus",
+        sourceStoragePath: "user-1/upload-staging/videos/motion-control/staged.webm",
+      },
+    };
+    const res = createMockResponse();
+
+    await stageHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(downloadMock).toHaveBeenCalledWith(
+      "user-1/upload-staging/videos/motion-control/staged.webm"
+    );
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/motion-control\/.*motion-reference\.webm$/),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "video/webm", upsert: false })
+    );
+    expect(removeMock).toHaveBeenCalledWith([
+      "user-1/upload-staging/videos/motion-control/staged.webm",
+    ]);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://signed.example/motion-video",
+      path: expect.stringMatching(/^user-1\/videos\/motion-control\/.*motion-reference\.webm$/),
+      size: rawBody.length,
+      mimeType: "video/webm",
+      name: "motion-reference.webm",
+    });
+  });
+});

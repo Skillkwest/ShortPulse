@@ -4,7 +4,7 @@
  * to the canonical motion reference video path.
  */
 import React from "react";
-import { Camera, CircleNotch, X } from "phosphor-react";
+import { Camera, CircleNotch, DownloadSimple, X } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { attemptOpenCapturePermissionSettings } from "../utils/capturePermissionRecovery";
@@ -672,6 +672,18 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     }
   }, [onApplyVideo, onClose, recordedClipFile]);
 
+  const handleDownloadClipClick = React.useCallback(() => {
+    if (!recordedClipFile || !recordedClipUrl) return;
+    const downloadLink = document.createElement("a");
+    downloadLink.href = recordedClipUrl;
+    downloadLink.download = recordedClipFile.name || "motion-reference.webm";
+    downloadLink.rel = "noopener";
+    downloadLink.style.display = "none";
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+  }, [recordedClipFile, recordedClipUrl]);
+
   const handleVideoDeviceChange = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       const nextDeviceId = event.target.value;
@@ -906,6 +918,15 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                       disabled={isUploadingClip}
                     >
                       Retake
+                    </button>
+                    <button
+                      type="button"
+                      className="motion-recorder-secondary-btn"
+                      onClick={handleDownloadClipClick}
+                      disabled={isUploadingClip || !recordedClipFile}
+                    >
+                      <DownloadSimple size={14} weight="bold" />
+                      <span>Download clip</span>
                     </button>
                     <button
                       type="button"

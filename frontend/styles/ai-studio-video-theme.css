@@ -193,11 +193,11 @@
 }
 
 .video-properties-panel .video-setup-column--single .video-setup-reference-slot {
-  order: 2;
+  order: 3;
 }
 
 .video-properties-panel .video-setup-column--single .video-setup-recorder-slot {
-  order: 3;
+  order: 2;
 }
 
 .video-properties-panel .video-setup-column--single .video-setup-settings-slot {

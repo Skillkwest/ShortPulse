@@ -911,7 +911,7 @@ Checklist:
 - This durability flow does **not** create `media_files` rows and does not auto-add items to Media Library tabs.
 - If a local reference is still missing after refresh:
   - inspect client breadcrumbs for `ai_studio_session_reference_durability_upload_failed`,
-  - verify `POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image` or `POST /api/upload-video` returned `200`,
+  - verify `POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image`, `POST /api/media/prepare-motion-reference-video-upload` -> browser direct upload -> `POST /api/media/stage-motion-reference-video`, or legacy `POST /api/upload-video` returned `200`,
   - confirm the local preview URL was still present (not removed/replaced) before upload completed.
 
 ## AI Studio legacy `sid` session persistence is retired

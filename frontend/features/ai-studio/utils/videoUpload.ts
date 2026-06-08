@@ -5,6 +5,8 @@
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { resolveMotionReferenceVideoStoragePathFromUrl } from "../../../lib/motionReferenceVideoStorage";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
 import { readRememberedObjectUrlBlob } from "./objectUrlBlobRegistry";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
 
@@ -20,6 +22,7 @@ export type VideoUploadError = {
 };
 
 const SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS = 5 * 60;
+const MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS = 12_000;
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 
@@ -54,6 +57,43 @@ const shouldUploadForProviderAccess = (url: string): boolean => {
   if (LOCAL_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost")) return true;
   if (isPrivateIpv4Address(hostname)) return true;
   return false;
+};
+
+type PrepareMotionReferenceVideoUploadPayload = {
+  target?: {
+    storagePath?: unknown;
+    uploadToken?: unknown;
+    mimeType?: unknown;
+    name?: unknown;
+  };
+  error?: unknown;
+  details?: unknown;
+} | null;
+
+type StageMotionReferenceVideoPayload = {
+  url?: unknown;
+  path?: unknown;
+  size?: unknown;
+  mimeType?: unknown;
+  name?: unknown;
+  error?: unknown;
+  details?: unknown;
+} | null;
+
+const normalizeVideoUploadMimeType = (mimeType: string): string =>
+  (mimeType.split(";")[0] ?? "").trim().toLowerCase() || "video/mp4";
+
+const resolveVideoUploadPipelineError = (
+  payload: { error?: unknown; details?: unknown } | null,
+  fallbackMessage: string
+): string => {
+  if (typeof payload?.details === "string" && payload.details.trim()) {
+    return payload.details.trim();
+  }
+  if (typeof payload?.error === "string" && payload.error.trim()) {
+    return payload.error.trim();
+  }
+  return fallbackMessage;
 };
 
 const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> => {
@@ -116,33 +156,91 @@ const uploadVideoBlob = async ({
   mimeType: string;
   filename: string;
 }): Promise<VideoUploadResult> => {
-  const uploadResponse = await fetchWithAuth("/api/upload-video", {
+  const normalizedMimeType = normalizeVideoUploadMimeType(mimeType || blob.type);
+  const prepareResponse = await fetchWithAuth("/api/media/prepare-motion-reference-video-upload", {
     method: "POST",
     headers: {
-      "Content-Type": mimeType || "video/mp4",
-      "x-shortpulse-upload-filename": filename,
+      "Content-Type": "application/json",
     },
-    body: blob,
+    body: JSON.stringify({
+      sourceMimeType: normalizedMimeType,
+      sourceName: filename,
+    }),
+    shortpulseLogScope: "generation",
+    shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
+    shortpulseRetryNetworkOnce: true,
   });
+  const preparePayload = (await prepareResponse
+    .json()
+    .catch(() => null)) as PrepareMotionReferenceVideoUploadPayload;
+  const storagePath =
+    typeof preparePayload?.target?.storagePath === "string"
+      ? preparePayload.target.storagePath.trim()
+      : "";
+  const uploadToken =
+    typeof preparePayload?.target?.uploadToken === "string"
+      ? preparePayload.target.uploadToken.trim()
+      : "";
+  const preparedMimeType =
+    typeof preparePayload?.target?.mimeType === "string"
+      ? preparePayload.target.mimeType.trim()
+      : normalizedMimeType;
+  const preparedName =
+    typeof preparePayload?.target?.name === "string" ? preparePayload.target.name.trim() : filename;
 
-  if (!uploadResponse.ok) {
-    const errorData = await uploadResponse.json().catch(() => ({}));
-    const errorMessage =
-      typeof errorData?.error === "string" && errorData.error.trim().length
-        ? errorData.error.trim()
-        : "Video upload failed";
-    const errorDetails =
-      typeof errorData?.details === "string" && errorData.details.trim().length
-        ? errorData.details.trim()
-        : null;
-    throw new Error(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
+  if (!prepareResponse.ok || !storagePath || !uploadToken) {
+    throw new Error(
+      resolveVideoUploadPipelineError(
+        preparePayload,
+        "Unable to prepare motion reference video upload."
+      )
+    );
   }
 
-  const result: VideoUploadResult = await uploadResponse.json();
-  if (!result?.url || !result?.path) {
+  const supabase = ensureSupabaseQueryClient();
+  const uploadToSignedUrlResult = await supabase.storage
+    .from(BUCKET)
+    .uploadToSignedUrl(storagePath, uploadToken, blob, {
+      contentType: preparedMimeType,
+      upsert: false,
+    });
+  if (uploadToSignedUrlResult.error) {
+    throw new Error(
+      uploadToSignedUrlResult.error.message || "Unable to upload the motion reference video."
+    );
+  }
+
+  const finalizeResponse = await fetchWithAuth("/api/media/stage-motion-reference-video", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sourceMimeType: preparedMimeType,
+      sourceName: preparedName,
+      sourceStoragePath: storagePath,
+    }),
+    shortpulseLogScope: "generation",
+    shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
+    shortpulseRetryNetworkOnce: true,
+  });
+  const result = (await finalizeResponse
+    .json()
+    .catch(() => null)) as StageMotionReferenceVideoPayload;
+
+  if (!finalizeResponse.ok) {
+    throw new Error(
+      resolveVideoUploadPipelineError(result, `Video upload failed (${finalizeResponse.status})`)
+    );
+  }
+
+  const url = typeof result?.url === "string" ? result.url.trim() : "";
+  const path = typeof result?.path === "string" ? result.path.trim() : "";
+  const size = typeof result?.size === "number" ? result.size : blob.size;
+  if (!url || !path) {
     throw new Error("Video upload failed: missing signed delivery metadata.");
   }
-  return result;
+  return { url, path, size };
 };
 
 /**

@@ -132,6 +132,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - `kling_elements` when present
 - Legacy/restored custom state is normalized before submit and sends the same payload shape as current `Multi`.
 - Motion Control remains separate and uses the Kie motion-control route (`model = kling-3.0/motion-control`) with one character image, one motion video, `mode=720p|1080p`, and the Motion audio setting. Motion does not submit standard-video `aspect_ratio` or `duration`; text direction is optional once both motion inputs are present.
+- Local or recorded Motion Control clips stage through `POST /api/media/prepare-motion-reference-video-upload` -> browser direct upload -> `POST /api/media/stage-motion-reference-video`, then enter the slot as the same `{ url, path, size }` motion-reference contract used by older `/api/upload-video` compatibility uploads.
 
 ## Reference-based video workflow (Create → Video, image-to-video models)
 

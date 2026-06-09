@@ -470,7 +470,11 @@ export function useExpertEditPrimaryIngress({
     [allowPrimaryImageDrag]
   );
 
-  const handlePrimaryDragLeave = React.useCallback(() => {
+  const handlePrimaryDragLeave = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
     setPrimaryDragActive(false);
   }, []);
 

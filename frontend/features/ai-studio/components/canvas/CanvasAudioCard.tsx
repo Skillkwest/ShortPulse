@@ -9,7 +9,9 @@ import type { CanvasAudioItem } from "./canvasTypes";
 const isInteractiveAudioTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
   return Boolean(
-    target.closest(".reference-card-audio-play, .reference-card-audio-waveform-control")
+    target.closest(
+      ".reference-card-audio-play, .reference-card-audio-waveform-control, .reference-card-audio-download"
+    )
   );
 };
 

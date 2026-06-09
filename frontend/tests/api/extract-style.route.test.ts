@@ -189,4 +189,40 @@ describe("POST /api/ai/extract-style", () => {
       })
     );
   });
+
+  it("sanitizes upstream provider detail before returning extraction failures", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        "Your request was rejected by the safety system. If you believe this is an error, contact us at help.openai.com and include the request ID req_3d45ff849f924f518429b524432e4ac1. safety_violations=[sexual].",
+        { status: 400 }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "upstream_error",
+        detail: "Your request was blocked by the safety system. Reason: sexual.",
+      })
+    );
+    expect(res.json).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: expect.any(String),
+      })
+    );
+    const payload = vi.mocked(res.json).mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(String(payload.detail)).not.toMatch(/OpenAI|help\.openai\.com|request ID|req_/i);
+    expect(payload).not.toHaveProperty("model");
+  });
 });

@@ -5,6 +5,7 @@
 import type { NextApiRequest } from "next";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
 import { AgentPromptId } from "../../lib/agentPromptsConfig";
+import { sanitizeCustomerFacingProviderText } from "../../lib/customerFacingProviderText";
 import {
   resolveRequiredStyleExtractionFallbackVisionModelId,
   resolveRequiredStyleExtractionVisionModelId,
@@ -35,6 +36,7 @@ const DEFAULT_FALLBACK_VISION_MODEL = resolveRequiredStyleExtractionFallbackVisi
 const MAX_STYLE_PROMPT_LENGTH = 4000;
 const MAX_STYLE_TITLE_LENGTH = 80;
 const DEFAULT_STYLE_TITLE_FALLBACK = "Extracted Style";
+const STYLE_EXTRACTION_UNAVAILABLE_MESSAGE = "Style extraction is temporarily unavailable.";
 
 const clampStylePrompt = (value: string): string => {
   const trimmed = value.trim();
@@ -298,7 +300,7 @@ export const executeStyleExtraction = async ({
       status: 500,
       payload: {
         ...machineOutcome,
-        error: "OPENAI_API_KEY is not set",
+        error: STYLE_EXTRACTION_UNAVAILABLE_MESSAGE,
       },
     };
   }
@@ -326,7 +328,7 @@ export const executeStyleExtraction = async ({
       status: 500,
       payload: {
         ...machineOutcome,
-        error: `${STYLE_EXTRACTOR_ID} is not set`,
+        error: STYLE_EXTRACTION_UNAVAILABLE_MESSAGE,
       },
     };
   }
@@ -437,6 +439,7 @@ export const executeStyleExtraction = async ({
 
     if (!extractionAttempt.ok) {
       const detail = extractionAttempt.detail;
+      const customerDetail = sanitizeCustomerFacingProviderText(detail, "Style extraction failed.");
       const modelUsedForFailure = extractionAttempt.model;
       const fallbackReason = resolveStudioAgentFallbackReasonLabel({
         status: extractionAttempt.status,
@@ -475,11 +478,8 @@ export const executeStyleExtraction = async ({
         payload: {
           ...machineOutcome,
           error: "Upstream error",
-          detail,
+          detail: customerDetail,
           fallback_reason: fallbackReason,
-          ...(extractionAttempt.status < 500 && modelUsedForFailure
-            ? { model: modelUsedForFailure }
-            : {}),
         },
         diagnostics: {
           attemptCount,

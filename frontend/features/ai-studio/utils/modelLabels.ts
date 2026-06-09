@@ -6,6 +6,6 @@
  */
 export const stripEditLabel = (label: string) =>
   label
-    .replace(/\s+\(Kie\)$/i, "")
+    .replace(/\s+\((?:Kie|Kai|Chi)(?:\.ai)?\)$/i, "")
     .replace(/\s+Edit$/i, "")
     .trim();

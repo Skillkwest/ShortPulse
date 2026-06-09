@@ -33,6 +33,7 @@ const makeParams = (output: StudioOutput | null) => ({
   beginManualWorkflowReload: vi.fn(),
   findOutputById: vi.fn(() => output),
   prepareCreateCharacterWorkflowReload: vi.fn(),
+  prepareImageStyleWorkflowReload: vi.fn(),
   prepareStandardCreateWorkflowReload: vi.fn(),
   setAspect: makeSetter<string>(),
   setEditReferenceText: vi.fn(),
@@ -126,6 +127,13 @@ const makeImageReload = (): WorkflowReloadConfigV1 => ({
       lookName: "Main",
       characterProfileImageUrl: "https://example.com/rozalin.png",
     },
+    styleContext: {
+      applied: true,
+      styleId: "style-cinematic",
+      styleName: "Cinematic",
+      stylePrompt: "cinematic contrast and rich shadows",
+      stylePreviewImageUrl: "https://example.com/style.png",
+    },
   },
 });
 
@@ -154,6 +162,13 @@ describe("useAiStudioWorkflowReloadController", () => {
         applied: true,
         characterId: "char-1",
         lookId: "main",
+      })
+    );
+    expect(params.prepareImageStyleWorkflowReload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applied: true,
+        styleId: "style-cinematic",
+        stylePrompt: "cinematic contrast and rich shadows",
       })
     );
     expect(params.setStandardCreatePrompt).toHaveBeenCalledWith("A luminous harbor");
@@ -199,6 +214,45 @@ describe("useAiStudioWorkflowReloadController", () => {
         lookId: "look-output",
       })
     );
+  });
+
+  it("falls back to output style context for restored generated rows", () => {
+    const workflowReload = makeImageReload();
+    delete (workflowReload.payload as WorkflowReloadImagePayload).styleContext;
+    const output = makeOutput(workflowReload);
+    output.styleContext = {
+      applied: true,
+      styleId: "style-output",
+      styleName: "Output Style",
+      stylePrompt: "archival fashion editorial grain",
+    };
+    const params = makeParams(output);
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    expect(params.prepareImageStyleWorkflowReload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        styleId: "style-output",
+        stylePrompt: "archival fashion editorial grain",
+      })
+    );
+  });
+
+  it("clears selected image style when the reloaded image used no style", () => {
+    const workflowReload = makeImageReload();
+    delete (workflowReload.payload as WorkflowReloadImagePayload).styleContext;
+    const output = makeOutput(workflowReload);
+    const params = makeParams(output);
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    expect(params.prepareImageStyleWorkflowReload).toHaveBeenCalledWith(null);
   });
 
   it("does not prepare Standard chat mode for Pulse create image reloads", () => {
@@ -419,6 +473,7 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(blocked).toEqual({ status: "voice_unavailable", outputId: "out-1" });
     expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
     expect(params.prepareCreateCharacterWorkflowReload).not.toHaveBeenCalled();
+    expect(params.prepareImageStyleWorkflowReload).not.toHaveBeenCalled();
     expect(params.prepareStandardCreateWorkflowReload).not.toHaveBeenCalled();
   });
 });

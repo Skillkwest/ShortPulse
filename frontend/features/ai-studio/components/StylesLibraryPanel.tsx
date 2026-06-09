@@ -72,6 +72,8 @@ export function StylesLibraryPanel({
     setLocalDeleteError,
     closeDeleteModal,
     closeEditModal,
+    dismissStylesLibraryDropError,
+    dismissStylePreviewGenerationError,
     handleStylesLibraryDragEnter,
     handleStylesLibraryDragOver,
     handleStylesLibraryDragLeave,
@@ -137,7 +139,9 @@ export function StylesLibraryPanel({
             className="styles-library-drop-error tiny"
             tone="error"
             mode="inline"
+            title="Style creation issue"
             message={stylesLibraryDropError}
+            onDismiss={dismissStylesLibraryDropError}
           />
         ) : null}
         {stylePreviewGenerationError ? (
@@ -145,7 +149,9 @@ export function StylesLibraryPanel({
             className="styles-library-drop-error tiny"
             tone="error"
             mode="inline"
+            title="Style preview not created"
             message={stylePreviewGenerationError}
+            onDismiss={dismissStylePreviewGenerationError}
           />
         ) : null}
       </header>

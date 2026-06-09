@@ -20,6 +20,10 @@ type PrimaryStageShellProps = {
   onPointerCancel?: React.PointerEventHandler<HTMLDivElement>;
   onPointerLeave?: React.PointerEventHandler<HTMLDivElement>;
   onWheel?: React.WheelEventHandler<HTMLDivElement>;
+  onDrop?: React.DragEventHandler<HTMLDivElement>;
+  onDragEnter?: React.DragEventHandler<HTMLDivElement>;
+  onDragOver?: React.DragEventHandler<HTMLDivElement>;
+  onDragLeave?: React.DragEventHandler<HTMLDivElement>;
 };
 
 export function PrimaryStageShell({
@@ -38,6 +42,10 @@ export function PrimaryStageShell({
   onPointerCancel,
   onPointerLeave,
   onWheel,
+  onDrop,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
 }: PrimaryStageShellProps) {
   const handleBackdropPointerDown = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
     (event) => {
@@ -91,7 +99,7 @@ export function PrimaryStageShell({
   return (
     <div
       ref={stageRef}
-      className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell ${
+      className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell edit-expert-transform-chrome-clip-boundary ${
         isEmpty ? "is-empty-stage" : ""
       }`}
       style={{ minHeight: "calc(var(--edit-expert-primary-size) + 72px)" }}
@@ -109,6 +117,10 @@ export function PrimaryStageShell({
       onPointerCancel={onPointerCancel ? handleBackdropPointerCancel : undefined}
       onPointerLeave={onPointerLeave ? handleBackdropPointerLeave : undefined}
       onWheel={onWheel ? handleBackdropWheel : undefined}
+      onDrop={onDrop}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
     >
       {children}
       {overlayActions}

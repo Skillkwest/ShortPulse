@@ -205,6 +205,32 @@ describe("MediaLibraryMediaGrid", () => {
     expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note.mp3");
   });
 
+  it("downloads signed audio from the inline audio card button without selecting or playing", () => {
+    const props = baseProps();
+    props.activeMedia = [
+      {
+        id: "audio-1",
+        filename: "voice-note.mp3",
+        storage_path: "user-1/uploads/voice-note.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note.mp3",
+        metadata: { durationMs: 8_000 },
+      },
+    ];
+
+    render(<MediaLibraryMediaGrid {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Download audio voice-note.mp3" }));
+
+    expect(props.onDownloadMediaFile).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "audio-1" })
+    );
+    expect(props.onSelectMediaFile).not.toHaveBeenCalled();
+    expect(props.onToggleMediaSelection).not.toHaveBeenCalled();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+
   it("shows workflow reload actions only for restorable AI Studio media rows", () => {
     const onReloadWorkflowFromMedia = vi.fn();
     const props = baseProps();

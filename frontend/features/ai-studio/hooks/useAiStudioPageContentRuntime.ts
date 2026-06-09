@@ -72,6 +72,7 @@ type UseAiStudioPageContentRuntimeParams = {
   onCreateSelectedCharacterIdChange: AiStudioPageContentProps["onCreateSelectedCharacterIdChange"];
   resolveElementProfileImageDropSource: AiStudioPageContentProps["resolveElementProfileImageDropSource"];
   resolveVoiceChangerInternalReferenceSource: AiStudioPageContentProps["resolveVoiceChangerInternalReferenceSource"];
+  onRegisterWorkflowReloadStylePrep: AiStudioPageContentProps["onRegisterWorkflowReloadStylePrep"];
   onSelectedStylePromptChange: AiStudioPageContentProps["onSelectedStylePromptChange"];
   onSelectedStyleContextChange: AiStudioPageContentProps["onSelectedStyleContextChange"];
 };
@@ -146,6 +147,7 @@ export const useAiStudioPageContentRuntime = ({
   onCreateSelectedCharacterIdChange,
   resolveElementProfileImageDropSource,
   resolveVoiceChangerInternalReferenceSource,
+  onRegisterWorkflowReloadStylePrep,
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: UseAiStudioPageContentRuntimeParams): AiStudioPageContentProps =>
@@ -217,6 +219,7 @@ export const useAiStudioPageContentRuntime = ({
       onCreateSelectedCharacterIdChange,
       resolveElementProfileImageDropSource,
       resolveVoiceChangerInternalReferenceSource,
+      onRegisterWorkflowReloadStylePrep,
       onSelectedStylePromptChange,
       onSelectedStyleContextChange,
     }),
@@ -287,6 +290,7 @@ export const useAiStudioPageContentRuntime = ({
       onCreateSelectedCharacterIdChange,
       resolveElementProfileImageDropSource,
       resolveVoiceChangerInternalReferenceSource,
+      onRegisterWorkflowReloadStylePrep,
       onSelectedStylePromptChange,
       onSelectedStyleContextChange,
     ]

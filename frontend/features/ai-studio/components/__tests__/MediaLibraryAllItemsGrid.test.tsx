@@ -484,6 +484,32 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(screen.queryByAltText("voice-note-1.mp3")).toBeNull();
   });
 
+  it("downloads signed audio from the mixed-feed inline audio button without selecting or playing", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note-1.mp3",
+        storage_path: "user-1/uploads/voice-note-1.mp3",
+        preview_storage_path: "user-1/uploads/voice-note-1.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note-1.mp3",
+        metadata: null,
+      },
+    ];
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Download audio voice-note-1.mp3" }));
+
+    expect(props.onDownloadMediaFile).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "audio-1" })
+    );
+    expect(props.onSelectMediaFile).not.toHaveBeenCalled();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+
   it("marks signed audio URLs as loaded when the player becomes ready", () => {
     const props = baseProps();
     props.mediaRows = [

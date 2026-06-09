@@ -289,7 +289,7 @@ describe("POST /api/ai/generate-style-preview", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to generate style preview",
-      details: "provider down",
+      details: "The generation service is temporarily unavailable.",
     });
   });
 });

@@ -472,6 +472,22 @@
   pointer-events: auto;
 }
 
+.reference-card-workflow-reload-actions {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  pointer-events: none;
+}
+
+.reference-card.is-active .reference-card-workflow-reload-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .reference-card-action-btn {
   width: 30px;
   height: 30px;
@@ -690,6 +706,16 @@
   background:
     radial-gradient(circle at top, rgba(108, 205, 255, 0.18), transparent 58%),
     linear-gradient(180deg, rgba(18, 24, 31, 0.96), rgba(12, 17, 24, 0.98));
+}
+
+.reference-card-audio-download {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  z-index: 3;
+  pointer-events: auto;
 }
 
 .reference-card-audio-player {

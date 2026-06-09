@@ -174,6 +174,56 @@ describe("ExpertEditPanelView interaction flow", () => {
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
   });
 
+  it("creates a second layer when dropping over the selected layer transform chrome", async () => {
+    render(
+      <ExpertEditPanelView
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl="https://example.com/original.png"
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={buildSessionState()}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    const transformOverlay = await screen.findByTestId("edit-expert-transform-overlay-inline");
+    const dataTransfer = makeImageDropDataTransfer("https://example.com/added-over-transform.png");
+    fireEvent.dragOver(transformOverlay, { dataTransfer });
+    fireEvent.drop(transformOverlay, { dataTransfer });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+  });
+
   it("preserves prompt-box undo ownership instead of undoing panel history", async () => {
     render(
       <ExpertEditPanelView
@@ -326,12 +376,14 @@ describe("ExpertEditPanelView interaction flow", () => {
     const chromeLayer = screen.getByTestId("edit-expert-transform-chrome-layer-inline");
     const renderClip = document.querySelector(".edit-expert-stage-render-clip");
     const compositionSurface = screen.getByLabelText("Primary composition surface");
+    const stageShell = transformOverlay.closest(".edit-expert-primary-stage-shell");
 
     expect(renderClip).toContainElement(compositionSurface);
     expect(chromeLayer).toContainElement(transformOverlay);
     expect(transformOverlay.closest(".edit-expert-stage-render-clip")).toBeNull();
     expect(transformOverlay.closest(".edit-expert-primary-composition-surface")).toBeNull();
     expect(transformOverlay.closest(".edit-expert-stage-camera-layer--chrome")).not.toBeNull();
+    expect(stageShell).toHaveClass("edit-expert-transform-chrome-clip-boundary");
   });
 
   it("keeps layers while Reset All clears transform, markup, and inpaint session state", async () => {

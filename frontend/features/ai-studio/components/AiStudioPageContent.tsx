@@ -689,6 +689,9 @@ export type AiStudioPageContentProps = {
   onCreateSelectedCharacterIdChange?: (characterId: string | null) => void;
   resolveElementProfileImageDropSource?: ResolveInternalReferenceDrop;
   resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
+  onRegisterWorkflowReloadStylePrep?: (
+    handler: ((styleContext: StudioOutput["styleContext"] | null) => void) | null
+  ) => void;
   onSelectedStylePromptChange?: (stylePrompt: string | null) => void;
   onSelectedStyleContextChange?: (styleContext: StudioOutput["styleContext"] | null) => void;
 };
@@ -758,6 +761,7 @@ export function AiStudioPageContent({
   onCreateSelectedCharacterIdChange,
   resolveElementProfileImageDropSource,
   resolveVoiceChangerInternalReferenceSource,
+  onRegisterWorkflowReloadStylePrep,
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
@@ -789,6 +793,24 @@ export function AiStudioPageContent({
   const [expandedRightRailTarget, setExpandedRightRailTarget] =
     React.useState<ExpandableRightRailHeaderButtonId | null>(null);
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
+  const handleWorkflowReloadStylePrep = React.useCallback(
+    (styleContext: StudioOutput["styleContext"] | null) => {
+      const nextStyleId = styleContext?.applied ? styleContext.styleId?.trim() || null : null;
+      setSelectedStyleId(nextStyleId);
+      setPanelVisibility((previous) => {
+        if (!previous.styles) return previous;
+        return {
+          ...previous,
+          styles: false,
+        };
+      });
+    },
+    []
+  );
+  React.useEffect(() => {
+    onRegisterWorkflowReloadStylePrep?.(handleWorkflowReloadStylePrep);
+    return () => onRegisterWorkflowReloadStylePrep?.(null);
+  }, [handleWorkflowReloadStylePrep, onRegisterWorkflowReloadStylePrep]);
   const [activeVoiceChangerSourceVideo, setActiveVoiceChangerSourceVideo] =
     React.useState<ActiveVoiceChangerSourceVideo | null>(null);
   const externalActiveVoiceChangerSourceVideoChange =

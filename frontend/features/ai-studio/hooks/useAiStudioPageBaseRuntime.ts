@@ -87,10 +87,19 @@ export const useAiStudioPageBaseRuntime = () => {
   const createCharacterWorkflowReloadPrepRef = useRef<
     ((characterContext: StudioOutput["characterContext"] | null) => void) | null
   >(null);
+  const imageStyleWorkflowReloadPrepRef = useRef<
+    ((styleContext: StudioOutput["styleContext"] | null) => void) | null
+  >(null);
   const standardCreateWorkflowReloadPrepRef = useRef<((prompt: string) => void) | null>(null);
   const setCreateCharacterWorkflowReloadPrep = useCallback(
     (handler: ((characterContext: StudioOutput["characterContext"] | null) => void) | null) => {
       createCharacterWorkflowReloadPrepRef.current = handler;
+    },
+    []
+  );
+  const setImageStyleWorkflowReloadPrep = useCallback(
+    (handler: ((styleContext: StudioOutput["styleContext"] | null) => void) | null) => {
+      imageStyleWorkflowReloadPrepRef.current = handler;
     },
     []
   );
@@ -160,6 +169,15 @@ export const useAiStudioPageBaseRuntime = () => {
   } = useAiStudioPageLocalState({
     sessionId,
   });
+  const prepareImageStyleWorkflowReload = useCallback(
+    (styleContext: StudioOutput["styleContext"] | null) => {
+      const nextStyleContext = styleContext?.applied ? styleContext : null;
+      imageStyleWorkflowReloadPrepRef.current?.(nextStyleContext);
+      setSelectedStyleContext(nextStyleContext);
+      setSelectedStylePrompt(nextStyleContext?.stylePrompt?.trim() || null);
+    },
+    [setSelectedStyleContext, setSelectedStylePrompt]
+  );
   const {
     bootstrapProjectId,
     requestedProjectId,
@@ -389,6 +407,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setPulseSessionInstanceId,
     setVoiceChangerSource: handleVoiceChangerSourceChange,
     prepareCreateCharacterWorkflowReload,
+    prepareImageStyleWorkflowReload,
     prepareStandardCreateWorkflowReload,
   });
   const {
@@ -759,6 +778,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setActiveOutputId,
     setAspect,
     setCreateCharacterWorkflowReloadPrep,
+    setImageStyleWorkflowReloadPrep,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,
     setDetailSelectionTarget,

@@ -258,9 +258,11 @@ describe("ReferenceGrid curated split", () => {
       ".reference-all-refs-section"
     ) as HTMLElement | null;
     expect(allRefsSection).toBeTruthy();
-    expect(within(allRefsSection as HTMLElement).getByText(message)).toHaveClass(
-      "reference-grid-top-warning"
-    );
+    expect(
+      within(allRefsSection as HTMLElement)
+        .getByText(message)
+        .closest(".reference-grid-top-warning")
+    ).toBeTruthy();
   });
 
   it("keeps reference-grid archive controls inside the all-refs section when curated split is disabled", async () => {
@@ -807,7 +809,9 @@ describe("ReferenceGrid curated split", () => {
     expect(
       requestedHydrationSources.filter((value) => value.startsWith("/_next/image?"))
     ).toHaveLength(1);
-    expect(requestedHydrationSources.includes(fallbackUrl)).toBe(false);
+    expect(
+      requestedHydrationSources.filter((value) => value === fallbackUrl).length
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("bypasses optimizer on same-source cross-card hydration after first optimizer failure", async () => {
@@ -1237,6 +1241,41 @@ describe("ReferenceGrid curated split", () => {
 
     fireEvent.click(getAllByLabelText("Download reference")[0] as HTMLElement);
     expect(onDownload).toHaveBeenCalledWith(expect.objectContaining({ id: "out-1" }));
+  });
+
+  it("fires the inline audio download action without starting playback", () => {
+    const onDownload = vi.fn();
+    const onSelectOutput = vi.fn();
+    const audioOutput: StudioOutput = {
+      id: "audio-out-1",
+      prompt: "Audio reference",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/audio-out-1.mp3",
+      mediaSource: "generated",
+      generationId: "gen-audio-1",
+    };
+    const playSpy = vi.spyOn(window.HTMLMediaElement.prototype, "play");
+
+    const { getByLabelText } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [audioOutput],
+          activeOutputId: audioOutput.id,
+          onDownload,
+          onSelectOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(getByLabelText("Download reference"));
+
+    expect(onDownload).toHaveBeenCalledWith(expect.objectContaining({ id: "audio-out-1" }));
+    expect(onSelectOutput).toHaveBeenCalledWith("audio-out-1");
+    expect(playSpy).not.toHaveBeenCalled();
   });
 
   it("shows curated remove and download actions in quick slot card actions for image media", () => {

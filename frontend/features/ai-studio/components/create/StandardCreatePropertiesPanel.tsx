@@ -22,6 +22,7 @@ import { StylesControl } from "../StylesControl";
 import { resolveCreateModelModalContext } from "../../logic/createModelModalContext";
 import { deriveCreateSelectorViewState } from "../../logic/createSelectorState";
 import { getModelConfig } from "../../logic/modelRegistry";
+import { stripEditLabel } from "../../utils/modelLabels";
 import { StandardCreatePanelView } from "./StandardCreatePanelView";
 import {
   OPENAI_GPT_IMAGE_2_MODEL_ID,
@@ -178,7 +179,7 @@ export function StandardCreatePropertiesPanel({
   onPinPromptReference,
 }: StandardCreatePropertiesPanelProps) {
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
-  const effectiveModelLabel = modelLabel;
+  const effectiveModelLabel = stripEditLabel(modelLabel);
   const effectiveModelLogoSrc = modelLogoSrc;
   const useUnoptimizedModelLogo = false;
   const modelConfig = useMemo(() => (modelId ? getModelConfig(modelId) : null), [modelId]);

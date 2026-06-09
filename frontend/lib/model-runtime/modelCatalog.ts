@@ -1252,7 +1252,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     apiRouteSlug: "bria-background-remove",
   }),
   "gpt-image-2": activePickerPricingRuntime({
-    label: "GPT Image 2",
+    label: "GPT Image 2 Fast",
     mediaType: "image",
     pricingStrategy: "gpt-image-2-per-image",
     displayFamily: "Image",

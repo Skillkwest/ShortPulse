@@ -3,6 +3,7 @@
  * Uses the style extraction system prompt defined in `frontend/lib/agentPromptsConfig.ts`.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 
 export type StyleExtractionFailureClass =
   | "timeout"
@@ -183,10 +184,13 @@ export const postExtractStyle = async (imageDataUrl: string): Promise<StyleExtra
         (typeof payload?.error === "string" && payload.error.trim()) ||
         null;
       const detail = rawDetail?.replace(/\bAbortError\b.*$/i, "").trim();
+      const sanitizedDetail = detail
+        ? sanitizeCustomerFacingProviderText(detail, STYLE_EXTRACTION_GENERIC_MESSAGE)
+        : null;
       throw createStyleExtractionError({
         failureClass: "upstream_http",
-        userMessage: detail?.length
-          ? detail
+        userMessage: sanitizedDetail?.length
+          ? sanitizedDetail
           : `Style extraction request failed (${response.status}).`,
         attemptCount:
           responseMetrics.attemptCount && responseMetrics.attemptCount > 0

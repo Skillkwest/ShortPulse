@@ -151,4 +151,31 @@ describe("styleExtraction helpers", () => {
     );
     expect(fetchWithAuth).toHaveBeenCalledTimes(1);
   });
+
+  it("sanitizes provider support details from upstream HTTP failures", async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          detail:
+            "Your request was rejected by the safety system. If you believe this is an error, contact us at help.openai.com and include the request ID req_3d45ff849f924f518429b524432e4ac1. safety_violations=[sexual].",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+
+    try {
+      await postExtractStyle("data:image/jpeg;base64,abc123");
+      throw new Error("Expected postExtractStyle to reject.");
+    } catch (error) {
+      expect(isStyleExtractionError(error)).toBe(true);
+      if (!isStyleExtractionError(error)) return;
+      expect(error.userMessage).toBe(
+        "Your request was blocked by the safety system. Reason: sexual."
+      );
+      expect(error.userMessage).not.toMatch(/OpenAI|help\.openai\.com|request ID|req_/i);
+    }
+  });
 });

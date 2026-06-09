@@ -345,6 +345,14 @@ export const useStyleCreatorController = ({
     setStylePromptExtractionError(null);
   }, [editSubmitting]);
 
+  const dismissStylesLibraryDropError = React.useCallback(() => {
+    setStylesLibraryDropError(null);
+  }, []);
+
+  const dismissStylePreviewGenerationError = React.useCallback(() => {
+    setStylePreviewGenerationError(null);
+  }, []);
+
   const applyExtractedStyleToCreateDraft = React.useCallback(
     ({ stylePrompt, styleTitle }: { stylePrompt: string; styleTitle: string }) => {
       setPendingStyleEdit((previous) => {
@@ -599,6 +607,7 @@ export const useStyleCreatorController = ({
       if (createStyleFromDropSubmitting) return;
       setCreateStyleFromDropSubmitting(true);
       setStylesLibraryDropError(null);
+      setStylePreviewGenerationError(null);
       try {
         const resolvedSource = await resolveProcessedStyleSource({
           dropSnapshot,
@@ -983,6 +992,8 @@ export const useStyleCreatorController = ({
     setLocalSaveError,
     closeDeleteModal,
     closeEditModal,
+    dismissStylesLibraryDropError,
+    dismissStylePreviewGenerationError,
     handleStylesLibraryDragEnter,
     handleStylesLibraryDragOver,
     handleStylesLibraryDragLeave,

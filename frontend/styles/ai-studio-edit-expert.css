@@ -1901,7 +1901,7 @@
 
 .edit-expert-primary-stage-shell {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   border-radius: 0;
   background: rgba(26, 28, 31, 0.72);
 }

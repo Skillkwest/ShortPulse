@@ -80,6 +80,7 @@ const MODEL_MODAL_TEXT_IMAGE_SECONDARY_MODEL_IDS = [
 const MODEL_MODAL_TEXT_IMAGE_MODEL_PRIORITY = [
   MODEL_MODAL_TEXT_IMAGE_STARTUP_MODEL_ID,
   ...MODEL_MODAL_TEXT_IMAGE_SECONDARY_MODEL_IDS,
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
   KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
 ] as const;
@@ -88,6 +89,7 @@ const MODEL_MODAL_EDIT_IMAGE_MODEL_PRIORITY = [
   ...MODEL_MODAL_TEXT_IMAGE_SECONDARY_MODEL_IDS.map(
     (modelId) => getPairedModelId(modelId) ?? modelId
   ),
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
 ] as const;
 
@@ -118,7 +120,13 @@ const defaultFamilyPriority = [
   "other",
 ];
 
-const IMAGE_MODAL_PROVIDER_PRIORITY = ["ByteDance", "Google", "Black Forest Labs"];
+const IMAGE_MODAL_PROVIDER_PRIORITY = [
+  "ByteDance",
+  "Google",
+  "OpenAI",
+  "Kie AI",
+  "Black Forest Labs",
+];
 const VIDEO_MODAL_PROVIDER_PRIORITY = ["Kie AI"];
 
 const providerPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
@@ -142,12 +150,6 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
     KIE_SEEDANCE_2_MODEL_ID,
     KIE_SEEDANCE_2_FAST_MODEL_ID,
   ],
-};
-
-const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "character-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
-  "text-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
-  "reference-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
 };
 
 const videoModalContexts = new Set<ModelModalContext>([
@@ -257,19 +259,14 @@ function ModelModalContent({
     return () => window.cancelAnimationFrame(frame);
   }, [isOpen]);
 
-  const contextHiddenModelIds = useMemo(
-    () => new Set(context ? (hiddenModelIdsByContext[context] ?? []) : []),
-    [context]
-  );
   const visibleOptions = useMemo(
     () =>
       options.filter(
         (option) =>
-          !contextHiddenModelIds.has(option.value) &&
           modelMatchesModalContext(option, context) &&
           (isSeedance2UiEnabled() || !isSeedance2ModelId(option.value))
       ),
-    [context, contextHiddenModelIds, options]
+    [context, options]
   );
 
   useEffect(() => {

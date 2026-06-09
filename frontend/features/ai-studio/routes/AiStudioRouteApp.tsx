@@ -882,6 +882,7 @@ const AiStudioPageRuntimeBody = ({
     onCreateSelectedCharacterIdChange: handleCharacterPanelSelectedCharacterChange,
     resolveElementProfileImageDropSource,
     resolveVoiceChangerInternalReferenceSource,
+    onRegisterWorkflowReloadStylePrep: base.setImageStyleWorkflowReloadPrep,
     onSelectedStylePromptChange: setSelectedStylePrompt,
     onSelectedStyleContextChange: setSelectedStyleContext,
   });

@@ -1,5 +1,5 @@
 import React from "react";
-import { Pause, Play } from "phosphor-react";
+import { DownloadSimple, Pause, Play } from "phosphor-react";
 import {
   buildFallbackWaveformPeaks,
   extractAudioWaveformPeaksFromUrl,
@@ -28,7 +28,9 @@ export type ReferenceAudioPlayerProps = {
   waveformPeaks?: number[] | null;
   playLabel: string;
   pauseLabel: string;
+  downloadLabel?: string;
   onActivate?: () => void;
+  onDownload?: () => void;
   onResolveAudioUrl?: () => Promise<string | null>;
   onReady?: () => void;
   onError?: () => void;
@@ -48,7 +50,9 @@ export function ReferenceAudioPlayer({
   waveformPeaks = null,
   playLabel,
   pauseLabel,
+  downloadLabel = "Download audio",
   onActivate,
+  onDownload,
   onResolveAudioUrl,
   onReady,
   onError,
@@ -269,6 +273,16 @@ export function ReferenceAudioPlayer({
     ]
   );
 
+  const handleAudioDownload = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onActivate?.();
+      onDownload?.();
+    },
+    [onActivate, onDownload]
+  );
+
   const resolveAudioSeekDurationSeconds = React.useCallback((): number | null => {
     const nodeDuration = audioNodeRef.current?.duration;
     if (Number.isFinite(nodeDuration) && nodeDuration != null && nodeDuration > 0) {
@@ -383,6 +397,23 @@ export function ReferenceAudioPlayer({
   return (
     <>
       <div className="reference-card-audio-shell" style={audioShellStyle}>
+        {onDownload ? (
+          <button
+            type="button"
+            className="reference-card-action-btn reference-card-audio-download"
+            aria-label={downloadLabel}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
+            onDoubleClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={handleAudioDownload}
+          >
+            <DownloadSimple size={15} weight="bold" aria-hidden />
+          </button>
+        ) : null}
         <div className="reference-card-audio-player">
           <div className="reference-card-audio-player-row">
             <button

@@ -88,7 +88,7 @@ const createProps = (
 });
 
 describe("ReferenceGridCard", () => {
-  it("opens prompt-only text references in details on single click", () => {
+  it("keeps prompt-only text references select-only on single click", () => {
     const onSelectOutput = vi.fn();
     const onOpenDetails = vi.fn();
     const textOutput = createOutput({
@@ -114,10 +114,10 @@ describe("ReferenceGridCard", () => {
     fireEvent.click(screen.getByRole("button"));
 
     expect(onSelectOutput).toHaveBeenCalledWith("prompt-ref-1");
-    expect(onOpenDetails).toHaveBeenCalledWith("prompt-ref-1");
+    expect(onOpenDetails).not.toHaveBeenCalled();
   });
 
-  it("does not open prompt-only text references a second time on double click", () => {
+  it("opens prompt-only text references in details on double click", () => {
     const onOpenDetails = vi.fn();
     const textOutput = createOutput({
       id: "prompt-ref-1",
@@ -147,7 +147,7 @@ describe("ReferenceGridCard", () => {
     expect(onOpenDetails).toHaveBeenCalledWith("prompt-ref-1");
   });
 
-  it("opens prompt-only text references from keyboard activation", () => {
+  it("keeps prompt-only text references select-only from keyboard activation", () => {
     const onSelectOutput = vi.fn();
     const onOpenDetails = vi.fn();
     const textOutput = createOutput({
@@ -173,7 +173,7 @@ describe("ReferenceGridCard", () => {
     fireEvent.keyDown(screen.getByRole("button"), { key: "Enter" });
 
     expect(onSelectOutput).toHaveBeenCalledWith("prompt-ref-1");
-    expect(onOpenDetails).toHaveBeenCalledWith("prompt-ref-1");
+    expect(onOpenDetails).not.toHaveBeenCalled();
   });
 
   it("keeps media cards select-only on single click", () => {
@@ -320,7 +320,7 @@ describe("ReferenceGridCard", () => {
 
     const reloadButton = screen.getByLabelText("Reload workflow");
 
-    expect(reloadButton.parentElement).toHaveClass("reference-card-bottom-actions--video");
+    expect(reloadButton.parentElement).toHaveClass("reference-card-workflow-reload-actions");
 
     fireEvent.click(reloadButton);
 

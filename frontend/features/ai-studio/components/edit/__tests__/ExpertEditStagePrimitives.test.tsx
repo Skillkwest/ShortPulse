@@ -99,7 +99,7 @@ describe("ExpertEditStageContextMenu", () => {
 
   it("keeps transform chrome outside the render clip ancestry", () => {
     render(
-      <div className="edit-expert-primary-stage-shell">
+      <div className="edit-expert-primary-stage-shell edit-expert-transform-chrome-clip-boundary">
         <PrimaryStageRenderClip>
           <div data-testid="rendered-pixels" />
         </PrimaryStageRenderClip>
@@ -115,11 +115,13 @@ describe("ExpertEditStageContextMenu", () => {
 
     const transformChrome = screen.getByTestId("selected-layer-transform");
     const chromeLayer = screen.getByTestId("edit-expert-transform-chrome-layer-inline");
+    const stageShell = transformChrome.closest(".edit-expert-primary-stage-shell");
 
     expect(transformChrome.closest(".edit-expert-stage-render-clip")).toBeNull();
     expect(transformChrome.closest(".edit-expert-primary-composition-surface")).toBeNull();
     expect(transformChrome.closest(".edit-expert-transform-chrome-layer")).toBe(chromeLayer);
     expect(transformChrome.closest(".edit-expert-stage-camera-layer--chrome")).not.toBeNull();
+    expect(stageShell).toHaveClass("edit-expert-transform-chrome-clip-boundary");
     expect(
       screen.getByTestId("rendered-pixels").closest(".edit-expert-stage-render-clip")
     ).not.toBeNull();

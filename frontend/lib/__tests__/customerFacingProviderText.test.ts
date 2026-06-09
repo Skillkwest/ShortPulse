@@ -76,4 +76,17 @@ describe("customerFacingProviderText", () => {
       )
     ).toBe("Veo 3.1 Fast submit requires an image URL.");
   });
+
+  it("removes provider support links, request ids, and provider names from customer copy", () => {
+    expect(
+      sanitizeCustomerFacingProviderText(
+        "Style saved, but your request was rejected by the safety system. If you believe this is an error, contact us at help.openai.com and include the request ID req_3d45ff849f924f518429b524432e4ac1. safety_violations=[sexual].",
+        "Generation failed."
+      )
+    ).toBe("Your request was blocked by the safety system. Reason: sexual.");
+
+    expect(sanitizeCustomerFacingProviderText("OpenAI provider down", "Generation failed.")).toBe(
+      "The image service is temporarily unavailable."
+    );
+  });
 });

@@ -115,6 +115,10 @@ export function ExpertEditInlineStageSurface({
       onPointerCancel={backdropPanHandlers.onPointerCancel}
       onPointerLeave={backdropPanHandlers.onPointerLeave}
       onWheel={onStageWheel}
+      onDrop={onDrop}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
     >
       <PrimaryStageRenderClip>
         <PrimaryStageViewportLayer style={viewportStyle}>
@@ -124,10 +128,6 @@ export function ExpertEditInlineStageSurface({
             isDragActive={isDragActive}
             style={frameStyle}
             onWheel={onStageWheel}
-            onDrop={onDrop}
-            onDragEnter={onDragEnter}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
           >
             <PrimaryCompositionSurface
               surfaceRef={surfaceRef}

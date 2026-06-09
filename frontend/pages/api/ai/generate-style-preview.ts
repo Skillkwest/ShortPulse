@@ -13,6 +13,7 @@ import {
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
@@ -181,7 +182,10 @@ export default async function handler(
 
     return res.status(500).json({
       error: "Unable to generate style preview",
-      details: toErrorMessage(error, "Unknown error"),
+      details: sanitizeCustomerFacingProviderText(
+        toErrorMessage(error, "Unknown error"),
+        "Style preview generation failed."
+      ),
     });
   }
 }

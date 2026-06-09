@@ -227,8 +227,13 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const shouldShowWorkflowReloadAction = Boolean(
     onReloadWorkflowOutput && canReloadWorkflowOutput(item)
   );
+  const shouldPlaceWorkflowReloadInVideoCorner = Boolean(
+    shouldShowWorkflowReloadAction && (item.mode === "video" || isVideoPreview)
+  );
   const shouldShowBottomActionRow = Boolean(
-    !hideReferenceActions && (shouldShowRerollAction || shouldShowWorkflowReloadAction)
+    !hideReferenceActions &&
+    (shouldShowRerollAction ||
+      (shouldShowWorkflowReloadAction && !shouldPlaceWorkflowReloadInVideoCorner))
   );
   const bottomActionRowClassName = [
     "reference-card-bottom-actions",
@@ -238,7 +243,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     .join(" ");
   const shouldShowReferenceActionRow = Boolean(
     shouldShowSaveAction ||
-    (onDownload && canDownloadReference && (isImagePreview || isVideoPreview || isAudioPreview)) ||
+    (onDownload && canDownloadReference && (isImagePreview || isVideoPreview)) ||
     onDeleteOutput
   );
   const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
@@ -411,25 +416,15 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     setLoadedPrimaryImageSrc(normalizedPrimaryImageSrc);
     markCardMediaLoaded();
   }, [markCardMediaLoaded, normalizedPrimaryImageSrc]);
-  const handleCardClick = React.useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      onSelectOutput(item.id);
-      if (isPromptOnly && event.detail <= 1) {
-        onOpenDetails(item.id);
-      }
-    },
-    [isPromptOnly, item.id, onOpenDetails, onSelectOutput]
-  );
+  const handleCardClick = React.useCallback(() => {
+    onSelectOutput(item.id);
+  }, [item.id, onSelectOutput]);
   const handleCardKeyboardActivate = React.useCallback(() => {
     onSelectOutput(item.id);
-    if (isPromptOnly) {
-      onOpenDetails(item.id);
-    }
-  }, [isPromptOnly, item.id, onOpenDetails, onSelectOutput]);
+  }, [item.id, onSelectOutput]);
   const handleCardDoubleClick = React.useCallback(() => {
-    if (isPromptOnly) return;
     onOpenDetails(item.id);
-  }, [isPromptOnly, item.id, onOpenDetails]);
+  }, [item.id, onOpenDetails]);
 
   return (
     <div
@@ -551,7 +546,15 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           waveformPeaks={item.waveformPeaks ?? null}
           playLabel="Play audio preview"
           pauseLabel="Pause audio preview"
+          downloadLabel="Download reference"
           onActivate={() => onSelectOutput(item.id)}
+          onDownload={
+            onDownload && canDownloadReference
+              ? () => {
+                  onDownload(item);
+                }
+              : undefined
+          }
           onReady={markCardMediaLoaded}
           onError={() => {
             if (!effectiveIsLoading) {
@@ -688,9 +691,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ) : null}
       {showCuratedRemoveAction && onRemoveCuratedReference && isSelected ? (
         <div className="reference-card-actions" aria-label="Curated actions">
-          {onDownload &&
-          canDownloadReference &&
-          (isImagePreview || isVideoPreview || isAudioPreview) ? (
+          {onDownload && canDownloadReference && (isImagePreview || isVideoPreview) ? (
             <button
               type="button"
               className="reference-card-action-btn"
@@ -749,6 +750,25 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           ) : null}
         </div>
       ) : null}
+      {!hideReferenceActions && shouldPlaceWorkflowReloadInVideoCorner ? (
+        <div
+          className="reference-card-workflow-reload-actions"
+          aria-label="Reference replay actions"
+        >
+          <button
+            type="button"
+            className="reference-card-action-btn reference-card-workflow-reload-btn"
+            aria-label="Reload workflow"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelectOutput(item.id);
+              onReloadWorkflowOutput?.(item);
+            }}
+          >
+            <FlowArrow size={16} weight="bold" aria-hidden />
+          </button>
+        </div>
+      ) : null}
       {!hideReferenceActions && shouldShowReferenceActionRow ? (
         <div className="reference-card-actions" aria-label="Reference actions">
           {shouldShowSaveAction ? (
@@ -766,9 +786,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               {saveIcon}
             </button>
           ) : null}
-          {onDownload &&
-          canDownloadReference &&
-          (isImagePreview || isVideoPreview || isAudioPreview) ? (
+          {onDownload && canDownloadReference && (isImagePreview || isVideoPreview) ? (
             <button
               type="button"
               className="reference-card-action-btn"

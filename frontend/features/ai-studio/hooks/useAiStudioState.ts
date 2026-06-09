@@ -56,6 +56,7 @@ export const useAiStudioState = ({
   setPulseSessionInstanceId,
   setVoiceChangerSource,
   prepareCreateCharacterWorkflowReload,
+  prepareImageStyleWorkflowReload,
   prepareStandardCreateWorkflowReload,
 }: {
   projectId?: string | null;
@@ -74,6 +75,7 @@ export const useAiStudioState = ({
   prepareCreateCharacterWorkflowReload?: (
     characterContext: StudioOutput["characterContext"] | null
   ) => void;
+  prepareImageStyleWorkflowReload?: (styleContext: StudioOutput["styleContext"] | null) => void;
   prepareStandardCreateWorkflowReload?: (prompt: string) => void;
 } = {}) => {
   const {
@@ -560,6 +562,7 @@ export const useAiStudioState = ({
       beginManualWorkflowReload,
       findOutputById,
       prepareCreateCharacterWorkflowReload,
+      prepareImageStyleWorkflowReload,
       prepareStandardCreateWorkflowReload,
       setAspect,
       setEditReferenceText,

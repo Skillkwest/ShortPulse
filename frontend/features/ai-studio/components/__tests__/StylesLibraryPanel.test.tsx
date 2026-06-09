@@ -284,6 +284,10 @@ describe("StylesLibraryPanel", () => {
         screen.getByText("Style saved, but not enough credits to generate the style preview.")
       ).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss message" }));
+    expect(
+      screen.queryByText("Style saved, but not enough credits to generate the style preview.")
+    ).not.toBeInTheDocument();
   });
 
   it("creates a new style when dropping a desktop image onto the styles library", async () => {

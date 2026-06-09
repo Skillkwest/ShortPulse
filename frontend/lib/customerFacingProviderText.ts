@@ -3,6 +3,16 @@
  * Sanitizes provider/runtime copy and extracts readable messages from structured error payloads.
  */
 const AUDIO_SERVICE_LABEL = "the audio service";
+const GENERATION_SERVICE_LABEL = "the generation service";
+
+const SAFETY_VIOLATIONS_PATTERN = /\bsafety_violations\s*=\s*\[([^\]]*)\]/i;
+const PROVIDER_SUPPORT_TEXT_PATTERN =
+  /\bIf\s+you\s+believe\s+this\s+is\s+an\s+error,?\s+contact\s+(?:us|support)\b[^.?!]*(?:[.?!]|$)/gi;
+const CONTACT_SUPPORT_TEXT_PATTERN = /\bcontact\s+(?:us|support)\b[^.?!]*(?:[.?!]|$)/gi;
+const REQUEST_ID_TEXT_PATTERN = /\b(?:and\s+)?include\s+the\s+request\s+ID\s+[a-z0-9_:-]+\.?/gi;
+const REQUEST_ID_INLINE_PATTERN = /\brequest\s+ID\s*[:#]?\s*[a-z0-9_:-]+\.?/gi;
+const PROVIDER_REQUEST_TOKEN_PATTERN = /\breq_[a-z0-9]+\b/gi;
+const SUPPORT_URL_PATTERN = /\b(?:https?:\/\/)?help\.openai\.com\S*/gi;
 
 const providerTextReplacements: Array<[RegExp, string]> = [
   [
@@ -19,7 +29,12 @@ const providerTextReplacements: Array<[RegExp, string]> = [
   [/Eleven\s*Labs/gi, AUDIO_SERVICE_LABEL],
   [/elevenlabs/gi, AUDIO_SERVICE_LABEL],
   [/11\s*labs/gi, AUDIO_SERVICE_LABEL],
-  [/fal(\.ai)?/gi, "the provider"],
+  [/\bOpenAI\s+provider\s+down\b/gi, "The image service is temporarily unavailable."],
+  [/\bprovider\s+down\b/gi, "The generation service is temporarily unavailable."],
+  [/fal(\.ai)?/gi, GENERATION_SERVICE_LABEL],
+  [/api\.openai\.com/gi, "the image service"],
+  [/\bOpenAI\b/gi, "the image service"],
+  [/\bprovider\b/gi, GENERATION_SERVICE_LABEL],
   [/api\.elevenlabs\.io/gi, AUDIO_SERVICE_LABEL],
   [
     /eleven_(?:multilingual(?:_sts|_ttv)?|text_to_sound)[a-z0-9_]*|music_v1/gi,
@@ -28,6 +43,37 @@ const providerTextReplacements: Array<[RegExp, string]> = [
   [/xi-api-key/gi, "audio service credentials"],
 ];
 
+const normalizeSafetyViolationReason = (value: string): string =>
+  value.replace(/["'`]/g, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+
+const resolveSafetyRejectionMessage = (value: string): string | null => {
+  const safetyMatch = value.match(SAFETY_VIOLATIONS_PATTERN);
+  const hasSafetyLanguage = /\bsafety\s+(?:system|policy|violation|violations)\b/i.test(value);
+  if (!safetyMatch && !hasSafetyLanguage) return null;
+
+  const reasons = (safetyMatch?.[1] ?? "")
+    .split(/[,\s]+/)
+    .map(normalizeSafetyViolationReason)
+    .filter(Boolean)
+    .filter((reason, index, array) => array.indexOf(reason) === index);
+
+  return reasons.length > 0
+    ? `Your request was blocked by the safety system. Reason: ${reasons.join(", ")}.`
+    : "Your request was blocked by the safety system.";
+};
+
+const stripProviderOperationalDetails = (value: string): string =>
+  value
+    .replace(PROVIDER_SUPPORT_TEXT_PATTERN, "")
+    .replace(CONTACT_SUPPORT_TEXT_PATTERN, "")
+    .replace(REQUEST_ID_TEXT_PATTERN, "")
+    .replace(REQUEST_ID_INLINE_PATTERN, "")
+    .replace(PROVIDER_REQUEST_TOKEN_PATTERN, "")
+    .replace(SUPPORT_URL_PATTERN, "")
+    .replace(/\s+([.,!?])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+
 export const sanitizeCustomerFacingProviderText = (
   value: string | null | undefined,
   fallback = "Audio generation failed."
@@ -35,12 +81,15 @@ export const sanitizeCustomerFacingProviderText = (
   const trimmed = value?.trim();
   if (!trimmed) return fallback;
 
+  const safetyMessage = resolveSafetyRejectionMessage(trimmed);
+  if (safetyMessage) return safetyMessage;
+
   const sanitized = providerTextReplacements.reduce(
     (nextValue, [pattern, replacement]) => nextValue.replace(pattern, replacement),
     trimmed
   );
 
-  return sanitized.replace(/\s+/g, " ").trim() || fallback;
+  return stripProviderOperationalDetails(sanitized) || fallback;
 };
 
 const collapseWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();

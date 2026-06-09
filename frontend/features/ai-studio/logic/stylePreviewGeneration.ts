@@ -3,6 +3,7 @@
  * Calls the authenticated Styles-owned preview route and normalizes recoverable errors.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 
 export type StylePreviewGenerationFailureClass =
   | "timeout"
@@ -37,6 +38,10 @@ const STYLE_PREVIEW_GENERATION_TIMEOUT_MESSAGE = "Style preview generation timed
 const STYLE_PREVIEW_GENERATION_CANCELED_MESSAGE = "Style preview generation was interrupted.";
 const STYLE_PREVIEW_GENERATION_TRANSIENT_MESSAGE = "Style preview generation hit a network issue.";
 const STYLE_PREVIEW_GENERATION_GENERIC_MESSAGE = "Style preview generation failed.";
+const STYLE_PREVIEW_GENERATION_SAFETY_MESSAGE =
+  "The preview image was blocked by the safety system.";
+const STYLE_PREVIEW_SAFETY_VIOLATIONS_PATTERN = /\bsafety_violations\s*=\s*\[([^\]]*)\]/i;
+const STYLE_PREVIEW_SAFETY_REASON_PATTERN = /\breason:\s*([^.!?]+)[.!?]?/i;
 const TRANSIENT_ERROR_PATTERN =
   /\b(network|fetch failed|failed to fetch|econnreset|etimedout|eai_again|timeout)\b/i;
 const ABORTED_ERROR_PATTERN = /\boperation was aborted\b/i;
@@ -127,11 +132,37 @@ const classifyUnknownGenerationError = (
 const normalizeResponseDetail = (payload: unknown): string | null => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
   const record = payload as Record<string, unknown>;
-  const detail =
+  const rawDetail =
     (typeof record.details === "string" && record.details.trim()) ||
     (typeof record.detail === "string" && record.detail.trim()) ||
     (typeof record.error === "string" && record.error.trim()) ||
     null;
+  if (!rawDetail) return null;
+
+  const safetyMatch = rawDetail.match(STYLE_PREVIEW_SAFETY_VIOLATIONS_PATTERN);
+  const safetyReasonMatch = rawDetail.match(STYLE_PREVIEW_SAFETY_REASON_PATTERN);
+  if (safetyMatch || /\bsafety\s+(?:system|policy|violation|violations)\b/i.test(rawDetail)) {
+    const reasons = (safetyMatch?.[1] ?? safetyReasonMatch?.[1] ?? "")
+      .split(/[,\s]+/)
+      .map((reason) =>
+        reason
+          .replace(/["'`]/g, "")
+          .replace(/[_-]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean)
+      .filter((reason, index, array) => array.indexOf(reason) === index);
+    return reasons.length > 0
+      ? `${STYLE_PREVIEW_GENERATION_SAFETY_MESSAGE} Reason: ${reasons.join(", ")}.`
+      : STYLE_PREVIEW_GENERATION_SAFETY_MESSAGE;
+  }
+
+  const detail = sanitizeCustomerFacingProviderText(
+    rawDetail,
+    STYLE_PREVIEW_GENERATION_GENERIC_MESSAGE
+  );
   return detail ? detail.slice(0, 240) : null;
 };
 

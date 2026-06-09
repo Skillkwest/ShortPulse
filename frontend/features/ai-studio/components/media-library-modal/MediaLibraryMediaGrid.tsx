@@ -194,8 +194,15 @@ export function MediaLibraryMediaGrid({
           const canShowRemoveAction = showRemoveAction && supportsRemoveAction;
           const supportsDeleteAction = Boolean(onDeleteMediaFromLibrary);
           const canShowDeleteAction = showDeleteAction && supportsDeleteAction;
+          const isAudio = isAudioFile(file.file_type);
+          const hasDownloadableMediaSource = Boolean(
+            (file.storage_path ?? "").trim() || (file.signedUrl ?? "").trim()
+          );
           const canShowDownloadAction = Boolean(
-            onDownloadMediaFile && (file.signedUrl ?? "").trim().length > 0
+            !isAudio && onDownloadMediaFile && (file.signedUrl ?? "").trim().length > 0
+          );
+          const canShowAudioDownloadAction = Boolean(
+            isAudio && onDownloadMediaFile && hasDownloadableMediaSource
           );
           const canShowWorkflowReloadAction = Boolean(
             onReloadWorkflowFromMedia && canReloadMediaLibraryWorkflow(file)
@@ -249,7 +256,7 @@ export function MediaLibraryMediaGrid({
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
           const isSelected = selectedIds.has(file.id);
 
-          if (isAudioFile(file.file_type)) {
+          if (isAudio) {
             const durationMs = resolveMediaMetadataDurationMs(file.metadata, {
               fileType: file.file_type,
             });
@@ -317,6 +324,14 @@ export function MediaLibraryMediaGrid({
                     waveformPeaks={resolveMediaMetadataWaveformPeaks(file.metadata)}
                     playLabel={`Play audio ${file.filename}`}
                     pauseLabel={`Pause audio ${file.filename}`}
+                    downloadLabel={`Download audio ${file.filename || "media"}`}
+                    onDownload={
+                      canShowAudioDownloadAction
+                        ? () => {
+                            onDownloadMediaFile?.(file);
+                          }
+                        : undefined
+                    }
                     onResolveAudioUrl={
                       onRequestSignedUrl ? () => onRequestSignedUrl(file) : undefined
                     }

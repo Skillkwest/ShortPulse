@@ -617,6 +617,14 @@ function MediaLibraryAllItemsAudioCard({
           waveformPeaks={resolveMediaMetadataWaveformPeaks(file.metadata)}
           playLabel={`Play audio ${file.filename}`}
           pauseLabel={`Pause audio ${file.filename}`}
+          downloadLabel={`Download audio ${file.filename || "media"}`}
+          onDownload={
+            canShowDownloadAction
+              ? () => {
+                  onDownloadMediaFile?.(file);
+                }
+              : undefined
+          }
           onResolveAudioUrl={onRequestSignedUrl ? () => onRequestSignedUrl(file) : undefined}
           onReady={() => {
             markSignedUrlLoaded();
@@ -628,7 +636,7 @@ function MediaLibraryAllItemsAudioCard({
       {showCardActions ? (
         <MediaLibraryAllItemsCardActions
           file={file}
-          canShowDownloadAction={canShowDownloadAction}
+          canShowDownloadAction={false}
           canShowWorkflowReloadAction={canShowWorkflowReloadAction}
           canShowRemoveAction={canShowRemoveAction}
           canShowDeleteAction={canShowDeleteAction}
@@ -834,10 +842,15 @@ export function MediaLibraryAllItemsGrid({
         }
 
         const file = item.row;
+        const isAudio = isAudioFile(file.file_type);
+        const hasDownloadableMediaSource = Boolean(
+          (file.storage_path ?? "").trim() || (file.signedUrl ?? "").trim()
+        );
         const canShowRemoveAction = showRemoveAction && Boolean(onRemoveMediaFromFolder);
         const canShowDeleteAction = showDeleteAction && Boolean(onDeleteMediaFromLibrary);
         const canShowDownloadAction = Boolean(
-          onDownloadMediaFile && (file.signedUrl ?? "").trim().length > 0
+          onDownloadMediaFile &&
+          (isAudio ? hasDownloadableMediaSource : (file.signedUrl ?? "").trim().length > 0)
         );
         const canShowWorkflowReloadAction = Boolean(
           onReloadWorkflowFromMedia && canReloadMediaLibraryWorkflow(file)
@@ -915,7 +928,6 @@ export function MediaLibraryAllItemsGrid({
                 devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
               })
           : null;
-        const isAudio = isAudioFile(file.file_type);
 
         return (
           <div key={item.key} style={renderItem.style}>
@@ -940,7 +952,9 @@ export function MediaLibraryAllItemsGrid({
                 onSignedUrlLoaded={onSignedUrlLoaded}
                 onRequestSignedUrl={onRequestSignedUrl}
                 cacheAspectRatio={cacheAspectRatio}
-                showCardActions={shouldShowCardActions}
+                showCardActions={
+                  canShowWorkflowReloadAction || canShowRemoveAction || canShowDeleteAction
+                }
                 canShowDownloadAction={canShowDownloadAction}
                 canShowWorkflowReloadAction={canShowWorkflowReloadAction}
                 canShowRemoveAction={canShowRemoveAction}

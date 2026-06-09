@@ -51,6 +51,7 @@ type UseAiStudioWorkflowReloadControllerParams = {
   prepareCreateCharacterWorkflowReload?: (
     characterContext: StudioOutput["characterContext"] | null
   ) => void;
+  prepareImageStyleWorkflowReload?: (styleContext: StudioOutput["styleContext"] | null) => void;
   prepareStandardCreateWorkflowReload?: (prompt: string) => void;
   setAspect: Dispatch<SetStateAction<string>>;
   setEditReferenceText: (value: string) => void;
@@ -160,6 +161,15 @@ const resolveCreateImageCharacterContextForReload = (
   return null;
 };
 
+const resolveImageStyleContextForReload = (
+  output: StudioOutput,
+  payload: WorkflowReloadImagePayload
+): StudioOutput["styleContext"] | null => {
+  if (payload.styleContext?.applied) return payload.styleContext;
+  if (output.styleContext?.applied) return output.styleContext;
+  return null;
+};
+
 const hasVoiceChangerSourceAuthority = (source: WorkflowReloadVoiceChangerSource): boolean =>
   Boolean(
     source.sourceUrl ||
@@ -229,6 +239,7 @@ export const useAiStudioWorkflowReloadController = ({
   beginManualWorkflowReload,
   findOutputById,
   prepareCreateCharacterWorkflowReload,
+  prepareImageStyleWorkflowReload,
   prepareStandardCreateWorkflowReload,
   setAspect,
   setEditReferenceText,
@@ -338,6 +349,7 @@ export const useAiStudioWorkflowReloadController = ({
       if (payload.kind === "image") {
         const imagePayload: WorkflowReloadImagePayload = payload;
         const nextCreateMode = resolveCreateMode(config.createMode);
+        prepareImageStyleWorkflowReload?.(resolveImageStyleContextForReload(output, imagePayload));
         setExpertCreateMode(nextCreateMode);
         if (targetTool === "create") {
           if (nextCreateMode === "standard") {
@@ -453,6 +465,7 @@ export const useAiStudioWorkflowReloadController = ({
       beginManualWorkflowReload,
       fail,
       prepareCreateCharacterWorkflowReload,
+      prepareImageStyleWorkflowReload,
       prepareStandardCreateWorkflowReload,
       setAspect,
       setEditReferenceText,

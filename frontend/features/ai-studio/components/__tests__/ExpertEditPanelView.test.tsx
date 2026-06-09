@@ -7515,10 +7515,7 @@ describe("ExpertEditPanelView", () => {
     if (!referenceInputs) {
       throw new Error("Expected flattened reference inputs.");
     }
-    expect(referenceInputs).toEqual([
-      expect.stringMatching(/^blob:flatten-/),
-      "https://example.com/extra.png",
-    ]);
+    expect(referenceInputs).toEqual([expect.stringMatching(/^blob:flatten-/)]);
     expect(submitOptions?.referenceInputsMode).toBe("replace");
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
     restoreImage();
@@ -7792,7 +7789,7 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.submissionPromptOverride).toContain("Reference map:");
   });
 
-  it("generate sends all populated secondary references when no @img tokens are linked", async () => {
+  it("generate omits populated secondary references when no @img tokens are linked", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
@@ -7843,11 +7840,7 @@ describe("ExpertEditPanelView", () => {
     ).mock.calls;
     const submittedReferences = submissionCalls[0]?.[0] ?? [];
     const submitOptions = submissionCalls[0]?.[1];
-    expect(submittedReferences).toEqual([
-      "https://example.com/base.png",
-      "https://example.com/extra-one.png",
-      "https://example.com/extra-two.png",
-    ]);
+    expect(submittedReferences).toEqual(["https://example.com/base.png"]);
     expect(submitOptions?.displayPromptOverride).toBeUndefined();
     expect(submitOptions?.submissionPromptOverride).toBeUndefined();
   }, 15000);

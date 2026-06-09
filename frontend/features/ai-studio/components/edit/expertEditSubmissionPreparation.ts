@@ -44,32 +44,18 @@ type ResolveExpertEditSubmissionPromptStateResult =
       tokenAnalysisOptions: ExpertEditPromptTokenAnalysisOptions;
     };
 
-const resolvePopulatedSecondarySlotIndexes = (
-  extraImageUrls: readonly (string | null)[]
-): number[] =>
-  extraImageUrls.reduce<number[]>((indexes, value, index) => {
-    if ((value?.trim() ?? "").length > 0) {
-      indexes.push(index);
-    }
-    return indexes;
-  }, []);
-
 const resolveSubmissionSecondarySlotIndexes = ({
   editSubmitIntent,
   linkedSecondarySlotIndexes,
-  extraImageUrls,
 }: {
   editSubmitIntent: EditSubmitIntent;
   linkedSecondarySlotIndexes: number[];
-  extraImageUrls: readonly (string | null)[];
 }): number[] => {
   if (linkedSecondarySlotIndexes.length > 0) {
     return linkedSecondarySlotIndexes;
   }
-  if (editSubmitIntent === "inpaint") {
-    return linkedSecondarySlotIndexes;
-  }
-  return resolvePopulatedSecondarySlotIndexes(extraImageUrls);
+  if (editSubmitIntent === "inpaint") return linkedSecondarySlotIndexes;
+  return [];
 };
 
 const resolveExpertEditSubmissionPromptState = ({
@@ -111,7 +97,6 @@ const resolveExpertEditSubmissionPromptState = ({
     resolvedSecondarySlotIndexes: resolveSubmissionSecondarySlotIndexes({
       editSubmitIntent,
       linkedSecondarySlotIndexes: tokenAnalysis.referencedSlotIndexes,
-      extraImageUrls,
     }),
     tokenAnalysisOptions,
   };

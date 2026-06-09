@@ -71,7 +71,7 @@ describe("prepareExpertEditSubmission integration", () => {
     );
   });
 
-  it("falls back to all populated secondary references when no secondary tokens are linked", () => {
+  it("submits only the flattened primary when no secondary tokens are linked", () => {
     const result = prepareExpertEditSubmission({
       promptText: "Refine the background and styling.",
       extraImageUrls: [
@@ -86,11 +86,7 @@ describe("prepareExpertEditSubmission integration", () => {
 
     expect(result).toEqual({
       status: "ready",
-      referenceInputs: [
-        "blob:flatten-primary",
-        "https://example.com/extra-one.png",
-        "https://example.com/extra-two.png",
-      ],
+      referenceInputs: ["blob:flatten-primary"],
       linkedSecondaryReferenceInputs: [],
       promptOverrideOptions: undefined,
     });

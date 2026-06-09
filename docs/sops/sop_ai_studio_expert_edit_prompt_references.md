@@ -42,11 +42,11 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 8. Invalid tokens are highlighted in warning red.
 9. Invalid-token warning feedback is deferred until Generate is attempted.
 10. Generate is blocked when invalid token references exist.
-11. Standard and Markup edit lanes always include the primary image first. Secondary reference behavior is lane-aware:
+11. Standard and Markup edit lanes always include the flattened primary stage first. Secondary reference behavior is lane-aware:
 
 - when one or more valid `@img1..@img10` tokens are linked, only those linked secondary refs are included in provider `image_urls`/`input_urls`;
-- when no valid secondary token is linked, all populated secondary reference slots are included as ambient edit context.
-- `@main` still resolves to the primary figure and does not by itself suppress the no-linked-secondary fallback.
+- when no valid secondary token is linked, populated secondary reference slots are not included as ambient edit context;
+- `@main` resolves to the flattened primary stage (`Figure 1`) and does not pull individual stage layers or unlinked secondary references into the provider payload.
 
 12. Inpaint has two explicit contracts:
 
@@ -116,7 +116,7 @@ Normalization rules:
 3. If valid:
    - continue flatten flow.
    - build `referenceInputs` with flattened primary first, optional markup composite second, and resolved secondary refs after that.
-   - for Standard/Markup with no valid secondary links, resolved secondary refs are all populated secondary slots.
+   - for Standard/Markup with no valid secondary links, no secondary refs are included.
    - for Standard/Markup with one or more valid secondary links, resolved secondary refs are only the linked secondary slots.
    - compile provider-facing prompt when token references exist.
 4. Inpaint preflight is lane-aware:
@@ -144,7 +144,7 @@ If no tokens are present:
 
 - submit behavior keeps the raw prompt unchanged.
 - no token compilation block is appended.
-- Standard/Markup still include populated secondary references in the payload when available.
+- Standard/Markup submit only the flattened primary stage unless secondary refs are explicitly linked with `@imgN`.
 
 If tokens exist but are invalid:
 
@@ -214,7 +214,7 @@ Minimum suite coverage:
    - picker `Enter` inserts the selected token and closes the picker.
    - ordinary typing after picker open closes the picker and preserves manual text entry.
    - token generate path sends both display/submission prompt overrides.
-   - Standard/Markup generate without linked `@imgN` sends all populated secondary refs.
+   - Standard/Markup generate without linked `@imgN` sends only the flattened primary stage.
    - Standard/Markup generate with linked `@imgN` keeps linked-only secondary refs in the payload.
    - default inpaint picker limits token choices to `@main`.
    - reference inpaint picker exposes populated secondary refs when the flag is enabled.

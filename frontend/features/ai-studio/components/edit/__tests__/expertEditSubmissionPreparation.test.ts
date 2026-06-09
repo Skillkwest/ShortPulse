@@ -136,7 +136,7 @@ describe("prepareExpertEditSubmission", () => {
     );
   });
 
-  it("falls back to all populated secondary refs for standard submits when no secondary tokens are linked", () => {
+  it("omits unlinked secondary refs for standard submits when no secondary tokens are linked", () => {
     analyzeExpertEditPromptTokensMock.mockReturnValue({
       hasInvalidTokens: false,
       inlineError: null,
@@ -155,11 +155,11 @@ describe("prepareExpertEditSubmission", () => {
       flattenedPrimaryUrl: "blob:flatten-1",
       flattenedMarkupReferenceUrl: null,
       secondarySlots: ["https://example.com/ref-1.png", null, "https://example.com/ref-3.png"],
-      referencedSlotIndexes: [0, 2],
+      referencedSlotIndexes: [],
     });
   });
 
-  it("falls back to all populated secondary refs for markup submits when no secondary tokens are linked", () => {
+  it("omits unlinked secondary refs for markup submits when no secondary tokens are linked", () => {
     analyzeExpertEditPromptTokensMock.mockReturnValue({
       hasInvalidTokens: false,
       inlineError: null,
@@ -178,7 +178,7 @@ describe("prepareExpertEditSubmission", () => {
       flattenedPrimaryUrl: "blob:flatten-1",
       flattenedMarkupReferenceUrl: "blob:markup-1",
       secondarySlots: ["https://example.com/ref-1.png", "https://example.com/ref-2.png", null],
-      referencedSlotIndexes: [0, 1],
+      referencedSlotIndexes: [],
     });
   });
 

@@ -76,6 +76,7 @@ describe("useAiStudioAudioGeneration", () => {
           waveformPeaks: [0.1, 0.5, 0.2],
           modelId: hardcodedMusicModelId,
           lyricsText: "Keep the signal burning bright",
+          title: "Signal Burning Bright",
         },
       }),
     });
@@ -186,6 +187,7 @@ describe("useAiStudioAudioGeneration", () => {
       previewUrl: "https://example.com/music.mp3",
       fullStoragePath: "full/music.mp3",
       lyricsText: "Keep the signal burning bright",
+      title: "Signal Burning Bright",
     });
   });
 

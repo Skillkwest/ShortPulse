@@ -11,9 +11,6 @@ describe("audioCompanionArt promptCompiler", () => {
       },
     });
 
-    expect(compiled.modelId).toBe("gpt-image-2");
-    expect(compiled.size).toBe("1024x1024");
-    expect(compiled.quality).toBe("low");
     expect(compiled.prompt).toContain(
       "Audio concept: A calm late-night monologue about missing home."
     );

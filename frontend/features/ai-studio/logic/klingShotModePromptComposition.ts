@@ -11,6 +11,7 @@ import {
 
 export const KLING_SINGLE_PROMPT_MAX_CHARACTERS = 2500;
 export const KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS = 500;
+const KLING_SINGLE_PROMPT_VISIBLE_MAX_CHARACTERS = 2200;
 
 export type HiddenShotModePromptCompositionMode = "single" | "multi";
 
@@ -101,7 +102,10 @@ export const resolveKlingSinglePromptVisibleCharacterLimit = (
   mode: HiddenShotModePromptCompositionMode
 ): number => {
   void mode;
-  return Math.max(0, KLING_SINGLE_PROMPT_MAX_CHARACTERS - HIDDEN_SHOT_MODE_RESERVED_CHARACTERS);
+  return Math.min(
+    KLING_SINGLE_PROMPT_VISIBLE_MAX_CHARACTERS,
+    Math.max(0, KLING_SINGLE_PROMPT_MAX_CHARACTERS - HIDDEN_SHOT_MODE_RESERVED_CHARACTERS)
+  );
 };
 
 export const resolveKlingSinglePromptEffectiveVisibleCharacterLimit = ({

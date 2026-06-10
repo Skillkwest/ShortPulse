@@ -18,9 +18,10 @@ const createStageElement = (rect: DOMRect) => {
     setPointerCapture: (pointerId: number) => void;
     releasePointerCapture: (pointerId: number) => void;
   };
+  const getBoundingClientRect = vi.fn(() => rect);
   Object.defineProperty(element, "getBoundingClientRect", {
     configurable: true,
-    value: () => rect,
+    value: getBoundingClientRect,
   });
   element.setPointerCapture = vi.fn();
   element.releasePointerCapture = vi.fn();
@@ -56,7 +57,7 @@ const createPointerEvent = ({
   }) as unknown as React.PointerEvent<HTMLDivElement>;
 
 describe("useExpertEditTransformController", () => {
-  it("uses wrapper-authoritative viewport offset pixels for inline resize math", () => {
+  it("uses wrapper-authoritative viewport offset pixels for inline resize math beyond the old cap", () => {
     const stageRect = {
       left: 0,
       top: 0,
@@ -136,7 +137,7 @@ describe("useExpertEditTransformController", () => {
       result.current.controller.handleMovePointerMove(
         createPointerEvent({
           currentTarget: stageElement,
-          clientX: 240,
+          clientX: 280,
           clientY: 100,
           pointerId: 51,
           shiftKey: true,
@@ -146,13 +147,14 @@ describe("useExpertEditTransformController", () => {
 
     expect(result.current.activeTransformDragMode).toBe("resize");
     expect(result.current.isTransformPointerDragging).toBe(true);
-    expect(result.current.layers[0]?.transform.scale ?? 0).toBeCloseTo(2, 6);
+    expect(result.current.layers[0]?.transform.scale ?? 0).toBeCloseTo(3, 6);
+    expect(stageElement.getBoundingClientRect).toHaveBeenCalledTimes(1);
 
     act(() => {
       result.current.controller.endTransformPointerSession(
         createPointerEvent({
           currentTarget: stageElement,
-          clientX: 240,
+          clientX: 280,
           clientY: 100,
           pointerId: 51,
           shiftKey: true,
@@ -203,7 +205,7 @@ describe("useExpertEditTransformController", () => {
       const controller = useExpertEditTransformController({
         layers,
         selectedLayer: layers[0] ?? null,
-        selectedLayerInteractionTransform: defaultLayerTransform(),
+        selectedLayerInteractionTransform: layers[0]?.transform ?? null,
         selectedLayerImageAspectRatio: 1,
         sceneZoomScale: 1,
         shouldApplyViewportTransform: false,
@@ -241,7 +243,7 @@ describe("useExpertEditTransformController", () => {
 
     expect(result.current.activeTransformDragMode).toBe("move");
     expect(result.current.isTransformPointerDragging).toBe(true);
-    expect(result.current.layers[0]?.transform).toEqual(defaultLayerTransform());
+    expect(result.current.layers[0]?.transform).toEqual(initialLayer.transform);
 
     act(() => {
       result.current.controller.endTransformPointerSession(
@@ -257,11 +259,11 @@ describe("useExpertEditTransformController", () => {
     expect(commitTransformHistoryTransition).toHaveBeenCalledTimes(1);
     expect(commitTransformHistoryTransition.mock.calls[0]?.[0]).toEqual({
       layerOrderSignature: "layer-1",
-      layerSnapshots: [{ layerId: "layer-1", transform: defaultLayerTransform() }],
+      layerSnapshots: [{ layerId: "layer-1", transform: initialLayer.transform }],
     });
     expect(commitTransformHistoryTransition.mock.calls[0]?.[1]).toEqual({
       layerOrderSignature: "layer-1",
-      layerSnapshots: [{ layerId: "layer-1", transform: defaultLayerTransform() }],
+      layerSnapshots: [{ layerId: "layer-1", transform: initialLayer.transform }],
     });
   });
 
@@ -307,12 +309,10 @@ describe("useExpertEditTransformController", () => {
       ownsImageUrl: false,
       transform: defaultLayerTransform(),
     };
-    const resolveViewportOffsetPixels = vi.fn(
-      (_rect: DOMRect, _interactionTarget: HTMLElement | null) => ({
-        offsetX: 0,
-        offsetY: 0,
-      })
-    );
+    const resolveViewportOffsetPixels = vi.fn(() => ({
+      offsetX: 0,
+      offsetY: 0,
+    }));
 
     try {
       const { result } = renderHook(() => {

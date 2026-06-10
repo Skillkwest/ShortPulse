@@ -1,9 +1,3 @@
-import {
-  OPENAI_GPT_IMAGE_2_MODEL_ID,
-  type OpenAiImage2Quality,
-  type OpenAiImage2Size,
-} from "../../model-runtime/openAiImage2";
-
 type JsonObject = Record<string, unknown>;
 
 export type AudioCompanionArtSourceMode = "voiceover" | "voice-changer" | "sound-effects" | "music";
@@ -16,14 +10,8 @@ export type CompileAudioCompanionArtPromptInput = {
 };
 
 export type AudioCompanionArtGenerationSpec = {
-  modelId: typeof OPENAI_GPT_IMAGE_2_MODEL_ID;
-  size: OpenAiImage2Size;
-  quality: OpenAiImage2Quality;
   prompt: string;
 };
-
-const COMPANION_ART_SIZE: OpenAiImage2Size = "1024x1024";
-const COMPANION_ART_QUALITY: OpenAiImage2Quality = "low";
 
 const DEFAULT_BRAND_STYLE_LINE =
   "Branded audio cover art style: cinematic editorial illustration, bold silhouette, layered atmosphere, premium gradients, restrained color palette, tactile texture, crisp focal subject, no text, no logos, no typography, no UI, no watermark, no border.";
@@ -108,9 +96,6 @@ export const compileAudioCompanionArtPrompt = ({
   ].join("\n");
 
   return {
-    modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-    size: COMPANION_ART_SIZE,
-    quality: COMPANION_ART_QUALITY,
     prompt,
   };
 };

@@ -188,6 +188,51 @@ describe("useExpertEditStageKeyboardBindings", () => {
     }
   });
 
+  it("arms space-pan on the edit stage even when another canvas listener already prevented default", async () => {
+    const { panelRootRef, panelRoot } = createPanelRootRef();
+    const stageOwner = document.createElement("div");
+    stageOwner.setAttribute("data-keyboard-pan-owner", "true");
+    stageOwner.tabIndex = 0;
+    panelRoot.appendChild(stageOwner);
+    stageOwner.focus();
+
+    try {
+      const { result } = renderHook(() => {
+        const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
+        useExpertEditStageKeyboardBindings({
+          panelRootRef,
+          isMarkupExpandSelected: true,
+          isMorePresetsSurfaceOpen: false,
+          setIsMarkupPanSpacePressed,
+          canUndoGeneralAction: false,
+          canRedoGeneralAction: false,
+          handleUndoGeneralAction: vi.fn(),
+          handleRedoGeneralAction: vi.fn(),
+        });
+        return { isMarkupPanSpacePressed };
+      });
+
+      const keyDown = new KeyboardEvent("keydown", {
+        key: " ",
+        code: "Space",
+        bubbles: true,
+        cancelable: true,
+      });
+      keyDown.preventDefault();
+
+      act(() => {
+        stageOwner.dispatchEvent(keyDown);
+      });
+
+      await waitFor(() => {
+        expect(result.current.isMarkupPanSpacePressed).toBe(true);
+      });
+      expect(keyDown.defaultPrevented).toBe(true);
+    } finally {
+      panelRoot.remove();
+    }
+  });
+
   it("always clears space-pan on keyup even when release lands on an interactive target", async () => {
     const { panelRootRef, panelRoot } = createPanelRootRef();
     const { result } = renderHook(() => {

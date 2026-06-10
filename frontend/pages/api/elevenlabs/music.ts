@@ -23,6 +23,7 @@ import {
 import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
 import { probeMediaDurationSeconds } from "../../../lib/server/mediaAudioExtraction";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
+import { generateMusicSongTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
 
 type MusicRequestBody = {
   text?: unknown;
@@ -58,6 +59,7 @@ type GenerateMusicSuccessResponse = {
     durationMs: number | null;
     waveformPeaks: null;
     lyricsText: string | null;
+    title: string;
     modelId: string;
     saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
@@ -254,6 +256,15 @@ export default async function handler(
       lyricsText,
       mode,
     });
+    const titlePromise = generateMusicSongTitleBestEffort({
+      promptText: text,
+      lyricsText,
+      structure,
+      mode,
+      bpm,
+      energyPercent,
+      providerPrompt,
+    });
 
     const generated = await generateElevenLabsMusic({
       prompt: providerPrompt,
@@ -285,6 +296,7 @@ export default async function handler(
         : durationSeconds == null
           ? null
           : Math.round(durationSeconds * 1000);
+    const songTitle = await titlePromise;
     const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
     const submitLink = await charge.markSubmitted(providerRequestId, {
       source_mode: "music",
@@ -304,6 +316,7 @@ export default async function handler(
       projectId,
       workspaceRuntimeKey,
       sourceMode: "music",
+      displayTitle: songTitle,
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
@@ -323,6 +336,7 @@ export default async function handler(
         provider_request_id: providerRequestId,
         provider_song_id: generated.songId,
         provider_prompt: providerPrompt,
+        song_title: songTitle,
         ...(lyricsText ? { lyrics_text: lyricsText } : {}),
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
@@ -369,6 +383,7 @@ export default async function handler(
         durationMs: responseDurationMs,
         waveformPeaks: null,
         lyricsText,
+        title: songTitle,
         modelId,
         saveState: persisted.saveState,
         saveError: persisted.saveError,

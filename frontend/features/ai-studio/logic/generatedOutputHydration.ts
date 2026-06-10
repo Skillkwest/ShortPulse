@@ -153,6 +153,7 @@ const mergeHydratedGeneratedOutput = (
   existing: StudioOutput,
   hydrated: StudioOutput
 ): StudioOutput => {
+  const nextTitle = existing.title?.trim() ? existing.title : hydrated.title;
   const nextLyricsText = existing.lyricsText?.trim() ? existing.lyricsText : hydrated.lyricsText;
   const nextAudioSourceMode = hydrated.audioSourceMode ?? existing.audioSourceMode;
   const merged: StudioOutput = {
@@ -208,6 +209,9 @@ const mergeHydratedGeneratedOutput = (
   };
   if (nextLyricsText != null || "lyricsText" in existing || "lyricsText" in hydrated) {
     merged.lyricsText = nextLyricsText ?? null;
+  }
+  if (nextTitle != null || "title" in existing || "title" in hydrated) {
+    merged.title = nextTitle ?? null;
   }
   if (
     nextAudioSourceMode != null ||

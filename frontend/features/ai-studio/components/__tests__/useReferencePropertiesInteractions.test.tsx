@@ -895,6 +895,67 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onMotionVideoChange).not.toHaveBeenCalled();
   });
 
+  it("signs storage-backed Media Library image drags for primary image drops", async () => {
+    const onPrimaryImageChange = vi.fn();
+    getSignedMediaUrlMock.mockResolvedValue(
+      "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/images/character-original?token=fresh"
+    );
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange,
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const event = {
+      preventDefault: vi.fn(),
+      dataTransfer: {
+        files: { length: 0, item: () => null } as unknown as FileList,
+        types: [
+          "text/shortpulse-media-library-marker",
+          "text/shortpulse-media-library-kind",
+          "text/shortpulse-media-library-id",
+          "text/shortpulse-media-library-file-type",
+          "text/shortpulse-media-library-url",
+          "text/shortpulse-media-library-full-storage-path",
+        ],
+        getData: vi.fn((type: string) => {
+          if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
+          if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
+          if (type === "text/shortpulse-media-library-id") return "media-image-storage";
+          if (type === "text/shortpulse-media-library-file-type") return "image";
+          if (type === "text/shortpulse-media-library-url")
+            return "user-1/library/images/character-original";
+          if (type === "text/shortpulse-media-library-full-storage-path")
+            return "user-1/library/images/character-original";
+          return "";
+        }),
+      },
+    } as unknown as Parameters<
+      ReturnType<typeof useReferencePropertiesInteractions>["handlePrimaryDrop"]
+    >[0];
+
+    await act(async () => {
+      await result.current.handlePrimaryDrop(event);
+    });
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/library/images/character-original",
+      previewProfile: "none",
+    });
+    expect(onPrimaryImageChange).toHaveBeenCalledWith(
+      "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/images/character-original?token=fresh"
+    );
+  });
+
   it("remembers file-selected image blobs for later submission reuse", async () => {
     const onExtraImageChange = vi.fn();
     URL.createObjectURL = vi.fn(() => "blob:selected-file");

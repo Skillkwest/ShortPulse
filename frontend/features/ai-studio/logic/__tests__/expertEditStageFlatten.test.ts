@@ -148,7 +148,7 @@ describe("expertEditStageFlatten", () => {
     });
   });
 
-  it("builds deterministic draw instructions with clipped-canvas transforms", () => {
+  it("builds deterministic draw instructions with shared stage transform clipping", () => {
     const instructions = buildStageFlattenDrawPlan({
       decodedLayers: [
         {
@@ -185,7 +185,7 @@ describe("expertEditStageFlatten", () => {
         translateX: 100,
         translateY: -200,
         opacity: 1,
-        scale: 2,
+        scale: 3,
         rotationDeg: 45,
       },
       {
@@ -194,7 +194,7 @@ describe("expertEditStageFlatten", () => {
         translateX: -250,
         translateY: 250,
         opacity: 0,
-        scale: 0.2,
+        scale: 0.1,
         rotationDeg: -15,
       },
     ]);

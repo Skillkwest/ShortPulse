@@ -270,6 +270,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 148.  `sql/migrations/149_add_generation_projection_workspace_runtime_key.sql`
 149.  `sql/migrations/150_restore_dashboard_announcement_publish_grants.sql`
 150.  `sql/migrations/151_add_ai_studio_builtin_style_control_plane.sql`
+151.  `sql/migrations/152_add_audio_generation_display_title.sql`
       Rollback files:
 
 
@@ -355,6 +356,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/130_quarantine_legacy_migrated_custom_voice_ownership_rollback.sql`
     - `sql/migrations/rollback/131_add_user_issue_reports_rollback.sql`
     - `sql/migrations/rollback/143_add_project_workspace_snapshot_freshness_guard_rollback.sql`
+    - `sql/migrations/rollback/152_add_audio_generation_display_title_rollback.sql`
 
 Hosted SQL lint note:
 

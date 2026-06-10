@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { markAudioCompanionArtPending, processPendingAudioCompanionArtBatch } from "../processing";
 
 const getSupabaseAdminMock = vi.fn();
-const generateOpenAiImageMock = vi.fn();
+const buildFalFluxKleinImagePayloadMock = vi.fn();
+const generateFalFluxKleinImageMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const resolveRuntimeAgentPromptMock = vi.fn();
@@ -21,8 +22,9 @@ vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
 }));
 
-vi.mock("../../openaiImageGeneration", () => ({
-  generateOpenAiImage: (...args: unknown[]) => generateOpenAiImageMock(...args),
+vi.mock("../../falStylePreviewGeneration", () => ({
+  buildFalFluxKleinImagePayload: (...args: unknown[]) => buildFalFluxKleinImagePayloadMock(...args),
+  generateFalFluxKleinImage: (...args: unknown[]) => generateFalFluxKleinImageMock(...args),
 }));
 
 vi.mock("../../api/generationProjection", () => ({
@@ -70,6 +72,15 @@ describe("audioCompanionArt processing", () => {
       deletedStoragePath: null,
       storageDeleted: false,
     });
+    buildFalFluxKleinImagePayloadMock.mockImplementation((prompt: string, aspect: string) => ({
+      prompt,
+      image_size: { width: 1024, height: 1024 },
+      aspect,
+      num_images: 1,
+      output_format: "jpeg",
+      num_inference_steps: 4,
+      enable_safety_checker: false,
+    }));
     sharpToBufferMock.mockResolvedValue(Buffer.from("cover-webp"));
     sharpWebpMock.mockReturnValue({
       toBuffer: sharpToBufferMock,
@@ -164,7 +175,7 @@ describe("audioCompanionArt processing", () => {
         })),
       },
     });
-    generateOpenAiImageMock.mockResolvedValue({
+    generateFalFluxKleinImageMock.mockResolvedValue({
       buffer: Buffer.from("cover"),
       contentType: "image/png",
     });
@@ -187,11 +198,17 @@ describe("audioCompanionArt processing", () => {
       "eq",
       "suppressed"
     );
-    expect(generateOpenAiImageMock).toHaveBeenCalledWith(
+    expect(buildFalFluxKleinImagePayloadMock).toHaveBeenCalledWith(
+      expect.stringContaining("Control-plane branded style line."),
+      "1:1"
+    );
+    expect(generateFalFluxKleinImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        size: "1024x1024",
-        quality: "low",
-        prompt: expect.stringContaining("Control-plane branded style line."),
+        payload: expect.objectContaining({
+          prompt: expect.stringContaining("Control-plane branded style line."),
+          image_size: { width: 1024, height: 1024 },
+          num_inference_steps: 4,
+        }),
       })
     );
     expect(sharpMock).toHaveBeenCalledWith(Buffer.from("cover"), { failOn: "error" });
@@ -382,7 +399,7 @@ describe("audioCompanionArt processing", () => {
       skipped: 1,
       errors: 0,
     });
-    expect(generateOpenAiImageMock).not.toHaveBeenCalled();
+    expect(generateFalFluxKleinImageMock).not.toHaveBeenCalled();
     expect(cleanupAudioCompanionArtMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-suppressed",

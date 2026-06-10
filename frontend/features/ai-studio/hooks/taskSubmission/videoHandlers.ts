@@ -1101,7 +1101,6 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         handled: true,
         response,
         pollingProvider: "fal-omnihuman-v15",
-        patch: { previewUrl: imageUrl },
       };
     },
   },
@@ -1395,7 +1394,11 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           if (!preparedMotionVideoUrl) {
             throw new Error("Motion reference video is missing.");
           }
-          motionVideoUrlFinal = preparedMotionVideoUrl;
+          motionVideoUrlFinal = await uploadUrlToKieTemporaryFile({
+            url: preparedMotionVideoUrl,
+            mediaKind: "video",
+            cache: new Map<string, Promise<string>>(),
+          });
         } catch (error) {
           const message =
             error instanceof Error ? error.message : "Motion reference preparation failed";

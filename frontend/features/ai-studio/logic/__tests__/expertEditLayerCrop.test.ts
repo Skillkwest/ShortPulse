@@ -78,7 +78,7 @@ describe("expertEditLayerCrop", () => {
       drawHeight: 500,
       translateX: 250,
       translateY: -100,
-      scale: 2,
+      scale: 3,
       rotationDeg: 22,
     });
   });

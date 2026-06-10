@@ -37,7 +37,6 @@ export function useExpertEditStageKeyboardBindings({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isSpaceActivationKey(event)) return;
-      if (event.defaultPrevented) return;
       if (isKeyboardEventFromInteractiveTarget(event)) return;
       event.preventDefault();
       setIsMarkupPanSpacePressed(true);
@@ -111,6 +110,7 @@ export function useExpertEditStageKeyboardBindings({
     canUndoGeneralAction,
     handleRedoGeneralAction,
     handleUndoGeneralAction,
+    isMarkupExpandSelected,
     panelRootRef,
   ]);
 }

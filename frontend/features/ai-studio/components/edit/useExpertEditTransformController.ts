@@ -65,6 +65,12 @@ type UseExpertEditTransformControllerResult = {
   handleMovePointerLeave: (event: React.PointerEvent<HTMLDivElement>) => void;
 };
 
+type TransformInteractionGeometry = {
+  rect: DOMRect;
+  viewportOffsetX: number;
+  viewportOffsetY: number;
+};
+
 const resolveDragModeFromPointerTarget = (
   target: EventTarget | null
 ): TransformPointerSession["dragMode"] | null => {
@@ -112,9 +118,12 @@ export const useExpertEditTransformController = ({
   commitTransformHistoryTransition,
   showStatusToast,
 }: UseExpertEditTransformControllerParams): UseExpertEditTransformControllerResult => {
+  const transformInteractionGeometryRef = React.useRef<TransformInteractionGeometry | null>(null);
+
   const clearTransformPointerSession = React.useCallback(() => {
     transformPointerSessionRef.current = createIdleTransformPointerSession();
     transformGestureBaselineRef.current = null;
+    transformInteractionGeometryRef.current = null;
     setActiveTransformDragMode("move");
     setIsTransformPointerDragging(false);
   }, [
@@ -158,17 +167,19 @@ export const useExpertEditTransformController = ({
       const width = Math.max(1, rect.width);
       const height = Math.max(1, rect.height);
       const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, interactionTarget);
+      const viewportOffsetX = shouldApplyViewportTransform
+        ? (resolvedViewportOffset?.offsetX ?? viewportOffsetXRatio * rect.width)
+        : 0;
+      const viewportOffsetY = shouldApplyViewportTransform
+        ? (resolvedViewportOffset?.offsetY ?? viewportOffsetYRatio * rect.height)
+        : 0;
       const pointer = resolveCanvasSpacePoint({
         clientX: event.clientX,
         clientY: event.clientY,
         rect,
         sceneScale: sceneZoomScale,
-        viewportOffsetX: shouldApplyViewportTransform
-          ? (resolvedViewportOffset?.offsetX ?? viewportOffsetXRatio * rect.width)
-          : 0,
-        viewportOffsetY: shouldApplyViewportTransform
-          ? (resolvedViewportOffset?.offsetY ?? viewportOffsetYRatio * rect.height)
-          : 0,
+        viewportOffsetX,
+        viewportOffsetY,
       });
       const targetDragMode = resolveDragModeFromPointerTarget(event.target);
       const dragMode =
@@ -200,6 +211,11 @@ export const useExpertEditTransformController = ({
       }
       beginPanelHistoryGestureForLayers(interactionLayers);
       transformGestureBaselineRef.current = buildTransformHistoryEntry(interactionLayers);
+      transformInteractionGeometryRef.current = {
+        rect,
+        viewportOffsetX,
+        viewportOffsetY,
+      };
       transformPointerSessionRef.current = createTransformPointerSession({
         pointerId: event.pointerId,
         pointerX: pointer.x,
@@ -236,23 +252,32 @@ export const useExpertEditTransformController = ({
 
   const handleMovePointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      const interactionTarget = resolveTransformInteractionTarget(event.currentTarget);
-      const rect = interactionTarget.getBoundingClientRect();
-      const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, interactionTarget);
+      const session = transformPointerSessionRef.current;
+      if (!session.active || event.pointerId !== session.pointerId || !session.layerId) return;
+      const interactionGeometry =
+        transformInteractionGeometryRef.current ??
+        (() => {
+          const interactionTarget = resolveTransformInteractionTarget(event.currentTarget);
+          const rect = interactionTarget.getBoundingClientRect();
+          const resolvedViewportOffset = resolveViewportOffsetPixels?.(rect, interactionTarget);
+          return {
+            rect,
+            viewportOffsetX: shouldApplyViewportTransform
+              ? (resolvedViewportOffset?.offsetX ?? viewportOffsetXRatio * rect.width)
+              : 0,
+            viewportOffsetY: shouldApplyViewportTransform
+              ? (resolvedViewportOffset?.offsetY ?? viewportOffsetYRatio * rect.height)
+              : 0,
+          };
+        })();
       const pointer = resolveCanvasSpacePoint({
         clientX: event.clientX,
         clientY: event.clientY,
-        rect,
+        rect: interactionGeometry.rect,
         sceneScale: sceneZoomScale,
-        viewportOffsetX: shouldApplyViewportTransform
-          ? (resolvedViewportOffset?.offsetX ?? viewportOffsetXRatio * rect.width)
-          : 0,
-        viewportOffsetY: shouldApplyViewportTransform
-          ? (resolvedViewportOffset?.offsetY ?? viewportOffsetYRatio * rect.height)
-          : 0,
+        viewportOffsetX: interactionGeometry.viewportOffsetX,
+        viewportOffsetY: interactionGeometry.viewportOffsetY,
       });
-      const session = transformPointerSessionRef.current;
-      if (!session.active || event.pointerId !== session.pointerId || !session.layerId) return;
       event.preventDefault();
       const transformUpdate = resolveTransformSessionUpdate({
         session,

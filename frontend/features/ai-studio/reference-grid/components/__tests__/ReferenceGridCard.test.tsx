@@ -1049,6 +1049,7 @@ describe("ReferenceGridCard", () => {
             taskState: "success",
             durationMs: 2000,
             modelId: resolveRequiredAudioMusicModelId(),
+            title: "Midnight Signal",
           }),
           isAudioPreview: true,
           cardPreviewUrl: "https://example.com/audio.mp3",
@@ -1063,6 +1064,7 @@ describe("ReferenceGridCard", () => {
     expect(audioNode).not.toBeNull();
     expect(document.querySelector(".reference-card-audio-time-row")).not.toBeNull();
     expect(screen.queryByText("0:00")).toBeNull();
+    expect(screen.getByText("Midnight Signal")).toBeInTheDocument();
     expect(screen.getByText("0:02")).toBeInTheDocument();
     expect(document.querySelector('[data-media-duration-kind="music"]')).not.toBeNull();
     expect(waveformBars.length).toBeGreaterThan(10);

@@ -1,6 +1,6 @@
 /**
  * Kling hidden shot-mode prompt composition tests.
- * Locks the visible prompt budget to the worst-case hidden injection overhead.
+ * Locks the visible prompt budget below the worst-case hidden injection overhead.
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -10,7 +10,7 @@ import {
 } from "../klingShotModePromptComposition";
 
 describe("klingShotModePromptComposition", () => {
-  it("reserves the largest hidden shot-mode injection for both visible prompt limits", () => {
+  it("uses the even 2,200 visible prompt limit for both shot modes", () => {
     const singleComposed = composeHiddenShotModePrompt({ prompt: "A", mode: "single" });
     const multiComposed = composeHiddenShotModePrompt({ prompt: "A", mode: "multi" });
     const singleOverhead = singleComposed.length - 1;
@@ -21,7 +21,7 @@ describe("klingShotModePromptComposition", () => {
     expect(singleOverhead).toBe(214);
     expect(multiOverhead).toBe(177);
     expect(reservedVisibleLimit).toBe(2286);
-    expect(resolveKlingSinglePromptVisibleCharacterLimit("single")).toBe(reservedVisibleLimit);
-    expect(resolveKlingSinglePromptVisibleCharacterLimit("multi")).toBe(reservedVisibleLimit);
+    expect(resolveKlingSinglePromptVisibleCharacterLimit("single")).toBe(2200);
+    expect(resolveKlingSinglePromptVisibleCharacterLimit("multi")).toBe(2200);
   });
 });

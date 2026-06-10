@@ -44,6 +44,7 @@ Rules:
 4. Shared style order persists separately in `user_preferences.ai_studio_style_panel_ids`.
 5. Global built-in Styles are sourced from `ai_studio_builtin_style_runtime`, edited only from `/admin/agent-instructions`, and ignored when a matching id appears in `ai_studio_style_details_overrides`.
 6. Custom-style delete must remove the source row from the details override map; built-in Style delete uses the per-user delete denylist for hide semantics without mutating the global built-in definition.
+7. Admin built-in Style preview uploads use the same local image preprocessing as custom Styles and write the processed preview image URL/data URL into the global built-in Style definition.
 
 ## Workflow
 

@@ -1,7 +1,7 @@
 /**
- * Direct Fal FLUX 2 Klein helper for prompt-only Styles Library thumbnails.
- * This intentionally avoids normal generation/media persistence; the Styles
- * route stores only the compact data URL in style preferences.
+ * Direct Fal FLUX 2 Klein image helper for internal prompt-only image generation.
+ * Callers own billing and persistence; this module only submits, polls, and
+ * fetches trusted provider media.
  */
 import { FAL_FLUX_2_KLEIN_9B_MODEL_ID } from "../model-runtime/falModelIds";
 import { falSizeForAspect } from "../model-runtime/pricing";
@@ -37,7 +37,7 @@ import {
   isProviderRetryableUpstreamResponse,
 } from "./providerIntegration/statusProviderPolicy";
 
-type FalFluxKleinStylePreviewPayload = {
+export type FalFluxKleinImagePayload = {
   prompt: string;
   image_size: { width: number; height: number };
   num_images: 1;
@@ -46,26 +46,35 @@ type FalFluxKleinStylePreviewPayload = {
   enable_safety_checker: false;
 };
 
-type GenerateFalFluxKleinStylePreviewImageInput = {
-  payload: FalFluxKleinStylePreviewPayload;
+export type FalFluxKleinStylePreviewPayload = FalFluxKleinImagePayload;
+
+type GenerateFalFluxKleinImageInput = {
+  payload: FalFluxKleinImagePayload;
   timeoutMs?: number;
   pollIntervalMs?: number;
 };
 
-export type FalFluxKleinStylePreviewImageResult = {
+type GenerateFalFluxKleinStylePreviewImageInput = GenerateFalFluxKleinImageInput;
+
+export type FalFluxKleinImageResult = {
   buffer: Buffer;
   contentType: string;
   providerRequestId: string;
   mediaUrl: string;
 };
 
+export type FalFluxKleinStylePreviewImageResult = FalFluxKleinImageResult;
+
 const FAL_PROVIDER_KEY = "fal";
-export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID = FAL_FLUX_2_KLEIN_9B_MODEL_ID;
-export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_SIZE = "1024x1024";
-export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_OUTPUT_FORMAT = "jpeg";
+export const FAL_FLUX_2_KLEIN_MODEL_ID = FAL_FLUX_2_KLEIN_9B_MODEL_ID;
+export const FAL_FLUX_2_KLEIN_SQUARE_SIZE = "1024x1024";
+export const FAL_FLUX_2_KLEIN_OUTPUT_FORMAT = "jpeg";
+export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID = FAL_FLUX_2_KLEIN_MODEL_ID;
+export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_SIZE = FAL_FLUX_2_KLEIN_SQUARE_SIZE;
+export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_OUTPUT_FORMAT = FAL_FLUX_2_KLEIN_OUTPUT_FORMAT;
 const STYLE_PREVIEW_ASPECT = "1:1";
-const STYLE_PREVIEW_POLL_INTERVAL_MS = 2000;
-const STYLE_PREVIEW_SUBMIT_TIMEOUT_SECONDS = 30;
+const FAL_FLUX_2_KLEIN_POLL_INTERVAL_MS = 2000;
+const FAL_FLUX_2_KLEIN_SUBMIT_TIMEOUT_SECONDS = 30;
 
 const sleep = async (ms: number, signal: AbortSignal): Promise<void> => {
   if (ms <= 0) return;
@@ -100,7 +109,7 @@ const readProviderFailureMessage = (payload: unknown, fallback: string): string 
 const collectMediaUrls = (payload: unknown): string[] =>
   readProviderMediaUrls({
     provider: FAL_PROVIDER_KEY,
-    modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+    modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
     payload,
   });
 
@@ -111,7 +120,7 @@ const fetchGeneratedImage = async ({
   imageUrl: string;
   signal: AbortSignal;
 }): Promise<{ buffer: Buffer; contentType: string }> => {
-  assertTrustedFalProviderUrl(imageUrl, "style_preview_media");
+  assertTrustedFalProviderUrl(imageUrl, "fal_flux_2_klein_media");
   const response = await fetch(imageUrl, { signal });
   if (!response.ok) {
     throw new Error(`Fal FLUX 2 Klein media fetch failed (${response.status}).`);
@@ -126,12 +135,12 @@ const fetchGeneratedImage = async ({
   };
 };
 
-const validateStylePreviewPayload = (payload: FalFluxKleinStylePreviewPayload) => {
-  const validation = validateFalPayloadForModel(FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID)(payload);
+const validateFalFluxKleinPayload = (payload: FalFluxKleinImagePayload) => {
+  const validation = validateFalPayloadForModel(FAL_FLUX_2_KLEIN_MODEL_ID)(payload);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
-  return validation.projectedPayload as FalFluxKleinStylePreviewPayload;
+  return validation.projectedPayload as FalFluxKleinImagePayload;
 };
 
 const resolvePayloadWithMedia = async ({
@@ -180,7 +189,7 @@ const resolvePayloadWithMedia = async ({
         statusData.isJson &&
         providerPayloadHasMedia({
           provider: FAL_PROVIDER_KEY,
-          modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+          modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
           payload: statusData.json,
         })
       ) {
@@ -190,7 +199,7 @@ const resolvePayloadWithMedia = async ({
       const status = statusData.isJson
         ? readProviderLifecycleStatus({
             provider: FAL_PROVIDER_KEY,
-            modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+            modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
             payload: statusData.json,
           })
         : null;
@@ -205,13 +214,13 @@ const resolvePayloadWithMedia = async ({
 
       const responseUrl = readProviderResponseUrl({
         provider: FAL_PROVIDER_KEY,
-        modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+        modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
         payload: statusData.json,
       });
       const responseProbe = responseUrl
         ? await probeResponseUrlsForMedia({
             provider: FAL_PROVIDER_KEY,
-            modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+            modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
             responseUrls: [responseUrl],
             statusHint: status,
             apiKey,
@@ -224,7 +233,7 @@ const resolvePayloadWithMedia = async ({
 
       const resultProbe = await probeResultBasesForMedia({
         provider: FAL_PROVIDER_KEY,
-        modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+        modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
         resultBaseUrls: statusBaseUrls,
         requestId: providerRequestId,
         statusHint: status,
@@ -237,34 +246,39 @@ const resolvePayloadWithMedia = async ({
     }
   }
 
-  throw new Error("Fal FLUX 2 Klein style preview generation timed out.");
+  throw new Error("Fal FLUX 2 Klein image generation timed out.");
 };
 
-export const buildFalFluxKleinStylePreviewPayload = (
-  prompt: string
-): FalFluxKleinStylePreviewPayload => {
-  const size = falSizeForAspect(STYLE_PREVIEW_ASPECT);
+export const buildFalFluxKleinImagePayload = (
+  prompt: string,
+  aspect: string = STYLE_PREVIEW_ASPECT
+): FalFluxKleinImagePayload => {
+  const size = falSizeForAspect(aspect);
   return {
     prompt,
     image_size: { width: size.width, height: size.height },
     num_images: 1,
-    output_format: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_OUTPUT_FORMAT,
+    output_format: FAL_FLUX_2_KLEIN_OUTPUT_FORMAT,
     num_inference_steps: 4,
     enable_safety_checker: false,
   };
 };
 
-export const generateFalFluxKleinStylePreviewImage = async ({
+export const buildFalFluxKleinStylePreviewPayload = (
+  prompt: string
+): FalFluxKleinStylePreviewPayload => buildFalFluxKleinImagePayload(prompt, STYLE_PREVIEW_ASPECT);
+
+export const generateFalFluxKleinImage = async ({
   payload,
-  timeoutMs = getFalTimeoutMsOrDefault(FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID, 60000),
-  pollIntervalMs = STYLE_PREVIEW_POLL_INTERVAL_MS,
-}: GenerateFalFluxKleinStylePreviewImageInput): Promise<FalFluxKleinStylePreviewImageResult> => {
-  const projectedPayload = validateStylePreviewPayload(payload);
-  const submitUrl = getFalSubmitUrlRequired(FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID);
+  timeoutMs = getFalTimeoutMsOrDefault(FAL_FLUX_2_KLEIN_MODEL_ID, 60000),
+  pollIntervalMs = FAL_FLUX_2_KLEIN_POLL_INTERVAL_MS,
+}: GenerateFalFluxKleinImageInput): Promise<FalFluxKleinImageResult> => {
+  const projectedPayload = validateFalFluxKleinPayload(payload);
+  const submitUrl = getFalSubmitUrlRequired(FAL_FLUX_2_KLEIN_MODEL_ID);
   const statusBaseUrls = resolveProviderStatusBaseUrls({
     provider: FAL_PROVIDER_KEY,
-    configuredBaseUrls: getFalStatusBaseUrlsRequired(FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID),
-    modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+    configuredBaseUrls: getFalStatusBaseUrlsRequired(FAL_FLUX_2_KLEIN_MODEL_ID),
+    modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
   });
   const apiKey = readProviderApiKey(FAL_PROVIDER_KEY);
   const controller = new AbortController();
@@ -273,12 +287,12 @@ export const generateFalFluxKleinStylePreviewImage = async ({
   try {
     const submitResult = await dispatchProviderSubmit({
       provider: FAL_PROVIDER_KEY,
-      modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+      modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
       targets: [{ submitUrl }],
       payload: projectedPayload,
       apiKey,
       signal: controller.signal,
-      requestStartTimeoutSeconds: STYLE_PREVIEW_SUBMIT_TIMEOUT_SECONDS,
+      requestStartTimeoutSeconds: FAL_FLUX_2_KLEIN_SUBMIT_TIMEOUT_SECONDS,
       maxAttemptsPerTarget: 2,
     });
     if (!submitResult.response.ok) {
@@ -320,3 +334,7 @@ export const generateFalFluxKleinStylePreviewImage = async ({
     windowlessClearTimeout(timeout);
   }
 };
+
+export const generateFalFluxKleinStylePreviewImage = async (
+  input: GenerateFalFluxKleinStylePreviewImageInput
+): Promise<FalFluxKleinStylePreviewImageResult> => generateFalFluxKleinImage(input);

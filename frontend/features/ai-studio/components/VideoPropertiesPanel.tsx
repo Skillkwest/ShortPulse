@@ -7,7 +7,7 @@ import { AppMessage } from "../../../components/AppMessage";
 import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../types";
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
-import { extractPromptDropText } from "../utils/dragDrop";
+import { extractInternalReferenceDragPayload, extractPromptDropText } from "../utils/dragDrop";
 import { insertDroppedPromptTextAtSelection } from "./promptStep/agentComposerDrop";
 import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
@@ -135,6 +135,29 @@ const resolveDurableLipSyncDropAudioUrl = (
           !candidate.startsWith("blob:") &&
           !candidate.startsWith("data:")
       ) || null;
+  return { url, storagePath };
+};
+
+const resolveDurableLipSyncReferenceAudioDrop = (
+  transfer: DataTransfer
+): { url: string | null; storagePath: string | null } | null => {
+  const internalPayload = extractInternalReferenceDragPayload(transfer);
+  if (!internalPayload || internalPayload.mediaKind !== "audio") return null;
+  const url =
+    [internalPayload.referenceUrl, internalPayload.referenceRenderUrl]
+      .map((candidate) => candidate?.trim() ?? "")
+      .find((candidate) => candidate.length > 0 && !isNonDurableLipSyncAudioUrl(candidate)) || null;
+  const storagePath =
+    [internalPayload.fullStoragePath, internalPayload.previewStoragePath]
+      .map((candidate) => candidate?.trim() ?? "")
+      .find(
+        (candidate) =>
+          candidate.length > 0 &&
+          isNonDurableLipSyncAudioUrl(candidate) &&
+          !candidate.startsWith("blob:") &&
+          !candidate.startsWith("data:")
+      ) || null;
+  if (!url && !storagePath) return null;
   return { url, storagePath };
 };
 
@@ -591,6 +614,18 @@ export function VideoPropertiesPanel({
             })
           );
         }
+        return;
+      }
+      const referenceAudio = resolveDurableLipSyncReferenceAudioDrop(event.dataTransfer);
+      if (referenceAudio) {
+        applyLipSyncAudio(
+          createLipSyncAudioStateFromDurableUrl({
+            url: referenceAudio.url,
+            durationMs: null,
+            sourceKind: "reference",
+            storagePath: referenceAudio.storagePath,
+          })
+        );
         return;
       }
       void handleLipSyncAudioFile(event.dataTransfer.files?.[0]);

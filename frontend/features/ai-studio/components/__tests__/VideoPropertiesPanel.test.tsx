@@ -863,6 +863,51 @@ describe("VideoPropertiesPanel", () => {
     });
   });
 
+  it("accepts Reference Grid audio drops for Lip Sync voice audio", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isMotionMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image.",
+      promptBadge: "Prompt optional",
+    });
+    const onLipSyncAudioChange = vi.fn();
+    const transfer = createTransferStore();
+    transfer.setData("text/reference-origin", "ai-studio-reference-grid");
+    transfer.setData("text/reference-id", "audio-output-1");
+    transfer.setData("text/reference-output-id", "audio-output-1");
+    transfer.setData("text/reference-media-id", "media-audio-1");
+    transfer.setData("text/reference-media-kind", "audio");
+    transfer.setData("text/reference-url", "https://signed.shortpulse.test/reference-voice.mp3");
+    transfer.setData(
+      "text/reference-full-storage-path",
+      "user-1/audio/reference-grid/reference-voice.mp3"
+    );
+
+    const { container } = render(
+      <VideoPropertiesPanel {...baseProps} onLipSyncAudioChange={onLipSyncAudioChange} />
+    );
+
+    const audioDropzone = container.querySelector(".video-lip-sync-audio-dropzone");
+    expect(audioDropzone).not.toBeNull();
+    fireEvent.drop(audioDropzone as Element, { dataTransfer: transfer });
+
+    expect(onLipSyncAudioChange).toHaveBeenCalledWith({
+      url: "https://signed.shortpulse.test/reference-voice.mp3",
+      durationMs: null,
+      status: "ready",
+      sourceKind: "reference",
+      storagePath: "user-1/audio/reference-grid/reference-voice.mp3",
+      previewUrl: null,
+      mimeType: null,
+      size: null,
+    });
+  });
+
   it("keeps Lip Sync Canvas tear-out blocked when audio has only a local preview", async () => {
     useReferencePropertiesDerivedStateMock.mockReturnValue({
       ...defaultDerivedState,

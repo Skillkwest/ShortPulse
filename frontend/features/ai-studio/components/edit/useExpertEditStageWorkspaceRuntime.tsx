@@ -323,7 +323,7 @@ export function useExpertEditStageWorkspaceRuntime({
     inpaintPanel: renderInpaintControlsContent("modal"),
     markupPanel: renderMarkupControlsContent("modal"),
     viewportStyle: modalStageViewportStyle,
-    sceneContent: (
+    sceneContent: isMarkupExpandSelected ? (
       <ExpertEditStageScene
         scope="modal"
         layers={layers}
@@ -339,14 +339,16 @@ export function useExpertEditStageWorkspaceRuntime({
         isRemoveBackgroundPending={isRemoveBackgroundPending}
         isPrimaryStageGenerating={isPrimaryStageGenerating}
       />
-    ),
-    transformOverlay: renderSelectedLayerTransformOverlay(
-      "modal",
-      markupModalViewportSize,
-      markupModalStageElement,
-      modalInteractionHandlers
-    ),
-    layersPanel: (
+    ) : null,
+    transformOverlay: isMarkupExpandSelected
+      ? renderSelectedLayerTransformOverlay(
+          "modal",
+          markupModalViewportSize,
+          markupModalStageElement,
+          modalInteractionHandlers
+        )
+      : null,
+    layersPanel: isMarkupExpandSelected ? (
       <ExpertEditLayersPanel
         scope="modal"
         layers={layers}
@@ -377,7 +379,7 @@ export function useExpertEditStageWorkspaceRuntime({
         onCloseModal={closeMarkupModal}
         modalLayersRef={handleMarkupModalLayersRef}
       />
-    ),
+    ) : null,
     onClose: closeMarkupModal,
     onDragShield: handleMarkupModalDragShield,
     interactionHandlers: modalInteractionHandlers,

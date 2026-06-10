@@ -7,6 +7,10 @@ import { CaretDown } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { agentPrompts } from "../../../lib/agentPromptsConfig";
 import {
+  isImageFileCandidate,
+  resolveProcessedStyleSource,
+} from "../../ai-studio/components/style-creator/intake";
+import {
   BUILT_IN_STYLE_SCHEMA_VERSION,
   normalizeBuiltInStyleDefinitions,
   resolveBuiltInStyleDefinitions,
@@ -530,9 +534,6 @@ export function AdminAgentInstructionsSection() {
   const [storedBuiltInStyleDrafts, setStoredBuiltInStyleDrafts] = React.useState<
     AdminBuiltInStyleDraft[]
   >([]);
-  const [builtInStyleCardCollapsedById, setBuiltInStyleCardCollapsedById] = React.useState<
-    Record<string, boolean>
-  >({});
   const [nextBuiltInStyleDraftIndex, setNextBuiltInStyleDraftIndex] = React.useState(1);
   const [builtInStyleLoading, setBuiltInStyleLoading] = React.useState(true);
   const [builtInStyleSaveState, setBuiltInStyleSaveState] = React.useState<SaveState>("idle");
@@ -550,6 +551,8 @@ export function AdminAgentInstructionsSection() {
     string | null
   >(null);
   const [builtInStyleSaveIssue, setBuiltInStyleSaveIssue] = React.useState<string | null>(null);
+  const [builtInStylePreviewUploadIssueById, setBuiltInStylePreviewUploadIssueById] =
+    React.useState<CopyFeedbackMap>({});
   const [editSystemPresetCardCollapsed, setEditSystemPresetCardCollapsed] = React.useState(true);
   const [editSystemPresetDrafts, setEditSystemPresetDrafts] = React.useState<
     AdminEditPresetDraft[]
@@ -897,16 +900,6 @@ export function AdminAgentInstructionsSection() {
   }, [refreshPulseBuiltIns]);
 
   React.useEffect(() => {
-    setBuiltInStyleCardCollapsedById((current) => {
-      const next: Record<string, boolean> = {};
-      for (const draft of builtInStyleDrafts) {
-        next[draft.localId] = current[draft.localId] ?? true;
-      }
-      return next;
-    });
-  }, [builtInStyleDrafts]);
-
-  React.useEffect(() => {
     setPulseCardCollapsed((current) => {
       const next: Record<string, boolean> = {};
       for (const draft of pulseDrafts) {
@@ -940,6 +933,36 @@ export function AdminAgentInstructionsSection() {
       setBuiltInStyleSaveIssue(null);
     },
     []
+  );
+
+  const handleBuiltInStylePreviewUpload = React.useCallback(
+    async (localId: string, file: File | null) => {
+      if (!file) return;
+      setBuiltInStylePreviewUploadIssueById((current) => ({ ...current, [localId]: null }));
+      if (!isImageFileCandidate(file)) {
+        setBuiltInStylePreviewUploadIssueById((current) => ({
+          ...current,
+          [localId]: "Upload an image file for the style preview.",
+        }));
+        return;
+      }
+
+      setBuiltInStylePreviewUploadIssueById((current) => ({
+        ...current,
+        [localId]: "Processing preview image...",
+      }));
+      try {
+        const processed = await resolveProcessedStyleSource({ file });
+        updateBuiltInStyleDraft(localId, "previewImageUrl", processed.previewImageUrl);
+        setBuiltInStylePreviewUploadIssueById((current) => ({ ...current, [localId]: null }));
+      } catch {
+        setBuiltInStylePreviewUploadIssueById((current) => ({
+          ...current,
+          [localId]: "Unable to process that preview image.",
+        }));
+      }
+    },
+    [updateBuiltInStyleDraft]
   );
 
   const handleAddEditSystemPreset = React.useCallback(() => {
@@ -1024,7 +1047,7 @@ export function AdminAgentInstructionsSection() {
 
   const handleRemoveBuiltInStyleDraft = React.useCallback((localId: string) => {
     setBuiltInStyleDrafts((current) => current.filter((draft) => draft.localId !== localId));
-    setBuiltInStyleCardCollapsedById((current) => {
+    setBuiltInStylePreviewUploadIssueById((current) => {
       const next = { ...current };
       delete next[localId];
       return next;
@@ -1036,7 +1059,6 @@ export function AdminAgentInstructionsSection() {
   const handleAddBuiltInStyleDraft = React.useCallback(() => {
     const nextDraft = buildEmptyBuiltInStyleDraft(nextBuiltInStyleDraftIndex);
     setBuiltInStyleDrafts((current) => [...current, nextDraft]);
-    setBuiltInStyleCardCollapsedById((current) => ({ ...current, [nextDraft.localId]: false }));
     setBuiltInStyleCardCollapsed(false);
     setNextBuiltInStyleDraftIndex((current) => current + 1);
     setBuiltInStyleSaveState("idle");
@@ -1764,7 +1786,6 @@ export function AdminAgentInstructionsSection() {
             <div className={styles.agentEditPresetGrid} role="list" aria-label="Built-in Styles">
               {builtInStyleDrafts.map((draft, index) => {
                 const stored = storedBuiltInStyleDraftsById[draft.localId];
-                const isCollapsed = builtInStyleCardCollapsedById[draft.localId] ?? true;
                 const isDirty = stored
                   ? !areBuiltInStyleDraftsEqual(draft, stored)
                   : !isBuiltInStyleDraftBlank(draft);
@@ -1795,28 +1816,15 @@ export function AdminAgentInstructionsSection() {
                     >
                       Delete
                     </button>
-                    <button
-                      type="button"
-                      className={styles.agentEditPresetTileButton}
-                      onClick={() =>
-                        setBuiltInStyleCardCollapsedById((current) => ({
-                          ...current,
-                          [draft.localId]: !isCollapsed,
-                        }))
-                      }
-                      aria-expanded={!isCollapsed}
-                      aria-controls={`admin-built-in-style-card-body-${draft.localId}`}
-                      disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
-                    >
+                    <div className={styles.agentEditPresetTileButton}>
                       <span className={styles.agentEditPresetTileTitle}>{cardTitle}</span>
                       <span className={styles.agentEditPresetTilePrompt}>
                         {isDirty ? "Unsaved edits" : stored ? "Stored" : "New style"}
                       </span>
-                    </button>
+                    </div>
                     <div
                       id={`admin-built-in-style-card-body-${draft.localId}`}
                       className={styles.agentInstructionCollapsibleBody}
-                      hidden={isCollapsed}
                     >
                       <div className={styles.agentInstructionFormGrid}>
                         <label className={styles.agentInstructionField}>
@@ -1845,6 +1853,35 @@ export function AdminAgentInstructionsSection() {
                         </label>
                       </div>
                       <div className={styles.agentInstructionFormGrid}>
+                        <label className={styles.agentInstructionField}>
+                          <span className={styles.agentInstructionLabel}>Preview image upload</span>
+                          {draft.previewImageUrl.trim().length > 0 ? (
+                            <span className={styles.agentBuiltInStylePreviewFrame}>
+                              {/* Data-URL preview upload is operator-only and not part of app image optimization lanes. */}
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                className={styles.agentBuiltInStylePreviewImage}
+                                src={draft.previewImageUrl}
+                                alt={`${cardTitle} preview`}
+                              />
+                            </span>
+                          ) : null}
+                          <input
+                            className={styles.agentInstructionInput}
+                            type="file"
+                            accept="image/*"
+                            onChange={(event) => {
+                              const [file] = Array.from(event.target.files ?? []);
+                              event.target.value = "";
+                              void handleBuiltInStylePreviewUpload(draft.localId, file ?? null);
+                            }}
+                          />
+                          {builtInStylePreviewUploadIssueById[draft.localId] ? (
+                            <span className={styles.agentInstructionNote}>
+                              {builtInStylePreviewUploadIssueById[draft.localId]}
+                            </span>
+                          ) : null}
+                        </label>
                         <label className={styles.agentInstructionField}>
                           <span className={styles.agentInstructionLabel}>Preview image URL</span>
                           <input

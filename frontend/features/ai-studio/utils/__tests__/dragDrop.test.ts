@@ -303,6 +303,30 @@ describe("dragDrop payload extraction", () => {
     expect(payload.promptText).toBeNull();
   });
 
+  it("treats Media Library image payloads as image drags", () => {
+    const transfer = makeTransfer({
+      "application/x-shortpulse-media-library-item": JSON.stringify({
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-image-1",
+          url: "user-1/library/images/character-original",
+          fileType: "image",
+          previewUrl: "https://signed.shortpulse.test/character-preview.webp",
+          fullStoragePath: "user-1/library/images/character-original",
+        },
+      }),
+    });
+
+    expect(isImageDragTransfer(transfer)).toBe(true);
+    const payload = extractDragDropPayload(transfer);
+
+    expect(payload.referenceId).toBe("media-image-1");
+    expect(payload.mediaKind).toBe("image");
+    expect(payload.imageUrl).toBe("https://signed.shortpulse.test/character-preview.webp");
+    expect(payload.promptText).toBeNull();
+  });
+
   it("ignores video URLs for image-only drops", () => {
     const transfer = makeTransfer({
       "text/uri-list": "https://cdn.example.com/clip.mp4",

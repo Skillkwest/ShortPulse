@@ -549,6 +549,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           audioId={item.id}
           audioUrl={audioPreviewUrl}
           audioInstanceKey={audioInstanceKey}
+          title={item.title ?? null}
           backgroundImageUrl={audioBackgroundImageUrl}
           audioSourceMode={audioSourceMode}
           durationMs={item.durationMs ?? null}

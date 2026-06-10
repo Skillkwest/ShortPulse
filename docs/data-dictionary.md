@@ -433,6 +433,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `style_context` (jsonb, default `{}`): Persisted style lineage and applied-state context.
 - `generation_replay` (jsonb, default `{}`): Replay/reference snapshot used for recovery and workflow-context analytics.
 - `workflow_reload` (jsonb, default `{}`): Versioned navigate-and-hydrate workflow metadata for reloading the originating AI Studio panel from a generated reference.
+- `display_title` (text, nullable, <= 40 chars): Compact generated display title for audio references, used by Reference Grid/project restore display only.
 - `publication_status` / `publication_id` / `published_at` (nullable): Publication tracking fields.
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.

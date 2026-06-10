@@ -21,6 +21,7 @@ export type UpsertGenerationProjectionInput = {
   taskState?: string | null;
   queueState?: string | null;
   displayPrompt?: string | null;
+  displayTitle?: string | null;
   transcriptText?: string | null;
   modelId?: string | null;
   previewUrl?: string | null;
@@ -113,6 +114,7 @@ type RepairableProjectionRow = {
   providerRequestId: string | null;
   latestAttemptId: string | null;
   displayPrompt: string | null;
+  displayTitle: string | null;
   transcriptText: string | null;
   modelId: string | null;
   hiddenInReferenceGrid: boolean;
@@ -171,6 +173,7 @@ const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow |
     providerRequestId: asString(row.provider_request_id),
     latestAttemptId: asString(row.latest_attempt_id),
     displayPrompt: asString(row.display_prompt),
+    displayTitle: asString(row.display_title),
     transcriptText: asString(row.transcript_text),
     modelId: asString(row.model_id),
     hiddenInReferenceGrid: asBoolean(row.hidden_in_reference_grid) ?? false,
@@ -269,6 +272,7 @@ export const upsertGenerationProjection = async ({
   taskState,
   queueState,
   displayPrompt,
+  displayTitle,
   transcriptText,
   modelId,
   previewUrl,
@@ -318,6 +322,7 @@ export const upsertGenerationProjection = async ({
     task_state: taskState,
     queue_state: queueState,
     display_prompt: displayPrompt,
+    display_title: displayTitle,
     transcript_text: transcriptText,
     model_id: modelId,
     preview_url: previewUrl,
@@ -694,6 +699,7 @@ export const repairStaleTerminalGenerationProjections = async ({
         "provider_request_id",
         "latest_attempt_id",
         "display_prompt",
+        "display_title",
         "transcript_text",
         "model_id",
         "hidden_in_reference_grid",
@@ -799,6 +805,7 @@ export const repairStaleTerminalGenerationProjections = async ({
         status: "ready",
         taskState: "success",
         displayPrompt: projection.displayPrompt ?? generation.promptText,
+        displayTitle: projection.displayTitle,
         transcriptText: projection.transcriptText,
         modelId: projection.modelId ?? generation.modelId,
         previewUrl: resultUrls[0] ?? null,
@@ -867,6 +874,7 @@ export const repairStaleTerminalGenerationProjections = async ({
       status: "ready",
       taskState: "fail",
       displayPrompt: projection.displayPrompt ?? generation.promptText,
+      displayTitle: projection.displayTitle,
       transcriptText: projection.transcriptText,
       modelId: projection.modelId ?? generation.modelId,
       errorMessage: message.errorMessage,

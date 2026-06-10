@@ -1,10 +1,13 @@
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import sharp from "sharp";
-import { generateOpenAiImage } from "../openaiImageGeneration";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { upsertGenerationProjection } from "../api/generationProjection";
 import { resolveRuntimeAgentPrompt } from "../api/runtimeAgentPromptControlPlane";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import {
+  buildFalFluxKleinImagePayload,
+  generateFalFluxKleinImage,
+} from "../falStylePreviewGeneration";
 import { cleanupAudioCompanionArt } from "./cleanup";
 import { compileAudioCompanionArtPrompt, type AudioCompanionArtSourceMode } from "./promptCompiler";
 
@@ -322,10 +325,8 @@ export const processPendingAudioCompanionArtBatch = async ({
         metadata,
         styleLine: runtimeStyleLine,
       });
-      const generated = await generateOpenAiImage({
-        prompt: generationSpec.prompt,
-        size: generationSpec.size,
-        quality: generationSpec.quality,
+      const generated = await generateFalFluxKleinImage({
+        payload: buildFalFluxKleinImagePayload(generationSpec.prompt, "1:1"),
       });
       const deliveryBuffer = await encodeAudioCompanionArtDeliveryBuffer(generated.buffer);
       if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {

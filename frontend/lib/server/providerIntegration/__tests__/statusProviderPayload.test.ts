@@ -81,6 +81,25 @@ describe("statusProviderPayload", () => {
     ]);
   });
 
+  it("reads fal OmniHuman video.url result payloads", () => {
+    const payload = {
+      status: "completed",
+      video: {
+        url: "https://v3.fal.media/files/generated-lip-sync.mp4",
+      },
+      duration: 12.4,
+    };
+
+    expect(providerPayloadHasMedia({ provider: "fal", payload })).toBe(true);
+    expect(
+      readProviderMediaUrls({
+        provider: "fal",
+        modelId: "fal-ai/bytedance/omnihuman/v1.5",
+        payload,
+      })
+    ).toEqual(["https://v3.fal.media/files/generated-lip-sync.mp4"]);
+  });
+
   it("reads fal content-policy messages", () => {
     const payload = {
       detail: [

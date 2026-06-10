@@ -115,6 +115,7 @@ type MusicGenerateSuccessResponse = {
     durationMs: number | null;
     waveformPeaks: number[] | null;
     lyricsText?: string | null;
+    title?: string | null;
     modelId: string;
     saveState?: StudioOutputSaveState;
     saveError?: string | null;
@@ -441,6 +442,7 @@ const applyAudioOutputToPlaceholder = ({
     ...item,
     mode: "audio",
     prompt: promptText,
+    title: (payload as { title?: string | null }).title ?? item.title ?? null,
     transcriptText:
       (payload as { transcriptText?: string | null }).transcriptText ?? item.transcriptText ?? null,
     lyricsText: (payload as { lyricsText?: string | null }).lyricsText ?? item.lyricsText ?? null,

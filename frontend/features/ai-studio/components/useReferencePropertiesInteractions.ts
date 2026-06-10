@@ -20,6 +20,12 @@ import {
   isVideoDragTransfer,
   looksLikeImageUrl,
 } from "../utils/dragDrop";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import {
+  createInternalMediaRef,
+  INTERNAL_MEDIA_REF_BUCKET,
+} from "../../../lib/media/internalMediaRefs";
+import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import {
   createEmptyAiStudioKlingElement,
   getAiStudioKlingElementReferenceUrls,
@@ -58,7 +64,10 @@ type ReferenceImageDropSnapshot = {
   imageFile?: File | null;
   fromFile?: boolean;
   referenceId?: string | null;
+  mediaId?: string | null;
   mediaKind?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
 };
 
 type UseReferencePropertiesInteractionsParams = {
@@ -91,6 +100,14 @@ const trimOptionalString = (value: string | null | undefined): string | null => 
   const trimmed = value?.trim() ?? "";
   return trimmed.length ? trimmed : null;
 };
+
+const resolveImageStoragePath = ({
+  fullStoragePath,
+  previewStoragePath,
+}: {
+  fullStoragePath?: string | null;
+  previewStoragePath?: string | null;
+}): string | null => trimOptionalString(fullStoragePath) ?? trimOptionalString(previewStoragePath);
 
 const resolveCanvasTearOutReferenceImageSnapshot = (
   payload: AgentComposerDirectDropPayload
@@ -378,8 +395,25 @@ export const useReferencePropertiesInteractions = ({
     setter: (url: string | null) => void,
     setLoading: (value: boolean) => void
   ) => {
-    const { internalPayload, imageUrl, imageFile, fromFile, referenceId, mediaKind } = snapshot;
+    const {
+      internalPayload,
+      imageUrl,
+      imageFile,
+      fromFile,
+      referenceId,
+      mediaId,
+      mediaKind,
+      previewStoragePath,
+      fullStoragePath,
+    } = snapshot;
     const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
+    const effectivePreviewStoragePath =
+      internalPayload?.previewStoragePath ?? previewStoragePath ?? null;
+    const effectiveFullStoragePath = internalPayload?.fullStoragePath ?? fullStoragePath ?? null;
+    const effectiveStoragePath = resolveImageStoragePath({
+      fullStoragePath: effectiveFullStoragePath,
+      previewStoragePath: effectivePreviewStoragePath,
+    });
     let nextUrl: string | null = null;
     let resolvedInternalMediaRef = null;
     let didSetLoading = false;
@@ -409,11 +443,29 @@ export const useReferencePropertiesInteractions = ({
         return;
       }
 
+      if (!resolvedInternalMediaRef && effectiveStoragePath) {
+        resolvedInternalMediaRef = createInternalMediaRef({
+          bucket: INTERNAL_MEDIA_REF_BUCKET,
+          storagePath: effectiveStoragePath,
+          mediaFileId: mediaId ?? referenceId ?? null,
+        });
+      }
+
       if (!nextUrl) {
         nextUrl =
           (internalPayload?.referenceUrl && looksLikeImageUrl(internalPayload.referenceUrl)
             ? internalPayload.referenceUrl
             : null) ?? imageUrl;
+      }
+
+      if (!nextUrl && effectiveStoragePath) {
+        setLoading(true);
+        didSetLoading = true;
+        nextUrl = await getSignedMediaUrl({
+          bucket: INTERNAL_MEDIA_REF_BUCKET,
+          storagePath: effectiveStoragePath,
+          previewProfile: "none",
+        }).catch(() => null);
       }
 
       if (
@@ -426,7 +478,8 @@ export const useReferencePropertiesInteractions = ({
       }
 
       if (!nextUrl) return;
-      if (!looksLikeImageUrl(nextUrl)) return;
+      const hasTrustedStorageImageRef = Boolean(resolvedInternalMediaRef && effectiveStoragePath);
+      if (!looksLikeImageUrl(nextUrl) && !hasTrustedStorageImageRef) return;
 
       if (!internalPayload) {
         setLoading(true);
@@ -462,11 +515,27 @@ export const useReferencePropertiesInteractions = ({
     async (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      const mediaLibraryPayload = readMediaLibraryDragPayload(event.dataTransfer);
       const { imageUrl, imageFile, fromFile, referenceId, mediaKind } = extractDragDropPayload(
         event.dataTransfer
       );
+      const libraryImagePayload =
+        mediaLibraryPayload?.kind === "libraryMedia" &&
+        mediaLibraryPayload.payload.fileType === "image"
+          ? mediaLibraryPayload.payload
+          : null;
       await acceptImageDropSnapshot(
-        { internalPayload, imageUrl, imageFile, fromFile, referenceId, mediaKind },
+        {
+          internalPayload,
+          imageUrl,
+          imageFile,
+          fromFile,
+          referenceId: referenceId ?? libraryImagePayload?.id ?? null,
+          mediaId: libraryImagePayload?.id ?? null,
+          mediaKind,
+          previewStoragePath: libraryImagePayload?.previewStoragePath ?? null,
+          fullStoragePath: libraryImagePayload?.fullStoragePath ?? null,
+        },
         setter,
         setLoading
       );

@@ -98,7 +98,7 @@ Treat these as protected runtime invariants during cleanup or refactor work:
 
 1. Poll with canonical media uses direct terminal settlement, while poll with terminal-no-media uses shared recovery.
 2. Webhook ingress attempts immediate convergence first, then falls back to observation inbox persistence plus a best-effort control-plane wake when convergence is still pending.
-3. `/api/internal/generation-recovery/run` remains the operator-facing control-plane surface for accepted-job recovery, reservation cleanup, observation replay, projection repair, and audio companion art follow-up.
+3. `/api/internal/generation-recovery/run` remains the operator-facing control-plane surface for accepted-job recovery, reservation cleanup, observation replay, projection repair, and audio companion art follow-up. Audio companion art uses the shared Flux Klein image helper and stores visibility on `generation_projection`.
 4. `requestGenerationControlPlaneWake(...)` is an optimization hint only; scheduler/worker execution remains authoritative if wake delivery fails or is unavailable.
 5. Terminal convergence must preserve billing settlement, publication/projection visibility rules, abandonment handling, autosave-skipped success behavior, and motion-reference lease cleanup.
 

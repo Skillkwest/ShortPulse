@@ -18,6 +18,8 @@ import AdminAgentInstructionsPage from "../../pages/admin/agent-instructions";
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const resolveProcessedStyleSourceMock = vi.hoisted(() => vi.fn());
+const isImageFileCandidateMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -48,6 +50,11 @@ vi.mock("../../features/admin/logic/useAdminAccess", () => ({
 
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
+vi.mock("../../features/ai-studio/components/style-creator/intake", () => ({
+  isImageFileCandidate: (...args: unknown[]) => isImageFileCandidateMock(...args),
+  resolveProcessedStyleSource: (...args: unknown[]) => resolveProcessedStyleSourceMock(...args),
 }));
 
 const buildCatalogResponse = (
@@ -142,6 +149,12 @@ describe("Admin agent instructions page", () => {
       isAdmin: true,
       error: null,
       refresh: vi.fn(),
+    });
+    isImageFileCandidateMock.mockReturnValue(true);
+    resolveProcessedStyleSourceMock.mockResolvedValue({
+      previewImageUrl: "data:image/jpeg;base64,uploaded-built-in-style-preview",
+      extractionSourceImageUrl: "data:image/jpeg;base64,uploaded-built-in-style-source",
+      promptText: "",
     });
   });
 
@@ -318,6 +331,7 @@ describe("Admin agent instructions page", () => {
         ...SEEDED_BUILT_IN_STYLE_DEFINITIONS[1],
         title: "Editorial Cinematic",
         stylePrompt: "dramatic editorial lighting, rich contrast, polished color grade",
+        previewImageUrl: "data:image/jpeg;base64,uploaded-built-in-style-preview",
       },
     ];
 
@@ -350,17 +364,33 @@ describe("Admin agent instructions page", () => {
     if (!stylesCard) throw new Error("Expected built-in Styles card.");
     const cinematicTile = within(stylesCard).getByText("Cinematic").closest("article");
     if (!cinematicTile) throw new Error("Expected Cinematic style tile.");
-    const cinematicButton = within(cinematicTile)
-      .getAllByRole("button")
-      .find((button) => !button.getAttribute("aria-label")?.startsWith("Delete "));
-    if (!cinematicButton) throw new Error("Expected Cinematic tile button.");
-    fireEvent.click(cinematicButton);
+    expect(within(cinematicTile).getByText("Stored").closest("button")).toBeNull();
+    expect(within(cinematicTile).getByRole("textbox", { name: "Style name" })).toHaveValue(
+      "Cinematic"
+    );
 
     fireEvent.change(within(cinematicTile).getByRole("textbox", { name: "Style name" }), {
       target: { value: "Editorial Cinematic" },
     });
     fireEvent.change(within(cinematicTile).getByRole("textbox", { name: "Style Prompt" }), {
       target: { value: "dramatic editorial lighting, rich contrast, polished color grade" },
+    });
+    const previewUploadInput = within(cinematicTile).getByLabelText("Preview image upload");
+    const previewFile = new File(["style-preview"], "cinematic-preview.png", {
+      type: "image/png",
+    });
+    fireEvent.change(previewUploadInput, {
+      target: {
+        files: [previewFile],
+      },
+    });
+    await waitFor(() => {
+      expect(resolveProcessedStyleSourceMock).toHaveBeenCalledWith({ file: previewFile });
+    });
+    await waitFor(() => {
+      expect(within(cinematicTile).getByLabelText("Preview image URL")).toHaveValue(
+        "data:image/jpeg;base64,uploaded-built-in-style-preview"
+      );
     });
     expect(within(cinematicTile).getByText("Unsaved edits")).toBeInTheDocument();
 
@@ -399,7 +429,7 @@ describe("Admin agent instructions page", () => {
           styleId: "cinematic",
           title: "Editorial Cinematic",
           stylePrompt: "dramatic editorial lighting, rich contrast, polished color grade",
-          previewImageUrl: "/Styles/Cinematic.png",
+          previewImageUrl: "data:image/jpeg;base64,uploaded-built-in-style-preview",
           referenceImageName: null,
           schemaVersion: 1,
         },

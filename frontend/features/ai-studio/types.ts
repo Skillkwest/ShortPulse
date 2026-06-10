@@ -302,6 +302,7 @@ export type StudioAudioSourceMode = "voiceover" | "voice-changer" | "sound-effec
 export type StudioOutput = {
   id: string;
   prompt: string;
+  title?: string | null;
   transcriptText?: string | null;
   lyricsText?: string | null;
   mode: StudioMode;

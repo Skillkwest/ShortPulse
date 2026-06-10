@@ -56,9 +56,8 @@ const LAYER_OPACITY_MIN = 0;
 const LAYER_OPACITY_MAX = 1;
 const LAYER_TRANSLATE_RATIO_MIN = -1;
 const LAYER_TRANSLATE_RATIO_MAX = 1;
-const LAYER_SCALE_MIN = 0.2;
-const LAYER_SCALE_MAX = 2;
-export const SINGLE_IMAGE_EDIT_SAFE_SCALE_MIN = 0.5;
+export const EXPERT_EDIT_LAYER_SCALE_MIN = 0.02;
+export const EXPERT_EDIT_LAYER_SCALE_MAX = 8;
 const TRANSFORM_ROTATE_HANDLE_INSET_PX = 16;
 const LAYER_SCALE_EPSILON = 0.0001;
 
@@ -83,7 +82,7 @@ export const clampLayerTranslateRatio = (value: number) =>
   Math.min(LAYER_TRANSLATE_RATIO_MAX, Math.max(LAYER_TRANSLATE_RATIO_MIN, value));
 
 export const clampLayerScale = (value: number) =>
-  Math.min(LAYER_SCALE_MAX, Math.max(LAYER_SCALE_MIN, value));
+  Math.min(EXPERT_EDIT_LAYER_SCALE_MAX, Math.max(EXPERT_EDIT_LAYER_SCALE_MIN, value));
 
 const resolveSafeImageAspectRatio = (value: number) =>
   Number.isFinite(value) && value > 0 ? value : 1;
@@ -222,12 +221,17 @@ export const resolveMaxContainedLayerScale = ({
   const widthDenominator = containedRect.width * cosine + containedRect.height * sine;
   const heightDenominator = containedRect.width * sine + containedRect.height * cosine;
   const widthBound =
-    widthDenominator > LAYER_SCALE_EPSILON ? safeDropzoneWidth / widthDenominator : LAYER_SCALE_MAX;
+    widthDenominator > LAYER_SCALE_EPSILON
+      ? safeDropzoneWidth / widthDenominator
+      : EXPERT_EDIT_LAYER_SCALE_MAX;
   const heightBound =
     heightDenominator > LAYER_SCALE_EPSILON
       ? safeDropzoneHeight / heightDenominator
-      : LAYER_SCALE_MAX;
-  return Math.max(LAYER_SCALE_EPSILON, Math.min(LAYER_SCALE_MAX, widthBound, heightBound));
+      : EXPERT_EDIT_LAYER_SCALE_MAX;
+  return Math.max(
+    LAYER_SCALE_EPSILON,
+    Math.min(EXPERT_EDIT_LAYER_SCALE_MAX, widthBound, heightBound)
+  );
 };
 
 export const resolveContainedLayerTransform = ({
@@ -293,18 +297,6 @@ export const resolveClippedLayerTransform = ({
   scale: Math.max(LAYER_SCALE_EPSILON, clampLayerScale(transform.scale)),
   rotationDeg: normalizeLayerRotationDeg(transform.rotationDeg),
 });
-
-export const resolveSingleImageEditSafeTransform = ({
-  transform,
-}: {
-  transform: LayerTransform;
-}): LayerTransform => {
-  const clippedTransform = resolveClippedLayerTransform({ transform });
-  if (clippedTransform.scale < SINGLE_IMAGE_EDIT_SAFE_SCALE_MIN) {
-    return defaultLayerTransform();
-  }
-  return clippedTransform;
-};
 
 export const normalizeLayerRotationDeg = (value: number) => {
   if (!Number.isFinite(value)) return 0;

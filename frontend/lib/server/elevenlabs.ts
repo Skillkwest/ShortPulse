@@ -94,6 +94,7 @@ type PersistGeneratedAudioInput = {
   projectId?: string | null;
   workspaceRuntimeKey?: string | null;
   sourceMode: ElevenLabsAudioSourceMode;
+  displayTitle?: string | null;
   voiceId?: string | null;
   voiceName?: string | null;
   outputBuffer: Buffer;
@@ -983,6 +984,7 @@ export const persistGeneratedAudioAsset = async ({
   projectId = null,
   workspaceRuntimeKey = null,
   sourceMode,
+  displayTitle = null,
   voiceId = null,
   voiceName = null,
   outputBuffer,
@@ -1002,6 +1004,7 @@ export const persistGeneratedAudioAsset = async ({
     : normalizeGenerationWorkspaceRuntimeKey(workspaceRuntimeKey);
   const createdAtIso = new Date().toISOString();
   const normalizedTranscriptText = normalizeOptionalString(transcriptText);
+  const normalizedDisplayTitle = normalizeOptionalString(displayTitle);
   const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
     supabaseAdmin,
     userId,
@@ -1053,6 +1056,7 @@ export const persistGeneratedAudioAsset = async ({
       metadata: {
         provider_request_id: resolvedProviderRequestId,
         source_mode: sourceMode,
+        display_title: normalizedDisplayTitle,
         voice_id: voiceId,
         voice_name: voiceName,
         transcript_text: normalizedTranscriptText,
@@ -1099,6 +1103,7 @@ export const persistGeneratedAudioAsset = async ({
     mediaFileIds: [],
     metadata: {
       media_kind: "audio",
+      display_title: normalizedDisplayTitle,
       provider_request_id: resolvedProviderRequestId,
       autosave_enabled: mediaAutosaveEnabled,
       autosave_preference_source: mediaAutosavePreference.source,
@@ -1130,6 +1135,7 @@ export const persistGeneratedAudioAsset = async ({
             model_id: modelId,
             provider_request_id: resolvedProviderRequestId,
             source_mode: sourceMode,
+            display_title: normalizedDisplayTitle,
             mime_type: outputContentType,
             output_format: outputFormat,
             voice_id: voiceId,
@@ -1159,6 +1165,7 @@ export const persistGeneratedAudioAsset = async ({
         mediaFileIds: [mediaFileId],
         metadata: {
           media_kind: "audio",
+          display_title: normalizedDisplayTitle,
           provider_request_id: resolvedProviderRequestId,
           autosave_enabled: mediaAutosaveEnabled,
           autosave_preference_source: mediaAutosavePreference.source,
@@ -1212,6 +1219,7 @@ export const persistGeneratedAudioAsset = async ({
       publishedAt: createdAtIso,
       metadata: {
         media_kind: "audio",
+        display_title: normalizedDisplayTitle,
         provider_request_id: resolvedProviderRequestId,
         autosave_enabled: mediaAutosaveEnabled,
         autosave_preference_source: mediaAutosavePreference.source,
@@ -1237,6 +1245,7 @@ export const persistGeneratedAudioAsset = async ({
       status: "success",
       taskState: "success",
       displayPrompt: promptText,
+      displayTitle: normalizedDisplayTitle,
       transcriptText: normalizedTranscriptText,
       modelId,
       previewUrl: signedResult.data.signedUrl,

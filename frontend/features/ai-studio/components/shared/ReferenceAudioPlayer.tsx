@@ -22,6 +22,7 @@ export type ReferenceAudioPlayerProps = {
   audioId: string;
   audioUrl?: string | null;
   audioInstanceKey?: string;
+  title?: string | null;
   backgroundImageUrl?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
   durationMs?: number | null;
@@ -44,6 +45,7 @@ export function ReferenceAudioPlayer({
   audioId,
   audioUrl,
   audioInstanceKey,
+  title = null,
   backgroundImageUrl = null,
   audioSourceMode = null,
   durationMs = null,
@@ -130,6 +132,7 @@ export function ReferenceAudioPlayer({
     [audioId, audioProgressRatio, audioWaveformBars]
   );
   const audioProgressPercent = Math.round(audioProgressRatio * 100);
+  const normalizedTitle = title?.trim() || null;
   const resolvedAudioDurationSeconds = React.useMemo(() => {
     if (resolvedAudioDurationMs != null && resolvedAudioDurationMs > 0) {
       return resolvedAudioDurationMs / 1000;
@@ -413,6 +416,11 @@ export function ReferenceAudioPlayer({
           >
             <DownloadSimple size={15} weight="bold" aria-hidden />
           </button>
+        ) : null}
+        {normalizedTitle ? (
+          <div className="reference-card-audio-title" title={normalizedTitle}>
+            {normalizedTitle}
+          </div>
         ) : null}
         <div className="reference-card-audio-player">
           <div className="reference-card-audio-player-row">

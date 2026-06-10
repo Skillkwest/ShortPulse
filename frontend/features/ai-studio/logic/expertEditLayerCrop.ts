@@ -2,6 +2,8 @@
  * Expert Edit crop helpers.
  * Provides pure aspect/guide geometry plus stage-accurate active-layer crop composition.
  */
+import { resolveClippedLayerTransform } from "../components/edit/expertEditLayerTransformUtils";
+
 export type ExpertEditCropRect = {
   x: number;
   y: number;
@@ -26,11 +28,8 @@ export type ExpertEditLayerStageDrawPlan = {
 };
 
 const DEFAULT_MIME_TYPE = "image/png";
-const LAYER_SCALE_MIN = 0.2;
-const LAYER_SCALE_MAX = 2;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-const clampScale = (value: number) => clamp(value, LAYER_SCALE_MIN, LAYER_SCALE_MAX);
 const toRadians = (value: number) => (value * Math.PI) / 180;
 const isCrossOriginCandidate = (url: string) =>
   url.startsWith("http://") || url.startsWith("https://");
@@ -122,17 +121,25 @@ export const buildExpertEditLayerStageDrawPlan = ({
   const containScale = Math.min(stageWidth / imageWidth, stageHeight / imageHeight);
   const drawWidth = imageWidth * containScale;
   const drawHeight = imageHeight * containScale;
+  const clippedTransform = resolveClippedLayerTransform({
+    transform: {
+      translateXRatio: Number.isFinite(transform?.translateXRatio)
+        ? (transform?.translateXRatio as number)
+        : 0,
+      translateYRatio: Number.isFinite(transform?.translateYRatio)
+        ? (transform?.translateYRatio as number)
+        : 0,
+      scale: Number.isFinite(transform?.scale) ? (transform?.scale as number) : 1,
+      rotationDeg: Number.isFinite(transform?.rotationDeg) ? (transform?.rotationDeg as number) : 0,
+    },
+  });
   return {
     drawWidth,
     drawHeight,
-    translateX:
-      (Number.isFinite(transform?.translateXRatio) ? (transform?.translateXRatio as number) : 0) *
-      stageWidth,
-    translateY:
-      (Number.isFinite(transform?.translateYRatio) ? (transform?.translateYRatio as number) : 0) *
-      stageHeight,
-    scale: clampScale(Number.isFinite(transform?.scale) ? (transform?.scale as number) : 1),
-    rotationDeg: Number.isFinite(transform?.rotationDeg) ? (transform?.rotationDeg as number) : 0,
+    translateX: clippedTransform.translateXRatio * stageWidth,
+    translateY: clippedTransform.translateYRatio * stageHeight,
+    scale: clippedTransform.scale,
+    rotationDeg: clippedTransform.rotationDeg,
   };
 };
 

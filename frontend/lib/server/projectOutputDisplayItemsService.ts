@@ -25,6 +25,7 @@ const PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS = [
   "source_ref",
   "generation_trace_id",
   "preview_text",
+  "display_title",
   "display_prompt_summary",
   "mime_type",
   "width",
@@ -58,6 +59,7 @@ const CHECKPOINT_OUTPUT_STUB_FIELDS = [
 
 const RICH_OUTPUT_CHECKPOINT_EXCLUDED_FIELDS = [
   "prompt",
+  "title",
   "transcriptText",
   "resultUrls",
   "previewUrl",
@@ -108,6 +110,7 @@ type ProjectOutputDisplayItemRow = {
   source_ref: string | null;
   generation_trace_id: string | null;
   preview_text: string | null;
+  display_title?: string | null;
   display_prompt_summary: string | null;
   mime_type: string | null;
   width: number | null;
@@ -358,6 +361,7 @@ const toDisplayItemCandidate = ({
     source_ref: normalizeString(output.sourceRef),
     generation_trace_id: normalizeString(output.generationTraceId),
     preview_text: normalizeString(output.previewText),
+    display_title: normalizeString(output.title),
     display_prompt_summary: truncateSummary(output.prompt) ?? truncateSummary(output.previewText),
     mime_type: normalizeString(output.mimeType),
     width: normalizePositiveInteger(output.width),
@@ -394,6 +398,7 @@ const displayValuesForComparison = (
   source_ref: row.source_ref,
   generation_trace_id: row.generation_trace_id,
   preview_text: row.preview_text,
+  display_title: row.display_title ?? null,
   display_prompt_summary: row.display_prompt_summary,
   mime_type: row.mime_type,
   width: row.width,
@@ -543,6 +548,7 @@ const toCompatibilityOutputPatch = (row: ProjectOutputDisplayItemRow): Record<st
     sourceRef: row.source_ref,
     generationTraceId: row.generation_trace_id,
     previewText: row.preview_text,
+    title: row.display_title,
     prompt: row.display_prompt_summary,
     mimeType: row.mime_type,
     width: row.width,

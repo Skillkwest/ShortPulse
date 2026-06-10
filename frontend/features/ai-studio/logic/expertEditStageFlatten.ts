@@ -67,15 +67,11 @@ const DEFAULT_STAGE_FLATTEN_MIME_TYPE = "image/png";
 export const STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX = 4096;
 export const STAGE_FLATTEN_IMAGE_LOAD_TIMEOUT_MS = 15_000;
 export const STAGE_FLATTEN_CANVAS_EXPORT_TIMEOUT_MS = 8_000;
-const STAGE_FLATTEN_MIN_SCALE = 0.2;
-const STAGE_FLATTEN_MAX_SCALE = 2;
 
 const isCrossOriginCandidate = (url: string) =>
   url.startsWith("http://") || url.startsWith("https://");
 
 const clampOpacity = (value: number) => Math.min(1, Math.max(0, value));
-const clampScale = (value: number) =>
-  Math.min(STAGE_FLATTEN_MAX_SCALE, Math.max(STAGE_FLATTEN_MIN_SCALE, value));
 const clampCameraScale = (value: number) => clampExpertEditCameraScale(value);
 const resolveMaxOutputSizePx = (value?: number | null) => {
   const normalizedValue = Number.isFinite(value)
@@ -296,7 +292,7 @@ export const buildStageFlattenDrawPlan = ({
       translateX: constrainedTransform.translateXRatio * outputWidth,
       translateY: constrainedTransform.translateYRatio * outputHeight,
       opacity: clampOpacity(layer.opacity),
-      scale: clampScale(constrainedTransform.scale),
+      scale: constrainedTransform.scale,
       rotationDeg: constrainedTransform.rotationDeg,
     };
   });
@@ -336,9 +332,7 @@ export const composePrimaryStageLayersToBlob = async (
           translateYRatio: Number.isFinite(layer.transform?.translateYRatio)
             ? (layer.transform?.translateYRatio as number)
             : 0,
-          scale: clampScale(
-            Number.isFinite(layer.transform?.scale) ? (layer.transform?.scale as number) : 1
-          ),
+          scale: Number.isFinite(layer.transform?.scale) ? (layer.transform?.scale as number) : 1,
           rotationDeg: Number.isFinite(layer.transform?.rotationDeg)
             ? (layer.transform?.rotationDeg as number)
             : 0,

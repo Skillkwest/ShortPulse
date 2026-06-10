@@ -53,6 +53,7 @@ type GenerationProjectionDeliveryRow = {
   provider?: unknown;
   model_id?: unknown;
   display_prompt?: unknown;
+  display_title?: unknown;
   transcript_text?: unknown;
   preview_url?: unknown;
   companion_art_status?: unknown;
@@ -97,6 +98,7 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
   "provider",
   "model_id",
   "display_prompt",
+  "display_title",
   "transcript_text",
   "preview_url",
   "companion_art_status",
@@ -574,6 +576,7 @@ const toHydratedGeneratedOutput = (
   return {
     id: `generated:${generationId}`,
     prompt: asTrimmedString(row.display_prompt) ?? "",
+    title: asTrimmedString(row.display_title) ?? null,
     transcriptText: asTrimmedString(row.transcript_text) ?? null,
     lyricsText: resolveWorkflowReloadLyricsText(workflowReload),
     mode,

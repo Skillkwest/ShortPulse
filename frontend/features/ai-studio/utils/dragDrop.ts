@@ -172,9 +172,14 @@ const parseReferenceMediaKind = (
 
 const resolveReferenceTransferMediaKind = (
   transfer: DataTransfer
-): ReferenceDragPreviewKind | null =>
-  extractInternalReferenceDragPayload(transfer)?.mediaKind ??
-  parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
+): ReferenceDragPreviewKind | null => {
+  const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+  return (
+    extractInternalReferenceDragPayload(transfer)?.mediaKind ??
+    parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE)) ??
+    (mediaLibraryPayload?.kind === "libraryMedia" ? mediaLibraryPayload.payload.fileType : null)
+  );
+};
 
 const hasStructuredReferenceTransferHints = (transfer: DataTransfer): boolean => {
   if (hasInternalReferenceDragTypeHints(transfer)) return true;
@@ -678,14 +683,13 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   const imageFile = findImageFile(transfer.files);
   const hasStructuredHints = hasStructuredReferenceTransferHints(transfer);
   const internalPayload = extractInternalReferenceDragPayload(transfer);
+  const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
   const hasAuthoritativeInternalPayload = Boolean(
     transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE).trim() ||
     transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE).trim() ||
     transfer.getData(REFERENCE_TRANSFER_ORIGIN_TYPE).trim()
   );
-  const mediaKind =
-    internalPayload?.mediaKind ??
-    parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
+  const mediaKind = resolveReferenceTransferMediaKind(transfer);
   const internalRenderUrl = normalizeReferenceTransferUrlCandidate(
     internalPayload?.referenceRenderUrl,
     { unwrapNextImage: false }
@@ -702,7 +706,9 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     transfer.getData("text/reference-url")
   );
   const referenceId =
-    internalPayload?.referenceId ?? (transfer.getData("text/reference-id") || null);
+    internalPayload?.referenceId ??
+    (mediaLibraryPayload?.kind === "libraryMedia" ? mediaLibraryPayload.payload.id : null) ??
+    (transfer.getData("text/reference-id") || null);
   const normalizedReferenceUrl =
     referenceUrl && isLikelyImageTransferUrl(referenceUrl) ? referenceUrl : null;
   const normalizedTransferRenderUrl =
@@ -715,6 +721,18 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
         ? internalReferenceUrl
         : null))
     : null;
+  const normalizedLibraryImageUrl =
+    mediaLibraryPayload?.kind === "libraryMedia" && mediaLibraryPayload.payload.fileType === "image"
+      ? ([
+          mediaLibraryPayload.payload.fullUrl,
+          mediaLibraryPayload.payload.previewUrl,
+          mediaLibraryPayload.payload.url,
+        ]
+          .map((candidate) => normalizeReferenceTransferUrlCandidate(candidate))
+          .find((candidate): candidate is string =>
+            Boolean(candidate && isLikelyImageTransferUrl(candidate))
+          ) ?? null)
+      : null;
   const dimensions = resolveReferenceTransferDimensions(transfer);
 
   if (mediaKind && mediaKind !== "image") {
@@ -731,6 +749,17 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   if (normalizedInternalImageUrl) {
     return {
       imageUrl: normalizedInternalImageUrl,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+      mediaKind,
+      ...dimensions,
+    };
+  }
+
+  if (normalizedLibraryImageUrl) {
+    return {
+      imageUrl: normalizedLibraryImageUrl,
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,

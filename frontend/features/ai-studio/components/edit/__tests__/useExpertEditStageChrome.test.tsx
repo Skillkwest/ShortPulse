@@ -6,6 +6,57 @@ import type { RailTool } from "../expertEditPanelViewContract";
 import { useExpertEditStageChrome } from "../useExpertEditStageChrome";
 
 describe("useExpertEditStageChrome", () => {
+  it("captures inline pan gestures that begin over nested stage content", () => {
+    const beginMarkupPanGesture = vi.fn(() => true);
+    const stage = document.createElement("div");
+    const nestedImage = document.createElement("div");
+    const stopPropagation = vi.fn();
+    stage.tabIndex = 0;
+    stage.appendChild(nestedImage);
+    document.body.appendChild(stage);
+
+    try {
+      const { result } = renderHook(() =>
+        useExpertEditStageChrome({
+          hasPrimaryCompositePreview: true,
+          isMarkupExpandSelected: false,
+          isMorePresetsSurfaceOpen: false,
+          isMoveToolSelected: true,
+          selectedRailTool: "move",
+          shouldOpenMarkupModalFromCollapsedTools: false,
+          beginMarkupPanGesture,
+          continueMarkupPanGesture: vi.fn(() => false),
+          endMarkupPanGesture: vi.fn(() => false),
+          handleRecenterMoveAction: vi.fn(),
+          handleResetGeneralAction: vi.fn(),
+          handleRemoveSelectedLayerImage: vi.fn(),
+          setSelectedRailTool: vi.fn(),
+          setIsMarkupExpandSelected: vi.fn(),
+          setIsInpaintCollapsed: vi.fn(),
+          setIsInpaintCollapsing: vi.fn(),
+          primaryInputRef: { current: null },
+          stageContextMenuRef: { current: null },
+          markupModalRef: { current: null },
+          inpaintCollapseTimerRef: { current: null },
+        })
+      );
+
+      act(() => {
+        result.current.handleInlineStagePointerDownCapture({
+          target: nestedImage,
+          currentTarget: stage,
+          stopPropagation,
+        } as unknown as React.PointerEvent<HTMLDivElement>);
+      });
+
+      expect(beginMarkupPanGesture).toHaveBeenCalledTimes(1);
+      expect(stopPropagation).toHaveBeenCalledTimes(1);
+      expect(document.activeElement).toBe(stage);
+    } finally {
+      stage.remove();
+    }
+  });
+
   it("does not silently switch the active rail tool back to move when closing the modal", () => {
     const { result } = renderHook(() => {
       const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("markup");

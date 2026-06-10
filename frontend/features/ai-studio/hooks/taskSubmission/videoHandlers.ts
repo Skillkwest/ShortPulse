@@ -13,10 +13,15 @@ import {
 } from "../../../../lib/model-runtime/providerModelIds";
 import { normalizeDurationForModel } from "../../../../lib/model-runtime/modelDurationConstraints";
 import type { VideoSubmissionAdapterKey } from "../../../../lib/model-runtime/submissionAdapterMetadata";
-import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
+import {
+  needsVideoUpload,
+  prepareMotionReferenceVideoUrl,
+  prepareVideoUrlForSubmission,
+} from "../../utils/videoUpload";
 import type { VideoSubmissionArgs } from "./types";
 import {
   getAiStudioKlingElementReferenceUrls,
+  isPromptTokenEligibleKlingElement,
   resolveAiStudioKlingElementDisplayLabel,
   resolveAiStudioKlingElementLegacyTokens,
   resolveKieKlingElementToken,
@@ -497,6 +502,7 @@ const rewritePromptWithSeedanceEntityContext = (
   const entityContexts = klingElements.reduce<
     Array<{ label: string; description: string; tokenAliases: string[] }>
   >((accumulator, element, index) => {
+    if (!isPromptTokenEligibleKlingElement(element)) return accumulator;
     if (!hasKlingElementMedia(element)) return accumulator;
     const label = resolveAiStudioKlingElementDisplayLabel(element, index, klingElements);
     const description = element.description?.trim() ?? "";
@@ -1096,7 +1102,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         }
         try {
           const preparedMotionVideoUrl =
-            await prepareVideoUrlForSubmission(motionReferenceVideoUrl);
+            await prepareMotionReferenceVideoUrl(motionReferenceVideoUrl);
           if (!preparedMotionVideoUrl) {
             throw new Error("Motion reference video is missing.");
           }
@@ -1148,7 +1154,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       try {
         const kieUploadCache = new Map<string, Promise<string>>();
         preparedKlingElements = await Promise.all(
-          klingElements.map(
+          klingElements.filter(isPromptTokenEligibleKlingElement).map(
             async (element) =>
               await prepareKieHostedKlingElementForSubmission({
                 element,

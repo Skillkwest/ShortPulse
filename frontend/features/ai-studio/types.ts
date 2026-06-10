@@ -301,6 +301,7 @@ export type StudioOutput = {
   id: string;
   prompt: string;
   transcriptText?: string | null;
+  lyricsText?: string | null;
   mode: StudioMode;
   aspect: string;
   model: string;

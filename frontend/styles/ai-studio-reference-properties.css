@@ -672,6 +672,40 @@
   flex: 0 1 auto;
 }
 
+.reference-step-card.is-video-refs .kling-drop-row {
+  gap: 8px;
+}
+
+.reference-step-card.is-video-refs .kling-drop-row .reference-dropzone {
+  min-height: 118px;
+}
+
+.reference-step-card.is-video-refs .kling-drop-row .dropzone-tag {
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 20px);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reference-step-card.is-video-refs .kling-drop-row .reference-drop-content {
+  gap: 6px;
+  padding: 34px 8px 10px;
+  min-width: 0;
+}
+
+.reference-step-card.is-video-refs .kling-drop-row .reference-drop-content svg {
+  width: 20px;
+  height: 20px;
+}
+
+.reference-step-card.is-video-refs .kling-drop-row .reference-drop-title {
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .reference-step-header {
   display: flex;
   align-items: center;

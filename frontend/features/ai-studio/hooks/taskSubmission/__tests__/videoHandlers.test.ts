@@ -29,6 +29,9 @@ const falClientMocks = vi.hoisted(() => ({
   submitKieSeedanceVideo: vi.fn(),
   submitKieVeoImageToVideo: vi.fn(),
 }));
+const videoUploadMocks = vi.hoisted(() => ({
+  prepareMotionReferenceVideoUrlOverride: null as null | ((...args: unknown[]) => unknown),
+}));
 
 vi.mock("../../../../../lib/falClient", () => {
   const submitQueuedGenerationByModelId = vi.fn((modelId: string, payload: unknown) => {
@@ -58,6 +61,16 @@ vi.mock("../../../../../lib/authenticatedFetch", () => ({
 vi.mock("../../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: vi.fn(),
 }));
+vi.mock("../../../utils/videoUpload", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../utils/videoUpload")>();
+  return {
+    ...actual,
+    prepareMotionReferenceVideoUrl: (...args: unknown[]) =>
+      videoUploadMocks.prepareMotionReferenceVideoUrlOverride
+        ? videoUploadMocks.prepareMotionReferenceVideoUrlOverride(...args)
+        : actual.prepareMotionReferenceVideoUrl(...(args as [string | null])),
+  };
+});
 
 const {
   submitFalOmniHuman,
@@ -91,6 +104,10 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
   ...overrides,
   lipSyncAudio: overrides.lipSyncAudio ?? createEmptyLipSyncAudioState(),
   lipSyncTurboMode: overrides.lipSyncTurboMode ?? false,
+});
+
+beforeEach(() => {
+  videoUploadMocks.prepareMotionReferenceVideoUrlOverride = null;
 });
 
 describe("handleVideoModelSubmission (Lip Sync)", () => {
@@ -1198,6 +1215,66 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).not.toContain("Shot 1");
   });
 
+  it("submits mixed Seedance saved elements and direct image slots with separate prompt semantics", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Place @redlantern beside the new reference image",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 10,
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          sourceKind: "element",
+          sourceElementId: "saved-element-1",
+          sourceCharacterId: null,
+          name: "Red Lantern",
+          alias: "redlantern",
+          description: "Warm lacquered lantern",
+          frontalImageUrl: "https://example.com/red-lantern-front.png",
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+        {
+          id: "image-ref-1",
+          slotIndex: 1,
+          sourceKind: "reference-image",
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: "Image reference",
+          alias: "",
+          description: "",
+          profileImageUrl: "https://example.com/direct-image.png",
+          profileImageTransform: null,
+          frontalImageUrl: "https://example.com/direct-image.png",
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference_image_urls: [
+          "https://example.com/red-lantern-front.png",
+          "https://example.com/direct-image.png",
+        ],
+      })
+    );
+    const prompt = vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt ?? "";
+    expect(prompt).toContain("Place Red Lantern beside the new reference image");
+    expect(prompt).toContain("Linked reference subjects: Red Lantern: Warm lacquered lantern.");
+    expect(prompt).not.toContain("Image reference");
+  });
+
   it("ignores stale frame inputs when Seedance linked assets compile as multimodal", async () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
@@ -1635,6 +1712,35 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalledWith(
       expect.objectContaining({
         aspect_ratio: expect.any(String),
+      })
+    );
+  });
+
+  it("normalizes restored WebM motion-control videos before provider submit", async () => {
+    const prepareMotionReferenceVideoUrlMock = vi
+      .fn()
+      .mockResolvedValueOnce("https://example.com/motion-normalized.mp4");
+    videoUploadMocks.prepareMotionReferenceVideoUrlOverride = prepareMotionReferenceVideoUrlMock;
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "motion",
+      videoReferenceImageUrl: "https://example.com/character.png",
+      motionReferenceVideoUrl: "https://example.com/motion.webm",
+      preparedImageInputs: ["https://example.com/character.png"],
+      requestedResolution: "720p",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(prepareMotionReferenceVideoUrlMock).toHaveBeenCalledWith(
+      "https://example.com/motion.webm"
+    );
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video_url: "https://example.com/motion-normalized.mp4",
+        video_urls: ["https://example.com/motion-normalized.mp4"],
       })
     );
   });

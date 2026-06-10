@@ -51,6 +51,7 @@ import {
   readProviderResponseUrl,
 } from "../providerIntegration/statusProviderPayload";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
+import { normalizeCustomerFacingProviderError } from "../../customerFacingProviderText";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type FalStatusConfig = {
@@ -134,6 +135,11 @@ const asObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+
+const readCustomerFacingFailureMessage = (
+  payload: unknown,
+  fallback = "Generation failed"
+): string => normalizeCustomerFacingProviderError(payload, fallback);
 
 const deriveFalStatusBaseFromProviderUrl = ({
   requestId,
@@ -274,6 +280,15 @@ export const createFalStatusHandler = ({
   alwaysHttp200 = true,
 }: FalStatusConfig) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
+    const guardedResponse = res as GuardedNextApiResponse;
+    if (
+      guardedResponse.__shortpulseResponseCommitted ||
+      guardedResponse.writableEnded ||
+      guardedResponse.headersSent
+    ) {
+      return res;
+    }
+
     if (req.method !== "POST") {
       return sendJsonResponse({
         res,
@@ -945,13 +960,13 @@ export const createFalStatusHandler = ({
           status: normalizedStatus,
         })
       ) {
+        const providerFailureMessage = readCustomerFacingFailureMessage(
+          statusData.json,
+          "Generation failed"
+        );
         return await settleCanonicalFailedPayload({
           providerState: normalizedStatus,
-          fallbackMessage:
-            asProviderString(statusData.json.error) ||
-            asProviderString(statusData.json.message) ||
-            asProviderString(statusData.json.statusMessage) ||
-            "Generation failed",
+          fallbackMessage: providerFailureMessage,
           fallbackDetail: statusData.json,
           failureReasonCode: "provider_error",
         });
@@ -992,10 +1007,10 @@ export const createFalStatusHandler = ({
         }
         return respondErrorWithLogging({
           requestId,
-          error:
-            asProviderString(statusData.json.error) ||
-            asProviderString(statusData.json.message) ||
-            `${routeLabel} status request failed`,
+          error: readCustomerFacingFailureMessage(
+            statusData.json,
+            `${routeLabel} status request failed`
+          ),
           statusCode: statusResp.status,
           source: "api.fal_status.status_upstream_non_ok",
           stage: "status",
@@ -1208,10 +1223,7 @@ export const createFalStatusHandler = ({
         }
         return await settleCanonicalFailedPayload({
           providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
-          fallbackMessage:
-            asProviderString(resultData.json.error) ||
-            asProviderString(resultData.json.message) ||
-            "Generation failed",
+          fallbackMessage: readCustomerFacingFailureMessage(resultData.json, "Generation failed"),
           fallbackDetail: resultData.json,
           failureReasonCode: "provider_error",
         });
@@ -1224,9 +1236,13 @@ export const createFalStatusHandler = ({
       const resultHasMedia = payloadHasMedia(resultData.json);
 
       if (explicitResultFailure) {
+        const providerFailureMessage = readCustomerFacingFailureMessage(
+          resultData.json,
+          resultErrorMessage || "Generation failed to produce media output"
+        );
         return await settleCanonicalFailedPayload({
           providerState: resultStatus ?? normalizedStatus,
-          fallbackMessage: resultErrorMessage || "Generation failed to produce media output",
+          fallbackMessage: providerFailureMessage,
           fallbackDetail: resultData.json,
           failureReasonCode: "provider_error",
         });

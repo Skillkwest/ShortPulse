@@ -7,7 +7,11 @@ import type { CharacterProfileImageTransform } from "../../character-manager/typ
 import { deriveElementAliasFromName } from "../../elements-manager/logic/elementAlias";
 import type { ElementProfileImageTransform } from "../../elements-manager/types";
 
-export type AiStudioKlingEntitySourceKind = "element" | "character";
+export type AiStudioKlingEntitySourceKind = "element" | "character" | "reference-image";
+export type AiStudioKlingSavedEntitySourceKind = Exclude<
+  AiStudioKlingEntitySourceKind,
+  "reference-image"
+>;
 export type AiStudioKlingProfileImageTransform =
   | ElementProfileImageTransform
   | CharacterProfileImageTransform;
@@ -44,6 +48,31 @@ export const createEmptyAiStudioKlingElement = (): AiStudioKlingElement => ({
   referenceImageUrls: "",
   videoUrl: "",
 });
+
+export const createSeedanceImageReferenceSlot = ({
+  slotIndex,
+  imageUrl,
+  name,
+}: {
+  slotIndex: number;
+  imageUrl: string;
+  name?: string | null;
+}): AiStudioKlingElement => ({
+  ...createEmptyAiStudioKlingElement(),
+  slotIndex,
+  sourceKind: "reference-image",
+  name: name?.trim() || "Image reference",
+  profileImageUrl: imageUrl,
+  frontalImageUrl: imageUrl,
+});
+
+export const isSeedanceImageReferenceSlot = (
+  element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
+): boolean => element?.sourceKind === "reference-image";
+
+export const isPromptTokenEligibleKlingElement = (
+  element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
+): boolean => Boolean(element && element.sourceKind !== "reference-image");
 
 export const getAiStudioKlingElementReferenceUrls = (
   element: Pick<AiStudioKlingElement, "frontalImageUrl" | "referenceImageUrls">
@@ -152,10 +181,11 @@ export const resolveKieKlingElementTokens = (
 export const resolveKieKlingElementToken = (
   element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
   index: number,
-  _allElements?: Array<
+  allElements?: Array<
     Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex"> | null | undefined
   >
 ): string => {
+  void allElements;
   return buildCanonicalKieKlingElementToken(element.slotIndex ?? index);
 };
 

@@ -335,7 +335,7 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.generationId).toBe("gen-from-record-1");
   });
 
-  it("threads motion reference asset identity into shortpulse context for motion-control submits", async () => {
+  it("submits promptless motion control when both motion references are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -392,13 +392,15 @@ describe("useAiStudioTaskSubmission", () => {
     );
 
     await act(async () => {
-      await result.current("Transfer motion", [
+      await result.current("", [
         "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/reference/character.png?token=stub.invalid.token",
       ]);
     });
 
+    expect(setUiError).not.toHaveBeenCalledWith("Add a prompt to start a generation.");
     expect(handleVideoModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
+        cleanedPrompt: "",
         shortpulseContext: expect.objectContaining({
           motion_reference_asset: {
             bucket: "media_library",

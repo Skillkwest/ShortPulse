@@ -60,7 +60,7 @@ const FALLBACK_VIDEO_RESOLUTION = "1080p";
 const FALLBACK_IMAGE_RESOLUTION = "model_default";
 const FALLBACK_KLING_CFG_SCALE = 0.5;
 const FALLBACK_KLING_WORKFLOW_MODE = "single" as const;
-const FALLBACK_SEEDANCE2_INPUT_MODE = "text" as const;
+const FALLBACK_SEEDANCE2_INPUT_MODE = "multimodal" as const;
 const FALLBACK_KLING_SHOT_TYPE = "customize" as const;
 const FALLBACK_PROMPT_ORIGIN = "manual" as const;
 const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
@@ -343,7 +343,7 @@ const asKlingProfileImageTransform = (
 type HydratedKlingElementRow = {
   id: string;
   slotIndex?: number;
-  sourceKind?: "element" | "character" | null;
+  sourceKind?: "element" | "character" | "reference-image" | null;
   sourceElementId?: string | null;
   sourceCharacterId?: string | null;
   name?: string;
@@ -375,7 +375,11 @@ const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
           ? Math.max(0, Math.trunc(row.slotIndex))
           : undefined,
       sourceKind:
-        row.sourceKind === "character" || row.sourceKind === "element" ? row.sourceKind : null,
+        row.sourceKind === "character" ||
+        row.sourceKind === "element" ||
+        row.sourceKind === "reference-image"
+          ? row.sourceKind
+          : null,
       sourceElementId: asNullableString(row.sourceElementId),
       sourceCharacterId: asNullableString(row.sourceCharacterId),
       name: asString(row.name, ""),
@@ -462,6 +466,7 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
     id: output.id,
     prompt: output.prompt,
     transcriptText: typeof output.transcriptText === "string" ? output.transcriptText : null,
+    lyricsText: typeof output.lyricsText === "string" ? output.lyricsText : null,
     mode,
     aspect: typeof output.aspect === "string" ? output.aspect : FALLBACK_ASPECT,
     model: output.model,

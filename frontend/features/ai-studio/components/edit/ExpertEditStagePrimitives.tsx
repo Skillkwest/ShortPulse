@@ -90,8 +90,14 @@ export function PrimaryStageShell({
 
   const handleBackdropWheel = React.useCallback<React.WheelEventHandler<HTMLDivElement>>(
     (event) => {
-      if (event.target !== event.currentTarget) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".edit-expert-stage-overlay-ui")
+      ) {
+        return;
+      }
       onWheel?.(event);
+      event.stopPropagation();
     },
     [onWheel]
   );
@@ -116,7 +122,7 @@ export function PrimaryStageShell({
       onPointerUp={onPointerUp ? handleBackdropPointerUp : undefined}
       onPointerCancel={onPointerCancel ? handleBackdropPointerCancel : undefined}
       onPointerLeave={onPointerLeave ? handleBackdropPointerLeave : undefined}
-      onWheel={onWheel ? handleBackdropWheel : undefined}
+      onWheelCapture={onWheel ? handleBackdropWheel : undefined}
       onDrop={onDrop}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}

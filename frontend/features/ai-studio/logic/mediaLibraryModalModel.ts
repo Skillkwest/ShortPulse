@@ -295,6 +295,30 @@ export const resolveMediaMetadataTranscriptText = (
   return trimmed.length > 0 ? trimmed : null;
 };
 
+export const resolveMediaMetadataLyricsText = (
+  metadata?: Record<string, unknown> | null
+): string | null => {
+  if (!metadata) return null;
+  const workflowReload =
+    metadata.workflow_reload && typeof metadata.workflow_reload === "object"
+      ? (metadata.workflow_reload as Record<string, unknown>)
+      : null;
+  const workflowPayload =
+    workflowReload?.payload && typeof workflowReload.payload === "object"
+      ? (workflowReload.payload as Record<string, unknown>)
+      : null;
+  const lyrics =
+    typeof metadata.lyrics_text === "string"
+      ? metadata.lyrics_text
+      : typeof metadata.lyricsText === "string"
+        ? metadata.lyricsText
+        : typeof workflowPayload?.lyrics === "string"
+          ? workflowPayload.lyrics
+          : "";
+  const trimmed = lyrics.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeMetadataDurationCandidateMs = (
   value: unknown,
   options?: { unit?: "ms" | "seconds" }

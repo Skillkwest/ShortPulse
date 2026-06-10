@@ -957,6 +957,71 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
+  it("surfaces nested provider reasons on direct submit failures", async () => {
+    dispatchProviderSubmitMock.mockResolvedValue({
+      response: new Response(
+        JSON.stringify({
+          code: 500,
+          msg: "error",
+          data: {
+            failCode: "501",
+            failMsg: "Reference file is not reachable",
+          },
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      ),
+      data: {
+        code: 500,
+        msg: "error",
+        data: {
+          failCode: "501",
+          failMsg: "Reference file is not reachable",
+        },
+      },
+      targetUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      targetIndex: 0,
+      providerRequestId: null,
+      providerDiagnostics: null,
+    });
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/seedance-2",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      routeLabel: "Kie Seedance 2.0",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic skyline reveal",
+        reference_image_urls: ["https://example.test/ref.png"],
+      },
+      headers: {},
+      url: "/api/fal/kie-seedance-2-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Reference file is not reachable",
+      detail: "Reference file is not reachable",
+    });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Reference file is not reachable",
+        metadata: expect.objectContaining({
+          upstream_message: "Reference file is not reachable",
+        }),
+      })
+    );
+  });
+
   it("fails closed when no direct submit path is available for a non-inline route", async () => {
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/kling-video/v2/master/image-to-video",
@@ -1111,7 +1176,7 @@ describe("createFalSubmitHandler", () => {
     expect(res.status).toHaveBeenCalledWith(502);
     expect(res.json).toHaveBeenCalledWith({
       error: "Provider submit response missing request id.",
-      detail: "success",
+      detail: "Provider submit response missing request id.",
     });
   });
 

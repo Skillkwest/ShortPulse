@@ -25,7 +25,10 @@ vi.mock("../../../../lib/supabaseClient", () => ({
   }),
 }));
 
-import { uploadVideoFileToStorage } from "../videoUpload";
+import {
+  needsMotionReferenceVideoProviderNormalization,
+  uploadVideoFileToStorage,
+} from "../videoUpload";
 
 const jsonResponse = (payload: unknown, status = 200): Response =>
   new Response(JSON.stringify(payload), {
@@ -109,5 +112,22 @@ describe("videoUpload", () => {
       sourceName: "motion-reference.webm",
       sourceStoragePath: "user-1/upload-staging/videos/motion-control/ref.webm",
     });
+  });
+
+  it("requires provider normalization for hosted WebM motion-reference URLs", () => {
+    expect(
+      needsMotionReferenceVideoProviderNormalization("https://signed.example/motion-reference.webm")
+    ).toBe(true);
+    expect(
+      needsMotionReferenceVideoProviderNormalization(
+        "https://signed.example/motion-reference?mimeType=video%2Fwebm"
+      )
+    ).toBe(true);
+    expect(
+      needsMotionReferenceVideoProviderNormalization("https://signed.example/motion-reference.mp4")
+    ).toBe(false);
+    expect(
+      needsMotionReferenceVideoProviderNormalization("https://signed.example/motion-reference.mov")
+    ).toBe(false);
   });
 });

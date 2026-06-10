@@ -27,6 +27,13 @@ const SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS = 5 * 60;
 const MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS = 12_000;
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
+const MOTION_REFERENCE_PROVIDER_READY_VIDEO_EXTENSIONS = new Set(["mp4", "mov"]);
+const MOTION_REFERENCE_NORMALIZABLE_VIDEO_EXTENSIONS = new Set(["m4v", "ogg", "ogv", "webm"]);
+const MOTION_REFERENCE_NORMALIZABLE_VIDEO_MIME_TYPES = new Set([
+  "video/ogg",
+  "video/webm",
+  "video/x-m4v",
+]);
 
 const isPrivateIpv4Address = (hostname: string): boolean => {
   const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
@@ -84,6 +91,47 @@ type StageMotionReferenceVideoPayload = {
 
 const normalizeVideoUploadMimeType = (mimeType: string): string =>
   (mimeType.split(";")[0] ?? "").trim().toLowerCase() || "video/mp4";
+
+const readVideoUrlExtension = (url: string): string | null => {
+  const normalizedUrl = url.trim().replace(/#video=1$/i, "");
+  if (!normalizedUrl) return null;
+  const base =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "http://localhost";
+  try {
+    const parsed = new URL(normalizedUrl, base);
+    const lastSegment = parsed.pathname.split("/").filter(Boolean).pop() ?? "";
+    const extension = lastSegment.includes(".")
+      ? lastSegment.split(".").pop()?.trim().toLowerCase()
+      : "";
+    return extension || null;
+  } catch {
+    const match = normalizedUrl.match(/\.([a-z0-9]+)(?:$|[?#])/i);
+    return match?.[1]?.trim().toLowerCase() || null;
+  }
+};
+
+const readExplicitVideoMimeHint = (url: string): string | null => {
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl) return null;
+  const base =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "http://localhost";
+  try {
+    const parsed = new URL(normalizedUrl, base);
+    for (const key of ["mimeType", "mime", "type", "contentType"]) {
+      const value = parsed.searchParams.get(key)?.trim().toLowerCase();
+      if (value?.startsWith("video/")) {
+        return normalizeVideoUploadMimeType(value);
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
 
 const resolveVideoUploadPipelineError = (
   payload: { error?: unknown; details?: unknown } | null,
@@ -345,6 +393,24 @@ export const needsVideoUpload = (url: string | null): boolean => {
 };
 
 /**
+ * Returns true when a Motion Control URL is fetchable but still needs provider-facing MP4/MOV normalization.
+ */
+export const needsMotionReferenceVideoProviderNormalization = (url: string | null): boolean => {
+  if (!url) return false;
+  const normalized = url.trim();
+  if (!normalized) return false;
+  const extension = readVideoUrlExtension(normalized);
+  if (extension && MOTION_REFERENCE_NORMALIZABLE_VIDEO_EXTENSIONS.has(extension)) {
+    return true;
+  }
+  if (extension && !MOTION_REFERENCE_PROVIDER_READY_VIDEO_EXTENSIONS.has(extension)) {
+    return false;
+  }
+  const mimeHint = readExplicitVideoMimeHint(normalized);
+  return Boolean(mimeHint && MOTION_REFERENCE_NORMALIZABLE_VIDEO_MIME_TYPES.has(mimeHint));
+};
+
+/**
  * Prepares a video URL for submission
  * - If it's a blob URL, uploads it and returns the public URL
  * - Otherwise returns the URL as-is
@@ -364,6 +430,25 @@ export const prepareVideoUrl = async (url: string | null): Promise<string | null
  * Alias for pre-submit URL preparation to match naming used by image references.
  */
 export const prepareVideoUrlForSubmission = prepareVideoUrl;
+
+/**
+ * Prepares a Motion Control source video URL so the slot only retains provider-ready media.
+ */
+export const prepareMotionReferenceVideoUrl = async (
+  url: string | null
+): Promise<string | null> => {
+  const normalizedUrl = url?.trim();
+  if (!normalizedUrl) return null;
+
+  if (
+    needsVideoUpload(normalizedUrl) ||
+    needsMotionReferenceVideoProviderNormalization(normalizedUrl)
+  ) {
+    return uploadVideoToStorage(normalizedUrl);
+  }
+
+  return refreshSupabaseSignedUrlIfNeeded(normalizedUrl);
+};
 
 /**
  * Best-effort cleanup for stale motion-control uploads that never became authoritative.

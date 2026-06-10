@@ -5,11 +5,6 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import sharp from "sharp";
-import {
-  OPENAI_GPT_IMAGE_2_MODEL_ID,
-  type OpenAiImage2Quality,
-  type OpenAiImage2ProviderSize,
-} from "../../../lib/model-runtime/openAiImage2";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
@@ -19,7 +14,13 @@ import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
 } from "../../../lib/server/api/generationBilling";
-import { generateOpenAiImage } from "../../../lib/server/openaiImageGeneration";
+import {
+  buildFalFluxKleinStylePreviewPayload,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_OUTPUT_FORMAT,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_SIZE,
+  generateFalFluxKleinStylePreviewImage,
+} from "../../../lib/server/falStylePreviewGeneration";
 
 type StylePreviewGenerateRequestBody = {
   styleId?: unknown;
@@ -29,9 +30,9 @@ type StylePreviewGenerateRequestBody = {
 
 type StylePreviewGenerateSuccessResponse = {
   previewImageUrl: string;
-  modelId: typeof OPENAI_GPT_IMAGE_2_MODEL_ID;
-  size: OpenAiImage2ProviderSize;
-  quality: OpenAiImage2Quality;
+  modelId: typeof FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID;
+  size: typeof FAL_FLUX_2_KLEIN_STYLE_PREVIEW_SIZE;
+  quality: null;
 };
 
 type StylePreviewGenerateErrorResponse = {
@@ -39,8 +40,6 @@ type StylePreviewGenerateErrorResponse = {
   details?: string;
 };
 
-const STYLE_PREVIEW_SIZE: OpenAiImage2ProviderSize = "1024x1024";
-const STYLE_PREVIEW_QUALITY: OpenAiImage2Quality = "low";
 const STYLE_PREVIEW_JPEG_QUALITY = 86;
 const STYLE_PREVIEW_MAX_STYLE_ID_LENGTH = 160;
 const STYLE_PREVIEW_MAX_STYLE_NAME_LENGTH = 120;
@@ -148,31 +147,29 @@ export default async function handler(
       style_name: validatedStyleName,
     };
 
+    const providerPayload = buildFalFluxKleinStylePreviewPayload(prompt);
     charge = await chargeGenerationRequest({
       req,
       res,
-      modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      payload: {
-        prompt,
-        size: STYLE_PREVIEW_SIZE,
-        quality: STYLE_PREVIEW_QUALITY,
-        n: 1,
-      },
-      reason: "openai-gpt-image-2 style preview generation",
+      modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+      payload: providerPayload,
+      reason: "fal-flux-2-klein style preview generation",
       shortpulseContext,
     });
     if (!charge) return;
 
-    const generated = await generateOpenAiImage({
-      prompt,
-      size: STYLE_PREVIEW_SIZE,
-      quality: STYLE_PREVIEW_QUALITY,
+    const generated = await generateFalFluxKleinStylePreviewImage({
+      payload: providerPayload,
     });
-    const providerRequestId = generated.providerRequestId ?? `openai:${charge.sourceRef}`;
+    const providerRequestId = generated.providerRequestId;
+    if (!providerRequestId) {
+      throw new Error("Fal FLUX 2 Klein did not return a request id.");
+    }
     const submitLink = await charge.markSubmitted(providerRequestId, {
       source_mode: "style_preview",
-      requested_size: STYLE_PREVIEW_SIZE,
-      requested_quality: STYLE_PREVIEW_QUALITY,
+      requested_size: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_SIZE,
+      requested_output_format: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_OUTPUT_FORMAT,
+      requested_num_inference_steps: providerPayload.num_inference_steps,
       style_id: validatedStyleId,
     });
     if (!submitLink.ok) {
@@ -189,6 +186,7 @@ export default async function handler(
         source_ref: charge.sourceRef,
         source_mode: "style_preview",
         style_id: validatedStyleId,
+        provider_media_url: generated.mediaUrl,
       },
     });
     if (!captureResult.settled) {
@@ -197,9 +195,9 @@ export default async function handler(
 
     return res.status(200).json({
       previewImageUrl,
-      modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      size: STYLE_PREVIEW_SIZE,
-      quality: STYLE_PREVIEW_QUALITY,
+      modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
+      size: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_SIZE,
+      quality: null,
     });
   } catch (error) {
     if (charge) {

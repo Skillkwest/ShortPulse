@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MediaFileRow } from "../mediaLibraryModalModel";
+import { resolveMediaMetadataLyricsText } from "../mediaLibraryModalModel";
 import {
   canReloadMediaLibraryWorkflow,
   createMediaLibraryWorkflowReloadOutput,
@@ -79,5 +80,24 @@ describe("mediaLibraryWorkflowReload", () => {
         })
       )
     ).toBeNull();
+  });
+
+  it("resolves saved music lyrics from direct metadata and workflow reload payloads", () => {
+    expect(
+      resolveMediaMetadataLyricsText({
+        lyrics_text: "  Direct saved lyric  ",
+      })
+    ).toBe("Direct saved lyric");
+
+    expect(
+      resolveMediaMetadataLyricsText({
+        workflow_reload: {
+          payload: {
+            kind: "music",
+            lyrics: "Workflow saved lyric",
+          },
+        },
+      })
+    ).toBe("Workflow saved lyric");
   });
 });

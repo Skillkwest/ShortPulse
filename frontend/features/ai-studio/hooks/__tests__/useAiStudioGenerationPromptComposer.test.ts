@@ -153,6 +153,30 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
+  it("keeps eleven replace-mode reference inputs when a caller raises the limit", () => {
+    const submitTask = vi.fn();
+    const params = createParams({ submitTask, selectedTool: "edit" });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+    const referenceInputs = Array.from(
+      { length: 11 },
+      (_, index) => `https://example.com/ref-${index + 1}.png`
+    );
+
+    act(() => {
+      result.current.regenerateOutput({
+        referenceInputsOverride: referenceInputs,
+        referenceInputsMode: "replace",
+        referenceInputsLimit: 11,
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "edit prompt",
+      referenceInputs,
+      expect.objectContaining({ displayPromptOverride: "edit prompt" })
+    );
+  });
+
   it("forwards internal media refs for regenerate when replay refs are canonical-only", () => {
     const submitTask = vi.fn();
     const internalRef = createInternalMediaRef({ storagePath: "user/chars/replay-ref.png" });

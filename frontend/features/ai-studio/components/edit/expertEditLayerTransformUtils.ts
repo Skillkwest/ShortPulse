@@ -133,8 +133,13 @@ const roundCssScaleValue = (value: number) => Math.round(value * 10000) / 10000;
 const resolveSafeLayerScale = (scale: number): number =>
   Math.max(LAYER_SCALE_EPSILON, Number.isFinite(scale) ? scale : 1);
 
-export const resolveTransformHandleCounterScale = (scale: number): number => {
-  return roundCssScaleValue(1 / resolveSafeLayerScale(scale));
+export const resolveTransformHandleCounterScale = (
+  layerScale: number,
+  viewportScale = 1
+): number => {
+  return roundCssScaleValue(
+    1 / (resolveSafeLayerScale(layerScale) * resolveSafeLayerScale(viewportScale))
+  );
 };
 
 export const resolveLayerVisualGeometry = ({
@@ -142,11 +147,13 @@ export const resolveLayerVisualGeometry = ({
   viewportWidth,
   viewportHeight,
   transform,
+  viewportScale = 1,
 }: {
   imageAspectRatio: number;
   viewportWidth: number;
   viewportHeight: number;
   transform: LayerTransform;
+  viewportScale?: number;
 }): LayerVisualGeometry => {
   const containedRect = resolveContainedLayerRect({
     imageAspectRatio,
@@ -162,7 +169,7 @@ export const resolveLayerVisualGeometry = ({
     transformCss: `translate(${roundCssPixelValue(translateX)}px, ${roundCssPixelValue(
       translateY
     )}px) scale(${resolveSafeLayerScale(transform.scale)}) rotate(${transform.rotationDeg}deg)`,
-    transformHandleCounterScale: resolveTransformHandleCounterScale(transform.scale),
+    transformHandleCounterScale: resolveTransformHandleCounterScale(transform.scale, viewportScale),
   };
 };
 

@@ -58,6 +58,7 @@ import { readProviderContentPolicyMessage } from "../providerIntegration/statusP
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
+import { normalizeCustomerFacingProviderError } from "../../customerFacingProviderText";
 import { resolveMediaStorageQuotaUserMessage } from "../../mediaStorageQuota";
 import { applyRecoveryTransition } from "./recoveryTransitionService";
 import { associateGenerationWithProjectForUserBestEffort } from "../projectGenerationAssociationsService";
@@ -1000,14 +1001,14 @@ export const executeGenerationRecovery = async ({
       force: hasStructuredContentPolicyViolation || Boolean(providerContentPolicyMessage),
     });
     const failureReasonCode = explicitContentFailure ? "content_policy_block" : "provider_error";
-    const providerFailureMessage =
-      asOptionalString(currentObservation.payload?.error) ??
-      asOptionalString(currentObservation.payload?.detail);
+    const providerFailureMessage = currentObservation.payload
+      ? normalizeCustomerFacingProviderError(currentObservation.payload, "")
+      : "";
     const failureMessage =
       explicitContentFailure?.errorDetail ??
-      providerFailureMessage ??
-      "Provider reported failed state during recovery execution.";
-    const failureShortMessage = explicitContentFailure?.errorMessageShort ?? "Generation failed";
+      (providerFailureMessage || "Provider reported failed state during recovery execution.");
+    const failureShortMessage =
+      explicitContentFailure?.errorMessageShort ?? (providerFailureMessage || "Generation failed");
     await applyRecoveryTransition({
       generation,
       attemptTransition: {
@@ -1036,7 +1037,7 @@ export const executeGenerationRecovery = async ({
       actor,
       completedAt: nowIso,
       errorDetail: failureMessage,
-      errorMessage: explicitContentFailure?.errorMessage ?? "Generation failed.",
+      errorMessage: explicitContentFailure?.errorMessage ?? failureMessage,
       errorMessageShort: failureShortMessage,
       generation,
       metadataOverride: terminalAbandonmentPolicy.metadata,

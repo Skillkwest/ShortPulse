@@ -65,6 +65,11 @@ type ExpertEditStageWorkspaceProps = {
     onDragShield: React.DragEventHandler<HTMLDivElement>;
     interactionHandlers: StageInteractionHandlers;
     onStageWheel: React.WheelEventHandler<HTMLDivElement>;
+    onStageWheelCapture: React.WheelEventHandler<HTMLDivElement>;
+    onStagePointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
+    onStagePointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
+    onStagePointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
+    onStagePointerCancelCapture: React.PointerEventHandler<HTMLDivElement>;
   };
   contextMenu: {
     isOpen: boolean;
@@ -219,6 +224,11 @@ export function ExpertEditStageWorkspace({
         onStageAuxClick={onStageAuxClick}
         interactionHandlers={modalSurface.interactionHandlers}
         onStageWheel={modalSurface.onStageWheel}
+        onStageWheelCapture={modalSurface.onStageWheelCapture}
+        onStagePointerDownCapture={modalSurface.onStagePointerDownCapture}
+        onStagePointerMoveCapture={modalSurface.onStagePointerMoveCapture}
+        onStagePointerUpCapture={modalSurface.onStagePointerUpCapture}
+        onStagePointerCancelCapture={modalSurface.onStagePointerCancelCapture}
       />
 
       {contextMenu.isOpen ? (

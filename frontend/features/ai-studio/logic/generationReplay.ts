@@ -13,6 +13,8 @@ import type {
   ToolId,
 } from "../types";
 
+const MAX_REPLAY_REFERENCE_INPUTS = 16;
+
 type BuildGenerationReplayConfigV1Input = {
   mode: StudioOutput["mode"];
   submitTool: ToolId | null;
@@ -42,7 +44,7 @@ const toNormalizedReferenceInputs = (value: unknown): string[] => {
   return value
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter((item) => item.length > 0)
-    .slice(0, 8);
+    .slice(0, MAX_REPLAY_REFERENCE_INPUTS);
 };
 
 export const buildGenerationReplayConfigV1 = ({
@@ -110,7 +112,10 @@ export const buildGenerationReplayConfigV2 = ({
     aspect: normalizedAspect,
     imageResolution: typeof imageResolution === "string" ? imageResolution : null,
     referenceInputs: toNormalizedReferenceInputs(referenceInputs),
-    internalMediaRefs: normalizeInternalMediaRefList(internalMediaRefs, 8),
+    internalMediaRefs: normalizeInternalMediaRefList(
+      internalMediaRefs,
+      MAX_REPLAY_REFERENCE_INPUTS
+    ),
     ...(characterContext ? { characterContext } : {}),
     ...(styleContext ? { styleContext } : {}),
     capturedAt: normalizedCapturedAt,
@@ -138,7 +143,10 @@ export const isGenerationReplayConfigV1 = (value: unknown): value is GenerationR
 export const isGenerationReplayConfigV2 = (value: unknown): value is GenerationReplayConfigV2 => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const candidate = value as Record<string, unknown>;
-  const normalizedInternalMediaRefs = normalizeInternalMediaRefList(candidate.internalMediaRefs, 8);
+  const normalizedInternalMediaRefs = normalizeInternalMediaRefList(
+    candidate.internalMediaRefs,
+    MAX_REPLAY_REFERENCE_INPUTS
+  );
   return (
     candidate.version === 2 &&
     candidate.mode === "image" &&

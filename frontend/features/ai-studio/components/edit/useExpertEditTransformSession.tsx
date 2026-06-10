@@ -171,6 +171,7 @@ export const useExpertEditTransformSession = ({
           scope={scope}
           viewportWidth={viewportSize.width}
           viewportHeight={viewportSize.height}
+          viewportScale={sceneZoomScale}
           imageAspectRatio={selectedLayerImageAspectRatio}
           transform={constrainedTransform}
           interactionHandlers={interactionHandlers}
@@ -181,6 +182,7 @@ export const useExpertEditTransformSession = ({
       resolveRenderableLayerTransform,
       selectedLayer,
       selectedLayerImageAspectRatio,
+      sceneZoomScale,
       shouldShowSelectedLayerTransformOverlay,
     ]
   );

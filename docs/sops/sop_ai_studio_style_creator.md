@@ -3,26 +3,30 @@
 Purpose: define the modular Style Creator workflow used by AI Studio Styles Library so creation/edit/delete behavior stays stable while extraction quality contracts evolve safely.
 
 ## Scope
+
 - In scope: style-card intake (upload/drop), prompt-only preview generation, extraction orchestration, save/delete persistence, and extraction telemetry.
 - Out of scope: generation model pricing/policy, new style-control UI knobs (strength/axis/blend), normal Reference Grid/Media Library artifact persistence for style thumbnails, and dedicated style tables.
 
 ## Key components
-| Component | Role |
-| --- | --- |
-| `frontend/features/ai-studio/components/StylesLibraryPanel.tsx` | Presentational Styles Library panel; renders tiles/modals and delegates behavior to controller. |
-| `frontend/features/ai-studio/components/style-creator/useStyleCreatorController.ts` | Domain controller for create/edit/delete modal state machine, extraction orchestration, and persistence command execution. |
-| `frontend/features/ai-studio/components/style-creator/intake.ts` | Style intake helpers (drop/file normalization, preview crop, reorder utilities). |
-| `frontend/features/ai-studio/components/style-creator/extraction.ts` | Deterministic extraction outcome classification (`success`, `fallback`, `blocked_source`). |
-| `frontend/features/ai-studio/components/style-creator/telemetry.ts` | Normalized extraction telemetry emitter (`telemetry.ai_studio.style_extraction`). |
-| `frontend/features/ai-studio/logic/styleDetailsNormalization.ts` | Backward-compatible style-details normalization/equality helpers used by persistence hooks. |
-| `frontend/features/ai-studio/logic/stylePreviewGeneration.ts` | Authenticated client helper for prompt-only style-card preview generation. |
-| `frontend/features/ai-studio/hooks/useStylesLibraryPanelIdsPreference.ts` | Per-user shared style-order persistence (`user_preferences.ai_studio_style_panel_ids`) with local fallback. |
-| `frontend/features/ai-studio/hooks/useStylesLibraryStyleDetailsPreference.ts` | Per-user style-details persistence (`user_preferences.ai_studio_style_details_overrides`) with local fallback. |
-| `frontend/pages/api/ai/extract-style.ts` | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`). |
-| `frontend/pages/api/ai/generate-style-preview.ts` | Authenticated GPT Image 2 style-preview endpoint (`stylePrompt` -> compact 512x512 JPEG data URL) for prompt-only manual style creation. |
+
+| Component                                                                           | Role                                                                                                                                      |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/features/ai-studio/components/StylesLibraryPanel.tsx`                     | Presentational Styles Library panel; renders tiles/modals and delegates behavior to controller.                                           |
+| `frontend/features/ai-studio/components/style-creator/useStyleCreatorController.ts` | Domain controller for create/edit/delete modal state machine, extraction orchestration, and persistence command execution.                |
+| `frontend/features/ai-studio/components/style-creator/intake.ts`                    | Style intake helpers (drop/file normalization, preview crop, reorder utilities).                                                          |
+| `frontend/features/ai-studio/components/style-creator/extraction.ts`                | Deterministic extraction outcome classification (`success`, `fallback`, `blocked_source`).                                                |
+| `frontend/features/ai-studio/components/style-creator/telemetry.ts`                 | Normalized extraction telemetry emitter (`telemetry.ai_studio.style_extraction`).                                                         |
+| `frontend/features/ai-studio/logic/styleDetailsNormalization.ts`                    | Backward-compatible style-details normalization/equality helpers used by persistence hooks.                                               |
+| `frontend/features/ai-studio/logic/stylePreviewGeneration.ts`                       | Authenticated client helper for prompt-only style-card preview generation.                                                                |
+| `frontend/features/ai-studio/hooks/useStylesLibraryPanelIdsPreference.ts`           | Per-user shared style-order persistence (`user_preferences.ai_studio_style_panel_ids`) with local fallback.                               |
+| `frontend/features/ai-studio/hooks/useStylesLibraryStyleDetailsPreference.ts`       | Per-user style-details persistence (`user_preferences.ai_studio_style_details_overrides`) with local fallback.                            |
+| `frontend/pages/api/ai/extract-style.ts`                                            | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`).                                |
+| `frontend/pages/api/ai/generate-style-preview.ts`                                   | Authenticated FLUX 2 Klein style-preview endpoint (`stylePrompt` -> compact 512x512 JPEG data URL) for prompt-only manual style creation. |
 
 ## Persistence contract
+
 `StylesLibraryStyleDetails` required fields remain unchanged:
+
 - `style`
 - `title`
 - `referenceImageName`
@@ -30,6 +34,7 @@ Purpose: define the modular Style Creator workflow used by AI Studio Styles Libr
 - `previewImageUrl`
 
 Rules:
+
 1. Reads must normalize legacy rows down to the core fields only.
 2. Writes persist only the core style fields listed above.
 3. JSONB storage remains in `user_preferences.ai_studio_style_details_overrides` for MVP.
@@ -37,6 +42,7 @@ Rules:
 5. Custom-style delete must remove the source row from the details override map; delete denylist persistence remains only for hide semantics on seeded catalog styles.
 
 ## Workflow
+
 1. User creates style via Add Style modal or library drop.
 2. Intake resolves two derived image artifacts from the dropped/uploaded source:
    - Preview image: center-cropped square `512x512` JPEG for style-card rendering.
@@ -50,7 +56,7 @@ Rules:
 5. Manual prompt-only create/save path:
    - First persists normalized details using only the core fields, with `previewImageUrl` blank.
    - Then starts background preview generation for that same `styleId` when `stylePrompt` is non-empty and no uploaded/reference preview exists.
-   - The preview route uses GPT Image 2 `1024x1024`/`low`, bills through the canonical Create image pricing path, converts the provider result to a `512x512` JPEG data URL, captures/refunds through generation billing, and returns only `previewImageUrl`.
+   - The preview route uses Fal FLUX 2 Klein (`fal-ai/flux-2/klein/9b`) with a `1024x1024` JPEG payload, bills through the canonical Create image pricing path, converts the provider result to a `512x512` JPEG data URL, captures/refunds through generation billing, and returns only `previewImageUrl`.
    - The controller upserts the same style details with the generated `previewImageUrl`. If preview generation fails, the style remains saved and the library shows a recoverable inline error.
    - Prompt-only style previews do not create normal Reference Grid, generation projection, Media Library, or Supabase transform artifacts.
 6. Create/save path persists normalized details using only the core fields.
@@ -61,7 +67,9 @@ Rules:
 11. Drag reorder in the primary Styles Library updates the shared page-level catalog order so the right-rail Styles chooser reflects the same sequence.
 
 ## Submission-time style behavior and prompting guidance
+
 1. Submission behavior:
+
 - Active style is applied by appending selected style prompt text to the hidden submission prompt via model-family adapter logic.
 - Current adapter families:
   - Nano Banana: treatment-scoped style line with explicit identity/composition preservation language.
@@ -69,7 +77,9 @@ Rules:
   - Generic fallback: legacy `Visual style reference: <style prompt>` line.
 - Current lane does not use per-provider style-weight controls; adherence is model-dependent.
 - Runtime kill switch: set `NEXT_PUBLIC_AI_STUDIO_STYLE_FAMILY_ADAPTER_ENABLED=false` to force legacy style-line output.
+
 2. Prompt-writing guidance for stronger adherence:
+
 - Keep user prompt task-oriented, then add style intent in style prompt fields with explicit visual dimensions:
   - first descriptor = one hard style class anchor,
   - palette,
@@ -78,32 +88,43 @@ Rules:
   - texture/material treatment,
   - lens/grade feel.
 - Prefer concrete phrasing over abstract adjectives.
+
 3. Recommended style-prompt pattern:
+
 - `Apply a [style] treatment with [palette], [lighting direction/quality], [contrast level], and [texture/finish]. Preserve subject identity and scene geometry.`
+
 4. Edit-workflow guidance (especially for fidelity-heavy models):
+
 - When references strongly constrain structure, include language that scopes style to visual treatment only:
   - `Treat style as a color/lighting/texture guide; do not alter identity, proportions, or composition.`
 - Avoid conflicting directives between user prompt and style prompt.
+
 5. Known tradeoff:
+
 - Strong reference-fidelity models may under-index style text when instructions conflict.
 - This is expected unless there is evidence of a new regression in the style append path.
+
 6. Evidence capture standard:
+
 - For cross-model style behavior checks, capture runs using:
   - `docs/records/evidence/style-adherence/style-adherence-run-template.md`
 - Store completed packets under:
   - `docs/records/evidence/style-adherence/`
 
 ## Telemetry contract
+
 Low-severity browser `telemetry.ai_studio.*` reports are currently suppressed before `/api/log/client-error`, so the contract below documents payload shape and source naming, not a guaranteed live-ingest path.
 
 Source: `telemetry.ai_studio.style_extraction`
 
 Messages:
+
 - `style_extraction.success`
 - `style_extraction.fallback`
 - `style_extraction.blocked_source`
 
 Required metadata keys:
+
 - `telemetry_family`
 - `telemetry_version`
 - `outcome`
@@ -125,6 +146,7 @@ Required metadata keys:
 - `server_copy_attempted`
 
 Failure class mapping:
+
 - `timeout`: deadline exceeded.
 - `canceled`: local abort/navigation interruption.
 - `network_transient`: client-classified network transport failure before the extraction route completes.
@@ -133,6 +155,7 @@ Failure class mapping:
 - `fallback`/`unknown`: normalized residual classes for deterministic reporting.
 
 ## Verification checklist
+
 - `npm -C frontend run test -- features/agent-runtime/__tests__/styleExtractionPromptPolicy.test.ts`
 - `npm -C frontend run test -- lib/__tests__/agentPromptsConfig.test.ts`
 - `npm -C frontend run test -- features/ai-studio/components/style-creator/__tests__/extraction.test.ts`

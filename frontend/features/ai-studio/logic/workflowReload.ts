@@ -74,6 +74,7 @@ const VALID_PANEL_KINDS = new Set<WorkflowReloadPanelKind>([
 ]);
 
 const VALID_OUTPUT_MODES = new Set<StudioMode>(["image", "video", "audio", "text"]);
+const MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS = 16;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -95,7 +96,7 @@ const asBooleanOrNull = (value: unknown): boolean | null =>
 const asFiniteNumberOrNull = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
-const asStringArray = (value: unknown, limit = 8): string[] => {
+const asStringArray = (value: unknown, limit = MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS): string[] => {
   if (!Array.isArray(value)) return [];
   return value
     .slice(0, limit)
@@ -167,10 +168,13 @@ const normalizeStyleContext = (value: unknown): StudioOutputStyleContext | null 
   };
 };
 
-const normalizeInternalRefs = (value: unknown, limit = 8) =>
+const normalizeInternalRefs = (value: unknown, limit = MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS) =>
   normalizeInternalMediaRefList(value, limit);
 
-const hasValidInternalRefs = (value: unknown, limit = 8): boolean => {
+const hasValidInternalRefs = (
+  value: unknown,
+  limit = MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS
+): boolean => {
   if (value == null) return true;
   if (!Array.isArray(value)) return false;
   return normalizeInternalRefs(value, limit).length === value.slice(0, limit).length;

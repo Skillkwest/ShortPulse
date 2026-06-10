@@ -35,6 +35,22 @@ const baseProps: React.ComponentProps<typeof ExpertEditPanelView> = {
 };
 
 describe("ExpertEditPanelView launch lock", () => {
+  it("keeps the first secondary reference slot visible when its image is cleared", () => {
+    const onExtraImageChange = vi.fn();
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        extraImageUrls={["https://example.com/first-reference.png", null, null]}
+        onExtraImageChange={onExtraImageChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove reference slot 1" }));
+
+    expect(onExtraImageChange).toHaveBeenCalledWith(0, null);
+    expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
+  });
+
   it("starts with two secondary reference slots and can add or remove visible slots", () => {
     const onExtraImageChange = vi.fn();
     render(<ExpertEditPanelView {...baseProps} onExtraImageChange={onExtraImageChange} />);

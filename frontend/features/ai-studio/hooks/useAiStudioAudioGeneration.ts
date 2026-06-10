@@ -114,6 +114,7 @@ type MusicGenerateSuccessResponse = {
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: number[] | null;
+    lyricsText?: string | null;
     modelId: string;
     saveState?: StudioOutputSaveState;
     saveError?: string | null;
@@ -441,6 +442,7 @@ const applyAudioOutputToPlaceholder = ({
     prompt: promptText,
     transcriptText:
       (payload as { transcriptText?: string | null }).transcriptText ?? item.transcriptText ?? null,
+    lyricsText: (payload as { lyricsText?: string | null }).lyricsText ?? item.lyricsText ?? null,
     model: modelLabel,
     modelId: payload.modelId,
     provider: payload.provider,
@@ -683,6 +685,7 @@ export const useAiStudioAudioGeneration = ({
       const { displayedBilledCredits, pricingPolicyReady = true } = request;
       const providerRequest = {
         text: request.text,
+        lyrics: request.lyrics ?? "",
         durationSeconds: request.durationSeconds,
         bpm: request.bpm,
         mode: request.mode,

@@ -428,6 +428,36 @@ describe("ReferenceGridCard", () => {
     expect(pauseMock).toHaveBeenCalled();
   });
 
+  it("does not show a generated posterless video frame as the resting card preview", async () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mode: "video",
+            taskState: "success",
+            mediaSource: "generated",
+          }),
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/generated-video.mp4",
+          hoverVideoUrl: "https://example.com/generated-video.mp4",
+          canAutoplayVideo: false,
+          videoPreload: "metadata",
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
+
+    expect(videoNode).not.toBeNull();
+    expect(videoNode?.classList.contains("is-visible")).toBe(false);
+
+    fireEvent.pointerEnter(card);
+
+    expect(playMock).toHaveBeenCalled();
+    expect(videoNode?.classList.contains("is-visible")).toBe(true);
+  });
+
   it("starts video playback from mouse hover fallback", async () => {
     render(
       <ReferenceGridCard

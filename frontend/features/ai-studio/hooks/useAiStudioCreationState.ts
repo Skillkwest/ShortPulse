@@ -198,7 +198,7 @@ export const useAiStudioCreationState = ({
   );
   const [seedance2InputMode, setSeedance2InputMode] = useState<
     "text" | "first-frame" | "first-last" | "multimodal"
-  >("text");
+  >("multimodal");
   const [seedance2ReferenceImageUrls, setSeedance2ReferenceImageUrls] = useState<string[]>([]);
   const [seedance2ReferenceVideoUrls, setSeedance2ReferenceVideoUrls] = useState<string[]>([]);
   const [seedance2ReferenceAudioUrls, setSeedance2ReferenceAudioUrls] = useState<string[]>([]);

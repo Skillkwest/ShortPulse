@@ -84,6 +84,7 @@ export type AiStudioSessionOutputV1 = {
   id: string;
   prompt: string;
   transcriptText?: string | null;
+  lyricsText?: string | null;
   mode: StudioMode;
   aspect: string;
   model: string;
@@ -486,7 +487,9 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
           ? Math.max(0, Math.trunc(element.slotIndex))
           : undefined,
       sourceKind:
-        element.sourceKind === "character" || element.sourceKind === "element"
+        element.sourceKind === "character" ||
+        element.sourceKind === "element" ||
+        element.sourceKind === "reference-image"
           ? element.sourceKind
           : null,
       sourceElementId:
@@ -544,6 +547,7 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     id: output.id,
     prompt: output.prompt,
     transcriptText: typeof output.transcriptText === "string" ? output.transcriptText : null,
+    lyricsText: typeof output.lyricsText === "string" ? output.lyricsText : null,
     mode: output.mode,
     aspect: output.aspect,
     model: output.model,
@@ -915,7 +919,7 @@ export const buildAiStudioSessionSnapshot = (
       klingCfgScale: input.klingCfgScale,
       klingWorkflowMode:
         input.klingWorkflowMode ?? (input.klingMultiPrompts.length > 0 ? "custom" : "single"),
-      seedance2InputMode: input.seedance2InputMode ?? "text",
+      seedance2InputMode: input.seedance2InputMode ?? "multimodal",
       seedance2ReferenceImageUrls: input.seedance2ReferenceImageUrls ?? [],
       seedance2ReferenceVideoUrls: input.seedance2ReferenceVideoUrls ?? [],
       seedance2ReferenceAudioUrls: input.seedance2ReferenceAudioUrls ?? [],
@@ -995,7 +999,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
     klingNegativePrompt: "",
     klingCfgScale: 0.5,
     klingWorkflowMode: "single",
-    seedance2InputMode: "text",
+    seedance2InputMode: "multimodal",
     seedance2ReferenceImageUrls: [],
     seedance2ReferenceVideoUrls: [],
     seedance2ReferenceAudioUrls: [],

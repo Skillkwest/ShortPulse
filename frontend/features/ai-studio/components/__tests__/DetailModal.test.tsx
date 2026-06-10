@@ -652,12 +652,14 @@ describe("DetailModal", () => {
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer");
   });
 
-  it("renders generated music audio with the normalized header label only", () => {
+  it("renders generated music audio with the normalized header label and lyrics", () => {
     const { baseElement } = render(
       <DetailModal
         output={buildGeneratedAudioOutput({
           model: "ElevenLabs Music",
           modelId: "eleven_music_v1",
+          audioSourceMode: "music",
+          lyricsText: "Soft static on the wire\nWe keep moving through the night",
         })}
         onClose={vi.fn()}
         onUpdatePrompt={vi.fn()}
@@ -667,6 +669,74 @@ describe("DetailModal", () => {
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("music");
+    expect(screen.getByText("LYRICS")).toBeInTheDocument();
+    expect(screen.getByText(/Soft static on the wire/)).toBeInTheDocument();
+    expect(screen.getByText(/We keep moving through the night/)).toBeInTheDocument();
+  });
+
+  it("derives music lyrics display from the audio model when the output lacks audio source mode", () => {
+    render(
+      <DetailModal
+        output={buildGeneratedAudioOutput({
+          model: "ElevenLabs Music",
+          modelId: "music_v1",
+          lyricsText: "The skyline hums in stereo",
+        })}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("LYRICS")).toBeInTheDocument();
+    expect(screen.getByText("The skyline hums in stereo")).toBeInTheDocument();
+  });
+
+  it("falls back to saved music workflow lyrics in the detail modal", () => {
+    render(
+      <DetailModal
+        output={buildGeneratedAudioOutput({
+          model: "ElevenLabs Music",
+          modelId: "eleven_music_v1",
+          workflowReload: {
+            version: 1,
+            source: "ai_studio_generation",
+            capturedAt: "2026-06-10T12:00:00.000Z",
+            originTool: "music",
+            panelKind: "music",
+            outputMode: "audio",
+            restoreBehavior: "navigate_and_hydrate",
+            projectId: "project-1",
+            createMode: "standard",
+            pulse: null,
+            prompt: {
+              display: "Night drive chorus",
+            },
+            model: {
+              id: "eleven_music_v1",
+            },
+            payload: {
+              kind: "music",
+              text: "Night drive chorus",
+              lyrics: "Headlights bloom over the rain",
+              durationSeconds: 30,
+              bpm: null,
+              mode: "custom",
+              structure: "verse",
+              energyPercent: 60,
+              outputFormat: "mp3_44100_128",
+              modelId: "eleven_music_v1",
+            },
+          },
+        })}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("LYRICS")).toBeInTheDocument();
+    expect(screen.getByText("Headlights bloom over the rain")).toBeInTheDocument();
   });
 
   it("renders generated sound effects audio with the normalized header label only", () => {

@@ -16,6 +16,7 @@ import { resolveProductUseImageReferenceForMediaFile } from "../admittedReferenc
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 const MEDIA_BUCKET = "media_library";
+const MAX_IMAGE_INTERNAL_MEDIA_REFS = 16;
 const MAX_OPENAI_EDIT_INPUT_BYTES = 50 * 1024 * 1024;
 const OPENAI_EDIT_ALLOWED_IMAGE_CONTENT_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
@@ -79,7 +80,7 @@ const buildInternalMediaRefKeySet = (
   refs: Array<InternalMediaRef | null | undefined>
 ): Set<string> => {
   const keys = new Set<string>();
-  dedupeInternalMediaRefs(refs, 8).forEach((ref) => {
+  dedupeInternalMediaRefs(refs, MAX_IMAGE_INTERNAL_MEDIA_REFS).forEach((ref) => {
     const key = buildInternalMediaRefKey(ref ?? null);
     if (key) keys.add(key);
   });
@@ -102,7 +103,7 @@ export type ResolvedInternalMediaFile = {
 
 export const readInternalMediaRefsFromPayload = (
   value: unknown,
-  limit = 8
+  limit = MAX_IMAGE_INTERNAL_MEDIA_REFS
 ): Array<InternalMediaRef | null> =>
   dedupeInternalMediaRefs(normalizeInternalMediaRefList(value, limit), limit);
 
@@ -151,8 +152,8 @@ export const resolveSignedUrlsForInternalMediaRefs = async ({
   userId: string;
   expiresInSeconds?: number;
 }): Promise<string[]> => {
-  const normalizedRefs = dedupeInternalMediaRefs(refs, 8).filter((ref): ref is InternalMediaRef =>
-    Boolean(ref)
+  const normalizedRefs = dedupeInternalMediaRefs(refs, MAX_IMAGE_INTERNAL_MEDIA_REFS).filter(
+    (ref): ref is InternalMediaRef => Boolean(ref)
   );
   if (!normalizedRefs.length) return [];
 
@@ -231,8 +232,8 @@ export const resolveOpenAiImageFilesForInternalMediaRefs = async ({
   userId: string;
   maxBytes?: number;
 }): Promise<ResolvedInternalMediaFile[]> => {
-  const normalizedRefs = dedupeInternalMediaRefs(refs, 8).filter((ref): ref is InternalMediaRef =>
-    Boolean(ref)
+  const normalizedRefs = dedupeInternalMediaRefs(refs, MAX_IMAGE_INTERNAL_MEDIA_REFS).filter(
+    (ref): ref is InternalMediaRef => Boolean(ref)
   );
   if (!normalizedRefs.length) return [];
 

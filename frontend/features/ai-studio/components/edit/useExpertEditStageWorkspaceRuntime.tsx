@@ -48,6 +48,10 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
   inlineStageInteractionRouter: StageInteractionRouterHandlers;
   inlineBackdropPanHandlers: StagePanHandlers;
   modalStageInteractionRouter: StageInteractionRouterHandlers;
+  modalStagePanCaptureHandlers: Pick<
+    StagePanHandlers,
+    "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel"
+  >;
   isInpaintCollapsed: boolean;
   isInpaintCollapsing: boolean;
   collapsedToolsThemeClass: string;
@@ -145,6 +149,7 @@ export function useExpertEditStageWorkspaceRuntime({
   inlineStageInteractionRouter,
   inlineBackdropPanHandlers,
   modalStageInteractionRouter,
+  modalStagePanCaptureHandlers,
   isInpaintCollapsed,
   isInpaintCollapsing,
   collapsedToolsThemeClass,
@@ -377,6 +382,14 @@ export function useExpertEditStageWorkspaceRuntime({
     onDragShield: handleMarkupModalDragShield,
     interactionHandlers: modalInteractionHandlers,
     onStageWheel: modalStageInteractionRouter.onWheel,
+    onStageWheelCapture: (event: React.WheelEvent<HTMLDivElement>) => {
+      modalStageInteractionRouter.onWheel(event);
+      event.stopPropagation();
+    },
+    onStagePointerDownCapture: modalStagePanCaptureHandlers.onPointerDown,
+    onStagePointerMoveCapture: modalStagePanCaptureHandlers.onPointerMove,
+    onStagePointerUpCapture: modalStagePanCaptureHandlers.onPointerUp,
+    onStagePointerCancelCapture: modalStagePanCaptureHandlers.onPointerCancel,
   };
 
   return {

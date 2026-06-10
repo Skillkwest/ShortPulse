@@ -26,6 +26,7 @@ import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/serve
 
 type MusicRequestBody = {
   text?: unknown;
+  lyrics?: unknown;
   durationSeconds?: unknown;
   bpm?: unknown;
   mode?: unknown;
@@ -56,6 +57,7 @@ type GenerateMusicSuccessResponse = {
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: null;
+    lyricsText: string | null;
     modelId: string;
     saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
@@ -79,6 +81,12 @@ const ALLOWED_OUTPUT_FORMATS = new Set(["mp3_44100_128", "wav_48000"]);
 const ALLOWED_MODEL_IDS = new Set([DEFAULT_MUSIC_MODEL_ID]);
 
 const normalizeRequiredString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -141,6 +149,7 @@ export default async function handler(
   try {
     const body = (req.body ?? {}) as MusicRequestBody;
     const text = normalizeRequiredString(body.text);
+    const lyricsText = normalizeOptionalString(body.lyrics);
     const outputFormat = normalizeRequiredString(body.outputFormat);
     const modelId = normalizeRequiredString(body.modelId) ?? DEFAULT_MUSIC_MODEL_ID;
     const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
@@ -309,6 +318,7 @@ export default async function handler(
         provider_request_id: providerRequestId,
         provider_song_id: generated.songId,
         provider_prompt: providerPrompt,
+        ...(lyricsText ? { lyrics_text: lyricsText } : {}),
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
       beforeVisibleSettlement: async ({ generationId }) => {
@@ -353,6 +363,7 @@ export default async function handler(
         mimeType: generated.contentType,
         durationMs: responseDurationMs,
         waveformPeaks: null,
+        lyricsText,
         modelId,
         saveState: persisted.saveState,
         saveError: persisted.saveError,

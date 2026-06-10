@@ -186,22 +186,7 @@ const asJsonObject = (value: unknown): Record<string, unknown> =>
     : {};
 
 const readProviderSubmitFailureMessage = (payload: Record<string, unknown>): string | null => {
-  const candidates = [
-    payload,
-    asJsonObject(payload.data),
-    asJsonObject(payload.result),
-    asJsonObject(payload.response),
-  ];
-  for (const candidate of candidates) {
-    const message =
-      asProviderString(candidate.error) ??
-      asProviderString(candidate.message) ??
-      asProviderString(candidate.msg) ??
-      asProviderString(candidate.detail);
-    if (message && /^(ok|success|succeeded)$/i.test(message)) continue;
-    if (message) return message;
-  }
-  return null;
+  return asProviderString(normalizeCustomerFacingProviderError(payload, ""));
 };
 
 const readProviderBodyCode = (payload: Record<string, unknown>): number | null => {
@@ -549,7 +534,7 @@ export const createFalSubmitHandler = ({
     const characterContext = asJsonObject(rawCharacterContext);
     const styleContext = asJsonObject(rawStyleContext);
     const shortpulseContext = asJsonObject(rawShortpulseContext);
-    const internalMediaRefs = readInternalMediaRefsFromPayload(rawInternalMediaRefs, 8);
+    const internalMediaRefs = readInternalMediaRefsFromPayload(rawInternalMediaRefs, 16);
     const internalEditMediaRefs = readInternalEditMediaRefsFromPayload(rawInternalEditMediaRefs);
     let payload = rawPayloadWithoutContext;
     const runtimeFlags = readFalRuntimeFlags();

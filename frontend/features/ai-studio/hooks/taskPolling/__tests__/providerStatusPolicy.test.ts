@@ -3,6 +3,7 @@ import {
   createShortErrorMessage,
   isProviderSafetyBlockedOutput,
   isProviderSafetyBlockMessage,
+  resolveProviderTerminalFailureCopy,
 } from "../providerStatusPolicy";
 
 describe("providerStatusPolicy safety classification", () => {
@@ -44,5 +45,25 @@ describe("providerStatusPolicy safety classification", () => {
         errorDetail: "Downstream service error",
       })
     ).toBe(false);
+  });
+
+  it("extracts nested provider failure reasons from raw terminal polling payloads", () => {
+    expect(
+      resolveProviderTerminalFailureCopy(
+        {
+          status: "failed",
+          message: "failed",
+          data: {
+            status: "failed",
+            failMsg: "Reference file is not reachable",
+          },
+        },
+        "failed"
+      )
+    ).toEqual({
+      message: "Reference file is not reachable",
+      detail: "Reference file is not reachable",
+      shortMessage: "Reference file is not reachable",
+    });
   });
 });

@@ -430,7 +430,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               ) : null}
               <div className="reference-drop-content image-drop-content">
                 <UploadSimple size={24} weight="regular" />
-                <p className="reference-drop-title helper-text">Upload a starting frame</p>
+                <p className="reference-drop-title helper-text">Upload image</p>
               </div>
             </div>
           </div>
@@ -448,7 +448,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               }
             >
               {extraImageLoading[0] ? renderLoadingOverlay() : null}
-              <span className="dropzone-tag subtle">End frame (optional)</span>
+              <span className="dropzone-tag subtle">End frame</span>
               {extraImageUrls[0] ? (
                 <button
                   type="button"
@@ -463,7 +463,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               ) : null}
               <div className="reference-drop-content image-drop-content">
                 <UploadSimple size={24} weight="regular" />
-                <p className="reference-drop-title helper-text">Upload an end frame</p>
+                <p className="reference-drop-title helper-text">Optional image</p>
               </div>
             </div>
           </div>

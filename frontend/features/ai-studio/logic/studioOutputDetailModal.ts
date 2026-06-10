@@ -6,12 +6,28 @@ import type {
 } from "../components/detail-modal/detailModalPlatformTypes";
 import { canDownloadReferenceOutput, canSaveReferenceOutput } from "./referenceActionAvailability";
 import type { StudioOutput } from "../types";
+import { resolveOutputAudioSourceMode } from "./audioSourceMode";
 
 export type StudioOutputDetailModalItem = SharedMediaDetailItemBase & {
   output: StudioOutput;
   selectionTarget: Extract<SharedMediaDetailSelectionTarget, { kind: "studio-output" }>;
   capabilities: SharedMediaDetailCapabilities;
 };
+
+const resolveStudioOutputLyricsText = (output: StudioOutput): string | null => {
+  const directLyrics = output.lyricsText?.trim();
+  if (directLyrics) return directLyrics;
+  const payload = output.workflowReload?.payload;
+  if (payload?.kind !== "music") return null;
+  const workflowLyrics = payload.lyrics?.trim();
+  return workflowLyrics || null;
+};
+
+const resolveStudioOutputAudioSourceMode = (
+  output: StudioOutput
+): StudioOutput["audioSourceMode"] =>
+  resolveOutputAudioSourceMode(output) ??
+  (output.workflowReload?.payload?.kind === "music" ? "music" : null);
 
 /**
  * Creates the canonical detail-modal contract for StudioOutput-backed right-rail previews.
@@ -62,6 +78,7 @@ export const createStudioOutputDetailModalItem = ({
     filename: null,
     promptText: output.prompt,
     transcriptText: output.transcriptText ?? null,
+    lyricsText: resolveStudioOutputLyricsText(output),
     source: output.mediaSource ?? (output.mode === "text" ? "prompt" : null),
     previewStoragePath: output.previewStoragePath ?? null,
     fullStoragePath: output.fullStoragePath ?? null,
@@ -69,7 +86,7 @@ export const createStudioOutputDetailModalItem = ({
     previewPosterUrl: output.previewPosterUrl ?? null,
     previewPosterStoragePath: output.previewPosterStoragePath ?? null,
     fullUrl: output.resultUrls?.find((candidate) => candidate?.trim()) ?? null,
-    audioSourceMode: output.audioSourceMode ?? null,
+    audioSourceMode: resolveStudioOutputAudioSourceMode(output),
     durationMs: output.durationMs ?? null,
     waveformPeaks: output.waveformPeaks ?? null,
   },

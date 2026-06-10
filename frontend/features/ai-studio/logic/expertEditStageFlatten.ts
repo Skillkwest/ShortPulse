@@ -5,6 +5,7 @@
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
 import { clampExpertEditCameraScale } from "./expertEditCameraContract";
 import { resolveClippedLayerTransform } from "../components/edit/expertEditLayerTransformUtils";
+import { withDeadline } from "./withDeadline";
 
 export type ExpertEditStageFlattenLayer = {
   imageUrl: string | null;
@@ -64,6 +65,8 @@ export type StageFlattenDrawInstruction = {
 
 const DEFAULT_STAGE_FLATTEN_MIME_TYPE = "image/png";
 export const STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX = 4096;
+export const STAGE_FLATTEN_IMAGE_LOAD_TIMEOUT_MS = 15_000;
+export const STAGE_FLATTEN_CANVAS_EXPORT_TIMEOUT_MS = 8_000;
 const STAGE_FLATTEN_MIN_SCALE = 0.2;
 const STAGE_FLATTEN_MAX_SCALE = 2;
 
@@ -86,16 +89,27 @@ const toRadians = (value: number) => (value * Math.PI) / 180;
 const resolveAspectRatio = (value: number | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 1;
 
-const loadImage = (url: string): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const image = new Image();
-    if (isCrossOriginCandidate(url)) {
-      image.crossOrigin = "anonymous";
-    }
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Failed to load layer image: ${url}`));
-    image.src = url;
+const loadImage = (url: string): Promise<HTMLImageElement> => {
+  let image: HTMLImageElement | null = null;
+  return withDeadline({
+    timeoutMs: STAGE_FLATTEN_IMAGE_LOAD_TIMEOUT_MS,
+    timeoutMessage: "Timed out loading a layer image for stage flatten.",
+    run: async () =>
+      await new Promise<HTMLImageElement>((resolve, reject) => {
+        image = new Image();
+        if (isCrossOriginCandidate(url)) {
+          image.crossOrigin = "anonymous";
+        }
+        image.onload = () => resolve(image as HTMLImageElement);
+        image.onerror = () => reject(new Error(`Failed to load layer image: ${url}`));
+        image.src = url;
+      }),
+  }).finally(() => {
+    if (!image) return;
+    image.onload = null;
+    image.onerror = null;
   });
+};
 
 const loadImageWithSignedUrlRefresh = async (url: string): Promise<HTMLImageElement> => {
   try {
@@ -113,20 +127,25 @@ const loadImageWithSignedUrlRefresh = async (url: string): Promise<HTMLImageElem
 };
 
 const canvasToBlob = (canvas: HTMLCanvasElement, mimeType: string): Promise<Blob> =>
-  new Promise((resolve, reject) => {
-    try {
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          reject(new Error("Canvas export failed."));
-          return;
+  withDeadline({
+    timeoutMs: STAGE_FLATTEN_CANVAS_EXPORT_TIMEOUT_MS,
+    timeoutMessage: "Timed out exporting the flattened stage image.",
+    run: async () =>
+      await new Promise<Blob>((resolve, reject) => {
+        try {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error("Canvas export failed."));
+              return;
+            }
+            resolve(blob);
+          }, mimeType);
+        } catch (error) {
+          reject(
+            error instanceof Error ? error : new Error("Canvas export failed during stage flatten.")
+          );
         }
-        resolve(blob);
-      }, mimeType);
-    } catch (error) {
-      reject(
-        error instanceof Error ? error : new Error("Canvas export failed during stage flatten.")
-      );
-    }
+      }),
   });
 
 /**

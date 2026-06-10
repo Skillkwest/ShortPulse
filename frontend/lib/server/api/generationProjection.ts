@@ -133,6 +133,7 @@ type RepairableGenerationRow = {
   promptText: string | null;
   status: string | null;
   failureReasonCode: string | null;
+  errorMessage: string | null;
   completedAt: string | null;
 };
 
@@ -198,17 +199,27 @@ const parseRepairableGenerationRow = (value: unknown): RepairableGenerationRow |
     promptText: asString(row.prompt_text),
     status: asString(row.status),
     failureReasonCode: asString(row.failure_reason_code),
+    errorMessage: asString(row.error_message),
     completedAt: asString(row.completed_at),
   };
 };
 
 const readFailedProjectionMessage = (
-  failureReasonCode: string | null
+  failureReasonCode: string | null,
+  providerErrorMessage?: string | null
 ): {
   errorMessage: string;
   errorMessageShort: string;
   errorDetail: string;
 } => {
+  const normalizedProviderErrorMessage = asString(providerErrorMessage);
+  if (failureReasonCode === "provider_error" && normalizedProviderErrorMessage) {
+    return {
+      errorMessage: normalizedProviderErrorMessage,
+      errorMessageShort: normalizedProviderErrorMessage,
+      errorDetail: normalizedProviderErrorMessage,
+    };
+  }
   switch (failureReasonCode) {
     case "terminal_success_no_media":
       return {
@@ -712,7 +723,7 @@ export const repairStaleTerminalGenerationProjections = async ({
   const generationResponse = await adminClient
     .from("ai_generations")
     .select(
-      "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, completed_at"
+      "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, error_message, completed_at"
     )
     .in(
       "id",
@@ -839,7 +850,10 @@ export const repairStaleTerminalGenerationProjections = async ({
       continue;
     }
 
-    const message = readFailedProjectionMessage(generation.failureReasonCode);
+    const message = readFailedProjectionMessage(
+      generation.failureReasonCode,
+      generation.errorMessage
+    );
     await upsertGenerationProjection({
       supabaseAdmin: adminClient,
       generationId: projection.generationId,

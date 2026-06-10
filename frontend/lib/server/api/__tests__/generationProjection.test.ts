@@ -175,6 +175,69 @@ describe("repairStaleTerminalGenerationProjections", () => {
     );
   });
 
+  it("preserves provider error messages when repairing failed projections", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [
+        {
+          generation_id: "gen-provider-fail-1",
+          user_id: "user-1",
+          source_ref: "source-provider-fail-1",
+          request_id: "req-provider-fail-1",
+          provider: "kie",
+          provider_request_id: "req-provider-fail-1",
+          latest_attempt_id: "attempt-provider-fail-1",
+          display_prompt: "prompt-1",
+          model_id: "kie-ai/veo-3.1-fast-i2v",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          started_at: "2026-04-10T23:00:00.000Z",
+        },
+      ],
+      generationRows: [
+        {
+          id: "gen-provider-fail-1",
+          user_id: "user-1",
+          request_id: "req-provider-fail-1",
+          provider: "kie",
+          model_id: "kie-ai/veo-3.1-fast-i2v",
+          prompt_text: "prompt-1",
+          status: "fail",
+          failure_reason_code: "provider_error",
+          error_message: "File type not supported",
+          completed_at: "2026-04-10T23:20:00.000Z",
+        },
+      ],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 10,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-provider-fail-1",
+        user_id: "user-1",
+        status: "ready",
+        task_state: "fail",
+        error_message: "File type not supported",
+        error_message_short: "File type not supported",
+        error_detail: "File type not supported",
+        completed_at: "2026-04-10T23:20:00.000Z",
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+  });
+
   it("skips stale running projections when the canonical generation is not terminal fail", async () => {
     const supabaseAdmin = createSupabaseAdmin({
       projectionRows: [

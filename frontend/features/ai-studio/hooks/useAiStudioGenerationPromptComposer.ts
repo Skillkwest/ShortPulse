@@ -51,17 +51,20 @@ type UseAiStudioGenerationPromptComposerParams = {
 const normalizeOrderedReferenceInputs = ({
   candidates,
   preserveDuplicates = false,
+  limit = 10,
 }: {
   candidates: string[];
   preserveDuplicates?: boolean;
+  limit?: number;
 }): string[] => {
   const normalizedCandidates = candidates
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
+  const normalizedLimit = Number.isFinite(limit) ? Math.max(1, Math.trunc(limit)) : 10;
   if (preserveDuplicates) {
-    return normalizedCandidates.slice(0, 10);
+    return normalizedCandidates.slice(0, normalizedLimit);
   }
-  return Array.from(new Set(normalizedCandidates)).slice(0, 10);
+  return Array.from(new Set(normalizedCandidates)).slice(0, normalizedLimit);
 };
 
 const resolvePromptForTool = ({
@@ -156,21 +159,27 @@ export const useAiStudioGenerationPromptComposer = ({
       overrideMode: ReferenceInputsMode = "merge",
       options?: {
         preserveBaseDuplicates?: boolean;
+        limit?: number;
       }
     ) => {
       if (!Array.isArray(overrideInputs)) {
         return normalizeOrderedReferenceInputs({
           candidates: baseInputs,
           preserveDuplicates: options?.preserveBaseDuplicates,
+          limit: options?.limit,
         });
       }
       if (overrideMode === "replace") {
         return normalizeOrderedReferenceInputs({
           candidates: overrideInputs,
           preserveDuplicates: true,
+          limit: options?.limit,
         });
       }
-      return normalizeOrderedReferenceInputs({ candidates: [...overrideInputs, ...baseInputs] });
+      return normalizeOrderedReferenceInputs({
+        candidates: [...overrideInputs, ...baseInputs],
+        limit: options?.limit,
+      });
     },
     []
   );
@@ -232,6 +241,7 @@ export const useAiStudioGenerationPromptComposer = ({
         options?.referenceInputsMode,
         {
           preserveBaseDuplicates: effectiveTool === "image" || effectiveTool === "edit",
+          limit: options?.referenceInputsLimit,
         }
       );
       submitTask(
@@ -318,6 +328,7 @@ export const useAiStudioGenerationPromptComposer = ({
         options?.referenceInputsMode,
         {
           preserveBaseDuplicates: effectiveTool === "image" || effectiveTool === "edit",
+          limit: options?.referenceInputsLimit,
         }
       );
       submitTask(

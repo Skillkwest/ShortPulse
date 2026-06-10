@@ -372,6 +372,7 @@ export function ExpertEditPanelView({
   const handleRemoveSecondaryReferenceSlot = React.useCallback(
     (index: number) => {
       onExtraImageChange(index, null);
+      if (index === 0) return;
       setVisibleSecondarySlotIndexes((previous) =>
         previous.filter((slotIndex) => slotIndex !== index)
       );
@@ -923,6 +924,29 @@ export function ExpertEditPanelView({
     ]
   );
 
+  const modalStagePanCaptureHandlers = React.useMemo(
+    () => ({
+      onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!beginMarkupPanGesture(event, "modal")) return;
+        event.currentTarget.focus({ preventScroll: true });
+        event.stopPropagation();
+      },
+      onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!continueMarkupPanGesture(event)) return;
+        event.stopPropagation();
+      },
+      onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!endMarkupPanGesture(event)) return;
+        event.stopPropagation();
+      },
+      onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!endMarkupPanGesture(event)) return;
+        event.stopPropagation();
+      },
+    }),
+    [beginMarkupPanGesture, continueMarkupPanGesture, endMarkupPanGesture]
+  );
+
   const {
     activeStageRenderScale,
     clearTransformPointerSession,
@@ -1278,6 +1302,7 @@ export function ExpertEditPanelView({
     renderSelectedLayerTransformOverlay,
     inlineStageInteractionRouter,
     inlineBackdropPanHandlers,
+    modalStagePanCaptureHandlers,
     modalStageInteractionRouter,
     isInpaintCollapsed,
     isInpaintCollapsing,

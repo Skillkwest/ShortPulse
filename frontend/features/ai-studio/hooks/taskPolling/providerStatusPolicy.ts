@@ -2,6 +2,7 @@
  * Provider status parsing and classification policy for AI Studio task polling.
  */
 import { isExplicitContentFailureMessage } from "../../../../lib/explicitContentFailure";
+import { normalizeCustomerFacingProviderError } from "../../../../lib/customerFacingProviderText";
 import type { Provider } from "../../logic/stateParsers";
 import type { StudioOutput } from "../../types";
 
@@ -10,9 +11,14 @@ export type PollStatus = {
   state?: unknown;
   generationId?: unknown;
   generation_id?: unknown;
-  data?: { status?: unknown; state?: unknown; result?: { status?: unknown; state?: unknown } };
-  result?: { status?: unknown; state?: unknown };
-  output?: { status?: unknown; state?: unknown };
+  data?: {
+    status?: unknown;
+    state?: unknown;
+    result?: { status?: unknown; state?: unknown; [key: string]: unknown };
+    [key: string]: unknown;
+  };
+  result?: { status?: unknown; state?: unknown; [key: string]: unknown };
+  output?: { status?: unknown; state?: unknown; [key: string]: unknown };
   resultJson?: unknown;
   raw?: unknown;
   error?: unknown;
@@ -42,6 +48,7 @@ export const longRunningVideoProviders = new Set<Provider>([
   "fal-kling-3",
   "fal-seedance",
   "fal-seedance-i2v",
+  "fal-omnihuman-v15",
   "fal-veo",
   "fal-veo-i2v",
   "kie-veo",
@@ -277,19 +284,27 @@ export const resolveProviderTerminalFailureCopy = (
   status: PollStatus,
   providerState?: string | null
 ): ProviderTerminalFailureCopy => {
+  const normalizedProviderDetail = normalizeCustomerFacingProviderError(status, "");
   const rawDetail =
-    extractFailureMessageFromDetail(status.detail) ??
-    extractFailureMessageFromDetail(status.failMsg) ??
-    extractFailureMessageFromDetail(status.error) ??
-    extractFailureMessageFromDetail(status.message) ??
-    extractFailureMessageFromDetail(status.statusMessage);
+    normalizedProviderDetail ||
+    (extractFailureMessageFromDetail(status.detail) ??
+      extractFailureMessageFromDetail(status.failMsg) ??
+      extractFailureMessageFromDetail(status.error) ??
+      extractFailureMessageFromDetail(status.message) ??
+      extractFailureMessageFromDetail(status.statusMessage));
   const defaultMessage =
     providerState === "cancelled" || providerState === "canceled"
       ? "Generation canceled"
       : "Generation failed";
-  const safeDetail = rawDetail && looksLikeFailureMessage(rawDetail) ? rawDetail : defaultMessage;
+  const hasStructuredProviderDetail = Boolean(normalizedProviderDetail);
+  const safeDetail =
+    rawDetail && (hasStructuredProviderDetail || looksLikeFailureMessage(rawDetail))
+      ? rawDetail
+      : defaultMessage;
   const safeMessage =
-    rawDetail && looksLikeFailureMessage(rawDetail) ? condenseError(rawDetail) : defaultMessage;
+    rawDetail && (hasStructuredProviderDetail || looksLikeFailureMessage(rawDetail))
+      ? condenseError(rawDetail)
+      : defaultMessage;
   return {
     message: safeMessage,
     detail: safeDetail,

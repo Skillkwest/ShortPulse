@@ -72,9 +72,9 @@ describe("StylesLibraryPanel", () => {
     vi.mocked(postExtractStyle).mockResolvedValue(createStyleExtractionResult());
     vi.mocked(postGenerateStylePreview).mockResolvedValue({
       previewImageUrl: "data:image/jpeg;base64,generated-style-preview",
-      modelId: "gpt-image-2",
+      modelId: "fal-ai/flux-2/klein/9b",
       size: "1024x1024",
-      quality: "low",
+      quality: null,
     });
   });
 
@@ -185,7 +185,7 @@ describe("StylesLibraryPanel", () => {
       previewImageUrl: string;
       modelId: string;
       size: string;
-      quality: string;
+      quality: string | null;
     }) => void;
     vi.mocked(postGenerateStylePreview).mockReturnValue(
       new Promise((resolve) => {
@@ -242,9 +242,9 @@ describe("StylesLibraryPanel", () => {
 
     resolvePreview({
       previewImageUrl: "data:image/jpeg;base64,generated-style-preview",
-      modelId: "gpt-image-2",
+      modelId: "fal-ai/flux-2/klein/9b",
       size: "1024x1024",
-      quality: "low",
+      quality: null,
     });
     await waitFor(() => {
       expect(onSaveStyleDetails).toHaveBeenCalledTimes(2);

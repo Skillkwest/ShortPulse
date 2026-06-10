@@ -7,6 +7,8 @@ import {
   EXPERT_EDIT_CAMERA_SCALE_MIN,
 } from "../expertEditCameraContract";
 import {
+  STAGE_FLATTEN_CANVAS_EXPORT_TIMEOUT_MS,
+  STAGE_FLATTEN_IMAGE_LOAD_TIMEOUT_MS,
   STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX,
   buildStageFlattenDrawPlan,
   composePrimaryStageLayersToBlob,
@@ -18,6 +20,7 @@ import {
 
 describe("expertEditStageFlatten", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -361,6 +364,120 @@ describe("expertEditStageFlatten", () => {
       });
 
       expect(context.clearRect).toHaveBeenCalledWith(0, 0, 2048, 2048);
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+        configurable: true,
+        value: originalCanvasToBlob,
+      });
+    }
+  });
+
+  it("rejects instead of hanging when a layer image never settles", async () => {
+    vi.useFakeTimers();
+
+    class NeverSettlingImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 1;
+      naturalHeight = 1;
+      width = 1;
+      height = 1;
+
+      set src(_value: string) {
+        // Simulates browser image decode paths that never fire load or error.
+      }
+    }
+    const originalImage = globalThis.Image;
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: NeverSettlingImage,
+    });
+
+    try {
+      const promise = composePrimaryStageLayersToBlob([
+        { imageUrl: "https://example.com/never-settles.png" },
+      ]);
+      const expectation = expect(promise).rejects.toMatchObject({
+        code: "DEADLINE_EXCEEDED",
+      });
+
+      await vi.advanceTimersByTimeAsync(STAGE_FLATTEN_IMAGE_LOAD_TIMEOUT_MS);
+      await expectation;
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+    }
+  });
+
+  it("rejects instead of hanging when canvas blob export never settles", async () => {
+    vi.useFakeTimers();
+
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToBlob = HTMLCanvasElement.prototype.toBlob;
+    const context = {
+      clearRect: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
+      scale: vi.fn(),
+      drawImage: vi.fn(),
+      globalAlpha: 1,
+    };
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      value: vi.fn(() => context as unknown as CanvasRenderingContext2D),
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+      configurable: true,
+      value: vi.fn(() => {
+        // Simulates a browser canvas export path that never invokes its callback.
+      }),
+    });
+
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 1024;
+      naturalHeight = 768;
+      width = 1024;
+      height = 768;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    const originalImage = globalThis.Image;
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    try {
+      const promise = composePrimaryStageLayersToBlob([
+        { imageUrl: "https://example.com/source.png" },
+      ]);
+      const expectation = expect(promise).rejects.toMatchObject({
+        code: "DEADLINE_EXCEEDED",
+      });
+      await Promise.resolve();
+
+      await vi.advanceTimersByTimeAsync(STAGE_FLATTEN_CANVAS_EXPORT_TIMEOUT_MS);
+      await expectation;
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,

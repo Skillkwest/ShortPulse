@@ -14,6 +14,7 @@ export type ExpertEditRegenerateOptions = {
   displayPromptOverride?: string | null;
   submissionPromptOverride?: string | null;
   referenceInputsMode?: "merge" | "replace";
+  referenceInputsLimit?: number;
 };
 
 export type ExpertEditRegenerateWithReferenceInputsHandler = (

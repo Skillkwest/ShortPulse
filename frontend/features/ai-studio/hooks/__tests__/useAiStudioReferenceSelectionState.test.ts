@@ -7,8 +7,9 @@ const uploadVideoFileToStorageMock = vi.hoisted(() => vi.fn());
 const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const deleteUploadedMotionVideoByPathMock = vi.hoisted(() => vi.fn());
 const retireCommittedMotionVideoByUrlMock = vi.hoisted(() => vi.fn());
-const prepareVideoUrlMock = vi.hoisted(() => vi.fn());
+const prepareMotionReferenceVideoUrlMock = vi.hoisted(() => vi.fn());
 const needsVideoUploadMock = vi.hoisted(() => vi.fn());
+const needsMotionReferenceVideoProviderNormalizationMock = vi.hoisted(() => vi.fn());
 const loadVideoPreviewMetadataMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
@@ -22,8 +23,11 @@ vi.mock("../../utils/videoUpload", () => ({
     deleteUploadedMotionVideoByPathMock(...args),
   retireCommittedMotionVideoByUrl: (...args: unknown[]) =>
     retireCommittedMotionVideoByUrlMock(...args),
-  prepareVideoUrl: (...args: unknown[]) => prepareVideoUrlMock(...args),
+  prepareMotionReferenceVideoUrl: (...args: unknown[]) =>
+    prepareMotionReferenceVideoUrlMock(...args),
   needsVideoUpload: (...args: unknown[]) => needsVideoUploadMock(...args),
+  needsMotionReferenceVideoProviderNormalization: (...args: unknown[]) =>
+    needsMotionReferenceVideoProviderNormalizationMock(...args),
 }));
 
 vi.mock("../../logic/videoPreviewMetadata", () => ({
@@ -38,8 +42,9 @@ describe("useAiStudioReferenceSelectionState", () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     deleteUploadedMotionVideoByPathMock.mockResolvedValue(undefined);
     retireCommittedMotionVideoByUrlMock.mockResolvedValue(undefined);
-    prepareVideoUrlMock.mockImplementation(async (value: string | null) => value);
+    prepareMotionReferenceVideoUrlMock.mockImplementation(async (value: string | null) => value);
     needsVideoUploadMock.mockReturnValue(true);
+    needsMotionReferenceVideoProviderNormalizationMock.mockReturnValue(false);
     loadVideoPreviewMetadataMock.mockResolvedValue({ durationMs: 10_000, posterUrl: null });
   });
 
@@ -491,6 +496,63 @@ describe("useAiStudioReferenceSelectionState", () => {
     expect(result.current.motionReferenceVideoPending).toBe(false);
     expect(result.current.motionReferenceVideoError).toBeNull();
     expect(result.current.motionReferenceVideoUrl).toBe("https://signed.example.com/motion.mp4");
+  });
+
+  it("stages dragged remote WebM motion clips before committing them", async () => {
+    needsVideoUploadMock.mockReturnValue(false);
+    needsMotionReferenceVideoProviderNormalizationMock.mockReturnValue(true);
+    loadVideoPreviewMetadataMock.mockResolvedValueOnce({ durationMs: 20_000, posterUrl: null });
+    uploadVideoAssetToStorageMock.mockResolvedValueOnce({
+      url: "https://signed.example.com/motion.mp4",
+      path: "user-1/videos/motion-control/motion.mp4",
+      size: 2048,
+      mimeType: "video/mp4",
+      name: "motion.mp4",
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+
+    await act(async () => {
+      await result.current.stageMotionVideoSelection({
+        videoUrl: "https://signed.example.com/motion.webm",
+      });
+    });
+
+    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledWith(
+      "https://signed.example.com/motion.webm"
+    );
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoError).toBeNull();
+    expect(result.current.motionReferenceVideoUrl).toBe("https://signed.example.com/motion.mp4");
+  });
+
+  it("normalizes directly assigned WebM motion clips through motion preparation", async () => {
+    prepareMotionReferenceVideoUrlMock.mockResolvedValueOnce(
+      "https://signed.example.com/motion.mp4"
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+
+    act(() => {
+      result.current.setMotionReferenceVideoUrl("https://signed.example.com/motion.webm");
+    });
+
+    await waitFor(() => {
+      expect(result.current.motionReferenceVideoUrl).toBe("https://signed.example.com/motion.mp4");
+    });
+    expect(prepareMotionReferenceVideoUrlMock).toHaveBeenCalledWith(
+      "https://signed.example.com/motion.webm"
+    );
   });
 
   it("commits staged motion videos back to the originating authority after switching away", async () => {

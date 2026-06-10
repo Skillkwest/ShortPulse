@@ -287,14 +287,32 @@ vi.mock("../useReferencePropertiesConstraintEffects", () => ({
 }));
 
 vi.mock("../useReferencePropertiesInteractions", () => ({
-  useReferencePropertiesInteractions: () => ({
+  useReferencePropertiesInteractions: (params: {
+    seedanceElementSlotCount?: number;
+    onSeedanceElementImageSlotChange?: (slotIndex: number, url: string | null) => void;
+  }) => ({
     primaryInputRef: { current: null },
     extraOneInputRef: { current: null },
     extraTwoInputRef: { current: null },
     extraThreeInputRef: { current: null },
     motionVideoInputRef: { current: null },
+    seedanceElementImageInputRefs: Array.from(
+      { length: params.seedanceElementSlotCount ?? 0 },
+      () => ({ current: null })
+    ),
     primaryDragActive: false,
     extraDragActive: [false, false, false],
+    seedanceElementImageDragActive: Array.from(
+      { length: params.seedanceElementSlotCount ?? 0 },
+      () => false
+    ),
+    primaryImageLoading: false,
+    extraImageLoading: [false, false, false],
+    seedanceElementImageLoading: Array.from(
+      { length: params.seedanceElementSlotCount ?? 0 },
+      () => false
+    ),
+    setSeedanceElementImageDragActiveAt: vi.fn(),
     motionVideoDragActive: false,
     setMotionVideoDragActive: vi.fn(),
     collapsedSteps: { reference: false, prompt: false, klingAdvanced: false, klingAssets: false },
@@ -316,8 +334,39 @@ vi.mock("../useReferencePropertiesInteractions", () => ({
     handleExtraDragEnter: vi.fn(),
     handleExtraDragOver: vi.fn(),
     handleExtraDragLeave: vi.fn(),
+    handleSeedanceElementImageFileSelection:
+      (slotIndex: number) => (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        params.onSeedanceElementImageSlotChange?.(
+          slotIndex,
+          file ? `blob:seedance-slot-${slotIndex}` : null
+        );
+      },
+    handleSeedanceElementImageDrop:
+      (slotIndex: number) => (event: React.DragEvent<HTMLDivElement>) => {
+        const url =
+          event.dataTransfer.getData("text/uri-list") ||
+          event.dataTransfer.getData("text/plain") ||
+          `https://example.com/seedance-slot-${slotIndex}.png`;
+        params.onSeedanceElementImageSlotChange?.(slotIndex, url);
+      },
+    handleSeedanceElementImageDragEnter: vi.fn(() => vi.fn()),
+    handleSeedanceElementImageDragOver: vi.fn(() => vi.fn()),
+    handleSeedanceElementImageDragLeave: vi.fn(() => vi.fn()),
     acceptPrimaryCanvasTearOutPayload: vi.fn(),
     acceptExtraCanvasTearOutPayload: vi.fn(),
+    acceptSeedanceElementImageCanvasTearOutPayload: vi.fn(
+      (slotIndex: number, payload: AgentComposerDirectDropPayload) => {
+        const imageUrl =
+          payload.kind === "image"
+            ? (payload.composerImagePayload?.displayArtifactUrl ??
+              payload.internalPayload?.referenceRenderUrl ??
+              payload.internalPayload?.referenceUrl ??
+              null)
+            : null;
+        params.onSeedanceElementImageSlotChange?.(slotIndex, imageUrl);
+      }
+    ),
     acceptMotionVideoCanvasTearOutPayload: vi.fn(),
     allowVideoDrag: vi.fn(() => false),
     handleMotionVideoDrop: vi.fn(),
@@ -436,7 +485,7 @@ function KlingPromptDropHarness() {
 function SeedanceReferenceModeHarness({
   referenceImageUrl = null,
   extraImageUrls = [null, null, null] as [string | null, string | null, string | null],
-  initialInputMode = "text" as "text" | "first-frame" | "first-last" | "multimodal",
+  initialInputMode = "multimodal" as "text" | "first-frame" | "first-last" | "multimodal",
 }: {
   referenceImageUrl?: string | null;
   extraImageUrls?: [string | null, string | null, string | null];
@@ -1350,7 +1399,7 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.queryByText("Shot 2")).toBeNull();
   });
 
-  it("renders the compact Seedance reference toggle and defaults it to keyframes", () => {
+  it("renders the compact Seedance reference toggle with Elements first and selected by default", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
@@ -1359,14 +1408,167 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByRole("tab", { name: "Keyframes" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Elements" })).toHaveAttribute("aria-selected", "false");
-    expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Element reference slots")).not.toBeInTheDocument();
+    const referenceModeTabs = within(
+      screen.getByRole("tablist", { name: "Seedance reference mode" })
+    ).getAllByRole("tab");
+    expect(referenceModeTabs.map((tab) => tab.textContent)).toEqual(["Elements", "Keyframes"]);
+    expect(screen.getByRole("tab", { name: "Elements" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Keyframes" })).toHaveAttribute(
+      "aria-selected",
+      "false"
+    );
+    expect(screen.queryByTestId("reference-media-step")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Element reference slots")).toBeInTheDocument();
+  });
+
+  it("uploads a direct image reference into a Seedance Elements slot", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2.0"
+        onKlingElementsChange={onKlingElementsChange}
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"][accept="image/*"]');
+    expect(fileInput).toBeTruthy();
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: {
+        files: [new File(["seedance"], "seedance.png", { type: "image/png" })],
+      },
+    });
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        slotIndex: 0,
+        sourceKind: "reference-image",
+        frontalImageUrl: "blob:seedance-slot-0",
+        profileImageUrl: "blob:seedance-slot-0",
+      }),
+    ]);
+  });
+
+  it("drops a direct image reference into a Seedance Elements slot", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2.0"
+        onKlingElementsChange={onKlingElementsChange}
+      />
+    );
+
+    const firstSlot = screen
+      .getByRole("button", { name: "Add element to slot 1" })
+      .closest(".video-elements-placeholder-tile");
+    expect(firstSlot).toBeTruthy();
+
+    const transfer = createTransferStore();
+    transfer.setData("text/uri-list", "https://example.com/reference-grid-image.png");
+    fireEvent.drop(firstSlot as HTMLElement, { dataTransfer: transfer });
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        slotIndex: 0,
+        sourceKind: "reference-image",
+        frontalImageUrl: "https://example.com/reference-grid-image.png",
+      }),
+    ]);
+  });
+
+  it("accepts a canvas tear-out image into a Seedance Elements slot", () => {
+    const onKlingElementsChange = vi.fn();
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2.0"
+        canvasTearOutTargetRegistry={registry}
+        onKlingElementsChange={onKlingElementsChange}
+      />
+    );
+
+    const firstSlot = screen
+      .getByRole("button", { name: "Add element to slot 1" })
+      .closest(".video-elements-placeholder-tile");
+    expect(firstSlot).toBeTruthy();
+    setElementRect(firstSlot as HTMLElement, { left: 0, top: 0, width: 80, height: 80 });
+
+    const payload: AgentComposerDirectDropPayload = {
+      kind: "image",
+      internalPayload: null,
+      composerImagePayload: {
+        version: 1,
+        origin: "ai-studio-reference-grid",
+        referenceId: "canvas-image",
+        outputId: "canvas-image",
+        mediaId: "media-canvas-image",
+        displayArtifactUrl: "https://example.com/canvas-image.png",
+        displayArtifactKind: "url",
+        referenceUrl: "https://example.com/canvas-image.png",
+        sourceSurface: "all-refs",
+      },
+    };
+    const target = registry.resolveTargetAtPoint({ clientX: 20, clientY: 20 }, payload);
+    expect(target?.id).toBe("video-seedance-element-image-0");
+    target?.target.accept(payload);
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        slotIndex: 0,
+        sourceKind: "reference-image",
+        frontalImageUrl: "https://example.com/canvas-image.png",
+      }),
+    ]);
+  });
+
+  it("does not expose direct Seedance image references as prompt-token draggable slots", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2.0"
+        klingElements={[
+          {
+            id: "direct-image",
+            slotIndex: 0,
+            sourceKind: "reference-image",
+            sourceElementId: null,
+            sourceCharacterId: null,
+            name: "Image reference",
+            alias: "",
+            description: "",
+            profileImageUrl: "https://example.com/direct-image.png",
+            profileImageTransform: null,
+            frontalImageUrl: "https://example.com/direct-image.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    const directImageTile = screen
+      .getByRole("button", { name: /Replace attached element Image reference/ })
+      .closest(".video-elements-placeholder-tile--filled");
+    expect(directImageTile).toHaveClass("video-elements-placeholder-tile--reference-image");
+    expect(directImageTile).not.toHaveAttribute("draggable", "true");
+    expect(screen.queryByRole("button", { name: /Insert @element1/i })).toBeNull();
   });
 
   it("switches Seedance reference mode between keyframes and elements", () => {
     render(<SeedanceReferenceModeHarness />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Keyframes" }));
+
+    expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("text");
+    expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Element reference slots")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Elements" }));
 
@@ -1375,12 +1577,6 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.queryByTestId("reference-media-step")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Element reference slots")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Add element to slot/i })).toHaveLength(6);
-
-    fireEvent.click(screen.getByRole("tab", { name: "Keyframes" }));
-
-    expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("text");
-    expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Element reference slots")).not.toBeInTheDocument();
   });
 
   it("returns Seedance to first-last mode when keyframes are reselected with both frames present", () => {

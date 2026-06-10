@@ -14,7 +14,7 @@ import {
 } from "../logic/klingEntityAdapters";
 import {
   normalizeAiStudioKlingCharacterToken,
-  type AiStudioKlingEntitySourceKind,
+  type AiStudioKlingSavedEntitySourceKind,
 } from "../logic/klingElements";
 import {
   AiStudioPickerCard,
@@ -27,11 +27,14 @@ import {
 export type ElementPickerModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (selection: { sourceKind: AiStudioKlingEntitySourceKind; sourceId: string }) => void;
-  selectedSourceKind?: AiStudioKlingEntitySourceKind | null;
+  onSelect: (selection: {
+    sourceKind: AiStudioKlingSavedEntitySourceKind;
+    sourceId: string;
+  }) => void;
+  selectedSourceKind?: AiStudioKlingSavedEntitySourceKind | null;
   selectedSourceId?: string | null;
   selectedEntities?: Array<{
-    sourceKind: AiStudioKlingEntitySourceKind;
+    sourceKind: AiStudioKlingSavedEntitySourceKind;
     sourceId: string;
   }>;
   onCreateCharacter?: () => void;

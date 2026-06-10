@@ -746,10 +746,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(true);
   });
 
-  it("allows generation when both motion inputs are present", () => {
+  it("allows promptless generation when both motion inputs are present", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
+        prompt: "",
         referenceImageUrl: "https://example.com/character.png",
         motionReferenceVideoUrl: "https://example.com/motion.mp4",
       })
@@ -1060,6 +1061,40 @@ describe("useAiStudioViewModel motion guardrails", () => {
             name: "Red Lantern",
             alias: "redlantern",
             frontalImageUrl: "https://example.com/red-lantern.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.referenceImageWarning).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("treats direct Seedance image-reference slots as valid multimodal references", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "multimodal",
+        klingElements: [
+          {
+            id: "image-ref-1",
+            slotIndex: 0,
+            sourceKind: "reference-image",
+            sourceElementId: null,
+            sourceCharacterId: null,
+            name: "Image reference",
+            alias: "",
+            description: "",
+            profileImageUrl: "https://example.com/direct-image.png",
+            profileImageTransform: null,
+            frontalImageUrl: "https://example.com/direct-image.png",
             referenceImageUrls: "",
             videoUrl: "",
           },

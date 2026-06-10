@@ -42,6 +42,11 @@ import {
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
 import { dispatchSubmissionByRoute } from "./taskSubmission/routeDispatch";
 import {
+  MAX_IMAGE_REFERENCE_INPUT_LIMIT,
+  buildTooManyReferenceImagesMessage,
+  resolveImageReferenceInputLimitForModel,
+} from "./taskSubmission/imageReferenceLimits";
+import {
   applyDispatchedSubmissionPatch,
   applySubmissionFailureToOutputs,
 } from "./taskSubmission/outputLifecyclePatches";
@@ -282,9 +287,9 @@ export const useAiStudioTaskSubmission = ({
       const internalMediaRefs = dedupeInternalMediaRefs(
         [
           ...(options?.internalMediaRefsOverride ?? []),
-          ...resolveInternalMediaRefsForUrls(imageInputs, 10),
+          ...resolveInternalMediaRefsForUrls(imageInputs, MAX_IMAGE_REFERENCE_INPUT_LIMIT),
         ],
-        10
+        MAX_IMAGE_REFERENCE_INPUT_LIMIT
       );
       const hasReferenceImages =
         (imageInputs && imageInputs.length > 0) || hasUsableInternalMediaRefs(internalMediaRefs);
@@ -297,9 +302,12 @@ export const useAiStudioTaskSubmission = ({
         (normalizedTool === "video" || normalizedTool === "kling") &&
         videoReferenceMode === "lip-sync" &&
         finalModel === FAL_OMNIHUMAN_V15_MODEL_ID;
+      const isMotionControlSubmission =
+        (normalizedTool === "video" || normalizedTool === "kling") &&
+        videoReferenceMode === "motion";
       const requiresPrompt = isEditWorkflow
         ? shouldRequirePromptForEditModel(finalModel)
-        : !isLipSyncSubmission;
+        : !(isLipSyncSubmission || isMotionControlSubmission);
       const submissionStartUiError = resolveSubmissionStartUiError({
         cleanedSubmissionPrompt,
         requiresPrompt,
@@ -316,6 +324,17 @@ export const useAiStudioTaskSubmission = ({
       if (!finalModel) {
         removeOptimisticPlaceholder();
         setUiError("Pick a model to generate.");
+        return;
+      }
+      const imageReferenceInputLimit = resolveImageReferenceInputLimitForModel(finalModel);
+      if (!options?.inpaintOverride && imageInputs.length > imageReferenceInputLimit) {
+        removeOptimisticPlaceholder();
+        setUiError(
+          buildTooManyReferenceImagesMessage({
+            modelLabel: resolveModelLabel(finalModel),
+            limit: imageReferenceInputLimit,
+          })
+        );
         return;
       }
 
@@ -485,7 +504,7 @@ export const useAiStudioTaskSubmission = ({
               submissionPrompt: cleanedSubmissionPrompt,
               aspect: effectiveAspect,
               imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
-              referenceInputs: preparedImageInputs.slice(0, 10),
+              referenceInputs: preparedImageInputs.slice(0, imageReferenceInputLimit),
               internalMediaRefs,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
@@ -509,7 +528,7 @@ export const useAiStudioTaskSubmission = ({
               submissionPrompt: cleanedSubmissionPrompt,
               aspect: effectiveAspect,
               imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
-              referenceInputs: preparedImageInputs.slice(0, 10),
+              referenceInputs: preparedImageInputs.slice(0, imageReferenceInputLimit),
               internalMediaRefs,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
@@ -602,7 +621,10 @@ export const useAiStudioTaskSubmission = ({
         const pulseReferenceImageUrl =
           preparedImageInputs.length > 0 ? preparedImageInputs[0] : undefined;
         const falReferencePayload = pulseReferenceImageUrl
-          ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 10) }
+          ? {
+              image_url: pulseReferenceImageUrl,
+              image_urls: preparedImageInputs.slice(0, imageReferenceInputLimit),
+            }
           : ({} as Record<string, never>);
 
         const requiresStandardVideoReference =

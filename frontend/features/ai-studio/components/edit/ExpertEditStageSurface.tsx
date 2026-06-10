@@ -127,7 +127,6 @@ export function ExpertEditInlineStageSurface({
             isPopulated={isPopulated}
             isDragActive={isDragActive}
             style={frameStyle}
-            onWheel={onStageWheel}
           >
             <PrimaryCompositionSurface
               surfaceRef={surfaceRef}
@@ -193,6 +192,11 @@ type ExpertEditModalStageSurfaceProps = {
   onStageAuxClick: React.MouseEventHandler<HTMLDivElement>;
   interactionHandlers: StageInteractionHandlers;
   onStageWheel: React.WheelEventHandler<HTMLDivElement>;
+  onStageWheelCapture: React.WheelEventHandler<HTMLDivElement>;
+  onStagePointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
+  onStagePointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
+  onStagePointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
+  onStagePointerCancelCapture: React.PointerEventHandler<HTMLDivElement>;
 };
 
 /**
@@ -218,6 +222,11 @@ export function ExpertEditModalStageSurface({
   onStageAuxClick,
   interactionHandlers,
   onStageWheel,
+  onStageWheelCapture,
+  onStagePointerDownCapture,
+  onStagePointerMoveCapture,
+  onStagePointerUpCapture,
+  onStagePointerCancelCapture,
 }: ExpertEditModalStageSurfaceProps) {
   return (
     <ExpertEditMarkupModalShell
@@ -253,6 +262,11 @@ export function ExpertEditModalStageSurface({
       onStagePointerCancel={interactionHandlers.onPointerCancel}
       onStagePointerLeave={interactionHandlers.onPointerLeave}
       onStageWheel={onStageWheel}
+      onStageWheelCapture={onStageWheelCapture}
+      onStagePointerDownCapture={onStagePointerDownCapture}
+      onStagePointerMoveCapture={onStagePointerMoveCapture}
+      onStagePointerUpCapture={onStagePointerUpCapture}
+      onStagePointerCancelCapture={onStagePointerCancelCapture}
     />
   );
 }

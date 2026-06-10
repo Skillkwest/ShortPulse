@@ -987,7 +987,8 @@ export const extractPromptDropText = (transfer: DataTransfer): string | null => 
 export const isImageDragTransfer = (transfer: DataTransfer) => {
   const imageFile = findImageFile(transfer.files);
   if (imageFile) return true;
-  if (transfer.types.includes("Files")) return !transfer.files?.length;
+  const transferTypes = getNormalizedTransferTypes(transfer);
+  if (transferTypes.includes("files")) return !transfer.files?.length;
   const mediaKind = resolveReferenceTransferMediaKind(transfer);
   if (mediaKind) return mediaKind === "image";
   if (hasInternalReferenceDragTypeHints(transfer)) {
@@ -1006,7 +1007,7 @@ export const isImageDragTransfer = (transfer: DataTransfer) => {
       (!referenceUrl && !renderUrl && !imageUrl)
     );
   }
-  if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) {
+  if (transferTypes.includes("text/uri-list") || transferTypes.includes("image/url")) {
     const uriList = getFirstUriListValue(transfer.getData("text/uri-list"));
     const imageUrl = transfer.getData("image/url");
     return Boolean(

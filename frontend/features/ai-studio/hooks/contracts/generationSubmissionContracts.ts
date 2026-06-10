@@ -21,6 +21,7 @@ export type AiStudioGenerateSubmissionOverrides = AiStudioForwardedGenerateSubmi
   submissionPromptOverride?: string | null;
   referenceInputsOverride?: string[];
   referenceInputsMode?: ReferenceInputsMode;
+  referenceInputsLimit?: number;
   suppressStyle?: boolean;
   suppressCharacter?: boolean;
   ignoreGenerationGuardrail?: boolean;

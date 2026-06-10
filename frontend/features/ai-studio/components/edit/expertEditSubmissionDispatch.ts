@@ -9,6 +9,8 @@ import type {
   ExpertEditRegenerateOptions,
 } from "./expertEditSubmissionContract";
 
+const MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS = 11;
+
 export type ResolveExpertEditSubmissionDispatchResult =
   | {
       status: "fallback_regenerate";
@@ -83,6 +85,7 @@ export const resolveExpertEditSubmissionDispatch = ({
           imageHeight: flattenedDimensions?.height ?? null,
         },
         referenceInputsMode: "replace",
+        referenceInputsLimit: MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS,
         ...promptOverrideOptions,
       },
     };
@@ -104,6 +107,7 @@ export const resolveExpertEditSubmissionDispatch = ({
           ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID
           : undefined,
       referenceInputsMode: "replace",
+      referenceInputsLimit: MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS,
     },
   };
 };

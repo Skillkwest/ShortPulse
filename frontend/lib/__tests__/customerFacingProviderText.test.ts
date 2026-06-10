@@ -41,6 +41,67 @@ describe("customerFacingProviderText", () => {
     ).toBe("bad input");
   });
 
+  it("extracts provider failure reasons from common nested envelopes", () => {
+    expect(
+      normalizeCustomerFacingProviderError(
+        {
+          data: {
+            successFlag: 2,
+            failMsg: "File type not supported",
+            failCode: "501",
+          },
+        },
+        "Generation failed."
+      )
+    ).toBe("File type not supported");
+
+    expect(
+      normalizeCustomerFacingProviderError(
+        {
+          response: {
+            errorMessage: "Prompt must be shorter",
+          },
+        },
+        "Generation failed."
+      )
+    ).toBe("Prompt must be shorter");
+
+    expect(
+      normalizeCustomerFacingProviderError(
+        {
+          result: {
+            error_message: "Reference image expired",
+          },
+        },
+        "Generation failed."
+      )
+    ).toBe("Reference image expired");
+  });
+
+  it("skips status wrapper messages when sibling provider reasons are present", () => {
+    expect(
+      normalizeCustomerFacingProviderError(
+        {
+          msg: "error",
+          error_message: "Reference file is not reachable",
+        },
+        "Generation failed."
+      )
+    ).toBe("Reference file is not reachable");
+
+    expect(
+      normalizeCustomerFacingProviderError(
+        {
+          message: "failed",
+          data: {
+            failMsg: "Reference file is not reachable",
+          },
+        },
+        "Generation failed."
+      )
+    ).toBe("Reference file is not reachable");
+  });
+
   it("strips hidden video-provider branding from model labels without mutating unrelated text", () => {
     expect(
       resolveCustomerFacingModelLabel({

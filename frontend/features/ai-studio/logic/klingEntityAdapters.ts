@@ -2,7 +2,10 @@ import {
   resolveCharacterSheetLookReferenceUrls,
   resolveCharacterSheetReferenceUrls,
 } from "./characterModePayload";
-import { type AiStudioKlingElement, type AiStudioKlingEntitySourceKind } from "./klingElements";
+import {
+  type AiStudioKlingElement,
+  type AiStudioKlingSavedEntitySourceKind,
+} from "./klingElements";
 import { loadCharacterManagerDraftByCharacterId } from "../../character-manager/logic/characterManagerPersistence";
 import type { CharacterManagerListItem } from "../../character-manager/logic/characterManagerPersistence";
 import { resolveElementWorkflowAlias } from "../../elements-manager/logic/elementAlias";
@@ -10,7 +13,7 @@ import { loadElementManagerDraftByElementId } from "../../elements-manager/logic
 import type { ElementsManagerListItem } from "../../elements-manager/logic/elementsManagerPersistence";
 
 export type AiStudioKlingPickerOption = {
-  sourceKind: AiStudioKlingEntitySourceKind;
+  sourceKind: AiStudioKlingSavedEntitySourceKind;
   sourceId: string;
   name: string;
   token: string;
@@ -53,7 +56,7 @@ export const loadSavedKlingEntityBySource = async ({
   sourceKind,
   sourceId,
 }: {
-  sourceKind: AiStudioKlingEntitySourceKind;
+  sourceKind: AiStudioKlingSavedEntitySourceKind;
   sourceId: string;
 }): Promise<AiStudioKlingElement> => {
   if (sourceKind === "character") {

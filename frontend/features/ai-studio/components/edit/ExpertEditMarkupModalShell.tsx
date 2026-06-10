@@ -46,6 +46,11 @@ type ExpertEditMarkupModalShellProps = {
   onStagePointerCancel: (event: React.PointerEvent<HTMLDivElement>) => void;
   onStagePointerLeave: (event: React.PointerEvent<HTMLDivElement>) => void;
   onStageWheel: (event: React.WheelEvent<HTMLDivElement>) => void;
+  onStageWheelCapture: (event: React.WheelEvent<HTMLDivElement>) => void;
+  onStagePointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onStagePointerMoveCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onStagePointerUpCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onStagePointerCancelCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
 };
 
 export const ExpertEditMarkupModalShell = ({
@@ -70,6 +75,11 @@ export const ExpertEditMarkupModalShell = ({
   onStagePointerCancel,
   onStagePointerLeave,
   onStageWheel,
+  onStageWheelCapture,
+  onStagePointerDownCapture,
+  onStagePointerMoveCapture,
+  onStagePointerUpCapture,
+  onStagePointerCancelCapture,
 }: ExpertEditMarkupModalShellProps) => {
   useAiStudioModalActivity("expert-edit-markup-modal", isOpen);
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
@@ -220,10 +230,15 @@ export const ExpertEditMarkupModalShell = ({
               event.currentTarget.focus({ preventScroll: true });
               onStagePointerDown(event);
             }}
+            onPointerDownCapture={onStagePointerDownCapture}
+            onPointerMoveCapture={onStagePointerMoveCapture}
+            onPointerUpCapture={onStagePointerUpCapture}
+            onPointerCancelCapture={onStagePointerCancelCapture}
             onPointerMove={onStagePointerMove}
             onPointerUp={onStagePointerUp}
             onPointerCancel={onStagePointerCancel}
             onPointerLeave={onStagePointerLeave}
+            onWheelCapture={onStageWheelCapture}
             onWheel={onStageWheel}
           >
             {stageContent}

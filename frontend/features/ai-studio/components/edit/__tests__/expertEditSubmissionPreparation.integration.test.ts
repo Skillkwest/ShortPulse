@@ -71,6 +71,29 @@ describe("prepareExpertEditSubmission integration", () => {
     );
   });
 
+  it("keeps the flattened primary plus all ten linked secondary references", () => {
+    const extraImageUrls = Array.from(
+      { length: 10 },
+      (_, index) => `https://example.com/ref-${index + 1}.png`
+    );
+
+    const result = prepareExpertEditSubmission({
+      promptText: "Use @img1 @img2 @img3 @img4 @img5 @img6 @img7 @img8 @img9 and @img10.",
+      extraImageUrls,
+      flattenedPrimaryUrl: "blob:flatten-primary",
+      flattenedMarkupReferenceUrl: null,
+      editSubmitIntent: "standard",
+    });
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    expect(result.referenceInputs).toEqual(["blob:flatten-primary", ...extraImageUrls]);
+    expect(result.linkedSecondaryReferenceInputs).toEqual(extraImageUrls);
+    expect(result.promptOverrideOptions?.submissionPromptOverride).toContain(
+      "Figure 11 = @img10 secondary reference."
+    );
+  });
+
   it("submits only the flattened primary when no secondary tokens are linked", () => {
     const result = prepareExpertEditSubmission({
       promptText: "Refine the background and styling.",

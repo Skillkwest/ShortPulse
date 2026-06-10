@@ -14,6 +14,7 @@ describe("pollingSchedulePolicy", () => {
   it("uses provider-specific max wait budget", () => {
     expect(getPollMaxWaitMs("fal")).toBe(18 * 60 * 1000);
     expect(getPollMaxWaitMs("fal-kling")).toBe(30 * 60 * 1000);
+    expect(getPollMaxWaitMs("fal-omnihuman-v15")).toBe(30 * 60 * 1000);
   });
 
   it("backs off poll delay with max cap", () => {
@@ -43,6 +44,14 @@ describe("pollingSchedulePolicy", () => {
     });
     expect(videoPolicy.maxNoMediaAttempts).toBe(30);
     expect(videoPolicy.retryDelayMs).toBe(5000);
+
+    const lipSyncPolicy = resolveNoMediaRetryPolicy({
+      provider: "fal-omnihuman-v15",
+      noMediaAttempt: 1,
+      fallbackDelayMs: 5000,
+    });
+    expect(lipSyncPolicy.maxNoMediaAttempts).toBe(30);
+    expect(lipSyncPolicy.retryDelayMs).toBe(5000);
   });
 
   it("enforces status poll error retry budget", () => {

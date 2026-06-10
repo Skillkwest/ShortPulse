@@ -506,6 +506,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         ...(options?.referenceInputsMode
           ? { referenceInputsMode: options.referenceInputsMode }
           : {}),
+        ...(typeof options?.referenceInputsLimit === "number"
+          ? { referenceInputsLimit: options.referenceInputsLimit }
+          : {}),
         ...(options?.styleContextOverride
           ? { styleContextOverride: options.styleContextOverride }
           : {}),

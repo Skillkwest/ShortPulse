@@ -1819,7 +1819,7 @@ describe("executeGenerationRecovery", () => {
         requestId: "req-1",
         status: "ready",
         taskState: "fail",
-        errorMessageShort: "Generation failed",
+        errorMessageShort: "User defined request timeout exceeded: Pre-start",
         errorDetail: "User defined request timeout exceeded: Pre-start",
         publicationState: "suppressed",
         hiddenInReferenceGrid: false,
@@ -1954,7 +1954,7 @@ describe("executeGenerationRecovery", () => {
         publicationState: "suppressed",
         hiddenInReferenceGrid: false,
         referenceGridVisible: true,
-        errorDetail: "Provider failed while user was away",
+        errorDetail: "the generation service failed while user was away",
       })
     );
     expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();

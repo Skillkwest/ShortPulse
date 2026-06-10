@@ -11,7 +11,7 @@ export const EXPERT_EDIT_PRIMARY_SLOT_TOKEN = "@main";
 const EXPERT_EDIT_PROMPT_TOKEN_REGEX = /@(?:img\d*|main)/gi;
 const VALID_IMG_TOKEN_REGEX = /^@img(\d+)$/i;
 const MAX_SECONDARY_REFERENCES = MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT;
-const MAX_EXPERT_EDIT_REFERENCE_INPUTS = 10;
+const MAX_EXPERT_EDIT_REFERENCE_INPUTS = 1 + MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT;
 
 export type ExpertEditPromptTokenInvalidReason =
   | "missing_index"

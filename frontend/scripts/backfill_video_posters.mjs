@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Backfill durable poster variants for saved video rows missing `poster_variant_path`.
+ * Use `--force --media-file-id <uuid>` to regenerate one known-bad existing poster.
  *
  * Default mode is dry-run. Use `--apply` to persist poster variants to Supabase.
  */
@@ -100,10 +101,14 @@ export const parseArgs = (argv) => {
   const mediaFileId = asTrimmedString(readValue("--media-file-id"));
   const userId = asTrimmedString(readValue("--user-id"));
   const timeoutMs = asPositiveInteger(readValue("--timeout-ms"), DEFAULT_TIMEOUT_MS);
+  const force = argv.includes("--force");
   const help = argv.includes("--help") || argv.includes("-h");
 
   if (mediaFileId && !UUIDISH_PATTERN.test(mediaFileId)) {
     throw new Error("Expected --media-file-id to be a UUID.");
+  }
+  if (force && !mediaFileId) {
+    throw new Error("Expected --media-file-id when using --force.");
   }
 
   return {
@@ -114,6 +119,7 @@ export const parseArgs = (argv) => {
     mediaFileId,
     userId,
     timeoutMs,
+    force,
     help,
   };
 };
@@ -152,6 +158,7 @@ const usage = () => {
       "  --limit <n>               Max candidate rows to inspect/process (default 25).",
       "  --media-file-id <uuid>    Restrict to one media_files row.",
       "  --user-id <uuid>          Restrict to one owner.",
+      "  --force                   Regenerate an existing poster for the scoped --media-file-id.",
       "  --seek-seconds <n>        Approximate seek offset before frame extraction (default 0.5).",
       "  --ffmpeg-path <path>      Override ffmpeg binary path.",
       "  --timeout-ms <n>          ffmpeg timeout per video (default 120000).",
@@ -208,7 +215,13 @@ const downloadVideoBuffer = async (supabase, storagePath) => {
   return buffer;
 };
 
-const extractPosterBuffer = async ({ videoBuffer, sourcePath, ffmpegPath, seekSeconds, timeoutMs }) => {
+const extractPosterBuffer = async ({
+  videoBuffer,
+  sourcePath,
+  ffmpegPath,
+  seekSeconds,
+  timeoutMs,
+}) => {
   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "shortpulse-video-poster-"));
   const extension = VIDEO_EXTENSION_PATTERN.test(sourcePath)
     ? path.extname(sourcePath).toLowerCase()
@@ -332,22 +345,23 @@ const persistPosterVariant = async ({ supabase, candidate, posterBuffer }) => {
   return posterPath;
 };
 
-const fetchCandidates = async ({ supabase, limit, mediaFileId, userId }) => {
+export const fetchCandidates = async ({ supabase, limit, mediaFileId, userId, force = false }) => {
   let query = supabase
     .from("media_files")
     .select("id, user_id, storage_path, file_type, poster_variant_path, filename")
-    .ilike("file_type", "video%")
-    .is("poster_variant_path", null)
-    .not("storage_path", "is", null)
-    .order("created_at", { ascending: true })
-    .limit(limit);
+    .ilike("file_type", "video%");
 
+  if (!force) {
+    query = query.is("poster_variant_path", null);
+  }
+  query = query.not("storage_path", "is", null);
   if (mediaFileId) {
     query = query.eq("id", mediaFileId);
   }
   if (userId) {
     query = query.eq("user_id", userId);
   }
+  query = query.order("created_at", { ascending: true }).limit(limit);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -356,12 +370,19 @@ const fetchCandidates = async ({ supabase, limit, mediaFileId, userId }) => {
     .filter((row) => Boolean(row));
 };
 
-const processCandidate = async ({ supabase, candidate, ffmpegPath, seekSeconds, timeoutMs }) => {
+export const processCandidate = async ({
+  supabase,
+  candidate,
+  ffmpegPath,
+  seekSeconds,
+  timeoutMs,
+  force = false,
+}) => {
   const existingVariantPath = await readExistingPosterVariantPath({
     supabase,
     mediaFileId: candidate.id,
   });
-  if (existingVariantPath) {
+  if (existingVariantPath && !force) {
     await persistPosterPath({
       supabase,
       mediaFileId: candidate.id,
@@ -390,7 +411,7 @@ const processCandidate = async ({ supabase, candidate, ffmpegPath, seekSeconds, 
   });
   return {
     id: candidate.id,
-    status: "backfilled",
+    status: existingVariantPath && force ? "regenerated" : "backfilled",
     posterPath,
   };
 };
@@ -408,6 +429,7 @@ const main = async () => {
     limit: args.limit,
     mediaFileId: args.mediaFileId,
     userId: args.userId,
+    force: args.force,
   });
 
   if (!args.apply) {
@@ -415,6 +437,7 @@ const main = async () => {
       JSON.stringify(
         {
           mode: "dry_run",
+          force: args.force,
           candidateCount: candidates.length,
           candidates,
         },
@@ -434,6 +457,7 @@ const main = async () => {
         ffmpegPath: args.ffmpegPath,
         seekSeconds: args.seekSeconds,
         timeoutMs: args.timeoutMs,
+        force: args.force,
       });
       results.push(result);
     } catch (error) {
@@ -447,9 +471,11 @@ const main = async () => {
 
   const summary = {
     mode: "apply",
+    force: args.force,
     candidateCount: candidates.length,
     processed: results.length,
     backfilled: results.filter((row) => row.status === "backfilled").length,
+    regenerated: results.filter((row) => row.status === "regenerated").length,
     syncedExistingVariant: results.filter((row) => row.status === "synced_existing_variant").length,
     failed: results.filter((row) => row.status === "failed").length,
     results,

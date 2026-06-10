@@ -272,6 +272,15 @@ describe("createFalStatusHandler", () => {
   });
 
   it("does not commit a second response after the same response object is already ended", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-committed",
+        request_id: "req-committed",
+        status: "fail",
+        error_message: "Already settled",
+        metadata: {},
+      },
+    ];
     const handler = createFalStatusHandler({
       queueBaseUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
       routeLabel: "Fal Seedream",
@@ -635,6 +644,87 @@ describe("createFalStatusHandler", () => {
         resultUrls: ["https://cdn.shortpulse.test/persisted-output.mp4"],
         result_urls: ["https://cdn.shortpulse.test/persisted-output.mp4"],
         videos: [{ url: "https://cdn.shortpulse.test/persisted-output.mp4" }],
+      })
+    );
+  });
+
+  it("persists provider failure reasons from terminal Kie status payloads", async () => {
+    process.env.KIE_API_KEY = "test-kie-key";
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    persistedGenerationRows = [
+      {
+        id: "gen-kie-fail-reason-1",
+        request_id: "req-kie-fail-reason",
+        status: "processing",
+        metadata: {},
+      },
+    ];
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 200,
+          msg: "success",
+          data: {
+            taskId: "req-kie-fail-reason",
+            successFlag: 2,
+            failCode: "501",
+            failMsg: "File type not supported",
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-kie-fail-reason" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(settleDirectGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-kie-fail-reason-1",
+        requestId: "req-kie-fail-reason",
+        providerState: "failed",
+        errorMessage: "File type not supported",
+        errorDetail: expect.objectContaining({
+          data: expect.objectContaining({
+            failMsg: "File type not supported",
+          }),
+        }),
+        failureReasonCode: "provider_error",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-kie-fail-reason",
+        generationId: "gen-kie-fail-reason-1",
+        status: "error",
+        error: "File type not supported",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "File type not supported",
+        }),
       })
     );
   });
@@ -1429,7 +1519,7 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         status: "error",
         state: "error",
-        error: "Fal Nano Banana 2 status request failed",
+        error: "Not found",
         request_id: "req-status-alias-result",
         detail: { detail: "Not found" },
       })
@@ -1480,7 +1570,7 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         status: "error",
         state: "error",
-        error: "Fal Nano Banana 2 status request failed",
+        error: "Not found",
         request_id: "req-status-alias-running",
         detail: { detail: "Not found" },
       })
@@ -2075,7 +2165,7 @@ describe("createFalStatusHandler", () => {
     };
     expect(payload.status).toBe("error");
     expect(payload.state).toBe("error");
-    expect(payload.error).toBe("Generation failed");
+    expect(payload.error).toBe("Downstream service error");
     expect(payload.request_id).toBe("req-result-terminal-failure");
     expect(typeof payload.detail).toBe("string");
     expect(payload.detail).toContain("downstream_service_error");

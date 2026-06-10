@@ -303,6 +303,36 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
   });
 
+  it("shows saved music lyrics in the shared audio detail blade", () => {
+    const musicFile: MediaFileRow = {
+      id: "music-1",
+      filename: "midnight-loop.mp3",
+      storage_path: "user-1/media-library/midnight-loop.mp3",
+      preview_storage_path: "user-1/media-library/midnight-loop.mp3",
+      file_type: "audio/mpeg",
+      source: "ai_studio",
+      source_ref: "generation-music-1",
+      signedUrl: "https://cdn.example.com/midnight-loop.mp3",
+      metadata: null,
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(musicFile, "https://cdn.example.com/midnight-loop.mp3", {
+          source: "ai_studio",
+          audioSourceMode: "music",
+          lyricsText: "Moonlight folded in the glass",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("LYRICS")).toBeInTheDocument();
+    expect(screen.getByText("Moonlight folded in the glass")).toBeInTheDocument();
+  });
+
   it("does not render transform or optimizer image urls as focused preview media", () => {
     const imageFile: MediaFileRow = {
       id: "image-1",

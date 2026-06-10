@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { defaultLayerTransform } from "../expertEditLayerTransformUtils";
@@ -16,6 +16,58 @@ const createLayer = (transform: ExpertEditLayer["transform"]): ExpertEditLayer =
 });
 
 describe("useExpertEditTransformSession", () => {
+  it("renders selected-layer handles counter-scaled by layer scale and stage zoom", () => {
+    const layer = createLayer({
+      translateXRatio: 0,
+      translateYRatio: 0,
+      scale: 0.25,
+      rotationDeg: 0,
+    });
+
+    const { result } = renderHook(() =>
+      useExpertEditTransformSession({
+        layers: [layer],
+        setLayers: vi.fn(),
+        selectedLayer: layer,
+        selectedLayerInteractionTransform: layer.transform,
+        selectedLayerImageAspectRatio: 1,
+        shouldShowSelectedLayerTransformOverlay: true,
+        resolveRenderableLayerTransform: (selectedLayer) => selectedLayer.transform,
+        sceneZoomScale: 2,
+        viewportOffsetXRatio: 0,
+        viewportOffsetYRatio: 0,
+        resolveViewportOffsetPixels: () => ({ offsetX: 0, offsetY: 0 }),
+        beginPanelHistoryGestureForLayers: vi.fn(),
+        finalizePanelHistoryGesture: vi.fn(),
+        commitTransformHistoryTransition: vi.fn(),
+        showStatusToast: vi.fn(),
+        transformHistoryState: {
+          past: [],
+          present: {
+            layerOrderSignature: "layer-1",
+            layerSnapshots: [{ layerId: "layer-1", transform: layer.transform }],
+          },
+          future: [],
+        },
+        setTransformHistoryState: vi.fn(),
+      })
+    );
+
+    render(
+      result.current.renderSelectedLayerTransformOverlay(
+        "inline",
+        { width: 400, height: 400 },
+        null
+      )
+    );
+
+    const overlay = screen.getByTestId("edit-expert-transform-overlay-inline");
+    expect(overlay.style.transform).toContain("scale(0.25)");
+    expect(overlay.style.getPropertyValue("--edit-expert-transform-handle-counter-scale")).toBe(
+      "2"
+    );
+  });
+
   it("does not persist presentation-safe transforms back into layer state on mount", () => {
     const setLayers = vi.fn();
     const setTransformHistoryState = vi.fn();

@@ -3210,6 +3210,50 @@ describe("sessionSnapshot", () => {
     });
   });
 
+  it("preserves Seedance direct image reference slots in persisted session workspace", () => {
+    const snapshot = buildAiStudioSessionSnapshot(
+      createSnapshotInput({
+        mode: "video",
+        selectedTool: "video",
+        prompt: "seedance direct image",
+        model: "kie-ai/seedance-2",
+        klingElements: [
+          {
+            id: "image-ref-1",
+            sourceKind: "reference-image",
+            sourceElementId: null,
+            sourceCharacterId: null,
+            slotIndex: 1,
+            name: "Image reference",
+            alias: "",
+            description: "",
+            profileImageUrl: "https://cdn.shortpulse.dev/direct-image.png",
+            profileImageTransform: null,
+            frontalImageUrl: "https://cdn.shortpulse.dev/direct-image.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+      })
+    );
+
+    expect(snapshot.workspace.klingElements[0]).toEqual({
+      id: "image-ref-1",
+      sourceKind: "reference-image",
+      sourceElementId: null,
+      sourceCharacterId: null,
+      slotIndex: 1,
+      name: "Image reference",
+      alias: "",
+      description: "",
+      profileImageUrl: "https://cdn.shortpulse.dev/direct-image.png",
+      profileImageTransform: null,
+      frontalImageUrl: "https://cdn.shortpulse.dev/direct-image.png",
+      referenceImageUrls: "",
+      videoUrl: "",
+    });
+  });
+
   it("persists queue lifecycle metadata for restore-safe polling semantics", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

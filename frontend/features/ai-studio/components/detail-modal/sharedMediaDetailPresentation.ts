@@ -14,9 +14,18 @@ export const resolveSharedMediaDetailBladeContent = ({
   promptTextOverride = null,
   transcriptTextOverride = null,
 }: ResolveSharedMediaDetailBladeContentOptions): {
-  label: "PROMPT" | "TRANSCRIPT";
+  label: "LYRICS" | "PROMPT" | "TRANSCRIPT";
   value: string;
 } => {
+  const lyricsText =
+    item.media.audioSourceMode === "music" ? item.media.lyricsText?.trim() || null : null;
+  if (lyricsText) {
+    return {
+      label: "LYRICS",
+      value: lyricsText,
+    };
+  }
+
   const transcriptText =
     transcriptTextOverride?.trim() || item.media.transcriptText?.trim() || null;
   if (transcriptText) {

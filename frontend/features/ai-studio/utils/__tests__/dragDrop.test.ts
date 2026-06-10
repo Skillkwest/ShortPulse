@@ -451,6 +451,16 @@ describe("dragDrop payload extraction", () => {
     expect(isVideoDragTransfer(transfer)).toBe(true);
   });
 
+  it("accepts protected computer file drags for video targets during dragover", () => {
+    const transfer = {
+      files: emptyFileList,
+      types: ["files"],
+      getData: () => "",
+    } as unknown as DataTransfer;
+
+    expect(isVideoDragTransfer(transfer)).toBe(true);
+  });
+
   it("rejects internal image reference drags for video targets during dragover", () => {
     const transfer = makeTransfer({
       "text/reference-id": "ref-image-2",
@@ -480,6 +490,16 @@ describe("dragDrop payload extraction", () => {
       "text/reference-url": "",
       "text/reference-render-url": "",
     });
+
+    expect(isImageDragTransfer(transfer)).toBe(true);
+  });
+
+  it("accepts protected computer file drags for image targets during dragover", () => {
+    const transfer = {
+      files: emptyFileList,
+      types: ["files"],
+      getData: () => "",
+    } as unknown as DataTransfer;
 
     expect(isImageDragTransfer(transfer)).toBe(true);
   });

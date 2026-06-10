@@ -261,9 +261,17 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     hoverVideoUrl?.trim() || (isVideoPreview ? cardPreviewUrl?.trim() : "") || null;
   const hasVideoPosterPreview = Boolean(item.mode === "video" && resolvedVideoPosterUrl);
   const hasPosterBackedVideoPreview = Boolean(hasVideoPosterPreview && resolvedHoverVideoUrl);
+  const shouldSuppressGeneratedPosterlessVideoSurface = Boolean(
+    item.mode === "video" &&
+    item.mediaSource === "generated" &&
+    resolvedHoverVideoUrl &&
+    !hasVideoPosterPreview &&
+    !hasPosterImageError
+  );
   const shouldPreferVideoSurfaceByDefault = Boolean(
     item.mode === "video" &&
     resolvedHoverVideoUrl &&
+    !shouldSuppressGeneratedPosterlessVideoSurface &&
     (!hasVideoPosterPreview || hasPosterImageError)
   );
   const shouldRenderVideoElement = Boolean(

@@ -97,6 +97,54 @@ describe("ExpertEditStageContextMenu", () => {
     expect(hiddenComposition).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("routes wheel zoom from nested stage content through the stage shell", () => {
+    const onWheel = vi.fn();
+
+    render(
+      <PrimaryStageShell
+        stageRef={{ current: null }}
+        isEmpty={false}
+        isBusy={false}
+        onPointerDownCapture={vi.fn()}
+        onPointerMoveCapture={vi.fn()}
+        onPointerUpCapture={vi.fn()}
+        onPointerCancelCapture={vi.fn()}
+        onWheel={onWheel}
+      >
+        <div data-testid="nested-stage-image">image pixels</div>
+      </PrimaryStageShell>
+    );
+
+    fireEvent.wheel(screen.getByTestId("nested-stage-image"), { deltaY: -120 });
+
+    expect(onWheel).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not route overlay-ui wheel events into stage zoom", () => {
+    const onWheel = vi.fn();
+
+    render(
+      <PrimaryStageShell
+        stageRef={{ current: null }}
+        isEmpty={false}
+        isBusy={false}
+        onPointerDownCapture={vi.fn()}
+        onPointerMoveCapture={vi.fn()}
+        onPointerUpCapture={vi.fn()}
+        onPointerCancelCapture={vi.fn()}
+        onWheel={onWheel}
+      >
+        <div className="edit-expert-stage-overlay-ui">
+          <button type="button">Delete layer</button>
+        </div>
+      </PrimaryStageShell>
+    );
+
+    fireEvent.wheel(screen.getByRole("button", { name: "Delete layer" }), { deltaY: -120 });
+
+    expect(onWheel).not.toHaveBeenCalled();
+  });
+
   it("keeps transform chrome outside the render clip ancestry", () => {
     render(
       <div className="edit-expert-primary-stage-shell edit-expert-transform-chrome-clip-boundary">

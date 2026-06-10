@@ -2,7 +2,7 @@
  * Dedicated properties panel for the Video workflow.
  */
 import React from "react";
-import { Trash } from "phosphor-react";
+import { Trash, UploadSimple } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
 import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../types";
 import { modelLogos } from "../constants";
@@ -42,11 +42,14 @@ import {
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 import { isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import {
+  createSeedanceImageReferenceSlot,
   getAiStudioKlingElementReferenceUrls,
+  isPromptTokenEligibleKlingElement,
+  isSeedanceImageReferenceSlot,
   resolveAiStudioKlingElementDisplayLabel,
   resolveAiStudioKlingElementLegacyTokens,
-  type AiStudioKlingEntitySourceKind,
   type AiStudioKlingElement,
+  type AiStudioKlingSavedEntitySourceKind,
   resolveAiStudioKlingElementTokens,
   resolveKieKlingElementTokens,
 } from "../logic/klingElements";
@@ -262,7 +265,7 @@ export function VideoPropertiesPanel({
   videoGenerateAudio,
   videoCameraFixed = false,
   videoAutoFix = false,
-  seedance2InputMode = "text",
+  seedance2InputMode = "multimodal",
   onVideoDurationChange,
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
@@ -295,6 +298,7 @@ export function VideoPropertiesPanel({
   const shotWorkspaceStackRef = React.useRef<HTMLDivElement | null>(null);
   const primaryPromptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const primaryPromptShellRef = React.useRef<HTMLDivElement | null>(null);
+  const seedanceElementSlotRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
   const customPromptTextareaRefs = React.useRef<Record<string, HTMLTextAreaElement | null>>({});
   const customPromptHighlightRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const pendingPromptCaretRef = React.useRef<{ target: "primary" | string; caret: number } | null>(
@@ -331,16 +335,91 @@ export function VideoPropertiesPanel({
     target: "primary",
   });
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
+  const isSeedance2FamilyModelSelectedForSlots = isSeedance2FamilyModelId(modelId);
+  const klingElementSlotCount = isSeedance2FamilyModelSelectedForSlots
+    ? VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT
+    : VIDEO_KLING_ELEMENT_SLOT_COUNT;
+  const commitSelectedKlingElements = React.useCallback(
+    (elements: Array<AiStudioKlingElement | null>) => {
+      onKlingElementsChange?.(
+        elements
+          .filter((item): item is AiStudioKlingElement => Boolean(item))
+          .sort((a, b) => {
+            const left = a.slotIndex ?? 0;
+            const right = b.slotIndex ?? 0;
+            return left - right;
+          })
+      );
+    },
+    [onKlingElementsChange]
+  );
+  const selectedKlingElements = React.useMemo(() => {
+    const slots = Array.from(
+      { length: klingElementSlotCount },
+      () => null as AiStudioKlingElement | null
+    );
+    const legacyElements: AiStudioKlingElement[] = [];
+
+    klingElements.forEach((element) => {
+      const slotIndex =
+        typeof element.slotIndex === "number" &&
+        Number.isInteger(element.slotIndex) &&
+        element.slotIndex >= 0 &&
+        element.slotIndex < klingElementSlotCount
+          ? element.slotIndex
+          : null;
+
+      if (slotIndex == null) {
+        legacyElements.push(element);
+        return;
+      }
+
+      if (!slots[slotIndex]) {
+        slots[slotIndex] = element.slotIndex === slotIndex ? element : { ...element, slotIndex };
+        return;
+      }
+
+      legacyElements.push(element);
+    });
+
+    legacyElements.forEach((element) => {
+      const emptySlotIndex = slots.findIndex((slot) => slot == null);
+      if (emptySlotIndex < 0) return;
+      slots[emptySlotIndex] = { ...element, slotIndex: emptySlotIndex };
+    });
+
+    return slots;
+  }, [klingElementSlotCount, klingElements]);
+  const handleSeedanceElementImageSlotChange = React.useCallback(
+    (slotIndex: number, url: string | null) => {
+      const next = Array.from(
+        { length: klingElementSlotCount },
+        (_, index) => selectedKlingElements[index] ?? null
+      );
+      next[slotIndex] = url
+        ? createSeedanceImageReferenceSlot({
+            slotIndex,
+            imageUrl: url,
+          })
+        : null;
+      commitSelectedKlingElements(next);
+    },
+    [commitSelectedKlingElements, klingElementSlotCount, selectedKlingElements]
+  );
   const {
     primaryInputRef,
     extraOneInputRef,
     extraTwoInputRef,
     extraThreeInputRef,
     motionVideoInputRef,
+    seedanceElementImageInputRefs,
     primaryDragActive,
     extraDragActive,
+    seedanceElementImageDragActive,
     primaryImageLoading,
     extraImageLoading,
+    seedanceElementImageLoading,
+    setSeedanceElementImageDragActiveAt,
     motionVideoDragActive,
     setMotionVideoDragActive,
     collapsedSteps,
@@ -361,8 +440,14 @@ export function VideoPropertiesPanel({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
+    handleSeedanceElementImageFileSelection,
+    handleSeedanceElementImageDrop,
+    handleSeedanceElementImageDragEnter,
+    handleSeedanceElementImageDragOver,
+    handleSeedanceElementImageDragLeave,
     acceptPrimaryCanvasTearOutPayload,
     acceptExtraCanvasTearOutPayload,
+    acceptSeedanceElementImageCanvasTearOutPayload,
     acceptMotionVideoCanvasTearOutPayload,
     allowVideoDrag,
     handleMotionVideoDrop,
@@ -382,6 +467,8 @@ export function VideoPropertiesPanel({
     onKlingMultiPromptsChange,
     klingElements,
     onKlingElementsChange,
+    seedanceElementSlotCount: klingElementSlotCount,
+    onSeedanceElementImageSlotChange: handleSeedanceElementImageSlotChange,
   });
   const applyLipSyncAudio = React.useCallback(
     (value: LipSyncAudioState) => {
@@ -539,63 +626,6 @@ export function VideoPropertiesPanel({
       : lipSyncAudio.status === "failed"
         ? (lipSyncAudio.error ?? "Audio upload failed")
         : (lipSyncAudioDurationLabel ?? "Audio required");
-  const klingElementSlotCount = isSeedance2FamilyModelId(modelId)
-    ? VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT
-    : VIDEO_KLING_ELEMENT_SLOT_COUNT;
-
-  const commitSelectedKlingElements = React.useCallback(
-    (elements: Array<AiStudioKlingElement | null>) => {
-      onKlingElementsChange?.(
-        elements
-          .filter((item): item is AiStudioKlingElement => Boolean(item))
-          .sort((a, b) => {
-            const left = a.slotIndex ?? 0;
-            const right = b.slotIndex ?? 0;
-            return left - right;
-          })
-      );
-    },
-    [onKlingElementsChange]
-  );
-
-  const selectedKlingElements = React.useMemo(() => {
-    const slots = Array.from(
-      { length: klingElementSlotCount },
-      () => null as AiStudioKlingElement | null
-    );
-    const legacyElements: AiStudioKlingElement[] = [];
-
-    klingElements.forEach((element) => {
-      const slotIndex =
-        typeof element.slotIndex === "number" &&
-        Number.isInteger(element.slotIndex) &&
-        element.slotIndex >= 0 &&
-        element.slotIndex < klingElementSlotCount
-          ? element.slotIndex
-          : null;
-
-      if (slotIndex == null) {
-        legacyElements.push(element);
-        return;
-      }
-
-      if (!slots[slotIndex]) {
-        slots[slotIndex] = element.slotIndex === slotIndex ? element : { ...element, slotIndex };
-        return;
-      }
-
-      legacyElements.push(element);
-    });
-
-    legacyElements.forEach((element) => {
-      const emptySlotIndex = slots.findIndex((slot) => slot == null);
-      if (emptySlotIndex < 0) return;
-      slots[emptySlotIndex] = { ...element, slotIndex: emptySlotIndex };
-    });
-
-    return slots;
-  }, [klingElementSlotCount, klingElements]);
-
   React.useEffect(() => {
     if (!onKlingElementsChange) return;
     if (
@@ -624,8 +654,9 @@ export function VideoPropertiesPanel({
           }
 
           try {
-            const sourceKind =
-              element.sourceKind ?? (element.sourceCharacterId ? "character" : "element");
+            const sourceKind: AiStudioKlingSavedEntitySourceKind = element.sourceCharacterId
+              ? "character"
+              : "element";
             const sourceId = element.sourceCharacterId ?? element.sourceElementId;
             if (!sourceId) return null;
             const refreshedElement = await loadSavedKlingEntityBySource({
@@ -724,7 +755,7 @@ export function VideoPropertiesPanel({
       sourceKind,
       sourceId,
     }: {
-      sourceKind: AiStudioKlingEntitySourceKind;
+      sourceKind: AiStudioKlingSavedEntitySourceKind;
       sourceId: string;
     }) => {
       if (elementPickerSlotIndex == null) return;
@@ -822,14 +853,15 @@ export function VideoPropertiesPanel({
 
   const isKieKlingWorkspace = isKling3Mode && modelId === KIE_KLING_30_MODEL_ID;
   const isKieKlingModelSelected = modelId === KIE_KLING_30_MODEL_ID;
-  const isSeedance2ModelSelected = modelId === KIE_SEEDANCE_2_MODEL_ID;
-  const isSeedance2FastModelSelected = modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
-  const isSeedance2FamilyModelSelected =
-    isSeedance2UiEnabled() && (isSeedance2ModelSelected || isSeedance2FastModelSelected);
+  const isSeedance2FamilyModelSelected = isSeedance2FamilyModelSelectedForSlots;
   const isAnySeedanceModelSelected = isSeedance2FamilyModelSelected;
   const isKlingPatternModelSelected = isKieKlingModelSelected || isSeedance2FamilyModelSelected;
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
+  const seedanceReferenceMode =
+    isSeedance2FamilyModelSelected && seedance2InputMode === "multimodal"
+      ? "elements"
+      : "keyframes";
 
   React.useEffect(() => {
     if (isVeo31ModelSelected && videoAutoFix) {
@@ -859,6 +891,41 @@ export function VideoPropertiesPanel({
     canAcceptLipSyncAudioCanvasTearOutPayload,
     canvasTearOutTargetRegistry,
     isLipSyncMode,
+  ]);
+
+  React.useEffect(() => {
+    if (
+      !isSeedance2FamilyModelSelected ||
+      seedanceReferenceMode !== "elements" ||
+      !canvasTearOutTargetRegistry
+    ) {
+      return;
+    }
+
+    const unregisterTargets = Array.from({ length: klingElementSlotCount }).flatMap((_, index) => {
+      const element = seedanceElementSlotRefs.current[index] ?? null;
+      if (!element) return [];
+      return [
+        canvasTearOutTargetRegistry.registerTarget({
+          id: `video-seedance-element-image-${index}`,
+          element,
+          canAccept: (payload) => payload.kind === "image",
+          accept: (payload) => acceptSeedanceElementImageCanvasTearOutPayload(index, payload),
+          setActive: (active) => setSeedanceElementImageDragActiveAt(index, active),
+        }),
+      ];
+    });
+
+    return () => {
+      unregisterTargets.forEach((unregister) => unregister());
+    };
+  }, [
+    acceptSeedanceElementImageCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+    isSeedance2FamilyModelSelected,
+    klingElementSlotCount,
+    seedanceReferenceMode,
+    setSeedanceElementImageDragActiveAt,
   ]);
 
   const visibleVideoMode =
@@ -894,10 +961,6 @@ export function VideoPropertiesPanel({
   );
   const klingMode = klingWorkflowMode;
   const isCustomKlingWorkflow = false;
-  const seedanceReferenceMode =
-    isSeedance2FamilyModelSelected && seedance2InputMode === "multimodal"
-      ? "elements"
-      : "keyframes";
   const visibleShotMode = klingMode === "custom" ? "multi" : klingMode;
   const shotModeTabCount = 2;
   const customKlingPrompts = React.useMemo(
@@ -1133,7 +1196,7 @@ export function VideoPropertiesPanel({
   const populatedKlingPromptTokenSlotIndexes = React.useMemo(
     () =>
       selectedKlingElements.flatMap((element, index) => {
-        if (!element) return [];
+        if (!isPromptTokenEligibleKlingElement(element)) return [];
         const token = klingElementCanonicalPromptTokens[index] ?? "";
         return token ? [index] : [];
       }),
@@ -1171,7 +1234,8 @@ export function VideoPropertiesPanel({
             prompt: primaryPromptValue,
             mode: visibleShotMode === "multi" ? "multi" : "single",
             klingElements: selectedKlingElements.filter(
-              (element): element is AiStudioKlingElement => Boolean(element)
+              (element): element is AiStudioKlingElement =>
+                isPromptTokenEligibleKlingElement(element)
             ),
           })
       : null;
@@ -2047,23 +2111,11 @@ export function VideoPropertiesPanel({
                                   {
                                     "--video-shot-mode-slots": 2,
                                     "--video-shot-mode-index":
-                                      seedanceReferenceMode === "elements" ? 1 : 0,
+                                      seedanceReferenceMode === "elements" ? 0 : 1,
                                   } as React.CSSProperties
                                 }
                               >
                                 <span className="video-shot-mode-indicator" aria-hidden="true" />
-                                <button
-                                  type="button"
-                                  role="tab"
-                                  aria-selected={seedanceReferenceMode === "keyframes"}
-                                  aria-label="Keyframes"
-                                  className={`video-shot-mode-tab ${
-                                    seedanceReferenceMode === "keyframes" ? "is-active" : ""
-                                  }`}
-                                  onClick={() => handleSetSeedanceReferenceMode("keyframes")}
-                                >
-                                  Keyframes
-                                </button>
                                 <button
                                   type="button"
                                   role="tab"
@@ -2075,6 +2127,18 @@ export function VideoPropertiesPanel({
                                   onClick={() => handleSetSeedanceReferenceMode("elements")}
                                 >
                                   Elements
+                                </button>
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={seedanceReferenceMode === "keyframes"}
+                                  aria-label="Keyframes"
+                                  className={`video-shot-mode-tab ${
+                                    seedanceReferenceMode === "keyframes" ? "is-active" : ""
+                                  }`}
+                                  onClick={() => handleSetSeedanceReferenceMode("keyframes")}
+                                >
+                                  Keyframes
                                 </button>
                               </div>
                             </div>
@@ -2098,6 +2162,19 @@ export function VideoPropertiesPanel({
                               >
                                 {Array.from({ length: klingElementSlotCount }).map((_, index) => {
                                   const selectedElement = selectedKlingElements[index] ?? null;
+                                  const canUseSeedanceImageIngress =
+                                    isSeedance2FamilyModelSelected &&
+                                    seedanceReferenceMode === "elements";
+                                  const isReferenceImageSlot =
+                                    isSeedanceImageReferenceSlot(selectedElement);
+                                  const isImageDropActive = Boolean(
+                                    seedanceElementImageDragActive[index]
+                                  );
+                                  const isImageLoading = Boolean(
+                                    seedanceElementImageLoading[index]
+                                  );
+                                  const seedanceImageInputRef =
+                                    seedanceElementImageInputRefs[index] ?? null;
                                   const previewUrl =
                                     selectedElement?.profileImageUrl ??
                                     getAiStudioKlingElementReferenceUrls(
@@ -2114,39 +2191,131 @@ export function VideoPropertiesPanel({
                                         VIDEO_KLING_ELEMENT_SLOT_SIZE
                                       )
                                     : undefined;
-                                  const dragToken = selectedElement
-                                    ? (klingElementCanonicalPromptTokens[index] ?? "")
-                                    : "";
+                                  const dragToken =
+                                    selectedElement &&
+                                    isPromptTokenEligibleKlingElement(selectedElement)
+                                      ? (klingElementCanonicalPromptTokens[index] ?? "")
+                                      : "";
+                                  const openImageFilePicker = () => {
+                                    seedanceImageInputRef?.current?.click();
+                                  };
 
                                   if (!selectedElement) {
                                     return (
-                                      <button
+                                      <div
                                         key={`video-element-slot-${index}`}
-                                        type="button"
-                                        className="video-elements-placeholder-tile"
-                                        onClick={() => openElementPicker(index)}
+                                        ref={(element) => {
+                                          seedanceElementSlotRefs.current[index] = element;
+                                        }}
+                                        className={`video-elements-placeholder-tile ${
+                                          isImageDropActive ? "is-dragging" : ""
+                                        } ${isImageLoading ? "is-loading" : ""}`.trim()}
+                                        onDragEnter={
+                                          canUseSeedanceImageIngress
+                                            ? handleSeedanceElementImageDragEnter(index)
+                                            : undefined
+                                        }
+                                        onDragOver={
+                                          canUseSeedanceImageIngress
+                                            ? handleSeedanceElementImageDragOver(index)
+                                            : undefined
+                                        }
+                                        onDragLeave={
+                                          canUseSeedanceImageIngress
+                                            ? handleSeedanceElementImageDragLeave(index)
+                                            : undefined
+                                        }
+                                        onDrop={
+                                          canUseSeedanceImageIngress
+                                            ? handleSeedanceElementImageDrop(index)
+                                            : undefined
+                                        }
                                         aria-label={`Add element to slot ${index + 1}`}
                                       >
-                                        <span
-                                          className="video-elements-placeholder-plus"
-                                          aria-hidden="true"
+                                        <button
+                                          type="button"
+                                          className="video-elements-placeholder-select video-elements-placeholder-select--empty"
+                                          onClick={() => openElementPicker(index)}
+                                          aria-label={`Add element to slot ${index + 1}`}
                                         >
-                                          +
-                                        </span>
-                                      </button>
+                                          <span
+                                            className="video-elements-placeholder-plus"
+                                            aria-hidden="true"
+                                          >
+                                            +
+                                          </span>
+                                        </button>
+                                        {canUseSeedanceImageIngress ? (
+                                          <>
+                                            <input
+                                              ref={(element) => {
+                                                if (seedanceImageInputRef) {
+                                                  seedanceImageInputRef.current = element;
+                                                }
+                                              }}
+                                              type="file"
+                                              accept="image/*"
+                                              className="sr-only"
+                                              tabIndex={-1}
+                                              onChange={handleSeedanceElementImageFileSelection(
+                                                index
+                                              )}
+                                            />
+                                            <button
+                                              type="button"
+                                              className="video-elements-slot-upload"
+                                              aria-label={`Upload image reference to slot ${index + 1}`}
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                openImageFilePicker();
+                                              }}
+                                            >
+                                              <UploadSimple size={12} />
+                                            </button>
+                                          </>
+                                        ) : null}
+                                      </div>
                                     );
                                   }
 
                                   return (
                                     <div
                                       key={`video-element-slot-${index}`}
+                                      ref={(element) => {
+                                        seedanceElementSlotRefs.current[index] = element;
+                                      }}
                                       className={`video-elements-placeholder-tile video-elements-placeholder-tile--filled ${
                                         selectedElement.sourceKind === "character"
                                           ? "video-elements-placeholder-tile--character"
-                                          : "video-elements-placeholder-tile--element"
-                                      }`}
+                                          : isReferenceImageSlot
+                                            ? "video-elements-placeholder-tile--reference-image"
+                                            : "video-elements-placeholder-tile--element"
+                                      } ${isImageDropActive ? "is-dragging" : ""} ${
+                                        isImageLoading ? "is-loading" : ""
+                                      }`.trim()}
                                       draggable={Boolean(dragToken)}
+                                      onDragEnter={
+                                        canUseSeedanceImageIngress
+                                          ? handleSeedanceElementImageDragEnter(index)
+                                          : undefined
+                                      }
+                                      onDragOver={
+                                        canUseSeedanceImageIngress
+                                          ? handleSeedanceElementImageDragOver(index)
+                                          : undefined
+                                      }
+                                      onDragLeave={
+                                        canUseSeedanceImageIngress
+                                          ? handleSeedanceElementImageDragLeave(index)
+                                          : undefined
+                                      }
+                                      onDrop={
+                                        canUseSeedanceImageIngress
+                                          ? handleSeedanceElementImageDrop(index)
+                                          : undefined
+                                      }
                                       onDragStart={(event) => {
+                                        if (!dragToken) return;
                                         event.dataTransfer.effectAllowed = "copy";
                                         setKlingElementPromptTokenDragData(
                                           event.dataTransfer,
@@ -2172,7 +2341,34 @@ export function VideoPropertiesPanel({
                                           />
                                         ) : null}
                                       </button>
+                                      {canUseSeedanceImageIngress ? (
+                                        <input
+                                          ref={(element) => {
+                                            if (seedanceImageInputRef) {
+                                              seedanceImageInputRef.current = element;
+                                            }
+                                          }}
+                                          type="file"
+                                          accept="image/*"
+                                          className="sr-only"
+                                          tabIndex={-1}
+                                          onChange={handleSeedanceElementImageFileSelection(index)}
+                                        />
+                                      ) : null}
                                       <span className="video-elements-slot-actions">
+                                        {canUseSeedanceImageIngress ? (
+                                          <button
+                                            type="button"
+                                            className="ghost-btn mini"
+                                            aria-label={`Upload image reference to slot ${index + 1}`}
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              openImageFilePicker();
+                                            }}
+                                          >
+                                            <UploadSimple size={12} />
+                                          </button>
+                                        ) : null}
                                         <button
                                           type="button"
                                           className="ghost-btn mini"
@@ -2489,7 +2685,7 @@ export function VideoPropertiesPanel({
         onSelect={handleElementSelection}
         selectedEntities={selectedKlingElements
           .filter((element): element is NonNullable<(typeof selectedKlingElements)[number]> =>
-            Boolean(element)
+            isPromptTokenEligibleKlingElement(element)
           )
           .map((element) => {
             const sourceKind =
@@ -2507,22 +2703,22 @@ export function VideoPropertiesPanel({
             (
               selection
             ): selection is {
-              sourceKind: AiStudioKlingEntitySourceKind;
+              sourceKind: AiStudioKlingSavedEntitySourceKind;
               sourceId: string;
             } => Boolean(selection)
           )}
         selectedSourceKind={
           elementPickerSlotIndex != null
-            ? (selectedKlingElements[elementPickerSlotIndex]?.sourceKind ??
-              (selectedKlingElements[elementPickerSlotIndex]?.sourceCharacterId
-                ? "character"
-                : selectedKlingElements[elementPickerSlotIndex]?.sourceElementId
-                  ? "element"
-                  : null))
+            ? selectedKlingElements[elementPickerSlotIndex]?.sourceCharacterId
+              ? "character"
+              : selectedKlingElements[elementPickerSlotIndex]?.sourceElementId
+                ? "element"
+                : null
             : null
         }
         selectedSourceId={
-          elementPickerSlotIndex != null
+          elementPickerSlotIndex != null &&
+          isPromptTokenEligibleKlingElement(selectedKlingElements[elementPickerSlotIndex])
             ? (selectedKlingElements[elementPickerSlotIndex]?.sourceCharacterId ??
               selectedKlingElements[elementPickerSlotIndex]?.sourceElementId ??
               null)

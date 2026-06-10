@@ -4,6 +4,7 @@ import {
   applySessionRestoreSignedUrls,
   buildSessionOutputSigningFingerprintById,
   collectSessionRestoreSigningPaths,
+  resolveSessionRestoreReferenceSignedUrls,
   resolveSessionRestoreSignedMediaAuthority,
   resolveSessionRestoreSignedMediaAuthorityByMediaId,
   resolveSessionRestoreSignedUrls,
@@ -142,6 +143,28 @@ describe("sessionRestoreMediaSigning", () => {
       })
     );
     expect(resolved).toBe(signedMap);
+  });
+
+  it("signs the primary image plus all ten restored reference slots", async () => {
+    const refs = Array.from({ length: 11 }, (_, index) => ({
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: `user-1/images/ref-${index + 1}.png`,
+    }));
+    getSignedMediaUrlsBatchMock.mockResolvedValueOnce(
+      new Map(refs.map((ref, index) => [ref.storagePath, `https://signed/ref-${index + 1}.png`]))
+    );
+
+    const resolved = await resolveSessionRestoreReferenceSignedUrls(refs);
+
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePaths: refs.map((ref) => ref.storagePath),
+      })
+    );
+    expect(resolved).toEqual(refs.map((_, index) => `https://signed/ref-${index + 1}.png`));
   });
 
   it("applies signed preview urls when storage paths are present", () => {

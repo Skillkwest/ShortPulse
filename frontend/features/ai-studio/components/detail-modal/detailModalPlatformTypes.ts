@@ -54,6 +54,7 @@ export type SharedMediaDetailMedia = {
   filename?: string | null;
   promptText?: string | null;
   transcriptText?: string | null;
+  lyricsText?: string | null;
   source?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;

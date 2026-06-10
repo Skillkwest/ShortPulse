@@ -4,6 +4,7 @@ import { resolveImageDimensionsFromMetadata } from "../../../lib/mediaDimensionM
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
+import { resolveOutputAudioSourceMode } from "./audioSourceMode";
 import { isAudioUrl, isVideoUrl, resolveModelLabel } from "./stateParsers";
 import {
   normalizeVideoPosterStoragePathCandidate,
@@ -73,6 +74,19 @@ type GenerationProjectionDeliveryRow = {
   created_at?: unknown;
   updated_at?: unknown;
 };
+
+const resolveWorkflowReloadLyricsText = (
+  workflowReload: StudioOutput["workflowReload"] | undefined
+): string | null => {
+  const payload = workflowReload?.payload;
+  if (payload?.kind !== "music") return null;
+  const lyrics = payload.lyrics?.trim();
+  return lyrics || null;
+};
+
+const resolveWorkflowReloadAudioSourceMode = (
+  workflowReload: StudioOutput["workflowReload"] | undefined
+): StudioOutput["audioSourceMode"] => (workflowReload?.payload?.kind === "music" ? "music" : null);
 
 const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
   "generation_id",
@@ -544,6 +558,9 @@ const toHydratedGeneratedOutput = (
   const workflowReload = (asObject(row.workflow_reload) ?? undefined) as
     | StudioOutput["workflowReload"]
     | undefined;
+  const audioSourceMode =
+    resolveOutputAudioSourceMode({ modelId }) ??
+    resolveWorkflowReloadAudioSourceMode(workflowReload);
   const replayAspect = asTrimmedString(generationReplay?.aspect);
   const characterContext = (asObject(row.character_context) ?? undefined) as
     | StudioOutput["characterContext"]
@@ -558,6 +575,7 @@ const toHydratedGeneratedOutput = (
     id: `generated:${generationId}`,
     prompt: asTrimmedString(row.display_prompt) ?? "",
     transcriptText: asTrimmedString(row.transcript_text) ?? null,
+    lyricsText: resolveWorkflowReloadLyricsText(workflowReload),
     mode,
     aspect: replayAspect ?? "1:1",
     model: resolveModelLabel(modelId ?? undefined),
@@ -581,6 +599,7 @@ const toHydratedGeneratedOutput = (
     companionArtUrl: null,
     companionArtStoragePath,
     companionArtStatus,
+    audioSourceMode,
     previewStoragePath,
     fullStoragePath,
     mediaSource: "generated",

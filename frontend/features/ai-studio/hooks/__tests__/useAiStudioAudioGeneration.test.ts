@@ -75,6 +75,7 @@ describe("useAiStudioAudioGeneration", () => {
           durationMs: 30_000,
           waveformPeaks: [0.1, 0.5, 0.2],
           modelId: hardcodedMusicModelId,
+          lyricsText: "Keep the signal burning bright",
         },
       }),
     });
@@ -97,6 +98,7 @@ describe("useAiStudioAudioGeneration", () => {
         durationSeconds: 30,
         bpm: 112,
         mode: "instrumental",
+        lyrics: "Keep the signal burning bright",
         structure: "loop",
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
@@ -126,6 +128,7 @@ describe("useAiStudioAudioGeneration", () => {
     const requestBody = JSON.parse(String((fetchOptions as { body?: unknown }).body ?? "{}"));
     expect(requestBody).toMatchObject({
       text: "  cinematic synth pulse  ",
+      lyrics: "Keep the signal burning bright",
       durationSeconds: 30,
       bpm: 112,
       mode: "instrumental",
@@ -158,6 +161,7 @@ describe("useAiStudioAudioGeneration", () => {
         payload: expect.objectContaining({
           kind: "music",
           text: "  cinematic synth pulse  ",
+          lyrics: "Keep the signal burning bright",
           durationSeconds: 30,
           outputFormat: "mp3_44100_128",
         }),
@@ -179,6 +183,7 @@ describe("useAiStudioAudioGeneration", () => {
       savedMediaIds: ["media-music"],
       previewUrl: "https://example.com/music.mp3",
       fullStoragePath: "full/music.mp3",
+      lyricsText: "Keep the signal burning bright",
     });
   });
 

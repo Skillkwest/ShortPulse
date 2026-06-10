@@ -330,9 +330,20 @@
   border-color: rgba(255, 123, 167, 0.62);
 }
 
+.video-properties-panel
+  .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--reference-image {
+  border-color: rgba(139, 245, 238, 0.58);
+}
+
 .video-properties-panel .video-elements-placeholder-tile:hover {
   border-color: rgba(201, 205, 214, 0.28);
   background: #16181b;
+}
+
+.video-properties-panel .video-elements-placeholder-tile.is-dragging {
+  border-color: rgba(139, 245, 238, 0.86);
+  background: rgba(20, 52, 54, 0.36);
+  box-shadow: 0 0 0 3px rgba(139, 245, 238, 0.12);
 }
 
 .video-properties-panel .video-elements-placeholder-select {
@@ -383,11 +394,18 @@
   box-shadow: inset 0 0 0 1px rgba(255, 123, 167, 0.18);
 }
 
+.video-properties-panel
+  .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--reference-image::after {
+  box-shadow: inset 0 0 0 1px rgba(139, 245, 238, 0.18);
+}
+
 .video-properties-panel .video-elements-slot-actions {
   position: absolute;
   top: -6px;
   right: -6px;
   z-index: 2;
+  display: flex;
+  gap: 4px;
 }
 
 .video-properties-panel .video-elements-slot-actions .ghost-btn {
@@ -442,6 +460,34 @@
   font-size: 22px;
   line-height: 1;
   font-weight: 400;
+}
+
+.video-properties-panel .video-elements-slot-upload {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 245, 238, 0.42);
+  background: rgba(9, 28, 30, 0.92);
+  color: rgba(221, 255, 253, 0.92);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+
+.video-properties-panel .video-elements-slot-upload:hover,
+.video-properties-panel .video-elements-slot-upload:focus-visible {
+  border-color: rgba(139, 245, 238, 0.9);
+  background: rgba(16, 72, 76, 0.98);
+  color: #ffffff;
 }
 
 .video-properties-panel .video-elements-placeholder-tile:hover .video-elements-placeholder-plus {
@@ -780,7 +826,9 @@
   letter-spacing: 0.01em;
   white-space: normal;
   flex: 0 1 auto;
-  max-width: 150px;
+  max-width: min(260px, 100%);
+  min-width: 0;
+  overflow-wrap: anywhere;
   text-align: center;
   box-shadow: none;
 }
@@ -2350,6 +2398,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
   padding: 12px;
 }
 
@@ -2363,6 +2412,7 @@
   display: flex;
   justify-content: center;
   width: 100%;
+  min-width: 0;
   min-height: 96px;
   padding: 14px;
   text-align: left;
@@ -2405,6 +2455,7 @@
   position: relative;
   display: block;
   width: 100%;
+  min-width: 0;
   min-height: 124px;
   overflow: hidden;
   border-radius: 8px;
@@ -2442,12 +2493,21 @@
   display: flex;
   gap: 10px;
   justify-content: space-between;
+  min-width: 0;
+}
+
+.video-properties-panel .video-lip-sync-audio-actions {
+  align-items: flex-start;
 }
 
 .video-properties-panel .video-lip-sync-audio-status {
   color: rgba(188, 196, 210, 0.78);
+  flex: 1 1 auto;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.3;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .video-properties-panel .video-lip-sync-clear-button {
@@ -2456,6 +2516,7 @@
   border-radius: 7px;
   color: rgba(246, 248, 253, 0.9);
   cursor: pointer;
+  flex: 0 0 auto;
   font-size: 12px;
   font-weight: 800;
   min-height: 28px;

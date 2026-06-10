@@ -94,7 +94,7 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   klingNegativePrompt: "blur, distort, and low quality",
   klingCfgScale: 0.5,
   klingWorkflowMode: "single",
-  seedance2InputMode: "text",
+  seedance2InputMode: "multimodal",
   seedance2ReferenceImageUrls: [],
   seedance2ReferenceVideoUrls: [],
   seedance2ReferenceAudioUrls: [],

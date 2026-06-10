@@ -153,6 +153,8 @@ const mergeHydratedGeneratedOutput = (
   existing: StudioOutput,
   hydrated: StudioOutput
 ): StudioOutput => {
+  const nextLyricsText = existing.lyricsText?.trim() ? existing.lyricsText : hydrated.lyricsText;
+  const nextAudioSourceMode = hydrated.audioSourceMode ?? existing.audioSourceMode;
   const merged: StudioOutput = {
     ...existing,
     prompt: existing.prompt?.trim() ? existing.prompt : hydrated.prompt,
@@ -204,6 +206,16 @@ const mergeHydratedGeneratedOutput = (
     generationReplay: hydrated.generationReplay ?? existing.generationReplay,
     workflowReload: hydrated.workflowReload ?? existing.workflowReload,
   };
+  if (nextLyricsText != null || "lyricsText" in existing || "lyricsText" in hydrated) {
+    merged.lyricsText = nextLyricsText ?? null;
+  }
+  if (
+    nextAudioSourceMode != null ||
+    "audioSourceMode" in existing ||
+    "audioSourceMode" in hydrated
+  ) {
+    merged.audioSourceMode = nextAudioSourceMode ?? null;
+  }
   return preserveExistingOutputWhenUnchanged(existing, merged);
 };
 

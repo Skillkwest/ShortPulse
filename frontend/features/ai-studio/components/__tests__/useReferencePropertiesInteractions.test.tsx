@@ -170,6 +170,7 @@ describe("useReferencePropertiesInteractions", () => {
     forgetObjectUrlBlob("blob:drag-source");
     forgetObjectUrlBlob("blob:drag-clone");
     forgetObjectUrlBlob("blob:stale-drag-source");
+    forgetObjectUrlBlob("blob:dropped-primary");
     URL.createObjectURL = originalCreateObjectUrl;
     URL.revokeObjectURL = originalRevokeObjectUrl;
     global.fetch = originalFetch;
@@ -710,6 +711,179 @@ describe("useReferencePropertiesInteractions", () => {
 
     expect(onExtraImageChange).toHaveBeenCalledWith(0, "blob:selected-file");
     expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
+  });
+
+  it("accepts file-selected images for Seedance element slots", async () => {
+    const onSeedanceElementImageSlotChange = vi.fn();
+    URL.createObjectURL = vi.fn(() => "blob:selected-file");
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementImageSlotChange,
+      })
+    );
+
+    const file = new File(["seedance-slot"], "seedance-slot.png", { type: "image/png" });
+    const event = {
+      target: {
+        files: [file],
+        value: "seedance-slot.png",
+      },
+    };
+
+    await act(async () => {
+      result.current.handleSeedanceElementImageFileSelection(2)(event as never);
+      await Promise.resolve();
+    });
+
+    expect(onSeedanceElementImageSlotChange).toHaveBeenCalledWith(2, "blob:selected-file");
+    expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
+  });
+
+  it("accepts internal image drags for Seedance element slots", async () => {
+    const onSeedanceElementImageSlotChange = vi.fn();
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-seedance-slot",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-seedance-slot",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-1",
+      mediaId: "media-seedance-slot",
+      mediaSource: "generated" as const,
+      preparedImageUrl: "https://cdn.shortpulse.test/seedance-slot.png",
+      preview: {
+        url: "https://cdn.shortpulse.test/seedance-slot-preview.png",
+        width: 1024,
+        height: 1024,
+        mimeType: "image/png",
+      },
+      previewStoragePath: "user/images/seedance-slot-preview.png",
+      fullStoragePath: "user/images/seedance-slot-full.png",
+      promptText: null,
+      loadBlob: async () => new Blob(["image"], { type: "image/png" }),
+    }));
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementImageSlotChange,
+        resolveInternalReferenceImageDropSource,
+      })
+    );
+
+    const dropEvent = makeInternalReferenceDragEvent({
+      mediaKind: "image",
+      referenceUrl: "https://cdn.shortpulse.test/seedance-slot.png",
+    });
+
+    await act(async () => {
+      await result.current.handleSeedanceElementImageDrop(3)(dropEvent);
+    });
+
+    expect(onSeedanceElementImageSlotChange).toHaveBeenCalledWith(
+      3,
+      "https://cdn.shortpulse.test/seedance-slot.png"
+    );
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts canvas tear-out image payloads for Seedance element slots", async () => {
+    const onSeedanceElementImageSlotChange = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementImageSlotChange,
+      })
+    );
+
+    act(() => {
+      result.current.acceptSeedanceElementImageCanvasTearOutPayload(4, {
+        kind: "image",
+        internalPayload: null,
+        composerImagePayload: {
+          version: 1,
+          origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+          referenceId: "canvas-seedance-slot",
+          outputId: "canvas-seedance-slot",
+          mediaId: "media-canvas-seedance-slot",
+          displayArtifactUrl: "https://cdn.shortpulse.test/canvas-seedance-slot.png",
+          displayArtifactKind: "url",
+          referenceUrl: "https://cdn.shortpulse.test/canvas-seedance-slot.png",
+          sourceSurface: "all-refs",
+        },
+      });
+    });
+
+    expect(onSeedanceElementImageSlotChange).toHaveBeenCalledWith(
+      4,
+      "https://cdn.shortpulse.test/canvas-seedance-slot.png"
+    );
+  });
+
+  it("accepts computer-dropped image files in the Motion Control character slot", async () => {
+    const onPrimaryImageChange = vi.fn();
+    URL.createObjectURL = vi.fn(() => "blob:dropped-primary");
+    const file = new File(["character"], "character.png", { type: "image/png" });
+    const event = {
+      preventDefault: vi.fn(),
+      dataTransfer: {
+        files: [file],
+        types: ["Files"],
+        getData: vi.fn(() => ""),
+      },
+    } as unknown as Parameters<
+      ReturnType<typeof useReferencePropertiesInteractions>["handlePrimaryDrop"]
+    >[0];
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange,
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    await act(async () => {
+      await result.current.handlePrimaryDrop(event);
+    });
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(onPrimaryImageChange).toHaveBeenCalledWith("blob:dropped-primary");
+    expect(readRememberedObjectUrlBlob("blob:dropped-primary")).toBe(file);
   });
 
   it("stages file-selected motion videos before committing them", async () => {

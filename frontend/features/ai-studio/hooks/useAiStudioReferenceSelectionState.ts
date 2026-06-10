@@ -13,9 +13,10 @@ import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import type { ToolId } from "../types";
 import {
   deleteUploadedMotionVideoByPath,
+  needsMotionReferenceVideoProviderNormalization,
   retireCommittedMotionVideoByUrl,
   needsVideoUpload,
-  prepareVideoUrl,
+  prepareMotionReferenceVideoUrl,
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
 } from "../utils/videoUpload";
@@ -631,7 +632,9 @@ export const useAiStudioReferenceSelectionState = ({
             storagePaths,
           })
         : Promise.resolve(new Map<string, string | null>()),
-      hasMotionVideoUrl ? prepareVideoUrl(motionReferenceVideoUrl) : Promise.resolve(null),
+      hasMotionVideoUrl
+        ? prepareMotionReferenceVideoUrl(motionReferenceVideoUrl)
+        : Promise.resolve(null),
     ])
       .then(([signedByPath, refreshedMotionVideoUrl]) => {
         if (cancelled) return;
@@ -689,7 +692,11 @@ export const useAiStudioReferenceSelectionState = ({
       try {
         const normalizedVideoUrl = videoUrl?.trim() ?? "";
         await assertMotionReferenceDuration({ videoFile, videoUrl: normalizedVideoUrl || null });
-        if (!videoFile && normalizedVideoUrl && !needsVideoUpload(normalizedVideoUrl)) {
+        const shouldStageUrl =
+          normalizedVideoUrl &&
+          (needsVideoUpload(normalizedVideoUrl) ||
+            needsMotionReferenceVideoProviderNormalization(normalizedVideoUrl));
+        if (!videoFile && normalizedVideoUrl && !shouldStageUrl) {
           if (
             getMotionReferenceUploadUiStateForAuthority(targetAuthorityKey).requestId !==
             nextRequestId

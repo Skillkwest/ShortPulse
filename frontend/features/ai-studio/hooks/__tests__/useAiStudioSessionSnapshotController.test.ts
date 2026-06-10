@@ -7,7 +7,7 @@ import type { StudioOutput } from "../../types";
 const addBreadcrumbMock = vi.hoisted(() => vi.fn());
 const buildAiStudioSessionHydrationPayloadMock = vi.hoisted(() => vi.fn());
 const getSignedMediaUrlsBatchMock = vi.hoisted(() => vi.fn());
-const prepareVideoUrlMock = vi.hoisted(() => vi.fn());
+const prepareMotionReferenceVideoUrlMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: (...args: unknown[]) => addBreadcrumbMock(...args),
@@ -23,7 +23,8 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
 }));
 
 vi.mock("../../utils/videoUpload", () => ({
-  prepareVideoUrl: (...args: unknown[]) => prepareVideoUrlMock(...args),
+  prepareMotionReferenceVideoUrl: (...args: unknown[]) =>
+    prepareMotionReferenceVideoUrlMock(...args),
 }));
 
 import { useAiStudioSessionSnapshotController } from "../useAiStudioSessionSnapshotController";
@@ -151,7 +152,7 @@ describe("useAiStudioSessionSnapshotController", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-    prepareVideoUrlMock.mockImplementation(async (value: string | null) => value);
+    prepareMotionReferenceVideoUrlMock.mockImplementation(async (value: string | null) => value);
   });
 
   afterEach(() => {
@@ -468,7 +469,7 @@ describe("useAiStudioSessionSnapshotController", () => {
       },
     });
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
-    prepareVideoUrlMock.mockImplementation(async (value: string | null) => {
+    prepareMotionReferenceVideoUrlMock.mockImplementation(async (value: string | null) => {
       if (!value) return value;
       if (value.includes("workspace-motion")) {
         return "https://example.com/signed/workspace-motion.mp4?token=fresh";
@@ -577,13 +578,13 @@ describe("useAiStudioSessionSnapshotController", () => {
       await Promise.resolve();
     });
 
-    expect(prepareVideoUrlMock).toHaveBeenCalledWith(
+    expect(prepareMotionReferenceVideoUrlMock).toHaveBeenCalledWith(
       "https://example.com/signed/workspace-motion.mp4?token=old"
     );
-    expect(prepareVideoUrlMock).toHaveBeenCalledWith(
+    expect(prepareMotionReferenceVideoUrlMock).toHaveBeenCalledWith(
       "https://example.com/signed/standard-motion.mp4?token=old"
     );
-    expect(prepareVideoUrlMock).toHaveBeenCalledWith(
+    expect(prepareMotionReferenceVideoUrlMock).toHaveBeenCalledWith(
       "https://example.com/signed/pulse-motion.mp4?token=old"
     );
     expect(setMotionReferenceVideoUrl).toHaveBeenLastCalledWith(

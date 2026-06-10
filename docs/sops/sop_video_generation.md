@@ -75,6 +75,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Keyframe-style Veo generation is handled through `kie-ai/veo-3.1-fast-i2v` by switching Kie generation type based on the number of prepared frame references, not by forcing Standard into a separate hidden Veo-only mode.
 - Kie Seedance 2 and 2 Fast use the Kling-pattern panel shell for `Single` and `Multi` prompt authoring plus linked Character/Element slots, but compile into Seedance-native prompt, frame, and multimodal reference fields.
 - Seedance Elements mode maps to the provider's multimodal reference scenario. It overrides the Keyframes slot state: first/last frame images may remain visible in the inactive Keyframes UI, but they must not warn, block Generate, or be submitted while Elements mode is active.
+- Seedance Elements slots accept saved Characters/Elements and direct single-image references from local upload, Reference Grid, Quick Slot Inventory, or Canvas tear-out.
+- Saved Characters/Elements remain linked subjects: their media contributes to Seedance multimodal references and their names/descriptions may be compiled into prompt context. Direct single-image slots use `sourceKind = "reference-image"` and submit only as Seedance `reference_image_urls`; they are not draggable prompt tokens and must not add linked-subject prompt context.
 - Seedance `Single` and `Multi` use Seedance-specific hidden prompt instructions, not the Kling hidden prompt strings.
 
 ### Lip Sync mode

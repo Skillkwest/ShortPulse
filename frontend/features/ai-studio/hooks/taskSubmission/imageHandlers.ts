@@ -21,6 +21,7 @@ import { falSizeForAspect } from "../../logic/pricing";
 import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
 import { normalizeAspectForFalNanoBanana2 } from "../../logic/stateParsers";
 import { resolveImageSubmissionSafetyPayload } from "./safetyPolicy";
+import { resolveImageReferenceInputLimitForModel } from "./imageReferenceLimits";
 import type { ImageSubmissionArgs } from "./types";
 
 type ImagePollingProvider =
@@ -136,6 +137,9 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
+      const inputLimit = resolveImageReferenceInputLimitForModel(
+        KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID
+      );
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(
           id,
@@ -149,7 +153,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
         {
           prompt: cleanedPrompt,
-          input_urls: preparedImageInputs.slice(0, 16),
+          input_urls: preparedImageInputs.slice(0, inputLimit),
           aspect_ratio: aspect,
           resolution: normalizeKieGptImage2ResolutionForAspect({
             aspect,
@@ -179,6 +183,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
+      const inputLimit = resolveImageReferenceInputLimitForModel(FAL_NANO_BANANA_PRO_EDIT_MODEL_ID);
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(
           id,
@@ -194,7 +199,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         aspect_ratio: falNanoBananaProAllowedAspects.has(aspect) ? aspect : "auto",
         output_format: "png",
         resolution: normalizeNanoBananaProResolution(requestedResolution, "1K"),
-        image_urls: preparedImageInputs.slice(0, 10),
+        image_urls: preparedImageInputs.slice(0, inputLimit),
         ...shortpulseSubmitPayload,
       });
       return {
@@ -217,6 +222,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
+      const inputLimit = resolveImageReferenceInputLimitForModel(FAL_NANO_BANANA_2_EDIT_MODEL_ID);
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(
           id,
@@ -232,7 +238,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         aspect_ratio: normalizeAspectForFalNanoBanana2(aspect),
         output_format: "png",
         resolution: normalizeNanoBanana2Resolution(requestedResolution, "1K"),
-        image_urls: preparedImageInputs.slice(0, 10),
+        image_urls: preparedImageInputs.slice(0, inputLimit),
         ...shortpulseSubmitPayload,
       });
       return {
@@ -256,6 +262,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
+      const inputLimit = resolveImageReferenceInputLimitForModel(finalModel);
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(
           id,
@@ -271,7 +278,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         image_size,
         num_images: 1,
         ...resolveImageSubmissionSafetyPayload(finalModel),
-        image_urls: preparedImageInputs.slice(0, 10),
+        image_urls: preparedImageInputs.slice(0, inputLimit),
         ...shortpulseSubmitPayload,
       });
       return {
@@ -295,6 +302,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
       notifyGenerationFailure,
       shortpulseSubmitPayload,
     }) => {
+      const inputLimit = resolveImageReferenceInputLimitForModel(finalModel);
       if (!preparedImageInputs.length && !hasInternalMediaRefs(internalMediaRefs)) {
         notifyGenerationFailure(
           id,
@@ -310,7 +318,7 @@ const imageSubmissionAdapters: ImageSubmissionAdapter[] = [
         image_size,
         num_images: 1,
         ...resolveImageSubmissionSafetyPayload(finalModel),
-        image_urls: preparedImageInputs.slice(0, 10),
+        image_urls: preparedImageInputs.slice(0, inputLimit),
         ...shortpulseSubmitPayload,
       });
       return {

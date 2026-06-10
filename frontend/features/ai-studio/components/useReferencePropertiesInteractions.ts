@@ -17,7 +17,11 @@ import {
   looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "../utils/dragDrop";
-import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
+import {
+  createEmptyAiStudioKlingElement,
+  getAiStudioKlingElementReferenceUrls,
+  type AiStudioKlingElement,
+} from "../logic/klingElements";
 import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import {
@@ -72,6 +76,8 @@ type UseReferencePropertiesInteractionsParams = {
   onKlingMultiPromptsChange?: (value: KlingMultiPrompt[]) => void;
   klingElements: KlingElement[];
   onKlingElementsChange?: (value: KlingElement[]) => void;
+  seedanceElementSlotCount?: number;
+  onSeedanceElementImageSlotChange?: (slotIndex: number, url: string | null) => void;
 };
 
 const isLocalMemoryVideoUrl = (value: string | null | undefined): value is string => {
@@ -138,6 +144,8 @@ export const useReferencePropertiesInteractions = ({
   onKlingMultiPromptsChange,
   klingElements,
   onKlingElementsChange,
+  seedanceElementSlotCount = 0,
+  onSeedanceElementImageSlotChange,
 }: UseReferencePropertiesInteractionsParams) => {
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraInputRefsRef = useRef<RefObject<HTMLInputElement | null>[]>([]);
@@ -149,6 +157,14 @@ export const useReferencePropertiesInteractions = ({
   const extraTwoInputRef = inputRefs[1] ?? { current: null };
   const extraThreeInputRef = inputRefs[2] ?? { current: null };
   const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
+  const seedanceElementImageInputRefsRef = useRef<Array<{ current: HTMLInputElement | null }>>([]);
+  while (seedanceElementImageInputRefsRef.current.length < seedanceElementSlotCount) {
+    seedanceElementImageInputRefsRef.current.push({ current: null });
+  }
+  const seedanceElementImageInputRefs = seedanceElementImageInputRefsRef.current.slice(
+    0,
+    seedanceElementSlotCount
+  );
   const ownedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const pendingCommittedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
@@ -157,6 +173,10 @@ export const useReferencePropertiesInteractions = ({
   const [extraDragActive, setExtraDragActive] = useState([false, false, false]);
   const [primaryImageLoading, setPrimaryImageLoading] = useState(false);
   const [extraImageLoading, setExtraImageLoading] = useState([false, false, false]);
+  const [seedanceElementImageDragActive, setSeedanceElementImageDragActive] = useState<boolean[]>(
+    []
+  );
+  const [seedanceElementImageLoading, setSeedanceElementImageLoading] = useState<boolean[]>([]);
   const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
   const [collapsedSteps, setCollapsedSteps] = useState<Record<ReferenceStepKey, boolean>>({
     reference: false,
@@ -188,6 +208,15 @@ export const useReferencePropertiesInteractions = ({
     setExtraDragActive((prev) => reconcileBooleanListLength(prev, inputRefs.length));
     setExtraImageLoading((prev) => reconcileBooleanListLength(prev, inputRefs.length));
   }, [inputRefs.length]);
+
+  useEffect(() => {
+    setSeedanceElementImageDragActive((prev) =>
+      reconcileBooleanListLength(prev, seedanceElementSlotCount)
+    );
+    setSeedanceElementImageLoading((prev) =>
+      reconcileBooleanListLength(prev, seedanceElementSlotCount)
+    );
+  }, [seedanceElementSlotCount]);
 
   const handleSwapFrames = () => {
     if (!canSwapFrames) return;
@@ -293,8 +322,12 @@ export const useReferencePropertiesInteractions = ({
   };
 
   useEffect(() => {
+    const klingElementBlobUrls = klingElements.flatMap((element) => [
+      element.profileImageUrl ?? "",
+      ...getAiStudioKlingElementReferenceUrls(element),
+    ]);
     const propBlobUrls = new Set(
-      [referenceImageUrl, ...extraImageUrls].filter(
+      [referenceImageUrl, ...extraImageUrls, ...klingElementBlobUrls].filter(
         (value): value is string => typeof value === "string" && value.startsWith("blob:")
       )
     );
@@ -310,7 +343,7 @@ export const useReferencePropertiesInteractions = ({
         releaseOwnedImageObjectUrl(url);
       }
     });
-  }, [extraImageUrls, referenceImageUrl, releaseOwnedImageObjectUrl]);
+  }, [extraImageUrls, klingElements, referenceImageUrl, releaseOwnedImageObjectUrl]);
 
   useEffect(
     () => () => {
@@ -455,6 +488,22 @@ export const useReferencePropertiesInteractions = ({
     setExtraImageLoading((prev) => prev.map((item, idx) => (idx === index ? value : item)));
   };
 
+  const setSeedanceElementImageDragActiveAt = (index: number, value: boolean) => {
+    setSeedanceElementImageDragActive((prev) =>
+      reconcileBooleanListLength(prev, seedanceElementSlotCount).map((item, idx) =>
+        idx === index ? value : item
+      )
+    );
+  };
+
+  const setSeedanceElementImageLoadingAt = (index: number, value: boolean) => {
+    setSeedanceElementImageLoading((prev) =>
+      reconcileBooleanListLength(prev, seedanceElementSlotCount).map((item, idx) =>
+        idx === index ? value : item
+      )
+    );
+  };
+
   const acceptPrimaryCanvasTearOutPayload = (payload: AgentComposerDirectDropPayload) => {
     const snapshot = resolveCanvasTearOutReferenceImageSnapshot(payload);
     if (!snapshot) return;
@@ -473,6 +522,20 @@ export const useReferencePropertiesInteractions = ({
       snapshot,
       (url) => onExtraImageChange(index, url),
       (value) => setExtraImageLoadingAt(index, value)
+    );
+  };
+
+  const acceptSeedanceElementImageCanvasTearOutPayload = (
+    index: number,
+    payload: AgentComposerDirectDropPayload
+  ) => {
+    const snapshot = resolveCanvasTearOutReferenceImageSnapshot(payload);
+    if (!snapshot || !onSeedanceElementImageSlotChange) return;
+    setSeedanceElementImageDragActiveAt(index, false);
+    void acceptImageDropSnapshot(
+      snapshot,
+      (url) => onSeedanceElementImageSlotChange(index, url),
+      (value) => setSeedanceElementImageLoadingAt(index, value)
     );
   };
 
@@ -507,6 +570,18 @@ export const useReferencePropertiesInteractions = ({
     )(event);
   };
 
+  const handleSeedanceElementImageFileSelection = (index: number) =>
+    handleFileSelection((url) => onSeedanceElementImageSlotChange?.(index, url));
+
+  const handleSeedanceElementImageDrop = (index: number) => (event: DragEvent<HTMLDivElement>) => {
+    setSeedanceElementImageDragActiveAt(index, false);
+    if (!onSeedanceElementImageSlotChange) return;
+    return handleImageDrop(
+      (url) => onSeedanceElementImageSlotChange(index, url),
+      (value) => setSeedanceElementImageLoadingAt(index, value)
+    )(event);
+  };
+
   const handlePrimaryDragEnter = (event: DragEvent<HTMLDivElement>) => {
     if (allowImageDrag(event)) {
       setPrimaryDragActive(true);
@@ -537,6 +612,24 @@ export const useReferencePropertiesInteractions = ({
 
   const handleExtraDragLeave = (index: number) => () => {
     setExtraDragActiveAt(index, false);
+  };
+
+  const handleSeedanceElementImageDragEnter =
+    (index: number) => (event: DragEvent<HTMLDivElement>) => {
+      if (allowImageDrag(event)) {
+        setSeedanceElementImageDragActiveAt(index, true);
+      }
+    };
+
+  const handleSeedanceElementImageDragOver =
+    (index: number) => (event: DragEvent<HTMLDivElement>) => {
+      if (allowImageDrag(event)) {
+        setSeedanceElementImageDragActiveAt(index, true);
+      }
+    };
+
+  const handleSeedanceElementImageDragLeave = (index: number) => () => {
+    setSeedanceElementImageDragActiveAt(index, false);
   };
 
   const allowVideoDrag = (event: DragEvent<HTMLDivElement>) => {
@@ -624,10 +717,14 @@ export const useReferencePropertiesInteractions = ({
     extraTwoInputRef,
     extraThreeInputRef,
     motionVideoInputRef,
+    seedanceElementImageInputRefs,
     primaryDragActive,
     extraDragActive,
+    seedanceElementImageDragActive,
     primaryImageLoading,
     extraImageLoading,
+    seedanceElementImageLoading,
+    setSeedanceElementImageDragActiveAt,
     motionVideoDragActive,
     setMotionVideoDragActive,
     collapsedSteps,
@@ -651,8 +748,14 @@ export const useReferencePropertiesInteractions = ({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
+    handleSeedanceElementImageFileSelection,
+    handleSeedanceElementImageDrop,
+    handleSeedanceElementImageDragEnter,
+    handleSeedanceElementImageDragOver,
+    handleSeedanceElementImageDragLeave,
     acceptPrimaryCanvasTearOutPayload,
     acceptExtraCanvasTearOutPayload,
+    acceptSeedanceElementImageCanvasTearOutPayload,
     acceptMotionVideoCanvasTearOutPayload,
     allowVideoDrag,
     handleMotionVideoDrop,

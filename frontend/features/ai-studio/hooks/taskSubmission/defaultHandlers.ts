@@ -33,6 +33,7 @@ import {
 } from "../../logic/stateParsers";
 import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
 import { resolveImageSubmissionSafetyPayload } from "./safetyPolicy";
+import { resolveImageReferenceInputLimitForModel } from "./imageReferenceLimits";
 import type { ImageSubmissionArgs } from "./types";
 
 type DefaultPollingProvider =
@@ -111,6 +112,7 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
       shortpulseSubmitPayload,
       completeGenerationImmediately,
     }) => {
+      const inputLimit = resolveImageReferenceInputLimitForModel(OPENAI_GPT_IMAGE_2_MODEL_ID);
       const size = resolveOpenAiGptImage2OutputSize({
         aspect,
         resolution: requestedResolution,
@@ -123,7 +125,7 @@ const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
               ? [inpaintOverride.referenceImageInput.trim()]
               : []),
           ]
-        : preparedImageInputs.slice(0, 8);
+        : preparedImageInputs.slice(0, inputLimit);
       const maskImageUrl = inpaintOverride?.maskInput?.trim();
       const response =
         openAiReferenceImages.length > 0 ||

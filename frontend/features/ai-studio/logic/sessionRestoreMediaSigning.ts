@@ -368,7 +368,7 @@ const resolveSessionRestoreSigningOutputs = (
 export const resolveSessionRestoreReferenceSignedUrls = async (
   refs: Array<InternalMediaRef | null | undefined>
 ): Promise<Array<string | null>> => {
-  const normalizedRefs = normalizeInternalMediaRefList(refs, 8);
+  const normalizedRefs = normalizeInternalMediaRefList(refs, 11);
   const storagePaths = Array.from(
     new Set(
       normalizedRefs

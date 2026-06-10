@@ -20,6 +20,7 @@ export type MediaLibraryDetailSelectionPayload = {
   filename?: string | null;
   promptText?: string | null;
   transcriptText?: string | null;
+  lyricsText?: string | null;
   source?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
@@ -57,6 +58,7 @@ type MediaLibraryDetailFields = {
   filename?: string | null;
   promptText?: string | null;
   transcriptText?: string | null;
+  lyricsText?: string | null;
   source?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;

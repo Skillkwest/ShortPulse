@@ -126,6 +126,12 @@ const ensureSentencePunctuation = (value: string): string =>
 const shouldHumanizeIdentifier = (value: string): boolean =>
   !/\s/.test(value) && /[_-]/.test(value);
 
+const isProviderWrapperText = (value: string | null): boolean =>
+  Boolean(
+    value &&
+    /^(ok|success|succeeded|fail|failed|failure|error|canceled|cancelled)$/i.test(value.trim())
+  );
+
 const humanizeFieldLabel = (value: string): string =>
   toSentence(value)
     .replace(/\bUrls\b/g, "URLs")
@@ -204,24 +210,48 @@ const extractStructuredProviderError = (value: unknown, depth = 0): string | nul
   }
 
   const directMessage =
-    extractStructuredProviderError(record.msg, depth + 1) ??
-    extractStructuredProviderError(record.message, depth + 1) ??
-    extractStructuredProviderError(record.error, depth + 1) ??
-    extractStructuredProviderError(record.reason, depth + 1) ??
-    extractStructuredProviderError(record.failure, depth + 1) ??
-    extractStructuredProviderError(record.description, depth + 1) ??
-    extractStructuredProviderError(record.title, depth + 1);
+    [
+      record.msg,
+      record.message,
+      record.error,
+      record.error_message,
+      record.errorMessage,
+      record.status_message,
+      record.statusMessage,
+      record.reason,
+      record.failure,
+      record.failMsg,
+      record.failMessage,
+      record.description,
+      record.title,
+    ]
+      .map((entry) => extractStructuredProviderError(entry, depth + 1))
+      .find((entry): entry is string => Boolean(entry && !isProviderWrapperText(entry))) ?? null;
 
   if (fieldLabel && directMessage) {
     return formatFieldMessage(fieldLabel, directMessage);
   }
 
   const nestedDetail = extractStructuredProviderError(record.detail, depth + 1);
+  const nestedEnvelopeMessage =
+    extractStructuredProviderError(record.data, depth + 1) ??
+    extractStructuredProviderError(record.result, depth + 1) ??
+    extractStructuredProviderError(record.response, depth + 1) ??
+    extractStructuredProviderError(record.output, depth + 1) ??
+    extractStructuredProviderError(record.payload, depth + 1) ??
+    extractStructuredProviderError(record.meta, depth + 1);
+  const codeMessage =
+    extractStructuredProviderError(record.failCode, depth + 1) ??
+    extractStructuredProviderError(record.errorCode, depth + 1) ??
+    extractStructuredProviderError(record.error_code, depth + 1) ??
+    extractStructuredProviderError(record.code, depth + 1);
   if (fieldLabel && nestedDetail) {
     return formatFieldMessage(fieldLabel, nestedDetail);
   }
   if (directMessage) return directMessage;
   if (nestedDetail) return nestedDetail;
+  if (nestedEnvelopeMessage) return nestedEnvelopeMessage;
+  if (codeMessage && !/^\d+$/.test(codeMessage)) return codeMessage;
   if (fieldLabel) return `${fieldLabel} is invalid.`;
   return null;
 };

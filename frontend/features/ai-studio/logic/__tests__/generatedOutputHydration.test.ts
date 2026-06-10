@@ -291,6 +291,37 @@ describe("generatedOutputHydration", () => {
     );
   });
 
+  it("hydrates audio source mode onto matching generated outputs", () => {
+    const existing = [
+      createOutput({
+        id: "local-audio",
+        mode: "audio",
+        generationId: "gen-audio",
+        taskId: "req-audio",
+        taskState: "running",
+        mediaSource: "generated",
+      }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-audio",
+        mode: "audio",
+        generationId: "gen-audio",
+        taskId: "req-audio",
+        taskState: "success",
+        mediaSource: "generated",
+        audioSourceMode: "music",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)[0]).toEqual(
+      expect.objectContaining({
+        id: "local-audio",
+        audioSourceMode: "music",
+      })
+    );
+  });
+
   it("prepends unseen canonical generated outputs", () => {
     const existing = [createOutput({ id: "local-existing" })];
     const hydrated = [

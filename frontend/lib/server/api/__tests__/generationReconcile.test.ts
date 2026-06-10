@@ -307,6 +307,117 @@ describe("generationReconcile", () => {
     expect(result.attempted).toBe(1);
   });
 
+  it("reconciles hidden legacy user-abandoned project generations from direct project projection", async () => {
+    const associationBuilder = createGenerationSelectBuilder([]);
+    const directProjectionBuilder = createGenerationSelectBuilder([
+      {
+        generation_id: "generation-direct-legacy",
+        request_id: "request-direct-legacy",
+        source_ref: "source-direct-legacy",
+        task_state: "fail",
+        hidden_in_reference_grid: true,
+        reference_grid_visible: false,
+        updated_at: "2026-06-08T00:05:00.000Z",
+      },
+    ]);
+    const directGenerationRowsBuilder = createGenerationSelectBuilder([
+      {
+        id: "generation-direct-legacy",
+        request_id: "request-direct-legacy",
+        status: "fail",
+        recovery_state: "exhausted",
+        failure_reason_code: "user_abandoned",
+        metadata: {
+          source_ref: "source-direct-legacy",
+          user_abandoned: true,
+          hidden_in_reference_grid: true,
+        },
+        updated_at: "2026-06-08T00:04:00.000Z",
+      },
+    ]);
+    let aiGenerationCallCount = 0;
+    fromMock.mockImplementation((table: string) => {
+      if (table === "project_generation_items") return associationBuilder;
+      if (table === "generation_projection") return directProjectionBuilder;
+      if (table === "ai_generations") {
+        aiGenerationCallCount += 1;
+        return aiGenerationCallCount === 3
+          ? directGenerationRowsBuilder
+          : createGenerationSelectBuilder([]);
+      }
+      return createGenerationSelectBuilder();
+    });
+
+    const result = await reconcileVisibleProjectGenerationsForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(directGenerationRowsBuilder.in).toHaveBeenCalledWith("id", ["generation-direct-legacy"]);
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(1);
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
+      actor: "user_reconcile",
+      generationId: "generation-direct-legacy",
+      requestId: "request-direct-legacy",
+      userId: "user-1",
+      routeLabel: "generation.reconcile",
+    });
+    expect(result.attempted).toBe(1);
+  });
+
+  it("reconciles project generations from camelCase shortpulse metadata", async () => {
+    const associationBuilder = createGenerationSelectBuilder([]);
+    const directProjectionBuilder = createGenerationSelectBuilder([]);
+    const camelMetadataRowsBuilder = createGenerationSelectBuilder([
+      {
+        id: "generation-camel-metadata",
+        request_id: "request-camel-metadata",
+        status: "running",
+        recovery_state: "queued",
+        failure_reason_code: null,
+        metadata: {
+          source_ref: "source-camel-metadata",
+          shortpulseContext: {
+            projectId: "project-1",
+          },
+        },
+        updated_at: "2026-06-08T00:04:00.000Z",
+      },
+    ]);
+    let aiGenerationCallCount = 0;
+    fromMock.mockImplementation((table: string) => {
+      if (table === "project_generation_items") return associationBuilder;
+      if (table === "generation_projection") return directProjectionBuilder;
+      if (table === "ai_generations") {
+        aiGenerationCallCount += 1;
+        return aiGenerationCallCount === 2
+          ? camelMetadataRowsBuilder
+          : createGenerationSelectBuilder([]);
+      }
+      return createGenerationSelectBuilder();
+    });
+
+    const result = await reconcileVisibleProjectGenerationsForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(camelMetadataRowsBuilder.filter).toHaveBeenCalledWith(
+      "metadata->shortpulseContext->>projectId",
+      "eq",
+      "project-1"
+    );
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(1);
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
+      actor: "user_reconcile",
+      generationId: "generation-camel-metadata",
+      requestId: "request-camel-metadata",
+      userId: "user-1",
+      routeLabel: "generation.reconcile",
+    });
+    expect(result.attempted).toBe(1);
+  });
+
   it("still reconciles direct project projection rows when project associations are unavailable", async () => {
     const associationBuilder = createGenerationSelectBuilder([], {
       message: "project_generation_items unavailable",

@@ -82,6 +82,7 @@ export function useExpertEditStageChrome({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (shouldIgnoreInlineCaptureEvent(event)) return;
       if (!beginMarkupPanGesture(event, "inline")) return;
+      event.currentTarget.focus({ preventScroll: true });
       event.stopPropagation();
     },
     [beginMarkupPanGesture, shouldIgnoreInlineCaptureEvent]

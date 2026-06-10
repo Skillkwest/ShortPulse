@@ -246,8 +246,14 @@ const parseProjectAiGenerationIdentity = (
   };
 };
 
-const toProjectIdentityDedupeKey = (identity: GenerationReconcileIdentity): string =>
-  [identity.generationId ?? "", identity.requestId ?? "", identity.sourceRef ?? ""].join(":");
+const toProjectIdentityDedupeKey = (identity: GenerationReconcileIdentity): string => {
+  const generationId = normalizeString(identity.generationId);
+  if (generationId) return `generation:${generationId}`;
+  const requestId = normalizeString(identity.requestId);
+  if (requestId) return `request:${requestId}`;
+  const sourceRef = normalizeString(identity.sourceRef);
+  return sourceRef ? `source:${sourceRef}` : "";
+};
 
 const listVisibleProjectGenerationIdentitiesForUser = async ({
   userId,
@@ -325,16 +331,26 @@ const listVisibleProjectGenerationIdentitiesForUser = async ({
     .order("updated_at", { ascending: false })
     .limit(MAX_RECONCILE_IDENTITIES);
 
+  const camelMetadataProjectGenerationRowsQuery = supabaseAdmin
+    .from("ai_generations")
+    .select(AI_GENERATION_PROJECT_RECONCILE_SELECT_COLUMNS)
+    .eq("user_id", userId)
+    .filter("metadata->shortpulseContext->>projectId", "eq", projectId)
+    .order("updated_at", { ascending: false })
+    .limit(MAX_RECONCILE_IDENTITIES);
+
   const [
     directProjectResponse,
     associatedProjectionResponse,
     associatedGenerationRowsResponse,
     metadataProjectGenerationRowsResponse,
+    camelMetadataProjectGenerationRowsResponse,
   ] = await Promise.all([
     directProjectQuery,
     associatedProjectionQuery,
     associatedGenerationRowsQuery,
     metadataProjectGenerationRowsQuery,
+    camelMetadataProjectGenerationRowsQuery,
   ]);
   if (directProjectResponse.error && associatedProjectionResponse.error) {
     throw directProjectResponse.error;
@@ -351,12 +367,40 @@ const listVisibleProjectGenerationIdentitiesForUser = async ({
     }
   };
 
-  (!directProjectResponse.error && Array.isArray(directProjectResponse.data)
-    ? directProjectResponse.data
-    : []
-  ).forEach((row) => {
+  const directProjectGenerationRecencyById = new Map<string, number | null>();
+  const directProjectRows: unknown[] =
+    !directProjectResponse.error && Array.isArray(directProjectResponse.data)
+      ? directProjectResponse.data
+      : [];
+  directProjectRows.forEach((row) => {
+    const record =
+      row && typeof row === "object" && !Array.isArray(row)
+        ? (row as Record<string, unknown>)
+        : null;
+    if (!record) return;
+    const generationId = normalizeString(record.generation_id);
+    if (generationId) {
+      directProjectGenerationRecencyById.set(
+        generationId,
+        parseIsoTimestampMs(record.started_at) ??
+          parseIsoTimestampMs(record.created_at) ??
+          parseIsoTimestampMs(record.updated_at)
+      );
+    }
     appendIdentity(parseProjectProjectionGenerationIdentity(row));
   });
+
+  const directProjectGenerationIds = [...directProjectGenerationRecencyById.keys()];
+  const directProjectGenerationRowsResponse = directProjectGenerationIds.length
+    ? await supabaseAdmin
+        .from("ai_generations")
+        .select(AI_GENERATION_PROJECT_RECONCILE_SELECT_COLUMNS)
+        .eq("user_id", userId)
+        .in("id", directProjectGenerationIds)
+        .order("updated_at", { ascending: false })
+        .limit(MAX_RECONCILE_IDENTITIES)
+    : { data: [], error: null };
+
   (!associatedProjectionResponse.error && Array.isArray(associatedProjectionResponse.data)
     ? associatedProjectionResponse.data
     : []
@@ -383,9 +427,30 @@ const listVisibleProjectGenerationIdentitiesForUser = async ({
       )
     );
   });
+  (!directProjectGenerationRowsResponse.error &&
+  Array.isArray(directProjectGenerationRowsResponse.data)
+    ? directProjectGenerationRowsResponse.data
+    : []
+  ).forEach((row) => {
+    const record = row && typeof row === "object" && !Array.isArray(row) ? row : null;
+    const generationId = normalizeString((record as Record<string, unknown> | null)?.id);
+    appendIdentity(
+      parseProjectAiGenerationIdentity(
+        row,
+        generationId ? (directProjectGenerationRecencyById.get(generationId) ?? null) : null
+      )
+    );
+  });
   (!metadataProjectGenerationRowsResponse.error &&
   Array.isArray(metadataProjectGenerationRowsResponse.data)
     ? metadataProjectGenerationRowsResponse.data
+    : []
+  ).forEach((row) => {
+    appendIdentity(parseProjectAiGenerationIdentity(row));
+  });
+  (!camelMetadataProjectGenerationRowsResponse.error &&
+  Array.isArray(camelMetadataProjectGenerationRowsResponse.data)
+    ? camelMetadataProjectGenerationRowsResponse.data
     : []
   ).forEach((row) => {
     appendIdentity(parseProjectAiGenerationIdentity(row));

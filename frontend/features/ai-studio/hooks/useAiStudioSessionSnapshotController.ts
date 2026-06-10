@@ -45,7 +45,7 @@ import type {
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
-import { prepareVideoUrl } from "../utils/videoUpload";
+import { prepareMotionReferenceVideoUrl } from "../utils/videoUpload";
 import {
   createEmptyExpertEditSecondaryImageUrls,
   normalizeExpertEditSecondaryImageUrls,
@@ -147,7 +147,7 @@ const resolveRestoredMotionVideoUrl = async (url: string | null): Promise<string
   const normalizedUrl = typeof url === "string" ? url.trim() : "";
   if (!normalizedUrl) return null;
   try {
-    return await prepareVideoUrl(normalizedUrl);
+    return await prepareMotionReferenceVideoUrl(normalizedUrl);
   } catch {
     return normalizedUrl;
   }
@@ -828,7 +828,7 @@ export const useAiStudioSessionSnapshotController = ({
         klingNegativePrompt: "",
         klingCfgScale: 0.5,
         klingWorkflowMode: "single",
-        seedance2InputMode: "text",
+        seedance2InputMode: "multimodal",
         seedance2ReferenceImageUrls: [],
         seedance2ReferenceVideoUrls: [],
         seedance2ReferenceAudioUrls: [],

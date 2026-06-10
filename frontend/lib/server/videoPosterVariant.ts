@@ -16,6 +16,8 @@ const execFileAsync = promisify(execFile);
 const MEDIA_BUCKET = "media_library";
 export const VIDEO_PREVIEW_SCALE_FILTER =
   "scale=360:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2";
+export const VIDEO_POSTER_SEEK_SECONDS = 0.5;
+export const VIDEO_POSTER_FILTER = "thumbnail,scale=720:-2:force_original_aspect_ratio=decrease";
 const VIDEO_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
   "video/mp4": "mp4",
   "video/quicktime": "mov",
@@ -58,7 +60,45 @@ const removeTempDir = async (dir: string): Promise<void> => {
 };
 
 /**
- * Extracts a JPEG poster from the first decodable frame of a video buffer.
+ * Builds ffmpeg arguments for extracting a non-zero representative poster frame.
+ */
+export const buildVideoPosterExtractionArgs = ({
+  inputPath,
+  outputPath,
+  seekSeconds = VIDEO_POSTER_SEEK_SECONDS,
+}: {
+  inputPath: string;
+  outputPath: string;
+  seekSeconds?: number;
+}): string[] => {
+  const normalizedSeekSeconds =
+    Number.isFinite(seekSeconds) && seekSeconds > 0 ? seekSeconds : VIDEO_POSTER_SEEK_SECONDS;
+  return [
+    "-y",
+    "-ss",
+    String(normalizedSeekSeconds),
+    "-i",
+    inputPath,
+    "-vf",
+    VIDEO_POSTER_FILTER,
+    "-frames:v",
+    "1",
+    "-q:v",
+    "2",
+    outputPath,
+  ];
+};
+
+const buildFallbackFirstFramePosterExtractionArgs = ({
+  inputPath,
+  outputPath,
+}: {
+  inputPath: string;
+  outputPath: string;
+}): string[] => ["-y", "-i", inputPath, "-frames:v", "1", "-q:v", "3", outputPath];
+
+/**
+ * Extracts a JPEG poster from a representative early video frame.
  */
 export const extractVideoPosterBuffer = async ({
   videoBuffer,
@@ -79,16 +119,23 @@ export const extractVideoPosterBuffer = async ({
 
   try {
     await fs.writeFile(inputPath, videoBuffer);
-    await execFileAsync(ffmpegStatic, [
-      "-y",
-      "-i",
-      inputPath,
-      "-frames:v",
-      "1",
-      "-q:v",
-      "3",
-      outputPath,
-    ]);
+    try {
+      await execFileAsync(
+        ffmpegStatic,
+        buildVideoPosterExtractionArgs({
+          inputPath,
+          outputPath,
+        })
+      );
+    } catch {
+      await execFileAsync(
+        ffmpegStatic,
+        buildFallbackFirstFramePosterExtractionArgs({
+          inputPath,
+          outputPath,
+        })
+      );
+    }
     return await fs.readFile(outputPath);
   } catch {
     return null;

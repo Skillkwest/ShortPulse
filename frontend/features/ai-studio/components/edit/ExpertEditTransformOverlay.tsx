@@ -10,6 +10,7 @@ type ExpertEditTransformOverlayProps = {
   scope: "inline" | "modal";
   viewportWidth: number;
   viewportHeight: number;
+  viewportScale?: number;
   imageAspectRatio: number;
   transform: LayerTransform;
   interactionHandlers?: Pick<
@@ -25,6 +26,7 @@ export function ExpertEditTransformOverlay({
   scope,
   viewportWidth,
   viewportHeight,
+  viewportScale = 1,
   imageAspectRatio,
   transform,
   interactionHandlers,
@@ -33,6 +35,7 @@ export function ExpertEditTransformOverlay({
     imageAspectRatio,
     viewportWidth,
     viewportHeight,
+    viewportScale,
     transform,
   });
   const layerRect = layerGeometry.containedRect;

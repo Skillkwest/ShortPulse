@@ -1494,6 +1494,49 @@ describe("sessionSnapshotHydrator", () => {
     });
   });
 
+  it("preserves Seedance direct image reference slots during hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          klingElements: [
+            {
+              id: "image-ref-1",
+              slotIndex: 1,
+              sourceKind: "reference-image",
+              sourceElementId: null,
+              sourceCharacterId: null,
+              name: "Image reference",
+              alias: "",
+              description: "",
+              profileImageUrl: "https://example.com/direct-image.png",
+              profileImageTransform: null,
+              frontalImageUrl: "https://example.com/direct-image.png",
+              referenceImageUrls: "",
+              videoUrl: "",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(payload.workspace.klingElements[0]).toEqual({
+      id: "image-ref-1",
+      slotIndex: 1,
+      sourceKind: "reference-image",
+      sourceElementId: null,
+      sourceCharacterId: null,
+      name: "Image reference",
+      alias: "",
+      description: "",
+      profileImageUrl: "https://example.com/direct-image.png",
+      profileImageTransform: null,
+      frontalImageUrl: "https://example.com/direct-image.png",
+      referenceImageUrls: "",
+      videoUrl: "",
+    });
+  });
+
   it("keeps blank-name legacy alias payloads available for restore fallback", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

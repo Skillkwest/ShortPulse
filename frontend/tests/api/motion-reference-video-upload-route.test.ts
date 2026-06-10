@@ -10,6 +10,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const normalizeMotionReferenceVideoForProviderMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -21,6 +22,21 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../../lib/server/motionReferenceVideoNormalization", () => ({
+  MotionReferenceVideoNormalizationError: class MotionReferenceVideoNormalizationError extends Error {
+    readonly status: number;
+    readonly details?: string;
+
+    constructor(status: number, message: string, details?: string) {
+      super(message);
+      this.status = status;
+      this.details = details;
+    }
+  },
+  normalizeMotionReferenceVideoForProvider: (...args: unknown[]) =>
+    normalizeMotionReferenceVideoForProviderMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -41,6 +57,21 @@ describe("motion reference video direct-upload routes", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    normalizeMotionReferenceVideoForProviderMock.mockImplementation(
+      async ({
+        buffer,
+        filename,
+        mimeType,
+      }: {
+        buffer: Buffer;
+        filename: string;
+        mimeType: string;
+      }) => ({
+        buffer,
+        filename,
+        mimeType,
+      })
+    );
   });
 
   it("prepares a signed upload target for codec-bearing WebM recordings", async () => {
@@ -88,8 +119,17 @@ describe("motion reference video direct-upload routes", () => {
     });
   });
 
-  it("stages a prepared WebM clip into the motion-control storage namespace", async () => {
+  it("stages a prepared WebM clip as a provider-ready MP4 motion source", async () => {
     const rawBody = buildWebmVideoTrackSignature();
+    const normalizedBody = Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x00, 0x18]),
+      Buffer.from("ftypmp42", "ascii"),
+    ]);
+    normalizeMotionReferenceVideoForProviderMock.mockResolvedValueOnce({
+      buffer: normalizedBody,
+      filename: "motion-reference.mp4",
+      mimeType: "video/mp4",
+    });
     const uploadMock = vi.fn(async () => ({ error: null }));
     const removeMock = vi.fn(async () => ({ data: [], error: null }));
     const createSignedUrlMock = vi.fn(async () => ({
@@ -135,20 +175,25 @@ describe("motion reference video direct-upload routes", () => {
     expect(downloadMock).toHaveBeenCalledWith(
       "user-1/upload-staging/videos/motion-control/staged.webm"
     );
+    expect(normalizeMotionReferenceVideoForProviderMock).toHaveBeenCalledWith({
+      buffer: rawBody,
+      filename: "motion-reference.webm",
+      mimeType: "video/webm",
+    });
     expect(uploadMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^user-1\/videos\/motion-control\/.*motion-reference\.webm$/),
+      expect.stringMatching(/^user-1\/videos\/motion-control\/.*motion-reference\.mp4$/),
       expect.any(Buffer),
-      expect.objectContaining({ contentType: "video/webm", upsert: false })
+      expect.objectContaining({ contentType: "video/mp4", upsert: false })
     );
     expect(removeMock).toHaveBeenCalledWith([
       "user-1/upload-staging/videos/motion-control/staged.webm",
     ]);
     expect(res.json).toHaveBeenCalledWith({
       url: "https://signed.example/motion-video",
-      path: expect.stringMatching(/^user-1\/videos\/motion-control\/.*motion-reference\.webm$/),
-      size: rawBody.length,
-      mimeType: "video/webm",
-      name: "motion-reference.webm",
+      path: expect.stringMatching(/^user-1\/videos\/motion-control\/.*motion-reference\.mp4$/),
+      size: normalizedBody.length,
+      mimeType: "video/mp4",
+      name: "motion-reference.mp4",
     });
   });
 });

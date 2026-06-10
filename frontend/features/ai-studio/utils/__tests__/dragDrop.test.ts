@@ -1479,6 +1479,31 @@ describe("dragDrop payload extraction", () => {
     expect(payload?.height).toBe(1080);
   });
 
+  it("normalizes relative audio media paths in internal reference payloads", () => {
+    const transfer = makeTransfer({
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-version": "1",
+      "text/reference-id": "audio-123",
+      "text/reference-output-id": "audio-123",
+      "text/reference-media-kind": "audio",
+      "text/reference-url": "/storage/v1/object/sign/media/audio/reference.mp3?token=abc",
+      "text/reference-render-url": "/storage/v1/object/sign/media/audio/reference.mp3?token=abc",
+      "text/reference-full-storage-path":
+        "/storage/v1/object/sign/media/audio/reference.mp3?token=abc",
+    });
+
+    const payload = extractInternalReferenceDragPayload(transfer);
+    const expectedUrl = new URL(
+      "/storage/v1/object/sign/media/audio/reference.mp3?token=abc",
+      window.location.href
+    ).toString();
+
+    expect(payload?.mediaKind).toBe("audio");
+    expect(payload?.referenceUrl).toBe(expectedUrl);
+    expect(payload?.referenceRenderUrl).toBe(expectedUrl);
+    expect(payload?.fullStoragePath).toBe(expectedUrl);
+  });
+
   it("ignores invalid internal reference dimension metadata", () => {
     const transfer = makeTransfer({
       "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,

@@ -9,6 +9,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
 - Canonical source reference: `https://api.kie.ai/api/v1/jobs/createTask` (Kling 3.0 market docs)
 - Runtime status: always on for `kie-ai/kling-3.0`; no rollout allowlist or enable flag is required for this model lane
 - Primary-source snapshot: captured from Kie docs on `2026-03-01`
+- Motion Control file/duration refresh: verified from Kie docs on `2026-06-10`
 
 ## Current Runtime Contract
 
@@ -34,7 +35,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - media URLs must be valid `http(s)` URLs
   - image/video file extensions are fail-closed allowlisted
     - images: `jpg|jpeg|png|webp|gif|heic|heif|avif`
-    - videos (motion control): `mp4|webm|mov|m4v`
+    - videos (motion control): `mp4|mov`
   - signed media URLs with embedded JWT `token` are rejected when TTL is too short (`<=120s`)
   - remote media probe rejects non-success fetch status before provider dispatch (`HTTP 2xx` required)
   - remote media probe rejects content-type mismatches (`image/*` for images, `video/*` for videos; `application/octet-stream` remains compatibility-accepted)
@@ -56,6 +57,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - Motion UI hides aspect and duration because the motion-control provider payload does not use them.
   - Motion UI keeps audio enabled as a supported setting for this lane.
   - Motion cost estimate is intentionally suppressed until provider-backed billing evidence exists for this lane.
+  - Motion reference source videos must be provider-facing MP4 or QuickTime/MOV and 3-30 seconds. Local/browser-recorded MP4, MOV, and WebM are accepted only as ShortPulse intake formats and are normalized to canonical MP4 before the Motion slot receives the provider-facing URL.
 
 ## Product-facing payload rules
 

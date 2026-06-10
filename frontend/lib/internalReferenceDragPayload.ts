@@ -15,7 +15,7 @@ import {
 
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
 const RELATIVE_MEDIA_PATH_HINT_PATTERN =
-  /^\/(?:_next\/image|storage\/|.*\.(?:avif|bmp|gif|heic|heif|jpe?g|png|webp|m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#]))/i;
+  /^\/(?:_next\/image|storage\/|.*\.(?:aac|avif|bmp|flac|gif|heic|heif|jpe?g|m4a|mp3|oga|ogg|png|wav|webp|m4v|mov|mp4|ogv|webm)(?:$|[?#]))/i;
 
 const INTERNAL_REFERENCE_DRAG_VERSION = 1;
 const REFERENCE_TRANSFER_ORIGIN_TYPE = "text/reference-origin";

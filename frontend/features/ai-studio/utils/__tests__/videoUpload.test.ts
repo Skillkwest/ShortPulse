@@ -56,20 +56,22 @@ describe("videoUpload", () => {
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          url: "https://signed.example/motion-reference.webm",
-          path: "user-1/videos/motion-control/ref.webm",
-          size: file.size,
-          mimeType: "video/webm",
-          name: "motion-reference.webm",
+          url: "https://signed.example/motion-reference.mp4",
+          path: "user-1/videos/motion-control/ref.mp4",
+          size: 1024,
+          mimeType: "video/mp4",
+          name: "motion-reference.mp4",
         })
       );
 
     const uploaded = await uploadVideoFileToStorage(file);
 
     expect(uploaded).toEqual({
-      url: "https://signed.example/motion-reference.webm",
-      path: "user-1/videos/motion-control/ref.webm",
-      size: file.size,
+      url: "https://signed.example/motion-reference.mp4",
+      path: "user-1/videos/motion-control/ref.mp4",
+      size: 1024,
+      mimeType: "video/mp4",
+      name: "motion-reference.mp4",
     });
     expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
       1,

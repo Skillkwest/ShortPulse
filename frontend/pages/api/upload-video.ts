@@ -152,6 +152,7 @@ export default async function handler(
       userId: user.id,
       defaultDestinationTab: "uploaded_videos",
       storageFolderOverride: MOTION_CONTROL_STORAGE_FOLDER,
+      normalizeMotionReferenceVideo: true,
     });
     await logLegacyUploadAdapterUsage({
       req,

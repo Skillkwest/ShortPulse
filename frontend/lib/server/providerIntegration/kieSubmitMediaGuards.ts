@@ -15,7 +15,7 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set([
   "heif",
   "avif",
 ]);
-const ALLOWED_VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v"]);
+const ALLOWED_VIDEO_EXTENSIONS = new Set(["mp4", "mov"]);
 const MIN_SIGNED_URL_TTL_SECONDS = 120;
 const MEDIA_PROBE_TIMEOUT_MS = 5000;
 

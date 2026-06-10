@@ -59,6 +59,29 @@ Mitigation:
 - Re-upload a smaller reference image and retry the generation.
 - If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the active route (`media-upload` for Reference Grid / Media Library intake or `media-stage-reference-image` for staged local reference preflight).
 
+## Kling Motion Control returns `File type not supported`
+
+Symptoms:
+
+- The Video panel is in Motion Control mode and a recorded/local motion clip appears in the Motion slot.
+- Generate fails with a `Kling 3.0` banner or failure card that says `File type not supported`.
+
+Interpretation:
+
+- Kie Kling 3.0 Motion Control accepts provider-facing MP4 or QuickTime/MOV videos only, with a 3-30 second duration window.
+- User-selected or browser-recorded MP4, MOV, and WebM clips are ShortPulse intake formats only. Motion Control staging normalizes every clip to canonical provider-facing MP4 so provider-hostile MP4 encodings do not reach Kie unchanged.
+
+Checklist:
+
+- Confirm `POST /api/media/stage-motion-reference-video` returned a `mimeType` of `video/mp4` or `video/quicktime` and a final path ending in `.mp4` or `.mov`.
+- Confirm the recorder modal stopped the capture at 30 seconds or the uploaded clip is already between 3 and 30 seconds.
+- Confirm Kie submit preflight rejects any remaining provider-facing `.webm` Motion Control URL before dispatch.
+
+Mitigation:
+
+- Re-record or reselect a clip of 3-30 seconds, then use the modal `Use clip` action or normal Motion slot upload so the normalized MP4 path is used.
+- If an old signed URL is already in the Motion slot from before canonical normalization, remove it and re-add the clip through the current Motion Control upload path.
+
 ## Admin runtime/API error handoff workflow
 
 Use the `/admin` Errors panel `Copy triage` buttons as the default handoff format.

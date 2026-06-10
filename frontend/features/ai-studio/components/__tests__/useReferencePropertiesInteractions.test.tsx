@@ -8,6 +8,12 @@ import {
 import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
 
+const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: getSignedMediaUrlMock,
+}));
+
 const makeInternalReferenceDragEvent = (overrides?: {
   mediaKind?: "image" | "video" | "audio" | "text";
   referenceUrl?: string;
@@ -61,6 +67,10 @@ const createMotionDropEvent = (overrides?: {
   mediaKind?: "image" | "video" | "audio" | "text";
   referenceId?: string;
   referenceUrl?: string;
+  outputId?: string;
+  origin?: string;
+  previewStoragePath?: string;
+  fullStoragePath?: string;
   files?: File[];
 }) =>
   ({
@@ -70,13 +80,22 @@ const createMotionDropEvent = (overrides?: {
       files: (overrides?.files ?? []) satisfies File[] as unknown as FileList,
       types: [
         ...(overrides?.referenceId ? ["text/reference-id"] : []),
+        ...(overrides?.outputId ? ["text/reference-output-id"] : []),
+        ...(overrides?.origin ? ["text/reference-origin"] : []),
         ...(overrides?.referenceUrl ? ["text/reference-url"] : []),
         ...(overrides?.mediaKind ? ["text/reference-media-kind"] : []),
+        ...(overrides?.previewStoragePath ? ["text/reference-preview-storage-path"] : []),
+        ...(overrides?.fullStoragePath ? ["text/reference-full-storage-path"] : []),
       ],
       getData: vi.fn((type: string) => {
         if (type === "text/reference-id") return overrides?.referenceId ?? "";
+        if (type === "text/reference-output-id") return overrides?.outputId ?? "";
+        if (type === "text/reference-origin") return overrides?.origin ?? "";
         if (type === "text/reference-url") return overrides?.referenceUrl ?? "";
         if (type === "text/reference-media-kind") return overrides?.mediaKind ?? "";
+        if (type === "text/reference-preview-storage-path")
+          return overrides?.previewStoragePath ?? "";
+        if (type === "text/reference-full-storage-path") return overrides?.fullStoragePath ?? "";
         return "";
       }),
     },
@@ -143,6 +162,7 @@ describe("useReferencePropertiesInteractions", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    getSignedMediaUrlMock.mockReset();
   });
 
   afterEach(() => {
@@ -581,6 +601,48 @@ describe("useReferencePropertiesInteractions", () => {
     expect(resolveMotionVideoUrlById).toHaveBeenCalledWith("out-1");
     expect(resolvePreviewUrlById).not.toHaveBeenCalled();
     expect(onMotionVideoChange).toHaveBeenCalledWith("https://example.com/reference-video.mp4");
+  });
+
+  it("signs storage-backed internal video drags for motion drops when no playable URL is exposed", async () => {
+    const onMotionVideoChange = vi.fn();
+    getSignedMediaUrlMock.mockResolvedValue(
+      "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/generations/videos/reference-video.mp4?token=fresh"
+    );
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const event = createMotionDropEvent({
+      mediaKind: "video",
+      referenceId: "out-video-storage",
+      outputId: "out-video-storage",
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      previewStoragePath: "user-1/generations/video-posters/reference-video.jpg",
+      fullStoragePath: "user-1/generations/videos/reference-video.mp4",
+    });
+
+    await act(async () => {
+      await result.current.handleMotionVideoDrop(event);
+    });
+
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/generations/videos/reference-video.mp4",
+      previewProfile: "none",
+    });
+    expect(onMotionVideoChange).toHaveBeenCalledWith(
+      "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/generations/videos/reference-video.mp4?token=fresh"
+    );
   });
 
   it("remembers file-selected image blobs for later submission reuse", async () => {

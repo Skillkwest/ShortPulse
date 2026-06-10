@@ -8,7 +8,7 @@ import { Camera, CircleNotch, DownloadSimple, X } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { attemptOpenCapturePermissionSettings } from "../utils/capturePermissionRecovery";
-import { uploadVideoFileToStorage } from "../utils/videoUpload";
+import { uploadVideoFileToStorage, type VideoUploadResult } from "../utils/videoUpload";
 import { AiStudioRecordPanelPrefab } from "./AiStudioRecordPanelPrefab";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
@@ -33,6 +33,8 @@ type BrowserMediaRecorder = typeof MediaRecorder;
 
 const MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY =
   "shortpulse.aiStudio.motionRecorder.preferredVideoDeviceId";
+const MOTION_REFERENCE_MAX_RECORDING_MS = 30_000;
+const MOTION_REFERENCE_DOWNLOAD_FALLBACK_NAME = "motion-reference.mp4";
 
 const isClient = (): boolean => typeof window !== "undefined" && typeof navigator !== "undefined";
 
@@ -82,6 +84,51 @@ const resolveRecordingExtension = (mimeType: string): string => {
   if (normalized.includes("mp4")) return "mp4";
   if (normalized.includes("quicktime")) return "mov";
   return "webm";
+};
+
+const resolvePreparedClipDownloadName = (
+  preparedClipUpload: VideoUploadResult,
+  recordedClipFile: File
+): string => {
+  const preparedName = preparedClipUpload.name?.trim();
+  if (preparedName) return preparedName;
+  const recordedBaseName = recordedClipFile.name.trim().replace(/\.[^/.]+$/, "");
+  return `${recordedBaseName || "motion-reference"}.mp4`;
+};
+
+const triggerClipDownload = async ({
+  url,
+  filename,
+}: {
+  url: string;
+  filename: string;
+}): Promise<void> => {
+  let downloadUrl = url;
+  let objectUrl: string | null = null;
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      const blob = await response.blob();
+      objectUrl = URL.createObjectURL(blob);
+      downloadUrl = objectUrl;
+    }
+  } catch {
+    // Fall back to the signed URL when CORS or browser policy blocks blob conversion.
+  }
+
+  const downloadLink = document.createElement("a");
+  downloadLink.href = downloadUrl;
+  downloadLink.download = filename || MOTION_REFERENCE_DOWNLOAD_FALLBACK_NAME;
+  downloadLink.rel = "noopener";
+  downloadLink.style.display = "none";
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+
+  if (objectUrl) {
+    const disposableObjectUrl = objectUrl;
+    window.setTimeout(() => URL.revokeObjectURL(disposableObjectUrl), 0);
+  }
 };
 
 const resolveRecordingUnavailableFeedback = (): CaptureFeedback => {
@@ -252,6 +299,9 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   const [recordingElapsedMs, setRecordingElapsedMs] = React.useState(0);
   const [recordedClipUrl, setRecordedClipUrl] = React.useState<string | null>(null);
   const [recordedClipFile, setRecordedClipFile] = React.useState<File | null>(null);
+  const [preparedClipUpload, setPreparedClipUpload] = React.useState<VideoUploadResult | null>(
+    null
+  );
   const [captureError, setCaptureError] = React.useState<string | null>(null);
   const [captureRecoveryHint, setCaptureRecoveryHint] = React.useState<string | null>(null);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
@@ -288,6 +338,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     revokeRecordedObjectUrl();
     setRecordedClipUrl(null);
     setRecordedClipFile(null);
+    setPreparedClipUpload(null);
   }, [revokeRecordedObjectUrl]);
 
   const loadDeviceOptions = React.useCallback(async () => {
@@ -535,6 +586,14 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   }, [isRecording]);
 
   React.useEffect(() => {
+    if (!isRecording) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      recorderRef.current?.stop();
+    }, MOTION_REFERENCE_MAX_RECORDING_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [isRecording]);
+
+  React.useEffect(() => {
     const permissionStatuses = permissionStatusRef.current;
     return () => {
       if (permissionStatuses.camera) {
@@ -658,7 +717,8 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     setIsUploadingClip(true);
     setUploadError(null);
     try {
-      const uploaded = await uploadVideoFileToStorage(recordedClipFile);
+      const uploaded = preparedClipUpload ?? (await uploadVideoFileToStorage(recordedClipFile));
+      setPreparedClipUpload(uploaded);
       onApplyVideo(uploaded.url);
       onClose();
     } catch (error) {
@@ -670,19 +730,29 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     } finally {
       setIsUploadingClip(false);
     }
-  }, [onApplyVideo, onClose, recordedClipFile]);
+  }, [onApplyVideo, onClose, preparedClipUpload, recordedClipFile]);
 
-  const handleDownloadClipClick = React.useCallback(() => {
-    if (!recordedClipFile || !recordedClipUrl) return;
-    const downloadLink = document.createElement("a");
-    downloadLink.href = recordedClipUrl;
-    downloadLink.download = recordedClipFile.name || "motion-reference.webm";
-    downloadLink.rel = "noopener";
-    downloadLink.style.display = "none";
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
-  }, [recordedClipFile, recordedClipUrl]);
+  const handleDownloadClipClick = React.useCallback(async () => {
+    if (!recordedClipFile) return;
+    setIsUploadingClip(true);
+    setUploadError(null);
+    try {
+      const uploaded = preparedClipUpload ?? (await uploadVideoFileToStorage(recordedClipFile));
+      setPreparedClipUpload(uploaded);
+      await triggerClipDownload({
+        url: uploaded.url,
+        filename: resolvePreparedClipDownloadName(uploaded, recordedClipFile),
+      });
+    } catch (error) {
+      setUploadError(
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Unable to download the recorded clip right now."
+      );
+    } finally {
+      setIsUploadingClip(false);
+    }
+  }, [preparedClipUpload, recordedClipFile]);
 
   const handleVideoDeviceChange = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -721,7 +791,8 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   ]);
   const modalRecordRecoveryHint = React.useMemo(() => {
     if (captureError) return captureRecoveryHint;
-    if (isRecording) return "Click Stop when the motion reference is complete.";
+    if (isRecording)
+      return "Click Stop when the motion reference is complete. Recording stops at 30 seconds.";
     if (isRequestingAccess) return null;
     if (!hasRequestedCameraAccess) return null;
     return permissionPreflightFeedback?.recoveryHint ?? null;
@@ -874,7 +945,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                         uploadError
                           ? uploadError
                           : isUploadingClip
-                            ? "Adding recorded clip..."
+                            ? "Preparing recorded clip..."
                             : "Recorded clip ready to add."
                       }
                       role={uploadError ? "alert" : "status"}
@@ -884,7 +955,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                       {uploadError
                         ? "The recording is still here. You can retry staging it without recording again."
                         : isUploadingClip
-                          ? "Adding to Motion Control now."
+                          ? "Converting to a Motion Control-ready MP4 now."
                           : "Use clip replaces the current motion reference video. Retake keeps you in the recorder until you like the result."}
                     </p>
                   </>

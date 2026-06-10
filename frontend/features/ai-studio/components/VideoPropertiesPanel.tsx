@@ -33,7 +33,7 @@ import {
   getLipSyncAudioPlaybackUrl,
   isNonDurableLipSyncAudioUrl,
 } from "../logic/lipSyncAudioState";
-import { uploadAudioAssetToStorage } from "../utils/audioUpload";
+import { uploadAudioBlobToStorage } from "../utils/audioUpload";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -105,6 +105,35 @@ function isSeedance2FamilyModelId(modelId: string | null): boolean {
     (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID)
   );
 }
+
+const resolveDurableLipSyncDropAudioUrl = (
+  payload: Extract<AgentComposerDirectDropPayload, { kind: "audio" }>
+): { url: string | null; storagePath: string | null } => {
+  const internalPayload = payload.internalPayload;
+  const candidates = [
+    internalPayload?.referenceUrl,
+    internalPayload?.referenceRenderUrl,
+    internalPayload?.fullStoragePath,
+    internalPayload?.previewStoragePath,
+    payload.audioUrl,
+  ];
+  const url =
+    candidates.find(
+      (candidate): candidate is string =>
+        typeof candidate === "string" && !isNonDurableLipSyncAudioUrl(candidate)
+    ) ?? null;
+  const storagePath =
+    [internalPayload?.fullStoragePath, internalPayload?.previewStoragePath]
+      .map((candidate) => candidate?.trim() ?? "")
+      .find(
+        (candidate) =>
+          candidate.length > 0 &&
+          isNonDurableLipSyncAudioUrl(candidate) &&
+          !candidate.startsWith("blob:") &&
+          !candidate.startsWith("data:")
+      ) || null;
+  return { url, storagePath };
+};
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -407,7 +436,10 @@ export function VideoPropertiesPanel({
         })
       );
       try {
-        const uploaded = await uploadAudioAssetToStorage(previewUrl);
+        const uploaded = await uploadAudioBlobToStorage(file, {
+          sourceName: file.name,
+          mimeType: file.type,
+        });
         if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) return;
         applyLipSyncAudio(
           createReadyLipSyncAudioState({
@@ -478,14 +510,16 @@ export function VideoPropertiesPanel({
     (payload: AgentComposerDirectDropPayload) => {
       if (payload.kind !== "audio") return;
       setLipSyncAudioDragActive(false);
+      const resolvedAudio = resolveDurableLipSyncDropAudioUrl(payload);
       applyLipSyncAudio(
-        isNonDurableLipSyncAudioUrl(payload.audioUrl)
-          ? createFailedNonDurableLipSyncAudioState()
-          : createLipSyncAudioStateFromDurableUrl({
-              url: payload.audioUrl,
+        resolvedAudio.url
+          ? createLipSyncAudioStateFromDurableUrl({
+              url: resolvedAudio.url,
               durationMs: payload.durationMs ?? null,
               sourceKind: "canvas",
+              storagePath: resolvedAudio.storagePath,
             })
+          : createFailedNonDurableLipSyncAudioState(payload.audioUrl)
       );
     },
     [applyLipSyncAudio]

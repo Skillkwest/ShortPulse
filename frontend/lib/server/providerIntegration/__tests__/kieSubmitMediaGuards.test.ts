@@ -104,6 +104,24 @@ describe("kieSubmitMediaGuards", () => {
     expect(result.detail.reason).toBe("unsupported_extension");
   });
 
+  it("rejects WebM motion-control videos before provider submit", async () => {
+    const result = await validateKieKlingSubmitMediaInputs({
+      payload: {
+        model: "kling-3.0/motion-control",
+        input: {
+          input_urls: ["https://cdn.example.com/character.png"],
+          video_urls: ["https://cdn.example.com/motion.webm"],
+        },
+      },
+      signal: new AbortController().signal,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("KIE_MEDIA_INPUT_INVALID");
+    expect(result.detail.reason).toBe("unsupported_extension");
+    expect(result.detail.expected_kind).toBe("video");
+  });
+
   it("rejects signed URLs that are about to expire", async () => {
     const result = await validateKieKlingSubmitMediaInputs({
       payload: {

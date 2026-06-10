@@ -9,6 +9,7 @@ const logApiRouteExceptionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const retireMotionReferenceVideoStoragePathForUserMock = vi.fn();
+const normalizeMotionReferenceVideoForProviderMock = vi.hoisted(() => vi.fn());
 
 let mockParseError: Error | null = null;
 let mockFile = {
@@ -51,6 +52,21 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 vi.mock("../../lib/server/motionReferenceVideoAssetLease", () => ({
   retireMotionReferenceVideoStoragePathForUser: (...args: unknown[]) =>
     retireMotionReferenceVideoStoragePathForUserMock(...args),
+}));
+
+vi.mock("../../lib/server/motionReferenceVideoNormalization", () => ({
+  MotionReferenceVideoNormalizationError: class MotionReferenceVideoNormalizationError extends Error {
+    readonly status: number;
+    readonly details?: string;
+
+    constructor(status: number, message: string, details?: string) {
+      super(message);
+      this.status = status;
+      this.details = details;
+    }
+  },
+  normalizeMotionReferenceVideoForProvider: (...args: unknown[]) =>
+    normalizeMotionReferenceVideoForProviderMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -101,6 +117,21 @@ describe("/api/upload-video", () => {
       deleted: false,
       waitingOnLease: true,
     });
+    normalizeMotionReferenceVideoForProviderMock.mockImplementation(
+      async ({
+        buffer,
+        filename,
+        mimeType,
+      }: {
+        buffer: Buffer;
+        filename: string;
+        mimeType: string;
+      }) => ({
+        buffer,
+        filename,
+        mimeType,
+      })
+    );
     mockParseError = null;
     mockFile = {
       filepath: "/tmp/mock-video",
@@ -356,8 +387,17 @@ describe("/api/upload-video", () => {
     });
   });
 
-  it("returns detected audio/webm when a webm upload is audio-only", async () => {
-    const rawBody = buildWebmTrackSignature(0x02);
+  it("normalizes WebM motion-control uploads to provider-ready MP4", async () => {
+    const rawBody = buildWebmTrackSignature(0x01);
+    const normalizedBody = Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x00, 0x18]),
+      Buffer.from("ftypmp42", "ascii"),
+    ]);
+    normalizeMotionReferenceVideoForProviderMock.mockResolvedValueOnce({
+      buffer: normalizedBody,
+      filename: "sample.mp4",
+      mimeType: "video/mp4",
+    });
     const uploadMock = vi.fn(async () => ({ error: null }));
     const createSignedUrlMock = vi.fn(async () => ({
       data: {
@@ -393,17 +433,57 @@ describe("/api/upload-video", () => {
     });
     await handlerPromise;
 
+    expect(normalizeMotionReferenceVideoForProviderMock).toHaveBeenCalledWith({
+      buffer: rawBody,
+      filename: "sample.webm",
+      mimeType: "video/webm",
+    });
     expect(uploadMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      expect.stringMatching(/^user-1\/videos\/motion-control\/.*sample\.mp4$/),
       expect.any(Buffer),
-      expect.objectContaining({ contentType: "audio/webm", upsert: false })
+      expect.objectContaining({ contentType: "video/mp4", upsert: false })
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       url: "https://signed.example/motion-video",
-      path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
-      size: rawBody.length,
-      mimeType: "audio/webm",
+      path: expect.stringMatching(/^user-1\/videos\/motion-control\/.*sample\.mp4$/),
+      size: normalizedBody.length,
+      mimeType: "video/mp4",
+    });
+  });
+
+  it("rejects audio-only WebM uploads for motion-control sources", async () => {
+    const rawBody = buildWebmTrackSignature(0x02);
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(),
+      },
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "video/webm",
+        "x-shortpulse-upload-filename": "sample.webm",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", rawBody);
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(normalizeMotionReferenceVideoForProviderMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid file type",
+      details: "Motion reference source must be a playable video between 3 and 30 seconds.",
     });
   });
 

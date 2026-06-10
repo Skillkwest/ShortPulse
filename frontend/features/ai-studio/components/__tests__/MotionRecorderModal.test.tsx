@@ -1,6 +1,6 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MotionRecorderModal } from "../MotionRecorderModal";
 
 const uploadVideoFileToStorageMock = vi.fn();
@@ -22,6 +22,11 @@ describe("MotionRecorderModal", () => {
       writable: true,
       value: null,
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("starts the preview on open, then records and stages a motion clip into the canonical motion URL flow", async () => {
@@ -86,9 +91,11 @@ describe("MotionRecorderModal", () => {
     vi.stubGlobal("MediaRecorder", MockMediaRecorder);
 
     uploadVideoFileToStorageMock.mockResolvedValue({
-      url: "https://example.com/staged-motion.webm",
-      path: "videos/motion-control/staged-motion.webm",
-      size: 14,
+      url: "https://example.com/staged-motion.mp4",
+      path: "videos/motion-control/staged-motion.mp4",
+      size: 1024,
+      mimeType: "video/mp4",
+      name: "motion-reference.mp4",
     });
 
     const onApplyVideo = vi.fn();
@@ -112,7 +119,7 @@ describe("MotionRecorderModal", () => {
       expect(uploadVideoFileToStorageMock).toHaveBeenCalledWith(expect.any(File));
     });
 
-    expect(onApplyVideo).toHaveBeenCalledWith("https://example.com/staged-motion.webm");
+    expect(onApplyVideo).toHaveBeenCalledWith("https://example.com/staged-motion.mp4");
     expect(onClose).toHaveBeenCalled();
     expect(mediaStreamTrackStop).toHaveBeenCalled();
   });
@@ -148,7 +155,24 @@ describe("MotionRecorderModal", () => {
         })),
       },
     });
-    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:recorded-motion-clip");
+    vi.spyOn(URL, "createObjectURL")
+      .mockReturnValueOnce("blob:recorded-motion-clip")
+      .mockReturnValueOnce("blob:normalized-motion-clip");
+    uploadVideoFileToStorageMock.mockResolvedValue({
+      url: "https://signed.example/motion-reference.mp4",
+      path: "user-1/videos/motion-control/motion-reference.mp4",
+      size: 1024,
+      mimeType: "video/mp4",
+      name: "motion-reference.mp4",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new Blob(["normalized-mp4"], { type: "video/mp4" }), {
+          status: 200,
+        })
+      )
+    );
 
     class MockMediaRecorder {
       static isTypeSupported(type: string) {
@@ -200,13 +224,94 @@ describe("MotionRecorderModal", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Download clip" }));
 
+    await waitFor(() => {
+      expect(linkClickMock).toHaveBeenCalledTimes(1);
+    });
+    expect(uploadVideoFileToStorageMock).toHaveBeenCalledWith(expect.any(File));
     expect(createElementSpy).toHaveBeenCalledWith("a");
     const anchor = createElementSpy.mock.results.find(
       (result) => result.type === "return" && result.value instanceof HTMLAnchorElement
     )?.value as HTMLAnchorElement | undefined;
-    expect(anchor?.href).toBe("blob:recorded-motion-clip");
-    expect(anchor?.download).toMatch(/^motion-reference-\d+\.webm$/);
-    expect(linkClickMock).toHaveBeenCalledTimes(1);
+    expect(anchor?.href).toBe("blob:normalized-motion-clip");
+    expect(anchor?.download).toBe("motion-reference.mp4");
+  });
+
+  it("automatically stops recording at the Motion Control provider maximum", async () => {
+    const mediaStream = {
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
+    };
+    const getUserMediaMock = vi.fn().mockResolvedValue(mediaStream);
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: getUserMediaMock,
+        enumerateDevices: vi.fn().mockResolvedValue([
+          {
+            deviceId: "camera-1",
+            groupId: "group-camera-1",
+            kind: "videoinput",
+            label: "Front Camera",
+            toJSON: () => ({}),
+          },
+        ]),
+      },
+    });
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      configurable: true,
+      value: {
+        query: vi.fn(async ({ name }: { name: string }) => ({
+          name,
+          state: "granted",
+          onchange: null,
+        })),
+      },
+    });
+
+    const stopMock = vi.fn();
+    class MockMediaRecorder {
+      static isTypeSupported(type: string) {
+        return type === "video/webm;codecs=vp9,opus" || type === "video/webm";
+      }
+
+      mimeType: string;
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+
+      constructor(_stream: MediaStream, options?: { mimeType?: string }) {
+        this.mimeType = options?.mimeType ?? "video/webm";
+      }
+
+      start() {}
+
+      stop() {
+        stopMock();
+        this.ondataavailable?.({
+          data: new Blob(["recorded-video"], { type: this.mimeType }),
+        });
+        this.onstop?.();
+      }
+    }
+
+    vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+
+    render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(getUserMediaMock).toHaveBeenCalledTimes(1);
+    });
+    await screen.findByText("Live preview");
+
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Record motion clip" }));
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    vi.useRealTimers();
+
+    await screen.findByRole("button", { name: "Use clip" });
+    expect(stopMock).toHaveBeenCalledTimes(1);
   });
 
   it("shows only detected cameras in the camera picker", async () => {

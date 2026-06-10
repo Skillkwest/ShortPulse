@@ -8,9 +8,9 @@ Purpose: provide a repeatable production deployment process for the Next.js + Su
 
 ## Bundled media runtime contract
 
-- Voice Changer video-to-audio extraction uses the vendored `ffmpeg-static` dependency inside
-  `frontend/`.
-- Do not rely on a host-provided `ffmpeg` binary or environment toggle for this lane.
+- Voice Changer video-to-audio extraction and Motion Control source-video normalization use the
+  vendored `ffmpeg-static` dependency inside `frontend/`.
+- Do not rely on a host-provided `ffmpeg` binary or environment toggle for these lanes.
 - Local development and Vercel deployments are expected to use the same packaged extraction
   runtime after `frontend/npm install`.
 

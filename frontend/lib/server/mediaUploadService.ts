@@ -44,6 +44,10 @@ import {
   uploadMediaBufferToStoragePath,
 } from "./mediaIngest";
 import { MediaAudioExtractionInputError, readStoredMediaBuffer } from "./mediaAudioExtraction";
+import {
+  MotionReferenceVideoNormalizationError,
+  normalizeMotionReferenceVideoForProvider,
+} from "./motionReferenceVideoNormalization";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 
 const PRIVATE_MEDIA_SOURCE = "private_upload";
@@ -595,6 +599,7 @@ type StorageUploadOptions = {
   userId: string;
   defaultDestinationTab?: MediaUploadDestinationTab;
   storageFolderOverride?: string;
+  normalizeMotionReferenceVideo?: boolean;
 };
 
 type SignedStorageAssetResult = {
@@ -787,12 +792,14 @@ const uploadStorageAssetForUser = async ({
   userId,
   defaultDestinationTab,
   storageFolderOverride,
+  normalizeMotionReferenceVideo = false,
 }: StorageUploadOptions): Promise<UploadedStorageAsset> => {
   const parsedUpload = await parseUpload(req, { defaultDestinationTab });
   return await uploadStorageAssetFromParsedUpload({
     parsedUpload,
     userId,
     storageFolderOverride,
+    normalizeMotionReferenceVideo,
   });
 };
 
@@ -800,10 +807,12 @@ const uploadStorageAssetFromParsedUpload = async ({
   parsedUpload,
   userId,
   storageFolderOverride,
+  normalizeMotionReferenceVideo = false,
 }: {
   parsedUpload: ParsedUpload;
   userId: string;
   storageFolderOverride?: string;
+  normalizeMotionReferenceVideo?: boolean;
 }): Promise<UploadedStorageAsset> => {
   const detectedMimeType = resolveDetectedMimeType(
     parsedUpload.destinationTab,
@@ -817,6 +826,7 @@ const uploadStorageAssetFromParsedUpload = async ({
   let uploadBuffer = parsedUpload.buffer;
   let uploadMimeType = validatedUpload.mimeType;
   let uploadSize = parsedUpload.size;
+  let uploadFilename = parsedUpload.filename;
   let imageDimensions =
     validatedUpload.fileType === "image"
       ? extractImageDimensionsFromBuffer(parsedUpload.buffer)
@@ -846,6 +856,32 @@ const uploadStorageAssetFromParsedUpload = async ({
     }
   }
 
+  if (normalizeMotionReferenceVideo) {
+    if (validatedUpload.fileType !== "video") {
+      throw new MediaUploadServiceError(
+        400,
+        "Invalid file type",
+        "Motion reference source must be a playable video between 3 and 30 seconds."
+      );
+    }
+    try {
+      const normalizedVideo = await normalizeMotionReferenceVideoForProvider({
+        buffer: uploadBuffer,
+        filename: uploadFilename,
+        mimeType: uploadMimeType,
+      });
+      uploadBuffer = normalizedVideo.buffer;
+      uploadMimeType = normalizedVideo.mimeType;
+      uploadFilename = normalizedVideo.filename;
+      uploadSize = normalizedVideo.buffer.length;
+    } catch (error) {
+      if (error instanceof MotionReferenceVideoNormalizationError) {
+        throw new MediaUploadServiceError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
+
   enforceUploadSizeLimit({
     fileType: validatedUpload.fileType,
     fileSize: uploadSize,
@@ -854,13 +890,15 @@ const uploadStorageAssetFromParsedUpload = async ({
   const normalizedUpload: ParsedUpload =
     uploadBuffer === parsedUpload.buffer &&
     uploadMimeType === parsedUpload.declaredMimeType &&
-    uploadSize === parsedUpload.size
+    uploadSize === parsedUpload.size &&
+    uploadFilename === parsedUpload.filename
       ? parsedUpload
       : {
           ...parsedUpload,
           buffer: uploadBuffer,
           declaredMimeType: uploadMimeType,
           size: uploadSize,
+          filename: uploadFilename,
         };
 
   const storageFolder =
@@ -1239,11 +1277,13 @@ export const uploadSignedStorageAssetForUser = async ({
   userId,
   defaultDestinationTab,
   storageFolderOverride,
+  normalizeMotionReferenceVideo = false,
 }: {
   req: NextApiRequest;
   userId: string;
   defaultDestinationTab: MediaUploadDestinationTab;
   storageFolderOverride: string;
+  normalizeMotionReferenceVideo?: boolean;
 }): Promise<{
   url: string;
   path: string;
@@ -1257,6 +1297,7 @@ export const uploadSignedStorageAssetForUser = async ({
       userId,
       defaultDestinationTab,
       storageFolderOverride,
+      normalizeMotionReferenceVideo,
     });
 
     return {
@@ -1505,6 +1546,7 @@ export const finalizeMotionReferenceVideoUploadForUser = async ({
       parsedUpload,
       userId,
       storageFolderOverride: MOTION_REFERENCE_VIDEO_STORAGE_FOLDER,
+      normalizeMotionReferenceVideo: true,
     });
     return {
       url: uploaded.signedUrl,

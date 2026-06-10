@@ -14,6 +14,8 @@ export type VideoUploadResult = {
   url: string;
   path: string;
   size: number;
+  mimeType?: string;
+  name?: string;
 };
 
 export type VideoUploadError = {
@@ -237,10 +239,18 @@ const uploadVideoBlob = async ({
   const url = typeof result?.url === "string" ? result.url.trim() : "";
   const path = typeof result?.path === "string" ? result.path.trim() : "";
   const size = typeof result?.size === "number" ? result.size : blob.size;
+  const resultMimeType = typeof result?.mimeType === "string" ? result.mimeType.trim() : "";
+  const resultName = typeof result?.name === "string" ? result.name.trim() : "";
   if (!url || !path) {
     throw new Error("Video upload failed: missing signed delivery metadata.");
   }
-  return { url, path, size };
+  return {
+    url,
+    path,
+    size,
+    ...(resultMimeType ? { mimeType: resultMimeType } : {}),
+    ...(resultName ? { name: resultName } : {}),
+  };
 };
 
 /**

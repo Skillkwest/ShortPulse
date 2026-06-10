@@ -4,6 +4,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, RefObject } from "react";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { INTERNAL_MEDIA_REF_BUCKET } from "../../../lib/media/internalMediaRefs";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import {
   extractDragDropPayload,
@@ -83,6 +85,14 @@ const reconcileBooleanListLength = (values: boolean[], length: number): boolean[
 const trimOptionalString = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim() ?? "";
   return trimmed.length ? trimmed : null;
+};
+
+const resolveMotionVideoStoragePathFromInternalPayload = (
+  payload: ReturnType<typeof extractInternalReferenceDragPayload> | null
+): string | null => {
+  if (payload?.mediaKind !== "video") return null;
+  const candidates = [payload.fullStoragePath, payload.previewStoragePath];
+  return candidates.find((candidate) => candidate && looksLikeVideoUrl(candidate))?.trim() ?? null;
 };
 
 const resolveCanvasTearOutReferenceImageSnapshot = (
@@ -542,6 +552,7 @@ export const useReferencePropertiesInteractions = ({
     event.stopPropagation();
     setMotionVideoDragActive(false);
 
+    const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
     const payload = extractVideoDragDropPayload(event.dataTransfer);
     let nextVideoUrl = payload.videoUrl;
     const nextVideoFile =
@@ -560,6 +571,20 @@ export const useReferencePropertiesInteractions = ({
         null;
       if (resolvedUrl && looksLikeVideoUrl(resolvedUrl)) {
         nextVideoUrl = resolvedUrl;
+      }
+    }
+
+    if (!nextVideoUrl) {
+      const storagePath = resolveMotionVideoStoragePathFromInternalPayload(internalPayload);
+      if (storagePath) {
+        const signedVideoUrl = await getSignedMediaUrl({
+          bucket: INTERNAL_MEDIA_REF_BUCKET,
+          storagePath,
+          previewProfile: "none",
+        }).catch(() => null);
+        if (signedVideoUrl && looksLikeVideoUrl(signedVideoUrl)) {
+          nextVideoUrl = signedVideoUrl;
+        }
       }
     }
 

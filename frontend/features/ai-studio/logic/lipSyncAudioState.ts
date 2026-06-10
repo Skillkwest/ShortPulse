@@ -144,9 +144,12 @@ export const createLipSyncAudioStateFromDurableUrl = ({
   });
 };
 
-export const createFailedNonDurableLipSyncAudioState = (): LipSyncAudioState => ({
+export const createFailedNonDurableLipSyncAudioState = (
+  previewUrl?: string | null
+): LipSyncAudioState => ({
   ...createEmptyLipSyncAudioState(),
   status: "failed",
+  previewUrl: previewUrl ?? null,
   error: "Local voice audio is no longer available. Re-add the audio file and try again.",
 });
 

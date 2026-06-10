@@ -11,6 +11,11 @@ export type AudioUploadResult = {
   mimeType?: string;
 };
 
+type AudioBlobUploadOptions = {
+  sourceName?: string | null;
+  mimeType?: string | null;
+};
+
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 const GENERIC_UPLOAD_MIME_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
 const MIME_ALIAS_TO_CANONICAL: Record<string, string> = {
@@ -103,6 +108,57 @@ const inferMimeTypeFromFilename = (value: string): string | null => {
   return null;
 };
 
+export const uploadAudioBlobToStorage = async (
+  blob: Blob,
+  options: AudioBlobUploadOptions = {}
+): Promise<AudioUploadResult> => {
+  const inferredMimeTypeFromSource = inferMimeTypeFromFilename(options.sourceName ?? "") ?? "";
+  const normalizedBlobMimeType = normalizeSupportedMimeType(options.mimeType ?? blob.type);
+  const mimeType = GENERIC_UPLOAD_MIME_TYPES.has(normalizedBlobMimeType)
+    ? inferredMimeTypeFromSource || "audio/wav"
+    : normalizedBlobMimeType;
+  const timestamp = Date.now();
+  const randomString = Math.random().toString(36).substring(7);
+  const filename = `reference-audio-${timestamp}-${randomString}.${inferExtension(mimeType)}`;
+
+  const uploadResponse = await fetchWithAuth("/api/upload-audio", {
+    method: "POST",
+    headers: {
+      "Content-Type": mimeType,
+      "x-shortpulse-upload-filename": filename,
+    },
+    body: blob,
+  });
+
+  const payload = (await uploadResponse.json().catch(() => null)) as {
+    url?: unknown;
+    path?: unknown;
+    size?: unknown;
+    mimeType?: unknown;
+    error?: unknown;
+    details?: unknown;
+  } | null;
+  const path = typeof payload?.path === "string" ? payload.path.trim() : "";
+  const url = typeof payload?.url === "string" ? payload.url.trim() : "";
+  const size = typeof payload?.size === "number" ? payload.size : blob.size;
+  if (!uploadResponse.ok || !path || !url) {
+    const errorMessage =
+      typeof payload?.details === "string" && payload.details.trim().length
+        ? payload.details.trim()
+        : typeof payload?.error === "string" && payload.error.trim().length
+          ? payload.error.trim()
+          : "Audio upload failed";
+    throw new Error(errorMessage);
+  }
+
+  return {
+    url,
+    path,
+    size: Number.isFinite(size) ? size : blob.size,
+    mimeType: typeof payload?.mimeType === "string" ? payload.mimeType : mimeType,
+  };
+};
+
 export const uploadAudioAssetToStorage = async (
   localAudioUrl: string
 ): Promise<AudioUploadResult> => {
@@ -114,52 +170,7 @@ export const uploadAudioAssetToStorage = async (
       throw new Error(`Unable to read local audio input (${response.status}).`);
     }
     const blob = await response.blob();
-    const inferredMimeTypeFromUrl =
-      inferMimeTypeFromFilename(normalizedLocalAudioUrl.replace(/#audio=1$/i, "")) ?? "";
-    const normalizedBlobMimeType = normalizeSupportedMimeType(blob.type);
-    const mimeType = GENERIC_UPLOAD_MIME_TYPES.has(normalizedBlobMimeType)
-      ? inferredMimeTypeFromUrl || "audio/wav"
-      : normalizedBlobMimeType;
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(7);
-    const filename = `reference-audio-${timestamp}-${randomString}.${inferExtension(mimeType)}`;
-
-    const uploadResponse = await fetchWithAuth("/api/upload-audio", {
-      method: "POST",
-      headers: {
-        "Content-Type": mimeType,
-        "x-shortpulse-upload-filename": filename,
-      },
-      body: blob,
-    });
-
-    const payload = (await uploadResponse.json().catch(() => null)) as {
-      url?: unknown;
-      path?: unknown;
-      size?: unknown;
-      mimeType?: unknown;
-      error?: unknown;
-      details?: unknown;
-    } | null;
-    const path = typeof payload?.path === "string" ? payload.path.trim() : "";
-    const url = typeof payload?.url === "string" ? payload.url.trim() : "";
-    const size = typeof payload?.size === "number" ? payload.size : blob.size;
-    if (!uploadResponse.ok || !path || !url) {
-      const errorMessage =
-        typeof payload?.details === "string" && payload.details.trim().length
-          ? payload.details.trim()
-          : typeof payload?.error === "string" && payload.error.trim().length
-            ? payload.error.trim()
-            : "Audio upload failed";
-      throw new Error(errorMessage);
-    }
-
-    return {
-      url,
-      path,
-      size: Number.isFinite(size) ? size : blob.size,
-      mimeType: typeof payload?.mimeType === "string" ? payload.mimeType : mimeType,
-    };
+    return await uploadAudioBlobToStorage(blob, { sourceName: normalizedLocalAudioUrl });
   } catch (error) {
     console.error("Audio upload error:", error);
     if (

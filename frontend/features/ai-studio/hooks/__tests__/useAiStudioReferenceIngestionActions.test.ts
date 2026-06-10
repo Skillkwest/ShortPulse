@@ -506,6 +506,98 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
+  it("inserts a pending local file card before canonical upload resolves", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    const file = new File(["hello"], "reference.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+      [Symbol.iterator]: function* () {
+        yield file;
+      },
+    } as unknown as FileList;
+    let resolveUpload: ((row: ReturnType<typeof makeUploadRow>) => void) | null = null;
+    uploadMediaFileMock.mockReturnValueOnce(
+      new Promise<ReturnType<typeof makeUploadRow>>((resolve) => {
+        resolveUpload = resolve;
+      })
+    );
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:local-reference"),
+    });
+
+    try {
+      const { result } = renderHook(() =>
+        useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            setOutputs,
+          })
+        )
+      );
+
+      let addPromise: Promise<void> | null = null;
+      act(() => {
+        addPromise = result.current.addOutputsFromFiles(files, "drop");
+      });
+
+      expect(nextOutputs[0]).toEqual(
+        expect.objectContaining({
+          prompt: "reference.png",
+          mediaSource: "upload",
+          taskState: "pending",
+          saveState: "saving",
+          previewUrl: "blob:local-reference",
+          localObjectUrl: "blob:local-reference",
+          timestamp: "Dropped",
+        })
+      );
+      const pendingOutputId = nextOutputs[0]?.id;
+      expect(pendingOutputId).toMatch(/^upload-/);
+
+      await act(async () => {
+        resolveUpload?.(
+          makeUploadRow({
+            id: "media-reference",
+            filename: "reference.png",
+            storage_path: "user-1/uploads/images/reference.png",
+            preview_storage_path: "user-1/uploads/images/reference.png",
+            signedUrl: "https://signed.test/reference.png",
+          })
+        );
+        await addPromise;
+      });
+
+      expect(nextOutputs[0]).toEqual(
+        expect.objectContaining({
+          id: pendingOutputId,
+          prompt: "reference.png",
+          previewUrl: "https://signed.test/reference.png",
+          previewStoragePath: "user-1/uploads/images/reference.png",
+          fullStoragePath: "user-1/uploads/images/reference.png",
+          mediaSource: "library",
+          savedMediaIds: ["media-reference"],
+          saveState: "saved",
+        })
+      );
+      expect(nextOutputs[0]?.taskState).toBeUndefined();
+      expect(nextOutputs[0]?.localObjectUrl).toBeUndefined();
+    } finally {
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        value: originalCreateObjectURL,
+      });
+    }
+  });
+
   it("imports direct audio file refs through the canonical Media Library upload path", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(
@@ -892,7 +984,12 @@ describe("useAiStudioReferenceIngestionActions", () => {
   });
 
   it("surfaces a full drop error when every upload fails", async () => {
-    const setOutputs = vi.fn();
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
     const setUiError = vi.fn();
     const brokenFile = new File(["broken"], "broken.png", { type: "image/png" });
     const files = {
@@ -919,7 +1016,8 @@ describe("useAiStudioReferenceIngestionActions", () => {
       await result.current.addOutputsFromFiles(files, "drop");
     });
 
-    expect(setOutputs).not.toHaveBeenCalled();
+    expect(setOutputs).toHaveBeenCalled();
+    expect(nextOutputs).toHaveLength(0);
     expect(setUiError).toHaveBeenCalledWith("Upload failed");
   });
 });

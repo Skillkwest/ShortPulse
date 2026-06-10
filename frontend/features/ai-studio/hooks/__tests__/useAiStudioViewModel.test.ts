@@ -1003,7 +1003,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.referenceImageWarning).toBeNull();
   });
 
-  it("blocks Seedance 2.0 Fast multimodal mode when frame images are mixed with multimodal references", () => {
+  it("allows Seedance 2.0 Fast multimodal mode to override stale frame images", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1016,12 +1016,9 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.generationGuardrail).toBe(
-      "Remove first/last frame images before generating in Seedance 2.0 multimodal mode."
-    );
-    expect(result.current.referenceImageWarning).toBe(
-      "Seedance 2.0 multimodal mode cannot be combined with first/last frame images."
-    );
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.referenceImageWarning).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 
   it("requires both first and last frame images for explicit Seedance 2.0 first-last mode", () => {
@@ -1071,7 +1068,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("blocks Seedance linked assets when frame images are also present", () => {
+  it("allows Seedance linked assets to override stale frame images", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1093,12 +1090,9 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.generationGuardrail).toBe(
-      "Remove first/last frame images before generating with Seedance 2.0 linked assets."
-    );
-    expect(result.current.referenceImageWarning).toBe(
-      "Seedance 2.0 linked assets cannot be combined with first/last frame images."
-    );
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.referenceImageWarning).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 });
 

@@ -74,6 +74,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Adding a last frame inside Standard Video must not force a model switch. Standard keeps the user-selected compatible model (`kie-ai/veo-3.1-fast-i2v`, `kie-ai/kling-3.0`, `kie-ai/seedance-2`, or `kie-ai/seedance-2-fast`) and submission derives the correct first-frame / first-last payload shape from the prepared inputs.
 - Keyframe-style Veo generation is handled through `kie-ai/veo-3.1-fast-i2v` by switching Kie generation type based on the number of prepared frame references, not by forcing Standard into a separate hidden Veo-only mode.
 - Kie Seedance 2 and 2 Fast use the Kling-pattern panel shell for `Single` and `Multi` prompt authoring plus linked Character/Element slots, but compile into Seedance-native prompt, frame, and multimodal reference fields.
+- Seedance Elements mode maps to the provider's multimodal reference scenario. It overrides the Keyframes slot state: first/last frame images may remain visible in the inactive Keyframes UI, but they must not warn, block Generate, or be submitted while Elements mode is active.
 - Seedance `Single` and `Multi` use Seedance-specific hidden prompt instructions, not the Kling hidden prompt strings.
 
 ### Lip Sync mode

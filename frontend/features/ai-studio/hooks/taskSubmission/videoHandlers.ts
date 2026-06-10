@@ -853,14 +853,6 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         linkedEntityReferences.imageUrls.length ||
         linkedEntityReferences.videoUrls.length
       );
-      const hasFrameMode = Boolean(hasPreparedFirstFrame || hasPreparedLastFrame);
-      if (hasLinkedEntityReferences && hasFrameMode) {
-        notifyGenerationFailure(
-          id,
-          "Seedance 2.0 linked assets cannot be combined with first/last frame mode."
-        );
-        return { handled: true };
-      }
       const effectiveInputMode =
         (seedance2InputMode === "multimodal" || hasLinkedEntityReferences) &&
         hasMultimodalReferences

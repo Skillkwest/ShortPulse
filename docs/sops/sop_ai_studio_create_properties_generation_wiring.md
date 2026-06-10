@@ -84,9 +84,9 @@ sequenceDiagram
 - Edit/image -> image-to-image capable models.
 - Video/kling/keyframes/motion -> mode-constrained image-to-video sets.
 - Video Lip Sync resolves to hidden internal model `fal-ai/bytedance/omnihuman/v1.5` and must not expose that model as a customer-selectable chip.
-- Character mode in Create narrows to Character Mode-approved image-to-image-capable models, including direct OpenAI `GPT Image 2 Fast`, Kie GPT Image 2 Edit, and the paired Seedream/Nano Banana edit lanes. Direct OpenAI GPT Image 2 remains in the catalog/routes and is exposed in Create/Edit image model-modal chips as `GPT Image 2 Fast`; keep Kie GPT Image 2 text/edit chips selectable as queued alternatives.
+- Character mode in Create narrows to Character Mode-approved image-to-image-capable models, including Kie GPT Image 2 Edit and the paired Seedream/Nano Banana edit lanes. Direct OpenAI GPT Image 2 remains in the catalog/routes but is temporarily hidden from Create/Edit image model-modal chips; keep Kie GPT Image 2 text/edit chips selectable while this temporary hide is active.
 
-3. `ModelModal` applies context-specific ordering (`providerPriorityByContext`, `modelPriorityByContext`).
+3. `ModelModal` applies context-specific ordering (`providerPriorityByContext`, `modelPriorityByContext`) and context-specific hides (`hiddenModelIdsByContext`).
 4. Selection commit path:
 
 - `handleSelectModelFromModal` (`useAiStudioWorkspaceActions`) -> `setModel(value)` -> `closeModelModal()`.

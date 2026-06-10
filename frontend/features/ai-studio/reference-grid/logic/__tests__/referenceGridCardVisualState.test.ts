@@ -29,6 +29,28 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("spinner");
   });
 
+  it("uses spinner visual for local upload rows pending durable media", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "pending",
+        mediaSource: "upload",
+        saveState: "saving",
+        previewUrl: "blob:local-reference",
+        localObjectUrl: "blob:local-reference",
+      }),
+      cardPreviewUrl: "blob:local-reference",
+      isLoaded: false,
+      decodeBudgetEnabled: false,
+      isImagePreview: true,
+      isPriorityHydration: true,
+      imageSrc: "blob:local-reference",
+    });
+
+    expect(state.isGenerationLoading).toBe(true);
+    expect(state.isMediaHydrating).toBe(false);
+    expect(state.loadingVisual).toBe("spinner");
+  });
+
   it("uses hydration visual for decode lag after generation success", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({ taskState: "success" }),

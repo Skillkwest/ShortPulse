@@ -72,6 +72,13 @@ type IngestedReferenceFileResult = IngestedReferenceMediaResult & {
   file: File;
 };
 
+type PendingReferenceFileUpload = {
+  file: File;
+  destinationTab: MediaUploadDestinationTab;
+  outputId: string;
+  optimisticOutput: StudioOutput;
+};
+
 const resolveUploadDestinationTabForReferenceFile = (
   file: File
 ): MediaUploadDestinationTab | null => {
@@ -86,6 +93,81 @@ const resolveUploadDestinationTabForReferenceFile = (
 
 const normalizeReferenceUploadFile = (file: File, index: number): File | null =>
   normalizeMediaFile(file, null, index);
+
+const createLocalPreviewUrls = (
+  file: File
+): {
+  previewUrl?: string;
+  localObjectUrl?: string | null;
+} => {
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    return {};
+  }
+  try {
+    const objectUrl = URL.createObjectURL(file);
+    if (file.type.startsWith("video/")) {
+      return {
+        previewUrl: `${objectUrl}#video=1`,
+        localObjectUrl: objectUrl,
+      };
+    }
+    if (file.type.startsWith("audio/")) {
+      return {
+        previewUrl: `${objectUrl}#audio=1`,
+        localObjectUrl: objectUrl,
+      };
+    }
+    return {
+      previewUrl: objectUrl,
+      localObjectUrl: objectUrl,
+    };
+  } catch {
+    return {};
+  }
+};
+
+const buildPendingReferenceFileOutput = ({
+  file,
+  outputId,
+  source,
+  aspect,
+  model,
+}: {
+  file: File;
+  outputId: string;
+  source: "filePicker" | "drop";
+  aspect: string;
+  model: string | null;
+}): StudioOutput => {
+  const isAudio = file.type.startsWith("audio/");
+  const isVideo = !isAudio && file.type.startsWith("video/");
+  const localPreview = createLocalPreviewUrls(file);
+  const modelLabel = model ? resolveModelLabel(model) : "Upload pending";
+  return {
+    id: outputId,
+    prompt: file.name || "Media upload",
+    mode: isAudio ? "audio" : isVideo ? "video" : "image",
+    aspect,
+    model: modelLabel,
+    createdAt: new Date().toISOString(),
+    modelId: model ?? undefined,
+    status: "ready",
+    timestamp: source === "drop" ? "Dropped" : "Uploaded",
+    taskState: "pending",
+    previewUrl: localPreview.previewUrl,
+    previewPosterUrl: null,
+    previewStoragePath: null,
+    fullStoragePath: null,
+    previewTier: "full",
+    mimeType: file.type || null,
+    mediaSource: "upload",
+    localObjectUrl: localPreview.localObjectUrl,
+    saveState: "saving",
+    saveError: null,
+    archivedAt: null,
+    archiveReason: null,
+  };
+};
 
 const toLibraryMediaReferencePayloadFromUpload = (
   row: MediaUploadRow
@@ -106,6 +188,45 @@ const toLibraryMediaReferencePayloadFromUpload = (
     fullUrl: row.signedUrl,
   };
 };
+
+const applyLibraryMediaOutputPatch = (
+  current: StudioOutput,
+  prepared: StudioOutput
+): StudioOutput => ({
+  ...current,
+  prompt: prepared.prompt,
+  transcriptText: prepared.transcriptText,
+  mode: prepared.mode,
+  aspect: prepared.aspect,
+  model: prepared.model,
+  modelId: prepared.modelId,
+  status: prepared.status,
+  timestamp: prepared.timestamp,
+  taskId: prepared.taskId,
+  queueState: prepared.queueState,
+  taskState: prepared.taskState,
+  errorMessage: prepared.errorMessage,
+  errorMessageShort: prepared.errorMessageShort,
+  errorDetail: prepared.errorDetail,
+  resultUrls: prepared.resultUrls,
+  previewUrl: prepared.previewUrl,
+  previewPosterUrl: prepared.previewPosterUrl,
+  previewPosterStoragePath: prepared.previewPosterStoragePath,
+  companionArtUrl: prepared.companionArtUrl,
+  companionArtStoragePath: prepared.companionArtStoragePath,
+  previewStoragePath: prepared.previewStoragePath,
+  fullStoragePath: prepared.fullStoragePath,
+  previewTier: prepared.previewTier,
+  mimeType: prepared.mimeType,
+  audioSourceMode: prepared.audioSourceMode,
+  durationMs: prepared.durationMs,
+  waveformPeaks: prepared.waveformPeaks,
+  mediaSource: prepared.mediaSource,
+  localObjectUrl: prepared.localObjectUrl,
+  saveState: prepared.saveState,
+  saveError: prepared.saveError,
+  savedMediaIds: prepared.savedMediaIds,
+});
 
 type UseAiStudioReferenceIngestionActionsResult = {
   addAgentPromptReference: (promptText: string, title?: string | null) => void;
@@ -149,6 +270,23 @@ export const useAiStudioReferenceIngestionActions = ({
   const currentUserId = sessionSnapshot.user?.id ?? null;
   const libraryMediaIngestionErrorMessage =
     "Unable to add that media from Media Library right now. Please try again.";
+  const associateMediaWithProject = useCallback(
+    (mediaFileId: string | null | undefined) => {
+      if (!mediaFileId || !projectId) return;
+      void (async () => {
+        try {
+          await associateMediaFilesWithProject({
+            projectId,
+            mediaFileIds: [mediaFileId],
+            userId: currentUserId,
+          });
+        } catch {
+          // Project membership should not block media authority hydration.
+        }
+      })();
+    },
+    [currentUserId, projectId]
+  );
   const admitIncomingOutputs = useCallback(
     (incoming: StudioOutput[]): StudioOutput[] => {
       const admission = admitReferenceGridIncomingOutputs(incoming, outputs);
@@ -224,21 +362,6 @@ export const useAiStudioReferenceIngestionActions = ({
     ): Promise<IngestedReferenceMediaResult | null> => {
       const outputId = `library-${randomId()}`;
 
-      const associateWithProject = () => {
-        if (!payload.id || !projectId) return;
-        void (async () => {
-          try {
-            await associateMediaFilesWithProject({
-              projectId,
-              mediaFileIds: [payload.id],
-              userId: currentUserId,
-            });
-          } catch {
-            // Project membership should not block media authority hydration.
-          }
-        })();
-      };
-
       const buildPreparedOutput = async (): Promise<IngestedReferenceMediaResult | null> => {
         try {
           const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
@@ -264,7 +387,7 @@ export const useAiStudioReferenceIngestionActions = ({
         }
         const [admittedOutput] = admitIncomingOutputs([output]);
         if (!admittedOutput) return null;
-        associateWithProject();
+        associateMediaWithProject(payload.id);
         setOutputs((prev) => [output, ...prev]);
         return prepared ?? { outputId, payload, output };
       }
@@ -277,7 +400,7 @@ export const useAiStudioReferenceIngestionActions = ({
       const [admittedOutput] = admitIncomingOutputs([optimisticOutput]);
       if (!admittedOutput) return null;
 
-      associateWithProject();
+      associateMediaWithProject(payload.id);
       setOutputs((prev) => [optimisticOutput, ...prev]);
 
       void (async () => {
@@ -324,8 +447,7 @@ export const useAiStudioReferenceIngestionActions = ({
       buildLibraryMediaOutputWithId,
       libraryMediaIngestionErrorMessage,
       admitIncomingOutputs,
-      currentUserId,
-      projectId,
+      associateMediaWithProject,
       setOutputs,
       setUiError,
     ]
@@ -458,7 +580,10 @@ export const useAiStudioReferenceIngestionActions = ({
   );
 
   const ingestReferenceFiles = useCallback(
-    async (files: FileList | File[]): Promise<IngestedReferenceFileResult[]> => {
+    async (
+      files: FileList | File[],
+      source: "filePicker" | "drop" = "filePicker"
+    ): Promise<IngestedReferenceFileResult[]> => {
       const orderedFiles = Array.from(files);
       const supportedCandidates = orderedFiles
         .map((file, index) => {
@@ -485,26 +610,75 @@ export const useAiStudioReferenceIngestionActions = ({
       let importedCount = 0;
       let firstErrorMessage: string | null = null;
       const insertedResults: IngestedReferenceFileResult[] = [];
+      const pendingUploads: PendingReferenceFileUpload[] = uploadCandidates.map((candidate) => {
+        const outputId = `upload-${randomId()}`;
+        return {
+          ...candidate,
+          outputId,
+          optimisticOutput: buildPendingReferenceFileOutput({
+            file: candidate.file,
+            outputId,
+            source,
+            aspect,
+            model,
+          }),
+        };
+      });
 
-      for (let index = uploadCandidates.length - 1; index >= 0; index -= 1) {
-        const candidate = uploadCandidates[index];
-        if (!candidate) continue;
+      if (pendingUploads.length > 0) {
+        setOutputs((prev) => [
+          ...pendingUploads.map((candidate) => candidate.optimisticOutput),
+          ...prev,
+        ]);
+      }
+
+      for (const candidate of pendingUploads) {
         try {
           const uploaded = await uploadMediaFile({
             file: candidate.file,
             destinationTab: candidate.destinationTab,
           });
-          const inserted = await insertLibraryMediaReference(
-            toLibraryMediaReferencePayloadFromUpload(uploaded)
-          );
-          if (inserted) {
-            insertedResults.unshift({
-              ...inserted,
-              file: candidate.file,
-            });
+          const payload = toLibraryMediaReferencePayloadFromUpload(uploaded);
+          const uploadedOutput = buildLibraryMediaOutputWithId(payload, candidate.outputId);
+          if (!uploadedOutput) {
+            throw new Error("Unable to add those files right now. Please try again.");
           }
+          associateMediaWithProject(payload.id);
+          setOutputs((prev) =>
+            prev.map((item) =>
+              item.id === candidate.outputId
+                ? applyLibraryMediaOutputPatch(item, uploadedOutput)
+                : item
+            )
+          );
+          void (async () => {
+            try {
+              const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
+              const preparedOutput = buildLibraryMediaOutputWithId(
+                preparedPayload,
+                candidate.outputId
+              );
+              if (!preparedOutput) return;
+              setOutputs((prev) =>
+                prev.map((item) =>
+                  item.id === candidate.outputId
+                    ? applyLibraryMediaOutputPatch(item, preparedOutput)
+                    : item
+                )
+              );
+            } catch {
+              // Keep the already uploaded card visible when optional payload prep fails.
+            }
+          })();
+          insertedResults.push({
+            outputId: candidate.outputId,
+            payload,
+            output: uploadedOutput,
+            file: candidate.file,
+          });
           importedCount += 1;
         } catch (error) {
+          setOutputs((prev) => prev.filter((item) => item.id !== candidate.outputId));
           if (!firstErrorMessage) {
             firstErrorMessage =
               error instanceof Error && error.message.trim().length
@@ -537,12 +711,20 @@ export const useAiStudioReferenceIngestionActions = ({
       }
       return insertedResults;
     },
-    [insertLibraryMediaReference, outputs, setUiError]
+    [
+      aspect,
+      associateMediaWithProject,
+      buildLibraryMediaOutputWithId,
+      model,
+      outputs,
+      setOutputs,
+      setUiError,
+    ]
   );
 
   const addOutputsFromFiles = useCallback(
-    async (files: FileList) => {
-      await ingestReferenceFiles(files);
+    async (files: FileList, source: "filePicker" | "drop" = "filePicker") => {
+      await ingestReferenceFiles(files, source);
     },
     [ingestReferenceFiles]
   );

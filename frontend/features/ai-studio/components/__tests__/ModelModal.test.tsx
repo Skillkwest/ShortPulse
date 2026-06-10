@@ -290,7 +290,7 @@ describe("ModelModal", () => {
   it("groups text-image chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_PRO_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2 Fast", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       {
         value: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
         label: "GPT Image 2 (Kie)",
@@ -324,24 +324,23 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
-      "GPT Image 2 Fast",
       "GPT Image 2",
       "FLUX.2 Lite",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
-      { family: "GPT Image", chips: ["GPT Image 2 Fast", "GPT Image 2"] },
+      { family: "GPT Image", chips: ["GPT Image 2"] },
       { family: "FLUX", chips: ["FLUX.2 Lite"] },
     ]);
   });
 
-  it("shows the direct OpenAI text-image chip and keeps the Kie text-image chip selectable", () => {
+  it("hides the direct OpenAI chip while keeping the Kie text-image chip selectable", () => {
     const onSelect = vi.fn();
     const startupModelId = resolveRequiredCreateStartupModelId();
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_2_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2 Fast", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       {
         value: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
         label: "GPT Image 2 (Kie)",
@@ -360,15 +359,9 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual([
-      "Primary Startup",
-      "Nano Banana 2",
-      "GPT Image 2 Fast",
-      "GPT Image 2",
-    ]);
-    fireEvent.click(screen.getByRole("button", { name: /GPT Image 2 Fast/i }));
-    expect(onSelect).toHaveBeenCalledWith(OPENAI_GPT_IMAGE_2_MODEL_ID);
-    fireEvent.click(screen.getByRole("button", { name: "GPT Image 2 —" }));
+    expect(readChipTitles(container)).toEqual(["Primary Startup", "Nano Banana 2", "GPT Image 2"]);
+    const gptImageChip = screen.getByRole("button", { name: /GPT Image 2/i });
+    fireEvent.click(gptImageChip);
     expect(onSelect).toHaveBeenCalledWith(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID);
   });
 
@@ -376,7 +369,7 @@ describe("ModelModal", () => {
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
       { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2 Fast", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       {
         value: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
         label: "Seedream 5 Lite",
@@ -408,22 +401,21 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
-      "GPT Image 2 Fast",
       "GPT Image 2",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
-      { family: "GPT Image", chips: ["GPT Image 2 Fast", "GPT Image 2"] },
+      { family: "GPT Image", chips: ["GPT Image 2"] },
     ]);
   });
 
-  it("renders character-image chips with direct OpenAI and Kie GPT Image edit chips selectable", () => {
+  it("renders character-image chips with only the Kie GPT Image edit chip selectable", () => {
     const onSelect = vi.fn();
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
       { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2 Fast", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       {
         value: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
         label: "Seedream 5 Lite",
@@ -457,25 +449,23 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
-      "GPT Image 2 Fast",
       "GPT Image 2",
     ]);
-    fireEvent.click(screen.getByRole("button", { name: /GPT Image 2 Fast/i }));
-    expect(onSelect).toHaveBeenCalledWith(OPENAI_GPT_IMAGE_2_MODEL_ID);
-    fireEvent.click(screen.getByRole("button", { name: "GPT Image 2 —" }));
+    const gptImageChip = screen.getByRole("button", { name: /GPT Image 2/i });
+    fireEvent.click(gptImageChip);
     expect(onSelect).toHaveBeenCalledWith(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
-      { family: "GPT Image", chips: ["GPT Image 2 Fast", "GPT Image 2"] },
+      { family: "GPT Image", chips: ["GPT Image 2"] },
     ]);
   });
 
-  it("keeps the edit startup model while showing direct OpenAI and Kie GPT Image chips", () => {
+  it("keeps the edit startup model while hiding the direct OpenAI chip and keeping Kie visible", () => {
     const startupEditModelId = resolveRequiredCreateCharacterModeStartupModelId();
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
-      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2 Fast", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
       {
         value: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
         label: "GPT Image 2 Edit (Kie)",
@@ -497,7 +487,6 @@ describe("ModelModal", () => {
     expect(readChipTitles(container)).toEqual([
       "Primary Edit Startup",
       "Nano Banana 2",
-      "GPT Image 2 Fast",
       "GPT Image 2",
     ]);
   });

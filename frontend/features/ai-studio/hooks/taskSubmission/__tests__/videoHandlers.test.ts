@@ -945,13 +945,13 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).not.toContain("Shot 1");
   });
 
-  it("fails closed when Seedance linked assets are mixed with first/last frame mode", async () => {
+  it("ignores stale frame inputs when Seedance linked assets compile as multimodal", async () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
       modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
       preparedImageInputs: ["https://example.com/first-frame.png"],
       videoReferenceMode: "standard",
-      seedance2InputMode: "first-frame",
+      seedance2InputMode: "multimodal",
       klingElements: [
         {
           id: "element-1",
@@ -968,11 +968,18 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Seedance 2.0 linked assets cannot be combined with first/last frame mode."
+    expect(args.notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference_video_urls: ["https://example.com/steamtrain-motion.mp4"],
+      })
     );
-    expect(submitKieSeedance2Video).not.toHaveBeenCalled();
+    const payload = vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(payload).not.toHaveProperty("first_frame_url");
+    expect(payload).not.toHaveProperty("last_frame_url");
   });
 });
 

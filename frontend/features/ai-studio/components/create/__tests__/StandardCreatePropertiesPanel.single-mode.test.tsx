@@ -159,7 +159,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
       <StandardCreatePropertiesPanel
         {...baseProps}
         modelId={OPENAI_GPT_IMAGE_2_MODEL_ID}
-        modelLabel="GPT Image 2 Fast"
+        modelLabel="GPT Image 2"
       />
     );
 
@@ -170,7 +170,6 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     ).map((option) => option.value);
 
     expect(aspectValues).toEqual(["9:16", "4:5", "1:1", "5:4", "16:9"]);
-    expect(latestProps?.effectiveModelLabel).toBe("GPT Image 2 Fast");
   });
 
   it("passes a compact model label into the selected Create model dropdown", () => {

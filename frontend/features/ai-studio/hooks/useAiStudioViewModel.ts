@@ -200,6 +200,8 @@ export const useAiStudioViewModel = ({
   const hasSeedance2LinkedAssetReferences = klingElements.some(
     (element) => element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length > 0
   );
+  const seedance2UsesMultimodalReferences =
+    seedance2InputMode === "multimodal" || hasSeedance2LinkedAssetReferences;
   const videoPricingParams = useMemo(
     () => ({
       durationSeconds: videoDurationSeconds,
@@ -778,27 +780,23 @@ export const useAiStudioViewModel = ({
       return missingCanonicalEditBilledCreditsGuardrail;
     }
     if (isVideoTool && isSeedance2Model) {
-      if (
-        hasSeedance2LinkedAssetReferences &&
-        (referenceImageUrl ||
-          extraImageUrls[0] ||
-          seedance2InputMode === "first-frame" ||
-          seedance2InputMode === "first-last")
-      ) {
-        return "Remove first/last frame images before generating with Seedance 2.0 linked assets.";
-      }
-      if (seedance2InputMode === "multimodal") {
+      if (seedance2UsesMultimodalReferences) {
         if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
           return "Add at least one image, video, or audio reference before generating with Seedance 2.0.";
         }
-        if (referenceImageUrl || extraImageUrls[0]) {
-          return "Remove first/last frame images before generating in Seedance 2.0 multimodal mode.";
-        }
       }
-      if (seedance2InputMode === "first-frame" && !referenceImageUrl) {
+      if (
+        !seedance2UsesMultimodalReferences &&
+        seedance2InputMode === "first-frame" &&
+        !referenceImageUrl
+      ) {
         return "Add a first frame image before generating with Seedance 2.0.";
       }
-      if (seedance2InputMode === "first-last" && !(referenceImageUrl && extraImageUrls[0])) {
+      if (
+        !seedance2UsesMultimodalReferences &&
+        seedance2InputMode === "first-last" &&
+        !(referenceImageUrl && extraImageUrls[0])
+      ) {
         return "Add both first and last frame images before generating with Seedance 2.0.";
       }
     }
@@ -808,6 +806,7 @@ export const useAiStudioViewModel = ({
     hasDescribeImage,
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
+    seedance2UsesMultimodalReferences,
     isVideoTool,
     isDescribeMode,
     isModelSelected,
@@ -868,27 +867,23 @@ export const useAiStudioViewModel = ({
         return "Kling 3.0 requires a first frame image in Standard mode.";
       }
       if (isSeedance2Model) {
-        if (
-          hasSeedance2LinkedAssetReferences &&
-          (hasReference ||
-            extraImageUrls[0] ||
-            seedance2InputMode === "first-frame" ||
-            seedance2InputMode === "first-last")
-        ) {
-          return "Seedance 2.0 linked assets cannot be combined with first/last frame images.";
-        }
-        if (seedance2InputMode === "multimodal") {
+        if (seedance2UsesMultimodalReferences) {
           if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
             return "Seedance 2.0 multimodal mode requires at least one image, video, or audio reference.";
           }
-          if (hasReference || extraImageUrls[0]) {
-            return "Seedance 2.0 multimodal mode cannot be combined with first/last frame images.";
-          }
         }
-        if (seedance2InputMode === "first-frame" && !hasReference) {
+        if (
+          !seedance2UsesMultimodalReferences &&
+          seedance2InputMode === "first-frame" &&
+          !hasReference
+        ) {
           return "Seedance 2.0 requires a first frame image in first-frame mode.";
         }
-        if (seedance2InputMode === "first-last" && !(hasReference && extraImageUrls[0])) {
+        if (
+          !seedance2UsesMultimodalReferences &&
+          seedance2InputMode === "first-last" &&
+          !(hasReference && extraImageUrls[0])
+        ) {
           return "Seedance 2.0 requires both first and last frame images in first/last-frame mode.";
         }
       }
@@ -900,6 +895,7 @@ export const useAiStudioViewModel = ({
     modelConfig,
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
+    seedance2UsesMultimodalReferences,
     isEditWorkflowSelected,
     isSeedance2Model,
     referenceImageUrl,

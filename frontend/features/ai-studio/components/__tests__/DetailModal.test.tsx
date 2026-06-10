@@ -1212,6 +1212,24 @@ describe("DetailModal", () => {
     expect(baseElement.querySelector(".detail-modal-audio-waveform-panel")).toBeNull();
     expect(baseElement.querySelectorAll(".detail-modal-audio-wavebar").length).toBeGreaterThan(40);
     expect(screen.getByRole("button", { name: "Play audio preview" })).toBeInTheDocument();
+    const waveform = screen.getByRole("button", { name: "Seek audio waveform" });
+    Object.defineProperty(audio, "duration", { configurable: true, value: 20 });
+    Object.defineProperty(waveform, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        bottom: 118,
+        height: 118,
+        left: 100,
+        right: 500,
+        top: 0,
+        width: 400,
+        x: 100,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+    fireEvent.click(waveform, { clientX: 300 });
+    expect(audio?.currentTime).toBeCloseTo(10);
     fireEvent.error(audio as HTMLAudioElement);
 
     await waitFor(() => {

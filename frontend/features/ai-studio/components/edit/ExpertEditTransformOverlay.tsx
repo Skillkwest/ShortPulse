@@ -36,6 +36,19 @@ export function ExpertEditTransformOverlay({
     transform,
   });
   const layerRect = layerGeometry.containedRect;
+  const overlayStyle: React.CSSProperties & {
+    "--edit-expert-transform-handle-counter-scale": string;
+  } = {
+    left: `${layerRect.leftPercent}%`,
+    top: `${layerRect.topPercent}%`,
+    width: `${layerRect.widthPercent}%`,
+    height: `${layerRect.heightPercent}%`,
+    transform: layerGeometry.transformCss,
+    transformOrigin: "center center",
+    "--edit-expert-transform-handle-counter-scale": String(
+      layerGeometry.transformHandleCounterScale
+    ),
+  };
 
   return (
     <div
@@ -45,14 +58,7 @@ export function ExpertEditTransformOverlay({
       onPointerUp={interactionHandlers?.onPointerUp}
       onPointerCancel={interactionHandlers?.onPointerCancel}
       onPointerLeave={interactionHandlers?.onPointerLeave}
-      style={{
-        left: `${layerRect.leftPercent}%`,
-        top: `${layerRect.topPercent}%`,
-        width: `${layerRect.widthPercent}%`,
-        height: `${layerRect.heightPercent}%`,
-        transform: layerGeometry.transformCss,
-        transformOrigin: "center center",
-      }}
+      style={overlayStyle}
       aria-hidden="true"
       data-edit-expert-transform-drag-mode="move"
       data-testid={`edit-expert-transform-overlay-${scope}`}

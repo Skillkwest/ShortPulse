@@ -2043,6 +2043,7 @@
   pointer-events: auto;
   touch-action: none;
   overflow: visible;
+  --edit-expert-transform-handle-counter-scale: 1;
 }
 
 .edit-expert-primary-layer-selection-box {
@@ -2079,28 +2080,28 @@
 .edit-expert-primary-layer-selection-handle.is-corner-nw {
   top: 0;
   left: 0;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--edit-expert-transform-handle-counter-scale));
   cursor: nwse-resize;
 }
 
 .edit-expert-primary-layer-selection-handle.is-corner-ne {
   top: 0;
   left: 100%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--edit-expert-transform-handle-counter-scale));
   cursor: nesw-resize;
 }
 
 .edit-expert-primary-layer-selection-handle.is-corner-se {
   top: 100%;
   left: 100%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--edit-expert-transform-handle-counter-scale));
   cursor: nwse-resize;
 }
 
 .edit-expert-primary-layer-selection-handle.is-corner-sw {
   top: 100%;
   left: 0;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--edit-expert-transform-handle-counter-scale));
   cursor: nesw-resize;
 }
 

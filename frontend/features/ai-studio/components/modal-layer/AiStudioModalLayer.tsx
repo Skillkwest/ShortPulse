@@ -10,14 +10,13 @@ const AI_STUDIO_MODAL_LAYER_ROOT_ID = "ai-studio-modal-layer-root";
 const useIsomorphicLayoutEffect =
   typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
 
-type AiStudioModalActivityContextValue = {
+type AiStudioModalActivityActionsContextValue = {
   setModalOpen: (modalId: string, isOpen: boolean) => void;
-  isAnyModalOpen: boolean;
 };
 
-const AiStudioModalActivityContext = React.createContext<AiStudioModalActivityContextValue | null>(
-  null
-);
+const AiStudioModalActivityActionsContext =
+  React.createContext<AiStudioModalActivityActionsContextValue | null>(null);
+const AiStudioModalOpenStateContext = React.createContext<boolean>(false);
 
 const ensureModalLayerRoot = (): HTMLElement | null => {
   if (typeof document === "undefined") return null;
@@ -48,23 +47,24 @@ export const AiStudioModalActivityProvider = ({ children }: { children: React.Re
     });
   }, []);
 
-  const contextValue = React.useMemo<AiStudioModalActivityContextValue>(
+  const actionsContextValue = React.useMemo<AiStudioModalActivityActionsContextValue>(
     () => ({
       setModalOpen,
-      isAnyModalOpen: openModalCount > 0,
     }),
-    [openModalCount, setModalOpen]
+    [setModalOpen]
   );
 
   return (
-    <AiStudioModalActivityContext.Provider value={contextValue}>
-      {children}
-    </AiStudioModalActivityContext.Provider>
+    <AiStudioModalActivityActionsContext.Provider value={actionsContextValue}>
+      <AiStudioModalOpenStateContext.Provider value={openModalCount > 0}>
+        {children}
+      </AiStudioModalOpenStateContext.Provider>
+    </AiStudioModalActivityActionsContext.Provider>
   );
 };
 
 export const useAiStudioModalActivity = (modalId: string, isOpen: boolean): void => {
-  const contextValue = React.useContext(AiStudioModalActivityContext);
+  const contextValue = React.useContext(AiStudioModalActivityActionsContext);
   React.useEffect(() => {
     if (!PERF_FLAG_MODAL_STABILITY_V1) return;
     if (!contextValue) return;
@@ -76,9 +76,9 @@ export const useAiStudioModalActivity = (modalId: string, isOpen: boolean): void
 };
 
 export const useAiStudioAnyModalOpen = (): boolean => {
-  const contextValue = React.useContext(AiStudioModalActivityContext);
+  const isAnyModalOpen = React.useContext(AiStudioModalOpenStateContext);
   if (!PERF_FLAG_MODAL_STABILITY_V1) return false;
-  return contextValue?.isAnyModalOpen ?? false;
+  return isAnyModalOpen;
 };
 
 export const AiStudioModalLayer = ({ children }: { children: React.ReactNode }) => {

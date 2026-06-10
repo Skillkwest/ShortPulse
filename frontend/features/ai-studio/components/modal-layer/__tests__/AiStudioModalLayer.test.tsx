@@ -34,6 +34,18 @@ const ModalOpenStateProbe = () => {
   return <span data-testid="modal-open-state">{isAnyModalOpen ? "open" : "closed"}</span>;
 };
 
+const ModalActivityRenderProbe = ({
+  modalId,
+  isOpen,
+  onRender,
+}: ModalProbeProps & {
+  onRender: (modalId: string) => void;
+}) => {
+  onRender(modalId);
+  useAiStudioModalActivity(modalId, isOpen);
+  return null;
+};
+
 afterEach(() => {
   document.getElementById(MODAL_LAYER_ROOT_ID)?.remove();
 });
@@ -101,5 +113,23 @@ describe("AiStudioModalLayer", () => {
 
     expect(portalRoot).not.toBeNull();
     expect(portalRoot?.contains(portalChild)).toBe(true);
+  });
+
+  it("does not re-render modal activity registrations when open-state observers update", async () => {
+    const renderEvents: string[] = [];
+    render(
+      <AiStudioModalActivityProvider>
+        <ModalOpenStateProbe />
+        <ModalActivityRenderProbe
+          modalId="modal-a"
+          isOpen
+          onRender={(modalId) => renderEvents.push(modalId)}
+        />
+      </AiStudioModalActivityProvider>
+    );
+
+    await screen.findByText("open");
+
+    expect(renderEvents).toEqual(["modal-a"]);
   });
 });

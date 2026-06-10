@@ -232,6 +232,54 @@ function SharedMediaDetailAudioPreview({
     [isPlaying]
   );
 
+  const seekAudioToRatio = React.useCallback(
+    (nextRatio: number) => {
+      const node = internalAudioRef.current;
+      if (!node) return;
+      const durationSeconds = Number.isFinite(node.duration)
+        ? node.duration
+        : resolvedDurationMs
+          ? resolvedDurationMs / 1000
+          : 0;
+      if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return;
+      const clampedRatio = Math.max(0, Math.min(1, nextRatio));
+      node.currentTime = clampedRatio * durationSeconds;
+      setProgressRatio(clampedRatio);
+    },
+    [resolvedDurationMs]
+  );
+
+  const handleWaveformSeek = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const bounds = event.currentTarget.getBoundingClientRect();
+      if (bounds.width <= 0) return;
+      seekAudioToRatio((event.clientX - bounds.left) / bounds.width);
+    },
+    [seekAudioToRatio]
+  );
+
+  const handleWaveformKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === "Home") {
+        seekAudioToRatio(0);
+        return;
+      }
+      if (event.key === "End") {
+        seekAudioToRatio(1);
+        return;
+      }
+      seekAudioToRatio(progressRatio + (event.key === "ArrowRight" ? 0.05 : -0.05));
+    },
+    [progressRatio, seekAudioToRatio]
+  );
+
   return (
     <div className="detail-modal-audio-preview">
       <button
@@ -250,7 +298,13 @@ function SharedMediaDetailAudioPreview({
         )}
       </button>
       <div className="detail-modal-audio-waveform-shell">
-        <div className="detail-modal-audio-waveform" aria-hidden="true">
+        <button
+          type="button"
+          className="detail-modal-audio-waveform"
+          aria-label="Seek audio waveform"
+          onClick={handleWaveformSeek}
+          onKeyDown={handleWaveformKeyDown}
+        >
           {waveformColumns.map((column) => (
             <span
               key={column.key}
@@ -267,7 +321,7 @@ function SharedMediaDetailAudioPreview({
               <span className="detail-modal-audio-wavebar-fill" />
             </span>
           ))}
-        </div>
+        </button>
         <div className="detail-modal-audio-duration-row">
           <MediaDurationBadge
             className="detail-modal-audio-duration-badge"

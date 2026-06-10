@@ -49,6 +49,7 @@ export type LayerVisualGeometry = {
   translateX: number;
   translateY: number;
   transformCss: string;
+  transformHandleCounterScale: number;
 };
 
 const LAYER_OPACITY_MIN = 0;
@@ -128,6 +129,13 @@ export const resolveContainedLayerRect = ({
 };
 
 const roundCssPixelValue = (value: number) => Math.round(value * 100) / 100;
+const roundCssScaleValue = (value: number) => Math.round(value * 10000) / 10000;
+const resolveSafeLayerScale = (scale: number): number =>
+  Math.max(LAYER_SCALE_EPSILON, Number.isFinite(scale) ? scale : 1);
+
+export const resolveTransformHandleCounterScale = (scale: number): number => {
+  return roundCssScaleValue(1 / resolveSafeLayerScale(scale));
+};
 
 export const resolveLayerVisualGeometry = ({
   imageAspectRatio,
@@ -153,9 +161,8 @@ export const resolveLayerVisualGeometry = ({
     translateY,
     transformCss: `translate(${roundCssPixelValue(translateX)}px, ${roundCssPixelValue(
       translateY
-    )}px) scale(${Math.max(LAYER_SCALE_EPSILON, transform.scale)}) rotate(${
-      transform.rotationDeg
-    }deg)`,
+    )}px) scale(${resolveSafeLayerScale(transform.scale)}) rotate(${transform.rotationDeg}deg)`,
+    transformHandleCounterScale: resolveTransformHandleCounterScale(transform.scale),
   };
 };
 

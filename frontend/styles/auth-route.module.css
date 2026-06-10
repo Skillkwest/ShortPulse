@@ -1,5 +1,0 @@
-/**
- * Route-owned auth stylesheet entry.
- * Keeps the existing auth class contract while letting Next load it only for auth routes.
- */
-@import "./auth.css";

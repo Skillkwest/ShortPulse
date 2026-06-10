@@ -35,6 +35,7 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "media/copy-from-url.ts:1379",
   // Redirect validation catch that normalizes invalid upstream locations into deterministic
   // request errors before the route-level handler decides the final response contract.
+  "fal/upload-url.ts:176",
   "kie/upload-url.ts:414",
   "kie/upload-url.ts:515",
 ]);

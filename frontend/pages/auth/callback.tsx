@@ -24,16 +24,12 @@ import {
   readSupabaseSession,
   refreshSupabaseSession,
 } from "../../lib/supabaseClient";
-import authStyles from "../../styles/auth-route.module.css";
 
 const MIN_PASSWORD_LENGTH = 8;
 const CALLBACK_SESSION_SETTLE_MS = 750;
 
 const authClass = (...names: Array<string | false | null | undefined>) =>
-  names
-    .filter((name): name is string => Boolean(name))
-    .map((name) => authStyles[name] ?? name)
-    .join(" ");
+  names.filter((name): name is string => Boolean(name)).join(" ");
 
 type CallbackStatus = "loading" | "recovery" | "error";
 type CompletionAuthEvent = "SIGNED_IN" | "USER_UPDATED";

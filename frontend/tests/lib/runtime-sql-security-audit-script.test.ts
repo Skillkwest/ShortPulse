@@ -37,6 +37,7 @@ const REQUIRED_SIGNATURES = [
   "public.prune_ai_agent_conversation_state_expired(integer)",
   "public.list_admin_user_health_active_targets(integer,integer)",
   "public.prune_admin_user_health_history(integer)",
+  "public.publish_dashboard_announcement(text,text,uuid)",
 ] as const;
 
 describe("check_runtime_sql_security_audit.sql", () => {

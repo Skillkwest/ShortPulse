@@ -408,6 +408,30 @@ describe("dragDrop payload extraction", () => {
     expect(payload.videoUrl).toBeNull();
   });
 
+  it("returns extension-matched local image files when the browser omits MIME type", () => {
+    const file = new File(["image"], "character-reference.png", { type: "" });
+    const transfer = makeTransferWithFiles({}, [file]);
+
+    const payload = extractDragDropPayload(transfer);
+
+    expect(isImageDragTransfer(transfer)).toBe(true);
+    expect(payload.fromFile).toBe(true);
+    expect(payload.imageFile).toBe(file);
+    expect(payload.imageUrl).toMatch(/^blob:/);
+  });
+
+  it("returns extension-matched local video files when the browser omits MIME type", () => {
+    const file = new File(["video"], "motion-reference.mov", { type: "" });
+    const transfer = makeTransferWithFiles({}, [file]);
+
+    const payload = extractVideoDragDropPayload(transfer);
+
+    expect(isVideoDragTransfer(transfer)).toBe(true);
+    expect(payload.fromFile).toBe(true);
+    expect(payload.videoFile).toBe(file);
+    expect(payload.videoUrl).toBeNull();
+  });
+
   it("prefers structured video references over synthetic browser files", () => {
     const syntheticFile = new File(["browser-preview"], "preview.mp4", { type: "video/mp4" });
     const transfer = makeTransferWithFiles(
@@ -428,6 +452,24 @@ describe("dragDrop payload extraction", () => {
     expect(payload.videoFile).toBeUndefined();
     expect(payload.videoUrl).toBe("https://cdn.example.com/reference-video.mp4");
     expect(payload.promptText).toBe("camera move");
+  });
+
+  it("extracts Media Library video drags for motion video targets", () => {
+    const transfer = makeTransfer({
+      "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+      "text/shortpulse-media-library-kind": "libraryMedia",
+      "text/shortpulse-media-library-id": "media-video-1",
+      "text/shortpulse-media-library-file-type": "video",
+      "text/shortpulse-media-library-url": "https://cdn.example.com/poster.jpg",
+      "text/shortpulse-media-library-full-url": "https://cdn.example.com/reference-video.mp4",
+      "text/plain": "reference video",
+    });
+
+    const payload = extractVideoDragDropPayload(transfer);
+
+    expect(payload.referenceId).toBe("media-video-1");
+    expect(payload.fromFile).toBe(false);
+    expect(payload.videoUrl).toBe("https://cdn.example.com/reference-video.mp4");
   });
 
   it("accepts internal reference drags for video targets during dragover", () => {

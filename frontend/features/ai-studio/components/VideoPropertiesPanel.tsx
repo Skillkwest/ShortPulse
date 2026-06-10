@@ -1928,11 +1928,11 @@ export function VideoPropertiesPanel({
                         </div>
                       </div>
                     ) : null}
-                    {!isSeedance2FamilyModelSelected || isMotionMode || isLipSyncMode ? (
+                    {!isLipSyncMode && (!isSeedance2FamilyModelSelected || isMotionMode) ? (
                       <div className="video-setup-reference-slot">{renderReferenceMediaStep()}</div>
                     ) : null}
                     {isLipSyncMode ? (
-                      <div className="video-lip-sync-audio-card">
+                      <div className="video-lip-sync-setup-card">
                         <input
                           ref={lipSyncAudioInputRef}
                           className="sr-only"
@@ -1940,71 +1940,78 @@ export function VideoPropertiesPanel({
                           accept="audio/*"
                           onChange={handleLipSyncAudioSelection}
                         />
-                        <div className="video-reference-card-title">Voice audio</div>
-                        <div
-                          ref={lipSyncAudioDropzoneRef}
-                          className={`video-lip-sync-audio-dropzone ${lipSyncAudioDragActive || lipSyncAudioCanvasTearOutActive ? "is-drag-active" : ""}`}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => lipSyncAudioInputRef.current?.click()}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              lipSyncAudioInputRef.current?.click();
-                            }
-                          }}
-                          onDragEnter={(event) => {
-                            event.preventDefault();
-                            setLipSyncAudioDragActive(true);
-                          }}
-                          onDragOver={(event) => {
-                            event.preventDefault();
-                            setLipSyncAudioDragActive(true);
-                          }}
-                          onDragLeave={() => setLipSyncAudioDragActive(false)}
-                          onDrop={handleLipSyncAudioDrop}
-                        >
-                          {lipSyncAudioPlaybackUrl ? (
+                        <div className="video-lip-sync-input-row">
+                          <div className="video-lip-sync-image-slot video-setup-reference-slot">
+                            {renderReferenceMediaStep()}
+                          </div>
+                          <div className="video-lip-sync-audio-card">
+                            <div className="video-reference-card-title">Voice audio</div>
                             <div
-                              className={`video-lip-sync-audio-preview ${lipSyncAudio.status === "failed" ? "is-failed" : ""}`.trim()}
-                              onClick={(event) => event.stopPropagation()}
+                              ref={lipSyncAudioDropzoneRef}
+                              className={`video-lip-sync-audio-dropzone ${lipSyncAudioDragActive || lipSyncAudioCanvasTearOutActive ? "is-drag-active" : ""}`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => lipSyncAudioInputRef.current?.click()}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  lipSyncAudioInputRef.current?.click();
+                                }
+                              }}
+                              onDragEnter={(event) => {
+                                event.preventDefault();
+                                setLipSyncAudioDragActive(true);
+                              }}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                setLipSyncAudioDragActive(true);
+                              }}
+                              onDragLeave={() => setLipSyncAudioDragActive(false)}
+                              onDrop={handleLipSyncAudioDrop}
                             >
-                              <ReferenceAudioPlayer
-                                audioId="lip-sync-audio"
-                                audioUrl={lipSyncAudioPlaybackUrl}
-                                durationMs={lipSyncAudio.durationMs}
-                                playLabel="Play voice audio"
-                                pauseLabel="Pause voice audio"
-                                eagerWaveformDecode={false}
-                              />
-                              {lipSyncAudio.status === "uploading" ? (
-                                <div className="video-lip-sync-audio-state">Uploading</div>
+                              {lipSyncAudioPlaybackUrl ? (
+                                <div
+                                  className={`video-lip-sync-audio-preview ${lipSyncAudio.status === "failed" ? "is-failed" : ""}`.trim()}
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  <ReferenceAudioPlayer
+                                    audioId="lip-sync-audio"
+                                    audioUrl={lipSyncAudioPlaybackUrl}
+                                    durationMs={lipSyncAudio.durationMs}
+                                    playLabel="Play voice audio"
+                                    pauseLabel="Pause voice audio"
+                                    eagerWaveformDecode={false}
+                                  />
+                                  {lipSyncAudio.status === "uploading" ? (
+                                    <div className="video-lip-sync-audio-state">Uploading</div>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <div className="video-lip-sync-audio-empty">
+                                  <span className="video-lip-sync-audio-empty-title">
+                                    Add voice audio
+                                  </span>
+                                  <small className="video-lip-sync-audio-empty-helper">
+                                    Drop audio here or choose a file
+                                  </small>
+                                </div>
+                              )}
+                            </div>
+                            <div className="video-lip-sync-audio-actions">
+                              <span className="video-lip-sync-audio-status">
+                                {lipSyncAudioStatusLabel}
+                              </span>
+                              {lipSyncAudioPlaybackUrl || lipSyncAudio.status === "failed" ? (
+                                <button
+                                  type="button"
+                                  className="video-lip-sync-clear-button"
+                                  onClick={clearLipSyncAudio}
+                                >
+                                  Clear
+                                </button>
                               ) : null}
                             </div>
-                          ) : (
-                            <div className="video-lip-sync-audio-empty">
-                              <span className="video-lip-sync-audio-empty-title">
-                                Add voice audio
-                              </span>
-                              <small className="video-lip-sync-audio-empty-helper">
-                                Drop audio here or choose a file
-                              </small>
-                            </div>
-                          )}
-                        </div>
-                        <div className="video-lip-sync-audio-actions">
-                          <span className="video-lip-sync-audio-status">
-                            {lipSyncAudioStatusLabel}
-                          </span>
-                          {lipSyncAudioPlaybackUrl || lipSyncAudio.status === "failed" ? (
-                            <button
-                              type="button"
-                              className="video-lip-sync-clear-button"
-                              onClick={clearLipSyncAudio}
-                            >
-                              Clear
-                            </button>
-                          ) : null}
+                          </div>
                         </div>
                         <div
                           className="video-lip-sync-resolution-row"
@@ -2154,7 +2161,7 @@ export function VideoPropertiesPanel({
                             <div className="video-kling-elements-picker-anchor">
                               {renderPromptTokenPicker(activePromptTargetRef.current)}
                               <div className="video-elements-card-title video-elements-card-title--sub">
-                                Add Characters / @Elements
+                                Add Characters/Elements/Images
                               </div>
                               <div
                                 className="video-elements-placeholder-grid"
@@ -2356,19 +2363,6 @@ export function VideoPropertiesPanel({
                                         />
                                       ) : null}
                                       <span className="video-elements-slot-actions">
-                                        {canUseSeedanceImageIngress ? (
-                                          <button
-                                            type="button"
-                                            className="ghost-btn mini"
-                                            aria-label={`Upload image reference to slot ${index + 1}`}
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              openImageFilePicker();
-                                            }}
-                                          >
-                                            <UploadSimple size={12} />
-                                          </button>
-                                        ) : null}
                                         <button
                                           type="button"
                                           className="ghost-btn mini"

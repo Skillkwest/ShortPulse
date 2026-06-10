@@ -123,8 +123,8 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
   });
 
   it("submits clean image/audio payload with optional prompt and turbo mode", async () => {
-    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
-    const audioUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/voice.mp3";
+    const imageUrl = "https://v3.fal.media/files/lip.png";
+    const audioUrl = "https://v3.fal.media/files/voice.mp3";
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
@@ -179,7 +179,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
   });
 
   it("fails safely when stale local Lip Sync blob audio reaches submit", async () => {
-    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
+    const imageUrl = "https://v3.fal.media/files/lip.png";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const args = makeArgs({
@@ -215,9 +215,8 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
   });
 
   it("submits ready uploaded Lip Sync audio without reading the local preview URL", async () => {
-    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
-    const uploadedAudioUrl =
-      "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/local-voice.mp3";
+    const imageUrl = "https://v3.fal.media/files/lip.png";
+    const uploadedAudioUrl = "https://v3.fal.media/files/local-voice.mp3";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     vi.mocked(fetchWithAuth).mockResolvedValueOnce({
@@ -245,11 +244,10 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     expect(handled).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(fetchWithAuth).toHaveBeenCalledWith(
-      "/api/kie/upload-url",
+      "/api/fal/upload-url",
       expect.objectContaining({
         body: JSON.stringify({
           fileUrl: "https://signed.example.com/local-voice.mp3",
-          uploadPath: "shortpulse/kie-video/audio",
         }),
       })
     );
@@ -262,11 +260,101 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     );
   });
 
+  it("uploads Lip Sync character images to Fal CDN before provider submit", async () => {
+    const signedImageUrl = "https://signed.example.com/character.png";
+    const falImageUrl = "https://v3.fal.media/files/character.png";
+    const audioUrl = "https://v3.fal.media/files/voice.mp3";
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      text: async () => JSON.stringify({ url: falImageUrl }),
+    } as Response);
+    const args = makeArgs({
+      finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
+      modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
+      preparedImageInputs: [signedImageUrl],
+      rawImageInputs: [signedImageUrl],
+      videoReferenceMode: "lip-sync",
+      motionReferenceVideoUrl: null,
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: audioUrl,
+        durationMs: 9_000,
+        sourceKind: "library",
+      }),
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/fal/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl: signedImageUrl,
+        }),
+        shortpulseLogScope: "generation",
+      })
+    );
+    expect(submitFalOmniHuman).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: falImageUrl,
+        audio_url: audioUrl,
+      })
+    );
+  });
+
+  it("uses the prepared Lip Sync image URL instead of rereading local image previews", async () => {
+    const localImageUrl = "blob:local-character";
+    const preparedImageUrl = "https://signed.example.com/prepared-character.png";
+    const falImageUrl = "https://v3.fal.media/files/prepared-character.png";
+    const audioUrl = "https://v3.fal.media/files/voice.mp3";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      text: async () => JSON.stringify({ url: falImageUrl }),
+    } as Response);
+    const args = makeArgs({
+      finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
+      modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
+      preparedImageInputs: [preparedImageUrl],
+      rawImageInputs: [localImageUrl],
+      videoReferenceMode: "lip-sync",
+      motionReferenceVideoUrl: null,
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: audioUrl,
+        durationMs: 9_000,
+        sourceKind: "library",
+      }),
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/fal/upload-url",
+      expect.objectContaining({
+        body: JSON.stringify({
+          fileUrl: preparedImageUrl,
+        }),
+      })
+    );
+    expect(submitFalOmniHuman).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: falImageUrl,
+        audio_url: audioUrl,
+      })
+    );
+  });
+
   it("uploads remote Lip Sync audio URLs through the URL upload path", async () => {
-    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
+    const imageUrl = "https://v3.fal.media/files/lip.png";
     const remoteAudioUrl = "https://cdn.example.com/voice.mp3";
-    const uploadedAudioUrl =
-      "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/remote-voice.mp3";
+    const uploadedAudioUrl = "https://v3.fal.media/files/remote-voice.mp3";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     vi.mocked(fetchWithAuth).mockResolvedValueOnce({
@@ -292,7 +380,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     expect(handled).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(fetchWithAuth).toHaveBeenCalledWith(
-      "/api/kie/upload-url",
+      "/api/fal/upload-url",
       expect.objectContaining({
         method: "POST",
         headers: {
@@ -300,7 +388,6 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
         },
         body: JSON.stringify({
           fileUrl: remoteAudioUrl,
-          uploadPath: "shortpulse/kie-video/audio",
         }),
         shortpulseLogScope: "generation",
       })
@@ -313,7 +400,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
   });
 
   it("fails with product-safe copy when local Lip Sync audio is no longer readable", async () => {
-    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
+    const imageUrl = "https://v3.fal.media/files/lip.png";
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -353,8 +440,8 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
   });
 
   it("fails closed before submit when 1080p Lip Sync audio is too long", async () => {
-    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
-    const audioUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/voice.mp3";
+    const imageUrl = "https://v3.fal.media/files/lip.png";
+    const audioUrl = "https://v3.fal.media/files/voice.mp3";
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
@@ -387,8 +474,8 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
   });
 
   it("fails closed before submit when 720p Lip Sync audio is too long", async () => {
-    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
-    const audioUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/voice.mp3";
+    const imageUrl = "https://v3.fal.media/files/lip.png";
+    const audioUrl = "https://v3.fal.media/files/voice.mp3";
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),

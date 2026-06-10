@@ -26,6 +26,7 @@ import {
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
+import { AiStudioToolbarAccountMenu } from "./AiStudioToolbarAccountMenu";
 import {
   AI_STUDIO_TOOLBAR_LOGO_SRC,
   creationsToolList,
@@ -363,7 +364,9 @@ function AiStudioToolbarComponent({
           <div className="toolbar-divider toolbar-divider-secondary" aria-hidden="true" />
         </div>
       </div>
-      <div className="toolbar-footer toolbar-footer--toggle-hidden" />
+      <div className="toolbar-footer toolbar-footer--account">
+        <AiStudioToolbarAccountMenu />
+      </div>
     </aside>
   );
 }

@@ -12,6 +12,8 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
+import { createReadyLipSyncAudioState } from "../../logic/lipSyncAudioState";
 import {
   handleDefaultModelSubmission,
   handleImageModelSubmission,
@@ -417,6 +419,89 @@ describe("useAiStudioTaskSubmission", () => {
             kind: "video",
             motionReferenceVideoUrl:
               "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/motion-ref.mp4?token=stub.invalid.token",
+          }),
+        }),
+      })
+    );
+  });
+
+  it("does not leak dormant motion metadata into Lip Sync submissions", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+    const dormantMotionReferenceVideoUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/dormant-motion.mp4?token=stub.invalid.token";
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "video",
+        model: FAL_OMNIHUMAN_V15_MODEL_ID,
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "lip-sync",
+        videoReferenceImageUrl: "https://example.com/character.png",
+        motionReferenceVideoUrl: dormantMotionReferenceVideoUrl,
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 12_000,
+          sourceKind: "library",
+        }),
+        lipSyncTurboMode: true,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+        projectId: "project-1",
+      })
+    );
+
+    await act(async () => {
+      await result.current("", ["https://example.com/character.png"]);
+    });
+
+    const submitArgs = vi.mocked(handleVideoModelSubmission).mock.calls[0]?.[0];
+    expect(submitArgs).toEqual(
+      expect.objectContaining({
+        finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
+        motionReferenceVideoUrl: null,
+        shortpulseContext: expect.not.objectContaining({
+          motion_reference_asset: expect.anything(),
+        }),
+        workflowReload: expect.objectContaining({
+          payload: expect.objectContaining({
+            videoReferenceMode: "lip-sync",
+            motionReferenceVideoUrl: null,
+            lipSyncAudioUrl: "https://example.com/voice.mp3",
           }),
         }),
       })

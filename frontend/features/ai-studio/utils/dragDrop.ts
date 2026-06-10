@@ -51,6 +51,8 @@ const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
 const RELATIVE_MEDIA_PATH_HINT_PATTERN =
   /^\/(?:_next\/image|storage\/|.*\.(?:aac|avif|bmp|flac|gif|heic|heif|jpe?g|m4a|mp3|oga|ogg|png|wav|webp|m4v|mov|mp4|ogv|webm)(?:$|[?#]))/i;
 const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
+const IMAGE_FILE_NAME_PATTERN = /\.(?:avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
+const VIDEO_FILE_NAME_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)$/i;
 
 const dedupeText = (value?: string) => (value ? value.trim() : "");
 
@@ -60,14 +62,26 @@ const getFirstUriListValue = (value: string) =>
     .map((item) => item.trim())
     .find(Boolean);
 
+export const isImageFile = (file: File | null | undefined): file is File => {
+  if (!file) return false;
+  if (file.type.trim().toLowerCase().startsWith("image/")) return true;
+  return IMAGE_FILE_NAME_PATTERN.test(file.name.trim());
+};
+
 const findImageFile = (files?: FileList) => {
   if (!files) return null;
-  return Array.from(files).find((file) => file.type.startsWith("image/")) ?? null;
+  return Array.from(files).find(isImageFile) ?? null;
+};
+
+export const isVideoFile = (file: File | null | undefined): file is File => {
+  if (!file) return false;
+  if (file.type.trim().toLowerCase().startsWith("video/")) return true;
+  return VIDEO_FILE_NAME_PATTERN.test(file.name.trim());
 };
 
 const findVideoFile = (files?: FileList) => {
   if (!files) return null;
-  return Array.from(files).find((file) => file.type.startsWith("video/")) ?? null;
+  return Array.from(files).find(isVideoFile) ?? null;
 };
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
@@ -834,17 +848,60 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
 export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDropPayload => {
   const videoFile = findVideoFile(transfer.files);
   const hasStructuredHints = hasStructuredReferenceTransferHints(transfer);
+  const internalPayload = extractInternalReferenceDragPayload(transfer);
+  const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
   const mediaKind = resolveReferenceTransferMediaKind(transfer);
+  const internalReferenceUrl = normalizeReferenceTransferUrlCandidate(
+    internalPayload?.referenceUrl,
+    { unwrapNextImage: false }
+  );
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
     transfer.getData("text/reference-url")
   );
-  const referenceId = transfer.getData("text/reference-id") || null;
+  const referenceId =
+    internalPayload?.referenceId ??
+    mediaLibraryPayload?.payload.id ??
+    (transfer.getData("text/reference-id") || null);
   const normalizedReferenceUrl =
     referenceUrl && looksLikeVideoUrl(referenceUrl) ? referenceUrl : null;
+  const normalizedInternalVideoUrl =
+    internalReferenceUrl && looksLikeVideoUrl(internalReferenceUrl) ? internalReferenceUrl : null;
+  const normalizedLibraryVideoUrl =
+    mediaLibraryPayload?.kind === "libraryMedia" && mediaLibraryPayload.payload.fileType === "video"
+      ? ([
+          mediaLibraryPayload.payload.fullUrl,
+          mediaLibraryPayload.payload.url,
+          mediaLibraryPayload.payload.previewUrl,
+        ]
+          .map((candidate) =>
+            normalizeReferenceTransferUrlCandidate(candidate, { unwrapNextImage: false })
+          )
+          .find((candidate): candidate is string =>
+            Boolean(candidate && looksLikeVideoUrl(candidate))
+          ) ?? null)
+      : null;
 
   if (mediaKind && mediaKind !== "video") {
     return {
       videoUrl: null,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  if (normalizedInternalVideoUrl) {
+    return {
+      videoUrl: normalizedInternalVideoUrl,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  if (normalizedLibraryVideoUrl) {
+    return {
+      videoUrl: normalizedLibraryVideoUrl,
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,

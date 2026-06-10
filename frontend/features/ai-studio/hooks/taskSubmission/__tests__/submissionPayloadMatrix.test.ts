@@ -251,17 +251,15 @@ const makeVideoArgs = (
   return {
     ...makeImageArgs(modelId, requestedResolution),
     preparedImageInputs: isLipSync
-      ? ["https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/ref-1.png"]
+      ? ["https://v3.fal.media/files/lip-sync/ref-1.png"]
       : ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
-    rawImageInputs: isLipSync
-      ? ["https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/ref-1.png"]
-      : undefined,
+    rawImageInputs: isLipSync ? ["https://v3.fal.media/files/lip-sync/ref-1.png"] : undefined,
     videoReferenceMode: isLipSync ? "lip-sync" : "standard",
     videoReferenceImageUrl: "https://cdn.test/ref-1.png",
     motionReferenceVideoUrl: null,
     lipSyncAudio: isLipSync
       ? createReadyLipSyncAudioState({
-          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/voice.mp3",
+          url: "https://v3.fal.media/files/lip-sync/voice.mp3",
           durationMs: 8_000,
           sourceKind: "library",
         })

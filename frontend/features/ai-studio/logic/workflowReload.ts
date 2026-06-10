@@ -296,7 +296,11 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
   const aspect = asTrimmedString(value.aspect);
   if (!aspect || !isVideoReferenceMode(value.videoReferenceMode)) return null;
   if (!hasValidInternalRefs(value.internalMediaRefs)) return null;
-  const requestedLipSyncAudioUrl = asOptionalString(value.lipSyncAudioUrl);
+  const videoReferenceMode = value.videoReferenceMode;
+  const requestedMotionReferenceVideoUrl =
+    videoReferenceMode === "motion" ? asOptionalString(value.motionReferenceVideoUrl) : null;
+  const requestedLipSyncAudioUrl =
+    videoReferenceMode === "lip-sync" ? asOptionalString(value.lipSyncAudioUrl) : null;
   const lipSyncAudioUrl =
     requestedLipSyncAudioUrl && !isNonDurableLipSyncAudioUrl(requestedLipSyncAudioUrl)
       ? requestedLipSyncAudioUrl
@@ -304,7 +308,7 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
   return {
     kind: "video",
     aspect,
-    videoReferenceMode: value.videoReferenceMode,
+    videoReferenceMode,
     durationSeconds: asFiniteNumberOrNull(value.durationSeconds),
     resolution: asOptionalString(value.resolution),
     generateAudio: asBooleanOrNull(value.generateAudio),
@@ -312,12 +316,13 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
     autoFix: asBooleanOrNull(value.autoFix),
     referenceInputs: asStringArray(value.referenceInputs),
     internalMediaRefs: normalizeInternalRefs(value.internalMediaRefs),
-    motionReferenceVideoUrl: asOptionalString(value.motionReferenceVideoUrl),
+    motionReferenceVideoUrl: requestedMotionReferenceVideoUrl,
     lipSyncAudioUrl,
     lipSyncAudioDurationMs: lipSyncAudioUrl
       ? asFiniteNumberOrNull(value.lipSyncAudioDurationMs)
       : null,
-    lipSyncTurboMode: asBooleanOrNull(value.lipSyncTurboMode),
+    lipSyncTurboMode:
+      videoReferenceMode === "lip-sync" ? asBooleanOrNull(value.lipSyncTurboMode) : null,
     seedance2InputMode: isSeedance2InputMode(value.seedance2InputMode)
       ? value.seedance2InputMode
       : null,

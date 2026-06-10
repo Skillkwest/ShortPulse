@@ -240,6 +240,34 @@ describe("Dashboard actions", () => {
     expect(document.documentElement.classList.contains("dashboard-body")).toBe(false);
   });
 
+  it("renders the signed-in dashboard logo without home navigation", async () => {
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Profile menu" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText("ShortPulse logo")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "ShortPulse home" })).not.toBeInTheDocument();
+  });
+
+  it("links signed-in dashboard account summary cards to profile account sections", async () => {
+    render(<DashboardPage />);
+
+    expect(await screen.findByRole("link", { name: /^Media Storage:/i })).toHaveAttribute(
+      "href",
+      "/profile?section=storage"
+    );
+    expect(await screen.findByRole("link", { name: /^AI credits:/i })).toHaveAttribute(
+      "href",
+      "/profile?section=credits"
+    );
+    expect(await screen.findByRole("link", { name: /^Plan:/i })).toHaveAttribute(
+      "href",
+      "/profile?section=subscription"
+    );
+  });
+
   it("opens the profile menu with account, subscription, billing, and issue-report links", async () => {
     render(<DashboardPage />);
 

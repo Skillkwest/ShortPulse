@@ -20,24 +20,33 @@ type DashboardAppBarCard = {
 type DashboardAppBarProps = {
   cards: readonly DashboardAppBarCard[];
   actionSlot: ReactNode;
+  brandHref?: string | null;
 };
 
 /**
  * Renders the dashboard app bar with a shared visual shell.
  */
-export function DashboardAppBar({ cards, actionSlot }: DashboardAppBarProps) {
+export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: DashboardAppBarProps) {
+  const brandLogo = (
+    <Image
+      src="/small good d.png"
+      alt="ShortPulse logo"
+      className="brand-logo"
+      width={203}
+      height={64}
+      style={{ height: "auto" }}
+    />
+  );
+
   return (
     <header className="app-bar">
-      <Link href="/" className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
-        <Image
-          src="/small good d.png"
-          alt="ShortPulse logo"
-          className="brand-logo"
-          width={203}
-          height={64}
-          style={{ height: "auto" }}
-        />
-      </Link>
+      {brandHref ? (
+        <Link href={brandHref} className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
+          {brandLogo}
+        </Link>
+      ) : (
+        <div className="brand-mark brand-mark-logo">{brandLogo}</div>
+      )}
 
       <div className="app-bar-right">
         <div className="header-cards">

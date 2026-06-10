@@ -66,4 +66,5 @@
 @import "./landing-core.css";
 @import "./landing-sections.css";
 @import "./subscription-plan-cards.css";
+@import "./auth.css";
 @import "./viewport-lock.css";

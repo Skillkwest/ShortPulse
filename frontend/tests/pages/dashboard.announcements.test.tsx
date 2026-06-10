@@ -183,12 +183,11 @@ describe("Dashboard announcement rendering", () => {
 
     render(<DashboardPage />);
 
-    await waitFor(() =>
-      expect(screen.getByText("Maintenance window", { selector: "p" })).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText("Maintenance window")).toBeInTheDocument());
     expect(
       screen.getByText("AI Studio saves may be briefly delayed at 2AM UTC.")
     ).toBeInTheDocument();
+    await vi.dynamicImportSettled();
   });
 
   it("renders fallback helper copy when no active announcement exists", async () => {
@@ -204,6 +203,7 @@ describe("Dashboard announcement rendering", () => {
         screen.getByText(/launch surface for analytics, creator ops, and storage/i)
       ).toBeInTheDocument()
     );
+    await vi.dynamicImportSettled();
   });
 
   it("renders fallback helper copy when announcement API fails", async () => {
@@ -216,5 +216,6 @@ describe("Dashboard announcement rendering", () => {
         screen.getByText(/launch surface for analytics, creator ops, and storage/i)
       ).toBeInTheDocument()
     );
+    await vi.dynamicImportSettled();
   });
 });

@@ -108,6 +108,26 @@ describe("Auth callback route behavior", () => {
     });
   });
 
+  it("renders the auth callback stylesheet class contract used by auth.css", async () => {
+    setCallbackRoute("/auth/callback?flow=recovery&next=%2Fdashboard#type=recovery", {
+      flow: "recovery",
+      next: "/dashboard",
+    });
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    const { container } = render(<AuthCallbackPage />);
+
+    expect(
+      await screen.findByText(
+        "This password reset link is invalid or has expired. Request a new one."
+      )
+    ).toBeInTheDocument();
+    expect(container.querySelector("main.auth-shell")).toBeInTheDocument();
+    expect(container.querySelector("form.auth-card")).toBeInTheDocument();
+    expect(container.querySelector(".auth-card-header")).toBeInTheDocument();
+    expect(container.querySelector(".auth-footnote")).toBeInTheDocument();
+  });
+
   it("renders the recovery form when Supabase emits PASSWORD_RECOVERY", async () => {
     setCallbackRoute(
       "/auth/callback?flow=recovery&next=%2Fdashboard#type=recovery&access_token=test-token",

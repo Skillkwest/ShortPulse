@@ -173,6 +173,7 @@ describe("workflowReload", () => {
         kind: "video",
         aspect: "9:16",
         videoReferenceMode: "lip-sync",
+        motionReferenceVideoUrl: "https://example.com/motion-should-not-leak.mp4",
         lipSyncAudioUrl: " https://example.com/voice.mp3 ",
         lipSyncAudioDurationMs: 12_400,
         lipSyncTurboMode: true,
@@ -189,6 +190,7 @@ describe("workflowReload", () => {
       expect.objectContaining({
         kind: "video",
         videoReferenceMode: "lip-sync",
+        motionReferenceVideoUrl: null,
         lipSyncAudioUrl: "https://example.com/voice.mp3",
         lipSyncAudioDurationMs: 12_400,
         lipSyncTurboMode: true,
@@ -223,6 +225,40 @@ describe("workflowReload", () => {
       expect.objectContaining({
         lipSyncAudioUrl: null,
         lipSyncAudioDurationMs: null,
+      })
+    );
+
+    const motionReload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: { display: "" },
+      model: { id: "kie-ai/kling-3.0" },
+      payload: {
+        kind: "video",
+        aspect: "9:16",
+        videoReferenceMode: "motion",
+        motionReferenceVideoUrl: " https://example.com/motion.mp4 ",
+        durationSeconds: null,
+        resolution: null,
+        generateAudio: null,
+        cameraFixed: null,
+        autoFix: null,
+        lipSyncAudioUrl: "https://example.com/voice-should-not-leak.mp3",
+        lipSyncAudioDurationMs: 12_400,
+        lipSyncTurboMode: true,
+        referenceInputs: ["https://example.com/character.png"],
+      },
+    });
+
+    expect(motionReload?.payload).toEqual(
+      expect.objectContaining({
+        videoReferenceMode: "motion",
+        motionReferenceVideoUrl: "https://example.com/motion.mp4",
+        lipSyncAudioUrl: null,
+        lipSyncAudioDurationMs: null,
+        lipSyncTurboMode: null,
       })
     );
     expect(isWorkflowReloadConfigV1(musicReload)).toBe(true);

@@ -55,7 +55,9 @@ import {
   isLipSyncAudioReadyForSubmit,
 } from "../../logic/lipSyncAudioState";
 
+const FAL_UPLOAD_ROUTE = "/api/fal/upload-url";
 const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
+const FAL_CDN_MEDIA_HOST_SUFFIXES = ["fal.media"] as const;
 const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
   "kieai.redpandaai.co",
   "tempfile.redpandaai.co",
@@ -77,6 +79,17 @@ const isKieHostedTemporaryMediaUrl = (value: string): boolean => {
   try {
     const hostname = new URL(value).hostname.trim().toLowerCase();
     return KIE_HOSTED_MEDIA_HOST_SUFFIXES.some(
+      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const isFalCdnMediaUrl = (value: string): boolean => {
+  try {
+    const hostname = new URL(value).hostname.trim().toLowerCase();
+    return FAL_CDN_MEDIA_HOST_SUFFIXES.some(
       (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
     );
   } catch {
@@ -373,6 +386,194 @@ const uploadSourceUrlToKieTemporaryFile = async ({
     cache.delete(cacheKey);
     throw error;
   }
+};
+
+const resolveFalUploadMimeType = (mediaKind: "image" | "audio", mimeType?: string): string =>
+  mimeType?.trim() || (mediaKind === "image" ? "image/png" : "audio/mpeg");
+
+const resolveFalUploadFilename = (mediaKind: "image" | "audio", mimeType?: string): string => {
+  const extension = mimeType?.split("/")[1]?.trim() || (mediaKind === "image" ? "png" : "mp3");
+  return `fal-${mediaKind}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+};
+
+const uploadUrlToFalCdn = async ({
+  url,
+  cache,
+}: {
+  url: string;
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl) return "";
+  if (isFalCdnMediaUrl(normalizedUrl)) return normalizedUrl;
+
+  const cached = cache.get(normalizedUrl);
+  if (cached) return await cached;
+
+  const uploadPromise = (async () => {
+    const response = await fetchWithAuth(FAL_UPLOAD_ROUTE, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: normalizedUrl,
+      }),
+      shortpulseLogScope: "generation",
+    });
+
+    const { payload, bodyFormat } = await readKieUploadRoutePayload(response);
+    if (!response.ok) {
+      throw new Error(
+        resolveKieUploadFailureMessage({
+          response,
+          payload,
+          bodyFormat,
+        })
+      );
+    }
+
+    const uploadedUrl = payload.url?.trim();
+    if (!uploadedUrl) {
+      throw new Error("Fal upload failed: missing uploaded URL.");
+    }
+    return uploadedUrl;
+  })();
+
+  cache.set(normalizedUrl, uploadPromise);
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    cache.delete(normalizedUrl);
+    throw error;
+  }
+};
+
+const uploadBlobToFalCdn = async ({
+  blob,
+  mediaKind,
+  cacheKey,
+  cache,
+}: {
+  blob: Blob;
+  mediaKind: "image" | "audio";
+  cacheKey: string;
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const cached = cache.get(cacheKey);
+  if (cached) return await cached;
+
+  const uploadPromise = (async () => {
+    const response = await fetchWithAuth(FAL_UPLOAD_ROUTE, {
+      method: "POST",
+      headers: {
+        "Content-Type": resolveFalUploadMimeType(mediaKind, blob.type),
+        "x-shortpulse-upload-filename": resolveFalUploadFilename(mediaKind, blob.type),
+      },
+      body: blob,
+      shortpulseLogScope: "generation",
+    });
+
+    const { payload, bodyFormat } = await readKieUploadRoutePayload(response);
+    if (!response.ok) {
+      throw new Error(
+        resolveKieUploadFailureMessage({
+          response,
+          payload,
+          bodyFormat,
+        })
+      );
+    }
+
+    const uploadedUrl = payload.url?.trim();
+    if (!uploadedUrl) {
+      throw new Error("Fal upload failed: missing uploaded URL.");
+    }
+    return uploadedUrl;
+  })();
+
+  cache.set(cacheKey, uploadPromise);
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    cache.delete(cacheKey);
+    throw error;
+  }
+};
+
+const uploadSourceUrlToFalCdn = async ({
+  sourceUrl,
+  mediaKind,
+  cache,
+}: {
+  sourceUrl: string;
+  mediaKind: "image" | "audio";
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const normalizedUrl = sourceUrl.trim();
+  if (!normalizedUrl) return "";
+  const cacheKey = `fal-source:${mediaKind}:${normalizedUrl}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return await cached;
+
+  const uploadPromise = (async () => {
+    const sourceResponse = await fetch(normalizedUrl);
+    if (!sourceResponse.ok) {
+      throw new Error(`Unable to read local ${mediaKind} input (${sourceResponse.status}).`);
+    }
+    const blob = await sourceResponse.blob();
+    return await uploadBlobToFalCdn({
+      blob,
+      mediaKind,
+      cacheKey: `${cacheKey}:blob`,
+      cache,
+    });
+  })();
+
+  cache.set(cacheKey, uploadPromise);
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    cache.delete(cacheKey);
+    throw error;
+  }
+};
+
+const prepareFalInputUrl = async ({
+  rawUrl,
+  preparedUrl,
+  mediaKind,
+  cache,
+}: {
+  rawUrl?: string | null;
+  preparedUrl?: string | null;
+  mediaKind: "image" | "audio";
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const normalizedRawUrl = rawUrl?.trim() ?? "";
+  const normalizedPreparedUrl = preparedUrl?.trim() ?? "";
+  const browserUploadSourceUrl =
+    normalizedRawUrl &&
+    !normalizedPreparedUrl &&
+    (mediaKind === "image"
+      ? needsImageUpload(normalizedRawUrl)
+      : isLocalAudioUploadSourceUrl(normalizedRawUrl))
+      ? normalizedRawUrl
+      : "";
+  if (browserUploadSourceUrl) {
+    return await uploadSourceUrlToFalCdn({
+      sourceUrl: browserUploadSourceUrl,
+      mediaKind,
+      cache,
+    });
+  }
+
+  const sourceUrl = normalizedPreparedUrl || normalizedRawUrl;
+  if (!sourceUrl) return "";
+  return await uploadUrlToFalCdn({
+    url: sourceUrl,
+    cache,
+  });
 };
 
 const uploadUrlsToKieTemporaryFiles = async ({
@@ -769,20 +970,34 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         return { handled: true };
       }
 
-      const kieUploadCache = new Map<string, Promise<string>>();
-      const imageUrl = await prepareKieInputUrl({
-        rawUrl: rawImageUrl,
-        preparedUrl: preparedImageUrl,
-        mediaKind: "image",
-        cache: kieUploadCache,
-      });
+      const falUploadCache = new Map<string, Promise<string>>();
+      let imageUrl = "";
+      try {
+        imageUrl = await prepareFalInputUrl({
+          rawUrl: rawImageUrl,
+          preparedUrl: preparedImageUrl,
+          mediaKind: "image",
+          cache: falUploadCache,
+        });
+      } catch (error) {
+        const message =
+          needsImageUpload(rawImageUrl) &&
+          error instanceof Error &&
+          error.message.toLowerCase().includes("unable to read local image input")
+            ? "Local character image is no longer available. Re-add the image and try again."
+            : `Character image preparation failed: ${
+                error instanceof Error ? error.message : "Please re-add the image and try again."
+              }`;
+        notifyGenerationFailure(id, message, undefined, VALIDATION_FAILURE_CONTEXT);
+        return { handled: true };
+      }
       let audioUrl = "";
       try {
-        audioUrl = await prepareKieInputUrl({
+        audioUrl = await prepareFalInputUrl({
           rawUrl: rawAudioUrl,
           preparedUrl: rawAudioUrl,
           mediaKind: "audio",
-          cache: kieUploadCache,
+          cache: falUploadCache,
         });
       } catch (error) {
         const message =

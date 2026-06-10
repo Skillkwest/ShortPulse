@@ -680,6 +680,72 @@ describe("useReferencePropertiesInteractions", () => {
     );
   });
 
+  it("stages storage-backed Media Library video drags for motion drops when only a poster URL is exposed", async () => {
+    const onMotionVideoChange = vi.fn();
+    const onStageMotionVideoSelection = vi.fn().mockResolvedValue(undefined);
+    getSignedMediaUrlMock.mockResolvedValue(
+      "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/videos/reference-video.mp4?token=fresh"
+    );
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        onStageMotionVideoSelection,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const event = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      dataTransfer: {
+        files: { length: 0, item: () => null } as unknown as FileList,
+        types: [
+          "text/shortpulse-media-library-marker",
+          "text/shortpulse-media-library-kind",
+          "text/shortpulse-media-library-id",
+          "text/shortpulse-media-library-file-type",
+          "text/shortpulse-media-library-url",
+          "text/shortpulse-media-library-full-storage-path",
+        ],
+        getData: vi.fn((type: string) => {
+          if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
+          if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
+          if (type === "text/shortpulse-media-library-id") return "media-video-storage";
+          if (type === "text/shortpulse-media-library-file-type") return "video";
+          if (type === "text/shortpulse-media-library-url")
+            return "https://cdn.shortpulse.test/reference-poster.jpg";
+          if (type === "text/shortpulse-media-library-full-storage-path")
+            return "user-1/library/videos/reference-video.mp4";
+          return "";
+        }),
+      },
+    } as unknown as Parameters<
+      ReturnType<typeof useReferencePropertiesInteractions>["handleMotionVideoDrop"]
+    >[0];
+
+    await act(async () => {
+      await result.current.handleMotionVideoDrop(event);
+    });
+
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/library/videos/reference-video.mp4",
+      previewProfile: "none",
+    });
+    expect(onStageMotionVideoSelection).toHaveBeenCalledWith({
+      videoUrl:
+        "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/videos/reference-video.mp4?token=fresh",
+    });
+    expect(onMotionVideoChange).not.toHaveBeenCalled();
+  });
+
   it("remembers file-selected image blobs for later submission reuse", async () => {
     const onExtraImageChange = vi.fn();
     URL.createObjectURL = vi.fn(() => "blob:selected-file");
@@ -697,6 +763,39 @@ describe("useReferencePropertiesInteractions", () => {
     );
 
     const file = new File(["secondary-ref"], "secondary.png", { type: "image/png" });
+    const event = {
+      target: {
+        files: [file],
+        value: "secondary.png",
+      },
+    };
+
+    await act(async () => {
+      result.current.handleFileSelection((url) => onExtraImageChange(0, url))(event as never);
+      await Promise.resolve();
+    });
+
+    expect(onExtraImageChange).toHaveBeenCalledWith(0, "blob:selected-file");
+    expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
+  });
+
+  it("accepts file-selected images when the browser omits MIME type", async () => {
+    const onExtraImageChange = vi.fn();
+    URL.createObjectURL = vi.fn(() => "blob:selected-file");
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange,
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const file = new File(["secondary-ref"], "secondary.png", { type: "" });
     const event = {
       target: {
         files: [file],
@@ -850,10 +949,10 @@ describe("useReferencePropertiesInteractions", () => {
     );
   });
 
-  it("accepts computer-dropped image files in the Motion Control character slot", async () => {
+  it("accepts computer-dropped image files in the Motion Control character slot when MIME type is missing", async () => {
     const onPrimaryImageChange = vi.fn();
     URL.createObjectURL = vi.fn(() => "blob:dropped-primary");
-    const file = new File(["character"], "character.png", { type: "image/png" });
+    const file = new File(["character"], "character.png", { type: "" });
     const event = {
       preventDefault: vi.fn(),
       dataTransfer: {
@@ -886,10 +985,10 @@ describe("useReferencePropertiesInteractions", () => {
     expect(readRememberedObjectUrlBlob("blob:dropped-primary")).toBe(file);
   });
 
-  it("stages file-selected motion videos before committing them", async () => {
+  it("stages file-selected motion videos before committing them, even when MIME type is missing", async () => {
     const onMotionVideoChange = vi.fn();
     const onStageMotionVideoSelection = vi.fn().mockResolvedValue(undefined);
-    const file = new File(["motion"], "motion.webm", { type: "video/webm" });
+    const file = new File(["motion"], "motion.webm", { type: "" });
 
     const { result } = renderHook(() =>
       useReferencePropertiesInteractions({
@@ -918,10 +1017,10 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onMotionVideoChange).not.toHaveBeenCalled();
   });
 
-  it("stages dropped local motion videos before committing them", async () => {
+  it("stages dropped local motion videos before committing them, even when MIME type is missing", async () => {
     const onMotionVideoChange = vi.fn();
     const onStageMotionVideoSelection = vi.fn().mockResolvedValue(undefined);
-    const file = new File(["motion"], "motion.mp4", { type: "video/mp4" });
+    const file = new File(["motion"], "motion.mp4", { type: "" });
 
     const { result } = renderHook(() =>
       useReferencePropertiesInteractions({

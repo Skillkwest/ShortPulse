@@ -342,6 +342,7 @@ export function AuthenticatedDashboardRoute({
       key: "auth-storage",
       label: "Media Storage",
       value: storageUsageValue,
+      href: "/profile?section=storage",
       icon: CloudArrowUp,
     },
     ...(DASHBOARD_HIDE_LEGACY_SECTIONS
@@ -358,6 +359,7 @@ export function AuthenticatedDashboardRoute({
       key: "auth-credits",
       label: "AI credits",
       value: aiCreditsValue,
+      href: "/profile?section=credits",
       icon: Sparkle,
     },
     {
@@ -365,6 +367,7 @@ export function AuthenticatedDashboardRoute({
       label: "Plan",
       value: planMeta.label,
       className: planMeta.className,
+      href: "/profile?section=subscription",
       icon: ShieldCheck,
     },
   ];
@@ -384,6 +387,7 @@ export function AuthenticatedDashboardRoute({
     <>
       <main id="main-content" className="page page-wide dashboard-refresh">
         <DashboardAppBar
+          brandHref={null}
           cards={authHeaderCards}
           actionSlot={
             <div className="user-cluster profile-menu" ref={profileMenuRef}>

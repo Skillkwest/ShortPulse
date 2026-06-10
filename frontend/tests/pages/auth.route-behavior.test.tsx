@@ -102,6 +102,20 @@ describe("Auth route behavior", () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
+  it("renders the auth stylesheet class contract used by auth.css", () => {
+    const { container } = render(<AuthPage />);
+
+    expect(container.querySelector("main.auth-shell")).toBeInTheDocument();
+    expect(container.querySelector("form.auth-card")).toBeInTheDocument();
+    expect(container.querySelector(".auth-mode-toggle")).toBeInTheDocument();
+    expect(container.querySelectorAll(".auth-input")).toHaveLength(2);
+    expect(screen.getByRole("tab", { name: "Sign in" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Sign in" })).toHaveClass(
+      "auth-submit",
+      "primary-btn"
+    );
+  });
+
   it("falls back to /dashboard when sign-in receives an unsafe redirect target", async () => {
     routerState.query = { next: "//evil.example" };
     signInWithPasswordMock.mockResolvedValue({

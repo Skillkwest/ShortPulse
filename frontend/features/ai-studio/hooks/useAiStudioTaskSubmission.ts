@@ -305,6 +305,12 @@ export const useAiStudioTaskSubmission = ({
       const isMotionControlSubmission =
         (normalizedTool === "video" || normalizedTool === "kling") &&
         videoReferenceMode === "motion";
+      const activeMotionReferenceVideoUrl = isMotionControlSubmission
+        ? motionReferenceVideoUrl
+        : null;
+      const activeLipSyncAudio = isLipSyncSubmission
+        ? lipSyncAudio
+        : createEmptyLipSyncAudioState();
       const requiresPrompt = isEditWorkflow
         ? shouldRequirePromptForEditModel(finalModel)
         : !(isLipSyncSubmission || isMotionControlSubmission);
@@ -538,7 +544,8 @@ export const useAiStudioTaskSubmission = ({
               generateAudio: isVideoGeneration ? requestedAudio : null,
               cameraFixed: isVideoGeneration ? videoCameraFixed : null,
               autoFix: isVideoGeneration ? videoAutoFix : null,
-              motionReferenceVideoUrl: isVideoGeneration ? motionReferenceVideoUrl : null,
+              motionReferenceVideoUrl:
+                isVideoGeneration && isMotionControlSubmission ? motionReferenceVideoUrl : null,
               lipSyncAudioUrl:
                 isVideoGeneration && videoReferenceMode === "lip-sync"
                   ? getDurableLipSyncAudioUrl(lipSyncAudio)
@@ -578,7 +585,7 @@ export const useAiStudioTaskSubmission = ({
           currentCostCredits ??
           null;
         const motionReferenceAssetContext = buildMotionReferenceAssetShortpulseContext({
-          motionReferenceVideoUrl,
+          motionReferenceVideoUrl: activeMotionReferenceVideoUrl,
         });
         const lipSyncAudioDurationSeconds =
           typeof lipSyncAudio.durationMs === "number" && Number.isFinite(lipSyncAudio.durationMs)
@@ -756,9 +763,9 @@ export const useAiStudioTaskSubmission = ({
             inpaintOverride: preparedInpaintOverride,
             videoReferenceMode,
             videoReferenceImageUrl,
-            motionReferenceVideoUrl,
-            lipSyncAudio,
-            lipSyncTurboMode,
+            motionReferenceVideoUrl: activeMotionReferenceVideoUrl,
+            lipSyncAudio: activeLipSyncAudio,
+            lipSyncTurboMode: isLipSyncSubmission ? lipSyncTurboMode : false,
             videoCameraFixed,
             rawImageInputs: imageInputs,
             seedance2InputMode,

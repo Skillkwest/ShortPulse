@@ -26,7 +26,6 @@ import {
   readSupabaseSession,
 } from "../lib/supabaseClient";
 import { trackSignupCompleted, trackSignupSubmitted } from "../lib/growthTelemetry";
-import authStyles from "../styles/auth-route.module.css";
 
 type Mode = "signin" | "signup";
 
@@ -34,10 +33,7 @@ const DEFAULT_PLAN = "free";
 const MIN_PASSWORD_LENGTH = 8;
 
 const authClass = (...names: Array<string | false | null | undefined>) =>
-  names
-    .filter((name): name is string => Boolean(name))
-    .map((name) => authStyles[name] ?? name)
-    .join(" ");
+  names.filter((name): name is string => Boolean(name)).join(" ");
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;

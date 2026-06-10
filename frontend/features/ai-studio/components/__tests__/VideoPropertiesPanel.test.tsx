@@ -865,7 +865,7 @@ describe("VideoPropertiesPanel", () => {
       videoResolutionValue: "1080p",
     });
 
-    render(
+    const { container } = render(
       <VideoPropertiesPanel
         {...baseProps}
         modelId="fal-ai/bytedance/omnihuman/v1.5"
@@ -884,6 +884,9 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "720p" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "1080p" })).toBeInTheDocument();
     expect(screen.getByText("Faster generation")).toBeInTheDocument();
+    const lipSyncInputRow = container.querySelector(".video-lip-sync-input-row");
+    expect(lipSyncInputRow?.children[0]).toHaveClass("video-lip-sync-image-slot");
+    expect(lipSyncInputRow?.children[1]).toHaveClass("video-lip-sync-audio-card");
     expect(screen.queryByText(/Kling/i)).toBeNull();
     expect(screen.queryByTestId("reference-video-settings-step")).toBeNull();
     expect(document.body).not.toHaveTextContent(/Fal|OmniHuman|Bytedance|fal-ai\/bytedance/i);

@@ -7,12 +7,15 @@ import type { ChangeEvent, DragEvent, RefObject } from "react";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { INTERNAL_MEDIA_REF_BUCKET } from "../../../lib/media/internalMediaRefs";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
+import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import {
   extractDragDropPayload,
   extractPromptDropText,
   extractInternalReferenceDragPayload,
   extractVideoDragDropPayload,
   isImageDragTransfer,
+  isImageFile,
+  isVideoFile,
   isVideoDragTransfer,
   looksLikeImageUrl,
   looksLikeVideoUrl,
@@ -98,6 +101,14 @@ const resolveMotionVideoStoragePathFromInternalPayload = (
 ): string | null => {
   if (payload?.mediaKind !== "video") return null;
   const candidates = [payload.fullStoragePath, payload.previewStoragePath];
+  return candidates.find((candidate) => candidate && looksLikeVideoUrl(candidate))?.trim() ?? null;
+};
+
+const resolveMotionVideoStoragePathFromMediaLibraryPayload = (
+  payload: ReturnType<typeof readMediaLibraryDragPayload> | null
+): string | null => {
+  if (payload?.kind !== "libraryMedia" || payload.payload.fileType !== "video") return null;
+  const candidates = [payload.payload.fullStoragePath, payload.payload.previewStoragePath];
   return candidates.find((candidate) => candidate && looksLikeVideoUrl(candidate))?.trim() ?? null;
 };
 
@@ -358,7 +369,7 @@ export const useReferencePropertiesInteractions = ({
     (setter: (url: string | null) => void) => (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
-      if (!file.type.startsWith("image/")) {
+      if (!isImageFile(file)) {
         event.target.value = "";
         return;
       }
@@ -646,12 +657,11 @@ export const useReferencePropertiesInteractions = ({
     setMotionVideoDragActive(false);
 
     const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+    const mediaLibraryPayload = readMediaLibraryDragPayload(event.dataTransfer);
     const payload = extractVideoDragDropPayload(event.dataTransfer);
     let nextVideoUrl = payload.videoUrl;
     const nextVideoFile =
-      payload.videoFile ??
-      Array.from(event.dataTransfer.files ?? []).find((f) => f.type.startsWith("video/")) ??
-      null;
+      payload.videoFile ?? Array.from(event.dataTransfer.files ?? []).find(isVideoFile) ?? null;
 
     if (
       (!nextVideoUrl || isLocalMemoryVideoUrl(nextVideoUrl)) &&
@@ -668,7 +678,9 @@ export const useReferencePropertiesInteractions = ({
     }
 
     if (!nextVideoUrl) {
-      const storagePath = resolveMotionVideoStoragePathFromInternalPayload(internalPayload);
+      const storagePath =
+        resolveMotionVideoStoragePathFromInternalPayload(internalPayload) ??
+        resolveMotionVideoStoragePathFromMediaLibraryPayload(mediaLibraryPayload);
       if (storagePath) {
         const signedVideoUrl = await getSignedMediaUrl({
           bucket: INTERNAL_MEDIA_REF_BUCKET,
@@ -704,7 +716,7 @@ export const useReferencePropertiesInteractions = ({
 
   const handleMotionVideoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith("video/")) {
+    if (isVideoFile(file)) {
       await onStageMotionVideoSelection?.({ videoFile: file });
     }
     event.target.value = "";

@@ -678,7 +678,8 @@ button.hero-onboarding {
 .hero-sessions-group-button:hover {
   transform: translateY(-2px);
   border-color: rgba(82, 220, 240, 0.34);
-  background: rgba(20, 23, 28, 0.96);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(37, 169, 191, 0.12), transparent 58%), #131518;
 }
 
 .hero-sessions-group-button:focus-visible {

@@ -34,6 +34,21 @@ const MOTION_REFERENCE_NORMALIZABLE_VIDEO_MIME_TYPES = new Set([
   "video/webm",
   "video/x-m4v",
 ]);
+const VIDEO_MIME_TYPE_BY_EXTENSION = new Map<string, string>([
+  ["m4v", "video/x-m4v"],
+  ["mov", "video/quicktime"],
+  ["mp4", "video/mp4"],
+  ["ogg", "video/ogg"],
+  ["ogv", "video/ogg"],
+  ["webm", "video/webm"],
+]);
+const VIDEO_EXTENSION_BY_MIME_TYPE = new Map<string, string>([
+  ["video/mp4", "mp4"],
+  ["video/ogg", "ogv"],
+  ["video/quicktime", "mov"],
+  ["video/webm", "webm"],
+  ["video/x-m4v", "m4v"],
+]);
 
 const isPrivateIpv4Address = (hostname: string): boolean => {
   const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
@@ -91,6 +106,32 @@ type StageMotionReferenceVideoPayload = {
 
 const normalizeVideoUploadMimeType = (mimeType: string): string =>
   (mimeType.split(";")[0] ?? "").trim().toLowerCase() || "video/mp4";
+
+const readVideoFileExtension = (filename: string): string | null => {
+  const extension = filename
+    .trim()
+    .match(/\.([a-z0-9]+)$/i)?.[1]
+    ?.trim()
+    .toLowerCase();
+  return extension || null;
+};
+
+const inferVideoFileMimeType = (file: Pick<File, "name" | "type">): string => {
+  const declaredMimeType = file.type.trim();
+  if (declaredMimeType) return normalizeVideoUploadMimeType(declaredMimeType);
+  const extension = readVideoFileExtension(file.name);
+  return (extension && VIDEO_MIME_TYPE_BY_EXTENSION.get(extension)) || "video/mp4";
+};
+
+const inferVideoBlobMimeType = (blob: Blob, filename: string): string => {
+  const declaredMimeType = blob.type.trim();
+  if (declaredMimeType) return normalizeVideoUploadMimeType(declaredMimeType);
+  const extension = readVideoFileExtension(filename);
+  return (extension && VIDEO_MIME_TYPE_BY_EXTENSION.get(extension)) || "video/mp4";
+};
+
+const inferVideoFileExtensionFromMimeType = (mimeType: string): string =>
+  VIDEO_EXTENSION_BY_MIME_TYPE.get(normalizeVideoUploadMimeType(mimeType)) ?? "mp4";
 
 const readVideoUrlExtension = (url: string): string | null => {
   const normalizedUrl = url.trim().replace(/#video=1$/i, "");
@@ -307,15 +348,16 @@ const uploadVideoBlob = async ({
 export const uploadVideoFileToStorage = async (file: File): Promise<VideoUploadResult> => {
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(7);
-  const fallbackExtension = file.type.split("/")[1] || "mp4";
+  const sourceMimeType = inferVideoFileMimeType(file);
+  const fallbackExtension = sourceMimeType.split("/")[1] || "mp4";
   const filenameBase = file.name.trim().replace(/\.[^/.]+$/, "") || "motion-reference";
-  const extension = file.name.split(".").pop()?.trim() || fallbackExtension;
+  const extension = readVideoFileExtension(file.name) ?? fallbackExtension;
   const filename = `${filenameBase}-${timestamp}-${randomString}.${extension}`;
 
   try {
     return await uploadVideoBlob({
       blob: file,
-      mimeType: file.type || "video/mp4",
+      mimeType: sourceMimeType,
       filename,
     });
   } catch (error) {
@@ -350,11 +392,18 @@ export const uploadVideoAssetToStorage = async (
 
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
-    const extension = blob.type.split("/")[1] || "mp4";
+    const urlExtension = readVideoUrlExtension(normalizedLocalVideoUrl);
+    const supportedUrlExtension =
+      urlExtension && VIDEO_MIME_TYPE_BY_EXTENSION.has(urlExtension) ? urlExtension : null;
+    const sourceMimeType = inferVideoBlobMimeType(
+      blob,
+      `motion-reference.${supportedUrlExtension ?? inferVideoFileExtensionFromMimeType(blob.type)}`
+    );
+    const extension = supportedUrlExtension ?? inferVideoFileExtensionFromMimeType(sourceMimeType);
     const filename = `motion-reference-${timestamp}-${randomString}.${extension}`;
     return await uploadVideoBlob({
       blob,
-      mimeType: blob.type || "video/mp4",
+      mimeType: sourceMimeType,
       filename,
     });
   } catch (error) {

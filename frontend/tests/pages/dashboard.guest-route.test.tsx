@@ -157,6 +157,7 @@ describe("Dashboard guest route", () => {
       "href",
       "/auth?next=%2Fdashboard"
     );
+    expect(screen.getByRole("link", { name: "ShortPulse home" })).toHaveAttribute("href", "/");
     expect(
       screen.getByRole("link", {
         name: "New Project: Compare plans and unlock your first project",

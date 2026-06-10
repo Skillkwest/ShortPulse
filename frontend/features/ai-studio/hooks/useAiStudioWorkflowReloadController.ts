@@ -70,6 +70,7 @@ type UseAiStudioWorkflowReloadControllerParams = {
   setMotionReferenceVideoUrl: Dispatch<SetStateAction<string | null>>;
   setMusicComposerMode: Dispatch<SetStateAction<WorkflowReloadMusicComposerMode>>;
   setMusicDurationSeconds: Dispatch<SetStateAction<number | null>>;
+  setMusicInstrumentalEnabled: Dispatch<SetStateAction<boolean>>;
   setMusicLyricsDraft: (value: string) => void;
   setMusicPromptDraft: (value: string) => void;
   setMusicSingerEnabled: Dispatch<SetStateAction<boolean>>;
@@ -256,6 +257,7 @@ export const useAiStudioWorkflowReloadController = ({
   setMotionReferenceVideoUrl,
   setMusicComposerMode,
   setMusicDurationSeconds,
+  setMusicInstrumentalEnabled,
   setMusicLyricsDraft,
   setMusicPromptDraft,
   setMusicSingerEnabled,
@@ -419,6 +421,9 @@ export const useAiStudioWorkflowReloadController = ({
         setMusicLyricsDraft(payload.lyrics ?? "");
         if (payload.durationSeconds != null) setMusicDurationSeconds(payload.durationSeconds);
         if (payload.composerMode) setMusicComposerMode(payload.composerMode);
+        if (payload.instrumentalEnabled != null) {
+          setMusicInstrumentalEnabled(payload.instrumentalEnabled);
+        }
         if (payload.singerEnabled != null) setMusicSingerEnabled(payload.singerEnabled);
         if (payload.songBatchCount) setMusicSongBatchCount(payload.songBatchCount);
       }
@@ -482,6 +487,7 @@ export const useAiStudioWorkflowReloadController = ({
       setMotionReferenceVideoUrl,
       setMusicComposerMode,
       setMusicDurationSeconds,
+      setMusicInstrumentalEnabled,
       setMusicLyricsDraft,
       setMusicPromptDraft,
       setMusicSingerEnabled,

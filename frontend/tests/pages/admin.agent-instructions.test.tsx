@@ -9,6 +9,10 @@ import {
   SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS,
   type ExpertEditSystemPresetDefinition,
 } from "../../features/ai-studio/components/edit/expertEditPresets";
+import {
+  SEEDED_BUILT_IN_STYLE_DEFINITIONS,
+  type BuiltInStyleDefinition,
+} from "../../lib/model-runtime/builtInStyles";
 import AdminAgentInstructionsPage from "../../pages/admin/agent-instructions";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
@@ -94,6 +98,19 @@ const buildEditSystemPresetResponse = (
   }),
 });
 
+const buildBuiltInStyleResponse = (
+  styleDefinitions: readonly BuiltInStyleDefinition[] = SEEDED_BUILT_IN_STYLE_DEFINITIONS
+) => ({
+  ok: true,
+  json: async () => ({
+    styleDefinitions,
+    source: "control_plane" as const,
+    updatedAt: "2026-05-05T18:00:00.000Z",
+    updatedByEmail: "admin@example.com",
+    degraded: false,
+  }),
+});
+
 describe("Admin agent instructions page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -106,6 +123,9 @@ describe("Admin agent instructions page", () => {
       }
       if (input === "/api/admin/agent-instructions/edit-system-presets") {
         return buildEditSystemPresetResponse();
+      }
+      if (input === "/api/admin/agent-instructions/built-in-styles") {
+        return buildBuiltInStyleResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
         return buildCatalogResponse();
@@ -138,6 +158,7 @@ describe("Admin agent instructions page", () => {
       "page"
     );
     expect(await screen.findByText("Global built-in Pulse set")).toBeInTheDocument();
+    expect(screen.getByText("Global built-in Styles")).toBeInTheDocument();
     expect(screen.getByText("Standard Create Agent")).toBeInTheDocument();
     expect(screen.getByText("Video Prompt Magic")).toBeInTheDocument();
     expect(screen.getByText("Multi Sequence Video Prompt")).toBeInTheDocument();
@@ -167,6 +188,9 @@ describe("Admin agent instructions page", () => {
       }
       if (input === "/api/admin/agent-instructions/edit-system-presets") {
         return buildEditSystemPresetResponse();
+      }
+      if (input === "/api/admin/agent-instructions/built-in-styles") {
+        return buildBuiltInStyleResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
         if (init?.method === "PUT") {
@@ -288,6 +312,111 @@ describe("Admin agent instructions page", () => {
     );
   }, 10_000);
 
+  it("edits, adds, removes, resets, and saves built-in Styles", async () => {
+    const updatedStyleDefinitions: BuiltInStyleDefinition[] = [
+      {
+        ...SEEDED_BUILT_IN_STYLE_DEFINITIONS[1],
+        title: "Editorial Cinematic",
+        stylePrompt: "dramatic editorial lighting, rich contrast, polished color grade",
+      },
+    ];
+
+    fetchWithAuthMock.mockImplementation(async (input: string, init?: { method?: string }) => {
+      if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+        return buildStandardPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+        return buildStyleExtractPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/edit-system-presets") {
+        return buildEditSystemPresetResponse();
+      }
+      if (input === "/api/admin/agent-instructions/built-in-styles") {
+        if (init?.method === "PUT") {
+          return buildBuiltInStyleResponse(updatedStyleDefinitions);
+        }
+        return buildBuiltInStyleResponse([SEEDED_BUILT_IN_STYLE_DEFINITIONS[1]]);
+      }
+      if (input === "/api/admin/agent-instructions/pulse-builtins") {
+        return buildCatalogResponse();
+      }
+      throw new Error(`Unexpected fetch target: ${input}`);
+    });
+
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Global built-in Styles");
+
+    const stylesCard = screen.getByText("Global built-in Styles").closest("article");
+    if (!stylesCard) throw new Error("Expected built-in Styles card.");
+    const cinematicTile = within(stylesCard).getByText("Cinematic").closest("article");
+    if (!cinematicTile) throw new Error("Expected Cinematic style tile.");
+    const cinematicButton = within(cinematicTile)
+      .getAllByRole("button")
+      .find((button) => !button.getAttribute("aria-label")?.startsWith("Delete "));
+    if (!cinematicButton) throw new Error("Expected Cinematic tile button.");
+    fireEvent.click(cinematicButton);
+
+    fireEvent.change(within(cinematicTile).getByRole("textbox", { name: "Style name" }), {
+      target: { value: "Editorial Cinematic" },
+    });
+    fireEvent.change(within(cinematicTile).getByRole("textbox", { name: "Style Prompt" }), {
+      target: { value: "dramatic editorial lighting, rich contrast, polished color grade" },
+    });
+    expect(within(cinematicTile).getByText("Unsaved edits")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Add built-in Style/i }));
+    expect(screen.getByText("Style 2")).toBeInTheDocument();
+    const newStyleCard = screen.getByText("Style 2").closest("article");
+    if (!newStyleCard) throw new Error("Expected new Style card.");
+    fireEvent.click(within(newStyleCard).getByRole("button", { name: /Delete Style 2/i }));
+    expect(screen.queryByText("Style 2")).not.toBeInTheDocument();
+
+    fireEvent.click(within(stylesCard).getByRole("button", { name: "Save Styles set" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/built-in-styles",
+        expect.objectContaining({
+          method: "PUT",
+        })
+      );
+    });
+
+    const saveRequest = fetchWithAuthMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/built-in-styles" && init?.method === "PUT"
+    );
+    expect(saveRequest?.[1]).toMatchObject({
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+    expect(JSON.parse(String(saveRequest?.[1]?.body))).toEqual({
+      styleDefinitions: [
+        {
+          styleId: "cinematic",
+          title: "Editorial Cinematic",
+          stylePrompt: "dramatic editorial lighting, rich contrast, polished color grade",
+          previewImageUrl: "/Styles/Cinematic.png",
+          referenceImageName: null,
+          schemaVersion: 1,
+        },
+      ],
+      expectedUpdatedAt: "2026-05-05T18:00:00.000Z",
+    });
+
+    expect(within(stylesCard).getByText("Editorial Cinematic")).toBeInTheDocument();
+    fireEvent.change(within(cinematicTile).getByRole("textbox", { name: "Style name" }), {
+      target: { value: "Temporary style name" },
+    });
+    fireEvent.click(within(stylesCard).getByRole("button", { name: "Reset to stored" }));
+    expect(within(cinematicTile).getByRole("textbox", { name: "Style name" })).toHaveValue(
+      "Editorial Cinematic"
+    );
+  });
+
   it("saves one Pulse card without publishing other unsaved Pulse edits", async () => {
     const storedDefinitions = [
       CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
@@ -311,6 +440,9 @@ describe("Admin agent instructions page", () => {
         }
         if (input === "/api/admin/agent-instructions/edit-system-presets") {
           return buildEditSystemPresetResponse();
+        }
+        if (input === "/api/admin/agent-instructions/built-in-styles") {
+          return buildBuiltInStyleResponse();
         }
         if (input === "/api/admin/agent-instructions/pulse-builtins") {
           if (init?.method === "PUT") {
@@ -410,6 +542,9 @@ describe("Admin agent instructions page", () => {
         if (input === "/api/admin/agent-instructions/edit-system-presets") {
           return buildEditSystemPresetResponse();
         }
+        if (input === "/api/admin/agent-instructions/built-in-styles") {
+          return buildBuiltInStyleResponse();
+        }
         if (input === "/api/admin/agent-instructions/pulse-builtins") {
           return buildCatalogResponse();
         }
@@ -480,6 +615,9 @@ describe("Admin agent instructions page", () => {
             return buildEditSystemPresetResponse([...editedPresetDefinitions]);
           }
           return buildEditSystemPresetResponse();
+        }
+        if (input === "/api/admin/agent-instructions/built-in-styles") {
+          return buildBuiltInStyleResponse();
         }
         if (input === "/api/admin/agent-instructions/pulse-builtins") {
           return buildCatalogResponse();
@@ -552,6 +690,9 @@ describe("Admin agent instructions page", () => {
       if (input === "/api/admin/agent-instructions/edit-system-presets") {
         return buildEditSystemPresetResponse();
       }
+      if (input === "/api/admin/agent-instructions/built-in-styles") {
+        return buildBuiltInStyleResponse();
+      }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
         return buildCatalogResponse();
       }
@@ -579,6 +720,9 @@ describe("Admin agent instructions page", () => {
       }
       if (input === "/api/admin/agent-instructions/edit-system-presets") {
         return buildEditSystemPresetResponse();
+      }
+      if (input === "/api/admin/agent-instructions/built-in-styles") {
+        return buildBuiltInStyleResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
         if (fetchWithAuthMock.mock.calls.filter(([target]) => target === input).length > 1) {
@@ -637,6 +781,9 @@ describe("Admin agent instructions page", () => {
       }
       if (input === "/api/admin/agent-instructions/edit-system-presets") {
         return buildEditSystemPresetResponse();
+      }
+      if (input === "/api/admin/agent-instructions/built-in-styles") {
+        return buildBuiltInStyleResponse();
       }
       if (input === "/api/admin/agent-instructions/pulse-builtins") {
         if (init?.method === "PUT") {

@@ -10,6 +10,7 @@ import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { AUTH_SESSION_TIMEOUT_CODE } from "../../../../lib/authenticatedFetch";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
@@ -1099,6 +1100,77 @@ describe("useAiStudioTaskSubmission", () => {
           pricing_display_source: "pricing_grid",
           pricing_policy_ready: true,
         }),
+      })
+    );
+  });
+
+  it("forwards Seedance multi-shot mode into video submission", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("video");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        prompt: "",
+        currentCostCredits: 14,
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 10,
+        videoResolution: "720p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        seedance2InputMode: "text",
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "multi",
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 10,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Open on the beach, cut to the product, then end on the skyline", [], {
+        modeOverride: "video",
+        selectedToolOverride: "video",
+      });
+    });
+
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_SEEDANCE_2_MODEL_ID,
+        klingWorkflowMode: "multi",
       })
     );
   });

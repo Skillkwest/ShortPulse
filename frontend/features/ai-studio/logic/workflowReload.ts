@@ -379,6 +379,7 @@ const normalizeMusicPayload = (value: unknown): WorkflowReloadMusicPayload | nul
     energyPercent: asFiniteNumberOrNull(value.energyPercent),
     outputFormat: isMusicFormat(value.outputFormat) ? value.outputFormat : null,
     composerMode: isMusicComposerMode(value.composerMode) ? value.composerMode : null,
+    instrumentalEnabled: asBooleanOrNull(value.instrumentalEnabled),
     singerEnabled: asBooleanOrNull(value.singerEnabled),
     songBatchCount: isMusicSongBatchCount(value.songBatchCount) ? value.songBatchCount : null,
   };

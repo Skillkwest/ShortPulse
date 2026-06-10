@@ -56,6 +56,7 @@ export type DispatchSubmissionByRouteParams = {
   seedance2ReturnLastFrame?: boolean;
   seedance2WebSearch?: boolean;
   klingCfgScale: number;
+  klingWorkflowMode?: "single" | "multi" | "custom";
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
   klingElements: AiStudioKlingElement[];
   notifyGenerationFailure: NotifyGenerationFailure;
@@ -110,6 +111,7 @@ const submissionRouteAdapters: Record<
     seedance2ReturnLastFrame,
     seedance2WebSearch,
     klingCfgScale,
+    klingWorkflowMode,
     klingMultiPrompts,
     klingElements,
   }) => {
@@ -147,6 +149,7 @@ const submissionRouteAdapters: Record<
       seedance2ReturnLastFrame,
       seedance2WebSearch,
       klingCfgScale,
+      klingWorkflowMode,
       klingMultiPrompts,
       klingElements,
     });
@@ -291,6 +294,7 @@ export const dispatchSubmissionByRoute = async ({
   seedance2ReturnLastFrame,
   seedance2WebSearch,
   klingCfgScale,
+  klingWorkflowMode,
   klingMultiPrompts,
   klingElements,
   notifyGenerationFailure,
@@ -343,6 +347,7 @@ export const dispatchSubmissionByRoute = async ({
     seedance2ReturnLastFrame,
     seedance2WebSearch,
     klingCfgScale,
+    klingWorkflowMode,
     klingMultiPrompts,
     klingElements,
     notifyGenerationFailure,

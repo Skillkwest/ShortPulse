@@ -107,12 +107,14 @@ const buildProviderPrompt = ({
   bpm,
   structure,
   energyPercent,
+  lyricsText,
   mode,
 }: {
   text: string;
   bpm: number;
   structure: "loop" | "full-track" | "cinematic";
   energyPercent: number;
+  lyricsText: string | null;
   mode: "instrumental" | "vocal";
 }): string =>
   [
@@ -123,7 +125,9 @@ const buildProviderPrompt = ({
     `- Tempo target: ${bpm} BPM.`,
     `- Energy: ${energyPercent}%.`,
     mode === "vocal"
-      ? "- Include vocals or topline direction when it fits the prompt."
+      ? lyricsText
+        ? "- Use the provided Lyrics section as the sung lyrics."
+        : "- Generate and sing structured lyrics that match the style, tone, and duration of the prompt."
       : "- Keep the track fully instrumental.",
   ].join("\n");
 
@@ -247,6 +251,7 @@ export default async function handler(
       bpm,
       structure,
       energyPercent,
+      lyricsText,
       mode,
     });
 

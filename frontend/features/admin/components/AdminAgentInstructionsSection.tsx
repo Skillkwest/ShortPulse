@@ -7,6 +7,12 @@ import { CaretDown } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { agentPrompts } from "../../../lib/agentPromptsConfig";
 import {
+  BUILT_IN_STYLE_SCHEMA_VERSION,
+  normalizeBuiltInStyleDefinitions,
+  resolveBuiltInStyleDefinitions,
+  type BuiltInStyleDefinition,
+} from "../../../lib/model-runtime/builtInStyles";
+import {
   CREATE_PULSE_GUIDED_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
   normalizeCreatePulseBuiltInPresetDefinitions,
@@ -51,6 +57,15 @@ type AdminEditPresetDraft = {
   label: string;
   prompt: string;
 };
+type AdminBuiltInStyleDraft = {
+  localId: string;
+  styleId: string;
+  title: string;
+  stylePrompt: string;
+  previewImageUrl: string;
+  referenceImageName: string;
+  schemaVersion: number;
+};
 type PendingEditSystemPresetState = {
   presetId: string;
   originalLabel: string;
@@ -73,6 +88,13 @@ type StyleExtractPromptDraft = {
 };
 type EditSystemPresetCatalogDraft = {
   presetDefinitions: ExpertEditSystemPresetDefinition[];
+  source: "control_plane" | "seed";
+  updatedAt: string | null;
+  updatedByEmail: string | null;
+  degraded: boolean;
+};
+type BuiltInStyleCatalogDraft = {
+  drafts: AdminBuiltInStyleDraft[];
   source: "control_plane" | "seed";
   updatedAt: string | null;
   updatedByEmail: string | null;
@@ -212,6 +234,89 @@ const isPulseDraftBlank = (draft: AdminPulseDraft): boolean =>
   draft.systemInstructions.trim().length === 0 &&
   draft.artifactTarget === "text_artifact";
 
+const buildBuiltInStyleDraftFromDefinition = (
+  definition: BuiltInStyleDefinition,
+  index: number,
+  localId = `style-seed-${index}-${definition.styleId}`
+): AdminBuiltInStyleDraft => ({
+  localId,
+  styleId: definition.styleId,
+  title: definition.title,
+  stylePrompt: definition.stylePrompt,
+  previewImageUrl: definition.previewImageUrl,
+  referenceImageName: definition.referenceImageName ?? "",
+  schemaVersion: definition.schemaVersion,
+});
+
+const buildBuiltInStyleDraftsFromDefinitions = (
+  definitions: readonly BuiltInStyleDefinition[],
+  options?: {
+    templateDrafts?: readonly Pick<AdminBuiltInStyleDraft, "localId">[];
+  }
+): AdminBuiltInStyleDraft[] =>
+  definitions.map((definition, index) =>
+    buildBuiltInStyleDraftFromDefinition(
+      definition,
+      index,
+      options?.templateDrafts?.[index]?.localId ?? `style-seed-${index}-${definition.styleId}`
+    )
+  );
+
+const buildBuiltInStyleDefinitionFromDraft = (
+  draft: AdminBuiltInStyleDraft
+): BuiltInStyleDefinition => ({
+  styleId: draft.styleId.trim(),
+  title: draft.title.trim(),
+  stylePrompt: draft.stylePrompt.trim(),
+  previewImageUrl: draft.previewImageUrl.trim(),
+  referenceImageName: draft.referenceImageName.trim() || null,
+  schemaVersion: BUILT_IN_STYLE_SCHEMA_VERSION,
+});
+
+const buildEmptyBuiltInStyleDraft = (counter: number): AdminBuiltInStyleDraft => ({
+  localId: `style-draft-${counter}`,
+  styleId: "",
+  title: "",
+  stylePrompt: "",
+  previewImageUrl: "",
+  referenceImageName: "",
+  schemaVersion: BUILT_IN_STYLE_SCHEMA_VERSION,
+});
+
+const isBuiltInStyleDraftPersistable = (draft: AdminBuiltInStyleDraft): boolean =>
+  draft.styleId.trim().length > 0 &&
+  draft.title.trim().length > 0 &&
+  draft.stylePrompt.trim().length > 0 &&
+  draft.previewImageUrl.trim().length > 0;
+
+const isBuiltInStyleDraftBlank = (draft: AdminBuiltInStyleDraft): boolean =>
+  draft.styleId.trim().length === 0 &&
+  draft.title.trim().length === 0 &&
+  draft.stylePrompt.trim().length === 0 &&
+  draft.previewImageUrl.trim().length === 0 &&
+  draft.referenceImageName.trim().length === 0;
+
+const areBuiltInStyleDraftsEqual = (
+  left: AdminBuiltInStyleDraft,
+  right: AdminBuiltInStyleDraft
+): boolean =>
+  left.styleId === right.styleId &&
+  left.title === right.title &&
+  left.stylePrompt === right.stylePrompt &&
+  left.previewImageUrl === right.previewImageUrl &&
+  left.referenceImageName === right.referenceImageName &&
+  left.schemaVersion === right.schemaVersion;
+
+const areBuiltInStyleDraftListsEqual = (
+  left: readonly AdminBuiltInStyleDraft[],
+  right: readonly AdminBuiltInStyleDraft[]
+): boolean =>
+  left.length === right.length &&
+  left.every((draft, index) => {
+    const candidate = right[index];
+    return candidate ? areBuiltInStyleDraftsEqual(draft, candidate) : false;
+  });
+
 const buildAdminEditPresetDrafts = (
   presetDefinitions: readonly ExpertEditSystemPresetDefinition[] = SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS
 ): AdminEditPresetDraft[] =>
@@ -349,6 +454,33 @@ const loadEditSystemPresetCatalog = async (): Promise<EditSystemPresetCatalogDra
   };
 };
 
+const loadBuiltInStyleCatalog = async (): Promise<BuiltInStyleCatalogDraft> => {
+  const response = await fetchWithAuth("/api/admin/agent-instructions/built-in-styles", {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(await readResponseErrorMessage(response, "Unable to load built-in Styles."));
+  }
+  const payload = (await response.json()) as {
+    styleDefinitions?: unknown;
+    source?: "control_plane" | "seed";
+    updatedAt?: string | null;
+    updatedByEmail?: string | null;
+    degraded?: boolean;
+  };
+  const definitions = normalizeBuiltInStyleDefinitions(payload.styleDefinitions);
+  return {
+    drafts: buildBuiltInStyleDraftsFromDefinitions(
+      Array.isArray(payload.styleDefinitions) ? definitions : resolveBuiltInStyleDefinitions()
+    ),
+    source: payload.source === "control_plane" ? "control_plane" : "seed",
+    updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+    updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+    degraded: payload.degraded === true,
+  };
+};
+
 /**
  * Renders the admin draft-edit surface for Standard and built-in Pulse agent instructions.
  */
@@ -393,6 +525,31 @@ export function AdminAgentInstructionsSection() {
   const [styleExtractPromptLoadIssue, setStyleExtractPromptLoadIssue] = React.useState<
     string | null
   >(null);
+  const [builtInStyleCardCollapsed, setBuiltInStyleCardCollapsed] = React.useState(false);
+  const [builtInStyleDrafts, setBuiltInStyleDrafts] = React.useState<AdminBuiltInStyleDraft[]>([]);
+  const [storedBuiltInStyleDrafts, setStoredBuiltInStyleDrafts] = React.useState<
+    AdminBuiltInStyleDraft[]
+  >([]);
+  const [builtInStyleCardCollapsedById, setBuiltInStyleCardCollapsedById] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [nextBuiltInStyleDraftIndex, setNextBuiltInStyleDraftIndex] = React.useState(1);
+  const [builtInStyleLoading, setBuiltInStyleLoading] = React.useState(true);
+  const [builtInStyleSaveState, setBuiltInStyleSaveState] = React.useState<SaveState>("idle");
+  const [builtInStyleCatalogSource, setBuiltInStyleCatalogSource] = React.useState<
+    "control_plane" | "seed"
+  >("seed");
+  const [builtInStyleCatalogUpdatedAt, setBuiltInStyleCatalogUpdatedAt] = React.useState<
+    string | null
+  >(null);
+  const [builtInStyleCatalogUpdatedByEmail, setBuiltInStyleCatalogUpdatedByEmail] = React.useState<
+    string | null
+  >(null);
+  const [builtInStyleCatalogDegraded, setBuiltInStyleCatalogDegraded] = React.useState(false);
+  const [builtInStyleCatalogLoadIssue, setBuiltInStyleCatalogLoadIssue] = React.useState<
+    string | null
+  >(null);
+  const [builtInStyleSaveIssue, setBuiltInStyleSaveIssue] = React.useState<string | null>(null);
   const [editSystemPresetCardCollapsed, setEditSystemPresetCardCollapsed] = React.useState(true);
   const [editSystemPresetDrafts, setEditSystemPresetDrafts] = React.useState<
     AdminEditPresetDraft[]
@@ -444,6 +601,13 @@ export function AdminAgentInstructionsSection() {
       >,
     [storedPulseDrafts]
   );
+  const storedBuiltInStyleDraftsById = React.useMemo(
+    () =>
+      Object.fromEntries(
+        storedBuiltInStyleDrafts.map((draft) => [draft.localId, draft])
+      ) satisfies Record<string, AdminBuiltInStyleDraft>,
+    [storedBuiltInStyleDrafts]
+  );
   const hasPulseUnsavedChanges = React.useMemo(
     () => !arePulseDraftListsEqual(pulseDrafts, storedPulseDrafts),
     [pulseDrafts, storedPulseDrafts]
@@ -454,6 +618,18 @@ export function AdminAgentInstructionsSection() {
   );
   const hasStandardPromptUnsavedChanges = standardInstructions !== storedStandardInstructions;
   const hasStyleExtractPromptUnsavedChanges = styleExtractPrompt !== storedStyleExtractPrompt;
+  const hasBuiltInStyleUnsavedChanges = React.useMemo(
+    () => !areBuiltInStyleDraftListsEqual(builtInStyleDrafts, storedBuiltInStyleDrafts),
+    [builtInStyleDrafts, storedBuiltInStyleDrafts]
+  );
+  const hasUnpublishableBuiltInStyleDrafts = React.useMemo(
+    () =>
+      builtInStyleDrafts.some(
+        (draft) => isBuiltInStyleDraftBlank(draft) || !isBuiltInStyleDraftPersistable(draft)
+      ),
+    [builtInStyleDrafts]
+  );
+  const builtInStyleSaveExpectedUpdatedAt = builtInStyleCatalogUpdatedAt;
   const isPulseSaveBlockedByDegradedCatalog = pulseCatalogDegraded;
   const pulseSaveExpectedUpdatedAt = pulseCatalogUpdatedAt;
   const standardPromptUpdatedLabel = React.useMemo(() => {
@@ -480,6 +656,12 @@ export function AdminAgentInstructionsSection() {
     if (Number.isNaN(timestamp.getTime())) return null;
     return timestamp.toLocaleString();
   }, [styleExtractPromptUpdatedAt]);
+  const builtInStyleCatalogUpdatedLabel = React.useMemo(() => {
+    if (!builtInStyleCatalogUpdatedAt) return null;
+    const timestamp = new Date(builtInStyleCatalogUpdatedAt);
+    if (Number.isNaN(timestamp.getTime())) return null;
+    return timestamp.toLocaleString();
+  }, [builtInStyleCatalogUpdatedAt]);
 
   const setTimedCopyFeedback = React.useCallback((key: string, message: string) => {
     setCopyFeedback((current) => ({ ...current, [key]: message }));
@@ -532,6 +714,16 @@ export function AdminAgentInstructionsSection() {
     setStyleExtractPromptSource(draft.source);
     setStyleExtractPromptUpdatedAt(draft.updatedAt);
     setStyleExtractPromptUpdatedByEmail(draft.updatedByEmail);
+  }, []);
+
+  const hydrateBuiltInStyleDrafts = React.useCallback((catalog: BuiltInStyleCatalogDraft) => {
+    setBuiltInStyleDrafts(catalog.drafts);
+    setStoredBuiltInStyleDrafts(catalog.drafts);
+    setNextBuiltInStyleDraftIndex(catalog.drafts.length + 1);
+    setBuiltInStyleCatalogSource(catalog.source);
+    setBuiltInStyleCatalogUpdatedAt(catalog.updatedAt);
+    setBuiltInStyleCatalogUpdatedByEmail(catalog.updatedByEmail);
+    setBuiltInStyleCatalogDegraded(catalog.degraded);
   }, []);
 
   const refreshStandardPrompt = React.useCallback(async () => {
@@ -589,6 +781,38 @@ export function AdminAgentInstructionsSection() {
       setStyleExtractPromptLoading(false);
     }
   }, [hydrateStyleExtractPrompt]);
+
+  const refreshBuiltInStyleCatalog = React.useCallback(async () => {
+    setBuiltInStyleLoading(true);
+    try {
+      const catalog = await loadBuiltInStyleCatalog();
+      hydrateBuiltInStyleDrafts(catalog);
+      setBuiltInStyleCatalogLoadIssue(
+        catalog.degraded
+          ? "Live built-in Styles lookup failed. Showing fallback Styles content. Reload before saving so the live shared set is not overwritten."
+          : null
+      );
+      setBuiltInStyleSaveIssue(null);
+      setBuiltInStyleSaveState("idle");
+    } catch (error) {
+      hydrateBuiltInStyleDrafts({
+        drafts: buildBuiltInStyleDraftsFromDefinitions(resolveBuiltInStyleDefinitions()),
+        source: "seed",
+        updatedAt: null,
+        updatedByEmail: null,
+        degraded: true,
+      });
+      setBuiltInStyleCatalogLoadIssue(
+        error instanceof Error
+          ? `${error.message} Showing seeded fallback Styles content. Reload before saving so the live shared set is not overwritten.`
+          : "Showing seeded fallback Styles content because the live admin route could not be reached. Reload before saving so the live shared set is not overwritten."
+      );
+      setBuiltInStyleSaveIssue(null);
+      setBuiltInStyleSaveState("error");
+    } finally {
+      setBuiltInStyleLoading(false);
+    }
+  }, [hydrateBuiltInStyleDrafts]);
 
   const refreshPulseBuiltIns = React.useCallback(async () => {
     setPulseLoading(true);
@@ -661,12 +885,26 @@ export function AdminAgentInstructionsSection() {
   }, [refreshStyleExtractPrompt]);
 
   React.useEffect(() => {
+    void refreshBuiltInStyleCatalog();
+  }, [refreshBuiltInStyleCatalog]);
+
+  React.useEffect(() => {
     void refreshEditSystemPresetCatalog();
   }, [refreshEditSystemPresetCatalog]);
 
   React.useEffect(() => {
     void refreshPulseBuiltIns();
   }, [refreshPulseBuiltIns]);
+
+  React.useEffect(() => {
+    setBuiltInStyleCardCollapsedById((current) => {
+      const next: Record<string, boolean> = {};
+      for (const draft of builtInStyleDrafts) {
+        next[draft.localId] = current[draft.localId] ?? true;
+      }
+      return next;
+    });
+  }, [builtInStyleDrafts]);
 
   React.useEffect(() => {
     setPulseCardCollapsed((current) => {
@@ -685,6 +923,21 @@ export function AdminAgentInstructionsSection() {
       );
       setPulseSaveState("idle");
       setPulseSaveIssue(null);
+    },
+    []
+  );
+
+  const updateBuiltInStyleDraft = React.useCallback(
+    <K extends keyof AdminBuiltInStyleDraft>(
+      localId: string,
+      field: K,
+      value: AdminBuiltInStyleDraft[K]
+    ) => {
+      setBuiltInStyleDrafts((current) =>
+        current.map((draft) => (draft.localId === localId ? { ...draft, [field]: value } : draft))
+      );
+      setBuiltInStyleSaveState("idle");
+      setBuiltInStyleSaveIssue(null);
     },
     []
   );
@@ -768,6 +1021,101 @@ export function AdminAgentInstructionsSection() {
       setStyleExtractPromptSaveState("error");
     }
   }, [hydrateStyleExtractPrompt, styleExtractPrompt]);
+
+  const handleRemoveBuiltInStyleDraft = React.useCallback((localId: string) => {
+    setBuiltInStyleDrafts((current) => current.filter((draft) => draft.localId !== localId));
+    setBuiltInStyleCardCollapsedById((current) => {
+      const next = { ...current };
+      delete next[localId];
+      return next;
+    });
+    setBuiltInStyleSaveState("idle");
+    setBuiltInStyleSaveIssue(null);
+  }, []);
+
+  const handleAddBuiltInStyleDraft = React.useCallback(() => {
+    const nextDraft = buildEmptyBuiltInStyleDraft(nextBuiltInStyleDraftIndex);
+    setBuiltInStyleDrafts((current) => [...current, nextDraft]);
+    setBuiltInStyleCardCollapsedById((current) => ({ ...current, [nextDraft.localId]: false }));
+    setBuiltInStyleCardCollapsed(false);
+    setNextBuiltInStyleDraftIndex((current) => current + 1);
+    setBuiltInStyleSaveState("idle");
+    setBuiltInStyleSaveIssue(null);
+  }, [nextBuiltInStyleDraftIndex]);
+
+  const handleResetBuiltInStyleDrafts = React.useCallback(() => {
+    setBuiltInStyleDrafts(storedBuiltInStyleDrafts);
+    setNextBuiltInStyleDraftIndex(storedBuiltInStyleDrafts.length + 1);
+    setBuiltInStyleSaveState("idle");
+    setBuiltInStyleSaveIssue(null);
+  }, [storedBuiltInStyleDrafts]);
+
+  const handleSaveBuiltInStyleDrafts = React.useCallback(async () => {
+    if (builtInStyleCatalogDegraded) {
+      setBuiltInStyleSaveState("error");
+      setBuiltInStyleSaveIssue(
+        "Reload the live built-in Styles catalog before saving. Fallback content cannot be published as the global built-in set."
+      );
+      return;
+    }
+    if (hasUnpublishableBuiltInStyleDrafts) {
+      setBuiltInStyleSaveState("error");
+      setBuiltInStyleSaveIssue(
+        "Complete or remove every built-in Style before saving the shared set."
+      );
+      return;
+    }
+    setBuiltInStyleSaveState("saving");
+    setBuiltInStyleSaveIssue(null);
+    try {
+      const styleDefinitions = builtInStyleDrafts.map(buildBuiltInStyleDefinitionFromDraft);
+      const response = await fetchWithAuth("/api/admin/agent-instructions/built-in-styles", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          styleDefinitions,
+          expectedUpdatedAt: builtInStyleSaveExpectedUpdatedAt,
+        }),
+      });
+      const payload = (await response.json()) as {
+        styleDefinitions?: unknown;
+        updatedAt?: string | null;
+        updatedByEmail?: string | null;
+        source?: "control_plane" | "seed";
+        degraded?: boolean;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to save the built-in Styles catalog.");
+      }
+      const normalizedDefinitions = normalizeBuiltInStyleDefinitions(payload.styleDefinitions);
+      hydrateBuiltInStyleDrafts({
+        drafts: buildBuiltInStyleDraftsFromDefinitions(normalizedDefinitions, {
+          templateDrafts: builtInStyleDrafts,
+        }),
+        source: payload.source === "control_plane" ? "control_plane" : "seed",
+        updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+        updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
+        degraded: payload.degraded === true,
+      });
+      setBuiltInStyleCatalogLoadIssue(null);
+      setBuiltInStyleSaveState("saved");
+    } catch (error) {
+      setBuiltInStyleSaveState("error");
+      setBuiltInStyleSaveIssue(
+        error instanceof Error ? error.message : "Unable to save the built-in Styles catalog."
+      );
+    }
+  }, [
+    builtInStyleCatalogDegraded,
+    builtInStyleDrafts,
+    builtInStyleSaveExpectedUpdatedAt,
+    hasUnpublishableBuiltInStyleDrafts,
+    hydrateBuiltInStyleDrafts,
+  ]);
 
   const handleSaveEditSystemPreset = React.useCallback(async () => {
     if (!pendingEditSystemPreset) return;
@@ -1326,6 +1674,273 @@ export function AdminAgentInstructionsSection() {
               {styleExtractPromptSource === "control_plane"
                 ? "Live override active for the Styles Library extraction system prompt."
                 : "Seed fallback active for the Styles Library extraction system prompt."}
+            </p>
+          ) : null}
+        </article>
+
+        <article className={styles.agentInstructionCard}>
+          <div className={styles.agentInstructionHeader}>
+            <div>
+              <div className={styles.agentInstructionTitleRow}>
+                <button
+                  type="button"
+                  className={styles.agentInstructionCollapseToggle}
+                  onClick={() => setBuiltInStyleCardCollapsed((current) => !current)}
+                  aria-expanded={!builtInStyleCardCollapsed}
+                  aria-controls="admin-built-in-styles-card-body"
+                >
+                  <CaretDown
+                    size={16}
+                    weight="bold"
+                    className={`${styles.agentInstructionCollapseIcon} ${builtInStyleCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
+                  />
+                  <span>{builtInStyleCardCollapsed ? "Expand" : "Collapse"}</span>
+                </button>
+                <h3 className={styles.agentInstructionTitle}>Global built-in Styles</h3>
+                <span
+                  className={`${styles.pill} ${
+                    builtInStyleSaveIssue ||
+                    builtInStyleCatalogLoadIssue ||
+                    hasBuiltInStyleUnsavedChanges
+                      ? styles.pillWarn
+                      : styles.pillOk
+                  }`}
+                >
+                  {builtInStyleCatalogLoadIssue
+                    ? "Fallback catalog"
+                    : hasBuiltInStyleUnsavedChanges
+                      ? "Unsaved edits"
+                      : builtInStyleCatalogSource === "control_plane"
+                        ? "Live catalog"
+                        : "Seed fallback"}
+                </span>
+              </div>
+              <p className={styles.agentInstructionDescription}>
+                Controls the shared built-in Styles catalog shown in AI Studio for all users. Users
+                can delete these from their own library, but only admins can change the global
+                built-in definitions here.
+              </p>
+              <p className={styles.agentInstructionNote}>
+                {builtInStyleSaveIssue
+                  ? builtInStyleSaveIssue
+                  : builtInStyleCatalogLoadIssue
+                    ? builtInStyleCatalogLoadIssue
+                    : builtInStyleCatalogSource === "control_plane"
+                      ? `Live global Styles catalog${builtInStyleCatalogUpdatedByEmail ? ` last updated by ${builtInStyleCatalogUpdatedByEmail}` : ""}${builtInStyleCatalogUpdatedLabel ? ` on ${builtInStyleCatalogUpdatedLabel}` : ""}.`
+                      : "Showing the seeded Styles catalog. Saving here creates or replaces the shared built-in set for all users."}
+              </p>
+            </div>
+            <div className={styles.agentInstructionActions}>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={handleResetBuiltInStyleDrafts}
+                disabled={!hasBuiltInStyleUnsavedChanges || builtInStyleLoading}
+              >
+                Reset to stored
+              </button>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => void handleSaveBuiltInStyleDrafts()}
+                disabled={
+                  builtInStyleLoading ||
+                  builtInStyleSaveState === "saving" ||
+                  builtInStyleCatalogDegraded ||
+                  hasUnpublishableBuiltInStyleDrafts ||
+                  !hasBuiltInStyleUnsavedChanges
+                }
+              >
+                {builtInStyleSaveState === "saving" ? "Saving..." : "Save Styles set"}
+              </button>
+            </div>
+          </div>
+
+          <div
+            id="admin-built-in-styles-card-body"
+            className={styles.agentInstructionCollapsibleBody}
+            hidden={builtInStyleCardCollapsed}
+          >
+            <div className={styles.agentEditPresetGrid} role="list" aria-label="Built-in Styles">
+              {builtInStyleDrafts.map((draft, index) => {
+                const stored = storedBuiltInStyleDraftsById[draft.localId];
+                const isCollapsed = builtInStyleCardCollapsedById[draft.localId] ?? true;
+                const isDirty = stored
+                  ? !areBuiltInStyleDraftsEqual(draft, stored)
+                  : !isBuiltInStyleDraftBlank(draft);
+                const cardTitle =
+                  draft.title.trim().length > 0 ? draft.title : `Style ${index + 1}`;
+                const feedbackKey = `built-in-style:${draft.localId}`;
+                const copyValue = [
+                  `Style ID: ${draft.styleId}`,
+                  `Title: ${draft.title}`,
+                  `Preview: ${draft.previewImageUrl}`,
+                  `Reference image: ${draft.referenceImageName}`,
+                  "",
+                  draft.stylePrompt,
+                ].join("\n");
+
+                return (
+                  <article
+                    key={draft.localId}
+                    role="listitem"
+                    className={styles.agentEditPresetTile}
+                  >
+                    <button
+                      type="button"
+                      className={styles.agentEditPresetTileDelete}
+                      onClick={() => handleRemoveBuiltInStyleDraft(draft.localId)}
+                      aria-label={`Delete ${cardTitle} built-in style`}
+                      disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.agentEditPresetTileButton}
+                      onClick={() =>
+                        setBuiltInStyleCardCollapsedById((current) => ({
+                          ...current,
+                          [draft.localId]: !isCollapsed,
+                        }))
+                      }
+                      aria-expanded={!isCollapsed}
+                      aria-controls={`admin-built-in-style-card-body-${draft.localId}`}
+                      disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
+                    >
+                      <span className={styles.agentEditPresetTileTitle}>{cardTitle}</span>
+                      <span className={styles.agentEditPresetTilePrompt}>
+                        {isDirty ? "Unsaved edits" : stored ? "Stored" : "New style"}
+                      </span>
+                    </button>
+                    <div
+                      id={`admin-built-in-style-card-body-${draft.localId}`}
+                      className={styles.agentInstructionCollapsibleBody}
+                      hidden={isCollapsed}
+                    >
+                      <div className={styles.agentInstructionFormGrid}>
+                        <label className={styles.agentInstructionField}>
+                          <span className={styles.agentInstructionLabel}>Style name</span>
+                          <input
+                            className={styles.agentInstructionInput}
+                            type="text"
+                            value={draft.title}
+                            onChange={(event) =>
+                              updateBuiltInStyleDraft(draft.localId, "title", event.target.value)
+                            }
+                            placeholder="Photorealistic"
+                          />
+                        </label>
+                        <label className={styles.agentInstructionField}>
+                          <span className={styles.agentInstructionLabel}>Style ID</span>
+                          <input
+                            className={`${styles.agentInstructionInput} ${styles.adminMonoCell}`}
+                            type="text"
+                            value={draft.styleId}
+                            onChange={(event) =>
+                              updateBuiltInStyleDraft(draft.localId, "styleId", event.target.value)
+                            }
+                            placeholder="photorealistic"
+                          />
+                        </label>
+                      </div>
+                      <div className={styles.agentInstructionFormGrid}>
+                        <label className={styles.agentInstructionField}>
+                          <span className={styles.agentInstructionLabel}>Preview image URL</span>
+                          <input
+                            className={styles.agentInstructionInput}
+                            type="text"
+                            value={draft.previewImageUrl}
+                            onChange={(event) =>
+                              updateBuiltInStyleDraft(
+                                draft.localId,
+                                "previewImageUrl",
+                                event.target.value
+                              )
+                            }
+                            placeholder="/Styles/Photoreal.png"
+                          />
+                        </label>
+                        <label className={styles.agentInstructionField}>
+                          <span className={styles.agentInstructionLabel}>Reference image name</span>
+                          <input
+                            className={styles.agentInstructionInput}
+                            type="text"
+                            value={draft.referenceImageName}
+                            onChange={(event) =>
+                              updateBuiltInStyleDraft(
+                                draft.localId,
+                                "referenceImageName",
+                                event.target.value
+                              )
+                            }
+                            placeholder="Optional"
+                          />
+                        </label>
+                      </div>
+                      <label
+                        className={styles.agentInstructionLabel}
+                        htmlFor={`admin-built-in-style-prompt-${draft.localId}`}
+                      >
+                        Style Prompt
+                      </label>
+                      <textarea
+                        id={`admin-built-in-style-prompt-${draft.localId}`}
+                        className={styles.agentInstructionTextarea}
+                        value={draft.stylePrompt}
+                        onChange={(event) =>
+                          updateBuiltInStyleDraft(draft.localId, "stylePrompt", event.target.value)
+                        }
+                        placeholder="Describe the style add-on prompt."
+                        spellCheck={false}
+                        rows={7}
+                      />
+                      <div className={styles.agentInstructionFooterActions}>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => void handleCopy(feedbackKey, copyValue)}
+                        >
+                          Copy
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => handleRemoveBuiltInStyleDraft(draft.localId)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <p className={styles.agentInstructionNote}>
+                        {copyFeedback[feedbackKey] ??
+                          (stored
+                            ? isDirty
+                              ? "This style differs from the stored global built-in set."
+                              : "Matches the stored global built-in set."
+                            : "New style. Save applies it to the shared built-in Styles catalog.")}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+              <button
+                type="button"
+                className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd}`}
+                onClick={handleAddBuiltInStyleDraft}
+                disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
+              >
+                <span className={styles.agentEditPresetTileAddIcon}>+</span>
+                <span className={styles.agentEditPresetTileTitle}>Add built-in Style</span>
+                <span className={styles.agentEditPresetTilePrompt}>
+                  Create another shared built-in Style for AI Studio.
+                </span>
+              </button>
+            </div>
+          </div>
+          {builtInStyleCardCollapsed ? (
+            <p className={styles.agentInstructionCollapsedSummary}>
+              {builtInStyleDrafts.length} built-in Style
+              {builtInStyleDrafts.length === 1 ? "" : "s"} available for AI Studio.
             </p>
           ) : null}
         </article>

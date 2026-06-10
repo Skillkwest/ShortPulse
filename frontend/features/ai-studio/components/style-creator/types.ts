@@ -7,7 +7,7 @@ export type StyleExtractionOutcome = "success" | "fallback" | "blocked_source";
 export type StyleExtractionFlow = "create_modal" | "library_drop";
 
 export type PendingStyleEditState = {
-  mode: "edit" | "create";
+  mode: "edit" | "create" | "view";
   styleId: string;
   styleTitle: string;
   details: StylesLibraryStyleDetails;

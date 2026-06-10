@@ -1,10 +1,13 @@
 /**
  * Shared constants for the styles-library creator domain.
  */
+export {
+  STYLE_PROMPT_MAX_CHARACTERS,
+  STYLE_PROMPT_NEAR_LIMIT_CHARACTERS,
+} from "../../../../lib/model-runtime/styleCreatorLimits";
+
 export const STYLE_PREVIEW_OUTPUT_SIZE_PX = 512;
 export const STYLE_EXTRACTION_MAX_DIMENSION_PX = 1024;
-export const STYLE_PROMPT_MAX_CHARACTERS = 1000;
-export const STYLE_PROMPT_NEAR_LIMIT_CHARACTERS = 900;
 export const CUSTOM_STYLE_NAME_PREFIX = "Custom Style";
 export const IMAGE_FILE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)$/i;
 

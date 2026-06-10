@@ -102,6 +102,7 @@ export function StylesLibraryPanel({
   const stylePromptCharacterCount = pendingStyleEdit?.details.stylePrompt.length ?? 0;
   const stylePromptNearLimit = stylePromptCharacterCount >= STYLE_PROMPT_NEAR_LIMIT_CHARACTERS;
   const stylePromptAtLimit = stylePromptCharacterCount >= STYLE_PROMPT_MAX_CHARACTERS;
+  const isPendingBuiltInView = pendingStyleEdit?.mode === "view";
   const isAnyStylesModalOpen = Boolean(pendingStyleEdit || pendingDeleteStyle);
   useAiStudioModalActivity("styles-library-modal", isAnyStylesModalOpen);
   const editBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeEditModal);
@@ -299,12 +300,22 @@ export function StylesLibraryPanel({
               onClick={(event) => event.stopPropagation()}
             >
               <p id="styles-edit-title" className="styles-library-edit-title">
-                {pendingStyleEdit.mode === "create" ? "Add style" : "Edit style"}
+                {pendingStyleEdit.mode === "create"
+                  ? "Add style"
+                  : isPendingBuiltInView
+                    ? "Built-in style"
+                    : "Edit style"}
               </p>
               <p className="styles-library-edit-copy tiny subdued">
                 {pendingStyleEdit.mode === "create" ? (
                   <>
                     Enter details for <strong>{pendingStyleEdit.styleTitle}</strong>.
+                  </>
+                ) : isPendingBuiltInView ? (
+                  <>
+                    <strong>{pendingStyleEdit.styleTitle}</strong> is managed globally by
+                    ShortPulse. You can delete it from your library without changing the built-in
+                    style for anyone else.
                   </>
                 ) : (
                   <>
@@ -318,7 +329,9 @@ export function StylesLibraryPanel({
                   type="text"
                   className="styles-library-edit-input"
                   value={pendingStyleEdit.details.style}
+                  readOnly={isPendingBuiltInView}
                   onChange={(event) => {
+                    if (isPendingBuiltInView) return;
                     const nextValue = event.target.value;
                     setPendingStyleEdit((previous) => {
                       if (!previous) return previous;
@@ -342,26 +355,34 @@ export function StylesLibraryPanel({
                     stylePreviewDropActive ? "is-drop-active" : ""
                   } ${pendingEditPreviewImageUrl ? "has-preview" : ""}`.trim()}
                   role="button"
-                  tabIndex={0}
+                  tabIndex={isPendingBuiltInView ? -1 : 0}
                   aria-label="Drop reference image or click to upload"
-                  onClick={() => stylePreviewFileInputRef.current?.click()}
+                  aria-disabled={isPendingBuiltInView}
+                  onClick={() => {
+                    if (isPendingBuiltInView) return;
+                    stylePreviewFileInputRef.current?.click();
+                  }}
                   onKeyDown={(event) => {
+                    if (isPendingBuiltInView) return;
                     if (event.key !== "Enter" && event.key !== " ") return;
                     event.preventDefault();
                     stylePreviewFileInputRef.current?.click();
                   }}
                   onDragEnter={(event) => {
+                    if (isPendingBuiltInView) return;
                     event.preventDefault();
                     event.stopPropagation();
                     setStylePreviewDropActive(true);
                   }}
                   onDragOver={(event) => {
+                    if (isPendingBuiltInView) return;
                     event.preventDefault();
                     event.stopPropagation();
                     event.dataTransfer.dropEffect = "copy";
                     setStylePreviewDropActive(true);
                   }}
                   onDragLeave={(event) => {
+                    if (isPendingBuiltInView) return;
                     event.preventDefault();
                     event.stopPropagation();
                     const nextTarget = event.relatedTarget;
@@ -371,6 +392,7 @@ export function StylesLibraryPanel({
                     setStylePreviewDropActive(false);
                   }}
                   onDrop={(event) => {
+                    if (isPendingBuiltInView) return;
                     event.preventDefault();
                     event.stopPropagation();
                     setStylePreviewDropActive(false);
@@ -383,6 +405,7 @@ export function StylesLibraryPanel({
                     type="file"
                     accept="image/*"
                     className="styles-library-edit-dropzone-input"
+                    disabled={isPendingBuiltInView}
                     onChange={(event) => {
                       const [file] = Array.from(event.target.files ?? []);
                       event.target.value = "";
@@ -413,10 +436,14 @@ export function StylesLibraryPanel({
                     ) : null}
                   </span>
                   <span className="styles-library-edit-dropzone-copy">
-                    Drop an image here, or click to upload.
+                    {isPendingBuiltInView
+                      ? "Preview image is managed by the global built-in style."
+                      : "Drop an image here, or click to upload."}
                   </span>
                   <span className="styles-library-edit-dropzone-hint tiny subdued">
-                    Image is center-cropped to a square and used on the style card.
+                    {isPendingBuiltInView
+                      ? "Admins can change built-in style previews from Agent Instructions."
+                      : "Image is center-cropped to a square and used on the style card."}
                   </span>
                 </div>
               </div>
@@ -430,7 +457,9 @@ export function StylesLibraryPanel({
                   rows={5}
                   maxLength={STYLE_PROMPT_MAX_CHARACTERS}
                   value={pendingStyleEdit.details.stylePrompt}
+                  readOnly={isPendingBuiltInView}
                   onChange={(event) => {
+                    if (isPendingBuiltInView) return;
                     const nextValue = event.target.value.slice(0, STYLE_PROMPT_MAX_CHARACTERS);
                     setPendingStyleEdit((previous) => {
                       if (!previous) return previous;
@@ -486,27 +515,29 @@ export function StylesLibraryPanel({
                   className="ghost-btn mini styles-library-edit-action-btn"
                   onClick={closeEditModal}
                 >
-                  Cancel
+                  {isPendingBuiltInView ? "Close" : "Cancel"}
                 </button>
-                <button
-                  type="button"
-                  className="ghost-btn mini styles-library-edit-action-btn styles-library-edit-save"
-                  disabled={
-                    editSubmitting ||
-                    (pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting)
-                  }
-                  onClick={() => {
-                    void handleSaveStyleDetails();
-                  }}
-                >
-                  {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting
-                    ? "Analyzing style..."
-                    : editSubmitting
-                      ? "Saving..."
-                      : pendingStyleEdit.mode === "create"
-                        ? "Save style"
-                        : "Save changes"}
-                </button>
+                {!isPendingBuiltInView ? (
+                  <button
+                    type="button"
+                    className="ghost-btn mini styles-library-edit-action-btn styles-library-edit-save"
+                    disabled={
+                      editSubmitting ||
+                      (pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting)
+                    }
+                    onClick={() => {
+                      void handleSaveStyleDetails();
+                    }}
+                  >
+                    {pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting
+                      ? "Analyzing style..."
+                      : editSubmitting
+                        ? "Saving..."
+                        : pendingStyleEdit.mode === "create"
+                          ? "Save style"
+                          : "Save changes"}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>

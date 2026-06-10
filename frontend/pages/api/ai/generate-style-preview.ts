@@ -9,7 +9,7 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
-import { STYLE_PROMPT_MAX_CHARACTERS } from "../../../features/ai-studio/components/style-creator/constants";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../../../lib/model-runtime/styleCreatorLimits";
 import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,

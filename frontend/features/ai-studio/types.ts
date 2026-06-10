@@ -206,6 +206,7 @@ export type WorkflowReloadMusicPayload = {
   energyPercent?: number | null;
   outputFormat?: WorkflowReloadMusicFormat | null;
   composerMode?: WorkflowReloadMusicComposerMode | null;
+  instrumentalEnabled?: boolean | null;
   singerEnabled?: boolean | null;
   songBatchCount?: WorkflowReloadMusicSongBatchCount | null;
 };

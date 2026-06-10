@@ -1,6 +1,11 @@
 /**
- * Built-in AI Studio style catalog used by the shipped Styles panel defaults.
+ * AI Studio style tile helpers used by the shared Styles panel.
  */
+import {
+  resolveBuiltInStyleDefinitions,
+  type BuiltInStyleDefinition,
+} from "../../../../lib/model-runtime/builtInStyles";
+
 export type ExpertEditStyleTile = {
   id: string;
   style?: string;
@@ -9,6 +14,7 @@ export type ExpertEditStyleTile = {
   stylePrompt?: string;
   previewUrl: string | null;
   placeholder: boolean;
+  source?: "system" | "built_in" | "custom";
 };
 
 export const NONE_STYLE_ID = "__none_style__";
@@ -20,44 +26,25 @@ export const NONE_STYLE_TILE: ExpertEditStyleTile = {
   stylePrompt: "",
   previewUrl: null,
   placeholder: false,
+  source: "system",
 };
 
-const PRIMARY_STYLE_TILES: readonly ExpertEditStyleTile[] = [
-  {
-    id: "photorealistic",
-    title: "Photorealistic",
-    stylePrompt:
-      "photorealistic image, true-to-life skin texture and materials, natural color response, balanced dynamic range, crisp focus, realistic lighting and shadow falloff",
-    previewUrl: "/Styles/Photoreal.png",
-    placeholder: false,
-  },
-  {
-    id: "cinematic",
-    title: "Cinematic",
-    stylePrompt:
-      "cinematic editorial photography, dramatic moody lighting, rich contrast, controlled color grade, shallow depth of field, polished high-end production finish",
-    previewUrl: "/Styles/Cinematic.png",
-    placeholder: false,
-  },
-  {
-    id: "cell-phone-snapshot",
-    title: "Cell phone snapshot",
-    stylePrompt:
-      "casual smartphone photo, natural available light, candid framing, everyday realism, slightly imperfect composition, authentic handheld snapshot feel",
-    previewUrl: "/Styles/Cell Phone Snap Shot.jpeg",
-    placeholder: false,
-  },
-  {
-    id: "anime",
-    title: "Anime",
-    stylePrompt:
-      "anime style, clean linework, expressive character design, soft cel shading, stylized color palette, polished 2D illustration finish",
-    previewUrl: "/Styles/Anime.png",
-    placeholder: false,
-  },
-];
+export const buildBuiltInStyleTile = (definition: BuiltInStyleDefinition): ExpertEditStyleTile => ({
+  id: definition.styleId,
+  style: definition.title,
+  title: definition.title,
+  referenceImageName: definition.referenceImageName?.trim() || definition.title,
+  stylePrompt: definition.stylePrompt,
+  previewUrl: definition.previewImageUrl,
+  placeholder: false,
+  source: "built_in",
+});
 
-export const EXPERT_EDIT_STYLE_CATALOG: readonly ExpertEditStyleTile[] = [...PRIMARY_STYLE_TILES];
+export const buildBuiltInStyleTiles = (
+  definitions?: readonly BuiltInStyleDefinition[] | null
+): ExpertEditStyleTile[] => resolveBuiltInStyleDefinitions(definitions).map(buildBuiltInStyleTile);
+
+export const EXPERT_EDIT_STYLE_CATALOG: readonly ExpertEditStyleTile[] = buildBuiltInStyleTiles();
 
 export const prependNoneStyleTile = (
   styles: readonly ExpertEditStyleTile[]

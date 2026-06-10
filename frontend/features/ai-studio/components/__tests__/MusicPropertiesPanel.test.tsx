@@ -50,6 +50,10 @@ describe("MusicPropertiesPanel", () => {
         ?.contains(screen.getByText("0 / 2,000"))
     ).toBe(true);
     expect(screen.getByLabelText("Music defaults")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Instrumental" })).toHaveAttribute(
+      "aria-checked",
+      "false"
+    );
     expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("2");
     expect(screen.getByRole("button", { name: "Music duration" })).toHaveTextContent("Auto");
     expect(screen.getByRole("button", { name: "Music duration" })).toHaveAttribute(
@@ -148,29 +152,48 @@ describe("MusicPropertiesPanel", () => {
 
   it("supports controlled generation-critical music controls from page state", () => {
     const onComposerModeChange = vi.fn();
+    const onInstrumentalEnabledChange = vi.fn();
     const onSingerEnabledChange = vi.fn();
     const onSongBatchCountChange = vi.fn();
 
-    render(
+    const { rerender } = render(
       <MusicPropertiesPanel
-        composerMode="custom"
+        composerMode="simple"
+        instrumentalEnabled={false}
         singerEnabled={false}
         songBatchCount={4}
         onComposerModeChange={onComposerModeChange}
+        onInstrumentalEnabledChange={onInstrumentalEnabledChange}
         onSingerEnabledChange={onSingerEnabledChange}
         onSongBatchCountChange={onSongBatchCountChange}
       />
     );
 
-    expect(screen.getByRole("tab", { name: "Custom" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Standard" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("4");
 
-    fireEvent.click(screen.getByRole("switch", { name: "Singer" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Instrumental" }));
     fireEvent.click(screen.getByRole("button", { name: "Songs per generate" }));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "1 song" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Standard" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
 
-    expect(onComposerModeChange).toHaveBeenCalledWith("simple");
+    rerender(
+      <MusicPropertiesPanel
+        composerMode="custom"
+        instrumentalEnabled={false}
+        singerEnabled={false}
+        songBatchCount={1}
+        onComposerModeChange={onComposerModeChange}
+        onInstrumentalEnabledChange={onInstrumentalEnabledChange}
+        onSingerEnabledChange={onSingerEnabledChange}
+        onSongBatchCountChange={onSongBatchCountChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("switch", { name: "Singer" }));
+
+    expect(onComposerModeChange).toHaveBeenCalledWith("custom");
+    expect(onInstrumentalEnabledChange).toHaveBeenCalledWith(true);
     expect(onSingerEnabledChange).toHaveBeenCalledWith(true);
     expect(onSongBatchCountChange).toHaveBeenCalledWith(1);
   });
@@ -252,10 +275,11 @@ describe("MusicPropertiesPanel", () => {
         text: "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending.",
         durationSeconds: null,
         bpm: 112,
-        mode: "instrumental",
+        mode: "vocal",
         structure: "loop",
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
+        instrumentalEnabled: false,
         modelId: "music_v1",
       })
     );
@@ -265,10 +289,11 @@ describe("MusicPropertiesPanel", () => {
         text: "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending.",
         durationSeconds: null,
         bpm: 112,
-        mode: "instrumental",
+        mode: "vocal",
         structure: "loop",
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
+        instrumentalEnabled: false,
         modelId: "music_v1",
       })
     );
@@ -280,6 +305,36 @@ describe("MusicPropertiesPanel", () => {
     });
     expect(firstRequest.displayedBilledCredits).toBe(secondRequest.displayedBilledCredits);
     expect(firstRequest.displayedBilledCredits).toBe(expectedDisplayedCredits);
+  });
+
+  it("submits instrumental mode when the Standard instrumental toggle is enabled", async () => {
+    const onGenerate = vi.fn();
+
+    render(<MusicPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.click(screen.getByRole("switch", { name: "Instrumental" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: {
+        value: "Sparse ambient cue with glassy textures, soft pulses, and a clear edit ending.",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
+
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        mode: "instrumental",
+        instrumentalEnabled: true,
+      })
+    );
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        mode: "instrumental",
+        instrumentalEnabled: true,
+      })
+    );
   });
 
   it("submits the selected fixed music duration", async () => {

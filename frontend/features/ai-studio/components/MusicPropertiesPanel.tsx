@@ -29,6 +29,7 @@ export type MusicGenerateRequest = {
   outputFormat: MusicFormat;
   composerMode?: MusicComposerMode;
   singerEnabled?: boolean;
+  instrumentalEnabled?: boolean;
   songBatchCount?: MusicSongBatchCount;
   modelId: typeof hardcodedMusicModelId;
   displayedBilledCredits?: number | null;
@@ -42,6 +43,7 @@ export type MusicPropertiesPanelProps = {
   onDurationChange?: (value: number | null) => void;
   onGenerate?: (request: MusicGenerateRequest) => Promise<boolean | void> | boolean | void;
   onComposerModeChange?: (value: MusicComposerMode) => void;
+  onInstrumentalEnabledChange?: (value: boolean) => void;
   onLyricsChange?: (value: string) => void;
   onPromptChange?: (value: string) => void;
   onSingerEnabledChange?: (value: boolean) => void;
@@ -49,6 +51,7 @@ export type MusicPropertiesPanelProps = {
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
   composerMode?: MusicComposerMode;
+  instrumentalEnabled?: boolean;
   lyrics?: string;
   prompt?: string;
   singerEnabled?: boolean;
@@ -144,6 +147,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   onDurationChange,
   onGenerate,
   onComposerModeChange,
+  onInstrumentalEnabledChange,
   onLyricsChange,
   onPromptChange,
   onSingerEnabledChange,
@@ -151,6 +155,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   pricingPolicy = null,
   pricingPolicyReady = true,
   composerMode: controlledComposerMode,
+  instrumentalEnabled: controlledInstrumentalEnabled,
   lyrics: controlledLyrics,
   prompt: controlledPrompt,
   singerEnabled: controlledSingerEnabled,
@@ -164,6 +169,8 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const [uncontrolledLyrics, setUncontrolledLyrics] = React.useState("");
   const [uncontrolledComposerMode, setUncontrolledComposerMode] =
     React.useState<MusicComposerMode>("simple");
+  const [uncontrolledInstrumentalEnabled, setUncontrolledInstrumentalEnabled] =
+    React.useState(false);
   const [uncontrolledSingerEnabled, setUncontrolledSingerEnabled] = React.useState(false);
   const [uncontrolledSongBatchCount, setUncontrolledSongBatchCount] =
     React.useState<MusicSongBatchCount>(2);
@@ -175,6 +182,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const prompt = controlledPrompt ?? uncontrolledPrompt;
   const lyrics = controlledLyrics ?? uncontrolledLyrics;
   const composerMode = controlledComposerMode ?? uncontrolledComposerMode;
+  const instrumentalEnabled = controlledInstrumentalEnabled ?? uncontrolledInstrumentalEnabled;
   const singerEnabled = controlledSingerEnabled ?? uncontrolledSingerEnabled;
   const songBatchCount = controlledSongBatchCount ?? uncontrolledSongBatchCount;
   const selectedDurationSeconds = controlledDurationSeconds ?? uncontrolledDurationSeconds;
@@ -259,6 +267,20 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     },
     [onSingerEnabledChange, singerEnabled]
   );
+  const setInstrumentalEnabled = React.useCallback(
+    (action: React.SetStateAction<boolean>) => {
+      const value =
+        typeof action === "function"
+          ? (action as (current: boolean) => boolean)(instrumentalEnabled)
+          : action;
+      if (onInstrumentalEnabledChange) {
+        onInstrumentalEnabledChange(value);
+        return;
+      }
+      setUncontrolledInstrumentalEnabled(value);
+    },
+    [instrumentalEnabled, onInstrumentalEnabledChange]
+  );
   const setSongBatchCount = React.useCallback(
     (value: MusicSongBatchCount) => {
       if (onSongBatchCountChange) {
@@ -313,7 +335,13 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   );
   const submissionText = buildSubmissionText();
   const hasLyrics = composerMode === "custom" && lyrics.trim().length > 0;
-  const requestedMusicMode: MusicMode = singerEnabled || hasLyrics ? "vocal" : defaultMusicMode;
+  const requestedMusicMode: MusicMode = isStandardMode
+    ? instrumentalEnabled
+      ? "instrumental"
+      : "vocal"
+    : singerEnabled || hasLyrics
+      ? "vocal"
+      : defaultMusicMode;
   const submissionLength = submissionText.length;
   const overflowCharacterCount = Math.max(0, submissionLength - maxPromptCharacters);
   const displayedCharacterCount = composerMode === "custom" ? submissionLength : prompt.length;
@@ -381,6 +409,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       energyPercent: defaultMusicEnergyPercent,
       outputFormat: defaultMusicFormat,
       composerMode,
+      instrumentalEnabled,
       singerEnabled,
       songBatchCount,
       modelId: hardcodedMusicModelId,
@@ -392,6 +421,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   }, [
     composerMode,
     estimatedCreditsPerSong,
+    instrumentalEnabled,
     lyrics,
     requestedMusicMode,
     isWithinPromptLimit,
@@ -623,6 +653,30 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     className="music-properties-custom-footer-controls"
                     aria-label="Music defaults"
                   >
+                    {composerMode === "simple" ? (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={instrumentalEnabled}
+                        aria-label="Instrumental"
+                        className={`music-properties-singer-switch music-properties-instrumental-switch ${
+                          instrumentalEnabled ? "is-active" : ""
+                        }`}
+                        onClick={() => setInstrumentalEnabled((current) => !current)}
+                      >
+                        <span className="music-properties-singer-switch-label">Instrumental</span>
+                        <span
+                          className={`music-properties-singer-switch-control audio-toggle ${
+                            instrumentalEnabled ? "is-active" : ""
+                          }`}
+                          aria-hidden="true"
+                        >
+                          <span className="audio-toggle-track">
+                            <span className="music-properties-singer-switch-thumb audio-toggle-dot" />
+                          </span>
+                        </span>
+                      </button>
+                    ) : null}
                     {composerMode === "custom" ? (
                       <button
                         type="button"

@@ -42,6 +42,7 @@ describe("useAiStudioCreationState", () => {
 
     expect(result.current.musicDurationSeconds).toBeNull();
     expect(result.current.musicComposerMode).toBe("simple");
+    expect(result.current.musicInstrumentalEnabled).toBe(false);
     expect(result.current.musicSingerEnabled).toBe(false);
     expect(result.current.musicSongBatchCount).toBe(2);
     expect(result.current.soundEffectsDurationSeconds).toBeNull();
@@ -51,6 +52,7 @@ describe("useAiStudioCreationState", () => {
     act(() => {
       result.current.setMusicDurationSecondsState(180);
       result.current.setMusicComposerModeState("custom");
+      result.current.setMusicInstrumentalEnabledState(true);
       result.current.setMusicSingerEnabledState(true);
       result.current.setMusicSongBatchCountState(4);
       result.current.setSoundEffectsDurationSecondsState(10);
@@ -60,6 +62,7 @@ describe("useAiStudioCreationState", () => {
 
     expect(result.current.musicDurationSeconds).toBe(180);
     expect(result.current.musicComposerMode).toBe("custom");
+    expect(result.current.musicInstrumentalEnabled).toBe(true);
     expect(result.current.musicSingerEnabled).toBe(true);
     expect(result.current.musicSongBatchCount).toBe(4);
     expect(result.current.soundEffectsDurationSeconds).toBe(10);

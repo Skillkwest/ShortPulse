@@ -183,6 +183,7 @@ describe("POST /api/elevenlabs/music", () => {
     );
     expect(generateElevenLabsMusicMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        prompt: expect.stringContaining("- Keep the track fully instrumental."),
         body: expect.objectContaining({
           model_id: "music_v1",
           force_instrumental: true,
@@ -212,6 +213,114 @@ describe("POST /api/elevenlabs/music", () => {
         durationMs: 182345,
       }),
     });
+  });
+
+  it("asks the provider to generate and sing lyrics for vocal music without authored lyrics", async () => {
+    generateElevenLabsMusicMock.mockResolvedValue({
+      buffer: Buffer.from("music"),
+      contentType: "audio/mpeg",
+      providerRequestId: "provider-music-vocal-1",
+    });
+    persistGeneratedAudioAssetMock.mockResolvedValue({
+      generationId: "gen-music-vocal-1",
+      mediaFileId: "media-music-vocal-1",
+      requestId: "billing-source-music-1",
+      storagePath: "user-1/generations/audio/gen-music-vocal-1/song.mp3",
+      signedUrl: "https://signed.example/vocal-song.mp3",
+      outputRowId: "out-music-vocal-1",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        text: "Warm indie pop cue with intimate verses and a bright chorus lift.",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "vocal",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        project_id: "project-1",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(generateElevenLabsMusicMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          "- Generate and sing structured lyrics that match the style, tone, and duration of the prompt."
+        ),
+        body: expect.objectContaining({
+          model_id: "music_v1",
+          force_instrumental: false,
+        }),
+      })
+    );
+    expect(generateElevenLabsMusicMock.mock.calls[0]?.[0]?.prompt).not.toContain(
+      "- Keep the track fully instrumental."
+    );
+    expect(persistGeneratedAudioAssetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraMetadata: expect.objectContaining({
+          music_mode: "vocal",
+          provider_prompt: expect.stringContaining("Generate and sing structured lyrics"),
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("uses authored lyrics as the sung lyrics for vocal music when provided", async () => {
+    generateElevenLabsMusicMock.mockResolvedValue({
+      buffer: Buffer.from("music"),
+      contentType: "audio/mpeg",
+      providerRequestId: "provider-music-vocal-lyrics-1",
+    });
+    persistGeneratedAudioAssetMock.mockResolvedValue({
+      generationId: "gen-music-vocal-lyrics-1",
+      mediaFileId: "media-music-vocal-lyrics-1",
+      requestId: "billing-source-music-1",
+      storagePath: "user-1/generations/audio/gen-music-vocal-lyrics-1/song.mp3",
+      signedUrl: "https://signed.example/vocal-song-lyrics.mp3",
+      outputRowId: "out-music-vocal-lyrics-1",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        text: "Melancholic synth-pop duet with a slow-burn chorus.\n\nLyrics:\nStay with me through the neon afterglow.",
+        lyrics: "Stay with me through the neon afterglow.",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "vocal",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(generateElevenLabsMusicMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("- Use the provided Lyrics section as the sung lyrics."),
+        body: expect.objectContaining({
+          force_instrumental: false,
+        }),
+      })
+    );
+    expect(persistGeneratedAudioAssetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraMetadata: expect.objectContaining({
+          lyrics_text: "Stay with me through the neon afterglow.",
+          music_mode: "vocal",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("passes through explicit duration when one is provided", async () => {

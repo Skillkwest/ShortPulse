@@ -50,6 +50,7 @@ const makeParams = (output: StudioOutput | null) => ({
   setMotionReferenceVideoUrl: makeSetter<string | null>(),
   setMusicComposerMode: makeSetter<"simple" | "custom">(),
   setMusicDurationSeconds: makeSetter<number | null>(),
+  setMusicInstrumentalEnabled: makeSetter<boolean>(),
   setMusicLyricsDraft: vi.fn(),
   setMusicPromptDraft: vi.fn(),
   setMusicSingerEnabled: makeSetter<boolean>(),
@@ -368,6 +369,7 @@ describe("useAiStudioWorkflowReloadController", () => {
         lyrics: "golden morning",
         durationSeconds: 30,
         composerMode: "custom",
+        instrumentalEnabled: true,
         singerEnabled: true,
         songBatchCount: 3,
       },
@@ -419,6 +421,7 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.setMusicLyricsDraft).toHaveBeenCalledWith("golden morning");
     expect(params.setMusicDurationSeconds).toHaveBeenCalledWith(30);
     expect(params.setMusicComposerMode).toHaveBeenCalledWith("custom");
+    expect(params.setMusicInstrumentalEnabled).toHaveBeenCalledWith(true);
     expect(params.setMusicSingerEnabled).toHaveBeenCalledWith(true);
     expect(params.setMusicSongBatchCount).toHaveBeenCalledWith(3);
     expect(params.setSoundEffectsPromptDraft).toHaveBeenCalledWith("Huge stone door opening");

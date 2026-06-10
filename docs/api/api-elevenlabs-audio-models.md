@@ -58,6 +58,7 @@ All ShortPulse ElevenLabs routes use handler-level bearer auth via `requireApiUs
 - Music generation:
   - route: `POST /api/elevenlabs/music`
   - input family: prompt-first music controls (`text`, `durationSeconds`, `bpm`, `mode`, `structure`, `energyPercent`, `outputFormat`)
+  - lyric/instrumental contract: Standard mode defaults to `mode: "vocal"` so ElevenLabs generates and sings structured lyrics from the prompt. The Standard `Instrumental` toggle is the deliberate opt-in to `mode: "instrumental"` and maps to provider `force_instrumental: true`. Custom mode keeps authored lyrics and singer state as the vocal signal.
   - duration contract: `durationSeconds` is optional. When present, ShortPulse forwards `music_length_ms` to ElevenLabs and accepts the current API range `3..600` seconds; when omitted, the provider chooses the track length automatically.
   - output: persisted generated audio payload
 - Sound effects generation:

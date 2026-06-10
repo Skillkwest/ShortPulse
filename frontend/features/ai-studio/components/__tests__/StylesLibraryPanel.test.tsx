@@ -43,6 +43,9 @@ const createStyles = (): ExpertEditStyleTile[] => [
   },
 ];
 
+const createBuiltInStyles = (): ExpertEditStyleTile[] =>
+  createStyles().map((style) => ({ ...style, source: "built_in" }));
+
 const createStylesWithPlaceholder = (): ExpertEditStyleTile[] => [
   ...createStyles(),
   {
@@ -114,6 +117,21 @@ describe("StylesLibraryPanel", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Style Prompt")).toHaveValue("");
     expect(screen.getByText("0 / 1000")).toBeInTheDocument();
+  });
+
+  it("opens built-in styles read-only without a save action", () => {
+    const onSaveStyleDetails = vi.fn();
+    render(
+      <StylesLibraryPanel styles={createBuiltInStyles()} onSaveStyleDetails={onSaveStyleDetails} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Style tile: Cinematic" }));
+
+    expect(screen.getByRole("dialog", { name: "Built-in style" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Style")).toHaveValue("Cinematic");
+    expect(screen.getByLabelText("Style")).toHaveAttribute("readonly");
+    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
   it("shows a style prompt character counter and enforces the 1000-char input cap", () => {

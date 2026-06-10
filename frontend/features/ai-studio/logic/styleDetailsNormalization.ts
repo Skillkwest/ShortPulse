@@ -3,7 +3,7 @@
  * Keeps backward compatibility while reducing stored details to the core style fields.
  */
 import type { StylesLibraryStyleDetails, StylesLibraryStyleDetailsMap } from "../types";
-import { STYLE_PROMPT_MAX_CHARACTERS } from "../components/style-creator/constants";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../../../lib/model-runtime/styleCreatorLimits";
 import { normalizeStylesLibraryStyleId } from "./stylesLibraryCatalog";
 
 const MAX_STYLE_FIELD_LENGTH = 120;

@@ -781,6 +781,7 @@ export const useAiStudioTaskSubmission = ({
             seedance2ReturnLastFrame,
             seedance2WebSearch,
             klingCfgScale,
+            klingWorkflowMode,
             klingMultiPrompts,
             klingElements,
             notifyGenerationFailure: notifyGenerationFailureForSubmit,

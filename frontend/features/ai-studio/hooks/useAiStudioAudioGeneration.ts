@@ -325,6 +325,7 @@ const buildMusicWorkflowReload = ({
       energyPercent: request.energyPercent,
       outputFormat: request.outputFormat,
       composerMode: request.composerMode ?? null,
+      instrumentalEnabled: request.instrumentalEnabled ?? null,
       singerEnabled: request.singerEnabled ?? null,
       songBatchCount: request.songBatchCount ?? null,
     },

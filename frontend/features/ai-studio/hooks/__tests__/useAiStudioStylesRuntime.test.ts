@@ -9,6 +9,7 @@ import { useAiStudioStylesRuntime } from "../useAiStudioStylesRuntime";
 const mockUseStylesLibraryStyleDetailsPreference = vi.hoisted(() => vi.fn());
 const mockUseStylesLibraryDeletedStyleIdsPreference = vi.hoisted(() => vi.fn());
 const mockUseStylesLibraryPanelIdsPreference = vi.hoisted(() => vi.fn());
+const mockUseBuiltInStyleCatalog = vi.hoisted(() => vi.fn());
 
 vi.mock("../useStylesLibraryStyleDetailsPreference", () => ({
   useStylesLibraryStyleDetailsPreference: mockUseStylesLibraryStyleDetailsPreference,
@@ -20,6 +21,10 @@ vi.mock("../useStylesLibraryDeletedStyleIdsPreference", () => ({
 
 vi.mock("../useStylesLibraryPanelIdsPreference", () => ({
   useStylesLibraryPanelIdsPreference: mockUseStylesLibraryPanelIdsPreference,
+}));
+
+vi.mock("../useBuiltInStyleCatalog", () => ({
+  useBuiltInStyleCatalog: mockUseBuiltInStyleCatalog,
 }));
 
 type MockStyleDetailsPreference = {
@@ -82,9 +87,51 @@ describe("useAiStudioStylesRuntime", () => {
     mockUseStylesLibraryStyleDetailsPreference.mockImplementation(() => detailsPreference);
     mockUseStylesLibraryDeletedStyleIdsPreference.mockImplementation(() => deletedPreference);
     mockUseStylesLibraryPanelIdsPreference.mockImplementation(() => panelIdsPreference);
+    mockUseBuiltInStyleCatalog.mockImplementation(() => ({
+      styleDefinitions: [
+        {
+          styleId: "photorealistic",
+          title: "Photorealistic",
+          stylePrompt: "photorealistic prompt",
+          previewImageUrl: "/Styles/Photoreal.png",
+          referenceImageName: null,
+          schemaVersion: 1,
+        },
+        {
+          styleId: "cinematic",
+          title: "Cinematic",
+          stylePrompt: "cinematic prompt",
+          previewImageUrl: "/Styles/Cinematic.png",
+          referenceImageName: null,
+          schemaVersion: 1,
+        },
+        {
+          styleId: "cell-phone-snapshot",
+          title: "Cell phone snapshot",
+          stylePrompt: "snapshot prompt",
+          previewImageUrl: "/Styles/Cell Phone Snap Shot.jpeg",
+          referenceImageName: null,
+          schemaVersion: 1,
+        },
+        {
+          styleId: "anime",
+          title: "Anime",
+          stylePrompt: "anime prompt",
+          previewImageUrl: "/Styles/Anime.png",
+          referenceImageName: null,
+          schemaVersion: 1,
+        },
+      ],
+      loading: false,
+      error: null,
+      source: "control_plane",
+      degraded: false,
+      isAuthoritative: true,
+      refresh: vi.fn(),
+    }));
   });
 
-  it("builds the visible catalog from overrides, deleted ids, and persisted ordering", async () => {
+  it("builds the visible catalog from built-ins, custom details, deleted ids, and ordering", async () => {
     detailsPreference.styleDetailsById = {
       cinematic: {
         style: "Dream Glow",
@@ -124,20 +171,21 @@ describe("useAiStudioStylesRuntime", () => {
     ]);
     expect(result.current.visibleStylesCatalog[1]).toMatchObject({
       id: "cinematic",
-      title: "Dream Glow",
-      stylePrompt: "custom cinematic glow",
-      previewUrl: "data:image/png;base64,override",
+      title: "Cinematic",
+      stylePrompt: "cinematic prompt",
+      previewUrl: "/Styles/Cinematic.png",
+      source: "built_in",
     });
 
     await waitFor(() => {
-      expect(onSelectedStylePromptChange).toHaveBeenLastCalledWith("custom cinematic glow");
+      expect(onSelectedStylePromptChange).toHaveBeenLastCalledWith("cinematic prompt");
     });
     expect(onSelectedStyleContextChange).toHaveBeenLastCalledWith({
       applied: true,
       styleId: "cinematic",
-      styleName: "Dream Glow",
-      stylePrompt: "custom cinematic glow",
-      stylePreviewImageUrl: "data:image/png;base64,override",
+      styleName: "Cinematic",
+      stylePrompt: "cinematic prompt",
+      stylePreviewImageUrl: "/Styles/Cinematic.png",
     });
   });
 

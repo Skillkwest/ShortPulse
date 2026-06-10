@@ -8,9 +8,10 @@ import { useStylesLibraryDeletedStyleIdsPreference } from "./useStylesLibraryDel
 import { useStylesLibraryPanelIdsPreference } from "./useStylesLibraryPanelIdsPreference";
 import { useStylesLibraryStyleDetailsPreference } from "./useStylesLibraryStyleDetailsPreference";
 import {
-  EXPERT_EDIT_STYLE_CATALOG,
+  buildBuiltInStyleTiles,
   type ExpertEditStyleTile,
 } from "../components/edit/expertEditStyles";
+import { useBuiltInStyleCatalog } from "./useBuiltInStyleCatalog";
 import {
   reorderStylesLibraryOrderedIds,
   resolveOrderedStylesCatalog,
@@ -31,7 +32,8 @@ const resolveStyleCatalogName = (style: {
 }): string =>
   style.style?.trim() || style.title?.trim() || style.referenceImageName?.trim() || "Custom Style";
 
-const buildStylesCatalogWithOverrides = (
+export const buildStylesCatalogWithDetails = (
+  builtInStyles: readonly ExpertEditStyleTile[],
   styleDetailsById: Record<
     string,
     {
@@ -43,27 +45,11 @@ const buildStylesCatalogWithOverrides = (
     }
   >
 ): ExpertEditStyleTile[] => {
-  const baseStyleIds = new Set(EXPERT_EDIT_STYLE_CATALOG.map((style) => style.id));
+  const builtInStyleIds = new Set(builtInStyles.map((style) => style.id));
   const overrideEntries = Object.entries(styleDetailsById);
 
-  const overriddenBaseStyles = EXPERT_EDIT_STYLE_CATALOG.map((style) => {
-    if (style.placeholder) return style;
-    const styleDetails = styleDetailsById[style.id];
-    if (!styleDetails) return style;
-    const resolvedStyleName = resolveStyleCatalogName(styleDetails);
-    const resolvedPreviewUrl = styleDetails.previewImageUrl.trim() || style.previewUrl;
-    return {
-      ...style,
-      style: resolvedStyleName,
-      title: resolvedStyleName,
-      referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
-      stylePrompt: styleDetails.stylePrompt.trim(),
-      previewUrl: resolvedPreviewUrl,
-    };
-  });
-
   const customStyleTiles: ExpertEditStyleTile[] = overrideEntries
-    .filter(([styleId]) => !baseStyleIds.has(styleId))
+    .filter(([styleId]) => !builtInStyleIds.has(styleId))
     .map(([styleId, styleDetails]) => {
       const resolvedStyleName = resolveStyleCatalogName(styleDetails);
       return {
@@ -74,10 +60,11 @@ const buildStylesCatalogWithOverrides = (
         stylePrompt: styleDetails.stylePrompt.trim(),
         previewUrl: styleDetails.previewImageUrl.trim() || null,
         placeholder: false,
+        source: "custom",
       };
     });
 
-  return [...overriddenBaseStyles, ...customStyleTiles];
+  return [...builtInStyles, ...customStyleTiles];
 };
 
 export const useAiStudioStylesRuntime = ({
@@ -99,15 +86,21 @@ export const useAiStudioStylesRuntime = ({
   } = useStylesLibraryDeletedStyleIdsPreference();
   const { setStylePanelIds, removeStylePanelId, stylePanelIds } =
     useStylesLibraryPanelIdsPreference();
+  const builtInStyleCatalog = useBuiltInStyleCatalog();
+
+  const builtInStyles = React.useMemo(
+    () => buildBuiltInStyleTiles(builtInStyleCatalog.styleDefinitions),
+    [builtInStyleCatalog.styleDefinitions]
+  );
 
   const seededStyleIds = React.useMemo(
-    () => new Set(EXPERT_EDIT_STYLE_CATALOG.map((style) => style.id)),
-    []
+    () => new Set(builtInStyles.map((style) => style.id)),
+    [builtInStyles]
   );
 
   const stylesCatalogWithOverrides = React.useMemo(
-    () => buildStylesCatalogWithOverrides(styleDetailsById),
-    [styleDetailsById]
+    () => buildStylesCatalogWithDetails(builtInStyles, styleDetailsById),
+    [builtInStyles, styleDetailsById]
   );
 
   const visibleStylesCatalog = React.useMemo(() => {
@@ -194,6 +187,7 @@ export const useAiStudioStylesRuntime = ({
     handleDeleteStyle,
     handleReorderStyle,
     styleDetailsSaveError,
+    stylesCatalogLoadError: builtInStyleCatalog.error,
     stylesDeleteError,
     upsertStyleDetails,
     visibleStylesCatalog,

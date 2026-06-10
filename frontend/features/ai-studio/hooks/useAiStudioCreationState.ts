@@ -46,6 +46,8 @@ export type UseAiStudioCreationStateResult = {
   setMusicDurationSecondsState: Dispatch<SetStateAction<number | null>>;
   musicComposerMode: "simple" | "custom";
   setMusicComposerModeState: Dispatch<SetStateAction<"simple" | "custom">>;
+  musicInstrumentalEnabled: boolean;
+  setMusicInstrumentalEnabledState: Dispatch<SetStateAction<boolean>>;
   musicSingerEnabled: boolean;
   setMusicSingerEnabledState: Dispatch<SetStateAction<boolean>>;
   musicSongBatchCount: 1 | 2 | 3 | 4;
@@ -153,6 +155,7 @@ export const useAiStudioCreationState = ({
   const [musicLyricsDraft, setMusicLyricsDraftState] = useState<string>("");
   const [musicDurationSeconds, setMusicDurationSecondsState] = useState<number | null>(null);
   const [musicComposerMode, setMusicComposerModeState] = useState<"simple" | "custom">("simple");
+  const [musicInstrumentalEnabled, setMusicInstrumentalEnabledState] = useState<boolean>(false);
   const [musicSingerEnabled, setMusicSingerEnabledState] = useState<boolean>(false);
   const [musicSongBatchCount, setMusicSongBatchCountState] = useState<1 | 2 | 3 | 4>(2);
   const [soundEffectsPromptDraft, setSoundEffectsPromptDraftState] = useState<string>("");
@@ -316,6 +319,8 @@ export const useAiStudioCreationState = ({
     setMusicDurationSecondsState,
     musicComposerMode,
     setMusicComposerModeState,
+    musicInstrumentalEnabled,
+    setMusicInstrumentalEnabledState,
     musicSingerEnabled,
     setMusicSingerEnabledState,
     musicSongBatchCount,

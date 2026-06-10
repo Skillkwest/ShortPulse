@@ -23,6 +23,14 @@ const HIDDEN_SHOT_MODE_INSTRUCTIONS: Record<HiddenShotModePromptCompositionMode,
     "Create this as one continuous uninterrupted shot only. Do not introduce cuts, shot changes, montage beats, or separate camera setups. If multiple actions are described, stage them inside the same continuous shot.",
 };
 
+const HIDDEN_SHOT_MODE_RESERVED_CHARACTERS = Math.floor(
+  Math.max(
+    ...Object.values(HIDDEN_SHOT_MODE_INSTRUCTIONS).map(
+      (instruction) => instruction.length + HIDDEN_SHOT_MODE_PROMPT_SEPARATOR.length
+    )
+  )
+);
+
 const resolveHiddenShotModeInstruction = (mode: HiddenShotModePromptCompositionMode): string =>
   HIDDEN_SHOT_MODE_INSTRUCTIONS[mode];
 
@@ -91,13 +99,10 @@ export const rewritePromptWithKieElementTokens = (
 
 export const resolveKlingSinglePromptVisibleCharacterLimit = (
   mode: HiddenShotModePromptCompositionMode
-): number =>
-  Math.max(
-    0,
-    KLING_SINGLE_PROMPT_MAX_CHARACTERS -
-      resolveHiddenShotModeInstruction(mode).length -
-      HIDDEN_SHOT_MODE_PROMPT_SEPARATOR.length
-  );
+): number => {
+  void mode;
+  return Math.max(0, KLING_SINGLE_PROMPT_MAX_CHARACTERS - HIDDEN_SHOT_MODE_RESERVED_CHARACTERS);
+};
 
 export const resolveKlingSinglePromptEffectiveVisibleCharacterLimit = ({
   prompt,

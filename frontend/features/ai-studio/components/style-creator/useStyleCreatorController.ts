@@ -779,6 +779,10 @@ export const useStyleCreatorController = ({
 
   const handleSaveStyleDetails = React.useCallback(async () => {
     if (!pendingStyleEdit || editSubmitting) return;
+    if (pendingStyleEdit.mode === "view") {
+      setPendingStyleEdit(null);
+      return;
+    }
     if (pendingStyleEdit.mode === "create" && stylePromptExtractionSubmitting) {
       setLocalSaveError("Style analysis is still running. Please wait.");
       return;
@@ -840,12 +844,13 @@ export const useStyleCreatorController = ({
 
   const openStyleEditModal = React.useCallback((style: ExpertEditStyleTile) => {
     const styleDisplayName = style.style?.trim() || style.title;
+    const mode = style.source === "built_in" ? "view" : "edit";
     setLocalSaveError(null);
     stylePromptExtractionRequestIdRef.current += 1;
     setStylePromptExtractionSubmitting(false);
     setStylePromptExtractionError(null);
     setPendingStyleEdit({
-      mode: "edit",
+      mode,
       styleId: style.id,
       styleTitle: styleDisplayName,
       details: buildInitialStyleDetails(style),

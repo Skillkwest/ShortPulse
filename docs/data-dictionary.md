@@ -732,7 +732,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `ai_studio_saved_pulses` (jsonb, default `[]`): Per-user custom Pulse library records stored as ordered minimal `{ presetId, label, description, systemInstructions, pulseKind, createdAt, schemaVersion }` objects. This column is for user-authored custom Pulses only; global built-in guided-workflow records are not stored here and must not be treated as per-user overrides. Legacy workflow fields may still appear in older saved payloads, but client/runtime normalization strips them and resolves user-owned records back to the minimal custom Pulse contract before use. The unified Presets Library (`Pulses` section) and the Expert Create Pulse rail merge these custom records with the shared built-in catalog at runtime.
 - `ai_studio_style_panel_ids` (text[], default `{}`): Canonical per-user Styles Library order storing the shared tile sequence consumed by the primary Styles Library panel and the right-rail Styles chooser.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
-- `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing the editable core style fields `{ style, title, referenceImageName, stylePrompt, previewImageUrl }`.
+- `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user custom-style records keyed by style id storing the editable core style fields `{ style, title, referenceImageName, stylePrompt, previewImageUrl }`. Global built-in Style ids are ignored by runtime when they appear here; built-in definitions come from `ai_studio_builtin_style_runtime`.
 - `ai_studio_saved_voices` (jsonb, default `[]`): Per-user AI Studio saved-voice compatibility cache storing `{ voiceId, name, previewUrl, sampleStoragePath, description, provider, isFallback, createdAt }` records. This remains useful for UI metadata and legacy compatibility, but it is no longer sufficient by itself to prove ownership of a custom provider voice.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)
@@ -765,6 +765,16 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `updated_by_user_id` (uuid, nullable): Admin user id that last saved the catalog.
 - `updated_by_email` (text, nullable): Admin email captured with the last save for operator traceability.
 - Runtime role: global source of truth for built-in guided workflows consumed by `/api/ai/create-pulse-builtins` and enforced by `/api/ai/studio-agent-pulse` when a built-in preset id is active.
+- Access model: service-role-only direct reads/writes. Browser sessions must go through trusted authenticated routes; customer sessions must never query this table directly.
+
+### ai_studio_builtin_style_runtime
+
+- `singleton` (boolean, pk, default `true`): Singleton row guard for the active built-in Styles catalog.
+- `style_definitions` (jsonb): Ordered built-in Style definition array stored as `{ styleId, title, stylePrompt, previewImageUrl, referenceImageName, schemaVersion }` records.
+- `updated_at` (timestamptz, default `timezone('utc', now())`): Last control-plane write timestamp.
+- `updated_by_user_id` (uuid, nullable): Admin user id that last saved the catalog.
+- `updated_by_email` (text, nullable): Admin email captured with the last save for operator traceability.
+- Runtime role: global source of truth for built-in AI Studio Styles consumed by `/api/ai/built-in-styles` and merged with per-user custom styles in the Styles Library.
 - Access model: service-role-only direct reads/writes. Browser sessions must go through trusted authenticated routes; customer sessions must never query this table directly.
 
 ### user_media_compliance_acceptances

@@ -269,6 +269,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 147.  `sql/migrations/148_add_generation_projection_workflow_reload.sql`
 148.  `sql/migrations/149_add_generation_projection_workspace_runtime_key.sql`
 149.  `sql/migrations/150_restore_dashboard_announcement_publish_grants.sql`
+150.  `sql/migrations/151_add_ai_studio_builtin_style_control_plane.sql`
       Rollback files:
 
 
@@ -427,6 +428,7 @@ Billing safety note:
 - Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.
 - Migration `150_restore_dashboard_announcement_publish_grants.sql` restores service-role execute access for the dashboard announcement publish RPC while keeping public, anon, and authenticated browser roles denied.
+- Migration `151_add_ai_studio_builtin_style_control_plane.sql` adds the service-role-only `ai_studio_builtin_style_runtime` singleton control-plane table for global built-in AI Studio Styles edited from `/admin/agent-instructions` and read by authenticated runtime clients through `/api/ai/built-in-styles`.
 - Migration `063_add_media_folder_canvas_states.sql` added per-user/per-folder Media Library canvas snapshot persistence (`media_folder_canvas_states`) with folder-owner scoped cascade deletion before the folder-canvas runtime was retired.
 - Migration `064_backfill_media_files_from_storage_objects.sql` backfills missing durable `media_files` rows from `storage.objects` for All Media completeness (idempotent user/path insert checks, transient/character/variant exclusions, and rollback-target metadata tagging).
 - Migration `065_add_media_derivative_processing_fields.sql` adds image-derivative retry/lease control fields on `media_files`, an insert-default trigger that marks new image rows `pending`, and claim/backlog indexes for derivative workers.

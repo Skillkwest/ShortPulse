@@ -53,6 +53,7 @@ type SupabaseMockOptions = {
   publicationRows?: Array<Record<string, unknown>>;
   mediaRows?: Array<Record<string, unknown>>;
   outputDisplayRows?: Array<Record<string, unknown>>;
+  outputDisplayTitleReadError?: string;
   outputDisplayReadError?: string;
   outputDisplayUpsertError?: string;
   outputDisplayDeleteError?: string;
@@ -100,6 +101,7 @@ const createSupabaseMock = ({
   publicationRows = [],
   mediaRows = [],
   outputDisplayRows = [],
+  outputDisplayTitleReadError,
   outputDisplayReadError,
   outputDisplayUpsertError,
   outputDisplayDeleteError,
@@ -383,11 +385,19 @@ const createSupabaseMock = ({
       })),
     })),
   }));
-  const outputDisplaySelect = vi.fn(() => ({
+  const outputDisplaySelect = vi.fn((columns?: string) => ({
     eq: vi.fn(() => ({
       eq: vi.fn(async () => ({
-        data: outputDisplayReadError ? null : mutableOutputDisplayRows,
-        error: outputDisplayReadError ? { message: outputDisplayReadError } : null,
+        data:
+          outputDisplayReadError ||
+          (outputDisplayTitleReadError && columns?.includes("display_title"))
+            ? null
+            : mutableOutputDisplayRows,
+        error: outputDisplayReadError
+          ? { message: outputDisplayReadError }
+          : outputDisplayTitleReadError && columns?.includes("display_title")
+            ? { code: "42703", message: outputDisplayTitleReadError }
+            : null,
       })),
     })),
   }));
@@ -494,6 +504,7 @@ const createSupabaseMock = ({
     generationAssociationUpsert,
     workspaceUpsert,
     outputDisplayUpsert,
+    outputDisplaySelect,
     outputDisplayDeleteIn,
     getOutputDisplayRows: () => mutableOutputDisplayRows.map((row) => ({ ...row })),
     getWorkspaceRow: () => ({ ...mutableWorkspaceRow }),
@@ -2752,6 +2763,116 @@ describe("projectWorkspaceStatesService", () => {
         },
       },
     });
+  });
+
+  it("falls back to the legacy display-record read shape when display title schema has not landed", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { outputDisplaySelect } = createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-legacy-display-title-read",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-03T12:00:00.000Z",
+          checkpointRevision: 4,
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "display-legacy-title",
+              mode: "image",
+              mediaSource: "library",
+            },
+          ],
+          archived: [],
+          activeOutputId: "display-legacy-title",
+          curatedReferenceIds: ["display-legacy-title"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      outputDisplayTitleReadError:
+        "column project_output_display_items.display_title does not exist",
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "display-legacy-title",
+          version: 3,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: "2026-06-03T11:55:00.000Z",
+          generation_id: null,
+          prompt_id: PROMPT_ID_1,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: "A materialized legacy display row",
+          display_prompt_summary: "Legacy display prompt",
+          mime_type: "image/png",
+          width: 1024,
+          height: 768,
+          duration_ms: null,
+          preview_storage_path: "user-1/generated/display-preview.png",
+          full_storage_path: "user-1/generated/display-full.png",
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/display-preview.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/display-preview.png"],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: "success",
+          queue_state: null,
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    try {
+      const result = await getProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+      const resultOutputs = result?.snapshot.outputs as { active: unknown[] };
+
+      expect(resultOutputs.active).toEqual([
+        expect.objectContaining({
+          id: "display-legacy-title",
+          prompt: "Legacy display prompt",
+          previewStoragePath: "user-1/generated/display-preview.png",
+        }),
+      ]);
+      expect(outputDisplaySelect).toHaveBeenCalledTimes(2);
+      expect(outputDisplaySelect.mock.calls[0]?.[0]).toContain("display_title");
+      expect(outputDisplaySelect.mock.calls[1]?.[0]).not.toContain("display_title");
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-output-display] display_title column unavailable; falling back to legacy read shape",
+        expect.objectContaining({
+          projectId: "project-1",
+        })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("repairs materialized generated display rows from durable projection authority on workspace read", async () => {

@@ -117,6 +117,8 @@ describe("AiStudioProjectEntryState", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Project workspace unavailable");
     expect(screen.getByText("Failed to load project workspace.")).toBeInTheDocument();
+    expect(container.querySelector(".ai-studio-project-entry-visual-stage")).not.toBeNull();
+    expect(container.querySelector(".ai-studio-project-entry-card")).toBeNull();
     expect(container.querySelector(".ai-studio-project-entry-loader")).toBeNull();
     expect(container.querySelector(".reference-spinner")).toBeNull();
 

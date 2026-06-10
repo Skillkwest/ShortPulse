@@ -131,6 +131,14 @@
   text-align: center;
 }
 
+.bootstrapStyleScope :global(.ai-studio-project-entry-visual-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 @keyframes ai-studio-project-entry-pulse-run {
   0% {
     opacity: 0;

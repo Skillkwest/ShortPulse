@@ -19,7 +19,12 @@ type ProjectEntryLoadingSurfaceProps = {
   message: string;
   steps: ProjectEntryLoadingStep[];
   activeStepIndex: number;
+  variant?: "loading" | "error";
   stepsAriaLabel?: string;
+  primaryActionLabel?: string;
+  onPrimaryAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 };
 
 type EntryStepState = "complete" | "active" | "pending";
@@ -38,7 +43,12 @@ export function ProjectEntryLoadingSurface({
   message,
   steps,
   activeStepIndex,
+  variant = "loading",
   stepsAriaLabel,
+  primaryActionLabel,
+  onPrimaryAction,
+  secondaryActionLabel,
+  onSecondaryAction,
 }: ProjectEntryLoadingSurfaceProps) {
   const [isAnimatedMaskReady, setIsAnimatedMaskReady] = React.useState(false);
   const animatedMaskStyle = isAnimatedMaskReady
@@ -86,12 +96,25 @@ export function ProjectEntryLoadingSurface({
 
       <section
         className="ai-studio-project-entry-visual-fallback-copy"
-        role="status"
-        aria-live="polite"
+        role={variant === "error" ? "alert" : "status"}
+        aria-live={variant === "error" ? "assertive" : "polite"}
         aria-atomic="true"
       >
         <h1 className="ai-studio-project-entry-title">{title}</h1>
         <p className="ai-studio-project-entry-message">{message}</p>
+
+        {primaryActionLabel && onPrimaryAction ? (
+          <div className="ai-studio-project-entry-visual-actions">
+            <button type="button" className="primary-btn small" onClick={onPrimaryAction}>
+              {primaryActionLabel}
+            </button>
+            {secondaryActionLabel && onSecondaryAction ? (
+              <button type="button" className="ghost-btn small" onClick={onSecondaryAction}>
+                {secondaryActionLabel}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <ol className="sr-only" aria-label={stepsAriaLabel ?? "Project restore progress"}>

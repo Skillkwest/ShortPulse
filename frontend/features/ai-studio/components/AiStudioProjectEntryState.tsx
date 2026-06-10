@@ -3,8 +3,6 @@
  * Renders the full-page loading and error experience shown while project identity and
  * project-backed workspace restore are still settling before the main studio shell mounts.
  */
-import styles from "../../../styles/ai-studio-project-entry.module.css";
-import sharedStyles from "../../../styles/project-entry-loading-surface.module.css";
 import {
   ProjectEntryLoadingSurface,
   type ProjectEntryLoadingStep,
@@ -34,8 +32,6 @@ type AiStudioProjectEntryStateProps = {
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
 };
-
-type EntryStepState = "complete" | "active" | "pending";
 
 export const AI_STUDIO_PROJECT_OPEN_STEPS: AiStudioProjectEntryStep[] = [
   {
@@ -77,16 +73,6 @@ const getCurrentStepIndex = (phase: AiStudioProjectEntryPhase): number => {
     default:
       return 2;
   }
-};
-
-const getStepState = (
-  stepIndex: number,
-  currentStepIndex: number,
-  variant: "loading" | "error"
-): EntryStepState => {
-  if (stepIndex < currentStepIndex) return "complete";
-  if (stepIndex === currentStepIndex) return "active";
-  return variant === "error" ? "pending" : "pending";
 };
 
 const getTitle = ({
@@ -157,74 +143,19 @@ export function AiStudioProjectEntryState({
   const resolvedMessage = message ?? getMessage({ variant, phase, projectTitle, errorMessage });
   const resolvedSteps = steps ?? AI_STUDIO_PROJECT_OPEN_STEPS;
   const currentStepIndex = activeStepIndex ?? getCurrentStepIndex(phase);
-  const liveRole = variant === "error" ? "alert" : "status";
-  const liveMode = variant === "error" ? "assertive" : "polite";
-
-  if (variant === "loading") {
-    return (
-      <ProjectEntryLoadingSurface
-        title={resolvedTitle}
-        message={resolvedMessage}
-        steps={resolvedSteps}
-        activeStepIndex={currentStepIndex}
-        stepsAriaLabel={stepsAriaLabel}
-      />
-    );
-  }
 
   return (
-    <main
-      className={`page page-wide ai-studio-project-entry-page ${sharedStyles.bootstrapStyleScope} ${styles.bootstrapStyleScope}`}
-    >
-      <section className="panel ai-studio-project-entry-card">
-        <div className="ai-studio-project-entry-orb" aria-hidden="true" />
-        <div
-          className="ai-studio-project-entry-copy"
-          role={liveRole}
-          aria-live={liveMode}
-          aria-atomic="true"
-        >
-          <h1 className="ai-studio-project-entry-title">{resolvedTitle}</h1>
-          <p className="ai-studio-project-entry-message">{resolvedMessage}</p>
-        </div>
-
-        <div className="ai-studio-project-entry-body">
-          <ol
-            className="ai-studio-project-entry-steps"
-            aria-label={stepsAriaLabel ?? "Project restore progress"}
-          >
-            {resolvedSteps.map((step, index) => {
-              const stepState = getStepState(index, currentStepIndex, variant);
-              return (
-                <li
-                  key={step.id}
-                  className={`ai-studio-project-entry-step is-${stepState}`}
-                  data-step-state={stepState}
-                >
-                  <span className="ai-studio-project-entry-step-marker" aria-hidden="true" />
-                  <div className="ai-studio-project-entry-step-copy">
-                    <span className="ai-studio-project-entry-step-label">{step.label}</span>
-                    <span className="ai-studio-project-entry-step-hint">{step.hint}</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-
-        {primaryActionLabel && onPrimaryAction ? (
-          <div className="ai-studio-project-entry-actions">
-            <button type="button" className="primary-btn small" onClick={onPrimaryAction}>
-              {primaryActionLabel}
-            </button>
-            {secondaryActionLabel && onSecondaryAction ? (
-              <button type="button" className="ghost-btn small" onClick={onSecondaryAction}>
-                {secondaryActionLabel}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-    </main>
+    <ProjectEntryLoadingSurface
+      title={resolvedTitle}
+      message={resolvedMessage}
+      steps={resolvedSteps}
+      activeStepIndex={currentStepIndex}
+      stepsAriaLabel={stepsAriaLabel}
+      variant={variant}
+      primaryActionLabel={primaryActionLabel}
+      onPrimaryAction={onPrimaryAction}
+      secondaryActionLabel={secondaryActionLabel}
+      onSecondaryAction={onSecondaryAction}
+    />
   );
 }

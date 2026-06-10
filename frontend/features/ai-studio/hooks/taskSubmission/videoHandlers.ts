@@ -25,6 +25,7 @@ import {
 import { needsImageUpload, prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import {
   buildKieKlingElementsPayload,
+  KIE_KLING_MAX_IMAGE_ELEMENT_URLS,
   resolveKieKlingAspect,
   resolveKieKlingDuration,
   resolveKieKlingMode,
@@ -43,6 +44,11 @@ import {
 } from "../../logic/klingShotModePromptComposition";
 import { composeSeedanceHiddenShotModePrompt } from "../../logic/seedanceShotModePromptComposition";
 import { resolveLipSyncAudioDurationGuardrail } from "../../logic/lipSyncDuration";
+import {
+  getDurableLipSyncAudioUrl,
+  isNonDurableLipSyncAudioUrl,
+  isLipSyncAudioReadyForSubmit,
+} from "../../logic/lipSyncAudioState";
 
 const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
 const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
@@ -394,7 +400,8 @@ const prepareKieHostedKlingElementForSubmission = async ({
 }): Promise<AiStudioKlingElement> => {
   const rawImageUrls = getAiStudioKlingElementReferenceUrls(element)
     .map((value) => value.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, KIE_KLING_MAX_IMAGE_ELEMENT_URLS);
 
   const [klingHostedImageUrls, klingHostedVideoUrl] = await Promise.all([
     Promise.all(
@@ -711,7 +718,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
 
       const rawImageUrl = (rawImageInputs[0] ?? preparedImageInputs[0] ?? "").trim();
       const preparedImageUrl = (preparedImageInputs[0] ?? rawImageUrl).trim();
-      const rawAudioUrl = lipSyncAudio.url?.replace(/#.*$/, "").trim() ?? "";
+      const rawAudioUrl = getDurableLipSyncAudioUrl(lipSyncAudio) ?? "";
 
       if (!preparedImageUrl || !rawImageUrl) {
         notifyGenerationFailure(
@@ -723,9 +730,24 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         return { handled: true };
       }
       if (!rawAudioUrl) {
+        const message =
+          lipSyncAudio.status === "uploading"
+            ? "Voice audio is still uploading. Wait for it to finish before generating Lip Sync."
+            : lipSyncAudio.status === "failed"
+              ? (lipSyncAudio.error ??
+                "Voice audio upload failed. Re-add the audio file and try again.")
+              : lipSyncAudio.url && isNonDurableLipSyncAudioUrl(lipSyncAudio.url)
+                ? "Local voice audio is no longer available. Re-add the audio file and try again."
+                : lipSyncAudio.url
+                  ? "Voice audio is not ready. Re-add it and wait for upload before generating Lip Sync."
+                  : "Add voice audio before generating in Lip Sync.";
+        notifyGenerationFailure(id, message, undefined, VALIDATION_FAILURE_CONTEXT);
+        return { handled: true };
+      }
+      if (!isLipSyncAudioReadyForSubmit(lipSyncAudio)) {
         notifyGenerationFailure(
           id,
-          "Add voice audio before generating in Lip Sync.",
+          "Voice audio is not ready. Re-add it and wait for upload before generating Lip Sync.",
           undefined,
           VALIDATION_FAILURE_CONTEXT
         );

@@ -27,6 +27,11 @@ import {
   saveElementManagerDraft,
   saveElementManagerDraftSnapshot,
 } from "../logic/elementsManagerPersistence";
+import {
+  deriveElementStatusFromDraft,
+  hasRequiredElementMediaReferences,
+  normalizeElementImageReferenceUrls,
+} from "../logic/elementReadiness";
 
 const MEDIA_BUCKET = "media_library";
 const SUPABASE_STORAGE_OBJECT_URL_PATTERN =
@@ -204,10 +209,12 @@ const buildElementItemFromDraft = (
     profileImageUrl: draft.profileImageUrl,
     profileImageTransform: draft.profileImageTransform,
     imageReferenceUrls:
-      draft.assetType === "image" ? draft.imageReferenceUrls.filter(Boolean).slice(0, 6) : [],
+      draft.assetType === "image"
+        ? normalizeElementImageReferenceUrls(draft.imageReferenceUrls)
+        : [],
     videoReferenceUrl: draft.assetType === "video" ? draft.videoReferenceUrl.trim() || null : null,
     updatedAt: options.updatedAt ?? new Date().toISOString(),
-    status: options.status ?? "ready",
+    status: options.status ?? deriveElementStatusFromDraft(draft),
   };
 };
 
@@ -270,10 +277,11 @@ const serializeDraftState = (draft: ElementDraft): string =>
   });
 
 const hasRequiredReferencesForInitialSave = (draft: ElementDraft): boolean => {
-  if (draft.assetType === "video") {
-    return Boolean(draft.videoReferenceUrl.trim());
-  }
-  return Boolean(draft.imageReferenceUrls[0]?.trim() && draft.imageReferenceUrls[1]?.trim());
+  return hasRequiredElementMediaReferences({
+    assetType: draft.assetType,
+    imageReferenceUrls: draft.imageReferenceUrls,
+    videoReferenceUrl: draft.videoReferenceUrl,
+  });
 };
 
 const uploadElementReferenceBlob = async (blob: Blob): Promise<string> => {

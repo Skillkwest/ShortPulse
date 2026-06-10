@@ -24,6 +24,17 @@ import { useReferencePropertiesInteractions } from "./useReferencePropertiesInte
 import { ReferenceAudioPlayer } from "./shared/ReferenceAudioPlayer";
 import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import {
+  createEmptyLipSyncAudioState,
+  createFailedLipSyncAudioState,
+  createFailedNonDurableLipSyncAudioState,
+  createLipSyncAudioStateFromDurableUrl,
+  createReadyLipSyncAudioState,
+  createUploadingLipSyncAudioState,
+  getLipSyncAudioPlaybackUrl,
+  isNonDurableLipSyncAudioUrl,
+} from "../logic/lipSyncAudioState";
+import { uploadAudioAssetToStorage } from "../utils/audioUpload";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -213,7 +224,7 @@ export function VideoPropertiesPanel({
   onClearMotionVideo,
   motionVideoLoading = false,
   motionVideoError = null,
-  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncAudio = createEmptyLipSyncAudioState(),
   onLipSyncAudioChange,
   lipSyncTurboMode = false,
   onLipSyncTurboModeChange,
@@ -274,6 +285,8 @@ export function VideoPropertiesPanel({
   const [lipSyncAudioDragActive, setLipSyncAudioDragActive] = React.useState(false);
   const [lipSyncAudioCanvasTearOutActive, setLipSyncAudioCanvasTearOutActive] =
     React.useState(false);
+  const lipSyncAudioUploadRevisionRef = React.useRef(0);
+  const lipSyncAudioObjectUrlsRef = React.useRef<Set<string>>(new Set());
   const [elementPickerError, setElementPickerError] = React.useState<string | null>(null);
   const [promptTokenPickerState, setPromptTokenPickerState] = React.useState<{
     isOpen: boolean;
@@ -347,6 +360,13 @@ export function VideoPropertiesPanel({
     },
     [onLipSyncAudioChange]
   );
+  React.useEffect(
+    () => () => {
+      lipSyncAudioObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      lipSyncAudioObjectUrlsRef.current.clear();
+    },
+    []
+  );
   const readLipSyncAudioDuration = React.useCallback((audioUrl: string): Promise<number | null> => {
     if (typeof Audio === "undefined") return Promise.resolve(null);
     return new Promise((resolve) => {
@@ -372,9 +392,49 @@ export function VideoPropertiesPanel({
   const handleLipSyncAudioFile = React.useCallback(
     async (file: File | null | undefined) => {
       if (!file) return;
-      const objectUrl = `${URL.createObjectURL(file)}#audio=1`;
-      const durationMs = await readLipSyncAudioDuration(objectUrl);
-      applyLipSyncAudio({ url: objectUrl, durationMs });
+      const uploadRevision = lipSyncAudioUploadRevisionRef.current + 1;
+      lipSyncAudioUploadRevisionRef.current = uploadRevision;
+      const objectUrl = URL.createObjectURL(file);
+      lipSyncAudioObjectUrlsRef.current.add(objectUrl);
+      const previewUrl = `${objectUrl}#audio=1`;
+      const durationMs = await readLipSyncAudioDuration(previewUrl);
+      applyLipSyncAudio(
+        createUploadingLipSyncAudioState({
+          durationMs,
+          previewUrl,
+          mimeType: file.type || null,
+          size: file.size,
+        })
+      );
+      try {
+        const uploaded = await uploadAudioAssetToStorage(previewUrl);
+        if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) return;
+        applyLipSyncAudio(
+          createReadyLipSyncAudioState({
+            url: uploaded.url,
+            durationMs,
+            sourceKind: "local",
+            storagePath: uploaded.path,
+            previewUrl,
+            mimeType: uploaded.mimeType ?? file.type ?? null,
+            size: uploaded.size,
+          })
+        );
+      } catch (error) {
+        if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) return;
+        applyLipSyncAudio(
+          createFailedLipSyncAudioState({
+            durationMs,
+            previewUrl,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Voice audio upload failed. Re-add the audio file and try again.",
+            mimeType: file.type || null,
+            size: file.size,
+          })
+        );
+      }
     },
     [applyLipSyncAudio, readLipSyncAudioDuration]
   );
@@ -396,10 +456,13 @@ export function VideoPropertiesPanel({
           libraryPayload.payload.previewUrl ??
           libraryPayload.payload.url;
         if (audioUrl) {
-          applyLipSyncAudio({
-            url: audioUrl,
-            durationMs: libraryPayload.payload.durationMs ?? null,
-          });
+          applyLipSyncAudio(
+            createLipSyncAudioStateFromDurableUrl({
+              url: audioUrl,
+              durationMs: libraryPayload.payload.durationMs ?? null,
+              sourceKind: "library",
+            })
+          );
         }
         return;
       }
@@ -415,20 +478,33 @@ export function VideoPropertiesPanel({
     (payload: AgentComposerDirectDropPayload) => {
       if (payload.kind !== "audio") return;
       setLipSyncAudioDragActive(false);
-      applyLipSyncAudio({
-        url: payload.audioUrl,
-        durationMs: payload.durationMs ?? null,
-      });
+      applyLipSyncAudio(
+        isNonDurableLipSyncAudioUrl(payload.audioUrl)
+          ? createFailedNonDurableLipSyncAudioState()
+          : createLipSyncAudioStateFromDurableUrl({
+              url: payload.audioUrl,
+              durationMs: payload.durationMs ?? null,
+              sourceKind: "canvas",
+            })
+      );
     },
     [applyLipSyncAudio]
   );
   const clearLipSyncAudio = React.useCallback(() => {
-    applyLipSyncAudio({ url: null, durationMs: null });
+    lipSyncAudioUploadRevisionRef.current += 1;
+    applyLipSyncAudio(createEmptyLipSyncAudioState());
   }, [applyLipSyncAudio]);
+  const lipSyncAudioPlaybackUrl = getLipSyncAudioPlaybackUrl(lipSyncAudio);
   const lipSyncAudioDurationLabel =
     typeof lipSyncAudio.durationMs === "number" && Number.isFinite(lipSyncAudio.durationMs)
       ? `${Math.max(0, Math.round(lipSyncAudio.durationMs / 1000))}s`
       : null;
+  const lipSyncAudioStatusLabel =
+    lipSyncAudio.status === "uploading"
+      ? "Uploading audio..."
+      : lipSyncAudio.status === "failed"
+        ? (lipSyncAudio.error ?? "Audio upload failed")
+        : (lipSyncAudioDurationLabel ?? "Audio required");
   const klingElementSlotCount = isSeedance2FamilyModelId(modelId)
     ? VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT
     : VIDEO_KLING_ELEMENT_SLOT_COUNT;
@@ -1790,19 +1866,22 @@ export function VideoPropertiesPanel({
                           onDragLeave={() => setLipSyncAudioDragActive(false)}
                           onDrop={handleLipSyncAudioDrop}
                         >
-                          {lipSyncAudio.url ? (
+                          {lipSyncAudioPlaybackUrl ? (
                             <div
-                              className="video-lip-sync-audio-preview"
+                              className={`video-lip-sync-audio-preview ${lipSyncAudio.status === "failed" ? "is-failed" : ""}`.trim()}
                               onClick={(event) => event.stopPropagation()}
                             >
                               <ReferenceAudioPlayer
                                 audioId="lip-sync-audio"
-                                audioUrl={lipSyncAudio.url.replace(/#.*$/, "")}
+                                audioUrl={lipSyncAudioPlaybackUrl}
                                 durationMs={lipSyncAudio.durationMs}
                                 playLabel="Play voice audio"
                                 pauseLabel="Pause voice audio"
                                 eagerWaveformDecode={false}
                               />
+                              {lipSyncAudio.status === "uploading" ? (
+                                <div className="video-lip-sync-audio-state">Uploading</div>
+                              ) : null}
                             </div>
                           ) : (
                             <div className="video-lip-sync-audio-empty">
@@ -1817,9 +1896,9 @@ export function VideoPropertiesPanel({
                         </div>
                         <div className="video-lip-sync-audio-actions">
                           <span className="video-lip-sync-audio-status">
-                            {lipSyncAudioDurationLabel ?? "Audio required"}
+                            {lipSyncAudioStatusLabel}
                           </span>
-                          {lipSyncAudio.url ? (
+                          {lipSyncAudioPlaybackUrl || lipSyncAudio.status === "failed" ? (
                             <button
                               type="button"
                               className="video-lip-sync-clear-button"

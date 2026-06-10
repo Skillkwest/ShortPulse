@@ -22,6 +22,10 @@ import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/p
 import { getDefaultModelPricingPolicyDocument } from "../../../../lib/model-runtime/pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import type { CharacterModeInjectionBundle } from "../useAiStudioCharacterModeController";
+import {
+  createEmptyLipSyncAudioState,
+  createReadyLipSyncAudioState,
+} from "../../logic/lipSyncAudioState";
 
 const pricingGridPolicy = materializeImageBilledCreditPolicy({
   ...getDefaultModelPricingPolicyDocument(),
@@ -1105,7 +1109,7 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
         costParamsForModel: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID),
         referenceImageUrl: "https://example.com/character.jpg",
         videoReferenceMode: "lip-sync",
-        lipSyncAudio: { url: null, durationMs: null },
+        lipSyncAudio: createEmptyLipSyncAudioState(),
       })
     );
 
@@ -1121,7 +1125,11 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
         costParamsForModel: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID),
         referenceImageUrl: "https://example.com/character.jpg",
         videoReferenceMode: "lip-sync",
-        lipSyncAudio: { url: "https://example.com/voice.mp3", durationMs: 12_400 },
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 12_400,
+          sourceKind: "library",
+        }),
       })
     );
 
@@ -1138,7 +1146,11 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
         referenceImageUrl: "https://example.com/character.jpg",
         videoReferenceMode: "lip-sync",
         videoResolution: "1080p",
-        lipSyncAudio: { url: "https://example.com/voice.mp3", durationMs: 30_000 },
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 30_000,
+          sourceKind: "library",
+        }),
       })
     );
 
@@ -1157,7 +1169,11 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
         referenceImageUrl: "https://example.com/character.jpg",
         videoReferenceMode: "lip-sync",
         videoResolution: "720p",
-        lipSyncAudio: { url: "https://example.com/voice.mp3", durationMs: 45_000 },
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 45_000,
+          sourceKind: "library",
+        }),
       })
     );
 
@@ -1174,7 +1190,11 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
         referenceImageUrl: "https://example.com/character.jpg",
         videoReferenceMode: "lip-sync",
         videoResolution: "720p",
-        lipSyncAudio: { url: "https://example.com/voice.mp3", durationMs: 60_000 },
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 60_000,
+          sourceKind: "library",
+        }),
       })
     );
 

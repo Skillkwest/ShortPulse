@@ -4,7 +4,8 @@ Purpose: finish the partially built AI Studio Video Lip Sync lane from the
 current repo state, with enough detail for autonomous implementation without
 further product clarification.
 
-Status: implemented locally; production URL proof pending deploy
+Status: superseded for remediation by
+`docs/planning/ai-studio-video-lip-sync-remediation-plan-2026-06-10.md`
 Owner/lane: Program 4, Workflows And Product Surfaces, with Program 1 pricing
 and generation-runtime proof requirements
 Created: 2026-06-10

@@ -3069,6 +3069,8 @@ describe("sessionSnapshot", () => {
       editReferenceText: "",
       videoReferenceText: "",
       videoReferenceMode: "motion",
+      lipSyncAudioUrl: "blob:http://localhost/voice",
+      lipSyncAudioDurationMs: 12_400,
       videoDurationSeconds: 10,
       videoResolution: "1080p",
       imageResolution: "model_default",
@@ -3117,6 +3119,8 @@ describe("sessionSnapshot", () => {
       null,
     ]);
     expect(snapshot.workspace.motionReferenceVideoUrl).toBeNull();
+    expect(snapshot.workspace.lipSyncAudioUrl).toBeNull();
+    expect(snapshot.workspace.lipSyncAudioDurationMs).toBeNull();
     expect(snapshot.workspace.klingElements[0]).toEqual({
       id: "element-1",
       sourceKind: null,

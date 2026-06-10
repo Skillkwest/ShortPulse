@@ -8,6 +8,7 @@ export type AudioUploadResult = {
   url: string;
   path: string;
   size: number;
+  mimeType?: string;
 };
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
@@ -136,6 +137,7 @@ export const uploadAudioAssetToStorage = async (
       url?: unknown;
       path?: unknown;
       size?: unknown;
+      mimeType?: unknown;
       error?: unknown;
       details?: unknown;
     } | null;
@@ -156,6 +158,7 @@ export const uploadAudioAssetToStorage = async (
       url,
       path,
       size: Number.isFinite(size) ? size : blob.size,
+      mimeType: typeof payload?.mimeType === "string" ? payload.mimeType : mimeType,
     };
   } catch (error) {
     console.error("Audio upload error:", error);

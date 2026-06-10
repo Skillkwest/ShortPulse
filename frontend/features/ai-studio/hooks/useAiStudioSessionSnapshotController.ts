@@ -50,6 +50,11 @@ import {
   createEmptyExpertEditSecondaryImageUrls,
   normalizeExpertEditSecondaryImageUrls,
 } from "../logic/expertEditReferenceSlots";
+import {
+  createEmptyLipSyncAudioState,
+  createLipSyncAudioStateFromDurableUrl,
+  getDurableLipSyncAudioUrl,
+} from "../logic/lipSyncAudioState";
 
 type RestoredOutputAuthorityLike = Partial<
   Pick<
@@ -269,7 +274,7 @@ export const useAiStudioSessionSnapshotController = ({
   editReferenceText,
   videoReferenceText,
   videoReferenceMode,
-  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncAudio = createEmptyLipSyncAudioState(),
   lipSyncTurboMode = false,
   videoDurationSeconds,
   videoResolution,
@@ -443,10 +448,13 @@ export const useAiStudioSessionSnapshotController = ({
       setEditReferenceText(workspace.editReferenceText);
       setVideoReferenceText(workspace.videoReferenceText);
       setVideoReferenceMode(workspace.videoReferenceMode);
-      setLipSyncAudio({
-        url: workspace.lipSyncAudioUrl,
-        durationMs: workspace.lipSyncAudioDurationMs,
-      });
+      setLipSyncAudio(
+        createLipSyncAudioStateFromDurableUrl({
+          url: workspace.lipSyncAudioUrl,
+          durationMs: workspace.lipSyncAudioDurationMs,
+          sourceKind: "library",
+        })
+      );
       setLipSyncTurboMode(workspace.lipSyncTurboMode);
       setVideoDurationSeconds(workspace.videoDurationSeconds);
       setVideoResolution(workspace.videoResolution);
@@ -699,8 +707,10 @@ export const useAiStudioSessionSnapshotController = ({
         editReferenceText: editReferenceTextRef.current,
         videoReferenceText: videoReferenceTextRef.current,
         videoReferenceMode,
-        lipSyncAudioUrl: lipSyncAudioRef.current.url,
-        lipSyncAudioDurationMs: lipSyncAudioRef.current.durationMs,
+        lipSyncAudioUrl: getDurableLipSyncAudioUrl(lipSyncAudioRef.current),
+        lipSyncAudioDurationMs: getDurableLipSyncAudioUrl(lipSyncAudioRef.current)
+          ? lipSyncAudioRef.current.durationMs
+          : null,
         lipSyncTurboMode: lipSyncTurboModeRef.current,
         videoDurationSeconds,
         videoResolution,

@@ -16,6 +16,12 @@ import { randomId } from "../logic/ids";
 import { type AiStudioKlingElement } from "../logic/klingElements";
 import { normalizeAiStudioRestoredModelId } from "../logic/modelRestorePolicy";
 import type { LipSyncAudioState, StudioMode, ToolId, VideoReferenceMode } from "../types";
+import {
+  createEmptyLipSyncAudioState,
+  createLipSyncAudioStateFromDurableUrl,
+  getDurableLipSyncAudioUrl,
+  isNonDurableLipSyncAudioUrl,
+} from "../logic/lipSyncAudioState";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
 import { getModelConfig } from "../logic/pricing";
 import {
@@ -126,6 +132,28 @@ const resolveWorkflowSettingsKey = (tool: ToolId | null): WorkflowSettingsKey | 
   return null;
 };
 
+const resolveWorkflowSettingsLipSyncAudioUrl = (
+  snapshot: Partial<WorkflowSettingsSnapshot> | null | undefined,
+  defaults: WorkflowSettingsSnapshot
+): string | null => {
+  if (typeof snapshot?.lipSyncAudioUrl !== "string" && snapshot?.lipSyncAudioUrl !== null) {
+    return defaults.lipSyncAudioUrl;
+  }
+  return isNonDurableLipSyncAudioUrl(snapshot.lipSyncAudioUrl) ? null : snapshot.lipSyncAudioUrl;
+};
+
+const resolveWorkflowSettingsLipSyncAudioDurationMs = (
+  lipSyncAudioUrl: string | null,
+  snapshot: Partial<WorkflowSettingsSnapshot> | null | undefined,
+  defaults: WorkflowSettingsSnapshot
+): number | null => {
+  if (!lipSyncAudioUrl) return null;
+  return typeof snapshot?.lipSyncAudioDurationMs === "number" &&
+    Number.isFinite(snapshot.lipSyncAudioDurationMs)
+    ? snapshot.lipSyncAudioDurationMs
+    : defaults.lipSyncAudioDurationMs;
+};
+
 const cloneWorkflowSettingsSnapshot = (
   snapshot: Partial<WorkflowSettingsSnapshot> | null | undefined,
   defaults: WorkflowSettingsSnapshot = DEFAULT_WORKFLOW_SETTINGS
@@ -147,15 +175,12 @@ const cloneWorkflowSettingsSnapshot = (
     snapshot?.videoReferenceMode,
     defaults.videoReferenceMode
   ),
-  lipSyncAudioUrl:
-    typeof snapshot?.lipSyncAudioUrl === "string" || snapshot?.lipSyncAudioUrl === null
-      ? snapshot.lipSyncAudioUrl
-      : defaults.lipSyncAudioUrl,
-  lipSyncAudioDurationMs:
-    typeof snapshot?.lipSyncAudioDurationMs === "number" &&
-    Number.isFinite(snapshot.lipSyncAudioDurationMs)
-      ? snapshot.lipSyncAudioDurationMs
-      : defaults.lipSyncAudioDurationMs,
+  lipSyncAudioUrl: resolveWorkflowSettingsLipSyncAudioUrl(snapshot, defaults),
+  lipSyncAudioDurationMs: resolveWorkflowSettingsLipSyncAudioDurationMs(
+    resolveWorkflowSettingsLipSyncAudioUrl(snapshot, defaults),
+    snapshot,
+    defaults
+  ),
   lipSyncTurboMode:
     typeof snapshot?.lipSyncTurboMode === "boolean"
       ? snapshot.lipSyncTurboMode
@@ -381,7 +406,7 @@ export const useAiStudioWorkflowSettings = ({
   aspect,
   imageResolution,
   videoReferenceMode,
-  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncAudio = createEmptyLipSyncAudioState(),
   lipSyncTurboMode = false,
   videoDurationSeconds,
   videoResolution,
@@ -457,8 +482,9 @@ export const useAiStudioWorkflowSettings = ({
     () => resolveWorkflowSettingsKey(selectedTool),
     [selectedTool]
   );
-  const currentWorkflowSnapshot = useMemo<WorkflowSettingsSnapshot>(
-    () => ({
+  const currentWorkflowSnapshot = useMemo<WorkflowSettingsSnapshot>(() => {
+    const durableLipSyncAudioUrl = getDurableLipSyncAudioUrl(lipSyncAudio);
+    return {
       mode,
       model,
       aspect,
@@ -467,8 +493,8 @@ export const useAiStudioWorkflowSettings = ({
         videoReferenceMode,
         DEFAULT_WORKFLOW_SETTINGS.videoReferenceMode
       ),
-      lipSyncAudioUrl: lipSyncAudio.url,
-      lipSyncAudioDurationMs: lipSyncAudio.durationMs,
+      lipSyncAudioUrl: durableLipSyncAudioUrl,
+      lipSyncAudioDurationMs: durableLipSyncAudioUrl ? lipSyncAudio.durationMs : null,
       lipSyncTurboMode,
       videoDurationSeconds,
       videoResolution,
@@ -488,35 +514,34 @@ export const useAiStudioWorkflowSettings = ({
       klingVoiceIds: [...klingVoiceIds] as [string, string],
       klingMultiPrompts: klingMultiPrompts.map((shot) => ({ ...shot })),
       klingElements: klingElements.map((element) => ({ ...element })),
-    }),
-    [
-      aspect,
-      imageResolution,
-      klingCfgScale,
-      seedance2InputMode,
-      seedance2ReferenceAudioUrls,
-      seedance2ReferenceImageUrls,
-      seedance2ReferenceVideoUrls,
-      seedance2ReturnLastFrame,
-      seedance2WebSearch,
-      klingElements,
-      klingMultiPrompts,
-      klingNegativePrompt,
-      klingWorkflowMode,
-      klingShotType,
-      klingVoiceIds,
-      mode,
-      model,
-      lipSyncAudio,
-      lipSyncTurboMode,
-      videoAutoFix,
-      videoCameraFixed,
-      videoDurationSeconds,
-      videoGenerateAudio,
-      videoReferenceMode,
-      videoResolution,
-    ]
-  );
+    };
+  }, [
+    aspect,
+    imageResolution,
+    klingCfgScale,
+    seedance2InputMode,
+    seedance2ReferenceAudioUrls,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    klingElements,
+    klingMultiPrompts,
+    klingNegativePrompt,
+    klingWorkflowMode,
+    klingShotType,
+    klingVoiceIds,
+    mode,
+    model,
+    lipSyncAudio,
+    lipSyncTurboMode,
+    videoAutoFix,
+    videoCameraFixed,
+    videoDurationSeconds,
+    videoGenerateAudio,
+    videoReferenceMode,
+    videoResolution,
+  ]);
   const hasPendingWorkflowRestore =
     workflowSettingsLiveRestoreActive &&
     workflowSettingsHydrated &&
@@ -691,10 +716,11 @@ export const useAiStudioWorkflowSettings = ({
       current.url === snapshot.lipSyncAudioUrl &&
       current.durationMs === snapshot.lipSyncAudioDurationMs
         ? current
-        : {
+        : createLipSyncAudioStateFromDurableUrl({
             url: snapshot.lipSyncAudioUrl,
             durationMs: snapshot.lipSyncAudioDurationMs,
-          }
+            sourceKind: "library",
+          })
     );
     setLipSyncTurboMode((current) =>
       current === snapshot.lipSyncTurboMode ? current : snapshot.lipSyncTurboMode

@@ -24,7 +24,7 @@ type KieKlingElementPayload = {
 
 const KIE_KLING_MAX_ELEMENTS = 3;
 const KIE_KLING_MIN_IMAGE_ELEMENT_URLS = 2;
-const KIE_KLING_MAX_IMAGE_ELEMENT_URLS = 4;
+export const KIE_KLING_MAX_IMAGE_ELEMENT_URLS = 4;
 
 const resolveAspectForModelConfig = (
   aspect: string,

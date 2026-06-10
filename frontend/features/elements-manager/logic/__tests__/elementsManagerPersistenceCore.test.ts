@@ -291,6 +291,93 @@ describe("elementsManagerPersistenceCore", () => {
     ]);
   });
 
+  it("normalizes duplicate image references before saving element reference sets", async () => {
+    const updates: Array<Record<string, unknown>> = [];
+    const upserts: unknown[] = [];
+    const supabaseMock = {
+      from: (table: string) => {
+        if (table === "elements") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({
+                    data: {
+                      name: "Taylor",
+                      alias: "taylor",
+                      metadata: {},
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: (payload: Record<string, unknown>) => {
+              updates.push(payload);
+              return {
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      single: async () => ({
+                        data: { updated_at: "2026-04-07T01:00:00.000Z" },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              };
+            },
+          };
+        }
+
+        if (table === "element_reference_sets") {
+          return {
+            upsert: async (payload: unknown) => {
+              upserts.push(payload);
+              return { error: null };
+            },
+            delete: () => ({
+              eq: () => ({
+                eq: () => ({
+                  in: async () => ({ error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    };
+
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseMock);
+
+    const result = await saveElementManagerDraftSnapshot({
+      elementId: "element-1",
+      name: "Taylor",
+      profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+      description: "front",
+      assetType: "image",
+      imageReferenceUrls: [
+        " https://example.com/front.png ",
+        "https://example.com/front.png",
+        "https://example.com/side.png",
+      ],
+      videoReferenceUrl: null,
+    });
+
+    expect(result.status).toBe("ready");
+    expect(upserts).toEqual([
+      [
+        expect.objectContaining({
+          deck_reference_urls: ["https://example.com/front.png", "https://example.com/side.png"],
+          image_reference_urls: ["https://example.com/front.png", "https://example.com/side.png"],
+        }),
+      ],
+    ]);
+    expect(updates[0]).toEqual(expect.objectContaining({ status: "ready" }));
+  });
+
   it("creates and persists a new element only when the explicit save flow runs", async () => {
     const operations: string[] = [];
     const savedElementId = "element-new";

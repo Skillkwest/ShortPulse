@@ -2402,8 +2402,38 @@
 }
 
 .video-properties-panel .video-lip-sync-audio-preview {
+  position: relative;
   display: block;
   width: 100%;
+  min-height: 124px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(11, 16, 23, 0.76);
+}
+
+.video-properties-panel .video-lip-sync-audio-preview .reference-card-audio-shell {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.video-properties-panel .video-lip-sync-audio-preview.is-failed {
+  border: 1px solid rgba(244, 112, 144, 0.42);
+}
+
+.video-properties-panel .video-lip-sync-audio-state {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 2;
+  border: 1px solid rgba(159, 170, 188, 0.32);
+  border-radius: 999px;
+  background: rgba(12, 17, 24, 0.82);
+  color: rgba(230, 235, 244, 0.88);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 8px;
 }
 
 .video-properties-panel .video-lip-sync-audio-actions,

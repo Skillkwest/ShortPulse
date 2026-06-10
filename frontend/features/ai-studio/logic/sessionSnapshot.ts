@@ -873,6 +873,8 @@ export const buildAiStudioSessionSnapshot = (
             : emptyAgentRuntime,
       };
 
+  const lipSyncAudioUrl = sanitizeWorkspaceMediaUrl(input.lipSyncAudioUrl);
+
   const basePayload = {
     schemaVersion: LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION,
     sessionId: input.sessionId,
@@ -900,8 +902,8 @@ export const buildAiStudioSessionSnapshot = (
       editReferenceText: input.editReferenceText,
       videoReferenceText: input.videoReferenceText,
       videoReferenceMode: canonicalizeDurableVideoReferenceMode(input.videoReferenceMode),
-      lipSyncAudioUrl: sanitizeWorkspaceMediaUrl(input.lipSyncAudioUrl),
-      lipSyncAudioDurationMs: input.lipSyncAudioDurationMs,
+      lipSyncAudioUrl,
+      lipSyncAudioDurationMs: lipSyncAudioUrl ? input.lipSyncAudioDurationMs : null,
       lipSyncTurboMode: input.lipSyncTurboMode,
       videoDurationSeconds: input.videoDurationSeconds,
       videoResolution: input.videoResolution,

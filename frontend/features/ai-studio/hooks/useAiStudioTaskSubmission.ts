@@ -70,6 +70,10 @@ import type {
   ToolId,
   VideoReferenceMode,
 } from "../types";
+import {
+  createEmptyLipSyncAudioState,
+  getDurableLipSyncAudioUrl,
+} from "../logic/lipSyncAudioState";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
 import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
@@ -198,7 +202,7 @@ export const useAiStudioTaskSubmission = ({
   videoReferenceMode,
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
-  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncAudio = createEmptyLipSyncAudioState(),
   lipSyncTurboMode = false,
   videoCameraFixed,
   videoAutoFix,
@@ -517,9 +521,13 @@ export const useAiStudioTaskSubmission = ({
               autoFix: isVideoGeneration ? videoAutoFix : null,
               motionReferenceVideoUrl: isVideoGeneration ? motionReferenceVideoUrl : null,
               lipSyncAudioUrl:
-                isVideoGeneration && videoReferenceMode === "lip-sync" ? lipSyncAudio.url : null,
-              lipSyncAudioDurationMs:
                 isVideoGeneration && videoReferenceMode === "lip-sync"
+                  ? getDurableLipSyncAudioUrl(lipSyncAudio)
+                  : null,
+              lipSyncAudioDurationMs:
+                isVideoGeneration &&
+                videoReferenceMode === "lip-sync" &&
+                getDurableLipSyncAudioUrl(lipSyncAudio)
                   ? lipSyncAudio.durationMs
                   : null,
               lipSyncTurboMode:

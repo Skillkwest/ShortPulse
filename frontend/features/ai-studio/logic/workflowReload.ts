@@ -32,6 +32,7 @@ import type {
   WorkflowReloadVoiceoverPayload,
 } from "../types";
 import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "./generationReplay";
+import { isNonDurableLipSyncAudioUrl } from "./lipSyncAudioState";
 
 export type BuildWorkflowReloadConfigV1Input = {
   capturedAt?: string;
@@ -291,6 +292,11 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
   const aspect = asTrimmedString(value.aspect);
   if (!aspect || !isVideoReferenceMode(value.videoReferenceMode)) return null;
   if (!hasValidInternalRefs(value.internalMediaRefs)) return null;
+  const requestedLipSyncAudioUrl = asOptionalString(value.lipSyncAudioUrl);
+  const lipSyncAudioUrl =
+    requestedLipSyncAudioUrl && !isNonDurableLipSyncAudioUrl(requestedLipSyncAudioUrl)
+      ? requestedLipSyncAudioUrl
+      : null;
   return {
     kind: "video",
     aspect,
@@ -303,8 +309,10 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
     referenceInputs: asStringArray(value.referenceInputs),
     internalMediaRefs: normalizeInternalRefs(value.internalMediaRefs),
     motionReferenceVideoUrl: asOptionalString(value.motionReferenceVideoUrl),
-    lipSyncAudioUrl: asOptionalString(value.lipSyncAudioUrl),
-    lipSyncAudioDurationMs: asFiniteNumberOrNull(value.lipSyncAudioDurationMs),
+    lipSyncAudioUrl,
+    lipSyncAudioDurationMs: lipSyncAudioUrl
+      ? asFiniteNumberOrNull(value.lipSyncAudioDurationMs)
+      : null,
     lipSyncTurboMode: asBooleanOrNull(value.lipSyncTurboMode),
     seedance2InputMode: isSeedance2InputMode(value.seedance2InputMode)
       ? value.seedance2InputMode

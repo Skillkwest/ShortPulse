@@ -16,9 +16,19 @@ export type VideoReferenceMode =
   | "motion"
   | "lip-sync";
 
+export type LipSyncAudioStatus = "empty" | "uploading" | "ready" | "failed";
+export type LipSyncAudioSourceKind = "local" | "library" | "reference" | "canvas" | null;
+
 export type LipSyncAudioState = {
   url: string | null;
   durationMs: number | null;
+  status: LipSyncAudioStatus;
+  sourceKind: LipSyncAudioSourceKind;
+  storagePath?: string | null;
+  mimeType?: string | null;
+  size?: number | null;
+  error?: string | null;
+  previewUrl?: string | null;
 };
 
 export type AspectOption = {

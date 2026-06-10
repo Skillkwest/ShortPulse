@@ -46,6 +46,10 @@ import { resolveCreatePricingTarget } from "../logic/createPricingTarget";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import { analyzeExpertEditPromptTokens } from "../logic/expertEditPromptReferences";
 import { resolveLipSyncAudioDurationGuardrail } from "../logic/lipSyncDuration";
+import {
+  createEmptyLipSyncAudioState,
+  isLipSyncAudioReadyForSubmit,
+} from "../logic/lipSyncAudioState";
 import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
 import type {
   LipSyncAudioState,
@@ -113,7 +117,7 @@ export const useAiStudioViewModel = ({
   videoDurationSeconds,
   videoResolution,
   videoReferenceMode,
-  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncAudio = createEmptyLipSyncAudioState(),
   motionReferenceVideoPending = false,
   motionReferenceVideoError = null,
   motionReferenceVideoUrl,
@@ -741,14 +745,27 @@ export const useAiStudioViewModel = ({
     if (isVideoTool && resolvedVideoLane === "lip-sync") {
       const hasCharacterReference = Boolean(referenceImageUrl);
       const hasVoiceAudio = Boolean(lipSyncAudio.url);
+      const hasPreviewOrError =
+        Boolean(lipSyncAudio.previewUrl) || lipSyncAudio.status === "failed";
       if (!hasCharacterReference && !hasVoiceAudio) {
         return "Add a character reference and voice audio before generating Lip Sync.";
       }
       if (!hasCharacterReference) {
         return "Add a character reference before generating Lip Sync.";
       }
-      if (!hasVoiceAudio) {
+      if (!hasVoiceAudio && !hasPreviewOrError) {
         return "Add voice audio before generating Lip Sync.";
+      }
+      if (lipSyncAudio.status === "uploading") {
+        return "Voice audio is still uploading. Wait for it to finish before generating Lip Sync.";
+      }
+      if (lipSyncAudio.status === "failed") {
+        return (
+          lipSyncAudio.error ?? "Voice audio upload failed. Re-add the audio file and try again."
+        );
+      }
+      if (!isLipSyncAudioReadyForSubmit(lipSyncAudio)) {
+        return "Voice audio is not ready. Re-add it and wait for upload before generating Lip Sync.";
       }
       const lipSyncDurationGuardrail = resolveLipSyncAudioDurationGuardrail({
         durationMs: lipSyncAudio.durationMs,
@@ -820,8 +837,7 @@ export const useAiStudioViewModel = ({
     motionReferenceVideoPending,
     motionReferenceVideoError,
     motionReferenceVideoUrl,
-    lipSyncAudio.durationMs,
-    lipSyncAudio.url,
+    lipSyncAudio,
     referenceImageUrl,
     requiresModelSelection,
     klingMultiPrompts,

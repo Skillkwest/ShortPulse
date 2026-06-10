@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { LipSyncAudioState, StudioMode, VideoReferenceMode } from "../types";
+import { createEmptyLipSyncAudioState } from "../logic/lipSyncAudioState";
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 import {
   hasStoredVideoPreferences,
@@ -167,10 +168,7 @@ export const useAiStudioCreationState = ({
   const expertEditSessionStateRef = useRef<ExpertEditSessionState | null>(expertEditSessionState);
   const [expertEditSessionRevision, setExpertEditSessionRevision] = useState<number>(0);
   const [videoReferenceMode, setVideoReferenceMode] = useState<VideoReferenceMode>("standard");
-  const [lipSyncAudio, setLipSyncAudio] = useState<LipSyncAudioState>({
-    url: null,
-    durationMs: null,
-  });
+  const [lipSyncAudio, setLipSyncAudio] = useState<LipSyncAudioState>(createEmptyLipSyncAudioState);
   const [lipSyncTurboMode, setLipSyncTurboMode] = useState<boolean>(false);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() =>
     projectRouteRequested ? 6 : readSessionStorageNumberPreference(VIDEO_DURATION_STORAGE_KEY, 6)

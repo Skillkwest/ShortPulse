@@ -83,7 +83,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - `Lip Sync` does not expose a model picker chip or provider/model-specific labels.
 - The left panel requires a `Character image` and `Voice audio`, exposes `720p` / `1080p`, and may expose generic `Faster generation`.
 - Prompt text is optional; empty prompt is valid when required image/audio inputs are present.
-- Local voice-audio file picker/drop inputs are staged into provider-reachable temporary media before submit; already reachable Media Library / Reference Grid / Canvas audio URLs keep the URL upload path.
+- Local voice-audio file picker/drop inputs upload into app-owned durable audio storage and must reach a ready state before submit; already reachable Media Library / Reference Grid / Canvas audio URLs remain accepted when durable.
 - Audio duration guardrails are enforced before provider submit: `1080p` requires audio under `30s` and `720p` requires audio under `60s`.
 - The submit adapter sends only provider-supported fields upstream (`image_url`, `audio_url`, `resolution`, optional `prompt`, optional `turbo_mode`) plus ShortPulse sidecars that generated route wrappers strip before provider dispatch.
 - Billing uses shared pricing policy at `$0.16` per audio/output second, with duration carried in `shortpulse_context` for server-authoritative debit.

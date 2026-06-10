@@ -21,6 +21,7 @@ import type {
   AiStudioGenerateSubmissionOverrides,
 } from "./contracts/generationSubmissionContracts";
 import type { LipSyncAudioState, StudioMode, StudioOutput, ToolId } from "../types";
+import { createEmptyLipSyncAudioState } from "../logic/lipSyncAudioState";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -182,7 +183,7 @@ export const useAiStudioPageGenerationRuntime = ({
   modelPricingPolicyError,
   modelPricingPolicyLoading,
   modelPricingPolicyReady,
-  lipSyncAudio = { url: null, durationMs: null },
+  lipSyncAudio = createEmptyLipSyncAudioState(),
   motionReferenceVideoPending,
   motionReferenceVideoError,
   motionReferenceVideoUrl,

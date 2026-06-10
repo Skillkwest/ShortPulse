@@ -196,6 +196,35 @@ describe("workflowReload", () => {
         referenceInputs: ["https://example.com/character.png"],
       })
     );
+
+    const localLipSyncReload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: { display: "" },
+      model: { id: "fal-ai/bytedance/omnihuman/v1.5" },
+      payload: {
+        kind: "video",
+        aspect: "9:16",
+        videoReferenceMode: "lip-sync",
+        durationSeconds: null,
+        resolution: null,
+        generateAudio: null,
+        cameraFixed: null,
+        autoFix: null,
+        lipSyncAudioUrl: "blob:http://localhost/local-voice",
+        lipSyncAudioDurationMs: 12_400,
+        referenceInputs: ["https://example.com/character.png"],
+      },
+    });
+
+    expect(localLipSyncReload?.payload).toEqual(
+      expect.objectContaining({
+        lipSyncAudioUrl: null,
+        lipSyncAudioDurationMs: null,
+      })
+    );
     expect(isWorkflowReloadConfigV1(musicReload)).toBe(true);
     expect(isWorkflowReloadConfigV1(sfxReload)).toBe(true);
   });

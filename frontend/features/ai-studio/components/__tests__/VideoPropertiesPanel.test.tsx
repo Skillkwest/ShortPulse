@@ -32,6 +32,7 @@ import {
   type CanvasTearOutPoint,
 } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
+import { createEmptyLipSyncAudioState } from "../../logic/lipSyncAudioState";
 
 type ReferencePromptStepMockProps = {
   referenceText?: string | null;
@@ -666,6 +667,12 @@ describe("VideoPropertiesPanel", () => {
     expect(onLipSyncAudioChange).toHaveBeenCalledWith({
       url: "https://example.com/canvas-voice.mp3",
       durationMs: 12000,
+      status: "ready",
+      sourceKind: "canvas",
+      storagePath: null,
+      previewUrl: null,
+      mimeType: null,
+      size: null,
     });
   });
 
@@ -689,7 +696,7 @@ describe("VideoPropertiesPanel", () => {
         modelLabel="Fal OmniHuman"
         referenceText=""
         videoReferenceMode="lip-sync"
-        lipSyncAudio={{ url: null, durationMs: null }}
+        lipSyncAudio={createEmptyLipSyncAudioState()}
         onLipSyncAudioChange={vi.fn()}
         onLipSyncTurboModeChange={vi.fn()}
       />

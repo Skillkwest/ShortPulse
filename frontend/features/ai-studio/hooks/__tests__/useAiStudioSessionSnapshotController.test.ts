@@ -27,6 +27,7 @@ vi.mock("../../utils/videoUpload", () => ({
 }));
 
 import { useAiStudioSessionSnapshotController } from "../useAiStudioSessionSnapshotController";
+import { createEmptyLipSyncAudioState } from "../../logic/lipSyncAudioState";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -209,7 +210,7 @@ describe("useAiStudioSessionSnapshotController", () => {
         editReferenceText: "",
         videoReferenceText: "",
         videoReferenceMode: "standard",
-        lipSyncAudio: { url: null, durationMs: null },
+        lipSyncAudio: createEmptyLipSyncAudioState(),
         lipSyncTurboMode: false,
         videoDurationSeconds: 6,
         videoResolution: "1080p",

@@ -1403,6 +1403,8 @@ describe("sessionSnapshotHydrator", () => {
           referenceImageUrl: "blob:http://localhost/workspace-ref",
           extraImageUrls: ["data:image/png;base64,abc", "https://example.com/extra.png", null],
           motionReferenceVideoUrl: "blob:http://localhost/motion-video",
+          lipSyncAudioUrl: "blob:http://localhost/voice",
+          lipSyncAudioDurationMs: 12_400,
           klingElements: [
             {
               id: "k1",
@@ -1417,6 +1419,8 @@ describe("sessionSnapshotHydrator", () => {
     );
 
     expect(payload.workspace.referenceImageUrl).toBeNull();
+    expect(payload.workspace.lipSyncAudioUrl).toBeNull();
+    expect(payload.workspace.lipSyncAudioDurationMs).toBeNull();
     expect(payload.workspace.extraImageUrls).toEqual([
       null,
       "https://example.com/extra.png",

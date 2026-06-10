@@ -28,6 +28,10 @@ import {
 } from "../defaultHandlers";
 import { handleImageModelSubmission, resolveImageSubmissionAdapterKey } from "../imageHandlers";
 import { handleVideoModelSubmission, resolveVideoSubmissionAdapterKey } from "../videoHandlers";
+import {
+  createEmptyLipSyncAudioState,
+  createReadyLipSyncAudioState,
+} from "../../../logic/lipSyncAudioState";
 import { resolveSubmissionHandlerRoute } from "../routing";
 import type { ImageSubmissionArgs, VideoSubmissionArgs } from "../types";
 
@@ -255,12 +259,13 @@ const makeVideoArgs = (
     videoReferenceMode: isLipSync ? "lip-sync" : "standard",
     videoReferenceImageUrl: "https://cdn.test/ref-1.png",
     motionReferenceVideoUrl: null,
-    lipSyncAudio: {
-      url: isLipSync
-        ? "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/voice.mp3"
-        : null,
-      durationMs: isLipSync ? 8_000 : null,
-    },
+    lipSyncAudio: isLipSync
+      ? createReadyLipSyncAudioState({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/voice.mp3",
+          durationMs: 8_000,
+          sourceKind: "library",
+        })
+      : createEmptyLipSyncAudioState(),
     lipSyncTurboMode: false,
     videoCameraFixed: false,
     klingCfgScale: 0.5,

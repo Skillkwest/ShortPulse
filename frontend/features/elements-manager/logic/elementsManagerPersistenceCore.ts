@@ -10,6 +10,10 @@ import { refreshSupabaseSignedUrlIfNeeded } from "../../ai-studio/utils/imageUpl
 import { DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM } from "../constants";
 import type { ElementAssetType, ElementProfileImageTransform, ElementStatus } from "../types";
 import { deriveElementAliasFromName, resolveElementWorkflowAlias } from "./elementAlias";
+import {
+  deriveElementStatusFromDraft,
+  normalizeElementImageReferenceUrls,
+} from "./elementReadiness";
 
 const MEDIA_BUCKET = "media_library";
 export const DEFAULT_ELEMENT_NAME = "New Element";
@@ -219,11 +223,10 @@ const normalizeReferenceSetImageUrls = (
     | null
     | undefined
 ): string[] =>
-  [...(activeSet?.imageReferenceUrls ?? []), ...(activeSet?.deckReferenceUrls ?? [])]
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .filter((value, index, collection) => collection.indexOf(value) === index)
-    .slice(0, 6);
+  normalizeElementImageReferenceUrls([
+    ...(activeSet?.imageReferenceUrls ?? []),
+    ...(activeSet?.deckReferenceUrls ?? []),
+  ]);
 
 const flattenReferenceSetState = (referenceSetState: ElementReferenceSetState) => {
   const activeSet =
@@ -236,28 +239,6 @@ const flattenReferenceSetState = (referenceSetState: ElementReferenceSetState) =
     imageReferenceUrls,
     videoReferenceUrl: activeSet?.videoReferenceUrl.trim() || null,
   };
-};
-
-const deriveElementStatusFromFlatDraft = ({
-  name,
-  assetType,
-  imageReferenceUrls,
-  videoReferenceUrl,
-}: {
-  name: string;
-  assetType: ElementAssetType;
-  imageReferenceUrls: string[];
-  videoReferenceUrl: string | null;
-}): ElementStatus => {
-  if (name.trim().length < 2) {
-    return "draft";
-  }
-
-  if (assetType === "video") {
-    return videoReferenceUrl?.trim() ? "ready" : "draft";
-  }
-
-  return imageReferenceUrls[0]?.trim() && imageReferenceUrls[1]?.trim() ? "ready" : "draft";
 };
 
 const buildLegacyReferenceSetStateFromFlatDraft = ({
@@ -282,9 +263,9 @@ const buildLegacyReferenceSetStateFromFlatDraft = ({
         description: description.trim(),
         // Keep deck_reference_urls as a bounded storage alias to avoid schema churn.
         deckReferenceUrls:
-          assetType === "image" ? imageReferenceUrls.filter(Boolean).slice(0, 6) : [],
+          assetType === "image" ? normalizeElementImageReferenceUrls(imageReferenceUrls) : [],
         imageReferenceUrls:
-          assetType === "image" ? imageReferenceUrls.filter(Boolean).slice(0, 6) : [],
+          assetType === "image" ? normalizeElementImageReferenceUrls(imageReferenceUrls) : [],
         videoReferenceUrl: assetType === "video" ? (videoReferenceUrl?.trim() ?? "") : "",
       },
     },
@@ -502,7 +483,7 @@ export const fetchElementsManagerList = async (): Promise<ElementsManagerListIte
         elementName: row.name,
         elementAlias: resolveElementWorkflowAlias({ name: row.name, legacyAlias: row.alias }),
         elementAssetType: flattenedDraft.assetType,
-        elementStatus: deriveElementStatusFromFlatDraft({
+        elementStatus: deriveElementStatusFromDraft({
           name: row.name,
           assetType: flattenedDraft.assetType,
           imageReferenceUrls: flattenedDraft.imageReferenceUrls,
@@ -643,7 +624,7 @@ export const loadElementManagerDraftByElementId = async (
     (referenceRows ?? []) as ElementReferenceSetRow[]
   );
   const flattenedDraft = flattenReferenceSetState(referenceSetState);
-  const status = deriveElementStatusFromFlatDraft({
+  const status = deriveElementStatusFromDraft({
     name: row.name,
     assetType: flattenedDraft.assetType,
     imageReferenceUrls: flattenedDraft.imageReferenceUrls,
@@ -724,7 +705,7 @@ export const saveElementManagerDraftSnapshot = async ({
       : existingAlias && existingAlias.toLowerCase() !== previousCanonicalAlias.toLowerCase()
         ? existingAlias
         : previousCanonicalAlias || existingAlias || resolvedAlias;
-  const nextStatus = deriveElementStatusFromFlatDraft({
+  const nextStatus = deriveElementStatusFromDraft({
     name: resolvedName,
     assetType: flattenedDraft.assetType,
     imageReferenceUrls: flattenedDraft.imageReferenceUrls,

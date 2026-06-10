@@ -1071,8 +1071,9 @@ export const buildAiStudioSessionHydrationPayload = (
       editReferenceText: asString(workspace.editReferenceText, ""),
       videoReferenceText: asString(workspace.videoReferenceText, ""),
       videoReferenceMode: asVideoReferenceMode(workspace.videoReferenceMode),
-      lipSyncAudioUrl: asNullableString(workspace.lipSyncAudioUrl),
+      lipSyncAudioUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.lipSyncAudioUrl)),
       lipSyncAudioDurationMs:
+        sanitizeHydratedMediaUrl(asNullableString(workspace.lipSyncAudioUrl)) &&
         typeof workspace.lipSyncAudioDurationMs === "number" &&
         Number.isFinite(workspace.lipSyncAudioDurationMs)
           ? workspace.lipSyncAudioDurationMs

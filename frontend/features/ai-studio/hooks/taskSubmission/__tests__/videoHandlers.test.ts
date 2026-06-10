@@ -7,6 +7,10 @@ import {
 import { SEEDANCE_HIDDEN_SHOT_MODE_INSTRUCTIONS } from "../../../logic/seedanceShotModePromptComposition";
 import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
+import {
+  createEmptyLipSyncAudioState,
+  createReadyLipSyncAudioState,
+} from "../../../logic/lipSyncAudioState";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../../lib/model-runtime/falModelIds";
@@ -85,7 +89,7 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
   klingMultiPrompts: [],
   klingElements: [],
   ...overrides,
-  lipSyncAudio: overrides.lipSyncAudio ?? { url: null, durationMs: null },
+  lipSyncAudio: overrides.lipSyncAudio ?? createEmptyLipSyncAudioState(),
   lipSyncTurboMode: overrides.lipSyncTurboMode ?? false,
 });
 
@@ -113,7 +117,13 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       rawImageInputs: [imageUrl],
       videoReferenceMode: "lip-sync",
       motionReferenceVideoUrl: null,
-      lipSyncAudio: { url: `${audioUrl}#audio=1`, durationMs: 12_400 },
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: audioUrl,
+        durationMs: 12_400,
+        sourceKind: "local",
+        storagePath: "audio/reference-grid/voice.mp3",
+        previewUrl: `${audioUrl}#audio=1`,
+      }),
       lipSyncTurboMode: true,
       shortpulseContext: {
         audio_duration_seconds: 12.4,
@@ -151,18 +161,47 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     );
   });
 
-  it("uploads local Lip Sync blob audio before provider submit", async () => {
+  it("fails safely when stale local Lip Sync blob audio reaches submit", async () => {
+    const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const args = makeArgs({
+      finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
+      modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
+      preparedImageInputs: [imageUrl],
+      rawImageInputs: [imageUrl],
+      videoReferenceMode: "lip-sync",
+      motionReferenceVideoUrl: null,
+      lipSyncAudio: {
+        url: "blob:local-voice#audio=1",
+        durationMs: 9_000,
+        status: "ready",
+        sourceKind: "local",
+      },
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Local voice audio is no longer available. Re-add the audio file and try again.",
+      undefined,
+      {
+        reasonCode: "USER_INPUT_VALIDATION",
+        telemetryMode: "validation",
+      }
+    );
+    expect(fetchWithAuth).not.toHaveBeenCalled();
+    expect(submitFalOmniHuman).not.toHaveBeenCalled();
+  });
+
+  it("submits ready uploaded Lip Sync audio without reading the local preview URL", async () => {
     const imageUrl = "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/lip.png";
     const uploadedAudioUrl =
       "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/local-voice.mp3";
-    const localAudioBlob = new Blob([new Uint8Array([0x49, 0x44, 0x33])], {
-      type: "audio/mpeg",
-    });
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      blob: async () => localAudioBlob,
-    } as Response);
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     vi.mocked(fetchWithAuth).mockResolvedValueOnce({
       ok: true,
@@ -175,23 +214,26 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       rawImageInputs: [imageUrl],
       videoReferenceMode: "lip-sync",
       motionReferenceVideoUrl: null,
-      lipSyncAudio: { url: "blob:local-voice#audio=1", durationMs: 9_000 },
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: "https://signed.example.com/local-voice.mp3",
+        durationMs: 9_000,
+        sourceKind: "local",
+        storagePath: "audio/reference-grid/local-voice.mp3",
+        previewUrl: "blob:local-voice#audio=1",
+      }),
     });
 
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith("blob:local-voice");
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(fetchWithAuth).toHaveBeenCalledWith(
       "/api/kie/upload-url",
       expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({
-          "Content-Type": "audio/mpeg",
-          "x-shortpulse-upload-path": "shortpulse/kie-video/audio",
+        body: JSON.stringify({
+          fileUrl: "https://signed.example.com/local-voice.mp3",
+          uploadPath: "shortpulse/kie-video/audio",
         }),
-        body: localAudioBlob,
-        shortpulseLogScope: "generation",
       })
     );
     expect(submitFalOmniHuman).toHaveBeenCalledWith(
@@ -221,7 +263,11 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       rawImageInputs: [imageUrl],
       videoReferenceMode: "lip-sync",
       motionReferenceVideoUrl: null,
-      lipSyncAudio: { url: remoteAudioUrl, durationMs: 9_000 },
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: remoteAudioUrl,
+        durationMs: 9_000,
+        sourceKind: "library",
+      }),
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -265,7 +311,12 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       rawImageInputs: [imageUrl],
       videoReferenceMode: "lip-sync",
       motionReferenceVideoUrl: null,
-      lipSyncAudio: { url: "blob:missing-voice#audio=1", durationMs: 9_000 },
+      lipSyncAudio: {
+        url: "blob:missing-voice#audio=1",
+        durationMs: 9_000,
+        status: "ready",
+        sourceKind: "local",
+      },
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -295,7 +346,11 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       rawImageInputs: [imageUrl],
       videoReferenceMode: "lip-sync",
       motionReferenceVideoUrl: null,
-      lipSyncAudio: { url: audioUrl, durationMs: 30_000 },
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: audioUrl,
+        durationMs: 30_000,
+        sourceKind: "library",
+      }),
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -325,7 +380,11 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       rawImageInputs: [imageUrl],
       videoReferenceMode: "lip-sync",
       motionReferenceVideoUrl: null,
-      lipSyncAudio: { url: audioUrl, durationMs: 60_000 },
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: audioUrl,
+        durationMs: 60_000,
+        sourceKind: "library",
+      }),
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -1662,6 +1721,76 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
               "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-front.png",
               "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-side.png",
             ]),
+          },
+        ],
+      })
+    );
+  });
+
+  it("prepares only the Kling element image references the provider payload can submit", async () => {
+    const preparedUrls = [
+      "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/front.png",
+      "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/side-a.png",
+      "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/side-b.png",
+      "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/side-c.png",
+    ];
+    vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+      const payload =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as { fileUrl?: string }) : {};
+      const sourceUrl = payload.fileUrl ?? "";
+      const preparedIndex = [
+        "https://example.com/front.png",
+        "https://example.com/side-a.png",
+        "https://example.com/side-b.png",
+        "https://example.com/side-c.png",
+      ].indexOf(sourceUrl);
+      return {
+        ok: true,
+        json: async () => ({
+          url: preparedIndex >= 0 ? preparedUrls[preparedIndex] : sourceUrl,
+        }),
+      } as Response;
+    });
+
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      cleanedPrompt: "the lantern glows",
+      preparedImageInputs: [
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/start.png",
+      ],
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          name: "Red Lantern",
+          alias: "redlantern",
+          frontalImageUrl: "https://example.com/front.png",
+          referenceImageUrls:
+            "https://example.com/side-a.png, https://example.com/side-b.png, https://example.com/side-c.png, https://example.com/unused-fifth.png",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledTimes(4);
+    expect(fetchWithAuth).not.toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        body: expect.stringContaining("unused-fifth"),
+      })
+    );
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kling_elements: [
+          {
+            name: "element1",
+            description: "Reference images for Red Lantern",
+            element_input_urls: preparedUrls,
           },
         ],
       })

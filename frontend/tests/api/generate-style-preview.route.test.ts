@@ -120,6 +120,28 @@ describe("POST /api/ai/generate-style-preview", () => {
     expect(generateOpenAiImageMock).not.toHaveBeenCalled();
   });
 
+  it("rejects over-budget style inputs before billing", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        styleId: "style-library-custom-1",
+        styleName: "Dream Glow",
+        stylePrompt: "a".repeat(1001),
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: "stylePrompt must be 1000 characters or fewer.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateOpenAiImageMock).not.toHaveBeenCalled();
+  });
+
   it("stops before provider submission when billing returns a fail-closed response", async () => {
     chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
       res.status(429).json({

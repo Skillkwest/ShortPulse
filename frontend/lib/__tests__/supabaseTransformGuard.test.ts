@@ -7,10 +7,11 @@ const repoRoot = process.cwd().endsWith("frontend")
   : path.join(process.cwd(), "frontend");
 const workspaceRoot = path.dirname(repoRoot);
 
-const SOURCE_ROOTS = [
-  ...["components", "features", "lib", "pages", "prefabs", "scripts"].map((entry) =>
-    path.join(repoRoot, entry)
+const SOURCE_PATHS = [
+  ...["components", "features", "lib", "pages", "prefabs", "scripts", "styles", "types"].map(
+    (entry) => path.join(repoRoot, entry)
   ),
+  ...["next.config.js", "proxy.ts"].map((entry) => path.join(repoRoot, entry)),
   path.join(workspaceRoot, "scripts"),
 ].filter((entry) => existsSync(entry));
 const IGNORE_SEGMENTS = new Set([
@@ -43,9 +44,16 @@ const walkSourceFiles = (root: string): string[] => {
   return files;
 };
 
+const collectSourceFiles = (entry: string): string[] => {
+  const stat = statSync(entry);
+  if (stat.isFile()) return [entry];
+  if (stat.isDirectory()) return walkSourceFiles(entry);
+  return [];
+};
+
 describe("supabase transform guard", () => {
   it("keeps production source from generating supabase render-image URLs", () => {
-    const offenders = SOURCE_ROOTS.flatMap(walkSourceFiles).filter((file) => {
+    const offenders = SOURCE_PATHS.flatMap(collectSourceFiles).filter((file) => {
       if (RENDER_IMAGE_ALLOWLIST.has(file)) return false;
       return readFileSync(file, "utf8").includes("/storage/v1/render/image/");
     });
@@ -54,8 +62,9 @@ describe("supabase transform guard", () => {
   });
 
   it("keeps media signing from passing transform options to Supabase", () => {
-    const transformSigningPattern = /createSignedUrls?\([\s\S]{0,240}\{\s*transform\b/;
-    const offenders = SOURCE_ROOTS.flatMap(walkSourceFiles).filter((file) =>
+    const transformSigningPattern =
+      /createSignedUrls?\([\s\S]{0,1200}\{[\s\S]{0,240}\btransform\s*:/;
+    const offenders = SOURCE_PATHS.flatMap(collectSourceFiles).filter((file) =>
       transformSigningPattern.test(readFileSync(file, "utf8"))
     );
 

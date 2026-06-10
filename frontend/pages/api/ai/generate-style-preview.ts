@@ -14,6 +14,7 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { toErrorMessage } from "../../../lib/server/api/errorMessage";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../../../features/ai-studio/components/style-creator/constants";
 import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
@@ -41,11 +42,37 @@ type StylePreviewGenerateErrorResponse = {
 const STYLE_PREVIEW_SIZE: OpenAiImage2ProviderSize = "1024x1024";
 const STYLE_PREVIEW_QUALITY: OpenAiImage2Quality = "low";
 const STYLE_PREVIEW_JPEG_QUALITY = 86;
+const STYLE_PREVIEW_MAX_STYLE_ID_LENGTH = 160;
+const STYLE_PREVIEW_MAX_STYLE_NAME_LENGTH = 120;
 
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+};
+
+const resolveStylePreviewValidationError = ({
+  styleId,
+  styleName,
+  stylePrompt,
+}: {
+  styleId: string | null;
+  styleName: string | null;
+  stylePrompt: string | null;
+}): string | null => {
+  if (!styleId || !styleName || !stylePrompt) {
+    return "styleId, styleName, and stylePrompt are required.";
+  }
+  if (styleId.length > STYLE_PREVIEW_MAX_STYLE_ID_LENGTH) {
+    return `styleId must be ${STYLE_PREVIEW_MAX_STYLE_ID_LENGTH} characters or fewer.`;
+  }
+  if (styleName.length > STYLE_PREVIEW_MAX_STYLE_NAME_LENGTH) {
+    return `styleName must be ${STYLE_PREVIEW_MAX_STYLE_NAME_LENGTH} characters or fewer.`;
+  }
+  if (stylePrompt.length > STYLE_PROMPT_MAX_CHARACTERS) {
+    return `stylePrompt must be ${STYLE_PROMPT_MAX_CHARACTERS} characters or fewer.`;
+  }
+  return null;
 };
 
 const buildStylePreviewPrompt = ({
@@ -93,24 +120,32 @@ export default async function handler(
     const styleId = normalizeRequiredString(body.styleId);
     const styleName = normalizeRequiredString(body.styleName);
     const stylePrompt = normalizeRequiredString(body.stylePrompt);
-
-    if (!styleId || !styleName || !stylePrompt) {
-      return res.status(400).json({
-        error: "Invalid request",
-        details: "styleId, styleName, and stylePrompt are required.",
-      });
-    }
-
-    const prompt = buildStylePreviewPrompt({
+    const validationError = resolveStylePreviewValidationError({
+      styleId,
       styleName,
       stylePrompt,
+    });
+
+    if (validationError) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: validationError,
+      });
+    }
+    const validatedStyleId = styleId as string;
+    const validatedStyleName = styleName as string;
+    const validatedStylePrompt = stylePrompt as string;
+
+    const prompt = buildStylePreviewPrompt({
+      styleName: validatedStyleName,
+      stylePrompt: validatedStylePrompt,
     });
     const shortpulseContext = {
       selected_tool: "create",
       mode: "image",
       source_mode: "style_preview",
-      style_id: styleId,
-      style_name: styleName,
+      style_id: validatedStyleId,
+      style_name: validatedStyleName,
     };
 
     charge = await chargeGenerationRequest({
@@ -138,7 +173,7 @@ export default async function handler(
       source_mode: "style_preview",
       requested_size: STYLE_PREVIEW_SIZE,
       requested_quality: STYLE_PREVIEW_QUALITY,
-      style_id: styleId,
+      style_id: validatedStyleId,
     });
     if (!submitLink.ok) {
       throw new Error(`Unable to link style preview billing reservation: ${submitLink.status}`);
@@ -153,7 +188,7 @@ export default async function handler(
       detail: {
         source_ref: charge.sourceRef,
         source_mode: "style_preview",
-        style_id: styleId,
+        style_id: validatedStyleId,
       },
     });
     if (!captureResult.settled) {

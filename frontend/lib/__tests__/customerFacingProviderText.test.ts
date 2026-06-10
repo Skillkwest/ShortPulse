@@ -89,4 +89,13 @@ describe("customerFacingProviderText", () => {
       "The image service is temporarily unavailable."
     );
   });
+
+  it("preserves normalized audio provider retry guidance", () => {
+    expect(
+      sanitizeCustomerFacingProviderText(
+        "The audio provider is at its concurrency limit right now. Please retry in 12 seconds.",
+        "Generation failed."
+      )
+    ).toBe("The audio provider is at its concurrency limit right now. Please retry in 12 seconds.");
+  });
 });

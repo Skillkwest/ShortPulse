@@ -4,6 +4,7 @@
  */
 const AUDIO_SERVICE_LABEL = "the audio service";
 const GENERATION_SERVICE_LABEL = "the generation service";
+const AUDIO_PROVIDER_PLACEHOLDER = "__SHORTPULSE_AUDIO_PROVIDER__";
 
 const SAFETY_VIOLATIONS_PATTERN = /\bsafety_violations\s*=\s*\[([^\]]*)\]/i;
 const PROVIDER_SUPPORT_TEXT_PATTERN =
@@ -84,10 +85,13 @@ export const sanitizeCustomerFacingProviderText = (
   const safetyMessage = resolveSafetyRejectionMessage(trimmed);
   if (safetyMessage) return safetyMessage;
 
-  const sanitized = providerTextReplacements.reduce(
-    (nextValue, [pattern, replacement]) => nextValue.replace(pattern, replacement),
-    trimmed
-  );
+  const protectedTrimmed = trimmed.replace(/\baudio provider\b/gi, AUDIO_PROVIDER_PLACEHOLDER);
+  const sanitized = providerTextReplacements
+    .reduce(
+      (nextValue, [pattern, replacement]) => nextValue.replace(pattern, replacement),
+      protectedTrimmed
+    )
+    .replaceAll(AUDIO_PROVIDER_PLACEHOLDER, "audio provider");
 
   return stripProviderOperationalDetails(sanitized) || fallback;
 };

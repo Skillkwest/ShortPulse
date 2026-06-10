@@ -560,13 +560,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setSelectedPromptIds(new Set());
   }, []);
 
-  const handleToggleSelectedMedia = useCallback(
-    (file: MediaFileRow) => {
-      toggleSelectedMediaFile(file);
-    },
-    [toggleSelectedMediaFile]
-  );
-
   const handleReloadWorkflowFromMedia = useCallback(
     (file: MediaFileRow) => {
       if (!onReloadWorkflowFromMedia) return;
@@ -834,8 +827,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
         getMediaCardRef={getMediaCardRef}
-        onSelectMediaFile={handleToggleSelectedMedia}
-        onToggleMediaSelection={handleToggleSelectedMedia}
+        onSelectMediaFile={toggleSelectedMediaFile}
+        onToggleMediaSelection={toggleSelectedMediaFile}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
@@ -877,13 +870,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       refreshSignedUrl,
       handleReloadWorkflowFromMedia,
       handleRemoveItemFromActiveFolder,
-      handleToggleSelectedMedia,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
       signedUrlRetryRef,
       setPendingLibraryDelete,
       selectedIds,
+      toggleSelectedMediaFile,
       activeFolderId,
       panelListSurface,
       visibleMediaIdsRef,
@@ -908,8 +901,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
         getMediaCardRef={getMediaCardRef}
-        onSelectMediaFile={handleToggleSelectedMedia}
-        onToggleMediaSelection={handleToggleSelectedMedia}
+        onSelectMediaFile={toggleSelectedMediaFile}
+        onToggleMediaSelection={toggleSelectedMediaFile}
         onSelectPromptCard={handleToggleSelectedPrompt}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
@@ -970,7 +963,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleRemoveItemFromActiveFolder,
       combinedSelectedIds,
       handleToggleSelectedPrompt,
-      handleToggleSelectedMedia,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       panelBodyRef,
@@ -980,6 +972,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,
       signedUrlRetryRef,
+      toggleSelectedMediaFile,
       visibleMediaIdsRef,
       previewRuntime.visibleMediaVersion,
       visiblePromptRows,

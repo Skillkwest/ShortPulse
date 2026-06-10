@@ -49,7 +49,10 @@ export const MediaLibraryPanelStatusArea = React.memo(function MediaLibraryPanel
           role="status"
           ariaLive="polite"
           busy
-        />
+        >
+          <span className="media-library-panel-membership-spinner reference-spinner" aria-hidden />
+          <span>{membershipPendingMessage}</span>
+        </AppMessage>
       ) : null}
       {membershipMessage ? (
         <AppMessage

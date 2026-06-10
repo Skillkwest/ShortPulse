@@ -114,6 +114,56 @@ type DetailModalContentProps = Omit<DetailModalProps, "output"> & {
   output: StudioOutput;
 };
 
+type ResolvedCanonicalPreviewState = {
+  outputId: string;
+  authorityKey: string;
+  url: string | null;
+};
+
+const serializeDetailAuthorityList = (values: readonly string[] | null | undefined): string =>
+  Array.isArray(values)
+    ? values.map((value) => (typeof value === "string" ? value.trim() : "")).join("\u001f")
+    : "";
+
+const deserializeDetailAuthorityList = (signature: string): string[] =>
+  signature
+    .split("\u001f")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+const buildDetailCanonicalAuthorityKey = ({
+  savedMediaIdsSignature,
+  resultUrlsSignature,
+  generationId,
+  taskId,
+  mediaSource,
+  previewStoragePath,
+  fullStoragePath,
+  previewUrl,
+  projectId,
+}: {
+  savedMediaIdsSignature: string;
+  resultUrlsSignature: string;
+  generationId?: string | null;
+  taskId?: string | null;
+  mediaSource?: StudioOutput["mediaSource"];
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  previewUrl?: string | null;
+  projectId: string | null;
+}): string =>
+  [
+    projectId?.trim() ?? "",
+    savedMediaIdsSignature,
+    generationId?.trim() ?? "",
+    taskId?.trim() ?? "",
+    mediaSource ?? "",
+    previewStoragePath?.trim() ?? "",
+    fullStoragePath?.trim() ?? "",
+    previewUrl?.trim() ?? "",
+    resultUrlsSignature,
+  ].join("\u001e");
+
 function DetailModalContent({
   output,
   context = null,
@@ -184,10 +234,8 @@ function DetailModalContent({
     useState<DetailPreviewSelectionState>(() =>
       createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
     );
-  const [resolvedCanonicalPreviewByOutput, setResolvedCanonicalPreviewByOutput] = useState<{
-    outputId: string;
-    url: string | null;
-  } | null>(null);
+  const [resolvedCanonicalPreviewByOutput, setResolvedCanonicalPreviewByOutput] =
+    useState<ResolvedCanonicalPreviewState | null>(null);
   const [canonicalPreviewResolvingOutputId, setCanonicalPreviewResolvingOutputId] = useState<
     string | null
   >(null);
@@ -204,8 +252,45 @@ function DetailModalContent({
   });
 
   const outputId = output?.id ?? null;
+  const savedMediaIdsSignature = serializeDetailAuthorityList(output.savedMediaIds);
+  const resultUrlsSignature = serializeDetailAuthorityList(output.resultUrls);
+  const stableSavedMediaIds = useMemo(
+    () => deserializeDetailAuthorityList(savedMediaIdsSignature),
+    [savedMediaIdsSignature]
+  );
+  const stableResultUrls = useMemo(
+    () => deserializeDetailAuthorityList(resultUrlsSignature),
+    [resultUrlsSignature]
+  );
+  const canonicalAuthorityKey = useMemo(
+    () =>
+      buildDetailCanonicalAuthorityKey({
+        savedMediaIdsSignature,
+        resultUrlsSignature,
+        generationId: output.generationId,
+        taskId: output.taskId,
+        mediaSource: output.mediaSource,
+        previewStoragePath: output.previewStoragePath,
+        fullStoragePath: output.fullStoragePath,
+        previewUrl: output.previewUrl,
+        projectId,
+      }),
+    [
+      output.fullStoragePath,
+      output.generationId,
+      output.mediaSource,
+      output.previewStoragePath,
+      output.previewUrl,
+      output.taskId,
+      projectId,
+      resultUrlsSignature,
+      savedMediaIdsSignature,
+    ]
+  );
   const resolvedCanonicalPreviewUrl =
-    resolvedCanonicalPreviewByOutput && resolvedCanonicalPreviewByOutput.outputId === outputId
+    resolvedCanonicalPreviewByOutput &&
+    resolvedCanonicalPreviewByOutput.outputId === outputId &&
+    resolvedCanonicalPreviewByOutput.authorityKey === canonicalAuthorityKey
       ? resolvedCanonicalPreviewByOutput.url
       : null;
   const detailMediaAuthority = useMemo(() => {
@@ -220,11 +305,11 @@ function DetailModalContent({
         generationId: output.generationId,
         taskId: output.taskId,
         taskState: output.taskState,
-        savedMediaIds: output.savedMediaIds,
+        savedMediaIds: stableSavedMediaIds,
         mode: output.mode,
         previewUrl: output.previewUrl,
         previewPosterUrl: output.previewPosterUrl,
-        resultUrls: output.resultUrls,
+        resultUrls: stableResultUrls,
       },
       {
         strictPreviewLadder: true,
@@ -232,7 +317,7 @@ function DetailModalContent({
         surface: "detail-modal",
       }
     );
-  }, [output, resolvedCanonicalPreviewUrl]);
+  }, [output, resolvedCanonicalPreviewUrl, stableResultUrls, stableSavedMediaIds]);
   const preferredDetailMediaUrl =
     output.mode === "video" || output.mode === "audio"
       ? (detailMediaAuthority?.playableMediaUrl ?? null)
@@ -241,14 +326,14 @@ function DetailModalContent({
     output.mode === "video" ? (detailMediaAuthority?.posterPreviewUrl ?? null) : null;
   const canonicalAuthorityInput = useMemo(
     () => ({
-      savedMediaIds: output.savedMediaIds,
+      savedMediaIds: stableSavedMediaIds,
       generationId: output.generationId,
       taskId: output.taskId,
       mediaSource: output.mediaSource,
       previewStoragePath: output.previewStoragePath,
       fullStoragePath: output.fullStoragePath,
       previewUrl: output.previewUrl,
-      resultUrls: output.resultUrls,
+      resultUrls: stableResultUrls,
     }),
     [
       output.fullStoragePath,
@@ -256,9 +341,9 @@ function DetailModalContent({
       output.mediaSource,
       output.previewStoragePath,
       output.previewUrl,
-      output.resultUrls,
-      output.savedMediaIds,
       output.taskId,
+      stableResultUrls,
+      stableSavedMediaIds,
     ]
   );
 
@@ -277,15 +362,15 @@ function DetailModalContent({
         ? null
         : (detailMediaAuthority?.thumbnailPreviewUrl ?? null),
       output.mode === "video" || output.mode === "audio" ? null : output?.previewUrl,
-      ...(output?.resultUrls ?? []),
+      ...stableResultUrls,
     ]);
   }, [
     detailMediaAuthority?.thumbnailPreviewUrl,
     output.mode,
     output?.previewUrl,
-    output?.resultUrls,
     preferredDetailMediaUrl,
     resolvedCanonicalPreviewUrl,
+    stableResultUrls,
   ]);
   const fullQualityPromotionUrl = useMemo(() => {
     const hasExplicitFullStoragePath = Boolean(output?.fullStoragePath?.trim());
@@ -358,23 +443,38 @@ function DetailModalContent({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCanonicalPreviewResolvingOutputId(outputId);
     setResolvedCanonicalPreviewByOutput((current) =>
-      current?.outputId === outputId ? current : { outputId, url: null }
+      current?.outputId === outputId && current.authorityKey === canonicalAuthorityKey
+        ? current
+        : { outputId, authorityKey: canonicalAuthorityKey, url: null }
     );
     void (async () => {
       const nextUrl = await resolveCanonicalDetailAuthorityUrl(canonicalAuthorityInput, {
         projectId,
       });
       if (cancelled) return;
-      setResolvedCanonicalPreviewByOutput({
-        outputId,
-        url: nextUrl,
+      setResolvedCanonicalPreviewByOutput((current) => {
+        if (nextUrl) {
+          return {
+            outputId,
+            authorityKey: canonicalAuthorityKey,
+            url: nextUrl,
+          };
+        }
+        if (current?.outputId === outputId && current.authorityKey === canonicalAuthorityKey) {
+          return current;
+        }
+        return {
+          outputId,
+          authorityKey: canonicalAuthorityKey,
+          url: null,
+        };
       });
       setCanonicalPreviewResolvingOutputId((current) => (current === outputId ? null : current));
     })();
     return () => {
       cancelled = true;
     };
-  }, [canonicalAuthorityInput, outputId, projectId]);
+  }, [canonicalAuthorityInput, canonicalAuthorityKey, outputId, projectId]);
   useEffect(() => {
     if (!outputId || !resolvedCanonicalPreviewUrl) return;
     const hasRawStorageAuthority = Boolean(
@@ -384,7 +484,7 @@ function DetailModalContent({
     if (!hasRawStorageAuthority) return;
     const legacyUrlCandidates = buildUniquePreviewCandidates([
       output.previewUrl,
-      ...(output.resultUrls ?? []),
+      ...stableResultUrls,
     ]);
     // The detail modal intentionally promotes canonical storage authority after it resolves.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -404,9 +504,9 @@ function DetailModalContent({
     output.fullStoragePath,
     output.previewStoragePath,
     output.previewUrl,
-    output.resultUrls,
     outputId,
     resolvedCanonicalPreviewUrl,
+    stableResultUrls,
   ]);
   const isAudioOutput = Boolean(
     output?.mode === "audio" || (displayPreviewUrl && isAudioUrl(displayPreviewUrl))
@@ -701,6 +801,7 @@ function DetailModalContent({
     if (!refreshedUrl) return null;
     setResolvedCanonicalPreviewByOutput({
       outputId,
+      authorityKey: canonicalAuthorityKey,
       url: refreshedUrl,
     });
     setPreviewSelectionByOutput((current) => {
@@ -712,7 +813,7 @@ function DetailModalContent({
       };
     });
     return refreshedUrl;
-  }, [canonicalAuthorityInput, outputId, projectId]);
+  }, [canonicalAuthorityInput, canonicalAuthorityKey, outputId, projectId]);
 
   const handleDetailImageError = useCallback(() => {
     const advanced = tryAdvancePreviewCandidate();

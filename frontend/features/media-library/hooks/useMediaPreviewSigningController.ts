@@ -131,12 +131,10 @@ export const useMediaPreviewSigningController = <
   }, [isMountedRef, setSignPassNonce]);
   useEffect(() => {
     return () => {
-      if (deferredDrainTimeoutRef.current == null || typeof window === "undefined") return;
-      window.clearTimeout(deferredDrainTimeoutRef.current);
-      deferredDrainTimeoutRef.current = null;
+      clearDeferredDrainTimeout();
       deferredDrainArmedRef.current = false;
     };
-  }, []);
+  }, [clearDeferredDrainTimeout]);
   useEffect(() => {
     const nextScopeKey = `${activeMediaTab ?? "none"}|${activeMediaQuery}`;
     if (queueScopeKeyRef.current === nextScopeKey) return;

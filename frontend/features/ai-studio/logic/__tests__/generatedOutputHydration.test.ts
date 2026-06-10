@@ -59,6 +59,93 @@ describe("generatedOutputHydration", () => {
     ]);
   });
 
+  it("preserves output identity when canonical hydration is semantically unchanged", () => {
+    const existingOutput = createOutput({
+      id: "local-1",
+      generationId: "gen-1",
+      taskId: "req-1",
+      sourceRef: "source-1",
+      createdAt: "2026-05-24T12:00:00.000Z",
+      taskState: "success",
+      queueState: "dispatched",
+      mediaSource: "generated",
+      status: "ready",
+      timestamp: "Just now",
+      previewUrl: "https://cdn.test/generated-preview.png",
+      previewPosterUrl: "https://cdn.test/generated-poster.jpg",
+      previewPosterStoragePath: "user-1/posters/generated-poster.jpg",
+      previewStoragePath: "user-1/previews/generated-preview.png",
+      fullStoragePath: "user-1/full/generated-full.png",
+      resultUrls: ["https://cdn.test/generated-full.png"],
+      transcriptText: null,
+      modelId: undefined,
+      provider: undefined,
+      errorMessage: null,
+      errorMessageShort: null,
+      errorDetail: null,
+      companionArtUrl: null,
+      companionArtStoragePath: null,
+      companionArtStatus: null,
+      previewTier: undefined,
+      archivedAt: null,
+      archiveReason: null,
+      hiddenInReferenceGrid: undefined,
+      width: 1024,
+      height: 1024,
+      characterContext: {
+        applied: true,
+        characterId: "char-1",
+        characterName: "Taylor",
+      },
+      styleContext: undefined,
+      generationReplay: undefined,
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "image",
+        panelKind: "create",
+        outputMode: "image",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: "standard",
+        pulse: null,
+        prompt: { display: "Prompt" },
+        model: { id: "model-1" },
+        payload: {
+          kind: "image",
+          submitTool: "create",
+          aspect: "1:1",
+          imageResolution: null,
+          referenceInputs: [],
+        },
+      },
+    });
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        sourceRef: "source-1",
+        createdAt: "2026-05-24T12:00:00.000Z",
+        taskState: "success",
+        queueState: "dispatched",
+        mediaSource: "generated",
+        status: "ready",
+        timestamp: "Just now",
+        previewUrl: "https://cdn.test/generated-preview.png",
+        previewPosterUrl: "https://cdn.test/generated-poster.jpg",
+        previewPosterStoragePath: "user-1/posters/generated-poster.jpg",
+        previewStoragePath: "user-1/previews/generated-preview.png",
+        fullStoragePath: "user-1/full/generated-full.png",
+        resultUrls: ["https://cdn.test/generated-full.png"],
+        width: 1024,
+        height: 1024,
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs([existingOutput], hydrated)[0]).toBe(existingOutput);
+  });
+
   it("replaces fallback generated timestamps with canonical hydrated createdAt", () => {
     const existing = [
       createOutput({

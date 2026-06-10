@@ -10,6 +10,53 @@ const asTrimmedString = (value: string | null | undefined): string | null => {
 const isInFlightTaskState = (value: StudioOutput["taskState"] | null | undefined): boolean =>
   value === "pending" || value === "running";
 
+const areArrayValuesEqual = (left: readonly unknown[], right: readonly unknown[]): boolean => {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => areStudioOutputValuesEqual(value, right[index]));
+};
+
+const arePlainObjectValuesEqual = (
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+): boolean => {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (!areStudioOutputValuesEqual(left[key], right[key])) return false;
+  }
+  return true;
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+function areStudioOutputValuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return areArrayValuesEqual(left, right);
+  }
+  if (isPlainObject(left) && isPlainObject(right)) {
+    return arePlainObjectValuesEqual(left, right);
+  }
+  return false;
+}
+
+const preserveExistingOutputWhenUnchanged = (
+  existing: StudioOutput,
+  merged: StudioOutput
+): StudioOutput => {
+  const keys = new Set([...Object.keys(existing), ...Object.keys(merged)]);
+  for (const key of keys) {
+    const outputKey = key as keyof StudioOutput;
+    if (!areStudioOutputValuesEqual(existing[outputKey], merged[outputKey])) {
+      return merged;
+    }
+  }
+  return existing;
+};
+
 type IndexedOutputMatchQueue = {
   indexes: number[];
   cursor: number;
@@ -105,57 +152,60 @@ const findIndexedHydratedGeneratedOutputMatch = (
 const mergeHydratedGeneratedOutput = (
   existing: StudioOutput,
   hydrated: StudioOutput
-): StudioOutput => ({
-  ...existing,
-  prompt: existing.prompt?.trim() ? existing.prompt : hydrated.prompt,
-  transcriptText: existing.transcriptText?.trim()
-    ? existing.transcriptText
-    : (hydrated.transcriptText ?? null),
-  mode: hydrated.mode,
-  aspect: hydrated.aspect ?? existing.aspect,
-  model: existing.model?.trim() ? existing.model : hydrated.model,
-  createdAt:
-    isInFlightTaskState(existing.taskState) && isInFlightTaskState(hydrated.taskState)
-      ? (existing.createdAt ?? hydrated.createdAt ?? null)
-      : (hydrated.createdAt ?? existing.createdAt ?? null),
-  modelId: existing.modelId ?? hydrated.modelId,
-  provider: existing.provider ?? hydrated.provider,
-  sourceRef: existing.sourceRef ?? hydrated.sourceRef,
-  generationId: existing.generationId ?? hydrated.generationId,
-  status: "ready",
-  timestamp: hydrated.timestamp,
-  taskId: existing.taskId ?? hydrated.taskId,
-  queueState: hydrated.queueState ?? existing.queueState,
-  taskState: hydrated.taskState ?? existing.taskState,
-  errorMessage: hydrated.errorMessage ?? existing.errorMessage ?? null,
-  errorMessageShort: hydrated.errorMessageShort ?? existing.errorMessageShort ?? null,
-  errorDetail: hydrated.errorDetail ?? existing.errorDetail ?? null,
-  resultUrls: (hydrated.resultUrls?.length ?? 0) > 0 ? hydrated.resultUrls : existing.resultUrls,
-  previewUrl: hydrated.previewUrl ?? existing.previewUrl,
-  previewPosterUrl: hydrated.previewPosterUrl ?? existing.previewPosterUrl ?? null,
-  previewPosterStoragePath:
-    hydrated.previewPosterStoragePath ?? existing.previewPosterStoragePath ?? null,
-  companionArtUrl: hydrated.companionArtUrl ?? existing.companionArtUrl ?? null,
-  companionArtStoragePath:
-    hydrated.companionArtStoragePath ?? existing.companionArtStoragePath ?? null,
-  companionArtStatus: hydrated.companionArtStatus ?? existing.companionArtStatus ?? null,
-  previewStoragePath: hydrated.previewStoragePath ?? existing.previewStoragePath ?? null,
-  fullStoragePath: hydrated.fullStoragePath ?? existing.fullStoragePath ?? null,
-  width: hydrated.width ?? existing.width ?? null,
-  height: hydrated.height ?? existing.height ?? null,
-  mediaSource: "generated",
-  hiddenInReferenceGrid:
-    existing.hiddenInReferenceGrid === true
-      ? true
-      : (hydrated.hiddenInReferenceGrid ?? existing.hiddenInReferenceGrid),
-  previewTier: hydrated.previewTier ?? existing.previewTier,
-  archivedAt: hydrated.taskState === "success" ? null : (existing.archivedAt ?? null),
-  archiveReason: hydrated.taskState === "success" ? null : (existing.archiveReason ?? null),
-  characterContext: hydrated.characterContext ?? existing.characterContext,
-  styleContext: hydrated.styleContext ?? existing.styleContext,
-  generationReplay: hydrated.generationReplay ?? existing.generationReplay,
-  workflowReload: hydrated.workflowReload ?? existing.workflowReload,
-});
+): StudioOutput => {
+  const merged: StudioOutput = {
+    ...existing,
+    prompt: existing.prompt?.trim() ? existing.prompt : hydrated.prompt,
+    transcriptText: existing.transcriptText?.trim()
+      ? existing.transcriptText
+      : (hydrated.transcriptText ?? null),
+    mode: hydrated.mode,
+    aspect: hydrated.aspect ?? existing.aspect,
+    model: existing.model?.trim() ? existing.model : hydrated.model,
+    createdAt:
+      isInFlightTaskState(existing.taskState) && isInFlightTaskState(hydrated.taskState)
+        ? (existing.createdAt ?? hydrated.createdAt ?? null)
+        : (hydrated.createdAt ?? existing.createdAt ?? null),
+    modelId: existing.modelId ?? hydrated.modelId,
+    provider: existing.provider ?? hydrated.provider,
+    sourceRef: existing.sourceRef ?? hydrated.sourceRef,
+    generationId: existing.generationId ?? hydrated.generationId,
+    status: "ready",
+    timestamp: hydrated.timestamp,
+    taskId: existing.taskId ?? hydrated.taskId,
+    queueState: hydrated.queueState ?? existing.queueState,
+    taskState: hydrated.taskState ?? existing.taskState,
+    errorMessage: hydrated.errorMessage ?? existing.errorMessage ?? null,
+    errorMessageShort: hydrated.errorMessageShort ?? existing.errorMessageShort ?? null,
+    errorDetail: hydrated.errorDetail ?? existing.errorDetail ?? null,
+    resultUrls: (hydrated.resultUrls?.length ?? 0) > 0 ? hydrated.resultUrls : existing.resultUrls,
+    previewUrl: hydrated.previewUrl ?? existing.previewUrl,
+    previewPosterUrl: hydrated.previewPosterUrl ?? existing.previewPosterUrl ?? null,
+    previewPosterStoragePath:
+      hydrated.previewPosterStoragePath ?? existing.previewPosterStoragePath ?? null,
+    companionArtUrl: hydrated.companionArtUrl ?? existing.companionArtUrl ?? null,
+    companionArtStoragePath:
+      hydrated.companionArtStoragePath ?? existing.companionArtStoragePath ?? null,
+    companionArtStatus: hydrated.companionArtStatus ?? existing.companionArtStatus ?? null,
+    previewStoragePath: hydrated.previewStoragePath ?? existing.previewStoragePath ?? null,
+    fullStoragePath: hydrated.fullStoragePath ?? existing.fullStoragePath ?? null,
+    width: hydrated.width ?? existing.width ?? null,
+    height: hydrated.height ?? existing.height ?? null,
+    mediaSource: "generated",
+    hiddenInReferenceGrid:
+      existing.hiddenInReferenceGrid === true
+        ? true
+        : (hydrated.hiddenInReferenceGrid ?? existing.hiddenInReferenceGrid),
+    previewTier: hydrated.previewTier ?? existing.previewTier,
+    archivedAt: hydrated.taskState === "success" ? null : (existing.archivedAt ?? null),
+    archiveReason: hydrated.taskState === "success" ? null : (existing.archiveReason ?? null),
+    characterContext: hydrated.characterContext ?? existing.characterContext,
+    styleContext: hydrated.styleContext ?? existing.styleContext,
+    generationReplay: hydrated.generationReplay ?? existing.generationReplay,
+    workflowReload: hydrated.workflowReload ?? existing.workflowReload,
+  };
+  return preserveExistingOutputWhenUnchanged(existing, merged);
+};
 
 export const mergeCanonicalGeneratedOutputs = (
   existingOutputs: StudioOutput[],

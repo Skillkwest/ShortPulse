@@ -184,7 +184,7 @@ describe("buildKieKlingElementsPayload", () => {
         name: "Beach",
         alias: "beach",
         frontalImageUrl: "https://example.com/beach-front.png",
-        referenceImageUrls: "",
+        referenceImageUrls: "https://example.com/beach-side.png",
         videoUrl: "",
       },
       {
@@ -207,8 +207,27 @@ describe("buildKieKlingElementsPayload", () => {
       {
         name: "element3",
         description: "Reference images for Beach",
-        element_input_urls: ["https://example.com/beach-front.png"],
+        element_input_urls: [
+          "https://example.com/beach-front.png",
+          "https://example.com/beach-side.png",
+        ],
       },
     ]);
+  });
+
+  it("fails closed for one-image Kling elements", () => {
+    expect(() =>
+      buildKieKlingElementsPayload([
+        {
+          id: "slot-1",
+          slotIndex: 0,
+          name: "Beach",
+          alias: "beach",
+          frontalImageUrl: "https://example.com/beach-front.png",
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+      ])
+    ).toThrow("needs at least 2 image references");
   });
 });

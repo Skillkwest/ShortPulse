@@ -48,7 +48,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `sound` (or alias `generate_audio`)
   - `multi_shots` (requires `sound=true` when enabled)
   - `multi_prompt[]` is provider-supported, but the current AI Studio panel does not submit it for `Single`, `Multi`, or restored legacy custom state
-  - `kling_elements` for inline `@ElementName` prompt references
+  - `kling_elements` for inline `@ElementName` prompt references; a valid element uses either `2-4` image URLs in `element_input_urls` or exactly one video URL in `element_input_video_urls`, and a single task may include at most `3` elements
   - `cfg_scale`
   - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
   - Motion Control canonical fields: `input_urls`, `video_urls`, `character_orientation`, `background_source`, and resolution mode (`mode=720p|1080p`)
@@ -63,11 +63,13 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - submits top-level `prompt`
   - sends first frame and optional last frame
   - keeps `multi_shots=false`
+  - linked image elements fail before provider submit unless each element has at least two prepared image references
   - applies hidden prompt composition that enforces one continuous shot with no cuts or extra shot setups
 - `Multi`
   - submits top-level `prompt`
   - sends first frame and optional last frame
   - keeps `multi_shots=false`
+  - linked image elements follow the same `2-4` image reference preflight as `Single`
   - applies hidden prompt composition that directs the provider to treat the prompt as a multi-shot sequence
 - Legacy/restored custom state
   - normalizes to the visible `Multi` payload path before submit

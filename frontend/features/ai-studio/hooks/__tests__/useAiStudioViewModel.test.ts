@@ -1128,6 +1128,61 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
     expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(false);
   });
+
+  it("blocks 1080p Lip Sync when voice audio is 30 seconds or longer", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: FAL_OMNIHUMAN_V15_MODEL_ID,
+        costParamsForModel: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID),
+        referenceImageUrl: "https://example.com/character.jpg",
+        videoReferenceMode: "lip-sync",
+        videoResolution: "1080p",
+        lipSyncAudio: { url: "https://example.com/voice.mp3", durationMs: 30_000 },
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Use voice audio under 30 seconds for 1080p Lip Sync, or switch to 720p for audio up to 60 seconds."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
+  it("allows 720p Lip Sync for voice audio under 60 seconds", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: FAL_OMNIHUMAN_V15_MODEL_ID,
+        costParamsForModel: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID),
+        referenceImageUrl: "https://example.com/character.jpg",
+        videoReferenceMode: "lip-sync",
+        videoResolution: "720p",
+        lipSyncAudio: { url: "https://example.com/voice.mp3", durationMs: 45_000 },
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("blocks 720p Lip Sync when voice audio is 60 seconds or longer", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: FAL_OMNIHUMAN_V15_MODEL_ID,
+        costParamsForModel: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID),
+        referenceImageUrl: "https://example.com/character.jpg",
+        videoReferenceMode: "lip-sync",
+        videoResolution: "720p",
+        lipSyncAudio: { url: "https://example.com/voice.mp3", durationMs: 60_000 },
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Use voice audio under 60 seconds for 720p Lip Sync."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
 });
 
 describe("useAiStudioViewModel edit guardrails", () => {

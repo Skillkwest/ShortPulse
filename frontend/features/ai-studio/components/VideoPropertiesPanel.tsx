@@ -1806,15 +1806,25 @@ export function VideoPropertiesPanel({
                             </div>
                           ) : (
                             <div className="video-lip-sync-audio-empty">
-                              <span>Add voice audio</span>
-                              <small>Drop audio here or choose a file</small>
+                              <span className="video-lip-sync-audio-empty-title">
+                                Add voice audio
+                              </span>
+                              <small className="video-lip-sync-audio-empty-helper">
+                                Drop audio here or choose a file
+                              </small>
                             </div>
                           )}
                         </div>
                         <div className="video-lip-sync-audio-actions">
-                          <span>{lipSyncAudioDurationLabel ?? "Audio required"}</span>
+                          <span className="video-lip-sync-audio-status">
+                            {lipSyncAudioDurationLabel ?? "Audio required"}
+                          </span>
                           {lipSyncAudio.url ? (
-                            <button type="button" onClick={clearLipSyncAudio}>
+                            <button
+                              type="button"
+                              className="video-lip-sync-clear-button"
+                              onClick={clearLipSyncAudio}
+                            >
                               Clear
                             </button>
                           ) : null}
@@ -1832,6 +1842,7 @@ export function VideoPropertiesPanel({
                                   ? "video-lip-sync-resolution-button is-active"
                                   : "video-lip-sync-resolution-button"
                               }
+                              aria-pressed={videoResolutionValue === resolution}
                               onClick={() => onVideoResolutionChange?.(resolution)}
                             >
                               {resolution}
@@ -1840,13 +1851,18 @@ export function VideoPropertiesPanel({
                         </div>
                         <label className="video-lip-sync-toggle-row">
                           <span>Faster generation</span>
-                          <input
-                            type="checkbox"
-                            checked={lipSyncTurboMode}
-                            onChange={(event) =>
-                              onLipSyncTurboModeChange?.(event.currentTarget.checked)
-                            }
-                          />
+                          <button
+                            type="button"
+                            className={`video-lip-sync-switch audio-toggle ${lipSyncTurboMode ? "is-active" : ""}`}
+                            role="switch"
+                            aria-checked={lipSyncTurboMode}
+                            aria-label="Faster generation"
+                            onClick={() => onLipSyncTurboModeChange?.(!lipSyncTurboMode)}
+                          >
+                            <span className="audio-toggle-track" aria-hidden="true">
+                              <span className="audio-toggle-dot" />
+                            </span>
+                          </button>
                         </label>
                       </div>
                     ) : null}

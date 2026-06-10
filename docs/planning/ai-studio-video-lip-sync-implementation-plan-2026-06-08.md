@@ -4,7 +4,8 @@ Purpose: define the active implementation source for adding Lip Sync mode to
 the AI Studio Video properties panel while keeping provider/model details hidden
 from the customer-facing UI.
 
-Status: active
+Status: superseded for remaining completion work by
+`docs/planning/ai-studio-video-lip-sync-completion-plan-2026-06-10.md`
 Owner/lane: Program 4, Workflows And Product Surfaces, with Program 1 pricing
 and generation-runtime proof requirements
 Source request: current thread Lip Sync Video panel buildout request, June 8,

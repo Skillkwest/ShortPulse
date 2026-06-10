@@ -83,7 +83,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - `Lip Sync` does not expose a model picker chip or provider/model-specific labels.
 - The left panel requires a `Character image` and `Voice audio`, exposes `720p` / `1080p`, and may expose generic `Faster generation`.
 - Prompt text is optional; empty prompt is valid when required image/audio inputs are present.
-- Audio duration guardrails are `1080p` under `30s` and `720p` under `60s`.
+- Local voice-audio file picker/drop inputs are staged into provider-reachable temporary media before submit; already reachable Media Library / Reference Grid / Canvas audio URLs keep the URL upload path.
+- Audio duration guardrails are enforced before provider submit: `1080p` requires audio under `30s` and `720p` requires audio under `60s`.
 - The submit adapter sends only provider-supported fields upstream (`image_url`, `audio_url`, `resolution`, optional `prompt`, optional `turbo_mode`) plus ShortPulse sidecars that generated route wrappers strip before provider dispatch.
 - Billing uses shared pricing policy at `$0.16` per audio/output second, with duration carried in `shortpulse_context` for server-authoritative debit.
 
@@ -173,6 +174,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Admission-limited submits should render deterministic retry guidance from the Fal client (`Too many active generations...retry in N seconds`).
 - Kie Kling submit preflight now fail-closes invalid media URLs before provider dispatch with deterministic `400 code=KIE_MEDIA_INPUT_INVALID` (invalid URL/protocol, unsupported extension, or signed URL token expiring too soon).
 - Kie Kling submit preflight also rejects media URLs that fail remote fetch preflight (`non-2xx`) or return incompatible content types, reducing opaque upstream `422 file format not support` failures.
+- Kie Kling linked elements fail before provider submit when the element shape violates Kie's element contract: image elements require `2-4` image URLs, video elements require exactly one video URL, image/video references cannot be mixed in the same element, and a task may include at most `3` elements.
 - Generate is disabled when required inputs are missing (e.g., model or reference image for reference-required models) or when the credit balance is below the computed cost.
 
 ## Contract Boundary

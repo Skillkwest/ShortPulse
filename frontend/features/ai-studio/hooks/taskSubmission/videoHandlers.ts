@@ -42,6 +42,7 @@ import {
   rewritePromptWithKieElementTokens,
 } from "../../logic/klingShotModePromptComposition";
 import { composeSeedanceHiddenShotModePrompt } from "../../logic/seedanceShotModePromptComposition";
+import { resolveLipSyncAudioDurationGuardrail } from "../../logic/lipSyncDuration";
 
 const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
 const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
@@ -70,6 +71,41 @@ const isKieHostedTemporaryMediaUrl = (value: string): boolean => {
   } catch {
     return false;
   }
+};
+
+const isPrivateIpv4Address = (hostname: string): boolean => {
+  const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
+  const octets = match.slice(1).map((segment) => Number.parseInt(segment, 10));
+  if (octets.some((octet) => !Number.isFinite(octet) || octet < 0 || octet > 255)) {
+    return false;
+  }
+  const [first, second] = octets;
+  if (first === 0 || first === 10 || first === 127) return true;
+  if (first === 169 && second === 254) return true;
+  if (first === 172 && second >= 16 && second <= 31) return true;
+  if (first === 192 && second === 168) return true;
+  return false;
+};
+
+const isLocalAudioUploadSourceUrl = (value: string): boolean => {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  if (normalized.startsWith("blob:") || /^data:audio\//i.test(normalized)) return true;
+  let parsed: URL;
+  try {
+    parsed = new URL(
+      normalized,
+      typeof window !== "undefined" ? window.location.origin : undefined
+    );
+  } catch {
+    return true;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return true;
+  const hostname = parsed.hostname.trim().toLowerCase();
+  if (!hostname) return true;
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) return true;
+  return isPrivateIpv4Address(hostname);
 };
 
 const resolveKieUploadPath = (mediaKind: "image" | "video" | "audio"): string =>
@@ -426,7 +462,7 @@ const prepareKieInputUrl = async ({
       ? needsImageUpload(normalizedRawUrl)
       : mediaKind === "video"
         ? needsVideoUpload(normalizedRawUrl)
-        : false)
+        : isLocalAudioUploadSourceUrl(normalizedRawUrl))
       ? normalizedRawUrl
       : "";
   if (browserUploadSourceUrl) {
@@ -695,6 +731,15 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         );
         return { handled: true };
       }
+      const resolution = resolveLipSyncResolution(requestedResolution);
+      const durationGuardrail = resolveLipSyncAudioDurationGuardrail({
+        durationMs: lipSyncAudio.durationMs,
+        resolution,
+      });
+      if (durationGuardrail) {
+        notifyGenerationFailure(id, durationGuardrail, undefined, VALIDATION_FAILURE_CONTEXT);
+        return { handled: true };
+      }
 
       const kieUploadCache = new Map<string, Promise<string>>();
       const imageUrl = await prepareKieInputUrl({
@@ -703,13 +748,28 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         mediaKind: "image",
         cache: kieUploadCache,
       });
-      const audioUrl = await prepareKieInputUrl({
-        rawUrl: rawAudioUrl,
-        preparedUrl: rawAudioUrl,
-        mediaKind: "audio",
-        cache: kieUploadCache,
-      });
-      const resolution = resolveLipSyncResolution(requestedResolution);
+      let audioUrl = "";
+      try {
+        audioUrl = await prepareKieInputUrl({
+          rawUrl: rawAudioUrl,
+          preparedUrl: rawAudioUrl,
+          mediaKind: "audio",
+          cache: kieUploadCache,
+        });
+      } catch (error) {
+        const message =
+          isLocalAudioUploadSourceUrl(rawAudioUrl) &&
+          error instanceof Error &&
+          error.message.toLowerCase().includes("unable to read local audio input")
+            ? "Local voice audio is no longer available. Re-add the audio file and try again."
+            : `Voice audio preparation failed: ${
+                error instanceof Error
+                  ? error.message
+                  : "Please re-add the audio file and try again."
+              }`;
+        notifyGenerationFailure(id, message, undefined, VALIDATION_FAILURE_CONTEXT);
+        return { handled: true };
+      }
       const prompt = cleanedPrompt.trim();
       const response = await submitQueuedGenerationByModelId(finalModel, {
         image_url: imageUrl,

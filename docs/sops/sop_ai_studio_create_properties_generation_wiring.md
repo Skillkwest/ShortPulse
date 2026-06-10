@@ -102,7 +102,7 @@ sequenceDiagram
 
 - `useAiStudioStateEffects` clamps invalid aspect/resolution combinations and enforces video reference-mode/model compatibility transitions.
 - In the Video Standard lane, adding a second frame must not auto-promote the workflow into hidden `keyframes` mode or force a compatible explicit model selection over to Veo. First/last-frame behavior stays Standard-owned for Veo, Kling 3.0, and Seedance 2, while legacy hidden `keyframes` snapshots are normalized back onto the visible Standard lane during restore.
-- In the Video Lip Sync lane, state effects pin the hidden internal Lip Sync model while the panel presents product-only controls (`Character image`, `Voice audio`, resolution, and generic faster-generation control).
+- In the Video Lip Sync lane, state effects pin the hidden internal Lip Sync model while the panel presents product-only controls (`Character image`, `Voice audio`, resolution, and generic faster-generation control). Generate guardrails require a character image and voice audio, enforce known audio-duration limits by selected resolution, and the submit path stages browser-local voice audio into provider-reachable temporary media before dispatch.
 
 ## Generation pipeline (Create CTA to provider polling)
 

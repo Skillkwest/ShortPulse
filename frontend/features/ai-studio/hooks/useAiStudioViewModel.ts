@@ -45,6 +45,7 @@ import {
 import { resolveCreatePricingTarget } from "../logic/createPricingTarget";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import { analyzeExpertEditPromptTokens } from "../logic/expertEditPromptReferences";
+import { resolveLipSyncAudioDurationGuardrail } from "../logic/lipSyncDuration";
 import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
 import type {
   LipSyncAudioState,
@@ -749,6 +750,11 @@ export const useAiStudioViewModel = ({
       if (!hasVoiceAudio) {
         return "Add voice audio before generating Lip Sync.";
       }
+      const lipSyncDurationGuardrail = resolveLipSyncAudioDurationGuardrail({
+        durationMs: lipSyncAudio.durationMs,
+        resolution: videoResolution,
+      });
+      if (lipSyncDurationGuardrail) return lipSyncDurationGuardrail;
     }
     if (
       isVideoTool &&
@@ -814,6 +820,7 @@ export const useAiStudioViewModel = ({
     motionReferenceVideoPending,
     motionReferenceVideoError,
     motionReferenceVideoUrl,
+    lipSyncAudio.durationMs,
     lipSyncAudio.url,
     referenceImageUrl,
     requiresModelSelection,
@@ -823,6 +830,7 @@ export const useAiStudioViewModel = ({
     isSeedance2Model,
     resolvedVideoLane,
     seedance2InputMode,
+    videoResolution,
     videoReferenceMode,
     missingCanonicalCreatePricingAuthorityGuardrail,
     missingCanonicalCreateBilledCreditsGuardrail,

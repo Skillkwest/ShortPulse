@@ -22,6 +22,10 @@ type KieKlingElementPayload = {
   element_input_video_urls?: string[];
 };
 
+const KIE_KLING_MAX_ELEMENTS = 3;
+const KIE_KLING_MIN_IMAGE_ELEMENT_URLS = 2;
+const KIE_KLING_MAX_IMAGE_ELEMENT_URLS = 4;
+
 const resolveAspectForModelConfig = (
   aspect: string,
   modelConfig: SubmissionModelConfig,
@@ -304,18 +308,23 @@ export const buildKieKlingElementsPayload = (
   });
   const payload = orderedElements.reduce<KieKlingElementPayload[]>(
     (accumulator, element, index) => {
+      if (accumulator.length >= KIE_KLING_MAX_ELEMENTS) {
+        throw new Error("Kling 3.0 supports at most 3 linked elements.");
+      }
       const tokenName = resolveKieKlingElementToken(
         element,
         element.slotIndex ?? index,
         orderedElements
       );
-      const imageList = Array.from(new Set(getAiStudioKlingElementReferenceUrls(element))).slice(
-        0,
-        4
-      );
+      const imageList = Array.from(new Set(getAiStudioKlingElementReferenceUrls(element)));
       const displayName = element.name?.trim() || tokenName;
 
       if (element.videoUrl.trim()) {
+        if (imageList.length) {
+          throw new Error(
+            `Kling element ${displayName} must use either one video reference or 2-4 image references, not both.`
+          );
+        }
         accumulator.push({
           name: tokenName,
           description: `Reference video for ${displayName}`,
@@ -325,10 +334,15 @@ export const buildKieKlingElementsPayload = (
       }
 
       if (imageList.length) {
+        if (imageList.length < KIE_KLING_MIN_IMAGE_ELEMENT_URLS) {
+          throw new Error(
+            `Kling element ${displayName} needs at least 2 image references before generating.`
+          );
+        }
         accumulator.push({
           name: tokenName,
           description: `Reference images for ${displayName}`,
-          element_input_urls: imageList,
+          element_input_urls: imageList.slice(0, KIE_KLING_MAX_IMAGE_ELEMENT_URLS),
         });
       }
       return accumulator;

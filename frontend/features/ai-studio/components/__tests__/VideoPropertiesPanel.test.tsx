@@ -706,6 +706,64 @@ describe("VideoPropertiesPanel", () => {
     expect(document.body).not.toHaveTextContent(/Fal|OmniHuman|Bytedance|fal-ai\/bytedance/i);
   });
 
+  it("routes Lip Sync resolution selection through the video resolution setter", () => {
+    const onVideoResolutionChange = vi.fn();
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Character image",
+      videoResolutionValue: "1080p",
+    });
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId="fal-ai/bytedance/omnihuman/v1.5"
+        modelLabel="Lip Sync"
+        videoReferenceMode="lip-sync"
+        onVideoResolutionChange={onVideoResolutionChange}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "1080p" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "720p" }));
+    expect(onVideoResolutionChange).toHaveBeenCalledWith("720p");
+  });
+
+  it("routes the Lip Sync faster-generation switch through the turbo setter", () => {
+    const onLipSyncTurboModeChange = vi.fn();
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Character image",
+      videoResolutionValue: "1080p",
+    });
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId="fal-ai/bytedance/omnihuman/v1.5"
+        modelLabel="Lip Sync"
+        videoReferenceMode="lip-sync"
+        lipSyncTurboMode={false}
+        onLipSyncTurboModeChange={onLipSyncTurboModeChange}
+      />
+    );
+
+    const switchControl = screen.getByRole("switch", { name: "Faster generation" });
+    expect(switchControl).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(switchControl);
+    expect(onLipSyncTurboModeChange).toHaveBeenCalledWith(true);
+  });
+
   it("keeps the Kling reference image warning visible when only the last-frame slot has an image", () => {
     const { rerender } = render(<VideoPropertiesPanel {...baseProps} />);
 

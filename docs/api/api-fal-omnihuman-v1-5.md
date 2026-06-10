@@ -49,6 +49,6 @@ Output:
 - Prompt text is optional.
 - `1080p` accepts voice audio under `30s`.
 - `720p` accepts voice audio under `60s`.
+- ShortPulse blocks known over-limit audio before provider submit and stages browser-local voice audio into provider-reachable temporary media.
 - Billing duration is carried in `shortpulse_context`; duration is not sent as an upstream provider field.
 - Generated wrapper routes strip ShortPulse sidecars before provider submit.
-

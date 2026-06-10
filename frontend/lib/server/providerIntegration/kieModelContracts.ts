@@ -164,6 +164,12 @@ const readKieKlingElementList = (
 }[] => {
   const candidateList = payload.kling_elements;
   if (!Array.isArray(candidateList)) return [];
+  const maxElements = 3;
+  const minImageUrls = 2;
+  const maxImageUrls = 4;
+  if (candidateList.length > maxElements) {
+    throw new Error("Kie Kling 3.0 submit supports at most 3 kling_elements entries.");
+  }
   return candidateList.reduce<
     {
       name: string;
@@ -183,7 +189,24 @@ const readKieKlingElementList = (
       directFields: [],
       listFields: ["element_input_video_urls"],
     });
-    if (!imageUrls.length && !videoUrls.length) return accumulator;
+    if (!imageUrls.length && !videoUrls.length) {
+      throw new Error(
+        "Kie Kling 3.0 kling_elements entries require either 2-4 image URLs or one video URL."
+      );
+    }
+    if (imageUrls.length && videoUrls.length) {
+      throw new Error(
+        "Kie Kling 3.0 kling_elements entries must not mix image URLs and video URLs."
+      );
+    }
+    if (imageUrls.length && (imageUrls.length < minImageUrls || imageUrls.length > maxImageUrls)) {
+      throw new Error("Kie Kling 3.0 image elements require 2-4 element_input_urls.");
+    }
+    if (videoUrls.length && videoUrls.length !== 1) {
+      throw new Error(
+        "Kie Kling 3.0 video elements require exactly one element_input_video_urls entry."
+      );
+    }
     accumulator.push({
       name: asNonEmptyString(record.name) ?? `Element${String(index + 1).padStart(2, "0")}`,
       description:

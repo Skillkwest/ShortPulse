@@ -746,6 +746,28 @@ describe("kieModelContracts", () => {
     );
   });
 
+  it("fails closed when Kling image elements have fewer than two image URLs", () => {
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: {
+          prompt: "kling prompt",
+          image_url: "https://example.com/ref-a.png",
+          image_urls: ["https://example.com/ref-a.png"],
+          duration: 6,
+          mode: "pro",
+          kling_elements: [
+            {
+              name: "Element01",
+              description: "Reference images for Element01",
+              element_input_urls: ["https://example.com/element-a.png"],
+            },
+          ],
+        },
+      })
+    ).toThrow("image elements require 2-4 element_input_urls");
+  });
+
   it("validates Kling motion-control required inputs", () => {
     expect(
       normalizeKieSubmitPayloadForModel({

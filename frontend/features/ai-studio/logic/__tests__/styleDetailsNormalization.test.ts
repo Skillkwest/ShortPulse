@@ -115,4 +115,33 @@ describe("styleDetailsNormalization", () => {
 
     expect(merged.cinematic.stylePrompt).toBe("cinematic lighting, rich contrast");
   });
+
+  it("drops over-budget style ids from details maps", () => {
+    expect(
+      normalizeStyleDetailsMap({
+        ["x".repeat(161)]: {
+          style: "Bad",
+          title: "Bad",
+          referenceImageName: "Bad",
+          stylePrompt: "bad",
+          previewImageUrl: "/bad.png",
+        },
+        " style-library-custom-1 ": {
+          style: "Good",
+          title: "Good",
+          referenceImageName: "Good",
+          stylePrompt: "good",
+          previewImageUrl: "/good.png",
+        },
+      })
+    ).toEqual({
+      "style-library-custom-1": {
+        style: "Good",
+        title: "Good",
+        referenceImageName: "Good",
+        stylePrompt: "good",
+        previewImageUrl: "/good.png",
+      },
+    });
+  });
 });

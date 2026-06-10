@@ -52,4 +52,28 @@ describe("useStylesLibraryDeletedStyleIdsPreference", () => {
       "[]"
     );
   });
+
+  it("drops over-budget deleted style ids while loading local preferences", async () => {
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.deleted_style_ids",
+      JSON.stringify([" style-library-custom-1 ", "x".repeat(161), "style-library-custom-1"])
+    );
+
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
+
+    const { result } = renderHook(() => useStylesLibraryDeletedStyleIdsPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.deletedStyleIds).toEqual(["style-library-custom-1"]);
+    expect(window.localStorage.getItem("shortpulse.ai_studio.deleted_style_ids")).toBe(
+      JSON.stringify(["style-library-custom-1"])
+    );
+  });
 });

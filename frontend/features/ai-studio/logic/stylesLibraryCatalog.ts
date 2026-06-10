@@ -4,6 +4,18 @@
  */
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
 
+export const STYLES_LIBRARY_MAX_STYLE_ID_LENGTH = 160;
+
+/**
+ * Normalizes one Styles Library id for persistence-safe reads/writes.
+ */
+export const normalizeStylesLibraryStyleId = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const styleId = value.trim();
+  if (!styleId || styleId.length > STYLES_LIBRARY_MAX_STYLE_ID_LENGTH) return null;
+  return styleId;
+};
+
 /**
  * Normalizes an ordered style-id list for persistence-safe reads/writes.
  */
@@ -12,8 +24,7 @@ export const normalizeStylesLibraryOrderedIds = (value: unknown): string[] => {
   const seen = new Set<string>();
   const normalized: string[] = [];
   value.forEach((entry) => {
-    if (typeof entry !== "string") return;
-    const styleId = entry.trim();
+    const styleId = normalizeStylesLibraryStyleId(entry);
     if (!styleId || seen.has(styleId)) return;
     seen.add(styleId);
     normalized.push(styleId);

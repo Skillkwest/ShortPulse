@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseQueryClient } from "../../../lib/supabaseClient";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { buildUserScopedStorageKey } from "../../character-manager/logic/userScopedLocalStorage";
+import { normalizeStylesLibraryStyleId } from "../logic/stylesLibraryCatalog";
 
 const DELETED_STYLE_IDS_STORAGE_KEY = "shortpulse.ai_studio.deleted_style_ids";
 const buildDeletedStyleIdsStorageKey = (userId?: string | null): string =>
@@ -26,8 +27,7 @@ const normalizeDeletedStyleIds = (value: unknown): string[] => {
   const seen = new Set<string>();
   const normalized: string[] = [];
   value.forEach((entry) => {
-    if (typeof entry !== "string") return;
-    const nextId = entry.trim();
+    const nextId = normalizeStylesLibraryStyleId(entry);
     if (!nextId || seen.has(nextId)) return;
     seen.add(nextId);
     normalized.push(nextId);

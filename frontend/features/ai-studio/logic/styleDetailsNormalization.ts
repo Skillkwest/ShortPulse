@@ -4,6 +4,7 @@
  */
 import type { StylesLibraryStyleDetails, StylesLibraryStyleDetailsMap } from "../types";
 import { STYLE_PROMPT_MAX_CHARACTERS } from "../components/style-creator/constants";
+import { normalizeStylesLibraryStyleId } from "./stylesLibraryCatalog";
 
 const MAX_STYLE_FIELD_LENGTH = 120;
 const MAX_STYLE_PROMPT_LENGTH = STYLE_PROMPT_MAX_CHARACTERS;
@@ -45,7 +46,7 @@ export const normalizeStyleDetailsMap = (value: unknown): StylesLibraryStyleDeta
   const entries = Object.entries(value as Record<string, unknown>);
   const normalized: StylesLibraryStyleDetailsMap = {};
   entries.forEach(([rawId, rawDetails]) => {
-    const styleId = rawId.trim();
+    const styleId = normalizeStylesLibraryStyleId(rawId);
     if (!styleId) return;
     normalized[styleId] = normalizeStyleDetails(rawDetails);
   });

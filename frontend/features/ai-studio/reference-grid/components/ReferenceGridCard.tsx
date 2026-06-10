@@ -434,6 +434,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       data-loading={effectiveIsLoading ? "true" : "false"}
       data-reference-authority-tier={authorityTier}
       data-drag-preview-url={cardPreviewUrl ?? undefined}
+      data-drag-playable-url={resolvedHoverVideoUrl ?? undefined}
       data-drag-image-src={dragImageSrc}
       data-drag-preview-kind={dragPreviewKind}
       tabIndex={0}

@@ -397,6 +397,18 @@ const countAvailableImagePayloadUrls = (payload: Record<string, unknown>): numbe
     20
   ).length;
 
+const supportsInlineSubmitForGenerationMode = ({
+  provider,
+  generationMode,
+}: {
+  provider: string;
+  generationMode: string;
+}): boolean => {
+  if (provider === "kie") return true;
+  if (provider !== "fal") return false;
+  return generationMode === "image" || generationMode === "video";
+};
+
 const resolveExternalEditPayloadUrl = ({
   value,
   ref,
@@ -958,7 +970,10 @@ export const createFalSubmitHandler = ({
       const inlineSubmitTargets = resolveInlineSubmitTargets({ submitTargets, submitUrl });
       const supportsInlineDirectSubmit =
         inlineSubmitTargets.length > 0 &&
-        (providerKey === "kie" || (providerKey === "fal" && generationMode === "image"));
+        supportsInlineSubmitForGenerationMode({
+          provider: providerKey,
+          generationMode,
+        });
       const canUseInlineDirectSubmit = supportsInlineDirectSubmit;
 
       if (canUseInlineDirectSubmit) {

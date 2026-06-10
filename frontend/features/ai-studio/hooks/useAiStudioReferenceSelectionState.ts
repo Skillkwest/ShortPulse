@@ -14,6 +14,7 @@ import type { ToolId } from "../types";
 import {
   deleteUploadedMotionVideoByPath,
   retireCommittedMotionVideoByUrl,
+  needsVideoUpload,
   prepareVideoUrl,
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
@@ -29,6 +30,8 @@ import {
   createEmptyExpertEditSecondaryImageUrls,
   normalizeExpertEditSecondaryImageUrls,
 } from "../logic/expertEditReferenceSlots";
+import { loadVideoPreviewMetadata } from "../logic/videoPreviewMetadata";
+import { resolveMotionReferenceVideoDurationError } from "../logic/motionReferenceVideoDuration";
 
 type UseAiStudioReferenceSelectionStateParams = {
   activeOutputPreviewUrl: string | null;
@@ -101,6 +104,8 @@ const createEmptyMotionReferenceUploadUiState = (): MotionReferenceUploadUiState
   requestId: 0,
 });
 
+const MOTION_REFERENCE_DURATION_PROBE_TIMEOUT_MS = 5_000;
+
 const normalizeVideoExtraImageUrls = (
   values: readonly (string | null)[]
 ): [string | null, string | null, string | null] => [
@@ -108,6 +113,60 @@ const normalizeVideoExtraImageUrls = (
   values[1] ?? null,
   values[2] ?? null,
 ];
+
+const withMotionReferenceDurationProbeTimeout = async (
+  videoUrl: string
+): Promise<number | null> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeoutId = setTimeout(() => resolve(null), MOTION_REFERENCE_DURATION_PROBE_TIMEOUT_MS);
+    });
+    const preview = await Promise.race([
+      loadVideoPreviewMetadata(videoUrl).then((metadata) => metadata.durationMs),
+      timeoutPromise,
+    ]);
+    return preview;
+  } catch {
+    return null;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
+const readMotionReferenceDurationMs = async ({
+  videoFile,
+  videoUrl,
+}: {
+  videoFile?: File | null;
+  videoUrl?: string | null;
+}): Promise<number | null> => {
+  let probeUrl = videoUrl?.trim() ?? "";
+  let shouldRevokeProbeUrl = false;
+  if (videoFile && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+    probeUrl = URL.createObjectURL(videoFile);
+    shouldRevokeProbeUrl = true;
+  }
+  if (!probeUrl) return null;
+  try {
+    return await withMotionReferenceDurationProbeTimeout(probeUrl);
+  } finally {
+    if (shouldRevokeProbeUrl && typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(probeUrl);
+    }
+  }
+};
+
+const assertMotionReferenceDuration = async (input: {
+  videoFile?: File | null;
+  videoUrl?: string | null;
+}): Promise<void> => {
+  const durationMs = await readMotionReferenceDurationMs(input);
+  const durationError = resolveMotionReferenceVideoDurationError(durationMs);
+  if (durationError) {
+    throw new Error(durationError);
+  }
+};
 
 const buildReferenceSelectionAuthorityStateFromSeed = ({
   selectedTool,
@@ -628,9 +687,35 @@ export const useAiStudioReferenceSelectionState = ({
       });
 
       try {
+        const normalizedVideoUrl = videoUrl?.trim() ?? "";
+        await assertMotionReferenceDuration({ videoFile, videoUrl: normalizedVideoUrl || null });
+        if (!videoFile && normalizedVideoUrl && !needsVideoUpload(normalizedVideoUrl)) {
+          if (
+            getMotionReferenceUploadUiStateForAuthority(targetAuthorityKey).requestId !==
+            nextRequestId
+          ) {
+            return;
+          }
+          const nextAuthorityState = getAuthorityState(targetAuthorityKey);
+          const previousMotionVideoUrl = nextAuthorityState.motionReferenceVideoUrl;
+          setAuthorityState(targetAuthorityKey, {
+            ...nextAuthorityState,
+            motionReferenceVideoUrl: normalizedVideoUrl,
+          });
+          setMotionReferenceUploadUiStateForAuthority(targetAuthorityKey, {
+            pending: false,
+            error: null,
+            requestId: nextRequestId,
+          });
+          if (previousMotionVideoUrl && previousMotionVideoUrl !== normalizedVideoUrl) {
+            void retireCommittedMotionVideoByUrl(previousMotionVideoUrl);
+          }
+          return;
+        }
+
         const uploaded = videoFile
           ? await uploadVideoFileToStorage(videoFile)
-          : await uploadVideoAssetToStorage(videoUrl as string);
+          : await uploadVideoAssetToStorage(normalizedVideoUrl);
         if (
           getMotionReferenceUploadUiStateForAuthority(targetAuthorityKey).requestId !==
           nextRequestId

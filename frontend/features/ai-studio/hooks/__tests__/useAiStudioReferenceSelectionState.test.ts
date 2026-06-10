@@ -8,6 +8,8 @@ const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const deleteUploadedMotionVideoByPathMock = vi.hoisted(() => vi.fn());
 const retireCommittedMotionVideoByUrlMock = vi.hoisted(() => vi.fn());
 const prepareVideoUrlMock = vi.hoisted(() => vi.fn());
+const needsVideoUploadMock = vi.hoisted(() => vi.fn());
+const loadVideoPreviewMetadataMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: vi.fn(),
@@ -21,6 +23,11 @@ vi.mock("../../utils/videoUpload", () => ({
   retireCommittedMotionVideoByUrl: (...args: unknown[]) =>
     retireCommittedMotionVideoByUrlMock(...args),
   prepareVideoUrl: (...args: unknown[]) => prepareVideoUrlMock(...args),
+  needsVideoUpload: (...args: unknown[]) => needsVideoUploadMock(...args),
+}));
+
+vi.mock("../../logic/videoPreviewMetadata", () => ({
+  loadVideoPreviewMetadata: (...args: unknown[]) => loadVideoPreviewMetadataMock(...args),
 }));
 
 const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
@@ -32,6 +39,8 @@ describe("useAiStudioReferenceSelectionState", () => {
     deleteUploadedMotionVideoByPathMock.mockResolvedValue(undefined);
     retireCommittedMotionVideoByUrlMock.mockResolvedValue(undefined);
     prepareVideoUrlMock.mockImplementation(async (value: string | null) => value);
+    needsVideoUploadMock.mockReturnValue(true);
+    loadVideoPreviewMetadataMock.mockResolvedValue({ durationMs: 10_000, posterUrl: null });
   });
 
   it("defaults to Create workflow selection for new studio sessions", () => {
@@ -89,7 +98,7 @@ describe("useAiStudioReferenceSelectionState", () => {
 
     expect(result.current.selectedTool).toBe("create");
     expect(result.current.referenceImageUrl).toBeNull();
-    expect(result.current.extraImageUrls).toEqual([null, null, null]);
+    expect(result.current.extraImageUrls.every((url) => url === null)).toBe(true);
 
     act(() => {
       result.current.setReferenceImageUrl("https://example.com/pulse-ref.png");
@@ -100,21 +109,19 @@ describe("useAiStudioReferenceSelectionState", () => {
 
     expect(result.current.selectedTool).toBe("video");
     expect(result.current.referenceImageUrl).toBeNull();
-    expect(result.current.extraImageUrls).toEqual([null, null, null]);
-    expect(result.current.resolveReferenceInputsForTool("edit")).toEqual({
-      referenceImageUrl: "https://example.com/standard-ref.png",
-      extraImageUrls: ["https://example.com/standard-extra.png", null, null],
-    });
+    expect(result.current.extraImageUrls.every((url) => url === null)).toBe(true);
+    const editInputs = result.current.resolveReferenceInputsForTool("edit");
+    expect(editInputs.referenceImageUrl).toBe("https://example.com/standard-ref.png");
+    expect(editInputs.extraImageUrls[0]).toBe("https://example.com/standard-extra.png");
+    expect(editInputs.extraImageUrls.slice(1).every((url) => url === null)).toBe(true);
 
     rerender({ authorityKey: "project:test" });
 
     expect(result.current.selectedTool).toBe("create");
     expect(result.current.referenceImageUrl).toBe("https://example.com/pulse-ref.png");
-    expect(result.current.extraImageUrls).toEqual([
-      null,
-      "https://example.com/pulse-extra.png",
-      null,
-    ]);
+    expect(result.current.extraImageUrls[0]).toBeNull();
+    expect(result.current.extraImageUrls[1]).toBe("https://example.com/pulse-extra.png");
+    expect(result.current.extraImageUrls.slice(2).every((url) => url === null)).toBe(true);
   });
 
   it("keeps Standard and Pulse Create reference state isolated when the authority key changes by mode", () => {
@@ -167,26 +174,24 @@ describe("useAiStudioReferenceSelectionState", () => {
 
     rerender({ authorityKey: "session:test:create:pulse" });
 
-    expect(result.current.getAuthorityState("session:test:create:standard")).toEqual(
-      expect.objectContaining({
-        referenceImageInternalMediaRefs: [
-          {
-            version: 1,
-            kind: "storage_object",
-            bucket: "media_library",
-            storagePath: "user-1/references/a.png",
-          },
-          {
-            version: 1,
-            kind: "storage_object",
-            bucket: "media_library",
-            storagePath: "user-1/references/b.png",
-          },
-          null,
-          null,
-        ],
-      })
-    );
+    const standardState = result.current.getAuthorityState("session:test:create:standard");
+    expect(standardState.referenceImageInternalMediaRefs.slice(0, 2)).toEqual([
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/a.png",
+      },
+      {
+        version: 1,
+        kind: "storage_object",
+        bucket: "media_library",
+        storagePath: "user-1/references/b.png",
+      },
+    ]);
+    expect(
+      standardState.referenceImageInternalMediaRefs.slice(2).every((ref) => ref === null)
+    ).toBe(true);
   });
 
   it("refreshes stale signed frame URLs for the video reference slot", async () => {
@@ -405,6 +410,87 @@ describe("useAiStudioReferenceSelectionState", () => {
 
     expect(result.current.motionReferenceVideoUrl).toBe("https://example.com/staged-motion.mp4");
     expect(retireCommittedMotionVideoByUrlMock).toHaveBeenCalledWith(currentMotionUrl);
+  });
+
+  it("shows an inline error instead of uploading motion clips longer than 30 seconds", async () => {
+    const originalCreateObjectUrl = URL.createObjectURL;
+    const originalRevokeObjectUrl = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => "blob:too-long-motion");
+    URL.revokeObjectURL = vi.fn();
+    loadVideoPreviewMetadataMock.mockResolvedValueOnce({ durationMs: 31_000, posterUrl: null });
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+
+    try {
+      await act(async () => {
+        await result.current.stageMotionVideoSelection({
+          videoFile: new File(["motion"], "too-long.mp4", { type: "video/mp4" }),
+        });
+      });
+    } finally {
+      URL.createObjectURL = originalCreateObjectUrl;
+      URL.revokeObjectURL = originalRevokeObjectUrl;
+    }
+
+    expect(uploadVideoFileToStorageMock).not.toHaveBeenCalled();
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoUrl).toBeNull();
+    expect(result.current.motionReferenceVideoError).toBe(
+      "Motion Control supports motion reference clips up to 30 seconds. Trim this video and try again."
+    );
+  });
+
+  it("shows an inline error instead of accepting dragged remote motion clips longer than 30 seconds", async () => {
+    needsVideoUploadMock.mockReturnValue(false);
+    loadVideoPreviewMetadataMock.mockResolvedValueOnce({ durationMs: 31_000, posterUrl: null });
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+
+    await act(async () => {
+      await result.current.stageMotionVideoSelection({
+        videoUrl: "https://signed.example.com/too-long-motion.mp4",
+      });
+    });
+
+    expect(uploadVideoAssetToStorageMock).not.toHaveBeenCalled();
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoUrl).toBeNull();
+    expect(result.current.motionReferenceVideoError).toBe(
+      "Motion Control supports motion reference clips up to 30 seconds. Trim this video and try again."
+    );
+  });
+
+  it("commits dragged remote motion clips after duration validation without re-uploading them", async () => {
+    needsVideoUploadMock.mockReturnValue(false);
+    loadVideoPreviewMetadataMock.mockResolvedValueOnce({ durationMs: 20_000, posterUrl: null });
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({
+        activeOutputPreviewUrl: null,
+        authorityKey: "session:test:create:standard",
+      })
+    );
+
+    await act(async () => {
+      await result.current.stageMotionVideoSelection({
+        videoUrl: "https://signed.example.com/motion.mp4",
+      });
+    });
+
+    expect(uploadVideoAssetToStorageMock).not.toHaveBeenCalled();
+    expect(result.current.motionReferenceVideoPending).toBe(false);
+    expect(result.current.motionReferenceVideoError).toBeNull();
+    expect(result.current.motionReferenceVideoUrl).toBe("https://signed.example.com/motion.mp4");
   });
 
   it("commits staged motion videos back to the originating authority after switching away", async () => {

@@ -11,6 +11,7 @@ import {
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
   extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
+  getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
 } from "../../../lib/internalReferenceDragPayload";
@@ -82,6 +83,7 @@ type ReferenceDragPreviewKind = "image" | "video" | "audio" | "text";
 
 type ReferenceDragPreviewDataset = {
   previewUrl: string | null;
+  playableUrl: string | null;
   imageSrc: string | null;
   snapshotSrc: string | null;
   previewKind: ReferenceDragPreviewKind | null;
@@ -358,6 +360,9 @@ const readReferenceDragPreviewDataset = (
     : null;
   return {
     previewUrl: normalizeReferenceTransferUrlCandidate(node?.dataset.dragPreviewUrl ?? null),
+    playableUrl: normalizeReferenceTransferUrlCandidate(node?.dataset.dragPlayableUrl ?? null, {
+      unwrapNextImage: false,
+    }),
     imageSrc: normalizeReferenceTransferUrlCandidate(
       renderedImageSrc ?? node?.dataset.dragImageSrc ?? null,
       { unwrapNextImage: false }
@@ -426,7 +431,13 @@ const buildReferenceDragGhost = ({
     output,
     previewDataset,
   });
-  const videoUrl = resolveReferenceTransferUrl(output, "video");
+  const datasetPlayableUrl = normalizeReferenceTransferUrlCandidate(previewDataset.playableUrl, {
+    unwrapNextImage: false,
+  });
+  const videoUrl =
+    datasetPlayableUrl && looksLikeVideoUrl(datasetPlayableUrl)
+      ? datasetPlayableUrl
+      : resolveReferenceTransferUrl(output, "video");
   const previewKind = previewDataset.previewKind ?? resolveOutputPreviewKind(output);
   const promptText = trimDragGhostText(dedupeText(output.prompt ?? output.previewText) || null);
   const isMediaGhost = Boolean(imageUrl || videoUrl);
@@ -583,6 +594,18 @@ export const looksLikeAudioUrl = (value?: string) => {
 
 const isLikelyImageTransferUrl = (value?: string) =>
   looksLikeImageUrl(value) && !looksLikeVideoUrl(value) && !looksLikeAudioUrl(value);
+
+const resolveDatasetPlayableTransferUrl = (
+  value: string | null | undefined,
+  kind: "image" | "video" | "audio" | "any"
+): string | null => {
+  if (kind !== "video" && kind !== "audio") return null;
+  const normalized = normalizeReferenceTransferUrlCandidate(value, { unwrapNextImage: false });
+  if (!normalized) return null;
+  if (kind === "video" && looksLikeVideoUrl(normalized)) return normalized;
+  if (kind === "audio" && looksLikeAudioUrl(normalized)) return normalized;
+  return null;
+};
 
 export const resolveReferenceTransferUrl = (
   output: Pick<
@@ -1004,14 +1027,12 @@ export const isVideoDragTransfer = (transfer: DataTransfer) => {
   const videoFile = findVideoFile(transfer.files);
   if (videoFile) return true;
   if (transfer.files?.length) return false;
-  if (transfer.types.includes("Files")) return true;
-  if (
-    transfer.types.includes("text/reference-url") ||
-    transfer.types.includes("text/reference-id")
-  ) {
+  const transferTypes = getNormalizedTransferTypes(transfer);
+  if (transferTypes.includes("files")) return true;
+  if (hasInternalReferenceDragTypeHints(transfer)) {
     return true;
   }
-  if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) return true;
+  if (transferTypes.includes("text/uri-list") || transferTypes.includes("image/url")) return true;
   const plainText = normalizeReferenceTransferUrlCandidate(transfer.getData("text/plain"));
   return Boolean(plainText && looksLikeVideoUrl(plainText));
 };
@@ -1039,7 +1060,8 @@ export const prepareReferenceDrag = (
   const transferKind =
     output.mode === "video" ? "video" : output.mode === "audio" ? "audio" : "any";
   const previewUrl = allowDirectReferenceUrls
-    ? resolveReferenceTransferUrl(output, transferKind)
+    ? (resolveDatasetPlayableTransferUrl(previewDataset.playableUrl, transferKind) ??
+      resolveReferenceTransferUrl(output, transferKind))
     : null;
   const imagePreviewUrl = allowDirectReferenceUrls
     ? resolveReferenceTransferUrl(output, "image")

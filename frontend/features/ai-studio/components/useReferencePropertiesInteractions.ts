@@ -479,7 +479,7 @@ export const useReferencePropertiesInteractions = ({
   const acceptMotionVideoCanvasTearOutPayload = (payload: AgentComposerDirectDropPayload) => {
     if (payload.kind !== "video") return;
     setMotionVideoDragActive(false);
-    if (isLocalMemoryVideoUrl(payload.videoUrl)) {
+    if (onStageMotionVideoSelection) {
       void onStageMotionVideoSelection?.({ videoUrl: payload.videoUrl });
       return;
     }
@@ -593,8 +593,14 @@ export const useReferencePropertiesInteractions = ({
       return;
     }
 
-    if (nextVideoUrl && isLocalMemoryVideoUrl(nextVideoUrl)) {
+    if (nextVideoUrl && (onStageMotionVideoSelection || isLocalMemoryVideoUrl(nextVideoUrl))) {
       await onStageMotionVideoSelection?.({ videoUrl: nextVideoUrl });
+      if (onStageMotionVideoSelection) {
+        return;
+      }
+    }
+
+    if (nextVideoUrl && isLocalMemoryVideoUrl(nextVideoUrl)) {
       return;
     }
 

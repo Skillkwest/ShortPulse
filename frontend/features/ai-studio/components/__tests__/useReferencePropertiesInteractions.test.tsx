@@ -603,6 +603,40 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onMotionVideoChange).toHaveBeenCalledWith("https://example.com/reference-video.mp4");
   });
 
+  it("routes resolved motion video drops through staging when the app provides a staging owner", async () => {
+    const onMotionVideoChange = vi.fn();
+    const onStageMotionVideoSelection = vi.fn().mockResolvedValue(undefined);
+    const resolveMotionVideoUrlById = vi.fn(() => "https://example.com/reference-video.mp4");
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        onStageMotionVideoSelection,
+        resolveMotionVideoUrlById,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleMotionVideoDrop(
+        createMotionDropEvent({
+          referenceId: "out-1",
+        })
+      );
+    });
+
+    expect(onStageMotionVideoSelection).toHaveBeenCalledWith({
+      videoUrl: "https://example.com/reference-video.mp4",
+    });
+    expect(onMotionVideoChange).not.toHaveBeenCalled();
+  });
+
   it("signs storage-backed internal video drags for motion drops when no playable URL is exposed", async () => {
     const onMotionVideoChange = vi.fn();
     getSignedMediaUrlMock.mockResolvedValue(

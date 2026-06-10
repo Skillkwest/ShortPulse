@@ -442,6 +442,15 @@ describe("dragDrop payload extraction", () => {
     expect(isVideoDragTransfer(transfer)).toBe(true);
   });
 
+  it("accepts protected internal reference drags for video targets from transfer type hints", () => {
+    const transfer = makeTransfer({
+      [INTERNAL_REFERENCE_DRAG_SESSION_TYPE]: "",
+      "text/reference-media-kind": "",
+    });
+
+    expect(isVideoDragTransfer(transfer)).toBe(true);
+  });
+
   it("rejects internal image reference drags for video targets during dragover", () => {
     const transfer = makeTransfer({
       "text/reference-id": "ref-image-2",
@@ -586,6 +595,39 @@ describe("dragDrop payload extraction", () => {
     expect(setData).toHaveBeenCalledWith("text/uri-list", "https://example.com/ref-video-full.mp4");
     expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/ref-video-poster.jpg");
     expect(setData).toHaveBeenCalledWith("text/reference-media-kind", "video");
+  });
+
+  it("uses the rendered card playable URL for video drags when the output preview is a poster", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "video";
+    dragNode.dataset.dragPreviewUrl = "https://signed.test/ref-video-poster.jpg";
+    dragNode.dataset.dragPlayableUrl = "https://signed.test/ref-video-full.mp4";
+    dragNode.dataset.dragImageSrc = "https://signed.test/ref-video-poster.jpg";
+
+    prepareReferenceDrag(event, {
+      id: "ref-video-card-playable",
+      prompt: "Camera move",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://signed.test/ref-video-poster.jpg",
+      mediaSource: "upload",
+    });
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://signed.test/ref-video-full.mp4"
+    );
+    expect(setData).toHaveBeenCalledWith("text/uri-list", "https://signed.test/ref-video-full.mp4");
+    expect(setData).toHaveBeenCalledWith("image/url", "https://signed.test/ref-video-poster.jpg");
+    expect(extractVideoDragDropPayload(event.dataTransfer).videoUrl).toBe(
+      "https://signed.test/ref-video-full.mp4"
+    );
+    expect(extractInternalReferenceDragPayload(event.dataTransfer)?.referenceUrl).toBe(
+      "https://signed.test/ref-video-full.mp4"
+    );
   });
 
   it("normalizes internal drag storage payloads for poster-backed video drags", () => {

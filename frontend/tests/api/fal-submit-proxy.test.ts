@@ -274,6 +274,56 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("submits Fal video routes directly when the model has an inline submit target", async () => {
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/bytedance/omnihuman/v1.5",
+      submitUrl: "https://queue.fal.run/fal-ai/bytedance/omnihuman/v1.5",
+      routeLabel: "Fal OmniHuman v1.5",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "Subtle performance.",
+        image_url: "https://example.com/character.png",
+        audio_url: "https://example.com/voice.mp3",
+        resolution: "720p",
+      },
+      headers: {
+        host: "shortpulse.ai",
+        "x-forwarded-proto": "https",
+      },
+      url: "/api/fal/omnihuman-v15-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "fal",
+        modelId: "fal-ai/bytedance/omnihuman/v1.5",
+        targets: [
+          {
+            submitUrl: "https://queue.fal.run/fal-ai/bytedance/omnihuman/v1.5",
+          },
+        ],
+        payload: expect.objectContaining({
+          image_url: "https://example.com/character.png",
+          audio_url: "https://example.com/voice.mp3",
+          resolution: "720p",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-direct-1",
+        generationId: expect.any(String),
+      })
+    );
+  });
+
   it("creates a motion reference lease when shortpulse context includes a motion asset", async () => {
     const handler = createFalSubmitHandler({
       modelId: "kie-ai/kling-3.0",

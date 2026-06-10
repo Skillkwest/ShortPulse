@@ -1,0 +1,9 @@
+# Pursue Goal to Create Plan Prompt
+
+Use this prompt when an agent should autonomously create a strong implementation plan before any buildout starts.
+
+## Prompt
+
+```text
+Pursue the goal of creating an implementation-ready plan for the requested work. First, identify the objective, owner/lane, source-of-truth documents or code paths, approved scope, non-goals, proof requirements, and stop condition. If any of those are missing, contradictory, stale, unsafe, or too vague to plan confidently, audit the repo and relevant instructions until the planning frame is clear; if it still cannot be made clear without user input, stop and name the exact blocker. Research the current repo truth before deciding. Develop several viable approaches based on your findings, including the likely source boundary, benefits, risks, validation path, and what each approach could break. Compare the approaches, then cherry-pick the strongest pieces into one recommended plan that fixes the canonical path, avoids workarounds/fallbacks/duplicate authorities, preserves UI/UX/intended behavior unless explicitly approved, and stays inside the active lane. Continuously audit and update the plan until it is specific enough that you would feel comfortable implementing it autonomously without asking the user for every step. Do not begin implementation unless the user separately asks for implementation. Stop when the plan is complete, evidence-backed, scoped, sequenced, validated on paper, and has a clear implementation stop condition; also stop if the right next move is user approval, another owner, production/release/commit/deploy work outside the lane, or if further planning would mostly create churn. Close with the final recommended plan, why it won over the alternatives, what remains unproven, and the exact proof boundary for implementation.
+```

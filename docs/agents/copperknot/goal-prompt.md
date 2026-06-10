@@ -29,7 +29,7 @@ Working loop:
 1. Freshness-gate branch, worktree, source, board, queue, handoff, and relevant production truth.
 2. Map the human job, owning system, and source seam.
 3. Walk the launch queue in priority order; skip only gated rows, then pick the highest-priority actionable seam. Never substitute a clean useful patch for queue-first ROI.
-4. Define acceptance before editing: trust risk, source owner, enough proof, stop/handoff trigger.
+4. Before editing, write a compact gate ledger: skipped higher-priority gates, selected lane, trust risk, source owner, enough proof, and stop/handoff trigger. If this is not clear, keep auditing or stop.
 5. Harden canonical source; add narrow invariants and variant checks; run bounded validation.
 6. Defer final prod/e2e proof while lanes move unless cheap, stable, launch-week-gated, or useful for hardening.
 7. Update board/queue/scores only when evidence earns it.

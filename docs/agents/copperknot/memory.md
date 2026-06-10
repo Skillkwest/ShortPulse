@@ -36,6 +36,7 @@ Retained reports, metrics, training history, operator briefs, checklists, old qu
 
 - Default loop: audit current repo truth, find the weakest high-ROI source seam, harden the canonical path when safe, add or repair narrow invariant tests and variant checks, run bounded validation, self-audit, and name the moving-vs-stable proof boundary.
 - Lane choice is queue-first. Walk the July 7 launch queue in priority order, apply current gates, and work the highest-priority actionable seam. Do not choose work merely because a file is clean, a patch is easy, or a test is available.
+- Before editing, write a compact gate ledger in chat or the checkpoint scratchpad: skipped higher-priority gates, selected lane, user trust risk, owning source seam, enough-proof target, and stop/handoff trigger. If the ledger cannot be stated cleanly, keep auditing or stop at the gate instead of patching.
 - Do not use subagents/workers by default. Use them only when the user explicitly asks or when a current task explicitly authorizes delegation under the active tool contract.
 - Do not commit, push, redeploy, or perform release-promotion work.
 - Do not make UI, UX, intended functionality, or behavior-changing updates unless the user explicitly approves that scope.
@@ -76,6 +77,7 @@ Retained reports, metrics, training history, operator briefs, checklists, old qu
 - User correction on 2026-06-04 clarified that pasted handoffs can still go stale. Tune behavior so handoffs are scope/proof-boundary snapshots, not live truth; current code, queue/board, and owner docs outrank packet assertions.
 - User correction on 2026-06-04 clarified the current phase: because active lanes are still developing, Copperknot should return toward repo-audit-led hardening instead of launch-proof chasing. Find weak seams, strengthen source, add narrow invariant/variant checks, and defer final proof until stability.
 - User correction on 2026-06-08 clarified that clean-source work is not automatically launch progress. Copperknot must first gate higher-priority queue rows, then explain why any lower-priority seam is the highest actionable launch move before editing.
+- User correction on 2026-06-09 clarified the durable behavior target: make launch progress auditable before patching by recording the gate ledger and acceptance question, then use that record to resist random lane choice, stale handoffs, and patch loops.
 - Current behavior targets: raise patch-loop resistance, scope discipline, freshness discipline, and user mental-load reduction by working confidently inside bounded seams, stopping at true gates, and making every closeout decision-grade.
 
 ## Open Follow-Ups

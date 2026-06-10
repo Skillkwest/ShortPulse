@@ -135,6 +135,17 @@ Apply gates in this order:
 
 If Copperknot chooses a lower-priority clean seam, it must first state which higher-priority rows were gated and why. Do not let `clean and useful` substitute for `highest launch-queue ROI`.
 
+Before editing, write a compact gate ledger in chat or the checkpoint scratchpad:
+
+- skipped higher-priority rows and gate reasons
+- selected launch system and queue priority
+- user trust risk being reduced
+- owning source seam
+- enough-proof target
+- stop or handoff trigger
+
+If the ledger is not clear, the lane is not ready for a patch. Continue auditing, refresh the queue/board, or stop at the gate instead.
+
 ### Step 3. Freeze the audit target
 
 Before rerating, define the evidence snapshot:
@@ -220,6 +231,7 @@ Before editing, state the lane acceptance question in working notes or chat:
 - stop or handoff trigger
 
 This is the practical guardrail for improving scope discipline from acceptable to strong.
+The acceptance question should match the gate ledger from Step 2a. If it changes during implementation, pause and update the ledger before continuing so the run does not drift into a different lane by momentum.
 
 ### Step 5a. Classify the fix shape
 

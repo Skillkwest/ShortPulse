@@ -350,6 +350,7 @@ export const useAiStudioPageGenerationRuntime = ({
       mode,
       selectedTool,
       model,
+      videoReferenceMode,
       setModel,
       projectId,
       isCharacterModeEnabled: resolveIsCharacterModeEnabledForTool(selectedTool),

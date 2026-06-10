@@ -424,7 +424,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-credit-inline .credit-value {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 600;
   color: #f8fcff;
 }
 
@@ -436,7 +436,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-credit-inline .credit-coin {
-  --credit-fill-degrees: 0deg;
+  --credit-spent-degrees: 360deg;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -468,10 +468,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   border-radius: 50%;
   background: conic-gradient(
     from -90deg,
-    #5be1ee 0deg,
-    #f05b82 var(--credit-fill-degrees),
-    rgba(223, 232, 245, 0.12) var(--credit-fill-degrees),
-    rgba(223, 232, 245, 0.12) 360deg
+    rgba(223, 232, 245, 0.12) 0deg,
+    rgba(223, 232, 245, 0.12) var(--credit-spent-degrees),
+    #5be1ee var(--credit-spent-degrees),
+    #f05b82 360deg
   );
 }
 

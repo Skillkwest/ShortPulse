@@ -2,7 +2,9 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { createInternalMediaRef } from "../../../../lib/media/internalMediaRefs";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
+import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import type { StudioOutput } from "../../types";
 import {
   CHARACTER_MODE_MISSING_REFERENCES_ERROR,
@@ -139,6 +141,32 @@ describe("useAiStudioGenerationController", () => {
 
     expect(regenerateOutput).toHaveBeenCalledTimes(2);
     expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledTimes(2);
+  });
+
+  it("routes Lip Sync regenerate through OmniHuman even when the selected model is stale Kling", async () => {
+    const regenerateOutput = vi.fn();
+    const setModel = vi.fn();
+    const params = createParams({
+      mode: "video",
+      selectedTool: "video",
+      model: KIE_KLING_30_MODEL_ID,
+      videoReferenceMode: "lip-sync",
+      setModel,
+      regenerateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleRegenerateWithDebit();
+    });
+
+    expect(setModel).toHaveBeenCalledWith(FAL_OMNIHUMAN_V15_MODEL_ID);
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedToolOverride: "video",
+        modelIdOverride: FAL_OMNIHUMAN_V15_MODEL_ID,
+      })
+    );
   });
 
   it("still blocks on non-cap guardrails while other props change", async () => {

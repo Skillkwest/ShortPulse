@@ -80,6 +80,9 @@ const {
   submitKieVeoImageToVideo,
 } = falClientMocks;
 
+const CANONICAL_MOTION_REFERENCE_URL =
+  "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/motion.mp4?token=fresh";
+
 const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmissionArgs => ({
   id: "out-1",
   finalModel: KIE_KLING_30_MODEL_ID,
@@ -95,7 +98,7 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
   startPollingWithGeneration: vi.fn(),
   videoReferenceMode: "motion",
   videoReferenceImageUrl: "https://example.com/character.png",
-  motionReferenceVideoUrl: "https://example.com/motion.mp4",
+  motionReferenceVideoUrl: CANONICAL_MOTION_REFERENCE_URL,
   videoCameraFixed: false,
   klingCfgScale: 0.5,
   klingWorkflowMode: "single",
@@ -107,6 +110,8 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
 });
 
 beforeEach(() => {
+  vi.mocked(fetchWithAuth).mockReset();
+  vi.mocked(getSignedMediaUrl).mockReset();
   videoUploadMocks.prepareMotionReferenceVideoUrlOverride = null;
 });
 
@@ -526,6 +531,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(submitKieKlingImageToVideo).mockResolvedValue({ request_id: "req-123" });
+    videoUploadMocks.prepareMotionReferenceVideoUrlOverride = vi.fn(async (url) => url);
     vi.mocked(getSignedMediaUrl).mockResolvedValue(
       "https://example.com/signed/motion-refreshed.mp4"
     );
@@ -546,8 +552,8 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       image_url: "https://example.com/character.png",
       image_urls: ["https://example.com/character.png"],
       input_urls: ["https://example.com/character.png"],
-      video_url: "https://example.com/motion.mp4",
-      video_urls: ["https://example.com/motion.mp4"],
+      video_url: CANONICAL_MOTION_REFERENCE_URL,
+      video_urls: [CANONICAL_MOTION_REFERENCE_URL],
       resolution: "1080p",
       mode: "1080p",
       generate_audio: false,
@@ -674,18 +680,26 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     const expSoon = Math.floor(Date.now() / 1000) + 60;
     const payload = Buffer.from(
       JSON.stringify({
-        url: "media_library/user-1/videos/motion.mp4",
+        url: "media_library/user-1/videos/motion-control/motion.mp4",
         exp: expSoon,
       })
     ).toString("base64url");
     const token = `header.${payload}.sig`;
     const signedUrl =
-      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion.mp4" +
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/motion.mp4" +
       `?token=${token}`;
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
       motionReferenceVideoUrl: signedUrl,
+    });
+    videoUploadMocks.prepareMotionReferenceVideoUrlOverride = vi.fn(async () => {
+      const refreshed = await getSignedMediaUrl({
+        bucket: "media_library",
+        storagePath: "user-1/videos/motion-control/motion.mp4",
+        forceRefresh: true,
+      });
+      return refreshed;
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -693,7 +707,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     expect(handled).toBe(true);
     expect(getSignedMediaUrl).toHaveBeenCalledWith({
       bucket: "media_library",
-      storagePath: "user-1/videos/motion.mp4",
+      storagePath: "user-1/videos/motion-control/motion.mp4",
       forceRefresh: true,
     });
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
@@ -710,15 +724,16 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     const expSoon = Math.floor(Date.now() / 1000) + 60;
     const payload = Buffer.from(
       JSON.stringify({
-        url: "media_library/user-1/videos/motion.mp4",
+        url: "media_library/user-1/videos/motion-control/motion.mp4",
         exp: expSoon,
       })
     ).toString("base64url");
     const token = `header.${payload}.sig`;
     const signedUrl =
-      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion.mp4" +
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/motion.mp4" +
       `?token=${token}`;
     vi.mocked(getSignedMediaUrl).mockResolvedValueOnce(null);
+    videoUploadMocks.prepareMotionReferenceVideoUrlOverride = vi.fn(async () => null);
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
@@ -1414,6 +1429,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(submitKieKlingImageToVideo).mockResolvedValue({ request_id: "kie-kling-std-1" });
+    vi.mocked(fetchWithAuth).mockReset();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(
@@ -1784,13 +1800,14 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
   });
 
   it("submits Kling motion-control without standard-video aspect fields", async () => {
+    videoUploadMocks.prepareMotionReferenceVideoUrlOverride = vi.fn(async (url) => url);
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
       videoReferenceMode: "motion",
       aspect: "9:16",
       videoReferenceImageUrl: "https://example.com/character.png",
-      motionReferenceVideoUrl: "https://example.com/motion.mp4",
+      motionReferenceVideoUrl: CANONICAL_MOTION_REFERENCE_URL,
       preparedImageInputs: ["https://example.com/character.png"],
       requestedResolution: "720p",
     });
@@ -1802,7 +1819,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       expect.objectContaining({
         resolution: "720p",
         image_url: "https://example.com/character.png",
-        video_url: "https://example.com/motion.mp4",
+        video_url: CANONICAL_MOTION_REFERENCE_URL,
       })
     );
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalledWith(

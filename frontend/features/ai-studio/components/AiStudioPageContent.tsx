@@ -243,7 +243,7 @@ const CreditFillCoin = ({
     fillRatio == null
       ? undefined
       : ({
-          "--credit-fill-degrees": `${Math.round(fillRatio * 36000) / 100}deg`,
+          "--credit-spent-degrees": `${Math.round((1 - fillRatio) * 36000) / 100}deg`,
         } as React.CSSProperties);
 
   return (

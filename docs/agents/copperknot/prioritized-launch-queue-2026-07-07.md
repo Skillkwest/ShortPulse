@@ -12,7 +12,7 @@ Preserve the current UI, UX, and intended behavior as the default. Major visible
 
 During rolling weakness audit mode, the `Done proof` column may name the next source-hardening or bounded-validation boundary, not final production readiness. Defer production/user-journey proof for moving lanes unless the lane is stable, launch-week gated, or the check is cheap, non-mutating, and directly informs hardening.
 
-Current freshness note: as of `2026-06-08`, the dirty worktree is active Video workflow WIP, not the older Gear Ball batching snapshot. Bounded local validation now covers Video Lip Sync / hidden Omnihuman route-model-payload-session guardrails and Kie/Seedance shot-mode cleanup, but this is local worktree proof only. Do not treat it as production readiness until the batch is committed/deployed and production-safe checks are rerun.
+Current freshness note: as of `2026-06-10`, the user has deployed and the local worktree no longer shows the prior broad Video/Sound app-code WIP as the active dirty boundary. Post-deploy production checks confirm route parity, public entry availability, canonical recovery callback generation, and unauthenticated fail-closed behavior for selected account/Fal routes. Local post-deploy validation converged Fal route inventory, media rendering guardrails, touched type-check, and focused Fal/media/Video tests. Treat this as production route/fail-closed proof plus local validation proof only; it still does not prove authenticated customer workflows, storage SQL/derivative posture, recovery/settlement lifecycle, or credit-consuming generation.
 
 ## Queue
 

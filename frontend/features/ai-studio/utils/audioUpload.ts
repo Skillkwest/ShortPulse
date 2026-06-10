@@ -1,6 +1,6 @@
 /**
  * Audio upload utility for AI Studio local reference durability.
- * Stages blob/data audio through a dedicated authenticated audio upload adapter.
+ * Stages blob/data audio through the canonical authenticated Media Library upload path.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
@@ -121,26 +121,30 @@ export const uploadAudioBlobToStorage = async (
   const randomString = Math.random().toString(36).substring(7);
   const filename = `reference-audio-${timestamp}-${randomString}.${inferExtension(mimeType)}`;
 
-  const uploadResponse = await fetchWithAuth("/api/upload-audio", {
+  const uploadResponse = await fetchWithAuth("/api/media/upload", {
     method: "POST",
     headers: {
       "Content-Type": mimeType,
       "x-shortpulse-upload-filename": filename,
+      "x-shortpulse-upload-destination-tab": "uploaded_videos",
     },
     body: blob,
   });
 
   const payload = (await uploadResponse.json().catch(() => null)) as {
-    url?: unknown;
-    path?: unknown;
-    size?: unknown;
-    mimeType?: unknown;
+    file?: {
+      signedUrl?: unknown;
+      storage_path?: unknown;
+      file_size?: unknown;
+      file_type?: unknown;
+    };
     error?: unknown;
     details?: unknown;
   } | null;
-  const path = typeof payload?.path === "string" ? payload.path.trim() : "";
-  const url = typeof payload?.url === "string" ? payload.url.trim() : "";
-  const size = typeof payload?.size === "number" ? payload.size : blob.size;
+  const file = payload?.file;
+  const path = typeof file?.storage_path === "string" ? file.storage_path.trim() : "";
+  const url = typeof file?.signedUrl === "string" ? file.signedUrl.trim() : "";
+  const size = typeof file?.file_size === "number" ? file.file_size : blob.size;
   if (!uploadResponse.ok || !path || !url) {
     const errorMessage =
       typeof payload?.details === "string" && payload.details.trim().length
@@ -155,7 +159,7 @@ export const uploadAudioBlobToStorage = async (
     url,
     path,
     size: Number.isFinite(size) ? size : blob.size,
-    mimeType: typeof payload?.mimeType === "string" ? payload.mimeType : mimeType,
+    mimeType,
   };
 };
 

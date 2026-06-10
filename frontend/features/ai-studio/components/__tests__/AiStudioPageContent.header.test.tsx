@@ -269,7 +269,7 @@ describe("AiStudioPageContent header project name", () => {
     expect(screen.getByText("Credits")).toBeInTheDocument();
     expect(screen.getByText("9,748 / 10,000")).toBeInTheDocument();
     expect(coin).toHaveAttribute("data-fill-state", "ready");
-    expect(coin.getAttribute("style")).toContain("--credit-fill-degrees: 350.93deg");
+    expect(coin.getAttribute("style")).toContain("--credit-spent-degrees: 9.07deg");
   });
 
   it("keeps the fraction label shape when the total is unavailable", () => {
@@ -300,7 +300,7 @@ describe("AiStudioPageContent header project name", () => {
 
     expect(screen.getByText("12,000 / 10,000")).toBeInTheDocument();
     expect(coin).toHaveAttribute("data-fill-state", "ready");
-    expect(coin.getAttribute("style")).toContain("--credit-fill-degrees: 360deg");
+    expect(coin.getAttribute("style")).toContain("--credit-spent-degrees: 0deg");
   });
 
   it("renders the active project name in the centered header area", () => {

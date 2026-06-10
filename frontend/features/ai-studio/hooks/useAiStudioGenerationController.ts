@@ -19,7 +19,14 @@ import {
 import { runGenerationCharacterPreparation } from "./generationCharacterPreparation";
 import { runGenerationCreditGuardrail } from "./generationCreditGuardrail";
 import { resolveSubmissionModeForModelId } from "./taskSubmission/outputBootstrap";
-import type { StudioMode, StudioOutput, StudioOutputSubmissionMode, ToolId } from "../types";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
+import type {
+  StudioMode,
+  StudioOutput,
+  StudioOutputSubmissionMode,
+  ToolId,
+  VideoReferenceMode,
+} from "../types";
 
 type GenerateOptions = {
   modeOverride?: StudioMode;
@@ -44,11 +51,13 @@ type RegenerateWithDebitOptions = ExpertEditRegenerateOptions &
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
+const isVideoSubmitTool = (tool: ToolId | null): boolean => tool === "video" || tool === "kling";
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   model: string | null;
+  videoReferenceMode?: VideoReferenceMode;
   setModel: (value: string | null) => void;
   projectId?: string | null;
   isCharacterModeEnabled: boolean;
@@ -114,6 +123,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   mode,
   selectedTool,
   model,
+  videoReferenceMode = "standard",
   setModel,
   projectId = null,
   isCharacterModeEnabled,
@@ -175,6 +185,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 
   const resolveEffectiveSubmitModelId = useCallback(
     (tool: ToolId | null): string | null => {
+      if (isVideoSubmitTool(tool) && videoReferenceMode === "lip-sync") {
+        return FAL_OMNIHUMAN_V15_MODEL_ID;
+      }
       if (!isCreateTool(tool)) return model;
       const characterModeEnabledForTool = resolveIsCharacterModeEnabledForTool
         ? resolveIsCharacterModeEnabledForTool(tool)
@@ -184,7 +197,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         isCharacterModeEnabled: characterModeEnabledForTool,
       });
     },
-    [isCharacterModeEnabled, model, resolveIsCharacterModeEnabledForTool]
+    [isCharacterModeEnabled, model, resolveIsCharacterModeEnabledForTool, videoReferenceMode]
   );
   const resolveUserReferenceInputsForTool = useCallback(
     (tool: ToolId | null): string[] => {

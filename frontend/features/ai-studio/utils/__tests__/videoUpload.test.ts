@@ -27,6 +27,7 @@ vi.mock("../../../../lib/supabaseClient", () => ({
 
 import {
   needsMotionReferenceVideoProviderNormalization,
+  prepareMotionReferenceVideoUrl,
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
 } from "../videoUpload";
@@ -216,7 +217,59 @@ describe("videoUpload", () => {
     });
   });
 
-  it("requires provider normalization for hosted WebM motion-reference URLs", () => {
+  it("normalizes hosted MP4 URLs that have not already passed through Motion Control storage", async () => {
+    const remoteBlob = new Blob(["remote-mp4"], { type: "video/mp4" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        blob: async () => remoteBlob,
+      }))
+    );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/videos/motion-control/ref.mp4",
+            uploadToken: "upload-token",
+            mimeType: "video/mp4",
+            name: "motion-reference.mp4",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/ref.mp4?token=fresh",
+          path: "user-1/videos/motion-control/ref.mp4",
+          size: 2048,
+          mimeType: "video/mp4",
+          name: "motion-reference.mp4",
+        })
+      );
+
+    const prepared = await prepareMotionReferenceVideoUrl(
+      "https://cdn.example.com/library/motion-reference.mp4"
+    );
+
+    expect(prepared).toBe(
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/ref.mp4?token=fresh"
+    );
+    expect(JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      sourceMimeType: "video/mp4",
+      sourceName: expect.stringMatching(/^motion-reference-\d+-[a-z0-9]+\.mp4$/),
+    });
+    expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/upload-staging/videos/motion-control/ref.mp4",
+      "upload-token",
+      remoteBlob,
+      expect.objectContaining({
+        contentType: "video/mp4",
+        upsert: false,
+      })
+    );
+  });
+
+  it("requires provider normalization for non-canonical hosted motion-reference URLs", () => {
     expect(
       needsMotionReferenceVideoProviderNormalization("https://signed.example/motion-reference.webm")
     ).toBe(true);
@@ -227,9 +280,14 @@ describe("videoUpload", () => {
     ).toBe(true);
     expect(
       needsMotionReferenceVideoProviderNormalization("https://signed.example/motion-reference.mp4")
-    ).toBe(false);
+    ).toBe(true);
     expect(
       needsMotionReferenceVideoProviderNormalization("https://signed.example/motion-reference.mov")
+    ).toBe(true);
+    expect(
+      needsMotionReferenceVideoProviderNormalization(
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/ref.mp4?token=fresh"
+      )
     ).toBe(false);
   });
 });

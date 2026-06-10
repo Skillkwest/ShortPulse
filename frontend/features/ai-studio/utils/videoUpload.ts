@@ -29,11 +29,6 @@ const MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS = 12_000;
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 const MOTION_REFERENCE_PROVIDER_READY_VIDEO_EXTENSIONS = new Set(["mp4", "mov"]);
 const MOTION_REFERENCE_NORMALIZABLE_VIDEO_EXTENSIONS = new Set(["m4v", "ogg", "ogv", "webm"]);
-const MOTION_REFERENCE_NORMALIZABLE_VIDEO_MIME_TYPES = new Set([
-  "video/ogg",
-  "video/webm",
-  "video/x-m4v",
-]);
 const VIDEO_MIME_TYPE_BY_EXTENSION = new Map<string, string>([
   ["m4v", "video/x-m4v"],
   ["mov", "video/quicktime"],
@@ -448,15 +443,20 @@ export const needsMotionReferenceVideoProviderNormalization = (url: string | nul
   if (!url) return false;
   const normalized = url.trim();
   if (!normalized) return false;
+  // Only the Motion Control namespace proves the server has transcoded this into provider-safe MP4.
+  if (resolveMotionReferenceVideoStoragePathFromUrl(normalized)) return false;
   const extension = readVideoUrlExtension(normalized);
   if (extension && MOTION_REFERENCE_NORMALIZABLE_VIDEO_EXTENSIONS.has(extension)) {
     return true;
   }
-  if (extension && !MOTION_REFERENCE_PROVIDER_READY_VIDEO_EXTENSIONS.has(extension)) {
+  if (extension && MOTION_REFERENCE_PROVIDER_READY_VIDEO_EXTENSIONS.has(extension)) {
+    return true;
+  }
+  if (extension) {
     return false;
   }
   const mimeHint = readExplicitVideoMimeHint(normalized);
-  return Boolean(mimeHint && MOTION_REFERENCE_NORMALIZABLE_VIDEO_MIME_TYPES.has(mimeHint));
+  return Boolean(mimeHint?.startsWith("video/"));
 };
 
 /**

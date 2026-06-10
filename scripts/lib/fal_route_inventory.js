@@ -162,6 +162,7 @@ const listExpectedFalRouteFiles = () =>
       `${entry.fileBase}-submit.ts`,
       `${entry.fileBase}-status.ts`,
     ]),
+    "upload-url.ts",
     "webhook.ts",
   ].sort((a, b) => a.localeCompare(b));
 

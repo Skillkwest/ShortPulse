@@ -66,6 +66,18 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
    Plain sessions must not fall back to user-global generated-output startup
    hydration when the workspace runtime key is absent.
 
+## Lifecycle Versus Visibility Contract
+
+Authority reference: `docs/adr/0091-generation-provider-lifecycle-vs-reference-visibility.md`.
+
+1. Provider-accepted jobs remain recoverable until provider terminal success, provider terminal failure, or confirmed provider cancellation.
+2. Browser navigation, refresh, project switch, page close, and session cleanup must not mark active provider-backed jobs failed, exhausted, or abandoned.
+3. `/api/generation/abandon` is a compatibility route for explicit Reference Grid visibility suppression only. It must not set `ai_generations.status='fail'`, `failure_reason_code='user_abandoned'`, `recovery_state='exhausted'`, or `generation_attempts.status='abandoned'`.
+4. `generation_abandonments` and old `user_abandoned` metadata are legacy local evidence. They are not provider-cancel proof.
+5. Provider terminal success may recover legacy `fail/user_abandoned` rows through the shared recovery engine when provider media is present and no real provider failure/cancel marker exists.
+6. Provider terminal failure must converge to a project-visible error reference unless that output has explicit Reference Grid suppression metadata.
+7. Project reopen reconcile should include project-bound recoverable rows from `project_generation_items`, `generation_projection.project_id`, and generation metadata project context, including hidden legacy rows.
+
 ## Credit Settlement Invariants
 
 1. Reserve before submit:

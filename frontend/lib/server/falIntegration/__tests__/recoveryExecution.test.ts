@@ -1073,6 +1073,103 @@ describe("executeGenerationRecovery", () => {
     );
   });
 
+  it("recovers legacy user-abandoned provider success into visible project media", async () => {
+    const scenario = createAiGenerationsAdmin(
+      [
+        {
+          ...baseGenerationRow,
+          status: "fail",
+          failure_reason_code: "user_abandoned",
+          recovery_state: "exhausted",
+          metadata: {
+            existing: true,
+            user_abandoned: true,
+            abandoned_no_refund: true,
+            hidden_in_reference_grid: true,
+            source_ref: "source-ref-1",
+            shortpulse_context: { project_id: "project-1" },
+          },
+        },
+      ],
+      {
+        abandonmentRow: {
+          no_refund: true,
+        },
+      }
+    );
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+
+    const result = await executeGenerationRecovery({
+      actor: "user_reconcile",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+        mediaFileIds: ["media-1"],
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        generationOutputId: "output-1",
+        publicationState: "published",
+        visibleInReferenceGrid: true,
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        projectId: "project-1",
+        taskState: "success",
+        publicationState: "published",
+        hiddenInReferenceGrid: false,
+        referenceGridVisible: true,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+        detail: expect.objectContaining({
+          user_abandoned: false,
+          legacy_user_abandonment_ignored: true,
+        }),
+      })
+    );
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "success",
+        recovery_state: "recovered",
+        metadata: expect.objectContaining({
+          existing: true,
+          legacy_abandonment_recovery_actor: "user_reconcile",
+        }),
+      })
+    );
+    expect(asObject(scenario.updatePayloads[0]?.metadata)).not.toHaveProperty("user_abandoned");
+    expect(asObject(scenario.updatePayloads[0]?.metadata)).not.toHaveProperty(
+      "hidden_in_reference_grid"
+    );
+  });
+
   it("keeps recovered success settled when publication persistence fails", async () => {
     const scenario = createAiGenerationsAdmin([
       {
@@ -1790,6 +1887,74 @@ describe("executeGenerationRecovery", () => {
         publicationState: "suppressed",
         hiddenInReferenceGrid: true,
         referenceGridVisible: false,
+      })
+    );
+    expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();
+  });
+
+  it("shows legacy user-abandoned provider failures as project error references", async () => {
+    const scenario = createAiGenerationsAdmin(
+      [
+        {
+          ...baseGenerationRow,
+          status: "fail",
+          failure_reason_code: "user_abandoned",
+          recovery_state: "exhausted",
+          metadata: {
+            existing: true,
+            user_abandoned: true,
+            abandoned_no_refund: true,
+            hidden_in_reference_grid: true,
+            source_ref: "source-ref-1",
+            shortpulse_context: { project_id: "project-1" },
+          },
+        },
+      ],
+      {
+        abandonmentRow: {
+          no_refund: true,
+        },
+      }
+    );
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "user_reconcile",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "failed",
+        payload: { error: "Provider failed while user was away" },
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "provider_failed",
+        processed: true,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
+        abandonedNoRefund: false,
+        detail: expect.objectContaining({
+          user_abandoned: false,
+          legacy_user_abandonment_ignored: true,
+        }),
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        projectId: "project-1",
+        taskState: "fail",
+        publicationState: "suppressed",
+        hiddenInReferenceGrid: false,
+        referenceGridVisible: true,
+        errorDetail: "Provider failed while user was away",
       })
     );
     expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();

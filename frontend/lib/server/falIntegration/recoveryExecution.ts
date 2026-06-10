@@ -10,7 +10,10 @@ import {
   readPersistedGenerationOutputs,
   type PersistedGenerationOutputRow,
 } from "../api/generationOutputs";
-import { readGenerationAbandonmentContext } from "../api/generationAbandonment";
+import {
+  readGenerationAbandonmentContext,
+  type GenerationAbandonmentContext,
+} from "../api/generationAbandonment";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import {
@@ -100,6 +103,12 @@ type ExecuteRecoveryInput = {
   routeLabel: string;
 };
 
+type RecoveryTerminalAbandonmentPolicy = {
+  abandonment: GenerationAbandonmentContext;
+  metadata: JsonObject;
+  ignoredLegacyAbandonment: boolean;
+};
+
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
 
@@ -117,6 +126,65 @@ const readMetadataObject = (metadata: JsonObject, ...keys: string[]): JsonObject
     }
   }
   return {};
+};
+
+const clearLegacyLocalAbandonmentMetadata = ({
+  actor,
+  metadata,
+  nowIso,
+}: {
+  actor: RecoveryActor;
+  metadata: JsonObject;
+  nowIso: string;
+}): JsonObject => {
+  const remaining = { ...metadata };
+  delete remaining.user_abandoned;
+  delete remaining.abandoned_no_refund;
+  delete remaining.abandoned_at;
+  delete remaining.abandon_reason;
+  delete remaining.no_refund;
+  delete remaining.hidden_in_reference_grid;
+  delete remaining.hiddenInReferenceGrid;
+  return {
+    ...remaining,
+    legacy_abandonment_recovered_at: nowIso,
+    legacy_abandonment_recovery_actor: actor,
+  };
+};
+
+const resolveTerminalAbandonmentPolicy = ({
+  actor,
+  abandonment,
+  generation,
+  metadata,
+  nowIso,
+}: {
+  actor: RecoveryActor;
+  abandonment: GenerationAbandonmentContext;
+  generation: {
+    failure_reason_code: string | null;
+  };
+  metadata: JsonObject;
+  nowIso: string;
+}): RecoveryTerminalAbandonmentPolicy => {
+  const isLegacyLocalAbandonment =
+    abandonment.abandoned &&
+    asOptionalString(generation.failure_reason_code)?.toLowerCase() === "user_abandoned" &&
+    metadata.reference_grid_suppressed !== true;
+
+  if (!isLegacyLocalAbandonment) {
+    return {
+      abandonment,
+      metadata,
+      ignoredLegacyAbandonment: false,
+    };
+  }
+
+  return {
+    abandonment: { abandoned: false, noRefund: false, source: null },
+    metadata: clearLegacyLocalAbandonmentMetadata({ actor, metadata, nowIso }),
+    ignoredLegacyAbandonment: true,
+  };
 };
 
 const resolveGenerationAgeSeconds = (createdAtIso: string, now: Date): number => {
@@ -332,17 +400,20 @@ const logBestEffortRecoveryPublicationFailure = async ({
 };
 
 const syncRecoveredGenerationProjection = async ({
+  abandonmentOverride,
   actor,
   autosaveDecision,
   autosaveDecisionReason,
   autosavePreferenceLookupMessage,
   generation,
+  metadataOverride,
   mediaFileIds,
   nowIso,
   persistedOutputRows,
   recoveredUrls,
   routeLabel,
 }: {
+  abandonmentOverride?: GenerationAbandonmentContext | null;
   actor: RecoveryActor;
   autosaveDecision: "autosave_skipped" | "auto_persisted";
   autosaveDecisionReason: string;
@@ -357,20 +428,23 @@ const syncRecoveredGenerationProjection = async ({
     created_at: string;
     metadata: JsonObject;
   };
+  metadataOverride?: JsonObject | null;
   mediaFileIds: string[];
   nowIso: string;
   persistedOutputRows?: PersistedGenerationOutputRow[] | null;
   recoveredUrls: string[];
   routeLabel: string;
 }): Promise<void> => {
-  const generationMetadata = asObject(generation.metadata);
-  const abandonment = await readGenerationAbandonmentContext({
-    userId: generation.user_id,
-    generationId: generation.id,
-    requestId: generation.request_id,
-    sourceRef: asOptionalString(generationMetadata?.source_ref),
-    metadata: generationMetadata,
-  });
+  const generationMetadata = asObject(metadataOverride ?? generation.metadata);
+  const abandonment =
+    abandonmentOverride ??
+    (await readGenerationAbandonmentContext({
+      userId: generation.user_id,
+      generationId: generation.id,
+      requestId: generation.request_id,
+      sourceRef: asOptionalString(generationMetadata?.source_ref),
+      metadata: generationMetadata,
+    }));
   const { projectId } = await syncTerminalSuccessViewState({
     generation: {
       ...generation,
@@ -441,14 +515,17 @@ const syncRecoveredGenerationProjection = async ({
 };
 
 const syncFailedGenerationProjection = async ({
+  abandonmentOverride,
   actor,
   completedAt,
   errorDetail,
   errorMessage,
   errorMessageShort,
   generation,
+  metadataOverride,
   routeLabel,
 }: {
+  abandonmentOverride?: GenerationAbandonmentContext | null;
   actor: RecoveryActor;
   completedAt: string;
   errorDetail: string;
@@ -464,16 +541,19 @@ const syncFailedGenerationProjection = async ({
     created_at: string;
     metadata: JsonObject;
   };
+  metadataOverride?: JsonObject | null;
   routeLabel: string;
 }): Promise<void> => {
-  const generationMetadata = asObject(generation.metadata);
-  const abandonment = await readGenerationAbandonmentContext({
-    userId: generation.user_id,
-    generationId: generation.id,
-    requestId: generation.request_id,
-    sourceRef: asOptionalString(generationMetadata?.source_ref),
-    metadata: generationMetadata,
-  });
+  const generationMetadata = asObject(metadataOverride ?? generation.metadata);
+  const abandonment =
+    abandonmentOverride ??
+    (await readGenerationAbandonmentContext({
+      userId: generation.user_id,
+      generationId: generation.id,
+      requestId: generation.request_id,
+      sourceRef: asOptionalString(generationMetadata?.source_ref),
+      metadata: generationMetadata,
+    }));
 
   await syncTerminalFailureViewState({
     generation: {
@@ -548,11 +628,20 @@ export const executeGenerationRecovery = async ({
     sourceRef: asOptionalString(generationMetadata.source_ref),
     metadata: generationMetadata,
   });
+  const terminalAbandonmentPolicy = resolveTerminalAbandonmentPolicy({
+    actor,
+    abandonment,
+    generation,
+    metadata: generationMetadata,
+    nowIso,
+  });
   const settleRecoveryOutcome = async (input: {
     outcome: "success" | "fail";
     reason: string;
     detail: JsonObject;
+    abandonmentOverride?: GenerationAbandonmentContext;
   }) => {
+    const settlementAbandonment = input.abandonmentOverride ?? abandonment;
     const settlement = await settleGenerationOutcome({
       userId: generation.user_id,
       providerRequestId: generation.request_id ?? "",
@@ -561,9 +650,15 @@ export const executeGenerationRecovery = async ({
       routeLabel,
       detail: {
         ...input.detail,
-        user_abandoned: abandonment.abandoned,
+        user_abandoned: settlementAbandonment.abandoned,
+        legacy_user_abandonment_ignored:
+          input.abandonmentOverride === terminalAbandonmentPolicy.abandonment &&
+          terminalAbandonmentPolicy.ignoredLegacyAbandonment,
       },
-      abandonedNoRefund: input.outcome === "fail" && abandonment.abandoned && abandonment.noRefund,
+      abandonedNoRefund:
+        input.outcome === "fail" &&
+        settlementAbandonment.abandoned &&
+        settlementAbandonment.noRefund,
     });
     if (!settlement.settled) {
       throw new Error(`Generation billing settlement did not complete: ${settlement.note}`);
@@ -580,6 +675,7 @@ export const executeGenerationRecovery = async ({
       await settleRecoveryOutcome({
         outcome: "success",
         reason: "Recovered generation media already persisted.",
+        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         detail: {
           actor,
           generation_id: generation.id,
@@ -587,10 +683,12 @@ export const executeGenerationRecovery = async ({
         },
       });
       await syncRecoveredGenerationProjection({
+        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         actor,
         autosaveDecision: "auto_persisted",
         autosaveDecisionReason: "existing_recovery_media_rows",
         generation,
+        metadataOverride: terminalAbandonmentPolicy.metadata,
         mediaFileIds: existingRows.map((row) => row.id),
         nowIso: generation.completed_at ?? nowIso,
         persistedOutputRows,
@@ -656,6 +754,7 @@ export const executeGenerationRecovery = async ({
     await settleRecoveryOutcome({
       outcome: "success",
       reason: "Recovered generation media already persisted.",
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       detail: {
         actor,
         generation_id: generation.id,
@@ -663,10 +762,12 @@ export const executeGenerationRecovery = async ({
       },
     });
     await syncRecoveredGenerationProjection({
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       actor,
       autosaveDecision: "auto_persisted",
       autosaveDecisionReason: "existing_recovery_media_rows",
       generation,
+      metadataOverride: terminalAbandonmentPolicy.metadata,
       mediaFileIds: existingRows.map((row) => row.id),
       nowIso,
       persistedOutputRows,
@@ -924,18 +1025,21 @@ export const executeGenerationRecovery = async ({
     await settleRecoveryOutcome({
       outcome: "fail",
       reason: failureMessage,
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       detail: {
         actor,
         generation_id: generation.id,
       },
     });
     await syncFailedGenerationProjection({
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       actor,
       completedAt: nowIso,
       errorDetail: failureMessage,
       errorMessage: explicitContentFailure?.errorMessage ?? "Generation failed.",
       errorMessageShort: failureShortMessage,
       generation,
+      metadataOverride: terminalAbandonmentPolicy.metadata,
       routeLabel,
     });
     await applyRecoveryTransition({
@@ -988,18 +1092,21 @@ export const executeGenerationRecovery = async ({
       await settleRecoveryOutcome({
         outcome: "fail",
         reason: "Provider terminal success without media payload.",
+        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         detail: {
           actor,
           generation_id: generation.id,
         },
       });
       await syncFailedGenerationProjection({
+        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         actor,
         completedAt: nowIso,
         errorDetail: "Provider terminal success without media payload.",
         errorMessage: "Generation failed.",
         errorMessageShort: "No media returned.",
         generation,
+        metadataOverride: terminalAbandonmentPolicy.metadata,
         routeLabel,
       });
     }
@@ -1084,6 +1191,7 @@ export const executeGenerationRecovery = async ({
     await settleRecoveryOutcome({
       outcome: "success",
       reason: "Generation recovered; autosave skipped by user preference.",
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       detail: {
         actor,
         generation_id: generation.id,
@@ -1095,11 +1203,13 @@ export const executeGenerationRecovery = async ({
       },
     });
     await syncRecoveredGenerationProjection({
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       actor,
       autosaveDecision: "autosave_skipped",
       autosaveDecisionReason: autosavePolicyDecision.reason,
       autosavePreferenceLookupMessage,
       generation,
+      metadataOverride: terminalAbandonmentPolicy.metadata,
       mediaFileIds: [],
       nowIso,
       persistedOutputRows,
@@ -1121,8 +1231,8 @@ export const executeGenerationRecovery = async ({
       generationUpdates: buildRecoveredSuccessUpdate({
         nowIso,
         metadata: applyTerminalAbandonmentMetadata({
-          metadata: asObject(generation.metadata),
-          abandonment,
+          metadata: terminalAbandonmentPolicy.metadata,
+          abandonment: terminalAbandonmentPolicy.abandonment,
         }),
         actor,
         autosaveEnabled: mediaAutosaveEnabled,
@@ -1190,6 +1300,7 @@ export const executeGenerationRecovery = async ({
       await settleRecoveryOutcome({
         outcome: "success",
         reason: "Generation recovered; media save blocked because storage is full.",
+        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         detail: {
           actor,
           generation_id: generation.id,
@@ -1201,10 +1312,12 @@ export const executeGenerationRecovery = async ({
         },
       });
       await syncRecoveredGenerationProjection({
+        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         actor,
         autosaveDecision: "autosave_skipped",
         autosaveDecisionReason,
         generation,
+        metadataOverride: terminalAbandonmentPolicy.metadata,
         mediaFileIds: [],
         nowIso,
         persistedOutputRows,
@@ -1241,8 +1354,8 @@ export const executeGenerationRecovery = async ({
         generationUpdates: buildRecoveredSuccessUpdate({
           nowIso,
           metadata: applyTerminalAbandonmentMetadata({
-            metadata: asObject(generation.metadata),
-            abandonment,
+            metadata: terminalAbandonmentPolicy.metadata,
+            abandonment: terminalAbandonmentPolicy.abandonment,
           }),
           actor,
           autosaveEnabled: mediaAutosaveEnabled,
@@ -1287,6 +1400,7 @@ export const executeGenerationRecovery = async ({
     await settleRecoveryOutcome({
       outcome: "fail",
       reason: failureMessage,
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       detail: {
         actor,
         generation_id: generation.id,
@@ -1294,12 +1408,14 @@ export const executeGenerationRecovery = async ({
       },
     }).catch(() => undefined);
     await syncFailedGenerationProjection({
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       actor,
       completedAt: nowIso,
       errorDetail: failureMessage,
       errorMessage: "Generation failed.",
       errorMessageShort: "Generation failed",
       generation,
+      metadataOverride: terminalAbandonmentPolicy.metadata,
       routeLabel,
     }).catch(() => undefined);
     await applyRecoveryTransition({
@@ -1351,10 +1467,10 @@ export const executeGenerationRecovery = async ({
       recovery_execution: true,
     },
   });
-  const metadata = asObject(generation.metadata);
   await settleRecoveryOutcome({
     outcome: "success",
     reason: "Generation recovered with persisted media.",
+    abandonmentOverride: terminalAbandonmentPolicy.abandonment,
     detail: {
       actor,
       generation_id: generation.id,
@@ -1366,11 +1482,13 @@ export const executeGenerationRecovery = async ({
     },
   });
   await syncRecoveredGenerationProjection({
+    abandonmentOverride: terminalAbandonmentPolicy.abandonment,
     actor,
     autosaveDecision: "auto_persisted",
     autosaveDecisionReason: autosavePolicyDecision.reason,
     autosavePreferenceLookupMessage,
     generation,
+    metadataOverride: terminalAbandonmentPolicy.metadata,
     mediaFileIds,
     nowIso,
     persistedOutputRows,
@@ -1406,8 +1524,8 @@ export const executeGenerationRecovery = async ({
     generationUpdates: buildRecoveredSuccessUpdate({
       nowIso,
       metadata: applyTerminalAbandonmentMetadata({
-        metadata,
-        abandonment,
+        metadata: terminalAbandonmentPolicy.metadata,
+        abandonment: terminalAbandonmentPolicy.abandonment,
       }),
       actor,
       autosaveEnabled: mediaAutosaveEnabled,

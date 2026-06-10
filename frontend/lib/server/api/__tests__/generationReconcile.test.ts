@@ -165,7 +165,7 @@ describe("generationReconcile", () => {
     );
   });
 
-  it("reconciles visible in-flight generations by owned project when the client has no runtime identities", async () => {
+  it("reconciles project-bound in-flight generations even when projection visibility is hidden", async () => {
     const associationBuilder = createGenerationSelectBuilder([
       { generation_id: "generation-associated", updated_at: "2026-06-08T00:03:00.000Z" },
     ]);
@@ -224,22 +224,87 @@ describe("generationReconcile", () => {
     expect(associatedProjectionBuilder.in).toHaveBeenCalledWith("generation_id", [
       "generation-associated",
     ]);
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(2);
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(3);
     expect(executeGenerationRecoveryMock).toHaveBeenNthCalledWith(1, {
+      actor: "user_reconcile",
+      generationId: "generation-hidden",
+      requestId: "request-hidden",
+      userId: "user-1",
+      routeLabel: "generation.reconcile",
+    });
+    expect(executeGenerationRecoveryMock).toHaveBeenNthCalledWith(2, {
       actor: "user_reconcile",
       generationId: "generation-associated",
       requestId: "request-associated",
       userId: "user-1",
       routeLabel: "generation.reconcile",
     });
-    expect(executeGenerationRecoveryMock).toHaveBeenNthCalledWith(2, {
+    expect(executeGenerationRecoveryMock).toHaveBeenNthCalledWith(3, {
       actor: "user_reconcile",
       generationId: "generation-direct",
       requestId: "request-direct",
       userId: "user-1",
       routeLabel: "generation.reconcile",
     });
-    expect(result.attempted).toBe(2);
+    expect(result.attempted).toBe(3);
+  });
+
+  it("reconciles hidden legacy user-abandoned project generations from project association", async () => {
+    const associationBuilder = createGenerationSelectBuilder([
+      { generation_id: "generation-associated", updated_at: "2026-06-08T00:03:00.000Z" },
+    ]);
+    const emptyProjectionBuilder = createGenerationSelectBuilder([]);
+    const associatedGenerationRowsBuilder = createGenerationSelectBuilder([
+      {
+        id: "generation-associated",
+        request_id: "request-associated",
+        status: "fail",
+        recovery_state: "exhausted",
+        failure_reason_code: "user_abandoned",
+        metadata: {
+          source_ref: "source-associated",
+          user_abandoned: true,
+          hidden_in_reference_grid: true,
+        },
+        updated_at: "2026-06-08T00:04:00.000Z",
+      },
+    ]);
+    const metadataProjectRowsBuilder = createGenerationSelectBuilder([]);
+    let projectionCallCount = 0;
+    let aiGenerationCallCount = 0;
+    fromMock.mockImplementation((table: string) => {
+      if (table === "project_generation_items") return associationBuilder;
+      if (table === "generation_projection") {
+        projectionCallCount += 1;
+        return emptyProjectionBuilder;
+      }
+      if (table === "ai_generations") {
+        aiGenerationCallCount += 1;
+        return aiGenerationCallCount === 1
+          ? associatedGenerationRowsBuilder
+          : metadataProjectRowsBuilder;
+      }
+      return createGenerationSelectBuilder();
+    });
+
+    const result = await reconcileVisibleProjectGenerationsForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(projectionCallCount).toBe(2);
+    expect(associatedGenerationRowsBuilder.in).toHaveBeenCalledWith("id", [
+      "generation-associated",
+    ]);
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(1);
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
+      actor: "user_reconcile",
+      generationId: "generation-associated",
+      requestId: "request-associated",
+      userId: "user-1",
+      routeLabel: "generation.reconcile",
+    });
+    expect(result.attempted).toBe(1);
   });
 
   it("still reconciles direct project projection rows when project associations are unavailable", async () => {

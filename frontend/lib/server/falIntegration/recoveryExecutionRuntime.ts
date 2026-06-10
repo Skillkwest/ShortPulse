@@ -108,6 +108,12 @@ export const canTransitionToSuccess = ({
     ) {
       return true;
     }
+    if (
+      reason === "user_abandoned" &&
+      (recovery === "queued" || recovery === "recovering" || recovery === "exhausted")
+    ) {
+      return true;
+    }
   }
   return isLegalGenerationTransition({ from: currentState, to: "success" });
 };

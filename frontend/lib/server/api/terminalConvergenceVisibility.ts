@@ -5,6 +5,7 @@
 
 type VisibilityMetadataReader = {
   hiddenInReferenceGrid: boolean | null | undefined;
+  referenceGridSuppressed?: boolean | null | undefined;
 };
 
 export type SuccessVisibilityState = {
@@ -32,8 +33,11 @@ export const resolveTerminalSuccessVisibilityState = ({
   hasCanonicalOwnedMedia: boolean;
   hasDisplayableResultMedia: boolean;
 }): SuccessVisibilityState => {
-  const hiddenInReferenceGrid = abandoned || Boolean(metadata.hiddenInReferenceGrid);
-  const publicationState = hasCanonicalOwnedMedia && !abandoned ? "published" : "suppressed";
+  const explicitlySuppressed = Boolean(metadata.referenceGridSuppressed);
+  const hiddenInReferenceGrid =
+    abandoned || explicitlySuppressed || Boolean(metadata.hiddenInReferenceGrid);
+  const publicationState =
+    hasCanonicalOwnedMedia && !abandoned && !explicitlySuppressed ? "published" : "suppressed";
   const referenceGridVisible = !hiddenInReferenceGrid && hasDisplayableResultMedia;
   return {
     hiddenInReferenceGrid,

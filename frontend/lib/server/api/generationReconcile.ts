@@ -45,6 +45,19 @@ const PROJECT_GENERATION_RECONCILE_SELECT_COLUMNS = [
   "created_at",
   "updated_at",
 ].join(", ");
+const AI_GENERATION_PROJECT_RECONCILE_SELECT_COLUMNS = [
+  "id",
+  "request_id",
+  "metadata",
+  "status",
+  "recovery_state",
+  "failure_reason_code",
+  "created_at",
+  "updated_at",
+  "last_recovery_at",
+  "next_recovery_at",
+  "completed_at",
+].join(", ");
 
 const normalizeString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -167,13 +180,12 @@ const parseIsoTimestampMs = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const parseVisibleProjectGenerationIdentity = (
+const parseProjectProjectionGenerationIdentity = (
   value: unknown,
   recencyMsOverride: number | null = null
 ): VisibleProjectGenerationIdentity | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  if (row.hidden_in_reference_grid === true || row.reference_grid_visible === false) return null;
   const taskState = normalizeString(row.task_state)?.toLowerCase();
   if (taskState !== "pending" && taskState !== "running") return null;
   const generationId = normalizeString(row.generation_id);
@@ -185,6 +197,47 @@ const parseVisibleProjectGenerationIdentity = (
     parseIsoTimestampMs(row.started_at) ??
     parseIsoTimestampMs(row.created_at) ??
     parseIsoTimestampMs(row.updated_at);
+  return {
+    generationId,
+    requestId,
+    sourceRef,
+    recencyMs,
+  };
+};
+
+const isRecoverableProjectGenerationRow = (row: Record<string, unknown>): boolean => {
+  const status = normalizeString(row.status)?.toLowerCase();
+  const recoveryState = normalizeString(row.recovery_state)?.toLowerCase();
+  const failureReasonCode = normalizeString(row.failure_reason_code)?.toLowerCase();
+  if (status === "pending" || status === "submitted" || status === "running") return true;
+  if (recoveryState === "queued" || recoveryState === "recovering") return true;
+  if (failureReasonCode === "terminal_success_no_media") return true;
+  if (failureReasonCode === "user_abandoned") return Boolean(normalizeString(row.request_id));
+  return false;
+};
+
+const parseProjectAiGenerationIdentity = (
+  value: unknown,
+  recencyMsOverride: number | null = null
+): VisibleProjectGenerationIdentity | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (!isRecoverableProjectGenerationRow(row)) return null;
+  const metadata =
+    row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+      ? (row.metadata as Record<string, unknown>)
+      : {};
+  const generationId = normalizeString(row.id);
+  const requestId = normalizeString(row.request_id);
+  const sourceRef = normalizeString(metadata.source_ref);
+  if (!generationId && !requestId && !sourceRef) return null;
+  const recencyMs =
+    recencyMsOverride ??
+    parseIsoTimestampMs(row.last_recovery_at) ??
+    parseIsoTimestampMs(row.next_recovery_at) ??
+    parseIsoTimestampMs(row.updated_at) ??
+    parseIsoTimestampMs(row.completed_at) ??
+    parseIsoTimestampMs(row.created_at);
   return {
     generationId,
     requestId,
@@ -241,7 +294,6 @@ const listVisibleProjectGenerationIdentitiesForUser = async ({
     .select(PROJECT_GENERATION_RECONCILE_SELECT_COLUMNS)
     .eq("user_id", userId)
     .eq("project_id", projectId)
-    .in("task_state", ["pending", "running"])
     .order("updated_at", { ascending: false })
     .limit(MAX_RECONCILE_IDENTITIES);
 
@@ -251,14 +303,38 @@ const listVisibleProjectGenerationIdentitiesForUser = async ({
         .select(PROJECT_GENERATION_RECONCILE_SELECT_COLUMNS)
         .eq("user_id", userId)
         .in("generation_id", associatedGenerationIds)
-        .in("task_state", ["pending", "running"])
         .order("updated_at", { ascending: false })
         .limit(MAX_RECONCILE_IDENTITIES)
     : Promise.resolve({ data: [], error: null });
 
-  const [directProjectResponse, associatedProjectionResponse] = await Promise.all([
+  const associatedGenerationRowsQuery = associatedGenerationIds.length
+    ? supabaseAdmin
+        .from("ai_generations")
+        .select(AI_GENERATION_PROJECT_RECONCILE_SELECT_COLUMNS)
+        .eq("user_id", userId)
+        .in("id", associatedGenerationIds)
+        .order("updated_at", { ascending: false })
+        .limit(MAX_RECONCILE_IDENTITIES)
+    : Promise.resolve({ data: [], error: null });
+
+  const metadataProjectGenerationRowsQuery = supabaseAdmin
+    .from("ai_generations")
+    .select(AI_GENERATION_PROJECT_RECONCILE_SELECT_COLUMNS)
+    .eq("user_id", userId)
+    .filter("metadata->shortpulse_context->>project_id", "eq", projectId)
+    .order("updated_at", { ascending: false })
+    .limit(MAX_RECONCILE_IDENTITIES);
+
+  const [
+    directProjectResponse,
+    associatedProjectionResponse,
+    associatedGenerationRowsResponse,
+    metadataProjectGenerationRowsResponse,
+  ] = await Promise.all([
     directProjectQuery,
     associatedProjectionQuery,
+    associatedGenerationRowsQuery,
+    metadataProjectGenerationRowsQuery,
   ]);
   if (directProjectResponse.error && associatedProjectionResponse.error) {
     throw directProjectResponse.error;
@@ -279,7 +355,7 @@ const listVisibleProjectGenerationIdentitiesForUser = async ({
     ? directProjectResponse.data
     : []
   ).forEach((row) => {
-    appendIdentity(parseVisibleProjectGenerationIdentity(row));
+    appendIdentity(parseProjectProjectionGenerationIdentity(row));
   });
   (!associatedProjectionResponse.error && Array.isArray(associatedProjectionResponse.data)
     ? associatedProjectionResponse.data
@@ -288,11 +364,31 @@ const listVisibleProjectGenerationIdentitiesForUser = async ({
     const record = row && typeof row === "object" && !Array.isArray(row) ? row : null;
     const generationId = normalizeString((record as Record<string, unknown> | null)?.generation_id);
     appendIdentity(
-      parseVisibleProjectGenerationIdentity(
+      parseProjectProjectionGenerationIdentity(
         row,
         generationId ? (associatedGenerationRecencyById.get(generationId) ?? null) : null
       )
     );
+  });
+  (!associatedGenerationRowsResponse.error && Array.isArray(associatedGenerationRowsResponse.data)
+    ? associatedGenerationRowsResponse.data
+    : []
+  ).forEach((row) => {
+    const record = row && typeof row === "object" && !Array.isArray(row) ? row : null;
+    const generationId = normalizeString((record as Record<string, unknown> | null)?.id);
+    appendIdentity(
+      parseProjectAiGenerationIdentity(
+        row,
+        generationId ? (associatedGenerationRecencyById.get(generationId) ?? null) : null
+      )
+    );
+  });
+  (!metadataProjectGenerationRowsResponse.error &&
+  Array.isArray(metadataProjectGenerationRowsResponse.data)
+    ? metadataProjectGenerationRowsResponse.data
+    : []
+  ).forEach((row) => {
+    appendIdentity(parseProjectAiGenerationIdentity(row));
   });
 
   return [...identityByKey.values()]

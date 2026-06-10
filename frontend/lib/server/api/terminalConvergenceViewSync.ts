@@ -155,6 +155,11 @@ export const syncTerminalSuccessViewState = async ({
           "hidden_in_reference_grid",
           "hiddenInReferenceGrid"
         ),
+        referenceGridSuppressed: readMetadataBoolean(
+          generationMetadata,
+          "reference_grid_suppressed",
+          "referenceGridSuppressed"
+        ),
       },
       abandoned,
       hasCanonicalOwnedMedia,

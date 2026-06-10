@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { recordGenerationAbandonment } from "../../../lib/server/api/generationAbandonment";
+import { normalizeGenerationVisibilitySuppressionReason } from "../../../lib/server/api/generationVisibilitySuppression";
 
 type GenerationAbandonRequestBody = {
   output_id?: unknown;
@@ -46,12 +47,19 @@ export default async function handler(
     const sourceRef = normalizeString(body.source_ref);
     const generationId = normalizeString(body.generation_id);
     const requestId = normalizeString(body.request_id);
-    const reason = normalizeString(body.reason) ?? "reference_grid_clear";
+    const reason = normalizeGenerationVisibilitySuppressionReason(body.reason);
 
     if (!sourceRef && !generationId && !requestId) {
       return res.status(400).json({
         error: "Invalid request",
         details: "source_ref, generation_id, or request_id is required.",
+      });
+    }
+
+    if (!reason) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: "reason must be an explicit Reference Grid visibility action.",
       });
     }
 

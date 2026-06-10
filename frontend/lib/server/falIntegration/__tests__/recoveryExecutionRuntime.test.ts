@@ -46,6 +46,13 @@ describe("recoveryExecutionRuntime", () => {
     expect(
       canTransitionToSuccess({
         status: "fail",
+        failureReasonCode: "user_abandoned",
+        recoveryState: "exhausted",
+      })
+    ).toBe(true);
+    expect(
+      canTransitionToSuccess({
+        status: "fail",
         failureReasonCode: "provider_error",
         recoveryState: "queued",
       })

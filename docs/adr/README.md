@@ -104,4 +104,5 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/adr/0088-admin-priced-billed-credit-authority.md`
 - `docs/adr/0090-retire-media-library-folder-canvas.md`
+- `docs/adr/0091-generation-provider-lifecycle-vs-reference-visibility.md`
 - `docs/adr/0089-large-project-persistence-hybrid-checkpoint-and-output-display-records.md`

@@ -56,7 +56,7 @@ describe("POST /api/generation/abandon", () => {
     expect(recordGenerationAbandonmentMock).not.toHaveBeenCalled();
   });
 
-  it("records a no-refund abandon marker for the authenticated owner", async () => {
+  it("records visibility suppression for the authenticated owner", async () => {
     const res = createMockResponse();
 
     await generationAbandonHandler(
@@ -78,6 +78,7 @@ describe("POST /api/generation/abandon", () => {
         sourceRef: "source-1",
         generationId: "gen-1",
         requestId: "req-1",
+        reason: "reference_grid_clear",
         noRefund: true,
         metadata: expect.objectContaining({
           output_id: "out-1",
@@ -93,10 +94,34 @@ describe("POST /api/generation/abandon", () => {
     });
   });
 
-  it("returns 500 and logs when abandonment settlement fails", async () => {
+  it("rejects non-explicit visibility suppression reasons", async () => {
+    const res = createMockResponse();
+
+    await generationAbandonHandler(
+      {
+        method: "POST",
+        body: {
+          generation_id: "gen-1",
+          request_id: "req-1",
+          reason: "pagehide",
+        },
+      } as never,
+      res as never
+    );
+
+    expect(recordGenerationAbandonmentMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Invalid request",
+      })
+    );
+  });
+
+  it("returns 500 and logs when visibility suppression fails", async () => {
     const res = createMockResponse();
     recordGenerationAbandonmentMock.mockRejectedValueOnce(
-      new Error("Failed to settle abandoned generation before terminalizing it: charge_not_found")
+      new Error("Failed to suppress generation projection.")
     );
 
     await generationAbandonHandler(

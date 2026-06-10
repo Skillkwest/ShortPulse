@@ -57,6 +57,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/solo-owner-launch-trust-standard.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
+- `docs/planning/ai-studio-generation-persistence-architecture-plan-2026-06-10.md`
 - `docs/agents/ako/README.md`
 - `docs/agents/ako/AGENTS.md`
 - `docs/agents/ako/memory.md`
@@ -211,6 +212,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0086-motion-reference-video-lease-cleanup.md`
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/adr/0088-admin-priced-billed-credit-authority.md`
+- `docs/adr/0091-generation-provider-lifecycle-vs-reference-visibility.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/systems/README.md`

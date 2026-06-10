@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getSupabaseAdminMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
 const cleanupAudioCompanionArtMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -14,6 +15,10 @@ vi.mock("../generationBilling", () => ({
 
 vi.mock("../../audioCompanionArt/cleanup", () => ({
   cleanupAudioCompanionArt: (...args: unknown[]) => cleanupAudioCompanionArtMock(...args),
+}));
+
+vi.mock("../appErrorLogs", () => ({
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 import { recordGenerationAbandonment } from "../generationAbandonment";
@@ -41,17 +46,6 @@ const createSelectBuilder = (result: QueryResult) => ({
   select: vi.fn(() => createEqBuilder(result)),
 });
 
-const createInsertBuilder = (result: QueryResult) => ({
-  insert: vi.fn(() => ({
-    select: vi.fn(() => ({
-      maybeSingle: vi.fn(async () => ({
-        data: result.data ?? null,
-        error: result.error ?? null,
-      })),
-    })),
-  })),
-});
-
 const createUpdateBuilder = (updateMock: (payload: unknown) => unknown) => ({
   update: vi.fn((payload: unknown) => {
     updateMock(payload);
@@ -67,12 +61,6 @@ const createSupabaseMock = ({ generationStatus }: { generationStatus: "running" 
     publications: vi.fn(),
   };
   const from = vi.fn((table: string) => {
-    if (table === "generation_abandonments") {
-      return {
-        ...createSelectBuilder({ data: null, error: null }),
-        ...createInsertBuilder({ data: { id: "abandon-1" }, error: null }),
-      };
-    }
     if (table === "generation_projection") {
       return {
         ...createSelectBuilder({ data: [{ generation_id: "gen-1" }], error: null }),
@@ -118,9 +106,10 @@ describe("recordGenerationAbandonment", () => {
       deletedStoragePath: "user-1/generations/audio/gen-1/companion-art/cover.webp",
       storageDeleted: true,
     });
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
   });
 
-  it("closes active abandoned generations and captures the no-refund settlement", async () => {
+  it("suppresses active generation visibility without rewriting provider lifecycle", async () => {
     const supabase = createSupabaseMock({ generationStatus: "running" });
     getSupabaseAdminMock.mockReturnValue(supabase.client);
 
@@ -132,28 +121,29 @@ describe("recordGenerationAbandonment", () => {
     });
 
     expect(result).toEqual({
-      abandonmentId: "abandon-1",
+      abandonmentId: null,
       matchedGenerationIds: ["gen-1"],
     });
     expect(supabase.updates.generations).toHaveBeenCalledWith(
       expect.objectContaining({
+        metadata: expect.objectContaining({
+          source_ref: "source-1",
+          reference_grid_suppressed: true,
+          reference_grid_suppression_reason: "reference_grid_clear",
+          hidden_in_reference_grid: true,
+        }),
+      })
+    );
+    expect(supabase.updates.generations).not.toHaveBeenCalledWith(
+      expect.objectContaining({
         status: "fail",
         failure_reason_code: "user_abandoned",
-        error_message: "Generation abandoned by user.",
         recovery_state: "exhausted",
-        next_recovery_at: null,
       })
     );
-    expect(supabase.updates.attempts).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "abandoned",
-        error_message: "Generation abandoned by user.",
-      })
-    );
+    expect(supabase.updates.attempts).not.toHaveBeenCalled();
     expect(supabase.updates.projections).toHaveBeenCalledWith(
       expect.objectContaining({
-        task_state: "fail",
-        queue_state: "failed",
         companion_art_status: null,
         companion_art_storage_path: null,
         hidden_in_reference_grid: true,
@@ -168,12 +158,15 @@ describe("recordGenerationAbandonment", () => {
         clearProjection: false,
       })
     );
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        source: "telemetry.generation.visibility_suppressed",
         userId: "user-1",
-        providerRequestId: "req-1",
-        outcome: "fail",
-        abandonedNoRefund: true,
+        requestId: "req-1",
+        metadata: expect.objectContaining({
+          lifecycle_preserved: true,
+        }),
       })
     );
   });
@@ -214,35 +207,23 @@ describe("recordGenerationAbandonment", () => {
     );
   });
 
-  it("does not terminalize an active generation when no-refund settlement does not complete", async () => {
+  it("rejects non-explicit suppression reasons before touching lifecycle state", async () => {
     const supabase = createSupabaseMock({ generationStatus: "running" });
     getSupabaseAdminMock.mockReturnValue(supabase.client);
-    settleGenerationOutcomeMock.mockResolvedValueOnce({
-      settled: false,
-      note: "charge_not_found",
-    });
 
     await expect(
       recordGenerationAbandonment({
         userId: "user-1",
         generationId: "gen-1",
+        reason: "pagehide",
         noRefund: true,
       })
-    ).rejects.toThrow(
-      "Failed to settle abandoned generation before terminalizing it: charge_not_found"
-    );
+    ).rejects.toThrow("generation_visibility_suppression_reason_invalid");
 
     expect(supabase.updates.generations).not.toHaveBeenCalled();
     expect(supabase.updates.attempts).not.toHaveBeenCalled();
     expect(supabase.updates.projections).not.toHaveBeenCalled();
     expect(supabase.updates.publications).not.toHaveBeenCalled();
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        providerRequestId: "req-1",
-        outcome: "fail",
-        abandonedNoRefund: true,
-      })
-    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
   });
 });

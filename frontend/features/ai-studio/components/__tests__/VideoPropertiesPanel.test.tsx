@@ -245,8 +245,24 @@ vi.mock("../../../../prefabs/agent", () => ({
 }));
 
 vi.mock("../ReferenceMediaStep", () => ({
-  ReferenceMediaStep: (props: { topContent?: React.ReactNode }) => (
-    <div data-testid="reference-media-step">{props.topContent}</div>
+  ReferenceMediaStep: (props: {
+    topContent?: React.ReactNode;
+    isLipSyncMode?: boolean;
+    lipSyncAudioSlot?: React.ReactNode;
+  }) => (
+    <div data-testid="reference-media-step">
+      {props.topContent}
+      {props.isLipSyncMode && props.lipSyncAudioSlot ? (
+        <div className="drop-image-row motion-drop-row video-lip-sync-drop-row">
+          <div className="primary-drop">
+            <div className="reference-dropzone">
+              <span className="dropzone-tag">Character</span>
+            </div>
+          </div>
+          <div className="primary-drop">{props.lipSyncAudioSlot}</div>
+        </div>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -704,11 +720,11 @@ describe("VideoPropertiesPanel", () => {
     act(() => {
       audioTarget?.target.setActive?.(true);
     });
-    await waitFor(() => expect(audioDropzone).toHaveClass("is-drag-active"));
+    await waitFor(() => expect(audioDropzone).toHaveClass("is-dragging"));
     act(() => {
       audioTarget?.target.setActive?.(false);
     });
-    await waitFor(() => expect(audioDropzone).not.toHaveClass("is-drag-active"));
+    await waitFor(() => expect(audioDropzone).not.toHaveClass("is-dragging"));
 
     act(() => {
       registry.resolveTargetAtPoint(audioPoint, audioPayload)?.target.accept(audioPayload);
@@ -879,14 +895,16 @@ describe("VideoPropertiesPanel", () => {
     );
 
     expect(screen.getByRole("tab", { name: "Lip Sync" })).toBeInTheDocument();
-    expect(screen.getByText("Character image")).toBeInTheDocument();
+    expect(screen.getByText("Add Lip Sync Inputs")).toBeInTheDocument();
     expect(screen.getAllByText("Voice audio").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: "720p" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "1080p" })).toBeInTheDocument();
     expect(screen.getByText("Faster generation")).toBeInTheDocument();
-    const lipSyncInputRow = container.querySelector(".video-lip-sync-input-row");
-    expect(lipSyncInputRow?.children[0]).toHaveClass("video-lip-sync-image-slot");
-    expect(lipSyncInputRow?.children[1]).toHaveClass("video-lip-sync-audio-card");
+    const lipSyncInputRow = container.querySelector(".video-lip-sync-drop-row");
+    expect(lipSyncInputRow?.children[0]).toHaveClass("primary-drop");
+    expect(lipSyncInputRow?.children[1]).toHaveClass("primary-drop");
+    expect(lipSyncInputRow?.children[0]).toHaveTextContent("Character");
+    expect(lipSyncInputRow?.children[1]).toHaveTextContent("Voice audio");
     expect(screen.queryByText(/Kling/i)).toBeNull();
     expect(screen.queryByTestId("reference-video-settings-step")).toBeNull();
     expect(document.body).not.toHaveTextContent(/Fal|OmniHuman|Bytedance|fal-ai\/bytedance/i);
@@ -1402,7 +1420,7 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.queryByText("Shot 2")).toBeNull();
   });
 
-  it("renders the compact Seedance reference toggle with Elements first and selected by default", () => {
+  it("renders the compact Seedance reference toggle with References first", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
@@ -1414,8 +1432,11 @@ describe("VideoPropertiesPanel", () => {
     const referenceModeTabs = within(
       screen.getByRole("tablist", { name: "Seedance reference mode" })
     ).getAllByRole("tab");
-    expect(referenceModeTabs.map((tab) => tab.textContent)).toEqual(["Elements", "Keyframes"]);
-    expect(screen.getByRole("tab", { name: "Elements" })).toHaveAttribute("aria-selected", "true");
+    expect(referenceModeTabs.map((tab) => tab.textContent)).toEqual(["References", "Keyframes"]);
+    expect(screen.getByRole("tab", { name: "References" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
     expect(screen.getByRole("tab", { name: "Keyframes" })).toHaveAttribute(
       "aria-selected",
       "false"
@@ -1573,10 +1594,13 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
     expect(screen.queryByLabelText("Element reference slots")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Elements" }));
+    fireEvent.click(screen.getByRole("tab", { name: "References" }));
 
     expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("multimodal");
-    expect(screen.getByRole("tab", { name: "Elements" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "References" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
     expect(screen.queryByTestId("reference-media-step")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Element reference slots")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Add element to slot/i })).toHaveLength(6);

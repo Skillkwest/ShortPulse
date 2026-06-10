@@ -5,6 +5,7 @@ import { useResolvedProtectedSessionState } from "../../lib/protectedRouteSessio
 
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;
+  monthly_credits_cents: number | null;
 };
 
 type BillingProfilePlanRow = {
@@ -15,6 +16,7 @@ type ResolvedPlanMeta = {
   id: string;
   label: string;
   className: string;
+  monthlyCreditsCents: number;
 };
 
 type UseResolvedAccountPlanParams = {
@@ -31,6 +33,11 @@ const isSchemaCompatibilityError = (message: string) => {
     text.includes("failed to parse select parameter") ||
     text.includes("column")
   );
+};
+
+const normalizeCreditCents = (value: number | null | undefined): number | null => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+  return Math.floor(value);
 };
 
 export const useResolvedAccountPlan = ({
@@ -59,7 +66,7 @@ export const useResolvedAccountPlan = ({
           await Promise.all([
             supabase
               .from("billing_subscription_contracts")
-              .select("plan_id")
+              .select("plan_id, monthly_credits_cents")
               .eq("user_id", user.id)
               .is("ended_at", null)
               .maybeSingle(),
@@ -87,6 +94,13 @@ export const useResolvedAccountPlan = ({
           !billingContractResponse.error && billingContractResponse.data
             ? ((billingContractResponse.data as CurrentSubscriptionContractRow).plan_id ?? null)
             : null;
+        const contractMonthlyCreditsCents =
+          !billingContractResponse.error && billingContractResponse.data
+            ? normalizeCreditCents(
+                (billingContractResponse.data as CurrentSubscriptionContractRow)
+                  .monthly_credits_cents
+              )
+            : null;
         const billingPlanId =
           !billingProfileResponse.error && billingProfileResponse.data
             ? ((billingProfileResponse.data as BillingProfilePlanRow).plan_id ?? null)
@@ -108,6 +122,7 @@ export const useResolvedAccountPlan = ({
           id: normalizedPlanId,
           label: nextPlanLabel,
           className: planView.className,
+          monthlyCreditsCents: contractMonthlyCreditsCents ?? planView.monthlyCreditsCents,
         });
       } catch {
         if (!active) return;
@@ -120,6 +135,7 @@ export const useResolvedAccountPlan = ({
           id: fallbackPlanId,
           label: fallbackPlanView.displayName,
           className: fallbackPlanView.className,
+          monthlyCreditsCents: fallbackPlanView.monthlyCreditsCents,
         });
       }
     };

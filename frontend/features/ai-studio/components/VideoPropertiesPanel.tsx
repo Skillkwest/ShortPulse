@@ -616,16 +616,6 @@ export function VideoPropertiesPanel({
     applyLipSyncAudio(createEmptyLipSyncAudioState());
   }, [applyLipSyncAudio]);
   const lipSyncAudioPlaybackUrl = getLipSyncAudioPlaybackUrl(lipSyncAudio);
-  const lipSyncAudioDurationLabel =
-    typeof lipSyncAudio.durationMs === "number" && Number.isFinite(lipSyncAudio.durationMs)
-      ? `${Math.max(0, Math.round(lipSyncAudio.durationMs / 1000))}s`
-      : null;
-  const lipSyncAudioStatusLabel =
-    lipSyncAudio.status === "uploading"
-      ? "Uploading audio..."
-      : lipSyncAudio.status === "failed"
-        ? (lipSyncAudio.error ?? "Audio upload failed")
-        : (lipSyncAudioDurationLabel ?? "Audio required");
   React.useEffect(() => {
     if (!onKlingElementsChange) return;
     if (
@@ -1032,6 +1022,84 @@ export function VideoPropertiesPanel({
     },
     [extraImageUrls, onSeedance2InputModeChange, referenceImageUrl]
   );
+  const lipSyncAudioSlot = React.useMemo(
+    () =>
+      isLipSyncMode ? (
+        <div
+          ref={lipSyncAudioDropzoneRef}
+          className={`reference-dropzone video-lip-sync-audio-dropzone ${lipSyncAudioPlaybackUrl ? "has-preview" : ""} ${lipSyncAudio.status === "failed" ? "is-failed" : ""} ${
+            lipSyncAudioDragActive || lipSyncAudioCanvasTearOutActive ? "is-dragging" : ""
+          }`.trim()}
+          role="button"
+          tabIndex={0}
+          onClick={() => lipSyncAudioInputRef.current?.click()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              lipSyncAudioInputRef.current?.click();
+            }
+          }}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setLipSyncAudioDragActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setLipSyncAudioDragActive(true);
+          }}
+          onDragLeave={() => setLipSyncAudioDragActive(false)}
+          onDrop={handleLipSyncAudioDrop}
+        >
+          <span className="dropzone-tag">Voice audio</span>
+          {lipSyncAudioPlaybackUrl ? (
+            <div
+              className="video-lip-sync-audio-preview"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <ReferenceAudioPlayer
+                audioId="lip-sync-audio"
+                audioUrl={lipSyncAudioPlaybackUrl}
+                durationMs={lipSyncAudio.durationMs}
+                playLabel="Play voice audio"
+                pauseLabel="Pause voice audio"
+                eagerWaveformDecode={false}
+              />
+              {lipSyncAudio.status === "uploading" ? (
+                <div className="video-lip-sync-audio-state">Uploading</div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="reference-drop-content video-drop-content">
+              <UploadSimple size={24} weight="regular" />
+              <p className="reference-drop-title helper-text">Upload voice audio</p>
+            </div>
+          )}
+          {lipSyncAudioPlaybackUrl || lipSyncAudio.status === "failed" ? (
+            <button
+              type="button"
+              className="dropzone-clear"
+              onClick={(event) => {
+                event.stopPropagation();
+                clearLipSyncAudio();
+              }}
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+      ) : null,
+    [
+      clearLipSyncAudio,
+      handleLipSyncAudioDrop,
+      isLipSyncMode,
+      lipSyncAudio.durationMs,
+      lipSyncAudio.status,
+      lipSyncAudioCanvasTearOutActive,
+      lipSyncAudioDragActive,
+      lipSyncAudioPlaybackUrl,
+      lipSyncAudioInputRef,
+    ]
+  );
   const renderReferenceMediaStep = React.useCallback(
     () => (
       <ReferenceMediaStep
@@ -1043,6 +1111,7 @@ export function VideoPropertiesPanel({
         referenceStepTitle={referenceStepTitle}
         referenceStepSubtitle={referenceStepSubtitle}
         isMotionMode={isMotionMode}
+        isLipSyncMode={isLipSyncMode}
         isKling3Mode={isKlingPatternMode}
         isStandardMode={isStandardMode}
         isKeyframesMode={isKeyframesMode}
@@ -1083,10 +1152,11 @@ export function VideoPropertiesPanel({
         acceptPrimaryCanvasTearOutPayload={acceptPrimaryCanvasTearOutPayload}
         acceptExtraCanvasTearOutPayload={acceptExtraCanvasTearOutPayload}
         acceptMotionVideoCanvasTearOutPayload={acceptMotionVideoCanvasTearOutPayload}
+        lipSyncAudioSlot={lipSyncAudioSlot}
         topContent={
           <div className="video-reference-card-title">
             {isLipSyncMode
-              ? "Character image"
+              ? "Add Lip Sync Inputs"
               : isMotionMode
                 ? "Add Motion Inputs"
                 : "Add References"}
@@ -1124,6 +1194,7 @@ export function VideoPropertiesPanel({
       isLipSyncMode,
       isMotionMode,
       isStandardMode,
+      lipSyncAudioSlot,
       motionVideoDragActive,
       motionVideoError,
       motionVideoLoading,
@@ -1940,78 +2011,8 @@ export function VideoPropertiesPanel({
                           accept="audio/*"
                           onChange={handleLipSyncAudioSelection}
                         />
-                        <div className="video-lip-sync-input-row">
-                          <div className="video-lip-sync-image-slot video-setup-reference-slot">
-                            {renderReferenceMediaStep()}
-                          </div>
-                          <div className="video-lip-sync-audio-card">
-                            <div className="video-reference-card-title">Voice audio</div>
-                            <div
-                              ref={lipSyncAudioDropzoneRef}
-                              className={`video-lip-sync-audio-dropzone ${lipSyncAudioDragActive || lipSyncAudioCanvasTearOutActive ? "is-drag-active" : ""}`}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => lipSyncAudioInputRef.current?.click()}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter" || event.key === " ") {
-                                  event.preventDefault();
-                                  lipSyncAudioInputRef.current?.click();
-                                }
-                              }}
-                              onDragEnter={(event) => {
-                                event.preventDefault();
-                                setLipSyncAudioDragActive(true);
-                              }}
-                              onDragOver={(event) => {
-                                event.preventDefault();
-                                setLipSyncAudioDragActive(true);
-                              }}
-                              onDragLeave={() => setLipSyncAudioDragActive(false)}
-                              onDrop={handleLipSyncAudioDrop}
-                            >
-                              {lipSyncAudioPlaybackUrl ? (
-                                <div
-                                  className={`video-lip-sync-audio-preview ${lipSyncAudio.status === "failed" ? "is-failed" : ""}`.trim()}
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <ReferenceAudioPlayer
-                                    audioId="lip-sync-audio"
-                                    audioUrl={lipSyncAudioPlaybackUrl}
-                                    durationMs={lipSyncAudio.durationMs}
-                                    playLabel="Play voice audio"
-                                    pauseLabel="Pause voice audio"
-                                    eagerWaveformDecode={false}
-                                  />
-                                  {lipSyncAudio.status === "uploading" ? (
-                                    <div className="video-lip-sync-audio-state">Uploading</div>
-                                  ) : null}
-                                </div>
-                              ) : (
-                                <div className="video-lip-sync-audio-empty">
-                                  <span className="video-lip-sync-audio-empty-title">
-                                    Add voice audio
-                                  </span>
-                                  <small className="video-lip-sync-audio-empty-helper">
-                                    Drop audio here or choose a file
-                                  </small>
-                                </div>
-                              )}
-                            </div>
-                            <div className="video-lip-sync-audio-actions">
-                              <span className="video-lip-sync-audio-status">
-                                {lipSyncAudioStatusLabel}
-                              </span>
-                              {lipSyncAudioPlaybackUrl || lipSyncAudio.status === "failed" ? (
-                                <button
-                                  type="button"
-                                  className="video-lip-sync-clear-button"
-                                  onClick={clearLipSyncAudio}
-                                >
-                                  Clear
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
+                        <div className="video-lip-sync-reference-slot video-setup-reference-slot">
+                          {renderReferenceMediaStep()}
                         </div>
                         <div
                           className="video-lip-sync-resolution-row"
@@ -2127,13 +2128,13 @@ export function VideoPropertiesPanel({
                                   type="button"
                                   role="tab"
                                   aria-selected={seedanceReferenceMode === "elements"}
-                                  aria-label="Elements"
+                                  aria-label="References"
                                   className={`video-shot-mode-tab ${
                                     seedanceReferenceMode === "elements" ? "is-active" : ""
                                   }`}
                                   onClick={() => handleSetSeedanceReferenceMode("elements")}
                                 >
-                                  Elements
+                                  References
                                 </button>
                                 <button
                                   type="button"
@@ -2161,7 +2162,9 @@ export function VideoPropertiesPanel({
                             <div className="video-kling-elements-picker-anchor">
                               {renderPromptTokenPicker(activePromptTargetRef.current)}
                               <div className="video-elements-card-title video-elements-card-title--sub">
-                                Add Characters/Elements/Images
+                                {isSeedance2FamilyModelSelected
+                                  ? "Add Characters/Elements/Images"
+                                  : "Add Characters/Elements"}
                               </div>
                               <div
                                 className="video-elements-placeholder-grid"

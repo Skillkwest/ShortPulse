@@ -67,7 +67,7 @@ describe("useResolvedAccountPlan", () => {
     } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     contractMaybeSingleMock.mockResolvedValue({
-      data: { plan_id: "free" },
+      data: { plan_id: "free", monthly_credits_cents: null },
       error: null,
     });
     profileMaybeSingleMock.mockResolvedValue({
@@ -97,6 +97,25 @@ describe("useResolvedAccountPlan", () => {
         id: "free",
         label: "Baseline access",
         className: "plan-starter",
+        monthlyCreditsCents: 500,
+      });
+    });
+  });
+
+  it("uses the current contract monthly credits for existing subscribers", async () => {
+    contractMaybeSingleMock.mockResolvedValue({
+      data: { plan_id: "free", monthly_credits_cents: 1200 },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useResolvedAccountPlan());
+
+    await waitFor(() => {
+      expect(result.current.resolvedPlan).toEqual({
+        id: "free",
+        label: "Baseline access",
+        className: "plan-starter",
+        monthlyCreditsCents: 1200,
       });
     });
   });
@@ -111,6 +130,7 @@ describe("useResolvedAccountPlan", () => {
         id: "business",
         label: "Business",
         className: "plan-business",
+        monthlyCreditsCents: 0,
       });
     });
   });
@@ -132,6 +152,7 @@ describe("useResolvedAccountPlan", () => {
         id: "business",
         label: "Business",
         className: "plan-business",
+        monthlyCreditsCents: 0,
       });
     });
   });

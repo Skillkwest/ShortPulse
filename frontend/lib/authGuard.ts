@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { useProtectedRouteSessionContext } from "./protectedRouteSessionContext";
 import { refreshSupabaseSession, useSupabaseSessionState } from "./supabaseClient";
+import { readPersistedSupabaseSessionHint } from "./supabaseSessionHints";
 export { PROTECTED_ROUTES } from "./protectedRoutes";
 
 type UseProtectedRouteResult = {
@@ -18,7 +19,7 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
     enabled: !(enabled && protectedRouteSession),
   });
   const authRedirectPath = `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`;
-  const [, bumpRecoveryVersion] = useState(0);
+  const [recoveryVersion, bumpRecoveryVersion] = useState(0);
   const recoveryAttemptedRef = useRef(false);
   const recoveryInFlightRef = useRef(false);
 
@@ -34,6 +35,10 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
       if (recoveryInFlightRef.current) {
         return;
       }
+      if (!readPersistedSupabaseSessionHint()) {
+        router.replace(authRedirectPath);
+        return;
+      }
       if (!recoveryAttemptedRef.current) {
         recoveryAttemptedRef.current = true;
         recoveryInFlightRef.current = true;
@@ -45,7 +50,15 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
       }
       router.replace(authRedirectPath);
     }
-  }, [authRedirectPath, enabled, initialized, protectedRouteSession, router, session]);
+  }, [
+    authRedirectPath,
+    enabled,
+    initialized,
+    protectedRouteSession,
+    recoveryVersion,
+    router,
+    session,
+  ]);
 
   if (enabled && protectedRouteSession) {
     return {

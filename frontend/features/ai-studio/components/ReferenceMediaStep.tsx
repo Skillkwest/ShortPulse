@@ -75,6 +75,7 @@ type ReferenceMediaStepProps = {
   referenceStepTitle: string;
   referenceStepSubtitle: string;
   isMotionMode: boolean;
+  isLipSyncMode?: boolean;
   isKling3Mode: boolean;
   isStandardMode: boolean;
   isKeyframesMode: boolean;
@@ -120,6 +121,7 @@ type ReferenceMediaStepProps = {
     payload: AgentComposerDirectDropPayload
   ) => void;
   acceptMotionVideoCanvasTearOutPayload?: (payload: AgentComposerDirectDropPayload) => void;
+  lipSyncAudioSlot?: React.ReactNode;
   topContent?: React.ReactNode;
   inlineAside?: React.ReactNode;
 };
@@ -136,6 +138,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   referenceStepTitle,
   referenceStepSubtitle,
   isMotionMode,
+  isLipSyncMode = false,
   isKling3Mode,
   isStandardMode,
   isKeyframesMode,
@@ -176,6 +179,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   acceptPrimaryCanvasTearOutPayload,
   acceptExtraCanvasTearOutPayload,
   acceptMotionVideoCanvasTearOutPayload,
+  lipSyncAudioSlot,
   topContent,
   inlineAside,
 }) => {
@@ -399,6 +403,45 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
             />
           ) : null}
         </>
+      ) : isLipSyncMode && lipSyncAudioSlot ? (
+        <div className="drop-image-row motion-drop-row video-lip-sync-drop-row">
+          <div className="primary-drop">
+            <div
+              ref={primaryDropzoneRef}
+              className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${effectivePrimaryDragActive ? "is-dragging" : ""}`}
+              onDrop={handlePrimaryDrop}
+              onDragEnter={handlePrimaryDragEnter}
+              onDragOver={handlePrimaryDragOver}
+              onDragLeave={handlePrimaryDragLeave}
+              onClick={() => primaryInputRef.current?.click()}
+              style={
+                referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
+              }
+            >
+              {primaryImageLoading ? renderLoadingOverlay() : null}
+              <span className="dropzone-tag">Character</span>
+              {referenceImageUrl ? (
+                <button
+                  type="button"
+                  className="dropzone-clear"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onPrimaryImageChange(null);
+                  }}
+                >
+                  ×
+                </button>
+              ) : (
+                <div className="reference-drop-content image-drop-content">
+                  <ImageSquare size={24} weight="regular" />
+                  <p className="reference-drop-title helper-text">Upload a character image</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="primary-drop">{lipSyncAudioSlot}</div>
+        </div>
       ) : isKling3Mode ? (
         <div className="drop-image-row kling-drop-row">
           <div className="primary-drop">

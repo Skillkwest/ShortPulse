@@ -23,6 +23,7 @@ import { useAiStudioCreatePanelRuntime } from "../hooks/useAiStudioCreatePanelRu
 import { useAiStudioEditVideoPanelRuntimes } from "../hooks/useAiStudioEditVideoPanelRuntimes";
 import { useAiStudioReferenceExperienceRuntime } from "../hooks/useAiStudioReferenceExperienceRuntime";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
+import { useResolvedAccountPlan } from "../../billing/useResolvedAccountPlan";
 import { useCreatePulsePresetPageRuntime } from "../hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
 import { usePulseCreateAgentRuntime } from "../createRuntime/usePulseCreateAgentRuntime";
@@ -157,6 +158,7 @@ const AiStudioPageRuntimeBody = ({
   pulseCreateAgentRuntime: ReturnType<typeof usePulseCreateAgentRuntime>;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
 }) => {
+  const { resolvedPlan } = useResolvedAccountPlan();
   const {
     activeCreatePrompt,
     activeCreatePulsePresetId,
@@ -774,6 +776,7 @@ const AiStudioPageRuntimeBody = ({
     onDismissUiError: dismissError,
     onDismissUiNotice: dismissNotice,
     balanceCredits: effectiveBalanceCredits,
+    creditTotalCredits: resolvedPlan?.monthlyCreditsCents ?? null,
     pendingHoldCredits: pendingHoldCredits > 0 ? pendingHoldCredits : null,
     balanceLoading,
     visibleFailures,

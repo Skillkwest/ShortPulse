@@ -184,7 +184,9 @@ vi.mock("../../../../lib/useVisibleErrorTelemetry", () => ({
   useVisibleErrorTelemetry: () => undefined,
 }));
 
-const createProps = (): React.ComponentProps<typeof AiStudioPageContent> => ({
+const createProps = (
+  overrides: Partial<React.ComponentProps<typeof AiStudioPageContent>> = {}
+): React.ComponentProps<typeof AiStudioPageContent> => ({
   sessionId: null,
   referenceGridFileInputRef: { current: null },
   onFileBrowserSelection: vi.fn(),
@@ -193,6 +195,7 @@ const createProps = (): React.ComponentProps<typeof AiStudioPageContent> => ({
   onDismissUiError: vi.fn(),
   onDismissUiNotice: vi.fn(),
   balanceCredits: 16860,
+  creditTotalCredits: 20000,
   pendingHoldCredits: null,
   balanceLoading: false,
   visibleFailures: [],
@@ -247,9 +250,59 @@ const createProps = (): React.ComponentProps<typeof AiStudioPageContent> => ({
   } as never,
   handleReferenceGridFiles: vi.fn(),
   triggerFilePicker: vi.fn(),
+  ...overrides,
 });
 
 describe("AiStudioPageContent header project name", () => {
+  it("renders the credit coin and remaining over total credit label", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          balanceCredits: 9748,
+          creditTotalCredits: 10000,
+        })}
+      />
+    );
+
+    const coin = screen.getByTestId("credit-fill-coin");
+
+    expect(screen.getByText("Credits")).toBeInTheDocument();
+    expect(screen.getByText("9,748/10,000")).toBeInTheDocument();
+    expect(coin).toHaveAttribute("data-fill-state", "ready");
+    expect(coin.getAttribute("style")).toContain("--credit-fill-degrees: 350.93deg");
+  });
+
+  it("keeps the fraction label shape when the total is unavailable", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          balanceCredits: 9748,
+          creditTotalCredits: null,
+        })}
+      />
+    );
+
+    expect(screen.getByText("9,748/—")).toBeInTheDocument();
+    expect(screen.getByTestId("credit-fill-coin")).toHaveAttribute("data-fill-state", "unknown");
+  });
+
+  it("clamps the credit coin fill while preserving the actual displayed balance", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          balanceCredits: 12000,
+          creditTotalCredits: 10000,
+        })}
+      />
+    );
+
+    const coin = screen.getByTestId("credit-fill-coin");
+
+    expect(screen.getByText("12,000/10,000")).toBeInTheDocument();
+    expect(coin).toHaveAttribute("data-fill-state", "ready");
+    expect(coin.getAttribute("style")).toContain("--credit-fill-degrees: 360deg");
+  });
+
   it("renders the active project name in the centered header area", () => {
     render(<AiStudioPageContent {...createProps()} projectName="Campaign Alpha" />);
 

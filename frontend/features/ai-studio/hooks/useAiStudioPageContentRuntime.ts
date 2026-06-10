@@ -14,6 +14,7 @@ type UseAiStudioPageContentRuntimeParams = {
   onDismissUiError: AiStudioPageContentProps["onDismissUiError"];
   onDismissUiNotice: AiStudioPageContentProps["onDismissUiNotice"];
   balanceCredits: AiStudioPageContentProps["balanceCredits"];
+  creditTotalCredits: AiStudioPageContentProps["creditTotalCredits"];
   pendingHoldCredits: AiStudioPageContentProps["pendingHoldCredits"];
   balanceLoading: AiStudioPageContentProps["balanceLoading"];
   visibleFailures: AiStudioPageContentProps["visibleFailures"];
@@ -89,6 +90,7 @@ export const useAiStudioPageContentRuntime = ({
   onDismissUiError,
   onDismissUiNotice,
   balanceCredits,
+  creditTotalCredits,
   pendingHoldCredits,
   balanceLoading,
   visibleFailures,
@@ -161,6 +163,7 @@ export const useAiStudioPageContentRuntime = ({
       onDismissUiError,
       onDismissUiNotice,
       balanceCredits,
+      creditTotalCredits,
       pendingHoldCredits,
       balanceLoading,
       visibleFailures,
@@ -232,6 +235,7 @@ export const useAiStudioPageContentRuntime = ({
       onDismissUiError,
       onDismissUiNotice,
       balanceCredits,
+      creditTotalCredits,
       pendingHoldCredits,
       balanceLoading,
       visibleFailures,

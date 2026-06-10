@@ -5,6 +5,15 @@
 import { describe, expect, it } from "vitest";
 
 describe("next.config security headers", () => {
+  it("includes the bundled FFmpeg runtime in API route traces", async () => {
+    const nextConfigModule = await import("../next.config.js");
+    const nextConfig = "default" in nextConfigModule ? nextConfigModule.default : nextConfigModule;
+
+    expect(nextConfig.outputFileTracingIncludes).toMatchObject({
+      "/api/**/*": expect.arrayContaining(["node_modules/ffmpeg-static/ffmpeg"]),
+    });
+  });
+
   it("allows camera and microphone permissions on the app origin", async () => {
     const nextConfigModule = await import("../next.config.js");
     const nextConfig = "default" in nextConfigModule ? nextConfigModule.default : nextConfigModule;

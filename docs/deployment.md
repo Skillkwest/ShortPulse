@@ -11,6 +11,8 @@ Purpose: provide a repeatable production deployment process for the Next.js + Su
 - Voice Changer video-to-audio extraction and Motion Control source-video normalization use the
   vendored `ffmpeg-static` dependency inside `frontend/`.
 - Do not rely on a host-provided `ffmpeg` binary or environment toggle for these lanes.
+- Keep `frontend/next.config.js` tracing `node_modules/ffmpeg-static/ffmpeg` for API routes so
+  deployed serverless functions ship the executable, not only the package wrapper.
 - Local development and Vercel deployments are expected to use the same packaged extraction
   runtime after `frontend/npm install`.
 

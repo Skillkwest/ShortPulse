@@ -95,10 +95,15 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
 ];
 
+const bundledMediaRuntimeFiles = ["node_modules/ffmpeg-static/ffmpeg"];
+
 const nextConfig = {
   reactStrictMode: true,
   reactCompiler: false,
   devIndicators: false,
+  outputFileTracingIncludes: {
+    "/api/**/*": bundledMediaRuntimeFiles,
+  },
   images: {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384, 448, 512, 576],
     qualities: [24, 26, 28, 30, 34, 40, 50, 60, 70, 75],

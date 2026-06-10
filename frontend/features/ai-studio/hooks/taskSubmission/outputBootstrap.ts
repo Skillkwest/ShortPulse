@@ -71,6 +71,7 @@ type BuildSubmissionWorkflowReloadSnapshotParams = {
   autoFix?: boolean | null;
   motionReferenceVideoUrl?: string | null;
   lipSyncAudioUrl?: string | null;
+  lipSyncAudioStoragePath?: string | null;
   lipSyncAudioDurationMs?: number | null;
   lipSyncTurboMode?: boolean | null;
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
@@ -208,6 +209,7 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
   autoFix = null,
   motionReferenceVideoUrl = null,
   lipSyncAudioUrl = null,
+  lipSyncAudioStoragePath = null,
   lipSyncAudioDurationMs = null,
   lipSyncTurboMode = null,
   seedance2InputMode = "text",
@@ -280,6 +282,7 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
       internalMediaRefs,
       motionReferenceVideoUrl,
       lipSyncAudioUrl,
+      lipSyncAudioStoragePath,
       lipSyncAudioDurationMs,
       lipSyncTurboMode,
       seedance2InputMode,

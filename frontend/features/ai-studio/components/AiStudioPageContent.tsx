@@ -220,7 +220,7 @@ const formatCreditFractionLabel = ({
   loading: boolean;
 }): string => {
   if (loading) return "…";
-  return `${formatCreditCount(normalizeCreditCount(remainingCredits))}/${formatCreditCount(
+  return `${formatCreditCount(normalizeCreditCount(remainingCredits))} / ${formatCreditCount(
     normalizeCreditCount(totalCredits)
   )}`;
 };

@@ -138,7 +138,6 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
         url: audioUrl,
         durationMs: 12_400,
         sourceKind: "local",
-        storagePath: "audio/reference-grid/voice.mp3",
         previewUrl: `${audioUrl}#audio=1`,
       }),
       lipSyncTurboMode: true,
@@ -234,7 +233,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
         url: "https://signed.example.com/local-voice.mp3",
         durationMs: 9_000,
         sourceKind: "local",
-        storagePath: "audio/reference-grid/local-voice.mp3",
+        storagePath: "user-1/audio/reference-grid/local-voice.mp3",
         previewUrl: "blob:local-voice#audio=1",
       }),
     });
@@ -247,7 +246,8 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       "/api/fal/upload-url",
       expect.objectContaining({
         body: JSON.stringify({
-          fileUrl: "https://signed.example.com/local-voice.mp3",
+          storagePath: "user-1/audio/reference-grid/local-voice.mp3",
+          mediaKind: "audio",
         }),
       })
     );
@@ -260,7 +260,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     );
   });
 
-  it("uploads Lip Sync character images to Fal CDN before provider submit", async () => {
+  it("uploads Lip Sync character storage refs to Fal CDN before provider submit", async () => {
     const signedImageUrl = "https://signed.example.com/character.png";
     const falImageUrl = "https://v3.fal.media/files/character.png";
     const audioUrl = "https://v3.fal.media/files/voice.mp3";
@@ -273,6 +273,14 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
       preparedImageInputs: [signedImageUrl],
       rawImageInputs: [signedImageUrl],
+      internalMediaRefs: [
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user-1/images/character.png",
+        },
+      ],
       videoReferenceMode: "lip-sync",
       motionReferenceVideoUrl: null,
       lipSyncAudio: createReadyLipSyncAudioState({
@@ -293,7 +301,8 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fileUrl: signedImageUrl,
+          storagePath: "user-1/images/character.png",
+          mediaKind: "image",
         }),
         shortpulseLogScope: "generation",
       })

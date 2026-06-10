@@ -7,6 +7,8 @@ const dnsLookupMock = vi.hoisted(() => vi.fn());
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const readProviderApiKeyMock = vi.fn();
+const storageFromMock = vi.fn();
+const storageDownloadMock = vi.fn();
 
 vi.mock("node:dns/promises", () => ({
   default: {
@@ -25,6 +27,14 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/providerIntegration/providerRuntimeConfig", () => ({
   readProviderApiKey: (...args: unknown[]) => readProviderApiKeyMock(...args),
+}));
+
+vi.mock("../../lib/server/api/supabaseAdmin", () => ({
+  getSupabaseAdmin: () => ({
+    storage: {
+      from: (...args: unknown[]) => storageFromMock(...args),
+    },
+  }),
 }));
 
 const createMockResponse = () => ({
@@ -63,6 +73,9 @@ describe("POST /api/fal/upload-url", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     readProviderApiKeyMock.mockReturnValue("fal-test-key");
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    storageFromMock.mockReturnValue({
+      download: (...args: unknown[]) => storageDownloadMock(...args),
+    });
   });
 
   afterEach(() => {
@@ -91,6 +104,11 @@ describe("POST /api/fal/upload-url", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
       } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
@@ -106,7 +124,7 @@ describe("POST /api/fal/upload-url", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://example.com/public-image.png");
     expect(fetchMock.mock.calls[1]?.[0]).toBe(
       "https://rest.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3"
@@ -134,6 +152,12 @@ describe("POST /api/fal/upload-url", () => {
         },
       })
     );
+    expect(fetchMock.mock.calls[3]?.[0]).toBe("https://v3.fal.media/files/public-image.png");
+    expect(fetchMock.mock.calls[3]?.[1]).toEqual(
+      expect.objectContaining({
+        method: "HEAD",
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       url: "https://v3.fal.media/files/public-image.png",
@@ -157,6 +181,11 @@ describe("POST /api/fal/upload-url", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "audio/mpeg" }),
       } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
@@ -171,7 +200,7 @@ describe("POST /api/fal/upload-url", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({
         body: JSON.stringify({
@@ -181,11 +210,105 @@ describe("POST /api/fal/upload-url", () => {
       })
     );
     expect(fetchMock.mock.calls[1]?.[0]).toBe("https://upload.fal.media/audio-put");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("https://v3.fal.media/files/voice.mp3");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       url: "https://v3.fal.media/files/voice.mp3",
       fileName: "voice.mp3",
       mimeType: "audio/mpeg",
+    });
+  });
+
+  it("stages a caller-owned storage path without using a signed source URL", async () => {
+    storageDownloadMock.mockResolvedValueOnce({
+      data: {
+        size: 4,
+        type: "audio/mpeg",
+        arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+      },
+      error: null,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            upload_url: "https://upload.fal.media/storage-audio-put",
+            file_url: "https://v3.fal.media/files/storage-voice.mp3",
+          }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "audio/mpeg" }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: "user-1/audio/reference-grid/voice.mp3",
+        mediaKind: "audio",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageFromMock).toHaveBeenCalledWith("media_library");
+    expect(storageDownloadMock).toHaveBeenCalledWith("user-1/audio/reference-grid/voice.mp3");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://rest.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3"
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          content_type: "audio/mpeg",
+          file_name: "voice.mp3",
+        }),
+      })
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://upload.fal.media/storage-audio-put");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("https://v3.fal.media/files/storage-voice.mp3");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://v3.fal.media/files/storage-voice.mp3",
+      fileName: "voice.mp3",
+      mimeType: "audio/mpeg",
+    });
+  });
+
+  it("rejects storage paths outside the caller namespace before storage download", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: "user-2/audio/reference-grid/voice.mp3",
+        mediaKind: "audio",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageDownloadMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Fal upload failed",
+      details: "Fal upload storage path: must start with 'user-1/'.",
     });
   });
 

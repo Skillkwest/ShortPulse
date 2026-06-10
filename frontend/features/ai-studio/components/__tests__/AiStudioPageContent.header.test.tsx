@@ -267,7 +267,7 @@ describe("AiStudioPageContent header project name", () => {
     const coin = screen.getByTestId("credit-fill-coin");
 
     expect(screen.getByText("Credits")).toBeInTheDocument();
-    expect(screen.getByText("9,748/10,000")).toBeInTheDocument();
+    expect(screen.getByText("9,748 / 10,000")).toBeInTheDocument();
     expect(coin).toHaveAttribute("data-fill-state", "ready");
     expect(coin.getAttribute("style")).toContain("--credit-fill-degrees: 350.93deg");
   });
@@ -282,7 +282,7 @@ describe("AiStudioPageContent header project name", () => {
       />
     );
 
-    expect(screen.getByText("9,748/—")).toBeInTheDocument();
+    expect(screen.getByText("9,748 / —")).toBeInTheDocument();
     expect(screen.getByTestId("credit-fill-coin")).toHaveAttribute("data-fill-state", "unknown");
   });
 
@@ -298,7 +298,7 @@ describe("AiStudioPageContent header project name", () => {
 
     const coin = screen.getByTestId("credit-fill-coin");
 
-    expect(screen.getByText("12,000/10,000")).toBeInTheDocument();
+    expect(screen.getByText("12,000 / 10,000")).toBeInTheDocument();
     expect(coin).toHaveAttribute("data-fill-state", "ready");
     expect(coin.getAttribute("style")).toContain("--credit-fill-degrees: 360deg");
   });

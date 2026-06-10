@@ -29,6 +29,14 @@ export const normalizeLipSyncAudioUrl = (value: string | null | undefined): stri
   return normalized.length > 0 ? normalized : null;
 };
 
+export const normalizeLipSyncAudioStoragePath = (
+  value: string | null | undefined
+): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
 export const isNonDurableLipSyncAudioUrl = (value: string | null | undefined): boolean => {
   const normalized = normalizeLipSyncAudioUrl(value);
   if (!normalized) return true;
@@ -105,7 +113,7 @@ export const createReadyLipSyncAudioState = ({
   mimeType = null,
   size = null,
 }: {
-  url: string;
+  url: string | null;
   durationMs: number | null;
   sourceKind: NonNullable<LipSyncAudioSourceKind>;
   storagePath?: string | null;
@@ -117,7 +125,7 @@ export const createReadyLipSyncAudioState = ({
   durationMs,
   status: "ready",
   sourceKind,
-  storagePath,
+  storagePath: normalizeLipSyncAudioStoragePath(storagePath),
   previewUrl,
   mimeType,
   size,
@@ -135,12 +143,15 @@ export const createLipSyncAudioStateFromDurableUrl = ({
   storagePath?: string | null;
 }): LipSyncAudioState => {
   const normalized = normalizeLipSyncAudioUrl(url);
-  if (!normalized || isNonDurableLipSyncAudioUrl(normalized)) return createEmptyLipSyncAudioState();
+  const normalizedStoragePath = normalizeLipSyncAudioStoragePath(storagePath);
+  if ((!normalized || isNonDurableLipSyncAudioUrl(normalized)) && !normalizedStoragePath) {
+    return createEmptyLipSyncAudioState();
+  }
   return createReadyLipSyncAudioState({
     url: normalized,
     durationMs,
     sourceKind,
-    storagePath: storagePath ?? null,
+    storagePath: normalizedStoragePath,
   });
 };
 
@@ -161,8 +172,13 @@ export const resolveLipSyncAudioStatus = (value: LipSyncAudioState): LipSyncAudi
 
 export const isLipSyncAudioReadyForSubmit = (value: LipSyncAudioState): boolean =>
   value.status === "ready" &&
-  Boolean(normalizeLipSyncAudioUrl(value.url)) &&
-  !isNonDurableLipSyncAudioUrl(value.url);
+  (Boolean(normalizeLipSyncAudioStoragePath(value.storagePath)) ||
+    (Boolean(normalizeLipSyncAudioUrl(value.url)) && !isNonDurableLipSyncAudioUrl(value.url)));
 
 export const getDurableLipSyncAudioUrl = (value: LipSyncAudioState): string | null =>
-  isLipSyncAudioReadyForSubmit(value) ? normalizeLipSyncAudioUrl(value.url) : null;
+  value.status === "ready" && !isNonDurableLipSyncAudioUrl(value.url)
+    ? normalizeLipSyncAudioUrl(value.url)
+    : null;
+
+export const getLipSyncAudioStoragePath = (value: LipSyncAudioState): string | null =>
+  value.status === "ready" ? normalizeLipSyncAudioStoragePath(value.storagePath) : null;

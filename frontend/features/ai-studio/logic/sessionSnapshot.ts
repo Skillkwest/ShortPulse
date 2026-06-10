@@ -182,6 +182,7 @@ export type AiStudioSessionWorkspaceV1 = {
   videoReferenceText: string;
   videoReferenceMode: VideoReferenceMode;
   lipSyncAudioUrl?: string | null;
+  lipSyncAudioStoragePath?: string | null;
   lipSyncAudioDurationMs?: number | null;
   lipSyncTurboMode?: boolean;
   videoDurationSeconds: number;
@@ -288,6 +289,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   videoReferenceText: string;
   videoReferenceMode: VideoReferenceMode;
   lipSyncAudioUrl?: string | null;
+  lipSyncAudioStoragePath?: string | null;
   lipSyncAudioDurationMs?: number | null;
   lipSyncTurboMode?: boolean;
   videoDurationSeconds: number;
@@ -373,6 +375,12 @@ const sanitizeMediaUrl = (value: string | null | undefined): string | undefined 
 
 const sanitizeWorkspaceMediaUrl = (value: string | null | undefined): string | null =>
   sanitizeMediaUrl(value) ?? null;
+
+const sanitizeWorkspaceStoragePath = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
 
 const sanitizeAttachmentIdentityValue = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
@@ -878,6 +886,7 @@ export const buildAiStudioSessionSnapshot = (
       };
 
   const lipSyncAudioUrl = sanitizeWorkspaceMediaUrl(input.lipSyncAudioUrl);
+  const lipSyncAudioStoragePath = sanitizeWorkspaceStoragePath(input.lipSyncAudioStoragePath);
 
   const basePayload = {
     schemaVersion: LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION,
@@ -907,7 +916,9 @@ export const buildAiStudioSessionSnapshot = (
       videoReferenceText: input.videoReferenceText,
       videoReferenceMode: canonicalizeDurableVideoReferenceMode(input.videoReferenceMode),
       lipSyncAudioUrl,
-      lipSyncAudioDurationMs: lipSyncAudioUrl ? input.lipSyncAudioDurationMs : null,
+      lipSyncAudioStoragePath,
+      lipSyncAudioDurationMs:
+        lipSyncAudioUrl || lipSyncAudioStoragePath ? input.lipSyncAudioDurationMs : null,
       lipSyncTurboMode: input.lipSyncTurboMode,
       videoDurationSeconds: input.videoDurationSeconds,
       videoResolution: input.videoResolution,
@@ -988,6 +999,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
     videoReferenceText: "",
     videoReferenceMode: "standard",
     lipSyncAudioUrl: null,
+    lipSyncAudioStoragePath: null,
     lipSyncAudioDurationMs: null,
     lipSyncTurboMode: false,
     videoDurationSeconds: 6,

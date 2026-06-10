@@ -215,6 +215,7 @@ export type VideoPropertiesPanelProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveMotionVideoUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  resolveInternalReferenceVideoDropSource?: ResolveInternalReferenceDrop;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
@@ -285,6 +286,7 @@ export function VideoPropertiesPanel({
   resolvePreviewUrlById,
   resolveMotionVideoUrlById,
   resolveInternalReferenceImageDropSource,
+  resolveInternalReferenceVideoDropSource,
   canvasTearOutTargetRegistry,
   costCredits,
   isGenerateDisabled = false,
@@ -463,6 +465,7 @@ export function VideoPropertiesPanel({
     resolvePreviewUrlById,
     resolveMotionVideoUrlById,
     resolveInternalReferenceImageDropSource,
+    resolveInternalReferenceVideoDropSource,
     klingMultiPrompts,
     onKlingMultiPromptsChange,
     klingElements,
@@ -574,12 +577,17 @@ export function VideoPropertiesPanel({
           libraryPayload.payload.fullUrl ??
           libraryPayload.payload.previewUrl ??
           libraryPayload.payload.url;
-        if (audioUrl) {
+        const storagePath =
+          libraryPayload.payload.fullStoragePath ??
+          libraryPayload.payload.previewStoragePath ??
+          null;
+        if (audioUrl || storagePath) {
           applyLipSyncAudio(
             createLipSyncAudioStateFromDurableUrl({
-              url: audioUrl,
+              url: audioUrl ?? null,
               durationMs: libraryPayload.payload.durationMs ?? null,
               sourceKind: "library",
+              storagePath,
             })
           );
         }

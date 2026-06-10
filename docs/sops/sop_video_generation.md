@@ -87,7 +87,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Prompt text is optional; empty prompt is valid when required image/audio inputs are present.
 - Local voice-audio file picker/drop inputs upload into app-owned durable audio storage and must reach a ready state before submit; already reachable Media Library / Reference Grid / Canvas audio URLs remain accepted when durable.
 - Audio duration guardrails are enforced before provider submit: `1080p` requires audio under `30s` and `720p` requires audio under `60s`.
-- Before Fal OmniHuman submit, the Lip Sync adapter stages the selected character image and voice audio through `/api/fal/upload-url` so upstream `image_url` and `audio_url` values are Fal CDN URLs. Do not route Lip Sync media through `/api/kie/upload-url`.
+- Before Fal OmniHuman submit, the Lip Sync adapter stages the selected character image and voice audio through `/api/fal/upload-url` so upstream `image_url` and `audio_url` values are verified Fal CDN URLs. App-owned media must stage from caller-owned storage paths when storage authority is known; signed/display URLs are accepted only for URL-only media. Do not route Lip Sync media through `/api/kie/upload-url`.
 - The submit adapter sends only provider-supported fields upstream (`image_url`, `audio_url`, `resolution`, optional `prompt`, optional `turbo_mode`) plus ShortPulse sidecars that generated route wrappers strip before provider dispatch.
 - Billing uses shared pricing policy at `$0.16` per audio/output second, with duration carried in `shortpulse_context` for server-authoritative debit.
 

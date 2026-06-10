@@ -50,6 +50,6 @@ Output:
 - `1080p` accepts voice audio under `30s`.
 - `720p` accepts voice audio under `60s`.
 - ShortPulse blocks known over-limit audio before provider submit.
-- The Lip Sync submit adapter stages both the selected character image and voice audio through `/api/fal/upload-url`; upstream `image_url` and `audio_url` should be Fal CDN URLs, not Kie temporary upload URLs.
+- The Lip Sync submit adapter stages both the selected character image and voice audio through `/api/fal/upload-url`; upstream `image_url` and `audio_url` should be verified Fal CDN URLs, not Kie temporary upload URLs. When app-owned storage authority is known, the adapter submits storage paths to the staging helper instead of reusing signed/display URLs.
 - Billing duration is carried in `shortpulse_context`; duration is not sent as an upstream provider field.
 - Generated wrapper routes strip ShortPulse sidecars before provider submit.

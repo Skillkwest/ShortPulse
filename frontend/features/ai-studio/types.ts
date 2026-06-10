@@ -171,6 +171,7 @@ export type WorkflowReloadVideoPayload = {
   internalMediaRefs?: Array<InternalMediaRef | null>;
   motionReferenceVideoUrl?: string | null;
   lipSyncAudioUrl?: string | null;
+  lipSyncAudioStoragePath?: string | null;
   lipSyncAudioDurationMs?: number | null;
   lipSyncTurboMode?: boolean | null;
   seedance2InputMode?: WorkflowReloadSeedance2InputMode | null;

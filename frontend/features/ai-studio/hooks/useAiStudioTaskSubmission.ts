@@ -78,6 +78,7 @@ import type {
 import {
   createEmptyLipSyncAudioState,
   getDurableLipSyncAudioUrl,
+  getLipSyncAudioStoragePath,
 } from "../logic/lipSyncAudioState";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
@@ -550,10 +551,15 @@ export const useAiStudioTaskSubmission = ({
                 isVideoGeneration && videoReferenceMode === "lip-sync"
                   ? getDurableLipSyncAudioUrl(lipSyncAudio)
                   : null,
+              lipSyncAudioStoragePath:
+                isVideoGeneration && videoReferenceMode === "lip-sync"
+                  ? getLipSyncAudioStoragePath(lipSyncAudio)
+                  : null,
               lipSyncAudioDurationMs:
                 isVideoGeneration &&
                 videoReferenceMode === "lip-sync" &&
-                getDurableLipSyncAudioUrl(lipSyncAudio)
+                (getDurableLipSyncAudioUrl(lipSyncAudio) ||
+                  getLipSyncAudioStoragePath(lipSyncAudio))
                   ? lipSyncAudio.durationMs
                   : null,
               lipSyncTurboMode:

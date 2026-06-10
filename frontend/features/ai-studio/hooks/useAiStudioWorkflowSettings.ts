@@ -20,7 +20,9 @@ import {
   createEmptyLipSyncAudioState,
   createLipSyncAudioStateFromDurableUrl,
   getDurableLipSyncAudioUrl,
+  getLipSyncAudioStoragePath,
   isNonDurableLipSyncAudioUrl,
+  normalizeLipSyncAudioStoragePath,
 } from "../logic/lipSyncAudioState";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
 import { getModelConfig } from "../logic/pricing";
@@ -55,6 +57,7 @@ type WorkflowSettingsSnapshot = {
   imageResolution: string;
   videoReferenceMode: VideoReferenceMode;
   lipSyncAudioUrl: string | null;
+  lipSyncAudioStoragePath: string | null;
   lipSyncAudioDurationMs: number | null;
   lipSyncTurboMode: boolean;
   videoDurationSeconds: number;
@@ -84,6 +87,7 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   imageResolution: "model_default",
   videoReferenceMode: "standard",
   lipSyncAudioUrl: null,
+  lipSyncAudioStoragePath: null,
   lipSyncAudioDurationMs: null,
   lipSyncTurboMode: false,
   videoDurationSeconds: 6,
@@ -144,10 +148,11 @@ const resolveWorkflowSettingsLipSyncAudioUrl = (
 
 const resolveWorkflowSettingsLipSyncAudioDurationMs = (
   lipSyncAudioUrl: string | null,
+  lipSyncAudioStoragePath: string | null,
   snapshot: Partial<WorkflowSettingsSnapshot> | null | undefined,
   defaults: WorkflowSettingsSnapshot
 ): number | null => {
-  if (!lipSyncAudioUrl) return null;
+  if (!lipSyncAudioUrl && !lipSyncAudioStoragePath) return null;
   return typeof snapshot?.lipSyncAudioDurationMs === "number" &&
     Number.isFinite(snapshot.lipSyncAudioDurationMs)
     ? snapshot.lipSyncAudioDurationMs
@@ -176,8 +181,13 @@ const cloneWorkflowSettingsSnapshot = (
     defaults.videoReferenceMode
   ),
   lipSyncAudioUrl: resolveWorkflowSettingsLipSyncAudioUrl(snapshot, defaults),
+  lipSyncAudioStoragePath:
+    normalizeLipSyncAudioStoragePath(snapshot?.lipSyncAudioStoragePath) ??
+    defaults.lipSyncAudioStoragePath,
   lipSyncAudioDurationMs: resolveWorkflowSettingsLipSyncAudioDurationMs(
     resolveWorkflowSettingsLipSyncAudioUrl(snapshot, defaults),
+    normalizeLipSyncAudioStoragePath(snapshot?.lipSyncAudioStoragePath) ??
+      defaults.lipSyncAudioStoragePath,
     snapshot,
     defaults
   ),
@@ -484,6 +494,7 @@ export const useAiStudioWorkflowSettings = ({
   );
   const currentWorkflowSnapshot = useMemo<WorkflowSettingsSnapshot>(() => {
     const durableLipSyncAudioUrl = getDurableLipSyncAudioUrl(lipSyncAudio);
+    const durableLipSyncAudioStoragePath = getLipSyncAudioStoragePath(lipSyncAudio);
     return {
       mode,
       model,
@@ -494,7 +505,9 @@ export const useAiStudioWorkflowSettings = ({
         DEFAULT_WORKFLOW_SETTINGS.videoReferenceMode
       ),
       lipSyncAudioUrl: durableLipSyncAudioUrl,
-      lipSyncAudioDurationMs: durableLipSyncAudioUrl ? lipSyncAudio.durationMs : null,
+      lipSyncAudioStoragePath: durableLipSyncAudioStoragePath,
+      lipSyncAudioDurationMs:
+        durableLipSyncAudioUrl || durableLipSyncAudioStoragePath ? lipSyncAudio.durationMs : null,
       lipSyncTurboMode,
       videoDurationSeconds,
       videoResolution,
@@ -714,12 +727,14 @@ export const useAiStudioWorkflowSettings = ({
     );
     setLipSyncAudio((current) =>
       current.url === snapshot.lipSyncAudioUrl &&
+      current.storagePath === snapshot.lipSyncAudioStoragePath &&
       current.durationMs === snapshot.lipSyncAudioDurationMs
         ? current
         : createLipSyncAudioStateFromDurableUrl({
             url: snapshot.lipSyncAudioUrl,
             durationMs: snapshot.lipSyncAudioDurationMs,
             sourceKind: "library",
+            storagePath: snapshot.lipSyncAudioStoragePath,
           })
     );
     setLipSyncTurboMode((current) =>

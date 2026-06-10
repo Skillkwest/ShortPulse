@@ -84,6 +84,7 @@ export const useAiStudioInternalDropResolvers = ({
     payload: InternalReferenceDragPayload
   ) => ReturnType<typeof resolveInternalReferenceSource>;
   resolveComposerInternalImageDropSource: ResolveInternalReferenceDrop;
+  resolveMotionReferenceVideoDropSource: ResolveInternalReferenceDrop;
   resolveElementProfileImageDropSource: ResolveInternalReferenceDrop;
 } => {
   const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
@@ -258,6 +259,36 @@ export const useAiStudioInternalDropResolvers = ({
     [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );
 
+  const resolveMotionReferenceVideoDropSource = useCallback(
+    async (payload: InternalReferenceDragPayload) => {
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const referencedOutput = outputId ? getOutputById(outputId) : null;
+      const effectiveMediaKind = payload.mediaKind ?? referencedOutput?.mode ?? null;
+      if (effectiveMediaKind && effectiveMediaKind !== "video") {
+        return null;
+      }
+
+      const resolvedSource = await resolveInternalReferenceSource({
+        payload,
+        getOutputById,
+        getOutputSnapshot,
+        ensureOutputPersisted,
+        resolveSavedMediaIdFromOutput,
+      });
+      if (!resolvedSource) return null;
+
+      const resolvedOutput = resolvedSource.outputId?.trim()
+        ? getOutputById(resolvedSource.outputId)
+        : null;
+      if (resolvedOutput?.mode && resolvedOutput.mode !== "video") {
+        return null;
+      }
+
+      return resolvedSource;
+    },
+    [ensureOutputPersisted, getOutputById, getOutputSnapshot]
+  );
+
   const resolveElementProfileImageDropSource = useCallback(
     async (payload: InternalReferenceDragPayload) => {
       const resolvedSource = await resolveInternalReferenceSource({
@@ -332,6 +363,7 @@ export const useAiStudioInternalDropResolvers = ({
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
     resolveComposerInternalImageDropSource,
+    resolveMotionReferenceVideoDropSource,
     resolveElementProfileImageDropSource,
   };
 };

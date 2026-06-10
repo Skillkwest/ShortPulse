@@ -1,10 +1,20 @@
+/**
+ * Authenticated Fal CDN staging route for Fal-owned image/audio inputs.
+ * Centralizes URL, binary, and caller-owned storage-path staging so Lip Sync
+ * does not fork provider media authority. This route is temporarily above the
+ * file-size guideline; the next structural split should move fetch/upload
+ * helpers into `lib/server/api/falCdnUpload.ts` without changing the route
+ * contract.
+ */
 import { Buffer } from "node:buffer";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
+import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { readProviderApiKey } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 
 const FAL_UPLOAD_INITIATE_ENDPOINT =
@@ -14,6 +24,10 @@ const SOURCE_FETCH_TIMEOUT_MS = 30_000;
 const DNS_LOOKUP_TIMEOUT_MS = 2_500;
 const MAX_SOURCE_REDIRECTS = 3;
 const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
+const FAL_CDN_VERIFY_TIMEOUT_MS = 10_000;
+const MEDIA_LIBRARY_BUCKET = "media_library";
+
+type FalUploadMediaKind = "image" | "audio";
 
 export const config = {
   api: {
@@ -51,6 +65,12 @@ const asNonEmptyString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const resolveMediaKind = (value: unknown): FalUploadMediaKind | null => {
+  const normalized = asNonEmptyString(value)?.toLowerCase();
+  if (normalized === "image" || normalized === "audio") return normalized;
+  return null;
 };
 
 const normalizeHostname = (hostname: string): string =>
@@ -182,8 +202,12 @@ const fetchPublicSource = async (sourceUrl: URL, signal: AbortSignal): Promise<R
   throw new FalUploadRequestError("Source URL redirected too many times.");
 };
 
-const readResponseBodyWithLimit = async (response: Response, maxBytes: number): Promise<Buffer> => {
-  const contentLength = Number(response.headers.get("content-length"));
+const readResponseBodyWithLimit = async (
+  response: Response | Blob,
+  maxBytes: number
+): Promise<Buffer> => {
+  const rawContentLength = "headers" in response ? response.headers.get("content-length") : null;
+  const contentLength = Number(rawContentLength);
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new FalUploadRequestError("Source file exceeds the maximum upload size.", 413);
   }
@@ -245,6 +269,108 @@ const readFalErrorDetail = async (response: Response): Promise<string | null> =>
   return detail ?? null;
 };
 
+const inferMimeTypeFromPath = (
+  storagePathOrName: string,
+  mediaKind: FalUploadMediaKind
+): string => {
+  const normalized = storagePathOrName.trim().toLowerCase();
+  if (mediaKind === "image") {
+    if (/\.(?:jpg|jpeg)(?:$|[?#])/i.test(normalized)) return "image/jpeg";
+    if (/\.webp(?:$|[?#])/i.test(normalized)) return "image/webp";
+    return "image/png";
+  }
+  if (/\.wav(?:$|[?#])/i.test(normalized)) return "audio/wav";
+  if (/\.m4a(?:$|[?#])/i.test(normalized)) return "audio/mp4";
+  if (/\.aac(?:$|[?#])/i.test(normalized)) return "audio/aac";
+  if (/\.flac(?:$|[?#])/i.test(normalized)) return "audio/flac";
+  if (/\.(?:ogg|oga)(?:$|[?#])/i.test(normalized)) return "audio/ogg";
+  if (/\.webm(?:$|[?#])/i.test(normalized)) return "audio/webm";
+  return "audio/mpeg";
+};
+
+const inferMediaKindFromMimeType = (mimeType: string | null): FalUploadMediaKind | null => {
+  const normalized = mimeType?.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (normalized.startsWith("image/")) return "image";
+  if (normalized.startsWith("audio/")) return "audio";
+  return null;
+};
+
+const resolveFileNameFromStoragePath = (storagePath: string): string | null => {
+  const lastSegment = storagePath.split("/").filter(Boolean).pop() ?? "";
+  return asNonEmptyString(lastSegment);
+};
+
+const assertContentTypeMatchesKind = ({
+  contentType,
+  mediaKind,
+}: {
+  contentType: string | null;
+  mediaKind: FalUploadMediaKind | null;
+}) => {
+  if (!mediaKind || !contentType) return;
+  const normalized = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (!normalized) return;
+  if (!normalized.startsWith(`${mediaKind}/`)) {
+    throw new FalUploadRequestError(
+      `Fal CDN upload returned ${contentType}; expected ${mediaKind} media.`,
+      502
+    );
+  }
+};
+
+const verifyFalCdnUploadUrl = async ({
+  fileUrl,
+  mediaKind,
+}: {
+  fileUrl: string;
+  mediaKind: FalUploadMediaKind | null;
+}) => {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), FAL_CDN_VERIFY_TIMEOUT_MS);
+  try {
+    const headResponse = await fetch(fileUrl, {
+      method: "HEAD",
+      signal: controller.signal,
+    }).catch((error) => {
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      return null;
+    });
+    if (headResponse?.ok) {
+      assertContentTypeMatchesKind({
+        contentType: headResponse.headers?.get("content-type") ?? null,
+        mediaKind,
+      });
+      return;
+    }
+
+    const getResponse = await fetch(fileUrl, {
+      method: "GET",
+      headers: {
+        Range: "bytes=0-0",
+      },
+      signal: controller.signal,
+    });
+    if (!getResponse.ok) {
+      throw new FalUploadRequestError(
+        `Fal CDN uploaded file was not fetchable (${getResponse.status}).`,
+        502
+      );
+    }
+    assertContentTypeMatchesKind({
+      contentType: getResponse.headers?.get("content-type") ?? null,
+      mediaKind,
+    });
+  } catch (error) {
+    if (error instanceof FalUploadRequestError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new FalUploadRequestError("Fal CDN uploaded file verification timed out.", 502);
+    }
+    throw new FalUploadRequestError("Fal CDN uploaded file verification failed.", 502);
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+};
+
 const resolveUploadFileName = ({
   fileName,
   sourceUrl,
@@ -265,13 +391,16 @@ const uploadBufferToFalCdn = async ({
   fileBuffer,
   fileName,
   mimeType,
+  mediaKind,
 }: {
   apiKey: string;
   fileBuffer: Buffer;
   fileName: string;
   mimeType: string | null;
+  mediaKind?: FalUploadMediaKind | null;
 }): Promise<string> => {
   const resolvedMimeType = mimeType ?? "application/octet-stream";
+  const expectedMediaKind = mediaKind ?? inferMediaKindFromMimeType(resolvedMimeType);
   const initiateResponse = await fetch(FAL_UPLOAD_INITIATE_ENDPOINT, {
     method: "POST",
     headers: {
@@ -320,6 +449,11 @@ const uploadBufferToFalCdn = async ({
     );
   }
 
+  await verifyFalCdnUploadUrl({
+    fileUrl,
+    mediaKind: expectedMediaKind,
+  });
+
   return fileUrl;
 };
 
@@ -351,6 +485,7 @@ const uploadRemoteSourceToFal = async ({
       fileBuffer: sourceBuffer,
       fileName: resolvedFileName,
       mimeType: sourceMimeType,
+      mediaKind: inferMediaKindFromMimeType(sourceMimeType),
     });
     return {
       url: uploadedUrl,
@@ -360,6 +495,83 @@ const uploadRemoteSourceToFal = async ({
   } finally {
     globalThis.clearTimeout(timeoutId);
   }
+};
+
+const downloadStorageObjectWithLimit = async ({
+  storagePath,
+  userId,
+}: {
+  storagePath: string;
+  userId: string;
+}): Promise<Blob> => {
+  let safeStoragePath: string;
+  try {
+    safeStoragePath = assertUserScopedMediaStoragePath({
+      path: storagePath,
+      userId,
+      label: "Fal upload storage path",
+    });
+  } catch (error) {
+    throw new FalUploadRequestError(
+      error instanceof Error ? error.message : "Fal upload storage path is invalid."
+    );
+  }
+  const { data, error } = await getSupabaseAdmin()
+    .storage.from(MEDIA_LIBRARY_BUCKET)
+    .download(safeStoragePath);
+  if (error || !data) {
+    throw new FalUploadRequestError(
+      error?.message
+        ? `Storage source fetch failed: ${error.message}`
+        : "Storage source not found.",
+      400
+    );
+  }
+  const size = typeof data.size === "number" ? data.size : null;
+  if (size !== null && size > MAX_UPLOAD_BYTES) {
+    throw new FalUploadRequestError("Source file exceeds the maximum upload size.", 413);
+  }
+  return data;
+};
+
+const uploadStorageSourceToFal = async ({
+  apiKey,
+  storagePath,
+  fileName,
+  mediaKind,
+  userId,
+}: {
+  apiKey: string;
+  storagePath: string;
+  fileName: string | null;
+  mediaKind: FalUploadMediaKind;
+  userId: string;
+}): Promise<SuccessResponse> => {
+  const storageObject = await downloadStorageObjectWithLimit({ storagePath, userId });
+  const storageBuffer = await readResponseBodyWithLimit(storageObject, MAX_UPLOAD_BYTES);
+  const storageMimeType =
+    asNonEmptyString((storageObject as { type?: unknown }).type) ??
+    inferMimeTypeFromPath(fileName ?? storagePath, mediaKind);
+  assertContentTypeMatchesKind({
+    contentType: storageMimeType,
+    mediaKind,
+  });
+  const resolvedFileName =
+    fileName ??
+    resolveFileNameFromStoragePath(storagePath) ??
+    resolveUploadFileName({ fileName: null, mimeType: storageMimeType });
+  const uploadedUrl = await uploadBufferToFalCdn({
+    apiKey,
+    fileBuffer: storageBuffer,
+    fileName: resolvedFileName,
+    mimeType: storageMimeType,
+    mediaKind,
+  });
+  return {
+    url: uploadedUrl,
+    fileName: resolvedFileName,
+    mimeType: storageMimeType,
+  };
 };
 
 const FAL_UPLOAD_URL_RATE_LIMIT = {
@@ -395,8 +607,24 @@ export default async function handler(
           const payload = JSON.parse(bodyBuffer.toString("utf8")) as Record<string, unknown>;
           const fileUrl = asNonEmptyString(payload.fileUrl);
           const fileName = asNonEmptyString(payload.fileName);
+          const storagePath = asNonEmptyString(payload.storagePath);
+          const mediaKind = resolveMediaKind(payload.mediaKind);
+          if (storagePath) {
+            if (!mediaKind) {
+              throw new FalUploadRequestError(
+                "mediaKind must be 'image' or 'audio' when storagePath is provided."
+              );
+            }
+            return await uploadStorageSourceToFal({
+              apiKey,
+              storagePath,
+              fileName,
+              mediaKind,
+              userId: user.id,
+            });
+          }
           if (!fileUrl) {
-            throw new FalUploadRequestError("fileUrl is required.");
+            throw new FalUploadRequestError("fileUrl or storagePath is required.");
           }
           const sourceUrl = await parseSafeHttpUrl(fileUrl);
           return await uploadRemoteSourceToFal({
@@ -420,6 +648,7 @@ export default async function handler(
             fileBuffer: bodyBuffer,
             fileName: resolvedFileName,
             mimeType,
+            mediaKind: inferMediaKindFromMimeType(mimeType),
           });
           return {
             url: uploadedUrl,

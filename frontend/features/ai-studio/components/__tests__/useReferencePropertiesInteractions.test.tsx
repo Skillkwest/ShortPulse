@@ -206,7 +206,7 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onMotionVideoChange).toHaveBeenCalledWith("https://example.com/reference-video.mp4");
   });
 
-  it("accepts canvas tear-out video payloads for the Motion Control clip slot", () => {
+  it("accepts canvas tear-out video payloads for the Motion Control clip slot", async () => {
     const onMotionVideoChange = vi.fn();
 
     const { result } = renderHook(() =>
@@ -222,8 +222,8 @@ describe("useReferencePropertiesInteractions", () => {
       })
     );
 
-    act(() => {
-      result.current.acceptMotionVideoCanvasTearOutPayload(makeCanvasTearOutVideoPayload());
+    await act(async () => {
+      await result.current.acceptMotionVideoCanvasTearOutPayload(makeCanvasTearOutVideoPayload());
     });
 
     expect(onMotionVideoChange).toHaveBeenCalledWith(
@@ -571,6 +571,39 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onMotionVideoChange).not.toHaveBeenCalled();
   });
 
+  it("does not coerce untyped image storage into motion video drops", async () => {
+    const onMotionVideoChange = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const event = createMotionDropEvent({
+      referenceId: "out-image-storage",
+      outputId: "out-image-storage",
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceUrl: "https://example.com/reference-image.png",
+      previewStoragePath: "user-1/generations/images/reference-image-preview.jpg",
+      fullStoragePath: "user-1/generations/images/reference-image-full.png",
+    });
+
+    await act(async () => {
+      await result.current.handleMotionVideoDrop(event);
+    });
+
+    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
+    expect(onMotionVideoChange).not.toHaveBeenCalled();
+  });
+
   it("prefers the authoritative video resolver for motion drops when preview urls are poster images", async () => {
     const onMotionVideoChange = vi.fn();
     const resolvePreviewUrlById = vi.fn(() => "https://example.com/reference-video-poster.jpg");
@@ -638,6 +671,122 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onMotionVideoChange).not.toHaveBeenCalled();
   });
 
+  it("prefers the internal video resolver over poster fallback urls for motion drops", async () => {
+    const onMotionVideoChange = vi.fn();
+    const resolvePreviewUrlById = vi.fn(() => "https://example.com/reference-video-poster.jpg");
+    const resolveInternalReferenceVideoDropSource = vi.fn(
+      async (): Promise<ResolvedInternalReferenceSource> => ({
+        kind: "internal",
+        sourceKind: "generated_output",
+        sourceId: "source-video-1",
+        provenance: {
+          origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+          outputId: "out-video-1",
+          mediaId: "media-video-1",
+          imageIndex: 0,
+          sourceSurface: "all-refs",
+          resolutionReason: "output_storage_path",
+        },
+        outputId: "out-video-1",
+        mediaId: "media-video-1",
+        mediaSource: "generated",
+        preview: { url: "https://cdn.shortpulse.test/reference-video-poster.jpg" },
+        previewStoragePath: null,
+        fullStoragePath: null,
+        promptText: null,
+        preparedImageUrl: "https://signed.shortpulse.test/reference-video.mp4?token=fresh",
+        loadBlob: async () => new Blob(["video"], { type: "video/mp4" }),
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        resolvePreviewUrlById,
+        resolveInternalReferenceVideoDropSource,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleMotionVideoDrop(
+        createMotionDropEvent({
+          mediaKind: "video",
+          referenceId: "out-video-1",
+          outputId: "out-video-1",
+          origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+          referenceUrl: "https://cdn.shortpulse.test/reference-video-poster.jpg",
+        })
+      );
+    });
+
+    expect(resolveInternalReferenceVideoDropSource).toHaveBeenCalledTimes(1);
+    expect(resolvePreviewUrlById).not.toHaveBeenCalled();
+    expect(onMotionVideoChange).toHaveBeenCalledWith(
+      "https://signed.shortpulse.test/reference-video.mp4?token=fresh"
+    );
+  });
+
+  it("stages canvas tear-out videos from the internal durable resolver before stale payload urls", async () => {
+    const onMotionVideoChange = vi.fn();
+    const onStageMotionVideoSelection = vi.fn().mockResolvedValue(undefined);
+    const resolveInternalReferenceVideoDropSource = vi.fn(
+      async (): Promise<ResolvedInternalReferenceSource> => ({
+        kind: "internal",
+        sourceKind: "generated_output",
+        sourceId: "source-video-1",
+        provenance: {
+          origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+          outputId: "out-video-1",
+          mediaId: "media-video-1",
+          imageIndex: 0,
+          sourceSurface: "all-refs",
+          resolutionReason: "output_storage_path",
+        },
+        outputId: "out-video-1",
+        mediaId: "media-video-1",
+        mediaSource: "generated",
+        preview: { url: "https://cdn.shortpulse.test/stale-poster.jpg" },
+        previewStoragePath: null,
+        fullStoragePath: null,
+        promptText: null,
+        preparedImageUrl: "https://signed.shortpulse.test/durable-canvas-motion.mp4?token=fresh",
+        loadBlob: async () => new Blob(["video"], { type: "video/mp4" }),
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        onStageMotionVideoSelection,
+        resolveInternalReferenceVideoDropSource,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    await act(async () => {
+      await result.current.acceptMotionVideoCanvasTearOutPayload(makeCanvasTearOutVideoPayload());
+    });
+
+    expect(resolveInternalReferenceVideoDropSource).toHaveBeenCalledTimes(1);
+    expect(onStageMotionVideoSelection).toHaveBeenCalledWith({
+      videoUrl: "https://signed.shortpulse.test/durable-canvas-motion.mp4?token=fresh",
+    });
+    expect(onMotionVideoChange).not.toHaveBeenCalled();
+  });
+
   it("signs storage-backed internal video drags for motion drops when no playable URL is exposed", async () => {
     const onMotionVideoChange = vi.fn();
     getSignedMediaUrlMock.mockResolvedValue(
@@ -684,7 +833,7 @@ describe("useReferencePropertiesInteractions", () => {
     const onMotionVideoChange = vi.fn();
     const onStageMotionVideoSelection = vi.fn().mockResolvedValue(undefined);
     getSignedMediaUrlMock.mockResolvedValue(
-      "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/videos/reference-video.mp4?token=fresh"
+      "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/source/reference-video-original?token=fresh"
     );
 
     const { result } = renderHook(() =>
@@ -722,7 +871,7 @@ describe("useReferencePropertiesInteractions", () => {
           if (type === "text/shortpulse-media-library-url")
             return "https://cdn.shortpulse.test/reference-poster.jpg";
           if (type === "text/shortpulse-media-library-full-storage-path")
-            return "user-1/library/videos/reference-video.mp4";
+            return "user-1/library/source/reference-video-original";
           return "";
         }),
       },
@@ -736,12 +885,12 @@ describe("useReferencePropertiesInteractions", () => {
 
     expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
       bucket: "media_library",
-      storagePath: "user-1/library/videos/reference-video.mp4",
+      storagePath: "user-1/library/source/reference-video-original",
       previewProfile: "none",
     });
     expect(onStageMotionVideoSelection).toHaveBeenCalledWith({
       videoUrl:
-        "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/videos/reference-video.mp4?token=fresh",
+        "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/source/reference-video-original?token=fresh",
     });
     expect(onMotionVideoChange).not.toHaveBeenCalled();
   });

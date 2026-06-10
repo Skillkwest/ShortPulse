@@ -54,6 +54,7 @@ import {
   createEmptyLipSyncAudioState,
   createLipSyncAudioStateFromDurableUrl,
   getDurableLipSyncAudioUrl,
+  getLipSyncAudioStoragePath,
 } from "../logic/lipSyncAudioState";
 
 type RestoredOutputAuthorityLike = Partial<
@@ -453,6 +454,7 @@ export const useAiStudioSessionSnapshotController = ({
           url: workspace.lipSyncAudioUrl,
           durationMs: workspace.lipSyncAudioDurationMs,
           sourceKind: "library",
+          storagePath: workspace.lipSyncAudioStoragePath,
         })
       );
       setLipSyncTurboMode(workspace.lipSyncTurboMode);
@@ -708,9 +710,12 @@ export const useAiStudioSessionSnapshotController = ({
         videoReferenceText: videoReferenceTextRef.current,
         videoReferenceMode,
         lipSyncAudioUrl: getDurableLipSyncAudioUrl(lipSyncAudioRef.current),
-        lipSyncAudioDurationMs: getDurableLipSyncAudioUrl(lipSyncAudioRef.current)
-          ? lipSyncAudioRef.current.durationMs
-          : null,
+        lipSyncAudioStoragePath: getLipSyncAudioStoragePath(lipSyncAudioRef.current),
+        lipSyncAudioDurationMs:
+          getDurableLipSyncAudioUrl(lipSyncAudioRef.current) ||
+          getLipSyncAudioStoragePath(lipSyncAudioRef.current)
+            ? lipSyncAudioRef.current.durationMs
+            : null,
         lipSyncTurboMode: lipSyncTurboModeRef.current,
         videoDurationSeconds,
         videoResolution,
@@ -817,6 +822,7 @@ export const useAiStudioSessionSnapshotController = ({
         videoReferenceText: "",
         videoReferenceMode: "standard",
         lipSyncAudioUrl: null,
+        lipSyncAudioStoragePath: null,
         lipSyncAudioDurationMs: null,
         lipSyncTurboMode: false,
         videoDurationSeconds: 6,

@@ -3,6 +3,7 @@
  */
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
+import { resolveInternalMediaRefStoragePath } from "../../../../lib/media/internalMediaRefs";
 import { isCharacterScopedMediaUrl } from "../../../../lib/mediaStoragePath";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
 import {
@@ -51,6 +52,7 @@ import { composeSeedanceHiddenShotModePrompt } from "../../logic/seedanceShotMod
 import { resolveLipSyncAudioDurationGuardrail } from "../../logic/lipSyncDuration";
 import {
   getDurableLipSyncAudioUrl,
+  getLipSyncAudioStoragePath,
   isNonDurableLipSyncAudioUrl,
   isLipSyncAudioReadyForSubmit,
 } from "../../logic/lipSyncAudioState";
@@ -449,6 +451,61 @@ const uploadUrlToFalCdn = async ({
   }
 };
 
+const uploadStoragePathToFalCdn = async ({
+  storagePath,
+  mediaKind,
+  cache,
+}: {
+  storagePath: string;
+  mediaKind: "image" | "audio";
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const normalizedStoragePath = storagePath.trim();
+  if (!normalizedStoragePath) return "";
+  const cacheKey = `fal-storage:${mediaKind}:${normalizedStoragePath}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return await cached;
+
+  const uploadPromise = (async () => {
+    const response = await fetchWithAuth(FAL_UPLOAD_ROUTE, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: normalizedStoragePath,
+        mediaKind,
+      }),
+      shortpulseLogScope: "generation",
+    });
+
+    const { payload, bodyFormat } = await readKieUploadRoutePayload(response);
+    if (!response.ok) {
+      throw new Error(
+        resolveKieUploadFailureMessage({
+          response,
+          payload,
+          bodyFormat,
+        })
+      );
+    }
+
+    const uploadedUrl = payload.url?.trim();
+    if (!uploadedUrl) {
+      throw new Error("Fal upload failed: missing uploaded URL.");
+    }
+    return uploadedUrl;
+  })();
+
+  cache.set(cacheKey, uploadPromise);
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    cache.delete(cacheKey);
+    throw error;
+  }
+};
+
 const uploadBlobToFalCdn = async ({
   blob,
   mediaKind,
@@ -542,14 +599,25 @@ const uploadSourceUrlToFalCdn = async ({
 const prepareFalInputUrl = async ({
   rawUrl,
   preparedUrl,
+  storagePath,
   mediaKind,
   cache,
 }: {
   rawUrl?: string | null;
   preparedUrl?: string | null;
+  storagePath?: string | null;
   mediaKind: "image" | "audio";
   cache: Map<string, Promise<string>>;
 }): Promise<string> => {
+  const normalizedStoragePath = storagePath?.trim() ?? "";
+  if (normalizedStoragePath) {
+    return await uploadStoragePathToFalCdn({
+      storagePath: normalizedStoragePath,
+      mediaKind,
+      cache,
+    });
+  }
+
   const normalizedRawUrl = rawUrl?.trim() ?? "";
   const normalizedPreparedUrl = preparedUrl?.trim() ?? "";
   const browserUploadSourceUrl =
@@ -859,6 +927,7 @@ type VideoHandlerContext = {
   requestedAudio: boolean;
   preparedImageInputs: string[];
   rawImageInputs: string[];
+  internalMediaRefs?: VideoSubmissionArgs["internalMediaRefs"];
   modelConfig: VideoSubmissionArgs["modelConfig"];
   notifyGenerationFailure: VideoSubmissionArgs["notifyGenerationFailure"];
   updateOutputById: VideoSubmissionArgs["updateOutputById"];
@@ -907,6 +976,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       requestedResolution,
       preparedImageInputs,
       rawImageInputs,
+      internalMediaRefs,
       notifyGenerationFailure,
       videoReferenceMode,
       lipSyncAudio,
@@ -926,6 +996,8 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       const rawImageUrl = (rawImageInputs[0] ?? preparedImageInputs[0] ?? "").trim();
       const preparedImageUrl = (preparedImageInputs[0] ?? rawImageUrl).trim();
       const rawAudioUrl = getDurableLipSyncAudioUrl(lipSyncAudio) ?? "";
+      const imageStoragePath = resolveInternalMediaRefStoragePath(internalMediaRefs?.[0] ?? null);
+      const audioStoragePath = getLipSyncAudioStoragePath(lipSyncAudio);
 
       if (!preparedImageUrl || !rawImageUrl) {
         notifyGenerationFailure(
@@ -936,7 +1008,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         );
         return { handled: true };
       }
-      if (!rawAudioUrl) {
+      if (!rawAudioUrl && !audioStoragePath) {
         const message =
           lipSyncAudio.status === "uploading"
             ? "Voice audio is still uploading. Wait for it to finish before generating Lip Sync."
@@ -976,6 +1048,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         imageUrl = await prepareFalInputUrl({
           rawUrl: rawImageUrl,
           preparedUrl: preparedImageUrl,
+          storagePath: imageStoragePath,
           mediaKind: "image",
           cache: falUploadCache,
         });
@@ -996,6 +1069,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         audioUrl = await prepareFalInputUrl({
           rawUrl: rawAudioUrl,
           preparedUrl: rawAudioUrl,
+          storagePath: audioStoragePath,
           mediaKind: "audio",
           cache: falUploadCache,
         });
@@ -1448,6 +1522,7 @@ export const handleVideoModelSubmission = async ({
   requestedAudio,
   preparedImageInputs,
   rawImageInputs = preparedImageInputs,
+  internalMediaRefs,
   modelConfig,
   notifyGenerationFailure,
   updateOutputById,
@@ -1512,6 +1587,7 @@ export const handleVideoModelSubmission = async ({
     requestedAudio,
     preparedImageInputs,
     rawImageInputs,
+    internalMediaRefs,
     modelConfig,
     notifyGenerationFailure,
     updateOutputById,

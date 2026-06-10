@@ -4,21 +4,21 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, RefObject } from "react";
-import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { INTERNAL_MEDIA_REF_BUCKET } from "../../../lib/media/internalMediaRefs";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
-import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import { captureAiStudioDropSnapshot } from "../logic/aiStudioDropSnapshot";
+import {
+  resolveMotionReferenceVideoDropSource,
+  resolveMotionReferenceVideoDropSourceFromPayload,
+} from "../logic/motionReferenceVideoDropSource";
 import {
   extractDragDropPayload,
   extractPromptDropText,
   extractInternalReferenceDragPayload,
-  extractVideoDragDropPayload,
   isImageDragTransfer,
   isImageFile,
   isVideoFile,
   isVideoDragTransfer,
   looksLikeImageUrl,
-  looksLikeVideoUrl,
 } from "../utils/dragDrop";
 import {
   createEmptyAiStudioKlingElement,
@@ -75,6 +75,7 @@ type UseReferencePropertiesInteractionsParams = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveMotionVideoUrlById?: (id: string | null) => string | null;
   resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
+  resolveInternalReferenceVideoDropSource?: ResolveInternalReferenceDrop;
   klingMultiPrompts: KlingMultiPrompt[];
   onKlingMultiPromptsChange?: (value: KlingMultiPrompt[]) => void;
   klingElements: KlingElement[];
@@ -83,33 +84,12 @@ type UseReferencePropertiesInteractionsParams = {
   onSeedanceElementImageSlotChange?: (slotIndex: number, url: string | null) => void;
 };
 
-const isLocalMemoryVideoUrl = (value: string | null | undefined): value is string => {
-  if (!value) return false;
-  return value.startsWith("blob:") || /^data:video\//i.test(value);
-};
-
 const reconcileBooleanListLength = (values: boolean[], length: number): boolean[] =>
   Array.from({ length }, (_, index) => values[index] ?? false);
 
 const trimOptionalString = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim() ?? "";
   return trimmed.length ? trimmed : null;
-};
-
-const resolveMotionVideoStoragePathFromInternalPayload = (
-  payload: ReturnType<typeof extractInternalReferenceDragPayload> | null
-): string | null => {
-  if (payload?.mediaKind !== "video") return null;
-  const candidates = [payload.fullStoragePath, payload.previewStoragePath];
-  return candidates.find((candidate) => candidate && looksLikeVideoUrl(candidate))?.trim() ?? null;
-};
-
-const resolveMotionVideoStoragePathFromMediaLibraryPayload = (
-  payload: ReturnType<typeof readMediaLibraryDragPayload> | null
-): string | null => {
-  if (payload?.kind !== "libraryMedia" || payload.payload.fileType !== "video") return null;
-  const candidates = [payload.payload.fullStoragePath, payload.payload.previewStoragePath];
-  return candidates.find((candidate) => candidate && looksLikeVideoUrl(candidate))?.trim() ?? null;
 };
 
 const resolveCanvasTearOutReferenceImageSnapshot = (
@@ -151,6 +131,7 @@ export const useReferencePropertiesInteractions = ({
   resolvePreviewUrlById,
   resolveMotionVideoUrlById,
   resolveInternalReferenceImageDropSource,
+  resolveInternalReferenceVideoDropSource,
   klingMultiPrompts,
   onKlingMultiPromptsChange,
   klingElements,
@@ -550,14 +531,21 @@ export const useReferencePropertiesInteractions = ({
     );
   };
 
-  const acceptMotionVideoCanvasTearOutPayload = (payload: AgentComposerDirectDropPayload) => {
+  const acceptMotionVideoCanvasTearOutPayload = async (payload: AgentComposerDirectDropPayload) => {
     if (payload.kind !== "video") return;
     setMotionVideoDragActive(false);
+    const resolvedSource = await resolveMotionReferenceVideoDropSourceFromPayload({
+      payload,
+      resolveInternalReferenceVideoDropSource,
+      resolveMotionVideoUrlById,
+      resolvePreviewUrlById,
+    });
+    if (!resolvedSource || resolvedSource.kind !== "url") return;
     if (onStageMotionVideoSelection) {
-      void onStageMotionVideoSelection?.({ videoUrl: payload.videoUrl });
+      await onStageMotionVideoSelection({ videoUrl: resolvedSource.videoUrl });
       return;
     }
-    commitMotionVideoUrl(payload.videoUrl);
+    commitMotionVideoUrl(resolvedSource.videoUrl);
   };
 
   const allowImageDrag = (event: DragEvent<HTMLDivElement>) => {
@@ -655,63 +643,27 @@ export const useReferencePropertiesInteractions = ({
     event.preventDefault();
     event.stopPropagation();
     setMotionVideoDragActive(false);
+    const snapshot = captureAiStudioDropSnapshot(event.dataTransfer);
 
-    const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
-    const mediaLibraryPayload = readMediaLibraryDragPayload(event.dataTransfer);
-    const payload = extractVideoDragDropPayload(event.dataTransfer);
-    let nextVideoUrl = payload.videoUrl;
-    const nextVideoFile =
-      payload.videoFile ?? Array.from(event.dataTransfer.files ?? []).find(isVideoFile) ?? null;
+    const resolvedSource = await resolveMotionReferenceVideoDropSource({
+      snapshot,
+      resolveInternalReferenceVideoDropSource,
+      resolveMotionVideoUrlById,
+      resolvePreviewUrlById,
+    });
+    if (!resolvedSource) return;
 
-    if (
-      (!nextVideoUrl || isLocalMemoryVideoUrl(nextVideoUrl)) &&
-      payload.referenceId &&
-      (resolveMotionVideoUrlById || resolvePreviewUrlById)
-    ) {
-      const resolvedUrl =
-        resolveMotionVideoUrlById?.(payload.referenceId) ??
-        resolvePreviewUrlById?.(payload.referenceId) ??
-        null;
-      if (resolvedUrl && looksLikeVideoUrl(resolvedUrl)) {
-        nextVideoUrl = resolvedUrl;
-      }
-    }
-
-    if (!nextVideoUrl) {
-      const storagePath =
-        resolveMotionVideoStoragePathFromInternalPayload(internalPayload) ??
-        resolveMotionVideoStoragePathFromMediaLibraryPayload(mediaLibraryPayload);
-      if (storagePath) {
-        const signedVideoUrl = await getSignedMediaUrl({
-          bucket: INTERNAL_MEDIA_REF_BUCKET,
-          storagePath,
-          previewProfile: "none",
-        }).catch(() => null);
-        if (signedVideoUrl && looksLikeVideoUrl(signedVideoUrl)) {
-          nextVideoUrl = signedVideoUrl;
-        }
-      }
-    }
-
-    if (nextVideoFile) {
-      await onStageMotionVideoSelection?.({ videoFile: nextVideoFile });
+    if (resolvedSource.kind === "file") {
+      await onStageMotionVideoSelection?.({ videoFile: resolvedSource.videoFile });
       return;
     }
 
-    if (nextVideoUrl && (onStageMotionVideoSelection || isLocalMemoryVideoUrl(nextVideoUrl))) {
-      await onStageMotionVideoSelection?.({ videoUrl: nextVideoUrl });
-      if (onStageMotionVideoSelection) {
-        return;
-      }
-    }
-
-    if (nextVideoUrl && isLocalMemoryVideoUrl(nextVideoUrl)) {
+    if (onStageMotionVideoSelection) {
+      await onStageMotionVideoSelection({ videoUrl: resolvedSource.videoUrl });
       return;
     }
 
-    if (nextVideoUrl) {
-      commitMotionVideoUrl(nextVideoUrl);
-    }
+    commitMotionVideoUrl(resolvedSource.videoUrl);
   };
 
   const handleMotionVideoSelection = async (event: ChangeEvent<HTMLInputElement>) => {

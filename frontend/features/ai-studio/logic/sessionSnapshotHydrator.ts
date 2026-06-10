@@ -723,6 +723,7 @@ export type AiStudioSessionHydrationPayload = {
     videoReferenceText: string;
     videoReferenceMode: VideoReferenceMode;
     lipSyncAudioUrl: string | null;
+    lipSyncAudioStoragePath: string | null;
     lipSyncAudioDurationMs: number | null;
     lipSyncTurboMode: boolean;
     videoDurationSeconds: number;
@@ -1049,6 +1050,11 @@ export const buildAiStudioSessionHydrationPayload = (
     workspaceExpertCreateMode === "pulse"
       ? hydratedAgentRuntimes.pulse
       : hydratedAgentRuntimes.standard;
+  const lipSyncAudioUrl = sanitizeHydratedMediaUrl(asNullableString(workspace.lipSyncAudioUrl));
+  const lipSyncAudioStoragePath =
+    asNullableString(
+      (workspace as { lipSyncAudioStoragePath?: unknown }).lipSyncAudioStoragePath
+    )?.trim() || null;
 
   return {
     workspace: {
@@ -1076,9 +1082,10 @@ export const buildAiStudioSessionHydrationPayload = (
       editReferenceText: asString(workspace.editReferenceText, ""),
       videoReferenceText: asString(workspace.videoReferenceText, ""),
       videoReferenceMode: asVideoReferenceMode(workspace.videoReferenceMode),
-      lipSyncAudioUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.lipSyncAudioUrl)),
+      lipSyncAudioUrl,
+      lipSyncAudioStoragePath,
       lipSyncAudioDurationMs:
-        sanitizeHydratedMediaUrl(asNullableString(workspace.lipSyncAudioUrl)) &&
+        (lipSyncAudioUrl || lipSyncAudioStoragePath) &&
         typeof workspace.lipSyncAudioDurationMs === "number" &&
         Number.isFinite(workspace.lipSyncAudioDurationMs)
           ? workspace.lipSyncAudioDurationMs

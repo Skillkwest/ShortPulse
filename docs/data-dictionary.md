@@ -609,6 +609,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Update trigger stamps `updated_at` on row mutation.
   - Admin writes flow through `/api/admin/dashboard/tutorials` with service-role Supabase access.
 
+### Dashboard tutorial RPC contract
+
+- `reorder_dashboard_tutorials(p_ids, p_actor_user_id)`
+  - Service-role-only execute posture (`security definer` + execute grant restricted to `service_role`).
+  - Rejects missing, null, duplicate, or unknown tutorial ids.
+  - Uses advisory lock serialization and one transaction to assign contiguous display order values.
+  - Returns the admin tutorial catalog ordered by `display_order asc, updated_at desc`.
+
 ### admin_kanban_items
 
 - `id` (uuid, pk, default `gen_random_uuid()`).

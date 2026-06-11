@@ -175,7 +175,7 @@ describe("admin built-in Styles API", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error:
-        "Each built-in style must have a unique style id, title, style prompt, and preview image URL.",
+        "Each built-in style id must be lowercase, hyphenated, unique, and within the style id length limit.",
     });
   });
 

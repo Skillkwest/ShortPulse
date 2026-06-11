@@ -32,6 +32,12 @@ export const normalizeBuiltInStyleId = (value: unknown): string | null => {
   return BUILT_IN_STYLE_ID_PATTERN.test(normalized) ? normalized : null;
 };
 
+const normalizeStoredBuiltInStyleId = (value: unknown): string | null => {
+  const normalized = normalizeNonEmptyString(value);
+  if (!normalized || normalized.length > BUILT_IN_STYLE_ID_MAX_LENGTH) return null;
+  return normalized;
+};
+
 export const createBuiltInStyleIdFromTitle = (
   title: string,
   fallbackStyleId = "built-in-style"
@@ -136,7 +142,7 @@ export const SEEDED_BUILT_IN_STYLE_DEFINITIONS = [
 
 const normalizeBuiltInStyleDefinitionRecord = (value: unknown): BuiltInStyleDefinition | null => {
   if (!value || typeof value !== "object") return null;
-  const styleId = normalizeBuiltInStyleId((value as { styleId?: unknown }).styleId);
+  const styleId = normalizeStoredBuiltInStyleId((value as { styleId?: unknown }).styleId);
   const title = normalizeNonEmptyString((value as { title?: unknown }).title);
   const stylePrompt = normalizeNonEmptyString((value as { stylePrompt?: unknown }).stylePrompt);
   const previewImageUrl = normalizeNonEmptyString(

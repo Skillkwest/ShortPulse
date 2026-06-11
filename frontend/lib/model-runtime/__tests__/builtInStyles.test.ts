@@ -60,6 +60,28 @@ describe("built-in Styles domain", () => {
     ]);
   });
 
+  it("preserves legacy stored style ids that are non-canonical but within budget", () => {
+    expect(
+      normalizeBuiltInStyleDefinitions([
+        {
+          styleId: "Legacy Style ID",
+          title: "Legacy Style",
+          stylePrompt: "legacy prompt",
+          previewImageUrl: "/Styles/Legacy.png",
+        },
+      ])
+    ).toEqual([
+      {
+        styleId: "Legacy Style ID",
+        title: "Legacy Style",
+        stylePrompt: "legacy prompt",
+        previewImageUrl: "/Styles/Legacy.png",
+        referenceImageName: null,
+        schemaVersion: 1,
+      },
+    ]);
+  });
+
   it("derives canonical style ids from admin-entered style names", () => {
     expect(createBuiltInStyleIdFromTitle(" Lo-fi Noir ")).toBe("lo-fi-noir");
     expect(createBuiltInStyleIdFromTitle("Cell phone snapshot")).toBe("cell-phone-snapshot");

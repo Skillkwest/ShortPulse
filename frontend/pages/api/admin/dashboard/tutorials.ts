@@ -41,7 +41,8 @@ const normalizeTutorialId = (value: unknown): string | null => {
 const normalizeReorderIds = (value: unknown): string[] | null => {
   if (!Array.isArray(value)) return null;
   const ids = value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
-  return ids.length === value.length ? ids : null;
+  if (ids.length !== value.length) return null;
+  return new Set(ids).size === ids.length ? ids : null;
 };
 
 export default async function handler(
@@ -73,7 +74,7 @@ export default async function handler(
     if (req.method === "PATCH") {
       const ids = normalizeReorderIds((req.body as { ids?: unknown } | null)?.ids);
       if (!ids) {
-        return res.status(400).json({ error: "Tutorial ids are required." });
+        return res.status(400).json({ error: "Unique tutorial ids are required." });
       }
       const supabaseAdmin = getSupabaseAdmin();
       const tutorials = await reorderDashboardTutorials(supabaseAdmin, {

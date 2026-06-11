@@ -201,7 +201,10 @@ export const readActiveDashboardTutorials = async (
   supabaseAdmin: SupabaseAdminClient,
   limit = DASHBOARD_TUTORIAL_PUBLIC_LIMIT
 ): Promise<DashboardTutorial[]> => {
-  const boundedLimit = Math.max(1, Math.min(Math.trunc(limit), DASHBOARD_TUTORIAL_PUBLIC_LIMIT));
+  const normalizedLimit = Number.isFinite(limit)
+    ? Math.trunc(limit)
+    : DASHBOARD_TUTORIAL_PUBLIC_LIMIT;
+  const boundedLimit = Math.max(1, Math.min(normalizedLimit, DASHBOARD_TUTORIAL_PUBLIC_LIMIT));
   const { data, error } = await supabaseAdmin
     .from("dashboard_tutorials")
     .select(TUTORIAL_SELECT)
@@ -307,16 +310,16 @@ export const reorderDashboardTutorials = async (
   supabaseAdmin: SupabaseAdminClient,
   args: { ids: string[]; actorUserId: string | null }
 ): Promise<DashboardTutorial[]> => {
-  for (const [index, id] of args.ids.entries()) {
-    const { error } = await supabaseAdmin
-      .from("dashboard_tutorials")
-      .update({ display_order: index + 1, updated_by: args.actorUserId })
-      .eq("id", id);
+  const { data, error } = await supabaseAdmin.rpc("reorder_dashboard_tutorials", {
+    p_ids: args.ids,
+    p_actor_user_id: args.actorUserId,
+  });
 
-    if (error) {
-      throw new Error(error.message || "Failed to reorder dashboard tutorials.");
-    }
+  if (error) {
+    throw new Error(error.message || "Failed to reorder dashboard tutorials.");
   }
 
-  return readAdminDashboardTutorials(supabaseAdmin);
+  return (Array.isArray(data) ? data : [])
+    .map(toDashboardTutorial)
+    .filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
 };

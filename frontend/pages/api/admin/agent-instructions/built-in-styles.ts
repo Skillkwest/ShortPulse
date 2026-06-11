@@ -1,5 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { normalizeBuiltInStyleDefinitions } from "../../../../lib/model-runtime/builtInStyles";
+import {
+  normalizeBuiltInStyleDefinitions,
+  normalizeBuiltInStyleId,
+} from "../../../../lib/model-runtime/builtInStyles";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
 import {
@@ -25,6 +28,16 @@ const validateStyleDefinitionsPayload = (
       ok: false,
       message:
         "Each built-in style must have a unique style id, title, style prompt, and preview image URL.",
+    };
+  }
+  const hasNonCanonicalStyleId = normalized.some(
+    (definition) => normalizeBuiltInStyleId(definition.styleId) !== definition.styleId
+  );
+  if (hasNonCanonicalStyleId) {
+    return {
+      ok: false,
+      message:
+        "Each built-in style id must be lowercase, hyphenated, unique, and within the style id length limit.",
     };
   }
   return { ok: true, styleDefinitions: normalized };

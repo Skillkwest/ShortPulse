@@ -39,15 +39,6 @@ const savedTutorialRow = {
   updated_at: "2026-06-10T00:00:00.000Z",
 };
 
-const buildAdminReadClient = (data = [savedTutorialRow]) => {
-  const limitMock = vi.fn(async () => ({ data, error: null }));
-  const orderUpdatedMock = vi.fn(() => ({ limit: limitMock }));
-  const orderDisplayMock = vi.fn(() => ({ order: orderUpdatedMock }));
-  const selectMock = vi.fn(() => ({ order: orderDisplayMock }));
-  const fromMock = vi.fn(() => ({ select: selectMock }));
-  return { from: fromMock };
-};
-
 describe("/api/admin/dashboard/tutorials", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -136,24 +127,36 @@ describe("/api/admin/dashboard/tutorials", () => {
     });
   });
 
-  it("persists tutorial reorder ids", async () => {
-    const updateMock = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
-    const fromMock = vi.fn(() => ({
-      update: updateMock,
-      select: buildAdminReadClient([
+  it("rejects duplicate tutorial reorder ids", async () => {
+    const req = { method: "PATCH", body: { ids: ["tutorial-1", "tutorial-1"] } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unique tutorial ids are required." });
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+  });
+
+  it("persists tutorial reorder ids through the reorder RPC", async () => {
+    const rpcMock = vi.fn(async () => ({
+      data: [
         { ...savedTutorialRow, id: "tutorial-2", display_order: 1 },
         { ...savedTutorialRow, id: "tutorial-1", display_order: 2 },
-      ]).from().select,
+      ],
+      error: null,
     }));
-    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = { method: "PATCH", body: { ids: ["tutorial-2", "tutorial-1"] } };
     const res = createMockResponse();
 
     await handler(req as never, res as never);
 
-    expect(updateMock).toHaveBeenCalledWith({ display_order: 1, updated_by: "admin-1" });
-    expect(updateMock).toHaveBeenCalledWith({ display_order: 2, updated_by: "admin-1" });
+    expect(rpcMock).toHaveBeenCalledWith("reorder_dashboard_tutorials", {
+      p_ids: ["tutorial-2", "tutorial-1"],
+      p_actor_user_id: "admin-1",
+    });
     expect(res.status).toHaveBeenCalledWith(200);
   });
 });

@@ -39,11 +39,14 @@ type UseAdminOffersControllerResult = {
   drafts: AdminDashboardOfferDraft[];
   loading: boolean;
   savingSlotIndex: number | null;
+  savingAll: boolean;
+  hasUnsavedChanges: boolean;
   result: string | null;
   error: string | null;
   updateDraft: (slotIndex: number, patch: Partial<AdminDashboardOfferDraft>) => void;
   loadOffers: () => Promise<void>;
   saveOfferSlot: (slotIndex: number) => Promise<void>;
+  saveAllOffers: () => Promise<void>;
 };
 
 const emptyDraft = (slotIndex = 0): AdminDashboardOfferDraft => ({
@@ -115,6 +118,82 @@ const draftFromOffer = (offer: AdminDashboardOffer): AdminDashboardOfferDraft =>
   endsAt: dateTimeLocalValue(offer.endsAt),
 });
 
+const comparableDraft = (draft: AdminDashboardOfferDraft, slotIndex: number) => ({
+  id: draft.id,
+  eyebrow: draft.eyebrow.trim() || `Offer ${slotIndex + 1}`,
+  title: draft.title.trim(),
+  description: draft.description.trim(),
+  offerKind: draft.offerKind,
+  discountLabel: draft.discountLabel.trim(),
+  targetLabel: draft.targetLabel.trim(),
+  ctaLabel: draft.ctaLabel.trim() || "View offer",
+  ctaHref: draft.ctaHref.trim() || "/pricing",
+  displayOrder: String(slotIndex + 1),
+  isActive: draft.isActive,
+  startsAt: draft.startsAt,
+  endsAt: draft.endsAt,
+});
+
+const areDraftsEquivalent = (
+  current: AdminDashboardOfferDraft,
+  loaded: AdminDashboardOfferDraft,
+  slotIndex: number
+): boolean =>
+  JSON.stringify(comparableDraft(current, slotIndex)) ===
+  JSON.stringify(comparableDraft(loaded, slotIndex));
+
+type OfferSavePayload = {
+  id: string | null;
+  eyebrow: string;
+  title: string;
+  description: string;
+  offerKind: AdminDashboardOfferKind;
+  discountLabel: string;
+  targetLabel: string;
+  ctaLabel: string;
+  ctaHref: string;
+  displayOrder: number;
+  isActive: boolean;
+  startsAt: string;
+  endsAt: string;
+};
+
+const buildOfferSavePayload = (
+  draft: AdminDashboardOfferDraft,
+  slotIndex: number
+): { payload: OfferSavePayload | null; error: string | null } => {
+  const title = draft.title.trim();
+  const eyebrow = draft.eyebrow.trim() || `Offer ${slotIndex + 1}`;
+  const ctaLabel = draft.ctaLabel.trim() || "View offer";
+  const ctaHref = draft.ctaHref.trim() || "/pricing";
+
+  if (!title) {
+    return { payload: null, error: `Offer ${slotIndex + 1} title is required.` };
+  }
+  if (!ctaHref.startsWith("/") || ctaHref.startsWith("//")) {
+    return { payload: null, error: `Offer ${slotIndex + 1} CTA href must be an internal path.` };
+  }
+
+  return {
+    payload: {
+      id: draft.id,
+      eyebrow,
+      title,
+      description: draft.description.trim(),
+      offerKind: draft.offerKind,
+      discountLabel: draft.discountLabel.trim(),
+      targetLabel: draft.targetLabel.trim(),
+      ctaLabel,
+      ctaHref,
+      displayOrder: slotIndex + 1,
+      isActive: draft.isActive,
+      startsAt: draft.startsAt,
+      endsAt: draft.endsAt,
+    },
+    error: null,
+  };
+};
+
 /**
  * Composes admin offer catalog state and persistence actions.
  */
@@ -123,8 +202,12 @@ export const useAdminOffersController = ({
 }: UseAdminOffersControllerParams): UseAdminOffersControllerResult => {
   const [offers, setOffers] = React.useState<AdminDashboardOffer[]>([]);
   const [drafts, setDrafts] = React.useState<AdminDashboardOfferDraft[]>(() => buildEmptyDrafts());
+  const [loadedDrafts, setLoadedDrafts] = React.useState<AdminDashboardOfferDraft[]>(() =>
+    buildEmptyDrafts()
+  );
   const [loading, setLoading] = React.useState(false);
   const [savingSlotIndex, setSavingSlotIndex] = React.useState<number | null>(null);
+  const [savingAll, setSavingAll] = React.useState(false);
   const [result, setResult] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -138,6 +221,7 @@ export const useAdminOffersController = ({
       };
     });
     setDrafts(nextDrafts);
+    setLoadedDrafts(nextDrafts);
   }, []);
 
   const loadOffers = React.useCallback(async () => {
@@ -190,20 +274,46 @@ export const useAdminOffersController = ({
     []
   );
 
+  const dirtySlotIndexes = React.useMemo(
+    () =>
+      drafts
+        .slice(0, ADMIN_DASHBOARD_OFFER_SLOT_COUNT)
+        .flatMap((draft, index) =>
+          areDraftsEquivalent(draft, loadedDrafts[index] ?? emptyDraft(index), index) ? [] : [index]
+        ),
+    [drafts, loadedDrafts]
+  );
+
+  const persistOfferPayload = React.useCallback(
+    async (payload: OfferSavePayload): Promise<AdminDashboardOffer> => {
+      const response = await fetchWithAuth("/api/admin/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        offer?: unknown;
+        message?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save offer.");
+      }
+      const savedOffer = asAdminDashboardOffer(data.offer ?? null);
+      if (!savedOffer) {
+        throw new Error("Saved offer payload is invalid.");
+      }
+      return savedOffer;
+    },
+    []
+  );
+
   const saveOfferSlot = React.useCallback(
     async (slotIndex: number) => {
       const draft = drafts[slotIndex] ?? emptyDraft(slotIndex);
-      const title = draft.title.trim();
-      const eyebrow = draft.eyebrow.trim() || `Offer ${slotIndex + 1}`;
-      const ctaLabel = draft.ctaLabel.trim() || "View offer";
-      const ctaHref = draft.ctaHref.trim() || "/pricing";
-      if (!title) {
-        setError(`Offer ${slotIndex + 1} title is required.`);
-        setResult(null);
-        return;
-      }
-      if (!ctaHref.startsWith("/") || ctaHref.startsWith("//")) {
-        setError(`Offer ${slotIndex + 1} CTA href must be an internal path.`);
+      const validation = buildOfferSavePayload(draft, slotIndex);
+      if (validation.error || !validation.payload) {
+        setError(validation.error ?? "Offer is invalid.");
         setResult(null);
         return;
       }
@@ -212,37 +322,9 @@ export const useAdminOffersController = ({
       setError(null);
       setResult(null);
       try {
-        const response = await fetchWithAuth("/api/admin/offers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...draft,
-            eyebrow,
-            title,
-            ctaLabel,
-            ctaHref,
-            displayOrder: slotIndex + 1,
-            description: draft.description.trim(),
-            discountLabel: draft.discountLabel.trim(),
-            targetLabel: draft.targetLabel.trim(),
-            startsAt: draft.startsAt,
-            endsAt: draft.endsAt,
-          }),
-        });
-        const data = (await response.json().catch(() => ({}))) as {
-          offer?: unknown;
-          message?: string;
-          error?: string;
-        };
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to save offer.");
-        }
-        const savedOffer = asAdminDashboardOffer(data.offer ?? null);
-        if (!savedOffer) {
-          throw new Error("Saved offer payload is invalid.");
-        }
+        const savedOffer = await persistOfferPayload(validation.payload);
         await loadOffers();
-        setResult(data.message ?? `Offer ${slotIndex + 1} saved.`);
+        setResult(savedOffer.isActive ? "Offer saved and active." : "Offer saved as inactive.");
       } catch (caughtError) {
         setError(caughtError instanceof Error ? caughtError.message : "Failed to save offer.");
         setResult(null);
@@ -250,18 +332,63 @@ export const useAdminOffersController = ({
         setSavingSlotIndex(null);
       }
     },
-    [drafts, loadOffers]
+    [drafts, loadOffers, persistOfferPayload]
   );
+
+  const saveAllOffers = React.useCallback(async () => {
+    if (!dirtySlotIndexes.length) {
+      setError(null);
+      setResult("No offer changes to save.");
+      return;
+    }
+
+    const payloads = dirtySlotIndexes.map((slotIndex) => {
+      const validation = buildOfferSavePayload(
+        drafts[slotIndex] ?? emptyDraft(slotIndex),
+        slotIndex
+      );
+      return { slotIndex, ...validation };
+    });
+    const invalidPayload = payloads.find((payload) => payload.error || !payload.payload);
+    if (invalidPayload) {
+      setError(invalidPayload?.error ?? "Offer changes are invalid.");
+      setResult(null);
+      return;
+    }
+
+    setSavingAll(true);
+    setError(null);
+    setResult(null);
+    try {
+      for (const payload of payloads) {
+        if (!payload.payload) continue;
+        setSavingSlotIndex(payload.slotIndex);
+        await persistOfferPayload(payload.payload);
+      }
+      await loadOffers();
+      const savedCount = payloads.length;
+      setResult(`${savedCount} offer${savedCount === 1 ? "" : "s"} saved.`);
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Failed to save offers.");
+      setResult(null);
+    } finally {
+      setSavingSlotIndex(null);
+      setSavingAll(false);
+    }
+  }, [dirtySlotIndexes, drafts, loadOffers, persistOfferPayload]);
 
   return {
     offers,
     drafts,
     loading,
     savingSlotIndex,
+    savingAll,
+    hasUnsavedChanges: dirtySlotIndexes.length > 0,
     result,
     error,
     updateDraft,
     loadOffers,
     saveOfferSlot,
+    saveAllOffers,
   };
 };

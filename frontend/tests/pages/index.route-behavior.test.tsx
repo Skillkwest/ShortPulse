@@ -107,7 +107,7 @@ describe("Index route behavior", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: /build faster with shortpulse/i })
+      screen.getByRole("heading", { name: /the creative studio for ai creators/i })
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute(
       "href",

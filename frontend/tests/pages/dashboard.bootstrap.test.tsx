@@ -184,7 +184,7 @@ describe("Dashboard bootstrap state", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("entry-animation-stage")).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: /build faster with shortpulse/i })
+      screen.queryByRole("heading", { name: /the creative studio for ai creators/i })
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
 

@@ -26,12 +26,10 @@ export function GuestDashboardView({
       <section className="dashboard-hero minimal-hero">
         <div className="hero-primary">
           <div className="hero-copy">
-            <h1>
-              Build faster with <span>ShortPulse</span>
-            </h1>
+            <h1>The creative studio for AI creators</h1>
             <p className="hero-subtext">
-              Start from the dashboard, compare live plans, and unlock the AI Studio when you are
-              ready to create your first saved project.
+              Create images, videos, characters, and content with powerful AI tools—all in one
+              place.
             </p>
           </div>
 

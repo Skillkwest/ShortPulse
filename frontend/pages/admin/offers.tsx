@@ -30,11 +30,12 @@ type OfferSlotRowProps = {
   draft: AdminDashboardOfferDraft;
   index: number;
   isSaving: boolean;
+  isDisabled: boolean;
   onChange: (patch: Partial<AdminDashboardOfferDraft>) => void;
   onSave: () => void;
 };
 
-function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRowProps) {
+function OfferSlotRow({ draft, index, isSaving, isDisabled, onChange, onSave }: OfferSlotRowProps) {
   return (
     <div className={styles.offerSlotRow}>
       <div className={styles.offerSlotNumber}>
@@ -44,7 +45,7 @@ function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRow
             type="checkbox"
             checked={draft.isActive}
             onChange={(event) => onChange({ isActive: event.target.checked })}
-            disabled={isSaving}
+            disabled={isDisabled}
           />
           <span>Active</span>
         </label>
@@ -60,7 +61,7 @@ function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRow
           value={draft.eyebrow}
           onChange={(event) => onChange({ eyebrow: event.target.value })}
           maxLength={ADMIN_DASHBOARD_OFFER_EYEBROW_MAX_LENGTH}
-          disabled={isSaving}
+          disabled={isDisabled}
         />
       </label>
 
@@ -75,7 +76,7 @@ function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRow
           onChange={(event) => onChange({ title: event.target.value })}
           maxLength={ADMIN_DASHBOARD_OFFER_TITLE_MAX_LENGTH}
           placeholder={`Offer ${index + 1} headline`}
-          disabled={isSaving}
+          disabled={isDisabled}
         />
       </label>
 
@@ -87,7 +88,7 @@ function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRow
           onChange={(event) =>
             onChange({ offerKind: event.target.value as AdminDashboardOfferDraft["offerKind"] })
           }
-          disabled={isSaving}
+          disabled={isDisabled}
         >
           {OFFER_KIND_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -108,7 +109,7 @@ function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRow
           onChange={(event) => onChange({ discountLabel: event.target.value })}
           maxLength={ADMIN_DASHBOARD_OFFER_DISCOUNT_MAX_LENGTH}
           placeholder="Save 30%"
-          disabled={isSaving}
+          disabled={isDisabled}
         />
       </label>
 
@@ -123,7 +124,7 @@ function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRow
           onChange={(event) => onChange({ targetLabel: event.target.value })}
           maxLength={ADMIN_DASHBOARD_OFFER_TARGET_MAX_LENGTH}
           placeholder="Studio annual"
-          disabled={isSaving}
+          disabled={isDisabled}
         />
       </label>
 
@@ -137,7 +138,7 @@ function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRow
           value={draft.ctaLabel}
           onChange={(event) => onChange({ ctaLabel: event.target.value })}
           maxLength={ADMIN_DASHBOARD_OFFER_CTA_LABEL_MAX_LENGTH}
-          disabled={isSaving}
+          disabled={isDisabled}
         />
       </label>
 
@@ -149,11 +150,11 @@ function OfferSlotRow({ draft, index, isSaving, onChange, onSave }: OfferSlotRow
           value={draft.ctaHref}
           onChange={(event) => onChange({ ctaHref: event.target.value })}
           placeholder="/pricing"
-          disabled={isSaving}
+          disabled={isDisabled}
         />
       </label>
 
-      <button type="button" className="ghost-btn mini" onClick={onSave} disabled={isSaving}>
+      <button type="button" className="ghost-btn mini" onClick={onSave} disabled={isDisabled}>
         {isSaving ? "Saving..." : draft.id ? "Save" : "Create"}
       </button>
     </div>
@@ -176,11 +177,14 @@ export default function AdminOffersPage() {
     drafts,
     loading: offersLoading,
     savingSlotIndex,
+    savingAll,
+    hasUnsavedChanges,
     result,
     error,
     updateDraft,
     loadOffers,
     saveOfferSlot,
+    saveAllOffers,
   } = useAdminOffersController({
     enabled: Boolean(user && adminEnabled),
   });
@@ -209,14 +213,26 @@ export default function AdminOffersPage() {
               Each row controls one logged-out dashboard offer card, ordered from left to right.
             </p>
           </div>
-          <button
-            type="button"
-            className="ghost-btn mini"
-            onClick={() => void loadOffers()}
-            disabled={offersLoading || savingSlotIndex !== null}
-          >
-            {offersLoading ? "Refreshing..." : "Refresh"}
-          </button>
+          <div className={styles.adminStateActions}>
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => void saveAllOffers()}
+              disabled={
+                offersLoading || savingAll || savingSlotIndex !== null || !hasUnsavedChanges
+              }
+            >
+              {savingAll ? "Saving..." : "Save offers"}
+            </button>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => void loadOffers()}
+              disabled={offersLoading || savingAll || savingSlotIndex !== null}
+            >
+              {offersLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
         </div>
 
         <div className={styles.offerSlotRows}>
@@ -226,6 +242,7 @@ export default function AdminOffersPage() {
               draft={draft}
               index={index}
               isSaving={savingSlotIndex === index}
+              isDisabled={savingAll || savingSlotIndex === index}
               onChange={(patch) => updateDraft(index, patch)}
               onSave={() => void saveOfferSlot(index)}
             />

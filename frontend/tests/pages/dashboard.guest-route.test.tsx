@@ -154,7 +154,12 @@ describe("Dashboard guest route", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: /build faster with shortpulse/i })
+      screen.getByRole("heading", { name: /the creative studio for ai creators/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Create images, videos, characters, and content with powerful AI tools—all in one place."
+      )
     ).toBeInTheDocument();
     expect(screen.getAllByText("Offer 1")).toHaveLength(2);
     expect(screen.getAllByText("Offer 2")).toHaveLength(2);
@@ -204,7 +209,7 @@ describe("Dashboard guest route", () => {
     render(<DashboardPage />);
 
     expect(
-      screen.getByRole("heading", { name: /build faster with shortpulse/i })
+      screen.getByRole("heading", { name: /the creative studio for ai creators/i })
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Checking your session before your dashboard workspace loads.")
@@ -253,6 +258,39 @@ describe("Dashboard guest route", () => {
       "href",
       "/pricing?intent=tutorial"
     );
+  });
+
+  it("renders video tutorial thumbnails with controlled smooth-loop playback", () => {
+    render(
+      <DashboardPage
+        dashboardTutorials={[
+          {
+            id: "tutorial-1",
+            title: "Generate videos with ShortPulse",
+            youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+            thumbnailUrl: "https://cdn.example.com/tutorial.mp4",
+            thumbnailStoragePath: null,
+            thumbnailFileSizeBytes: null,
+            thumbnailContentType: "video/mp4",
+            thumbnailMediaType: "video",
+            thumbnailAlt: "Tutorial preview",
+            displayOrder: 1,
+            isActive: true,
+            createdAt: "2026-06-11T00:00:00.000Z",
+            updatedAt: "2026-06-11T00:00:00.000Z",
+          },
+        ]}
+      />
+    );
+
+    const tutorialButton = screen.getByRole("button", {
+      name: "Generate videos with ShortPulse: open tutorial",
+    });
+    const thumbnailVideo = tutorialButton.querySelector("video");
+
+    expect(thumbnailVideo).toBeInTheDocument();
+    expect(thumbnailVideo).toHaveAttribute("preload", "auto");
+    expect(thumbnailVideo).not.toHaveAttribute("loop");
   });
 
   it("hydrates public tutorial cards from the dashboard tutorials endpoint", async () => {

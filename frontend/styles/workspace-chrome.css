@@ -255,8 +255,8 @@
   min-width: 104px;
   padding: 0 16px;
   color: #071014;
-  background: linear-gradient(135deg, #ff6fa8 0%, #ff9c5f 100%);
-  border-color: rgba(255, 156, 95, 0.45);
+  background: var(--color-teal);
+  border-color: var(--color-teal);
 }
 
 @media (max-width: 1080px) {

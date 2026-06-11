@@ -858,8 +858,7 @@ button.hero-onboarding {
 }
 
 .dashboard-tutorial-thumbnail-image {
-  background-position: center;
-  background-size: cover;
+  object-fit: cover;
 }
 
 .dashboard-tutorial-thumbnail video {

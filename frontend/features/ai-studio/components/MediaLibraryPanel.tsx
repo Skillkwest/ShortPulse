@@ -228,7 +228,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const normalizedSearch = "";
   const shouldShowMedia = itemType !== "prompts";
-  const shouldShowPrompts = itemType === "prompts" || itemType === "all";
+  const shouldShowPrompts = itemType === "prompts" || (!isRootFolderSelected && itemType === "all");
   const {
     error: dataError,
     mediaRows,
@@ -1245,7 +1245,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         },
       }
     : null;
-  const renderRootAllItemsGrid = useCallback(() => renderAllItemsGrid(), [renderAllItemsGrid]);
+  const renderRootAllItemsGrid = useCallback(
+    () => renderAllItemsGrid({ gridPromptRows: [] }),
+    [renderAllItemsGrid]
+  );
   const renderRootImageGrid = useCallback(
     () => renderMediaGrid(visibleImageRows),
     [renderMediaGrid, visibleImageRows]
@@ -1390,8 +1393,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 rootFolderDropZoneProps={rootFolderDropZoneProps}
                 mediaLoading={mediaLoading}
                 mediaRowsLength={mediaRows.length}
-                promptLoading={promptLoading}
-                visiblePromptRowsLength={visiblePromptRows.length}
+                promptLoading={itemType === "prompts" ? promptLoading : false}
+                visiblePromptRowsLength={itemType === "prompts" ? visiblePromptRows.length : 0}
                 visibleImageRowsLength={visibleImageRows.length}
                 visibleVideoRowsLength={visibleVideoRows.length}
                 visibleAudioRowsLength={visibleAudioRows.length}

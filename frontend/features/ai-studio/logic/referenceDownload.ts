@@ -53,6 +53,31 @@ const DATA_LIKE_PATTERN = /^data:(image|video)\//i;
 const BLOB_LIKE_PATTERN = /^blob:/i;
 const ROOT_RELATIVE_PATTERN = /^\//;
 const NEXT_IMAGE_PATH_PATTERN = /(?:^|\/)_next\/image(?:$|\?)/i;
+const DATA_URL_MIME_TYPE_PATTERN = /^data:([^;,]+)[;,]/i;
+
+const MIME_TYPE_EXTENSION_BY_TYPE: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "image/avif": ".avif",
+  "video/mp4": ".mp4",
+  "video/quicktime": ".mov",
+  "video/webm": ".webm",
+  "audio/mpeg": ".mp3",
+  "audio/mp3": ".mp3",
+  "audio/wav": ".wav",
+  "audio/x-wav": ".wav",
+  "audio/webm": ".webm",
+  "audio/ogg": ".ogg",
+};
+
+const FALLBACK_EXTENSION_BY_MODE: Partial<Record<StudioOutput["mode"], string>> = {
+  image: ".png",
+  video: ".mp4",
+  audio: ".mp3",
+};
 
 export const REFERENCE_PROVIDER_DOWNLOAD_ERROR_MESSAGE =
   "Unable to download media from provider URL.";
@@ -87,7 +112,7 @@ const extractExtension = (value: string | null | undefined): string | null => {
 const extractFilenameFromUrl = (url: string | null | undefined): string | null => {
   if (!url) return null;
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(url, "https://shortpulse.local");
     const pathnameParts = parsed.pathname.split("/").filter(Boolean);
     const candidate = pathnameParts[pathnameParts.length - 1];
     if (!candidate) return null;
@@ -98,6 +123,24 @@ const extractFilenameFromUrl = (url: string | null | undefined): string | null =
 };
 
 const hasFileExtension = (value: string): boolean => FILE_EXTENSION_PATTERN.test(value);
+
+const normalizeMimeType = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.split(";")[0]?.trim().toLowerCase() ?? "";
+  return normalized.length ? normalized : null;
+};
+
+const extractMimeTypeFromDataUrl = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const match = value.match(DATA_URL_MIME_TYPE_PATTERN);
+  return normalizeMimeType(match?.[1] ?? null);
+};
+
+const extensionFromMimeType = (value: string | null | undefined): string | null => {
+  const mimeType = normalizeMimeType(value);
+  if (!mimeType) return null;
+  return MIME_TYPE_EXTENSION_BY_TYPE[mimeType] ?? null;
+};
 
 const isRenderableDownloadUrl = (value: string): boolean =>
   HTTP_LIKE_PATTERN.test(value) ||
@@ -515,21 +558,30 @@ export const resolveReferenceDownloadFilename = ({
   prompt,
   outputId,
   previewUrl,
+  storagePath,
+  mimeType,
+  mode,
 }: {
   preferredFilename?: string | null;
   prompt?: string | null;
   outputId?: string | null;
   previewUrl?: string | null;
+  storagePath?: string | null;
+  mimeType?: string | null;
+  mode?: StudioOutput["mode"] | null;
 }): string => {
   const preferred = sanitizeFilename(preferredFilename);
-  if (preferred) return preferred;
-
-  const baseName = sanitizeFilename(prompt) ?? sanitizeFilename(outputId) ?? "reference";
+  const baseName =
+    preferred ?? sanitizeFilename(prompt) ?? sanitizeFilename(outputId) ?? "reference";
   if (hasFileExtension(baseName)) return baseName;
 
   const extension =
+    extractExtension(storagePath ?? undefined) ??
     extractExtension(extractFilenameFromUrl(previewUrl) ?? undefined) ??
-    extractExtension(previewUrl ?? undefined);
+    extractExtension(previewUrl ?? undefined) ??
+    extensionFromMimeType(extractMimeTypeFromDataUrl(previewUrl)) ??
+    extensionFromMimeType(mimeType) ??
+    (mode ? (FALLBACK_EXTENSION_BY_MODE[mode] ?? null) : null);
   return extension ? `${baseName}${extension}` : baseName;
 };
 

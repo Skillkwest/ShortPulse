@@ -76,7 +76,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ### 4) `all_media` display contract
 
 1. `All Media` renders one root-level tab strip with four tabs:
-   - `All Media` tab: aggregate root view showing saved media cards plus saved prompt cards in the same folder surface.
+   - `All Media` tab: aggregate root view showing saved image, video, and audio media cards only.
    - `Images` tab: masonry grid preserving each image’s true aspect ratio.
    - `Videos` tab: masonry grid preserving each video’s true aspect ratio.
    - `Prompts` tab: prompt cards use text reference-card presentation.
@@ -165,7 +165,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 1. `All Media` inline-tab layout:
    - Status: Aligned.
-   - Current: `All Media`, `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved images, videos, audio, and prompts in one mixed feed, while `Prompts` remains the prompt-only view.
+   - Current: `All Media`, `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved images, videos, and audio in one mixed feed, while `Prompts` remains the prompt-only view.
 2. `All Media` media pagination behavior:
    - Status: Aligned.
    - Current: Root media tabs auto-load additional pages near the bottom, and one global footer control remains visible as a manual fallback.
@@ -300,7 +300,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Reparent a folder via `Move to...` and confirm invalid destinations are absent.
 2. `All Media` display:
    - `All Media` root tabs render as `All Media`, `Images`, `Videos`, and `Prompts`.
-   - The aggregate `All Media` tab renders saved images, videos, audio, and prompts in one mixed masonry feed.
+   - The aggregate `All Media` tab renders saved images, videos, and audio in one mixed masonry feed.
    - `Prompts` tab renders text reference cards.
    - `Images` and `Videos` tabs render masonry with true aspect ratio.
 3. Membership semantics:

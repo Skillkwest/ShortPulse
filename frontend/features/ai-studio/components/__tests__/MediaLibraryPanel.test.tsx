@@ -672,7 +672,7 @@ describe("MediaLibraryPanel", () => {
     expect(latestPromptGridProps?.selectedIds.has("prompt-1")).toBe(true);
   });
 
-  it.skip("shows saved prompts inside the root All Media view", async () => {
+  it("keeps saved prompts out of the root All Media view", async () => {
     const onSelectPrompt = vi.fn();
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={onSelectPrompt} />);
 
@@ -680,23 +680,31 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
     });
 
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
+    const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps?.mediaRows).toHaveLength(2);
+    expect(latestProps?.promptRows).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Select prompt Prompt One" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
     });
-
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
-    const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
-    expect(latestProps?.mediaRows).toHaveLength(2);
-    expect(latestProps?.promptRows).toHaveLength(1);
-
-    fireEvent.click(screen.getByRole("button", { name: "Select prompt Prompt One" }));
     expect(onSelectPrompt).not.toHaveBeenCalled();
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("tab", { name: "All Media" }));
+    await waitFor(() => {
+      const nextProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
+      expect(nextProps?.promptRows).toHaveLength(0);
+    });
+    expect(screen.queryByRole("button", { name: "Select prompt Prompt One" })).toBeNull();
 
     const selectedProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0] as
       | { selectedIds: Set<string> }
       | undefined;
-    expect(selectedProps?.selectedIds.has("prompt-1")).toBe(true);
+    expect(selectedProps?.selectedIds.has("prompt-1")).toBe(false);
   });
 
   it("shows folder prompts and media in the same grid without split section headings", async () => {
@@ -1449,21 +1457,6 @@ describe("MediaLibraryPanel", () => {
       .mockResolvedValueOnce({
         rows: [
           {
-            id: "prompt-root-1",
-            title: "Root Prompt One",
-            prompt_text: "Root prompt text",
-            mode: "text",
-            source: "manual",
-            created_at: "2026-03-02T00:00:00.000Z",
-            updated_at: "2026-03-02T00:00:00.000Z",
-          },
-        ],
-        nextCursor: null,
-        hasMore: false,
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          {
             id: "prompt-1",
             title: "Prompt One",
             prompt_text: "Prompt text",
@@ -1498,12 +1491,12 @@ describe("MediaLibraryPanel", () => {
 
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
     });
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
     await waitFor(() => {
-      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
     });
 
     const scrollContainer = container.querySelector(".media-library-panel-body") as HTMLElement;
@@ -1526,7 +1519,7 @@ describe("MediaLibraryPanel", () => {
     fireEvent.scroll(scrollContainer);
 
     await waitFor(() => {
-      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(3);
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1677,6 +1670,7 @@ describe("MediaLibraryPanel", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Remove prompt Prompt One" })).toBeInTheDocument();
     });
+    const fetchMediaListCallsBeforeRemove = fetchMediaListPageMock.mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "Remove prompt Prompt One" }));
     await waitFor(() => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
@@ -1694,7 +1688,7 @@ describe("MediaLibraryPanel", () => {
         screen.queryByRole("button", { name: "Remove prompt Prompt One" })
       ).not.toBeInTheDocument();
     });
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(fetchMediaListCallsBeforeRemove);
   });
 
   it("uploads desktop files dropped on a folder tile and assigns them to that folder", async () => {

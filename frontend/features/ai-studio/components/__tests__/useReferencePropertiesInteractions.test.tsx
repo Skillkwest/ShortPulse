@@ -7,6 +7,7 @@ import {
   rememberObjectUrlBlob,
 } from "../../utils/objectUrlBlobRegistry";
 import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
+import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN, prepareReferenceDrag } from "../../utils/dragDrop";
 
 const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
@@ -539,6 +540,7 @@ describe("useReferencePropertiesInteractions", () => {
 
   it("clears frame-slot loading when an internal image drop resolves without a usable url", async () => {
     const onExtraImageChange = vi.fn();
+    getSignedMediaUrlMock.mockRejectedValueOnce(new Error("sign failed"));
     let resolveDrop: ((value: ResolvedInternalReferenceSource | null) => void) | null = null;
     const resolveInternalReferenceImageDropSource = vi.fn(
       () =>
@@ -1432,6 +1434,64 @@ describe("useReferencePropertiesInteractions", () => {
     expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
     expect(onExtraImageChange).toHaveBeenCalledWith(0, "https://example.com/durable-signed.png");
     expect(resolvePreviewUrlById).not.toHaveBeenCalled();
+  });
+
+  it("registers the image-compatible storage ref for resolved internal image drops", async () => {
+    const onExtraImageChange = vi.fn();
+    const displayUrl = "https://example.com/durable-poster-preview.png";
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "source-image-slot-poster",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-image-slot-poster",
+        mediaId: "media-image-slot-poster",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-image-slot-poster",
+      mediaId: "media-image-slot-poster",
+      mediaSource: "generated" as const,
+      preview: { url: displayUrl },
+      previewStoragePath: "user-1/variants/videos/out-video/poster_720.jpg",
+      fullStoragePath: "user-1/generations/videos/out-video.mp4",
+      promptText: null,
+      preparedImageUrl: "https://example.com/generations/videos/out-video.mp4",
+      loadBlob: async () => new Blob(["poster"], { type: "image/jpeg" }),
+    }));
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange,
+        onPromptTextChange: vi.fn(),
+        resolveInternalReferenceImageDropSource,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const dropEvent = makeInternalReferenceDragEvent({
+      referenceUrl: "blob:temporary-render",
+      imageUrl: "blob:temporary-render",
+    });
+
+    await act(async () => {
+      await result.current.handleExtraDrop(0)(dropEvent);
+    });
+
+    expect(onExtraImageChange).toHaveBeenCalledWith(0, displayUrl);
+    expect(resolveInternalMediaRefForUrl(displayUrl)).toEqual({
+      version: 1,
+      kind: "storage_object",
+      bucket: "media_library",
+      storagePath: "user-1/variants/videos/out-video/poster_720.jpg",
+      mediaFileId: "media-image-slot-poster",
+    });
   });
 
   it("fails closed instead of reviving weak preview fallback urls after unusable internal resolution", async () => {

@@ -38,10 +38,7 @@ import {
   rememberObjectUrlBlob,
 } from "../utils/objectUrlBlobRegistry";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
-import {
-  createInternalMediaRefFromResolvedSource,
-  registerInternalMediaRefForUrl,
-} from "../logic/referenceInputInternalMediaRegistry";
+import { registerInternalMediaRefForUrl } from "../logic/referenceInputInternalMediaRegistry";
 import {
   prepareLocalImageBlobForEditIngress,
   prepareLocalImageFileForEditIngress,
@@ -112,13 +109,59 @@ const isLocalRenderArtifactUrl = (value: string | null | undefined): boolean => 
   return trimmed.startsWith("blob:") || trimmed.startsWith("data:image/");
 };
 
+const IMAGE_STORAGE_PATH_PATTERN = /\.(?:avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)(?:$|[?#])/i;
+const NON_IMAGE_STORAGE_PATH_PATTERN =
+  /\.(?:aac|flac|m4a|m4v|mov|mp3|mp4|oga|ogg|ogv|wav|webm)(?:$|[?#])/i;
+
+const isImageStoragePath = (value: string | null | undefined): boolean =>
+  Boolean(value && IMAGE_STORAGE_PATH_PATTERN.test(value.trim()));
+
+const isKnownNonImageStoragePath = (value: string | null | undefined): boolean =>
+  Boolean(value && NON_IMAGE_STORAGE_PATH_PATTERN.test(value.trim()));
+
 const resolveImageStoragePath = ({
   fullStoragePath,
   previewStoragePath,
+  mediaKind,
 }: {
   fullStoragePath?: string | null;
   previewStoragePath?: string | null;
-}): string | null => trimOptionalString(fullStoragePath) ?? trimOptionalString(previewStoragePath);
+  mediaKind?: string | null;
+}): string | null => {
+  const fullPath = trimOptionalString(fullStoragePath);
+  const previewPath = trimOptionalString(previewStoragePath);
+  if (!fullPath) return previewPath;
+  if (!previewPath) return isKnownNonImageStoragePath(fullPath) ? null : fullPath;
+  if (mediaKind && mediaKind !== "image") {
+    return isImageStoragePath(previewPath) ? previewPath : null;
+  }
+  if (isKnownNonImageStoragePath(fullPath) && isImageStoragePath(previewPath)) return previewPath;
+  return fullPath;
+};
+
+const createImageSlotInternalMediaRef = ({
+  fullStoragePath,
+  previewStoragePath,
+  mediaId,
+  mediaKind,
+}: {
+  fullStoragePath?: string | null;
+  previewStoragePath?: string | null;
+  mediaId?: string | null;
+  mediaKind?: string | null;
+}) => {
+  const storagePath = resolveImageStoragePath({
+    fullStoragePath,
+    previewStoragePath,
+    mediaKind,
+  });
+  if (!storagePath) return null;
+  return createInternalMediaRef({
+    bucket: INTERNAL_MEDIA_REF_BUCKET,
+    storagePath,
+    mediaFileId: mediaId ?? null,
+  });
+};
 
 const resolveCanvasTearOutReferenceImageSnapshot = (
   payload: AgentComposerDirectDropPayload
@@ -431,6 +474,7 @@ export const useReferencePropertiesInteractions = ({
     const effectiveStoragePath = resolveImageStoragePath({
       fullStoragePath: effectiveFullStoragePath,
       previewStoragePath: effectivePreviewStoragePath,
+      mediaKind: effectiveMediaKind,
     });
     let nextUrl: string | null = null;
     let resolvedInternalMediaRef = null;
@@ -450,7 +494,12 @@ export const useReferencePropertiesInteractions = ({
             ? await resolveInternalReferenceImageDropSource(internalPayload).catch(() => null)
             : null;
         resolvedInternalMediaRef = resolvedSource
-          ? createInternalMediaRefFromResolvedSource(resolvedSource)
+          ? createImageSlotInternalMediaRef({
+              fullStoragePath: resolvedSource.fullStoragePath,
+              previewStoragePath: resolvedSource.previewStoragePath,
+              mediaId: resolvedSource.mediaId ?? mediaId ?? referenceId ?? null,
+              mediaKind: effectiveMediaKind,
+            })
           : null;
         if (
           resolveInternalReferenceImageDropSource &&
@@ -459,9 +508,18 @@ export const useReferencePropertiesInteractions = ({
         ) {
           return;
         }
+        const resolvedPreparedImageUrl = resolvedSource?.preparedImageUrl?.trim() || null;
+        const resolvedPreviewUrl = resolvedSource?.preview.url?.trim() || null;
         nextUrl =
-          resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
-        if (!nextUrl && !hasPreferredLocalRenderFallback) {
+          (resolvedPreparedImageUrl && looksLikeImageUrl(resolvedPreparedImageUrl)
+            ? resolvedPreparedImageUrl
+            : null) ??
+          (resolvedPreviewUrl && looksLikeImageUrl(resolvedPreviewUrl) ? resolvedPreviewUrl : null);
+        if (
+          !nextUrl &&
+          !resolvedInternalMediaRef?.storagePath &&
+          !hasPreferredLocalRenderFallback
+        ) {
           return;
         }
       } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
@@ -483,12 +541,13 @@ export const useReferencePropertiesInteractions = ({
             : null) ?? imageUrl;
       }
 
-      if (!nextUrl && effectiveStoragePath) {
+      const signingStoragePath = resolvedInternalMediaRef?.storagePath ?? effectiveStoragePath;
+      if (!nextUrl && signingStoragePath) {
         setLoading(true);
         didSetLoading = true;
         nextUrl = await getSignedMediaUrl({
           bucket: INTERNAL_MEDIA_REF_BUCKET,
-          storagePath: effectiveStoragePath,
+          storagePath: signingStoragePath,
           previewProfile: "none",
         }).catch(() => null);
       }
@@ -503,7 +562,7 @@ export const useReferencePropertiesInteractions = ({
       }
 
       if (!nextUrl) return;
-      const hasTrustedStorageImageRef = Boolean(resolvedInternalMediaRef && effectiveStoragePath);
+      const hasTrustedStorageImageRef = Boolean(resolvedInternalMediaRef?.storagePath);
       if (!looksLikeImageUrl(nextUrl) && !hasTrustedStorageImageRef) return;
 
       if (!internalPayload) {

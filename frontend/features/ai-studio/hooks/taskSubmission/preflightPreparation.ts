@@ -5,7 +5,10 @@
 import { reportAppError } from "../../../../lib/appErrorReporter";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
-import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
+import {
+  registerInternalMediaRefForUrl,
+  resolveInternalMediaRefForUrl,
+} from "../../logic/referenceInputInternalMediaRegistry";
 import { DeadlineExceededError, withAbortableDeadline } from "../../logic/withDeadline";
 import { prepareImageUrlForSubmission, type PrepareImageStageEvent } from "../../utils/imageUpload";
 import { resolvePrepareReferenceTimeoutBudget } from "./preflightTimeout";
@@ -99,6 +102,10 @@ export const prepareSubmissionReferenceInputs = async ({
                       emitPreflightStage(event, "reference", index);
                     },
                   });
+                  const internalMediaRef = resolvePreparedInternalMediaRef(normalized, url);
+                  if (normalized && internalMediaRef) {
+                    registerInternalMediaRefForUrl(normalized, internalMediaRef);
+                  }
                   return normalized ?? null;
                 })
               )

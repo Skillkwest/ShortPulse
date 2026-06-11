@@ -637,6 +637,40 @@ describe("useAiStudioReferenceAssetActions", () => {
     expect(click).toHaveBeenCalledTimes(1);
   });
 
+  it("adds an image extension for storage downloads when signed preview URLs are extensionless", async () => {
+    const { supabase, storageDownload } = createSupabaseMock({
+      storageDownloadResult: {
+        data: new Blob(["file"], { type: "image/webp" }),
+        error: null,
+      },
+    });
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
+    const { click, link } = installDownloadDomMocks();
+    const output = {
+      ...makeOutput("out-extensionless", "make her sleeves as dark as her dress"),
+      mediaSource: "generated",
+      previewStoragePath: "user-1/generations/images/opaque-output.webp",
+      fullStoragePath: "user-1/generations/images/opaque-output.webp",
+      previewUrl: "https://signed.test/storage-download?token=opaque",
+    } satisfies StudioOutput;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          findOutputById: (id) => (id === "out-extensionless" ? output : null),
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.handleDownloadReference("out-extensionless");
+    });
+
+    expect(storageDownload).toHaveBeenCalledWith("user-1/generations/images/opaque-output.webp");
+    expect(link.download).toBe("make her sleeves as dark as her dress.webp");
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+
   it("unwraps next-image optimizer URLs before triggering direct URL download fallback", async () => {
     const { supabase } = createSupabaseMock();
     vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);

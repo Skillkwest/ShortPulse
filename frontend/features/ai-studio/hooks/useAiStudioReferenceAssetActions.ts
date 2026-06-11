@@ -47,12 +47,6 @@ export const useAiStudioReferenceAssetActions = ({
           supabase,
           projectId,
         });
-        const downloadFilename = resolveReferenceDownloadFilename({
-          preferredFilename: resolvedTarget.fileRecord?.filename ?? null,
-          prompt: target.prompt,
-          outputId: target.id,
-          previewUrl: resolvedTarget.directUrl ?? target.previewUrl ?? null,
-        });
 
         if (resolvedTarget.fileRecord?.storagePath) {
           const { data, error } = await supabase.storage
@@ -63,6 +57,15 @@ export const useAiStudioReferenceAssetActions = ({
             throw new Error("Unable to download media.");
           }
           const blob = data as Blob;
+          const downloadFilename = resolveReferenceDownloadFilename({
+            preferredFilename: resolvedTarget.fileRecord.filename,
+            prompt: target.prompt,
+            outputId: target.id,
+            previewUrl: resolvedTarget.directUrl ?? target.previewUrl ?? null,
+            storagePath: resolvedTarget.fileRecord.storagePath,
+            mimeType: blob.type,
+            mode: target.mode,
+          });
           downloadBlobToFile(blob, downloadFilename);
           return;
         }
@@ -78,10 +81,25 @@ export const useAiStudioReferenceAssetActions = ({
             const blob = await downloadReferenceProviderBlob({
               url: directUrl,
             });
+            const downloadFilename = resolveReferenceDownloadFilename({
+              preferredFilename: null,
+              prompt: target.prompt,
+              outputId: target.id,
+              previewUrl: directUrl,
+              mimeType: blob.type,
+              mode: target.mode,
+            });
             downloadBlobToFile(blob, downloadFilename);
             return;
           }
 
+          const downloadFilename = resolveReferenceDownloadFilename({
+            preferredFilename: null,
+            prompt: target.prompt,
+            outputId: target.id,
+            previewUrl: directUrl,
+            mode: target.mode,
+          });
           const startedDownload = downloadUrlToFile(directUrl, downloadFilename);
           if (!startedDownload) {
             throw new Error("No media available to download.");

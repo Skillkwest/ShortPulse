@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveReferenceDownloadTarget } from "../referenceDownload";
+import {
+  resolveReferenceDownloadFilename,
+  resolveReferenceDownloadTarget,
+} from "../referenceDownload";
 
 const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
 
@@ -322,5 +325,40 @@ describe("resolveReferenceDownloadTarget", () => {
       generationId: null,
       directUrl: "https://cdn.example.com/project-preview.png",
     });
+  });
+});
+
+describe("resolveReferenceDownloadFilename", () => {
+  it("adds the storage path image extension when the visible prompt has no extension", () => {
+    expect(
+      resolveReferenceDownloadFilename({
+        prompt: "make her sleeves as dark as her dress",
+        outputId: "out-1",
+        storagePath: "user-1/generations/images/output.webp",
+        previewUrl: "https://signed.test/object?token=opaque",
+        mode: "image",
+      })
+    ).toBe("make her sleeves as dark as her dress.webp");
+  });
+
+  it("adds a blob MIME extension to extensionless preferred filenames", () => {
+    expect(
+      resolveReferenceDownloadFilename({
+        preferredFilename: "generated-output",
+        prompt: "ignored prompt",
+        mimeType: "image/jpeg",
+        mode: "image",
+      })
+    ).toBe("generated-output.jpg");
+  });
+
+  it("falls back to the output mode when no URL or MIME extension is available", () => {
+    expect(
+      resolveReferenceDownloadFilename({
+        prompt: "opaque image download",
+        previewUrl: "https://cdn.test/download?id=123",
+        mode: "image",
+      })
+    ).toBe("opaque image download.png");
   });
 });

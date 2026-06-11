@@ -54,6 +54,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Prefer file-backed manifests and explicit local binaries on large runs. If a wrapper path or long-running validation session goes stale, rerun the required gates on the corrected final tree.
 - A clean `git status --short` is necessary but not sufficient for push confidence. What matters is whether the final committed content materially differs from the already-validated content; if yes, rerun only the affected rung set instead of replaying the whole ladder by habit.
 - If the manifest includes ignore-matched config files like `frontend/next.config.js`, skip the wrapper preflight immediately and run the manual ladder so ESLint ignore noise does not steal the first pass.
+- When a dashboard or other public surface introduces a new image element, check the nearby `next/image` pattern first so `@next/next/no-img-element` does not burn a late validation cycle on an otherwise settled lane.
 - Shared-contract changes need first-manifest fan-out; final builds should confirm, not discover, obvious downstream seam breaks.
 - When a touched hook rewires retry or failure refs, make nullability explicit in the first pass; focused Vitest can stay green while the production build still rejects narrower TypeScript control flow.
 - When canonical helpers, route metadata, or memoization boundaries move, update the repo checks and optimization-sensitive tests that depend on them in the same first pass.

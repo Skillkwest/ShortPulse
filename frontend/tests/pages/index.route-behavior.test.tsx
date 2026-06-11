@@ -3,7 +3,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import IndexPage from "../../pages/index";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
@@ -14,6 +14,7 @@ const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const publicFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -66,6 +67,8 @@ vi.mock("../../lib/authenticatedFetch", () => ({
 describe("Index route behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", publicFetchMock);
+    publicFetchMock.mockReturnValue(new Promise(() => {}));
     useRouterMock.mockReturnValue({ push: vi.fn(), replace: vi.fn(), query: {} });
     useCreditsMock.mockReturnValue({
       balanceCents: null,
@@ -81,6 +84,10 @@ describe("Index route behavior", () => {
       session: null,
       user: null,
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("shows the public dashboard entry surface at the root route", () => {

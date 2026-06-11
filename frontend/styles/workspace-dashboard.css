@@ -791,6 +791,17 @@ button.hero-onboarding {
   line-height: 1.2;
 }
 
+.dashboard-section-header h2 span {
+  color: var(--color-teal);
+}
+
+.dashboard-section-subtext {
+  max-width: 520px;
+  margin: 8px 0 0;
+  color: var(--color-ash-70);
+  line-height: 1.45;
+}
+
 .dashboard-tutorial-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(150px, 1fr));

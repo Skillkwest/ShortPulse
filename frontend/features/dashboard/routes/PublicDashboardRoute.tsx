@@ -4,11 +4,12 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { ChartBar, CloudArrowUp, ShieldCheck, Sparkle, type IconProps } from "phosphor-react";
 import { DashboardAppBar } from "../components/DashboardAppBar";
 import { GuestDashboardView } from "../components/GuestDashboardView";
+import type { DashboardTutorial } from "../components/DashboardTutorialGrid";
 import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
 import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
 import type { DashboardOffer } from "../../../lib/server/api/dashboardOffers";
@@ -37,42 +38,13 @@ const getOfferIcon = (offer: DashboardOffer) => {
 };
 
 const buildGuestHeaderCards = (offers: DashboardOffer[]): DashboardHeaderCard[] => {
-  if (offers.length) {
-    return offers.slice(0, 4).map((offer) => ({
-      key: offer.id,
-      label: offer.eyebrow,
-      value: offer.title,
-      icon: getOfferIcon(offer),
-      href: offer.ctaHref,
-    }));
-  }
-
-  return [
-    {
-      key: "guest-offer-1",
-      label: "Offer 1",
-      value: "Offer 1",
-      icon: Sparkle,
-    },
-    {
-      key: "guest-offer-2",
-      label: "Offer 2",
-      value: "Offer 2",
-      icon: CloudArrowUp,
-    },
-    {
-      key: "guest-offer-3",
-      label: "Offer 3",
-      value: "Offer 3",
-      icon: ShieldCheck,
-    },
-    {
-      key: "guest-offer-4",
-      label: "Offer 4",
-      value: "Offer 4",
-      icon: ChartBar,
-    },
-  ];
+  return offers.slice(0, 4).map((offer) => ({
+    key: offer.id,
+    label: offer.eyebrow,
+    value: offer.title,
+    icon: getOfferIcon(offer),
+    href: offer.ctaHref,
+  }));
 };
 
 /**
@@ -80,15 +52,10 @@ const buildGuestHeaderCards = (offers: DashboardOffer[]): DashboardHeaderCard[] 
  */
 export function PublicDashboardRoute({
   dashboardOffers = [],
-  dashboardTutorials = [],
   manageBodyClass = true,
 }: PublicDashboardRouteInternalProps) {
   const guestPageViewTrackedRef = useRef(false);
-  const initialDashboardTutorials = useMemo(
-    () => asDashboardTutorials(dashboardTutorials),
-    [dashboardTutorials]
-  );
-  const [liveDashboardTutorials, setLiveDashboardTutorials] = useState(initialDashboardTutorials);
+  const [liveDashboardTutorials, setLiveDashboardTutorials] = useState<DashboardTutorial[]>([]);
 
   useEffect(() => {
     if (guestPageViewTrackedRef.current) return;
@@ -128,7 +95,7 @@ export function PublicDashboardRoute({
         setLiveDashboardTutorials(asDashboardTutorials(payload.tutorials));
       } catch {
         if (!active) return;
-        setLiveDashboardTutorials(initialDashboardTutorials);
+        setLiveDashboardTutorials([]);
       }
     };
 
@@ -136,7 +103,7 @@ export function PublicDashboardRoute({
     return () => {
       active = false;
     };
-  }, [initialDashboardTutorials]);
+  }, []);
 
   const loginHref = buildDashboardAuthPath();
   const signupHref = buildDashboardAuthPath({ mode: "signup" });

@@ -26,10 +26,12 @@ export function GuestDashboardView({
       <section className="dashboard-hero minimal-hero">
         <div className="hero-primary">
           <div className="hero-copy">
-            <h1>The creative studio for AI creators</h1>
+            <h1>
+              The creative studio for <span>AI creators</span>
+            </h1>
             <p className="hero-subtext">
-              Create images, videos, characters, and content with powerful AI tools—all in one
-              place.
+              Watch a quick walkthrough, then build the image, video, character, or edit workflow
+              you need in one focused workspace.
             </p>
           </div>
 
@@ -53,8 +55,14 @@ export function GuestDashboardView({
         >
           <div className="dashboard-section-header">
             <div>
-              <p className="eyebrow tiny">Tutorial hub</p>
-              <h2 id="dashboard-tutorials-heading">Start with a guided walkthrough</h2>
+              <p className="eyebrow tiny">Quick-start tutorials</p>
+              <h2 id="dashboard-tutorials-heading">
+                Pick a <span>workflow</span> and start creating
+              </h2>
+              <p className="dashboard-section-subtext">
+                See what each workflow can make, then launch into your first project when you are
+                ready.
+              </p>
             </div>
           </div>
           <DashboardTutorialGrid tutorials={dashboardTutorials} launchHref={tutorialLaunchHref} />

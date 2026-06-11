@@ -60,7 +60,7 @@ const emptyDraft = (slotIndex = 0): AdminDashboardOfferDraft => ({
   ctaLabel: "View offer",
   ctaHref: "/pricing",
   displayOrder: String(slotIndex + 1),
-  isActive: true,
+  isActive: false,
   startsAt: "",
   endsAt: "",
 });
@@ -167,8 +167,11 @@ const buildOfferSavePayload = (
   const ctaLabel = draft.ctaLabel.trim() || "View offer";
   const ctaHref = draft.ctaHref.trim() || "/pricing";
 
-  if (!title) {
+  if (!title && draft.isActive) {
     return { payload: null, error: `Offer ${slotIndex + 1} title is required.` };
+  }
+  if (!title && !draft.isActive) {
+    return { payload: null, error: null };
   }
   if (!ctaHref.startsWith("/") || ctaHref.startsWith("//")) {
     return { payload: null, error: `Offer ${slotIndex + 1} CTA href must be an internal path.` };
@@ -312,9 +315,14 @@ export const useAdminOffersController = ({
     async (slotIndex: number) => {
       const draft = drafts[slotIndex] ?? emptyDraft(slotIndex);
       const validation = buildOfferSavePayload(draft, slotIndex);
-      if (validation.error || !validation.payload) {
+      if (validation.error || (!validation.payload && draft.isActive)) {
         setError(validation.error ?? "Offer is invalid.");
         setResult(null);
+        return;
+      }
+      if (!validation.payload) {
+        setError(null);
+        setResult("No offer changes to save.");
         return;
       }
 
@@ -349,10 +357,24 @@ export const useAdminOffersController = ({
       );
       return { slotIndex, ...validation };
     });
-    const invalidPayload = payloads.find((payload) => payload.error || !payload.payload);
+    const invalidPayload = payloads.find((payload) => payload.error);
     if (invalidPayload) {
       setError(invalidPayload?.error ?? "Offer changes are invalid.");
       setResult(null);
+      return;
+    }
+    const saveablePayloads = payloads.filter(
+      (payload): payload is typeof payload & { payload: OfferSavePayload } =>
+        payload.payload !== null
+    );
+    if (!saveablePayloads.length) {
+      setLoadedDrafts(drafts);
+      setError(null);
+      setResult(
+        drafts.some((draft) => draft.id && draft.isActive)
+          ? "No offer changes to save."
+          : "No active offers to display."
+      );
       return;
     }
 
@@ -360,13 +382,12 @@ export const useAdminOffersController = ({
     setError(null);
     setResult(null);
     try {
-      for (const payload of payloads) {
-        if (!payload.payload) continue;
+      for (const payload of saveablePayloads) {
         setSavingSlotIndex(payload.slotIndex);
         await persistOfferPayload(payload.payload);
       }
       await loadOffers();
-      const savedCount = payloads.length;
+      const savedCount = saveablePayloads.length;
       setResult(`${savedCount} offer${savedCount === 1 ? "" : "s"} saved.`);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Failed to save offers.");

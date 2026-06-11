@@ -115,7 +115,7 @@ describe("useAdminOffersController", () => {
     expect(result.current.result).toBe("2 offers saved.");
   });
 
-  it("does not bulk-save dirty placeholder slots without titles", async () => {
+  it("skips inactive placeholder slots without titles", async () => {
     fetchWithAuthMock.mockResolvedValue(jsonResponse({ offers: [buildOffer()] }));
 
     const { result } = renderHook(() => useAdminOffersController({ enabled: true }));
@@ -131,6 +131,52 @@ describe("useAdminOffersController", () => {
     });
 
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
-    expect(result.current.error).toBe("Offer 3 title is required.");
+    expect(result.current.error).toBeNull();
+    expect(result.current.result).toBe("No offer changes to save.");
+  });
+
+  it("bulk-saves one active titled offer without requiring inactive placeholder titles", async () => {
+    const savedBodies: unknown[] = [];
+
+    fetchWithAuthMock.mockImplementation(async (_url: string, options?: { body?: string }) => {
+      if (!options?.body) {
+        return jsonResponse({ offers: [] });
+      }
+
+      const body = JSON.parse(options.body) as Partial<MockOffer> & { id?: string | null };
+      savedBodies.push(body);
+      return jsonResponse({
+        offer: buildOffer({
+          ...body,
+          id: body.id ?? "offer-1",
+          createdAt: "2026-06-11T00:00:00.000Z",
+          updatedAt: "2026-06-11T00:01:00.000Z",
+        }),
+        message: "Offer saved and active.",
+      });
+    });
+
+    const { result } = renderHook(() => useAdminOffersController({ enabled: true }));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.updateDraft(0, { title: "hey", isActive: true });
+    });
+
+    await act(async () => {
+      await result.current.saveAllOffers();
+    });
+
+    expect(savedBodies).toHaveLength(1);
+    expect(savedBodies[0]).toEqual(
+      expect.objectContaining({
+        title: "hey",
+        isActive: true,
+        displayOrder: 1,
+      })
+    );
+    expect(result.current.error).toBeNull();
+    expect(result.current.result).toBe("1 offer saved.");
   });
 });

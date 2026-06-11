@@ -158,13 +158,13 @@ describe("Dashboard guest route", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Create images, videos, characters, and content with powerful AI tools—all in one place."
+        "Watch a quick walkthrough, then build the image, video, character, or edit workflow you need in one focused workspace."
       )
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Offer 1")).toHaveLength(2);
-    expect(screen.getAllByText("Offer 2")).toHaveLength(2);
-    expect(screen.getAllByText("Offer 3")).toHaveLength(2);
-    expect(screen.getAllByText("Offer 4")).toHaveLength(2);
+    expect(screen.queryByText("Offer 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Offer 2")).not.toBeInTheDocument();
+    expect(screen.queryByText("Offer 3")).not.toBeInTheDocument();
+    expect(screen.queryByText("Offer 4")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute(
       "href",
       "/auth?next=%2Fdashboard"
@@ -217,20 +217,51 @@ describe("Dashboard guest route", () => {
     expect(readSupabaseSessionBootstrapHintMock).toHaveBeenCalled();
   });
 
-  it("renders public tutorial cards that open the tutorial modal", () => {
+  it("renders active dashboard offers when supplied", () => {
+    render(
+      <DashboardPage
+        dashboardOffers={[
+          {
+            id: "offer-1",
+            eyebrow: "Launch deal",
+            title: "Save on Studio",
+            description: "",
+            offerKind: "plan",
+            discountLabel: "Save 30%",
+            targetLabel: "Studio annual",
+            ctaLabel: "View offer",
+            ctaHref: "/pricing",
+            displayOrder: 1,
+            isActive: true,
+            startsAt: null,
+            endsAt: null,
+            createdAt: "2026-06-11T00:00:00.000Z",
+            updatedAt: "2026-06-11T00:00:00.000Z",
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "Launch deal: Save on Studio" })).toHaveAttribute(
+      "href",
+      "/pricing"
+    );
+  });
+
+  it("does not render static tutorial props before live endpoint hydration", () => {
     render(
       <DashboardPage
         dashboardTutorials={[
           {
-            id: "tutorial-1",
-            title: "Generate images with ShortPulse",
+            id: "stale-tutorial-1",
+            title: "Stale signed thumbnail tutorial",
             youtubeUrl: "https://www.youtube.com/watch?v=abc123",
-            thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+            thumbnailUrl: "https://cdn.example.com/stale-signed-thumbnail.gif",
             thumbnailStoragePath: null,
             thumbnailFileSizeBytes: null,
             thumbnailContentType: null,
             thumbnailMediaType: "image",
-            thumbnailAlt: "Tutorial preview",
+            thumbnailAlt: "Stale tutorial preview",
             displayOrder: 1,
             isActive: true,
             createdAt: "2026-06-11T00:00:00.000Z",
@@ -240,7 +271,38 @@ describe("Dashboard guest route", () => {
       />
     );
 
-    expect(screen.getByText("Generate images with ShortPulse")).toBeInTheDocument();
+    expect(screen.queryByText("Stale signed thumbnail tutorial")).not.toBeInTheDocument();
+  });
+
+  it("renders public tutorial cards that open the tutorial modal", async () => {
+    publicFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tutorials: [
+          {
+            id: "tutorial-1",
+            title: "Generate images with ShortPulse",
+            youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+            thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+            thumbnailMediaType: "image",
+            thumbnailAlt: "Tutorial preview",
+            displayOrder: 1,
+          },
+        ],
+      }),
+    });
+
+    render(<DashboardPage dashboardTutorials={[]} />);
+
+    expect(
+      await screen.findByRole("heading", { name: /pick a workflow and start creating/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "See what each workflow can make, then launch into your first project when you are ready."
+      )
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Generate images with ShortPulse")).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", {
         name: "Generate images with ShortPulse: open tutorial",
@@ -260,37 +322,34 @@ describe("Dashboard guest route", () => {
     );
   });
 
-  it("renders video tutorial thumbnails with controlled smooth-loop playback", () => {
-    render(
-      <DashboardPage
-        dashboardTutorials={[
+  it("renders video tutorial thumbnails as native loops without early seek control", async () => {
+    publicFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tutorials: [
           {
             id: "tutorial-1",
             title: "Generate videos with ShortPulse",
             youtubeUrl: "https://www.youtube.com/watch?v=abc123",
             thumbnailUrl: "https://cdn.example.com/tutorial.mp4",
-            thumbnailStoragePath: null,
-            thumbnailFileSizeBytes: null,
-            thumbnailContentType: "video/mp4",
             thumbnailMediaType: "video",
             thumbnailAlt: "Tutorial preview",
             displayOrder: 1,
-            isActive: true,
-            createdAt: "2026-06-11T00:00:00.000Z",
-            updatedAt: "2026-06-11T00:00:00.000Z",
           },
-        ]}
-      />
-    );
+        ],
+      }),
+    });
 
-    const tutorialButton = screen.getByRole("button", {
+    render(<DashboardPage dashboardTutorials={[]} />);
+
+    const tutorialButton = await screen.findByRole("button", {
       name: "Generate videos with ShortPulse: open tutorial",
     });
     const thumbnailVideo = tutorialButton.querySelector("video");
 
     expect(thumbnailVideo).toBeInTheDocument();
     expect(thumbnailVideo).toHaveAttribute("preload", "auto");
-    expect(thumbnailVideo).not.toHaveAttribute("loop");
+    expect(thumbnailVideo).toHaveAttribute("loop");
   });
 
   it("hydrates public tutorial cards from the dashboard tutorials endpoint", async () => {

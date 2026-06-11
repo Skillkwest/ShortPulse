@@ -1,6 +1,11 @@
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
-import type { StudioMode, StudioOutput, ToolId } from "../../types";
+import type {
+  StudioMode,
+  StudioOutput,
+  ToolId,
+  WorkflowReloadExpertEditReferences,
+} from "../../types";
 
 export type AiStudioTaskSubmitOptions = {
   modeOverride?: StudioMode;
@@ -16,6 +21,7 @@ export type AiStudioTaskSubmitOptions = {
   imageResolutionOverride?: string;
   inpaintOverride?: InpaintSubmissionOverride | null;
   hideOutputFromReferenceGrid?: boolean;
+  expertEditReferences?: WorkflowReloadExpertEditReferences | null;
 };
 
 type AiStudioImageRerollForwardedOptions = Pick<

@@ -155,12 +155,14 @@ sequenceDiagram
 2. Capture path:
 
 - Image and video Create/Edit submissions build reload metadata beside, not inside, `generationReplay`.
+- Expert Edit image submissions that use `@img1..@img10` also persist the token-linked secondary slot map inside the image `workflowReload` payload. The provider-facing `referenceInputs` order remains compact, but reload metadata preserves original secondary slot indexes so Reference Grid workflow reload can hydrate the same `@imgN` slots instead of guessing from compact URL order.
 - The optimistic `StudioOutput` receives `workflowReload` immediately so current-session references can reload without waiting for project restore.
 - Submit handlers send `workflow_reload` to API routes and persistence services. Provider request bodies must not change except for this metadata sidecar.
 
 3. Restore behavior:
 
 - Reload is a manual edit-and-iterate action. It selects the originating workflow panel, restores prompt/model/aspect/resolution/reference/audio controls, and stops. The user must click Generate to submit a new output.
+- For Expert Edit image outputs, reload must restore secondary references by persisted slot identity when present. For example, a generation created with `@img10` must reload that reference into secondary slot 10, even if it was the second or third provider input after preflight.
 - Reroll remains the immediate-submit behavior and continues to use `generationReplay`.
 - Outputs without valid `workflowReload` or a valid image replay compatibility derivation must not show the reload action.
 

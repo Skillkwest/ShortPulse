@@ -64,7 +64,10 @@ export type CompileExpertEditSubmissionPromptResult = {
 
 export type ExpertEditSubmissionReferencePlan = {
   referenceInputs: string[];
+  primaryReferenceInputIndex: number | null;
+  markupReferenceInputIndex: number | null;
   secondaryFigureNumbersBySlotIndex: Partial<Record<number, number>>;
+  secondaryReferenceInputIndexesBySlotIndex: Partial<Record<number, number>>;
 };
 
 const normalizeSlotUrl = (value: string | null | undefined): string => {
@@ -295,6 +298,7 @@ export const buildExpertEditSubmissionReferencePlan = ({
   );
   const referenceInputs: string[] = [];
   const secondaryFigureNumbersBySlotIndex: Partial<Record<number, number>> = {};
+  const secondaryReferenceInputIndexesBySlotIndex: Partial<Record<number, number>> = {};
   const pushReferenceInput = (value: string | null | undefined): number | null => {
     const normalizedValue = normalizeSlotUrl(value);
     if (!normalizedValue.length) return null;
@@ -305,17 +309,21 @@ export const buildExpertEditSubmissionReferencePlan = ({
     return referenceInputs.length;
   };
 
-  pushReferenceInput(flattenedPrimaryUrl);
-  pushReferenceInput(flattenedMarkupReferenceUrl ?? null);
+  const primaryFigureNumber = pushReferenceInput(flattenedPrimaryUrl);
+  const markupFigureNumber = pushReferenceInput(flattenedMarkupReferenceUrl ?? null);
   referencedSlotIndexes.forEach((slotIndex, index) => {
     const figureNumber = pushReferenceInput(referencedSecondaryUrls[index]);
     if (figureNumber == null) return;
     secondaryFigureNumbersBySlotIndex[slotIndex] = figureNumber;
+    secondaryReferenceInputIndexesBySlotIndex[slotIndex] = figureNumber - 1;
   });
 
   return {
     referenceInputs,
+    primaryReferenceInputIndex: primaryFigureNumber == null ? null : primaryFigureNumber - 1,
+    markupReferenceInputIndex: markupFigureNumber == null ? null : markupFigureNumber - 1,
     secondaryFigureNumbersBySlotIndex,
+    secondaryReferenceInputIndexesBySlotIndex,
   };
 };
 

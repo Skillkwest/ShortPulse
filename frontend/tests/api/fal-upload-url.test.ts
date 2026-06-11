@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/upload-url";
 import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
@@ -396,6 +397,89 @@ describe("POST /api/fal/upload-url", () => {
       url: "https://v3.fal.media/files/storage-voice.mp3",
       fileName: "voice.mp3",
       mimeType: "audio/mpeg",
+    });
+  });
+
+  it("normalizes OmniHuman image storage inputs to JPEG before Fal CDN staging", async () => {
+    const webpImage = await sharp({
+      create: {
+        width: 8,
+        height: 8,
+        channels: 3,
+        background: { r: 80, g: 40, b: 120 },
+      },
+    })
+      .webp()
+      .toBuffer();
+    storageDownloadMock.mockResolvedValueOnce({
+      data: {
+        size: webpImage.length,
+        type: "image/webp",
+        arrayBuffer: async () =>
+          webpImage.buffer.slice(webpImage.byteOffset, webpImage.byteOffset + webpImage.byteLength),
+      },
+      error: null,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            upload_url: "https://upload.fal.media/storage-image-put",
+            file_url: "https://v3.fal.media/files/character.jpg",
+          }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/jpeg" }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: "user-1/variants/images/reference-grid/character.webp",
+        mediaKind: "image",
+        compatibilityTarget: "omnihuman-v15-image",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageDownloadMock).toHaveBeenCalledWith(
+      "user-1/variants/images/reference-grid/character.webp"
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          content_type: "image/jpeg",
+          file_name: "character.jpg",
+        }),
+      })
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        method: "PUT",
+        headers: {
+          "Content-Type": "image/jpeg",
+        },
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://v3.fal.media/files/character.jpg",
+      fileName: "character.jpg",
+      mimeType: "image/jpeg",
     });
   });
 

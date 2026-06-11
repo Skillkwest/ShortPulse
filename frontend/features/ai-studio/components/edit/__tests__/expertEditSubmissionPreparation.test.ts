@@ -31,7 +31,10 @@ describe("prepareExpertEditSubmission", () => {
     });
     buildExpertEditSubmissionReferencePlanMock.mockReturnValue({
       referenceInputs: ["blob:flatten-1", "ref-2"],
+      primaryReferenceInputIndex: 0,
+      markupReferenceInputIndex: null,
       secondaryFigureNumbersBySlotIndex: { 1: 2 },
+      secondaryReferenceInputIndexesBySlotIndex: { 1: 1 },
     });
     compileExpertEditSubmissionPromptMock.mockReturnValue({
       hasTokenReferences: false,
@@ -93,6 +96,12 @@ describe("prepareExpertEditSubmission", () => {
       status: "ready",
       referenceInputs: ["blob:flatten-1", "ref-2"],
       linkedSecondaryReferenceInputs: ["https://example.com/ref-2.png"],
+      workflowReloadExpertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [{ slotIndex: 1, referenceInputIndex: 1 }],
+      },
       promptOverrideOptions: undefined,
     });
     expect(buildExpertEditSubmissionReferencePlanMock).toHaveBeenCalledWith({
@@ -106,7 +115,10 @@ describe("prepareExpertEditSubmission", () => {
   it("returns prompt override options when compiled prompt uses token references", () => {
     buildExpertEditSubmissionReferencePlanMock.mockReturnValue({
       referenceInputs: ["blob:flatten-1", "blob:markup-1"],
+      primaryReferenceInputIndex: 0,
+      markupReferenceInputIndex: 1,
       secondaryFigureNumbersBySlotIndex: {},
+      secondaryReferenceInputIndexesBySlotIndex: {},
     });
     compileExpertEditSubmissionPromptMock.mockReturnValue({
       hasTokenReferences: true,

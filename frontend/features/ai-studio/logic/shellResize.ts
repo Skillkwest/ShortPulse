@@ -18,6 +18,7 @@ export const AI_SHELL_LEFT_CHARACTER_MIN_PX = 920;
 export const AI_SHELL_RIGHT_MIN_PX = 320;
 export const AI_SHELL_RIGHT_ELEMENTS_MIN_PX = 180;
 export const AI_SHELL_RIGHT_CANVAS_MIN_PX = 0;
+export const AI_SHELL_RIGHT_COMPACT_MIN_PX = 260;
 export const AI_SHELL_DIVIDER_TRACK_PX = 16;
 export const AI_SHELL_RESIZE_BREAKPOINT_PX = 960;
 export const AI_SHELL_LEFT_DEFAULT_RATIO = 0.4;
@@ -30,6 +31,44 @@ type ShellResizeBoundsOptions = {
   maxLeftWidthPx?: number;
   minRightWidthPx?: number;
   preferredRatio?: number;
+};
+
+export type AiShellLayoutMode = "split" | "compact-split" | "stacked" | "right-rail-focus";
+
+type ShellLayoutModeOptions = ShellResizeBoundsOptions & {
+  enabled: boolean;
+  isResizableViewport: boolean;
+};
+
+/**
+ * Resolves the adaptive shell mode from measured available width.
+ * Inputs: shell container width plus caller-owned minimums.
+ * Output: presentation mode used by CSS and resize affordances.
+ */
+export const resolveAiShellLayoutMode = (
+  containerWidth: number,
+  options: ShellLayoutModeOptions
+): AiShellLayoutMode => {
+  if (!options.enabled) return "right-rail-focus";
+  if (!options.isResizableViewport) return "stacked";
+  if (!Number.isFinite(containerWidth) || containerWidth <= 0) return "split";
+
+  const requestedLeftMin = Math.max(
+    AI_SHELL_LEFT_MIN_FALLBACK_PX,
+    options.minLeftWidthPx ?? AI_SHELL_LEFT_MIN_PX
+  );
+  const requestedRightMin =
+    typeof options.minRightWidthPx === "number" && Number.isFinite(options.minRightWidthPx)
+      ? Math.max(0, Math.floor(options.minRightWidthPx))
+      : AI_SHELL_RIGHT_MIN_PX;
+  const fullSplitMin = requestedLeftMin + requestedRightMin + AI_SHELL_DIVIDER_TRACK_PX;
+  if (containerWidth >= fullSplitMin) return "split";
+
+  const compactSplitMin =
+    AI_SHELL_LEFT_MIN_FALLBACK_PX + AI_SHELL_RIGHT_COMPACT_MIN_PX + AI_SHELL_DIVIDER_TRACK_PX;
+  if (containerWidth >= compactSplitMin) return "compact-split";
+
+  return "stacked";
 };
 
 /**

@@ -11,6 +11,10 @@ import {
   resolveWorkflowReloadConfigForOutput,
 } from "../logic/workflowReload";
 import type { AiStudioKlingElement } from "../logic/klingElements";
+import {
+  createEmptyExpertEditSecondaryImageUrls,
+  MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
+} from "../logic/expertEditReferenceSlots";
 import type {
   StudioOutput,
   ToolId,
@@ -44,6 +48,12 @@ export type WorkflowReloadResult = {
 };
 
 type SetReferenceSelectionState = (nextState: ReferenceSelectionAuthorityStateSeed) => void;
+
+type ReloadReferenceSelectionInput = {
+  referenceImageUrl: string | null;
+  extraImageUrls: (string | null)[];
+  referenceImageInternalMediaRefs: Array<InternalMediaRef | null>;
+};
 
 type UseAiStudioWorkflowReloadControllerParams = {
   beginManualWorkflowReload: () => void;
@@ -119,29 +129,76 @@ const hasLocalOnlyReference = (
     return !internalRefs[index];
   });
 
+const buildMappedExpertEditReferenceSelectionInput = ({
+  referenceInputs,
+  internalMediaRefs,
+  expertEditReferences,
+}: {
+  referenceInputs: readonly string[];
+  internalMediaRefs: Array<InternalMediaRef | null>;
+  expertEditReferences: NonNullable<WorkflowReloadImagePayload["expertEditReferences"]>;
+}): ReloadReferenceSelectionInput => {
+  const primaryReferenceInputIndex = expertEditReferences.primaryReferenceInputIndex ?? 0;
+  const extraImageUrls = createEmptyExpertEditSecondaryImageUrls();
+  const referenceImageInternalMediaRefs: Array<InternalMediaRef | null> = Array.from(
+    { length: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT + 1 },
+    () => null
+  );
+  referenceImageInternalMediaRefs[0] = internalMediaRefs[primaryReferenceInputIndex] ?? null;
+  expertEditReferences.secondarySlots.forEach((slot) => {
+    const url = referenceInputs[slot.referenceInputIndex] ?? null;
+    if (!url) return;
+    extraImageUrls[slot.slotIndex] = url;
+    referenceImageInternalMediaRefs[slot.slotIndex + 1] =
+      slot.internalMediaRef ?? internalMediaRefs[slot.referenceInputIndex] ?? null;
+  });
+  return {
+    referenceImageUrl: referenceInputs[primaryReferenceInputIndex] ?? referenceInputs[0] ?? null,
+    extraImageUrls,
+    referenceImageInternalMediaRefs,
+  };
+};
+
 const toReferenceSelectionState = ({
   tool,
   referenceInputs,
   internalMediaRefs = [],
+  expertEditReferences,
   motionReferenceVideoUrl = null,
 }: {
   tool: ToolId;
   referenceInputs: readonly string[];
   internalMediaRefs?: Array<InternalMediaRef | null>;
+  expertEditReferences?: WorkflowReloadImagePayload["expertEditReferences"];
   motionReferenceVideoUrl?: string | null;
-}): ReferenceSelectionAuthorityStateSeed => ({
-  selectedTool: tool,
-  showCreateTools: tool === "create" || tool === "edit" || tool === "image",
-  referenceImageUrl: referenceInputs[0] ?? null,
-  extraImageUrls: [
-    referenceInputs[1] ?? null,
-    referenceInputs[2] ?? null,
-    referenceInputs[3] ?? null,
-  ],
-  referenceImageInternalMediaRefs: internalMediaRefs.slice(0, 4),
-  motionReferenceVideoUrl,
-  useReferenceImageIndicator: referenceInputs.length > 0,
-});
+}): ReferenceSelectionAuthorityStateSeed => {
+  const isImageTool = tool === "create" || tool === "edit" || tool === "image";
+  const mappedImageRefs =
+    isImageTool && expertEditReferences
+      ? buildMappedExpertEditReferenceSelectionInput({
+          referenceInputs,
+          internalMediaRefs,
+          expertEditReferences,
+        })
+      : null;
+  const extraSlotCount = isImageTool ? MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT : 3;
+  const legacyExtraImageUrls = Array.from(
+    { length: extraSlotCount },
+    (_, index) => referenceInputs[index + 1] ?? null
+  );
+  const referenceImageInternalMediaRefs = mappedImageRefs
+    ? mappedImageRefs.referenceImageInternalMediaRefs
+    : internalMediaRefs.slice(0, extraSlotCount + 1);
+  return {
+    selectedTool: tool,
+    showCreateTools: isImageTool,
+    referenceImageUrl: mappedImageRefs?.referenceImageUrl ?? referenceInputs[0] ?? null,
+    extraImageUrls: mappedImageRefs?.extraImageUrls ?? legacyExtraImageUrls,
+    referenceImageInternalMediaRefs,
+    motionReferenceVideoUrl,
+    useReferenceImageIndicator: referenceInputs.length > 0,
+  };
+};
 
 const resolveTargetTool = (config: WorkflowReloadConfigV1): ToolId => {
   if (config.payload.kind === "voiceover") return "text-to-speech";
@@ -371,6 +428,7 @@ export const useAiStudioWorkflowReloadController = ({
             tool: targetTool,
             referenceInputs: imagePayload.referenceInputs,
             internalMediaRefs: imagePayload.internalMediaRefs,
+            expertEditReferences: imagePayload.expertEditReferences,
           })
         );
       }

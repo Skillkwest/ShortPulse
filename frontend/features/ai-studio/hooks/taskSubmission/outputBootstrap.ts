@@ -17,6 +17,7 @@ import type {
   ToolId,
   VideoReferenceMode,
   WorkflowReloadConfig,
+  WorkflowReloadExpertEditReferences,
   WorkflowReloadPanelKind,
 } from "../../types";
 
@@ -61,6 +62,7 @@ type BuildSubmissionWorkflowReloadSnapshotParams = {
   imageResolution: string | null;
   referenceInputs: string[];
   internalMediaRefs?: Array<InternalMediaRef | null>;
+  expertEditReferences?: WorkflowReloadExpertEditReferences | null;
   characterContext?: StudioOutput["characterContext"];
   styleContext?: StudioOutput["styleContext"];
   videoReferenceMode: VideoReferenceMode;
@@ -199,6 +201,7 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
   imageResolution,
   referenceInputs,
   internalMediaRefs = [],
+  expertEditReferences = null,
   characterContext,
   styleContext,
   videoReferenceMode,
@@ -251,6 +254,7 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
         imageResolution,
         referenceInputs,
         internalMediaRefs,
+        ...(expertEditReferences ? { expertEditReferences } : {}),
         characterContext,
         styleContext,
       },

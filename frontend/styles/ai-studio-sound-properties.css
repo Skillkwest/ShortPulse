@@ -179,3 +179,19 @@
     flex-direction: column;
   }
 }
+
+@container ai-properties (max-width: 1100px) {
+  .sound-properties-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sound-properties-landing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container ai-properties (max-width: 760px) {
+  .sound-properties-header {
+    flex-direction: column;
+  }
+}

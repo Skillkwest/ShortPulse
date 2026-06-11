@@ -515,6 +515,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           : {}),
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+        expertEditReferences: options?.expertEditReferences,
         suppressStyle: options?.suppressStyle,
         ...(options?.referenceInputsMode
           ? { referenceInputsMode: options.referenceInputsMode }

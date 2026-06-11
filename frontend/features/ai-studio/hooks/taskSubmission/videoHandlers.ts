@@ -5,6 +5,7 @@ import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../.
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { resolveInternalMediaRefStoragePath } from "../../../../lib/media/internalMediaRefs";
 import { isCharacterScopedMediaUrl } from "../../../../lib/mediaStoragePath";
+import { FAL_UPLOAD_COMPATIBILITY_TARGET_OMNIHUMAN_V15_IMAGE } from "../../../../lib/model-runtime/falUploadCompatibilityTargets";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
 import {
   KIE_KLING_30_MODEL_ID,
@@ -419,16 +420,18 @@ const fetchFalUploadWithTimeout = async (init: Parameters<typeof fetchWithAuth>[
 const uploadUrlToFalCdn = async ({
   url,
   mediaKind,
+  compatibilityTarget = null,
   cache,
 }: {
   url: string;
   mediaKind: "image" | "audio";
+  compatibilityTarget?: string | null;
   cache: Map<string, Promise<string>>;
 }): Promise<string> => {
   const normalizedUrl = url.trim();
   if (!normalizedUrl) return "";
 
-  const cacheKey = `fal-url:${mediaKind}:${normalizedUrl}`;
+  const cacheKey = `fal-url:${mediaKind}:${compatibilityTarget ?? "default"}:${normalizedUrl}`;
   const cached = cache.get(cacheKey);
   if (cached) return await cached;
 
@@ -441,6 +444,7 @@ const uploadUrlToFalCdn = async ({
       body: JSON.stringify({
         fileUrl: normalizedUrl,
         mediaKind,
+        ...(compatibilityTarget ? { compatibilityTarget } : {}),
       }),
       shortpulseLogScope: "generation",
     });
@@ -475,15 +479,17 @@ const uploadUrlToFalCdn = async ({
 const uploadStoragePathToFalCdn = async ({
   storagePath,
   mediaKind,
+  compatibilityTarget = null,
   cache,
 }: {
   storagePath: string;
   mediaKind: "image" | "audio";
+  compatibilityTarget?: string | null;
   cache: Map<string, Promise<string>>;
 }): Promise<string> => {
   const normalizedStoragePath = storagePath.trim();
   if (!normalizedStoragePath) return "";
-  const cacheKey = `fal-storage:${mediaKind}:${normalizedStoragePath}`;
+  const cacheKey = `fal-storage:${mediaKind}:${compatibilityTarget ?? "default"}:${normalizedStoragePath}`;
   const cached = cache.get(cacheKey);
   if (cached) return await cached;
 
@@ -496,6 +502,7 @@ const uploadStoragePathToFalCdn = async ({
       body: JSON.stringify({
         storagePath: normalizedStoragePath,
         mediaKind,
+        ...(compatibilityTarget ? { compatibilityTarget } : {}),
       }),
       shortpulseLogScope: "generation",
     });
@@ -531,11 +538,13 @@ const uploadBlobToFalCdn = async ({
   blob,
   mediaKind,
   cacheKey,
+  compatibilityTarget = null,
   cache,
 }: {
   blob: Blob;
   mediaKind: "image" | "audio";
   cacheKey: string;
+  compatibilityTarget?: string | null;
   cache: Map<string, Promise<string>>;
 }): Promise<string> => {
   const cached = cache.get(cacheKey);
@@ -547,6 +556,9 @@ const uploadBlobToFalCdn = async ({
       headers: {
         "Content-Type": resolveFalUploadMimeType(mediaKind, blob.type),
         "x-shortpulse-upload-filename": resolveFalUploadFilename(mediaKind, blob.type),
+        ...(compatibilityTarget
+          ? { "x-shortpulse-fal-compatibility-target": compatibilityTarget }
+          : {}),
       },
       body: blob,
       shortpulseLogScope: "generation",
@@ -582,15 +594,17 @@ const uploadBlobToFalCdn = async ({
 const uploadSourceUrlToFalCdn = async ({
   sourceUrl,
   mediaKind,
+  compatibilityTarget = null,
   cache,
 }: {
   sourceUrl: string;
   mediaKind: "image" | "audio";
+  compatibilityTarget?: string | null;
   cache: Map<string, Promise<string>>;
 }): Promise<string> => {
   const normalizedUrl = sourceUrl.trim();
   if (!normalizedUrl) return "";
-  const cacheKey = `fal-source:${mediaKind}:${normalizedUrl}`;
+  const cacheKey = `fal-source:${mediaKind}:${compatibilityTarget ?? "default"}:${normalizedUrl}`;
   const cached = cache.get(cacheKey);
   if (cached) return await cached;
 
@@ -604,6 +618,7 @@ const uploadSourceUrlToFalCdn = async ({
       blob,
       mediaKind,
       cacheKey: `${cacheKey}:blob`,
+      compatibilityTarget,
       cache,
     });
   })();
@@ -622,12 +637,14 @@ const prepareFalInputUrl = async ({
   preparedUrl,
   storagePath,
   mediaKind,
+  compatibilityTarget = null,
   cache,
 }: {
   rawUrl?: string | null;
   preparedUrl?: string | null;
   storagePath?: string | null;
   mediaKind: "image" | "audio";
+  compatibilityTarget?: string | null;
   cache: Map<string, Promise<string>>;
 }): Promise<string> => {
   const normalizedStoragePath = storagePath?.trim() ?? "";
@@ -635,6 +652,7 @@ const prepareFalInputUrl = async ({
     return await uploadStoragePathToFalCdn({
       storagePath: normalizedStoragePath,
       mediaKind,
+      compatibilityTarget,
       cache,
     });
   }
@@ -653,6 +671,7 @@ const prepareFalInputUrl = async ({
     return await uploadSourceUrlToFalCdn({
       sourceUrl: browserUploadSourceUrl,
       mediaKind,
+      compatibilityTarget,
       cache,
     });
   }
@@ -662,6 +681,7 @@ const prepareFalInputUrl = async ({
   return await uploadUrlToFalCdn({
     url: sourceUrl,
     mediaKind,
+    compatibilityTarget,
     cache,
   });
 };
@@ -1089,6 +1109,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           preparedUrl: preparedImageUrl,
           storagePath: imageStoragePath,
           mediaKind: "image",
+          compatibilityTarget: FAL_UPLOAD_COMPATIBILITY_TARGET_OMNIHUMAN_V15_IMAGE,
           cache: falUploadCache,
         });
       } catch (error) {

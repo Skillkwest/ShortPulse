@@ -12,6 +12,7 @@ import type {
   ToolId,
   WorkflowReloadConfigV1,
   WorkflowReloadCreateMode,
+  WorkflowReloadExpertEditReferences,
   WorkflowReloadImagePayload,
   WorkflowReloadKlingPromptShot,
   WorkflowReloadMusicComposerMode,
@@ -31,6 +32,7 @@ import type {
   WorkflowReloadVoiceChangerSource,
   WorkflowReloadVoiceoverPayload,
 } from "../types";
+import { MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT } from "./expertEditReferenceSlots";
 import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "./generationReplay";
 import { isNonDurableLipSyncAudioUrl, normalizeLipSyncAudioStoragePath } from "./lipSyncAudioState";
 
@@ -95,6 +97,9 @@ const asBooleanOrNull = (value: unknown): boolean | null =>
 
 const asFiniteNumberOrNull = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
+
+const asIntegerOrNull = (value: unknown): number | null =>
+  typeof value === "number" && Number.isInteger(value) ? value : null;
 
 const asStringArray = (value: unknown, limit = MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS): string[] => {
   if (!Array.isArray(value)) return [];
@@ -224,12 +229,67 @@ const normalizePulse = (value: unknown): WorkflowReloadConfigV1["pulse"] => {
 const isReplaySubmitTool = (value: unknown): value is WorkflowReloadImagePayload["submitTool"] =>
   value === "create" || value === "image" || value === "edit";
 
+const normalizeExpertEditReferences = (
+  value: unknown,
+  referenceInputCount: number
+): WorkflowReloadExpertEditReferences | null => {
+  if (value == null) return null;
+  if (!isObject(value) || value.version !== 1) return null;
+  const primaryReferenceInputIndex = asIntegerOrNull(value.primaryReferenceInputIndex);
+  const normalizedPrimaryReferenceInputIndex =
+    primaryReferenceInputIndex != null &&
+    primaryReferenceInputIndex >= 0 &&
+    primaryReferenceInputIndex < referenceInputCount
+      ? primaryReferenceInputIndex
+      : null;
+  const seenSlots = new Set<number>();
+  const secondarySlots: WorkflowReloadExpertEditReferences["secondarySlots"] = [];
+  if (Array.isArray(value.secondarySlots)) {
+    value.secondarySlots.forEach((item) => {
+      if (!isObject(item)) return;
+      const slotIndex = asIntegerOrNull(item.slotIndex);
+      const referenceInputIndex = asIntegerOrNull(item.referenceInputIndex);
+      if (
+        slotIndex == null ||
+        slotIndex < 0 ||
+        slotIndex >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT ||
+        referenceInputIndex == null ||
+        referenceInputIndex < 0 ||
+        referenceInputIndex >= referenceInputCount ||
+        seenSlots.has(slotIndex)
+      ) {
+        return;
+      }
+      seenSlots.add(slotIndex);
+      const internalMediaRef = normalizeInternalRefs([item.internalMediaRef], 1)[0] ?? null;
+      secondarySlots.push({
+        slotIndex,
+        referenceInputIndex,
+        ...(internalMediaRef ? { internalMediaRef } : {}),
+      });
+    });
+  }
+  secondarySlots.sort((left, right) => left.slotIndex - right.slotIndex);
+  if (secondarySlots.length === 0) return null;
+  return {
+    version: 1,
+    maxSecondarySlotCount: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
+    primaryReferenceInputIndex: normalizedPrimaryReferenceInputIndex,
+    secondarySlots,
+  };
+};
+
 const normalizeImagePayload = (value: unknown): WorkflowReloadImagePayload | null => {
   if (!isObject(value) || value.kind !== "image") return null;
   if (!isReplaySubmitTool(value.submitTool)) return null;
   const aspect = asTrimmedString(value.aspect);
   if (!aspect) return null;
   if (!hasValidInternalRefs(value.internalMediaRefs)) return null;
+  const referenceInputs = asStringArray(value.referenceInputs);
+  const expertEditReferences = normalizeExpertEditReferences(
+    value.expertEditReferences,
+    referenceInputs.length
+  );
   const characterContext = normalizeCharacterContext(value.characterContext);
   const styleContext = normalizeStyleContext(value.styleContext);
   return {
@@ -237,8 +297,9 @@ const normalizeImagePayload = (value: unknown): WorkflowReloadImagePayload | nul
     submitTool: value.submitTool,
     aspect,
     imageResolution: typeof value.imageResolution === "string" ? value.imageResolution : null,
-    referenceInputs: asStringArray(value.referenceInputs),
+    referenceInputs,
     internalMediaRefs: normalizeInternalRefs(value.internalMediaRefs),
+    ...(expertEditReferences ? { expertEditReferences } : {}),
     ...(characterContext ? { characterContext } : {}),
     ...(styleContext ? { styleContext } : {}),
   };

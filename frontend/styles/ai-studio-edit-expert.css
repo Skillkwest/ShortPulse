@@ -6215,3 +6215,53 @@
 .edit-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits-label {
   display: none;
 }
+
+@container ai-properties (max-width: 980px) {
+  .edit-expert-main-stage {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 12px;
+  }
+
+  .edit-expert-sidebar-shell,
+  .edit-expert-primary-column,
+  .edit-expert-primary-column-shell {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .edit-expert-bottom-row,
+  .edit-expert-prompt-row {
+    flex-wrap: wrap;
+  }
+
+  .edit-expert-panel
+    .edit-expert-post-stage-wrapper
+    .edit-expert-selector-row
+    .create-composer-controls {
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .edit-expert-generation-mode-tabs {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+@container ai-properties (max-width: 760px) {
+  .edit-expert-panel .create-composer-character-picker-trigger,
+  .edit-expert-panel .create-composer-model-picker-trigger,
+  .ai-studio-page .edit-expert-panel .aspect-trigger,
+  .ai-studio-page .edit-expert-panel .create-composer-resolution-trigger {
+    flex: 1 1 140px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .edit-expert-prompt-token-picker-option {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

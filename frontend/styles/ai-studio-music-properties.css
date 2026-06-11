@@ -888,3 +888,63 @@
     width: 100%;
   }
 }
+
+@container ai-properties (max-width: 1180px) {
+  .music-properties-shell {
+    overflow-y: auto;
+  }
+
+  .music-properties-main {
+    min-height: 680px;
+  }
+}
+
+@container ai-properties (max-width: 720px) {
+  .music-properties-shell {
+    padding: 12px 12px 16px;
+  }
+
+  .music-properties-main {
+    min-height: 600px;
+  }
+
+  .music-properties-toggle-shell {
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .music-properties-inspiration-rail {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .music-properties-inspiration-controls {
+    justify-self: end;
+  }
+
+  .music-properties-custom-surface {
+    min-height: 0;
+  }
+
+  .music-properties-script-actions {
+    align-items: stretch;
+  }
+
+  .music-properties-script-actions-left {
+    align-self: flex-start;
+  }
+
+  .music-properties-script-actions-right {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .music-properties-script-actions-top {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .music-properties-generate-btn {
+    width: 100%;
+  }
+}

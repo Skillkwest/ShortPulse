@@ -121,6 +121,19 @@ export type WorkflowReloadModel = {
   id: string;
 };
 
+export type WorkflowReloadExpertEditReferenceSlot = {
+  slotIndex: number;
+  referenceInputIndex: number;
+  internalMediaRef?: InternalMediaRef | null;
+};
+
+export type WorkflowReloadExpertEditReferences = {
+  version: 1;
+  maxSecondarySlotCount: number;
+  primaryReferenceInputIndex: number | null;
+  secondarySlots: WorkflowReloadExpertEditReferenceSlot[];
+};
+
 export type WorkflowReloadPulseContext = {
   presetId?: string | null;
   presetLabel?: string | null;
@@ -134,6 +147,7 @@ export type WorkflowReloadImagePayload = {
   imageResolution: string | null;
   referenceInputs: string[];
   internalMediaRefs?: Array<InternalMediaRef | null>;
+  expertEditReferences?: WorkflowReloadExpertEditReferences;
   characterContext?: StudioOutputCharacterContext;
   styleContext?: StudioOutputStyleContext;
 };

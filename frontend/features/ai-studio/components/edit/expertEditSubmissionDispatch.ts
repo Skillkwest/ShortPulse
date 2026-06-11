@@ -8,6 +8,7 @@ import type {
   ExpertEditCompiledPromptOverrides,
   ExpertEditRegenerateOptions,
 } from "./expertEditSubmissionContract";
+import type { WorkflowReloadExpertEditReferences } from "../../types";
 
 const MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS = 11;
 
@@ -36,6 +37,7 @@ export const resolveExpertEditSubmissionDispatch = ({
   inpaintReferenceImageInput,
   referenceInputs,
   promptOverrideOptions,
+  expertEditReferences,
 }: {
   editSubmitIntent: EditSubmitIntent;
   hasSubmissionHandler: boolean;
@@ -47,6 +49,7 @@ export const resolveExpertEditSubmissionDispatch = ({
   inpaintReferenceImageInput?: string | null;
   referenceInputs: string[];
   promptOverrideOptions?: ExpertEditCompiledPromptOverrides;
+  expertEditReferences?: WorkflowReloadExpertEditReferences | null;
 }): ResolveExpertEditSubmissionDispatchResult => {
   const normalizedEditSubmitIntent = normalizeEditSubmitIntent(editSubmitIntent);
   const isInpaintSubmitSelected = normalizedEditSubmitIntent === "inpaint";
@@ -86,6 +89,7 @@ export const resolveExpertEditSubmissionDispatch = ({
         },
         referenceInputsMode: "replace",
         referenceInputsLimit: MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS,
+        ...(expertEditReferences ? { expertEditReferences } : {}),
         ...promptOverrideOptions,
       },
     };
@@ -108,6 +112,7 @@ export const resolveExpertEditSubmissionDispatch = ({
           : undefined,
       referenceInputsMode: "replace",
       referenceInputsLimit: MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS,
+      ...(expertEditReferences ? { expertEditReferences } : {}),
     },
   };
 };

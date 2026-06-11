@@ -1,4 +1,5 @@
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
+import type { WorkflowReloadExpertEditReferences } from "../../types";
 
 export type ExpertEditCompiledPromptOverrides = {
   displayPromptOverride: string;
@@ -15,6 +16,7 @@ export type ExpertEditRegenerateOptions = {
   submissionPromptOverride?: string | null;
   referenceInputsMode?: "merge" | "replace";
   referenceInputsLimit?: number;
+  expertEditReferences?: WorkflowReloadExpertEditReferences | null;
 };
 
 export type ExpertEditRegenerateWithReferenceInputsHandler = (

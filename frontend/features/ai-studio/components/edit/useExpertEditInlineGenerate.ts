@@ -218,8 +218,12 @@ export const useExpertEditInlineGenerate = ({
             onInvalidPromptReferenceToken?.(preparedSubmission.message);
             return;
           }
-          const { linkedSecondaryReferenceInputs, promptOverrideOptions, referenceInputs } =
-            preparedSubmission;
+          const {
+            linkedSecondaryReferenceInputs,
+            promptOverrideOptions,
+            referenceInputs,
+            workflowReloadExpertEditReferences,
+          } = preparedSubmission;
           submitDispatch = resolveExpertEditSubmissionDispatch({
             editSubmitIntent: normalizedEditSubmitIntent,
             hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
@@ -231,6 +235,7 @@ export const useExpertEditInlineGenerate = ({
             inpaintReferenceImageInput: linkedSecondaryReferenceInputs[0] ?? null,
             referenceInputs,
             promptOverrideOptions,
+            expertEditReferences: workflowReloadExpertEditReferences,
           });
         } catch (error) {
           const failureMessage = resolveFlattenFailureToastMessage(error);

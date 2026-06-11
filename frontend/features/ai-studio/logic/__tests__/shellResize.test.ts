@@ -12,12 +12,14 @@ import {
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
+  AI_SHELL_RIGHT_COMPACT_MIN_PX,
   AI_SHELL_RIGHT_MIN_PX,
   clampAiShellLeftWidth,
   getAiShellLeftWidthBounds,
   getDefaultAiShellLeftWidth,
   isAiShellResizeViewport,
   parseStoredAiShellLeftWidth,
+  resolveAiShellLayoutMode,
   resolveCreateShellResizeAction,
   shouldCollapseAiShellOnExpertEditPanelSelect,
   shouldCollapseCreateOnSessionChange,
@@ -137,6 +139,56 @@ describe("isAiShellResizeViewport", () => {
   it("enables resize only above the breakpoint", () => {
     expect(isAiShellResizeViewport(1200)).toBe(true);
     expect(isAiShellResizeViewport(960)).toBe(false);
+  });
+});
+
+describe("resolveAiShellLayoutMode", () => {
+  it("uses full split mode when requested left and right rails both fit", () => {
+    expect(
+      resolveAiShellLayoutMode(1400, {
+        enabled: true,
+        isResizableViewport: true,
+        minLeftWidthPx: 888,
+        minRightWidthPx: AI_SHELL_RIGHT_MIN_PX,
+      })
+    ).toBe("split");
+  });
+
+  it("uses compact split mode when desktop minimums do not fit but both columns can remain usable", () => {
+    expect(
+      resolveAiShellLayoutMode(980, {
+        enabled: true,
+        isResizableViewport: true,
+        minLeftWidthPx: 888,
+        minRightWidthPx: AI_SHELL_RIGHT_MIN_PX,
+      })
+    ).toBe("compact-split");
+  });
+
+  it("stacks when even fallback left plus compact right rail cannot fit", () => {
+    expect(
+      resolveAiShellLayoutMode(AI_SHELL_LEFT_MIN_FALLBACK_PX + AI_SHELL_RIGHT_COMPACT_MIN_PX, {
+        enabled: true,
+        isResizableViewport: true,
+        minLeftWidthPx: 888,
+        minRightWidthPx: AI_SHELL_RIGHT_MIN_PX,
+      })
+    ).toBe("stacked");
+  });
+
+  it("uses stacked mode below the resize viewport and right-rail focus when no tool is selected", () => {
+    expect(
+      resolveAiShellLayoutMode(1400, {
+        enabled: true,
+        isResizableViewport: false,
+      })
+    ).toBe("stacked");
+    expect(
+      resolveAiShellLayoutMode(1400, {
+        enabled: false,
+        isResizableViewport: true,
+      })
+    ).toBe("right-rail-focus");
   });
 });
 

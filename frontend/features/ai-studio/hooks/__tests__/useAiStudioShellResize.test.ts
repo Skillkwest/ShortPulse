@@ -7,6 +7,7 @@ import {
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_LEFT_WIDTH_STORAGE_KEY,
+  AI_SHELL_RIGHT_COMPACT_MIN_PX,
 } from "../../logic/shellResize";
 
 describe("useAiStudioShellResize", () => {
@@ -25,6 +26,7 @@ describe("useAiStudioShellResize", () => {
     );
 
     expect(result.current.showDivider).toBe(false);
+    expect(result.current.shellLayoutMode).toBe("right-rail-focus");
     expect(getItemSpy).not.toHaveBeenCalled();
     expect(addEventListenerSpy).not.toHaveBeenCalledWith("resize", expect.any(Function));
   });
@@ -186,6 +188,41 @@ describe("useAiStudioShellResize", () => {
     await waitFor(() => {
       expect(result.current.isResizing).toBe(false);
       expect(setItemSpy).toHaveBeenCalledWith(AI_SHELL_LEFT_WIDTH_STORAGE_KEY, "820");
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
+  it("switches to compact split instead of hiding the right rail when desktop minimums do not fit", async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1400,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+        minLeftWidthPx: 888,
+      })
+    );
+
+    act(() => {
+      result.current.shellRef.current = {
+        getBoundingClientRect: () => ({ width: 980 }),
+      } as HTMLElement;
+    });
+
+    await waitFor(() => {
+      expect(result.current.shellLayoutMode).toBe("compact-split");
+      expect(result.current.showDivider).toBe(true);
+      expect(result.current.rightColumnHidden).toBe(false);
+      expect(result.current.shellStyle).toMatchObject({
+        "--ai-shell-right-min-width": `${AI_SHELL_RIGHT_COMPACT_MIN_PX}px`,
+      });
     });
 
     Object.defineProperty(window, "innerWidth", {

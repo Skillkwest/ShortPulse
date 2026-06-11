@@ -73,4 +73,24 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain("height: var(--ai-shell-column-max-height);");
     expect(css).toContain("max-height: var(--ai-shell-column-max-height);");
   });
+
+  it("keeps the fixed left toolbar scrollable when browser zoom reduces vertical space", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain(".ai-toolbar-floating");
+    expect(css).toContain("overflow-x: hidden;");
+    expect(css).toContain("overflow-y: auto;");
+    expect(css).toContain("overscroll-behavior-y: contain;");
+  });
+
+  it("lets measured stacked shell mode escape desktop split and sticky height constraints", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain(".ai-shell.ai-shell-mode-stacked");
+    expect(css).toContain("grid-template-columns: minmax(0, 1fr);");
+    expect(css).toContain(".ai-shell.ai-shell-mode-stacked .ai-shell-divider");
+    expect(css).toContain(".ai-shell.ai-shell-mode-stacked .reference-column-sticky");
+    expect(css).toContain("max-height: none;");
+    expect(css).toContain("overflow: visible;");
+  });
 });

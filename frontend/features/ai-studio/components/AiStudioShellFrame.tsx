@@ -4,6 +4,7 @@
  */
 import React from "react";
 import type { ToolId } from "../types";
+import type { AiShellLayoutMode } from "../logic/shellResize";
 import { AiStudioPropertiesRail } from "./AiStudioPropertiesRail";
 import { AiStudioReferenceRail } from "./AiStudioReferenceRail";
 import { AiStudioPreviewRail } from "./AiStudioPreviewRail";
@@ -19,6 +20,7 @@ type AiStudioShellFrameProps = {
   rightColumnRef: React.RefObject<HTMLDivElement>;
   shellClassName: string;
   shellStyle?: React.CSSProperties;
+  shellLayoutMode: AiShellLayoutMode;
   selectedTool: ToolId | null;
   showDivider: boolean;
   dividerProps: React.ButtonHTMLAttributes<HTMLButtonElement>;
@@ -146,6 +148,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   rightColumnRef,
   shellClassName,
   shellStyle,
+  shellLayoutMode,
   selectedTool,
   showDivider,
   dividerProps,
@@ -173,6 +176,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
       ref={shellRef}
       className={shellClassName}
       data-dense-shell={isDenseSession ? "true" : "false"}
+      data-shell-layout-mode={shellLayoutMode}
       style={shellStyle}
       onDragOverCapture={onShellDragOverCapture}
       onDropCapture={onShellDropCapture}

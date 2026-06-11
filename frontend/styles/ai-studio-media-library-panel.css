@@ -1299,3 +1299,32 @@
   border-radius: 8px;
   object-fit: contain;
 }
+
+@container ai-properties (max-width: 760px) {
+  .media-library-panel-header,
+  .media-library-panel-root-tabs-row,
+  .media-library-panel-bulk-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .media-library-panel-project-name-field {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .media-library-panel-project-name-input {
+    text-align: left;
+  }
+
+  .media-library-panel-root-count-group {
+    margin-left: 0;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .media-library-panel-section
+    .media-library-prompt-grid.media-library-prompt-grid--reference-cards {
+    grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  }
+}

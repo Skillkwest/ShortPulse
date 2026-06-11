@@ -2396,6 +2396,23 @@
   }
 }
 
+@container ai-properties (max-width: 1320px) {
+  .video-properties-panel .video-properties-workspace,
+  .video-properties-panel .video-properties-main-columns,
+  .video-properties-panel .video-properties-support-grid,
+  .video-properties-panel .video-top-control-row,
+  .video-properties-panel .video-settings-card-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .video-properties-panel .video-properties-main-column--left,
+  .video-properties-panel .video-properties-main-column--right,
+  .video-properties-panel .video-direction-column-shell,
+  .video-properties-panel .video-setup-row-shell {
+    min-height: 0;
+  }
+}
+
 .video-properties-panel .video-lip-sync-setup-card {
   display: flex;
   flex-direction: column;

@@ -1434,8 +1434,23 @@ describe("associateGenerationWithProjectForUser", () => {
       version: 1,
       source: "ai_studio_generation",
       restoreBehavior: "navigate_and_hydrate",
-      originTool: "create",
-      panelKind: "create",
+      originTool: "edit",
+      panelKind: "edit",
+      payload: {
+        kind: "image",
+        submitTool: "edit",
+        referenceInputs: [
+          "https://example.com/primary.png",
+          "https://example.com/markup.png",
+          "https://example.com/ref-10.png",
+        ],
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          secondarySlots: [{ slotIndex: 9, referenceInputIndex: 2 }],
+        },
+      },
     };
     const associationBuilder = createAwaitableSelectBuilder({
       data: [{ generation_id: "generation-1" }],

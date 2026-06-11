@@ -39,6 +39,26 @@ describe("workflowReload", () => {
             mediaFileId: "media-1",
           },
         ],
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          secondarySlots: [
+            {
+              slotIndex: 9,
+              referenceInputIndex: 0,
+              internalMediaRef: {
+                version: 1,
+                kind: "storage_object",
+                bucket: "media_library",
+                storagePath: "user-1/images/ref.png",
+                mediaFileId: "media-1",
+              },
+            },
+            { slotIndex: 99, referenceInputIndex: 0 },
+            { slotIndex: 0, referenceInputIndex: 99 },
+          ],
+        },
         characterContext: {
           applied: true,
           characterId: "char-1",
@@ -83,6 +103,24 @@ describe("workflowReload", () => {
             mediaFileId: "media-1",
           },
         ],
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          secondarySlots: [
+            {
+              slotIndex: 9,
+              referenceInputIndex: 0,
+              internalMediaRef: {
+                version: 1,
+                kind: "storage_object",
+                bucket: "media_library",
+                storagePath: "user-1/images/ref.png",
+                mediaFileId: "media-1",
+              },
+            },
+          ],
+        },
         characterContext: {
           applied: true,
           characterId: "char-1",

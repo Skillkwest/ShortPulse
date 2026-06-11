@@ -6,9 +6,12 @@ import {
   analyzeExpertEditPromptTokens,
   buildExpertEditSubmissionReferencePlan,
   compileExpertEditSubmissionPrompt,
+  type ExpertEditSubmissionReferencePlan,
   type ExpertEditPromptTokenAnalysisOptions,
 } from "../../logic/expertEditPromptReferences";
+import { MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT } from "../../logic/expertEditReferenceSlots";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
+import type { WorkflowReloadExpertEditReferences } from "../../types";
 import type { ExpertEditCompiledPromptOverrides } from "./expertEditSubmissionContract";
 
 export type ValidateExpertEditSubmissionPromptResult =
@@ -29,6 +32,7 @@ export type PrepareExpertEditSubmissionResult =
       status: "ready";
       referenceInputs: string[];
       linkedSecondaryReferenceInputs: string[];
+      workflowReloadExpertEditReferences?: WorkflowReloadExpertEditReferences;
       promptOverrideOptions?: ExpertEditCompiledPromptOverrides;
     };
 
@@ -102,6 +106,37 @@ const resolveExpertEditSubmissionPromptState = ({
   };
 };
 
+const buildWorkflowReloadExpertEditReferences = (
+  referencePlan: ExpertEditSubmissionReferencePlan
+): WorkflowReloadExpertEditReferences | undefined => {
+  const secondarySlots = Object.entries(referencePlan.secondaryReferenceInputIndexesBySlotIndex)
+    .map(([slotIndexValue, referenceInputIndex]) => {
+      const slotIndex = Number.parseInt(slotIndexValue, 10);
+      if (!Number.isInteger(slotIndex) || slotIndex < 0) return null;
+      if (
+        typeof referenceInputIndex !== "number" ||
+        !Number.isInteger(referenceInputIndex) ||
+        referenceInputIndex < 0
+      ) {
+        return null;
+      }
+      return {
+        slotIndex,
+        referenceInputIndex,
+      };
+    })
+    .filter((item): item is { slotIndex: number; referenceInputIndex: number } => Boolean(item))
+    .sort((left, right) => left.slotIndex - right.slotIndex);
+
+  if (secondarySlots.length === 0) return undefined;
+  return {
+    version: 1,
+    maxSecondarySlotCount: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
+    primaryReferenceInputIndex: referencePlan.primaryReferenceInputIndex,
+    secondarySlots,
+  };
+};
+
 export const validateExpertEditSubmissionPrompt = ({
   promptText,
   extraImageUrls,
@@ -164,11 +199,13 @@ export const prepareExpertEditSubmission = ({
     secondaryFigureNumbersBySlotIndex: referencePlan.secondaryFigureNumbersBySlotIndex,
     options: promptState.tokenAnalysisOptions,
   });
+  const workflowReloadExpertEditReferences = buildWorkflowReloadExpertEditReferences(referencePlan);
 
   return {
     status: "ready",
     referenceInputs,
     linkedSecondaryReferenceInputs: promptState.linkedSecondaryReferenceInputs,
+    ...(workflowReloadExpertEditReferences ? { workflowReloadExpertEditReferences } : {}),
     promptOverrideOptions: compiledPrompt.hasTokenReferences
       ? {
           displayPromptOverride: promptText,

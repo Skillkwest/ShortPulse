@@ -11,10 +11,15 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
+import { FAL_UPLOAD_COMPATIBILITY_TARGET_OMNIHUMAN_V15_IMAGE } from "../../../lib/model-runtime/falUploadCompatibilityTargets";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
+import {
+  normalizeOmniHumanImageInput,
+  type FalUploadCompatibilityTarget,
+} from "../../../lib/server/omniHumanMediaCompatibility";
 import { readProviderApiKey } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 
 const FAL_UPLOAD_INITIATE_ENDPOINT =
@@ -72,6 +77,14 @@ const asNonEmptyString = (value: unknown): string | null => {
 const resolveMediaKind = (value: unknown): FalUploadMediaKind | null => {
   const normalized = asNonEmptyString(value)?.toLowerCase();
   if (normalized === "image" || normalized === "audio") return normalized;
+  return null;
+};
+
+const resolveCompatibilityTarget = (value: unknown): FalUploadCompatibilityTarget => {
+  const normalized = asNonEmptyString(value)?.toLowerCase();
+  if (normalized === FAL_UPLOAD_COMPATIBILITY_TARGET_OMNIHUMAN_V15_IMAGE) {
+    return FAL_UPLOAD_COMPATIBILITY_TARGET_OMNIHUMAN_V15_IMAGE;
+  }
   return null;
 };
 
@@ -536,16 +549,61 @@ const uploadBufferToFalCdn = async ({
   return fileUrl;
 };
 
+const normalizeUploadForCompatibilityTarget = async ({
+  fileBuffer,
+  fileName,
+  mimeType,
+  mediaKind,
+  compatibilityTarget,
+}: {
+  fileBuffer: Buffer;
+  fileName: string;
+  mimeType: string | null;
+  mediaKind: FalUploadMediaKind | null;
+  compatibilityTarget: FalUploadCompatibilityTarget;
+}): Promise<{
+  fileBuffer: Buffer;
+  fileName: string;
+  mimeType: string | null;
+}> => {
+  if (
+    compatibilityTarget !== FAL_UPLOAD_COMPATIBILITY_TARGET_OMNIHUMAN_V15_IMAGE ||
+    mediaKind !== "image"
+  ) {
+    return { fileBuffer, fileName, mimeType };
+  }
+  let normalized: Awaited<ReturnType<typeof normalizeOmniHumanImageInput>>;
+  try {
+    normalized = await normalizeOmniHumanImageInput({
+      buffer: fileBuffer,
+      mimeType,
+      fileName,
+    });
+  } catch {
+    throw new FalUploadRequestError(
+      "Lip Sync image could not be converted to a provider-compatible JPEG.",
+      400
+    );
+  }
+  return {
+    fileBuffer: normalized.buffer,
+    fileName: normalized.fileName,
+    mimeType: normalized.mimeType,
+  };
+};
+
 const uploadRemoteSourceToFal = async ({
   apiKey,
   sourceUrl,
   fileName,
   mediaKind,
+  compatibilityTarget,
 }: {
   apiKey: string;
   sourceUrl: URL;
   fileName: string | null;
   mediaKind: FalUploadMediaKind | null;
+  compatibilityTarget: FalUploadCompatibilityTarget;
 }): Promise<SuccessResponse> => {
   const controller = new AbortController();
   const timeoutId = globalThis.setTimeout(() => controller.abort(), SOURCE_FETCH_TIMEOUT_MS);
@@ -566,17 +624,24 @@ const uploadRemoteSourceToFal = async ({
       sourceUrl,
       mimeType: sourceMimeType,
     });
-    const uploadedUrl = await uploadBufferToFalCdn({
-      apiKey,
+    const normalizedUpload = await normalizeUploadForCompatibilityTarget({
       fileBuffer: sourceBuffer,
       fileName: resolvedFileName,
       mimeType: sourceMimeType,
-      mediaKind: mediaKind ?? inferMediaKindFromMimeType(sourceMimeType),
+      mediaKind,
+      compatibilityTarget,
+    });
+    const uploadedUrl = await uploadBufferToFalCdn({
+      apiKey,
+      fileBuffer: normalizedUpload.fileBuffer,
+      fileName: normalizedUpload.fileName,
+      mimeType: normalizedUpload.mimeType,
+      mediaKind: mediaKind ?? inferMediaKindFromMimeType(normalizedUpload.mimeType),
     });
     return {
       url: uploadedUrl,
-      fileName: resolvedFileName,
-      mimeType: sourceMimeType,
+      fileName: normalizedUpload.fileName,
+      mimeType: normalizedUpload.mimeType,
     };
   } finally {
     globalThis.clearTimeout(timeoutId);
@@ -626,12 +691,14 @@ const uploadStorageSourceToFal = async ({
   fileName,
   mediaKind,
   userId,
+  compatibilityTarget,
 }: {
   apiKey: string;
   storagePath: string;
   fileName: string | null;
   mediaKind: FalUploadMediaKind;
   userId: string;
+  compatibilityTarget: FalUploadCompatibilityTarget;
 }): Promise<SuccessResponse> => {
   const storageObject = await downloadStorageObjectWithLimit({ storagePath, userId });
   const storageBuffer = await readResponseBodyWithLimit(storageObject, MAX_UPLOAD_BYTES);
@@ -646,17 +713,24 @@ const uploadStorageSourceToFal = async ({
     fileName ??
     resolveFileNameFromStoragePath(storagePath) ??
     resolveUploadFileName({ fileName: null, mimeType: storageMimeType });
-  const uploadedUrl = await uploadBufferToFalCdn({
-    apiKey,
+  const normalizedUpload = await normalizeUploadForCompatibilityTarget({
     fileBuffer: storageBuffer,
     fileName: resolvedFileName,
     mimeType: storageMimeType,
     mediaKind,
+    compatibilityTarget,
+  });
+  const uploadedUrl = await uploadBufferToFalCdn({
+    apiKey,
+    fileBuffer: normalizedUpload.fileBuffer,
+    fileName: normalizedUpload.fileName,
+    mimeType: normalizedUpload.mimeType,
+    mediaKind,
   });
   return {
     url: uploadedUrl,
-    fileName: resolvedFileName,
-    mimeType: storageMimeType,
+    fileName: normalizedUpload.fileName,
+    mimeType: normalizedUpload.mimeType,
   };
 };
 
@@ -695,6 +769,7 @@ export default async function handler(
           const fileName = asNonEmptyString(payload.fileName);
           const storagePath = asNonEmptyString(payload.storagePath);
           const mediaKind = resolveMediaKind(payload.mediaKind);
+          const compatibilityTarget = resolveCompatibilityTarget(payload.compatibilityTarget);
           if (storagePath) {
             if (!mediaKind) {
               throw new FalUploadRequestError(
@@ -707,6 +782,7 @@ export default async function handler(
               fileName,
               mediaKind,
               userId: user.id,
+              compatibilityTarget,
             });
           }
           if (!fileUrl) {
@@ -718,11 +794,15 @@ export default async function handler(
             sourceUrl,
             fileName,
             mediaKind,
+            compatibilityTarget,
           });
         })()
       : await (async () => {
           const fileName = asNonEmptyString(req.headers["x-shortpulse-upload-filename"]);
           const mimeType = asNonEmptyString(req.headers["content-type"]);
+          const compatibilityTarget = resolveCompatibilityTarget(
+            req.headers["x-shortpulse-fal-compatibility-target"]
+          );
           if (!bodyBuffer.length) {
             throw new FalUploadRequestError("Binary upload body is empty.");
           }
@@ -730,17 +810,24 @@ export default async function handler(
             fileName,
             mimeType,
           });
-          const uploadedUrl = await uploadBufferToFalCdn({
-            apiKey,
+          const normalizedUpload = await normalizeUploadForCompatibilityTarget({
             fileBuffer: bodyBuffer,
             fileName: resolvedFileName,
             mimeType,
             mediaKind: inferMediaKindFromMimeType(mimeType),
+            compatibilityTarget,
+          });
+          const uploadedUrl = await uploadBufferToFalCdn({
+            apiKey,
+            fileBuffer: normalizedUpload.fileBuffer,
+            fileName: normalizedUpload.fileName,
+            mimeType: normalizedUpload.mimeType,
+            mediaKind: inferMediaKindFromMimeType(normalizedUpload.mimeType),
           });
           return {
             url: uploadedUrl,
-            fileName: resolvedFileName,
-            mimeType,
+            fileName: normalizedUpload.fileName,
+            mimeType: normalizedUpload.mimeType,
           };
         })();
 

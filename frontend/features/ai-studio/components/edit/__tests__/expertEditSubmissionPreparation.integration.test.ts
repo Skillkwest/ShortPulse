@@ -24,6 +24,12 @@ describe("prepareExpertEditSubmission integration", () => {
       status: "ready",
       referenceInputs: ["blob:flatten-primary", "https://example.com/linked-extra.png"],
       linkedSecondaryReferenceInputs: ["https://example.com/linked-extra.png"],
+      workflowReloadExpertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [{ slotIndex: 0, referenceInputIndex: 1 }],
+      },
       promptOverrideOptions: {
         displayPromptOverride: "Put @img1 in the background.",
         submissionPromptOverride: expect.stringContaining("Put Figure 2 in the background."),
@@ -56,6 +62,12 @@ describe("prepareExpertEditSubmission integration", () => {
       status: "ready",
       referenceInputs: ["blob:flatten-primary", "https://example.com/ref-10.png"],
       linkedSecondaryReferenceInputs: ["https://example.com/ref-10.png"],
+      workflowReloadExpertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [{ slotIndex: 9, referenceInputIndex: 1 }],
+      },
       promptOverrideOptions: {
         displayPromptOverride: "Use @img10 as the wardrobe reference.",
         submissionPromptOverride: expect.stringContaining(
@@ -89,6 +101,12 @@ describe("prepareExpertEditSubmission integration", () => {
     if (result.status !== "ready") return;
     expect(result.referenceInputs).toEqual(["blob:flatten-primary", ...extraImageUrls]);
     expect(result.linkedSecondaryReferenceInputs).toEqual(extraImageUrls);
+    expect(result.workflowReloadExpertEditReferences?.secondarySlots).toEqual(
+      extraImageUrls.map((_, index) => ({
+        slotIndex: index,
+        referenceInputIndex: index + 1,
+      }))
+    );
     expect(result.promptOverrideOptions?.submissionPromptOverride).toContain(
       "Figure 11 = @img10 secondary reference."
     );
@@ -142,6 +160,16 @@ describe("prepareExpertEditSubmission integration", () => {
         "https://example.com/ref-2.png",
         "https://example.com/ref-3.png",
       ],
+      workflowReloadExpertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [
+          { slotIndex: 0, referenceInputIndex: 2 },
+          { slotIndex: 1, referenceInputIndex: 3 },
+          { slotIndex: 2, referenceInputIndex: 4 },
+        ],
+      },
       promptOverrideOptions: {
         displayPromptOverride: "Apply @main with @img1, @img2, and @img3.",
         submissionPromptOverride: expect.stringContaining(

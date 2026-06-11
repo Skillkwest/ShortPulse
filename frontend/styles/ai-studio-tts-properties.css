@@ -1342,3 +1342,19 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+@container ai-properties (max-width: 1100px) {
+  .tts-properties-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container ai-properties (max-width: 760px) {
+  .tts-properties-header {
+    flex-direction: column;
+  }
+
+  .tts-properties-info-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

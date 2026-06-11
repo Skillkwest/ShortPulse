@@ -15,6 +15,7 @@ type AiStudioForwardedGenerateSubmitOptions = Pick<
   | "modelIdOverride"
   | "inpaintOverride"
   | "hideOutputFromReferenceGrid"
+  | "expertEditReferences"
 >;
 
 export type AiStudioGenerateSubmissionOverrides = AiStudioForwardedGenerateSubmitOptions & {

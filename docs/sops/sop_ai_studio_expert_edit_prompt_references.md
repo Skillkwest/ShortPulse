@@ -135,6 +135,7 @@ Output:
 
 - token text replaced with mapped `Figure N` references based on final `referenceInputs` order (`@main` -> `Figure 1`).
 - slot identity is authoritative for figure numbering. If restored or reused secondary slots point at the same underlying URL, each referenced slot still keeps its own `Figure N` position in submit order.
+- when a Standard/Markup generation is submitted with linked secondary tokens, the workflow reload sidecar records the original secondary slot index for each compact provider input. This is the durable reload authority for restoring `@imgN` slots from Reference Grid and through project restore.
 - appended reference-map block:
   - `Figure 1 = primary base image.`
   - `Figure X = @imgN secondary reference.`
@@ -223,6 +224,7 @@ Minimum suite coverage:
 3. Controller/composer tests:
    - prompt override precedence.
    - character-mode precedence compatibility.
+   - Reference Grid workflow reload restores Expert Edit secondary refs to their original `@imgN` slot positions, including sparse slots such as `@img10`.
 4. Regression tests:
    - existing Edit/Create/Video prompt behavior outside Expert Edit remains unchanged.
 

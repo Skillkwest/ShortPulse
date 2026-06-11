@@ -26,6 +26,7 @@ const createProps = (): React.ComponentProps<typeof AiStudioShellFrame> => ({
   leftColumnRef: { current: null },
   rightColumnRef: { current: null },
   shellClassName: "ai-shell",
+  shellLayoutMode: "split",
   shellStyle: {},
   selectedTool: "create",
   showDivider: false,
@@ -73,6 +74,17 @@ describe("AiStudioShellFrame", () => {
 
     expect(screen.getByTestId("reference-rail")).toBeInTheDocument();
     expect(screen.getByTestId("preview-rail")).toBeInTheDocument();
+  });
+
+  it("exposes the adaptive shell layout mode on the shell boundary", () => {
+    const { container } = render(
+      <AiStudioShellFrame {...createProps()} shellLayoutMode="compact-split" />
+    );
+
+    expect(container.querySelector(".ai-shell")).toHaveAttribute(
+      "data-shell-layout-mode",
+      "compact-split"
+    );
   });
 
   it("hides the preview rail when the shell is in expanded right-rail mode", () => {

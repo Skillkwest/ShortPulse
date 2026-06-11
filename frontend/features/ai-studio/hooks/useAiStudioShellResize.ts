@@ -14,14 +14,15 @@ import {
 } from "react";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
-  AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_LEFT_WIDTH_STORAGE_KEY,
+  AI_SHELL_RIGHT_COMPACT_MIN_PX,
   AI_SHELL_RIGHT_MIN_PX,
   clampAiShellLeftWidth,
   getAiShellLeftWidthBounds,
   getDefaultAiShellLeftWidth,
   isAiShellResizeViewport,
   parseStoredAiShellLeftWidth,
+  resolveAiShellLayoutMode,
 } from "../logic/shellResize";
 
 type UseAiStudioShellResizeArgs = {
@@ -504,36 +505,40 @@ export const useAiStudioShellResize = ({
     resolveContainerWidth,
   ]);
 
-  const effectiveMinLeftWidthPx = Math.max(
-    AI_SHELL_LEFT_MIN_PX,
-    minLeftWidthPx ?? AI_SHELL_LEFT_MIN_PX
-  );
+  const shellLayoutMode = resolveAiShellLayoutMode(containerWidthPx, {
+    enabled,
+    isResizableViewport,
+    minLeftWidthPx,
+    minRightWidthPx,
+  });
+  const isSplitLayout = shellLayoutMode === "split" || shellLayoutMode === "compact-split";
+  const layoutMinRightWidthPx =
+    shellLayoutMode === "compact-split" ? AI_SHELL_RIGHT_COMPACT_MIN_PX : minRightWidthPx;
   const hasContainerRoom =
-    containerWidthPx >=
-    effectiveMinLeftWidthPx +
-      (minRightWidthPx ?? AI_SHELL_RIGHT_MIN_PX) +
-      AI_SHELL_DIVIDER_TRACK_PX;
-  const showDivider = enabled && isResizableViewport && hasContainerRoom;
+    shellLayoutMode === "split" ||
+    (shellLayoutMode === "compact-split" &&
+      containerWidthPx >= AI_SHELL_RIGHT_COMPACT_MIN_PX + AI_SHELL_DIVIDER_TRACK_PX + 1);
+  const showDivider = enabled && isResizableViewport && isSplitLayout && hasContainerRoom;
   const bounds = getAiShellLeftWidthBounds(Math.max(containerWidthPx, 1), {
     minLeftWidthPx,
     maxLeftWidthPx,
-    minRightWidthPx,
+    minRightWidthPx: layoutMinRightWidthPx,
   });
   const ariaNow = clampAiShellLeftWidth(
     leftWidthPx ??
       getDefaultAiShellLeftWidth(Math.max(containerWidthPx, 1), {
         minLeftWidthPx,
         maxLeftWidthPx,
-        minRightWidthPx,
+        minRightWidthPx: layoutMinRightWidthPx,
         preferredRatio: defaultLeftRatio,
       }),
     Math.max(containerWidthPx, 1),
-    { minLeftWidthPx, maxLeftWidthPx, minRightWidthPx }
+    { minLeftWidthPx, maxLeftWidthPx, minRightWidthPx: layoutMinRightWidthPx }
   );
   const resolvedLeftWidth = clampAiShellLeftWidth(ariaNow, Math.max(containerWidthPx, 1), {
     minLeftWidthPx,
     maxLeftWidthPx,
-    minRightWidthPx,
+    minRightWidthPx: layoutMinRightWidthPx,
   });
   const rightColumnWidthPx = Math.max(
     0,
@@ -542,21 +547,23 @@ export const useAiStudioShellResize = ({
   const fadeStart = AI_SHELL_RIGHT_COLUMN_FADE_START_PX;
   const fadeEnd = AI_SHELL_RIGHT_COLUMN_FADE_END_PX;
   const rightColumnVisibility =
-    rightColumnWidthPx <= fadeEnd
-      ? 0
-      : rightColumnWidthPx >= fadeStart
-        ? 1
-        : (rightColumnWidthPx - fadeEnd) / (fadeStart - fadeEnd);
+    shellLayoutMode !== "split"
+      ? 1
+      : rightColumnWidthPx <= fadeEnd
+        ? 0
+        : rightColumnWidthPx >= fadeStart
+          ? 1
+          : (rightColumnWidthPx - fadeEnd) / (fadeStart - fadeEnd);
   const rightColumnHidden = rightColumnVisibility <= 0.01;
 
   const shellStyle = useMemo<CSSProperties | undefined>(() => {
     if (!showDivider || leftWidthPx == null) return undefined;
     return {
       "--ai-shell-left-width": `${leftWidthPx}px`,
-      "--ai-shell-right-min-width": `${Math.max(0, minRightWidthPx ?? AI_SHELL_RIGHT_MIN_PX)}px`,
+      "--ai-shell-right-min-width": `${Math.max(0, layoutMinRightWidthPx ?? AI_SHELL_RIGHT_MIN_PX)}px`,
       "--ai-shell-right-visibility": `${rightColumnVisibility}`,
     } as CSSProperties;
-  }, [leftWidthPx, minRightWidthPx, rightColumnVisibility, showDivider]);
+  }, [layoutMinRightWidthPx, leftWidthPx, rightColumnVisibility, showDivider]);
 
   const dividerOrientation = "vertical" as const;
 
@@ -567,6 +574,7 @@ export const useAiStudioShellResize = ({
     showDivider,
     isResizing,
     shellStyle,
+    shellLayoutMode,
     collapseToMin,
     resetToDefaultWidth,
     restoreWidth,

@@ -216,6 +216,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
         body: JSON.stringify({
           fileUrl: imageUrl,
           mediaKind: "image",
+          compatibilityTarget: "omnihuman-v15-image",
         }),
       })
     );
@@ -390,6 +391,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
         body: JSON.stringify({
           storagePath: "user-1/images/character.png",
           mediaKind: "image",
+          compatibilityTarget: "omnihuman-v15-image",
         }),
         shortpulseLogScope: "generation",
       })
@@ -444,6 +446,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
         body: JSON.stringify({
           storagePath: "user-1/reference-images/prepared-character.png",
           mediaKind: "image",
+          compatibilityTarget: "omnihuman-v15-image",
         }),
       })
     );
@@ -493,6 +496,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
         body: JSON.stringify({
           fileUrl: preparedImageUrl,
           mediaKind: "image",
+          compatibilityTarget: "omnihuman-v15-image",
         }),
       })
     );

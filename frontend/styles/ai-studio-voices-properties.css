@@ -316,3 +316,9 @@
     grid-area: auto;
   }
 }
+
+@container ai-properties (max-width: 720px) {
+  .voices-properties-voice-changer-record-panel {
+    grid-area: auto;
+  }
+}

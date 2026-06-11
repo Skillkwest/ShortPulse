@@ -20,3 +20,22 @@
     width: fit-content;
   }
 }
+
+@container ai-properties (max-width: 860px) {
+  .elements-manager-shell--panel .elements-panel-top-row-secondary-actions {
+    gap: 6px;
+  }
+}
+
+@container ai-properties (max-width: 640px) {
+  .elements-manager-shell--panel .elements-panel-top-row-secondary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, max-content));
+  }
+
+  .elements-manager-shell--panel .elements-panel-save-progress,
+  .elements-manager-shell--panel .elements-panel-save-success {
+    grid-column: 1 / -1;
+    width: fit-content;
+  }
+}

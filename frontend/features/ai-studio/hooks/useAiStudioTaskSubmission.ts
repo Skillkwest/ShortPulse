@@ -534,6 +534,7 @@ export const useAiStudioTaskSubmission = ({
               imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
               referenceInputs: preparedImageInputs.slice(0, imageReferenceInputLimit),
               internalMediaRefs,
+              expertEditReferences: options?.expertEditReferences,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
               videoReferenceMode,

@@ -180,13 +180,89 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.setAspect).toHaveBeenCalledWith("9:16");
     expect(params.setImageResolution).toHaveBeenCalledWith("2K");
     expect(params.setUiNotice).not.toHaveBeenCalled();
-    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
+    const selectionState = params.setReferenceSelectionState.mock.calls[0]?.[0];
+    expect(selectionState).toEqual(
       expect.objectContaining({
         selectedTool: "create",
         referenceImageUrl: "https://example.com/ref-a.png",
-        extraImageUrls: ["https://example.com/ref-b.png", null, null],
         referenceImageInternalMediaRefs: (workflowReload.payload as WorkflowReloadImagePayload)
           .internalMediaRefs,
+      })
+    );
+    expect(selectionState?.extraImageUrls).toHaveLength(10);
+    expect(selectionState?.extraImageUrls.slice(0, 3)).toEqual([
+      "https://example.com/ref-b.png",
+      null,
+      null,
+    ]);
+  });
+
+  it("hydrates Expert Edit secondary references back into their original token slots", () => {
+    const workflowReload = makeImageReload();
+    workflowReload.originTool = "edit";
+    workflowReload.panelKind = "edit";
+    workflowReload.prompt = {
+      display: "Use @img10 as the wardrobe reference.",
+      submission: "Use Figure 3 as the wardrobe reference.",
+    };
+    workflowReload.payload = {
+      kind: "image",
+      submitTool: "edit",
+      aspect: "9:16",
+      imageResolution: "2K",
+      referenceInputs: [
+        "https://example.com/primary.png",
+        "https://example.com/markup-composite.png",
+        "https://example.com/ref-10.png",
+      ],
+      internalMediaRefs: [
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user/primary.png",
+        },
+        null,
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user/ref-10.png",
+        },
+      ],
+      expertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [{ slotIndex: 9, referenceInputIndex: 2 }],
+      },
+    };
+    const params = makeParams(makeOutput(workflowReload));
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    const selectionState = params.setReferenceSelectionState.mock.calls[0]?.[0];
+    expect(params.setSelectedTool).toHaveBeenCalledWith("edit");
+    expect(params.setEditReferenceText).toHaveBeenCalledWith(
+      "Use @img10 as the wardrobe reference."
+    );
+    expect(selectionState).toEqual(
+      expect.objectContaining({
+        selectedTool: "edit",
+        referenceImageUrl: "https://example.com/primary.png",
+      })
+    );
+    expect(selectionState?.extraImageUrls).toHaveLength(10);
+    expect(selectionState?.extraImageUrls.slice(0, 9)).toEqual(
+      Array.from({ length: 9 }, () => null)
+    );
+    expect(selectionState?.extraImageUrls[9]).toBe("https://example.com/ref-10.png");
+    expect(selectionState?.referenceImageInternalMediaRefs?.[10]).toEqual(
+      expect.objectContaining({
+        storagePath: "user/ref-10.png",
       })
     );
   });

@@ -1041,6 +1041,7 @@ export function AiStudioPageContent({
     showDivider,
     isResizing,
     shellStyle,
+    shellLayoutMode,
     collapseToMin,
     resetToDefaultWidth,
     restoreWidth,
@@ -1096,6 +1097,7 @@ export function AiStudioPageContent({
     showCreatePropertiesPanel ? "ai-shell-expert-create" : "",
     showExpertEditPanel ? "ai-shell-expert-edit" : "",
     isCharacterShellPanelOpen ? "ai-shell-character-open" : "",
+    `ai-shell-mode-${shellLayoutMode}`,
     isPerformanceDenseSession ? "ai-shell-performance-dense" : "",
     isResizing ? "ai-shell-resizing" : "",
   ]
@@ -1876,6 +1878,7 @@ export function AiStudioPageContent({
               rightColumnRef={rightColumnRef}
               shellClassName={shellClassName}
               shellStyle={shellStyle}
+              shellLayoutMode={shellLayoutMode}
               selectedTool={selectedTool}
               showDivider={showDivider}
               dividerProps={dividerProps}

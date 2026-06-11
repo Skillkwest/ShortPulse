@@ -79,6 +79,7 @@ const securityHeaders = [
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self'",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
       "img-src 'self' data: blob: https:",
       "media-src 'self' data: blob: https:",
       "font-src 'self' data:",

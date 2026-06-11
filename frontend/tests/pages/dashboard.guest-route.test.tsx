@@ -3,7 +3,7 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
@@ -16,6 +16,7 @@ const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const publicFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -83,6 +84,8 @@ vi.mock("../../lib/authenticatedFetch", () => ({
 describe("Dashboard guest route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", publicFetchMock);
+    publicFetchMock.mockReturnValue(new Promise(() => {}));
     useRouterMock.mockReturnValue({
       pathname: "/dashboard",
       push: vi.fn(),
@@ -107,7 +110,11 @@ describe("Dashboard guest route", () => {
     });
   });
 
-  it("renders a public dashboard with login and pricing-funnel guest CTAs", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders a public dashboard with compact pricing, login, and signup guest CTAs", () => {
     render(
       <DashboardPage
         billingCatalog={{
@@ -153,11 +160,18 @@ describe("Dashboard guest route", () => {
     expect(screen.getAllByText("Offer 2")).toHaveLength(2);
     expect(screen.getAllByText("Offer 3")).toHaveLength(2);
     expect(screen.getAllByText("Offer 4")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: "Log in" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute(
       "href",
       "/auth?next=%2Fdashboard"
     );
+    expect(screen.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
+    expect(screen.getByRole("link", { name: "Sign up" })).toHaveAttribute(
+      "href",
+      "/auth?next=%2Fdashboard&mode=signup"
+    );
     expect(screen.getByRole("link", { name: "ShortPulse home" })).toHaveAttribute("href", "/");
+    expect(screen.queryByText("Public dashboard")).not.toBeInTheDocument();
+    expect(screen.queryByText(/workspace entry are now one surface/i)).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", {
         name: "New Project: Compare plans and unlock your first project",
@@ -173,6 +187,9 @@ describe("Dashboard guest route", () => {
       screen.queryByRole("heading", { name: /choose where to start/i })
     ).not.toBeInTheDocument();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(publicFetchMock).toHaveBeenCalledWith("/api/dashboard/tutorials", {
+      method: "GET",
+    });
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
     expect(useSupabaseSessionStateMock).not.toHaveBeenCalled();
   });
@@ -232,6 +249,47 @@ describe("Dashboard guest route", () => {
       "src",
       "https://www.youtube-nocookie.com/embed/abc123?rel=0&modestbranding=1&playsinline=1"
     );
+    expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
+      "href",
+      "/pricing?intent=tutorial"
+    );
+  });
+
+  it("hydrates public tutorial cards from the dashboard tutorials endpoint", async () => {
+    publicFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tutorials: [
+          {
+            id: "tutorial-1",
+            title: "Generate images with ShortPulse",
+            youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+            thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+            thumbnailMediaType: "image",
+            thumbnailAlt: "Tutorial preview",
+            displayOrder: 1,
+          },
+        ],
+      }),
+    });
+
+    render(<DashboardPage dashboardTutorials={[]} />);
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Generate images with ShortPulse: open tutorial",
+      })
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Generate images with ShortPulse: open tutorial",
+      })
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Generate images with ShortPulse" })
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
       "href",
       "/pricing?intent=tutorial"

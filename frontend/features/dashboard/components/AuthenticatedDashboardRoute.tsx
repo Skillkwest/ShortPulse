@@ -26,6 +26,7 @@ import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreatio
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { ensureSupabaseQueryClient, signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { asDashboardTutorials } from "../logic/dashboardTutorialPayload";
 
 const DEFAULT_PLAN_TIER = "free";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
@@ -75,30 +76,6 @@ const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null =
     message,
     publishedAt: typeof row.publishedAt === "string" ? row.publishedAt : null,
     updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : null,
-  };
-};
-
-const asDashboardTutorial = (value: unknown): DashboardTutorial | null => {
-  if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, unknown>;
-  const id = typeof row.id === "string" ? row.id : "";
-  const title = typeof row.title === "string" ? row.title.trim() : "";
-  const youtubeUrl = typeof row.youtubeUrl === "string" ? row.youtubeUrl.trim() : "";
-  const thumbnailUrl = typeof row.thumbnailUrl === "string" ? row.thumbnailUrl.trim() : "";
-  const thumbnailMediaType =
-    row.thumbnailMediaType === "video" || row.thumbnailMediaType === "image"
-      ? row.thumbnailMediaType
-      : "image";
-
-  if (!id || !title || !youtubeUrl || !thumbnailUrl) return null;
-  return {
-    id,
-    title,
-    youtubeUrl,
-    thumbnailUrl,
-    thumbnailMediaType,
-    thumbnailAlt: typeof row.thumbnailAlt === "string" ? row.thumbnailAlt.trim() : "",
-    displayOrder: typeof row.displayOrder === "number" ? row.displayOrder : 0,
   };
 };
 
@@ -363,12 +340,7 @@ export function AuthenticatedDashboardRoute({
           tutorials?: unknown;
         };
         if (!active) return;
-        const tutorials = Array.isArray(payload.tutorials)
-          ? payload.tutorials
-              .map(asDashboardTutorial)
-              .filter((tutorial): tutorial is DashboardTutorial => tutorial !== null)
-          : [];
-        setDashboardTutorials(tutorials);
+        setDashboardTutorials(asDashboardTutorials(payload.tutorials));
       } catch {
         if (!active) return;
         setDashboardTutorials([]);

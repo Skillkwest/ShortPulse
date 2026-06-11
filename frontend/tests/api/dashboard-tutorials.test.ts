@@ -1,16 +1,11 @@
 /**
- * API tests for signed-in dashboard tutorial reads.
+ * API tests for public dashboard tutorial reads.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/dashboard/tutorials";
 
-const requireApiUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
-
-vi.mock("../../lib/server/api/auth", () => ({
-  requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
-}));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -25,8 +20,6 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
-type MockResponse = ReturnType<typeof createMockResponse>;
-
 const buildTutorialReadClient = (
   data: unknown[] | null,
   error: { message: string } | null = null
@@ -43,7 +36,6 @@ const buildTutorialReadClient = (
 describe("GET /api/dashboard/tutorials", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
   });
 
   it("rejects non-GET methods", async () => {
@@ -160,18 +152,16 @@ describe("GET /api/dashboard/tutorials", () => {
     });
   });
 
-  it("returns 401 when caller is unauthenticated", async () => {
-    requireApiUserMock.mockImplementationOnce(async (_req: unknown, res: MockResponse) => {
-      res.status(401).json({ error: "Unauthorized" });
-      return null;
-    });
+  it("allows public dashboard reads without a bearer session", async () => {
+    const { client } = buildTutorialReadClient([]);
+    getSupabaseAdminMock.mockReturnValue(client);
 
     const req = { method: "GET" };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
-    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ tutorials: [] });
   });
 });

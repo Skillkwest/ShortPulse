@@ -186,7 +186,7 @@ describe("Dashboard bootstrap state", () => {
     expect(
       screen.queryByRole("heading", { name: /build faster with shortpulse/i })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Log in" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
 
     snapshot.initialized = true;
     snapshot.session = { user: appUser };

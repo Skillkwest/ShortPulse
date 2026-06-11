@@ -41,4 +41,31 @@ describe("next.config security headers", () => {
     expect(permissionsPolicy.value).toContain("microphone=(self)");
     expect(permissionsPolicy.value).not.toContain("microphone=()");
   });
+
+  it("allows the dashboard tutorial YouTube player frame", async () => {
+    const nextConfigModule = await import("../next.config.js");
+    const nextConfig = "default" in nextConfigModule ? nextConfigModule.default : nextConfigModule;
+    const headerEntries = await nextConfig.headers();
+    const appHeaders = headerEntries.find(
+      (entry: { source: string; headers: Array<{ key: string; value: string }> }) =>
+        entry.source === "/:path*"
+    );
+
+    expect(appHeaders).toBeDefined();
+    if (!appHeaders) {
+      throw new Error("Expected app security headers entry.");
+    }
+
+    const contentSecurityPolicy = appHeaders.headers.find(
+      (header: { key: string; value: string }) => header.key === "Content-Security-Policy"
+    );
+
+    expect(contentSecurityPolicy).toBeDefined();
+    if (!contentSecurityPolicy) {
+      throw new Error("Expected Content-Security-Policy header.");
+    }
+    expect(contentSecurityPolicy.value).toContain(
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com"
+    );
+  });
 });

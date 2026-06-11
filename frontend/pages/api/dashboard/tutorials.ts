@@ -1,9 +1,8 @@
 /**
- * Authenticated dashboard tutorial read route.
- * Returns active globally managed tutorial cards for the signed-in dashboard.
+ * Public dashboard tutorial read route.
+ * Returns active globally managed tutorial cards for public and signed-in dashboards.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
   readActiveDashboardTutorials,
@@ -28,11 +27,6 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
-  if (!user) {
-    return;
-  }
-
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const tutorials = await readActiveDashboardTutorials(supabaseAdmin);
@@ -42,7 +36,7 @@ export default async function handler(
       req,
       error,
       routeLabel: "dashboard/tutorials",
-      user,
+      user: null,
       metadata: {
         source: "api.dashboard.tutorials",
       },

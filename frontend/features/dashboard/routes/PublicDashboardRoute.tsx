@@ -4,15 +4,16 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { ChartBar, CloudArrowUp, ShieldCheck, Sparkle, type IconProps } from "phosphor-react";
 import { DashboardAppBar } from "../components/DashboardAppBar";
 import { GuestDashboardView } from "../components/GuestDashboardView";
-import { buildPricingPath } from "../../pricing/paths";
+import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
 import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
 import type { DashboardOffer } from "../../../lib/server/api/dashboardOffers";
 import type { PublicDashboardStaticProps } from "./publicDashboardData";
+import { asDashboardTutorials } from "../logic/dashboardTutorialPayload";
 
 type DashboardHeaderCard = {
   key: string;
@@ -83,6 +84,11 @@ export function PublicDashboardRoute({
   manageBodyClass = true,
 }: PublicDashboardRouteInternalProps) {
   const guestPageViewTrackedRef = useRef(false);
+  const initialDashboardTutorials = useMemo(
+    () => asDashboardTutorials(dashboardTutorials),
+    [dashboardTutorials]
+  );
+  const [liveDashboardTutorials, setLiveDashboardTutorials] = useState(initialDashboardTutorials);
 
   useEffect(() => {
     if (guestPageViewTrackedRef.current) return;
@@ -104,7 +110,37 @@ export function PublicDashboardRoute({
     };
   }, [manageBodyClass]);
 
-  const loginHref = `/auth?next=${encodeURIComponent("/dashboard")}`;
+  useEffect(() => {
+    let active = true;
+
+    const loadDashboardTutorials = async () => {
+      try {
+        const response = await fetch("/api/dashboard/tutorials", {
+          method: "GET",
+        });
+        if (!response.ok) {
+          throw new Error("Failed to load dashboard tutorials.");
+        }
+        const payload = (await response.json().catch(() => ({}))) as {
+          tutorials?: unknown;
+        };
+        if (!active) return;
+        setLiveDashboardTutorials(asDashboardTutorials(payload.tutorials));
+      } catch {
+        if (!active) return;
+        setLiveDashboardTutorials(initialDashboardTutorials);
+      }
+    };
+
+    void loadDashboardTutorials();
+    return () => {
+      active = false;
+    };
+  }, [initialDashboardTutorials]);
+
+  const loginHref = buildDashboardAuthPath();
+  const signupHref = buildDashboardAuthPath({ mode: "signup" });
+  const pricingHref = buildPricingPath();
   const guestCreateProjectHref = buildPricingPath({ intent: "create-project" });
 
   return (
@@ -125,9 +161,20 @@ export function PublicDashboardRoute({
         <DashboardAppBar
           cards={buildGuestHeaderCards(dashboardOffers)}
           actionSlot={
-            <div className="user-cluster">
-              <Link href={loginHref} className="avatar-card app-bar-login-button">
-                Log in
+            <div className="public-dashboard-actions" aria-label="Guest actions">
+              <div className="public-dashboard-auth-column">
+                <Link href={loginHref} className="public-dashboard-action public-dashboard-login">
+                  Login
+                </Link>
+                <Link
+                  href={pricingHref}
+                  className="public-dashboard-action public-dashboard-pricing"
+                >
+                  Pricing
+                </Link>
+              </div>
+              <Link href={signupHref} className="public-dashboard-action public-dashboard-signup">
+                Sign up
               </Link>
             </div>
           }
@@ -135,7 +182,7 @@ export function PublicDashboardRoute({
 
         <GuestDashboardView
           createProjectHref={guestCreateProjectHref}
-          dashboardTutorials={dashboardTutorials}
+          dashboardTutorials={liveDashboardTutorials}
         />
       </main>
     </>

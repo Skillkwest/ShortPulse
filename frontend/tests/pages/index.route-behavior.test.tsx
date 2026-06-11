@@ -109,7 +109,7 @@ describe("Index route behavior", () => {
     expect(
       screen.getByRole("heading", { name: /build faster with shortpulse/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Log in" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute(
       "href",
       "/auth?next=%2Fdashboard"
     );

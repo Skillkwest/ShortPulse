@@ -204,6 +204,7 @@ Current set:
 - `151_add_ai_studio_builtin_style_control_plane.sql`
 - `152_add_audio_generation_display_title.sql`
 - `153_add_dashboard_tutorials.sql`
+- `154_add_dashboard_tutorial_thumbnail_uploads.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 
@@ -246,11 +247,18 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 - Run: `supabase db lint --linked --schema public --fail-on warning`.
 - Alternative for explicit DB target pinning: `supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning`.
 
-8. Do not use Docker-based local Supabase commands in agent workflows.
+8. Verify hosted runtime schema contract after hosted migration applies.
+
+- Run `node scripts/check_hosted_schema_contract.mjs` against the target environment.
+- The script checks migration-sensitive Project Persistence and generated-output columns such as `generation_projection.workspace_runtime_key`, `generation_projection.display_title`, `project_workspace_states.checkpoint_revision`, and `project_output_display_items.display_title`.
+- Prefer PostgREST `limit=0` probes when Supabase URL/API credentials are available; in hosted migration workflows, the script may use `SUPABASE_DB_URL` to verify the same required table/column contract without exposing secrets.
+- Treat failures as hosted schema drift. Apply the missing forward migration or repair the environment before assuming AI Studio restore/autosave code is broken.
+
+9. Do not use Docker-based local Supabase commands in agent workflows.
 
 - Avoid `supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, and direct `docker` commands.
 
-9. Hosted-runner fallback is required when `SUPABASE_DB_URL` is unavailable in local shell context.
+10. Hosted-runner fallback is required when `SUPABASE_DB_URL` is unavailable in local shell context.
 
 - Use `.github/workflows/reliability-control-plane-diagnostics.yml` for read-only reliability diagnostics against `staging`/`production`.
 - Runner script authority: `scripts/reliability_control_plane_diagnostics.sh`.

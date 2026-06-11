@@ -596,7 +596,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk, default `gen_random_uuid()`).
 - `title` (text, required): Trimmed tutorial title (`btrim`) with length `1..120`.
 - `youtube_url` (text, required): HTTPS YouTube destination. Runtime validation accepts `youtube.com`, `www.youtube.com`, `m.youtube.com`, and `youtu.be`.
-- `thumbnail_url` (text, required): HTTPS image/GIF/video thumbnail asset URL. Thumbnail storage/upload is outside the current contract.
+- `thumbnail_url` (text, nullable): HTTPS image/GIF/video thumbnail asset URL when the tutorial uses an externally hosted asset.
+- `thumbnail_storage_path` (text, nullable): Private object path in the `dashboard_tutorial_thumbnails` bucket when the tutorial uses an uploaded admin thumbnail. Stored thumbnails are signed as originals by server routes; do not use Supabase image transformations.
+- `thumbnail_file_size_bytes` (integer, nullable): Uploaded thumbnail size, bounded to 50 MB.
+- `thumbnail_content_type` (text, nullable): Uploaded thumbnail MIME type. Allowed values are `image/gif`, `image/jpeg`, `image/png`, `image/webp`, `video/mp4`, `video/quicktime`, and `video/webm`.
 - `thumbnail_media_type` (text, default `image`): `image | video`; GIF thumbnails use `image`.
 - `thumbnail_alt` (text, default `''`): Optional trimmed thumbnail description, max 160 characters.
 - `display_order` (integer, default `0`): Global dashboard grid order.
@@ -607,7 +610,9 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Integrity:
   - Active and admin-order indexes support dashboard and admin grid reads.
   - Update trigger stamps `updated_at` on row mutation.
+  - Each row must have either `thumbnail_url` or `thumbnail_storage_path`.
   - Admin writes flow through `/api/admin/dashboard/tutorials` with service-role Supabase access.
+  - Admin thumbnail uploads flow through `/api/admin/dashboard/tutorial-thumbnail/prepare` and `/api/admin/dashboard/tutorial-thumbnail/finalize`, with browser-direct signed upload into the private global thumbnail bucket.
 
 ### Dashboard tutorial RPC contract
 

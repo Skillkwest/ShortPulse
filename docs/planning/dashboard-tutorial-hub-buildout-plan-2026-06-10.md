@@ -2,7 +2,7 @@
 
 ## Objective
 
-Build a globally managed tutorial-card grid for the signed-in dashboard. Admins manage tutorial titles, animated thumbnail URLs, YouTube links, active state, and display order from the existing dashboard management surface; all signed-in users see the same active ordered grid on their homepage below the welcome/announcement and project action area.
+Build a globally managed tutorial-card grid for the signed-in dashboard. Admins manage tutorial titles, uploaded animated thumbnail files or HTTPS thumbnail URLs, YouTube links, active state, and display order from the existing dashboard management surface; all signed-in users see the same active ordered grid on their homepage below the welcome/announcement and project action area.
 
 ## Owner And Lane
 
@@ -12,6 +12,7 @@ Build a globally managed tutorial-card grid for the signed-in dashboard. Admins 
 ## Approved Scope
 
 - Add a dedicated `dashboard_tutorials` database authority with RLS/grants.
+- Add a private app-owned dashboard tutorial thumbnail bucket plus signed-upload prepare/finalize routes so admins can drop local GIF/image/video thumbnails without manually hosting them.
 - Add server helpers and authenticated/admin API routes for reading, saving, deleting, and reordering tutorials.
 - Render active tutorials on the signed-in dashboard under the existing hero/project actions.
 - Expand `/admin/announcements` into a dashboard management page that preserves announcement publishing and adds tutorial management.
@@ -20,7 +21,6 @@ Build a globally managed tutorial-card grid for the signed-in dashboard. Admins 
 ## Non-Goals
 
 - No YouTube API integration.
-- No admin file upload/storage pipeline for thumbnails in this lane.
 - No Supabase image transformations.
 - No per-user tutorial personalization.
 - No route rename unless it becomes required by implementation; keep `/admin/announcements` as the stable route.
@@ -35,4 +35,4 @@ Build a globally managed tutorial-card grid for the signed-in dashboard. Admins 
 
 ## Stop Condition
 
-Stop when the canonical local implementation is complete: one global ordered tutorial table, authenticated active read, admin-only mutation, dashboard rendering under the hero/project actions, safe YouTube and thumbnail URL validation, reorder persistence, docs/tests updated, and local validation reported. Defer hosted migration application, production deployment, and production URL proof unless explicitly requested.
+Stop when the canonical local implementation is complete: one global ordered tutorial table, private app-owned thumbnail upload/storage, authenticated active read, admin-only mutation, dashboard rendering under the hero/project actions, safe YouTube and thumbnail source validation, reorder persistence, docs/tests updated, and local validation reported. Defer hosted migration application, production deployment, and production URL proof unless explicitly requested.

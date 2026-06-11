@@ -1795,7 +1795,7 @@ export function AdminAgentInstructionsSection() {
                   <article
                     key={draft.localId}
                     role="listitem"
-                    className={styles.agentEditPresetTile}
+                    className={`${styles.agentEditPresetTile} ${styles.agentBuiltInStyleTile}`}
                   >
                     <button
                       type="button"
@@ -1806,7 +1806,9 @@ export function AdminAgentInstructionsSection() {
                     >
                       Delete
                     </button>
-                    <div className={styles.agentEditPresetTileButton}>
+                    <div
+                      className={`${styles.agentEditPresetTileButton} ${styles.agentBuiltInStyleTileHeader}`}
+                    >
                       <span className={styles.agentEditPresetTileTitle}>{cardTitle}</span>
                     </div>
                     <div

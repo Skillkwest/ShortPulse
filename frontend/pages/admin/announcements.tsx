@@ -2,6 +2,7 @@
  * Admin announcements route.
  * Owns the global dashboard bulletin publishing workflow.
  */
+import { useRef, type DragEvent } from "react";
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { AppMessage } from "../../components/AppMessage";
 import {
@@ -52,11 +53,13 @@ export default function AdminAnnouncementsPage() {
     draft: tutorialDraft,
     loading: tutorialsLoading,
     saving: tutorialSaving,
+    uploadingThumbnail,
     deletingId: tutorialDeletingId,
     reorderingId: tutorialReorderingId,
     result: tutorialResult,
     error: tutorialError,
     updateDraft: updateTutorialDraft,
+    uploadThumbnail,
     startNewTutorial,
     editTutorial,
     loadTutorials,
@@ -66,6 +69,24 @@ export default function AdminAnnouncementsPage() {
   } = useAdminDashboardTutorialsController({
     enabled: Boolean(user && adminEnabled),
   });
+  const thumbnailFileInputRef = useRef<HTMLInputElement | null>(null);
+  const tutorialFormLocked = tutorialSaving || uploadingThumbnail;
+
+  const handleThumbnailFileSelection = (files: FileList | null) => {
+    const file = files?.[0] ?? null;
+    if (thumbnailFileInputRef.current) {
+      thumbnailFileInputRef.current.value = "";
+    }
+    if (file) {
+      void uploadThumbnail(file);
+    }
+  };
+
+  const handleThumbnailDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (tutorialFormLocked) return;
+    handleThumbnailFileSelection(event.dataTransfer.files);
+  };
 
   return (
     <AdminRouteShell
@@ -203,7 +224,7 @@ export default function AdminAnnouncementsPage() {
               type="button"
               className="ghost-btn mini"
               onClick={() => startNewTutorial()}
-              disabled={tutorialSaving || tutorialsLoading}
+              disabled={tutorialFormLocked || tutorialsLoading}
             >
               New tutorial
             </button>
@@ -211,7 +232,7 @@ export default function AdminAnnouncementsPage() {
               type="button"
               className="ghost-btn mini"
               onClick={() => void loadTutorials()}
-              disabled={tutorialSaving || tutorialsLoading}
+              disabled={tutorialFormLocked || tutorialsLoading}
             >
               {tutorialsLoading ? "Refreshing…" : "Refresh"}
             </button>
@@ -265,7 +286,7 @@ export default function AdminAnnouncementsPage() {
                       disabled={
                         index === 0 ||
                         tutorialReorderingId !== null ||
-                        tutorialSaving ||
+                        tutorialFormLocked ||
                         tutorialsLoading
                       }
                     >
@@ -278,7 +299,7 @@ export default function AdminAnnouncementsPage() {
                       disabled={
                         index === tutorials.length - 1 ||
                         tutorialReorderingId !== null ||
-                        tutorialSaving ||
+                        tutorialFormLocked ||
                         tutorialsLoading
                       }
                     >
@@ -288,7 +309,7 @@ export default function AdminAnnouncementsPage() {
                       type="button"
                       className="ghost-btn mini"
                       onClick={() => void deleteTutorial(tutorial.id)}
-                      disabled={tutorialDeletingId === tutorial.id || tutorialSaving}
+                      disabled={tutorialDeletingId === tutorial.id || tutorialFormLocked}
                     >
                       {tutorialDeletingId === tutorial.id ? "Deleting…" : "Delete"}
                     </button>
@@ -310,7 +331,7 @@ export default function AdminAnnouncementsPage() {
               <div>
                 <p className="eyebrow">{tutorialDraft.id ? "Edit tutorial" : "Add tutorial"}</p>
                 <p className="tiny subdued">
-                  Use HTTPS thumbnail assets and a YouTube or youtu.be destination.
+                  Drop a thumbnail file here or use an HTTPS asset with a YouTube destination.
                 </p>
               </div>
             </div>
@@ -327,7 +348,7 @@ export default function AdminAnnouncementsPage() {
                 onChange={(event) => updateTutorialDraft({ title: event.target.value })}
                 maxLength={ADMIN_DASHBOARD_TUTORIAL_TITLE_MAX_LENGTH}
                 placeholder="Create your first project"
-                disabled={tutorialSaving}
+                disabled={tutorialFormLocked}
               />
             </label>
 
@@ -339,19 +360,80 @@ export default function AdminAnnouncementsPage() {
                 value={tutorialDraft.youtubeUrl}
                 onChange={(event) => updateTutorialDraft({ youtubeUrl: event.target.value })}
                 placeholder="https://www.youtube.com/watch?v=..."
-                disabled={tutorialSaving}
+                disabled={tutorialFormLocked}
               />
             </label>
 
+            <div className={styles.manualAdjustField}>
+              <span className="tiny subdued">Thumbnail file</span>
+              <div
+                className={styles.dashboardTutorialUploadDropzone}
+                onDrop={handleThumbnailDrop}
+                onDragOver={(event) => event.preventDefault()}
+              >
+                <input
+                  ref={thumbnailFileInputRef}
+                  className={styles.visuallyHiddenInput}
+                  id="dashboard-tutorial-thumbnail-upload"
+                  type="file"
+                  accept="image/gif,image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
+                  onChange={(event) => handleThumbnailFileSelection(event.target.files)}
+                  disabled={tutorialFormLocked}
+                />
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => thumbnailFileInputRef.current?.click()}
+                  disabled={tutorialFormLocked}
+                >
+                  {uploadingThumbnail ? "Uploading..." : "Choose file"}
+                </button>
+                <span className="tiny subdued">GIF, image, MP4, MOV, or WebM up to 50 MB.</span>
+              </div>
+              {tutorialDraft.thumbnailUrl ? (
+                <div className={styles.dashboardTutorialUploadPreview}>
+                  <span className={styles.dashboardTutorialPreviewMedia} aria-hidden="true">
+                    {tutorialDraft.thumbnailMediaType === "video" ? (
+                      <video
+                        src={tutorialDraft.thumbnailUrl}
+                        muted
+                        loop
+                        playsInline
+                        autoPlay
+                        preload="metadata"
+                      />
+                    ) : (
+                      <span
+                        className={styles.dashboardTutorialPreviewImage}
+                        style={{
+                          backgroundImage: `url(${JSON.stringify(tutorialDraft.thumbnailUrl)})`,
+                        }}
+                      />
+                    )}
+                  </span>
+                  <span className="tiny subdued">
+                    {tutorialDraft.thumbnailStoragePath ? "Uploaded thumbnail" : "External URL"}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
             <label className={styles.manualAdjustField}>
-              <span className="tiny subdued">Thumbnail URL</span>
+              <span className="tiny subdued">Thumbnail URL fallback</span>
               <input
                 className={styles.searchInput}
                 type="url"
-                value={tutorialDraft.thumbnailUrl}
-                onChange={(event) => updateTutorialDraft({ thumbnailUrl: event.target.value })}
+                value={tutorialDraft.thumbnailStoragePath ? "" : tutorialDraft.thumbnailUrl}
+                onChange={(event) =>
+                  updateTutorialDraft({
+                    thumbnailUrl: event.target.value,
+                    thumbnailStoragePath: null,
+                    thumbnailFileSizeBytes: null,
+                    thumbnailContentType: null,
+                  })
+                }
                 placeholder="https://..."
-                disabled={tutorialSaving}
+                disabled={tutorialFormLocked}
               />
             </label>
 
@@ -366,7 +448,7 @@ export default function AdminAnnouncementsPage() {
                       thumbnailMediaType: event.target.value === "video" ? "video" : "image",
                     })
                   }
-                  disabled={tutorialSaving}
+                  disabled={tutorialFormLocked}
                 >
                   <option value="image">Image / GIF</option>
                   <option value="video">Video</option>
@@ -381,7 +463,7 @@ export default function AdminAnnouncementsPage() {
                   min="0"
                   value={tutorialDraft.displayOrder}
                   onChange={(event) => updateTutorialDraft({ displayOrder: event.target.value })}
-                  disabled={tutorialSaving}
+                  disabled={tutorialFormLocked}
                 />
               </label>
             </div>
@@ -398,7 +480,7 @@ export default function AdminAnnouncementsPage() {
                 onChange={(event) => updateTutorialDraft({ thumbnailAlt: event.target.value })}
                 maxLength={ADMIN_DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH}
                 placeholder="Animated preview of the tutorial"
-                disabled={tutorialSaving}
+                disabled={tutorialFormLocked}
               />
             </label>
 
@@ -407,7 +489,7 @@ export default function AdminAnnouncementsPage() {
                 type="checkbox"
                 checked={tutorialDraft.isActive}
                 onChange={(event) => updateTutorialDraft({ isActive: event.target.checked })}
-                disabled={tutorialSaving}
+                disabled={tutorialFormLocked}
               />
               <span>Show this tutorial on user dashboards</span>
             </label>
@@ -417,7 +499,7 @@ export default function AdminAnnouncementsPage() {
                 type="button"
                 className="ghost-btn mini"
                 onClick={() => void saveTutorialDraft()}
-                disabled={tutorialSaving || tutorialsLoading}
+                disabled={tutorialFormLocked || tutorialsLoading}
               >
                 {tutorialSaving ? "Saving…" : "Save tutorial"}
               </button>
@@ -425,7 +507,7 @@ export default function AdminAnnouncementsPage() {
                 type="button"
                 className="ghost-btn mini"
                 onClick={() => startNewTutorial()}
-                disabled={tutorialSaving}
+                disabled={tutorialFormLocked}
               >
                 Clear form
               </button>

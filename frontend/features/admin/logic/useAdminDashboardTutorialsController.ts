@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { AdminDashboardTutorial } from "../types";
 
 export const ADMIN_DASHBOARD_TUTORIAL_TITLE_MAX_LENGTH = 120;
@@ -14,6 +15,9 @@ export type AdminDashboardTutorialDraft = {
   title: string;
   youtubeUrl: string;
   thumbnailUrl: string;
+  thumbnailStoragePath: string | null;
+  thumbnailFileSizeBytes: number | null;
+  thumbnailContentType: string | null;
   thumbnailMediaType: "image" | "video";
   thumbnailAlt: string;
   displayOrder: string;
@@ -29,11 +33,13 @@ type UseAdminDashboardTutorialsControllerResult = {
   draft: AdminDashboardTutorialDraft;
   loading: boolean;
   saving: boolean;
+  uploadingThumbnail: boolean;
   deletingId: string | null;
   reorderingId: string | null;
   result: string | null;
   error: string | null;
   updateDraft: (patch: Partial<AdminDashboardTutorialDraft>) => void;
+  uploadThumbnail: (file: File) => Promise<void>;
   startNewTutorial: () => void;
   editTutorial: (tutorial: AdminDashboardTutorial) => void;
   loadTutorials: () => Promise<void>;
@@ -47,6 +53,9 @@ const emptyDraft = (displayOrder = 1): AdminDashboardTutorialDraft => ({
   title: "",
   youtubeUrl: "",
   thumbnailUrl: "",
+  thumbnailStoragePath: null,
+  thumbnailFileSizeBytes: null,
+  thumbnailContentType: null,
   thumbnailMediaType: "image",
   thumbnailAlt: "",
   displayOrder: String(displayOrder),
@@ -60,6 +69,12 @@ const asAdminDashboardTutorial = (value: unknown): AdminDashboardTutorial | null
   const title = typeof row.title === "string" ? row.title.trim() : "";
   const youtubeUrl = typeof row.youtubeUrl === "string" ? row.youtubeUrl.trim() : "";
   const thumbnailUrl = typeof row.thumbnailUrl === "string" ? row.thumbnailUrl.trim() : "";
+  const thumbnailStoragePath =
+    typeof row.thumbnailStoragePath === "string" ? row.thumbnailStoragePath.trim() : null;
+  const thumbnailFileSizeBytes =
+    typeof row.thumbnailFileSizeBytes === "number" ? row.thumbnailFileSizeBytes : null;
+  const thumbnailContentType =
+    typeof row.thumbnailContentType === "string" ? row.thumbnailContentType.trim() : null;
   const thumbnailMediaType =
     row.thumbnailMediaType === "video" || row.thumbnailMediaType === "image"
       ? row.thumbnailMediaType
@@ -70,6 +85,9 @@ const asAdminDashboardTutorial = (value: unknown): AdminDashboardTutorial | null
     title,
     youtubeUrl,
     thumbnailUrl,
+    thumbnailStoragePath,
+    thumbnailFileSizeBytes,
+    thumbnailContentType,
     thumbnailMediaType,
     thumbnailAlt: typeof row.thumbnailAlt === "string" ? row.thumbnailAlt.trim() : "",
     displayOrder: typeof row.displayOrder === "number" ? row.displayOrder : 0,
@@ -84,6 +102,9 @@ const draftFromTutorial = (tutorial: AdminDashboardTutorial): AdminDashboardTuto
   title: tutorial.title,
   youtubeUrl: tutorial.youtubeUrl,
   thumbnailUrl: tutorial.thumbnailUrl,
+  thumbnailStoragePath: tutorial.thumbnailStoragePath,
+  thumbnailFileSizeBytes: tutorial.thumbnailFileSizeBytes,
+  thumbnailContentType: tutorial.thumbnailContentType,
   thumbnailMediaType: tutorial.thumbnailMediaType,
   thumbnailAlt: tutorial.thumbnailAlt,
   displayOrder: String(tutorial.displayOrder),
@@ -92,6 +113,50 @@ const draftFromTutorial = (tutorial: AdminDashboardTutorial): AdminDashboardTuto
 
 const sortTutorials = (tutorials: AdminDashboardTutorial[]): AdminDashboardTutorial[] =>
   [...tutorials].sort((a, b) => a.displayOrder - b.displayOrder || a.title.localeCompare(b.title));
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+const readResponseError = async (response: Response, fallback: string): Promise<string> => {
+  const payload = asRecord(await response.json().catch(() => ({})));
+  return typeof payload.error === "string" && payload.error.trim() ? payload.error : fallback;
+};
+
+const asPreparedUploadTarget = (
+  value: unknown
+): {
+  storagePath: string;
+  uploadToken: string;
+  mimeType: string;
+  mediaType: "image" | "video";
+} | null => {
+  const record = asRecord(value);
+  const storagePath = typeof record.storagePath === "string" ? record.storagePath : "";
+  const uploadToken = typeof record.uploadToken === "string" ? record.uploadToken : "";
+  const mimeType = typeof record.mimeType === "string" ? record.mimeType : "";
+  const mediaType = record.mediaType === "video" ? "video" : "image";
+  if (!storagePath || !uploadToken || !mimeType) return null;
+  return { storagePath, uploadToken, mimeType, mediaType };
+};
+
+const asFinalizedThumbnail = (
+  value: unknown
+): {
+  storagePath: string;
+  signedUrl: string;
+  mimeType: string;
+  mediaType: "image" | "video";
+  fileSizeBytes: number;
+} | null => {
+  const record = asRecord(value);
+  const storagePath = typeof record.storagePath === "string" ? record.storagePath : "";
+  const signedUrl = typeof record.signedUrl === "string" ? record.signedUrl : "";
+  const mimeType = typeof record.mimeType === "string" ? record.mimeType : "";
+  const mediaType = record.mediaType === "video" ? "video" : "image";
+  const fileSizeBytes = typeof record.fileSizeBytes === "number" ? record.fileSizeBytes : 0;
+  if (!storagePath || !signedUrl || !mimeType || fileSizeBytes <= 0) return null;
+  return { storagePath, signedUrl, mimeType, mediaType, fileSizeBytes };
+};
 
 /**
  * Composes dashboard tutorial admin catalog state and persistence actions.
@@ -103,6 +168,7 @@ export const useAdminDashboardTutorialsController = ({
   const [draft, setDraft] = React.useState<AdminDashboardTutorialDraft>(() => emptyDraft());
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [uploadingThumbnail, setUploadingThumbnail] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [reorderingId, setReorderingId] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<string | null>(null);
@@ -156,6 +222,81 @@ export const useAdminDashboardTutorialsController = ({
     setResult(null);
   }, []);
 
+  const uploadThumbnail = React.useCallback(async (file: File) => {
+    if (!file) return;
+    setUploadingThumbnail(true);
+    setError(null);
+    setResult(null);
+    try {
+      const prepareResponse = await fetchWithAuth(
+        "/api/admin/dashboard/tutorial-thumbnail/prepare",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceMimeType: file.type,
+            sourceSize: file.size,
+          }),
+        }
+      );
+      if (!prepareResponse.ok) {
+        throw new Error(await readResponseError(prepareResponse, "Unable to prepare upload."));
+      }
+      const preparePayload = asRecord(await prepareResponse.json().catch(() => ({})));
+      const target = asPreparedUploadTarget(preparePayload.target);
+      if (!target) {
+        throw new Error("Thumbnail upload preparation returned an invalid target.");
+      }
+
+      const supabase = ensureSupabaseQueryClient();
+      const uploadResult = await supabase.storage
+        .from("dashboard_tutorial_thumbnails")
+        .uploadToSignedUrl(target.storagePath, target.uploadToken, file, {
+          contentType: target.mimeType,
+          upsert: false,
+        });
+      if (uploadResult.error) {
+        throw new Error(uploadResult.error.message || "Unable to upload thumbnail.");
+      }
+
+      const finalizeResponse = await fetchWithAuth(
+        "/api/admin/dashboard/tutorial-thumbnail/finalize",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceStoragePath: target.storagePath,
+            sourceMimeType: target.mimeType,
+            sourceSize: file.size,
+          }),
+        }
+      );
+      if (!finalizeResponse.ok) {
+        throw new Error(await readResponseError(finalizeResponse, "Unable to finalize upload."));
+      }
+      const finalizePayload = asRecord(await finalizeResponse.json().catch(() => ({})));
+      const thumbnail = asFinalizedThumbnail(finalizePayload.thumbnail);
+      if (!thumbnail) {
+        throw new Error("Thumbnail upload finalization returned an invalid thumbnail.");
+      }
+
+      setDraft((current) => ({
+        ...current,
+        thumbnailUrl: thumbnail.signedUrl,
+        thumbnailStoragePath: thumbnail.storagePath,
+        thumbnailFileSizeBytes: thumbnail.fileSizeBytes,
+        thumbnailContentType: thumbnail.mimeType,
+        thumbnailMediaType: thumbnail.mediaType,
+      }));
+      setResult("Thumbnail uploaded.");
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Failed to upload thumbnail.");
+      setResult(null);
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  }, []);
+
   const startNewTutorial = React.useCallback(() => {
     setDraft(emptyDraft(tutorials.length + 1));
     setError(null);
@@ -172,6 +313,7 @@ export const useAdminDashboardTutorialsController = ({
     const title = draft.title.trim();
     const youtubeUrl = draft.youtubeUrl.trim();
     const thumbnailUrl = draft.thumbnailUrl.trim();
+    const thumbnailStoragePath = draft.thumbnailStoragePath?.trim() || null;
     const thumbnailAlt = draft.thumbnailAlt.trim();
     const displayOrderRaw = Number(draft.displayOrder);
     const displayOrder = Number.isFinite(displayOrderRaw)
@@ -188,8 +330,8 @@ export const useAdminDashboardTutorialsController = ({
       setResult(null);
       return;
     }
-    if (!thumbnailUrl) {
-      setError("Thumbnail URL is required.");
+    if (!thumbnailStoragePath && !thumbnailUrl) {
+      setError("Upload a thumbnail file or provide a thumbnail URL.");
       setResult(null);
       return;
     }
@@ -206,6 +348,7 @@ export const useAdminDashboardTutorialsController = ({
           title,
           youtubeUrl,
           thumbnailUrl,
+          thumbnailStoragePath,
           thumbnailAlt,
           displayOrder,
         }),
@@ -319,9 +462,11 @@ export const useAdminDashboardTutorialsController = ({
     saving,
     deletingId,
     reorderingId,
+    uploadingThumbnail,
     result,
     error,
     updateDraft,
+    uploadThumbnail,
     startNewTutorial,
     editTutorial,
     loadTutorials,

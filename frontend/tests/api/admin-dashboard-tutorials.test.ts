@@ -31,6 +31,9 @@ const savedTutorialRow = {
   title: "Create your first project",
   youtube_url: "https://www.youtube.com/watch?v=abc123",
   thumbnail_url: "https://cdn.example.com/tutorial.gif",
+  thumbnail_storage_path: null,
+  thumbnail_file_size_bytes: null,
+  thumbnail_content_type: null,
   thumbnail_media_type: "image",
   thumbnail_alt: "Animated dashboard tutorial preview",
   display_order: 1,
@@ -116,6 +119,9 @@ describe("/api/admin/dashboard/tutorials", () => {
         title: "Create your first project",
         youtubeUrl: "https://www.youtube.com/watch?v=abc123",
         thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+        thumbnailStoragePath: null,
+        thumbnailFileSizeBytes: null,
+        thumbnailContentType: null,
         thumbnailMediaType: "image",
         thumbnailAlt: "Animated dashboard tutorial preview",
         displayOrder: 1,
@@ -123,6 +129,68 @@ describe("/api/admin/dashboard/tutorials", () => {
         createdAt: "2026-06-10T00:00:00.000Z",
         updatedAt: "2026-06-10T00:00:00.000Z",
       },
+      message: "Tutorial saved and active.",
+    });
+  });
+
+  it("stores uploaded thumbnail paths instead of temporary signed URLs", async () => {
+    const storedTutorialRow = {
+      ...savedTutorialRow,
+      thumbnail_url: null,
+      thumbnail_storage_path: "tutorial-thumbnails/uploaded.gif",
+      thumbnail_file_size_bytes: 12345,
+      thumbnail_content_type: "image/gif",
+    };
+    const maybeSingleMock = vi.fn(async () => ({ data: storedTutorialRow, error: null }));
+    const selectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+    const insertMock = vi.fn(() => ({ select: selectMock }));
+    const fromMock = vi.fn(() => ({ insert: insertMock }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://supabase.example.com/signed-uploaded.gif" },
+      error: null,
+    }));
+    const storageFromMock = vi.fn(() => ({ createSignedUrl: createSignedUrlMock }));
+    getSupabaseAdminMock.mockReturnValue({
+      from: fromMock,
+      storage: { from: storageFromMock },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        title: "Create your first project",
+        youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+        thumbnailUrl: "https://supabase.example.com/temporary-signed.gif",
+        thumbnailStoragePath: "tutorial-thumbnails/uploaded.gif",
+        thumbnailFileSizeBytes: 12345,
+        thumbnailContentType: "image/gif",
+        thumbnailMediaType: "image",
+        displayOrder: 1,
+        isActive: true,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thumbnail_url: null,
+        thumbnail_storage_path: "tutorial-thumbnails/uploaded.gif",
+        thumbnail_file_size_bytes: 12345,
+        thumbnail_content_type: "image/gif",
+      })
+    );
+    expect(storageFromMock).toHaveBeenCalledWith("dashboard_tutorial_thumbnails");
+    expect(createSignedUrlMock).toHaveBeenCalledWith("tutorial-thumbnails/uploaded.gif", 86400);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      tutorial: expect.objectContaining({
+        thumbnailUrl: "https://supabase.example.com/signed-uploaded.gif",
+        thumbnailStoragePath: "tutorial-thumbnails/uploaded.gif",
+        thumbnailFileSizeBytes: 12345,
+        thumbnailContentType: "image/gif",
+      }),
       message: "Tutorial saved and active.",
     });
   });

@@ -658,6 +658,9 @@ export type AdminDashboardTutorial = {
   title: string;
   youtubeUrl: string;
   thumbnailUrl: string;
+  thumbnailStoragePath: string | null;
+  thumbnailFileSizeBytes: number | null;
+  thumbnailContentType: string | null;
   thumbnailMediaType: "image" | "video";
   thumbnailAlt: string;
   displayOrder: number;

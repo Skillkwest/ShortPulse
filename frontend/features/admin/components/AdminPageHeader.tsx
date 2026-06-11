@@ -7,11 +7,11 @@ import { ShieldCheck } from "phosphor-react";
 import styles from "../../../styles/admin.module.css";
 
 const ADMIN_NAV_ITEMS = [
+  { href: "/admin/announcements", label: "Dashboard" },
   { href: "/admin", label: "Support" },
   { href: "/admin/agent-instructions", label: "Agent Instructions" },
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/offers", label: "Offers" },
-  { href: "/admin/announcements", label: "Dashboard" },
   { href: "/admin/stats", label: "Analytics" },
   { href: "/admin/errors", label: "Errors" },
   { href: "/admin/reports", label: "Reports" },

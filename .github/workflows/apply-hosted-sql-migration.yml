@@ -111,6 +111,13 @@ jobs:
           cd frontend
           npx supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning | tee /tmp/hosted_sql_lint.log
 
+      - name: Verify hosted runtime schema contract after apply
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          node scripts/check_hosted_schema_contract.mjs | tee /tmp/hosted_schema_contract.log
+
       - name: Write step summary
         if: always()
         run: |
@@ -129,4 +136,5 @@ jobs:
           path: |
             /tmp/hosted_sql_apply.log
             /tmp/hosted_sql_lint.log
+            /tmp/hosted_schema_contract.log
           if-no-files-found: ignore

@@ -3,10 +3,17 @@
  * Centralizes tutorial validation, row serialization, and global ordered persistence.
  */
 import type { getSupabaseAdmin } from "./supabaseAdmin";
+import {
+  isDashboardTutorialThumbnailStoragePath,
+  normalizeDashboardTutorialThumbnailContentType,
+  signDashboardTutorialThumbnailUrl,
+  type DashboardTutorialThumbnailContentType,
+} from "./dashboardTutorialAssets";
 
 export const DASHBOARD_TUTORIAL_TITLE_MAX_LENGTH = 120;
 export const DASHBOARD_TUTORIAL_YOUTUBE_URL_MAX_LENGTH = 500;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_URL_MAX_LENGTH = 1000;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PATH_MAX_LENGTH = 500;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH = 160;
 export const DASHBOARD_TUTORIAL_PUBLIC_LIMIT = 24;
 
@@ -28,6 +35,9 @@ type RawDashboardTutorial = {
   title?: unknown;
   youtube_url?: unknown;
   thumbnail_url?: unknown;
+  thumbnail_storage_path?: unknown;
+  thumbnail_file_size_bytes?: unknown;
+  thumbnail_content_type?: unknown;
   thumbnail_media_type?: unknown;
   thumbnail_alt?: unknown;
   display_order?: unknown;
@@ -41,6 +51,9 @@ export type DashboardTutorial = {
   title: string;
   youtubeUrl: string;
   thumbnailUrl: string;
+  thumbnailStoragePath: string | null;
+  thumbnailFileSizeBytes: number | null;
+  thumbnailContentType: DashboardTutorialThumbnailContentType | null;
   thumbnailMediaType: DashboardTutorialThumbnailMediaType;
   thumbnailAlt: string;
   displayOrder: number;
@@ -85,20 +98,33 @@ const isAllowedYoutubeUrl = (value: string): boolean => {
   }
 };
 
-const toDashboardTutorial = (value: unknown): DashboardTutorial | null => {
+const asNullablePositiveInteger = (value: unknown): number | null => {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) return null;
+  return value;
+};
+
+const toDashboardTutorial = async (
+  supabaseAdmin: SupabaseAdminClient,
+  value: unknown
+): Promise<DashboardTutorial | null> => {
   if (!value || typeof value !== "object") return null;
   const row = value as RawDashboardTutorial;
   const id = typeof row.id === "string" ? row.id : "";
   const title = asTrimmed(row.title);
   const youtubeUrl = asTrimmed(row.youtube_url);
-  const thumbnailUrl = asTrimmed(row.thumbnail_url);
+  const storedThumbnailUrl = asTrimmed(row.thumbnail_url);
+  const thumbnailStoragePath = asTrimmed(row.thumbnail_storage_path);
   const thumbnailMediaTypeRaw = asTrimmed(row.thumbnail_media_type) || "image";
+  const thumbnailUrl = thumbnailStoragePath
+    ? await signDashboardTutorialThumbnailUrl(supabaseAdmin, thumbnailStoragePath)
+    : storedThumbnailUrl;
 
   if (
     !id ||
     !title ||
     !youtubeUrl ||
     !thumbnailUrl ||
+    (thumbnailStoragePath && !isDashboardTutorialThumbnailStoragePath(thumbnailStoragePath)) ||
     !isThumbnailMediaType(thumbnailMediaTypeRaw)
   ) {
     return null;
@@ -109,6 +135,11 @@ const toDashboardTutorial = (value: unknown): DashboardTutorial | null => {
     title,
     youtubeUrl,
     thumbnailUrl,
+    thumbnailStoragePath: thumbnailStoragePath || null,
+    thumbnailFileSizeBytes: asNullablePositiveInteger(row.thumbnail_file_size_bytes),
+    thumbnailContentType: normalizeDashboardTutorialThumbnailContentType(
+      row.thumbnail_content_type
+    ),
     thumbnailMediaType: thumbnailMediaTypeRaw,
     thumbnailAlt: asTrimmed(row.thumbnail_alt),
     displayOrder: typeof row.display_order === "number" ? row.display_order : 0,
@@ -122,6 +153,9 @@ const emptyNormalizedTutorial = (): Omit<DashboardTutorial, "id" | "createdAt" |
   title: "",
   youtubeUrl: "",
   thumbnailUrl: "",
+  thumbnailStoragePath: null,
+  thumbnailFileSizeBytes: null,
+  thumbnailContentType: null,
   thumbnailMediaType: "image",
   thumbnailAlt: "",
   displayOrder: 0,
@@ -129,7 +163,7 @@ const emptyNormalizedTutorial = (): Omit<DashboardTutorial, "id" | "createdAt" |
 });
 
 const TUTORIAL_SELECT =
-  "id, title, youtube_url, thumbnail_url, thumbnail_media_type, thumbnail_alt, display_order, is_active, created_at, updated_at";
+  "id, title, youtube_url, thumbnail_url, thumbnail_storage_path, thumbnail_file_size_bytes, thumbnail_content_type, thumbnail_media_type, thumbnail_alt, display_order, is_active, created_at, updated_at";
 
 /**
  * Validates and normalizes one dashboard tutorial payload.
@@ -141,6 +175,18 @@ export const normalizeDashboardTutorialInput = (
   const title = asTrimmed(payload.title);
   const youtubeUrl = asTrimmed(payload.youtubeUrl ?? payload.youtube_url);
   const thumbnailUrl = asTrimmed(payload.thumbnailUrl ?? payload.thumbnail_url);
+  const thumbnailStoragePath = asTrimmed(
+    payload.thumbnailStoragePath ?? payload.thumbnail_storage_path
+  );
+  const thumbnailContentType = normalizeDashboardTutorialThumbnailContentType(
+    payload.thumbnailContentType ?? payload.thumbnail_content_type
+  );
+  const thumbnailFileSizeRaw = Number(
+    payload.thumbnailFileSizeBytes ?? payload.thumbnail_file_size_bytes ?? 0
+  );
+  const thumbnailFileSizeBytes = Number.isSafeInteger(thumbnailFileSizeRaw)
+    ? Math.max(0, Math.trunc(thumbnailFileSizeRaw))
+    : 0;
   const thumbnailMediaTypeRaw =
     asTrimmed(payload.thumbnailMediaType ?? payload.thumbnail_media_type) || "image";
   const thumbnailAlt = asTrimmed(payload.thumbnailAlt ?? payload.thumbnail_alt);
@@ -166,12 +212,28 @@ export const normalizeDashboardTutorialInput = (
       error: "YouTube URL must be an HTTPS youtube.com or youtu.be link.",
     };
   }
-  if (
+  if (thumbnailStoragePath) {
+    if (
+      thumbnailStoragePath.length > DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PATH_MAX_LENGTH ||
+      !isDashboardTutorialThumbnailStoragePath(thumbnailStoragePath)
+    ) {
+      return { tutorial: emptyNormalizedTutorial(), error: "Thumbnail storage path is invalid." };
+    }
+    if (!thumbnailContentType) {
+      return { tutorial: emptyNormalizedTutorial(), error: "Thumbnail content type is invalid." };
+    }
+    if (!thumbnailFileSizeBytes) {
+      return { tutorial: emptyNormalizedTutorial(), error: "Thumbnail file size is required." };
+    }
+  } else if (
     !thumbnailUrl ||
     thumbnailUrl.length > DASHBOARD_TUTORIAL_THUMBNAIL_URL_MAX_LENGTH ||
     !isHttpsUrl(thumbnailUrl)
   ) {
-    return { tutorial: emptyNormalizedTutorial(), error: "Thumbnail URL must be an HTTPS URL." };
+    return {
+      tutorial: emptyNormalizedTutorial(),
+      error: "Upload a thumbnail file or provide an HTTPS thumbnail URL.",
+    };
   }
   if (!isThumbnailMediaType(thumbnailMediaTypeRaw)) {
     return { tutorial: emptyNormalizedTutorial(), error: "Thumbnail type is invalid." };
@@ -185,6 +247,9 @@ export const normalizeDashboardTutorialInput = (
       title,
       youtubeUrl,
       thumbnailUrl,
+      thumbnailStoragePath: thumbnailStoragePath || null,
+      thumbnailFileSizeBytes: thumbnailStoragePath ? thumbnailFileSizeBytes : null,
+      thumbnailContentType: thumbnailStoragePath ? thumbnailContentType : null,
       thumbnailMediaType: thumbnailMediaTypeRaw,
       thumbnailAlt,
       displayOrder,
@@ -217,9 +282,10 @@ export const readActiveDashboardTutorials = async (
     throw new Error(error.message || "Failed to load dashboard tutorials.");
   }
 
-  return (Array.isArray(data) ? data : [])
-    .map(toDashboardTutorial)
-    .filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
+  const tutorials = await Promise.all(
+    (Array.isArray(data) ? data : []).map((row) => toDashboardTutorial(supabaseAdmin, row))
+  );
+  return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
 };
 
 /**
@@ -239,9 +305,10 @@ export const readAdminDashboardTutorials = async (
     throw new Error(error.message || "Failed to load dashboard tutorials.");
   }
 
-  return (Array.isArray(data) ? data : [])
-    .map(toDashboardTutorial)
-    .filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
+  const tutorials = await Promise.all(
+    (Array.isArray(data) ? data : []).map((row) => toDashboardTutorial(supabaseAdmin, row))
+  );
+  return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
 };
 
 /**
@@ -255,10 +322,14 @@ export const saveDashboardTutorial = async (
     actorUserId: string | null;
   }
 ): Promise<DashboardTutorial> => {
+  const usesStoredThumbnail = Boolean(args.tutorial.thumbnailStoragePath);
   const row = {
     title: args.tutorial.title,
     youtube_url: args.tutorial.youtubeUrl,
-    thumbnail_url: args.tutorial.thumbnailUrl,
+    thumbnail_url: usesStoredThumbnail ? null : args.tutorial.thumbnailUrl,
+    thumbnail_storage_path: usesStoredThumbnail ? args.tutorial.thumbnailStoragePath : null,
+    thumbnail_file_size_bytes: usesStoredThumbnail ? args.tutorial.thumbnailFileSizeBytes : null,
+    thumbnail_content_type: usesStoredThumbnail ? args.tutorial.thumbnailContentType : null,
     thumbnail_media_type: args.tutorial.thumbnailMediaType,
     thumbnail_alt: args.tutorial.thumbnailAlt,
     display_order: args.tutorial.displayOrder,
@@ -283,7 +354,7 @@ export const saveDashboardTutorial = async (
     throw new Error(result.error.message || "Failed to save dashboard tutorial.");
   }
 
-  const tutorial = toDashboardTutorial(result.data);
+  const tutorial = await toDashboardTutorial(supabaseAdmin, result.data);
   if (!tutorial) {
     throw new Error("Saved dashboard tutorial payload is invalid.");
   }
@@ -319,7 +390,8 @@ export const reorderDashboardTutorials = async (
     throw new Error(error.message || "Failed to reorder dashboard tutorials.");
   }
 
-  return (Array.isArray(data) ? data : [])
-    .map(toDashboardTutorial)
-    .filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
+  const tutorials = await Promise.all(
+    (Array.isArray(data) ? data : []).map((row) => toDashboardTutorial(supabaseAdmin, row))
+  );
+  return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
 };

@@ -111,21 +111,31 @@ describe("expert edit layout contract", () => {
     expect(layersCard).toContain("box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);");
   });
 
-  it("lets the expert edit stage shell fill the available inner column area", () => {
+  it("lets the expert edit center column fill the available lane", () => {
     const css = fs.readFileSync(expertEditCssPath, "utf8");
+    const primaryColumn = extractRuleBlock(css, ".edit-expert-primary-column");
+    const primaryColumnShell = extractRuleBlock(css, ".edit-expert-primary-column-shell");
+    const primaryStageShell = extractRuleBlock(css, ".edit-expert-primary-stage-shell");
+    const secondaryRow = extractRuleBlock(css, ".edit-expert-secondary-row");
 
     expect(css).toContain(".edit-expert-main-stage");
     expect(css).toContain("align-items: stretch;");
     expect(css).toContain("flex: 1 1 auto;");
-    expect(css).toContain(".edit-expert-primary-column");
-    expect(css).toContain("width: 100%;");
-    expect(css).toContain("align-self: stretch;");
-    expect(css).toContain(".edit-expert-primary-column-shell");
-    expect(css).toContain("height: 100%;");
+    expect(primaryColumn).toContain("width: 100%;");
+    expect(primaryColumn).toContain("align-items: stretch;");
+    expect(primaryColumn).toContain("align-self: stretch;");
+    expect(primaryColumnShell).toContain("width: 100%;");
+    expect(primaryColumnShell).toContain("display: flex;");
+    expect(primaryColumnShell).toContain("align-items: stretch;");
+    expect(primaryColumnShell).toContain("height: 100%;");
+    expect(primaryStageShell).toContain("width: 100%;");
+    expect(primaryStageShell).toContain("flex: 1 1 auto;");
+    expect(secondaryRow).toContain("max-width: 100%;");
   });
 
-  it("anchors the prompt composer in a bottom overlay lane above the post-stage tools", () => {
+  it("bottom-docks the edit control deck inside the center column", () => {
     const css = fs.readFileSync(expertEditCssPath, "utf8");
+    const postStageWrapper = extractRuleBlock(css, ".edit-expert-post-stage-wrapper");
     const overlayZone = extractRuleBlock(css, ".edit-expert-post-stage-overlay-zone");
     const baseLayer = extractRuleBlock(css, ".edit-expert-post-stage-base-layer");
     const expandedOverlayZone = extractRuleBlock(
@@ -144,7 +154,11 @@ describe("expert edit layout contract", () => {
       ".edit-expert-prompt-shell .edit-expert-prompt-input"
     );
 
+    expect(postStageWrapper).toContain("width: 100%;");
+    expect(postStageWrapper).toContain("margin-top: auto;");
+    expect(postStageWrapper).toContain("flex: 0 0 auto;");
     expect(overlayZone).toContain("position: relative;");
+    expect(overlayZone).toContain("max-width: 100%;");
     expect(overlayZone).toContain("padding-bottom: var(--edit-expert-post-stage-overlay-reserve);");
     expect(baseLayer).toContain("z-index: 1;");
     expect(expandedOverlayZone).toContain("filter: blur(6px);");

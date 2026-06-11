@@ -25,11 +25,11 @@ import type { MarkupViewportState } from "./markupStrokeController";
 import { useExpertEditModalStageViewportRuntime } from "./useExpertEditModalStageViewportRuntime";
 const EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX = 860;
 const EDIT_EXPERT_PRIMARY_SIZE_MIN_PX = 420;
-const EDIT_EXPERT_PRIMARY_SIZE_MAX_PX = 540;
-const EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR = 0.355;
+const EDIT_EXPERT_PRIMARY_SIZE_MAX_PX = 660;
+const EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR = 0.42;
 const EDIT_EXPERT_PRIMARY_COMPACT_SIZE_MIN_PX = 340;
-const EDIT_EXPERT_PRIMARY_COMPACT_SIZE_MAX_PX = 470;
-const EDIT_EXPERT_PRIMARY_COMPACT_SIZE_VIEWPORT_FACTOR = 0.31;
+const EDIT_EXPERT_PRIMARY_COMPACT_SIZE_MAX_PX = 540;
+const EDIT_EXPERT_PRIMARY_COMPACT_SIZE_VIEWPORT_FACTOR = 0.36;
 
 const resolvePrimaryCanvasNominalHeightPx = (isSecondaryReferenceTrayWrapped: boolean) => {
   if (typeof window === "undefined" || !Number.isFinite(window.innerWidth)) {

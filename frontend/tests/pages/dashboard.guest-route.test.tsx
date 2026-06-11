@@ -1,7 +1,7 @@
 /**
  * Dashboard route tests for the new guest/public mode.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
@@ -193,5 +193,48 @@ describe("Dashboard guest route", () => {
       screen.queryByText("Checking your session before your dashboard workspace loads.")
     ).not.toBeInTheDocument();
     expect(readSupabaseSessionBootstrapHintMock).toHaveBeenCalled();
+  });
+
+  it("renders public tutorial cards that open the tutorial modal", () => {
+    render(
+      <DashboardPage
+        dashboardTutorials={[
+          {
+            id: "tutorial-1",
+            title: "Generate images with ShortPulse",
+            youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+            thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+            thumbnailStoragePath: null,
+            thumbnailFileSizeBytes: null,
+            thumbnailContentType: null,
+            thumbnailMediaType: "image",
+            thumbnailAlt: "Tutorial preview",
+            displayOrder: 1,
+            isActive: true,
+            createdAt: "2026-06-11T00:00:00.000Z",
+            updatedAt: "2026-06-11T00:00:00.000Z",
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Generate images with ShortPulse")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Generate images with ShortPulse: open tutorial",
+      })
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Generate images with ShortPulse" })
+    ).toBeInTheDocument();
+    expect(screen.getByTitle("Generate images with ShortPulse")).toHaveAttribute(
+      "src",
+      "https://www.youtube-nocookie.com/embed/abc123?rel=0&modestbranding=1&playsinline=1"
+    );
+    expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
+      "href",
+      "/pricing?intent=tutorial"
+    );
   });
 });

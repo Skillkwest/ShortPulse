@@ -79,6 +79,7 @@ const buildGuestHeaderCards = (offers: DashboardOffer[]): DashboardHeaderCard[] 
  */
 export function PublicDashboardRoute({
   dashboardOffers = [],
+  dashboardTutorials = [],
   manageBodyClass = true,
 }: PublicDashboardRouteInternalProps) {
   const guestPageViewTrackedRef = useRef(false);
@@ -132,7 +133,10 @@ export function PublicDashboardRoute({
           }
         />
 
-        <GuestDashboardView createProjectHref={guestCreateProjectHref} />
+        <GuestDashboardView
+          createProjectHref={guestCreateProjectHref}
+          dashboardTutorials={dashboardTutorials}
+        />
       </main>
     </>
   );

@@ -59,6 +59,7 @@ export const getStaticProps: GetStaticProps<PublicDashboardStaticProps> = async 
 export default function DashboardPage({
   billingCatalog = emptyBillingCatalogSnapshot(),
   dashboardOffers = [],
+  dashboardTutorials = [],
 }: Partial<DashboardPageStaticProps> = {}) {
   const shouldResolveSession = readSupabaseSessionBootstrapHint();
   const [SessionAwareDashboardRoute, setSessionAwareDashboardRoute] =
@@ -91,6 +92,7 @@ export default function DashboardPage({
       <PublicDashboardRoute
         billingCatalog={billingCatalog}
         dashboardOffers={dashboardOffers}
+        dashboardTutorials={dashboardTutorials}
         manageBodyClass={false}
       />
     );
@@ -118,6 +120,10 @@ export default function DashboardPage({
   }
 
   return (
-    <SessionAwareDashboardRoute billingCatalog={billingCatalog} dashboardOffers={dashboardOffers} />
+    <SessionAwareDashboardRoute
+      billingCatalog={billingCatalog}
+      dashboardOffers={dashboardOffers}
+      dashboardTutorials={dashboardTutorials}
+    />
   );
 }

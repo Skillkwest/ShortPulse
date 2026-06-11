@@ -102,6 +102,7 @@ describe("Index route behavior", () => {
           storageAddons: [],
         }}
         dashboardOffers={[]}
+        dashboardTutorials={[]}
       />
     );
 

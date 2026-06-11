@@ -19,8 +19,8 @@ import {
   AuthenticatedDashboardView,
   type DashboardAnnouncement,
   type DashboardToolCard,
-  type DashboardTutorial,
 } from "./AuthenticatedDashboardView";
+import type { DashboardTutorial } from "./DashboardTutorialGrid";
 import { DashboardAppBar } from "./DashboardAppBar";
 import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreationDialog";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
@@ -31,7 +31,7 @@ const DEFAULT_PLAN_TIER = "free";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
   process.env.NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS !== "false";
 const DASHBOARD_FALLBACK_HELPER_COPY =
-  "Your dashboard is the launch surface for analytics, creator ops, and storage - built for fast decisions and secure tooling.";
+  "Your next great idea is waiting! Start a project and let's make it happen.";
 
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;

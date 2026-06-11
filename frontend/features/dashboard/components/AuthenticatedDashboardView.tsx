@@ -9,6 +9,7 @@ import type { IconProps } from "phosphor-react";
 import { FolderSimple, Plus } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
 import { DashboardQuickActionCard } from "./DashboardQuickActionCard";
+import { DashboardTutorialGrid, type DashboardTutorial } from "./DashboardTutorialGrid";
 
 export type DashboardAnnouncement = {
   id: string;
@@ -16,16 +17,6 @@ export type DashboardAnnouncement = {
   message: string;
   publishedAt: string | null;
   updatedAt: string | null;
-};
-
-export type DashboardTutorial = {
-  id: string;
-  title: string;
-  youtubeUrl: string;
-  thumbnailUrl: string;
-  thumbnailMediaType: "image" | "video";
-  thumbnailAlt: string;
-  displayOrder: number;
 };
 
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
@@ -55,8 +46,6 @@ type AuthenticatedDashboardViewProps = {
   onOpenProjects: () => void;
 };
 
-const DASHBOARD_TUTORIAL_GRID_SLOT_COUNT = 25;
-
 /**
  * Renders the authenticated dashboard mode.
  */
@@ -72,11 +61,6 @@ export function AuthenticatedDashboardView({
   onCreateProject,
   onOpenProjects,
 }: AuthenticatedDashboardViewProps) {
-  const tutorialGridSlots = Array.from(
-    { length: Math.max(DASHBOARD_TUTORIAL_GRID_SLOT_COUNT, dashboardTutorials.length) },
-    (_, index) => dashboardTutorials[index] ?? null
-  );
-
   return (
     <>
       <section className="dashboard-hero minimal-hero">
@@ -187,47 +171,7 @@ export function AuthenticatedDashboardView({
               <h2 id="dashboard-tutorials-heading">Start with a guided walkthrough</h2>
             </div>
           </div>
-          <div className="dashboard-tutorial-grid">
-            {tutorialGridSlots.map((tutorial, index) =>
-              tutorial ? (
-                <a
-                  key={tutorial.id}
-                  className="dashboard-tutorial-card"
-                  href={tutorial.youtubeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${tutorial.title}: open tutorial on YouTube`}
-                >
-                  <span className="dashboard-tutorial-title">{tutorial.title}</span>
-                  <span className="dashboard-tutorial-thumbnail" aria-hidden="true">
-                    {tutorial.thumbnailMediaType === "video" ? (
-                      <video
-                        src={tutorial.thumbnailUrl}
-                        muted
-                        loop
-                        playsInline
-                        autoPlay
-                        preload="metadata"
-                      />
-                    ) : (
-                      <span
-                        className="dashboard-tutorial-thumbnail-image"
-                        style={{
-                          backgroundImage: `url(${JSON.stringify(tutorial.thumbnailUrl)})`,
-                        }}
-                      />
-                    )}
-                  </span>
-                </a>
-              ) : (
-                <span
-                  key={`dashboard-tutorial-slot-${index + 1}`}
-                  className="dashboard-tutorial-empty-slot"
-                  aria-hidden="true"
-                />
-              )
-            )}
-          </div>
+          <DashboardTutorialGrid tutorials={dashboardTutorials} launchHref="/ai-studio" />
         </section>
       ) : null}
 

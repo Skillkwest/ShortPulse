@@ -1,7 +1,7 @@
 /**
  * Dashboard page tests for announcement rendering and fail-soft fallback behavior.
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
@@ -209,9 +209,7 @@ describe("Dashboard announcement rendering", () => {
     render(<DashboardPage />);
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/launch surface for analytics, creator ops, and storage/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/your next great idea is waiting/i)).toBeInTheDocument()
     );
     await vi.dynamicImportSettled();
   });
@@ -245,10 +243,20 @@ describe("Dashboard announcement rendering", () => {
     render(<DashboardPage />);
 
     await waitFor(() => expect(screen.getByText("Create your first project")).toBeInTheDocument());
-    const tutorialLink = screen.getByRole("link", {
-      name: "Create your first project: open tutorial on YouTube",
+    const tutorialButton = screen.getByRole("button", {
+      name: "Create your first project: open tutorial",
     });
-    expect(tutorialLink).toHaveAttribute("href", "https://www.youtube.com/watch?v=abc123");
+    fireEvent.click(tutorialButton);
+
+    expect(screen.getByRole("dialog", { name: "Create your first project" })).toBeInTheDocument();
+    expect(screen.getByTitle("Create your first project")).toHaveAttribute(
+      "src",
+      "https://www.youtube-nocookie.com/embed/abc123?rel=0&modestbranding=1&playsinline=1"
+    );
+    expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
+      "href",
+      "/ai-studio"
+    );
     await vi.dynamicImportSettled();
   });
 
@@ -258,9 +266,7 @@ describe("Dashboard announcement rendering", () => {
     render(<DashboardPage />);
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/launch surface for analytics, creator ops, and storage/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/your next great idea is waiting/i)).toBeInTheDocument()
     );
     await vi.dynamicImportSettled();
   });

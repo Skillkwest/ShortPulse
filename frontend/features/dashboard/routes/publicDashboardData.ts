@@ -8,11 +8,16 @@ import {
   readActiveDashboardOffers,
   type DashboardOffer,
 } from "../../../lib/server/api/dashboardOffers";
+import {
+  readActiveDashboardTutorials,
+  type DashboardTutorial,
+} from "../../../lib/server/api/dashboardTutorials";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 export type PublicDashboardStaticProps = {
   billingCatalog: BillingCatalogSnapshot;
   dashboardOffers: DashboardOffer[];
+  dashboardTutorials: DashboardTutorial[];
 };
 
 export const emptyBillingCatalogSnapshot = (): BillingCatalogSnapshot => ({
@@ -29,14 +34,24 @@ const loadDashboardOffersSnapshot = async (): Promise<DashboardOffer[]> => {
   }
 };
 
+const loadDashboardTutorialsSnapshot = async (): Promise<DashboardTutorial[]> => {
+  try {
+    return await readActiveDashboardTutorials(getSupabaseAdmin());
+  } catch {
+    return [];
+  }
+};
+
 /**
- * Loads the public billing catalog snapshot and logged-out dashboard offers.
+ * Loads the public billing catalog snapshot, logged-out dashboard offers, and tutorials.
  */
 export const loadPublicDashboardStaticProps = async (): Promise<PublicDashboardStaticProps> => {
-  const [billingCatalogResult, dashboardOffersResult] = await Promise.allSettled([
-    loadBillingCatalogSnapshot(),
-    loadDashboardOffersSnapshot(),
-  ]);
+  const [billingCatalogResult, dashboardOffersResult, dashboardTutorialsResult] =
+    await Promise.allSettled([
+      loadBillingCatalogSnapshot(),
+      loadDashboardOffersSnapshot(),
+      loadDashboardTutorialsSnapshot(),
+    ]);
 
   return {
     billingCatalog:
@@ -45,5 +60,7 @@ export const loadPublicDashboardStaticProps = async (): Promise<PublicDashboardS
         : emptyBillingCatalogSnapshot(),
     dashboardOffers:
       dashboardOffersResult.status === "fulfilled" ? dashboardOffersResult.value : [],
+    dashboardTutorials:
+      dashboardTutorialsResult.status === "fulfilled" ? dashboardTutorialsResult.value : [],
   };
 };

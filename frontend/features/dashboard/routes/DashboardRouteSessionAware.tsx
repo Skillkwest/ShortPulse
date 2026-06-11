@@ -50,6 +50,7 @@ const renderDashboardBootstrap = () => (
 export function DashboardRouteSessionAware({
   billingCatalog = emptyBillingCatalogSnapshot(),
   dashboardOffers = [],
+  dashboardTutorials = [],
 }: DashboardRouteSessionAwareProps) {
   const router = useRouter();
   const { initialized, session, user } = useSupabaseSessionState();
@@ -79,6 +80,7 @@ export function DashboardRouteSessionAware({
       <PublicDashboardRoute
         billingCatalog={billingCatalog}
         dashboardOffers={dashboardOffers}
+        dashboardTutorials={dashboardTutorials}
         manageBodyClass={false}
       />
     );

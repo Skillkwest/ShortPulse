@@ -4,7 +4,7 @@
  */
 import { normalizePlanId } from "../billing/catalog";
 
-export type PricingIntent = "create-project" | "open-projects" | "dashboard";
+export type PricingIntent = "create-project" | "open-projects" | "dashboard" | "tutorial";
 export type PricingAuthMode = "signin" | "signup";
 export type PricingBillingInterval = "month" | "year";
 
@@ -19,6 +19,7 @@ export const normalizePricingIntent = (value: string | string[] | undefined): Pr
   const normalized = typeof rawValue === "string" ? rawValue.trim().toLowerCase() : "";
   if (normalized === "create-project") return "create-project";
   if (normalized === "open-projects") return "open-projects";
+  if (normalized === "tutorial") return "tutorial";
   return DEFAULT_PRICING_INTENT;
 };
 

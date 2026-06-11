@@ -16,6 +16,8 @@ export type ExpertEditLayerTransform = {
   translateYRatio?: number;
   scale?: number;
   rotationDeg?: number;
+  flipX?: boolean;
+  flipY?: boolean;
 };
 
 export type ExpertEditLayerStageDrawPlan = {
@@ -25,6 +27,8 @@ export type ExpertEditLayerStageDrawPlan = {
   translateY: number;
   scale: number;
   rotationDeg: number;
+  scaleX: number;
+  scaleY: number;
 };
 
 const DEFAULT_MIME_TYPE = "image/png";
@@ -131,6 +135,8 @@ export const buildExpertEditLayerStageDrawPlan = ({
         : 0,
       scale: Number.isFinite(transform?.scale) ? (transform?.scale as number) : 1,
       rotationDeg: Number.isFinite(transform?.rotationDeg) ? (transform?.rotationDeg as number) : 0,
+      flipX: Boolean(transform?.flipX),
+      flipY: Boolean(transform?.flipY),
     },
   });
   return {
@@ -140,6 +146,8 @@ export const buildExpertEditLayerStageDrawPlan = ({
     translateY: clippedTransform.translateYRatio * stageHeight,
     scale: clippedTransform.scale,
     rotationDeg: clippedTransform.rotationDeg,
+    scaleX: clippedTransform.flipX ? -clippedTransform.scale : clippedTransform.scale,
+    scaleY: clippedTransform.flipY ? -clippedTransform.scale : clippedTransform.scale,
   };
 };
 
@@ -229,8 +237,8 @@ export const composeExpertEditLayerCropToBlob = async ({
   if (drawPlan.rotationDeg !== 0) {
     stageContext.rotate(toRadians(drawPlan.rotationDeg));
   }
-  if (drawPlan.scale !== 1) {
-    stageContext.scale(drawPlan.scale, drawPlan.scale);
+  if (drawPlan.scaleX !== 1 || drawPlan.scaleY !== 1) {
+    stageContext.scale(drawPlan.scaleX, drawPlan.scaleY);
   }
   stageContext.drawImage(
     image,

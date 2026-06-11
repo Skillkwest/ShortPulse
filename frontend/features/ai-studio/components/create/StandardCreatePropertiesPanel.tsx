@@ -407,9 +407,9 @@ export function StandardCreatePropertiesPanel({
         </div>
       </div>
     ),
-    composerTrailingContent: (
+    composerTrailingContent: shouldHideCreateControlSet ? null : (
       <ComposerPinButton
-        text={chatModeEnabled ? agentInput : prompt}
+        text={prompt}
         onPinTextReference={onPinPromptReference}
         className="create-composer-pin-button"
       />

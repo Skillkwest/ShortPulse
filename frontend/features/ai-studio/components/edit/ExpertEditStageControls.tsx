@@ -2,7 +2,9 @@ import React from "react";
 import {
   ArrowClockwise,
   ArrowCounterClockwise,
+  ArrowsHorizontal,
   ArrowsInCardinal,
+  ArrowsVertical,
   ArrowsOutSimple,
   ArrowsOutCardinal,
   CircleDashed,
@@ -393,15 +395,21 @@ export function ExpertEditMoveControlsContent({
 type ExpertEditInlineHistoryControlsProps = {
   canUndoGeneralAction: boolean;
   canRedoGeneralAction: boolean;
+  canFlipSelectedLayer: boolean;
   handleUndoGeneralAction: () => void;
   handleRedoGeneralAction: () => void;
+  handleFlipLayerHorizontalAction: () => void;
+  handleFlipLayerVerticalAction: () => void;
 };
 
 export function ExpertEditInlineHistoryControls({
   canUndoGeneralAction,
   canRedoGeneralAction,
+  canFlipSelectedLayer,
   handleUndoGeneralAction,
   handleRedoGeneralAction,
+  handleFlipLayerHorizontalAction,
+  handleFlipLayerVerticalAction,
 }: ExpertEditInlineHistoryControlsProps) {
   return (
     <div
@@ -410,6 +418,26 @@ export function ExpertEditInlineHistoryControls({
       aria-label="Edit history controls"
     >
       <div className="edit-expert-move-history-row">
+        <button
+          type="button"
+          className="edit-expert-move-history-btn edit-expert-flip-action-btn"
+          aria-label="Flip layer horizontally"
+          onClick={handleFlipLayerHorizontalAction}
+          disabled={!canFlipSelectedLayer}
+        >
+          <ArrowsHorizontal size={14} weight="regular" />
+          <span className="sr-only">Flip horizontally</span>
+        </button>
+        <button
+          type="button"
+          className="edit-expert-move-history-btn edit-expert-flip-action-btn"
+          aria-label="Flip layer vertically"
+          onClick={handleFlipLayerVerticalAction}
+          disabled={!canFlipSelectedLayer}
+        >
+          <ArrowsVertical size={14} weight="regular" />
+          <span className="sr-only">Flip vertically</span>
+        </button>
         <button
           type="button"
           className="edit-expert-move-history-btn"

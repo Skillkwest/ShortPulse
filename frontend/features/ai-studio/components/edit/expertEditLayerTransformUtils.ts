@@ -6,6 +6,8 @@ export type LayerTransform = {
   translateYRatio: number;
   scale: number;
   rotationDeg: number;
+  flipX?: boolean;
+  flipY?: boolean;
 };
 
 export type TransformHistoryLayerSnapshot = {
@@ -66,6 +68,8 @@ export const defaultLayerTransform = (): LayerTransform => ({
   translateYRatio: 0,
   scale: 1,
   rotationDeg: 0,
+  flipX: false,
+  flipY: false,
 });
 
 export const cloneLayerTransform = (transform: LayerTransform): LayerTransform => ({
@@ -73,6 +77,8 @@ export const cloneLayerTransform = (transform: LayerTransform): LayerTransform =
   translateYRatio: transform.translateYRatio,
   scale: transform.scale,
   rotationDeg: transform.rotationDeg,
+  flipX: Boolean(transform.flipX),
+  flipY: Boolean(transform.flipY),
 });
 
 export const clampLayerOpacity = (value: number) =>
@@ -161,13 +167,20 @@ export const resolveLayerVisualGeometry = ({
   });
   const translateX = transform.translateXRatio * resolveSafeViewportDimension(viewportWidth);
   const translateY = transform.translateYRatio * resolveSafeViewportDimension(viewportHeight);
+  const safeScale = resolveSafeLayerScale(transform.scale);
+  const scaleCss =
+    transform.flipX || transform.flipY
+      ? `scale(${transform.flipX ? -safeScale : safeScale}, ${
+          transform.flipY ? -safeScale : safeScale
+        })`
+      : `scale(${safeScale})`;
   return {
     containedRect,
     translateX,
     translateY,
     transformCss: `translate(${roundCssPixelValue(translateX)}px, ${roundCssPixelValue(
       translateY
-    )}px) scale(${resolveSafeLayerScale(transform.scale)}) rotate(${transform.rotationDeg}deg)`,
+    )}px) rotate(${transform.rotationDeg}deg) ${scaleCss}`,
     transformHandleCounterScale: resolveTransformHandleCounterScale(transform.scale, viewportScale),
   };
 };
@@ -284,6 +297,8 @@ export const resolveContainedLayerTransform = ({
     ),
     scale,
     rotationDeg,
+    flipX: Boolean(transform.flipX),
+    flipY: Boolean(transform.flipY),
   };
 };
 
@@ -296,6 +311,8 @@ export const resolveClippedLayerTransform = ({
   translateYRatio: Number.isFinite(transform.translateYRatio) ? transform.translateYRatio : 0,
   scale: Math.max(LAYER_SCALE_EPSILON, clampLayerScale(transform.scale)),
   rotationDeg: normalizeLayerRotationDeg(transform.rotationDeg),
+  flipX: Boolean(transform.flipX),
+  flipY: Boolean(transform.flipY),
 });
 
 export const normalizeLayerRotationDeg = (value: number) => {
@@ -310,7 +327,9 @@ export const areLayerTransformsEqual = (left: LayerTransform, right: LayerTransf
   left.translateXRatio === right.translateXRatio &&
   left.translateYRatio === right.translateYRatio &&
   left.scale === right.scale &&
-  left.rotationDeg === right.rotationDeg;
+  left.rotationDeg === right.rotationDeg &&
+  Boolean(left.flipX) === Boolean(right.flipX) &&
+  Boolean(left.flipY) === Boolean(right.flipY);
 
 export const buildTransformHistoryEntry = <T extends { id: string; transform: LayerTransform }>(
   layers: readonly T[]

@@ -10,6 +10,11 @@ import {
   PERF_FLAG_RAF_STATUS_FLUSH,
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
+import {
+  isAudioMediaCandidate,
+  isImageMediaCandidate,
+  isVideoMediaCandidate,
+} from "../logic/referenceGridMediaCandidates";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import {
   type Provider,
@@ -33,6 +38,7 @@ import {
 import {
   condenseError,
   createShortErrorMessage,
+  longRunningVideoProviders,
   looksLikeFailureMessage,
   type PollStatus,
   type ShortPulseLifecycleHint,
@@ -179,6 +185,74 @@ const resolveSettledStatusFromSaveState = (
 const hasSavedMediaAuthority = (savedMediaIds: StudioOutput["savedMediaIds"]): boolean =>
   Array.isArray(savedMediaIds) &&
   savedMediaIds.some((value) => typeof value === "string" && value.trim().length > 0);
+
+const isResultUrlIncompatibleWithOutputMode = (
+  outputMode: StudioOutput["mode"] | null | undefined,
+  url: string
+): boolean => {
+  switch (outputMode) {
+    case "image":
+      return isVideoMediaCandidate(url) || isAudioMediaCandidate(url);
+    case "video":
+      return isImageMediaCandidate(url) || isAudioMediaCandidate(url);
+    case "audio":
+      return isImageMediaCandidate(url) || isVideoMediaCandidate(url);
+    default:
+      return false;
+  }
+};
+
+const filterResultUrlsForOutputMode = (
+  resultUrls: readonly string[],
+  outputMode: StudioOutput["mode"] | null | undefined
+): string[] =>
+  resultUrls.filter(
+    (url) =>
+      typeof url === "string" &&
+      url.trim().length > 0 &&
+      !isResultUrlIncompatibleWithOutputMode(outputMode, url)
+  );
+
+const resolveExpectedOutputMode = ({
+  provider,
+  outputMode,
+}: {
+  provider: Provider;
+  outputMode: StudioOutput["mode"] | null | undefined;
+}): StudioOutput["mode"] | null | undefined => {
+  if (outputMode === "video" || outputMode === "audio") return outputMode;
+  if (longRunningVideoProviders.has(provider)) return "video";
+  return outputMode;
+};
+
+const hasCompatibleMediaForOutputMode = ({
+  outputMode,
+  previewUrl,
+  previewStoragePath,
+  fullStoragePath,
+  resultUrls,
+}: {
+  outputMode: StudioOutput["mode"] | null | undefined;
+  previewUrl?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  resultUrls?: readonly string[] | null;
+}): boolean => {
+  const candidates = [previewUrl, previewStoragePath, fullStoragePath, ...(resultUrls ?? [])]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean);
+  if (!candidates.length) return false;
+  switch (outputMode) {
+    case "image":
+      return candidates.some(isImageMediaCandidate);
+    case "video":
+      return [previewUrl, fullStoragePath, ...(resultUrls ?? [])].some(isVideoMediaCandidate);
+    case "audio":
+      return [previewUrl, fullStoragePath, ...(resultUrls ?? [])].some(isAudioMediaCandidate);
+    default:
+      return true;
+  }
+};
 
 const fetchStatusByModelId = async (modelId: string, taskId: string) =>
   fetchQueuedGenerationStatusByModelId(modelId, taskId);
@@ -371,11 +445,33 @@ export function useAiStudioTasks({
       }
       if (settleResult.kind !== "visible") return false;
       const { visibleGeneration } = settleResult;
+      const expectedOutputMode = resolveExpectedOutputMode({
+        provider,
+        outputMode: existingOutput?.mode,
+      });
+      if (
+        existingOutput &&
+        !hasCompatibleMediaForOutputMode({
+          outputMode: expectedOutputMode,
+          previewUrl: visibleGeneration.previewUrl,
+          previewStoragePath: visibleGeneration.previewStoragePath,
+          fullStoragePath: visibleGeneration.fullStoragePath,
+          resultUrls: visibleGeneration.resultUrls,
+        })
+      ) {
+        return false;
+      }
       queueOutputUpdate(outputId, (item) => {
+        const itemExpectedOutputMode = resolveExpectedOutputMode({
+          provider,
+          outputMode: item.mode,
+        });
+        const visibleResultUrls = filterResultUrlsForOutputMode(
+          visibleGeneration.resultUrls,
+          itemExpectedOutputMode
+        );
         const nextResultUrls =
-          visibleGeneration.resultUrls.length > 0
-            ? visibleGeneration.resultUrls
-            : (item.resultUrls ?? []);
+          visibleResultUrls.length > 0 ? visibleResultUrls : (item.resultUrls ?? []);
         const nextDelivery = resolveNormalizedOutputDelivery({
           previewStoragePath:
             visibleGeneration.previewStoragePath ?? item.previewStoragePath ?? null,
@@ -431,12 +527,16 @@ export function useAiStudioTasks({
           errorDetail: null,
         };
       });
-      if (onGenerationSuccess && visibleGeneration.resultUrls.length > 0) {
+      const successResultUrls = filterResultUrlsForOutputMode(
+        visibleGeneration.resultUrls,
+        expectedOutputMode
+      );
+      if (onGenerationSuccess && successResultUrls.length > 0) {
         onGenerationSuccess({
           outputId,
           taskId,
           provider,
-          resultUrls: visibleGeneration.resultUrls,
+          resultUrls: successResultUrls,
         });
       }
       clearPollTimer(outputId);
@@ -768,7 +868,15 @@ export function useAiStudioTasks({
                 { nonUrgent: true }
               );
             }
-            const lifecycleResultUrls = lifecycleHint?.resultUrls ?? [];
+            const existingOutput = findOutputById?.(outputId) ?? null;
+            const expectedOutputMode = resolveExpectedOutputMode({
+              provider,
+              outputMode: existingOutput?.mode,
+            });
+            const lifecycleResultUrls = filterResultUrlsForOutputMode(
+              lifecycleHint?.resultUrls ?? [],
+              expectedOutputMode
+            );
             const lifecycleTaskState = resolveLifecycleTaskState(lifecycleHint);
             const lifecycleStatusLabel =
               lifecycleHint?.statusLabel?.trim() ||

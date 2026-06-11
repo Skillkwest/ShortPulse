@@ -44,7 +44,9 @@ describe("resolveExpertEditSubmissionDispatch", () => {
       status: "ready",
       referenceInputs: ["blob:flatten-1"],
       options: {
+        modelIdOverride: undefined,
         referenceInputsMode: "replace",
+        referenceInputsLimit: 11,
       },
     });
   });
@@ -69,8 +71,10 @@ describe("resolveExpertEditSubmissionDispatch", () => {
       referenceInputs: ["blob:flatten-1"],
       options: {
         displayPromptOverride: "Use @main",
+        modelIdOverride: undefined,
         submissionPromptOverride: "Figure 1 = primary base image.",
         referenceInputsMode: "replace",
+        referenceInputsLimit: 11,
       },
     });
   });
@@ -89,7 +93,9 @@ describe("resolveExpertEditSubmissionDispatch", () => {
       status: "ready",
       referenceInputs: ["blob:flatten-1", "blob:markup-1"],
       options: {
+        modelIdOverride: undefined,
         referenceInputsMode: "replace",
+        referenceInputsLimit: 11,
       },
     });
   });

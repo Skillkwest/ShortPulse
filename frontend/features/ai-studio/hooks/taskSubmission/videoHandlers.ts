@@ -56,6 +56,7 @@ import {
   isNonDurableLipSyncAudioUrl,
   isLipSyncAudioReadyForSubmit,
 } from "../../logic/lipSyncAudioState";
+import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 
 const FAL_UPLOAD_ROUTE = "/api/fal/upload-url";
 const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
@@ -644,6 +645,19 @@ const prepareFalInputUrl = async ({
   });
 };
 
+const resolveLipSyncImageStoragePath = ({
+  explicitRef,
+  rawImageUrl,
+  preparedImageUrl,
+}: {
+  explicitRef?: NonNullable<VideoSubmissionArgs["internalMediaRefs"]>[number] | null;
+  rawImageUrl: string;
+  preparedImageUrl: string;
+}): string | null =>
+  resolveInternalMediaRefStoragePath(explicitRef ?? null) ??
+  resolveInternalMediaRefStoragePath(resolveInternalMediaRefForUrl(preparedImageUrl)) ??
+  resolveInternalMediaRefStoragePath(resolveInternalMediaRefForUrl(rawImageUrl));
+
 const uploadUrlsToKieTemporaryFiles = async ({
   urls,
   mediaKind,
@@ -996,7 +1010,11 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       const rawImageUrl = (rawImageInputs[0] ?? preparedImageInputs[0] ?? "").trim();
       const preparedImageUrl = (preparedImageInputs[0] ?? rawImageUrl).trim();
       const rawAudioUrl = getDurableLipSyncAudioUrl(lipSyncAudio) ?? "";
-      const imageStoragePath = resolveInternalMediaRefStoragePath(internalMediaRefs?.[0] ?? null);
+      const imageStoragePath = resolveLipSyncImageStoragePath({
+        explicitRef: internalMediaRefs?.[0] ?? null,
+        rawImageUrl,
+        preparedImageUrl,
+      });
       const audioStoragePath = getLipSyncAudioStoragePath(lipSyncAudio);
 
       if (!preparedImageUrl || !rawImageUrl) {

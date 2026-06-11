@@ -54,6 +54,8 @@ export type TransformPointerSession = {
   baseTranslateXRatio: number;
   baseTranslateYRatio: number;
   baseScale: number;
+  baseFlipX: boolean;
+  baseFlipY: boolean;
   dropzoneWidth: number;
   dropzoneHeight: number;
   centerX: number;
@@ -84,6 +86,8 @@ export const createIdleTransformPointerSession = (): TransformPointerSession => 
   baseTranslateXRatio: 0,
   baseTranslateYRatio: 0,
   baseScale: 1,
+  baseFlipX: false,
+  baseFlipY: false,
   dropzoneWidth: 1,
   dropzoneHeight: 1,
   centerX: 0,

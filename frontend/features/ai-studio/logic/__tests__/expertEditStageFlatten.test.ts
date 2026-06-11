@@ -160,6 +160,7 @@ describe("expertEditStageFlatten", () => {
             translateYRatio: -0.2,
             scale: 3,
             rotationDeg: 45,
+            flipX: true,
           },
         },
         {
@@ -186,6 +187,8 @@ describe("expertEditStageFlatten", () => {
         translateY: -200,
         opacity: 1,
         scale: 3,
+        scaleX: -3,
+        scaleY: 3,
         rotationDeg: 45,
       },
       {
@@ -195,6 +198,8 @@ describe("expertEditStageFlatten", () => {
         translateY: 250,
         opacity: 0,
         scale: 0.1,
+        scaleX: 0.1,
+        scaleY: 0.1,
         rotationDeg: -15,
       },
     ]);

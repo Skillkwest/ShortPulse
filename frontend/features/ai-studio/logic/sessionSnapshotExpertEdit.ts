@@ -541,6 +541,8 @@ export const parseAiStudioSessionExpertEditState = (
               translateYRatio: asFiniteNumber(asRecord(layerRow.transform)?.translateYRatio, 0),
               scale: asFiniteNumber(asRecord(layerRow.transform)?.scale, 1),
               rotationDeg: asFiniteNumber(asRecord(layerRow.transform)?.rotationDeg, 0),
+              flipX: asBoolean(asRecord(layerRow.transform)?.flipX, false),
+              flipY: asBoolean(asRecord(layerRow.transform)?.flipY, false),
             }),
           };
         })

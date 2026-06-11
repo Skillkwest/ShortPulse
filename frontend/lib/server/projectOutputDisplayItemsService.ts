@@ -141,6 +141,10 @@ type ProjectOutputDisplayItemRow = {
 type ProjectOutputDisplayItemUpsertRow = Omit<ProjectOutputDisplayItemRow, "updated_at"> & {
   updated_at: string;
 };
+type ProjectOutputDisplayItemLegacyUpsertRow = Omit<
+  ProjectOutputDisplayItemUpsertRow,
+  "display_title"
+>;
 
 export type ProjectOutputDisplaySyncResult = {
   outputCount: number;
@@ -231,6 +235,15 @@ const isMissingDisplayTitleColumnError = (error: unknown): boolean => {
   const looksLikeMissingColumn = /does not exist|schema cache/i.test(message);
   return mentionsDisplayTitle && (code === "42703" || looksLikeMissingColumn);
 };
+
+const omitDisplayTitleFromUpsertRows = (
+  rows: readonly ProjectOutputDisplayItemUpsertRow[]
+): ProjectOutputDisplayItemLegacyUpsertRow[] =>
+  rows.map((row) => {
+    const legacyRow: Partial<ProjectOutputDisplayItemUpsertRow> = { ...row };
+    delete legacyRow.display_title;
+    return legacyRow as ProjectOutputDisplayItemLegacyUpsertRow;
+  });
 
 const truncateSummary = (value: unknown): string | null => {
   const normalized = normalizeString(value);
@@ -538,9 +551,24 @@ export const syncProjectOutputDisplayItemsForSnapshot = async ({
   const supabaseAdmin = getSupabaseAdmin();
 
   for (const rowChunk of chunkValues(rowsToUpsert)) {
-    const { error } = await supabaseAdmin.from("project_output_display_items").upsert(rowChunk, {
+    let { error } = await supabaseAdmin.from("project_output_display_items").upsert(rowChunk, {
       onConflict: "project_id,output_id",
     });
+    if (error && isMissingDisplayTitleColumnError(error)) {
+      console.warn(
+        "[project-output-display] display_title column unavailable; falling back to legacy write shape",
+        {
+          projectId,
+          rowCount: rowChunk.length,
+          error: normalizeString(asRecord(error).message) ?? "Unknown schema error",
+        }
+      );
+      ({ error } = await supabaseAdmin
+        .from("project_output_display_items")
+        .upsert(omitDisplayTitleFromUpsertRows(rowChunk), {
+          onConflict: "project_id,output_id",
+        }));
+    }
     if (error) {
       throw new Error(error.message || "Failed to upsert project output display items");
     }

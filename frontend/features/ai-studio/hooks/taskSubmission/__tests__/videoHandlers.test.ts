@@ -336,6 +336,54 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     );
   });
 
+  it("uses Lip Sync prepared Supabase signed image storage path for Fal CDN staging", async () => {
+    const rawImageUrl = "blob:local-character";
+    const preparedImageUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/reference-images/prepared-character.png?token=fresh";
+    const falImageUrl = "https://v3.fal.media/files/prepared-character.png";
+    const audioUrl = "https://v3.fal.media/files/voice.mp3";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      text: async () => JSON.stringify({ url: falImageUrl }),
+    } as Response);
+    const args = makeArgs({
+      finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
+      modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
+      preparedImageInputs: [preparedImageUrl],
+      rawImageInputs: [rawImageUrl],
+      internalMediaRefs: [null],
+      videoReferenceMode: "lip-sync",
+      motionReferenceVideoUrl: null,
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: audioUrl,
+        durationMs: 9_000,
+        sourceKind: "library",
+      }),
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/fal/upload-url",
+      expect.objectContaining({
+        body: JSON.stringify({
+          storagePath: "user-1/reference-images/prepared-character.png",
+          mediaKind: "image",
+        }),
+      })
+    );
+    expect(submitFalOmniHuman).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: falImageUrl,
+        audio_url: audioUrl,
+      })
+    );
+  });
+
   it("uses the prepared Lip Sync image URL instead of rereading local image previews", async () => {
     const localImageUrl = "blob:local-character";
     const preparedImageUrl = "https://signed.example.com/prepared-character.png";

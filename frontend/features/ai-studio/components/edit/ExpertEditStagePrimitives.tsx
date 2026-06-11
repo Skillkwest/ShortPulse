@@ -258,6 +258,10 @@ type ExpertEditTransformChromeLayerProps = {
   viewportStyle: React.CSSProperties;
   frameStyle?: React.CSSProperties;
   scope: "inline" | "modal";
+  onDrop?: React.DragEventHandler<HTMLDivElement>;
+  onDragEnter?: React.DragEventHandler<HTMLDivElement>;
+  onDragOver?: React.DragEventHandler<HTMLDivElement>;
+  onDragLeave?: React.DragEventHandler<HTMLDivElement>;
 };
 
 /**
@@ -268,11 +272,19 @@ export function ExpertEditTransformChromeLayer({
   viewportStyle,
   frameStyle,
   scope,
+  onDrop,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
 }: ExpertEditTransformChromeLayerProps) {
   return (
     <div
       className="edit-expert-transform-chrome-layer"
       data-testid={`edit-expert-transform-chrome-layer-${scope}`}
+      onDrop={onDrop}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
     >
       <PrimaryStageViewportLayer style={viewportStyle} variant="chrome">
         {frameStyle ? (

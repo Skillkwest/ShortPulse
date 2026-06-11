@@ -71,6 +71,7 @@ describe("expertEditLayerCrop", () => {
           translateYRatio: -0.1,
           scale: 3,
           rotationDeg: 22,
+          flipY: true,
         },
       })
     ).toEqual({
@@ -79,6 +80,8 @@ describe("expertEditLayerCrop", () => {
       translateX: 250,
       translateY: -100,
       scale: 3,
+      scaleX: 3,
+      scaleY: -3,
       rotationDeg: 22,
     });
   });

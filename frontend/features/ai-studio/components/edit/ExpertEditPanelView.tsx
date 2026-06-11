@@ -956,6 +956,8 @@ export function ExpertEditPanelView({
     handleMovePointerMove,
     handleMovePointerLeave,
     handleRecenterMoveAction,
+    handleFlipLayerHorizontalAction,
+    handleFlipLayerVerticalAction,
     markupModalStageStyle,
     primaryCompositionSurfaceStyle,
     emptyPrimaryCompositionSurfaceStyle,
@@ -1255,6 +1257,8 @@ export function ExpertEditPanelView({
     onAspectChange,
     setSelectedRailTool,
     handleRecenterMoveAction,
+    handleFlipLayerHorizontalAction,
+    handleFlipLayerVerticalAction,
     openMarkupModal,
     handleMoveZoomSliderChange,
     handleUndoGeneralAction,
@@ -1271,6 +1275,7 @@ export function ExpertEditPanelView({
     invertInpaintSelectionWithHistory,
     isGenerateDisabled,
     selectedLayerImageUrl,
+    canFlipSelectedLayer: Boolean(selectedLayerImageUrl),
     handleCompositeRegeneratePromptInsert,
   });
 

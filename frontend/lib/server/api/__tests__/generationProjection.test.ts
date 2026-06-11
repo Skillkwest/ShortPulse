@@ -10,6 +10,7 @@ const createSupabaseAdmin = ({
   outputRows = [],
   mediaRows = [],
   upsertImpl,
+  projectionSelectImpl,
 }: {
   projectionRows: Record<string, unknown>[];
   generationRows: Record<string, unknown>[];
@@ -19,6 +20,7 @@ const createSupabaseAdmin = ({
     payload: Record<string, unknown>,
     options?: Record<string, unknown>
   ) => Promise<{ data?: unknown; error: unknown }>;
+  projectionSelectImpl?: (columns: string) => unknown;
 }) => {
   const upsert = vi.fn(
     upsertImpl ??
@@ -31,18 +33,20 @@ const createSupabaseAdmin = ({
   const from = vi.fn((table: string) => {
     if (table === "generation_projection") {
       return {
-        select: () => ({
-          in: () => ({
-            lte: () => ({
-              order: () => ({
-                limit: async () => ({
-                  data: projectionRows,
-                  error: null,
+        select:
+          projectionSelectImpl ??
+          (() => ({
+            in: () => ({
+              lte: () => ({
+                order: () => ({
+                  limit: async () => ({
+                    data: projectionRows,
+                    error: null,
+                  }),
                 }),
               }),
             }),
-          }),
-        }),
+          })),
         upsert,
       };
     }
@@ -599,5 +603,95 @@ describe("upsertGenerationProjection", () => {
       user_id: "user-compat",
     });
     expect(supabaseAdmin.upsert.mock.calls[1]?.[0]).not.toHaveProperty("save_error");
+  });
+
+  it("retries without display_title when hosted schema is missing that column", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+      upsertImpl: async (payload) => {
+        if ("display_title" in payload) {
+          return {
+            data: null,
+            error: {
+              code: "PGRST204",
+              message:
+                "Could not find the 'display_title' column of 'generation_projection' in the schema cache",
+            },
+          };
+        }
+        return {
+          data: payload,
+          error: null,
+        };
+      },
+    });
+
+    await upsertGenerationProjection({
+      generationId: "gen-display-title-compat",
+      userId: "user-display-title-compat",
+      taskState: "success",
+      displayTitle: "Song Title",
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
+    expect(supabaseAdmin.upsert).toHaveBeenCalledTimes(2);
+    expect(supabaseAdmin.upsert.mock.calls[0]?.[0]).toMatchObject({
+      generation_id: "gen-display-title-compat",
+      user_id: "user-display-title-compat",
+      display_title: "Song Title",
+    });
+    expect(supabaseAdmin.upsert.mock.calls[1]?.[0]).toMatchObject({
+      generation_id: "gen-display-title-compat",
+      user_id: "user-display-title-compat",
+    });
+    expect(supabaseAdmin.upsert.mock.calls[1]?.[0]).not.toHaveProperty("display_title");
+  });
+
+  it("retries stale terminal repair scan without display_title when hosted schema is stale", async () => {
+    const selectCalls: string[] = [];
+    const projectionSelectImpl = vi.fn((columns: string) => {
+      selectCalls.push(columns);
+      return {
+        in: () => ({
+          lte: () => ({
+            order: () => ({
+              limit: async () =>
+                columns.includes("display_title")
+                  ? {
+                      data: null,
+                      error: {
+                        code: "PGRST204",
+                        message:
+                          "Could not find the 'display_title' column of 'generation_projection' in the schema cache",
+                      },
+                    }
+                  : {
+                      data: [],
+                      error: null,
+                    },
+            }),
+          }),
+        }),
+      };
+    });
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+      projectionSelectImpl,
+    });
+
+    await expect(
+      repairStaleTerminalGenerationProjections({
+        supabaseAdmin: supabaseAdmin as never,
+        now: new Date("2026-06-10T20:00:00.000Z"),
+      })
+    ).resolves.toEqual({
+      scanned: 0,
+      repaired: 0,
+      skipped: 0,
+    });
+    expect(selectCalls[0]).toContain("display_title");
+    expect(selectCalls[1]).not.toContain("display_title");
   });
 });

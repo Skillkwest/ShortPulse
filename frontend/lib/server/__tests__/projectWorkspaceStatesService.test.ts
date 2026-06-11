@@ -56,6 +56,7 @@ type SupabaseMockOptions = {
   outputDisplayTitleReadError?: string;
   outputDisplayReadError?: string;
   outputDisplayUpsertError?: string;
+  outputDisplayTitleUpsertError?: string;
   outputDisplayDeleteError?: string;
   projectionLimitError?: string;
   mediaAssociationError?: string;
@@ -104,6 +105,7 @@ const createSupabaseMock = ({
   outputDisplayTitleReadError,
   outputDisplayReadError,
   outputDisplayUpsertError,
+  outputDisplayTitleUpsertError,
   outputDisplayDeleteError,
   projectionLimitError,
   mediaAssociationError,
@@ -404,6 +406,14 @@ const createSupabaseMock = ({
   const outputDisplayUpsert = vi.fn(async (rows: Record<string, unknown>[]) => {
     if (outputDisplayUpsertError) {
       return { error: { message: outputDisplayUpsertError } };
+    }
+    if (outputDisplayTitleUpsertError && rows.some((row) => "display_title" in row)) {
+      return {
+        error: {
+          code: "42703",
+          message: outputDisplayTitleUpsertError,
+        },
+      };
     }
     rows.forEach((row) => {
       const outputId = typeof row.output_id === "string" ? row.output_id : "";
@@ -2455,6 +2465,86 @@ describe("projectWorkspaceStatesService", () => {
             "Project workspace save failed during owned id resolution: upstream request timeout",
         },
       });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("saves without repair-pending when output display write only lacks display_title", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { outputDisplayUpsert } = createSupabaseMock({
+      outputDisplayTitleUpsertError:
+        "column project_output_display_items.display_title does not exist",
+    });
+
+    try {
+      await expect(
+        upsertProjectWorkspaceStateForUser({
+          userId: "user-1",
+          projectId: "project-1",
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-1",
+            updatedAt: "2026-04-23T01:00:00.000Z",
+            meta: {
+              generatedAt: "2026-04-23T01:00:00.000Z",
+              checksum: "fnv1a32:display-title-write-fallback",
+            },
+            workspace: {
+              selectedTool: "create",
+              standardPrompt: "Project prompt",
+            },
+            outputs: {
+              active: [
+                {
+                  id: "library-1",
+                  savedMediaIds: [MEDIA_ID_1],
+                  title: "Display Title",
+                  prompt: "Display prompt",
+                },
+              ],
+              archived: [],
+            },
+            agent: {
+              messages: [],
+              input: "",
+              latestAgentPrompt: null,
+              promptOrigin: "manual",
+              chatModeEnabled: false,
+              pulseWorkflowSession: null,
+            },
+          },
+        })
+      ).resolves.toMatchObject({
+        saveOutcome: {
+          status: "saved",
+        },
+      });
+
+      expect(outputDisplayUpsert).toHaveBeenCalledTimes(4);
+      expect(outputDisplayUpsert.mock.calls[0]?.[0]?.[0]).toHaveProperty(
+        "display_title",
+        "Display Title"
+      );
+      expect(outputDisplayUpsert.mock.calls[1]?.[0]?.[0]).not.toHaveProperty("display_title");
+      expect(outputDisplayUpsert.mock.calls[2]?.[0]?.[0]).toHaveProperty(
+        "display_title",
+        "Display Title"
+      );
+      expect(outputDisplayUpsert.mock.calls[3]?.[0]?.[0]).not.toHaveProperty("display_title");
+      expect(writeAppErrorLogMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "telemetry.ai_studio.project_workspace.repair_pending",
+        })
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-output-display] display_title column unavailable; falling back to legacy write shape",
+        expect.objectContaining({
+          projectId: "project-1",
+          rowCount: 1,
+        })
+      );
     } finally {
       warnSpy.mockRestore();
     }

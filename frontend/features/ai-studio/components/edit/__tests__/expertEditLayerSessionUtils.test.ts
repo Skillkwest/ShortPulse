@@ -34,6 +34,8 @@ describe("resolveInitialLayerSessionState", () => {
       translateYRatio: 0,
       scale: 0.2,
       rotationDeg: 0,
+      flipX: false,
+      flipY: false,
     });
   });
 

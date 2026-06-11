@@ -72,6 +72,8 @@ export const createTransformPointerSession = ({
     baseTranslateXRatio: selectedLayerTransform.translateXRatio,
     baseTranslateYRatio: selectedLayerTransform.translateYRatio,
     baseScale: selectedLayerTransform.scale,
+    baseFlipX: Boolean(selectedLayerTransform.flipX),
+    baseFlipY: Boolean(selectedLayerTransform.flipY),
     dropzoneWidth,
     dropzoneHeight,
     centerX: geometry.centerX,
@@ -100,6 +102,8 @@ export const resolveTransformSessionUpdate = ({
         translateYRatio: session.baseTranslateYRatio + deltaY / session.dropzoneHeight,
         scale: session.baseScale,
         rotationDeg: session.baseRotationDeg,
+        flipX: session.baseFlipX,
+        flipY: session.baseFlipY,
       },
     });
   }
@@ -116,6 +120,8 @@ export const resolveTransformSessionUpdate = ({
           session.baseScale * (nextDistanceToCenter / session.baseDistanceToCenter)
         ),
         rotationDeg: session.baseRotationDeg,
+        flipX: session.baseFlipX,
+        flipY: session.baseFlipY,
       },
     });
   }
@@ -130,6 +136,8 @@ export const resolveTransformSessionUpdate = ({
           session.baseRotationDeg +
             ((nextPointerAngle - session.basePointerAngleRad) * 180) / Math.PI
         ),
+        flipX: session.baseFlipX,
+        flipY: session.baseFlipY,
       },
     });
   }

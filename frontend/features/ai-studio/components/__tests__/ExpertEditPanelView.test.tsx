@@ -217,6 +217,17 @@ const createPromptTokenTransfer = () => {
 const readFrameScale = (frame: HTMLDivElement) =>
   Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "0");
 
+const readFrameScaleAxes = (frame: HTMLDivElement) => {
+  const raw = frame.style.transform.match(/scale\(([^)]+)\)/)?.[1] ?? "1";
+  const [xRaw, yRaw] = raw.split(",").map((value) => value.trim());
+  const x = Number(xRaw);
+  const y = Number(yRaw ?? xRaw);
+  return {
+    x: Number.isFinite(x) ? x : 1,
+    y: Number.isFinite(y) ? y : 1,
+  };
+};
+
 const readFrameRotationDeg = (frame: HTMLDivElement) =>
   Number(frame.style.transform.match(/rotate\(([-\d.]+)deg\)/)?.[1] ?? "0");
 
@@ -2813,7 +2824,9 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(within(markupPanel).getByRole("button", { name: /expand markup tools/i }));
 
     const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
-    expect(expandedModal.querySelectorAll(".edit-expert-markup-viewport")).toHaveLength(1);
+    expect(expandedModal.querySelectorAll(".edit-expert-stage-camera-layer--render")).toHaveLength(
+      1
+    );
     expect(document.querySelectorAll(".edit-expert-primary-layer-selection-overlay")).toHaveLength(
       0
     );
@@ -5452,6 +5465,37 @@ describe("ExpertEditPanelView", () => {
     expect(readFrameRotationDeg(frame)).toBeCloseTo(0, 3);
     fireEvent.click(redoButton);
     expect(Math.abs(readFrameRotationDeg(frame))).toBeGreaterThan(1);
+  });
+
+  it("flips the selected layer horizontally and vertically from the stage header", async () => {
+    const { container } = render(
+      <ExpertEditPanelView {...baseProps} referenceImageUrl={null} referenceText="prompt text" />
+    );
+    await uploadPrimaryFile(container, "flip-target.png");
+
+    const readInlineFrameScaleAxes = () => {
+      const frame = document.querySelector(".edit-expert-primary-layer-frame") as HTMLDivElement;
+      return readFrameScaleAxes(frame);
+    };
+
+    expect(readInlineFrameScaleAxes()).toEqual({ x: 1, y: 1 });
+
+    const horizontalFlipButton = screen.getByRole("button", { name: /flip layer horizontally/i });
+    const verticalFlipButton = screen.getByRole("button", { name: /flip layer vertically/i });
+    await waitFor(() => expect(horizontalFlipButton).toBeEnabled());
+    await waitFor(() => expect(verticalFlipButton).toBeEnabled());
+
+    fireEvent.click(horizontalFlipButton);
+    await waitFor(() => expect(readInlineFrameScaleAxes()).toEqual({ x: -1, y: 1 }));
+
+    fireEvent.click(verticalFlipButton);
+    await waitFor(() => expect(readInlineFrameScaleAxes()).toEqual({ x: -1, y: -1 }));
+
+    const undoButton = screen.getByRole("button", { name: /undo move action/i });
+    fireEvent.click(undoButton);
+    await waitFor(() => expect(readInlineFrameScaleAxes()).toEqual({ x: -1, y: 1 }));
+    fireEvent.click(undoButton);
+    await waitFor(() => expect(readInlineFrameScaleAxes()).toEqual({ x: 1, y: 1 }));
   });
 
   it.skip("recenters the selected layer from the move history row", async () => {

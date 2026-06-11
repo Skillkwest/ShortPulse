@@ -200,12 +200,24 @@ describe("StandardCreatePropertiesPanel single mode", () => {
   });
 
   it("hides the create control set and inline actions while chat mode is enabled", () => {
-    render(<StandardCreatePropertiesPanel {...baseProps} chatModeEnabled />);
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        chatModeEnabled
+        agentInput="agent draft that should not expose pinning"
+        onPinPromptReference={vi.fn()}
+      />
+    );
 
     expect(screen.getByTestId("create-control-set-visibility")).toHaveTextContent("hidden");
     expect(
       within(screen.getByTestId("composer-leading-content")).queryByRole("button", {
         name: "Generate",
+      })
+    ).toBeNull();
+    expect(
+      within(screen.getByTestId("composer-trailing-content")).queryByRole("button", {
+        name: "Pin text reference to reference grid",
       })
     ).toBeNull();
   });

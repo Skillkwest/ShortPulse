@@ -14,6 +14,8 @@ export type ExpertEditLayerSessionTransform = {
   translateYRatio: number;
   scale: number;
   rotationDeg: number;
+  flipX?: boolean;
+  flipY?: boolean;
 };
 
 export type ExpertEditLayerSessionLayer = {
@@ -69,6 +71,8 @@ export const cloneLayerSessionTransform = (
   translateYRatio: transform.translateYRatio,
   scale: transform.scale,
   rotationDeg: transform.rotationDeg,
+  flipX: Boolean(transform.flipX),
+  flipY: Boolean(transform.flipY),
 });
 
 export const cloneLayerSessionLayer = (
@@ -162,7 +166,9 @@ export const areLayerSessionStatesEqual = (
       leftLayer.transform.translateXRatio !== rightLayer.transform.translateXRatio ||
       leftLayer.transform.translateYRatio !== rightLayer.transform.translateYRatio ||
       leftLayer.transform.scale !== rightLayer.transform.scale ||
-      leftLayer.transform.rotationDeg !== rightLayer.transform.rotationDeg
+      leftLayer.transform.rotationDeg !== rightLayer.transform.rotationDeg ||
+      Boolean(leftLayer.transform.flipX) !== Boolean(rightLayer.transform.flipX) ||
+      Boolean(leftLayer.transform.flipY) !== Boolean(rightLayer.transform.flipY)
     ) {
       return false;
     }

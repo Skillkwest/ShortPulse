@@ -271,6 +271,51 @@ export const useExpertEditStageTransformRuntime = ({
     setLayers,
   ]);
 
+  const handleFlipSelectedLayer = React.useCallback(
+    (axis: "horizontal" | "vertical") => {
+      if (!selectedLayer?.imageUrl) {
+        showStatusToast("Select a layer image before flipping.");
+        return;
+      }
+      queuePanelHistoryBaselineFromCurrent();
+      const baselineEntry = buildTransformHistoryEntry(layers);
+      const nextLayers = layers.map((layer) =>
+        layer.id === selectedLayer.id
+          ? {
+              ...layer,
+              transform: {
+                ...layer.transform,
+                flipX: axis === "horizontal" ? !layer.transform.flipX : layer.transform.flipX,
+                flipY: axis === "vertical" ? !layer.transform.flipY : layer.transform.flipY,
+              },
+            }
+          : layer
+      );
+      const nextEntry = buildTransformHistoryEntry(nextLayers);
+      if (areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) {
+        return;
+      }
+      setLayers(nextLayers);
+      commitTransformHistoryTransition(nextEntry, baselineEntry);
+    },
+    [
+      commitTransformHistoryTransition,
+      layers,
+      queuePanelHistoryBaselineFromCurrent,
+      selectedLayer,
+      setLayers,
+      showStatusToast,
+    ]
+  );
+
+  const handleFlipLayerHorizontalAction = React.useCallback(() => {
+    handleFlipSelectedLayer("horizontal");
+  }, [handleFlipSelectedLayer]);
+
+  const handleFlipLayerVerticalAction = React.useCallback(() => {
+    handleFlipSelectedLayer("vertical");
+  }, [handleFlipSelectedLayer]);
+
   return {
     activeStageRenderScale,
     clearTransformPointerSession,
@@ -280,6 +325,8 @@ export const useExpertEditStageTransformRuntime = ({
     handleMovePointerMove,
     handleMovePointerLeave,
     handleRecenterMoveAction,
+    handleFlipLayerHorizontalAction,
+    handleFlipLayerVerticalAction,
     markupModalStageStyle,
     primaryCompositionSurfaceStyle,
     emptyPrimaryCompositionSurfaceStyle,

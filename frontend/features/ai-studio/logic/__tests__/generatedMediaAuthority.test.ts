@@ -2248,6 +2248,149 @@ describe("generatedMediaAuthority", () => {
     expect(projectionBuilder.eq).toHaveBeenCalledWith("workspace_runtime_key", "session:session-1");
   });
 
+  it("retries plain-session projection hydration without display_title when hosted schema is stale", async () => {
+    const staleProjectionBuilder = createAwaitableSelectBuilder({
+      data: null,
+      error: {
+        code: "42703",
+        message: "column generation_projection.display_title does not exist",
+      },
+    });
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-session-fallback-1",
+          workspace_runtime_key: "session:session-1",
+          request_id: "req-session-fallback-1",
+          source_ref: "source-session-fallback-1",
+          provider: "kie",
+          model_id: "kie-ai/gpt-image-2-text-to-image",
+          display_prompt: "A session-scoped fallback output",
+          preview_url: "https://kie.test/session-fallback-preview.png",
+          result_urls: ["https://kie.test/session-fallback-full.png"],
+          task_state: "success",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          updated_at: "2026-06-08T16:13:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const projectionSelect = vi.fn(() => staleProjectionBuilder);
+    projectionSelect.mockImplementationOnce(() => staleProjectionBuilder);
+    projectionSelect.mockImplementationOnce(() => projectionBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: projectionSelect,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      listVisibleGeneratedOutputs({
+        projectId: null,
+        workspaceRuntimeKey: "session:session-1",
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-session-fallback-1",
+        generationId: "gen-session-fallback-1",
+        title: null,
+      }),
+    ]);
+    const projectionSelectCalls = projectionSelect.mock.calls as unknown as Array<[string]>;
+    expect(projectionSelectCalls[0]?.[0]).toContain("display_title");
+    expect(projectionSelectCalls[1]?.[0]).not.toContain("display_title");
+  });
+
+  it("retries project projection hydration without display_title when hosted schema is stale", async () => {
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const staleDirectProjectionBuilder = createAwaitableSelectBuilder({
+      data: null,
+      error: {
+        code: "PGRST204",
+        message:
+          "Could not find the 'display_title' column of 'generation_projection' in the schema cache",
+      },
+    });
+    const directProjectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-fallback-1",
+          project_id: "project-1",
+          request_id: "req-project-fallback-1",
+          provider: "kie",
+          model_id: "kie-ai/gpt-image-2-text-to-image",
+          display_prompt: "A project fallback output",
+          preview_url: "https://kie.test/project-fallback-preview.png",
+          result_urls: ["https://kie.test/project-fallback-full.png"],
+          task_state: "success",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          updated_at: "2026-06-08T16:13:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const generationProjectionSelect = vi.fn(() => staleDirectProjectionBuilder);
+    generationProjectionSelect.mockImplementationOnce(() => staleDirectProjectionBuilder);
+    generationProjectionSelect.mockImplementationOnce(() => directProjectionBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        if (table === "generation_projection") {
+          return {
+            select: generationProjectionSelect,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-project-fallback-1",
+        generationId: "gen-project-fallback-1",
+        title: null,
+      }),
+    ]);
+    const generationProjectionSelectCalls = generationProjectionSelect.mock
+      .calls as unknown as Array<[string]>;
+    expect(generationProjectionSelectCalls[0]?.[0]).toContain("display_title");
+    expect(generationProjectionSelectCalls[1]?.[0]).not.toContain("display_title");
+  });
+
   it("prefers canonical media authority for project-scoped generated images with stale projection storage", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([

@@ -81,6 +81,8 @@ const coerceLayerTransformFromSessionState = (
     translateYRatio: Number.isFinite(translateYRatio) ? translateYRatio : 0,
     scale: Number.isFinite(scale) ? scale : 1,
     rotationDeg: Number.isFinite(rotationDeg) ? rotationDeg : 0,
+    flipX: Boolean(value.flipX),
+    flipY: Boolean(value.flipY),
   };
 };
 

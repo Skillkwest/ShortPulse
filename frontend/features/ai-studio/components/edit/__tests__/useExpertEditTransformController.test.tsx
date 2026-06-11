@@ -190,6 +190,8 @@ describe("useExpertEditTransformController", () => {
         translateYRatio: -0.2,
         scale: 0.2,
         rotationDeg: 18,
+        flipX: false,
+        flipY: false,
       },
     };
     const commitTransformHistoryTransition = vi.fn();

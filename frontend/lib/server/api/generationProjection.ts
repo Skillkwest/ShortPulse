@@ -145,15 +145,27 @@ export type TerminalGenerationProjectionRepairMetrics = {
   skipped: number;
 };
 
-const isMissingProjectionSaveErrorSchemaError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
+const OPTIONAL_GENERATION_PROJECTION_COLUMNS = [
+  "workspace_runtime_key",
+  "workflow_reload",
+  "save_error",
+  "display_title",
+] as const;
+
+type OptionalGenerationProjectionColumn = (typeof OPTIONAL_GENERATION_PROJECTION_COLUMNS)[number];
+
+const resolveMissingOptionalProjectionColumn = (
+  error: unknown
+): OptionalGenerationProjectionColumn | null => {
+  if (!error || typeof error !== "object") return null;
   const code =
     typeof (error as { code?: unknown }).code === "string"
       ? (error as { code: string }).code
       : null;
-  if (code !== "42703" && code !== "PGRST204") return false;
+  if (code !== "42703" && code !== "PGRST204") return null;
   const message = toErrorMessage(error, "").toLowerCase();
-  return message.includes("save_error") && message.includes("generation_projection");
+  if (!message.includes("generation_projection")) return null;
+  return OPTIONAL_GENERATION_PROJECTION_COLUMNS.find((column) => message.includes(column)) ?? null;
 };
 
 const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow | null => {
@@ -373,15 +385,24 @@ export const upsertGenerationProjection = async ({
     if (error) throw error;
   };
 
-  try {
-    await runUpsert(payload);
-  } catch (error) {
-    if (!("save_error" in payload) || !isMissingProjectionSaveErrorSchemaError(error)) {
-      throw error;
+  const fallbackPayload = { ...payload };
+  const omittedOptionalColumns = new Set<OptionalGenerationProjectionColumn>();
+  while (true) {
+    try {
+      await runUpsert({ ...fallbackPayload });
+      return;
+    } catch (error) {
+      const missingColumn = resolveMissingOptionalProjectionColumn(error);
+      if (
+        !missingColumn ||
+        omittedOptionalColumns.has(missingColumn) ||
+        !(missingColumn in fallbackPayload)
+      ) {
+        throw error;
+      }
+      omittedOptionalColumns.add(missingColumn);
+      delete fallbackPayload[missingColumn];
     }
-    const fallbackPayload = { ...payload };
-    delete fallbackPayload.save_error;
-    await runUpsert(fallbackPayload);
   }
 };
 
@@ -686,35 +707,45 @@ export const repairStaleTerminalGenerationProjections = async ({
   const adminClient = supabaseAdmin ?? getSupabaseAdmin();
   const cutoffIso = new Date(now.getTime() - Math.max(0, minAgeSeconds) * 1000).toISOString();
 
-  const staleProjectionResponse = await adminClient
-    .from("generation_projection")
-    .select(
-      [
-        "generation_id",
-        "user_id",
-        "workspace_runtime_key",
-        "source_ref",
-        "request_id",
-        "provider",
-        "provider_request_id",
-        "latest_attempt_id",
-        "display_prompt",
-        "display_title",
-        "transcript_text",
-        "model_id",
-        "hidden_in_reference_grid",
-        "reference_grid_visible",
-        "generation_replay",
-        "workflow_reload",
-        "character_context",
-        "style_context",
-        "started_at",
-      ].join(", ")
-    )
-    .in("task_state", ["pending", "running"])
-    .lte("updated_at", cutoffIso)
-    .order("updated_at", { ascending: true })
-    .limit(limit);
+  const repairSelectColumns = [
+    "generation_id",
+    "user_id",
+    "workspace_runtime_key",
+    "source_ref",
+    "request_id",
+    "provider",
+    "provider_request_id",
+    "latest_attempt_id",
+    "display_prompt",
+    "display_title",
+    "transcript_text",
+    "model_id",
+    "hidden_in_reference_grid",
+    "reference_grid_visible",
+    "generation_replay",
+    "workflow_reload",
+    "character_context",
+    "style_context",
+    "started_at",
+  ];
+  const loadStaleProjectionRows = async (selectColumns: readonly string[]) =>
+    await adminClient
+      .from("generation_projection")
+      .select(selectColumns.join(", "))
+      .in("task_state", ["pending", "running"])
+      .lte("updated_at", cutoffIso)
+      .order("updated_at", { ascending: true })
+      .limit(limit);
+
+  let staleProjectionResponse = await loadStaleProjectionRows(repairSelectColumns);
+  if (
+    staleProjectionResponse.error &&
+    resolveMissingOptionalProjectionColumn(staleProjectionResponse.error) === "display_title"
+  ) {
+    staleProjectionResponse = await loadStaleProjectionRows(
+      repairSelectColumns.filter((column) => column !== "display_title")
+    );
+  }
   if (staleProjectionResponse.error) throw staleProjectionResponse.error;
 
   const projectionRows = Array.isArray(staleProjectionResponse.data)

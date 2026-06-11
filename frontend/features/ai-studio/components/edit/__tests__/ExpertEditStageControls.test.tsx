@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -62,12 +62,57 @@ describe("ExpertEditInlineHistoryControls", () => {
       <ExpertEditInlineHistoryControls
         canUndoGeneralAction
         canRedoGeneralAction
+        canFlipSelectedLayer
         handleUndoGeneralAction={vi.fn()}
         handleRedoGeneralAction={vi.fn()}
+        handleFlipLayerHorizontalAction={vi.fn()}
+        handleFlipLayerVerticalAction={vi.fn()}
       />
     );
 
+    expect(screen.getByRole("button", { name: /flip layer horizontally/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /flip layer vertically/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /undo move action/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /redo move action/i })).toBeInTheDocument();
+  });
+
+  it("disables flip buttons without a selected image layer", () => {
+    render(
+      <ExpertEditInlineHistoryControls
+        canUndoGeneralAction={false}
+        canRedoGeneralAction={false}
+        canFlipSelectedLayer={false}
+        handleUndoGeneralAction={vi.fn()}
+        handleRedoGeneralAction={vi.fn()}
+        handleFlipLayerHorizontalAction={vi.fn()}
+        handleFlipLayerVerticalAction={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /flip layer horizontally/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /flip layer vertically/i })).toBeDisabled();
+  });
+
+  it("routes flip button clicks to the provided layer actions", () => {
+    const handleFlipLayerHorizontalAction = vi.fn();
+    const handleFlipLayerVerticalAction = vi.fn();
+
+    render(
+      <ExpertEditInlineHistoryControls
+        canUndoGeneralAction={false}
+        canRedoGeneralAction={false}
+        canFlipSelectedLayer
+        handleUndoGeneralAction={vi.fn()}
+        handleRedoGeneralAction={vi.fn()}
+        handleFlipLayerHorizontalAction={handleFlipLayerHorizontalAction}
+        handleFlipLayerVerticalAction={handleFlipLayerVerticalAction}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /flip layer horizontally/i }));
+    fireEvent.click(screen.getByRole("button", { name: /flip layer vertically/i }));
+
+    expect(handleFlipLayerHorizontalAction).toHaveBeenCalledTimes(1);
+    expect(handleFlipLayerVerticalAction).toHaveBeenCalledTimes(1);
   });
 });

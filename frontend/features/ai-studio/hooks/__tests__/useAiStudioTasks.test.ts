@@ -1391,6 +1391,57 @@ describe("useAiStudioTasks", () => {
     expect(output.previewUrl).toBe("https://cdn.test/video-output.mp4");
   });
 
+  it("does not complete video-mode outputs from image-only lifecycle result URLs", async () => {
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
+        status: "completed",
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/lip-sync-input-image.png"],
+          providerState: "completed",
+        },
+      })
+    );
+
+    let output: StudioOutput = {
+      ...makeOutput(),
+      mode: "video",
+      modelId: "fal-ai/bytedance/omnihuman/v1.5",
+    };
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const findOutputById = vi.fn((id: string) => (id === output.id ? output : null));
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        findOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("lip-sync-task-image-only", "out-1", 0, "fal-nano-banana-2");
+    });
+
+    await vi.advanceTimersByTimeAsync(1_250);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledWith("lip-sync-task-image-only");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.previewUrl).toBeUndefined();
+    expect(output.timestamp).toBe("Processing...");
+  });
+
   it("polls Bria background-remove tasks via the Bria status endpoint", async () => {
     fetchFalBriaBackgroundRemoveStatusMock.mockResolvedValueOnce(
       asFalNanoBananaStatusResponse({

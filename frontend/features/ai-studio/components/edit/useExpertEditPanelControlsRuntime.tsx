@@ -27,6 +27,8 @@ type UseExpertEditPanelControlsRuntimeArgs = {
   onAspectChange: (nextAspect: string) => void;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
   handleRecenterMoveAction: () => void;
+  handleFlipLayerHorizontalAction: () => void;
+  handleFlipLayerVerticalAction: () => void;
   openMarkupModal: () => void;
   handleMoveZoomSliderChange: (value: number) => void;
   handleUndoGeneralAction: () => void;
@@ -43,6 +45,7 @@ type UseExpertEditPanelControlsRuntimeArgs = {
   invertInpaintSelectionWithHistory: () => void;
   isGenerateDisabled: boolean;
   selectedLayerImageUrl: string | null;
+  canFlipSelectedLayer: boolean;
   handleCompositeRegeneratePromptInsert: () => void;
 };
 
@@ -62,6 +65,8 @@ export function useExpertEditPanelControlsRuntime({
   onAspectChange,
   setSelectedRailTool,
   handleRecenterMoveAction,
+  handleFlipLayerHorizontalAction,
+  handleFlipLayerVerticalAction,
   openMarkupModal,
   handleMoveZoomSliderChange,
   handleUndoGeneralAction,
@@ -78,6 +83,7 @@ export function useExpertEditPanelControlsRuntime({
   invertInpaintSelectionWithHistory,
   isGenerateDisabled,
   selectedLayerImageUrl,
+  canFlipSelectedLayer,
   handleCompositeRegeneratePromptInsert,
 }: UseExpertEditPanelControlsRuntimeArgs) {
   const isInpaintToolSelected = selectedRailTool === "inpaint";
@@ -198,11 +204,22 @@ export function useExpertEditPanelControlsRuntime({
       <ExpertEditInlineHistoryControls
         canUndoGeneralAction={canUndoGeneralAction}
         canRedoGeneralAction={canRedoGeneralAction}
+        canFlipSelectedLayer={canFlipSelectedLayer}
         handleUndoGeneralAction={handleUndoGeneralAction}
         handleRedoGeneralAction={handleRedoGeneralAction}
+        handleFlipLayerHorizontalAction={handleFlipLayerHorizontalAction}
+        handleFlipLayerVerticalAction={handleFlipLayerVerticalAction}
       />
     ),
-    [canRedoGeneralAction, canUndoGeneralAction, handleRedoGeneralAction, handleUndoGeneralAction]
+    [
+      canFlipSelectedLayer,
+      canRedoGeneralAction,
+      canUndoGeneralAction,
+      handleFlipLayerHorizontalAction,
+      handleFlipLayerVerticalAction,
+      handleRedoGeneralAction,
+      handleUndoGeneralAction,
+    ]
   );
 
   return {

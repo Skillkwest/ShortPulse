@@ -89,7 +89,7 @@ const resolveWorkflowReloadAudioSourceMode = (
   workflowReload: StudioOutput["workflowReload"] | undefined
 ): StudioOutput["audioSourceMode"] => (workflowReload?.payload?.kind === "music" ? "music" : null);
 
-const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
+const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST = [
   "generation_id",
   "project_id",
   "workspace_runtime_key",
@@ -119,7 +119,29 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
   "started_at",
   "created_at",
   "updated_at",
-].join(", ");
+] as const;
+
+const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS =
+  GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST.join(", ");
+const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE =
+  GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST.filter(
+    (column) => column !== "display_title"
+  ).join(", ");
+
+const isMissingGenerationProjectionDisplayTitleColumnError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const record = error as { code?: unknown; message?: unknown; details?: unknown };
+  const code = typeof record.code === "string" ? record.code : null;
+  const messageParts = [record.message, record.details]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+  if (!messageParts.includes("display_title")) return false;
+  if (!messageParts.includes("generation_projection")) return false;
+  return (
+    code === "42703" || code === "PGRST204" || /does not exist|schema cache/.test(messageParts)
+  );
+};
 
 export type GeneratedMediaFileRecord = {
   storagePath: string;
@@ -1470,15 +1492,25 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
 }): Promise<VisibleGenerationDelivery | null> => {
   try {
     const resolvedUserId = asTrimmedString(userId);
-    let projectionQuery = supabase
-      .from("generation_projection")
-      .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
-      .eq("generation_id", generationId)
-      .limit(1);
-    if (resolvedUserId) {
-      projectionQuery = projectionQuery.eq("user_id", resolvedUserId);
+    const loadProjection = async (selectColumns: string) => {
+      let projectionQuery = supabase
+        .from("generation_projection")
+        .select(selectColumns)
+        .eq("generation_id", generationId)
+        .limit(1);
+      if (resolvedUserId) {
+        projectionQuery = projectionQuery.eq("user_id", resolvedUserId);
+      }
+      return await projectionQuery.maybeSingle();
+    };
+    let { data: projectionData, error: projectionError } = await loadProjection(
+      GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS
+    );
+    if (projectionError && isMissingGenerationProjectionDisplayTitleColumnError(projectionError)) {
+      ({ data: projectionData, error: projectionError } = await loadProjection(
+        GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE
+      ));
     }
-    const { data: projectionData, error: projectionError } = await projectionQuery.maybeSingle();
     if (!projectionError) {
       const projectionDelivery = toProjectionDelivery(
         projectionData as GenerationProjectionDeliveryRow | null
@@ -1795,32 +1827,53 @@ export const listVisibleGeneratedOutputs = async ({
         ])
       );
 
-      let directProjectQuery = supabase
-        .from("generation_projection")
-        .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
-        .eq("user_id", userId)
-        .eq("project_id", normalizedProjectId)
-        .order("started_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .order("updated_at", { ascending: false });
-      if (hasScopedGenerationFilter) {
-        directProjectQuery = directProjectQuery.in("generation_id", scopedGenerationIds);
-      }
-      const [{ data: directProjectData, error: directProjectError }, associatedProjectionResult] =
+      const loadDirectProjectRows = async (selectColumns: string) => {
+        let directProjectQuery = supabase
+          .from("generation_projection")
+          .select(selectColumns)
+          .eq("user_id", userId)
+          .eq("project_id", normalizedProjectId)
+          .order("started_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .order("updated_at", { ascending: false });
+        if (hasScopedGenerationFilter) {
+          directProjectQuery = directProjectQuery.in("generation_id", scopedGenerationIds);
+        }
+        return await directProjectQuery.limit(boundedLimit);
+      };
+      const loadAssociatedProjectionRows = async (selectColumns: string) => {
+        if (!projectGenerationIds.length) return { data: [], error: null };
+        return await supabase
+          .from("generation_projection")
+          .select(selectColumns)
+          .eq("user_id", userId)
+          .in("generation_id", projectGenerationIds)
+          .order("started_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .order("updated_at", { ascending: false })
+          .limit(boundedLimit);
+      };
+      let [{ data: directProjectData, error: directProjectError }, associatedProjectionResult] =
         await Promise.all([
-          directProjectQuery.limit(boundedLimit),
-          projectGenerationIds.length
-            ? supabase
-                .from("generation_projection")
-                .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
-                .eq("user_id", userId)
-                .in("generation_id", projectGenerationIds)
-                .order("started_at", { ascending: false, nullsFirst: false })
-                .order("created_at", { ascending: false })
-                .order("updated_at", { ascending: false })
-                .limit(boundedLimit)
-            : Promise.resolve({ data: [], error: null }),
+          loadDirectProjectRows(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS),
+          loadAssociatedProjectionRows(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS),
         ]);
+      if (
+        directProjectError &&
+        isMissingGenerationProjectionDisplayTitleColumnError(directProjectError)
+      ) {
+        ({ data: directProjectData, error: directProjectError } = await loadDirectProjectRows(
+          GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE
+        ));
+      }
+      if (
+        associatedProjectionResult.error &&
+        isMissingGenerationProjectionDisplayTitleColumnError(associatedProjectionResult.error)
+      ) {
+        associatedProjectionResult = await loadAssociatedProjectionRows(
+          GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE
+        );
+      }
       if (directProjectError && associatedProjectionResult.error) return [];
 
       const rowsByGenerationId = new Map<string, unknown>();
@@ -1865,23 +1918,36 @@ export const listVisibleGeneratedOutputs = async ({
         })
         .slice(0, boundedLimit);
     } else {
-      let projectionQuery = supabase
-        .from("generation_projection")
-        .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
-        .eq("user_id", userId)
-        .order("started_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .order("updated_at", { ascending: false });
-      if (normalizedWorkspaceRuntimeKey) {
-        projectionQuery = projectionQuery.eq(
-          "workspace_runtime_key",
-          normalizedWorkspaceRuntimeKey
+      const loadProjectionRows = async (selectColumns: string) => {
+        let projectionQuery = supabase
+          .from("generation_projection")
+          .select(selectColumns)
+          .eq("user_id", userId)
+          .order("started_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .order("updated_at", { ascending: false });
+        if (normalizedWorkspaceRuntimeKey) {
+          projectionQuery = projectionQuery.eq(
+            "workspace_runtime_key",
+            normalizedWorkspaceRuntimeKey
+          );
+        }
+        if (hasScopedGenerationFilter) {
+          projectionQuery = projectionQuery.in("generation_id", scopedGenerationIds);
+        }
+        return await projectionQuery.limit(boundedLimit);
+      };
+      let projectionResult = await loadProjectionRows(
+        GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS
+      );
+      if (
+        projectionResult.error &&
+        isMissingGenerationProjectionDisplayTitleColumnError(projectionResult.error)
+      ) {
+        projectionResult = await loadProjectionRows(
+          GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE
         );
       }
-      if (hasScopedGenerationFilter) {
-        projectionQuery = projectionQuery.in("generation_id", scopedGenerationIds);
-      }
-      const projectionResult = await projectionQuery.limit(boundedLimit);
       if (projectionResult.error || !Array.isArray(projectionResult.data)) return [];
       data = [...projectionResult.data].sort((a, b) => {
         const aRecencyMs =

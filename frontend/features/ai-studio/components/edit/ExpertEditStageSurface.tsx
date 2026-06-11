@@ -115,10 +115,6 @@ export function ExpertEditInlineStageSurface({
       onPointerCancel={backdropPanHandlers.onPointerCancel}
       onPointerLeave={backdropPanHandlers.onPointerLeave}
       onWheel={onStageWheel}
-      onDrop={onDrop}
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
     >
       <PrimaryStageRenderClip>
         <PrimaryStageViewportLayer style={viewportStyle}>
@@ -127,6 +123,10 @@ export function ExpertEditInlineStageSurface({
             isPopulated={isPopulated}
             isDragActive={isDragActive}
             style={frameStyle}
+            onDrop={onDrop}
+            onDragEnter={onDragEnter}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
           >
             <PrimaryCompositionSurface
               surfaceRef={surfaceRef}
@@ -164,6 +164,10 @@ export function ExpertEditInlineStageSurface({
           scope="inline"
           viewportStyle={viewportStyle}
           frameStyle={frameStyle}
+          onDrop={onDrop}
+          onDragEnter={onDragEnter}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
         >
           {transformOverlay}
         </ExpertEditTransformChromeLayer>

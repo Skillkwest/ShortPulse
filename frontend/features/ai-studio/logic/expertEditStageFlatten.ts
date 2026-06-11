@@ -15,6 +15,8 @@ export type ExpertEditStageFlattenLayer = {
     translateYRatio?: number;
     scale?: number;
     rotationDeg?: number;
+    flipX?: boolean;
+    flipY?: boolean;
   };
 };
 
@@ -26,6 +28,8 @@ type DecodedStageLayer = {
     translateYRatio: number;
     scale: number;
     rotationDeg: number;
+    flipX?: boolean;
+    flipY?: boolean;
   };
 };
 
@@ -61,6 +65,8 @@ export type StageFlattenDrawInstruction = {
   opacity: number;
   scale: number;
   rotationDeg: number;
+  scaleX: number;
+  scaleY: number;
 };
 
 const DEFAULT_STAGE_FLATTEN_MIME_TYPE = "image/png";
@@ -271,6 +277,8 @@ export const buildStageFlattenDrawPlan = ({
       translateYRatio: number;
       scale: number;
       rotationDeg: number;
+      flipX?: boolean;
+      flipY?: boolean;
     };
   }>;
   outputWidth: number;
@@ -294,6 +302,8 @@ export const buildStageFlattenDrawPlan = ({
       opacity: clampOpacity(layer.opacity),
       scale: constrainedTransform.scale,
       rotationDeg: constrainedTransform.rotationDeg,
+      scaleX: constrainedTransform.flipX ? -constrainedTransform.scale : constrainedTransform.scale,
+      scaleY: constrainedTransform.flipY ? -constrainedTransform.scale : constrainedTransform.scale,
     };
   });
 
@@ -336,6 +346,8 @@ export const composePrimaryStageLayersToBlob = async (
           rotationDeg: Number.isFinite(layer.transform?.rotationDeg)
             ? (layer.transform?.rotationDeg as number)
             : 0,
+          flipX: Boolean(layer.transform?.flipX),
+          flipY: Boolean(layer.transform?.flipY),
         },
       };
     })
@@ -394,8 +406,8 @@ export const composePrimaryStageLayersToBlob = async (
     if (instruction.rotationDeg !== 0) {
       context.rotate(toRadians(instruction.rotationDeg));
     }
-    if (instruction.scale !== 1) {
-      context.scale(instruction.scale, instruction.scale);
+    if (instruction.scaleX !== 1 || instruction.scaleY !== 1) {
+      context.scale(instruction.scaleX, instruction.scaleY);
     }
     context.drawImage(
       image,

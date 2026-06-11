@@ -14,6 +14,7 @@ import {
   BUILT_IN_STYLE_SCHEMA_VERSION,
   normalizeBuiltInStyleDefinitions,
   resolveBuiltInStyleDefinitions,
+  resolveUniqueBuiltInStyleId,
   type BuiltInStyleDefinition,
 } from "../../../lib/model-runtime/builtInStyles";
 import {
@@ -266,16 +267,28 @@ const buildBuiltInStyleDraftsFromDefinitions = (
     )
   );
 
-const buildBuiltInStyleDefinitionFromDraft = (
-  draft: AdminBuiltInStyleDraft
-): BuiltInStyleDefinition => ({
-  styleId: draft.styleId.trim(),
-  title: draft.title.trim(),
-  stylePrompt: draft.stylePrompt.trim(),
-  previewImageUrl: draft.previewImageUrl.trim(),
-  referenceImageName: draft.referenceImageName.trim() || null,
-  schemaVersion: BUILT_IN_STYLE_SCHEMA_VERSION,
-});
+const buildBuiltInStyleDefinitionsFromDrafts = (
+  drafts: readonly AdminBuiltInStyleDraft[]
+): BuiltInStyleDefinition[] => {
+  const usedStyleIds = new Set<string>();
+  return drafts.map((draft, index) => {
+    const styleId = resolveUniqueBuiltInStyleId({
+      preferredStyleId: draft.styleId,
+      title: draft.title,
+      fallbackStyleId: `built-in-style-${index + 1}`,
+      usedStyleIds,
+    });
+    usedStyleIds.add(styleId);
+    return {
+      styleId,
+      title: draft.title.trim(),
+      stylePrompt: draft.stylePrompt.trim(),
+      previewImageUrl: draft.previewImageUrl.trim(),
+      referenceImageName: null,
+      schemaVersion: BUILT_IN_STYLE_SCHEMA_VERSION,
+    };
+  });
+};
 
 const buildEmptyBuiltInStyleDraft = (counter: number): AdminBuiltInStyleDraft => ({
   localId: `style-draft-${counter}`,
@@ -288,17 +301,14 @@ const buildEmptyBuiltInStyleDraft = (counter: number): AdminBuiltInStyleDraft =>
 });
 
 const isBuiltInStyleDraftPersistable = (draft: AdminBuiltInStyleDraft): boolean =>
-  draft.styleId.trim().length > 0 &&
   draft.title.trim().length > 0 &&
   draft.stylePrompt.trim().length > 0 &&
   draft.previewImageUrl.trim().length > 0;
 
 const isBuiltInStyleDraftBlank = (draft: AdminBuiltInStyleDraft): boolean =>
-  draft.styleId.trim().length === 0 &&
   draft.title.trim().length === 0 &&
   draft.stylePrompt.trim().length === 0 &&
-  draft.previewImageUrl.trim().length === 0 &&
-  draft.referenceImageName.trim().length === 0;
+  draft.previewImageUrl.trim().length === 0;
 
 const areBuiltInStyleDraftsEqual = (
   left: AdminBuiltInStyleDraft,
@@ -603,13 +613,6 @@ export function AdminAgentInstructionsSection() {
         AdminPulseDraft
       >,
     [storedPulseDrafts]
-  );
-  const storedBuiltInStyleDraftsById = React.useMemo(
-    () =>
-      Object.fromEntries(
-        storedBuiltInStyleDrafts.map((draft) => [draft.localId, draft])
-      ) satisfies Record<string, AdminBuiltInStyleDraft>,
-    [storedBuiltInStyleDrafts]
   );
   const hasPulseUnsavedChanges = React.useMemo(
     () => !arePulseDraftListsEqual(pulseDrafts, storedPulseDrafts),
@@ -1090,7 +1093,7 @@ export function AdminAgentInstructionsSection() {
     setBuiltInStyleSaveState("saving");
     setBuiltInStyleSaveIssue(null);
     try {
-      const styleDefinitions = builtInStyleDrafts.map(buildBuiltInStyleDefinitionFromDraft);
+      const styleDefinitions = buildBuiltInStyleDefinitionsFromDrafts(builtInStyleDrafts);
       const response = await fetchWithAuth("/api/admin/agent-instructions/built-in-styles", {
         method: "PUT",
         headers: {
@@ -1785,21 +1788,8 @@ export function AdminAgentInstructionsSection() {
           >
             <div className={styles.agentEditPresetGrid} role="list" aria-label="Built-in Styles">
               {builtInStyleDrafts.map((draft, index) => {
-                const stored = storedBuiltInStyleDraftsById[draft.localId];
-                const isDirty = stored
-                  ? !areBuiltInStyleDraftsEqual(draft, stored)
-                  : !isBuiltInStyleDraftBlank(draft);
                 const cardTitle =
                   draft.title.trim().length > 0 ? draft.title : `Style ${index + 1}`;
-                const feedbackKey = `built-in-style:${draft.localId}`;
-                const copyValue = [
-                  `Style ID: ${draft.styleId}`,
-                  `Title: ${draft.title}`,
-                  `Preview: ${draft.previewImageUrl}`,
-                  `Reference image: ${draft.referenceImageName}`,
-                  "",
-                  draft.stylePrompt,
-                ].join("\n");
 
                 return (
                   <article
@@ -1818,9 +1808,6 @@ export function AdminAgentInstructionsSection() {
                     </button>
                     <div className={styles.agentEditPresetTileButton}>
                       <span className={styles.agentEditPresetTileTitle}>{cardTitle}</span>
-                      <span className={styles.agentEditPresetTilePrompt}>
-                        {isDirty ? "Unsaved edits" : stored ? "Stored" : "New style"}
-                      </span>
                     </div>
                     <div
                       id={`admin-built-in-style-card-body-${draft.localId}`}
@@ -1839,82 +1826,48 @@ export function AdminAgentInstructionsSection() {
                             placeholder="Photorealistic"
                           />
                         </label>
-                        <label className={styles.agentInstructionField}>
-                          <span className={styles.agentInstructionLabel}>Style ID</span>
-                          <input
-                            className={`${styles.agentInstructionInput} ${styles.adminMonoCell}`}
-                            type="text"
-                            value={draft.styleId}
-                            onChange={(event) =>
-                              updateBuiltInStyleDraft(draft.localId, "styleId", event.target.value)
-                            }
-                            placeholder="photorealistic"
-                          />
-                        </label>
                       </div>
-                      <div className={styles.agentInstructionFormGrid}>
-                        <label className={styles.agentInstructionField}>
-                          <span className={styles.agentInstructionLabel}>Preview image upload</span>
-                          {draft.previewImageUrl.trim().length > 0 ? (
-                            <span className={styles.agentBuiltInStylePreviewFrame}>
-                              {/* Data-URL preview upload is operator-only and not part of app image optimization lanes. */}
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                className={styles.agentBuiltInStylePreviewImage}
-                                src={draft.previewImageUrl}
-                                alt={`${cardTitle} preview`}
-                              />
+                      <label
+                        className={`${styles.agentInstructionField} ${styles.agentBuiltInStylePreviewUpload}`}
+                      >
+                        <span className={styles.agentInstructionLabel}>Preview image</span>
+                        {draft.previewImageUrl.trim().length > 0 ? (
+                          <span className={styles.agentBuiltInStylePreviewFrame}>
+                            {/* Data-URL preview upload is operator-only and not part of app image optimization lanes. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              className={styles.agentBuiltInStylePreviewImage}
+                              src={draft.previewImageUrl}
+                              alt={`${cardTitle} preview`}
+                            />
+                          </span>
+                        ) : (
+                          <span className={styles.agentBuiltInStylePreviewFrame}>
+                            <span className={styles.agentBuiltInStylePreviewPlaceholder}>
+                              <span className={styles.agentBuiltInStylePreviewPlaceholderIcon}>
+                                +
+                              </span>
+                              <span>Add image</span>
                             </span>
-                          ) : null}
-                          <input
-                            className={styles.agentInstructionInput}
-                            type="file"
-                            accept="image/*"
-                            onChange={(event) => {
-                              const [file] = Array.from(event.target.files ?? []);
-                              event.target.value = "";
-                              void handleBuiltInStylePreviewUpload(draft.localId, file ?? null);
-                            }}
-                          />
-                          {builtInStylePreviewUploadIssueById[draft.localId] ? (
-                            <span className={styles.agentInstructionNote}>
-                              {builtInStylePreviewUploadIssueById[draft.localId]}
-                            </span>
-                          ) : null}
-                        </label>
-                        <label className={styles.agentInstructionField}>
-                          <span className={styles.agentInstructionLabel}>Preview image URL</span>
-                          <input
-                            className={styles.agentInstructionInput}
-                            type="text"
-                            value={draft.previewImageUrl}
-                            onChange={(event) =>
-                              updateBuiltInStyleDraft(
-                                draft.localId,
-                                "previewImageUrl",
-                                event.target.value
-                              )
-                            }
-                            placeholder="/Styles/Photoreal.png"
-                          />
-                        </label>
-                        <label className={styles.agentInstructionField}>
-                          <span className={styles.agentInstructionLabel}>Reference image name</span>
-                          <input
-                            className={styles.agentInstructionInput}
-                            type="text"
-                            value={draft.referenceImageName}
-                            onChange={(event) =>
-                              updateBuiltInStyleDraft(
-                                draft.localId,
-                                "referenceImageName",
-                                event.target.value
-                              )
-                            }
-                            placeholder="Optional"
-                          />
-                        </label>
-                      </div>
+                          </span>
+                        )}
+                        <input
+                          className={styles.agentBuiltInStylePreviewInput}
+                          type="file"
+                          accept="image/*"
+                          aria-label="Preview image"
+                          onChange={(event) => {
+                            const [file] = Array.from(event.target.files ?? []);
+                            event.target.value = "";
+                            void handleBuiltInStylePreviewUpload(draft.localId, file ?? null);
+                          }}
+                        />
+                        {builtInStylePreviewUploadIssueById[draft.localId] ? (
+                          <span className={styles.agentInstructionNote}>
+                            {builtInStylePreviewUploadIssueById[draft.localId]}
+                          </span>
+                        ) : null}
+                      </label>
                       <label
                         className={styles.agentInstructionLabel}
                         htmlFor={`admin-built-in-style-prompt-${draft.localId}`}
@@ -1932,30 +1885,6 @@ export function AdminAgentInstructionsSection() {
                         spellCheck={false}
                         rows={7}
                       />
-                      <div className={styles.agentInstructionFooterActions}>
-                        <button
-                          type="button"
-                          className="ghost-btn mini"
-                          onClick={() => void handleCopy(feedbackKey, copyValue)}
-                        >
-                          Copy
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost-btn mini"
-                          onClick={() => handleRemoveBuiltInStyleDraft(draft.localId)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                      <p className={styles.agentInstructionNote}>
-                        {copyFeedback[feedbackKey] ??
-                          (stored
-                            ? isDirty
-                              ? "This style differs from the stored global built-in set."
-                              : "Matches the stored global built-in set."
-                            : "New style. Save applies it to the shared built-in Styles catalog.")}
-                      </p>
                     </div>
                   </article>
                 );

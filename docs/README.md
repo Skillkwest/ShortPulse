@@ -58,6 +58,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-generation-persistence-architecture-plan-2026-06-10.md`
+- `docs/planning/dashboard-tutorial-hub-buildout-plan-2026-06-10.md`
 - `docs/agents/ako/README.md`
 - `docs/agents/ako/AGENTS.md`
 - `docs/agents/ako/memory.md`

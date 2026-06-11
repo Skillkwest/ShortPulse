@@ -3,6 +3,7 @@
  * Admin writes these definitions globally; user preference storage may only hide them.
  */
 export const BUILT_IN_STYLE_SCHEMA_VERSION = 1;
+export const BUILT_IN_STYLE_ID_MAX_LENGTH = 160;
 
 export type BuiltInStyleDefinition = {
   styleId: string;
@@ -13,10 +14,72 @@ export type BuiltInStyleDefinition = {
   schemaVersion: number;
 };
 
+const BUILT_IN_STYLE_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 const normalizeNonEmptyString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+};
+
+const trimBuiltInStyleIdToBudget = (value: string, maxLength = BUILT_IN_STYLE_ID_MAX_LENGTH) =>
+  value.slice(0, maxLength).replace(/-+$/g, "");
+
+export const normalizeBuiltInStyleId = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!normalized || normalized.length > BUILT_IN_STYLE_ID_MAX_LENGTH) return null;
+  return BUILT_IN_STYLE_ID_PATTERN.test(normalized) ? normalized : null;
+};
+
+export const createBuiltInStyleIdFromTitle = (
+  title: string,
+  fallbackStyleId = "built-in-style"
+): string => {
+  const fallback = normalizeBuiltInStyleId(fallbackStyleId) ?? "built-in-style";
+  const slug = trimBuiltInStyleIdToBudget(
+    title
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+  );
+  return normalizeBuiltInStyleId(slug) ?? fallback;
+};
+
+export const resolveUniqueBuiltInStyleId = ({
+  preferredStyleId,
+  title,
+  fallbackStyleId = "built-in-style",
+  usedStyleIds,
+}: {
+  preferredStyleId?: unknown;
+  title: string;
+  fallbackStyleId?: string;
+  usedStyleIds: ReadonlySet<string>;
+}): string => {
+  const fallback = normalizeBuiltInStyleId(fallbackStyleId) ?? "built-in-style";
+  const baseStyleId =
+    normalizeBuiltInStyleId(preferredStyleId) ?? createBuiltInStyleIdFromTitle(title, fallback);
+  if (!usedStyleIds.has(baseStyleId)) return baseStyleId;
+
+  for (let suffix = 2; suffix < 1000; suffix += 1) {
+    const suffixText = `-${suffix}`;
+    const candidateBase = trimBuiltInStyleIdToBudget(
+      baseStyleId,
+      BUILT_IN_STYLE_ID_MAX_LENGTH - suffixText.length
+    );
+    const candidate = normalizeBuiltInStyleId(`${candidateBase || fallback}${suffixText}`);
+    if (candidate && !usedStyleIds.has(candidate)) return candidate;
+  }
+
+  const uniqueFallback = `${trimBuiltInStyleIdToBudget(
+    fallback,
+    BUILT_IN_STYLE_ID_MAX_LENGTH - 9
+  )}-${Date.now().toString(36)}`;
+  return trimBuiltInStyleIdToBudget(uniqueFallback);
 };
 
 const createBuiltInStyleDefinition = ({
@@ -73,7 +136,7 @@ export const SEEDED_BUILT_IN_STYLE_DEFINITIONS = [
 
 const normalizeBuiltInStyleDefinitionRecord = (value: unknown): BuiltInStyleDefinition | null => {
   if (!value || typeof value !== "object") return null;
-  const styleId = normalizeNonEmptyString((value as { styleId?: unknown }).styleId);
+  const styleId = normalizeBuiltInStyleId((value as { styleId?: unknown }).styleId);
   const title = normalizeNonEmptyString((value as { title?: unknown }).title);
   const stylePrompt = normalizeNonEmptyString((value as { stylePrompt?: unknown }).stylePrompt);
   const previewImageUrl = normalizeNonEmptyString(

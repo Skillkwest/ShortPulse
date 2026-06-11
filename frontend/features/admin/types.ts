@@ -653,6 +653,19 @@ export type AdminDashboardOffer = {
   updatedAt: string | null;
 };
 
+export type AdminDashboardTutorial = {
+  id: string;
+  title: string;
+  youtubeUrl: string;
+  thumbnailUrl: string;
+  thumbnailMediaType: "image" | "video";
+  thumbnailAlt: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
 export type AdminPricingPolicySnapshot = ModelPricingPolicySnapshot;
 
 export type AdminPricingPreviewVariant = {

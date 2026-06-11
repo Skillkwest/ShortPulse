@@ -509,6 +509,105 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("routes video-mode Lip Sync through OmniHuman when selected tool and model are stale", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const beginPanelGeneration = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "video",
+        model: KIE_KLING_30_MODEL_ID,
+        prompt: "Subtle body motion matching the vocals",
+        currentCostCredits: 47,
+        selectedTool: "create",
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "lip-sync",
+        videoReferenceImageUrl: "https://example.com/character.png",
+        motionReferenceVideoUrl:
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/stale-motion.mp4?token=stub.invalid.token",
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 30_000,
+          sourceKind: "library",
+        }),
+        lipSyncTurboMode: true,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration,
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+        projectId: "project-1",
+      })
+    );
+
+    await act(async () => {
+      await result.current("Subtle body motion matching the vocals", [
+        "https://example.com/character.png",
+      ]);
+    });
+
+    expect(beginPanelGeneration).toHaveBeenCalledWith("video");
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
+        motionReferenceVideoUrl: null,
+        lipSyncAudio: expect.objectContaining({
+          url: "https://example.com/voice.mp3",
+          durationMs: 30_000,
+        }),
+        lipSyncTurboMode: true,
+        shortpulseContext: expect.objectContaining({
+          selected_tool: "video",
+          mode: "video",
+          displayed_billed_credits: 47,
+          pricing_display_source: "pricing_grid",
+          lip_sync_audio_duration_ms: 30_000,
+        }),
+        workflowReload: expect.objectContaining({
+          originTool: "video",
+          panelKind: "video",
+          outputMode: "video",
+          payload: expect.objectContaining({
+            videoReferenceMode: "lip-sync",
+            motionReferenceVideoUrl: null,
+            lipSyncAudioUrl: "https://example.com/voice.mp3",
+            lipSyncTurboMode: true,
+          }),
+        }),
+      })
+    );
+  });
+
   it("runs ensureGenerationRecord after direct-complete submissions", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

@@ -19,6 +19,7 @@ import {
   AuthenticatedDashboardView,
   type DashboardAnnouncement,
   type DashboardToolCard,
+  type DashboardTutorial,
 } from "./AuthenticatedDashboardView";
 import { DashboardAppBar } from "./DashboardAppBar";
 import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreationDialog";
@@ -74,6 +75,30 @@ const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null =
     message,
     publishedAt: typeof row.publishedAt === "string" ? row.publishedAt : null,
     updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : null,
+  };
+};
+
+const asDashboardTutorial = (value: unknown): DashboardTutorial | null => {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const id = typeof row.id === "string" ? row.id : "";
+  const title = typeof row.title === "string" ? row.title.trim() : "";
+  const youtubeUrl = typeof row.youtubeUrl === "string" ? row.youtubeUrl.trim() : "";
+  const thumbnailUrl = typeof row.thumbnailUrl === "string" ? row.thumbnailUrl.trim() : "";
+  const thumbnailMediaType =
+    row.thumbnailMediaType === "video" || row.thumbnailMediaType === "image"
+      ? row.thumbnailMediaType
+      : "image";
+
+  if (!id || !title || !youtubeUrl || !thumbnailUrl) return null;
+  return {
+    id,
+    title,
+    youtubeUrl,
+    thumbnailUrl,
+    thumbnailMediaType,
+    thumbnailAlt: typeof row.thumbnailAlt === "string" ? row.thumbnailAlt.trim() : "",
+    displayOrder: typeof row.displayOrder === "number" ? row.displayOrder : 0,
   };
 };
 
@@ -137,6 +162,7 @@ export function AuthenticatedDashboardRoute({
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
   );
+  const [dashboardTutorials, setDashboardTutorials] = useState<DashboardTutorial[]>([]);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -322,6 +348,39 @@ export function AuthenticatedDashboardRoute({
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadDashboardTutorials = async () => {
+      try {
+        const response = await fetchWithAuth("/api/dashboard/tutorials", {
+          method: "GET",
+        });
+        if (!response.ok) {
+          throw new Error("Failed to load dashboard tutorials.");
+        }
+        const payload = (await response.json().catch(() => ({}))) as {
+          tutorials?: unknown;
+        };
+        if (!active) return;
+        const tutorials = Array.isArray(payload.tutorials)
+          ? payload.tutorials
+              .map(asDashboardTutorial)
+              .filter((tutorial): tutorial is DashboardTutorial => tutorial !== null)
+          : [];
+        setDashboardTutorials(tutorials);
+      } catch {
+        if (!active) return;
+        setDashboardTutorials([]);
+      }
+    };
+
+    void loadDashboardTutorials();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const storageUsageValue = useMemo(() => {
     if (usageLoading || quotaLoading) return "…";
     return formatStorageUsageValue(
@@ -436,6 +495,7 @@ export function AuthenticatedDashboardRoute({
         <AuthenticatedDashboardView
           dashboardAnnouncement={dashboardAnnouncement}
           dashboardFallbackHelperCopy={DASHBOARD_FALLBACK_HELPER_COPY}
+          dashboardTutorials={dashboardTutorials}
           firstName={firstName}
           hideLegacySections={DASHBOARD_HIDE_LEGACY_SECTIONS}
           isCreatingProject={isCreatingProject}

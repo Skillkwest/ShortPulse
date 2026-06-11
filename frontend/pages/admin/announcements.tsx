@@ -9,6 +9,11 @@ import {
   ADMIN_DASHBOARD_ANNOUNCEMENT_TITLE_MAX_LENGTH,
   useAdminAnnouncementsController,
 } from "../../features/admin/logic/useAdminAnnouncementsController";
+import {
+  ADMIN_DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH,
+  ADMIN_DASHBOARD_TUTORIAL_TITLE_MAX_LENGTH,
+  useAdminDashboardTutorialsController,
+} from "../../features/admin/logic/useAdminDashboardTutorialsController";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useProtectedRoute } from "../../lib/authGuard";
 import styles from "../../styles/admin.module.css";
@@ -42,6 +47,25 @@ export default function AdminAnnouncementsPage() {
   } = useAdminAnnouncementsController({
     enabled: Boolean(user && adminEnabled),
   });
+  const {
+    tutorials,
+    draft: tutorialDraft,
+    loading: tutorialsLoading,
+    saving: tutorialSaving,
+    deletingId: tutorialDeletingId,
+    reorderingId: tutorialReorderingId,
+    result: tutorialResult,
+    error: tutorialError,
+    updateDraft: updateTutorialDraft,
+    startNewTutorial,
+    editTutorial,
+    loadTutorials,
+    saveDraft: saveTutorialDraft,
+    deleteTutorial,
+    moveTutorial,
+  } = useAdminDashboardTutorialsController({
+    enabled: Boolean(user && adminEnabled),
+  });
 
   return (
     <AdminRouteShell
@@ -51,10 +75,10 @@ export default function AdminAnnouncementsPage() {
       adminAccessStatus={adminAccessStatus}
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
-      documentTitle="ShortPulse · Admin Announcements"
-      metaDescription="Admin announcement publishing for global dashboard messages."
-      pageTitle="Announcements"
-      pageDescription="Publish or clear the one global dashboard bulletin without competing with support and incident workflows."
+      documentTitle="ShortPulse · Admin Dashboard"
+      metaDescription="Admin dashboard management for announcements and tutorial cards."
+      pageTitle="Dashboard"
+      pageDescription="Manage the signed-in homepage announcement and global tutorial hub."
       userEmail={user?.email}
       currentPath="/admin/announcements"
     >
@@ -164,6 +188,267 @@ export default function AdminAnnouncementsPage() {
             </p>
           )}
         </div>
+      </section>
+
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <div>
+            <p className="eyebrow">Tutorial hub</p>
+            <p className="tiny subdued">
+              Add, edit, activate, and reorder tutorial cards shown on every signed-in dashboard.
+            </p>
+          </div>
+          <div className={styles.dashboardTutorialActions}>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => startNewTutorial()}
+              disabled={tutorialSaving || tutorialsLoading}
+            >
+              New tutorial
+            </button>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => void loadTutorials()}
+              disabled={tutorialSaving || tutorialsLoading}
+            >
+              {tutorialsLoading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.dashboardTutorialManager}>
+          <div className={styles.dashboardTutorialPreviewGrid}>
+            {tutorials.length > 0 ? (
+              tutorials.map((tutorial, index) => (
+                <article
+                  key={tutorial.id}
+                  className={`${styles.dashboardTutorialPreviewCard} ${
+                    tutorial.isActive ? "" : styles.dashboardTutorialPreviewInactive
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className={styles.dashboardTutorialPreviewButton}
+                    onClick={() => editTutorial(tutorial)}
+                  >
+                    <span className={styles.dashboardTutorialPreviewMedia} aria-hidden="true">
+                      {tutorial.thumbnailMediaType === "video" ? (
+                        <video
+                          src={tutorial.thumbnailUrl}
+                          muted
+                          loop
+                          playsInline
+                          autoPlay
+                          preload="metadata"
+                        />
+                      ) : (
+                        <span
+                          className={styles.dashboardTutorialPreviewImage}
+                          style={{
+                            backgroundImage: `url(${JSON.stringify(tutorial.thumbnailUrl)})`,
+                          }}
+                        />
+                      )}
+                    </span>
+                    <span className={styles.dashboardTutorialPreviewTitle}>{tutorial.title}</span>
+                    <span className="tiny subdued">
+                      {tutorial.isActive ? "Active" : "Inactive"} · Order {tutorial.displayOrder}
+                    </span>
+                  </button>
+                  <div className={styles.dashboardTutorialCardActions}>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => void moveTutorial(tutorial.id, "up")}
+                      disabled={
+                        index === 0 ||
+                        tutorialReorderingId !== null ||
+                        tutorialSaving ||
+                        tutorialsLoading
+                      }
+                    >
+                      Up
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => void moveTutorial(tutorial.id, "down")}
+                      disabled={
+                        index === tutorials.length - 1 ||
+                        tutorialReorderingId !== null ||
+                        tutorialSaving ||
+                        tutorialsLoading
+                      }
+                    >
+                      Down
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => void deleteTutorial(tutorial.id)}
+                      disabled={tutorialDeletingId === tutorial.id || tutorialSaving}
+                    >
+                      {tutorialDeletingId === tutorial.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className={styles.announcementPreview}>
+                <p className="eyebrow">No tutorials yet</p>
+                <p className="tiny subdued">
+                  Add the first tutorial card to populate the signed-in dashboard hub.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.dashboardTutorialForm}>
+            <div className={styles.adminSectionHead}>
+              <div>
+                <p className="eyebrow">{tutorialDraft.id ? "Edit tutorial" : "Add tutorial"}</p>
+                <p className="tiny subdued">
+                  Use HTTPS thumbnail assets and a YouTube or youtu.be destination.
+                </p>
+              </div>
+            </div>
+
+            <label className={styles.manualAdjustField}>
+              <span className="tiny subdued">
+                Title ({tutorialDraft.title.trim().length}/
+                {ADMIN_DASHBOARD_TUTORIAL_TITLE_MAX_LENGTH})
+              </span>
+              <input
+                className={styles.searchInput}
+                type="text"
+                value={tutorialDraft.title}
+                onChange={(event) => updateTutorialDraft({ title: event.target.value })}
+                maxLength={ADMIN_DASHBOARD_TUTORIAL_TITLE_MAX_LENGTH}
+                placeholder="Create your first project"
+                disabled={tutorialSaving}
+              />
+            </label>
+
+            <label className={styles.manualAdjustField}>
+              <span className="tiny subdued">YouTube URL</span>
+              <input
+                className={styles.searchInput}
+                type="url"
+                value={tutorialDraft.youtubeUrl}
+                onChange={(event) => updateTutorialDraft({ youtubeUrl: event.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
+                disabled={tutorialSaving}
+              />
+            </label>
+
+            <label className={styles.manualAdjustField}>
+              <span className="tiny subdued">Thumbnail URL</span>
+              <input
+                className={styles.searchInput}
+                type="url"
+                value={tutorialDraft.thumbnailUrl}
+                onChange={(event) => updateTutorialDraft({ thumbnailUrl: event.target.value })}
+                placeholder="https://..."
+                disabled={tutorialSaving}
+              />
+            </label>
+
+            <div className={styles.dashboardTutorialFormRow}>
+              <label className={styles.manualAdjustField}>
+                <span className="tiny subdued">Thumbnail type</span>
+                <select
+                  className={styles.searchInput}
+                  value={tutorialDraft.thumbnailMediaType}
+                  onChange={(event) =>
+                    updateTutorialDraft({
+                      thumbnailMediaType: event.target.value === "video" ? "video" : "image",
+                    })
+                  }
+                  disabled={tutorialSaving}
+                >
+                  <option value="image">Image / GIF</option>
+                  <option value="video">Video</option>
+                </select>
+              </label>
+
+              <label className={styles.manualAdjustField}>
+                <span className="tiny subdued">Display order</span>
+                <input
+                  className={styles.searchInput}
+                  type="number"
+                  min="0"
+                  value={tutorialDraft.displayOrder}
+                  onChange={(event) => updateTutorialDraft({ displayOrder: event.target.value })}
+                  disabled={tutorialSaving}
+                />
+              </label>
+            </div>
+
+            <label className={styles.manualAdjustField}>
+              <span className="tiny subdued">
+                Thumbnail alt ({tutorialDraft.thumbnailAlt.trim().length}/
+                {ADMIN_DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH})
+              </span>
+              <input
+                className={styles.searchInput}
+                type="text"
+                value={tutorialDraft.thumbnailAlt}
+                onChange={(event) => updateTutorialDraft({ thumbnailAlt: event.target.value })}
+                maxLength={ADMIN_DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH}
+                placeholder="Animated preview of the tutorial"
+                disabled={tutorialSaving}
+              />
+            </label>
+
+            <label className={styles.dashboardTutorialToggle}>
+              <input
+                type="checkbox"
+                checked={tutorialDraft.isActive}
+                onChange={(event) => updateTutorialDraft({ isActive: event.target.checked })}
+                disabled={tutorialSaving}
+              />
+              <span>Show this tutorial on user dashboards</span>
+            </label>
+
+            <div className={styles.announcementActions}>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => void saveTutorialDraft()}
+                disabled={tutorialSaving || tutorialsLoading}
+              >
+                {tutorialSaving ? "Saving…" : "Save tutorial"}
+              </button>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => startNewTutorial()}
+                disabled={tutorialSaving}
+              >
+                Clear form
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {tutorialError ? (
+          <AppMessage
+            className={styles.announcementError}
+            tone="error"
+            mode="banner"
+            message={tutorialError}
+          />
+        ) : null}
+        {tutorialResult ? (
+          <AppMessage
+            className={styles.announcementResult}
+            tone="success"
+            mode="banner"
+            message={tutorialResult}
+          />
+        ) : null}
       </section>
     </AdminRouteShell>
   );

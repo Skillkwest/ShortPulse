@@ -160,6 +160,24 @@ describe("Admin announcements tab", () => {
       if (path === "/api/admin/announcements/clear") {
         return jsonResponse({ ok: true });
       }
+      if (path === "/api/admin/dashboard/tutorials") {
+        return jsonResponse({
+          tutorials: [
+            {
+              id: "tutorial-1",
+              title: "Existing tutorial",
+              youtubeUrl: "https://www.youtube.com/watch?v=existing",
+              thumbnailUrl: "https://cdn.example.com/existing.gif",
+              thumbnailMediaType: "image",
+              thumbnailAlt: "Existing tutorial preview",
+              displayOrder: 1,
+              isActive: true,
+              createdAt: "2026-06-10T00:00:00.000Z",
+              updatedAt: "2026-06-10T00:00:00.000Z",
+            },
+          ],
+        });
+      }
       throw new Error(`Unexpected URL: ${path}`);
     });
   });
@@ -197,6 +215,74 @@ describe("Admin announcements tab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear active announcement" }));
     await waitFor(() =>
       expect(screen.getByText("Active announcement cleared.")).toBeInTheDocument()
+    );
+  });
+
+  it("loads and saves dashboard tutorial cards", async () => {
+    fetchWithAuthMock.mockImplementation(async (url: unknown, init?: { method?: string }) => {
+      const path = String(url);
+      if (path === "/api/admin/announcements/current") {
+        return jsonResponse({ announcement: null });
+      }
+      if (path === "/api/admin/dashboard/tutorials" && init?.method === "GET") {
+        return jsonResponse({
+          tutorials: [
+            {
+              id: "tutorial-1",
+              title: "Existing tutorial",
+              youtubeUrl: "https://www.youtube.com/watch?v=existing",
+              thumbnailUrl: "https://cdn.example.com/existing.gif",
+              thumbnailMediaType: "image",
+              thumbnailAlt: "Existing tutorial preview",
+              displayOrder: 1,
+              isActive: true,
+              createdAt: "2026-06-10T00:00:00.000Z",
+              updatedAt: "2026-06-10T00:00:00.000Z",
+            },
+          ],
+        });
+      }
+      if (path === "/api/admin/dashboard/tutorials" && init?.method === "POST") {
+        return jsonResponse({
+          tutorial: {
+            id: "tutorial-2",
+            title: "Create your first project",
+            youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+            thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+            thumbnailMediaType: "image",
+            thumbnailAlt: "Animated project tutorial preview",
+            displayOrder: 2,
+            isActive: true,
+            createdAt: "2026-06-10T00:00:00.000Z",
+            updatedAt: "2026-06-10T00:00:00.000Z",
+          },
+          message: "Tutorial saved and active.",
+        });
+      }
+      throw new Error(`Unexpected URL: ${path}`);
+    });
+
+    render(<AdminAnnouncementsPage />);
+
+    await waitFor(() => expect(screen.getByText("Existing tutorial")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "New tutorial" }));
+    fireEvent.change(screen.getByPlaceholderText("Create your first project"), {
+      target: { value: "Create your first project" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("https://www.youtube.com/watch?v=..."), {
+      target: { value: "https://www.youtube.com/watch?v=abc123" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("https://..."), {
+      target: { value: "https://cdn.example.com/tutorial.gif" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save tutorial" }));
+
+    await waitFor(() => expect(screen.getByText("Tutorial saved and active.")).toBeInTheDocument());
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/admin/dashboard/tutorials",
+      expect.objectContaining({ method: "POST" })
     );
   });
 });

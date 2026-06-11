@@ -333,6 +333,14 @@ describe("Admin agent instructions page", () => {
         stylePrompt: "dramatic editorial lighting, rich contrast, polished color grade",
         previewImageUrl: "data:image/jpeg;base64,uploaded-built-in-style-preview",
       },
+      {
+        styleId: "lo-fi-noir",
+        title: "Lo-fi Noir",
+        stylePrompt: "grainy black-and-white street photography, strong contrast",
+        previewImageUrl: "data:image/jpeg;base64,uploaded-built-in-style-preview",
+        referenceImageName: null,
+        schemaVersion: 1,
+      },
     ];
 
     fetchWithAuthMock.mockImplementation(async (input: string, init?: { method?: string }) => {
@@ -364,7 +372,12 @@ describe("Admin agent instructions page", () => {
     if (!stylesCard) throw new Error("Expected built-in Styles card.");
     const cinematicTile = within(stylesCard).getByText("Cinematic").closest("article");
     if (!cinematicTile) throw new Error("Expected Cinematic style tile.");
-    expect(within(cinematicTile).getByText("Stored").closest("button")).toBeNull();
+    expect(within(cinematicTile).queryByText("Stored")).not.toBeInTheDocument();
+    expect(within(cinematicTile).queryByRole("textbox", { name: "Style ID" })).toBeNull();
+    expect(within(cinematicTile).queryByLabelText("Preview image URL")).toBeNull();
+    expect(
+      within(cinematicTile).queryByRole("textbox", { name: "Reference image name" })
+    ).toBeNull();
     expect(within(cinematicTile).getByRole("textbox", { name: "Style name" })).toHaveValue(
       "Cinematic"
     );
@@ -375,7 +388,7 @@ describe("Admin agent instructions page", () => {
     fireEvent.change(within(cinematicTile).getByRole("textbox", { name: "Style Prompt" }), {
       target: { value: "dramatic editorial lighting, rich contrast, polished color grade" },
     });
-    const previewUploadInput = within(cinematicTile).getByLabelText("Preview image upload");
+    const previewUploadInput = within(cinematicTile).getByLabelText("Preview image");
     const previewFile = new File(["style-preview"], "cinematic-preview.png", {
       type: "image/png",
     });
@@ -388,11 +401,12 @@ describe("Admin agent instructions page", () => {
       expect(resolveProcessedStyleSourceMock).toHaveBeenCalledWith({ file: previewFile });
     });
     await waitFor(() => {
-      expect(within(cinematicTile).getByLabelText("Preview image URL")).toHaveValue(
+      expect(within(cinematicTile).getByAltText("Editorial Cinematic preview")).toHaveAttribute(
+        "src",
         "data:image/jpeg;base64,uploaded-built-in-style-preview"
       );
     });
-    expect(within(cinematicTile).getByText("Unsaved edits")).toBeInTheDocument();
+    expect(within(stylesCard).getByText("Unsaved edits")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Add built-in Style/i }));
     expect(screen.getByText("Style 2")).toBeInTheDocument();
@@ -400,6 +414,31 @@ describe("Admin agent instructions page", () => {
     if (!newStyleCard) throw new Error("Expected new Style card.");
     fireEvent.click(within(newStyleCard).getByRole("button", { name: /Delete Style 2/i }));
     expect(screen.queryByText("Style 2")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Add built-in Style/i }));
+    const derivedStyleCard = screen.getByText("Style 2").closest("article");
+    if (!derivedStyleCard) throw new Error("Expected derived Style card.");
+    fireEvent.change(within(derivedStyleCard).getByRole("textbox", { name: "Style name" }), {
+      target: { value: "Lo-fi Noir" },
+    });
+    fireEvent.change(within(derivedStyleCard).getByRole("textbox", { name: "Style Prompt" }), {
+      target: { value: "grainy black-and-white street photography, strong contrast" },
+    });
+    fireEvent.change(within(derivedStyleCard).getByLabelText("Preview image"), {
+      target: {
+        files: [
+          new File(["lo-fi-preview"], "lo-fi-noir.png", {
+            type: "image/png",
+          }),
+        ],
+      },
+    });
+    await waitFor(() => {
+      expect(within(derivedStyleCard).getByAltText("Lo-fi Noir preview")).toHaveAttribute(
+        "src",
+        "data:image/jpeg;base64,uploaded-built-in-style-preview"
+      );
+    });
 
     fireEvent.click(within(stylesCard).getByRole("button", { name: "Save Styles set" }));
 
@@ -433,11 +472,20 @@ describe("Admin agent instructions page", () => {
           referenceImageName: null,
           schemaVersion: 1,
         },
+        {
+          styleId: "lo-fi-noir",
+          title: "Lo-fi Noir",
+          stylePrompt: "grainy black-and-white street photography, strong contrast",
+          previewImageUrl: "data:image/jpeg;base64,uploaded-built-in-style-preview",
+          referenceImageName: null,
+          schemaVersion: 1,
+        },
       ],
       expectedUpdatedAt: "2026-05-05T18:00:00.000Z",
     });
 
     expect(within(stylesCard).getByText("Editorial Cinematic")).toBeInTheDocument();
+    expect(within(stylesCard).getByText("Lo-fi Noir")).toBeInTheDocument();
     fireEvent.change(within(cinematicTile).getByRole("textbox", { name: "Style name" }), {
       target: { value: "Temporary style name" },
     });

@@ -1080,6 +1080,83 @@ describe("ReferenceGridCard", () => {
     expect(pauseMock).toHaveBeenCalled();
   });
 
+  it("renders audio download and grid remove together in the card action row", () => {
+    const onDownload = vi.fn();
+    const onDeleteOutput = vi.fn();
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "audio-ref-1",
+            mode: "audio",
+            taskState: "success",
+            durationMs: 30_000,
+          }),
+          activeOutputId: "audio-ref-1",
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio.mp3",
+          onDownload,
+          onDeleteOutput,
+          onSelectOutput,
+        })}
+      />
+    );
+
+    const downloadButton = screen.getByLabelText("Download reference");
+    const removeButton = screen.getByLabelText("Remove reference from grid");
+    const actionRow = downloadButton.parentElement;
+
+    expect(actionRow).toHaveClass("reference-card-actions");
+    expect(removeButton.parentElement).toBe(actionRow);
+    expect(container.querySelector(".reference-card-audio-download")).toBeNull();
+
+    fireEvent.click(downloadButton);
+    expect(onSelectOutput).toHaveBeenCalledWith("audio-ref-1");
+    expect(onDownload).toHaveBeenCalledWith(expect.objectContaining({ id: "audio-ref-1" }));
+
+    fireEvent.click(removeButton);
+    expect(onDeleteOutput).toHaveBeenCalledWith("audio-ref-1");
+  });
+
+  it("renders audio download and curated remove together in the curated action row", () => {
+    const onDownload = vi.fn();
+    const onRemoveCuratedReference = vi.fn();
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "audio-ref-1",
+            mode: "audio",
+            taskState: "success",
+            durationMs: 30_000,
+          }),
+          activeOutputId: "audio-ref-1",
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio.mp3",
+          onDownload,
+          onRemoveCuratedReference,
+          showCuratedRemoveAction: true,
+        })}
+      />
+    );
+
+    const downloadButton = screen.getByLabelText("Download reference");
+    const removeButton = screen.getByLabelText("Remove from curated");
+    const actionRow = downloadButton.parentElement;
+
+    expect(actionRow).toHaveAttribute("aria-label", "Curated actions");
+    expect(actionRow).toHaveClass("reference-card-actions");
+    expect(removeButton.parentElement).toBe(actionRow);
+    expect(container.querySelector(".reference-card-audio-download")).toBeNull();
+
+    fireEvent.click(downloadButton);
+    expect(onDownload).toHaveBeenCalledWith(expect.objectContaining({ id: "audio-ref-1" }));
+
+    fireEvent.click(removeButton);
+    expect(onRemoveCuratedReference).toHaveBeenCalledWith("audio-ref-1");
+  });
+
   it("pauses the previously active audio preview when another card starts playback", () => {
     const onRequestAudioPlay = vi.fn();
     const onAudioPlaybackStopped = vi.fn();

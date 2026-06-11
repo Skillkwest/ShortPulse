@@ -591,6 +591,24 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Atomically deactivates current active row and inserts a new active row with `published_at`.
   - Uses advisory lock serialization for deterministic one-active semantics under concurrent publish calls.
 
+### dashboard_tutorials
+
+- `id` (uuid, pk, default `gen_random_uuid()`).
+- `title` (text, required): Trimmed tutorial title (`btrim`) with length `1..120`.
+- `youtube_url` (text, required): HTTPS YouTube destination. Runtime validation accepts `youtube.com`, `www.youtube.com`, `m.youtube.com`, and `youtu.be`.
+- `thumbnail_url` (text, required): HTTPS image/GIF/video thumbnail asset URL. Thumbnail storage/upload is outside the current contract.
+- `thumbnail_media_type` (text, default `image`): `image | video`; GIF thumbnails use `image`.
+- `thumbnail_alt` (text, default `''`): Optional trimmed thumbnail description, max 160 characters.
+- `display_order` (integer, default `0`): Global dashboard grid order.
+- `is_active` (boolean, default `true`): Whether the card appears on signed-in dashboards.
+- `created_by` / `updated_by` (uuid, nullable fk -> `auth.users.id`): Admin attribution.
+- `created_at` / `updated_at` (timestamptz, default UTC now).
+- RLS: enabled with authenticated read policy limited to active rows; direct browser writes are not allowed.
+- Integrity:
+  - Active and admin-order indexes support dashboard and admin grid reads.
+  - Update trigger stamps `updated_at` on row mutation.
+  - Admin writes flow through `/api/admin/dashboard/tutorials` with service-role Supabase access.
+
 ### admin_kanban_items
 
 - `id` (uuid, pk, default `gen_random_uuid()`).

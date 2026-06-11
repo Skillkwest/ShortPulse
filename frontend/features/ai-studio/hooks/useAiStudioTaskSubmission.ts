@@ -265,6 +265,8 @@ export const useAiStudioTaskSubmission = ({
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const normalizedTool = normalizeSubmissionTool(effectiveTool);
+      const isVideoSubmission = effectiveMode === "video" || normalizedTool === "video";
+      const submitTool: ToolId | null = isVideoSubmission ? "video" : effectiveTool;
       const cleanedSubmissionPrompt = (promptArg ?? prompt).trim();
       const cleanedDisplayPrompt = (options?.displayPromptOverride ?? promptArg ?? prompt).trim();
 
@@ -278,13 +280,12 @@ export const useAiStudioTaskSubmission = ({
         referenceMode: videoReferenceMode,
       });
       const requestedModel = options?.modelIdOverride ?? model;
-      const finalModel =
-        normalizedTool === "video" || normalizedTool === "kling"
-          ? resolveAutoVideoModelForLane({
-              currentModel: requestedModel,
-              lane: resolvedVideoLane,
-            })
-          : requestedModel;
+      const finalModel = isVideoSubmission
+        ? resolveAutoVideoModelForLane({
+            currentModel: requestedModel,
+            lane: resolvedVideoLane,
+          })
+        : requestedModel;
       const internalMediaRefs = dedupeInternalMediaRefs(
         [
           ...(options?.internalMediaRefsOverride ?? []),
@@ -300,12 +301,10 @@ export const useAiStudioTaskSubmission = ({
         ? Boolean(finalModelConfig?.supportsImageToImage)
         : Boolean(finalModelConfig?.supportsImageToImage && !finalModelConfig?.supportsTextToImage);
       const isLipSyncSubmission =
-        (normalizedTool === "video" || normalizedTool === "kling") &&
+        isVideoSubmission &&
         videoReferenceMode === "lip-sync" &&
         finalModel === FAL_OMNIHUMAN_V15_MODEL_ID;
-      const isMotionControlSubmission =
-        (normalizedTool === "video" || normalizedTool === "kling") &&
-        videoReferenceMode === "motion";
+      const isMotionControlSubmission = isVideoSubmission && videoReferenceMode === "motion";
       const activeMotionReferenceVideoUrl = isMotionControlSubmission
         ? motionReferenceVideoUrl
         : null;
@@ -347,7 +346,7 @@ export const useAiStudioTaskSubmission = ({
 
       const submissionOwner: AiStudioSubmitPanelKey =
         options?.submissionOwner ??
-        (effectiveTool === "video" || effectiveTool === "kling"
+        (isVideoSubmission
           ? "video"
           : effectiveTool === "image" || effectiveTool === "edit"
             ? "edit"
@@ -372,8 +371,7 @@ export const useAiStudioTaskSubmission = ({
           requestedAspect,
           modelConfig?.defaultAspect ?? "16:9"
         );
-        const isVideoGeneration =
-          effectiveMode === "video" || effectiveTool === "video" || effectiveTool === "kling";
+        const isVideoGeneration = isVideoSubmission;
         const isImageGeneration =
           effectiveMode === "image" || effectiveTool === "image" || effectiveTool === "edit";
         const requestedDurationSeconds = isVideoGeneration
@@ -394,12 +392,11 @@ export const useAiStudioTaskSubmission = ({
           ? videoGenerateAudio
           : (modelConfig?.defaultAudio ?? true);
 
-        const outputMode: StudioMode =
-          effectiveTool === "video" || effectiveTool === "kling"
-            ? "video"
-            : effectiveTool === "image" || effectiveTool === "edit"
-              ? "image"
-              : effectiveMode;
+        const outputMode: StudioMode = isVideoSubmission
+          ? "video"
+          : effectiveTool === "image" || effectiveTool === "edit"
+            ? "image"
+            : effectiveMode;
 
         const nextOutput = buildPendingSubmissionOutput({
           id,
@@ -436,7 +433,7 @@ export const useAiStudioTaskSubmission = ({
           const prepared = await prepareSubmissionReferenceInputs({
             outputId: id,
             modelId: finalModel,
-            tool: effectiveTool,
+            tool: submitTool,
             imageInputs,
             inpaintOverride: options?.inpaintOverride,
             timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
@@ -505,7 +502,7 @@ export const useAiStudioTaskSubmission = ({
           ? null
           : buildSubmissionReplaySnapshot({
               mode: outputMode,
-              submitTool: effectiveTool,
+              submitTool,
               modelId: finalModel,
               displayPrompt: cleanedDisplayPrompt,
               submissionPrompt: cleanedSubmissionPrompt,
@@ -527,7 +524,7 @@ export const useAiStudioTaskSubmission = ({
           ? null
           : buildSubmissionWorkflowReloadSnapshot({
               outputMode,
-              originTool: effectiveTool,
+              originTool: submitTool,
               panelKind: outputMode === "video" ? "video" : isEditWorkflow ? "edit" : "create",
               projectId,
               modelId: finalModel,
@@ -599,9 +596,9 @@ export const useAiStudioTaskSubmission = ({
             : null;
         const usesPricingGridDisplay =
           (outputMode === "image" && (effectiveTool === "create" || effectiveTool === "edit")) ||
-          (outputMode === "video" && effectiveTool === "video");
+          (outputMode === "video" && submitTool === "video");
         const shortpulseContext = {
-          selected_tool: effectiveTool,
+          selected_tool: submitTool,
           mode: outputMode,
           source_ref: sourceRef,
           project_id: projectId ?? null,
@@ -641,7 +638,7 @@ export const useAiStudioTaskSubmission = ({
           : ({} as Record<string, never>);
 
         const requiresStandardVideoReference =
-          normalizedTool === "video" && resolvedVideoLane === "single-image" && isImageToVideoModel;
+          isVideoSubmission && resolvedVideoLane === "single-image" && isImageToVideoModel;
         if (requiresStandardVideoReference && preparedImageInputs.length < 1) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",
@@ -711,7 +708,7 @@ export const useAiStudioTaskSubmission = ({
             createSubmissionLifecycleCallbacks({
               outputId: id,
               modelId: finalModel,
-              tool: effectiveTool,
+              tool: submitTool,
               requestedDurationSeconds,
               requestedResolution,
               requestedAudio,
@@ -818,7 +815,7 @@ export const useAiStudioTaskSubmission = ({
               metadata: {
                 output_id: id,
                 model_id: finalModel,
-                tool: effectiveTool,
+                tool: submitTool,
                 reason_code: "AUTH_SESSION_TIMEOUT",
                 timeout_ms: error.timeoutMs,
               },
@@ -843,7 +840,7 @@ export const useAiStudioTaskSubmission = ({
               metadata: {
                 output_id: id,
                 model_id: finalModel,
-                tool: effectiveTool,
+                tool: submitTool,
                 reason_code: "SUBMIT_NOT_STARTED",
                 detail: submissionError.detail ?? null,
               },
@@ -859,7 +856,7 @@ export const useAiStudioTaskSubmission = ({
               metadata: {
                 output_id: id,
                 model_id: finalModel,
-                tool: effectiveTool,
+                tool: submitTool,
                 task_started: taskStarted,
                 started_task_id: startedTaskId,
                 started_provider: startedProvider,
@@ -892,7 +889,7 @@ export const useAiStudioTaskSubmission = ({
               metadata: {
                 output_id: id,
                 model_id: finalModel,
-                tool: effectiveTool,
+                tool: submitTool,
                 started_task_id: recoveredTaskId,
                 started_provider: recoveredProvider,
                 lifecycle_mode: startedLifecycleMode,
@@ -934,7 +931,7 @@ export const useAiStudioTaskSubmission = ({
                   metadata: {
                     output_id: id,
                     model_id: finalModel,
-                    tool: effectiveTool,
+                    tool: submitTool,
                     started_task_id: startedTaskId,
                     started_provider: startedProvider,
                     recovery_error_message: recoveryMessage,

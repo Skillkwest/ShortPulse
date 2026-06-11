@@ -814,14 +814,31 @@
   gap: 8px;
 }
 
+.agentBuiltInStylePreviewUpload {
+  position: relative;
+  width: fit-content;
+  cursor: pointer;
+}
+
 .agentBuiltInStylePreviewFrame {
-  display: block;
+  display: grid;
+  place-items: center;
   width: min(100%, 180px);
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid rgba(120, 132, 146, 0.24);
   background: #0f1317;
+  color: var(--admin-text-muted);
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.agentBuiltInStylePreviewUpload:hover .agentBuiltInStylePreviewFrame,
+.agentBuiltInStylePreviewUpload:focus-within .agentBuiltInStylePreviewFrame {
+  border-color: rgba(255, 196, 92, 0.78);
+  box-shadow: 0 0 0 3px rgba(255, 196, 92, 0.12);
 }
 
 .agentBuiltInStylePreviewImage {
@@ -829,6 +846,36 @@
   height: 100%;
   display: block;
   object-fit: cover;
+}
+
+.agentBuiltInStylePreviewPlaceholder {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agentBuiltInStylePreviewPlaceholderIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 132, 146, 0.36);
+  color: var(--admin-text-strong);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.agentBuiltInStylePreviewInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .agentInstructionMetaGrid {
@@ -3476,6 +3523,122 @@
   color: var(--admin-text-muted);
 }
 
+.dashboardTutorialActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dashboardTutorialManager {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
+  gap: 14px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.dashboardTutorialPreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.dashboardTutorialPreviewCard {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-2);
+}
+
+.dashboardTutorialPreviewInactive {
+  opacity: 0.62;
+}
+
+.dashboardTutorialPreviewButton {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 0 0 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboardTutorialPreviewButton:focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: -2px;
+}
+
+.dashboardTutorialPreviewMedia {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--admin-surface-0);
+}
+
+.dashboardTutorialPreviewImage,
+.dashboardTutorialPreviewMedia video {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dashboardTutorialPreviewImage {
+  background-position: center;
+  background-size: cover;
+}
+
+.dashboardTutorialPreviewMedia video {
+  object-fit: cover;
+}
+
+.dashboardTutorialPreviewTitle {
+  padding: 0 10px;
+  color: var(--admin-text-strong);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.dashboardTutorialPreviewButton :global(.tiny) {
+  padding: 0 10px;
+}
+
+.dashboardTutorialCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+
+.dashboardTutorialForm {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-2);
+}
+
+.dashboardTutorialFormRow {
+  display: grid;
+  grid-template-columns: 1fr 0.7fr;
+  gap: 10px;
+}
+
+.dashboardTutorialToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--admin-text-muted);
+  font-size: 13px;
+}
+
 .pricingPolicyStatusBar {
   display: grid;
   gap: 14px;
@@ -4410,6 +4573,10 @@
     grid-template-columns: 1fr;
   }
 
+  .dashboardTutorialManager {
+    grid-template-columns: 1fr;
+  }
+
   .statsWorkspaceTitleRow,
   .adminSectionHead {
     align-items: flex-start;
@@ -4591,5 +4758,14 @@
   .statsWorkspaceHero,
   .adminSection {
     padding: 14px;
+  }
+
+  .dashboardTutorialFormRow {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardTutorialActions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }

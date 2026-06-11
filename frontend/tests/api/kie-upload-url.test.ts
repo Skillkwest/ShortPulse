@@ -149,28 +149,19 @@ describe("POST /api/kie/upload-url", () => {
     });
   });
 
-  it("uses Kie stream upload directly for Supabase signed URLs", async () => {
-    const sourceBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "image/png" }),
-        arrayBuffer: async () => sourceBytes.buffer,
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          msg: "File uploaded successfully",
-          data: {
-            downloadUrl: "https://tempfile.redpandaai.co/files/streamed-image.png",
-            fileName: "streamed-image.png",
-            mimeType: "image/png",
-          },
-        }),
-      } as Response);
+  it("uses Kie URL upload first for Supabase signed URLs", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        data: {
+          downloadUrl: "https://tempfile.redpandaai.co/files/signed-image.png",
+          fileName: "signed-image.png",
+          mimeType: "image/png",
+        },
+      }),
+    } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
     const req = createMockRequest({
@@ -187,44 +178,29 @@ describe("POST /api/kie/upload-url", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "https://project.supabase.co/storage/v1/object/sign/media_library/user/ref.png?token=abc"
-    );
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
-    const secondCall = fetchMock.mock.calls[1]?.[1] as { body?: FormData; headers?: HeadersInit };
-    expect(secondCall.headers).toEqual(
-      expect.objectContaining({
-        Authorization: "Bearer kie-test-key",
-      })
-    );
-    expect(secondCall.body).toBeInstanceOf(FormData);
-    expect((secondCall.body as FormData).get("uploadPath")).toBe("shortpulse/kie-video/images");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-url-upload");
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/signed-image.png",
+      fileName: "signed-image.png",
+      mimeType: "image/png",
+    });
   });
 
-  it("treats uppercase signed-query URLs as stream uploads", async () => {
-    const sourceBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "image/png" }),
-        arrayBuffer: async () => sourceBytes.buffer,
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          msg: "File uploaded successfully",
-          data: {
-            downloadUrl: "https://tempfile.redpandaai.co/files/streamed-aws-image.png",
-            fileName: "streamed-aws-image.png",
-            mimeType: "image/png",
-          },
-        }),
-      } as Response);
+  it("uses Kie URL upload first for uppercase signed-query URLs", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        data: {
+          downloadUrl: "https://tempfile.redpandaai.co/files/signed-aws-image.png",
+          fileName: "signed-aws-image.png",
+          mimeType: "image/png",
+        },
+      }),
+    } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
     const req = createMockRequest({
@@ -241,11 +217,8 @@ describe("POST /api/kie/upload-url", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "https://cdn.example.com/ref.png?X-Amz-Signature=abc123&X-Amz-Security-Token=session-token"
-    );
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-url-upload");
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -458,15 +431,24 @@ describe("POST /api/kie/upload-url", () => {
   });
 
   it("rejects stream uploads that exceed the remote source size limit", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      headers: new Headers({
-        "content-type": "image/png",
-        "content-length": String(101 * 1024 * 1024),
-      }),
-      arrayBuffer: async () => new ArrayBuffer(0),
-    } as Response);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({
+          msg: "Forbidden",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          "content-type": "image/png",
+          "content-length": String(101 * 1024 * 1024),
+        }),
+        arrayBuffer: async () => new ArrayBuffer(0),
+      } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
     const req = createMockRequest({
@@ -483,7 +465,7 @@ describe("POST /api/kie/upload-url", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(413);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid upload request",

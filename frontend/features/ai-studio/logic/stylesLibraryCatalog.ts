@@ -3,8 +3,9 @@
  * Keeps the page-level catalog order deterministic across the library panel and right rail.
  */
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
+import { BUILT_IN_STYLE_ID_MAX_LENGTH } from "../../../lib/model-runtime/builtInStyles";
 
-export const STYLES_LIBRARY_MAX_STYLE_ID_LENGTH = 160;
+export const STYLES_LIBRARY_MAX_STYLE_ID_LENGTH = BUILT_IN_STYLE_ID_MAX_LENGTH;
 
 /**
  * Normalizes one Styles Library id for persistence-safe reads/writes.

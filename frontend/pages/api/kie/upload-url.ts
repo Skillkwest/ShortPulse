@@ -5,7 +5,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
-import { prefersKieRemoteStreamUpload } from "../../../lib/kieUploadSourceUrl";
 import { readProviderApiKey } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 
 const KIE_FILE_URL_UPLOAD_ENDPOINT =
@@ -253,20 +252,12 @@ const attemptKieUploadWithFallback = async ({
   primaryResult: UploadAttemptResult;
   fallbackResult: UploadAttemptResult | null;
 }> => {
-  const prefersStreamUpload = prefersKieRemoteStreamUpload(sourceUrl);
-  const primaryResult = prefersStreamUpload
-    ? await uploadFileStreamToKie({
-        apiKey,
-        sourceUrl,
-        uploadPath,
-        fileName,
-      })
-    : await uploadFileUrlToKie({
-        apiKey,
-        fileUrl: sourceUrl.toString(),
-        uploadPath,
-        fileName,
-      });
+  const primaryResult = await uploadFileUrlToKie({
+    apiKey,
+    fileUrl: sourceUrl.toString(),
+    uploadPath,
+    fileName,
+  });
 
   if (!shouldFallbackUrlUploadToRemoteStream(primaryResult)) {
     return {

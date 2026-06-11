@@ -200,6 +200,10 @@ Current set:
 - `147_add_plan_concurrency_entitlements.sql`
 - `148_add_generation_projection_workflow_reload.sql`
 - `149_add_generation_projection_workspace_runtime_key.sql`
+- `150_restore_dashboard_announcement_publish_grants.sql`
+- `151_add_ai_studio_builtin_style_control_plane.sql`
+- `152_add_audio_generation_display_title.sql`
+- `153_add_dashboard_tutorials.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

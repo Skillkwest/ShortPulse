@@ -18,6 +18,16 @@ export type DashboardAnnouncement = {
   updatedAt: string | null;
 };
 
+export type DashboardTutorial = {
+  id: string;
+  title: string;
+  youtubeUrl: string;
+  thumbnailUrl: string;
+  thumbnailMediaType: "image" | "video";
+  thumbnailAlt: string;
+  displayOrder: number;
+};
+
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
 export type DashboardToolCard = {
@@ -35,6 +45,7 @@ export type DashboardToolCard = {
 type AuthenticatedDashboardViewProps = {
   dashboardAnnouncement: DashboardAnnouncement | null;
   dashboardFallbackHelperCopy: string;
+  dashboardTutorials: DashboardTutorial[];
   firstName: string;
   hideLegacySections: boolean;
   isCreatingProject: boolean;
@@ -50,6 +61,7 @@ type AuthenticatedDashboardViewProps = {
 export function AuthenticatedDashboardView({
   dashboardAnnouncement,
   dashboardFallbackHelperCopy,
+  dashboardTutorials,
   firstName,
   hideLegacySections,
   isCreatingProject,
@@ -156,6 +168,51 @@ export function AuthenticatedDashboardView({
           </div>
         </div>
       </section>
+
+      {dashboardTutorials.length > 0 ? (
+        <section
+          className="dashboard-tutorials-section"
+          aria-labelledby="dashboard-tutorials-heading"
+        >
+          <div className="dashboard-section-header">
+            <div>
+              <p className="eyebrow tiny">Tutorial hub</p>
+              <h2 id="dashboard-tutorials-heading">Start with a guided walkthrough</h2>
+            </div>
+          </div>
+          <div className="dashboard-tutorial-grid">
+            {dashboardTutorials.map((tutorial) => (
+              <a
+                key={tutorial.id}
+                className="dashboard-tutorial-card"
+                href={tutorial.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${tutorial.title}: open tutorial on YouTube`}
+              >
+                <span className="dashboard-tutorial-thumbnail" aria-hidden="true">
+                  {tutorial.thumbnailMediaType === "video" ? (
+                    <video
+                      src={tutorial.thumbnailUrl}
+                      muted
+                      loop
+                      playsInline
+                      autoPlay
+                      preload="metadata"
+                    />
+                  ) : (
+                    <span
+                      className="dashboard-tutorial-thumbnail-image"
+                      style={{ backgroundImage: `url(${JSON.stringify(tutorial.thumbnailUrl)})` }}
+                    />
+                  )}
+                </span>
+                <span className="dashboard-tutorial-title">{tutorial.title}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {!hideLegacySections ? (
         <section className="tools-section" aria-labelledby="tools-heading">

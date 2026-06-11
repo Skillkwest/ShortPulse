@@ -168,17 +168,22 @@ describe("Dashboard announcement rendering", () => {
   });
 
   it("renders active announcement title and message when available", async () => {
-    fetchWithAuthMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        announcement: {
-          id: "ann-1",
-          title: "Maintenance window",
-          message: "AI Studio saves may be briefly delayed at 2AM UTC.",
-          publishedAt: "2026-03-10T00:00:00.000Z",
-          updatedAt: "2026-03-10T00:00:00.000Z",
-        },
-      }),
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (String(url) === "/api/dashboard/tutorials") {
+        return { ok: true, json: async () => ({ tutorials: [] }) };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          announcement: {
+            id: "ann-1",
+            title: "Maintenance window",
+            message: "AI Studio saves may be briefly delayed at 2AM UTC.",
+            publishedAt: "2026-03-10T00:00:00.000Z",
+            updatedAt: "2026-03-10T00:00:00.000Z",
+          },
+        }),
+      };
     });
 
     render(<DashboardPage />);
@@ -191,9 +196,14 @@ describe("Dashboard announcement rendering", () => {
   });
 
   it("renders fallback helper copy when no active announcement exists", async () => {
-    fetchWithAuthMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ announcement: null }),
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (String(url) === "/api/dashboard/tutorials") {
+        return { ok: true, json: async () => ({ tutorials: [] }) };
+      }
+      return {
+        ok: true,
+        json: async () => ({ announcement: null }),
+      };
     });
 
     render(<DashboardPage />);
@@ -203,6 +213,42 @@ describe("Dashboard announcement rendering", () => {
         screen.getByText(/launch surface for analytics, creator ops, and storage/i)
       ).toBeInTheDocument()
     );
+    await vi.dynamicImportSettled();
+  });
+
+  it("renders active dashboard tutorial cards from the global tutorial hub", async () => {
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (String(url) === "/api/dashboard/tutorials") {
+        return {
+          ok: true,
+          json: async () => ({
+            tutorials: [
+              {
+                id: "tutorial-1",
+                title: "Create your first project",
+                youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+                thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+                thumbnailMediaType: "image",
+                thumbnailAlt: "Animated project creation preview",
+                displayOrder: 1,
+              },
+            ],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ announcement: null }),
+      };
+    });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => expect(screen.getByText("Create your first project")).toBeInTheDocument());
+    const tutorialLink = screen.getByRole("link", {
+      name: "Create your first project: open tutorial on YouTube",
+    });
+    expect(tutorialLink).toHaveAttribute("href", "https://www.youtube.com/watch?v=abc123");
     await vi.dynamicImportSettled();
   });
 

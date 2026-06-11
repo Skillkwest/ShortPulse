@@ -241,10 +241,16 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   ]
     .filter(Boolean)
     .join(" ");
+  const shouldShowCuratedActionRow = Boolean(
+    showCuratedRemoveAction && onRemoveCuratedReference && isSelected
+  );
   const shouldShowReferenceActionRow = Boolean(
-    shouldShowSaveAction ||
-    (onDownload && canDownloadReference && (isImagePreview || isVideoPreview)) ||
-    onDeleteOutput
+    !shouldShowCuratedActionRow &&
+    (shouldShowSaveAction ||
+      (onDownload &&
+        canDownloadReference &&
+        (isImagePreview || isVideoPreview || isAudioPreview)) ||
+      onDeleteOutput)
   );
   const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
   const resolvedFailureSubtitle = isFailing ? resolveReferenceFailureSubtitle(item) : null;
@@ -558,13 +564,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           pauseLabel="Pause audio preview"
           downloadLabel="Download reference"
           onActivate={() => onSelectOutput(item.id)}
-          onDownload={
-            onDownload && canDownloadReference
-              ? () => {
-                  onDownload(item);
-                }
-              : undefined
-          }
           onReady={markCardMediaLoaded}
           onError={() => {
             if (!effectiveIsLoading) {
@@ -699,9 +698,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           </button>
         </div>
       ) : null}
-      {showCuratedRemoveAction && onRemoveCuratedReference && isSelected ? (
+      {shouldShowCuratedActionRow ? (
         <div className="reference-card-actions" aria-label="Curated actions">
-          {onDownload && canDownloadReference && (isImagePreview || isVideoPreview) ? (
+          {onDownload &&
+          canDownloadReference &&
+          (isImagePreview || isVideoPreview || isAudioPreview) ? (
             <button
               type="button"
               className="reference-card-action-btn"
@@ -721,7 +722,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             aria-label="Remove from curated"
             onClick={(event) => {
               event.stopPropagation();
-              onRemoveCuratedReference(item.id);
+              onRemoveCuratedReference?.(item.id);
             }}
           >
             <X size={16} weight="bold" aria-hidden />
@@ -796,7 +797,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               {saveIcon}
             </button>
           ) : null}
-          {onDownload && canDownloadReference && (isImagePreview || isVideoPreview) ? (
+          {onDownload &&
+          canDownloadReference &&
+          (isImagePreview || isVideoPreview || isAudioPreview) ? (
             <button
               type="button"
               className="reference-card-action-btn"

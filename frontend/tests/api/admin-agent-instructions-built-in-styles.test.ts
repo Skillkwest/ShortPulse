@@ -152,6 +152,33 @@ describe("admin built-in Styles API", () => {
     });
   });
 
+  it("rejects non-canonical built-in style ids", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        styleDefinitions: [
+          {
+            styleId: "Bad Style ID",
+            title: "Bad Style ID",
+            stylePrompt: "prompt",
+            previewImageUrl: "/Styles/Bad.png",
+            schemaVersion: 1,
+          },
+        ],
+        expectedUpdatedAt: "2026-06-10T18:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveBuiltInStyleCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Each built-in style must have a unique style id, title, style prompt, and preview image URL.",
+    });
+  });
+
   it("returns 409 when the stored built-in Styles catalog is stale", async () => {
     saveBuiltInStyleCatalogMock.mockRejectedValue(
       new MockBuiltInStyleCatalogVersionMismatchError()

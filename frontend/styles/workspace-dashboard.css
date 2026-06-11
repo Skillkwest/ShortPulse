@@ -770,6 +770,95 @@ button.hero-onboarding {
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.38);
 }
 
+.dashboard-tutorials-section {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  gap: 18px;
+  margin: 0 0 var(--spacing-28);
+}
+
+.dashboard-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-section-header h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.dashboard-tutorial-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.dashboard-tutorial-card {
+  display: grid;
+  grid-template-rows: auto minmax(52px, auto);
+  overflow: hidden;
+  min-width: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: rgba(18, 21, 29, 0.86);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
+  transition:
+    transform var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.dashboard-tutorial-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(37, 169, 191, 0.48);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.38);
+}
+
+.dashboard-tutorial-card:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 3px;
+}
+
+.dashboard-tutorial-thumbnail {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: rgba(7, 9, 13, 0.92);
+}
+
+.dashboard-tutorial-thumbnail-image,
+.dashboard-tutorial-thumbnail video {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dashboard-tutorial-thumbnail-image {
+  background-position: center;
+  background-size: cover;
+}
+
+.dashboard-tutorial-thumbnail video {
+  object-fit: cover;
+}
+
+.dashboard-tutorial-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 14px 16px 16px;
+  color: #f8fbff;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
 .tools-section {
   position: relative;
   z-index: 5;

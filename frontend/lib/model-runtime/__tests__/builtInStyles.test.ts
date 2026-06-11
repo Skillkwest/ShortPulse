@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  BUILT_IN_STYLE_ID_MAX_LENGTH,
   SEEDED_BUILT_IN_STYLE_DEFINITIONS,
+  createBuiltInStyleIdFromTitle,
+  normalizeBuiltInStyleId,
   normalizeBuiltInStyleDefinitions,
+  resolveUniqueBuiltInStyleId,
   resolveBuiltInStyleDefinitions,
 } from "../builtInStyles";
 
@@ -54,5 +58,39 @@ describe("built-in Styles domain", () => {
         schemaVersion: 1,
       },
     ]);
+  });
+
+  it("derives canonical style ids from admin-entered style names", () => {
+    expect(createBuiltInStyleIdFromTitle(" Lo-fi Noir ")).toBe("lo-fi-noir");
+    expect(createBuiltInStyleIdFromTitle("Cell phone snapshot")).toBe("cell-phone-snapshot");
+    expect(createBuiltInStyleIdFromTitle("Crème Brûlée Look")).toBe("creme-brulee-look");
+    expect(createBuiltInStyleIdFromTitle("!!!", "built-in-style-4")).toBe("built-in-style-4");
+  });
+
+  it("enforces canonical built-in style id format and length", () => {
+    expect(normalizeBuiltInStyleId("lo-fi-noir")).toBe("lo-fi-noir");
+    expect(normalizeBuiltInStyleId("Lo Fi Noir")).toBeNull();
+    expect(normalizeBuiltInStyleId("lo_fi_noir")).toBeNull();
+    expect(normalizeBuiltInStyleId("x".repeat(BUILT_IN_STYLE_ID_MAX_LENGTH + 1))).toBeNull();
+    expect(createBuiltInStyleIdFromTitle("A ".repeat(200)).length).toBeLessThanOrEqual(
+      BUILT_IN_STYLE_ID_MAX_LENGTH
+    );
+  });
+
+  it("resolves unique ids without changing existing canonical ids", () => {
+    const usedStyleIds = new Set(["lo-fi-noir", "lo-fi-noir-2"]);
+    expect(
+      resolveUniqueBuiltInStyleId({
+        preferredStyleId: "cinematic",
+        title: "Editorial Cinematic",
+        usedStyleIds,
+      })
+    ).toBe("cinematic");
+    expect(
+      resolveUniqueBuiltInStyleId({
+        title: "Lo-fi Noir",
+        usedStyleIds,
+      })
+    ).toBe("lo-fi-noir-3");
   });
 });

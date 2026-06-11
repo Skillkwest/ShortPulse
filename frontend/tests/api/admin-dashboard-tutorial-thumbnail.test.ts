@@ -92,6 +92,34 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
     expect(getSupabaseAdminMock).toHaveBeenCalledTimes(1);
   });
 
+  it("returns an actionable storage setup error when the thumbnail bucket is missing", async () => {
+    const createSignedUploadUrlMock = vi.fn(async () => ({
+      data: null,
+      error: { message: "Bucket not found" },
+    }));
+    const storageFromMock = vi.fn(() => ({ createSignedUploadUrl: createSignedUploadUrlMock }));
+    getSupabaseAdminMock.mockReturnValue({ storage: { from: storageFromMock } });
+
+    const req = {
+      method: "POST",
+      body: {
+        sourceMimeType: "image/gif",
+        sourceSize: 1234,
+      },
+    };
+    const res = createMockResponse();
+
+    await prepareHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Thumbnail storage is not ready.",
+      details:
+        "Apply sql/migrations/154_add_dashboard_tutorial_thumbnail_uploads.sql in this environment.",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
   it("finalizes an uploaded thumbnail and returns a signed original URL", async () => {
     const downloadMock = vi.fn(async () => ({
       data: {

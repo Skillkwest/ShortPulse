@@ -63,6 +63,8 @@ const MIME_TYPE_TO_EXTENSION: Record<DashboardTutorialThumbnailContentType, stri
 };
 
 const ALLOWED_MIME_TYPES = new Set<string>(DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES);
+const STORAGE_SETUP_DETAILS =
+  "Apply sql/migrations/154_add_dashboard_tutorial_thumbnail_uploads.sql in this environment.";
 
 const asPositiveSafeInteger = (value: unknown): number | null => {
   const numeric = typeof value === "number" ? value : Number(value);
@@ -76,6 +78,34 @@ const normalizeMimeType = (value: unknown): DashboardTutorialThumbnailContentTyp
   return ALLOWED_MIME_TYPES.has(normalized)
     ? (normalized as DashboardTutorialThumbnailContentType)
     : null;
+};
+
+const isMissingBucketStorageError = (error: unknown): boolean => {
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message ?? "")
+      : "";
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("bucket") &&
+    (normalized.includes("not found") ||
+      normalized.includes("does not exist") ||
+      normalized.includes("not exist"))
+  );
+};
+
+const createStorageSetupError = (): DashboardTutorialAssetError =>
+  new DashboardTutorialAssetError(503, "Thumbnail storage is not ready.", STORAGE_SETUP_DETAILS);
+
+const throwStorageOperationError = (error: unknown, fallback: string): never => {
+  if (isMissingBucketStorageError(error)) {
+    throw createStorageSetupError();
+  }
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message ?? "")
+      : "";
+  throw new Error(message || fallback);
 };
 
 const resolveMediaType = (mimeType: DashboardTutorialThumbnailContentType): "image" | "video" =>
@@ -196,13 +226,14 @@ export const prepareDashboardTutorialThumbnailUpload = async (
     .from(DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET)
     .createSignedUploadUrl(storagePath);
 
-  if (error || !data?.path || !data.token) {
-    throw new Error(error?.message || "Unable to prepare thumbnail upload.");
+  if (error || !data || !data.path || !data.token) {
+    throwStorageOperationError(error, "Unable to prepare thumbnail upload.");
   }
+  const signedUploadTarget = data as NonNullable<typeof data>;
 
   return {
-    storagePath: data.path,
-    uploadToken: data.token,
+    storagePath: signedUploadTarget.path,
+    uploadToken: signedUploadTarget.token,
     mimeType,
     mediaType: resolveMediaType(mimeType),
     maxBytes: DASHBOARD_TUTORIAL_THUMBNAIL_MAX_BYTES,
@@ -234,10 +265,11 @@ export const finalizeDashboardTutorialThumbnailUpload = async (
     .download(storagePath);
 
   if (downloadError || !downloaded) {
-    throw new Error(downloadError?.message || "Unable to verify thumbnail upload.");
+    throwStorageOperationError(downloadError, "Unable to verify thumbnail upload.");
   }
+  const uploadedObject = downloaded as NonNullable<typeof downloaded>;
 
-  const objectSize = downloaded.size;
+  const objectSize = uploadedObject.size;
   if (objectSize <= 0) {
     throw new DashboardTutorialAssetError(400, "Thumbnail upload is empty.");
   }
@@ -245,7 +277,7 @@ export const finalizeDashboardTutorialThumbnailUpload = async (
     throw new DashboardTutorialAssetError(413, "Thumbnail file is too large.");
   }
 
-  const bytes = new Uint8Array(await downloaded.arrayBuffer());
+  const bytes = new Uint8Array(await uploadedObject.arrayBuffer());
   const detectedMimeType = detectMimeType(bytes);
   if (!detectedMimeType || !isCompatibleDetectedMimeType({ declaredMimeType, detectedMimeType })) {
     throw new DashboardTutorialAssetError(
@@ -278,9 +310,10 @@ export const signDashboardTutorialThumbnailUrl = async (
     .from(DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET)
     .createSignedUrl(storagePath, DASHBOARD_TUTORIAL_THUMBNAIL_SIGNED_URL_TTL_SECONDS);
 
-  if (error || !data?.signedUrl) {
-    throw new Error(error?.message || "Unable to sign thumbnail URL.");
+  if (error || !data || !data.signedUrl) {
+    throwStorageOperationError(error, "Unable to sign thumbnail URL.");
   }
+  const signedUrlData = data as NonNullable<typeof data>;
 
-  return data.signedUrl;
+  return signedUrlData.signedUrl;
 };

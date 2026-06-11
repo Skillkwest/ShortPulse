@@ -119,7 +119,25 @@ const asRecord = (value: unknown): Record<string, unknown> =>
 
 const readResponseError = async (response: Response, fallback: string): Promise<string> => {
   const payload = asRecord(await response.json().catch(() => ({})));
-  return typeof payload.error === "string" && payload.error.trim() ? payload.error : fallback;
+  const error = typeof payload.error === "string" ? payload.error.trim() : "";
+  const details = typeof payload.details === "string" ? payload.details.trim() : "";
+  const message = error || fallback;
+  return details ? `${message} ${details}` : `${message} (HTTP ${response.status}).`;
+};
+
+const inferThumbnailMimeTypeFromFile = (file: File): string => {
+  const declaredType = file.type.trim().toLowerCase();
+  if (declaredType) return declaredType;
+
+  const normalizedName = file.name.trim().toLowerCase();
+  if (normalizedName.endsWith(".gif")) return "image/gif";
+  if (normalizedName.endsWith(".jpg") || normalizedName.endsWith(".jpeg")) return "image/jpeg";
+  if (normalizedName.endsWith(".png")) return "image/png";
+  if (normalizedName.endsWith(".webp")) return "image/webp";
+  if (normalizedName.endsWith(".mp4")) return "video/mp4";
+  if (normalizedName.endsWith(".mov")) return "video/quicktime";
+  if (normalizedName.endsWith(".webm")) return "video/webm";
+  return "";
 };
 
 const asPreparedUploadTarget = (
@@ -228,13 +246,14 @@ export const useAdminDashboardTutorialsController = ({
     setError(null);
     setResult(null);
     try {
+      const sourceMimeType = inferThumbnailMimeTypeFromFile(file);
       const prepareResponse = await fetchWithAuth(
         "/api/admin/dashboard/tutorial-thumbnail/prepare",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            sourceMimeType: file.type,
+            sourceMimeType,
             sourceSize: file.size,
           }),
         }

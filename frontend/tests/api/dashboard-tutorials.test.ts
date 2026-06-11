@@ -103,6 +103,63 @@ describe("GET /api/dashboard/tutorials", () => {
     });
   });
 
+  it("falls back to legacy URL-only tutorial reads while storage columns are pending", async () => {
+    const limitMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message: "Could not find the 'thumbnail_storage_path' column in the schema cache",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "tutorial-1",
+            title: "Create a project",
+            youtube_url: "https://www.youtube.com/watch?v=abc123",
+            thumbnail_url: "https://cdn.example.com/tutorial.gif",
+            thumbnail_media_type: "image",
+            thumbnail_alt: "Animated project creation preview",
+            display_order: 1,
+            is_active: true,
+            created_at: "2026-06-10T00:00:00.000Z",
+            updated_at: "2026-06-10T00:00:00.000Z",
+          },
+        ],
+        error: null,
+      });
+    const orderUpdatedMock = vi.fn(() => ({ limit: limitMock }));
+    const orderDisplayMock = vi.fn(() => ({ order: orderUpdatedMock }));
+    const eqMock = vi.fn(() => ({ order: orderDisplayMock }));
+    const selectMock = vi.fn(() => ({ eq: eqMock }));
+    const fromMock = vi.fn(() => ({ select: selectMock }));
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(selectMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("thumbnail_storage_path")
+    );
+    expect(selectMock).toHaveBeenNthCalledWith(
+      2,
+      expect.not.stringContaining("thumbnail_storage_path")
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      tutorials: [
+        expect.objectContaining({
+          id: "tutorial-1",
+          thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+          thumbnailStoragePath: null,
+        }),
+      ],
+    });
+  });
+
   it("returns 401 when caller is unauthenticated", async () => {
     requireApiUserMock.mockImplementationOnce(async (_req: unknown, res: MockResponse) => {
       res.status(401).json({ error: "Unauthorized" });

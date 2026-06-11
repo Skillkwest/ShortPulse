@@ -162,8 +162,58 @@ const emptyNormalizedTutorial = (): Omit<DashboardTutorial, "id" | "createdAt" |
   isActive: true,
 });
 
-const TUTORIAL_SELECT =
+const TUTORIAL_SELECT_WITH_STORAGE =
   "id, title, youtube_url, thumbnail_url, thumbnail_storage_path, thumbnail_file_size_bytes, thumbnail_content_type, thumbnail_media_type, thumbnail_alt, display_order, is_active, created_at, updated_at";
+const TUTORIAL_SELECT_LEGACY =
+  "id, title, youtube_url, thumbnail_url, thumbnail_media_type, thumbnail_alt, display_order, is_active, created_at, updated_at";
+
+const missingTutorialStorageColumns = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as { code?: unknown; message?: unknown };
+  const code = typeof maybeError.code === "string" ? maybeError.code : "";
+  const message = typeof maybeError.message === "string" ? maybeError.message.toLowerCase() : "";
+  return (
+    code === "42703" ||
+    message.includes("thumbnail_storage_path") ||
+    message.includes("thumbnail_file_size_bytes") ||
+    message.includes("thumbnail_content_type") ||
+    (message.includes("schema cache") && message.includes("thumbnail"))
+  );
+};
+
+const serializeTutorialRows = async (
+  supabaseAdmin: SupabaseAdminClient,
+  rows: unknown[] | null
+): Promise<DashboardTutorial[]> => {
+  const tutorials = await Promise.all(
+    (Array.isArray(rows) ? rows : []).map((row) => toDashboardTutorial(supabaseAdmin, row))
+  );
+  return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
+};
+
+const selectActiveDashboardTutorialRows = async (
+  supabaseAdmin: SupabaseAdminClient,
+  columns: string,
+  limit: number
+) =>
+  await supabaseAdmin
+    .from("dashboard_tutorials")
+    .select(columns)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true })
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+const selectAdminDashboardTutorialRows = async (
+  supabaseAdmin: SupabaseAdminClient,
+  columns: string
+) =>
+  await supabaseAdmin
+    .from("dashboard_tutorials")
+    .select(columns)
+    .order("display_order", { ascending: true })
+    .order("updated_at", { ascending: false })
+    .limit(100);
 
 /**
  * Validates and normalizes one dashboard tutorial payload.
@@ -270,22 +320,29 @@ export const readActiveDashboardTutorials = async (
     ? Math.trunc(limit)
     : DASHBOARD_TUTORIAL_PUBLIC_LIMIT;
   const boundedLimit = Math.max(1, Math.min(normalizedLimit, DASHBOARD_TUTORIAL_PUBLIC_LIMIT));
-  const { data, error } = await supabaseAdmin
-    .from("dashboard_tutorials")
-    .select(TUTORIAL_SELECT)
-    .eq("is_active", true)
-    .order("display_order", { ascending: true })
-    .order("updated_at", { ascending: false })
-    .limit(boundedLimit);
+  const { data, error } = await selectActiveDashboardTutorialRows(
+    supabaseAdmin,
+    TUTORIAL_SELECT_WITH_STORAGE,
+    boundedLimit
+  );
+
+  if (error && missingTutorialStorageColumns(error)) {
+    const legacyResult = await selectActiveDashboardTutorialRows(
+      supabaseAdmin,
+      TUTORIAL_SELECT_LEGACY,
+      boundedLimit
+    );
+    if (legacyResult.error) {
+      throw new Error(legacyResult.error.message || "Failed to load dashboard tutorials.");
+    }
+    return serializeTutorialRows(supabaseAdmin, legacyResult.data);
+  }
 
   if (error) {
     throw new Error(error.message || "Failed to load dashboard tutorials.");
   }
 
-  const tutorials = await Promise.all(
-    (Array.isArray(data) ? data : []).map((row) => toDashboardTutorial(supabaseAdmin, row))
-  );
-  return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
+  return serializeTutorialRows(supabaseAdmin, data);
 };
 
 /**
@@ -294,21 +351,27 @@ export const readActiveDashboardTutorials = async (
 export const readAdminDashboardTutorials = async (
   supabaseAdmin: SupabaseAdminClient
 ): Promise<DashboardTutorial[]> => {
-  const { data, error } = await supabaseAdmin
-    .from("dashboard_tutorials")
-    .select(TUTORIAL_SELECT)
-    .order("display_order", { ascending: true })
-    .order("updated_at", { ascending: false })
-    .limit(100);
+  const { data, error } = await selectAdminDashboardTutorialRows(
+    supabaseAdmin,
+    TUTORIAL_SELECT_WITH_STORAGE
+  );
+
+  if (error && missingTutorialStorageColumns(error)) {
+    const legacyResult = await selectAdminDashboardTutorialRows(
+      supabaseAdmin,
+      TUTORIAL_SELECT_LEGACY
+    );
+    if (legacyResult.error) {
+      throw new Error(legacyResult.error.message || "Failed to load dashboard tutorials.");
+    }
+    return serializeTutorialRows(supabaseAdmin, legacyResult.data);
+  }
 
   if (error) {
     throw new Error(error.message || "Failed to load dashboard tutorials.");
   }
 
-  const tutorials = await Promise.all(
-    (Array.isArray(data) ? data : []).map((row) => toDashboardTutorial(supabaseAdmin, row))
-  );
-  return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
+  return serializeTutorialRows(supabaseAdmin, data);
 };
 
 /**
@@ -342,15 +405,49 @@ export const saveDashboardTutorial = async (
         .from("dashboard_tutorials")
         .update(row)
         .eq("id", args.id)
-        .select(TUTORIAL_SELECT)
+        .select(TUTORIAL_SELECT_WITH_STORAGE)
         .maybeSingle()
     : await supabaseAdmin
         .from("dashboard_tutorials")
         .insert({ ...row, created_by: args.actorUserId })
-        .select(TUTORIAL_SELECT)
+        .select(TUTORIAL_SELECT_WITH_STORAGE)
         .maybeSingle();
 
   if (result.error) {
+    if (!usesStoredThumbnail && missingTutorialStorageColumns(result.error)) {
+      const legacyRow = {
+        title: args.tutorial.title,
+        youtube_url: args.tutorial.youtubeUrl,
+        thumbnail_url: args.tutorial.thumbnailUrl,
+        thumbnail_media_type: args.tutorial.thumbnailMediaType,
+        thumbnail_alt: args.tutorial.thumbnailAlt,
+        display_order: args.tutorial.displayOrder,
+        is_active: args.tutorial.isActive,
+        updated_by: args.actorUserId,
+      };
+      const legacyResult = args.id
+        ? await supabaseAdmin
+            .from("dashboard_tutorials")
+            .update(legacyRow)
+            .eq("id", args.id)
+            .select(TUTORIAL_SELECT_LEGACY)
+            .maybeSingle()
+        : await supabaseAdmin
+            .from("dashboard_tutorials")
+            .insert({ ...legacyRow, created_by: args.actorUserId })
+            .select(TUTORIAL_SELECT_LEGACY)
+            .maybeSingle();
+
+      if (legacyResult.error) {
+        throw new Error(legacyResult.error.message || "Failed to save dashboard tutorial.");
+      }
+
+      const legacyTutorial = await toDashboardTutorial(supabaseAdmin, legacyResult.data);
+      if (!legacyTutorial) {
+        throw new Error("Saved dashboard tutorial payload is invalid.");
+      }
+      return legacyTutorial;
+    }
     throw new Error(result.error.message || "Failed to save dashboard tutorial.");
   }
 
@@ -390,8 +487,5 @@ export const reorderDashboardTutorials = async (
     throw new Error(error.message || "Failed to reorder dashboard tutorials.");
   }
 
-  const tutorials = await Promise.all(
-    (Array.isArray(data) ? data : []).map((row) => toDashboardTutorial(supabaseAdmin, row))
-  );
-  return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
+  return serializeTutorialRows(supabaseAdmin, Array.isArray(data) ? data : []);
 };

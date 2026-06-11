@@ -133,6 +133,48 @@ describe("/api/admin/dashboard/tutorials", () => {
     });
   });
 
+  it("loads the admin tutorial catalog through the legacy URL-only schema when storage columns are pending", async () => {
+    const limitMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: "42703",
+          message: "column dashboard_tutorials.thumbnail_storage_path does not exist",
+        },
+      })
+      .mockResolvedValueOnce({ data: [savedTutorialRow], error: null });
+    const orderUpdatedMock = vi.fn(() => ({ limit: limitMock }));
+    const orderDisplayMock = vi.fn(() => ({ order: orderUpdatedMock }));
+    const selectMock = vi.fn(() => ({ order: orderDisplayMock }));
+    const fromMock = vi.fn(() => ({ select: selectMock }));
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(selectMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("thumbnail_storage_path")
+    );
+    expect(selectMock).toHaveBeenNthCalledWith(
+      2,
+      expect.not.stringContaining("thumbnail_storage_path")
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      tutorials: [
+        expect.objectContaining({
+          id: "tutorial-1",
+          thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+          thumbnailStoragePath: null,
+        }),
+      ],
+    });
+  });
+
   it("stores uploaded thumbnail paths instead of temporary signed URLs", async () => {
     const storedTutorialRow = {
       ...savedTutorialRow,

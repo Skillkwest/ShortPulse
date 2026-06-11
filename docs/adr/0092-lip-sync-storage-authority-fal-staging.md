@@ -33,7 +33,12 @@ but submit previously staged the display URL when preparing Fal CDN inputs.
    `/api/media/upload` Media Library upload path before submit-time Fal staging.
 5. The Fal staging helper verifies the returned Fal CDN URL before returning
    success, so OmniHuman submit does not receive an unverified staged URL.
-6. UI/UX remains unchanged: Lip Sync still presents product-only controls,
+6. The Fal submit proxy enforces the same boundary before billing/provider
+   dispatch: OmniHuman `image_url` and `audio_url` must be Fal CDN URLs.
+7. Fal OmniHuman result settlement is model-aware. Echoed input fields such as
+   `image_url` and `audio_url` are not generated media; only generated video
+   fields may become Lip Sync output URLs.
+8. UI/UX remains unchanged: Lip Sync still presents product-only controls,
    requires character image plus voice audio, and sends only provider-supported
    OmniHuman fields upstream.
 
@@ -47,6 +52,8 @@ Positive:
    submit and reload.
 3. Provider-facing `image_url` and `audio_url` stay derived, last-mile Fal CDN
    values.
+4. Completed Lip Sync jobs cannot create image-copy result cards from provider
+   input echoes.
 
 Tradeoffs:
 
@@ -64,3 +71,7 @@ This decision is implemented correctly only when:
 3. `/api/fal/upload-url` rejects storage paths outside the caller namespace.
 4. `/api/fal/upload-url` verifies returned Fal CDN URLs before success.
 5. External URL-only media still stages through the existing public URL branch.
+6. OmniHuman submit rejects non-Fal-CDN `image_url` or `audio_url` before
+   billing/provider dispatch.
+7. OmniHuman status/webhook settlement ignores input echoes and records only
+   generated video URLs.

@@ -87,4 +87,53 @@ describe("useAiStudioOutputDerivations", () => {
     expect(result.current.detailOutput).toBe(detailOutput);
     expect(result.current.currentModelLabel).toBe("Custom (fal-ai/seedream/v4.5)");
   });
+
+  it("keeps the selected detail output stable when active output indexing briefly misses it", () => {
+    const detailOutput = makeOutput("detail-1");
+    const { result, rerender } = renderHook(
+      ({
+        activeOutputById,
+        detailOutputId,
+      }: {
+        activeOutputById: Record<string, StudioOutput>;
+        detailOutputId: string | null;
+      }) =>
+        useAiStudioOutputDerivations({
+          outputs: Object.values(activeOutputById),
+          activeOutputById,
+          detailSelectionTarget: detailOutputId
+            ? {
+                kind: "studio-output",
+                outputId: detailOutputId,
+                surface: "reference-grid",
+                outputSnapshot: detailOutput,
+              }
+            : null,
+          detailOutputId,
+          model: null,
+        }),
+      {
+        initialProps: {
+          activeOutputById: { [detailOutput.id]: detailOutput },
+          detailOutputId: detailOutput.id as string | null,
+        },
+      }
+    );
+
+    expect(result.current.detailOutput).toBe(detailOutput);
+
+    rerender({
+      activeOutputById: {},
+      detailOutputId: detailOutput.id,
+    });
+
+    expect(result.current.detailOutput).toBe(detailOutput);
+
+    rerender({
+      activeOutputById: {},
+      detailOutputId: null,
+    });
+
+    expect(result.current.detailOutput).toBeNull();
+  });
 });

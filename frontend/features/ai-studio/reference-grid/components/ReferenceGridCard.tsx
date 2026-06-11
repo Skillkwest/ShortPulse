@@ -83,7 +83,7 @@ export type ReferenceGridCardProps = {
   renderContainPreview?: boolean;
   audioBackgroundImageUrl?: string | null;
   onSelectOutput: (id: string) => void;
-  onOpenDetails: (id: string) => void;
+  onOpenDetails: (id: string, output?: StudioOutput) => void;
   onCardDragStart: (
     event: React.DragEvent<HTMLElement>,
     item: StudioOutput,
@@ -437,8 +437,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     onSelectOutput(item.id);
   }, [item.id, onSelectOutput]);
   const handleCardDoubleClick = React.useCallback(() => {
-    onOpenDetails(item.id);
-  }, [item.id, onOpenDetails]);
+    onOpenDetails(item.id, item);
+  }, [item, onOpenDetails]);
 
   return (
     <div

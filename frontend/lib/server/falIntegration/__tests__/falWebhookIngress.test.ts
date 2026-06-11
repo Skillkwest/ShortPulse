@@ -63,6 +63,7 @@ describe("falWebhookIngress", () => {
       generationId: null,
       generationAttemptId: null,
       userId: null,
+      modelId: null,
       sourceRef: null,
       requestId: null,
       providerRequestId: "req-1",
@@ -372,6 +373,63 @@ describe("falWebhookIngress", () => {
         observation: expect.objectContaining({
           mediaUrls: ["https://cdn.shortpulse.test/from-webhook.png"],
         }),
+      })
+    );
+  });
+
+  it("does not pass OmniHuman echoed input URLs into immediate webhook recovery", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: "gen-1",
+      generationAttemptId: "attempt-1",
+      userId: "user-1",
+      modelId: "fal-ai/bytedance/omnihuman/v1.5",
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "req-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
+    });
+    readPersistedGenerationStatusContextMock.mockResolvedValue({
+      generationId: "gen-1",
+      resultUrls: [],
+      taskState: "running",
+    });
+
+    await ingestFalWebhookEvent({
+      payload: parseFalWebhookPayload(
+        JSON.stringify({
+          id: "event-1",
+          request_id: "req-1",
+          status: "completed",
+          payload: {
+            image_url: "https://v3.fal.media/files/input-character.png",
+            audio_url: "https://v3.fal.media/files/input-voice.mp3",
+          },
+        })
+      ),
+      headers: {
+        requestId: "req-1",
+        userId: "fal-user-1",
+        eventId: "event-1",
+        timestamp: "123",
+      },
+      verificationMethod: "fal",
+      payloadHash: "hash-1",
+      maxAttempts: 5,
+    });
+
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        observation: expect.objectContaining({
+          mediaUrls: [],
+        }),
+      })
+    );
+    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        observationType: "completed",
       })
     );
   });

@@ -109,6 +109,29 @@ describe("useAiStudioReferenceGridProps", () => {
     expect(handleReloadWorkflowOutput).toHaveBeenCalledWith("out-1");
   });
 
+  it("stores the selected output snapshot when opening details", () => {
+    const openDetailSelectionTarget = vi.fn();
+    const setDetailOutputId = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioReferenceGridProps(
+        createParams({
+          openDetailSelectionTarget,
+          setDetailOutputId,
+        })
+      )
+    );
+
+    result.current.onOpenDetails("out-1", output);
+
+    expect(openDetailSelectionTarget).toHaveBeenCalledWith({
+      kind: "studio-output",
+      outputId: "out-1",
+      surface: "reference-grid",
+      outputSnapshot: output,
+    });
+    expect(setDetailOutputId).toHaveBeenCalledWith("out-1");
+  });
+
   it("preserves non-action props for canvas rendering state", () => {
     const archivedOutput: StudioOutput = {
       ...output,

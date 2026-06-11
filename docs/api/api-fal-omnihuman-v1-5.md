@@ -40,7 +40,11 @@ Allowed resolutions:
 Output:
 
 - `video.url`
+- `video_url` or `videos[]` when returned by provider/result envelopes
 - `duration` when returned by provider
+
+Input echoes such as `image_url` and `audio_url` are not generated output media
+and must not create Lip Sync result cards.
 
 ## ShortPulse Defaults And Guardrails
 
@@ -52,6 +56,7 @@ Output:
 - Local voice-audio picker/drop source files upload through `/api/media/upload`
   before they become ready Lip Sync state.
 - ShortPulse blocks known over-limit audio before provider submit.
-- The Lip Sync submit adapter stages both the selected character image and voice audio through `/api/fal/upload-url`; upstream `image_url` and `audio_url` should be verified Fal CDN URLs, not Kie temporary upload URLs. When app-owned storage authority is known, the adapter submits storage paths to the staging helper instead of reusing signed/display URLs.
+- The Lip Sync submit adapter stages both the selected character image and voice audio through `/api/fal/upload-url`; upstream `image_url` and `audio_url` must be verified Fal CDN URLs, not Kie temporary upload URLs. When app-owned storage authority is known, the adapter submits storage paths to the staging helper instead of reusing signed/display URLs.
+- The submit proxy rejects OmniHuman requests before billing/provider dispatch if either upstream media URL is not on the Fal CDN.
 - Billing duration is carried in `shortpulse_context`; duration is not sent as an upstream provider field.
 - Generated wrapper routes strip ShortPulse sidecars before provider submit.

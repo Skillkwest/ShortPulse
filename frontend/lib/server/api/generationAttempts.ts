@@ -50,6 +50,7 @@ export type GenerationAttemptLookupRow = {
   generationId: string | null;
   userId: string | null;
   attemptNumber: number | null;
+  modelId: string | null;
   providerRequestId: string | null;
   metadata: JsonObject;
 };
@@ -174,7 +175,7 @@ export const lookupGenerationAttemptByProviderRequest = async ({
 
   const query = getSupabaseAdmin()
     .from("generation_attempts")
-    .select("id, generation_id, user_id, attempt_number, provider_request_id, metadata")
+    .select("id, generation_id, user_id, attempt_number, model_id, provider_request_id, metadata")
     .eq("provider_request_id", normalizedProviderRequestId)
     .order("attempt_number", { ascending: false })
     .limit(1);
@@ -197,6 +198,7 @@ export const lookupGenerationAttemptByProviderRequest = async ({
           generationId: asString(row.generation_id),
           userId: asString(row.user_id),
           attemptNumber: asNumber(row.attempt_number),
+          modelId: asString(row.model_id),
           providerRequestId: asString(row.provider_request_id),
           metadata: asObject(row.metadata),
         }
@@ -292,7 +294,7 @@ export const lookupLatestGenerationAttempt = async ({
 }> => {
   const { data, error } = await getSupabaseAdmin()
     .from("generation_attempts")
-    .select("id, generation_id, user_id, attempt_number, provider_request_id, metadata")
+    .select("id, generation_id, user_id, attempt_number, model_id, provider_request_id, metadata")
     .eq("generation_id", generationId)
     .eq("user_id", userId)
     .order("attempt_number", { ascending: false })
@@ -315,6 +317,7 @@ export const lookupLatestGenerationAttempt = async ({
           generationId: asString(row.generation_id),
           userId: asString(row.user_id),
           attemptNumber: asNumber(row.attempt_number),
+          modelId: asString(row.model_id),
           providerRequestId: asString(row.provider_request_id),
           metadata: asObject(row.metadata),
         }

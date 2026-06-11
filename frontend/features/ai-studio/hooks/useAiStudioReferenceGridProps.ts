@@ -103,11 +103,12 @@ export const useAiStudioReferenceGridProps = ({
       onOutputMediaLoaded: onReferenceOutputMediaLoaded,
       linkedPromptReferenceIds,
       onSelectOutput: handleSelectOutput,
-      onOpenDetails: (id) => {
+      onOpenDetails: (id, output) => {
         openDetailSelectionTarget({
           kind: "studio-output",
           outputId: id,
           surface: "reference-grid",
+          ...(output ? { outputSnapshot: output } : {}),
         });
         setDetailOutputId(id);
       },

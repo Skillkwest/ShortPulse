@@ -285,8 +285,8 @@ describe("createFalSubmitHandler", () => {
       method: "POST",
       body: {
         prompt: "Subtle performance.",
-        image_url: "https://example.com/character.png",
-        audio_url: "https://example.com/voice.mp3",
+        image_url: "https://v3.fal.media/files/character.png",
+        audio_url: "https://v3.fal.media/files/voice.mp3",
         resolution: "720p",
       },
       headers: {
@@ -309,8 +309,8 @@ describe("createFalSubmitHandler", () => {
           },
         ],
         payload: expect.objectContaining({
-          image_url: "https://example.com/character.png",
-          audio_url: "https://example.com/voice.mp3",
+          image_url: "https://v3.fal.media/files/character.png",
+          audio_url: "https://v3.fal.media/files/voice.mp3",
           resolution: "720p",
         }),
       })
@@ -320,6 +320,53 @@ describe("createFalSubmitHandler", () => {
       expect.objectContaining({
         request_id: "req-direct-1",
         generationId: expect.any(String),
+      })
+    );
+  });
+
+  it("rejects OmniHuman submits before billing when media is not Fal CDN staged", async () => {
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/bytedance/omnihuman/v1.5",
+      submitUrl: "https://queue.fal.run/fal-ai/bytedance/omnihuman/v1.5",
+      routeLabel: "Fal OmniHuman v1.5",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "Subtle performance.",
+        image_url: "https://example.com/character.png",
+        audio_url: "https://v3.fal.media/files/voice.mp3",
+        resolution: "720p",
+      },
+      headers: {
+        host: "shortpulse.ai",
+        "x-forwarded-proto": "https",
+      },
+      url: "/api/fal/omnihuman-v15-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.lip_sync_media_not_staged",
+        statusCode: 400,
+        metadata: expect.objectContaining({
+          code: "LIP_SYNC_MEDIA_NOT_STAGED",
+          detail: expect.objectContaining({
+            invalid_fields: ["image_url"],
+          }),
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "LIP_SYNC_MEDIA_NOT_STAGED",
       })
     );
   });

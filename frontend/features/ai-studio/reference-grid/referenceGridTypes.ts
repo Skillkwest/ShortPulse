@@ -31,7 +31,7 @@ export type ReferenceGridProps = {
   onOutputMediaLoaded?: (id: string) => void;
   linkedPromptReferenceIds?: string[];
   onSelectOutput: (id: string) => void;
-  onOpenDetails: (id: string) => void;
+  onOpenDetails: (id: string, output?: StudioOutput) => void;
   selectedTool: ToolId | null;
   onDropFiles?: (files: FileList) => void;
   onPasteTextReference?: (text: string) => void;

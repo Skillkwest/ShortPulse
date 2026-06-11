@@ -87,7 +87,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Prompt text is optional; empty prompt is valid when required image/audio inputs are present.
 - Local voice-audio file picker/drop inputs upload through `/api/media/upload` into app-owned durable audio storage and must reach a ready state before submit; already reachable Media Library / Reference Grid / Canvas audio URLs remain accepted when durable.
 - Audio duration guardrails are enforced before provider submit: `1080p` requires audio under `30s` and `720p` requires audio under `60s`.
-- Before Fal OmniHuman submit, the Lip Sync adapter stages the selected character image and voice audio through `/api/fal/upload-url` so upstream `image_url` and `audio_url` values are verified Fal CDN URLs. App-owned media must stage from caller-owned storage paths when storage authority is known; signed/display URLs are accepted only for URL-only media. Do not route Lip Sync source intake through `/api/upload-audio`, and do not route Lip Sync provider staging through `/api/kie/upload-url`.
+- Before Fal OmniHuman submit, the Lip Sync adapter stages the selected character image and voice audio through `/api/fal/upload-url` so upstream `image_url` and `audio_url` values are verified Fal CDN URLs. App-owned media must stage from caller-owned storage paths when storage authority is known; signed/display URLs are accepted only for URL-only media. The server submit proxy rejects OmniHuman requests before billing/provider dispatch when either final URL is not on the Fal CDN. Do not route Lip Sync source intake through `/api/upload-audio`, and do not route Lip Sync provider staging through `/api/kie/upload-url`.
 - The submit adapter sends only provider-supported fields upstream (`image_url`, `audio_url`, `resolution`, optional `prompt`, optional `turbo_mode`) plus ShortPulse sidecars that generated route wrappers strip before provider dispatch.
 - Billing uses shared pricing policy at `$0.16` per audio/output second, with duration carried in `shortpulse_context` for server-authoritative debit.
 
@@ -156,7 +156,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Result ingestion & previews
 
-- Status polling (`hooks/taskSubmission/queueStatusPolling.ts`) normalizes provider responses and extracts video URLs from multiple shapes: `video.url`, `video_url`, or `videos[]` (and their nested `data/output/result` variants).
+- Status polling (`hooks/taskSubmission/queueStatusPolling.ts`) normalizes provider responses and extracts video URLs from multiple shapes: `video.url`, `video_url`, or `videos[]` (and their nested `data/output/result` variants). For Fal OmniHuman Lip Sync, result settlement is model-aware: `image_url`, `audio_url`, and other echoed input fields are ignored, and only generated video fields may create a completed output card.
 - When a video URL is present, it is stored as `previewUrl` and rendered as an autoplaying muted loop in both Reference Grid cards and Studio Preview; images still use CSS backgrounds.
 - If a completed task returns a URL but no card appears, verify the URL shape matches the handled keys above and that the dev server has been restarted after code changes.
 

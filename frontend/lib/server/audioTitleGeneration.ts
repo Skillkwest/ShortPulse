@@ -3,7 +3,7 @@ import { fetchOpenAiCompatibleChatCompletion } from "./api/openAiCompat";
 
 export const GENERATED_SONG_TITLE_MAX_CHARACTERS = 40;
 
-const TITLE_GENERATION_TIMEOUT_MS = 8_000;
+const TITLE_GENERATION_TIMEOUT_MS = 2_000;
 const UNTITLED_TRACK_TITLE = "Untitled Track";
 
 export type GenerateSongTitleInput = {

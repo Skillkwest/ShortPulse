@@ -48,10 +48,6 @@ const PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS = [
   "hidden_in_reference_grid",
   "updated_at",
 ] as const;
-const PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS_WITH_DISPLAY_TITLE =
-  PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS.join(", ");
-const PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE =
-  PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS.filter((column) => column !== "display_title").join(", ");
 
 const CHECKPOINT_OUTPUT_STUB_FIELDS = [
   "id",
@@ -141,11 +137,6 @@ type ProjectOutputDisplayItemRow = {
 type ProjectOutputDisplayItemUpsertRow = Omit<ProjectOutputDisplayItemRow, "updated_at"> & {
   updated_at: string;
 };
-type ProjectOutputDisplayItemLegacyUpsertRow = Omit<
-  ProjectOutputDisplayItemUpsertRow,
-  "display_title"
->;
-
 export type ProjectOutputDisplaySyncResult = {
   outputCount: number;
   upsertedCount: number;
@@ -226,24 +217,6 @@ const compactRecord = (record: Record<string, unknown>): Record<string, unknown>
   });
   return compacted;
 };
-
-const isMissingDisplayTitleColumnError = (error: unknown): boolean => {
-  const record = asRecord(error);
-  const code = normalizeString(record.code);
-  const message = normalizeString(record.message) ?? normalizeString(record.details) ?? "";
-  const mentionsDisplayTitle = /display_title/i.test(message);
-  const looksLikeMissingColumn = /does not exist|schema cache/i.test(message);
-  return mentionsDisplayTitle && (code === "42703" || looksLikeMissingColumn);
-};
-
-const omitDisplayTitleFromUpsertRows = (
-  rows: readonly ProjectOutputDisplayItemUpsertRow[]
-): ProjectOutputDisplayItemLegacyUpsertRow[] =>
-  rows.map((row) => {
-    const legacyRow: Partial<ProjectOutputDisplayItemUpsertRow> = { ...row };
-    delete legacyRow.display_title;
-    return legacyRow as ProjectOutputDisplayItemLegacyUpsertRow;
-  });
 
 const truncateSummary = (value: unknown): string | null => {
   const normalized = normalizeString(value);
@@ -462,32 +435,11 @@ export const loadProjectOutputDisplayItemsForProject = async ({
   projectId: string;
 }): Promise<ProjectOutputDisplayItemRow[]> => {
   const supabaseAdmin = getSupabaseAdmin();
-  const loadRows = async (selectColumns: string) =>
-    await supabaseAdmin
-      .from("project_output_display_items")
-      .select(selectColumns)
-      .eq("project_id", projectId)
-      .eq("user_id", userId);
-
-  const { data, error } = await loadRows(PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS_WITH_DISPLAY_TITLE);
-
-  if (error && isMissingDisplayTitleColumnError(error)) {
-    console.warn(
-      "[project-output-display] display_title column unavailable; falling back to legacy read shape",
-      {
-        projectId,
-        error: normalizeString(asRecord(error).message) ?? "Unknown schema error",
-      }
-    );
-    const fallback = await loadRows(PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE);
-    if (fallback.error) {
-      throw new Error(fallback.error.message || "Failed to load project output display items");
-    }
-    return (Array.isArray(fallback.data) ? fallback.data : []).map((row) => ({
-      ...(row as unknown as ProjectOutputDisplayItemRow),
-      display_title: null,
-    }));
-  }
+  const { data, error } = await supabaseAdmin
+    .from("project_output_display_items")
+    .select(PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS.join(", "))
+    .eq("project_id", projectId)
+    .eq("user_id", userId);
 
   if (error) {
     throw new Error(error.message || "Failed to load project output display items");
@@ -551,24 +503,9 @@ export const syncProjectOutputDisplayItemsForSnapshot = async ({
   const supabaseAdmin = getSupabaseAdmin();
 
   for (const rowChunk of chunkValues(rowsToUpsert)) {
-    let { error } = await supabaseAdmin.from("project_output_display_items").upsert(rowChunk, {
+    const { error } = await supabaseAdmin.from("project_output_display_items").upsert(rowChunk, {
       onConflict: "project_id,output_id",
     });
-    if (error && isMissingDisplayTitleColumnError(error)) {
-      console.warn(
-        "[project-output-display] display_title column unavailable; falling back to legacy write shape",
-        {
-          projectId,
-          rowCount: rowChunk.length,
-          error: normalizeString(asRecord(error).message) ?? "Unknown schema error",
-        }
-      );
-      ({ error } = await supabaseAdmin
-        .from("project_output_display_items")
-        .upsert(omitDisplayTitleFromUpsertRows(rowChunk), {
-          onConflict: "project_id,output_id",
-        }));
-    }
     if (error) {
       throw new Error(error.message || "Failed to upsert project output display items");
     }

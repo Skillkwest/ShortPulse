@@ -20,6 +20,7 @@ export type GenerationLineageResolution = {
   generationId: string | null;
   generationAttemptId: string | null;
   userId: string | null;
+  modelId: string | null;
   sourceRef: string | null;
   requestId: string | null;
   providerRequestId: string;
@@ -47,6 +48,7 @@ const emptyResolution = (
   generationId: null,
   generationAttemptId: null,
   userId: null,
+  modelId: null,
   sourceRef: null,
   requestId: null,
   providerRequestId,
@@ -71,6 +73,7 @@ export const resolveGenerationLineageByProviderRequest = async ({
   let generationId: string | null = null;
   let generationAttemptId: string | null = null;
   let lineageUserId: string | null = null;
+  let modelId: string | null = null;
   const sourceRef: string | null = null;
   const requestId: string | null = null;
   let attemptLookupError: GenerationLineageResolution["attemptLookupError"] = null;
@@ -91,6 +94,7 @@ export const resolveGenerationLineageByProviderRequest = async ({
     generationId = normalizeString(attemptLookup.data.generationId);
     generationAttemptId = normalizeString(attemptLookup.data.id);
     lineageUserId = normalizeString(attemptLookup.data.userId);
+    modelId = normalizeString(attemptLookup.data.modelId);
     if (generationId) evidence.push("generation_attempt");
   }
 
@@ -99,6 +103,7 @@ export const resolveGenerationLineageByProviderRequest = async ({
       generationId,
       generationAttemptId,
       userId: lineageUserId,
+      modelId,
       sourceRef,
       requestId,
       providerRequestId: normalizedProviderRequestId,
@@ -117,6 +122,7 @@ export const resolveGenerationLineageByProviderRequest = async ({
         generationId: projectionLink.generationId,
         generationAttemptId,
         userId: lineageUserId,
+        modelId,
         sourceRef: projectionLink.sourceRef,
         requestId: projectionLink.requestId,
         providerRequestId: normalizedProviderRequestId,
@@ -135,6 +141,7 @@ export const resolveGenerationLineageByProviderRequest = async ({
       generationId: projectionProviderLink.generationId,
       generationAttemptId,
       userId: lineageUserId,
+      modelId,
       sourceRef: projectionProviderLink.sourceRef,
       requestId: projectionProviderLink.requestId,
       providerRequestId: normalizedProviderRequestId,
@@ -152,6 +159,7 @@ export const resolveGenerationLineageByProviderRequest = async ({
       generationId: projectionRequestLink.generationId,
       generationAttemptId,
       userId: lineageUserId,
+      modelId,
       sourceRef: projectionRequestLink.sourceRef,
       requestId: projectionRequestLink.requestId,
       providerRequestId: normalizedProviderRequestId,
@@ -164,6 +172,7 @@ export const resolveGenerationLineageByProviderRequest = async ({
     generationId,
     generationAttemptId,
     userId: lineageUserId,
+    modelId,
     sourceRef,
     requestId,
     providerRequestId: normalizedProviderRequestId,

@@ -91,6 +91,7 @@ const resolveWebhookObservationIdentity = async ({
   generationId: string | null;
   generationAttemptId: string | null;
   userId: string | null;
+  modelId: string | null;
 }> => {
   const lineage = await resolveGenerationLineageByProviderRequest({
     providerRequestId: requestId,
@@ -99,12 +100,14 @@ const resolveWebhookObservationIdentity = async ({
     generationId: null,
     generationAttemptId: null,
     userId: null,
+    modelId: null,
   }));
 
   return {
     generationId: lineage.generationId ?? null,
     generationAttemptId: lineage.generationAttemptId ?? null,
     userId: lineage.userId ?? null,
+    modelId: lineage.modelId ?? null,
   };
 };
 
@@ -204,6 +207,7 @@ export const ingestFalWebhookEvent = async ({
     observationState === "completed"
       ? readProviderMediaUrls({
           provider: "fal",
+          modelId: identity.modelId,
           payload,
         })
       : [];

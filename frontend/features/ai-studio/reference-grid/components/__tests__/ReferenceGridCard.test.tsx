@@ -144,7 +144,7 @@ describe("ReferenceGridCard", () => {
     fireEvent.doubleClick(card);
 
     expect(onOpenDetails).toHaveBeenCalledTimes(1);
-    expect(onOpenDetails).toHaveBeenCalledWith("prompt-ref-1");
+    expect(onOpenDetails).toHaveBeenCalledWith("prompt-ref-1", textOutput);
   });
 
   it("keeps prompt-only text references select-only from keyboard activation", () => {
@@ -224,7 +224,7 @@ describe("ReferenceGridCard", () => {
 
     fireEvent.doubleClick(screen.getByRole("button"));
 
-    expect(onOpenDetails).toHaveBeenCalledWith("image-ref-1");
+    expect(onOpenDetails).toHaveBeenCalledWith("image-ref-1", imageOutput);
   });
 
   it("shows workflow reload for restorable generated references", () => {

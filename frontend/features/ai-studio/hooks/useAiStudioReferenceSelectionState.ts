@@ -84,6 +84,18 @@ const createDetailSelectionTargetFromOutputId = (
   };
 };
 
+const stripRuntimeDetailSelectionSnapshot = (
+  target: SharedMediaDetailSelectionTarget | null | undefined
+): SharedMediaDetailSelectionTarget | null => {
+  if (!target) return null;
+  if (target.kind !== "studio-output") return target;
+  return {
+    kind: "studio-output",
+    outputId: target.outputId,
+    surface: target.surface,
+  };
+};
+
 const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthorityState => ({
   selectedTool: "create",
   showCreateTools: false,
@@ -188,7 +200,8 @@ const buildReferenceSelectionAuthorityStateFromSeed = ({
       isVideoReferenceTool ? 4 : 11
     );
   const resolvedDetailSelectionTarget =
-    detailSelectionTarget ?? createDetailSelectionTargetFromOutputId(detailOutputId);
+    stripRuntimeDetailSelectionSnapshot(detailSelectionTarget) ??
+    createDetailSelectionTargetFromOutputId(detailOutputId);
   const resolvedDetailOutputId =
     resolvedDetailSelectionTarget?.kind === "studio-output"
       ? resolvedDetailSelectionTarget.outputId
@@ -300,7 +313,7 @@ export const useAiStudioReferenceSelectionState = ({
       useReferenceImageIndicator,
       detailOutputId:
         detailSelectionTarget?.kind === "studio-output" ? detailSelectionTarget.outputId : null,
-      detailSelectionTarget,
+      detailSelectionTarget: stripRuntimeDetailSelectionSnapshot(detailSelectionTarget),
     };
     updateMotionReferenceUploadUiStateForAuthority(previousAuthorityKey, (current) => ({
       ...current,
@@ -511,7 +524,7 @@ export const useAiStudioReferenceSelectionState = ({
           motionReferenceVideoUrl,
           useReferenceImageIndicator,
           detailOutputId,
-          detailSelectionTarget,
+          detailSelectionTarget: stripRuntimeDetailSelectionSnapshot(detailSelectionTarget),
         };
       }
       const restoredState =

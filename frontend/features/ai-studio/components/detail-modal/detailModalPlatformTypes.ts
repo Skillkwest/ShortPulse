@@ -3,7 +3,7 @@
  * Defines the future cross-surface selection and capability model for media details.
  */
 import type { CanvasWorkspaceInstanceId } from "../canvas/canvasWorkspaceContracts";
-import type { StudioAudioSourceMode } from "../../types";
+import type { StudioAudioSourceMode, StudioOutput } from "../../types";
 import type { ReactNode } from "react";
 
 export type SharedMediaDetailSurface =
@@ -19,6 +19,7 @@ export type SharedMediaDetailSelectionTarget =
       kind: "studio-output";
       outputId: string;
       surface: SharedMediaDetailSurface;
+      outputSnapshot?: StudioOutput;
     }
   | {
       kind: "media-file";

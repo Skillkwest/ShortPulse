@@ -12,6 +12,7 @@ import {
 import { asProviderRecord, readCanonicalProviderStatus } from "./canonicalProviderPayload";
 import { normalizeKieEnvelopePayload } from "./kieEnvelopeNormalizer";
 import { extractKieResultMediaUrls } from "./kieResultMediaContracts";
+import { extractFalResultMediaUrls } from "./falResultMediaContracts";
 import {
   kiePayloadHasMedia,
   readKieContentPolicyMessage,
@@ -80,6 +81,11 @@ export const providerPayloadHasMedia = ({
   payload: unknown;
 }): boolean => {
   if (isFalProviderKey(provider)) {
+    const modelSpecificUrls = extractFalResultMediaUrls({
+      modelId,
+      payload: asProviderRecord(payload),
+    });
+    if (modelSpecificUrls) return modelSpecificUrls.length > 0;
     return hasMediaPayload(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
@@ -101,6 +107,11 @@ export const readProviderMediaUrls = ({
   payload: unknown;
 }): string[] => {
   if (isFalProviderKey(provider)) {
+    const modelSpecificUrls = extractFalResultMediaUrls({
+      modelId,
+      payload: asProviderRecord(payload),
+    });
+    if (modelSpecificUrls) return modelSpecificUrls;
     return extractMediaPayloadUrls(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {

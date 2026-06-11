@@ -100,6 +100,51 @@ describe("statusProviderPayload", () => {
     ).toEqual(["https://v3.fal.media/files/generated-lip-sync.mp4"]);
   });
 
+  it("does not treat fal OmniHuman input echoes as generated media", () => {
+    const payload = {
+      status: "completed",
+      image_url: "https://v3.fal.media/files/input-character.png",
+      audio_url: "https://v3.fal.media/files/input-voice.mp3",
+      input: {
+        image_url: "https://v3.fal.media/files/nested-input-character.png",
+      },
+    };
+
+    expect(
+      providerPayloadHasMedia({
+        provider: "fal",
+        modelId: "fal-ai/bytedance/omnihuman/v1.5",
+        payload,
+      })
+    ).toBe(false);
+    expect(
+      readProviderMediaUrls({
+        provider: "fal",
+        modelId: "fal-ai/bytedance/omnihuman/v1.5",
+        payload,
+      })
+    ).toEqual([]);
+  });
+
+  it("reads nested fal OmniHuman videos arrays without falling back to image fields", () => {
+    const payload = {
+      payload: {
+        image_url: "https://v3.fal.media/files/input-character.png",
+        result: {
+          videos: [{ url: "https://v3.fal.media/files/generated-lip-sync-array.mp4" }],
+        },
+      },
+    };
+
+    expect(
+      readProviderMediaUrls({
+        provider: "fal",
+        modelId: "fal-ai/bytedance/omnihuman/v1.5",
+        payload,
+      })
+    ).toEqual(["https://v3.fal.media/files/generated-lip-sync-array.mp4"]);
+  });
+
   it("reads fal content-policy messages", () => {
     const payload = {
       detail: [

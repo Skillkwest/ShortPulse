@@ -54,7 +54,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   curatedVisibleCardItems: ReferenceGridVisibleCard[];
   visibleQuickSlotIdSet: Set<string>;
   onSelectOutput: (id: string) => void;
-  onOpenDetails: (id: string) => void;
+  onOpenDetails: (id: string, output?: StudioOutput) => void;
   onCardDragStart: (
     event: React.DragEvent<HTMLElement>,
     item: StudioOutput,

@@ -26,13 +26,23 @@ export const useAiStudioOutputDerivations = ({
   detailOutputId,
   model,
 }: UseAiStudioOutputDerivationsParams) => {
-  const detailOutput = useMemo(() => {
-    const resolvedDetailOutputId =
+  const resolvedDetailOutputId = useMemo(
+    () =>
       detailSelectionTarget?.kind === "studio-output"
         ? detailSelectionTarget.outputId
-        : detailOutputId;
-    return resolvedDetailOutputId ? (activeOutputById[resolvedDetailOutputId] ?? null) : null;
-  }, [activeOutputById, detailOutputId, detailSelectionTarget]);
+        : detailOutputId,
+    [detailOutputId, detailSelectionTarget]
+  );
+  const detailOutput = useMemo(() => {
+    if (!resolvedDetailOutputId) return null;
+    const currentOutput = activeOutputById[resolvedDetailOutputId] ?? null;
+    if (currentOutput) return currentOutput;
+    const selectedSnapshot =
+      detailSelectionTarget?.kind === "studio-output"
+        ? (detailSelectionTarget.outputSnapshot ?? null)
+        : null;
+    return selectedSnapshot?.id === resolvedDetailOutputId ? selectedSnapshot : null;
+  }, [activeOutputById, detailSelectionTarget, resolvedDetailOutputId]);
   const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
   const isPrimaryEditStageGenerating = useMemo(
     () =>

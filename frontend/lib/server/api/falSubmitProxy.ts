@@ -42,6 +42,7 @@ import {
 import { readProviderContentPolicyMessage } from "../providerIntegration/statusProviderPayload";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import type { InternalMediaRef } from "../../media/internalMediaRefs";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../model-runtime/falModelIds";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
@@ -184,6 +185,48 @@ const asJsonObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+
+const FAL_CDN_MEDIA_HOST_SUFFIXES = ["fal.media"] as const;
+
+const isFalCdnMediaUrl = (value: string | null): boolean => {
+  if (!value) return false;
+  try {
+    const hostname = new URL(value).hostname.trim().toLowerCase();
+    return FAL_CDN_MEDIA_HOST_SUFFIXES.some(
+      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const validateOmniHumanProviderPayload = (
+  payload: Record<string, unknown>
+):
+  | { valid: true }
+  | {
+      valid: false;
+      code: string;
+      error: string;
+      detail: Record<string, unknown>;
+    } => {
+  const imageUrl = asProviderString(payload.image_url);
+  const audioUrl = asProviderString(payload.audio_url);
+  const invalidFields = [
+    !isFalCdnMediaUrl(imageUrl) ? "image_url" : null,
+    !isFalCdnMediaUrl(audioUrl) ? "audio_url" : null,
+  ].filter((field): field is string => Boolean(field));
+  if (!invalidFields.length) return { valid: true };
+  return {
+    valid: false,
+    code: "LIP_SYNC_MEDIA_NOT_STAGED",
+    error: "Lip Sync media could not be prepared. Re-add the image or audio and try again.",
+    detail: {
+      invalid_fields: invalidFields,
+      expected_host: "fal.media",
+    },
+  };
+};
 
 const readProviderSubmitFailureMessage = (payload: Record<string, unknown>): string | null => {
   return asProviderString(normalizeCustomerFacingProviderError(payload, ""));
@@ -788,6 +831,30 @@ export const createFalSubmitHandler = ({
         code: validationCode,
         detail: payloadValidation.detail ?? null,
       });
+    }
+    if (modelId === FAL_OMNIHUMAN_V15_MODEL_ID) {
+      const lipSyncProviderPayloadValidation = validateOmniHumanProviderPayload(payload);
+      if (!lipSyncProviderPayloadValidation.valid) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.lip_sync_media_not_staged",
+          message: lipSyncProviderPayloadValidation.error,
+          statusCode: 400,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            model_id: modelId,
+            code: lipSyncProviderPayloadValidation.code,
+            detail: lipSyncProviderPayloadValidation.detail,
+          },
+        });
+        return res.status(400).json({
+          error: lipSyncProviderPayloadValidation.error,
+          code: lipSyncProviderPayloadValidation.code,
+          detail: lipSyncProviderPayloadValidation.detail,
+        });
+      }
     }
     const generationSpec = getModelPayloadValidationSpec(modelId);
     const safetyEnforcement = enforceServerGenerationSafetyPayload({

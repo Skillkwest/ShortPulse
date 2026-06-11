@@ -46,6 +46,16 @@ const jsonResponse = (body: unknown, ok = true) => ({
   json: vi.fn(async () => body),
 });
 
+const createDataTransferMock = () => {
+  const store = new Map<string, string>();
+  return {
+    effectAllowed: "",
+    dropEffect: "",
+    setData: vi.fn((type: string, value: string) => store.set(type, value)),
+    getData: vi.fn((type: string) => store.get(type) ?? ""),
+  };
+};
+
 describe("Admin announcements tab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -218,7 +228,7 @@ describe("Admin announcements tab", () => {
     );
   });
 
-  it("loads and saves dashboard tutorial cards", async () => {
+  it("loads and saves dashboard tutorial cards with automatic thumbnail metadata", async () => {
     fetchWithAuthMock.mockImplementation(async (url: unknown, init?: { method?: string }) => {
       const path = String(url);
       if (path === "/api/admin/announcements/current") {
@@ -245,13 +255,13 @@ describe("Admin announcements tab", () => {
       if (path === "/api/admin/dashboard/tutorials" && init?.method === "POST") {
         return jsonResponse({
           tutorial: {
-            id: "tutorial-2",
-            title: "Create your first project",
+            id: "tutorial-1",
+            title: "Updated tutorial",
             youtubeUrl: "https://www.youtube.com/watch?v=abc123",
-            thumbnailUrl: "https://cdn.example.com/tutorial.gif",
+            thumbnailUrl: "https://cdn.example.com/existing.gif",
             thumbnailMediaType: "image",
-            thumbnailAlt: "Animated project tutorial preview",
-            displayOrder: 2,
+            thumbnailAlt: "Tutorial thumbnail for Updated tutorial",
+            displayOrder: 1,
             isActive: true,
             createdAt: "2026-06-10T00:00:00.000Z",
             updatedAt: "2026-06-10T00:00:00.000Z",
@@ -265,16 +275,19 @@ describe("Admin announcements tab", () => {
     render(<AdminAnnouncementsPage />);
 
     await waitFor(() => expect(screen.getByText("Existing tutorial")).toBeInTheDocument());
+    expect(screen.queryByText("Thumbnail URL fallback")).not.toBeInTheDocument();
+    expect(screen.queryByText("Thumbnail type")).not.toBeInTheDocument();
+    expect(screen.queryByText("Display order")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Thumbnail alt/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "New tutorial" }));
+    const existingTutorialButton = screen.getByText("Existing tutorial").closest("button");
+    expect(existingTutorialButton).not.toBeNull();
+    fireEvent.click(existingTutorialButton as HTMLElement);
     fireEvent.change(screen.getByPlaceholderText("Create your first project"), {
-      target: { value: "Create your first project" },
+      target: { value: "Updated tutorial" },
     });
     fireEvent.change(screen.getByPlaceholderText("https://www.youtube.com/watch?v=..."), {
       target: { value: "https://www.youtube.com/watch?v=abc123" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("https://..."), {
-      target: { value: "https://cdn.example.com/tutorial.gif" },
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Save tutorial" }));
@@ -282,7 +295,103 @@ describe("Admin announcements tab", () => {
     await waitFor(() => expect(screen.getByText("Tutorial saved and active.")).toBeInTheDocument());
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/admin/dashboard/tutorials",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("Tutorial thumbnail for Updated tutorial"),
+      })
+    );
+  });
+
+  it("persists dragged dashboard tutorial order through the reorder route", async () => {
+    fetchWithAuthMock.mockImplementation(async (url: unknown, init?: { method?: string }) => {
+      const path = String(url);
+      if (path === "/api/admin/announcements/current") {
+        return jsonResponse({ announcement: null });
+      }
+      if (path === "/api/admin/dashboard/tutorials" && init?.method === "GET") {
+        return jsonResponse({
+          tutorials: [
+            {
+              id: "tutorial-1",
+              title: "First tutorial",
+              youtubeUrl: "https://www.youtube.com/watch?v=first",
+              thumbnailUrl: "https://cdn.example.com/first.gif",
+              thumbnailMediaType: "image",
+              thumbnailAlt: "First tutorial preview",
+              displayOrder: 1,
+              isActive: true,
+              createdAt: "2026-06-10T00:00:00.000Z",
+              updatedAt: "2026-06-10T00:00:00.000Z",
+            },
+            {
+              id: "tutorial-2",
+              title: "Second tutorial",
+              youtubeUrl: "https://www.youtube.com/watch?v=second",
+              thumbnailUrl: "https://cdn.example.com/second.gif",
+              thumbnailMediaType: "image",
+              thumbnailAlt: "Second tutorial preview",
+              displayOrder: 2,
+              isActive: true,
+              createdAt: "2026-06-10T00:00:00.000Z",
+              updatedAt: "2026-06-10T00:00:00.000Z",
+            },
+          ],
+        });
+      }
+      if (path === "/api/admin/dashboard/tutorials" && init?.method === "PATCH") {
+        return jsonResponse({
+          tutorials: [
+            {
+              id: "tutorial-2",
+              title: "Second tutorial",
+              youtubeUrl: "https://www.youtube.com/watch?v=second",
+              thumbnailUrl: "https://cdn.example.com/second.gif",
+              thumbnailMediaType: "image",
+              thumbnailAlt: "Second tutorial preview",
+              displayOrder: 1,
+              isActive: true,
+              createdAt: "2026-06-10T00:00:00.000Z",
+              updatedAt: "2026-06-10T00:00:00.000Z",
+            },
+            {
+              id: "tutorial-1",
+              title: "First tutorial",
+              youtubeUrl: "https://www.youtube.com/watch?v=first",
+              thumbnailUrl: "https://cdn.example.com/first.gif",
+              thumbnailMediaType: "image",
+              thumbnailAlt: "First tutorial preview",
+              displayOrder: 2,
+              isActive: true,
+              createdAt: "2026-06-10T00:00:00.000Z",
+              updatedAt: "2026-06-10T00:00:00.000Z",
+            },
+          ],
+        });
+      }
+      throw new Error(`Unexpected URL: ${path}`);
+    });
+
+    render(<AdminAnnouncementsPage />);
+
+    await waitFor(() => expect(screen.getByText("First tutorial")).toBeInTheDocument());
+    const firstCard = screen.getByText("First tutorial").closest("article");
+    const secondCard = screen.getByText("Second tutorial").closest("article");
+    expect(firstCard).not.toBeNull();
+    expect(secondCard).not.toBeNull();
+
+    const dataTransfer = createDataTransferMock();
+    fireEvent.dragStart(firstCard as HTMLElement, { dataTransfer });
+    fireEvent.dragOver(secondCard as HTMLElement, { dataTransfer });
+    fireEvent.drop(secondCard as HTMLElement, { dataTransfer });
+
+    await waitFor(() =>
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/admin/dashboard/tutorials",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ ids: ["tutorial-2", "tutorial-1"] }),
+        })
+      )
     );
   });
 });

@@ -3549,7 +3549,7 @@
 
 .dashboardTutorialManager {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
   gap: 14px;
   align-items: start;
   margin-top: 12px;
@@ -3566,13 +3566,35 @@
 }
 
 .dashboardTutorialPreviewCard {
+  position: relative;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
   overflow: hidden;
   min-width: 0;
   border-radius: 8px;
   border: 1px solid var(--admin-border-soft);
   background: var(--admin-surface-2);
+  cursor: grab;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.dashboardTutorialPreviewCard:active {
+  cursor: grabbing;
+}
+
+.dashboardTutorialDragging {
+  opacity: 0.48;
+  transform: scale(0.98);
+}
+
+.dashboardTutorialDropTarget {
+  border-color: var(--admin-focus);
+  box-shadow:
+    inset 0 0 0 1px rgba(37, 169, 191, 0.38),
+    0 0 0 1px rgba(37, 169, 191, 0.16);
 }
 
 .dashboardTutorialEmptySlot {
@@ -3671,15 +3693,14 @@
 }
 
 .dashboardTutorialPreviewTitle {
-  display: -webkit-box;
-  overflow: hidden;
+  display: block;
   padding: 0 8px;
   color: var(--admin-text-strong);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.3;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .dashboardTutorialPreviewButton :global(.tiny) {
@@ -3690,19 +3711,48 @@
   white-space: nowrap;
 }
 
-.dashboardTutorialCardActions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 0 8px 8px;
+.dashboardTutorialDeleteButton {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(255, 112, 112, 0.36);
+  border-radius: 999px;
+  background: rgba(28, 31, 32, 0.88);
+  color: #ffb3b3;
+  opacity: 0;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
+  cursor: pointer;
+  transition:
+    opacity 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
 }
 
-.dashboardTutorialCardActions :global(.ghost-btn.mini) {
-  justify-content: center;
-  min-width: 0;
-  min-height: 30px;
-  padding: 5px 6px;
-  font-size: 12px;
+.dashboardTutorialPreviewCard:hover .dashboardTutorialDeleteButton,
+.dashboardTutorialDeleteButton:focus-visible {
+  opacity: 1;
+}
+
+.dashboardTutorialDeleteButton:hover {
+  border-color: rgba(255, 112, 112, 0.72);
+  background: rgba(86, 25, 31, 0.94);
+  color: #ffd6d6;
+}
+
+.dashboardTutorialDeleteButton:focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 2px;
+}
+
+.dashboardTutorialDeleteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .dashboardTutorialForm {
@@ -3712,12 +3762,6 @@
   border-radius: 10px;
   border: 1px solid var(--admin-border-soft);
   background: var(--admin-surface-2);
-}
-
-.dashboardTutorialFormRow {
-  display: grid;
-  grid-template-columns: 1fr 0.7fr;
-  gap: 10px;
 }
 
 .visuallyHiddenInput {
@@ -4884,10 +4928,6 @@
   .statsWorkspaceHero,
   .adminSection {
     padding: 14px;
-  }
-
-  .dashboardTutorialFormRow {
-    grid-template-columns: 1fr;
   }
 
   .dashboardTutorialActions {

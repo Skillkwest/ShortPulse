@@ -45,7 +45,7 @@ type UseAdminDashboardTutorialsControllerResult = {
   loadTutorials: () => Promise<void>;
   saveDraft: () => Promise<void>;
   deleteTutorial: (tutorialId: string) => Promise<void>;
-  moveTutorial: (tutorialId: string, direction: "up" | "down") => Promise<void>;
+  reorderTutorials: (ids: string[]) => Promise<void>;
 };
 
 const emptyDraft = (displayOrder = 1): AdminDashboardTutorialDraft => ({
@@ -113,6 +113,21 @@ const draftFromTutorial = (tutorial: AdminDashboardTutorial): AdminDashboardTuto
 
 const sortTutorials = (tutorials: AdminDashboardTutorial[]): AdminDashboardTutorial[] =>
   [...tutorials].sort((a, b) => a.displayOrder - b.displayOrder || a.title.localeCompare(b.title));
+
+const getNextTutorialDisplayOrder = (tutorials: AdminDashboardTutorial[]): number => {
+  const usedOrders = new Set(
+    tutorials
+      .map((tutorial) => tutorial.displayOrder)
+      .filter((displayOrder) => Number.isInteger(displayOrder) && displayOrder > 0)
+  );
+  for (let order = 1; order <= tutorials.length + 1; order += 1) {
+    if (!usedOrders.has(order)) return order;
+  }
+  return tutorials.length + 1;
+};
+
+const createThumbnailAltText = (title: string): string =>
+  `Tutorial thumbnail for ${title}`.slice(0, ADMIN_DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH);
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -216,7 +231,7 @@ export const useAdminDashboardTutorialsController = ({
         .filter((tutorial): tutorial is AdminDashboardTutorial => tutorial !== null);
       replaceTutorials(nextTutorials);
       setDraft((currentDraft) =>
-        currentDraft.id ? currentDraft : emptyDraft(nextTutorials.length + 1)
+        currentDraft.id ? currentDraft : emptyDraft(getNextTutorialDisplayOrder(nextTutorials))
       );
     } catch (caughtError) {
       setError(
@@ -317,10 +332,10 @@ export const useAdminDashboardTutorialsController = ({
   }, []);
 
   const startNewTutorial = React.useCallback(() => {
-    setDraft(emptyDraft(tutorials.length + 1));
+    setDraft(emptyDraft(getNextTutorialDisplayOrder(tutorials)));
     setError(null);
     setResult(null);
-  }, [tutorials.length]);
+  }, [tutorials]);
 
   const editTutorial = React.useCallback((tutorial: AdminDashboardTutorial) => {
     setDraft(draftFromTutorial(tutorial));
@@ -333,11 +348,10 @@ export const useAdminDashboardTutorialsController = ({
     const youtubeUrl = draft.youtubeUrl.trim();
     const thumbnailUrl = draft.thumbnailUrl.trim();
     const thumbnailStoragePath = draft.thumbnailStoragePath?.trim() || null;
-    const thumbnailAlt = draft.thumbnailAlt.trim();
-    const displayOrderRaw = Number(draft.displayOrder);
-    const displayOrder = Number.isFinite(displayOrderRaw)
-      ? Math.max(0, Math.trunc(displayOrderRaw))
-      : tutorials.length + 1;
+    const thumbnailAlt = createThumbnailAltText(title);
+    const displayOrder = draft.id
+      ? Math.max(1, Math.trunc(Number(draft.displayOrder) || 1))
+      : getNextTutorialDisplayOrder(tutorials);
 
     if (!title) {
       setError("Tutorial title is required.");
@@ -350,7 +364,7 @@ export const useAdminDashboardTutorialsController = ({
       return;
     }
     if (!thumbnailStoragePath && !thumbnailUrl) {
-      setError("Upload a thumbnail file or provide a thumbnail URL.");
+      setError("Upload a thumbnail file.");
       setResult(null);
       return;
     }
@@ -395,7 +409,7 @@ export const useAdminDashboardTutorialsController = ({
     } finally {
       setSaving(false);
     }
-  }, [draft, loadTutorials, tutorials.length]);
+  }, [draft, loadTutorials, tutorials]);
 
   const deleteTutorial = React.useCallback(
     async (tutorialId: string) => {
@@ -416,7 +430,11 @@ export const useAdminDashboardTutorialsController = ({
           throw new Error(data.error || "Failed to delete tutorial.");
         }
         await loadTutorials();
-        setDraft(emptyDraft(Math.max(1, tutorials.length)));
+        setDraft(
+          emptyDraft(
+            getNextTutorialDisplayOrder(tutorials.filter((tutorial) => tutorial.id !== tutorialId))
+          )
+        );
         setResult(data.message ?? "Tutorial deleted.");
       } catch (caughtError) {
         setError(caughtError instanceof Error ? caughtError.message : "Failed to delete tutorial.");
@@ -425,30 +443,27 @@ export const useAdminDashboardTutorialsController = ({
         setDeletingId(null);
       }
     },
-    [loadTutorials, tutorials.length]
+    [loadTutorials, tutorials]
   );
 
-  const moveTutorial = React.useCallback(
-    async (tutorialId: string, direction: "up" | "down") => {
+  const reorderTutorials = React.useCallback(
+    async (ids: string[]) => {
       const orderedTutorials = sortTutorials(tutorials);
-      const currentIndex = orderedTutorials.findIndex((tutorial) => tutorial.id === tutorialId);
-      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedTutorials.length) return;
+      const currentIds = orderedTutorials.map((tutorial) => tutorial.id);
+      const nextIds = ids.filter(Boolean);
+      const hasSameIds =
+        nextIds.length === currentIds.length && nextIds.every((id) => currentIds.includes(id));
+      const orderChanged = hasSameIds && nextIds.some((id, index) => id !== currentIds[index]);
+      if (!hasSameIds || !orderChanged) return;
 
-      const nextTutorials = [...orderedTutorials];
-      [nextTutorials[currentIndex], nextTutorials[targetIndex]] = [
-        nextTutorials[targetIndex],
-        nextTutorials[currentIndex],
-      ];
-
-      setReorderingId(tutorialId);
+      setReorderingId(nextIds.join(":"));
       setError(null);
       setResult(null);
       try {
         const response = await fetchWithAuth("/api/admin/dashboard/tutorials", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: nextTutorials.map((tutorial) => tutorial.id) }),
+          body: JSON.stringify({ ids: nextIds }),
         });
         const data = (await response.json().catch(() => ({}))) as {
           tutorials?: unknown[];
@@ -491,6 +506,6 @@ export const useAdminDashboardTutorialsController = ({
     loadTutorials,
     saveDraft,
     deleteTutorial,
-    moveTutorial,
+    reorderTutorials,
   };
 };

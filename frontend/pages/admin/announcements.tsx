@@ -2,7 +2,8 @@
  * Admin announcements route.
  * Owns the global dashboard bulletin publishing workflow.
  */
-import { useRef, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
+import { Trash } from "phosphor-react";
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { AppMessage } from "../../components/AppMessage";
 import {
@@ -11,7 +12,6 @@ import {
   useAdminAnnouncementsController,
 } from "../../features/admin/logic/useAdminAnnouncementsController";
 import {
-  ADMIN_DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH,
   ADMIN_DASHBOARD_TUTORIAL_TITLE_MAX_LENGTH,
   useAdminDashboardTutorialsController,
 } from "../../features/admin/logic/useAdminDashboardTutorialsController";
@@ -67,12 +67,16 @@ export default function AdminAnnouncementsPage() {
     loadTutorials,
     saveDraft: saveTutorialDraft,
     deleteTutorial,
-    moveTutorial,
+    reorderTutorials,
   } = useAdminDashboardTutorialsController({
     enabled: Boolean(user && adminEnabled),
   });
   const thumbnailFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [draggedTutorialId, setDraggedTutorialId] = useState<string | null>(null);
+  const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
   const tutorialFormLocked = tutorialSaving || uploadingThumbnail;
+  const tutorialGridLocked =
+    tutorialFormLocked || tutorialsLoading || tutorialReorderingId !== null;
   const tutorialGridSlots = Array.from(
     { length: Math.max(ADMIN_TUTORIAL_GRID_SLOT_COUNT, tutorials.length) },
     (_, index) => tutorials[index] ?? null
@@ -92,6 +96,50 @@ export default function AdminAnnouncementsPage() {
     event.preventDefault();
     if (tutorialFormLocked) return;
     handleThumbnailFileSelection(event.dataTransfer.files);
+  };
+
+  const handleTutorialDragStart = (event: DragEvent<HTMLElement>, tutorialId: string) => {
+    if (tutorialGridLocked) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", tutorialId);
+    setDraggedTutorialId(tutorialId);
+  };
+
+  const handleTutorialDragOver = (event: DragEvent<HTMLElement>, slotIndex: number) => {
+    if (!draggedTutorialId || tutorialGridLocked) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDragOverSlotIndex(slotIndex);
+  };
+
+  const resetTutorialDragState = () => {
+    setDraggedTutorialId(null);
+    setDragOverSlotIndex(null);
+  };
+
+  const handleTutorialDrop = (event: DragEvent<HTMLElement>, targetSlotIndex: number) => {
+    event.preventDefault();
+    if (tutorialGridLocked) {
+      resetTutorialDragState();
+      return;
+    }
+
+    const tutorialId = event.dataTransfer.getData("text/plain") || draggedTutorialId;
+    resetTutorialDragState();
+    if (!tutorialId) return;
+
+    const orderedIds = tutorials.map((tutorial) => tutorial.id);
+    const sourceIndex = orderedIds.indexOf(tutorialId);
+    if (sourceIndex < 0) return;
+
+    const nextIds = orderedIds.filter((id) => id !== tutorialId);
+    const insertionIndex = Math.min(Math.max(targetSlotIndex, 0), nextIds.length);
+    nextIds.splice(insertionIndex, 0, tutorialId);
+
+    void reorderTutorials(nextIds);
   };
 
   return (
@@ -222,18 +270,10 @@ export default function AdminAnnouncementsPage() {
           <div>
             <p className="eyebrow">Tutorial hub</p>
             <p className="tiny subdued">
-              Add, edit, activate, and reorder tutorial cards shown on every signed-in dashboard.
+              Add, edit, activate, and drag tutorial cards to reorder every signed-in dashboard.
             </p>
           </div>
           <div className={styles.dashboardTutorialActions}>
-            <button
-              type="button"
-              className="ghost-btn mini"
-              onClick={() => startNewTutorial()}
-              disabled={tutorialFormLocked || tutorialsLoading}
-            >
-              New tutorial
-            </button>
             <button
               type="button"
               className="ghost-btn mini"
@@ -253,8 +293,24 @@ export default function AdminAnnouncementsPage() {
                   key={tutorial.id}
                   className={`${styles.dashboardTutorialPreviewCard} ${
                     tutorial.isActive ? "" : styles.dashboardTutorialPreviewInactive
+                  } ${draggedTutorialId === tutorial.id ? styles.dashboardTutorialDragging : ""} ${
+                    dragOverSlotIndex === index ? styles.dashboardTutorialDropTarget : ""
                   }`}
+                  draggable={!tutorialGridLocked}
+                  onDragStart={(event) => handleTutorialDragStart(event, tutorial.id)}
+                  onDragEnd={resetTutorialDragState}
+                  onDragOver={(event) => handleTutorialDragOver(event, index)}
+                  onDrop={(event) => handleTutorialDrop(event, index)}
                 >
+                  <button
+                    type="button"
+                    className={styles.dashboardTutorialDeleteButton}
+                    onClick={() => void deleteTutorial(tutorial.id)}
+                    disabled={tutorialDeletingId === tutorial.id || tutorialFormLocked}
+                    aria-label={`Delete ${tutorial.title}`}
+                  >
+                    <Trash size={14} weight="bold" aria-hidden="true" />
+                  </button>
                   <button
                     type="button"
                     className={styles.dashboardTutorialPreviewButton}
@@ -284,48 +340,16 @@ export default function AdminAnnouncementsPage() {
                       {tutorial.isActive ? "Active" : "Inactive"} · Order {tutorial.displayOrder}
                     </span>
                   </button>
-                  <div className={styles.dashboardTutorialCardActions}>
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={() => void moveTutorial(tutorial.id, "up")}
-                      disabled={
-                        index === 0 ||
-                        tutorialReorderingId !== null ||
-                        tutorialFormLocked ||
-                        tutorialsLoading
-                      }
-                    >
-                      Up
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={() => void moveTutorial(tutorial.id, "down")}
-                      disabled={
-                        index === tutorials.length - 1 ||
-                        tutorialReorderingId !== null ||
-                        tutorialFormLocked ||
-                        tutorialsLoading
-                      }
-                    >
-                      Down
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={() => void deleteTutorial(tutorial.id)}
-                      disabled={tutorialDeletingId === tutorial.id || tutorialFormLocked}
-                    >
-                      {tutorialDeletingId === tutorial.id ? "Deleting…" : "Delete"}
-                    </button>
-                  </div>
                 </article>
               ) : (
                 <div
                   key={`tutorial-slot-${index + 1}`}
-                  className={styles.dashboardTutorialEmptySlot}
+                  className={`${styles.dashboardTutorialEmptySlot} ${
+                    dragOverSlotIndex === index ? styles.dashboardTutorialDropTarget : ""
+                  }`}
                   aria-hidden="true"
+                  onDragOver={(event) => handleTutorialDragOver(event, index)}
+                  onDrop={(event) => handleTutorialDrop(event, index)}
                 >
                   <span>{index + 1}</span>
                 </div>
@@ -344,7 +368,7 @@ export default function AdminAnnouncementsPage() {
               <div>
                 <p className="eyebrow">{tutorialDraft.id ? "Edit tutorial" : "Add tutorial"}</p>
                 <p className="tiny subdued">
-                  Drop a thumbnail file here or use an HTTPS asset with a YouTube destination.
+                  Add a title, YouTube destination, and thumbnail file.
                 </p>
               </div>
             </div>
@@ -425,77 +449,13 @@ export default function AdminAnnouncementsPage() {
                     )}
                   </span>
                   <span className="tiny subdued">
-                    {tutorialDraft.thumbnailStoragePath ? "Uploaded thumbnail" : "External URL"}
+                    {tutorialDraft.thumbnailStoragePath
+                      ? "Uploaded thumbnail"
+                      : "Existing thumbnail"}
                   </span>
                 </div>
               ) : null}
             </div>
-
-            <label className={styles.manualAdjustField}>
-              <span className="tiny subdued">Thumbnail URL fallback</span>
-              <input
-                className={styles.searchInput}
-                type="url"
-                value={tutorialDraft.thumbnailStoragePath ? "" : tutorialDraft.thumbnailUrl}
-                onChange={(event) =>
-                  updateTutorialDraft({
-                    thumbnailUrl: event.target.value,
-                    thumbnailStoragePath: null,
-                    thumbnailFileSizeBytes: null,
-                    thumbnailContentType: null,
-                  })
-                }
-                placeholder="https://..."
-                disabled={tutorialFormLocked}
-              />
-            </label>
-
-            <div className={styles.dashboardTutorialFormRow}>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Thumbnail type</span>
-                <select
-                  className={styles.searchInput}
-                  value={tutorialDraft.thumbnailMediaType}
-                  onChange={(event) =>
-                    updateTutorialDraft({
-                      thumbnailMediaType: event.target.value === "video" ? "video" : "image",
-                    })
-                  }
-                  disabled={tutorialFormLocked}
-                >
-                  <option value="image">Image / GIF</option>
-                  <option value="video">Video</option>
-                </select>
-              </label>
-
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Display order</span>
-                <input
-                  className={styles.searchInput}
-                  type="number"
-                  min="0"
-                  value={tutorialDraft.displayOrder}
-                  onChange={(event) => updateTutorialDraft({ displayOrder: event.target.value })}
-                  disabled={tutorialFormLocked}
-                />
-              </label>
-            </div>
-
-            <label className={styles.manualAdjustField}>
-              <span className="tiny subdued">
-                Thumbnail alt ({tutorialDraft.thumbnailAlt.trim().length}/
-                {ADMIN_DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH})
-              </span>
-              <input
-                className={styles.searchInput}
-                type="text"
-                value={tutorialDraft.thumbnailAlt}
-                onChange={(event) => updateTutorialDraft({ thumbnailAlt: event.target.value })}
-                maxLength={ADMIN_DASHBOARD_TUTORIAL_THUMBNAIL_ALT_MAX_LENGTH}
-                placeholder="Animated preview of the tutorial"
-                disabled={tutorialFormLocked}
-              />
-            </label>
 
             <label className={styles.dashboardTutorialToggle}>
               <input

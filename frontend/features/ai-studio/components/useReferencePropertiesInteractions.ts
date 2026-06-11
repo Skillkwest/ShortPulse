@@ -12,6 +12,7 @@ import {
 } from "../logic/motionReferenceVideoDropSource";
 import {
   extractDragDropPayload,
+  extractComposerImageDropPayload,
   extractPromptDropText,
   extractInternalReferenceDragPayload,
   isImageDragTransfer,
@@ -31,7 +32,11 @@ import {
   getAiStudioKlingElementReferenceUrls,
   type AiStudioKlingElement,
 } from "../logic/klingElements";
-import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
+import {
+  forgetObjectUrlBlob,
+  readRememberedObjectUrlBlob,
+  rememberObjectUrlBlob,
+} from "../utils/objectUrlBlobRegistry";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import {
   createInternalMediaRefFromResolvedSource,
@@ -68,6 +73,7 @@ type ReferenceImageDropSnapshot = {
   mediaKind?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
+  preferLocalRenderArtifact?: boolean;
 };
 
 type UseReferencePropertiesInteractionsParams = {
@@ -101,6 +107,11 @@ const trimOptionalString = (value: string | null | undefined): string | null => 
   return trimmed.length ? trimmed : null;
 };
 
+const isLocalRenderArtifactUrl = (value: string | null | undefined): boolean => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.startsWith("blob:") || trimmed.startsWith("data:image/");
+};
+
 const resolveImageStoragePath = ({
   fullStoragePath,
   previewStoragePath,
@@ -131,6 +142,7 @@ const resolveCanvasTearOutReferenceImageSnapshot = (
     imageUrl,
     referenceId,
     mediaKind: internalPayload?.mediaKind ?? null,
+    preferLocalRenderArtifact: Boolean(composerImagePayload?.displayArtifactUrl),
   };
 };
 
@@ -320,6 +332,11 @@ export const useReferencePropertiesInteractions = ({
       return imageUrl;
     }
     try {
+      const rememberedBlob = readRememberedObjectUrlBlob(imageUrl);
+      if (rememberedBlob) {
+        const prepared = await prepareLocalImageBlobForEditIngress(rememberedBlob);
+        return trackOwnedImageObjectUrl(prepared.url, prepared.blob);
+      }
       const response = await fetch(imageUrl);
       if (!response.ok) return null;
       const blob = await response.blob();
@@ -405,6 +422,7 @@ export const useReferencePropertiesInteractions = ({
       mediaKind,
       previewStoragePath,
       fullStoragePath,
+      preferLocalRenderArtifact,
     } = snapshot;
     const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
     const effectivePreviewStoragePath =
@@ -425,18 +443,25 @@ export const useReferencePropertiesInteractions = ({
         }
         setLoading(true);
         didSetLoading = true;
-        const resolvedSource = resolveInternalReferenceImageDropSource
-          ? await resolveInternalReferenceImageDropSource(internalPayload).catch(() => null)
-          : null;
+        const hasPreferredLocalRenderFallback =
+          Boolean(preferLocalRenderArtifact) && isLocalRenderArtifactUrl(imageUrl);
+        const resolvedSource =
+          resolveInternalReferenceImageDropSource && !hasPreferredLocalRenderFallback
+            ? await resolveInternalReferenceImageDropSource(internalPayload).catch(() => null)
+            : null;
         resolvedInternalMediaRef = resolvedSource
           ? createInternalMediaRefFromResolvedSource(resolvedSource)
           : null;
-        if (resolveInternalReferenceImageDropSource && !resolvedSource) {
+        if (
+          resolveInternalReferenceImageDropSource &&
+          !resolvedSource &&
+          !hasPreferredLocalRenderFallback
+        ) {
           return;
         }
         nextUrl =
           resolvedSource?.preparedImageUrl?.trim() || resolvedSource?.preview.url?.trim() || null;
-        if (!nextUrl) {
+        if (!nextUrl && !hasPreferredLocalRenderFallback) {
           return;
         }
       } else if (effectiveMediaKind && effectiveMediaKind !== "image") {
@@ -515,10 +540,12 @@ export const useReferencePropertiesInteractions = ({
     async (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      const composerImagePayload = extractComposerImageDropPayload(event.dataTransfer);
       const mediaLibraryPayload = readMediaLibraryDragPayload(event.dataTransfer);
       const { imageUrl, imageFile, fromFile, referenceId, mediaKind } = extractDragDropPayload(
         event.dataTransfer
       );
+      const composerDisplayArtifactUrl = composerImagePayload?.displayArtifactUrl?.trim() || null;
       const libraryImagePayload =
         mediaLibraryPayload?.kind === "libraryMedia" &&
         mediaLibraryPayload.payload.fileType === "image"
@@ -527,14 +554,20 @@ export const useReferencePropertiesInteractions = ({
       await acceptImageDropSnapshot(
         {
           internalPayload,
-          imageUrl,
+          imageUrl: composerDisplayArtifactUrl ?? imageUrl,
           imageFile,
           fromFile,
-          referenceId: referenceId ?? libraryImagePayload?.id ?? null,
+          referenceId:
+            trimOptionalString(composerImagePayload?.referenceId) ??
+            trimOptionalString(composerImagePayload?.outputId) ??
+            referenceId ??
+            libraryImagePayload?.id ??
+            null,
           mediaId: libraryImagePayload?.id ?? null,
           mediaKind,
           previewStoragePath: libraryImagePayload?.previewStoragePath ?? null,
           fullStoragePath: libraryImagePayload?.fullStoragePath ?? null,
+          preferLocalRenderArtifact: Boolean(composerDisplayArtifactUrl),
         },
         setter,
         setLoading

@@ -13,6 +13,6 @@ export default createFalSubmitHandler({
   modelId: "fal-ai/nano-banana-2",
   submitUrl: getFalSubmitUrlRequired("fal-ai/nano-banana-2"),
   routeLabel: "Fal Nano Banana 2",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/nano-banana-2", 20000),
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/nano-banana-2", 60000),
   validatePayload: validateFalPayloadForModel("fal-ai/nano-banana-2"),
 });

@@ -4,9 +4,10 @@ import { useReferencePropertiesInteractions } from "../useReferencePropertiesInt
 import {
   forgetObjectUrlBlob,
   readRememberedObjectUrlBlob,
+  rememberObjectUrlBlob,
 } from "../../utils/objectUrlBlobRegistry";
 import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
-import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
+import { INTERNAL_REFERENCE_DRAG_ORIGIN, prepareReferenceDrag } from "../../utils/dragDrop";
 
 const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
 
@@ -155,6 +156,67 @@ const makeCanvasTearOutVideoPayload = () => ({
   durationMs: 5400,
 });
 
+const makeFlattenedComposerImageDropEvent = () => {
+  const transferData = new Map<string, string>();
+  const currentTarget = document.createElement("article");
+  const image = document.createElement("img");
+  image.className = "reference-card-image";
+  image.setAttribute("src", "blob:secondary-flattened-source");
+  currentTarget.appendChild(image);
+  const dataTransfer = {
+    files: [] as unknown as FileList,
+    get types() {
+      return Array.from(transferData.keys());
+    },
+    getData: (type: string) => transferData.get(type) ?? "",
+    setData: (type: string, value: string) => {
+      transferData.set(type, value);
+    },
+    setDragImage: vi.fn(),
+    effectAllowed: "all",
+  } as unknown as DataTransfer;
+
+  prepareReferenceDrag(
+    {
+      currentTarget,
+      dataTransfer,
+    } as unknown as Parameters<typeof prepareReferenceDrag>[0],
+    {
+      id: "secondary-flattened-output",
+      prompt: "Secondary flattened image",
+      previewText: "Secondary flattened image",
+      mode: "image",
+      aspect: "16:9",
+      model: "Test model",
+      status: "ready",
+      timestamp: "now",
+      taskState: "success",
+      mediaSource: "generated",
+      previewUrl: "blob:secondary-flattened-source",
+      resultUrls: ["blob:secondary-flattened-source"],
+      saveState: "failed",
+    } as never,
+    {
+      dragImage: currentTarget,
+      sourceSurface: "all-refs",
+      composerImageArtifact: {
+        displayArtifactUrl: "blob:secondary-flattened-source",
+        displayArtifactKind: "blob",
+        promptText: "Secondary flattened image",
+        mimeType: "image/png",
+      },
+    }
+  );
+
+  return {
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+    dataTransfer,
+  } as unknown as Parameters<
+    ReturnType<typeof useReferencePropertiesInteractions>["handlePrimaryDrop"]
+  >[0];
+};
+
 describe("useReferencePropertiesInteractions", () => {
   const originalCreateObjectUrl = URL.createObjectURL;
   const originalRevokeObjectUrl = URL.revokeObjectURL;
@@ -171,6 +233,8 @@ describe("useReferencePropertiesInteractions", () => {
     forgetObjectUrlBlob("blob:drag-clone");
     forgetObjectUrlBlob("blob:stale-drag-source");
     forgetObjectUrlBlob("blob:dropped-primary");
+    forgetObjectUrlBlob("blob:secondary-flattened-source");
+    forgetObjectUrlBlob("blob:secondary-flattened-prepared");
     URL.createObjectURL = originalCreateObjectUrl;
     URL.revokeObjectURL = originalRevokeObjectUrl;
     global.fetch = originalFetch;
@@ -1283,6 +1347,37 @@ describe("useReferencePropertiesInteractions", () => {
 
     expect(onExtraImageChange).not.toHaveBeenCalled();
     expect(readRememberedObjectUrlBlob("blob:drag-source")).toBeNull();
+  });
+
+  it("uses a local flattened render artifact in secondary slots when durable resolution fails", async () => {
+    const onExtraImageChange = vi.fn();
+    const flattenedBlob = new Blob(["secondary flattened"], { type: "image/png" });
+    URL.createObjectURL = vi.fn(() => "blob:secondary-flattened-prepared");
+    rememberObjectUrlBlob("blob:secondary-flattened-source", flattenedBlob);
+    const resolveInternalReferenceImageDropSource = vi.fn().mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange,
+        onPromptTextChange: vi.fn(),
+        resolveInternalReferenceImageDropSource,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const dropEvent = makeFlattenedComposerImageDropEvent();
+
+    await act(async () => {
+      await result.current.handleExtraDrop(0)(dropEvent);
+    });
+
+    expect(resolveInternalReferenceImageDropSource).not.toHaveBeenCalled();
+    expect(onExtraImageChange).toHaveBeenCalledWith(0, "blob:secondary-flattened-prepared");
+    expect(readRememberedObjectUrlBlob("blob:secondary-flattened-prepared")).toBe(flattenedBlob);
   });
 
   it("prefers the internal reference resolver over weak preview fallback urls", async () => {

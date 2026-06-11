@@ -260,7 +260,9 @@ function validateToolingBundle(errors) {
   for (const relativePath of TOOLING_BUNDLE_PATHS) {
     const absolutePath = resolveRepoPath(relativePath);
     if (!fs.existsSync(absolutePath)) {
-      errors.push(`Required model-platform tooling bundle file is missing: ${relativePath}`);
+      errors.push(
+        `Required model-platform tooling bundle file is missing: ${relativePath}`,
+      );
     }
   }
 
@@ -290,9 +292,7 @@ function validateToolingBundle(errors) {
   const docsAdrIndexText = readText(DOCS_ADR_INDEX_PATH);
 
   if (!docsIndexText.includes("docs/sops/sop_model_retirement.md")) {
-    errors.push(
-      "docs/README.md must index docs/sops/sop_model_retirement.md",
-    );
+    errors.push("docs/README.md must index docs/sops/sop_model_retirement.md");
   }
   if (
     !docsIndexText.includes(
@@ -351,19 +351,19 @@ function run() {
   const submissionAdapterMetadataModule = loadTsModule(
     SUBMISSION_ADAPTER_METADATA_PATH,
   );
-  const {
-    FAL_ROUTE_INVENTORY = [],
-  } = require(FAL_ROUTE_INVENTORY_PATH);
-  const {
-    DIRECT_PROVIDER_ROUTE_INVENTORY = [],
-  } = require(DIRECT_PROVIDER_ROUTE_INVENTORY_PATH);
+  const { FAL_ROUTE_INVENTORY = [] } = require(FAL_ROUTE_INVENTORY_PATH);
+  const { DIRECT_PROVIDER_ROUTE_INVENTORY = [] } = require(
+    DIRECT_PROVIDER_ROUTE_INVENTORY_PATH,
+  );
   const listModelCatalogEntries = catalogModule.listModelCatalogEntries;
   const listCreateCharacterModeModelIds =
     catalogModule.listCreateCharacterModeModelIds;
-  const getModelSubmissionAdapterKey = catalogModule.getModelSubmissionAdapterKey;
+  const getModelSubmissionAdapterKey =
+    catalogModule.getModelSubmissionAdapterKey;
   const getModelDefaultRoles = catalogModule.getModelDefaultRoles;
   const getReplacementModelId = catalogModule.getReplacementModelId;
-  const resolveModelIdForDefaultRole = catalogModule.resolveModelIdForDefaultRole;
+  const resolveModelIdForDefaultRole =
+    catalogModule.resolveModelIdForDefaultRole;
   const getCreateCharacterModeAllowedModels =
     createCharacterModeModule.getCreateCharacterModeAllowedModels;
   const defaultCharacterTextModel =
@@ -498,9 +498,7 @@ function run() {
         errors.push(
           `pairedModelId points at missing catalog model: ${modelId} -> ${pairedModelId}`,
         );
-      } else if (
-        String(pairedEntry.pairedModelId || "").trim() !== modelId
-      ) {
+      } else if (String(pairedEntry.pairedModelId || "").trim() !== modelId) {
         errors.push(
           `pairedModelId must be symmetric: ${modelId} -> ${pairedModelId} but reverse is '${String(pairedEntry.pairedModelId || "").trim()}'`,
         );
@@ -545,7 +543,10 @@ function run() {
           `createCharacterModeOrder requires supportsImageToImage=true: ${modelId}`,
         );
       }
-      if (!Array.isArray(entry.surfaces) || !entry.surfaces.includes("picker")) {
+      if (
+        !Array.isArray(entry.surfaces) ||
+        !entry.surfaces.includes("picker")
+      ) {
         errors.push(
           `createCharacterModeOrder model must be picker-visible: ${modelId}`,
         );
@@ -586,7 +587,8 @@ function run() {
         entry.lifecycle === "disabled" ||
         entry.lifecycle === "retired") &&
       Array.isArray(entry.surfaces) &&
-      (entry.surfaces.includes("picker") || entry.surfaces.includes("runtime")) &&
+      (entry.surfaces.includes("picker") ||
+        entry.surfaces.includes("runtime")) &&
       !replacementModelId
     ) {
       errors.push(
@@ -597,7 +599,9 @@ function run() {
     if (typeof getModelDefaultRoles === "function") {
       const defaultRoles = getModelDefaultRoles(modelId);
       if (!Array.isArray(defaultRoles)) {
-        errors.push(`defaultRoles resolver must return an array for ${modelId}`);
+        errors.push(
+          `defaultRoles resolver must return an array for ${modelId}`,
+        );
       } else {
         for (const role of defaultRoles) {
           const existingModelId = seenDefaultRoleAssignments.get(role);
@@ -619,7 +623,7 @@ function run() {
     const manifestSubmissionAdapterKey =
       typeof getModelSubmissionAdapterKey === "function"
         ? getModelSubmissionAdapterKey(modelId)
-        : entry.submissionAdapterKey ?? null;
+        : (entry.submissionAdapterKey ?? null);
     if (
       submitHandler === "default" ||
       submitHandler === "image" ||
@@ -644,10 +648,7 @@ function run() {
           `submissionAdapterKey is invalid for ${submitHandler} handler model ${modelId}: '${manifestSubmissionAdapterKey}'`,
         );
       }
-    } else if (
-      manifestSubmissionAdapterKey &&
-      submitHandler !== "audio"
-    ) {
+    } else if (manifestSubmissionAdapterKey && submitHandler !== "audio") {
       errors.push(
         `submissionAdapterKey should be omitted for non-default/image/video handlers: ${modelId}`,
       );
@@ -677,7 +678,10 @@ function run() {
       entry.lifecycle !== "active" &&
       Boolean(entry.replacementModelId);
 
-    if (isQueuedFalOrKieRuntimeModel || isQueuedFalOrKieCompatibilityRouteModel) {
+    if (
+      isQueuedFalOrKieRuntimeModel ||
+      isQueuedFalOrKieCompatibilityRouteModel
+    ) {
       if (!apiRouteSlug) {
         errors.push(
           `Queued ${entry.provider} route-owned model is missing apiRouteSlug: ${modelId}`,
@@ -715,7 +719,8 @@ function run() {
       (entry.provider === "openai" || entry.provider === "elevenlabs");
 
     if (isDirectProviderRuntimeModel) {
-      const directRouteEntries = directRouteInventoryByModelId.get(modelId) ?? [];
+      const directRouteEntries =
+        directRouteInventoryByModelId.get(modelId) ?? [];
       if (!directRouteEntries.length) {
         errors.push(
           `Direct provider runtime model is missing direct route inventory entry: ${modelId}`,
@@ -733,14 +738,18 @@ function run() {
       continue;
     }
     const isCompatibilityRouteModel =
-      catalogEntry.lifecycle !== "active" && Boolean(catalogEntry.replacementModelId);
+      catalogEntry.lifecycle !== "active" &&
+      Boolean(catalogEntry.replacementModelId);
 
     if (catalogEntry.lifecycle !== "active" && !isCompatibilityRouteModel) {
       errors.push(
         `Fal/Kie route inventory model must stay active or declare compatibility replacement: ${routeEntry.modelId} is '${catalogEntry.lifecycle}'`,
       );
     }
-    if (catalogEntry.lifecycle === "active" && !catalogEntry.surfaces?.includes("runtime")) {
+    if (
+      catalogEntry.lifecycle === "active" &&
+      !catalogEntry.surfaces?.includes("runtime")
+    ) {
       errors.push(
         `Fal/Kie route inventory model must include runtime surface: ${routeEntry.modelId}`,
       );
@@ -759,6 +768,22 @@ function run() {
       errors.push(
         `Fal/Kie route inventory fileBase drift for ${routeEntry.modelId}: inventory='${routeEntry.fileBase}' catalog='${catalogEntry.apiRouteSlug ?? ""}'`,
       );
+    }
+    const expectedRouteTimeoutMs =
+      routeEntry.provider === "kie"
+        ? catalogEntry.kieTimeoutMs
+        : catalogEntry.falTimeoutMs;
+    if (Number.isFinite(expectedRouteTimeoutMs)) {
+      if (routeEntry.submitTimeoutMs !== expectedRouteTimeoutMs) {
+        errors.push(
+          `Fal/Kie route inventory submitTimeoutMs drift for ${routeEntry.modelId}: inventory='${routeEntry.submitTimeoutMs}' catalog='${expectedRouteTimeoutMs}'`,
+        );
+      }
+      if (routeEntry.statusTimeoutMs !== expectedRouteTimeoutMs) {
+        errors.push(
+          `Fal/Kie route inventory statusTimeoutMs drift for ${routeEntry.modelId}: inventory='${routeEntry.statusTimeoutMs}' catalog='${expectedRouteTimeoutMs}'`,
+        );
+      }
     }
   }
 
@@ -841,7 +866,9 @@ function run() {
     }
     if (
       routeEntry.authority === "catalog-default-role-server-default" &&
-      !routeEntry.requiredSymbols?.some((symbol) => symbol.startsWith("DEFAULT_"))
+      !routeEntry.requiredSymbols?.some((symbol) =>
+        symbol.startsWith("DEFAULT_"),
+      )
     ) {
       errors.push(
         `Server-default direct provider route must declare a DEFAULT_* symbol: ${routeEntry.modelId}`,
@@ -900,7 +927,7 @@ function run() {
           entry.lifecycle === "active" &&
           entry.surfaces?.includes("runtime") &&
           entry.executionMode === "direct" &&
-          (entry.provider === "openai" || entry.provider === "elevenlabs")
+          (entry.provider === "openai" || entry.provider === "elevenlabs"),
       )
       .map((entry) => entry.modelId),
   );
@@ -914,7 +941,9 @@ function run() {
   }
 
   if (typeof resolveModelIdForDefaultRole === "function") {
-    for (const [role, expectation] of Object.entries(requiredDefaultRoleExpectations)) {
+    for (const [role, expectation] of Object.entries(
+      requiredDefaultRoleExpectations,
+    )) {
       const resolvedModelId = resolveModelIdForDefaultRole(role);
       if (!resolvedModelId) {
         errors.push(`Missing default role assignment for ${role}`);
@@ -922,7 +951,9 @@ function run() {
       }
       const entry = entryById.get(resolvedModelId);
       if (!entry) {
-        errors.push(`Default role ${role} resolves to missing model ${resolvedModelId}`);
+        errors.push(
+          `Default role ${role} resolves to missing model ${resolvedModelId}`,
+        );
         continue;
       }
       if (!entry.surfaces?.includes(expectation.surface)) {
@@ -948,7 +979,8 @@ function run() {
       ? catalogModule.resolveRequiredCreateStartupModelId()
       : null;
   const requiredCreateCharacterModeStartupModelId =
-    typeof catalogModule.resolveRequiredCreateCharacterModeStartupModelId === "function"
+    typeof catalogModule.resolveRequiredCreateCharacterModeStartupModelId ===
+    "function"
       ? catalogModule.resolveRequiredCreateCharacterModeStartupModelId()
       : null;
   const requiredEditStartupModelId =
@@ -972,7 +1004,10 @@ function run() {
       `Character edit default drifted from edit startup default: character='${defaultCharacterEditModel}' startup='${requiredEditStartupModelId}'`,
     );
   }
-  if (!Array.isArray(characterModelOptions) || characterModelOptions.length !== 2) {
+  if (
+    !Array.isArray(characterModelOptions) ||
+    characterModelOptions.length !== 2
+  ) {
     errors.push("Character model options must contain exactly two entries.");
   } else {
     const optionValues = characterModelOptions.map((option) => option?.value);
@@ -984,7 +1019,10 @@ function run() {
         `First Character model option must match create startup default: found '${optionValues[0]}' expected '${requiredCreateStartupModelId}'`,
       );
     }
-    if (requiredEditStartupModelId && optionValues[1] !== requiredEditStartupModelId) {
+    if (
+      requiredEditStartupModelId &&
+      optionValues[1] !== requiredEditStartupModelId
+    ) {
       errors.push(
         `Second Character model option must match edit startup default: found '${optionValues[1]}' expected '${requiredEditStartupModelId}'`,
       );
@@ -1078,7 +1116,9 @@ function run() {
 
   if (typeof getCreateCharacterModeAllowedModels === "function") {
     const selectorIds = getCreateCharacterModeAllowedModels();
-    const expectedIds = createCharacterModeEntries.map((entry) => entry.modelId);
+    const expectedIds = createCharacterModeEntries.map(
+      (entry) => entry.modelId,
+    );
     if (JSON.stringify(selectorIds) !== JSON.stringify(expectedIds)) {
       errors.push(
         `getCreateCharacterModeAllowedModels drifted from catalog order: selector=${JSON.stringify(selectorIds)} expected=${JSON.stringify(expectedIds)}`,

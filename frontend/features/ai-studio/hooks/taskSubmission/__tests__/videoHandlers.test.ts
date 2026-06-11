@@ -83,8 +83,22 @@ const {
 
 const CANONICAL_MOTION_REFERENCE_URL =
   "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/motion.mp4?token=fresh";
+const KIE_TEMP_CHARACTER_IMAGE_URL =
+  "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/character.png";
 const KIE_TEMP_MOTION_REFERENCE_URL =
   "https://tempfile.aiquickdraw.com/shortpulse/kie-video/videos/motion.mp4";
+
+const mockKieUploadRouteForFileUrls = (urlMap: Record<string, string>) => {
+  vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+    const payload =
+      typeof init?.body === "string" ? (JSON.parse(init.body) as { fileUrl?: string }) : {};
+    const mappedUrl = payload.fileUrl ? urlMap[payload.fileUrl] : undefined;
+    return new Response(JSON.stringify({ url: mappedUrl ?? payload.fileUrl ?? "" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+};
 
 const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmissionArgs => ({
   id: "out-1",
@@ -95,6 +109,7 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
   requestedResolution: "1080p",
   requestedAudio: true,
   preparedImageInputs: ["https://example.com/character.png"],
+  rawImageInputs: ["https://example.com/character.png"],
   modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
   notifyGenerationFailure: vi.fn(),
   updateOutputById: vi.fn(),
@@ -536,12 +551,18 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     vi.mocked(getSignedMediaUrl).mockResolvedValue(
       "https://example.com/signed/motion-refreshed.mp4"
     );
-    vi.mocked(fetchWithAuth).mockResolvedValue(
-      new Response(JSON.stringify({ url: KIE_TEMP_MOTION_REFERENCE_URL }), {
+    vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+      const body =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as { uploadPath?: string }) : {};
+      const url =
+        body.uploadPath === "shortpulse/kie-video/images"
+          ? KIE_TEMP_CHARACTER_IMAGE_URL
+          : KIE_TEMP_MOTION_REFERENCE_URL;
+      return new Response(JSON.stringify({ url }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })
-    );
+      });
+    });
   });
 
   it("builds and submits a motion payload with normalized prompt and mode", async () => {
@@ -556,9 +577,9 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith({
       prompt: "A dancer twirls",
-      image_url: "https://example.com/character.png",
-      image_urls: ["https://example.com/character.png"],
-      input_urls: ["https://example.com/character.png"],
+      image_url: KIE_TEMP_CHARACTER_IMAGE_URL,
+      image_urls: [KIE_TEMP_CHARACTER_IMAGE_URL],
+      input_urls: [KIE_TEMP_CHARACTER_IMAGE_URL],
       video_url: KIE_TEMP_MOTION_REFERENCE_URL,
       video_urls: [KIE_TEMP_MOTION_REFERENCE_URL],
       resolution: "1080p",
@@ -567,6 +588,16 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       character_orientation: "image",
       background_source: "input_video",
     });
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/character.png",
+          uploadPath: "shortpulse/kie-video/images",
+        }),
+      })
+    );
     expect(fetchWithAuth).toHaveBeenCalledWith(
       "/api/kie/upload-url",
       expect.objectContaining({
@@ -731,6 +762,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       expect.objectContaining({
         resolution: "1080p",
         mode: "1080p",
+        image_url: KIE_TEMP_CHARACTER_IMAGE_URL,
         video_urls: [KIE_TEMP_MOTION_REFERENCE_URL],
       })
     );
@@ -1503,6 +1535,9 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
   });
 
   it("passes selected resolution through the Kie Kling standard payload", async () => {
+    mockKieUploadRouteForFileUrls({
+      "https://example.com/character.png": KIE_TEMP_CHARACTER_IMAGE_URL,
+    });
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
@@ -1519,6 +1554,8 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
         aspect_ratio: "16:9",
         duration: 14,
         resolution: "720p",
+        image_url: KIE_TEMP_CHARACTER_IMAGE_URL,
+        image_urls: [KIE_TEMP_CHARACTER_IMAGE_URL],
         mode: "std",
         sound: true,
         multi_shots: false,
@@ -1841,12 +1878,10 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
 
   it("submits Kling motion-control without standard-video aspect fields", async () => {
     videoUploadMocks.prepareMotionReferenceVideoUrlOverride = vi.fn(async (url) => url);
-    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        url: KIE_TEMP_MOTION_REFERENCE_URL,
-      }),
-    } as Response);
+    mockKieUploadRouteForFileUrls({
+      "https://example.com/character.png": KIE_TEMP_CHARACTER_IMAGE_URL,
+      [CANONICAL_MOTION_REFERENCE_URL]: KIE_TEMP_MOTION_REFERENCE_URL,
+    });
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
@@ -1864,7 +1899,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         resolution: "720p",
-        image_url: "https://example.com/character.png",
+        image_url: KIE_TEMP_CHARACTER_IMAGE_URL,
         video_url: KIE_TEMP_MOTION_REFERENCE_URL,
       })
     );
@@ -1880,12 +1915,18 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       .fn()
       .mockResolvedValueOnce("https://example.com/motion-normalized.mp4");
     videoUploadMocks.prepareMotionReferenceVideoUrlOverride = prepareMotionReferenceVideoUrlMock;
-    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/videos/motion-normalized.mp4",
-      }),
-    } as Response);
+    vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+      const body =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as { uploadPath?: string }) : {};
+      const url =
+        body.uploadPath === "shortpulse/kie-video/images"
+          ? KIE_TEMP_CHARACTER_IMAGE_URL
+          : "https://tempfile.aiquickdraw.com/shortpulse/kie-video/videos/motion-normalized.mp4";
+      return new Response(JSON.stringify({ url }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
@@ -1904,6 +1945,9 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
+        image_url: KIE_TEMP_CHARACTER_IMAGE_URL,
+        image_urls: [KIE_TEMP_CHARACTER_IMAGE_URL],
+        input_urls: [KIE_TEMP_CHARACTER_IMAGE_URL],
         video_url:
           "https://tempfile.aiquickdraw.com/shortpulse/kie-video/videos/motion-normalized.mp4",
         video_urls: [
@@ -1940,6 +1984,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
         ok: true,
         json: async () => ({
           url: "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-side.png",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/start.png",
         }),
       } as Response);
 
@@ -2194,6 +2244,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
         json: async () => ({
           url: "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-side.png",
         }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/start.png",
+        }),
       } as Response);
 
     const args = makeArgs({
@@ -2218,9 +2274,11 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(fetchWithAuth).toHaveBeenCalledTimes(3);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
+        image_url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/start.png",
+        image_urls: ["https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/start.png"],
         kling_elements: [
           {
             name: "element1",

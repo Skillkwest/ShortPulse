@@ -14,6 +14,6 @@ export default createFalSubmitHandler({
   provider: "kie",
   submitUrl: getKieSubmitUrlRequired("kie-ai/seedance-2"),
   routeLabel: "Kie Seedance 2.0",
-  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/seedance-2", 20000),
+  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/seedance-2", 60000),
   validatePayload: validateFalPayloadForModel("kie-ai/seedance-2"),
 });

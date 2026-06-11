@@ -11,6 +11,7 @@ import {
 } from "../../utils/objectUrlBlobRegistry";
 import {
   extractDragDropPayload,
+  extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
   isImageDragTransfer,
   looksLikeImageUrl,
@@ -35,6 +36,7 @@ type ExpertEditPrimaryImageDropSnapshot = {
   width?: number;
   height?: number;
   mediaKind?: string | null;
+  preferLocalRenderArtifact?: boolean;
 };
 
 type CreateLayer = (args: {
@@ -71,6 +73,11 @@ type UseExpertEditPrimaryIngressArgs = {
 const trimOptionalString = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim() ?? "";
   return trimmed.length ? trimmed : null;
+};
+
+const isLocalRenderArtifactUrl = (value: string | null | undefined): boolean => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.startsWith("blob:") || trimmed.startsWith("data:image/");
 };
 
 const resolveCanvasTearOutImageDropSnapshot = (
@@ -337,12 +344,17 @@ export function useExpertEditPrimaryIngress({
             width,
             height,
             mediaKind,
+            preferLocalRenderArtifact,
           } = snapshot;
           const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
           if (effectiveMediaKind && effectiveMediaKind !== "image") return;
 
+          const hasPreferredLocalRenderFallback =
+            Boolean(preferLocalRenderArtifact) && isLocalRenderArtifactUrl(imageUrl);
           const resolvedInternalSource =
-            internalPayload && resolveInternalReferenceImageDropSourceRef.current
+            internalPayload &&
+            resolveInternalReferenceImageDropSourceRef.current &&
+            !hasPreferredLocalRenderFallback
               ? await resolveInternalReferenceImageDropSourceRef
                   .current(internalPayload)
                   .catch(() => null)
@@ -350,7 +362,8 @@ export function useExpertEditPrimaryIngress({
           if (
             internalPayload &&
             resolveInternalReferenceImageDropSourceRef.current &&
-            !resolvedInternalSource
+            !resolvedInternalSource &&
+            !hasPreferredLocalRenderFallback
           ) {
             return;
           }
@@ -488,17 +501,23 @@ export function useExpertEditPrimaryIngress({
       event.preventDefault();
       setPrimaryDragActive(false);
       const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      const composerImagePayload = extractComposerImageDropPayload(event.dataTransfer);
       const { imageUrl, imageFile, fromFile, referenceId, width, height, mediaKind } =
         extractDragDropPayload(event.dataTransfer);
+      const composerDisplayArtifactUrl = composerImagePayload?.displayArtifactUrl?.trim() || null;
       acceptPrimaryImageDropSnapshot({
         internalPayload,
-        imageUrl,
+        imageUrl: composerDisplayArtifactUrl ?? imageUrl,
         imageFile,
         fromFile,
-        referenceId,
-        width,
-        height,
-        mediaKind,
+        referenceId:
+          trimOptionalString(composerImagePayload?.referenceId) ??
+          trimOptionalString(composerImagePayload?.outputId) ??
+          referenceId,
+        width: composerImagePayload?.width ?? width,
+        height: composerImagePayload?.height ?? height,
+        mediaKind: internalPayload?.mediaKind ?? mediaKind,
+        preferLocalRenderArtifact: Boolean(composerDisplayArtifactUrl),
       });
     },
     [acceptPrimaryImageDropSnapshot]

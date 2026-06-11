@@ -198,4 +198,5 @@ Billing is deterministic and request-shape based.
 
 - This lane is intentionally separate from the Fal image submit/status registry.
 - Both routes are synchronous from the client perspective: no provider polling is required once the request returns successfully.
+- The direct OpenAI routes are configured as long-running Vercel Functions with a 300 second ceiling. Provider generation/edit calls use app-owned 240 second request timeouts, internal file uploads use 60 second timeouts, and best-effort provider file cleanup uses a 15 second timeout so route failures stay controlled and refundable before the platform terminates the request.
 - The AI Studio output lifecycle uses the direct-complete path for this model instead of the queue/poll path used by Fal image runs.

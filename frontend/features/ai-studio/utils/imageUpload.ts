@@ -12,8 +12,10 @@ import { maybeTranscodeLocalImageBlobForUpload } from "../../../lib/adaptive-med
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+  PREPARE_REFERENCE_IMAGE_UPLOAD_TIMEOUT_MS,
+  STAGE_REFERENCE_IMAGE_UPLOAD_TIMEOUT_MS,
   SIGNED_URL_REFRESH_TIMEOUT_MS,
-  UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
+  UPLOAD_REFERENCE_IMAGE_STORAGE_TIMEOUT_MS,
 } from "./imageUploadTimeouts";
 import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
@@ -56,7 +58,9 @@ type PrepareImageSourceKind = "blob" | "data-url" | "supabase-signed" | "remote"
 type PrepareImageStage =
   | "prepare_image_url"
   | "fetch_local_image"
-  | "upload_image_route"
+  | "prepare_reference_upload"
+  | "upload_reference_storage"
+  | "stage_reference_upload"
   | "refresh_signed_url";
 
 type PrepareImageStageStatus = "start" | "success" | "error";
@@ -165,7 +169,11 @@ const normalizeImagePreparationError = ({
     return new Error("Unable to read the local reference image. Please re-add it and try again.");
   }
 
-  if (stage === "upload_image_route") {
+  if (
+    stage === "prepare_reference_upload" ||
+    stage === "upload_reference_storage" ||
+    stage === "stage_reference_upload"
+  ) {
     if (isAuthSessionTimeoutError(error)) {
       return new Error("Session check timed out while uploading the reference image.");
     }
@@ -226,12 +234,19 @@ const runAbortableStep = async <T>({
     timeoutMs,
   });
 
-  const timeoutHandle = globalThis.setTimeout(() => {
-    stepAbortController.abort();
-  }, timeoutMs);
+  let timedOut = false;
+  let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const timeoutPromise = new Promise<T>((_resolve, reject) => {
+    timeoutHandle = globalThis.setTimeout(() => {
+      timedOut = true;
+      stepAbortController.abort();
+      reject(new Error(`${stage} timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+  });
+  const runPromise = run(stepAbortController.signal);
 
   try {
-    const result = await run(stepAbortController.signal);
+    const result = await Promise.race([runPromise, timeoutPromise]);
     emitStage(options, {
       stage,
       status: "success",
@@ -242,8 +257,11 @@ const runAbortableStep = async <T>({
     return result;
   } catch (error) {
     const wasAborted = stepAbortController.signal.aborted;
-    if (wasAborted && !abortedByParent) {
-      const timeoutError = new Error(`${stage} timed out after ${timeoutMs}ms.`);
+    if ((timedOut || wasAborted) && !abortedByParent) {
+      const timeoutError =
+        error instanceof Error && error.message.includes("timed out after")
+          ? error
+          : new Error(`${stage} timed out after ${timeoutMs}ms.`);
       emitStage(options, {
         stage,
         status: "error",
@@ -264,7 +282,9 @@ const runAbortableStep = async <T>({
     });
     throw error;
   } finally {
-    globalThis.clearTimeout(timeoutHandle);
+    if (timeoutHandle) {
+      globalThis.clearTimeout(timeoutHandle);
+    }
     detachParentAbort();
   }
 };
@@ -325,15 +345,14 @@ const uploadPreparedImageBlobToStorage = async ({
   const filename = buildUploadFilename(preparedBlob);
   const supabase = ensureSupabaseQueryClient();
 
-  let uploadResult: ImageUploadResponse;
   try {
-    uploadResult = await runAbortableStep({
-      stage: "upload_image_route",
-      timeoutMs: UPLOAD_IMAGE_ROUTE_TIMEOUT_MS,
+    const prepareResponse = await runAbortableStep({
+      stage: "prepare_reference_upload",
+      timeoutMs: PREPARE_REFERENCE_IMAGE_UPLOAD_TIMEOUT_MS,
       sourceKind,
       options,
-      run: async (signal) => {
-        const prepareResponse = await fetchWithAuth("/api/media/prepare-reference-image-upload", {
+      run: async (signal) =>
+        await fetchWithAuth("/api/media/prepare-reference-image-upload", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -346,51 +365,65 @@ const uploadPreparedImageBlobToStorage = async ({
           shortpulseLogScope: "generation",
           shortpulseAuthTimeoutMs: UPLOAD_IMAGE_AUTH_TIMEOUT_MS,
           shortpulseRetryNetworkOnce: true,
-        });
-        const preparePayload = (await prepareResponse
-          .json()
-          .catch(() => null)) as PrepareReferenceImageUploadPayload | null;
-        const storagePath =
-          typeof preparePayload?.target?.storagePath === "string"
-            ? preparePayload.target.storagePath.trim()
-            : "";
-        const uploadToken =
-          typeof preparePayload?.target?.uploadToken === "string"
-            ? preparePayload.target.uploadToken.trim()
-            : "";
-        const preparedMimeType =
-          typeof preparePayload?.target?.mimeType === "string"
-            ? preparePayload.target.mimeType.trim()
-            : preparedBlob.type;
-        const preparedName =
-          typeof preparePayload?.target?.name === "string"
-            ? preparePayload.target.name.trim()
-            : filename;
+        }),
+    });
+    const preparePayload = (await prepareResponse
+      .json()
+      .catch(() => null)) as PrepareReferenceImageUploadPayload | null;
+    const storagePath =
+      typeof preparePayload?.target?.storagePath === "string"
+        ? preparePayload.target.storagePath.trim()
+        : "";
+    const uploadToken =
+      typeof preparePayload?.target?.uploadToken === "string"
+        ? preparePayload.target.uploadToken.trim()
+        : "";
+    const preparedMimeType =
+      typeof preparePayload?.target?.mimeType === "string"
+        ? preparePayload.target.mimeType.trim()
+        : preparedBlob.type;
+    const preparedName =
+      typeof preparePayload?.target?.name === "string"
+        ? preparePayload.target.name.trim()
+        : filename;
 
-        if (!prepareResponse.ok || !storagePath || !uploadToken) {
-          if (prepareResponse.status === 413) {
-            throw new Error(resolve413UploadErrorMessage(preparePayload));
-          }
-          const error = resolveUploadPipelineError(
-            preparePayload,
-            "Unable to prepare reference image upload."
-          );
-          throw new Error(error);
-        }
+    if (!prepareResponse.ok || !storagePath || !uploadToken) {
+      if (prepareResponse.status === 413) {
+        throw new Error(resolve413UploadErrorMessage(preparePayload));
+      }
+      const error = resolveUploadPipelineError(
+        preparePayload,
+        "Unable to prepare reference image upload."
+      );
+      throw new Error(error);
+    }
 
-        const uploadToSignedUrlResult = await supabase.storage
+    const uploadToSignedUrlResult = await runAbortableStep({
+      stage: "upload_reference_storage",
+      timeoutMs: UPLOAD_REFERENCE_IMAGE_STORAGE_TIMEOUT_MS,
+      sourceKind,
+      options,
+      run: async () =>
+        await supabase.storage
           .from(BUCKET)
           .uploadToSignedUrl(storagePath, uploadToken, preparedBlob, {
             contentType: preparedMimeType,
             upsert: false,
-          });
-        if (uploadToSignedUrlResult.error) {
-          throw new Error(
-            uploadToSignedUrlResult.error.message || "Unable to upload the reference image."
-          );
-        }
+          }),
+    });
+    if (uploadToSignedUrlResult.error) {
+      throw new Error(
+        uploadToSignedUrlResult.error.message || "Unable to upload the reference image."
+      );
+    }
 
-        const finalizeResponse = await fetchWithAuth("/api/media/stage-reference-image", {
+    const finalizeResponse = await runAbortableStep({
+      stage: "stage_reference_upload",
+      timeoutMs: STAGE_REFERENCE_IMAGE_UPLOAD_TIMEOUT_MS,
+      sourceKind,
+      options,
+      run: async (signal) =>
+        await fetchWithAuth("/api/media/stage-reference-image", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -404,48 +437,46 @@ const uploadPreparedImageBlobToStorage = async ({
           shortpulseLogScope: "generation",
           shortpulseAuthTimeoutMs: UPLOAD_IMAGE_AUTH_TIMEOUT_MS,
           shortpulseRetryNetworkOnce: true,
-        });
-        const stagePayload = (await finalizeResponse
-          .json()
-          .catch(() => null)) as StageReferenceImagePayload | null;
-
-        if (!finalizeResponse.ok) {
-          if (finalizeResponse.status === 413) {
-            throw new Error(resolve413UploadErrorMessage(stagePayload));
-          }
-          const error = resolveUploadPipelineError(
-            stagePayload,
-            `Image upload failed (${finalizeResponse.status})`
-          );
-          throw new Error(error);
-        }
-
-        const url = typeof stagePayload?.url === "string" ? stagePayload.url.trim() : "";
-        const path = typeof stagePayload?.path === "string" ? stagePayload.path.trim() : "";
-        const size = typeof stagePayload?.size === "number" ? stagePayload.size : preparedBlob.size;
-
-        if (!url) {
-          throw new Error("Image upload failed: missing signed URL.");
-        }
-        if (!path) {
-          throw new Error("Image upload failed: missing storage path.");
-        }
-
-        return {
-          url,
-          path,
-          size,
-        };
-      },
+        }),
     });
+    const stagePayload = (await finalizeResponse
+      .json()
+      .catch(() => null)) as StageReferenceImagePayload | null;
+
+    if (!finalizeResponse.ok) {
+      if (finalizeResponse.status === 413) {
+        throw new Error(resolve413UploadErrorMessage(stagePayload));
+      }
+      const error = resolveUploadPipelineError(
+        stagePayload,
+        `Image upload failed (${finalizeResponse.status})`
+      );
+      throw new Error(error);
+    }
+
+    const url = typeof stagePayload?.url === "string" ? stagePayload.url.trim() : "";
+    const path = typeof stagePayload?.path === "string" ? stagePayload.path.trim() : "";
+    const size = typeof stagePayload?.size === "number" ? stagePayload.size : preparedBlob.size;
+
+    if (!url) {
+      throw new Error("Image upload failed: missing signed URL.");
+    }
+    if (!path) {
+      throw new Error("Image upload failed: missing storage path.");
+    }
+
+    return {
+      url,
+      path,
+      size,
+    };
   } catch (error) {
     throw normalizeImagePreparationError({
-      stage: "upload_image_route",
+      stage: "stage_reference_upload",
       sourceKind,
       error,
     });
   }
-  return uploadResult;
 };
 
 const resolve413UploadErrorMessage = (payload: unknown): string => {

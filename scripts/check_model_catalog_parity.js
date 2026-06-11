@@ -12,6 +12,7 @@ const {
   resolveFrontendPath,
   resolveRepoPath,
 } = require("./lib/repo_paths");
+const { FAL_ROUTE_INVENTORY = [] } = require("./lib/fal_route_inventory");
 
 const MODEL_CATALOG_PATH = resolveFrontendPath(
   "lib",
@@ -276,6 +277,9 @@ function run() {
   const registryById = new Map(
     registryEntries.map((entry) => [String(entry.id || "").trim(), entry]),
   );
+  const catalogById = new Map(
+    entries.map((entry) => [String(entry.modelId || "").trim(), entry]),
+  );
   for (const entry of entries) {
     const modelId = String(entry.modelId || "").trim();
     if (!modelId) {
@@ -511,6 +515,32 @@ function run() {
     if (!falSubmitModelIds.has(modelId)) {
       errors.push(
         `Catalog Fal model missing submit route coverage: ${modelId}`,
+      );
+    }
+  }
+
+  for (const routeEntry of FAL_ROUTE_INVENTORY) {
+    const catalogEntry = catalogById.get(
+      String(routeEntry.modelId || "").trim(),
+    );
+    if (!catalogEntry) {
+      continue;
+    }
+    const expectedRouteTimeoutMs =
+      routeEntry.provider === "kie"
+        ? catalogEntry.kieTimeoutMs
+        : catalogEntry.falTimeoutMs;
+    if (!Number.isFinite(expectedRouteTimeoutMs)) {
+      continue;
+    }
+    if (routeEntry.submitTimeoutMs !== expectedRouteTimeoutMs) {
+      errors.push(
+        `Fal/Kie route inventory submitTimeoutMs drift for ${routeEntry.modelId}: inventory='${routeEntry.submitTimeoutMs}' catalog='${expectedRouteTimeoutMs}'`,
+      );
+    }
+    if (routeEntry.statusTimeoutMs !== expectedRouteTimeoutMs) {
+      errors.push(
+        `Fal/Kie route inventory statusTimeoutMs drift for ${routeEntry.modelId}: inventory='${routeEntry.statusTimeoutMs}' catalog='${expectedRouteTimeoutMs}'`,
       );
     }
   }

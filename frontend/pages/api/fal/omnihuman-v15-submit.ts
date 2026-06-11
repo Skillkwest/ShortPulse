@@ -13,6 +13,6 @@ export default createFalSubmitHandler({
   modelId: "fal-ai/bytedance/omnihuman/v1.5",
   submitUrl: getFalSubmitUrlRequired("fal-ai/bytedance/omnihuman/v1.5"),
   routeLabel: "Fal OmniHuman v1.5",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bytedance/omnihuman/v1.5", 20000),
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bytedance/omnihuman/v1.5", 60000),
   validatePayload: validateFalPayloadForModel("fal-ai/bytedance/omnihuman/v1.5"),
 });

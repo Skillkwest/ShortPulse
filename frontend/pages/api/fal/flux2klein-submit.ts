@@ -13,6 +13,6 @@ export default createFalSubmitHandler({
   modelId: "fal-ai/flux-2/klein/9b",
   submitUrl: getFalSubmitUrlRequired("fal-ai/flux-2/klein/9b"),
   routeLabel: "Fal FLUX 2 Klein",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/flux-2/klein/9b", 20000),
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/flux-2/klein/9b", 60000),
   validatePayload: validateFalPayloadForModel("fal-ai/flux-2/klein/9b"),
 });

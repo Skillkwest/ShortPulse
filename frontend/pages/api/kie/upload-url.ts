@@ -199,12 +199,17 @@ const readUploadPayload = (
   fileName: string | null;
   mimeType: string | null;
   detail: string | null;
+  providerFailureDetail: string | null;
 } => {
   const responsePayload = payload as {
     url?: unknown;
     downloadUrl?: unknown;
     fileUrl?: unknown;
     msg?: unknown;
+    message?: unknown;
+    error?: unknown;
+    success?: unknown;
+    code?: unknown;
     data?: {
       url?: unknown;
       downloadUrl?: unknown;
@@ -213,6 +218,22 @@ const readUploadPayload = (
       mimeType?: unknown;
     };
   };
+  const providerCode =
+    typeof responsePayload?.code === "string" || typeof responsePayload?.code === "number"
+      ? String(responsePayload.code).trim().toLowerCase()
+      : "";
+  const providerCodeIndicatesFailure =
+    providerCode.length > 0 &&
+    providerCode !== "0" &&
+    providerCode !== "200" &&
+    !providerCode.includes("success") &&
+    !providerCode.includes("ok");
+  const providerDeclaredFailure =
+    responsePayload?.success === false || providerCodeIndicatesFailure;
+  const detail =
+    asNonEmptyString(responsePayload?.msg) ??
+    asNonEmptyString(responsePayload?.message) ??
+    asNonEmptyString(responsePayload?.error);
   return {
     uploadedUrl:
       asNonEmptyString(responsePayload?.data?.downloadUrl) ??
@@ -227,12 +248,14 @@ const readUploadPayload = (
     mimeType:
       asNonEmptyString(responsePayload?.data?.mimeType) ??
       asNonEmptyString((responsePayload as { mimeType?: unknown })?.mimeType),
-    detail: asNonEmptyString(responsePayload?.msg),
+    detail,
+    providerFailureDetail: providerDeclaredFailure ? (detail ?? "Provider upload failed.") : null,
   };
 };
 
 const shouldFallbackUrlUploadToRemoteStream = (result: UploadAttemptResult): boolean => {
   if (result.diagnostics.transport !== "url_upload") return false;
+  if (result.parsed.providerFailureDetail) return false;
   if (!result.upstream.ok) return result.upstream.status !== 401;
   return result.parsed.uploadedUrl === null;
 };
@@ -743,6 +766,30 @@ export default async function handler(
           detail: result.parsed.detail,
           diagnostics: result.diagnostics,
         }),
+      });
+    }
+
+    if (result.parsed.providerFailureDetail) {
+      await logApiRouteException({
+        req,
+        error: new Error("Kie upload upstream reported provider failure"),
+        routeLabel: "kie-upload-url",
+        user,
+        metadata: {
+          kie_upload_failure: "upstream_provider_failure",
+          ...buildKieUploadFallbackMetadata({
+            primaryResult,
+            fallbackResult,
+          }),
+          ...buildKieUploadDiagnosticsMetadata({
+            upstreamStatus: result.upstream.status,
+            diagnostics: result.diagnostics,
+          }),
+        },
+      });
+      return res.status(502).json({
+        error: "Kie upload failed",
+        details: result.parsed.providerFailureDetail,
       });
     }
 

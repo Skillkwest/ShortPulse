@@ -3,7 +3,11 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useExpertEditPrimaryIngress } from "../useExpertEditPrimaryIngress";
 import type { ExpertEditLayer } from "../expertEditLayerSessionUtils";
-import { readRememberedObjectUrlBlob } from "../../../utils/objectUrlBlobRegistry";
+import {
+  forgetObjectUrlBlob,
+  readRememberedObjectUrlBlob,
+  rememberObjectUrlBlob,
+} from "../../../utils/objectUrlBlobRegistry";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN, prepareReferenceDrag } from "../../../utils/dragDrop";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
@@ -169,6 +173,69 @@ const makePreparedInternalImageDropEvent = () => {
     {
       dragImage: currentTarget,
       sourceSurface: "all-refs",
+    }
+  );
+
+  return {
+    preventDefault: vi.fn(),
+    currentTarget,
+    dataTransfer,
+  } as unknown as Parameters<
+    ReturnType<typeof useExpertEditPrimaryIngress>["handlePrimaryDrop"]
+  >[0];
+};
+
+const makeFlattenedComposerImageDropEvent = () => {
+  const transferData = new Map<string, string>();
+  const currentTarget = document.createElement("article");
+  const image = document.createElement("img");
+  image.className = "reference-card-image";
+  image.setAttribute("src", "blob:weak-reference-render");
+  currentTarget.appendChild(image);
+  const dataTransfer = {
+    files: emptyFileList,
+    get types() {
+      return Array.from(transferData.keys());
+    },
+    getData: (type: string) => transferData.get(type) ?? "",
+    setData: (type: string, value: string) => {
+      transferData.set(type, value);
+    },
+    setDragImage: vi.fn(),
+    effectAllowed: "all",
+  } as unknown as DataTransfer;
+
+  prepareReferenceDrag(
+    {
+      currentTarget,
+      dataTransfer,
+    } as unknown as React.DragEvent<HTMLElement>,
+    {
+      id: "flattened-output-1",
+      prompt: "Flattened image",
+      previewText: "Flattened image",
+      mode: "image",
+      aspect: "16:9",
+      model: "Test model",
+      status: "ready",
+      timestamp: "now",
+      taskState: "success",
+      mediaSource: "generated",
+      previewUrl: "blob:weak-reference-render",
+      resultUrls: ["blob:weak-reference-render"],
+      saveState: "failed",
+    } as never,
+    {
+      dragImage: currentTarget,
+      sourceSurface: "all-refs",
+      composerImageArtifact: {
+        displayArtifactUrl: "blob:weak-reference-render",
+        displayArtifactKind: "blob",
+        promptText: "Flattened image",
+        width: 960,
+        height: 540,
+        mimeType: "image/png",
+      },
     }
   );
 
@@ -712,5 +779,66 @@ describe("useExpertEditPrimaryIngress", () => {
     expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/original.png");
     expect(createLayer).not.toHaveBeenCalled();
     expect(readRememberedObjectUrlBlob("blob:stale-primary")).toBeNull();
+  });
+
+  it("uses a local flattened render artifact when durable internal save resolution fails", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const event = makeFlattenedComposerImageDropEvent();
+    const flattenedBlob = new Blob(["flattened image"], { type: "image/png" });
+    const preparedUrl = "blob:prepared-flattened-drop";
+    const createObjectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue(preparedUrl);
+    rememberObjectUrlBlob("blob:weak-reference-render", flattenedBlob);
+    const resolveInternalReferenceImageDropSource = vi.fn().mockResolvedValue(null);
+
+    try {
+      const { result } = renderHook(() => {
+        const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
+          createLayerFixture("layer-1", "https://example.com/original.png"),
+        ]);
+        const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
+
+        const ingress = useExpertEditPrimaryIngress({
+          layers,
+          selectedLayerIndex,
+          foundationLayerId: "layer-1",
+          isMorePresetsSurfaceOpen: false,
+          createLayer,
+          queuePanelHistoryBaselineFromCurrent: vi.fn(),
+          setLayers,
+          setFoundationLayerId: vi.fn(),
+          setSelectedLayerIndex,
+          setEditingLayerIndex: vi.fn(),
+          setEditingLayerValue: vi.fn(),
+          revokeObjectUrlSafe: vi.fn(),
+          resolveInternalReferenceImageDropSource,
+        });
+
+        return {
+          ingress,
+          layers,
+          selectedLayerIndex,
+        };
+      });
+
+      await act(async () => {
+        result.current.ingress.handlePrimaryDrop(event);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(resolveInternalReferenceImageDropSource).not.toHaveBeenCalled();
+      expect(result.current.layers).toHaveLength(2);
+      expect(result.current.layers[0]?.imageUrl).toBe(preparedUrl);
+      expect(result.current.layers[1]?.imageUrl).toBe("https://example.com/original.png");
+      expect(result.current.selectedLayerIndex).toBe(0);
+      expect(createLayer).toHaveBeenCalledTimes(1);
+      expect(readRememberedObjectUrlBlob(preparedUrl)).toBe(flattenedBlob);
+    } finally {
+      forgetObjectUrlBlob("blob:weak-reference-render");
+      forgetObjectUrlBlob(preparedUrl);
+      createObjectUrlSpy.mockRestore();
+    }
   });
 });

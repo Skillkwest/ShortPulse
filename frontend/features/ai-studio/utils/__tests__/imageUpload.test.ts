@@ -45,6 +45,10 @@ import {
   uploadImageToStorage,
 } from "../imageUpload";
 import { rememberObjectUrlBlob, forgetObjectUrlBlob } from "../objectUrlBlobRegistry";
+import {
+  PREPARE_REFERENCE_IMAGE_UPLOAD_TIMEOUT_MS,
+  UPLOAD_REFERENCE_IMAGE_STORAGE_TIMEOUT_MS,
+} from "../imageUploadTimeouts";
 
 const originalFetch = global.fetch;
 
@@ -399,7 +403,7 @@ describe("imageUpload", () => {
     expect(stages).toEqual(["prepare_image_url:start", "prepare_image_url:success"]);
   });
 
-  it("times out stalled upload route requests", async () => {
+  it("times out stalled reference-upload prepare requests", async () => {
     vi.useFakeTimers();
     try {
       const localUrl = "blob:stalled-upload";
@@ -421,10 +425,44 @@ describe("imageUpload", () => {
 
       const pending = uploadImageToStorage(localUrl);
       const rejection = pending.catch((error) => error);
-      await vi.advanceTimersByTimeAsync(46_000);
+      await vi.advanceTimersByTimeAsync(PREPARE_REFERENCE_IMAGE_UPLOAD_TIMEOUT_MS + 1_000);
       const error = await rejection;
       expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).toContain("upload_image_route timed out");
+      expect((error as Error).message).toContain("prepare_reference_upload timed out");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("times out stalled direct storage uploads even when the storage client ignores abort", async () => {
+    vi.useFakeTimers();
+    try {
+      const localUrl = "blob:stalled-storage-upload";
+      const imageBlob = new Blob(["image-data"], { type: "image/png" });
+      global.fetch = vi.fn().mockResolvedValue(new Response(imageBlob)) as typeof fetch;
+      fetchWithAuthMock.mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/stalled-storage.png",
+            uploadToken: "upload-token-stalled-storage",
+            mimeType: "image/png",
+            name: "stalled-storage.png",
+          },
+        })
+      );
+      uploadToSignedUrlMock.mockImplementation(
+        async () =>
+          await new Promise(() => {
+            // unresolved; the upload helper must enforce its own timeout
+          })
+      );
+
+      const pending = uploadImageToStorage(localUrl);
+      const rejection = pending.catch((error) => error);
+      await vi.advanceTimersByTimeAsync(UPLOAD_REFERENCE_IMAGE_STORAGE_TIMEOUT_MS + 1_000);
+      const error = await rejection;
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("upload_reference_storage timed out");
     } finally {
       vi.useRealTimers();
     }

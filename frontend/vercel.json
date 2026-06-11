@@ -1,4 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "bash ./scripts/vercel-ignore-build.sh"
+  "ignoreCommand": "bash ./scripts/vercel-ignore-build.sh",
+  "functions": {
+    "pages/api/openai/image-edit.ts": {
+      "maxDuration": 300
+    },
+    "pages/api/openai/image-generate.ts": {
+      "maxDuration": 300
+    }
+  }
 }

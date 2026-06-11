@@ -13,6 +13,6 @@ export default createFalSubmitHandler({
   modelId: "fal-ai/bria/background/remove",
   submitUrl: getFalSubmitUrlRequired("fal-ai/bria/background/remove"),
   routeLabel: "Fal Bria background remove",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bria/background/remove", 20000),
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bria/background/remove", 60000),
   validatePayload: validateFalPayloadForModel("fal-ai/bria/background/remove"),
 });

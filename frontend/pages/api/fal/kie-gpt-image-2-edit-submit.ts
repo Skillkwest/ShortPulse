@@ -14,6 +14,6 @@ export default createFalSubmitHandler({
   provider: "kie",
   submitUrl: getKieSubmitUrlRequired("kie-ai/gpt-image-2-image-to-image"),
   routeLabel: "Kie GPT Image 2 Image to Image",
-  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/gpt-image-2-image-to-image", 20000),
+  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/gpt-image-2-image-to-image", 60000),
   validatePayload: validateFalPayloadForModel("kie-ai/gpt-image-2-image-to-image"),
 });

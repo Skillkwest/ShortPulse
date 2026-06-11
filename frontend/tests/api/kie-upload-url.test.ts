@@ -333,6 +333,53 @@ describe("POST /api/kie/upload-url", () => {
     });
   });
 
+  it("does not fallback when Kie returns an explicit JSON failure with HTTP 200", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        success: false,
+        code: 401,
+        msg: "Authentication failed: Unauthorized",
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://cdn.example.com/auth-failed-image.jpg",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Kie upload failed",
+      details: "Authentication failed: Unauthorized",
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "kie-upload-url",
+        user: { id: "user-1", email: "user@example.com" },
+        metadata: expect.objectContaining({
+          kie_upload_failure: "upstream_provider_failure",
+          kie_upload_transport: "url_upload",
+          kie_upstream_status: 200,
+          kie_upstream_content_type: "application/json",
+          kie_upload_fallback_attempted: false,
+        }),
+      })
+    );
+  });
+
   it("logs and classifies non-JSON upstream failures from Kie", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: false,

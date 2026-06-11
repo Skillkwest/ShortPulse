@@ -14,6 +14,6 @@ export default createFalSubmitHandler({
   provider: "kie",
   submitUrl: getKieSubmitUrlRequired("kie-ai/kling-3.0"),
   routeLabel: "Kie Kling 3.0",
-  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/kling-3.0", 20000),
+  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/kling-3.0", 60000),
   validatePayload: validateFalPayloadForModel("kie-ai/kling-3.0"),
 });

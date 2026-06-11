@@ -32,6 +32,9 @@ import { normalizeGenerationWorkspaceRuntimeKey } from "./api/generationWorkspac
 
 const DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1";
 const MEDIA_BUCKET = "media_library";
+const OPENAI_IMAGE_FILE_UPLOAD_TIMEOUT_MS = 60_000;
+const OPENAI_IMAGE_FILE_DELETE_TIMEOUT_MS = 15_000;
+const OPENAI_IMAGE_OPERATION_TIMEOUT_MS = 240_000;
 
 type OpenAiGenerateImageInput = {
   prompt: string;
@@ -162,6 +165,39 @@ const resolveOpenAiApiBase = (): string => {
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 };
 
+const fetchOpenAiImageWithTimeout = async ({
+  url,
+  init,
+  timeoutMs,
+  timeoutMessage,
+}: {
+  url: string;
+  init: RequestInit;
+  timeoutMs: number;
+  timeoutMessage: string;
+}): Promise<Response> => {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(timeoutMessage);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 const buildOpenAiImageEditPayloadRef = async ({
   apiKey,
   image,
@@ -187,12 +223,18 @@ const buildOpenAiImageEditPayloadRef = async ({
     image.filename
   );
 
-  const response = await fetch(`${resolveOpenAiApiBase()}/files`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetchOpenAiImageWithTimeout({
+    url: `${resolveOpenAiApiBase()}/files`,
+    timeoutMs: OPENAI_IMAGE_FILE_UPLOAD_TIMEOUT_MS,
+    timeoutMessage:
+      "Image reference upload timed out before the provider accepted it. Please retry.",
+    init: {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: formData,
     },
-    body: formData,
   });
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
@@ -217,10 +259,15 @@ const deleteOpenAiUploadedFile = async ({
   apiKey: string;
   fileId: string;
 }): Promise<void> => {
-  await fetch(`${resolveOpenAiApiBase()}/files/${encodeURIComponent(fileId)}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  await fetchOpenAiImageWithTimeout({
+    url: `${resolveOpenAiApiBase()}/files/${encodeURIComponent(fileId)}`,
+    timeoutMs: OPENAI_IMAGE_FILE_DELETE_TIMEOUT_MS,
+    timeoutMessage: "Image reference cleanup timed out.",
+    init: {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
     },
   }).catch(() => undefined);
 };
@@ -396,21 +443,27 @@ export const generateOpenAiImage = async ({
     throw new Error("OPENAI_API_KEY is not configured.");
   }
 
-  const response = await fetch(`${resolveOpenAiApiBase()}/images/generations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetchOpenAiImageWithTimeout({
+    url: `${resolveOpenAiApiBase()}/images/generations`,
+    timeoutMs: OPENAI_IMAGE_OPERATION_TIMEOUT_MS,
+    timeoutMessage:
+      "Image generation request timed out before a result was returned. Please retry.",
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+        prompt,
+        size,
+        quality,
+        n: 1,
+        output_format: "png",
+        moderation: OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION,
+      }),
     },
-    body: JSON.stringify({
-      model: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      prompt,
-      size,
-      quality,
-      n: 1,
-      output_format: "png",
-      moderation: OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION,
-    }),
   });
 
   return parseOpenAiImageResponse(response);
@@ -455,23 +508,29 @@ export const editOpenAiImage = async ({
       uploadedFileIds.push(resolvedMask.uploadedFileId);
     }
 
-    const response = await fetch(`${resolveOpenAiApiBase()}/images/edits`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+    const response = await fetchOpenAiImageWithTimeout({
+      url: `${resolveOpenAiApiBase()}/images/edits`,
+      timeoutMs: OPENAI_IMAGE_OPERATION_TIMEOUT_MS,
+      timeoutMessage:
+        "Image edit request timed out before a result was returned. Please retry or use the queued GPT Image 2 Edit model for longer edits.",
+      init: {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+          images: providerImages,
+          prompt,
+          size,
+          quality,
+          n: 1,
+          output_format: "png",
+          moderation: OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION,
+          ...(resolvedMask ? { mask: resolvedMask.payload } : {}),
+        }),
       },
-      body: JSON.stringify({
-        model: OPENAI_GPT_IMAGE_2_MODEL_ID,
-        images: providerImages,
-        prompt,
-        size,
-        quality,
-        n: 1,
-        output_format: "png",
-        moderation: OPENAI_GPT_IMAGE_2_DEFAULT_MODERATION,
-        ...(resolvedMask ? { mask: resolvedMask.payload } : {}),
-      }),
     });
 
     return parseOpenAiImageResponse(response);

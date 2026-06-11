@@ -14,6 +14,6 @@ export default createFalSubmitHandler({
   provider: "kie",
   submitUrl: getKieSubmitUrlRequired("kie-ai/veo-3.1-fast-i2v"),
   routeLabel: "Kie Veo 3.1 Fast I2V",
-  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/veo-3.1-fast-i2v", 20000),
+  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/veo-3.1-fast-i2v", 60000),
   validatePayload: validateFalPayloadForModel("kie-ai/veo-3.1-fast-i2v"),
 });

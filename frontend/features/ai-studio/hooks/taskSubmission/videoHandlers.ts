@@ -1342,6 +1342,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       requestedResolution,
       requestedAudio,
       preparedImageInputs,
+      rawImageInputs,
       modelConfig,
       notifyGenerationFailure,
       videoReferenceMode,
@@ -1372,13 +1373,12 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           return { handled: true };
         }
 
-        const characterImageUrl = preparedImageInputs[0];
-        if (!characterImageUrl) {
+        const preparedCharacterImageUrl = preparedImageInputs[0];
+        if (!preparedCharacterImageUrl) {
           notifyGenerationFailure(id, "Failed to prepare character image");
           return { handled: true };
         }
 
-        let motionVideoUrlFinal = motionReferenceVideoUrl;
         if (needsVideoUpload(motionReferenceVideoUrl)) {
           notifyGenerationFailure(
             id,
@@ -1388,7 +1388,20 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           );
           return { handled: true };
         }
+
+        let characterImageUrl = preparedCharacterImageUrl;
+        let motionVideoUrlFinal = motionReferenceVideoUrl;
         try {
+          const kieUploadCache = new Map<string, Promise<string>>();
+          characterImageUrl = await prepareKieInputUrl({
+            rawUrl: rawImageInputs[0] ?? videoReferenceImageUrl,
+            preparedUrl: preparedCharacterImageUrl,
+            mediaKind: "image",
+            cache: kieUploadCache,
+          });
+          if (!characterImageUrl) {
+            throw new Error("Character image is missing.");
+          }
           const preparedMotionVideoUrl =
             await prepareMotionReferenceVideoUrl(motionReferenceVideoUrl);
           if (!preparedMotionVideoUrl) {
@@ -1397,7 +1410,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           motionVideoUrlFinal = await uploadUrlToKieTemporaryFile({
             url: preparedMotionVideoUrl,
             mediaKind: "video",
-            cache: new Map<string, Promise<string>>(),
+            cache: kieUploadCache,
           });
         } catch (error) {
           const message =
@@ -1427,7 +1440,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           response,
           pollingProvider: "kie-kling",
           patch: {
-            previewUrl: characterImageUrl,
+            previewUrl: preparedCharacterImageUrl,
           },
         };
       }
@@ -1441,10 +1454,10 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         );
         return { handled: true };
       }
+      const kieUploadCache = new Map<string, Promise<string>>();
       let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
       let preparedKlingElements: AiStudioKlingElement[] = klingElements;
       try {
-        const kieUploadCache = new Map<string, Promise<string>>();
         preparedKlingElements = await Promise.all(
           klingElements.filter(isPromptTokenEligibleKlingElement).map(
             async (element) =>
@@ -1479,10 +1492,29 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         );
         return { handled: true };
       }
+      let klingImageUrls: string[];
+      try {
+        klingImageUrls = await Promise.all(
+          resolvedShotModePayload.imageUrls.map(
+            async (preparedUrl, index) =>
+              await prepareKieInputUrl({
+                rawUrl: rawImageInputs[index],
+                preparedUrl,
+                mediaKind: "image",
+                cache: kieUploadCache,
+              })
+          )
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Kling image reference preparation failed";
+        notifyGenerationFailure(id, `Kling image reference preparation failed: ${message}`);
+        return { handled: true };
+      }
       const response = await submitQueuedGenerationByModelId(finalModel, {
         prompt: resolvedShotModePayload.prompt,
-        image_url: preparedImageInputs[0],
-        image_urls: resolvedShotModePayload.imageUrls,
+        image_url: klingImageUrls[0],
+        image_urls: klingImageUrls,
         aspect_ratio: aspectRatio,
         duration,
         resolution: resolveKlingResolution(requestedResolution),

@@ -19,6 +19,8 @@ import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useProtectedRoute } from "../../lib/authGuard";
 import styles from "../../styles/admin.module.css";
 
+const ADMIN_TUTORIAL_GRID_SLOT_COUNT = 25;
+
 export default function AdminAnnouncementsPage() {
   const { loading, user } = useProtectedRoute(true);
   const {
@@ -71,6 +73,10 @@ export default function AdminAnnouncementsPage() {
   });
   const thumbnailFileInputRef = useRef<HTMLInputElement | null>(null);
   const tutorialFormLocked = tutorialSaving || uploadingThumbnail;
+  const tutorialGridSlots = Array.from(
+    { length: Math.max(ADMIN_TUTORIAL_GRID_SLOT_COUNT, tutorials.length) },
+    (_, index) => tutorials[index] ?? null
+  );
 
   const handleThumbnailFileSelection = (files: FileList | null) => {
     const file = files?.[0] ?? null;
@@ -241,8 +247,8 @@ export default function AdminAnnouncementsPage() {
 
         <div className={styles.dashboardTutorialManager}>
           <div className={styles.dashboardTutorialPreviewGrid}>
-            {tutorials.length > 0 ? (
-              tutorials.map((tutorial, index) => (
+            {tutorialGridSlots.map((tutorial, index) =>
+              tutorial ? (
                 <article
                   key={tutorial.id}
                   className={`${styles.dashboardTutorialPreviewCard} ${
@@ -315,15 +321,22 @@ export default function AdminAnnouncementsPage() {
                     </button>
                   </div>
                 </article>
-              ))
-            ) : (
-              <div className={styles.announcementPreview}>
-                <p className="eyebrow">No tutorials yet</p>
-                <p className="tiny subdued">
-                  Add the first tutorial card to populate the signed-in dashboard hub.
-                </p>
-              </div>
+              ) : (
+                <div
+                  key={`tutorial-slot-${index + 1}`}
+                  className={styles.dashboardTutorialEmptySlot}
+                  aria-hidden="true"
+                >
+                  <span>{index + 1}</span>
+                </div>
+              )
             )}
+            {tutorials.length === 0 ? (
+              <div className={styles.dashboardTutorialEmptyState}>
+                <p className="eyebrow">No tutorials yet</p>
+                <p className="tiny subdued">Add the first tutorial card to populate this grid.</p>
+              </div>
+            ) : null}
           </div>
 
           <div className={styles.dashboardTutorialForm}>

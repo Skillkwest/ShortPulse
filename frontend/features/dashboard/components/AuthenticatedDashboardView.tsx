@@ -55,6 +55,8 @@ type AuthenticatedDashboardViewProps = {
   onOpenProjects: () => void;
 };
 
+const DASHBOARD_TUTORIAL_GRID_SLOT_COUNT = 25;
+
 /**
  * Renders the authenticated dashboard mode.
  */
@@ -70,6 +72,11 @@ export function AuthenticatedDashboardView({
   onCreateProject,
   onOpenProjects,
 }: AuthenticatedDashboardViewProps) {
+  const tutorialGridSlots = Array.from(
+    { length: Math.max(DASHBOARD_TUTORIAL_GRID_SLOT_COUNT, dashboardTutorials.length) },
+    (_, index) => dashboardTutorials[index] ?? null
+  );
+
   return (
     <>
       <section className="dashboard-hero minimal-hero">
@@ -181,35 +188,45 @@ export function AuthenticatedDashboardView({
             </div>
           </div>
           <div className="dashboard-tutorial-grid">
-            {dashboardTutorials.map((tutorial) => (
-              <a
-                key={tutorial.id}
-                className="dashboard-tutorial-card"
-                href={tutorial.youtubeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`${tutorial.title}: open tutorial on YouTube`}
-              >
-                <span className="dashboard-tutorial-thumbnail" aria-hidden="true">
-                  {tutorial.thumbnailMediaType === "video" ? (
-                    <video
-                      src={tutorial.thumbnailUrl}
-                      muted
-                      loop
-                      playsInline
-                      autoPlay
-                      preload="metadata"
-                    />
-                  ) : (
-                    <span
-                      className="dashboard-tutorial-thumbnail-image"
-                      style={{ backgroundImage: `url(${JSON.stringify(tutorial.thumbnailUrl)})` }}
-                    />
-                  )}
-                </span>
-                <span className="dashboard-tutorial-title">{tutorial.title}</span>
-              </a>
-            ))}
+            {tutorialGridSlots.map((tutorial, index) =>
+              tutorial ? (
+                <a
+                  key={tutorial.id}
+                  className="dashboard-tutorial-card"
+                  href={tutorial.youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${tutorial.title}: open tutorial on YouTube`}
+                >
+                  <span className="dashboard-tutorial-title">{tutorial.title}</span>
+                  <span className="dashboard-tutorial-thumbnail" aria-hidden="true">
+                    {tutorial.thumbnailMediaType === "video" ? (
+                      <video
+                        src={tutorial.thumbnailUrl}
+                        muted
+                        loop
+                        playsInline
+                        autoPlay
+                        preload="metadata"
+                      />
+                    ) : (
+                      <span
+                        className="dashboard-tutorial-thumbnail-image"
+                        style={{
+                          backgroundImage: `url(${JSON.stringify(tutorial.thumbnailUrl)})`,
+                        }}
+                      />
+                    )}
+                  </span>
+                </a>
+              ) : (
+                <span
+                  key={`dashboard-tutorial-slot-${index + 1}`}
+                  className="dashboard-tutorial-empty-slot"
+                  aria-hidden="true"
+                />
+              )
+            )}
           </div>
         </section>
       ) : null}

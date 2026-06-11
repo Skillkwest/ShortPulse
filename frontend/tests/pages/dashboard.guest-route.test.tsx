@@ -297,11 +297,6 @@ describe("Dashboard guest route", () => {
     expect(
       await screen.findByRole("heading", { name: /pick a workflow and start creating/i })
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "See what each workflow can make, then launch into your first project when you are ready."
-      )
-    ).toBeInTheDocument();
     expect(await screen.findByText("Generate images with ShortPulse")).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", {

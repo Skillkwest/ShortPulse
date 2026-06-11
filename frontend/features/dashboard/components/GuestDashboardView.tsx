@@ -56,13 +56,7 @@ export function GuestDashboardView({
           <div className="dashboard-section-header">
             <div>
               <p className="eyebrow tiny">Quick-start tutorials</p>
-              <h2 id="dashboard-tutorials-heading">
-                Pick a <span>workflow</span> and start creating
-              </h2>
-              <p className="dashboard-section-subtext">
-                See what each workflow can make, then launch into your first project when you are
-                ready.
-              </p>
+              <h2 id="dashboard-tutorials-heading">Pick a workflow and start creating</h2>
             </div>
           </div>
           <DashboardTutorialGrid tutorials={dashboardTutorials} launchHref={tutorialLaunchHref} />

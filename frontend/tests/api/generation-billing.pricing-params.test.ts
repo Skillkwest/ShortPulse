@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../lib/model-runtime/falModelIds";
 import { KIE_SEEDANCE_2_MODEL_ID } from "../../lib/model-runtime/providerModelIds";
 import { buildPricingParams } from "../../lib/server/api/generationBilling/pricingParams";
 
@@ -21,6 +22,26 @@ describe("generationBilling pricing params normalization", () => {
 
     expect(params.durationSeconds).toBe(4);
     expect(params.resolution).toBe("1080p");
+  });
+
+  it("rebuilds OmniHuman Lip Sync pricing from submitted resolution and audio duration context", () => {
+    const params = buildPricingParams(
+      FAL_OMNIHUMAN_V15_MODEL_ID,
+      {
+        image_url: "https://fal.media/files/character.png",
+        audio_url: "https://fal.media/files/voice.mp3",
+        resolution: "720p",
+      },
+      {
+        shortpulseContext: {
+          lip_sync_audio_duration_ms: 12_400,
+          audio_duration_seconds: 12.4,
+        },
+      }
+    );
+
+    expect(params.durationSeconds).toBe(12);
+    expect(params.resolution).toBe("720p");
   });
 
   it("maps enable_google_search to webSearch for nano-banana pricing", () => {

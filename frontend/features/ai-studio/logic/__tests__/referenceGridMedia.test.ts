@@ -439,4 +439,30 @@ describe("referenceGridMedia", () => {
     expect(authority.posterPreviewUrl).not.toBe(authority.playableMediaUrl);
     expect(authority.unavailableReason).toBeNull();
   });
+
+  it("treats extensionless signed video result urls as playable for video detail surfaces", () => {
+    const playableUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user-1/generations/videos/reference_asset_12345?token=abc123";
+    const posterUrl = "https://signed.test/video-poster.webp";
+    const authority = resolveStudioOutputMediaDisplayAuthority({
+      id: "video-extensionless-1",
+      mode: "video",
+      taskState: "success",
+      mediaSource: "generated",
+      generationId: "gen-video-extensionless-1",
+      taskId: "task-video-extensionless-1",
+      savedMediaIds: ["media-video-extensionless-1"],
+      previewStoragePath: null,
+      previewPosterStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: posterUrl,
+      previewPosterUrl: posterUrl,
+      resultUrls: [playableUrl],
+    });
+
+    expect(authority.posterPreviewUrl).toBe(posterUrl);
+    expect(authority.playableMediaUrl).toBe(playableUrl);
+    expect(authority.cardDisplayUrl).toBe(posterUrl);
+    expect(authority.unavailableReason).toBeNull();
+  });
 });

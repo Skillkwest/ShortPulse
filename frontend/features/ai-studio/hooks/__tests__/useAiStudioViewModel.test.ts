@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
@@ -1136,6 +1136,69 @@ describe("useAiStudioViewModel motion guardrails", () => {
 });
 
 describe("useAiStudioViewModel lip sync guardrails", () => {
+  it("prices Lip Sync against OmniHuman audio duration when the selected model is stale", () => {
+    const expectedCost = resolvePricingGridBilledCredits({
+      modelId: FAL_OMNIHUMAN_V15_MODEL_ID,
+      params: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID)({
+        durationSeconds: 12,
+        resolution: "720p",
+        audio: true,
+      }),
+      pricingPolicy: pricingGridPolicy,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_KLING_30_MODEL_ID,
+        costParamsForModel: makeCostParamsForModel(KIE_KLING_30_MODEL_ID),
+        referenceImageUrl: "https://example.com/character.jpg",
+        videoReferenceMode: "lip-sync",
+        videoResolution: "720p",
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 12_400,
+          sourceKind: "library",
+        }),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("passes selected Lip Sync resolution into hidden OmniHuman pricing params", () => {
+    const costParamsForModel = vi.fn(makeCostParamsForModel(KIE_KLING_30_MODEL_ID));
+
+    renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_KLING_30_MODEL_ID,
+        costParamsForModel,
+        referenceImageUrl: "https://example.com/character.jpg",
+        videoReferenceMode: "lip-sync",
+        videoResolution: "720p",
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 4_000,
+          sourceKind: "library",
+        }),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(costParamsForModel).toHaveBeenCalledWith(
+      FAL_OMNIHUMAN_V15_MODEL_ID,
+      expect.objectContaining({
+        durationSeconds: 4,
+        resolution: "720p",
+        audio: true,
+      })
+    );
+  });
+
   it("blocks generation until voice audio is present", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

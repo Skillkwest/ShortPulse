@@ -56,7 +56,8 @@ and must not create Lip Sync result cards.
 - Local voice-audio picker/drop source files upload through `/api/media/upload`
   before they become ready Lip Sync state.
 - ShortPulse blocks known over-limit audio before provider submit.
-- The Lip Sync submit adapter stages both the selected character image and voice audio through `/api/fal/upload-url`; upstream `image_url` and `audio_url` must be verified Fal CDN URLs, not Kie temporary upload URLs. When app-owned storage authority is known, the adapter submits storage paths to the staging helper instead of reusing signed/display URLs.
+- The Lip Sync submit adapter stages both the selected character image and voice audio through `/api/fal/upload-url`; upstream `image_url` and `audio_url` must be fresh verified Fal CDN URLs, not Kie temporary upload URLs. When app-owned storage authority is known, the adapter submits storage paths to the staging helper instead of reusing signed/display URLs. URL-only inputs, including existing Fal CDN URLs, are re-staged with explicit `mediaKind` so the staged file has image/audio-compatible MIME.
+- Fal CDN staging is timeout-bounded before model submit. If staging hangs or times out, the output fails locally and no OmniHuman provider request is expected.
 - The submit proxy rejects OmniHuman requests before billing/provider dispatch if either upstream media URL is not on the Fal CDN.
 - Billing duration is carried in `shortpulse_context`; duration is not sent as an upstream provider field.
 - Generated wrapper routes strip ShortPulse sidecars before provider submit.

@@ -35,12 +35,21 @@ but submit previously staged the display URL when preparing Fal CDN inputs.
    success, so OmniHuman submit does not receive an unverified staged URL.
 6. The Fal submit proxy enforces the same boundary before billing/provider
    dispatch: OmniHuman `image_url` and `audio_url` must be Fal CDN URLs.
-7. Fal OmniHuman result settlement is model-aware. Echoed input fields such as
+7. Existing Fal CDN URLs are not accepted as final Lip Sync input authority.
+   URL-only inputs are re-staged through `/api/fal/upload-url` with explicit
+   image/audio `mediaKind`, so generic binary source responses become
+   provider-compatible image/audio uploads when the path indicates the media
+   type.
+8. Lip Sync staging is timeout-bounded on both the client request and server
+   Fal CDN initiate/upload legs. If staging cannot complete, the optimistic
+   output must fail before provider submit instead of remaining pending without
+   a provider request id.
+9. Fal OmniHuman result settlement is model-aware. Echoed input fields such as
    `image_url` and `audio_url` are not generated media; only generated video
    fields may become Lip Sync output URLs.
-8. UI/UX remains unchanged: Lip Sync still presents product-only controls,
-   requires character image plus voice audio, and sends only provider-supported
-   OmniHuman fields upstream.
+10. UI/UX remains unchanged: Lip Sync still presents product-only controls,
+    requires character image plus voice audio, and sends only provider-supported
+    OmniHuman fields upstream.
 
 ## Consequences
 
@@ -54,6 +63,8 @@ Positive:
    values.
 4. Completed Lip Sync jobs cannot create image-copy result cards from provider
    input echoes.
+5. Previously staged or provider-hosted URLs cannot bypass fresh Lip Sync
+   staging.
 
 Tradeoffs:
 
@@ -75,3 +86,9 @@ This decision is implemented correctly only when:
    billing/provider dispatch.
 7. OmniHuman status/webhook settlement ignores input echoes and records only
    generated video URLs.
+8. URL-only Lip Sync inputs include `mediaKind` during staging, and generic
+   binary image/audio responses are uploaded to Fal CDN with media-compatible
+   content types.
+9. Fal CDN staging timeouts mark the optimistic output failed before provider
+   submit, so there is no indefinite Reference Grid spinner without a provider
+   request id.

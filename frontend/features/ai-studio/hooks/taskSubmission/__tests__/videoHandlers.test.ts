@@ -100,6 +100,34 @@ const mockKieUploadRouteForFileUrls = (urlMap: Record<string, string>) => {
   });
 };
 
+const mockFalUploadRouteForInputs = ({
+  fileUrls = {},
+  storagePaths = {},
+}: {
+  fileUrls?: Record<string, string>;
+  storagePaths?: Record<string, string>;
+}) => {
+  vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+    const payload =
+      typeof init?.body === "string"
+        ? (JSON.parse(init.body) as {
+            fileUrl?: string;
+            storagePath?: string;
+            mediaKind?: string;
+          })
+        : {};
+    const mappedUrl = payload.storagePath
+      ? storagePaths[`${payload.mediaKind ?? ""}:${payload.storagePath}`]
+      : payload.fileUrl
+        ? fileUrls[`${payload.mediaKind ?? ""}:${payload.fileUrl}`]
+        : undefined;
+    return new Response(JSON.stringify({ url: mappedUrl ?? payload.fileUrl ?? "" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+};
+
 const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmissionArgs => ({
   id: "out-1",
   finalModel: KIE_KLING_30_MODEL_ID,
@@ -148,6 +176,14 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
   it("submits clean image/audio payload with optional prompt and turbo mode", async () => {
     const imageUrl = "https://v3.fal.media/files/lip.png";
     const audioUrl = "https://v3.fal.media/files/voice.mp3";
+    const stagedImageUrl = "https://v3.fal.media/files/lip-restaged.png";
+    const stagedAudioUrl = "https://v3.fal.media/files/voice-restaged.mp3";
+    mockFalUploadRouteForInputs({
+      fileUrls: {
+        [`image:${imageUrl}`]: stagedImageUrl,
+        [`audio:${audioUrl}`]: stagedAudioUrl,
+      },
+    });
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
@@ -173,9 +209,29 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      "/api/fal/upload-url",
+      expect.objectContaining({
+        body: JSON.stringify({
+          fileUrl: imageUrl,
+          mediaKind: "image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenNthCalledWith(
+      2,
+      "/api/fal/upload-url",
+      expect.objectContaining({
+        body: JSON.stringify({
+          fileUrl: audioUrl,
+          mediaKind: "audio",
+        }),
+      })
+    );
     expect(submitFalOmniHuman).toHaveBeenCalledWith({
-      image_url: imageUrl,
-      audio_url: audioUrl,
+      image_url: stagedImageUrl,
+      audio_url: stagedAudioUrl,
       resolution: "720p",
       prompt: "A calm smile before speaking",
       turbo_mode: true,
@@ -236,13 +292,18 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
 
   it("submits ready uploaded Lip Sync audio without reading the local preview URL", async () => {
     const imageUrl = "https://v3.fal.media/files/lip.png";
+    const stagedImageUrl = "https://v3.fal.media/files/lip-restaged.png";
     const uploadedAudioUrl = "https://v3.fal.media/files/local-voice.mp3";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ url: uploadedAudioUrl }),
-    } as Response);
+    mockFalUploadRouteForInputs({
+      fileUrls: {
+        [`image:${imageUrl}`]: stagedImageUrl,
+      },
+      storagePaths: {
+        "audio:user-1/audio/reference-grid/local-voice.mp3": uploadedAudioUrl,
+      },
+    });
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
@@ -274,7 +335,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     );
     expect(submitFalOmniHuman).toHaveBeenCalledWith(
       expect.objectContaining({
-        image_url: imageUrl,
+        image_url: stagedImageUrl,
         audio_url: uploadedAudioUrl,
         resolution: "1080p",
       })
@@ -285,10 +346,15 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     const signedImageUrl = "https://signed.example.com/character.png";
     const falImageUrl = "https://v3.fal.media/files/character.png";
     const audioUrl = "https://v3.fal.media/files/voice.mp3";
-    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
-      ok: true,
-      text: async () => JSON.stringify({ url: falImageUrl }),
-    } as Response);
+    const stagedAudioUrl = "https://v3.fal.media/files/voice-restaged.mp3";
+    mockFalUploadRouteForInputs({
+      fileUrls: {
+        [`audio:${audioUrl}`]: stagedAudioUrl,
+      },
+      storagePaths: {
+        "image:user-1/images/character.png": falImageUrl,
+      },
+    });
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
@@ -331,7 +397,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     expect(submitFalOmniHuman).toHaveBeenCalledWith(
       expect.objectContaining({
         image_url: falImageUrl,
-        audio_url: audioUrl,
+        audio_url: stagedAudioUrl,
       })
     );
   });
@@ -342,12 +408,17 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/reference-images/prepared-character.png?token=fresh";
     const falImageUrl = "https://v3.fal.media/files/prepared-character.png";
     const audioUrl = "https://v3.fal.media/files/voice.mp3";
+    const stagedAudioUrl = "https://v3.fal.media/files/voice-restaged.mp3";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
-      ok: true,
-      text: async () => JSON.stringify({ url: falImageUrl }),
-    } as Response);
+    mockFalUploadRouteForInputs({
+      fileUrls: {
+        [`audio:${audioUrl}`]: stagedAudioUrl,
+      },
+      storagePaths: {
+        "image:user-1/reference-images/prepared-character.png": falImageUrl,
+      },
+    });
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
@@ -379,7 +450,7 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     expect(submitFalOmniHuman).toHaveBeenCalledWith(
       expect.objectContaining({
         image_url: falImageUrl,
-        audio_url: audioUrl,
+        audio_url: stagedAudioUrl,
       })
     );
   });
@@ -389,12 +460,15 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
     const preparedImageUrl = "https://signed.example.com/prepared-character.png";
     const falImageUrl = "https://v3.fal.media/files/prepared-character.png";
     const audioUrl = "https://v3.fal.media/files/voice.mp3";
+    const stagedAudioUrl = "https://v3.fal.media/files/voice-restaged.mp3";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
-      ok: true,
-      text: async () => JSON.stringify({ url: falImageUrl }),
-    } as Response);
+    mockFalUploadRouteForInputs({
+      fileUrls: {
+        [`image:${preparedImageUrl}`]: falImageUrl,
+        [`audio:${audioUrl}`]: stagedAudioUrl,
+      },
+    });
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
@@ -418,27 +492,31 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
       expect.objectContaining({
         body: JSON.stringify({
           fileUrl: preparedImageUrl,
+          mediaKind: "image",
         }),
       })
     );
     expect(submitFalOmniHuman).toHaveBeenCalledWith(
       expect.objectContaining({
         image_url: falImageUrl,
-        audio_url: audioUrl,
+        audio_url: stagedAudioUrl,
       })
     );
   });
 
   it("uploads remote Lip Sync audio URLs through the URL upload path", async () => {
     const imageUrl = "https://v3.fal.media/files/lip.png";
+    const stagedImageUrl = "https://v3.fal.media/files/lip-restaged.png";
     const remoteAudioUrl = "https://cdn.example.com/voice.mp3";
     const uploadedAudioUrl = "https://v3.fal.media/files/remote-voice.mp3";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ url: uploadedAudioUrl }),
-    } as Response);
+    mockFalUploadRouteForInputs({
+      fileUrls: {
+        [`image:${imageUrl}`]: stagedImageUrl,
+        [`audio:${remoteAudioUrl}`]: uploadedAudioUrl,
+      },
+    });
     const args = makeArgs({
       finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
       modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
@@ -466,15 +544,68 @@ describe("handleVideoModelSubmission (Lip Sync)", () => {
         },
         body: JSON.stringify({
           fileUrl: remoteAudioUrl,
+          mediaKind: "audio",
         }),
         shortpulseLogScope: "generation",
       })
     );
     expect(submitFalOmniHuman).toHaveBeenCalledWith(
       expect.objectContaining({
+        image_url: stagedImageUrl,
         audio_url: uploadedAudioUrl,
       })
     );
+  });
+
+  it("fails the Lip Sync output when Fal input staging hangs before provider submit", async () => {
+    vi.useFakeTimers();
+    const imageUrl = "https://v3.fal.media/files/lip.png";
+    const audioUrl = "https://v3.fal.media/files/voice.mp3";
+    vi.mocked(fetchWithAuth).mockImplementation(
+      async (_url, init) =>
+        await new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
+          if (signal instanceof AbortSignal) {
+            signal.addEventListener(
+              "abort",
+              () => {
+                reject(new DOMException("The operation was aborted.", "AbortError"));
+              },
+              { once: true }
+            );
+          }
+        })
+    );
+    const args = makeArgs({
+      finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
+      modelConfig: getModelConfig(FAL_OMNIHUMAN_V15_MODEL_ID),
+      preparedImageInputs: [imageUrl],
+      rawImageInputs: [imageUrl],
+      videoReferenceMode: "lip-sync",
+      motionReferenceVideoUrl: null,
+      lipSyncAudio: createReadyLipSyncAudioState({
+        url: audioUrl,
+        durationMs: 9_000,
+        sourceKind: "library",
+      }),
+    });
+
+    const pending = handleVideoModelSubmission(args);
+    await vi.advanceTimersByTimeAsync(65_000);
+    const handled = await pending;
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Character image preparation failed: Lip Sync media staging timed out before provider submit.",
+      undefined,
+      {
+        reasonCode: "USER_INPUT_VALIDATION",
+        telemetryMode: "validation",
+      }
+    );
+    expect(submitFalOmniHuman).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it("fails with product-safe copy when local Lip Sync audio is no longer readable", async () => {

@@ -60,7 +60,7 @@ import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInterna
 
 const FAL_UPLOAD_ROUTE = "/api/fal/upload-url";
 const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
-const FAL_CDN_MEDIA_HOST_SUFFIXES = ["fal.media"] as const;
+const FAL_INPUT_STAGING_TIMEOUT_MS = 65_000;
 const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
   "kieai.redpandaai.co",
   "tempfile.redpandaai.co",
@@ -82,17 +82,6 @@ const isKieHostedTemporaryMediaUrl = (value: string): boolean => {
   try {
     const hostname = new URL(value).hostname.trim().toLowerCase();
     return KIE_HOSTED_MEDIA_HOST_SUFFIXES.some(
-      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
-    );
-  } catch {
-    return false;
-  }
-};
-
-const isFalCdnMediaUrl = (value: string): boolean => {
-  try {
-    const hostname = new URL(value).hostname.trim().toLowerCase();
-    return FAL_CDN_MEDIA_HOST_SUFFIXES.some(
       (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
     );
   } catch {
@@ -399,28 +388,59 @@ const resolveFalUploadFilename = (mediaKind: "image" | "audio", mimeType?: strin
   return `fal-${mediaKind}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 };
 
+const isAbortLikeError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as { name?: unknown; message?: unknown };
+  if (maybeError.name === "AbortError") return true;
+  return (
+    typeof maybeError.message === "string" &&
+    /\babort(?:ed)?\b|signal is aborted|timed out|timeout/i.test(maybeError.message)
+  );
+};
+
+const fetchFalUploadWithTimeout = async (init: Parameters<typeof fetchWithAuth>[1]) => {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), FAL_INPUT_STAGING_TIMEOUT_MS);
+  try {
+    return await fetchWithAuth(FAL_UPLOAD_ROUTE, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (isAbortLikeError(error)) {
+      throw new Error("Lip Sync media staging timed out before provider submit.");
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+};
+
 const uploadUrlToFalCdn = async ({
   url,
+  mediaKind,
   cache,
 }: {
   url: string;
+  mediaKind: "image" | "audio";
   cache: Map<string, Promise<string>>;
 }): Promise<string> => {
   const normalizedUrl = url.trim();
   if (!normalizedUrl) return "";
-  if (isFalCdnMediaUrl(normalizedUrl)) return normalizedUrl;
 
-  const cached = cache.get(normalizedUrl);
+  const cacheKey = `fal-url:${mediaKind}:${normalizedUrl}`;
+  const cached = cache.get(cacheKey);
   if (cached) return await cached;
 
   const uploadPromise = (async () => {
-    const response = await fetchWithAuth(FAL_UPLOAD_ROUTE, {
+    const response = await fetchFalUploadWithTimeout({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         fileUrl: normalizedUrl,
+        mediaKind,
       }),
       shortpulseLogScope: "generation",
     });
@@ -443,11 +463,11 @@ const uploadUrlToFalCdn = async ({
     return uploadedUrl;
   })();
 
-  cache.set(normalizedUrl, uploadPromise);
+  cache.set(cacheKey, uploadPromise);
   try {
     return await uploadPromise;
   } catch (error) {
-    cache.delete(normalizedUrl);
+    cache.delete(cacheKey);
     throw error;
   }
 };
@@ -468,7 +488,7 @@ const uploadStoragePathToFalCdn = async ({
   if (cached) return await cached;
 
   const uploadPromise = (async () => {
-    const response = await fetchWithAuth(FAL_UPLOAD_ROUTE, {
+    const response = await fetchFalUploadWithTimeout({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -522,7 +542,7 @@ const uploadBlobToFalCdn = async ({
   if (cached) return await cached;
 
   const uploadPromise = (async () => {
-    const response = await fetchWithAuth(FAL_UPLOAD_ROUTE, {
+    const response = await fetchFalUploadWithTimeout({
       method: "POST",
       headers: {
         "Content-Type": resolveFalUploadMimeType(mediaKind, blob.type),
@@ -641,6 +661,7 @@ const prepareFalInputUrl = async ({
   if (!sourceUrl) return "";
   return await uploadUrlToFalCdn({
     url: sourceUrl,
+    mediaKind,
     cache,
   });
 };

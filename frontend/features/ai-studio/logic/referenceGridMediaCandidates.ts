@@ -80,6 +80,20 @@ export const firstPlayableCandidate = (
     if (!normalized) continue;
     if (kind === "audio" && isAudioMediaCandidate(normalized)) return normalized;
     if (kind === "video" && isVideoMediaCandidate(normalized)) return normalized;
+    if (
+      kind === "audio" &&
+      !isImageMediaCandidate(normalized) &&
+      !isVideoMediaCandidate(normalized)
+    ) {
+      return normalized;
+    }
+    if (
+      kind === "video" &&
+      !isImageMediaCandidate(normalized) &&
+      !isAudioMediaCandidate(normalized)
+    ) {
+      return normalized;
+    }
   }
   return null;
 };

@@ -721,11 +721,10 @@ describe("DetailModal", () => {
               lyrics: "Headlights bloom over the rain",
               durationSeconds: 30,
               bpm: null,
-              mode: "custom",
-              structure: "verse",
+              mode: "vocal",
+              structure: "full-track",
               energyPercent: 60,
               outputFormat: "mp3_44100_128",
-              modelId: "eleven_music_v1",
             },
           },
         })}
@@ -906,6 +905,37 @@ describe("DetailModal", () => {
     expect(screen.getByText("Loading media...")).toBeInTheDocument();
     expect(baseElement.querySelector("video.art-hero-image")).toBeNull();
     expect(baseElement.querySelector("img.art-hero-image")).toBeNull();
+  });
+
+  it("uses extensionless generated video result urls as playable detail media", () => {
+    const videoUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user-1/generations/videos/reference_asset_12345?token=abc123";
+    const posterUrl = "https://cdn.test/video-poster.jpg";
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "video",
+          mediaSource: "generated",
+          generationId: "gen-video-1",
+          previewUrl: posterUrl,
+          previewPosterUrl: posterUrl,
+          resultUrls: [videoUrl],
+          previewStoragePath: null,
+          fullStoragePath: null,
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const video = baseElement.querySelector("video.art-hero-image") as HTMLVideoElement | null;
+    expect(screen.queryByText("Loading media...")).not.toBeInTheDocument();
+    expect(screen.getByText("Video")).toBeInTheDocument();
+    expect(video).not.toBeNull();
+    expect(video?.getAttribute("src")).toBe(videoUrl);
+    expect(video?.getAttribute("poster")).toBe(posterUrl);
   });
 
   it("keeps successfully loaded media even when actual dimensions differ from aspect metadata", async () => {

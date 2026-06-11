@@ -166,6 +166,118 @@ describe("POST /api/fal/upload-url", () => {
     });
   });
 
+  it("uses requested media kind when a public image source has a generic binary content type", async () => {
+    const sourceBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/octet-stream" }),
+        arrayBuffer: async () => sourceBytes.buffer,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            upload_url: "https://upload.fal.media/generic-image-put",
+            file_url: "https://v3.fal.media/files/generic-image.png",
+          }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://example.com/character.png",
+        mediaKind: "image",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          content_type: "image/png",
+          file_name: "character.png",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://v3.fal.media/files/generic-image.png",
+      fileName: "character.png",
+      mimeType: "image/png",
+    });
+  });
+
+  it("fails instead of hanging when Fal CDN upload initiation times out", async () => {
+    vi.useFakeTimers();
+    try {
+      const sourceBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers({ "content-type": "image/png" }),
+          arrayBuffer: async () => sourceBytes.buffer,
+        } as Response)
+        .mockImplementationOnce(
+          async (_url, init) =>
+            await new Promise<Response>((_resolve, reject) => {
+              const signal = (init as RequestInit | undefined)?.signal;
+              if (signal instanceof AbortSignal) {
+                signal.addEventListener(
+                  "abort",
+                  () => reject(new DOMException("The operation was aborted.", "AbortError")),
+                  { once: true }
+                );
+              }
+            })
+        );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const req = createMockRequest({
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl: "https://example.com/character.png",
+          mediaKind: "image",
+        }),
+      });
+      const res = createMockResponse();
+
+      const pending = handler(req as never, res as never);
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await pending;
+
+      expect(res.status).toHaveBeenCalledWith(502);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Fal upload failed",
+        details: "Fal CDN upload initiate timed out.",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("uploads binary request bodies directly to Fal CDN", async () => {
     const fetchMock = vi
       .fn()

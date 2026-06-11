@@ -25,6 +25,8 @@ const DNS_LOOKUP_TIMEOUT_MS = 2_500;
 const MAX_SOURCE_REDIRECTS = 3;
 const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
 const FAL_CDN_VERIFY_TIMEOUT_MS = 10_000;
+const FAL_UPLOAD_INITIATE_TIMEOUT_MS = 15_000;
+const FAL_UPLOAD_PUT_TIMEOUT_MS = 30_000;
 const MEDIA_LIBRARY_BUCKET = "media_library";
 
 type FalUploadMediaKind = "image" | "audio";
@@ -269,6 +271,44 @@ const readFalErrorDetail = async (response: Response): Promise<string | null> =>
   return detail ?? null;
 };
 
+const isAbortLikeError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as { name?: unknown; message?: unknown };
+  if (maybeError.name === "AbortError") return true;
+  return (
+    typeof maybeError.message === "string" &&
+    /\babort(?:ed)?\b|signal is aborted|timed out|timeout/i.test(maybeError.message)
+  );
+};
+
+const fetchWithTimeout = async ({
+  url,
+  init,
+  timeoutMs,
+  timeoutMessage,
+}: {
+  url: string;
+  init: RequestInit;
+  timeoutMs: number;
+  timeoutMessage: string;
+}): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (isAbortLikeError(error)) {
+      throw new FalUploadRequestError(timeoutMessage, 502);
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+};
+
 const inferMimeTypeFromPath = (
   storagePathOrName: string,
   mediaKind: FalUploadMediaKind
@@ -293,6 +333,35 @@ const inferMediaKindFromMimeType = (mimeType: string | null): FalUploadMediaKind
   if (normalized.startsWith("image/")) return "image";
   if (normalized.startsWith("audio/")) return "audio";
   return null;
+};
+
+const isGenericBinaryMimeType = (mimeType: string | null): boolean => {
+  const normalized = mimeType?.split(";")[0]?.trim().toLowerCase() ?? "";
+  return normalized === "application/octet-stream" || normalized === "binary/octet-stream";
+};
+
+const resolveSourceUploadMimeType = ({
+  sourceMimeType,
+  mediaKind,
+  fileName,
+  sourceUrl,
+}: {
+  sourceMimeType: string | null;
+  mediaKind: FalUploadMediaKind | null;
+  fileName: string | null;
+  sourceUrl: URL;
+}): string | null => {
+  if (!mediaKind) return sourceMimeType;
+  if (!sourceMimeType || isGenericBinaryMimeType(sourceMimeType)) {
+    return inferMimeTypeFromPath(fileName ?? sourceUrl.pathname, mediaKind);
+  }
+  const sourceKind = inferMediaKindFromMimeType(sourceMimeType);
+  if (sourceKind !== mediaKind) {
+    throw new FalUploadRequestError(
+      `Source URL returned ${sourceMimeType}; expected ${mediaKind} media.`
+    );
+  }
+  return sourceMimeType;
 };
 
 const resolveFileNameFromStoragePath = (storagePath: string): string | null => {
@@ -401,17 +470,22 @@ const uploadBufferToFalCdn = async ({
 }): Promise<string> => {
   const resolvedMimeType = mimeType ?? "application/octet-stream";
   const expectedMediaKind = mediaKind ?? inferMediaKindFromMimeType(resolvedMimeType);
-  const initiateResponse = await fetch(FAL_UPLOAD_INITIATE_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Key ${apiKey}`,
-      "Content-Type": "application/json",
+  const initiateResponse = await fetchWithTimeout({
+    url: FAL_UPLOAD_INITIATE_ENDPOINT,
+    timeoutMs: FAL_UPLOAD_INITIATE_TIMEOUT_MS,
+    timeoutMessage: "Fal CDN upload initiate timed out.",
+    init: {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Key ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content_type: resolvedMimeType,
+        file_name: fileName,
+      }),
     },
-    body: JSON.stringify({
-      content_type: resolvedMimeType,
-      file_name: fileName,
-    }),
   });
 
   const initiatePayload = (await readJsonResponse(initiateResponse)) as FalInitiateUploadResponse;
@@ -434,12 +508,17 @@ const uploadBufferToFalCdn = async ({
     throw new Error("Fal upload initiate response did not include upload and file URLs.");
   }
 
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": resolvedMimeType,
+  const uploadResponse = await fetchWithTimeout({
+    url: uploadUrl,
+    timeoutMs: FAL_UPLOAD_PUT_TIMEOUT_MS,
+    timeoutMessage: "Fal CDN upload timed out.",
+    init: {
+      method: "PUT",
+      headers: {
+        "Content-Type": resolvedMimeType,
+      },
+      body: new Blob([fileBuffer], { type: resolvedMimeType }),
     },
-    body: new Blob([fileBuffer], { type: resolvedMimeType }),
   });
   if (!uploadResponse.ok) {
     const detail = await readFalErrorDetail(uploadResponse);
@@ -461,10 +540,12 @@ const uploadRemoteSourceToFal = async ({
   apiKey,
   sourceUrl,
   fileName,
+  mediaKind,
 }: {
   apiKey: string;
   sourceUrl: URL;
   fileName: string | null;
+  mediaKind: FalUploadMediaKind | null;
 }): Promise<SuccessResponse> => {
   const controller = new AbortController();
   const timeoutId = globalThis.setTimeout(() => controller.abort(), SOURCE_FETCH_TIMEOUT_MS);
@@ -473,7 +554,12 @@ const uploadRemoteSourceToFal = async ({
     if (!sourceResponse.ok) {
       throw new FalUploadRequestError(`Source fetch failed (${sourceResponse.status}).`, 400);
     }
-    const sourceMimeType = asNonEmptyString(sourceResponse.headers.get("content-type"));
+    const sourceMimeType = resolveSourceUploadMimeType({
+      sourceMimeType: asNonEmptyString(sourceResponse.headers.get("content-type")),
+      mediaKind,
+      fileName,
+      sourceUrl,
+    });
     const sourceBuffer = await readResponseBodyWithLimit(sourceResponse, MAX_UPLOAD_BYTES);
     const resolvedFileName = resolveUploadFileName({
       fileName,
@@ -485,7 +571,7 @@ const uploadRemoteSourceToFal = async ({
       fileBuffer: sourceBuffer,
       fileName: resolvedFileName,
       mimeType: sourceMimeType,
-      mediaKind: inferMediaKindFromMimeType(sourceMimeType),
+      mediaKind: mediaKind ?? inferMediaKindFromMimeType(sourceMimeType),
     });
     return {
       url: uploadedUrl,
@@ -631,6 +717,7 @@ export default async function handler(
             apiKey,
             sourceUrl,
             fileName,
+            mediaKind,
           });
         })()
       : await (async () => {

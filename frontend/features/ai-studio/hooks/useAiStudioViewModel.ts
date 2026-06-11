@@ -31,12 +31,17 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
+import { normalizeDurationForModel } from "../../../lib/model-runtime/modelDurationConstraints";
 import { needsVideoUpload } from "../utils/videoUpload";
 import {
   getAiStudioKlingElementReferenceUrls,
   type AiStudioKlingElement,
 } from "../logic/klingElements";
-import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
+import {
+  resolveAutoVideoModelForLane,
+  resolveVideoGenerationLaneFromFrameInputs,
+} from "../logic/referenceInputs";
 import {
   resolveEffectiveEditSubmitModelId,
   normalizeEditSubmitIntent,
@@ -60,6 +65,23 @@ import type {
 } from "../types";
 
 const TEXT_PROMPT_MODEL_ID = resolveRequiredAiStudioTextPromptModelId();
+
+const resolveLipSyncPricingDurationSeconds = ({
+  audioDurationMs,
+  fallbackDurationSeconds,
+}: {
+  audioDurationMs?: number | null;
+  fallbackDurationSeconds: number;
+}): number => {
+  const audioDurationSeconds =
+    typeof audioDurationMs === "number" && Number.isFinite(audioDurationMs) && audioDurationMs > 0
+      ? audioDurationMs / 1000
+      : null;
+  const rawDurationSeconds = audioDurationSeconds ?? fallbackDurationSeconds;
+  return (
+    normalizeDurationForModel(rawDurationSeconds, FAL_OMNIHUMAN_V15_MODEL_ID) ?? rawDurationSeconds
+  );
+};
 
 type ViewModelInput = {
   mode: StudioMode;
@@ -186,12 +208,25 @@ export const useAiStudioViewModel = ({
       }),
     [extraImageUrls, referenceImageUrl, videoReferenceMode]
   );
+  const effectiveVideoPricingModelId = useMemo(
+    () =>
+      isVideoTool
+        ? resolveAutoVideoModelForLane({
+            currentModel: model,
+            lane: resolvedVideoLane,
+          })
+        : null,
+    [isVideoTool, model, resolvedVideoLane]
+  );
   const pricingImageResolution = useMemo(
     () => normalizeImageResolutionForCanonicalBilledPricing(model, imageResolution),
     [imageResolution, model]
   );
   const isSeedance2Model =
     model === KIE_SEEDANCE_2_MODEL_ID || model === KIE_SEEDANCE_2_FAST_MODEL_ID;
+  const isSeedance2PricingModel =
+    effectiveVideoPricingModelId === KIE_SEEDANCE_2_MODEL_ID ||
+    effectiveVideoPricingModelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
   const hasSeedance2MultimodalReferences =
     seedance2ReferenceImageUrls.length > 0 ||
     seedance2ReferenceVideoUrls.length > 0 ||
@@ -209,13 +244,21 @@ export const useAiStudioViewModel = ({
     seedance2InputMode === "multimodal" || hasSeedance2LinkedAssetReferences;
   const videoPricingParams = useMemo(
     () => ({
-      durationSeconds: videoDurationSeconds,
+      durationSeconds:
+        resolvedVideoLane === "lip-sync"
+          ? resolveLipSyncPricingDurationSeconds({
+              audioDurationMs: lipSyncAudio.durationMs,
+              fallbackDurationSeconds: videoDurationSeconds,
+            })
+          : videoDurationSeconds,
       resolution: videoResolution,
-      audio: videoGenerateAudio,
-      ...(isSeedance2Model ? { inputVideoCount: seedance2VideoInputCount } : {}),
+      audio: resolvedVideoLane === "lip-sync" ? true : videoGenerateAudio,
+      ...(isSeedance2PricingModel ? { inputVideoCount: seedance2VideoInputCount } : {}),
     }),
     [
-      isSeedance2Model,
+      isSeedance2PricingModel,
+      lipSyncAudio.durationMs,
+      resolvedVideoLane,
       seedance2VideoInputCount,
       videoDurationSeconds,
       videoGenerateAudio,
@@ -374,10 +417,10 @@ export const useAiStudioViewModel = ({
     }
 
     if (isVideoTool) {
-      if (!model) return null;
+      if (!effectiveVideoPricingModelId) return null;
       return resolvePricingGridCostBreakdown({
-        modelId: model,
-        params: costParamsForModel(model, videoPricingParams),
+        modelId: effectiveVideoPricingModelId,
+        params: costParamsForModel(effectiveVideoPricingModelId, videoPricingParams),
         pricingPolicy,
       });
     }
@@ -393,6 +436,7 @@ export const useAiStudioViewModel = ({
     getDefaultDurationSeconds,
     mode,
     model,
+    effectiveVideoPricingModelId,
     effectiveEditSubmitModelId,
     canUseCurrentEditPricingGrid,
     isCreateWorkflowSelected,
@@ -435,9 +479,13 @@ export const useAiStudioViewModel = ({
       });
     }
     return resolveClientBilledCredits({
-      modelId: effectiveEditSubmitModelId,
+      modelId: isVideoTool
+        ? (effectiveVideoPricingModelId ?? effectiveEditSubmitModelId)
+        : effectiveEditSubmitModelId,
       params: costParamsForModel(
-        effectiveEditSubmitModelId,
+        isVideoTool
+          ? (effectiveVideoPricingModelId ?? effectiveEditSubmitModelId)
+          : effectiveEditSubmitModelId,
         isVideoTool
           ? videoPricingParams
           : isImageTool && pricingImageResolution
@@ -456,6 +504,7 @@ export const useAiStudioViewModel = ({
     costParamsForModel,
     createReferenceImageUrls,
     effectiveEditSubmitModelId,
+    effectiveVideoPricingModelId,
     isCreateCharacterModeEnabled,
     isCreateWorkflowSelected,
     isVideoTool,
@@ -501,9 +550,14 @@ export const useAiStudioViewModel = ({
         });
       }
       if (isVideoTool) {
+        const pricingModelId = resolveAutoVideoModelForLane({
+          currentModel: modelIdForChip,
+          lane: resolvedVideoLane,
+        });
+        if (!pricingModelId) return null;
         return resolvePricingGridBilledCredits({
-          modelId: modelIdForChip,
-          params: costParamsForModel(modelIdForChip, videoPricingParams),
+          modelId: pricingModelId,
+          params: costParamsForModel(pricingModelId, videoPricingParams),
           pricingPolicy,
         });
       }
@@ -530,6 +584,7 @@ export const useAiStudioViewModel = ({
       isPricingPolicyUnavailable,
       isVideoTool,
       pricingPolicy,
+      resolvedVideoLane,
       aspect,
       createCharacterModeInjectionBundle,
       createReferenceImageUrls,

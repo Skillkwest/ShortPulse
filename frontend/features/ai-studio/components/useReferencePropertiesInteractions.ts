@@ -43,6 +43,7 @@ import {
   prepareLocalImageBlobForEditIngress,
   prepareLocalImageFileForEditIngress,
 } from "../logic/editImageIngress";
+import { uploadImageAssetToStorage, uploadImageBlobToStorage } from "../utils/imageUpload";
 
 export type ReferenceStepKey =
   | "reference"
@@ -79,6 +80,7 @@ type UseReferencePropertiesInteractionsParams = {
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
+  stagePrimaryImageForProviderAccess?: boolean;
   onMotionVideoChange?: (url: string | null) => void;
   onStageMotionVideoSelection?: (input: {
     videoFile?: File | null;
@@ -198,6 +200,7 @@ export const useReferencePropertiesInteractions = ({
   onPrimaryImageChange,
   onExtraImageChange,
   onPromptTextChange,
+  stagePrimaryImageForProviderAccess = false,
   onMotionVideoChange,
   onStageMotionVideoSelection,
   resolvePreviewUrlById,
@@ -437,6 +440,52 @@ export const useReferencePropertiesInteractions = ({
       event.target.value = "";
     };
 
+  const stageProviderImageSelection = async ({
+    imageFile,
+    imageUrl,
+    imageBlob,
+  }: {
+    imageFile?: File | null;
+    imageUrl?: string | null;
+    imageBlob?: Blob | null;
+  }): Promise<string | null> => {
+    if (imageFile) {
+      return await uploadImageBlobToStorage(imageFile);
+    }
+    if (imageBlob) {
+      return await uploadImageBlobToStorage(imageBlob);
+    }
+    const normalizedUrl = imageUrl?.trim() ?? "";
+    if (!normalizedUrl) return null;
+    const uploaded = await uploadImageAssetToStorage(normalizedUrl);
+    return uploaded.url;
+  };
+
+  const handlePrimaryFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!stagePrimaryImageForProviderAccess) {
+      handleFileSelection(onPrimaryImageChange)(event);
+      return;
+    }
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!isImageFile(file)) {
+      event.target.value = "";
+      return;
+    }
+    setPrimaryImageLoading(true);
+    try {
+      const stagedUrl = await stageProviderImageSelection({ imageFile: file });
+      if (stagedUrl) {
+        onPrimaryImageChange(stagedUrl);
+      }
+    } catch (error) {
+      console.error("AI Studio motion reference image staging failed:", error);
+    } finally {
+      setPrimaryImageLoading(false);
+      event.target.value = "";
+    }
+  };
+
   const handlePromptDrop = (event: DragEvent<HTMLDivElement | HTMLTextAreaElement>) => {
     event.preventDefault();
     const promptText = extractPromptDropText(event.dataTransfer);
@@ -577,6 +626,24 @@ export const useReferencePropertiesInteractions = ({
             })
           : nextUrl;
         if (!stableUrl) return;
+        const shouldStageProviderPrimaryImage =
+          setter === onPrimaryImageChange &&
+          stagePrimaryImageForProviderAccess &&
+          (fromFile || isLocalRenderArtifactUrl(stableUrl) || !resolvedInternalMediaRef);
+        if (shouldStageProviderPrimaryImage) {
+          const rememberedBlob = stableUrl.startsWith("blob:")
+            ? readRememberedObjectUrlBlob(stableUrl)
+            : null;
+          const stagedUrl = await stageProviderImageSelection({
+            imageFile: fromFile ? (imageFile ?? null) : null,
+            imageBlob: rememberedBlob,
+            imageUrl: stableUrl,
+          });
+          if (!stagedUrl) return;
+          registerInternalMediaRefForUrl(stagedUrl, resolvedInternalMediaRef);
+          commitImageUrl(setter, stagedUrl);
+          return;
+        }
         registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
         commitImageUrl(setter, stableUrl);
       }
@@ -859,6 +926,7 @@ export const useReferencePropertiesInteractions = ({
     addKlingElement,
     removeKlingElement,
     handleFileSelection,
+    handlePrimaryFileSelection,
     handlePromptDrop,
     handlePrimaryDrop,
     handleExtraDrop,

@@ -65,6 +65,7 @@ Symptoms:
 
 - The Video panel is in Motion Control mode and a recorded/local motion clip appears in the Motion slot.
 - Generate fails with a `Kling 3.0` banner or failure card that says `File type not supported`.
+- A very large uploaded character image may appear related if the character slot did not finish the staged reference-image upload before generation.
 
 Interpretation:
 
@@ -74,6 +75,7 @@ Interpretation:
 Checklist:
 
 - Confirm `POST /api/media/stage-motion-reference-video` returned a `mimeType` of `video/mp4` or `video/quicktime` and a final path ending in `.mp4` or `.mov`.
+- Confirm any local Motion Control character-image file completed the reference-image staging path (`POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image`) so oversized stills use shared image admission before submit.
 - Confirm the recorder modal stopped the capture at 30 seconds or the uploaded clip is already between 3 and 30 seconds.
 - Confirm Kie submit preflight rejects any remaining provider-facing `.webm` Motion Control URL before dispatch.
 

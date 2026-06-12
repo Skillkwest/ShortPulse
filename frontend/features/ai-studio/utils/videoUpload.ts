@@ -128,6 +128,27 @@ const inferVideoBlobMimeType = (blob: Blob, filename: string): string => {
 const inferVideoFileExtensionFromMimeType = (mimeType: string): string =>
   VIDEO_EXTENSION_BY_MIME_TYPE.get(normalizeVideoUploadMimeType(mimeType)) ?? "mp4";
 
+const readDataVideoUrlBlob = (url: string): Blob | null => {
+  const match = url.match(/^data:([^;,]+)((?:;[^,]*)?),(.*)$/is);
+  if (!match) return null;
+  const mimeType = normalizeVideoUploadMimeType(match[1] || "video/mp4");
+  const metadata = match[2] ?? "";
+  const body = match[3] ?? "";
+  try {
+    if (metadata.toLowerCase().includes(";base64")) {
+      const binary = globalThis.atob(decodeURIComponent(body));
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      return new Blob([bytes], { type: mimeType });
+    }
+    return new Blob([decodeURIComponent(body)], { type: mimeType });
+  } catch {
+    return null;
+  }
+};
+
 const readVideoUrlExtension = (url: string): string | null => {
   const normalizedUrl = url.trim().replace(/#video=1$/i, "");
   if (!normalizedUrl) return null;
@@ -375,8 +396,17 @@ export const uploadVideoAssetToStorage = async (
     const rememberedBlob = normalizedLocalVideoUrl.startsWith("blob:")
       ? readRememberedObjectUrlBlob(normalizedLocalVideoUrl)
       : null;
+    const dataUrlBlob = /^data:video\//i.test(normalizedLocalVideoUrl)
+      ? readDataVideoUrlBlob(normalizedLocalVideoUrl)
+      : null;
+    if (normalizedLocalVideoUrl.startsWith("blob:") && !rememberedBlob) {
+      throw new Error(
+        "Local motion reference video is no longer available. Re-add the motion video and try again."
+      );
+    }
     const blob =
       rememberedBlob ??
+      dataUrlBlob ??
       (await (async () => {
         const response = await fetch(normalizedLocalVideoUrl);
         if (!response.ok) {

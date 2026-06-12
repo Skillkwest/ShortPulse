@@ -373,6 +373,7 @@ export function VideoPropertiesPanel({
   const lipSyncAudioUploadRevisionRef = React.useRef(0);
   const lipSyncAudioObjectUrlsRef = React.useRef<Set<string>>(new Set());
   const [elementPickerError, setElementPickerError] = React.useState<string | null>(null);
+  const shouldStagePrimaryImageForProviderAccess = videoReferenceMode === "motion";
   const [promptTokenPickerState, setPromptTokenPickerState] = React.useState<{
     isOpen: boolean;
     selectedSlotIndex: number | null;
@@ -496,6 +497,7 @@ export function VideoPropertiesPanel({
     addKlingElement,
     removeKlingElement,
     handleFileSelection,
+    handlePrimaryFileSelection,
     handlePrimaryDrop,
     handleExtraDrop,
     handlePrimaryDragEnter,
@@ -522,6 +524,7 @@ export function VideoPropertiesPanel({
     onPrimaryImageChange,
     onExtraImageChange,
     onPromptTextChange,
+    stagePrimaryImageForProviderAccess: shouldStagePrimaryImageForProviderAccess,
     onMotionVideoChange,
     onStageMotionVideoSelection,
     resolvePreviewUrlById,
@@ -1258,6 +1261,7 @@ export function VideoPropertiesPanel({
         onMotionVideoChange={onMotionVideoChange}
         onClearMotionVideo={onClearMotionVideo}
         handleFileSelection={handleFileSelection}
+        handlePrimaryFileSelection={handlePrimaryFileSelection}
         handleMotionVideoSelection={handleMotionVideoSelection}
         canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
         acceptPrimaryCanvasTearOutPayload={acceptPrimaryCanvasTearOutPayload}
@@ -1296,6 +1300,7 @@ export function VideoPropertiesPanel({
       extraOneInputRef,
       extraThreeInputRef,
       extraTwoInputRef,
+      handlePrimaryFileSelection,
       handlePrimaryDragEnter,
       handlePrimaryDragLeave,
       handlePrimaryDragOver,
@@ -1362,10 +1367,19 @@ export function VideoPropertiesPanel({
   }, []);
   const handleApplyRecordedMotionVideo = React.useCallback(
     (url: string) => {
-      onMotionVideoChange?.(url);
-      setIsMotionRecorderOpen(false);
+      void (async () => {
+        try {
+          if (onStageMotionVideoSelection) {
+            await onStageMotionVideoSelection({ videoUrl: url });
+          } else {
+            onMotionVideoChange?.(url);
+          }
+        } finally {
+          setIsMotionRecorderOpen(false);
+        }
+      })();
     },
-    [onMotionVideoChange]
+    [onMotionVideoChange, onStageMotionVideoSelection]
   );
   const klingElementDisplayTokens = React.useMemo(
     () => resolveAiStudioKlingElementTokens(selectedKlingElements).map((token) => token.trim()),

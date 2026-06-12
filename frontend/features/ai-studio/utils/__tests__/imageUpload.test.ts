@@ -171,6 +171,43 @@ describe("imageUpload", () => {
     expect(uploadedBlob.type).toBe("image/png");
   });
 
+  it("uploads data image URLs without fetching through connect-src", async () => {
+    const dataUrl = `data:image/png;base64,${Buffer.from("image-data").toString("base64")}`;
+    global.fetch = vi.fn() as typeof fetch;
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user/upload-staging/images/reference/reference-data.png",
+            uploadToken: "upload-token-data",
+            mimeType: "image/png",
+            name: "reference-data.png",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://example.com/signed/reference-data.png",
+          path: "user/images/reference-data.png",
+          size: 10,
+        })
+      );
+
+    const signedUrl = await uploadImageToStorage(dataUrl);
+
+    expect(signedUrl).toBe("https://example.com/signed/reference-data.png");
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(uploadToSignedUrlMock).toHaveBeenCalledTimes(1);
+    const [, , uploadedBlob, uploadOptions] = uploadToSignedUrlMock.mock.calls[0] as [
+      string,
+      string,
+      Blob,
+      { contentType: string },
+    ];
+    expect(uploadedBlob.type).toBe("image/png");
+    expect(uploadOptions.contentType).toBe("image/png");
+  });
+
   it("reuses remembered expert edit blobs without re-fetching the object url", async () => {
     const localUrl = "blob:expert-edit-flattened";
     const rememberedBlob = new Blob(["flattened"], { type: "image/png" });

@@ -113,6 +113,7 @@ type ReferenceMediaStepProps = {
   handleFileSelection: (
     setter: (url: string | null) => void
   ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handlePrimaryFileSelection?: (event: React.ChangeEvent<HTMLInputElement>) => void | Promise<void>;
   handleMotionVideoSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   acceptPrimaryCanvasTearOutPayload?: (payload: AgentComposerDirectDropPayload) => void;
@@ -174,6 +175,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   onMotionVideoChange,
   onClearMotionVideo,
   handleFileSelection,
+  handlePrimaryFileSelection,
   handleMotionVideoSelection,
   canvasTearOutTargetRegistry,
   acceptPrimaryCanvasTearOutPayload,
@@ -707,7 +709,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
         type="file"
         accept={isMotionMode ? "image/jpeg,image/png,.jpg,.jpeg,.png" : "image/*"}
         style={{ display: "none" }}
-        onChange={handleFileSelection(onPrimaryImageChange)}
+        onChange={handlePrimaryFileSelection ?? handleFileSelection(onPrimaryImageChange)}
       />
       <input
         ref={extraOneInputRef}

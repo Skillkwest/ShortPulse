@@ -11,9 +11,18 @@ import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInterna
 import { INTERNAL_REFERENCE_DRAG_ORIGIN, prepareReferenceDrag } from "../../utils/dragDrop";
 
 const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
+const uploadImageAssetToStorageMock = vi.hoisted(() => vi.fn());
+const uploadImageBlobToStorageMock = vi.hoisted(() => vi.fn());
+type ReferencePropertiesInteractionsParams = Parameters<
+  typeof useReferencePropertiesInteractions
+>[0];
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: getSignedMediaUrlMock,
+}));
+vi.mock("../../utils/imageUpload", () => ({
+  uploadImageAssetToStorage: (...args: unknown[]) => uploadImageAssetToStorageMock(...args),
+  uploadImageBlobToStorage: (...args: unknown[]) => uploadImageBlobToStorageMock(...args),
 }));
 
 const makeInternalReferenceDragEvent = (overrides?: {
@@ -226,6 +235,8 @@ describe("useReferencePropertiesInteractions", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     getSignedMediaUrlMock.mockReset();
+    uploadImageAssetToStorageMock.mockReset();
+    uploadImageBlobToStorageMock.mockReset();
   });
 
   afterEach(() => {
@@ -1022,6 +1033,43 @@ describe("useReferencePropertiesInteractions", () => {
     );
   });
 
+  it("stages Motion Control primary image file selections through reference-image upload", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const file = new File(["large-image"], "large-character.png", { type: "image/png" });
+    uploadImageBlobToStorageMock.mockResolvedValueOnce(
+      "https://signed.shortpulse.test/images/reference/staged-character.png"
+    );
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange,
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        stagePrimaryImageForProviderAccess: true,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+    const event = {
+      target: {
+        files: [file],
+        value: "large-character.png",
+      },
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+    await act(async () => {
+      await result.current.handlePrimaryFileSelection(event);
+    });
+
+    expect(uploadImageBlobToStorageMock).toHaveBeenCalledWith(file);
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+    expect(onPrimaryImageChange).toHaveBeenCalledWith(
+      "https://signed.shortpulse.test/images/reference/staged-character.png"
+    );
+    expect(event.target.value).toBe("");
+  });
+
   it("remembers file-selected image blobs for later submission reuse", async () => {
     const onExtraImageChange = vi.fn();
     URL.createObjectURL = vi.fn(() => "blob:selected-file");
@@ -1130,7 +1178,11 @@ describe("useReferencePropertiesInteractions", () => {
     URL.revokeObjectURL = revokeObjectUrl;
 
     const { result, rerender, unmount } = renderHook(
-      ({ klingElements }) =>
+      ({
+        klingElements,
+      }: {
+        klingElements: ReferencePropertiesInteractionsParams["klingElements"];
+      }) =>
         useReferencePropertiesInteractions({
           referenceImageUrl: null,
           extraImageUrls: [null, null, null],
@@ -1142,7 +1194,11 @@ describe("useReferencePropertiesInteractions", () => {
           seedanceElementSlotCount: 6,
           onSeedanceElementImageSlotChange,
         }),
-      { initialProps: { klingElements: [] } }
+      {
+        initialProps: {
+          klingElements: [] as ReferencePropertiesInteractionsParams["klingElements"],
+        },
+      }
     );
 
     const file = new File(["seedance-slot"], "seedance-slot.png", { type: "image/png" });

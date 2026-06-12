@@ -315,6 +315,27 @@ const buildUploadFilename = (blob: Blob): string => {
   return `reference-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 };
 
+const readDataImageUrlBlob = (url: string): Blob | null => {
+  const match = url.match(/^data:([^;,]+)((?:;[^,]*)?),(.*)$/is);
+  if (!match) return null;
+  const mimeType = match[1]?.trim().toLowerCase() || "image/jpeg";
+  const metadata = match[2] ?? "";
+  const body = match[3] ?? "";
+  try {
+    if (metadata.toLowerCase().includes(";base64")) {
+      const binary = globalThis.atob(decodeURIComponent(body));
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      return new Blob([bytes], { type: mimeType });
+    }
+    return new Blob([decodeURIComponent(body)], { type: mimeType });
+  } catch {
+    return null;
+  }
+};
+
 const resolveUploadPipelineError = (
   payload: { error?: unknown; details?: unknown } | null,
   fallbackMessage: string
@@ -556,6 +577,7 @@ export const uploadImageAssetToStorage = async (
 
   let fetchedBlob: Blob;
   const rememberedBlob = isBlobUrl(localUrl) ? readRememberedObjectUrlBlob(localUrl) : null;
+  const dataUrlBlob = isDataImageUrl(localUrl) ? readDataImageUrlBlob(localUrl) : null;
   if (rememberedBlob) {
     const startedAt = Date.now();
     emitStage(options, {
@@ -566,6 +588,23 @@ export const uploadImageAssetToStorage = async (
       timeoutMs: FETCH_LOCAL_IMAGE_TIMEOUT_MS,
     });
     fetchedBlob = rememberedBlob;
+    emitStage(options, {
+      stage: "fetch_local_image",
+      status: "success",
+      sourceKind,
+      elapsedMs: Date.now() - startedAt,
+      timeoutMs: FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+    });
+  } else if (dataUrlBlob) {
+    const startedAt = Date.now();
+    emitStage(options, {
+      stage: "fetch_local_image",
+      status: "start",
+      sourceKind,
+      elapsedMs: 0,
+      timeoutMs: FETCH_LOCAL_IMAGE_TIMEOUT_MS,
+    });
+    fetchedBlob = dataUrlBlob;
     emitStage(options, {
       stage: "fetch_local_image",
       status: "success",

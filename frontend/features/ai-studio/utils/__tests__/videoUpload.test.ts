@@ -31,6 +31,7 @@ import {
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
 } from "../videoUpload";
+import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../objectUrlBlobRegistry";
 
 const jsonResponse = (payload: unknown, status = 200): Response =>
   new Response(JSON.stringify(payload), {
@@ -46,6 +47,8 @@ describe("videoUpload", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    forgetObjectUrlBlob("blob:missing-motion-reference");
+    forgetObjectUrlBlob("blob:remembered-motion-reference");
   });
 
   it("stages recorded WebM files through browser-direct motion-reference upload", async () => {
@@ -215,6 +218,62 @@ describe("videoUpload", () => {
       sourceName: "motion-reference.webm",
       sourceStoragePath: "user-1/upload-staging/videos/motion-control/ref.webm",
     });
+  });
+
+  it("rejects blob motion-reference URLs that no longer have Blob authority", async () => {
+    const fetchMock = vi.fn();
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(uploadVideoAssetToStorage("blob:missing-motion-reference")).rejects.toThrow(
+      "Local motion reference video is no longer available"
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(uploadToSignedUrlMock).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith("Video upload error:", expect.any(Error));
+  });
+
+  it("stages remembered blob motion-reference URLs without fetching the object URL", async () => {
+    const rememberedBlob = new Blob(["remembered-video"], { type: "video/webm" });
+    rememberObjectUrlBlob("blob:remembered-motion-reference", rememberedBlob);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/videos/motion-control/remembered.webm",
+            uploadToken: "upload-token",
+            mimeType: "video/webm",
+            name: "motion-reference.webm",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://signed.example/remembered-motion-reference.mp4",
+          path: "user-1/videos/motion-control/remembered.mp4",
+          size: 1024,
+          mimeType: "video/mp4",
+          name: "motion-reference.mp4",
+        })
+      );
+
+    const uploaded = await uploadVideoAssetToStorage("blob:remembered-motion-reference");
+
+    expect(uploaded.url).toBe("https://signed.example/remembered-motion-reference.mp4");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/upload-staging/videos/motion-control/remembered.webm",
+      "upload-token",
+      rememberedBlob,
+      expect.objectContaining({
+        contentType: "video/webm",
+        upsert: false,
+      })
+    );
   });
 
   it("normalizes hosted MP4 URLs that have not already passed through Motion Control storage", async () => {

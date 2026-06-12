@@ -33,7 +33,6 @@ import {
   librariesToolList,
   primaryToolList,
   soundChildTools,
-  shortcutsToolList,
   workflowToolList,
 } from "../constants";
 import { ToolId } from "../types";
@@ -314,31 +313,6 @@ function AiStudioToolbarComponent({
             );
           })}
         </div>
-        <div className="toolbar-divider" aria-hidden="true" />
-        <div className="toolbar-lower">
-          <p className="toolbar-section-label">Shortcuts</p>
-          {shortcutsToolList.map((tool) => {
-            const IconComponent = toolIcons[tool.id];
-            const isActive = selectedTool === tool.id;
-            return (
-              <button
-                key={tool.id}
-                type="button"
-                className={`toolbar-item toolbar-item-secondary ${isActive ? "is-active" : ""}`}
-                onClick={() => {
-                  onToggleCreateTools(false);
-                  onSelectTool(tool.id);
-                }}
-              >
-                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
-                <div className="toolbar-copy">
-                  <span className="toolbar-label">{tool.label}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-        <div className="toolbar-divider" aria-hidden="true" />
         <div className="toolbar-creations">
           <p className="toolbar-section-label">Creations</p>
           {creationsToolList.map((tool) => {

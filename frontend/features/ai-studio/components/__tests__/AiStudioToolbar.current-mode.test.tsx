@@ -169,6 +169,13 @@ describe("AiStudioToolbar current mode", () => {
     ).toBeTruthy();
   });
 
+  it("hides deferred shortcuts and templates entry points", () => {
+    renderToolbar();
+
+    expect(screen.queryByText("Shortcuts")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Templates" })).toBeNull();
+  });
+
   it("opens the account menu with profile sections, report issue, and logout", async () => {
     renderToolbar();
 

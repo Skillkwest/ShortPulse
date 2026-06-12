@@ -26,7 +26,7 @@ import {
   sanitizeFilename,
 } from "./recoveryExecutionRuntime";
 import { isTrustedFalProviderUrl } from "./providerTrustPolicy";
-import { isTrustedKieProviderUrl } from "../providerIntegration/providerRuntimeConfig";
+import { isTrustedKieProviderMediaUrl } from "../providerIntegration/providerRuntimeConfig";
 
 type JsonObject = Record<string, unknown>;
 
@@ -89,7 +89,7 @@ const isTrustedRecoveryMediaUrl = ({
   if (normalizedProvider === "fal" && isTrustedFalProviderUrl(url)) {
     return true;
   }
-  if (normalizedProvider === "kie" && isTrustedKieProviderUrl(url)) {
+  if (normalizedProvider === "kie" && isTrustedKieProviderMediaUrl(url)) {
     return true;
   }
   return isTrustedMediaDirectPreviewUrl(url, {

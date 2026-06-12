@@ -507,6 +507,73 @@ describe("POST /api/media/copy-from-url", () => {
     });
   });
 
+  it("allows owned AI Studio provider media URLs without enabling direct external previews", async () => {
+    const providerResultUrl = "https://tempfile.aiquickdraw.com/gpt-image-2-kie/output.png";
+    const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-provider-media-1",
+          output_index: 0,
+          result_url: providerResultUrl,
+          media_file_id: null,
+        },
+      ],
+      insertRow: {
+        id: "media-provider-media-1",
+        storage_path: "user-1/generations/images/media-provider-media-1.png",
+        file_type: "image",
+      },
+      signedUrls: {
+        "user-1/generations/images/media-provider-media-1.png":
+          "https://signed.test/provider-media.png",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+        status: 200,
+        headers: { "Content-Type": "image/png", "Content-Length": "4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: providerResultUrl,
+        source: "ai_studio",
+        provider: "kie",
+        modelId: "kie-ai/gpt-image-2",
+        generationId: "gen-provider-media-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledWith(providerResultUrl, expect.any(Object));
+    expect(supabase.uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/generations\/images\//),
+      expect.any(Buffer),
+      expect.objectContaining({
+        contentType: "image/png",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-provider-media-1",
+        fileType: "image",
+        delivery: expect.objectContaining({
+          previewUrl: "https://signed.test/provider-media.png",
+          fullUrl: "https://signed.test/provider-media.png",
+        }),
+      })
+    );
+  });
+
   it("rejects out-of-scope storage path hints before signing or persistence", async () => {
     const req = {
       method: "POST",

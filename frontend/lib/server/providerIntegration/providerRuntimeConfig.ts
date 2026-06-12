@@ -15,6 +15,11 @@ import type { SubmitTarget } from "../falIntegration/contracts";
 import { isFalProviderKey, isKieProviderKey, normalizeProviderKey } from "./providerKey";
 
 const DEFAULT_KIE_TRUSTED_HOSTS = ["kie.ai"];
+const DEFAULT_KIE_MEDIA_RESULT_TRUSTED_HOSTS = [
+  "kie.ai",
+  "tempfile.aiquickdraw.com",
+  "tempfile.redpandaai.co",
+];
 const DEFAULT_KIE_STATUS_TIMEOUT_MS = 60000;
 const REQUEST_ID_TEMPLATE_TOKEN = "{requestId}";
 
@@ -61,13 +66,16 @@ const parseAllowlist = (value: string | undefined): Set<string> => {
   );
 };
 
-const parseTrustedHosts = (value: string | undefined): string[] => {
-  if (!value?.trim()) return DEFAULT_KIE_TRUSTED_HOSTS;
+const parseTrustedHosts = (
+  value: string | undefined,
+  fallback: string[] = DEFAULT_KIE_TRUSTED_HOSTS
+): string[] => {
+  if (!value?.trim()) return fallback;
   const parsed = value
     .split(",")
     .map((entry) => normalizeHostname(entry))
     .filter((entry) => entry.length > 0);
-  return parsed.length ? parsed : DEFAULT_KIE_TRUSTED_HOSTS;
+  return parsed.length ? parsed : fallback;
 };
 
 const hasRequestIdTemplateInAuthority = (value: string): boolean => {
@@ -156,6 +164,7 @@ export type KieRuntimeFlags = {
   enabled: boolean;
   modelAllowlist: Set<string>;
   trustedHosts: string[];
+  mediaResultTrustedHosts: string[];
   submitUrls: string[];
   statusBaseUrls: string[];
   statusTimeoutMs: number;
@@ -171,6 +180,10 @@ export const readKieRuntimeFlags = (): KieRuntimeFlags => ({
   enabled: parseBoolean(process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED, false),
   modelAllowlist: parseAllowlist(process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST),
   trustedHosts: parseTrustedHosts(process.env.SHORTPULSE_KIE_TRUSTED_HOSTS),
+  mediaResultTrustedHosts: parseTrustedHosts(
+    process.env.SHORTPULSE_KIE_MEDIA_RESULT_TRUSTED_HOSTS,
+    DEFAULT_KIE_MEDIA_RESULT_TRUSTED_HOSTS
+  ),
   submitUrls: parseUrlList(process.env.SHORTPULSE_KIE_SUBMIT_URLS),
   statusBaseUrls: parseUrlList(process.env.SHORTPULSE_KIE_STATUS_BASE_URLS),
   statusTimeoutMs: parseInteger(
@@ -236,6 +249,27 @@ export const isTrustedKieProviderUrl = (
   if (parsed.protocol !== "https:") return false;
   if (isPrivateOrLocalHost(parsed.hostname)) return false;
   return matchesTrustedHost(parsed.hostname, flags.trustedHosts);
+};
+
+/**
+ * Returns true when a URL is trusted as a Kie media result, without broadening
+ * the API submit/status host trust policy.
+ */
+export const isTrustedKieProviderMediaUrl = (
+  url: string,
+  flags: KieRuntimeFlags = readKieRuntimeFlags()
+): boolean => {
+  const candidate = url.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== "https:") return false;
+  if (isPrivateOrLocalHost(parsed.hostname)) return false;
+  return matchesTrustedHost(parsed.hostname, flags.mediaResultTrustedHosts);
 };
 
 /**

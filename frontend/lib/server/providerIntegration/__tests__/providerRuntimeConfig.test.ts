@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   assertKieRuntimeEnabledForModel,
   filterTrustedKieProviderUrls,
+  isTrustedKieProviderMediaUrl,
+  isTrustedKieProviderUrl,
   readKieRuntimeFlags,
   readProviderApiKey,
   resolveKieStatusBaseUrlsForModel,
@@ -27,6 +29,11 @@ describe("providerRuntimeConfig", () => {
     const flags = readKieRuntimeFlags();
     expect(flags.enabled).toBe(false);
     expect(flags.trustedHosts).toEqual(["kie.ai"]);
+    expect(flags.mediaResultTrustedHosts).toEqual([
+      "kie.ai",
+      "tempfile.aiquickdraw.com",
+      "tempfile.redpandaai.co",
+    ]);
   });
 
   it("enforces kie dark-path enablement and allowlist checks", () => {
@@ -111,6 +118,16 @@ describe("providerRuntimeConfig", () => {
         "https://evil.example.com/v1/requests",
       ])
     ).toEqual(["https://queue.kie.ai/v1/requests"]);
+  });
+
+  it("keeps Kie media result hosts separate from Kie API hosts", () => {
+    delete process.env.SHORTPULSE_KIE_TRUSTED_HOSTS;
+    delete process.env.SHORTPULSE_KIE_MEDIA_RESULT_TRUSTED_HOSTS;
+
+    expect(isTrustedKieProviderUrl("https://tempfile.aiquickdraw.com/output.png")).toBe(false);
+    expect(isTrustedKieProviderMediaUrl("https://tempfile.aiquickdraw.com/output.png")).toBe(true);
+    expect(isTrustedKieProviderMediaUrl("http://tempfile.aiquickdraw.com/output.png")).toBe(false);
+    expect(isTrustedKieProviderMediaUrl("https://evil.example.com/output.png")).toBe(false);
   });
 
   it("accepts trusted kie status url templates with {requestId}", () => {

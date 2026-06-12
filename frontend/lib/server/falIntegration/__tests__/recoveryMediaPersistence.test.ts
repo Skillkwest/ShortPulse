@@ -934,6 +934,43 @@ describe("recoveryMediaPersistence", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts trusted Kie media-result hosts during recovery without media preview allowlist", async () => {
+    delete process.env.SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS;
+    delete process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS;
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [{ data: [], error: null }],
+      listResponses: [{ data: [], error: null }],
+      insertResponses: [{ data: { id: "media-kie-1" }, error: null }],
+      uploadResponses: [{ error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from([1, 2, 3]), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      persistRecoveryMediaFilesForGeneration({
+        generation: {
+          id: "gen-kie-1",
+          user_id: "user-1",
+          request_id: "req-kie-1",
+          model_id: "kie-ai/gpt-image-2",
+          provider: "kie",
+          prompt_text: "A generated frame",
+          metadata: {},
+        },
+        mediaUrls: ["https://tempfile.aiquickdraw.com/gpt-image-2-kie/output.png"],
+      })
+    ).resolves.toEqual(["media-kie-1"]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("removes uploaded recovery media when media_files insert fails", async () => {
     const scenario = createSupabaseScenario({
       generationOutputListResponses: [{ data: [], error: null }],

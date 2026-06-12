@@ -36,11 +36,13 @@ import {
 } from "../../../lib/server/mediaIngest";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
+import { isTrustedFalProviderUrl } from "../../../lib/server/falIntegration/providerTrustPolicy";
 import { extractImageDimensionsFromBuffer } from "../../../lib/server/imageDimensions";
 import {
   admitImageBufferForProductUse,
   type ImageAdmissionAcceptedResult,
 } from "../../../lib/server/imageAdmission";
+import { isTrustedKieProviderMediaUrl } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 import {
   upsertVideoPosterVariantFromBuffer,
   upsertVideoPreviewVariantFromBuffer,
@@ -362,6 +364,49 @@ const validateTrustedUrl = async (
   return { ok: true };
 };
 
+type UrlTrustValidator = (candidate: URL) => Promise<{ ok: true } | { ok: false; error: string }>;
+
+const validatePublicFetchDestination = async (
+  candidate: URL
+): Promise<{ ok: true } | { ok: false; error: string }> => {
+  if (!isAllowedProtocol(candidate)) {
+    return { ok: false, error: "Only HTTPS URLs are allowed (HTTP allowed for localhost)." };
+  }
+  if (isLocalHostname(candidate.hostname)) {
+    if (process.env.NODE_ENV === "production") {
+      return { ok: false, error: "Localhost media URLs are not allowed in production." };
+    }
+    return { ok: true };
+  }
+  if (isBlockedPrivateAddress(candidate.hostname)) {
+    return { ok: false, error: "URL host is a private network address." };
+  }
+  if (isIP(candidate.hostname) === 0) {
+    const addresses = await resolveHostAddresses(candidate.hostname);
+    if (!addresses || !addresses.length) {
+      return { ok: false, error: "Unable to resolve URL host." };
+    }
+    if (addresses.some((address) => isBlockedPrivateAddress(address))) {
+      return { ok: false, error: "URL host resolved to a private network address." };
+    }
+  }
+  return { ok: true };
+};
+
+const validateTrustedGeneratedMediaUrl = async (
+  candidate: URL
+): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const directPreviewValidation = await validateTrustedUrl(candidate);
+  if (directPreviewValidation.ok) {
+    return directPreviewValidation;
+  }
+  const candidateUrl = candidate.toString();
+  if (!isTrustedFalProviderUrl(candidateUrl) && !isTrustedKieProviderMediaUrl(candidateUrl)) {
+    return directPreviewValidation;
+  }
+  return validatePublicFetchDestination(candidate);
+};
+
 const readResponseBodyWithCap = async (response: Response, maxBytes: number): Promise<Buffer> => {
   const contentLengthHeader = response.headers.get("content-length");
   const contentLength = contentLengthHeader ? Number.parseInt(contentLengthHeader, 10) : null;
@@ -394,16 +439,18 @@ const readResponseBodyWithCap = async (response: Response, maxBytes: number): Pr
 const fetchUrlWithRedirectValidation = async ({
   startUrl,
   maxBytes,
+  validateUrl = validateTrustedUrl,
 }: {
   startUrl: URL;
   maxBytes: number;
+  validateUrl?: UrlTrustValidator;
 }): Promise<{ buffer: Buffer; contentType: string | null; finalUrl: URL }> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     let current = startUrl;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
-      const trustValidation = await validateTrustedUrl(current);
+      const trustValidation = await validateUrl(current);
       if (!trustValidation.ok) {
         throw new Error(trustValidation.error);
       }
@@ -1218,11 +1265,6 @@ export default async function handler(
     return res.status(400).json({ error: "Invalid url." });
   }
 
-  const trustValidation = await validateTrustedUrl(parsedUrl);
-  if (!trustValidation.ok) {
-    return res.status(422).json({ error: "Untrusted media URL.", details: trustValidation.error });
-  }
-
   const source = parseSource(input.source);
   const mode = parseMode(input.mode);
   const fileTypeHint = parseFileTypeHint(input.fileTypeHint);
@@ -1260,6 +1302,7 @@ export default async function handler(
   const provider = asOptionalString(input.provider);
   const modelId = asOptionalString(input.modelId);
   const metadata = asObjectMetadata(input.metadata);
+  let validateFetchUrl: UrlTrustValidator = validateTrustedUrl;
 
   if (source === "ai_studio" && !generationId) {
     return res.status(400).json({ error: GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR });
@@ -1388,6 +1431,15 @@ export default async function handler(
           error: sourceAuthority.error,
         });
       }
+      validateFetchUrl = validateTrustedGeneratedMediaUrl;
+    }
+
+    const trustValidation = await validateFetchUrl(parsedUrl);
+    if (!trustValidation.ok) {
+      return res.status(422).json({
+        error: "Untrusted media URL.",
+        details: trustValidation.error,
+      });
     }
 
     const effectiveFileType = resolveFileType(null, mode, fileTypeHint);
@@ -1400,6 +1452,7 @@ export default async function handler(
     const fetched = await fetchUrlWithRedirectValidation({
       startUrl: parsedUrl,
       maxBytes,
+      validateUrl: validateFetchUrl,
     });
     const fileType = resolveFileType(fetched.contentType, mode, fileTypeHint);
     const detectedMimeType = resolveDetectedMediaMimeType({

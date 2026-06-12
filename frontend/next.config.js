@@ -85,7 +85,7 @@ const securityHeaders = [
       "font-src 'self' data:",
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
-      "connect-src 'self' https: wss:",
+      "connect-src 'self' https: wss: blob: data:",
       "worker-src 'self' blob:",
       "upgrade-insecure-requests",
     ].join("; "),

@@ -68,4 +68,19 @@ describe("next.config security headers", () => {
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com"
     );
   });
+
+  it("allows local blob and data URL reads for browser-side media staging", async () => {
+    const nextConfigModule = await import("../next.config.js");
+    const nextConfig = "default" in nextConfigModule ? nextConfigModule.default : nextConfigModule;
+    const headerEntries = await nextConfig.headers();
+    const appHeaders = headerEntries.find(
+      (entry: { source: string; headers: Array<{ key: string; value: string }> }) =>
+        entry.source === "/:path*"
+    );
+    const contentSecurityPolicy = appHeaders?.headers.find(
+      (header: { key: string; value: string }) => header.key === "Content-Security-Policy"
+    );
+
+    expect(contentSecurityPolicy?.value).toContain("connect-src 'self' https: wss: blob: data:");
+  });
 });

@@ -3,9 +3,16 @@
  * Shares an already-resolved protected session from route gates down to pages so
  * they do not re-run auth recovery logic after the gate has already cleared.
  */
-import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { useSupabaseSessionState } from "./supabaseClient";
+import { primeSupabaseSession, useSupabaseSessionState } from "./supabaseClient";
 import type { SupabaseSessionSnapshot } from "./supabaseSessionSnapshotStore";
 
 type ProtectedRouteSessionContextValue = {
@@ -29,6 +36,10 @@ export function ProtectedRouteSessionProvider({
   user,
   children,
 }: ProtectedRouteSessionProviderProps) {
+  useEffect(() => {
+    primeSupabaseSession(session);
+  }, [session]);
+
   const value = useMemo(
     () => ({
       session,

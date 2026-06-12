@@ -19,7 +19,7 @@ describe("ReferenceGridArchiveControls", () => {
       />
     );
 
-    expect(screen.getByText("Media: 7/250")).toBeInTheDocument();
+    expect(screen.getByText("Media: 7/200")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Media Library" })).toBeInTheDocument();
   });

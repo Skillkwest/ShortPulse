@@ -1760,6 +1760,7 @@ describe("VideoPropertiesPanel", () => {
     expect(
       screen.queryByRole("button", { name: /Replace attached element Image reference/ })
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Image reference")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add element to slot 1" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Replace attached element Red Lantern/ })

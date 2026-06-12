@@ -16,8 +16,11 @@ import {
 } from "../reference-projections";
 import {
   admitReferenceGridIncomingOutputs,
+  buildReferenceGridOverflowArchiveRows,
+  buildReferenceGridOverflowArchivedMessage,
   buildReferenceGridPartialCapMessage,
   limitReferenceGridVisibleOutputs,
+  mergeReferenceGridArchivedRows,
   REFERENCE_GRID_CAP_REACHED_MESSAGE,
 } from "../reference-grid/logic/referenceGridLimits";
 
@@ -159,12 +162,16 @@ export const useAiStudioReferenceGridStateActions = ({
         const resolved = typeof nextValue === "function" ? nextValue(prev) : nextValue;
         const limited = limitReferenceGridVisibleOutputs(resolved);
         if (limited.trimmedCount > 0) {
-          setUiError?.(buildReferenceGridPartialCapMessage(limited.trimmedCount));
+          const overflowRows = buildReferenceGridOverflowArchiveRows(limited.trimmedRows);
+          setArchivedOutputs((currentArchived) =>
+            mergeReferenceGridArchivedRows(currentArchived, overflowRows)
+          );
+          setUiError?.(buildReferenceGridOverflowArchivedMessage(limited.trimmedCount));
         }
         return limited.rows;
       });
     },
-    [setOutputsState, setUiError]
+    [setArchivedOutputs, setOutputsState, setUiError]
   );
 
   const addCuratedReference = useCallback(

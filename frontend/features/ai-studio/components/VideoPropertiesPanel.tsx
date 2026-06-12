@@ -2714,7 +2714,7 @@ export function VideoPropertiesPanel({
               klingGuidanceSummary={klingGuidanceSummary}
               klingShotType={klingShotType}
               klingMultiPrompts={klingMultiPrompts}
-              klingElements={klingElements}
+              klingElements={modelVisibleKlingElements}
               klingVoiceIds={klingVoiceIds}
               klingCfgScale={klingCfgScale}
               klingNegativePrompt={klingNegativePrompt}

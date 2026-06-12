@@ -31,7 +31,7 @@ type ReferenceKlingAdvancedStepsProps = {
   klingGuidanceSummary: string;
   klingShotType: "customize" | "intelligent";
   klingMultiPrompts: KlingShot[];
-  klingElements: KlingElement[];
+  klingElements: Array<KlingElement | null>;
   klingVoiceIds: [string, string];
   klingCfgScale: number;
   klingNegativePrompt: string;
@@ -112,7 +112,10 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
   const klingGuidanceCardOrder = klingGuidanceOrder ?? klingAssetsCardOrder + 1;
   const firstEmptySlotIndex = [0, 1, 2].find(
     (slotIndex) =>
-      !klingElements.some((element, index) => (element.slotIndex ?? index) === slotIndex)
+      !klingElements.some((element, index) => element && (element.slotIndex ?? index) === slotIndex)
+  );
+  const visibleKlingElements = klingElements.flatMap((element, index) =>
+    element ? [{ element, index }] : []
   );
 
   return (
@@ -238,13 +241,13 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
             <div className="control-row compact full-span">
               <label className="input-label">Elements (characters/objects)</label>
               <div className="kling-elements-list">
-                {klingElements.length === 0 ? (
+                {visibleKlingElements.length === 0 ? (
                   <p className="tiny helper-text">
                     Attach saved Characters or Elements from the {workflowLabel} settings slots
                     above.
                   </p>
                 ) : null}
-                {klingElements.map((element, index) => {
+                {visibleKlingElements.map(({ element, index }) => {
                   const token = resolveAiStudioKlingElementToken(element, index, klingElements);
                   const referenceCount = [
                     element.frontalImageUrl.trim(),

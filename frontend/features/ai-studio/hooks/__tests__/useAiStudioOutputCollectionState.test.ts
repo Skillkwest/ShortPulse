@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 import { getAiStudioOutputSnapshot, resetAiStudioOutputStore } from "../aiStudioOutputStore";
 import { useAiStudioOutputCollectionState } from "../useAiStudioOutputCollectionState";
 
@@ -103,12 +104,14 @@ describe("useAiStudioOutputCollectionState", () => {
     ]);
   });
 
-  it("caps active visible Reference Grid outputs while preserving hidden rows", () => {
+  it("caps active visible Reference Grid outputs and archives overflow while preserving hidden rows", () => {
     const { result } = renderHook(() => useAiStudioOutputCollectionState());
-    const visibleOutputs = Array.from({ length: 252 }, (_, index) =>
-      makeOutput(`visible-${index + 1}`, {
-        createdAt: new Date(Date.UTC(2026, 4, 24, 12, 0, index)).toISOString(),
-      })
+    const visibleOutputs = Array.from(
+      { length: REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2 },
+      (_, index) =>
+        makeOutput(`visible-${index + 1}`, {
+          createdAt: new Date(Date.UTC(2026, 4, 24, 12, 0, index)).toISOString(),
+        })
     );
     const hiddenOutput = makeOutput("hidden-lifecycle", {
       createdAt: "2026-05-24T13:00:00.000Z",
@@ -121,9 +124,38 @@ describe("useAiStudioOutputCollectionState", () => {
 
     expect(
       result.current.outputs.filter((output) => output.hiddenInReferenceGrid !== true)
-    ).toHaveLength(250);
+    ).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(result.current.outputs.some((output) => output.id === "hidden-lifecycle")).toBe(true);
     expect(result.current.outputs.some((output) => output.id === "visible-1")).toBe(false);
+    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
+      "visible-2",
+      "visible-1",
+    ]);
+    expect(
+      result.current.archivedOutputs.every((output) => output.archiveReason === "cleanup")
+    ).toBe(true);
+  });
+
+  it("archives over-cap active rows during authority restore instead of dropping them", () => {
+    const { result } = renderHook(() => useAiStudioOutputCollectionState());
+    const activeRows = Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1 }, (_, index) =>
+      makeOutput(`active-${index + 1}`)
+    );
+    const archivedRow = makeOutput("already-archived", {
+      archivedAt: "2026-05-24T10:00:00.000Z",
+      archiveReason: "manual",
+    });
+
+    act(() => {
+      result.current.setOutputCollectionsForAuthority("session:pending", activeRows, [archivedRow]);
+    });
+
+    expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
+      "active-201",
+      "already-archived",
+    ]);
+    expect(result.current.archivedOutputs[0]?.archiveReason).toBe("cleanup");
   });
 
   it("preserves sequential functional updater semantics for active and archived collections", () => {

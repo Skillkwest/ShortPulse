@@ -134,7 +134,7 @@ describe("useAiStudioTaskSubmission", () => {
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
-        outputs: Array.from({ length: 250 }, (_, index) => createVisibleOutput(`out-${index}`)),
+        outputs: Array.from({ length: 200 }, (_, index) => createVisibleOutput(`out-${index}`)),
         setSaved: asDispatch(setSaved),
         getDefaultDurationSeconds: () => 6,
         notifyGenerationFailure,
@@ -149,7 +149,7 @@ describe("useAiStudioTaskSubmission", () => {
       await result.current("A polished studio portrait", []);
     });
 
-    expect(setUiError).toHaveBeenCalledWith(expect.stringContaining("250 items"));
+    expect(setUiError).toHaveBeenCalledWith(expect.stringContaining("200 items"));
     expect(setOutputs).not.toHaveBeenCalled();
     expect(handleImageModelSubmission).not.toHaveBeenCalled();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();

@@ -99,6 +99,14 @@ Use [docs/sops/sop_media_panel_performance_kpi.md](./sop_media_panel_performance
 3. Confirm on constrained conditions (`saveData`, low memory, very slow network) autoplay budget reduces.
 4. Confirm offscreen cards pause/detach according to configured delay.
 
+### 3a) Validate Reference Grid Active-Workset Cap
+
+1. Confirm the Reference Grid counter displays `Media: <visible>/200`.
+2. Add or restore references until the active workset reaches 200 visible items.
+3. Confirm new visible references are refused with cap copy instead of entering the hot path.
+4. Confirm restored or normalized over-cap active rows move into Archived with restore actions instead of being dropped.
+5. Confirm high-density posture starts before the cap is reached, with the launch threshold at 120 visible items.
+
 ### 3b) Validate Curated Split Behavior
 
 1. Confirm top `Canvas` section renders above `Quick Slot Inventory` and remains interactive.
@@ -175,6 +183,11 @@ Key indicators:
   - canonical Media Library list/signing runtime (`/api/media/list`, virtualization, video budget, sign prefetch)
 - Reference Grid autoplay caps:
   - `REFERENCE_AUTOPLAY_MAX_*` in `frontend/features/ai-studio/components/ReferenceGrid.tsx`
+- Reference Grid active-workset cap:
+  - `REFERENCE_GRID_MAX_VISIBLE_ITEMS` in `frontend/features/ai-studio/reference-grid/logic/referenceGridLimits.ts`
+  - Over-cap active rows should archive through `archiveReason: "cleanup"` rather than disappear from project/session state.
+- Reference Grid high-density threshold:
+  - `REFERENCE_HIGH_DENSITY_CARD_COUNT` in `frontend/features/ai-studio/reference-grid/referenceGridConfig.ts`
 - Reference Grid feature flags:
   - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`
   - `NEXT_PUBLIC_REFERENCE_GRID_CURATED_SPLIT`

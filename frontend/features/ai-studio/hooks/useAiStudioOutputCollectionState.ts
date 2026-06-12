@@ -16,7 +16,11 @@ import {
   type StudioOutputCollectionState,
 } from "../reference-domain";
 import { sortStudioOutputsByCreatedAtDesc } from "../logic/outputOrdering";
-import { limitReferenceGridVisibleOutputs } from "../reference-grid/logic/referenceGridLimits";
+import {
+  buildReferenceGridOverflowArchiveRows,
+  limitReferenceGridVisibleOutputs,
+  mergeReferenceGridArchivedRows,
+} from "../reference-grid/logic/referenceGridLimits";
 import type { StudioOutput } from "../types";
 import { setAiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 
@@ -29,7 +33,11 @@ type OutputCollectionAuthorityState = {
 
 const normalizeActiveRows = (
   rows: StudioOutput[]
-): { rows: StudioOutput[]; state: StudioOutputCollectionState } => {
+): {
+  rows: StudioOutput[];
+  overflowRows: StudioOutput[];
+  state: StudioOutputCollectionState;
+} => {
   const orderedRows = rows.every(
     (row) => typeof row.createdAt === "string" && row.createdAt.trim().length > 0
   )
@@ -38,6 +46,7 @@ const normalizeActiveRows = (
   const limited = limitReferenceGridVisibleOutputs(orderedRows);
   return {
     rows: limited.rows,
+    overflowRows: buildReferenceGridOverflowArchiveRows(limited.trimmedRows),
     state: normalizeStudioOutputCollection(limited.rows),
   };
 };
@@ -144,6 +153,20 @@ export const useAiStudioOutputCollectionState = ({
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
       const normalized = normalizeActiveRows(resolved);
       const nextState = normalized.state;
+      if (normalized.overflowRows.length > 0) {
+        const nextArchivedRows = mergeReferenceGridArchivedRows(
+          archivedOutputsRef.current,
+          normalized.overflowRows
+        );
+        const nextArchivedState = normalizeStudioOutputCollection(nextArchivedRows);
+        archivedOutputStateRef.current = nextArchivedState;
+        archivedOutputsRef.current = nextArchivedRows;
+        stateByAuthorityKeyRef.current[activeAuthorityKeyRef.current] = {
+          active: nextState,
+          archived: nextArchivedState,
+        };
+        setArchivedOutputState(nextArchivedState);
+      }
       if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         activeOutputStateRef.current = prevState;
         activeOutputsRef.current = prevRows;
@@ -178,7 +201,11 @@ export const useAiStudioOutputCollectionState = ({
     (targetAuthorityKey: string, activeRows: StudioOutput[], archivedRows: StudioOutput[]) => {
       const nextActive = normalizeActiveRows(activeRows);
       const nextActiveState = nextActive.state;
-      const nextArchivedState = normalizeStudioOutputCollection(archivedRows);
+      const nextArchivedRows = mergeReferenceGridArchivedRows(
+        archivedRows,
+        nextActive.overflowRows
+      );
+      const nextArchivedState = normalizeStudioOutputCollection(nextArchivedRows);
       stateByAuthorityKeyRef.current[targetAuthorityKey] = {
         active: nextActiveState,
         archived: nextArchivedState,
@@ -189,7 +216,7 @@ export const useAiStudioOutputCollectionState = ({
       archivedOutputStateRef.current = nextArchivedState;
       activeOutputByIdRef.current = nextActiveState.byId;
       activeOutputsRef.current = nextActive.rows;
-      archivedOutputsRef.current = archivedRows;
+      archivedOutputsRef.current = nextArchivedRows;
       setActiveOutputState(nextActiveState);
       setArchivedOutputState(nextArchivedState);
       setAiStudioOutputStoreSnapshot({

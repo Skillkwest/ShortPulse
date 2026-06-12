@@ -4,16 +4,21 @@
  */
 import type { StudioOutput } from "../../types";
 
-export const REFERENCE_GRID_MAX_VISIBLE_ITEMS = 250;
+export const REFERENCE_GRID_MAX_VISIBLE_ITEMS = 200;
 
-export const REFERENCE_GRID_CAP_REACHED_MESSAGE =
-  "Reference Grid is limited to 250 items. Remove items from the grid or use Media Library as your archive before adding more.";
+export const REFERENCE_GRID_CAP_REACHED_MESSAGE = `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. Remove items from the grid or use Media Library as your archive before adding more.`;
+
+export const buildReferenceGridOverflowArchivedMessage = (archivedCount: number): string => {
+  const normalizedArchivedCount = Math.max(0, Math.floor(archivedCount));
+  const itemLabel = normalizedArchivedCount === 1 ? "reference was" : "references were";
+  return `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. ${normalizedArchivedCount} older ${itemLabel} moved to Archived to keep the grid responsive.`;
+};
 
 export const buildReferenceGridPartialCapMessage = (skippedCount: number): string => {
   const normalizedSkippedCount = Math.max(0, Math.floor(skippedCount));
   if (normalizedSkippedCount <= 0) return REFERENCE_GRID_CAP_REACHED_MESSAGE;
   const itemLabel = normalizedSkippedCount === 1 ? "item was" : "items were";
-  return `Reference Grid is limited to 250 items. ${normalizedSkippedCount} ${itemLabel} not added. Remove items from the grid or use Media Library as your archive before adding more.`;
+  return `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. ${normalizedSkippedCount} ${itemLabel} not added. Remove items from the grid or use Media Library as your archive before adding more.`;
 };
 
 /**
@@ -42,6 +47,7 @@ export const getReferenceGridAvailableSlots = (
 export type ReferenceGridLimitResult<T extends Pick<StudioOutput, "id" | "hiddenInReferenceGrid">> =
   {
     rows: T[];
+    trimmedRows: T[];
     trimmedIds: string[];
     visibleCount: number;
     trimmedCount: number;
@@ -57,6 +63,7 @@ export const limitReferenceGridVisibleOutputs = <
   maxVisibleItems = REFERENCE_GRID_MAX_VISIBLE_ITEMS
 ): ReferenceGridLimitResult<T> => {
   const nextRows: T[] = [];
+  const trimmedRows: T[] = [];
   const trimmedIds: string[] = [];
   let visibleCount = 0;
 
@@ -72,15 +79,36 @@ export const limitReferenceGridVisibleOutputs = <
       return;
     }
 
+    trimmedRows.push(row);
     trimmedIds.push(row.id);
   });
 
   return {
     rows: nextRows,
+    trimmedRows,
     trimmedIds,
     visibleCount,
     trimmedCount: trimmedIds.length,
   };
+};
+
+export const buildReferenceGridOverflowArchiveRows = (
+  rows: readonly StudioOutput[],
+  archivedAt = new Date().toISOString()
+): StudioOutput[] =>
+  rows.map((row) => ({
+    ...row,
+    archivedAt: row.archivedAt ?? archivedAt,
+    archiveReason: row.archiveReason ?? "cleanup",
+  }));
+
+export const mergeReferenceGridArchivedRows = (
+  archivedRows: readonly StudioOutput[],
+  overflowRows: readonly StudioOutput[]
+): StudioOutput[] => {
+  if (!overflowRows.length) return [...archivedRows];
+  const overflowIds = new Set(overflowRows.map((row) => row.id));
+  return [...overflowRows, ...archivedRows.filter((row) => !overflowIds.has(row.id))];
 };
 
 export type ReferenceGridAdmissionResult<

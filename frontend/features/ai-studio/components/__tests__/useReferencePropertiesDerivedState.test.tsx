@@ -103,6 +103,26 @@ describe("useReferencePropertiesDerivedState", () => {
     expect(result.current.klingAssetsSummary).toBe("1 element · Prompt tokens ready");
   });
 
+  it("does not count Seedance-only direct image references as KIE Kling assets", () => {
+    const { result } = renderHook(() =>
+      useReferencePropertiesDerivedState({
+        ...baseArgs,
+        modelId: KIE_KLING_30_MODEL_ID,
+        klingElements: [
+          {
+            id: "image-ref-01",
+            sourceKind: "reference-image",
+            frontalImageUrl: "https://example.com/direct-image.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+      })
+    );
+
+    expect(result.current.klingAssetsSummary).toBe("No elements · Prompt tokens ready");
+  });
+
   it("does not render Kling-specific UI state outside the active Kie Kling mode", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesDerivedState({

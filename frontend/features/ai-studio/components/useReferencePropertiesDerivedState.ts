@@ -15,6 +15,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { isElementSlotVisibleForVideoModel } from "../logic/klingElements";
 
 type KlingMultiPrompt = {
   id: string;
@@ -24,6 +25,7 @@ type KlingMultiPrompt = {
 
 type KlingElement = {
   id: string;
+  sourceKind?: "element" | "character" | "reference-image" | null;
   frontalImageUrl: string;
   referenceImageUrls: string;
   videoUrl: string;
@@ -164,7 +166,11 @@ export const useReferencePropertiesDerivedState = ({
     ? `${klingMultiPrompts.length} shot${klingMultiPrompts.length > 1 ? "s" : ""}`
     : "No shots";
   const klingAssetsSummary = useMemo(() => {
-    const elementCount = klingElements.length;
+    const elementCount = klingElements.filter((element) =>
+      isElementSlotVisibleForVideoModel(element, {
+        allowSeedanceImageReferences: isSeedance2FamilyModel,
+      })
+    ).length;
     const voices = klingVoiceIds.filter((value) => value.trim()).length;
     const parts = [];
     parts.push(

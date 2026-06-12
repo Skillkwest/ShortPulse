@@ -675,7 +675,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
       useAiStudioReferenceIngestionActions(
         createParams({
           projectId: "project-1",
-          outputs: Array.from({ length: 250 }, (_, index) => makeOutput({ id: `out-${index}` })),
+          outputs: Array.from({ length: 200 }, (_, index) => makeOutput({ id: `out-${index}` })),
           setOutputs,
           setUiError,
         })
@@ -688,7 +688,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
 
     expect(uploadMediaFileMock).not.toHaveBeenCalled();
     expect(setOutputs).not.toHaveBeenCalled();
-    expect(setUiError).toHaveBeenCalledWith(expect.stringContaining("250 items"));
+    expect(setUiError).toHaveBeenCalledWith(expect.stringContaining("200 items"));
   });
 
   it("uses Reference Grid insertion time for local file uploads instead of the media row created_at", async () => {

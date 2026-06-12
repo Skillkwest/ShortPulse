@@ -610,7 +610,7 @@ describe("useAiStudioAudioGeneration", () => {
 
     expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
-    expect(uiError).toContain("250 items");
+    expect(uiError).toContain("200 items");
   });
 
   it("keeps music busy state active until parallel generations settle", async () => {

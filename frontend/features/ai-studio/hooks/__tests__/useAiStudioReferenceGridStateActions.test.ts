@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { describe, expect, it } from "vitest";
 import { useAiStudioReferenceGridStateActions } from "../useAiStudioReferenceGridStateActions";
 import type { ReferenceProjectionState } from "../../reference-projections";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 import type { StudioOutput } from "../../types";
 
 const createOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -73,7 +74,7 @@ describe("useAiStudioReferenceGridStateActions", () => {
     expect(Array.from(result.current.pendingFinalizeRemovalIds)).toEqual(["output-2"]);
   });
 
-  it("caps large all-refs collections at 250 visible outputs", () => {
+  it("caps large all-refs collections at 200 visible outputs and archives overflow", () => {
     const { result } = renderHook(() => {
       const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
       const [outputs, setOutputsState] = useState<StudioOutput[]>([]);
@@ -103,7 +104,7 @@ describe("useAiStudioReferenceGridStateActions", () => {
       };
     });
 
-    const manyOutputs = Array.from({ length: 525 }, (_, index) =>
+    const manyOutputs = Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2 }, (_, index) =>
       createOutput(`output-${index + 1}`)
     );
 
@@ -111,15 +112,23 @@ describe("useAiStudioReferenceGridStateActions", () => {
       result.current.setOutputs(manyOutputs);
     });
 
-    expect(result.current.outputs).toHaveLength(250);
-    expect(result.current.archivedOutputs).toEqual([]);
+    expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
+      "output-201",
+      "output-202",
+    ]);
+    expect(
+      result.current.archivedOutputs.every((output) => output.archiveReason === "cleanup")
+    ).toBe(true);
   });
 
   it("blocks archived restore when the visible Reference Grid is full", () => {
     const { result } = renderHook(() => {
       const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
       const [outputs, setOutputsState] = useState<StudioOutput[]>(
-        Array.from({ length: 250 }, (_, index) => createOutput(`output-${index + 1}`))
+        Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS }, (_, index) =>
+          createOutput(`output-${index + 1}`)
+        )
       );
       const [archivedOutputs, setArchivedOutputs] = useState<StudioOutput[]>([
         createOutput("archived-1", {
@@ -156,7 +165,7 @@ describe("useAiStudioReferenceGridStateActions", () => {
       result.current.restoreArchivedOutput("archived-1");
     });
 
-    expect(result.current.outputs).toHaveLength(250);
+    expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(result.current.archivedOutputs.map((output) => output.id)).toEqual(["archived-1"]);
     expect(result.current.activeOutputId).toBeNull();
   });

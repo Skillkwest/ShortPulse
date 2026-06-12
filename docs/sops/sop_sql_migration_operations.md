@@ -205,6 +205,7 @@ Current set:
 - `152_add_audio_generation_display_title.sql`
 - `153_add_dashboard_tutorials.sql`
 - `154_add_dashboard_tutorial_thumbnail_uploads.sql`
+- `155_add_dashboard_tutorial_thumbnail_display_derivatives.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

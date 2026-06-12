@@ -597,10 +597,17 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `title` (text, required): Trimmed tutorial title (`btrim`) with length `1..120`.
 - `youtube_url` (text, required): HTTPS YouTube destination. Runtime validation accepts `youtube.com`, `www.youtube.com`, `m.youtube.com`, and `youtu.be`.
 - `thumbnail_url` (text, nullable): HTTPS image/GIF/video thumbnail asset URL when the tutorial uses an externally hosted asset.
-- `thumbnail_storage_path` (text, nullable): Private object path in the `dashboard_tutorial_thumbnails` bucket when the tutorial uses an uploaded admin thumbnail. Stored thumbnails are signed as originals by server routes; do not use Supabase image transformations.
+- `thumbnail_storage_path` (text, nullable): Private source-object path in the `dashboard_tutorial_thumbnails` bucket when the tutorial uses an uploaded admin thumbnail. Uploaded originals are preserved for audit/reprocessing and should not be the steady-state dashboard card payload after derivative backfill.
 - `thumbnail_file_size_bytes` (integer, nullable): Uploaded thumbnail size, bounded to 50 MB.
 - `thumbnail_content_type` (text, nullable): Uploaded thumbnail MIME type. Allowed values are `image/gif`, `image/jpeg`, `image/png`, `image/webp`, `video/mp4`, `video/quicktime`, and `video/webm`.
-- `thumbnail_media_type` (text, default `image`): `image | video`; GIF thumbnails use `image`.
+- `thumbnail_media_type` (text, default `image`): Effective dashboard thumbnail media type (`image | video`); uploaded GIF thumbnails become video display derivatives after finalization/backfill.
+- `thumbnail_display_storage_path` (text, nullable): Private display-derivative object path under `tutorial-thumbnail-variants/` for uploaded thumbnails.
+- `thumbnail_display_file_size_bytes` (integer, nullable): Display-derivative object size, bounded to 50 MB by database constraint and 5 MB by app generation/backfill helpers.
+- `thumbnail_display_content_type` (text, nullable): Display-derivative MIME type. Allowed values are `image/jpeg`, `image/webp`, and `video/mp4`.
+- `thumbnail_display_media_type` (text, nullable): Display-derivative media type (`image | video`) used by dashboard rendering.
+- `thumbnail_poster_storage_path` (text, nullable): Optional JPEG poster object path under `tutorial-thumbnail-variants/` for motion display derivatives.
+- `thumbnail_poster_file_size_bytes` (integer, nullable): Poster object size, bounded to 50 MB by database constraint and 5 MB by app generation/backfill helpers.
+- `thumbnail_poster_content_type` (text, nullable): Poster MIME type; currently `image/jpeg`.
 - `thumbnail_alt` (text, default `''`): Optional trimmed thumbnail description, max 160 characters.
 - `display_order` (integer, default `0`): Global dashboard grid order.
 - `is_active` (boolean, default `true`): Whether the card appears on signed-in dashboards.
@@ -611,6 +618,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Active and admin-order indexes support dashboard and admin grid reads.
   - Update trigger stamps `updated_at` on row mutation.
   - Each row must have either `thumbnail_url` or `thumbnail_storage_path`.
+  - Uploaded rows may temporarily lack `thumbnail_display_*` fields until `frontend/scripts/backfill_dashboard_tutorial_thumbnail_derivatives.mjs` has processed them; runtime reads prefer display derivatives and only fall back to originals for legacy rows.
   - Admin writes flow through `/api/admin/dashboard/tutorials` with service-role Supabase access.
   - Admin thumbnail uploads flow through `/api/admin/dashboard/tutorial-thumbnail/prepare` and `/api/admin/dashboard/tutorial-thumbnail/finalize`, with browser-direct signed upload into the private global thumbnail bucket. Finalization keeps the uploaded original as source material and stores small display derivative metadata (`thumbnail_display_*`) plus optional poster metadata (`thumbnail_poster_*`) for dashboard runtime reads.
 

@@ -38,6 +38,12 @@ const createMockResponse = () => ({
 const gifBytes = new Uint8Array([
   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x80, 0x00,
 ]);
+const pngBytes = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+  "base64"
+);
+const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer =>
+  bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 
 describe("admin dashboard tutorial thumbnail upload APIs", () => {
   beforeEach(() => {
@@ -212,6 +218,79 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
         ),
         posterMimeType: "image/jpeg",
         posterFileSizeBytes: Buffer.byteLength("poster-jpeg"),
+      },
+    });
+  });
+
+  it("finalizes an uploaded still image into a signed WebP display derivative", async () => {
+    const downloadMock = vi.fn(async () => ({
+      data: {
+        size: pngBytes.length,
+        arrayBuffer: async () => toArrayBuffer(pngBytes),
+      },
+      error: null,
+    }));
+    const uploadMock = vi.fn(async () => ({ data: { path: "variant" }, error: null }));
+    const createSignedUrlMock = vi.fn(async (path: string) => ({
+      data: { signedUrl: `https://supabase.example.com/${path}` },
+      error: null,
+    }));
+    const storageFromMock = vi.fn(() => ({
+      download: downloadMock,
+      upload: uploadMock,
+      createSignedUrl: createSignedUrlMock,
+    }));
+    getSupabaseAdminMock.mockReturnValue({ storage: { from: storageFromMock } });
+
+    const req = {
+      method: "POST",
+      body: {
+        sourceStoragePath: "tutorial-thumbnails/generated.png",
+        sourceMimeType: "image/png",
+        sourceSize: pngBytes.length,
+      },
+    };
+    const res = createMockResponse();
+
+    await finalizeHandler(req as never, res as never);
+
+    expect(extractVideoPreviewVariantBufferMock).not.toHaveBeenCalled();
+    expect(extractVideoPosterBufferMock).not.toHaveBeenCalled();
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^tutorial-thumbnail-variants\/.+\/display\.webp$/),
+      expect.any(Buffer),
+      expect.objectContaining({
+        contentType: "image/webp",
+        cacheControl: "31536000",
+        upsert: false,
+      })
+    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith("tutorial-thumbnails/generated.png", 86400);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^tutorial-thumbnail-variants\/.+\/display\.webp$/),
+      86400
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      thumbnail: {
+        storagePath: "tutorial-thumbnails/generated.png",
+        signedUrl: "https://supabase.example.com/tutorial-thumbnails/generated.png",
+        mimeType: "image/png",
+        fileSizeBytes: pngBytes.length,
+        displayStoragePath: expect.stringMatching(
+          /^tutorial-thumbnail-variants\/.+\/display\.webp$/
+        ),
+        displaySignedUrl: expect.stringMatching(
+          /^https:\/\/supabase\.example\.com\/tutorial-thumbnail-variants\/.+\/display\.webp$/
+        ),
+        displayMimeType: "image/webp",
+        displayMediaType: "image",
+        displayFileSizeBytes: expect.any(Number),
+        posterStoragePath: null,
+        posterSignedUrl: null,
+        posterMimeType: null,
+        posterFileSizeBytes: null,
       },
     });
   });

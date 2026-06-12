@@ -47,7 +47,7 @@ export const loadPublicDashboardStaticProps = async (): Promise<PublicDashboardS
         : emptyBillingCatalogSnapshot(),
     dashboardOffers:
       dashboardOffersResult.status === "fulfilled" ? dashboardOffersResult.value : [],
-    // Tutorial thumbnails use short-lived signed original URLs, so public users hydrate them
+    // Tutorial thumbnails use short-lived signed display URLs, so public users hydrate them
     // live from `/api/dashboard/tutorials` instead of baking them into static props.
     dashboardTutorials: [],
   };

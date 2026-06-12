@@ -135,7 +135,7 @@ Output:
 
 - token text replaced with mapped `Figure N` references based on final `referenceInputs` order (`@main` -> `Figure 1`).
 - slot identity is authoritative for figure numbering. If restored or reused secondary slots point at the same underlying URL, each referenced slot still keeps its own `Figure N` position in submit order.
-- when a Standard/Markup generation is submitted with linked secondary tokens, the workflow reload sidecar records the original secondary slot index for each compact provider input. This is the durable reload authority for restoring `@imgN` slots from Reference Grid and through project restore.
+- workflow reload sidecar records both linked secondary token slots and restore-only populated secondary slots. Linked `secondarySlots` preserve the original slot index for each compact provider input; `restoreSecondarySlots` preserve populated secondary slot URLs that were not sent to the provider so Reference Grid workflow reload and project restore can hydrate the UI without treating those URLs as completed-generation inputs.
 - appended reference-map block:
   - `Figure 1 = primary base image.`
   - `Figure X = @imgN secondary reference.`
@@ -217,6 +217,7 @@ Minimum suite coverage:
    - token generate path sends both display/submission prompt overrides.
    - Standard/Markup generate without linked `@imgN` sends only the flattened primary stage.
    - Standard/Markup generate with linked `@imgN` keeps linked-only secondary refs in the payload.
+   - workflow reload restores unlinked populated secondary slots from restore-only metadata without adding them to the completed generation's provider-input history.
    - default inpaint picker limits token choices to `@main`.
    - reference inpaint picker exposes populated secondary refs when the flag is enabled.
    - default inpaint generate blocks secondary tokens with the lane-specific error.
@@ -224,7 +225,7 @@ Minimum suite coverage:
 3. Controller/composer tests:
    - prompt override precedence.
    - character-mode precedence compatibility.
-   - Reference Grid workflow reload restores Expert Edit secondary refs to their original `@imgN` slot positions, including sparse slots such as `@img10`.
+   - Reference Grid workflow reload restores Expert Edit secondary refs to their original slot positions, including sparse linked slots such as `@img10` and unlinked restore-only slots.
 4. Regression tests:
    - existing Edit/Create/Video prompt behavior outside Expert Edit remains unchanged.
 

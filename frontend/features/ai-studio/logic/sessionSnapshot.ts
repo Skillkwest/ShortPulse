@@ -508,6 +508,15 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
         typeof element.sourceCharacterId === "string" || element.sourceCharacterId === null
           ? (element.sourceCharacterId ?? null)
           : null,
+      sourceCharacterLookId:
+        typeof element.sourceCharacterLookId === "string" || element.sourceCharacterLookId === null
+          ? (element.sourceCharacterLookId ?? null)
+          : null,
+      sourceCharacterLookLabel:
+        typeof element.sourceCharacterLookLabel === "string" ||
+        element.sourceCharacterLookLabel === null
+          ? (element.sourceCharacterLookLabel?.trim() ?? null)
+          : null,
       name: element.name?.trim() ?? "",
       alias: element.alias?.trim() ?? "",
       description: element.description?.trim() ?? "",

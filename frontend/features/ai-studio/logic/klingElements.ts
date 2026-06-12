@@ -22,6 +22,8 @@ export type AiStudioKlingElement = {
   sourceKind?: AiStudioKlingEntitySourceKind | null;
   sourceElementId?: string | null;
   sourceCharacterId?: string | null;
+  sourceCharacterLookId?: string | null;
+  sourceCharacterLookLabel?: string | null;
   name?: string;
   // Legacy compatibility token retained for older prompts and restored sessions.
   alias?: string;
@@ -39,6 +41,8 @@ export const createEmptyAiStudioKlingElement = (): AiStudioKlingElement => ({
   sourceKind: null,
   sourceElementId: null,
   sourceCharacterId: null,
+  sourceCharacterLookId: null,
+  sourceCharacterLookLabel: null,
   name: "",
   alias: "",
   description: "",
@@ -73,6 +77,14 @@ export const isSeedanceImageReferenceSlot = (
 export const isPromptTokenEligibleKlingElement = (
   element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
 ): boolean => Boolean(element && element.sourceKind !== "reference-image");
+
+export const isElementSlotVisibleForVideoModel = (
+  element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined,
+  options: { allowSeedanceImageReferences: boolean }
+): boolean =>
+  Boolean(
+    element && (options.allowSeedanceImageReferences || !isSeedanceImageReferenceSlot(element))
+  );
 
 export const getAiStudioKlingElementReferenceUrls = (
   element: Pick<AiStudioKlingElement, "frontalImageUrl" | "referenceImageUrls">

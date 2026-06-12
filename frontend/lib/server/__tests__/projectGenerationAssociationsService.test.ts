@@ -1449,6 +1449,10 @@ describe("associateGenerationWithProjectForUser", () => {
           maxSecondarySlotCount: 10,
           primaryReferenceInputIndex: 0,
           secondarySlots: [{ slotIndex: 9, referenceInputIndex: 2 }],
+          restoreSecondarySlots: [
+            { slotIndex: 0, sourceUrl: "https://example.com/ref-1.png" },
+            { slotIndex: 9, sourceUrl: "https://example.com/ref-10.png" },
+          ],
         },
       },
     };

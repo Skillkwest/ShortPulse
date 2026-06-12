@@ -15,6 +15,7 @@ import {
   createEmptyExpertEditSecondaryImageUrls,
   MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
 } from "../logic/expertEditReferenceSlots";
+import { registerInternalMediaRefsForUrls } from "../logic/referenceInputInternalMediaRegistry";
 import type {
   StudioOutput,
   ToolId,
@@ -145,6 +146,12 @@ const buildMappedExpertEditReferenceSelectionInput = ({
     () => null
   );
   referenceImageInternalMediaRefs[0] = internalMediaRefs[primaryReferenceInputIndex] ?? null;
+  expertEditReferences.restoreSecondarySlots?.forEach((slot) => {
+    const url = slot.sourceUrl.trim();
+    if (!url) return;
+    extraImageUrls[slot.slotIndex] = url;
+    referenceImageInternalMediaRefs[slot.slotIndex + 1] = slot.internalMediaRef ?? null;
+  });
   expertEditReferences.secondarySlots.forEach((slot) => {
     const url = referenceInputs[slot.referenceInputIndex] ?? null;
     if (!url) return;
@@ -152,6 +159,10 @@ const buildMappedExpertEditReferenceSelectionInput = ({
     referenceImageInternalMediaRefs[slot.slotIndex + 1] =
       slot.internalMediaRef ?? internalMediaRefs[slot.referenceInputIndex] ?? null;
   });
+  registerInternalMediaRefsForUrls(
+    [referenceInputs[primaryReferenceInputIndex] ?? referenceInputs[0] ?? null, ...extraImageUrls],
+    referenceImageInternalMediaRefs
+  );
   return {
     referenceImageUrl: referenceInputs[primaryReferenceInputIndex] ?? referenceInputs[0] ?? null,
     extraImageUrls,

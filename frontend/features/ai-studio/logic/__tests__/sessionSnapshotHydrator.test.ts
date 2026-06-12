@@ -1439,6 +1439,8 @@ describe("sessionSnapshotHydrator", () => {
       sourceKind: null,
       sourceElementId: null,
       sourceCharacterId: null,
+      sourceCharacterLookId: null,
+      sourceCharacterLookLabel: null,
       slotIndex: undefined,
       name: "",
       alias: "",
@@ -1483,6 +1485,8 @@ describe("sessionSnapshotHydrator", () => {
       sourceKind: "element",
       sourceElementId: "element-red-lantern",
       sourceCharacterId: null,
+      sourceCharacterLookId: null,
+      sourceCharacterLookLabel: null,
       name: "Red Lantern",
       alias: "legacylamp",
       description: "Warm lacquered lantern",
@@ -1526,6 +1530,8 @@ describe("sessionSnapshotHydrator", () => {
       sourceKind: "reference-image",
       sourceElementId: null,
       sourceCharacterId: null,
+      sourceCharacterLookId: null,
+      sourceCharacterLookLabel: null,
       name: "Image reference",
       alias: "",
       description: "",
@@ -1535,6 +1541,46 @@ describe("sessionSnapshotHydrator", () => {
       referenceImageUrls: "",
       videoUrl: "",
     });
+  });
+
+  it("preserves selected character look metadata during hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          klingElements: [
+            {
+              id: "character-taylor",
+              slotIndex: 0,
+              sourceKind: "character",
+              sourceElementId: null,
+              sourceCharacterId: "character-taylor",
+              sourceCharacterLookId: "2",
+              sourceCharacterLookLabel: "Action",
+              name: "Taylor",
+              alias: "",
+              description: "Taylor in action look.",
+              profileImageUrl: "https://example.com/taylor-profile.png",
+              profileImageTransform: null,
+              frontalImageUrl: "https://example.com/taylor-action-01.png",
+              referenceImageUrls: "https://example.com/taylor-action-02.png",
+              videoUrl: "",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(payload.workspace.klingElements[0]).toEqual(
+      expect.objectContaining({
+        sourceKind: "character",
+        sourceCharacterId: "character-taylor",
+        sourceCharacterLookId: "2",
+        sourceCharacterLookLabel: "Action",
+        description: "Taylor in action look.",
+        frontalImageUrl: "https://example.com/taylor-action-01.png",
+      })
+    );
   });
 
   it("keeps blank-name legacy alias payloads available for restore fallback", () => {
@@ -1567,6 +1613,8 @@ describe("sessionSnapshotHydrator", () => {
       sourceKind: "element",
       sourceElementId: "element-legacy",
       sourceCharacterId: null,
+      sourceCharacterLookId: null,
+      sourceCharacterLookLabel: null,
       slotIndex: undefined,
       name: "",
       alias: "legacylamp",

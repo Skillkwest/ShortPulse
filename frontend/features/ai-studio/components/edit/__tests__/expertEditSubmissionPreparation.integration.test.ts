@@ -29,6 +29,10 @@ describe("prepareExpertEditSubmission integration", () => {
         maxSecondarySlotCount: 10,
         primaryReferenceInputIndex: 0,
         secondarySlots: [{ slotIndex: 0, referenceInputIndex: 1 }],
+        restoreSecondarySlots: [
+          { slotIndex: 0, sourceUrl: "https://example.com/linked-extra.png" },
+          { slotIndex: 1, sourceUrl: "https://example.com/unlinked-extra.png" },
+        ],
       },
       promptOverrideOptions: {
         displayPromptOverride: "Put @img1 in the background.",
@@ -67,6 +71,7 @@ describe("prepareExpertEditSubmission integration", () => {
         maxSecondarySlotCount: 10,
         primaryReferenceInputIndex: 0,
         secondarySlots: [{ slotIndex: 9, referenceInputIndex: 1 }],
+        restoreSecondarySlots: [{ slotIndex: 9, sourceUrl: "https://example.com/ref-10.png" }],
       },
       promptOverrideOptions: {
         displayPromptOverride: "Use @img10 as the wardrobe reference.",
@@ -107,6 +112,12 @@ describe("prepareExpertEditSubmission integration", () => {
         referenceInputIndex: index + 1,
       }))
     );
+    expect(result.workflowReloadExpertEditReferences?.restoreSecondarySlots).toEqual(
+      extraImageUrls.map((sourceUrl, index) => ({
+        slotIndex: index,
+        sourceUrl,
+      }))
+    );
     expect(result.promptOverrideOptions?.submissionPromptOverride).toContain(
       "Figure 11 = @img10 secondary reference."
     );
@@ -129,6 +140,16 @@ describe("prepareExpertEditSubmission integration", () => {
       status: "ready",
       referenceInputs: ["blob:flatten-primary"],
       linkedSecondaryReferenceInputs: [],
+      workflowReloadExpertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [],
+        restoreSecondarySlots: [
+          { slotIndex: 0, sourceUrl: "https://example.com/extra-one.png" },
+          { slotIndex: 1, sourceUrl: "https://example.com/extra-two.png" },
+        ],
+      },
       promptOverrideOptions: undefined,
     });
   });
@@ -168,6 +189,11 @@ describe("prepareExpertEditSubmission integration", () => {
           { slotIndex: 0, referenceInputIndex: 2 },
           { slotIndex: 1, referenceInputIndex: 3 },
           { slotIndex: 2, referenceInputIndex: 4 },
+        ],
+        restoreSecondarySlots: [
+          { slotIndex: 0, sourceUrl: "https://example.com/ref-1.png" },
+          { slotIndex: 1, sourceUrl: "https://example.com/ref-2.png" },
+          { slotIndex: 2, sourceUrl: "https://example.com/ref-3.png" },
         ],
       },
       promptOverrideOptions: {

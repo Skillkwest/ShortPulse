@@ -244,6 +244,10 @@ const normalizeExpertEditReferences = (
       : null;
   const seenSlots = new Set<number>();
   const secondarySlots: WorkflowReloadExpertEditReferences["secondarySlots"] = [];
+  const seenRestoreSlots = new Set<number>();
+  const restoreSecondarySlots: NonNullable<
+    WorkflowReloadExpertEditReferences["restoreSecondarySlots"]
+  > = [];
   if (Array.isArray(value.secondarySlots)) {
     value.secondarySlots.forEach((item) => {
       if (!isObject(item)) return;
@@ -269,13 +273,39 @@ const normalizeExpertEditReferences = (
       });
     });
   }
+  if (Array.isArray(value.restoreSecondarySlots)) {
+    value.restoreSecondarySlots.forEach((item) => {
+      if (!isObject(item)) return;
+      const slotIndex = asIntegerOrNull(item.slotIndex);
+      const sourceUrl = asTrimmedString(item.sourceUrl);
+      if (
+        slotIndex == null ||
+        slotIndex < 0 ||
+        slotIndex >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT ||
+        !sourceUrl ||
+        seenRestoreSlots.has(slotIndex)
+      ) {
+        return;
+      }
+      const internalMediaRef = normalizeInternalRefs([item.internalMediaRef], 1)[0] ?? null;
+      if (/^blob:|^data:/i.test(sourceUrl) && !internalMediaRef) return;
+      seenRestoreSlots.add(slotIndex);
+      restoreSecondarySlots.push({
+        slotIndex,
+        sourceUrl,
+        ...(internalMediaRef ? { internalMediaRef } : {}),
+      });
+    });
+  }
   secondarySlots.sort((left, right) => left.slotIndex - right.slotIndex);
-  if (secondarySlots.length === 0) return null;
+  restoreSecondarySlots.sort((left, right) => left.slotIndex - right.slotIndex);
+  if (secondarySlots.length === 0 && restoreSecondarySlots.length === 0) return null;
   return {
     version: 1,
     maxSecondarySlotCount: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
     primaryReferenceInputIndex: normalizedPrimaryReferenceInputIndex,
     secondarySlots,
+    ...(restoreSecondarySlots.length > 0 ? { restoreSecondarySlots } : {}),
   };
 };
 

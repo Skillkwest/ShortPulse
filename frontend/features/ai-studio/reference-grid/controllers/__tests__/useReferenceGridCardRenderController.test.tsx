@@ -646,7 +646,7 @@ describe("useReferenceGridCardRenderController", () => {
     expect(container.querySelector(".reference-spinner")).toBeNull();
   });
 
-  it("keeps full-aspect contain previews available for inactive image cards", () => {
+  it("keeps full-aspect contain-preview mode available without rendering duplicate images", () => {
     const output = createOutput({
       id: "image-1",
       mode: "image",
@@ -698,7 +698,8 @@ describe("useReferenceGridCardRenderController", () => {
     expect(
       container.querySelector(".reference-card")?.classList.contains("has-contain-preview")
     ).toBe(true);
-    expect(container.querySelector(".reference-card-image--contain")).not.toBeNull();
+    expect(container.querySelector(".reference-card-image--contain")).toBeNull();
+    expect(container.querySelectorAll(".reference-card-image")).toHaveLength(1);
   });
 
   it("passes hydrated image dimensions through composer drag artifacts", () => {

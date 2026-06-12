@@ -1757,6 +1757,45 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
+  it("ignores stale Seedance direct image reference slots for Kling element payloads", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      cleanedPrompt: "A dancer twirls",
+      preparedImageInputs: ["https://example.com/start.png"],
+      rawImageInputs: ["https://example.com/start.png"],
+      klingElements: [
+        {
+          id: "image-ref-1",
+          slotIndex: 0,
+          sourceKind: "reference-image",
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: "Image reference",
+          alias: "",
+          description: "",
+          profileImageUrl: "https://example.com/direct-image.png",
+          profileImageTransform: null,
+          frontalImageUrl: "https://example.com/direct-image.png",
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: "https://example.com/start.png",
+        kling_elements: undefined,
+      })
+    );
+  });
+
   it("normalizes stale Kling custom state to the visible Multi payload contract", async () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,

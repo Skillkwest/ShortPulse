@@ -628,6 +628,29 @@ describe("dragDrop payload extraction", () => {
     expect(setData).toHaveBeenCalledWith("text/reference-media-kind", "image");
   });
 
+  it("uses full preview text for restored prompt-only reference drags", () => {
+    const { event, transferData } = makeDragEvent();
+    const restoredSummary = "A".repeat(1000);
+    const fullPrompt = `${restoredSummary} and then the direction continues with the actual ending.`;
+
+    prepareReferenceDrag(event, {
+      id: "ref-restored-long-prompt",
+      prompt: restoredSummary,
+      previewText: fullPrompt,
+      mode: "text",
+      aspect: "9:16",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      mediaSource: "prompt",
+      promptId: "prompt-1",
+    });
+
+    expect(transferData["text/prompt"]).toBe(fullPrompt);
+    expect(transferData["text/plain"]).toBe(fullPrompt);
+    expect(extractPromptDropText(event.dataTransfer)).toBe(fullPrompt);
+  });
+
   it("writes internal drag image dimensions when a rendered image is available", () => {
     const { event, dragNode, setData } = makeDragEvent();
     const image = document.createElement("img");

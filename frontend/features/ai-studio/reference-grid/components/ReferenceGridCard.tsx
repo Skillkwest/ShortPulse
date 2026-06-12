@@ -521,34 +521,18 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         </video>
       ) : null}
       {shouldRenderImageElement ? (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={normalizedPrimaryImageSrc}
-            data-src={primaryImageDataSrc ?? undefined}
-            alt=""
-            className={`reference-card-image reference-card-image--cover${primaryImageProbeClass} ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
-            loading={imageLoading}
-            decoding="async"
-            {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
-            onLoad={handlePrimaryImageLoad}
-            onError={handleImageRenderError}
-          />
-          {renderContainPreview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={normalizedPrimaryImageSrc}
-              data-src={primaryImageDataSrc ?? undefined}
-              alt=""
-              aria-hidden="true"
-              className={`reference-card-image reference-card-image--contain${primaryImageProbeClass} ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
-              loading={imageLoading}
-              decoding="async"
-              {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
-              onError={handleImageRenderError}
-            />
-          ) : null}
-        </>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={normalizedPrimaryImageSrc}
+          data-src={primaryImageDataSrc ?? undefined}
+          alt=""
+          className={`reference-card-image reference-card-image--cover${primaryImageProbeClass} ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
+          loading={imageLoading}
+          decoding="async"
+          {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
+          onLoad={handlePrimaryImageLoad}
+          onError={handleImageRenderError}
+        />
       ) : null}
       {shouldRenderAudioElement ? (
         <ReferenceAudioPlayer

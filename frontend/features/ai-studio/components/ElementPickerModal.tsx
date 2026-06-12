@@ -8,10 +8,12 @@ import { listCharacterManagerCharacters } from "../../character-manager/logic/ch
 import { fetchElementsManagerList } from "../../elements-manager/logic/elementsManagerPersistence";
 import { buildElementProfileImageBackgroundStyle } from "../../elements-manager/logic/elementProfileImageTransform";
 import {
+  loadKlingCharacterLookOptions,
   toKlingPickerCharacterOption,
   toKlingPickerElementOption,
   type AiStudioKlingPickerOption,
 } from "../logic/klingEntityAdapters";
+import type { CharacterModeLookOption } from "../logic/characterModeLookSelection";
 import {
   normalizeAiStudioKlingCharacterToken,
   type AiStudioKlingSavedEntitySourceKind,
@@ -23,20 +25,22 @@ import {
   AiStudioPickerModalFrame,
   AiStudioPickerSection,
 } from "./picker/AiStudioPickerPrimitives";
+import { CharacterLookDropdown } from "./picker/CharacterLookDropdown";
+
+type ElementPickerSelection = {
+  sourceKind: AiStudioKlingSavedEntitySourceKind;
+  sourceId: string;
+  sourceCharacterLookId?: string | null;
+};
 
 export type ElementPickerModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (selection: {
-    sourceKind: AiStudioKlingSavedEntitySourceKind;
-    sourceId: string;
-  }) => void;
+  onSelect: (selection: ElementPickerSelection) => void;
   selectedSourceKind?: AiStudioKlingSavedEntitySourceKind | null;
   selectedSourceId?: string | null;
-  selectedEntities?: Array<{
-    sourceKind: AiStudioKlingSavedEntitySourceKind;
-    sourceId: string;
-  }>;
+  selectedSourceCharacterLookId?: string | null;
+  selectedEntities?: ElementPickerSelection[];
   onCreateCharacter?: () => void;
   onCreateElement?: () => void;
 };
@@ -47,12 +51,26 @@ const getEntityInitials = (name: string): string => {
   return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "EL";
 };
 
+const getPickerSelectionKey = ({
+  sourceKind,
+  sourceId,
+  sourceCharacterLookId,
+}: ElementPickerSelection): string | null => {
+  const normalizedSourceId = sourceId.trim();
+  if (!normalizedSourceId) return null;
+  if (sourceKind === "character") {
+    return `character:${normalizedSourceId}:${sourceCharacterLookId?.trim() ?? ""}`;
+  }
+  return `${sourceKind}:${normalizedSourceId}`;
+};
+
 export const ElementPickerModal = ({
   isOpen,
   onClose,
   onSelect,
   selectedSourceKind = null,
   selectedSourceId = null,
+  selectedSourceCharacterLookId = null,
   selectedEntities = [],
   onCreateCharacter,
   onCreateElement,
@@ -65,6 +83,18 @@ export const ElementPickerModal = ({
   const [isElementsLoading, setIsElementsLoading] = React.useState(false);
   const [elementsError, setElementsError] = React.useState<string | null>(null);
   const [hasLoadedElements, setHasLoadedElements] = React.useState(false);
+  const [lookOptionsByCharacterId, setLookOptionsByCharacterId] = React.useState<
+    Record<string, CharacterModeLookOption[]>
+  >({});
+  const [lookLoadingByCharacterId, setLookLoadingByCharacterId] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [lookErrorByCharacterId, setLookErrorByCharacterId] = React.useState<
+    Record<string, string | null>
+  >({});
+  const [pendingLookIdByCharacterId, setPendingLookIdByCharacterId] = React.useState<
+    Record<string, string>
+  >({});
   const refreshSequenceRef = React.useRef(0);
 
   const refreshNow = React.useCallback(async () => {
@@ -124,14 +154,82 @@ export const ElementPickerModal = ({
     () =>
       new Set(
         selectedEntities
-          .map((entity) => {
-            const sourceId = entity.sourceId.trim();
-            return sourceId ? `${entity.sourceKind}:${sourceId}` : null;
-          })
+          .map((entity) => getPickerSelectionKey(entity))
           .filter((value): value is string => Boolean(value))
       ),
     [selectedEntities]
   );
+
+  const loadLooksForCharacter = React.useCallback(
+    async (characterId: string) => {
+      const normalizedCharacterId = characterId.trim();
+      if (!normalizedCharacterId) return [];
+      setLookLoadingByCharacterId((current) => ({
+        ...current,
+        [normalizedCharacterId]: true,
+      }));
+      setLookErrorByCharacterId((current) => ({
+        ...current,
+        [normalizedCharacterId]: null,
+      }));
+      try {
+        const nextOptions = await loadKlingCharacterLookOptions(normalizedCharacterId);
+        setLookOptionsByCharacterId((current) => ({
+          ...current,
+          [normalizedCharacterId]: nextOptions,
+        }));
+        setPendingLookIdByCharacterId((current) => {
+          const currentPendingLookId = current[normalizedCharacterId]?.trim() ?? "";
+          const selectedLookId =
+            normalizedCharacterId === selectedSourceId
+              ? (selectedSourceCharacterLookId?.trim() ?? "")
+              : "";
+          const resolvedLookId = [currentPendingLookId, selectedLookId]
+            .find((lookId) => nextOptions.some((option) => option.id === lookId))
+            ?.trim();
+          const fallbackLookId =
+            nextOptions.find((option) => option.isDefault)?.id ?? nextOptions[0]?.id ?? "";
+          const nextLookId = resolvedLookId || fallbackLookId;
+          if (!nextLookId || current[normalizedCharacterId] === nextLookId) {
+            return current;
+          }
+          return {
+            ...current,
+            [normalizedCharacterId]: nextLookId,
+          };
+        });
+        return nextOptions;
+      } catch {
+        setLookErrorByCharacterId((current) => ({
+          ...current,
+          [normalizedCharacterId]: "Unable to load looks.",
+        }));
+        return [];
+      } finally {
+        setLookLoadingByCharacterId((current) => ({
+          ...current,
+          [normalizedCharacterId]: false,
+        }));
+      }
+    },
+    [selectedSourceCharacterLookId, selectedSourceId]
+  );
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    characters.forEach((option) => {
+      if (lookOptionsByCharacterId[option.sourceId] || lookLoadingByCharacterId[option.sourceId]) {
+        return;
+      }
+      void loadLooksForCharacter(option.sourceId);
+    });
+  }, [
+    characters,
+    isOpen,
+    loadLooksForCharacter,
+    lookLoadingByCharacterId,
+    lookOptionsByCharacterId,
+  ]);
 
   const renderSectionBody = React.useCallback(
     ({
@@ -151,11 +249,45 @@ export const ElementPickerModal = ({
         return (
           <AiStudioPickerGrid ariaLabel={`${sectionLabel} options`}>
             {options.map((option) => {
-              const optionSelectionKey = `${option.sourceKind}:${option.sourceId}`;
-              const isChosen = selectedEntityKeys.has(optionSelectionKey);
+              const lookOptions =
+                option.sourceKind === "character"
+                  ? (lookOptionsByCharacterId[option.sourceId] ?? [])
+                  : [];
+              const isLookLoading =
+                option.sourceKind === "character" &&
+                Boolean(lookLoadingByCharacterId[option.sourceId]);
+              const lookError =
+                option.sourceKind === "character"
+                  ? (lookErrorByCharacterId[option.sourceId] ?? null)
+                  : null;
+              const fallbackLookId =
+                lookOptions.find((item) => item.isDefault)?.id ?? lookOptions[0]?.id ?? "";
+              const selectedLookIdForCard =
+                option.sourceKind === "character"
+                  ? (pendingLookIdByCharacterId[option.sourceId] ??
+                    (option.sourceId === selectedSourceId
+                      ? (selectedSourceCharacterLookId?.trim() ?? "")
+                      : "") ??
+                    fallbackLookId)
+                  : "";
+              const optionSelectionKey = getPickerSelectionKey({
+                sourceKind: option.sourceKind,
+                sourceId: option.sourceId,
+                sourceCharacterLookId:
+                  option.sourceKind === "character"
+                    ? selectedLookIdForCard || fallbackLookId
+                    : null,
+              });
+              const isChosen = optionSelectionKey
+                ? selectedEntityKeys.has(optionSelectionKey)
+                : false;
               const isActive =
                 isChosen ||
-                (option.sourceKind === selectedSourceKind && option.sourceId === selectedSourceId);
+                (option.sourceKind === selectedSourceKind &&
+                  option.sourceId === selectedSourceId &&
+                  (option.sourceKind !== "character" ||
+                    (selectedLookIdForCard || fallbackLookId) ===
+                      (selectedSourceCharacterLookId?.trim() ?? "")));
               const token =
                 option.sourceKind === "character"
                   ? normalizeAiStudioKlingCharacterToken(option.name)
@@ -167,12 +299,16 @@ export const ElementPickerModal = ({
                   className={
                     option.sourceKind === "element"
                       ? "ai-character-picker-card--element"
-                      : "ai-character-picker-card--character"
+                      : "ai-character-picker-card--with-looks"
                   }
                   onSelect={() => {
                     onSelect({
                       sourceKind: option.sourceKind,
                       sourceId: option.sourceId,
+                      sourceCharacterLookId:
+                        option.sourceKind === "character"
+                          ? selectedLookIdForCard || fallbackLookId || null
+                          : null,
                     });
                     onClose();
                   }}
@@ -207,6 +343,38 @@ export const ElementPickerModal = ({
                         className={`tiny ai-character-list-token ai-character-list-token--${option.sourceKind}`}
                       >
                         @{token}
+                      </p>
+                    ) : null
+                  }
+                  footer={
+                    option.sourceKind !== "character" ? null : isLookLoading ? (
+                      <p className="ai-character-look-meta tiny subdued">Loading looks...</p>
+                    ) : lookError ? (
+                      <p className="ai-character-look-meta tiny">{lookError}</p>
+                    ) : lookOptions.length > 1 ? (
+                      <div className="ai-character-look-field">
+                        <span className="ai-character-look-label">Select look</span>
+                        <CharacterLookDropdown
+                          characterName={option.name}
+                          value={selectedLookIdForCard || fallbackLookId}
+                          options={lookOptions}
+                          onChange={(nextLookId) => {
+                            setPendingLookIdByCharacterId((current) => ({
+                              ...current,
+                              [option.sourceId]: nextLookId,
+                            }));
+                            onSelect({
+                              sourceKind: option.sourceKind,
+                              sourceId: option.sourceId,
+                              sourceCharacterLookId: nextLookId,
+                            });
+                            onClose();
+                          }}
+                        />
+                      </div>
+                    ) : lookOptions.length === 1 ? (
+                      <p className="ai-character-look-meta tiny subdued">
+                        Look: {lookOptions[0]?.label}
                       </p>
                     ) : null
                   }
@@ -253,7 +421,19 @@ export const ElementPickerModal = ({
 
       return null;
     },
-    [onClose, onSelect, refreshNow, selectedEntityKeys, selectedSourceId, selectedSourceKind]
+    [
+      lookErrorByCharacterId,
+      lookLoadingByCharacterId,
+      lookOptionsByCharacterId,
+      onClose,
+      onSelect,
+      pendingLookIdByCharacterId,
+      refreshNow,
+      selectedEntityKeys,
+      selectedSourceCharacterLookId,
+      selectedSourceId,
+      selectedSourceKind,
+    ]
   );
 
   return (

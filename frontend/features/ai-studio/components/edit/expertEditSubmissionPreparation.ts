@@ -10,8 +10,12 @@ import {
   type ExpertEditPromptTokenAnalysisOptions,
 } from "../../logic/expertEditPromptReferences";
 import { MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT } from "../../logic/expertEditReferenceSlots";
+import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
-import type { WorkflowReloadExpertEditReferences } from "../../types";
+import type {
+  WorkflowReloadExpertEditReferences,
+  WorkflowReloadExpertEditRestoreSlot,
+} from "../../types";
 import type { ExpertEditCompiledPromptOverrides } from "./expertEditSubmissionContract";
 
 export type ValidateExpertEditSubmissionPromptResult =
@@ -107,7 +111,8 @@ const resolveExpertEditSubmissionPromptState = ({
 };
 
 const buildWorkflowReloadExpertEditReferences = (
-  referencePlan: ExpertEditSubmissionReferencePlan
+  referencePlan: ExpertEditSubmissionReferencePlan,
+  secondarySlotsInput: readonly (string | null)[]
 ): WorkflowReloadExpertEditReferences | undefined => {
   const secondarySlots = Object.entries(referencePlan.secondaryReferenceInputIndexesBySlotIndex)
     .map(([slotIndexValue, referenceInputIndex]) => {
@@ -127,13 +132,27 @@ const buildWorkflowReloadExpertEditReferences = (
     })
     .filter((item): item is { slotIndex: number; referenceInputIndex: number } => Boolean(item))
     .sort((left, right) => left.slotIndex - right.slotIndex);
+  const restoreSecondarySlots: WorkflowReloadExpertEditRestoreSlot[] = [];
+  secondarySlotsInput.forEach((value, slotIndex) => {
+    if (typeof value !== "string") return;
+    const sourceUrl = value.trim();
+    if (!sourceUrl || slotIndex >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return;
+    const internalMediaRef = resolveInternalMediaRefForUrl(sourceUrl);
+    if (/^blob:|^data:/i.test(sourceUrl) && !internalMediaRef) return;
+    restoreSecondarySlots.push({
+      slotIndex,
+      sourceUrl,
+      ...(internalMediaRef ? { internalMediaRef } : {}),
+    });
+  });
 
-  if (secondarySlots.length === 0) return undefined;
+  if (secondarySlots.length === 0 && restoreSecondarySlots.length === 0) return undefined;
   return {
     version: 1,
     maxSecondarySlotCount: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
     primaryReferenceInputIndex: referencePlan.primaryReferenceInputIndex,
     secondarySlots,
+    ...(restoreSecondarySlots.length > 0 ? { restoreSecondarySlots } : {}),
   };
 };
 
@@ -199,7 +218,10 @@ export const prepareExpertEditSubmission = ({
     secondaryFigureNumbersBySlotIndex: referencePlan.secondaryFigureNumbersBySlotIndex,
     options: promptState.tokenAnalysisOptions,
   });
-  const workflowReloadExpertEditReferences = buildWorkflowReloadExpertEditReferences(referencePlan);
+  const workflowReloadExpertEditReferences = buildWorkflowReloadExpertEditReferences(
+    referencePlan,
+    extraImageUrls
+  );
 
   return {
     status: "ready",

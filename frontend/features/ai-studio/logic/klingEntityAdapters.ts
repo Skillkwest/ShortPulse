@@ -3,6 +3,11 @@ import {
   resolveCharacterSheetReferenceUrls,
 } from "./characterModePayload";
 import {
+  buildCharacterModeLookOptions,
+  resolveCharacterModeLookSelection,
+  type CharacterModeLookOption,
+} from "./characterModeLookSelection";
+import {
   type AiStudioKlingElement,
   type AiStudioKlingSavedEntitySourceKind,
 } from "./klingElements";
@@ -55,15 +60,16 @@ export const toKlingPickerElementOption = (
 export const loadSavedKlingEntityBySource = async ({
   sourceKind,
   sourceId,
+  sourceCharacterLookId = null,
 }: {
   sourceKind: AiStudioKlingSavedEntitySourceKind;
   sourceId: string;
+  sourceCharacterLookId?: string | null;
 }): Promise<AiStudioKlingElement> => {
   if (sourceKind === "character") {
     const snapshot = await loadCharacterManagerDraftByCharacterId(sourceId);
-    const lookImageUrls = resolveCharacterSheetLookReferenceUrls(
-      snapshot.characterSheetPresetAssignments
-    );
+    const resolvedLook = resolveCharacterModeLookSelection(snapshot, sourceCharacterLookId);
+    const lookImageUrls = resolveCharacterSheetLookReferenceUrls(resolvedLook.lookAssignments);
     const imageUrls =
       lookImageUrls.length > 0
         ? lookImageUrls
@@ -74,10 +80,12 @@ export const loadSavedKlingEntityBySource = async ({
       sourceKind: "character",
       sourceElementId: null,
       sourceCharacterId: snapshot.characterId,
+      sourceCharacterLookId: resolvedLook.lookId,
+      sourceCharacterLookLabel: resolvedLook.lookLabel,
       name: snapshot.characterName,
       alias: "",
       description:
-        snapshot.characterDescription.trim() || snapshot.legacyCharacterDescription.trim(),
+        resolvedLook.lookDescription.trim() || snapshot.legacyCharacterDescription.trim(),
       profileImageUrl: snapshot.profileImageUrl,
       profileImageTransform: snapshot.profileImageTransform,
       frontalImageUrl: imageUrls[0] ?? "",
@@ -97,6 +105,8 @@ export const loadSavedKlingEntityBySource = async ({
     sourceKind: "element",
     sourceElementId: snapshot.elementId,
     sourceCharacterId: null,
+    sourceCharacterLookId: null,
+    sourceCharacterLookLabel: null,
     name: snapshot.name,
     alias: snapshot.alias.trim() || resolveElementWorkflowAlias({ name: snapshot.name }),
     description: snapshot.description,
@@ -106,4 +116,11 @@ export const loadSavedKlingEntityBySource = async ({
     referenceImageUrls: imageUrls.slice(1).join(", "),
     videoUrl: snapshot.videoReferenceUrl?.trim() ?? "",
   };
+};
+
+export const loadKlingCharacterLookOptions = async (
+  characterId: string
+): Promise<CharacterModeLookOption[]> => {
+  const snapshot = await loadCharacterManagerDraftByCharacterId(characterId);
+  return buildCharacterModeLookOptions(snapshot);
 };

@@ -763,19 +763,14 @@ describe("ReferenceGridCard", () => {
     const coverImage = container.querySelector(
       ".reference-card-image--cover"
     ) as HTMLImageElement | null;
-    const containImage = container.querySelector(
-      ".reference-card-image--contain"
-    ) as HTMLImageElement | null;
 
     expect(coverImage).not.toBeNull();
-    expect(containImage).not.toBeNull();
     expect(coverImage).toHaveClass("is-probing");
-    expect(containImage).toHaveClass("is-probing");
+    expect(container.querySelectorAll(".reference-card-image")).toHaveLength(1);
 
     fireEvent.load(coverImage as HTMLImageElement);
 
     expect(coverImage).not.toHaveClass("is-probing");
-    expect(containImage).not.toHaveClass("is-probing");
     expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
 
     rerender(
@@ -800,7 +795,7 @@ describe("ReferenceGridCard", () => {
     expect(replacementCoverImage).toHaveClass("is-probing");
   });
 
-  it("omits the secondary contain image when dense rendering does not request it", () => {
+  it("omits contain-preview mode when dense rendering does not request it", () => {
     const { container } = render(
       <ReferenceGridCard
         {...createProps({
@@ -818,12 +813,13 @@ describe("ReferenceGridCard", () => {
 
     expect(container.querySelector(".reference-card-image--cover")).not.toBeNull();
     expect(container.querySelector(".reference-card-image--contain")).toBeNull();
+    expect(container.querySelectorAll(".reference-card-image")).toHaveLength(1);
     expect(
       container.querySelector(".reference-card")?.classList.contains("has-contain-preview")
     ).toBe(false);
   });
 
-  it("renders the secondary contain image only when requested", () => {
+  it("keeps contain-preview mode on a single image element when requested", () => {
     const { container } = render(
       <ReferenceGridCard
         {...createProps({
@@ -840,7 +836,8 @@ describe("ReferenceGridCard", () => {
     );
 
     expect(container.querySelector(".reference-card-image--cover")).not.toBeNull();
-    expect(container.querySelector(".reference-card-image--contain")).not.toBeNull();
+    expect(container.querySelector(".reference-card-image--contain")).toBeNull();
+    expect(container.querySelectorAll(".reference-card-image")).toHaveLength(1);
     expect(
       container.querySelector(".reference-card")?.classList.contains("has-contain-preview")
     ).toBe(true);

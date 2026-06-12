@@ -58,6 +58,11 @@ describe("workflowReload", () => {
             { slotIndex: 99, referenceInputIndex: 0 },
             { slotIndex: 0, referenceInputIndex: 99 },
           ],
+          restoreSecondarySlots: [
+            { slotIndex: 1, sourceUrl: " https://example.com/restore-2.png " },
+            { slotIndex: 99, sourceUrl: "https://example.com/out-of-range.png" },
+            { slotIndex: 2, sourceUrl: "blob:http://localhost/local-only" },
+          ],
         },
         characterContext: {
           applied: true,
@@ -120,6 +125,7 @@ describe("workflowReload", () => {
               },
             },
           ],
+          restoreSecondarySlots: [{ slotIndex: 1, sourceUrl: "https://example.com/restore-2.png" }],
         },
         characterContext: {
           applied: true,

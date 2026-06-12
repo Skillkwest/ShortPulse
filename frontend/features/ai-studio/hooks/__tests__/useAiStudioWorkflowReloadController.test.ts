@@ -267,6 +267,61 @@ describe("useAiStudioWorkflowReloadController", () => {
     );
   });
 
+  it("hydrates Expert Edit restore-only secondary slots when they were not provider inputs", () => {
+    const workflowReload = makeImageReload();
+    workflowReload.originTool = "edit";
+    workflowReload.panelKind = "edit";
+    workflowReload.prompt = {
+      display: "Make this a side profile shot.",
+      submission: "Make this a side profile shot.",
+    };
+    workflowReload.payload = {
+      kind: "image",
+      submitTool: "edit",
+      aspect: "16:9",
+      imageResolution: "1K",
+      referenceInputs: ["https://example.com/primary.png"],
+      internalMediaRefs: [
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user/primary.png",
+        },
+      ],
+      expertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [],
+        restoreSecondarySlots: [
+          { slotIndex: 0, sourceUrl: "https://example.com/secondary-1.png" },
+          { slotIndex: 1, sourceUrl: "https://example.com/secondary-2.png" },
+        ],
+      },
+    };
+    const params = makeParams(makeOutput(workflowReload));
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    const selectionState = params.setReferenceSelectionState.mock.calls[0]?.[0];
+    expect(selectionState).toEqual(
+      expect.objectContaining({
+        selectedTool: "edit",
+        referenceImageUrl: "https://example.com/primary.png",
+      })
+    );
+    expect(selectionState?.extraImageUrls).toHaveLength(10);
+    expect(selectionState?.extraImageUrls.slice(0, 3)).toEqual([
+      "https://example.com/secondary-1.png",
+      "https://example.com/secondary-2.png",
+      null,
+    ]);
+  });
+
   it("falls back to output character context for restored generated rows", () => {
     const workflowReload = makeImageReload();
     delete (workflowReload.payload as WorkflowReloadImagePayload).characterContext;

@@ -56,6 +56,15 @@ const VIDEO_FILE_NAME_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)$/i;
 
 const dedupeText = (value?: string) => (value ? value.trim() : "");
 
+const resolveReferenceDragPromptText = (output: StudioOutput): string => {
+  const prompt = dedupeText(output.prompt ?? undefined);
+  const previewText = dedupeText(output.previewText ?? undefined);
+  const isPromptReference =
+    output.mode === "text" || output.mediaSource === "prompt" || Boolean(output.promptId?.trim());
+
+  return isPromptReference ? previewText || prompt : prompt || previewText;
+};
+
 const getFirstUriListValue = (value: string) =>
   value
     .split("\n")
@@ -458,7 +467,7 @@ const buildReferenceDragGhost = ({
       ? datasetPlayableUrl
       : resolveReferenceTransferUrl(output, "video");
   const previewKind = previewDataset.previewKind ?? resolveOutputPreviewKind(output);
-  const promptText = trimDragGhostText(dedupeText(output.prompt ?? output.previewText) || null);
+  const promptText = trimDragGhostText(resolveReferenceDragPromptText(output) || null);
   const isMediaGhost = Boolean(imageUrl || videoUrl);
 
   if (previewKind === "text" && !isMediaGhost && promptText) {
@@ -1138,7 +1147,7 @@ export const prepareReferenceDrag = (
   transfer.effectAllowed = "copy";
   const sourceSurface = options?.sourceSurface ?? "all-refs";
   const imageIndex = Math.max(0, Math.floor(options?.imageIndex ?? 0));
-  const promptText = dedupeText(output.prompt ?? output.previewText);
+  const promptText = resolveReferenceDragPromptText(output);
   const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
   const composerImageArtifact =
     output.mode === "image" ? (options?.composerImageArtifact ?? null) : null;

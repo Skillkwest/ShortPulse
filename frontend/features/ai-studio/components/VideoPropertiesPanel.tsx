@@ -44,6 +44,7 @@ import { isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import {
   createSeedanceImageReferenceSlot,
   getAiStudioKlingElementReferenceUrls,
+  isElementSlotVisibleForVideoModel,
   isPromptTokenEligibleKlingElement,
   isSeedanceImageReferenceSlot,
   resolveAiStudioKlingElementDisplayLabel,
@@ -415,6 +416,17 @@ export function VideoPropertiesPanel({
 
     return slots;
   }, [klingElementSlotCount, klingElements]);
+  const modelVisibleKlingElements = React.useMemo(
+    () =>
+      selectedKlingElements.map((element) =>
+        isElementSlotVisibleForVideoModel(element, {
+          allowSeedanceImageReferences: isSeedance2FamilyModelSelectedForSlots,
+        })
+          ? element
+          : null
+      ),
+    [isSeedance2FamilyModelSelectedForSlots, selectedKlingElements]
+  );
   const handleSeedanceElementImageSlotChange = React.useCallback(
     (slotIndex: number, url: string | null) => {
       const next = Array.from(
@@ -695,6 +707,7 @@ export function VideoPropertiesPanel({
             const refreshedElement = await loadSavedKlingEntityBySource({
               sourceKind,
               sourceId,
+              sourceCharacterLookId: element.sourceCharacterLookId ?? null,
             });
             const hasUsableMedia = Boolean(
               refreshedElement.videoUrl.trim() ||
@@ -727,6 +740,8 @@ export function VideoPropertiesPanel({
                 sourceKind: element.sourceKind ?? null,
                 sourceElementId: element.sourceElementId ?? null,
                 sourceCharacterId: element.sourceCharacterId ?? null,
+                sourceCharacterLookId: element.sourceCharacterLookId ?? null,
+                sourceCharacterLookLabel: element.sourceCharacterLookLabel ?? null,
                 name: element.name ?? "",
                 alias: element.alias ?? "",
                 description: element.description ?? "",
@@ -747,6 +762,8 @@ export function VideoPropertiesPanel({
                 sourceKind: element.sourceKind ?? null,
                 sourceElementId: element.sourceElementId ?? null,
                 sourceCharacterId: element.sourceCharacterId ?? null,
+                sourceCharacterLookId: element.sourceCharacterLookId ?? null,
+                sourceCharacterLookLabel: element.sourceCharacterLookLabel ?? null,
                 name: element.name ?? "",
                 alias: element.alias ?? "",
                 description: element.description ?? "",
@@ -787,13 +804,19 @@ export function VideoPropertiesPanel({
     async ({
       sourceKind,
       sourceId,
+      sourceCharacterLookId = null,
     }: {
       sourceKind: AiStudioKlingSavedEntitySourceKind;
       sourceId: string;
+      sourceCharacterLookId?: string | null;
     }) => {
       if (elementPickerSlotIndex == null) return;
       try {
-        const selectedElement = await loadSavedKlingEntityBySource({ sourceKind, sourceId });
+        const selectedElement = await loadSavedKlingEntityBySource({
+          sourceKind,
+          sourceId,
+          sourceCharacterLookId,
+        });
         const next = Array.from(
           { length: klingElementSlotCount },
           (_, index) => selectedKlingElements[index] ?? null
@@ -2214,7 +2237,7 @@ export function VideoPropertiesPanel({
                                 aria-label="Element reference slots"
                               >
                                 {Array.from({ length: klingElementSlotCount }).map((_, index) => {
-                                  const selectedElement = selectedKlingElements[index] ?? null;
+                                  const selectedElement = modelVisibleKlingElements[index] ?? null;
                                   const canUseSeedanceImageIngress =
                                     isSeedance2FamilyModelSelected &&
                                     seedanceReferenceMode === "elements";
@@ -2383,7 +2406,7 @@ export function VideoPropertiesPanel({
                                         aria-label={`Replace attached element ${resolveAiStudioKlingElementDisplayLabel(
                                           selectedElement,
                                           index,
-                                          selectedKlingElements
+                                          modelVisibleKlingElements
                                         )}`}
                                       >
                                         {previewUrl ? (
@@ -2727,25 +2750,31 @@ export function VideoPropertiesPanel({
           .filter((element): element is NonNullable<(typeof selectedKlingElements)[number]> =>
             isPromptTokenEligibleKlingElement(element)
           )
-          .map((element) => {
-            const sourceKind =
-              element.sourceKind ??
-              (element.sourceCharacterId
-                ? "character"
-                : element.sourceElementId
-                  ? "element"
-                  : null);
-            const sourceId = element.sourceCharacterId ?? element.sourceElementId ?? "";
-            if (!sourceKind || !sourceId) return null;
-            return { sourceKind, sourceId };
-          })
-          .filter(
+          .flatMap(
             (
-              selection
-            ): selection is {
+              element
+            ): Array<{
               sourceKind: AiStudioKlingSavedEntitySourceKind;
               sourceId: string;
-            } => Boolean(selection)
+              sourceCharacterLookId?: string | null;
+            }> => {
+              const sourceKind: AiStudioKlingSavedEntitySourceKind | null =
+                element.sourceCharacterId
+                  ? "character"
+                  : element.sourceElementId
+                    ? "element"
+                    : null;
+              const sourceId = element.sourceCharacterId ?? element.sourceElementId ?? "";
+              if (!sourceKind || !sourceId) return [];
+              return [
+                {
+                  sourceKind,
+                  sourceId,
+                  sourceCharacterLookId:
+                    sourceKind === "character" ? (element.sourceCharacterLookId ?? null) : null,
+                },
+              ];
+            }
           )}
         selectedSourceKind={
           elementPickerSlotIndex != null
@@ -2762,6 +2791,12 @@ export function VideoPropertiesPanel({
             ? (selectedKlingElements[elementPickerSlotIndex]?.sourceCharacterId ??
               selectedKlingElements[elementPickerSlotIndex]?.sourceElementId ??
               null)
+            : null
+        }
+        selectedSourceCharacterLookId={
+          elementPickerSlotIndex != null &&
+          selectedKlingElements[elementPickerSlotIndex]?.sourceCharacterId
+            ? (selectedKlingElements[elementPickerSlotIndex]?.sourceCharacterLookId ?? null)
             : null
         }
       />

@@ -59,6 +59,7 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
    - Character Mode resolves ordered references from the chosen Create look first (`portrait`, `close_up`, `front_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
    - Character draft is reloaded before each Create/Text generation submit so newest preset changes are used.
    - AI Studio Create look selection is local to that generation workflow and does not mutate `character_sheet_presets_v1.active_preset_id`.
+   - AI Studio Video linked Character slots may also carry a local look selection for Kling/Seedance linked-subject generation. This selection resolves that look's description and references for the Video slot, but it does not mutate Character Manager active-look metadata.
    - When the Character panel changes the selected character without an explicit Create-picker look choice, AI Studio clears the prior local look override and rehydrates the current character's active/default look.
    - Missing description is non-blocking when usable look refs still exist, but missing character image refs remain submit-blocking for Character Mode Create because the generation lane is image-to-image only.
    - When storage authority is known, Character Mode must hand Character Sheet refs to AI Studio as canonical internal media refs so replay/reroll and submit do not depend on durable signed URLs.

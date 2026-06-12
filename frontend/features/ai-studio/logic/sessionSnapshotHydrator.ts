@@ -346,6 +346,8 @@ type HydratedKlingElementRow = {
   sourceKind?: "element" | "character" | "reference-image" | null;
   sourceElementId?: string | null;
   sourceCharacterId?: string | null;
+  sourceCharacterLookId?: string | null;
+  sourceCharacterLookLabel?: string | null;
   name?: string;
   alias?: string;
   description?: string;
@@ -382,6 +384,8 @@ const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
           : null,
       sourceElementId: asNullableString(row.sourceElementId),
       sourceCharacterId: asNullableString(row.sourceCharacterId),
+      sourceCharacterLookId: asNullableString(row.sourceCharacterLookId),
+      sourceCharacterLookLabel: asNullableString(row.sourceCharacterLookLabel),
       name: asString(row.name, ""),
       alias: asString(row.alias, ""),
       description: asString(row.description, ""),

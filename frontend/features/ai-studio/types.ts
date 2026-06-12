@@ -127,11 +127,18 @@ export type WorkflowReloadExpertEditReferenceSlot = {
   internalMediaRef?: InternalMediaRef | null;
 };
 
+export type WorkflowReloadExpertEditRestoreSlot = {
+  slotIndex: number;
+  sourceUrl: string;
+  internalMediaRef?: InternalMediaRef | null;
+};
+
 export type WorkflowReloadExpertEditReferences = {
   version: 1;
   maxSecondarySlotCount: number;
   primaryReferenceInputIndex: number | null;
   secondarySlots: WorkflowReloadExpertEditReferenceSlot[];
+  restoreSecondarySlots?: WorkflowReloadExpertEditRestoreSlot[];
 };
 
 export type WorkflowReloadPulseContext = {

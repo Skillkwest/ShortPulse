@@ -662,26 +662,14 @@
   transform: scale(1);
 }
 
-.reference-card-image--contain {
-  opacity: 0;
-  object-fit: contain;
-  transform: scale(1.03);
-}
-
 .reference-card.has-contain-preview:hover .reference-card-image--cover,
 .reference-card.has-contain-preview:focus-visible .reference-card-image--cover {
-  opacity: 0;
-  transform: scale(1.01);
+  object-fit: contain;
+  transform: scale(1);
 }
 
 .reference-card-image--poster.is-hidden {
   opacity: 0;
-}
-
-.reference-card.has-contain-preview:hover .reference-card-image--contain,
-.reference-card.has-contain-preview:focus-visible .reference-card-image--contain {
-  opacity: 1;
-  transform: scale(1);
 }
 
 .reference-card:hover .reference-card-video,

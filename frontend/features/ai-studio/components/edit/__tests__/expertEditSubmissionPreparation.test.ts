@@ -101,6 +101,7 @@ describe("prepareExpertEditSubmission", () => {
         maxSecondarySlotCount: 10,
         primaryReferenceInputIndex: 0,
         secondarySlots: [{ slotIndex: 1, referenceInputIndex: 1 }],
+        restoreSecondarySlots: [{ slotIndex: 1, sourceUrl: "https://example.com/ref-2.png" }],
       },
       promptOverrideOptions: undefined,
     });

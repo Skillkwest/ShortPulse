@@ -149,27 +149,45 @@ vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
       front_shot: "front_full",
     },
     activeCharacterSheetPresetId: "1",
-    characterSheetPresets: {} as never,
-    visibleCharacterSheetPresetIds: ["1"],
-    characterSheetPresetLabels: { "1": "Preset 1" } as never,
-    characterSheetPresetDescriptions: { "1": "" } as never,
-    characterSheetPresetAssignments: {
-      portrait: {
-        mediaFileId: "portrait-1",
-        storagePath: "user/characters/portrait-1.png",
-        previewUrl: "https://example.com/taylor-01.jpg",
+    characterSheetPresets: {
+      "1": {
+        portrait: {
+          mediaFileId: "portrait-1",
+          storagePath: "user/characters/portrait-1.png",
+          previewUrl: "https://example.com/taylor-01.jpg",
+        },
+        close_up: {
+          mediaFileId: "close-up-1",
+          storagePath: "user/characters/close-up-1.png",
+          previewUrl: "https://example.com/taylor-02.jpg",
+        },
+        front_shot: {
+          mediaFileId: "front-shot-1",
+          storagePath: "user/characters/front-shot-1.png",
+          previewUrl: "https://example.com/taylor-03.jpg",
+        },
       },
-      close_up: {
-        mediaFileId: "close-up-1",
-        storagePath: "user/characters/close-up-1.png",
-        previewUrl: "https://example.com/taylor-02.jpg",
+      "2": {
+        portrait: {
+          mediaFileId: "portrait-2",
+          storagePath: "user/characters/portrait-2.png",
+          previewUrl: "https://example.com/taylor-action-01.jpg",
+        },
+        close_up: {
+          mediaFileId: "close-up-2",
+          storagePath: "user/characters/close-up-2.png",
+          previewUrl: "https://example.com/taylor-action-02.jpg",
+        },
+        front_shot: {
+          mediaFileId: "front-shot-2",
+          storagePath: "user/characters/front-shot-2.png",
+          previewUrl: "https://example.com/taylor-action-03.jpg",
+        },
       },
-      front_shot: {
-        mediaFileId: "front-shot-1",
-        storagePath: "user/characters/front-shot-1.png",
-        previewUrl: "https://example.com/taylor-03.jpg",
-      },
-    },
+    } as never,
+    visibleCharacterSheetPresetIds: ["1", "2"],
+    characterSheetPresetLabels: { "1": "Main", "2": "Action" } as never,
+    characterSheetPresetDescriptions: { "1": "", "2": "Taylor in action look." } as never,
     profileImageUrl: "https://example.com/taylor-profile.jpg",
     profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
     slots: {
@@ -1681,6 +1699,86 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.queryByRole("button", { name: /Insert @element1/i })).toBeNull();
   });
 
+  it("hides direct Seedance image references after switching to Kling while preserving them for Seedance", () => {
+    const klingElements: AiStudioKlingElement[] = [
+      {
+        id: "direct-image",
+        slotIndex: 0,
+        sourceKind: "reference-image",
+        sourceElementId: null,
+        sourceCharacterId: null,
+        name: "Image reference",
+        alias: "",
+        description: "",
+        profileImageUrl: "https://example.com/direct-image.png",
+        profileImageTransform: null,
+        frontalImageUrl: "https://example.com/direct-image.png",
+        referenceImageUrls: "",
+        videoUrl: "",
+      },
+      {
+        id: "saved-element",
+        slotIndex: 1,
+        sourceKind: "element",
+        sourceElementId: "element-1",
+        sourceCharacterId: null,
+        name: "Red Lantern",
+        alias: "redlantern",
+        description: "Warm lacquered lantern",
+        profileImageUrl: "https://example.com/red-lantern.png",
+        profileImageTransform: null,
+        frontalImageUrl: "https://example.com/red-lantern-front.png",
+        referenceImageUrls: "https://example.com/red-lantern-side.png",
+        videoUrl: "",
+      },
+    ];
+    const { rerender } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2.0"
+        klingElements={klingElements}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Replace attached element Image reference/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Replace attached element Red Lantern/ })
+    ).toBeInTheDocument();
+
+    rerender(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_KLING_30_MODEL_ID}
+        modelLabel="Kling 3.0"
+        klingElements={klingElements}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Replace attached element Image reference/ })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add element to slot 1" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Replace attached element Red Lantern/ })
+    ).toBeInTheDocument();
+
+    rerender(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2.0"
+        klingElements={klingElements}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Replace attached element Image reference/ })
+    ).toBeInTheDocument();
+  });
+
   it("switches Seedance reference mode between keyframes and elements", () => {
     render(<SeedanceReferenceModeHarness />);
 
@@ -1781,7 +1879,8 @@ describe("VideoPropertiesPanel", () => {
     expect(await screen.findByRole("button", { name: "Create New Character" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Create New Element" })).toBeInTheDocument();
     expect(await screen.findByText("Unable to load saved Elements.")).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /taylor/i })).toBeInTheDocument();
+    const charactersList = await screen.findByRole("list", { name: "Characters options" });
+    expect(within(charactersList).getByText("Taylor")).toBeInTheDocument();
   });
 
   it("uses the neutral linked video asset subtitle in the picker", async () => {
@@ -1842,6 +1941,35 @@ describe("VideoPropertiesPanel", () => {
           frontalImageUrl: "https://example.com/taylor-01.jpg",
           referenceImageUrls:
             "https://example.com/taylor-02.jpg, https://example.com/taylor-03.jpg",
+        }),
+      ]);
+    });
+  });
+
+  it("attaches the selected saved character look to a Kling slot", async () => {
+    const onKlingElementsChange = vi.fn();
+    render(<VideoPropertiesPanel {...baseProps} onKlingElementsChange={onKlingElementsChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+    expect(await screen.findByText("Select look")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose look for Taylor" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Action" }));
+
+    await waitFor(() => {
+      expect(onKlingElementsChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          slotIndex: 0,
+          sourceKind: "character",
+          sourceElementId: null,
+          sourceCharacterId: "character-taylor",
+          sourceCharacterLookId: "2",
+          sourceCharacterLookLabel: "Action",
+          name: "Taylor",
+          description: "Taylor in action look.",
+          frontalImageUrl: "https://example.com/taylor-action-01.jpg",
+          referenceImageUrls:
+            "https://example.com/taylor-action-02.jpg, https://example.com/taylor-action-03.jpg",
         }),
       ]);
     });

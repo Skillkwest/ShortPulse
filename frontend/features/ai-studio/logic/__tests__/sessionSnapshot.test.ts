@@ -3126,6 +3126,8 @@ describe("sessionSnapshot", () => {
       sourceKind: null,
       sourceElementId: null,
       sourceCharacterId: null,
+      sourceCharacterLookId: null,
+      sourceCharacterLookLabel: null,
       slotIndex: undefined,
       name: "",
       alias: "",
@@ -3198,6 +3200,8 @@ describe("sessionSnapshot", () => {
       sourceKind: "element",
       sourceElementId: "element-red-lantern",
       sourceCharacterId: null,
+      sourceCharacterLookId: null,
+      sourceCharacterLookLabel: null,
       slotIndex: 0,
       name: "Red Lantern",
       alias: "legacylamp",
@@ -3242,6 +3246,8 @@ describe("sessionSnapshot", () => {
       sourceKind: "reference-image",
       sourceElementId: null,
       sourceCharacterId: null,
+      sourceCharacterLookId: null,
+      sourceCharacterLookLabel: null,
       slotIndex: 1,
       name: "Image reference",
       alias: "",
@@ -3252,6 +3258,47 @@ describe("sessionSnapshot", () => {
       referenceImageUrls: "",
       videoUrl: "",
     });
+  });
+
+  it("preserves selected character look metadata in persisted Kling elements", () => {
+    const snapshot = buildAiStudioSessionSnapshot(
+      createSnapshotInput({
+        mode: "video",
+        selectedTool: "video",
+        prompt: "character look video",
+        model: "kie-ai/kling-3.0",
+        klingElements: [
+          {
+            id: "character-taylor",
+            sourceKind: "character",
+            sourceElementId: null,
+            sourceCharacterId: "character-taylor",
+            sourceCharacterLookId: "2",
+            sourceCharacterLookLabel: "Action",
+            slotIndex: 0,
+            name: "Taylor",
+            alias: "",
+            description: "Taylor in action look.",
+            profileImageUrl: "https://cdn.shortpulse.dev/taylor-profile.png",
+            profileImageTransform: null,
+            frontalImageUrl: "https://cdn.shortpulse.dev/taylor-action-01.png",
+            referenceImageUrls: "https://cdn.shortpulse.dev/taylor-action-02.png",
+            videoUrl: "",
+          },
+        ],
+      })
+    );
+
+    expect(snapshot.workspace.klingElements[0]).toEqual(
+      expect.objectContaining({
+        sourceKind: "character",
+        sourceCharacterId: "character-taylor",
+        sourceCharacterLookId: "2",
+        sourceCharacterLookLabel: "Action",
+        description: "Taylor in action look.",
+        frontalImageUrl: "https://cdn.shortpulse.dev/taylor-action-01.png",
+      })
+    );
   });
 
   it("persists queue lifecycle metadata for restore-safe polling semantics", () => {

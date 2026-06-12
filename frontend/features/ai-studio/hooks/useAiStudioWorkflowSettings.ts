@@ -328,6 +328,8 @@ const areKlingElementsEqual = (
       (element.sourceKind ?? null) === (other.sourceKind ?? null) &&
       (element.sourceElementId ?? null) === (other.sourceElementId ?? null) &&
       (element.sourceCharacterId ?? null) === (other.sourceCharacterId ?? null) &&
+      (element.sourceCharacterLookId ?? null) === (other.sourceCharacterLookId ?? null) &&
+      (element.sourceCharacterLookLabel ?? null) === (other.sourceCharacterLookLabel ?? null) &&
       (element.name ?? "") === (other.name ?? "") &&
       (element.alias ?? "") === (other.alias ?? "") &&
       (element.description ?? "") === (other.description ?? "") &&

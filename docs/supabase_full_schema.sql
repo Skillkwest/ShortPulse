@@ -483,8 +483,10 @@ create table if not exists user_preferences (
     expert_edit_preset_panel_labels text[] not null default array['Selfie', 'Side Profile', 'Enhance Realism']::text[],
     expert_edit_preset_panel_ids text[] not null default array['selfie', 'side_profile', 'enhance_realism']::text[],
     expert_edit_custom_presets jsonb not null default '{}'::jsonb,
+    expert_edit_deleted_system_preset_ids text[] not null default array[]::text[],
     ai_studio_create_pulse_panel_ids text[] not null default array['image', 'multi_shot', 'story_builder']::text[],
     ai_studio_saved_pulses jsonb not null default '[]'::jsonb,
+    ai_studio_deleted_builtin_pulse_ids text[] not null default array[]::text[],
     ai_studio_style_panel_ids text[] not null default array[]::text[],
     ai_studio_deleted_style_ids text[] not null default array[]::text[],
     ai_studio_style_details_overrides jsonb not null default '{}'::jsonb,
@@ -506,10 +508,16 @@ alter table if exists user_preferences
     add column if not exists expert_edit_custom_presets jsonb default '{}'::jsonb;
 
 alter table if exists user_preferences
+    add column if not exists expert_edit_deleted_system_preset_ids text[] default array[]::text[];
+
+alter table if exists user_preferences
     add column if not exists ai_studio_create_pulse_panel_ids text[] default array['image', 'multi_shot', 'story_builder']::text[];
 
 alter table if exists user_preferences
     add column if not exists ai_studio_saved_pulses jsonb default '[]'::jsonb;
+
+alter table if exists user_preferences
+    add column if not exists ai_studio_deleted_builtin_pulse_ids text[] default array[]::text[];
 
 alter table if exists user_preferences
     add column if not exists ai_studio_style_panel_ids text[] default array[]::text[];
@@ -540,12 +548,20 @@ update user_preferences
  where expert_edit_custom_presets is null;
 
 update user_preferences
+   set expert_edit_deleted_system_preset_ids = array[]::text[]
+ where expert_edit_deleted_system_preset_ids is null;
+
+update user_preferences
    set ai_studio_create_pulse_panel_ids = array['image', 'multi_shot', 'story_builder']::text[]
  where ai_studio_create_pulse_panel_ids is null;
 
 update user_preferences
    set ai_studio_saved_pulses = '[]'::jsonb
  where ai_studio_saved_pulses is null;
+
+update user_preferences
+   set ai_studio_deleted_builtin_pulse_ids = array[]::text[]
+ where ai_studio_deleted_builtin_pulse_ids is null;
 
 update user_preferences
    set ai_studio_style_panel_ids = array[]::text[]
@@ -576,10 +592,16 @@ alter table if exists user_preferences
     alter column expert_edit_custom_presets set default '{}'::jsonb;
 
 alter table if exists user_preferences
+    alter column expert_edit_deleted_system_preset_ids set default array[]::text[];
+
+alter table if exists user_preferences
     alter column ai_studio_create_pulse_panel_ids set default array['image', 'multi_shot', 'story_builder']::text[];
 
 alter table if exists user_preferences
     alter column ai_studio_saved_pulses set default '[]'::jsonb;
+
+alter table if exists user_preferences
+    alter column ai_studio_deleted_builtin_pulse_ids set default array[]::text[];
 
 alter table if exists user_preferences
     alter column ai_studio_style_panel_ids set default array[]::text[];
@@ -606,10 +628,16 @@ alter table if exists user_preferences
     alter column expert_edit_custom_presets set not null;
 
 alter table if exists user_preferences
+    alter column expert_edit_deleted_system_preset_ids set not null;
+
+alter table if exists user_preferences
     alter column ai_studio_create_pulse_panel_ids set not null;
 
 alter table if exists user_preferences
     alter column ai_studio_saved_pulses set not null;
+
+alter table if exists user_preferences
+    alter column ai_studio_deleted_builtin_pulse_ids set not null;
 
 alter table if exists user_preferences
     alter column ai_studio_style_panel_ids set not null;

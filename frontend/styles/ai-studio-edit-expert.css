@@ -145,6 +145,7 @@
     minmax(0, 1fr);
   column-gap: var(--edit-expert-side-rail-gap);
   align-items: stretch;
+  justify-items: stretch;
   position: relative;
   overflow: visible;
   min-width: 0;
@@ -1844,12 +1845,15 @@
   flex-direction: column;
   align-items: stretch;
   align-self: stretch;
+  justify-self: stretch;
   min-height: 100%;
   gap: 8px;
 }
 
 .edit-expert-primary-column-shell {
   width: 100%;
+  max-width: none;
+  align-self: stretch;
   min-width: 0;
   padding: 12px;
   border-radius: 18px;
@@ -1866,6 +1870,8 @@
 
 .edit-expert-primary-column > .edit-expert-column-wrapper--center {
   width: 100%;
+  max-width: none;
+  align-self: stretch;
   align-items: stretch;
   gap: 8px;
 }
@@ -2041,10 +2047,6 @@
   overflow: visible;
   transform-origin: center center;
   will-change: transform;
-}
-
-.edit-expert-primary-stage-shell .edit-expert-stage-camera-layer {
-  justify-content: flex-start;
 }
 
 .edit-expert-primary-layer-frame {

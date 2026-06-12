@@ -25,6 +25,7 @@ type UseExpertEditGenerationPresetRuntimeParams = {
   onCustomPresetOverridesChange?:
     | ((value: ExpertEditCustomPresetOverrides) => void | boolean | Promise<boolean>)
     | null;
+  deletedSystemPresetIds?: readonly ExpertEditPresetId[] | null;
   systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null;
 };
 
@@ -35,6 +36,7 @@ export const useExpertEditGenerationPresetRuntime = ({
   onSelectedPresetIdsChange,
   controlledCustomPresetOverrides,
   onCustomPresetOverridesChange,
+  deletedSystemPresetIds,
   systemPresetDefinitions,
 }: UseExpertEditGenerationPresetRuntimeParams) => {
   const visibleEditGenerationModeOptions = React.useMemo(
@@ -77,9 +79,10 @@ export const useExpertEditGenerationPresetRuntime = ({
         : normalizePresetPanelPresetIds(
             controlledPresetIds,
             customPresetOverrides,
-            systemPresetDefinitions
+            systemPresetDefinitions,
+            deletedSystemPresetIds
           ),
-    [controlledPresetIds, customPresetOverrides, systemPresetDefinitions]
+    [controlledPresetIds, customPresetOverrides, deletedSystemPresetIds, systemPresetDefinitions]
   );
   const controlledPresetChangeHandler = onSelectedPresetIdsChange ?? null;
   const isPresetPanelControlled =
@@ -94,7 +97,8 @@ export const useExpertEditGenerationPresetRuntime = ({
         const next = normalizePresetPanelPresetIds(
           updater(normalizedControlledPresetIds),
           customPresetOverrides,
-          systemPresetDefinitions
+          systemPresetDefinitions,
+          deletedSystemPresetIds
         );
         controlledPresetChangeHandler(next);
         return;
@@ -103,13 +107,15 @@ export const useExpertEditGenerationPresetRuntime = ({
         normalizePresetPanelPresetIds(
           updater(previous),
           customPresetOverrides,
-          systemPresetDefinitions
+          systemPresetDefinitions,
+          deletedSystemPresetIds
         )
       );
     },
     [
       controlledPresetChangeHandler,
       customPresetOverrides,
+      deletedSystemPresetIds,
       isPresetPanelControlled,
       normalizedControlledPresetIds,
       systemPresetDefinitions,
@@ -132,10 +138,12 @@ export const useExpertEditGenerationPresetRuntime = ({
 
   const availablePresets = React.useMemo(() => {
     const selectedPresetIdSet = new Set(selectedPresetIds);
-    return resolveExpertEditPresetCatalog(customPresetOverrides, systemPresetDefinitions).filter(
-      (preset) => !selectedPresetIdSet.has(preset.presetId)
-    );
-  }, [customPresetOverrides, selectedPresetIds, systemPresetDefinitions]);
+    return resolveExpertEditPresetCatalog(
+      customPresetOverrides,
+      systemPresetDefinitions,
+      deletedSystemPresetIds
+    ).filter((preset) => !selectedPresetIdSet.has(preset.presetId));
+  }, [customPresetOverrides, deletedSystemPresetIds, selectedPresetIds, systemPresetDefinitions]);
 
   const selectedPanelPresets = React.useMemo(
     () =>

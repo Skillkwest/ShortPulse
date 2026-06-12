@@ -3,13 +3,16 @@
  * Combines the Pulse catalog and Prompt Preset libraries behind one left-rail surface while keeping their editors separate.
  */
 import React from "react";
-import { Selection, Sparkle } from "phosphor-react";
+import { ArrowCounterClockwise, Selection, Sparkle } from "phosphor-react";
+import { AppMessage } from "../../../components/AppMessage";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { PresetsLibraryPanel as PromptPresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { PulsePresetsLibraryPanel } from "./PulsePresetsLibraryPanel";
 import {
   CreatePulsePreferenceProvider,
   useCreatePulsePreferenceRuntime,
 } from "./create/CreatePulsePreferenceProvider";
+import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 import type {
   ExpertEditPresetId,
   ExpertEditPresetOverride,
@@ -28,6 +31,7 @@ export type UnifiedPresetsLibraryPanelProps = {
     presetId: ExpertEditPresetId,
     override: ExpertEditPresetOverride
   ) => Promise<boolean> | boolean;
+  onRestorePromptBuiltIns?: () => Promise<boolean> | boolean;
   promptSaveError?: string | null;
 };
 
@@ -50,16 +54,102 @@ export function UnifiedPresetsLibraryPanel({
   onOpenEditWorkflow,
   onSelectPromptPreset,
   onSavePromptPresetOverride,
+  onRestorePromptBuiltIns,
   promptSaveError = null,
 }: UnifiedPresetsLibraryPanelProps) {
+  return (
+    <CreatePulsePreferenceProvider>
+      <UnifiedPresetsLibraryPanelContent
+        promptPresets={promptPresets}
+        selectedPromptPresetId={selectedPromptPresetId}
+        onOpenCreateWorkflow={onOpenCreateWorkflow}
+        onOpenEditWorkflow={onOpenEditWorkflow}
+        onSelectPromptPreset={onSelectPromptPreset}
+        onSavePromptPresetOverride={onSavePromptPresetOverride}
+        onRestorePromptBuiltIns={onRestorePromptBuiltIns}
+        promptSaveError={promptSaveError}
+      />
+    </CreatePulsePreferenceProvider>
+  );
+}
+
+const UnifiedPresetsLibraryPanelContent = ({
+  promptPresets,
+  selectedPromptPresetId,
+  onOpenCreateWorkflow,
+  onOpenEditWorkflow,
+  onSelectPromptPreset,
+  onSavePromptPresetOverride,
+  onRestorePromptBuiltIns,
+  promptSaveError = null,
+}: UnifiedPresetsLibraryPanelProps) => {
   const [viewFilter, setViewFilter] = React.useState<PresetsLibraryViewFilter>("all");
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = React.useState(false);
+  const [restoreSubmitting, setRestoreSubmitting] = React.useState(false);
+  const [restoreStatus, setRestoreStatus] = React.useState<string | null>(null);
+  const [restoreError, setRestoreError] = React.useState<string | null>(null);
+  const { deletedBuiltInPresetIds, restoreDeletedBuiltInPresetIds } =
+    useCreatePulsePreferenceRuntime();
   const showPulses = viewFilter === "all" || viewFilter === "pulses";
   const showPromptPresets = viewFilter === "all" || viewFilter === "prompt-presets";
+  const restoreDisabled = restoreSubmitting;
+
+  const handleRestoreBuiltIns = React.useCallback(async () => {
+    if (restoreSubmitting) return;
+    setRestoreSubmitting(true);
+    setRestoreError(null);
+    setRestoreStatus(null);
+    try {
+      const promptResult = onRestorePromptBuiltIns ? await onRestorePromptBuiltIns() : true;
+      const pulseResult = await restoreDeletedBuiltInPresetIds();
+      if (promptResult === false || pulseResult === false) {
+        setRestoreError("Unable to restore built-ins right now.");
+        return;
+      }
+      setRestoreStatus("Built-ins restored.");
+      setRestoreConfirmOpen(false);
+    } catch {
+      setRestoreError("Unable to restore built-ins right now.");
+    } finally {
+      setRestoreSubmitting(false);
+    }
+  }, [onRestorePromptBuiltIns, restoreDeletedBuiltInPresetIds, restoreSubmitting]);
 
   return (
     <section className="merged-presets-library-panel" aria-label="Presets library">
       <header className="merged-presets-library-header">
-        <p className="eyebrow">Presets Library</p>
+        <div className="merged-presets-library-header-row">
+          <p className="eyebrow">Presets Library</p>
+          <button
+            type="button"
+            className="merged-presets-library-restore-btn"
+            disabled={restoreDisabled}
+            onClick={() => {
+              setRestoreError(null);
+              setRestoreStatus(null);
+              setRestoreConfirmOpen(true);
+            }}
+          >
+            <ArrowCounterClockwise size={15} weight="bold" aria-hidden="true" />
+            <span>{restoreSubmitting ? "Restoring..." : "Restore built-ins"}</span>
+          </button>
+        </div>
+        {restoreStatus ? (
+          <AppMessage
+            className="tiny merged-presets-library-restore-message"
+            tone="success"
+            mode="inline"
+            message={restoreStatus}
+          />
+        ) : null}
+        {restoreError && !restoreConfirmOpen ? (
+          <AppMessage
+            className="tiny merged-presets-library-restore-message"
+            tone="error"
+            mode="inline"
+            message={restoreError}
+          />
+        ) : null}
       </header>
       <div className="merged-presets-library-filter-row" role="group" aria-label="Presets views">
         {FILTER_OPTIONS.map((option) => {
@@ -102,9 +192,7 @@ export function UnifiedPresetsLibraryPanel({
               </div>
             </div>
             <div className="merged-presets-library-section-body">
-              <CreatePulsePreferenceProvider>
-                <UnifiedPulsePresetsLibraryPanel />
-              </CreatePulsePreferenceProvider>
+              <UnifiedPulsePresetsLibraryPanel />
             </div>
           </section>
         ) : null}
@@ -146,9 +234,46 @@ export function UnifiedPresetsLibraryPanel({
           </section>
         ) : null}
       </div>
+      {restoreConfirmOpen ? (
+        <AiStudioModalLayer>
+          <ConfirmationModal
+            title="Restore built-ins?"
+            body={
+              <>
+                <p>
+                  Restore the current ShortPulse built-in Prompt Presets and Pulses to your library.
+                </p>
+                <p>Your custom presets and custom Pulses will stay unchanged.</p>
+                {deletedBuiltInPresetIds.length > 0 ? null : (
+                  <p>This will still refresh your built-in restore state.</p>
+                )}
+                {restoreError ? (
+                  <AppMessage
+                    className="tiny merged-presets-library-restore-message"
+                    tone="error"
+                    mode="inline"
+                    message={restoreError}
+                  />
+                ) : null}
+              </>
+            }
+            confirmLabel="Restore"
+            confirmBusyLabel={restoreSubmitting ? "Restoring..." : undefined}
+            confirmDisabled={restoreSubmitting}
+            cancelDisabled={restoreSubmitting}
+            onCancel={() => {
+              if (restoreSubmitting) return;
+              setRestoreConfirmOpen(false);
+            }}
+            onConfirm={() => {
+              void handleRestoreBuiltIns();
+            }}
+          />
+        </AiStudioModalLayer>
+      ) : null}
     </section>
   );
-}
+};
 
 const UnifiedPulsePresetsLibraryPanel = () => {
   const { builtInDefinitions, savedPresets, setSavedPresets } = useCreatePulsePreferenceRuntime();

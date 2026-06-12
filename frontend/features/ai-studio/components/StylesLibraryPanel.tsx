@@ -3,7 +3,7 @@
  * Presentational surface wired to the style-creator controller.
  */
 import React from "react";
-import { CircleNotch, Prohibit, UploadSimple, X } from "phosphor-react";
+import { ArrowCounterClockwise, CircleNotch, Prohibit, UploadSimple, X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
 import {
   NONE_STYLE_ID,
@@ -27,6 +27,7 @@ export type StylesLibraryPanelProps = {
   onReorderStyle?: (sourceStyleId: string, targetStyleId: string) => Promise<void> | void;
   onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
   deleteError?: string | null;
+  onRestoreBuiltInStyles?: () => Promise<boolean> | boolean;
   onSaveStyleDetails?: (
     styleId: string,
     details: StylesLibraryStyleDetails
@@ -40,6 +41,7 @@ export function StylesLibraryPanel({
   onReorderStyle,
   onDeleteStyle,
   deleteError = null,
+  onRestoreBuiltInStyles,
   onSaveStyleDetails,
   saveError = null,
   resolveInternalStyleDrop,
@@ -99,13 +101,38 @@ export function StylesLibraryPanel({
     () => prependNoneStyleTile(renderedStyles),
     [renderedStyles]
   );
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = React.useState(false);
+  const [restoreSubmitting, setRestoreSubmitting] = React.useState(false);
+  const [restoreStatus, setRestoreStatus] = React.useState<string | null>(null);
+  const [restoreError, setRestoreError] = React.useState<string | null>(null);
   const stylePromptCharacterCount = pendingStyleEdit?.details.stylePrompt.length ?? 0;
   const stylePromptNearLimit = stylePromptCharacterCount >= STYLE_PROMPT_NEAR_LIMIT_CHARACTERS;
   const stylePromptAtLimit = stylePromptCharacterCount >= STYLE_PROMPT_MAX_CHARACTERS;
   const isPendingBuiltInView = pendingStyleEdit?.mode === "view";
-  const isAnyStylesModalOpen = Boolean(pendingStyleEdit || pendingDeleteStyle);
+  const isAnyStylesModalOpen = Boolean(
+    pendingStyleEdit || pendingDeleteStyle || restoreConfirmOpen
+  );
   useAiStudioModalActivity("styles-library-modal", isAnyStylesModalOpen);
   const editBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeEditModal);
+  const handleRestoreBuiltInStyles = React.useCallback(async () => {
+    if (restoreSubmitting) return;
+    setRestoreSubmitting(true);
+    setRestoreError(null);
+    setRestoreStatus(null);
+    try {
+      const restored = onRestoreBuiltInStyles ? await onRestoreBuiltInStyles() : false;
+      if (!restored) {
+        setRestoreError("Unable to restore built-in styles right now.");
+        return;
+      }
+      setRestoreStatus("Built-in styles restored.");
+      setRestoreConfirmOpen(false);
+    } catch {
+      setRestoreError("Unable to restore built-in styles right now.");
+    } finally {
+      setRestoreSubmitting(false);
+    }
+  }, [onRestoreBuiltInStyles, restoreSubmitting]);
 
   return (
     <section
@@ -117,11 +144,44 @@ export function StylesLibraryPanel({
       onDrop={handleStylesLibraryDrop}
     >
       <header className="styles-library-header">
-        <p className="eyebrow">Styles Library</p>
+        <div className="styles-library-header-row">
+          <p className="eyebrow">Styles Library</p>
+          {onRestoreBuiltInStyles ? (
+            <button
+              type="button"
+              className="styles-library-restore-btn"
+              disabled={restoreSubmitting}
+              onClick={() => {
+                setRestoreError(null);
+                setRestoreStatus(null);
+                setRestoreConfirmOpen(true);
+              }}
+            >
+              <ArrowCounterClockwise size={15} weight="bold" aria-hidden="true" />
+              <span>{restoreSubmitting ? "Restoring..." : "Restore built-ins"}</span>
+            </button>
+          ) : null}
+        </div>
         <p className="tiny subdued helper-text">
           Browse all loaded styles. Drag an image from your computer, Reference Grid, or Quick Slot
           to create a style.
         </p>
+        {restoreStatus ? (
+          <AppMessage
+            className="styles-library-restore-message tiny"
+            tone="success"
+            mode="inline"
+            message={restoreStatus}
+          />
+        ) : null}
+        {restoreError && !restoreConfirmOpen ? (
+          <AppMessage
+            className="styles-library-restore-message tiny"
+            tone="error"
+            mode="inline"
+            message={restoreError}
+          />
+        ) : null}
         {stylesLibraryDropActive ? (
           <p className="styles-library-drop-status tiny">Drop image to create a new style.</p>
         ) : null}
@@ -549,10 +609,17 @@ export function StylesLibraryPanel({
             title="Delete this style?"
             body={
               <div>
-                <p>
-                  <strong>{pendingDeleteStyle.title}</strong> will be removed permanently from your
-                  style library.
-                </p>
+                {pendingDeleteStyle.source === "built_in" ? (
+                  <p>
+                    <strong>{pendingDeleteStyle.title}</strong> will be removed from your style
+                    library. The built-in style stays managed by ShortPulse and can be restored.
+                  </p>
+                ) : (
+                  <p>
+                    <strong>{pendingDeleteStyle.title}</strong> will be removed permanently from
+                    your style library.
+                  </p>
+                )}
                 {deleteError ? <p>{deleteError}</p> : null}
                 {localDeleteError ? <p>{localDeleteError}</p> : null}
               </div>
@@ -564,6 +631,31 @@ export function StylesLibraryPanel({
             onCancel={closeDeleteModal}
             onConfirm={() => {
               void handleDeleteConfirm();
+            }}
+          />
+        </AiStudioModalLayer>
+      ) : null}
+      {restoreConfirmOpen ? (
+        <AiStudioModalLayer>
+          <ConfirmationModal
+            title="Restore built-in styles?"
+            body={
+              <div>
+                <p>Restore the current ShortPulse built-in Styles to your style library.</p>
+                <p>Your custom Styles and custom order will stay unchanged.</p>
+                {restoreError ? <p>{restoreError}</p> : null}
+              </div>
+            }
+            confirmLabel="Restore"
+            confirmBusyLabel={restoreSubmitting ? "Restoring..." : undefined}
+            confirmDisabled={restoreSubmitting}
+            cancelDisabled={restoreSubmitting}
+            onCancel={() => {
+              if (restoreSubmitting) return;
+              setRestoreConfirmOpen(false);
+            }}
+            onConfirm={() => {
+              void handleRestoreBuiltInStyles();
             }}
           />
         </AiStudioModalLayer>

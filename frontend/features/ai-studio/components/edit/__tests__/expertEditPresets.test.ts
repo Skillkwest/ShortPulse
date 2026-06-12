@@ -5,6 +5,7 @@ import {
   resolveExpertEditPresetCatalog,
   normalizePresetPanelPresetIds,
   normalizeExpertEditCustomPresetOverrides,
+  normalizeExpertEditDeletedSystemPresetIds,
   resolveExpertEditPresetById,
 } from "../expertEditPresets";
 
@@ -68,5 +69,21 @@ describe("expertEditPresets overrides", () => {
         custom_1: createDeletedPresetOverride(),
       }).some((preset) => preset.presetId === "custom_1")
     ).toBe(false);
+  });
+
+  it("hides system presets from the catalog with a dedicated deleted-id list", () => {
+    const catalog = resolveExpertEditPresetCatalog(undefined, undefined, ["selfie"]);
+
+    expect(catalog.some((preset) => preset.presetId === "selfie")).toBe(false);
+    expect(catalog.some((preset) => preset.presetId === "custom_1")).toBe(true);
+    expect(
+      normalizePresetPanelPresetIds(["selfie", "zoom_out"], undefined, undefined, ["selfie"])
+    ).toEqual(["zoom_out"]);
+  });
+
+  it("normalizes deleted system preset ids without accepting custom presets", () => {
+    expect(
+      normalizeExpertEditDeletedSystemPresetIds(["selfie", "custom_1", "selfie", "unknown", 42])
+    ).toEqual(["selfie"]);
   });
 });

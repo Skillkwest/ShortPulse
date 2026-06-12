@@ -20,6 +20,7 @@ type UseStylesLibraryDeletedStyleIdsPreferenceResult = {
   error: string | null;
   syncState: StylesLibraryDeleteSyncState;
   deleteStyleId: (styleId: string) => Promise<boolean>;
+  restoreDeletedStyleIds: () => Promise<boolean>;
 };
 
 const normalizeDeletedStyleIds = (value: unknown): string[] => {
@@ -170,17 +171,18 @@ export const useStylesLibraryDeletedStyleIdsPreference =
       };
     }, [sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
 
-    const deleteStyleId = useCallback(
-      async (styleId: string): Promise<boolean> => {
-        const normalizedStyleId = styleId.trim();
-        if (!normalizedStyleId) return false;
+    const persistDeletedStyleIds = useCallback(
+      async (nextStyleIds: string[], fallbackErrorMessage: string): Promise<boolean> => {
         const requestVersion = writeVersionRef.current + 1;
         writeVersionRef.current = requestVersion;
         hasLocalOverrideRef.current = true;
 
         const previousValue = latestValueRef.current;
-        const nextValue = normalizeDeletedStyleIds([...previousValue, normalizedStyleId]);
-        if (nextValue.length === previousValue.length) return true;
+        const nextValue = normalizeDeletedStyleIds(nextStyleIds);
+        const valuesMatch =
+          nextValue.length === previousValue.length &&
+          nextValue.every((value, index) => previousValue[index] === value);
+        if (valuesMatch) return true;
 
         updateLocalValue(nextValue, userId);
         setSyncState("saving");
@@ -214,12 +216,30 @@ export const useStylesLibraryDeletedStyleIdsPreference =
             return true;
           }
           updateLocalValue(previousValue, userId);
-          setError(err instanceof Error ? err.message : "Unable to delete style.");
+          setError(err instanceof Error ? err.message : fallbackErrorMessage);
           setSyncState("error");
           return false;
         }
       },
       [updateLocalValue, userId]
+    );
+
+    const deleteStyleId = useCallback(
+      async (styleId: string): Promise<boolean> => {
+        const normalizedStyleId = styleId.trim();
+        if (!normalizedStyleId) return false;
+        return persistDeletedStyleIds(
+          [...latestValueRef.current, normalizedStyleId],
+          "Unable to delete style."
+        );
+      },
+      [persistDeletedStyleIds]
+    );
+
+    const restoreDeletedStyleIds = useCallback(
+      async (): Promise<boolean> =>
+        persistDeletedStyleIds([], "Unable to restore built-in styles."),
+      [persistDeletedStyleIds]
     );
 
     return {
@@ -228,5 +248,6 @@ export const useStylesLibraryDeletedStyleIdsPreference =
       error,
       syncState,
       deleteStyleId,
+      restoreDeletedStyleIds,
     };
   };

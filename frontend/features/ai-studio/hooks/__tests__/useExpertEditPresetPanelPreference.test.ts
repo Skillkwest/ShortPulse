@@ -51,6 +51,7 @@ describe("useExpertEditPresetPanelPreference", () => {
     expect(ensureSupabaseQueryClient).not.toHaveBeenCalled();
     expect(result.current.presetPanelIds).toEqual(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS);
     expect(result.current.customPresetOverrides).toEqual({});
+    expect(result.current.deletedSystemPresetIds).toEqual([]);
 
     act(() => {
       result.current.setPresetPanelIds(["selfie"]);
@@ -86,6 +87,7 @@ describe("useExpertEditPresetPanelPreference", () => {
     expect(result.current.customPresetOverrides).toEqual({
       custom_8: { label: "My Custom Eight", prompt: "Use custom eight prompt." },
     });
+    expect(result.current.deletedSystemPresetIds).toEqual([]);
     expect(result.current.syncState).toBe("ready");
     expect(result.current.error).toBeNull();
   });
@@ -268,12 +270,20 @@ describe("useExpertEditPresetPanelPreference", () => {
 
     const maybeSingle = vi.fn().mockResolvedValue({
       data: {
-        expert_edit_preset_panel_ids: ["unknown", "custom_18", "selfie", "selfie", 99] as unknown,
+        expert_edit_preset_panel_ids: [
+          "unknown",
+          "custom_18",
+          "selfie",
+          "zoom_out",
+          "selfie",
+          99,
+        ] as unknown,
         expert_edit_custom_presets: {
           custom_18: { label: "Custom 18 Name", prompt: "Custom 18 Prompt" },
           custom_3: { label: " ", prompt: " " },
           custom_1: { label: "Custom One", prompt: "Custom One Prompt" },
         },
+        expert_edit_deleted_system_preset_ids: ["selfie", "custom_1", "unknown", "selfie"],
         expert_edit_preset_panel_labels: ["Selfie"],
       },
       error: null,
@@ -301,11 +311,12 @@ describe("useExpertEditPresetPanelPreference", () => {
       expect(result.current.syncState).toBe("ready");
     });
 
-    expect(result.current.presetPanelIds).toEqual(["selfie", "custom_18"]);
+    expect(result.current.presetPanelIds).toEqual(["zoom_out", "custom_18"]);
     expect(result.current.customPresetOverrides).toEqual({
       custom_18: { label: "Custom 18 Name", prompt: "Custom 18 Prompt" },
       custom_1: { label: "Custom One", prompt: "Custom One Prompt" },
     });
+    expect(result.current.deletedSystemPresetIds).toEqual(["selfie"]);
 
     act(() => {
       void result.current.setPresetPanelIds([
@@ -325,7 +336,7 @@ describe("useExpertEditPresetPanelPreference", () => {
 
     await waitFor(() => {
       expect(result.current.syncState).toBe("ready");
-      expect(result.current.presetPanelIds).toEqual(["selfie", "zoom_out", "custom_18"]);
+      expect(result.current.presetPanelIds).toEqual(["zoom_out", "custom_18"]);
       expect(result.current.customPresetOverrides).toEqual({
         custom_18: { label: "Custom Eighteen", prompt: "Prompt Eighteen" },
       });
@@ -337,7 +348,7 @@ describe("useExpertEditPresetPanelPreference", () => {
     });
 
     expect(result.current.error).toBeNull();
-    expect(result.current.presetPanelIds).toEqual(["selfie", "zoom_out", "custom_18"]);
+    expect(result.current.presetPanelIds).toEqual(["zoom_out", "custom_18"]);
 
     const storedRaw = window.localStorage.getItem(
       "shortpulse.ai_studio.expert_edit_preset_panel_ids:user-1"
@@ -444,6 +455,76 @@ describe("useExpertEditPresetPanelPreference", () => {
       JSON.stringify({
         custom_8: { label: "Queued Preset", prompt: "Persist after auth resolves." },
       })
+    );
+  });
+
+  it("persists and restores deleted system preset ids without touching custom overrides", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        expert_edit_preset_panel_ids: ["selfie", "zoom_out"],
+        expert_edit_custom_presets: {
+          custom_4: { label: "Custom Four", prompt: "Custom four prompt." },
+        },
+        expert_edit_deleted_system_preset_ids: [],
+        expert_edit_preset_panel_labels: null,
+      },
+      error: null,
+    });
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-restore");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useExpertEditPresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    await act(async () => {
+      await result.current.deleteSystemPresetId("selfie");
+    });
+
+    expect(result.current.deletedSystemPresetIds).toEqual(["selfie"]);
+    expect(result.current.presetPanelIds).toEqual(["zoom_out"]);
+    expect(result.current.customPresetOverrides).toEqual({
+      custom_4: { label: "Custom Four", prompt: "Custom four prompt." },
+    });
+    expect(upsert).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        user_id: "user-restore",
+        expert_edit_deleted_system_preset_ids: ["selfie"],
+        expert_edit_custom_presets: {
+          custom_4: { label: "Custom Four", prompt: "Custom four prompt." },
+        },
+      }),
+      { onConflict: "user_id" }
+    );
+
+    await act(async () => {
+      await result.current.restoreDeletedSystemPresetIds();
+    });
+
+    expect(result.current.deletedSystemPresetIds).toEqual([]);
+    expect(upsert).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        user_id: "user-restore",
+        expert_edit_deleted_system_preset_ids: [],
+      }),
+      { onConflict: "user_id" }
     );
   });
 });

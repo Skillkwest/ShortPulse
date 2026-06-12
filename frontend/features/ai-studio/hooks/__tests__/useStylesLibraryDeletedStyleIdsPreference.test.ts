@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStylesLibraryDeletedStyleIdsPreference } from "../useStylesLibraryDeletedStyleIdsPreference";
 
@@ -74,6 +74,45 @@ describe("useStylesLibraryDeletedStyleIdsPreference", () => {
     expect(result.current.deletedStyleIds).toEqual(["style-library-custom-1"]);
     expect(window.localStorage.getItem("shortpulse.ai_studio.deleted_style_ids")).toBe(
       JSON.stringify(["style-library-custom-1"])
+    );
+  });
+
+  it("restores deleted style ids by clearing the per-user preference", async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
+    supabaseQueryClientMock.from = vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: { ai_studio_deleted_style_ids: ["cinematic"] },
+            error: null,
+          }),
+        })),
+      })),
+      upsert: upsertMock,
+    }));
+
+    const { result } = renderHook(() => useStylesLibraryDeletedStyleIdsPreference());
+
+    await waitFor(() => {
+      expect(result.current.deletedStyleIds).toEqual(["cinematic"]);
+    });
+
+    await act(async () => {
+      await result.current.restoreDeletedStyleIds();
+    });
+
+    expect(result.current.deletedStyleIds).toEqual([]);
+    expect(window.localStorage.getItem("shortpulse.ai_studio.deleted_style_ids:user-123")).toBe(
+      "[]"
+    );
+    expect(upsertMock).toHaveBeenCalledWith(
+      { user_id: "user-123", ai_studio_deleted_style_ids: [] },
+      { onConflict: "user_id" }
     );
   });
 });

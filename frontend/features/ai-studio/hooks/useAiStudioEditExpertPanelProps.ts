@@ -80,6 +80,9 @@ type UseAiStudioEditExpertPanelPropsParams = {
   onCustomPresetOverridesChange?: (
     overrides: ExpertEditCustomPresetOverrides
   ) => void | boolean | Promise<boolean>;
+  deletedSystemPresetIds?: readonly ExpertEditPresetId[];
+  onDeleteSystemPreset?: (presetId: ExpertEditPresetId) => void | boolean | Promise<boolean>;
+  onRestoreDeletedSystemPresets?: () => void | boolean | Promise<boolean>;
   systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[];
   sessionState?: ExpertEditSessionState | null;
   onSessionStateChange?: (state: ExpertEditSessionState) => void;
@@ -133,6 +136,9 @@ export const useAiStudioEditExpertPanelProps = ({
   onSelectedPresetIdsChange,
   customPresetOverrides,
   onCustomPresetOverridesChange,
+  deletedSystemPresetIds,
+  onDeleteSystemPreset,
+  onRestoreDeletedSystemPresets,
   systemPresetDefinitions,
   sessionState,
   onSessionStateChange,
@@ -211,6 +217,9 @@ export const useAiStudioEditExpertPanelProps = ({
       onSelectedPresetIdsChange,
       customPresetOverrides,
       onCustomPresetOverridesChange,
+      deletedSystemPresetIds,
+      onDeleteSystemPreset,
+      onRestoreDeletedSystemPresets,
       systemPresetDefinitions,
       sessionState,
       onSessionStateChange,
@@ -248,7 +257,10 @@ export const useAiStudioEditExpertPanelProps = ({
     resolveInternalReferenceImageDropSource,
     resolveOutputPreviewUrl,
     customPresetOverrides,
+    deletedSystemPresetIds,
     onCustomPresetOverridesChange,
+    onDeleteSystemPreset,
+    onRestoreDeletedSystemPresets,
     systemPresetDefinitions,
     sessionState,
     onSessionStateChange,

@@ -39,12 +39,14 @@ const baseProps: React.ComponentProps<typeof PulseCreatePanelView> = {
   pulsePreferenceRuntime: {
     presetPanelIds: [],
     savedPresets: [],
+    deletedBuiltInPresetIds: [],
     builtInDefinitions: [],
     builtInDefinitionsLoading: false,
     builtInDefinitionsAuthoritative: true,
     refreshBuiltInDefinitions: vi.fn(async () => []),
     setPresetPanelIds: vi.fn(async () => true),
     setSavedPresets: vi.fn(async () => true),
+    restoreDeletedBuiltInPresetIds: vi.fn(async () => true),
   },
 };
 

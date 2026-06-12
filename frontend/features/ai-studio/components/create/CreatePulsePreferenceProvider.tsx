@@ -30,12 +30,14 @@ export const CreatePulsePreferenceProvider = ({ children }: CreatePulsePreferenc
     () => ({
       presetPanelIds: preference.presetPanelIds,
       savedPresets: preference.savedPresets,
+      deletedBuiltInPresetIds: preference.deletedBuiltInPresetIds,
       builtInDefinitions: builtInCatalog.builtInDefinitions,
       builtInDefinitionsLoading: builtInCatalog.loading,
       builtInDefinitionsAuthoritative: builtInCatalog.isAuthoritative,
       refreshBuiltInDefinitions,
       setPresetPanelIds: preference.setPresetPanelIds,
       setSavedPresets: preference.setSavedPresets,
+      restoreDeletedBuiltInPresetIds: preference.restoreDeletedBuiltInPresetIds,
     }),
     [
       builtInCatalog.builtInDefinitions,
@@ -43,6 +45,8 @@ export const CreatePulsePreferenceProvider = ({ children }: CreatePulsePreferenc
       builtInCatalog.loading,
       preference.presetPanelIds,
       preference.savedPresets,
+      preference.deletedBuiltInPresetIds,
+      preference.restoreDeletedBuiltInPresetIds,
       preference.setPresetPanelIds,
       preference.setSavedPresets,
       refreshBuiltInDefinitions,

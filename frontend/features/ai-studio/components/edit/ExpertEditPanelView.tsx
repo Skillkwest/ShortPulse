@@ -144,6 +144,7 @@ export function ExpertEditPanelView({
   onSelectedPresetIdsChange,
   customPresetOverrides: controlledCustomPresetOverrides,
   onCustomPresetOverridesChange,
+  deletedSystemPresetIds,
   systemPresetDefinitions,
   isStylesPanelOpen = false,
   onStylesPanelToggle,
@@ -231,6 +232,7 @@ export function ExpertEditPanelView({
     onSelectedPresetIdsChange,
     controlledCustomPresetOverrides,
     onCustomPresetOverridesChange,
+    deletedSystemPresetIds,
     systemPresetDefinitions,
   });
   const {

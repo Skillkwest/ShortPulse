@@ -54,12 +54,14 @@ describe("Create generate guardrail messaging", () => {
   const pulsePreferenceRuntime = {
     presetPanelIds: ["story_builder"],
     savedPresets: [],
+    deletedBuiltInPresetIds: [],
     builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
     builtInDefinitionsLoading: false,
     builtInDefinitionsAuthoritative: true,
     refreshBuiltInDefinitions: vi.fn(async () => CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS),
     setPresetPanelIds: vi.fn(async () => true),
     setSavedPresets: vi.fn(async () => true),
+    restoreDeletedBuiltInPresetIds: vi.fn(async () => true),
   };
 
   it("does not show the removed detached expert generate warning", () => {

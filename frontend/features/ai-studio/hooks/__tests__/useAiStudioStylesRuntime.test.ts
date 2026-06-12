@@ -47,6 +47,7 @@ type MockDeletedStyleIdsPreference = {
   deletedStyleIds: string[];
   error: string | null;
   deleteStyleId: ReturnType<typeof vi.fn>;
+  restoreDeletedStyleIds: ReturnType<typeof vi.fn>;
 };
 
 type MockStylePanelIdsPreference = {
@@ -66,6 +67,7 @@ const createDeletedPreference = (): MockDeletedStyleIdsPreference => ({
   deletedStyleIds: [],
   error: null,
   deleteStyleId: vi.fn(),
+  restoreDeletedStyleIds: vi.fn(),
 });
 
 const createPanelIdsPreference = (): MockStylePanelIdsPreference => ({
@@ -215,6 +217,28 @@ describe("useAiStudioStylesRuntime", () => {
 
     expect(detailsPreference.deleteStyleDetails).toHaveBeenCalledWith("style-library-custom-1");
     expect(panelIdsPreference.removeStylePanelId).toHaveBeenCalledWith("style-library-custom-1");
+  });
+
+  it("restores built-in styles through the deleted-id preference only", async () => {
+    deletedPreference.deletedStyleIds = ["photorealistic"];
+    deletedPreference.restoreDeletedStyleIds.mockResolvedValue(true);
+
+    const { result } = renderHook(() =>
+      useAiStudioStylesRuntime({
+        selectedStyleId: null,
+        setSelectedStyleId: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleRestoreBuiltInStyles();
+    });
+
+    expect(deletedPreference.restoreDeletedStyleIds).toHaveBeenCalledTimes(1);
+    expect(detailsPreference.deleteStyleDetails).not.toHaveBeenCalled();
+    expect(detailsPreference.upsertStyleDetails).not.toHaveBeenCalled();
+    expect(panelIdsPreference.setStylePanelIds).not.toHaveBeenCalled();
+    expect(panelIdsPreference.removeStylePanelId).not.toHaveBeenCalled();
   });
 
   it("reorders the current visible catalog sequence through the persisted order preference", async () => {

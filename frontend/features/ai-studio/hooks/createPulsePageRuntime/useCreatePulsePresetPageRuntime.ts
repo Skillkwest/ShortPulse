@@ -80,12 +80,14 @@ export const useCreatePulsePresetPageRuntime = ({
     () => ({
       presetPanelIds: pulsePreference.presetPanelIds,
       savedPresets: pulsePreference.savedPresets,
+      deletedBuiltInPresetIds: pulsePreference.deletedBuiltInPresetIds,
       builtInDefinitions: builtInCatalog.builtInDefinitions,
       builtInDefinitionsLoading: builtInCatalog.loading,
       builtInDefinitionsAuthoritative: builtInCatalog.isAuthoritative,
       refreshBuiltInDefinitions,
       setPresetPanelIds: pulsePreference.setPresetPanelIds,
       setSavedPresets: pulsePreference.setSavedPresets,
+      restoreDeletedBuiltInPresetIds: pulsePreference.restoreDeletedBuiltInPresetIds,
     }),
     [
       builtInCatalog.builtInDefinitions,
@@ -93,6 +95,8 @@ export const useCreatePulsePresetPageRuntime = ({
       builtInCatalog.loading,
       pulsePreference.presetPanelIds,
       pulsePreference.savedPresets,
+      pulsePreference.deletedBuiltInPresetIds,
+      pulsePreference.restoreDeletedBuiltInPresetIds,
       pulsePreference.setPresetPanelIds,
       pulsePreference.setSavedPresets,
       refreshBuiltInDefinitions,

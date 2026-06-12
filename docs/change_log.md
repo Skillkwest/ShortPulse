@@ -4,6 +4,9 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 
+- AI Studio Styles Library:
+  - added a Restore built-ins action that clears only the per-user built-in Style deletion denylist, preserving custom Styles, custom order, and admin-managed built-in definitions,
+  - and clarified built-in Style delete copy so account-local removal is not described as permanent deletion.
 - Documentation cleanup:
   - archived the dormant inpaint reference-contract packet, the dormant inpaint live-preview packet, and the unreferenced create-character-mode hardening plan under `docs/archive/planning/`,
   - retargeted the archived packet cross-links to their archive paths,
@@ -339,6 +342,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - legacy `applyPrompt`-style Pulse metadata is treated as compatibility input rather than the active Pulse contract.
 - Pulse Presets Library built-in starter tiles are no longer the editing authority. Built-in Pulse authoring now lives under `/admin/agent-instructions`, while user Pulse surfaces are limited to custom Pulse editing.
 - Built-in Pulse definitions now persist in the shared `create_pulse_builtin_runtime` control plane and flow through `/api/ai/create-pulse-builtins` plus `/api/ai/studio-agent-pulse`, so admin-updated defaults show up consistently in the library, `More Presets`, the pinned Create Pulse rail, and runtime execution.
+- Per-user deleted built-in Prompt Preset and Pulse IDs now have dedicated `user_preferences` columns, preserving admin-owned built-in control planes while making account-level restore possible without touching custom records.
 - Persisted AI Studio Create Pulse runtime shell state in session snapshots:
   - page-owned Expert Create mode and active pinned Pulse preset id now flow through session snapshot build/hydrate,
   - restoring a saved AI Studio session returns Create to the prior `Standard` or `Pulse` shell mode and reapplies the active pinned Pulse id,

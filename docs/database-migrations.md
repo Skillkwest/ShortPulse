@@ -273,6 +273,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 151.  `sql/migrations/152_add_audio_generation_display_title.sql`
 152.  `sql/migrations/153_add_dashboard_tutorials.sql`
 153.  `sql/migrations/154_add_dashboard_tutorial_thumbnail_uploads.sql`
+154.  `sql/migrations/155_add_dashboard_tutorial_thumbnail_display_derivatives.sql`
+155.  `sql/migrations/156_add_user_preferences_deleted_builtin_presets.sql`
       Rollback files:
 
 
@@ -362,6 +364,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/153_add_dashboard_tutorials_rollback.sql`
     - `sql/migrations/rollback/154_add_dashboard_tutorial_thumbnail_uploads_rollback.sql`
     - `sql/migrations/rollback/155_add_dashboard_tutorial_thumbnail_display_derivatives_rollback.sql`
+    - `sql/migrations/rollback/156_add_user_preferences_deleted_builtin_presets_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -417,6 +420,7 @@ Billing safety note:
 - Migration `055_add_user_preferences_expert_edit_preset_panel_labels.sql` adds durable account-level Expert Edit preset panel label persistence (`user_preferences.expert_edit_preset_panel_labels`) with seeded defaults for new and existing users.
 - Migration `056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql` adds canonical Expert Edit preset ID allocation persistence (`user_preferences.expert_edit_preset_panel_ids`) plus preset override persistence (`user_preferences.expert_edit_custom_presets`) while preserving legacy label fallback compatibility.
 - Migration `057_add_user_preferences_ai_studio_deleted_style_ids.sql` adds durable per-user Styles Library deletion persistence (`user_preferences.ai_studio_deleted_style_ids`) so deleted styles stay hidden across sessions/devices.
+- Migration `156_add_user_preferences_deleted_builtin_presets.sql` adds durable per-user deletion persistence for admin-owned AI Studio built-ins (`user_preferences.expert_edit_deleted_system_preset_ids`, `user_preferences.ai_studio_deleted_builtin_pulse_ids`) so deleted Prompt Presets and Pulses can be restored per account without storing global built-in definitions in user preference payloads.
 - Migration `058_add_user_preferences_ai_studio_style_details_overrides.sql` adds durable per-user Styles Library metadata override persistence (`user_preferences.ai_studio_style_details_overrides`) for editing `style`, `title`, `referenceImageName`, and `stylePrompt` values.
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` added durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) before the embedded QuickSwap UX was retired.
 - Migration `138_retire_character_quickswap_tip_preference.sql` removes the now-unused `user_preferences.ai_studio_character_quickswap_tip_hidden` column from the current schema contract.

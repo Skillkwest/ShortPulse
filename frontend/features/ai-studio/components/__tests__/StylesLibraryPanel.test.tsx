@@ -1604,6 +1604,18 @@ describe("StylesLibraryPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Delete this style?" })).not.toBeInTheDocument();
   });
 
+  it("describes built-in style deletion as account-local and restorable", () => {
+    render(<StylesLibraryPanel styles={createBuiltInStyles()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete style: Cinematic" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Delete this style?" });
+    expect(dialog).toHaveTextContent(
+      "The built-in style stays managed by ShortPulse and can be restored."
+    );
+    expect(dialog).not.toHaveTextContent("removed permanently");
+  });
+
   it("confirms delete and calls onDeleteStyle with the selected style id", async () => {
     const onDeleteStyle = vi.fn().mockResolvedValue(true);
     render(<StylesLibraryPanel styles={createStyles()} onDeleteStyle={onDeleteStyle} />);
@@ -1617,6 +1629,38 @@ describe("StylesLibraryPanel", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: "Delete this style?" })).not.toBeInTheDocument();
     });
+  });
+
+  it("confirms restore built-ins and calls the restore callback", async () => {
+    const onRestoreBuiltInStyles = vi.fn().mockResolvedValue(true);
+    const onDeleteStyle = vi.fn();
+    const onSaveStyleDetails = vi.fn();
+    render(
+      <StylesLibraryPanel
+        styles={createStyles()}
+        onDeleteStyle={onDeleteStyle}
+        onSaveStyleDetails={onSaveStyleDetails}
+        onRestoreBuiltInStyles={onRestoreBuiltInStyles}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Restore built-ins" }));
+    expect(screen.getByRole("dialog", { name: "Restore built-in styles?" })).toHaveTextContent(
+      "Your custom Styles and custom order will stay unchanged."
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Restore" }));
+
+    await waitFor(() => {
+      expect(onRestoreBuiltInStyles).toHaveBeenCalledTimes(1);
+    });
+    expect(onDeleteStyle).not.toHaveBeenCalled();
+    expect(onSaveStyleDetails).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Restore built-in styles?" })
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Built-in styles restored.")).toBeInTheDocument();
   });
 
   it("opens edit modal when a style tile is clicked", () => {

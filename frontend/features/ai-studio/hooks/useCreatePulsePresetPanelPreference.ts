@@ -38,11 +38,14 @@ type CreatePulsePresetPreferenceStorageValue = {
 export type UseCreatePulsePresetPanelPreferenceResult = {
   presetPanelIds: CreatePulsePresetId[];
   savedPresets: CreatePulseSavedPreset[];
+  deletedBuiltInPresetIds: CreatePulsePresetId[];
   loading: boolean;
   error: string | null;
   syncState: CreatePulsePresetPanelSyncState;
   setPresetPanelIds: (presetIds: readonly CreatePulsePresetId[]) => Promise<boolean>;
   setSavedPresets: (presets: readonly CreatePulseSavedPreset[]) => Promise<boolean>;
+  setDeletedBuiltInPresetIds: (presetIds: readonly CreatePulsePresetId[]) => Promise<boolean>;
+  restoreDeletedBuiltInPresetIds: () => Promise<boolean>;
 };
 
 type UseCreatePulsePresetPanelPreferenceOptions = {
@@ -137,6 +140,7 @@ const isMissingCreatePulsePreferenceStorageError = (error: unknown): boolean => 
   return (
     maybeError.message.includes("user_preferences") ||
     maybeError.message.includes("ai_studio_create_pulse_panel_ids") ||
+    maybeError.message.includes("ai_studio_deleted_builtin_pulse_ids") ||
     maybeError.message.includes("ai_studio_saved_pulses")
   );
 };
@@ -417,7 +421,9 @@ export const useCreatePulsePresetPanelPreference = ({
       const supabase = ensureSupabaseQueryClient();
       const { data: storedPreference, error: preferenceError } = await supabase
         .from("user_preferences")
-        .select("ai_studio_create_pulse_panel_ids, ai_studio_saved_pulses")
+        .select(
+          "ai_studio_create_pulse_panel_ids, ai_studio_saved_pulses, ai_studio_deleted_builtin_pulse_ids"
+        )
         .eq("user_id", userId)
         .maybeSingle();
       if (preferenceError) throw preferenceError;
@@ -425,6 +431,7 @@ export const useCreatePulsePresetPanelPreference = ({
         {
           presetPanelIds: storedPreference?.ai_studio_create_pulse_panel_ids,
           customSavedPresets: storedPreference?.ai_studio_saved_pulses,
+          hiddenBuiltInPresetIds: storedPreference?.ai_studio_deleted_builtin_pulse_ids,
         },
         builtInDefinitions,
         {
@@ -434,7 +441,8 @@ export const useCreatePulsePresetPanelPreference = ({
       const hasRemoteValue =
         storedPreference != null &&
         (storedPreference.ai_studio_create_pulse_panel_ids != null ||
-          storedPreference.ai_studio_saved_pulses != null);
+          storedPreference.ai_studio_saved_pulses != null ||
+          storedPreference.ai_studio_deleted_builtin_pulse_ids != null);
       if (hasRemoteValue) {
         return {
           value: normalizedRemoteValue,
@@ -457,6 +465,7 @@ export const useCreatePulsePresetPanelPreference = ({
               user_id: userId,
               ai_studio_create_pulse_panel_ids: legacyGlobalValue.presetPanelIds,
               ai_studio_saved_pulses: legacyGlobalValue.customSavedPresets,
+              ai_studio_deleted_builtin_pulse_ids: legacyGlobalValue.hiddenBuiltInPresetIds,
             },
             { onConflict: "user_id" }
           );
@@ -483,6 +492,7 @@ export const useCreatePulsePresetPanelPreference = ({
           user_id: userId,
           ai_studio_create_pulse_panel_ids: nextValue.presetPanelIds,
           ai_studio_saved_pulses: nextValue.customSavedPresets,
+          ai_studio_deleted_builtin_pulse_ids: nextValue.hiddenBuiltInPresetIds,
         },
         { onConflict: "user_id" }
       );
@@ -555,6 +565,35 @@ export const useCreatePulsePresetPanelPreference = ({
     [builtInDefinitions, latestValueRef, persistValue]
   );
 
+  const setDeletedBuiltInPresetIds = useCallback(
+    (presetIds: readonly CreatePulsePresetId[]) => {
+      const hiddenBuiltInPresetIds = normalizeCreatePulseHiddenBuiltInPresetIds(
+        presetIds,
+        builtInDefinitions
+      );
+      const normalizedSavedPresets = mergeCreatePulseSavedPresets(
+        latestValueRef.current.customSavedPresets,
+        hiddenBuiltInPresetIds,
+        builtInDefinitions
+      );
+      return persistValue({
+        presetPanelIds: normalizeCreatePulsePanelPresetIds(
+          latestValueRef.current.presetPanelIds,
+          normalizedSavedPresets,
+          builtInDefinitions
+        ),
+        customSavedPresets: latestValueRef.current.customSavedPresets,
+        hiddenBuiltInPresetIds,
+      });
+    },
+    [builtInDefinitions, latestValueRef, persistValue]
+  );
+
+  const restoreDeletedBuiltInPresetIds = useCallback(
+    () => setDeletedBuiltInPresetIds([]),
+    [setDeletedBuiltInPresetIds]
+  );
+
   const resolvedPreferenceValue = resolveCreatePulsePresetPreferenceValue(
     preferenceValue,
     builtInDefinitions
@@ -563,10 +602,13 @@ export const useCreatePulsePresetPanelPreference = ({
   return {
     presetPanelIds: resolvedPreferenceValue.presetPanelIds,
     savedPresets: resolvedPreferenceValue.savedPresets,
+    deletedBuiltInPresetIds: preferenceValue.hiddenBuiltInPresetIds,
     loading,
     error,
     syncState,
     setPresetPanelIds,
     setSavedPresets,
+    setDeletedBuiltInPresetIds,
+    restoreDeletedBuiltInPresetIds,
   };
 };

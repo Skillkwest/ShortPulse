@@ -560,6 +560,83 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
+  it("loads and restores remote deleted built-in Pulse ids without storing built-ins as custom pulses", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ai_studio_create_pulse_panel_ids: ["image", "multi_shot"],
+        ai_studio_saved_pulses: [
+          {
+            presetId: "pulse_custom",
+            label: "Hook Builder",
+            systemInstructions: "Lead with one fast product hook and a clean payoff.",
+            createdAt: null,
+          },
+        ],
+        ai_studio_deleted_builtin_pulse_ids: ["image"],
+      },
+      error: null,
+    });
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-restore-pulse");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(result.current.deletedBuiltInPresetIds).toEqual(["image"]);
+    expect(result.current.presetPanelIds).toEqual(["multi_shot"]);
+    expect(result.current.savedPresets).toEqual([
+      buildExpectedSavedPulse({
+        presetId: "pulse_custom",
+        label: "Hook Builder",
+        systemInstructions: "Lead with one fast product hook and a clean payoff.",
+        createdAt: null,
+      }),
+      expect.objectContaining({
+        presetId: "image",
+        isHidden: true,
+      }),
+    ]);
+
+    await act(async () => {
+      await result.current.restoreDeletedBuiltInPresetIds();
+    });
+
+    expect(result.current.deletedBuiltInPresetIds).toEqual([]);
+    expect(upsert).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        user_id: "user-restore-pulse",
+        ai_studio_saved_pulses: [
+          buildExpectedSavedPulse({
+            presetId: "pulse_custom",
+            label: "Hook Builder",
+            systemInstructions: "Lead with one fast product hook and a clean payoff.",
+            createdAt: null,
+          }),
+        ],
+        ai_studio_deleted_builtin_pulse_ids: [],
+      }),
+      { onConflict: "user_id" }
+    );
+  });
+
   it("persists saved pulses and panel ids together", async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });

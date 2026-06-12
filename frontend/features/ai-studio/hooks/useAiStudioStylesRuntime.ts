@@ -83,6 +83,7 @@ export const useAiStudioStylesRuntime = ({
     deletedStyleIds,
     error: stylesDeleteError,
     deleteStyleId,
+    restoreDeletedStyleIds,
   } = useStylesLibraryDeletedStyleIdsPreference();
   const { setStylePanelIds, removeStylePanelId, stylePanelIds } =
     useStylesLibraryPanelIdsPreference();
@@ -139,6 +140,11 @@ export const useAiStudioStylesRuntime = ({
     [setStylePanelIds, visibleStylesCatalog]
   );
 
+  const handleRestoreBuiltInStyles = React.useCallback(
+    async (): Promise<boolean> => restoreDeletedStyleIds(),
+    [restoreDeletedStyleIds]
+  );
+
   React.useEffect(() => {
     if (!selectedStyleId) return;
     const styleStillVisible = visibleStylesCatalog.some((style) => style.id === selectedStyleId);
@@ -186,6 +192,7 @@ export const useAiStudioStylesRuntime = ({
   return {
     handleDeleteStyle,
     handleReorderStyle,
+    handleRestoreBuiltInStyles,
     styleDetailsSaveError,
     stylesCatalogLoadError: builtInStyleCatalog.error,
     stylesDeleteError,

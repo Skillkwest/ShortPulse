@@ -98,6 +98,8 @@ import {
   type PanelVisibilityState,
 } from "../logic/panelVisibility";
 import {
+  EDIT_PRESET_DELETED_OVERRIDE_LABEL,
+  EDIT_PRESET_DELETED_OVERRIDE_PROMPT,
   isExpertEditCustomPresetId,
   resolveExpertEditPresetCatalog,
   type ExpertEditPresetId,
@@ -918,6 +920,7 @@ export function AiStudioPageContent({
   const {
     handleDeleteStyle,
     handleReorderStyle,
+    handleRestoreBuiltInStyles,
     styleDetailsSaveError,
     stylesDeleteError,
     upsertStyleDetails,
@@ -1340,23 +1343,37 @@ export function AiStudioPageContent({
       visibleStylesCatalog,
     ]
   );
+  const promptCustomPresetOverrides = propertiesEditExpert.customPresetOverrides;
+  const promptSystemPresetDefinitions = propertiesEditExpert.systemPresetDefinitions;
+  const promptDeletedSystemPresetIds = propertiesEditExpert.deletedSystemPresetIds;
+  const onPromptCustomPresetOverridesChange = propertiesEditExpert.onCustomPresetOverridesChange;
+  const onDeletePromptSystemPreset = propertiesEditExpert.onDeleteSystemPreset;
+  const onRestorePromptBuiltIns = propertiesEditExpert.onRestoreDeletedSystemPresets;
   const presetsLibraryCatalog = React.useMemo(
     () =>
       resolveExpertEditPresetCatalog(
-        propertiesEditExpert.customPresetOverrides,
-        propertiesEditExpert.systemPresetDefinitions
+        promptCustomPresetOverrides,
+        promptSystemPresetDefinitions,
+        promptDeletedSystemPresetIds
       ),
-    [propertiesEditExpert.customPresetOverrides, propertiesEditExpert.systemPresetDefinitions]
+    [promptCustomPresetOverrides, promptDeletedSystemPresetIds, promptSystemPresetDefinitions]
   );
   const handleSelectedPresetIdChange = React.useCallback((presetId: ExpertEditPresetId | null) => {
     setSelectedPresetId(presetId);
   }, []);
   const handlePresetOverrideSave = React.useCallback(
     async (presetId: ExpertEditPresetId, override: ExpertEditPresetOverride): Promise<boolean> => {
-      const onCustomPresetOverridesChange = propertiesEditExpert.onCustomPresetOverridesChange;
+      const isDeletedOverride =
+        override.label === EDIT_PRESET_DELETED_OVERRIDE_LABEL &&
+        override.prompt === EDIT_PRESET_DELETED_OVERRIDE_PROMPT;
+      if (!isExpertEditCustomPresetId(presetId)) {
+        if (!isDeletedOverride || !onDeletePromptSystemPreset) return false;
+        const deleteResult = await onDeletePromptSystemPreset(presetId);
+        return deleteResult !== false;
+      }
+      const onCustomPresetOverridesChange = onPromptCustomPresetOverridesChange;
       if (!onCustomPresetOverridesChange) return false;
-      if (!isExpertEditCustomPresetId(presetId)) return false;
-      const currentOverrides = propertiesEditExpert.customPresetOverrides ?? {};
+      const currentOverrides = promptCustomPresetOverrides ?? {};
       const saveResult = await onCustomPresetOverridesChange({
         ...currentOverrides,
         [presetId]: {
@@ -1366,8 +1383,13 @@ export function AiStudioPageContent({
       });
       return saveResult !== false;
     },
-    [propertiesEditExpert.customPresetOverrides, propertiesEditExpert.onCustomPresetOverridesChange]
+    [onDeletePromptSystemPreset, onPromptCustomPresetOverridesChange, promptCustomPresetOverrides]
   );
+  const handleRestorePromptBuiltIns = React.useCallback(async (): Promise<boolean> => {
+    if (!onRestorePromptBuiltIns) return true;
+    const restoreResult = await onRestorePromptBuiltIns();
+    return restoreResult !== false;
+  }, [onRestorePromptBuiltIns]);
   const shouldReferenceGridOwnFileDrop = React.useCallback(
     (event: React.DragEvent<HTMLElement>): boolean =>
       doesReferenceGridOwnFileDrop(event, rightColumnRef.current),
@@ -1497,12 +1519,14 @@ export function AiStudioPageContent({
         onOpenEditWorkflow={() => handleToolSelection("edit")}
         onSelectPromptPreset={handleSelectedPresetIdChange}
         onSavePromptPresetOverride={handlePresetOverrideSave}
+        onRestorePromptBuiltIns={handleRestorePromptBuiltIns}
       />
     ),
     [
       handleToolSelection,
       handlePresetOverrideSave,
       handleSelectedPresetIdChange,
+      handleRestorePromptBuiltIns,
       presetsLibraryCatalog,
       selectedPresetId,
     ]
@@ -1539,6 +1563,7 @@ export function AiStudioPageContent({
           saveError={styleDetailsSaveError}
           onDeleteStyle={handleDeleteStyle}
           deleteError={stylesDeleteError}
+          onRestoreBuiltInStyles={handleRestoreBuiltInStyles}
           resolveInternalStyleDrop={resolveStyleLibraryInternalDrop}
         />
       </React.Suspense>
@@ -1546,6 +1571,7 @@ export function AiStudioPageContent({
     [
       handleDeleteStyle,
       handleReorderStyle,
+      handleRestoreBuiltInStyles,
       resolveStyleLibraryInternalDrop,
       styleDetailsSaveError,
       stylesDeleteError,

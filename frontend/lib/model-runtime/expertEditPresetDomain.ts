@@ -219,10 +219,14 @@ export const createDeletedPresetOverride = (): ExpertEditPresetOverride => ({
 const isPresetVisibleInUi = (
   presetId: ExpertEditPresetId,
   customOverrides?: ExpertEditCustomPresetOverrides | null,
-  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null,
+  deletedSystemPresetIds?: readonly ExpertEditPresetId[] | null
 ): boolean => {
   const presetDefinitionById = buildPresetDefinitionById(systemPresetDefinitions);
   if (!presetDefinitionById.has(presetId)) return false;
+  if (!presetId.startsWith("custom_") && deletedSystemPresetIds?.includes(presetId)) {
+    return false;
+  }
   const override = customOverrides?.[presetId];
   if (isDeletedPresetOverride(override)) return false;
   if (!presetId.startsWith("custom_")) return true;
@@ -236,12 +240,18 @@ const isPresetVisibleInUi = (
 };
 const resolveVisibleSurfacePresetIds = (
   customOverrides?: ExpertEditCustomPresetOverrides | null,
-  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null,
+  deletedSystemPresetIds?: readonly ExpertEditPresetId[] | null
 ): ExpertEditPresetId[] =>
   buildResolvedPresetDefinitions(systemPresetDefinitions)
     .map((definition) => definition.presetId)
     .filter((presetId) =>
-      isPresetVisibleInUi(presetId, customOverrides, systemPresetDefinitions)
+      isPresetVisibleInUi(
+        presetId,
+        customOverrides,
+        systemPresetDefinitions,
+        deletedSystemPresetIds
+      )
     ) as ExpertEditPresetId[];
 
 /**
@@ -298,13 +308,20 @@ export const mapLegacyPresetLabelToId = (
 export const mapLegacyPresetLabelsToIds = (
   labels: readonly string[],
   customOverrides?: ExpertEditCustomPresetOverrides | null,
-  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null,
+  deletedSystemPresetIds?: readonly ExpertEditPresetId[] | null
 ): ExpertEditPresetId[] => {
   const resolvedPresetIds = labels
     .map((label) => mapLegacyPresetLabelToId(label, systemPresetDefinitions))
     .filter(
       (presetId): presetId is ExpertEditPresetId =>
-        presetId != null && isPresetVisibleInUi(presetId, customOverrides, systemPresetDefinitions)
+        presetId != null &&
+        isPresetVisibleInUi(
+          presetId,
+          customOverrides,
+          systemPresetDefinitions,
+          deletedSystemPresetIds
+        )
     );
   return sortPresetIdsByCanonicalOrder(resolvedPresetIds, systemPresetDefinitions);
 };
@@ -335,11 +352,41 @@ export const sortPresetIdsByCanonicalOrder = (
 export const normalizePresetPanelPresetIds = (
   presetIds: readonly string[],
   customOverrides?: ExpertEditCustomPresetOverrides | null,
-  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null,
+  deletedSystemPresetIds?: readonly ExpertEditPresetId[] | null
 ): ExpertEditPresetId[] =>
   sortPresetIdsByCanonicalOrder(presetIds, systemPresetDefinitions)
-    .filter((presetId) => isPresetVisibleInUi(presetId, customOverrides, systemPresetDefinitions))
+    .filter((presetId) =>
+      isPresetVisibleInUi(
+        presetId,
+        customOverrides,
+        systemPresetDefinitions,
+        deletedSystemPresetIds
+      )
+    )
     .slice(0, EDIT_PRESET_PANEL_MAX);
+
+/**
+ * Normalizes a per-user denylist of admin-owned Expert Edit system preset IDs.
+ */
+export const normalizeExpertEditDeletedSystemPresetIds = (
+  value: unknown,
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+): ExpertEditPresetId[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<ExpertEditPresetId>();
+  const normalized: ExpertEditPresetId[] = [];
+  value.forEach((entry) => {
+    if (typeof entry !== "string") return;
+    const presetId = entry.trim();
+    if (!presetId || isExpertEditCustomPresetId(presetId)) return;
+    if (!isExpertEditPresetId(presetId, systemPresetDefinitions)) return;
+    if (seen.has(presetId)) return;
+    seen.add(presetId);
+    normalized.push(presetId);
+  });
+  return sortPresetIdsByCanonicalOrder(normalized, systemPresetDefinitions);
+};
 
 /**
  * Normalizes preset overrides to known preset IDs with non-empty label/prompt.
@@ -466,9 +513,14 @@ export const resolveExpertEditPresetPrompt = (
  */
 export const resolveExpertEditPresetCatalog = (
   customOverrides?: ExpertEditCustomPresetOverrides | null,
-  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null
+  systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null,
+  deletedSystemPresetIds?: readonly ExpertEditPresetId[] | null
 ): ExpertEditResolvedPreset[] =>
-  resolveVisibleSurfacePresetIds(customOverrides, systemPresetDefinitions).map((presetId) =>
+  resolveVisibleSurfacePresetIds(
+    customOverrides,
+    systemPresetDefinitions,
+    deletedSystemPresetIds
+  ).map((presetId) =>
     resolveExpertEditPresetById(presetId, customOverrides, systemPresetDefinitions)
   );
 

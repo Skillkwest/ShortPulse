@@ -429,8 +429,11 @@ export const useAiStudioPageBaseRuntime = () => {
   const {
     presetPanelIds: selectedExpertEditPresetIds,
     customPresetOverrides: expertEditCustomPresetOverrides,
+    deletedSystemPresetIds: expertEditDeletedSystemPresetIds,
     setPresetPanelIds: setSelectedExpertEditPresetIds,
     setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
+    deleteSystemPresetId: deleteExpertEditSystemPresetId,
+    restoreDeletedSystemPresetIds: restoreDeletedExpertEditSystemPresetIds,
   } = useExpertEditPresetPanelPreference({
     enabled: shouldLoadExpertEditPresetRuntime,
     systemPresetDefinitions: expertEditSystemPresetDefinitions,
@@ -656,6 +659,7 @@ export const useAiStudioPageBaseRuntime = () => {
     elementCreateRequestKey,
     expertCreateMode,
     expertEditCustomPresetOverrides,
+    expertEditDeletedSystemPresetIds,
     expertEditSystemPresetDefinitions,
     expertEditSessionState,
     expertEditSessionRevision,
@@ -791,6 +795,8 @@ export const useAiStudioPageBaseRuntime = () => {
     setEditSelectedCharacterId,
     setEditSubmitIntent,
     setExpertEditCustomPresetOverrides,
+    deleteExpertEditSystemPresetId,
+    restoreDeletedExpertEditSystemPresetIds,
     setExpertEditSessionState,
     setImageExtraImageUrl,
     setImageReferenceImageUrl,

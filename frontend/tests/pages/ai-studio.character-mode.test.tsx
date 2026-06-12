@@ -489,8 +489,11 @@ vi.mock("../../features/ai-studio/hooks/useExpertEditPresetPanelPreference", () 
   useExpertEditPresetPanelPreference: () => ({
     presetPanelIds: [],
     customPresetOverrides: {},
+    deletedSystemPresetIds: [],
     setPresetPanelIds: vi.fn(),
     setCustomPresetOverrides: vi.fn(),
+    deleteSystemPresetId: vi.fn(),
+    restoreDeletedSystemPresetIds: vi.fn(),
   }),
 }));
 
@@ -498,8 +501,10 @@ vi.mock("../../features/ai-studio/hooks/useCreatePulsePresetPanelPreference", ()
   useCreatePulsePresetPanelPreference: () => ({
     presetPanelIds: [],
     savedPresets: [],
+    deletedBuiltInPresetIds: [],
     setPresetPanelIds: vi.fn(),
     setSavedPresets: vi.fn(),
+    restoreDeletedBuiltInPresetIds: vi.fn(),
   }),
 }));
 

@@ -97,6 +97,9 @@ export type ExpertEditPanelViewProps = {
   onCustomPresetOverridesChange?: (
     overrides: ExpertEditCustomPresetOverrides
   ) => void | boolean | Promise<boolean>;
+  deletedSystemPresetIds?: readonly ExpertEditPresetId[];
+  onDeleteSystemPreset?: (presetId: ExpertEditPresetId) => void | boolean | Promise<boolean>;
+  onRestoreDeletedSystemPresets?: () => void | boolean | Promise<boolean>;
   systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[];
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;

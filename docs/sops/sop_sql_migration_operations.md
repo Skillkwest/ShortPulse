@@ -206,6 +206,7 @@ Current set:
 - `153_add_dashboard_tutorials.sql`
 - `154_add_dashboard_tutorial_thumbnail_uploads.sql`
 - `155_add_dashboard_tutorial_thumbnail_display_derivatives.sql`
+- `156_add_user_preferences_deleted_builtin_presets.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

@@ -121,27 +121,30 @@ describe("expert edit layout contract", () => {
       ".edit-expert-primary-column > .edit-expert-column-wrapper--center"
     );
     const primaryStageShell = extractRuleBlock(css, ".edit-expert-primary-stage-shell");
-    const inlineStageCameraLayer = extractRuleBlock(
-      css,
-      ".edit-expert-primary-stage-shell .edit-expert-stage-camera-layer"
-    );
+    const stageCameraLayer = extractRuleBlock(css, ".edit-expert-markup-viewport");
     const secondaryRow = extractRuleBlock(css, ".edit-expert-secondary-row");
 
     expect(css).toContain(".edit-expert-main-stage");
     expect(mainStage).toContain("margin: 0;");
+    expect(mainStage).toContain("justify-items: stretch;");
     expect(css).toContain("align-items: stretch;");
     expect(css).toContain("flex: 1 1 auto;");
     expect(primaryColumn).toContain("width: 100%;");
     expect(primaryColumn).toContain("align-items: stretch;");
     expect(primaryColumn).toContain("align-self: stretch;");
+    expect(primaryColumn).toContain("justify-self: stretch;");
     expect(primaryColumnShell).toContain("width: 100%;");
+    expect(primaryColumnShell).toContain("max-width: none;");
     expect(primaryColumnShell).toContain("display: flex;");
     expect(primaryColumnShell).toContain("align-items: stretch;");
+    expect(primaryColumnShell).toContain("align-self: stretch;");
     expect(primaryColumnShell).toContain("height: 100%;");
     expect(centerColumnWrappers).toContain("align-items: stretch;");
+    expect(centerColumnWrappers).toContain("align-self: stretch;");
     expect(primaryStageShell).toContain("width: 100%;");
     expect(primaryStageShell).toContain("flex: 1 1 auto;");
-    expect(inlineStageCameraLayer).toContain("justify-content: flex-start;");
+    expect(stageCameraLayer).toContain("justify-content: center;");
+    expect(css).not.toContain(".edit-expert-primary-stage-shell .edit-expert-stage-camera-layer");
     expect(secondaryRow).toContain("max-width: 100%;");
   });
 

@@ -14,6 +14,8 @@ export const asDashboardTutorial = (value: unknown): DashboardTutorial | null =>
   const title = typeof row.title === "string" ? row.title.trim() : "";
   const youtubeUrl = typeof row.youtubeUrl === "string" ? row.youtubeUrl.trim() : "";
   const thumbnailUrl = typeof row.thumbnailUrl === "string" ? row.thumbnailUrl.trim() : "";
+  const thumbnailPosterUrl =
+    typeof row.thumbnailPosterUrl === "string" ? row.thumbnailPosterUrl.trim() : null;
   const thumbnailMediaType =
     row.thumbnailMediaType === "video" || row.thumbnailMediaType === "image"
       ? row.thumbnailMediaType
@@ -26,6 +28,7 @@ export const asDashboardTutorial = (value: unknown): DashboardTutorial | null =>
     youtubeUrl,
     thumbnailUrl,
     thumbnailMediaType,
+    thumbnailPosterUrl,
     thumbnailAlt: typeof row.thumbnailAlt === "string" ? row.thumbnailAlt.trim() : "",
     displayOrder: typeof row.displayOrder === "number" ? row.displayOrder : 0,
   };

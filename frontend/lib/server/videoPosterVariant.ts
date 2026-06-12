@@ -16,6 +16,8 @@ const execFileAsync = promisify(execFile);
 const MEDIA_BUCKET = "media_library";
 export const VIDEO_PREVIEW_SCALE_FILTER =
   "scale=360:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2";
+export const VIDEO_PREVIEW_SECONDS = 3;
+export const VIDEO_PREVIEW_CRF = 30;
 export const VIDEO_POSTER_SEEK_SECONDS = 0.5;
 export const VIDEO_POSTER_FILTER = "thumbnail,scale=720:-2:force_original_aspect_ratio=decrease";
 const VIDEO_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
@@ -98,6 +100,53 @@ const buildFallbackFirstFramePosterExtractionArgs = ({
 }): string[] => ["-y", "-i", inputPath, "-frames:v", "1", "-q:v", "3", outputPath];
 
 /**
+ * Builds ffmpeg arguments for a silent MP4 preview/display derivative.
+ */
+export const buildVideoPreviewVariantExtractionArgs = ({
+  inputPath,
+  outputPath,
+  scaleFilter = VIDEO_PREVIEW_SCALE_FILTER,
+  previewSeconds = VIDEO_PREVIEW_SECONDS,
+  crf = VIDEO_PREVIEW_CRF,
+}: {
+  inputPath: string;
+  outputPath: string;
+  scaleFilter?: string;
+  previewSeconds?: number | null;
+  crf?: number;
+}): string[] => {
+  const normalizedScaleFilter = scaleFilter.trim() || VIDEO_PREVIEW_SCALE_FILTER;
+  const normalizedCrf =
+    Number.isFinite(crf) && crf >= 0 && crf <= 51 ? Math.trunc(crf) : VIDEO_PREVIEW_CRF;
+  const normalizedPreviewSeconds =
+    previewSeconds === null
+      ? null
+      : Number.isFinite(previewSeconds) && previewSeconds > 0
+        ? previewSeconds
+        : VIDEO_PREVIEW_SECONDS;
+  const args = ["-y", "-i", inputPath, "-an"];
+  if (normalizedPreviewSeconds !== null) {
+    args.push("-t", String(normalizedPreviewSeconds));
+  }
+  args.push(
+    "-vf",
+    normalizedScaleFilter,
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    String(normalizedCrf),
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    outputPath
+  );
+  return args;
+};
+
+/**
  * Extracts a JPEG poster from a representative early video frame.
  */
 export const extractVideoPosterBuffer = async ({
@@ -151,10 +200,18 @@ export const extractVideoPreviewVariantBuffer = async ({
   videoBuffer,
   videoMimeType,
   filename,
+  scaleFilter,
+  previewSeconds,
+  crf,
+  outputBasename = "preview_loop_360p.mp4",
 }: {
   videoBuffer: Buffer;
   videoMimeType?: string | null;
   filename?: string | null;
+  scaleFilter?: string;
+  previewSeconds?: number | null;
+  crf?: number;
+  outputBasename?: string;
 }): Promise<Buffer | null> => {
   if (!ffmpegStatic) return null;
   const tempDir = await createTempDir();
@@ -162,31 +219,20 @@ export const extractVideoPreviewVariantBuffer = async ({
     tempDir,
     `source.${resolveVideoExtension({ filename, mimeType: videoMimeType })}`
   );
-  const outputPath = path.join(tempDir, "preview_loop_360p.mp4");
+  const outputPath = path.join(tempDir, outputBasename);
 
   try {
     await fs.writeFile(inputPath, videoBuffer);
-    await execFileAsync(ffmpegStatic, [
-      "-y",
-      "-i",
-      inputPath,
-      "-an",
-      "-t",
-      "3",
-      "-vf",
-      VIDEO_PREVIEW_SCALE_FILTER,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "30",
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+faststart",
-      outputPath,
-    ]);
+    await execFileAsync(
+      ffmpegStatic,
+      buildVideoPreviewVariantExtractionArgs({
+        inputPath,
+        outputPath,
+        scaleFilter,
+        previewSeconds,
+        crf,
+      })
+    );
     return await fs.readFile(outputPath);
   } catch {
     return null;

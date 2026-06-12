@@ -169,6 +169,18 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
     await finalizeHandler(req as never, res as never);
 
     expect(downloadMock).toHaveBeenCalledWith("tutorial-thumbnails/generated.gif");
+    expect(extractVideoPreviewVariantBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoBuffer: Buffer.from(gifBytes),
+        videoMimeType: "image/gif",
+        filename: "tutorial-thumbnails/generated.gif",
+        scaleFilter:
+          "scale=720:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2",
+        previewSeconds: null,
+        crf: 24,
+        outputBasename: "display.mp4",
+      })
+    );
     expect(uploadMock).toHaveBeenCalledWith(
       expect.stringMatching(/^tutorial-thumbnail-variants\/.+\/display\.mp4$/),
       Buffer.from("preview-mp4"),

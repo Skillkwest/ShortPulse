@@ -22,17 +22,16 @@ const require = createRequire(import.meta.url);
 const { createClient } = require("../node_modules/@supabase/supabase-js");
 const sharp = require("../node_modules/sharp");
 const ffmpegStatic = require("../node_modules/ffmpeg-static");
+const dashboardTutorialThumbnailProfile = require("../lib/server/api/dashboardTutorialThumbnailProfile.json");
 
 const THUMBNAIL_BUCKET = "dashboard_tutorial_thumbnails";
 const SOURCE_PREFIX = "tutorial-thumbnails";
 const VARIANT_PREFIX = "tutorial-thumbnail-variants";
 const DEFAULT_LIMIT = 25;
 const DEFAULT_TIMEOUT_MS = 120_000;
-const DEFAULT_PREVIEW_SECONDS = 3;
 const MAX_SOURCE_BYTES = 50 * 1024 * 1024;
-const MAX_DISPLAY_BYTES = 5 * 1024 * 1024;
-const VIDEO_PREVIEW_SCALE_FILTER =
-  "scale=360:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2";
+const MAX_DISPLAY_BYTES = dashboardTutorialThumbnailProfile.motionDisplayMaxBytes;
+const VIDEO_PREVIEW_SCALE_FILTER = `scale=${dashboardTutorialThumbnailProfile.motionDisplayMaxDimension}:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2`;
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const FRONTEND_ROOT = path.join(REPO_ROOT, "frontend");
@@ -231,8 +230,13 @@ const extensionForSource = ({ storagePath, mimeType }) => {
 const createStillDerivative = async (sourceBuffer) => {
   const displayBuffer = await sharp(sourceBuffer, { failOn: "none" })
     .rotate()
-    .resize({ width: 360, height: 360, fit: "cover", withoutEnlargement: true })
-    .webp({ quality: 76, effort: 4 })
+    .resize({
+      width: dashboardTutorialThumbnailProfile.stillDisplayMaxDimension,
+      height: dashboardTutorialThumbnailProfile.stillDisplayMaxDimension,
+      fit: "cover",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: dashboardTutorialThumbnailProfile.stillDisplayWebpQuality, effort: 4 })
     .toBuffer();
   if (displayBuffer.byteLength <= 0 || displayBuffer.byteLength > MAX_DISPLAY_BYTES) {
     throw new Error("display_derivative_size_invalid");
@@ -266,8 +270,6 @@ const createMotionDerivative = async ({
         "-i",
         inputPath,
         "-an",
-        "-t",
-        String(DEFAULT_PREVIEW_SECONDS),
         "-vf",
         VIDEO_PREVIEW_SCALE_FILTER,
         "-c:v",
@@ -275,7 +277,7 @@ const createMotionDerivative = async ({
         "-preset",
         "veryfast",
         "-crf",
-        "30",
+        String(dashboardTutorialThumbnailProfile.motionDisplayCrf),
         "-pix_fmt",
         "yuv420p",
         "-movflags",

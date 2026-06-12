@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import sharp from "sharp";
 import type { getSupabaseAdmin } from "./supabaseAdmin";
 import { extractVideoPosterBuffer, extractVideoPreviewVariantBuffer } from "../videoPosterVariant";
+import dashboardTutorialThumbnailProfile from "./dashboardTutorialThumbnailProfile.json";
 
 type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
 
@@ -13,8 +14,14 @@ export const DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET = "dashboard_tutorial_thumbnail
 export const DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PREFIX = "tutorial-thumbnails";
 export const DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX = "tutorial-thumbnail-variants";
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MAX_BYTES = 50 * 1024 * 1024;
-export const DASHBOARD_TUTORIAL_THUMBNAIL_DISPLAY_MAX_BYTES = 5 * 1024 * 1024;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_DISPLAY_MAX_BYTES =
+  dashboardTutorialThumbnailProfile.motionDisplayMaxBytes;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_SIGNED_URL_TTL_SECONDS = 24 * 60 * 60;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_STILL_DISPLAY_MAX_DIMENSION =
+  dashboardTutorialThumbnailProfile.stillDisplayMaxDimension;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_SCALE_FILTER = `scale=${dashboardTutorialThumbnailProfile.motionDisplayMaxDimension}:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2`;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_CRF =
+  dashboardTutorialThumbnailProfile.motionDisplayCrf;
 
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES = [
   "image/gif",
@@ -249,8 +256,13 @@ const createImageDisplayDerivative = async (
 }> => {
   const buffer = await sharp(sourceBuffer, { failOn: "none" })
     .rotate()
-    .resize({ width: 360, height: 360, fit: "cover", withoutEnlargement: true })
-    .webp({ quality: 76, effort: 4 })
+    .resize({
+      width: DASHBOARD_TUTORIAL_THUMBNAIL_STILL_DISPLAY_MAX_DIMENSION,
+      height: DASHBOARD_TUTORIAL_THUMBNAIL_STILL_DISPLAY_MAX_DIMENSION,
+      fit: "cover",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: dashboardTutorialThumbnailProfile.stillDisplayWebpQuality, effort: 4 })
     .toBuffer();
 
   if (
@@ -286,6 +298,10 @@ const createMotionDisplayDerivatives = async ({
       videoBuffer: sourceBuffer,
       videoMimeType: mimeType,
       filename: storagePath,
+      scaleFilter: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_SCALE_FILTER,
+      previewSeconds: null,
+      crf: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_CRF,
+      outputBasename: "display.mp4",
     }),
     extractVideoPosterBuffer({
       videoBuffer: sourceBuffer,

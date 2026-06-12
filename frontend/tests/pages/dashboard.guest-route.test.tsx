@@ -261,6 +261,14 @@ describe("Dashboard guest route", () => {
             thumbnailFileSizeBytes: null,
             thumbnailContentType: null,
             thumbnailMediaType: "image",
+            thumbnailDisplayStoragePath: null,
+            thumbnailDisplayFileSizeBytes: null,
+            thumbnailDisplayContentType: null,
+            thumbnailDisplayMediaType: null,
+            thumbnailPosterUrl: null,
+            thumbnailPosterStoragePath: null,
+            thumbnailPosterFileSizeBytes: null,
+            thumbnailPosterContentType: null,
             thumbnailAlt: "Stale tutorial preview",
             displayOrder: 1,
             isActive: true,
@@ -327,6 +335,7 @@ describe("Dashboard guest route", () => {
             title: "Generate videos with ShortPulse",
             youtubeUrl: "https://www.youtube.com/watch?v=abc123",
             thumbnailUrl: "https://cdn.example.com/tutorial.mp4",
+            thumbnailPosterUrl: "https://cdn.example.com/tutorial-poster.jpg",
             thumbnailMediaType: "video",
             thumbnailAlt: "Tutorial preview",
             displayOrder: 1,
@@ -345,6 +354,7 @@ describe("Dashboard guest route", () => {
     expect(thumbnailVideo).toBeInTheDocument();
     expect(thumbnailVideo).toHaveAttribute("preload", "auto");
     expect(thumbnailVideo).toHaveAttribute("loop");
+    expect(thumbnailVideo).toHaveAttribute("poster", "https://cdn.example.com/tutorial-poster.jpg");
   });
 
   it("hydrates public tutorial cards from the dashboard tutorials endpoint", async () => {

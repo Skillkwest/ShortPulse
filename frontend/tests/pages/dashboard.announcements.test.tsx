@@ -225,8 +225,9 @@ describe("Dashboard announcement rendering", () => {
                 id: "tutorial-1",
                 title: "Create your first project",
                 youtubeUrl: "https://www.youtube.com/watch?v=abc123",
-                thumbnailUrl: "https://cdn.example.com/tutorial.gif",
-                thumbnailMediaType: "image",
+                thumbnailUrl: "https://cdn.example.com/tutorial.mp4",
+                thumbnailPosterUrl: "https://cdn.example.com/tutorial-poster.jpg",
+                thumbnailMediaType: "video",
                 thumbnailAlt: "Animated project creation preview",
                 displayOrder: 1,
               },
@@ -246,6 +247,10 @@ describe("Dashboard announcement rendering", () => {
     const tutorialButton = screen.getByRole("button", {
       name: "Create your first project: open tutorial",
     });
+    expect(tutorialButton.querySelector("video")).toHaveAttribute(
+      "poster",
+      "https://cdn.example.com/tutorial-poster.jpg"
+    );
     fireEvent.click(tutorialButton);
 
     expect(screen.getByRole("dialog", { name: "Create your first project" })).toBeInTheDocument();

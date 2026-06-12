@@ -43,6 +43,8 @@ describe("useAiStudioPageOutputAdapters", () => {
         },
         referenceImageUrl: "https://example.com/reference.png",
         extraImageUrls: ["https://example.com/extra-1.png", null, null],
+        videoReferenceImageUrl: null,
+        videoExtraImageUrls: [null, null, null],
         outputSelectorStoreEnabled: true,
         selectorCallbacksEnabled: true,
       })
@@ -69,6 +71,8 @@ describe("useAiStudioPageOutputAdapters", () => {
           "https://example.com/extra-2.png",
           null,
         ],
+        videoReferenceImageUrl: null,
+        videoExtraImageUrls: [null, null, null],
         outputSelectorStoreEnabled: false,
         selectorCallbacksEnabled: false,
       })
@@ -83,7 +87,7 @@ describe("useAiStudioPageOutputAdapters", () => {
     expect(result.current.resolvePanelOutputPreviewUrl(archivedReady.id)).toBeNull();
   });
 
-  it("returns reference inputs only for edit/image workflows", () => {
+  it("returns workflow-specific reference inputs for image/edit and video workflows", () => {
     const { result } = renderHook(() =>
       useAiStudioPageOutputAdapters({
         outputs: [],
@@ -92,6 +96,12 @@ describe("useAiStudioPageOutputAdapters", () => {
         extraImageUrls: [
           "https://example.com/extra-1.png",
           "https://example.com/extra-2.png",
+          null,
+        ],
+        videoReferenceImageUrl: "https://example.com/video-first.png",
+        videoExtraImageUrls: [
+          "https://example.com/video-last.png",
+          "https://example.com/video-extra-2.png",
           null,
         ],
         outputSelectorStoreEnabled: true,
@@ -108,8 +118,20 @@ describe("useAiStudioPageOutputAdapters", () => {
       extraImageUrls: ["https://example.com/extra-1.png", "https://example.com/extra-2.png", null],
     });
     expect(result.current.resolveReferenceInputsForTool("video")).toEqual({
-      referenceImageUrl: null,
-      extraImageUrls: [null, null, null],
+      referenceImageUrl: "https://example.com/video-first.png",
+      extraImageUrls: [
+        "https://example.com/video-last.png",
+        "https://example.com/video-extra-2.png",
+        null,
+      ],
+    });
+    expect(result.current.resolveReferenceInputsForTool("kling")).toEqual({
+      referenceImageUrl: "https://example.com/video-first.png",
+      extraImageUrls: [
+        "https://example.com/video-last.png",
+        "https://example.com/video-extra-2.png",
+        null,
+      ],
     });
     expect(result.current.resolveReferenceInputsForTool("create")).toEqual({
       referenceImageUrl: null,

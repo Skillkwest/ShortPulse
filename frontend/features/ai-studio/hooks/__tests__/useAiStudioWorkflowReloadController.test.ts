@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
+import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 import type {
   StudioOutput,
   ToolId,
@@ -485,6 +486,155 @@ describe("useAiStudioWorkflowReloadController", () => {
       { id: "shot-1", prompt: "Shot", duration: 4 },
     ]);
     expect(params.setKlingElements).toHaveBeenCalledWith([{ id: "el-1", frontalImageUrl: "" }]);
+  });
+
+  it("hydrates video workflow reference sidecar media and internal refs", () => {
+    const firstFrameRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/first-frame.png",
+    };
+    const lastFrameRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/last-frame.png",
+    };
+    const seedImageRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/seed-image.png",
+    };
+    const elementProfileRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/element-profile.png",
+    };
+    const elementReferenceRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/element-reference.png",
+    };
+    const workflowReload: WorkflowReloadConfigV1 = {
+      ...makeImageReload(),
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: { display: "Restore the exact reference setup" },
+      model: { id: "fal-ai/bytedance/seedance/v2/text-to-video" },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "keyframes",
+        durationSeconds: 5,
+        resolution: "720p",
+        generateAudio: false,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: ["https://example.com/legacy-first.png"],
+        internalMediaRefs: [],
+        seedance2InputMode: "multimodal",
+        seedance2ReferenceImageUrls: ["https://example.com/legacy-seed.png"],
+        seedance2ReferenceVideoUrls: ["https://example.com/legacy-seed.mp4"],
+        seedance2ReferenceAudioUrls: ["https://example.com/legacy-seed.mp3"],
+        klingElements: [{ id: "legacy-element", frontalImageUrl: "" }],
+        videoReferences: {
+          version: 1,
+          firstFrame: {
+            sourceUrl: "https://example.com/video-first.png",
+            internalMediaRef: firstFrameRef,
+          },
+          lastFrame: {
+            sourceUrl: "https://example.com/video-last.png",
+            internalMediaRef: lastFrameRef,
+          },
+          seedance2ReferenceImages: [
+            {
+              slotIndex: 0,
+              sourceUrl: "https://example.com/seed-image.png",
+              internalMediaRef: seedImageRef,
+            },
+          ],
+          seedance2ReferenceVideos: [
+            { slotIndex: 0, sourceUrl: "https://example.com/seed-video.mp4" },
+          ],
+          seedance2ReferenceAudio: [
+            { slotIndex: 0, sourceUrl: "https://example.com/seed-audio.mp3" },
+          ],
+          klingElementSlots: [
+            {
+              slotIndex: 0,
+              element: {
+                id: "element-1",
+                profileImageUrl: "https://example.com/element-profile.png",
+                referenceImageUrls: "https://example.com/element-reference.png",
+              },
+              profileImageInternalMediaRef: elementProfileRef,
+              referenceImageInternalMediaRefs: [elementReferenceRef],
+            },
+          ],
+        },
+      },
+    };
+    const params = makeParams(makeOutput(workflowReload));
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    const selectionState = params.setReferenceSelectionState.mock.calls[0]?.[0];
+    expect(selectionState).toEqual(
+      expect.objectContaining({
+        selectedTool: "video",
+        referenceImageUrl: "https://example.com/video-first.png",
+        motionReferenceVideoUrl: null,
+        useReferenceImageIndicator: true,
+      })
+    );
+    expect(selectionState?.extraImageUrls).toEqual([
+      "https://example.com/video-last.png",
+      null,
+      null,
+    ]);
+    expect(selectionState?.referenceImageInternalMediaRefs).toEqual([
+      firstFrameRef,
+      lastFrameRef,
+      null,
+      null,
+    ]);
+    expect(params.setSeedance2ReferenceImageUrls).toHaveBeenCalledWith([
+      "https://example.com/seed-image.png",
+    ]);
+    expect(params.setSeedance2ReferenceVideoUrls).toHaveBeenCalledWith([
+      "https://example.com/seed-video.mp4",
+    ]);
+    expect(params.setSeedance2ReferenceAudioUrls).toHaveBeenCalledWith([
+      "https://example.com/seed-audio.mp3",
+    ]);
+    expect(params.setKlingElements).toHaveBeenCalledWith([
+      {
+        id: "element-1",
+        profileImageUrl: "https://example.com/element-profile.png",
+        referenceImageUrls: "https://example.com/element-reference.png",
+      },
+    ]);
+    expect(resolveInternalMediaRefForUrl("https://example.com/video-first.png")).toEqual(
+      firstFrameRef
+    );
+    expect(resolveInternalMediaRefForUrl("https://example.com/seed-image.png")).toEqual(
+      seedImageRef
+    );
+    expect(resolveInternalMediaRefForUrl("https://example.com/element-profile.png")).toEqual(
+      elementProfileRef
+    );
+    expect(resolveInternalMediaRefForUrl("https://example.com/element-reference.png")).toEqual(
+      elementReferenceRef
+    );
   });
 
   it("hydrates audio workflow families", () => {

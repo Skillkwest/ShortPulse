@@ -11,6 +11,8 @@ type UseAiStudioPageOutputAdaptersParams = {
   getOutputById: (id: string) => StudioOutput | null;
   referenceImageUrl: string | null;
   extraImageUrls: readonly (string | null)[];
+  videoReferenceImageUrl: string | null;
+  videoExtraImageUrls: readonly (string | null)[];
   outputSelectorStoreEnabled: boolean;
   selectorCallbacksEnabled: boolean;
 };
@@ -23,6 +25,8 @@ export const useAiStudioPageOutputAdapters = ({
   getOutputById,
   referenceImageUrl,
   extraImageUrls,
+  videoReferenceImageUrl,
+  videoExtraImageUrls,
   outputSelectorStoreEnabled,
   selectorCallbacksEnabled,
 }: UseAiStudioPageOutputAdaptersParams) => {
@@ -53,6 +57,12 @@ export const useAiStudioPageOutputAdapters = ({
 
   const resolveReferenceInputsForTool = useCallback(
     (tool: ToolId | null) => {
+      if (tool === "video" || tool === "kling") {
+        return {
+          referenceImageUrl: videoReferenceImageUrl,
+          extraImageUrls: videoExtraImageUrls,
+        };
+      }
       if (tool === "edit" || tool === "image") {
         return {
           referenceImageUrl,
@@ -64,7 +74,7 @@ export const useAiStudioPageOutputAdapters = ({
         extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
       };
     },
-    [extraImageUrls, referenceImageUrl]
+    [extraImageUrls, referenceImageUrl, videoExtraImageUrls, videoReferenceImageUrl]
   );
 
   const findOutputById = useCallback(

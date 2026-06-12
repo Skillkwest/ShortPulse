@@ -3,13 +3,43 @@ import React from "react";
 import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 import { resolveImageDimensionsFromUrl } from "./expertEditPanelViewContract";
 
-type LayerImageDimensionCache = Record<
-  string,
-  { url: string; width: number; height: number; isRenderable: boolean }
->;
+export type LayerImageDimensionCacheEntry = {
+  url: string;
+  width: number;
+  height: number;
+  isRenderable: boolean;
+  source: "seed" | "probe";
+};
+
+type LayerImageDimensionCache = Record<string, LayerImageDimensionCacheEntry>;
 
 type UseExpertEditLayerImageDimensionRuntimeParams = {
   layers: ExpertEditLayer[];
+};
+
+export const shouldApplySeededLayerImageDimensions = ({
+  current,
+  url,
+  dimensions,
+}: {
+  current: LayerImageDimensionCacheEntry | undefined;
+  url: string;
+  dimensions: { width: number; height: number };
+}): boolean => {
+  if (!current || current.url !== url) return true;
+  if (current.source === "probe") return false;
+  return current.width !== dimensions.width || current.height !== dimensions.height;
+};
+
+export const shouldProbeLayerImageDimensions = ({
+  imageUrl,
+  cached,
+}: {
+  imageUrl: string | null | undefined;
+  cached: LayerImageDimensionCacheEntry | undefined;
+}): boolean => {
+  if (!imageUrl) return false;
+  return !cached || cached.url !== imageUrl || cached.source !== "probe";
 };
 
 export function useExpertEditLayerImageDimensionRuntime({
@@ -23,12 +53,7 @@ export function useExpertEditLayerImageDimensionRuntime({
       if (!(dimensions.width > 0) || !(dimensions.height > 0)) return;
       setLayerImageDimensionCache((previousCache) => {
         const current = previousCache[layerId];
-        if (
-          current &&
-          current.url === url &&
-          current.width === dimensions.width &&
-          current.height === dimensions.height
-        ) {
+        if (!shouldApplySeededLayerImageDimensions({ current, url, dimensions })) {
           return previousCache;
         }
         return {
@@ -38,6 +63,7 @@ export function useExpertEditLayerImageDimensionRuntime({
             width: dimensions.width,
             height: dimensions.height,
             isRenderable: true,
+            source: "seed",
           },
         };
       });
@@ -67,9 +93,11 @@ export function useExpertEditLayerImageDimensionRuntime({
 
   React.useEffect(() => {
     const pendingLayers = layers.filter((layer) => {
-      if (!layer.imageUrl) return false;
       const cached = layerImageDimensionCache[layer.id];
-      return !cached || cached.url !== layer.imageUrl;
+      return shouldProbeLayerImageDimensions({
+        imageUrl: layer.imageUrl,
+        cached,
+      });
     });
     if (pendingLayers.length <= 0) return;
 
@@ -86,7 +114,8 @@ export function useExpertEditLayerImageDimensionRuntime({
               current &&
               current.url === imageUrl &&
               current.width === dimensions.width &&
-              current.height === dimensions.height
+              current.height === dimensions.height &&
+              current.source === "probe"
             ) {
               return previousCache;
             }
@@ -97,6 +126,7 @@ export function useExpertEditLayerImageDimensionRuntime({
                 width: dimensions.width,
                 height: dimensions.height,
                 isRenderable: true,
+                source: "probe",
               },
             };
           });
@@ -115,6 +145,7 @@ export function useExpertEditLayerImageDimensionRuntime({
                 width: 1,
                 height: 1,
                 isRenderable: false,
+                source: "probe",
               },
             };
           });

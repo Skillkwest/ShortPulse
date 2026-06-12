@@ -26,8 +26,12 @@ import type {
   WorkflowReloadSeedance2InputMode,
   WorkflowReloadSoundEffectFormat,
   WorkflowReloadSoundEffectsPayload,
+  WorkflowReloadVideoFrameSlot,
+  WorkflowReloadVideoKlingElementSlot,
+  WorkflowReloadVideoMediaSlot,
   WorkflowReloadVideoPayload,
   WorkflowReloadVideoReferenceMode,
+  WorkflowReloadVideoReferences,
   WorkflowReloadVoiceChangerPayload,
   WorkflowReloadVoiceChangerSource,
   WorkflowReloadVoiceoverPayload,
@@ -77,6 +81,8 @@ const VALID_PANEL_KINDS = new Set<WorkflowReloadPanelKind>([
 
 const VALID_OUTPUT_MODES = new Set<StudioMode>(["image", "video", "audio", "text"]);
 const MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS = 16;
+const MAX_VIDEO_RELOAD_ELEMENT_SLOTS = 6;
+const MAX_VIDEO_RELOAD_MEDIA_SLOTS = 16;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -111,6 +117,8 @@ const asStringArray = (value: unknown, limit = MAX_WORKFLOW_RELOAD_REFERENCE_INP
 
 const asPlainObject = (value: unknown): Record<string, unknown> | undefined =>
   isObject(value) ? { ...value } : undefined;
+
+const isLocalOnlyUrl = (value: string) => /^blob:|^data:/i.test(value);
 
 const INVALID_OPTIONAL_STRING = Symbol("invalid_optional_string");
 
@@ -382,6 +390,168 @@ const normalizeKlingElements = (value: unknown): Array<Record<string, unknown>> 
   return value.filter(isObject).map((item) => ({ ...item }));
 };
 
+const splitReferenceImageUrls = (value: unknown): string[] =>
+  typeof value === "string"
+    ? value
+        .split(/[,\n]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
+const normalizeVideoFrameSlot = (value: unknown): WorkflowReloadVideoFrameSlot | null => {
+  if (!isObject(value)) return null;
+  const sourceUrl = asTrimmedString(value.sourceUrl);
+  if (!sourceUrl) return null;
+  const internalMediaRef = normalizeInternalRefs([value.internalMediaRef], 1)[0] ?? null;
+  if (isLocalOnlyUrl(sourceUrl) && !internalMediaRef) return null;
+  return {
+    sourceUrl,
+    ...(internalMediaRef ? { internalMediaRef } : {}),
+  };
+};
+
+const normalizeVideoMediaSlots = (value: unknown): WorkflowReloadVideoMediaSlot[] => {
+  if (!Array.isArray(value)) return [];
+  const seenSlots = new Set<number>();
+  return value
+    .slice(0, MAX_VIDEO_RELOAD_MEDIA_SLOTS)
+    .reduce<WorkflowReloadVideoMediaSlot[]>((slots, item) => {
+      if (!isObject(item)) return slots;
+      const slotIndex = asIntegerOrNull(item.slotIndex);
+      const sourceUrl = asTrimmedString(item.sourceUrl);
+      if (
+        slotIndex == null ||
+        slotIndex < 0 ||
+        slotIndex >= MAX_VIDEO_RELOAD_MEDIA_SLOTS ||
+        !sourceUrl ||
+        seenSlots.has(slotIndex)
+      ) {
+        return slots;
+      }
+      const internalMediaRef = normalizeInternalRefs([item.internalMediaRef], 1)[0] ?? null;
+      if (isLocalOnlyUrl(sourceUrl) && !internalMediaRef) return slots;
+      seenSlots.add(slotIndex);
+      slots.push({
+        slotIndex,
+        sourceUrl,
+        ...(internalMediaRef ? { internalMediaRef } : {}),
+      });
+      return slots;
+    }, [])
+    .sort((left, right) => left.slotIndex - right.slotIndex);
+};
+
+const normalizeVideoKlingElementSlot = (
+  value: unknown
+): WorkflowReloadVideoKlingElementSlot | null => {
+  if (!isObject(value) || !isObject(value.element)) return null;
+  const slotIndex = asIntegerOrNull(value.slotIndex);
+  if (slotIndex == null || slotIndex < 0 || slotIndex >= MAX_VIDEO_RELOAD_ELEMENT_SLOTS) {
+    return null;
+  }
+  const element: WorkflowReloadVideoKlingElementSlot["element"] = {
+    ...value.element,
+    slotIndex,
+  };
+  const profileImageInternalMediaRef =
+    normalizeInternalRefs([value.profileImageInternalMediaRef], 1)[0] ?? null;
+  const frontalImageInternalMediaRef =
+    normalizeInternalRefs([value.frontalImageInternalMediaRef], 1)[0] ?? null;
+  const videoInternalMediaRef = normalizeInternalRefs([value.videoInternalMediaRef], 1)[0] ?? null;
+  const referenceImageInternalMediaRefs = normalizeInternalRefs(
+    value.referenceImageInternalMediaRefs,
+    MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS
+  );
+  const profileImageUrl = asOptionalString(element.profileImageUrl);
+  if (profileImageUrl && isLocalOnlyUrl(profileImageUrl) && !profileImageInternalMediaRef) {
+    element.profileImageUrl = null;
+  }
+  const frontalImageUrl = asOptionalString(element.frontalImageUrl);
+  if (frontalImageUrl && isLocalOnlyUrl(frontalImageUrl) && !frontalImageInternalMediaRef) {
+    element.frontalImageUrl = "";
+  }
+  const referenceImageUrls = splitReferenceImageUrls(element.referenceImageUrls);
+  if (referenceImageUrls.length > 0) {
+    const keptReferenceUrls: string[] = [];
+    const keptReferenceRefs: Array<
+      NonNullable<WorkflowReloadVideoKlingElementSlot["referenceImageInternalMediaRefs"]>[number]
+    > = [];
+    referenceImageUrls.forEach((url, index) => {
+      const internalMediaRef = referenceImageInternalMediaRefs[index] ?? null;
+      if (isLocalOnlyUrl(url) && !internalMediaRef) return;
+      keptReferenceUrls.push(url);
+      keptReferenceRefs.push(internalMediaRef);
+    });
+    element.referenceImageUrls = keptReferenceUrls.join(", ");
+    referenceImageInternalMediaRefs.splice(
+      0,
+      referenceImageInternalMediaRefs.length,
+      ...keptReferenceRefs
+    );
+  }
+  const videoUrl = asOptionalString(element.videoUrl);
+  if (videoUrl && isLocalOnlyUrl(videoUrl) && !videoInternalMediaRef) {
+    element.videoUrl = "";
+  }
+  const hasMedia =
+    Boolean(asOptionalString(element.profileImageUrl)) ||
+    Boolean(asOptionalString(element.frontalImageUrl)) ||
+    splitReferenceImageUrls(element.referenceImageUrls).length > 0 ||
+    Boolean(asOptionalString(element.videoUrl));
+  const hasSavedSource =
+    Boolean(asOptionalString(element.sourceElementId)) ||
+    Boolean(asOptionalString(element.sourceCharacterId));
+  if (!hasMedia && !hasSavedSource) return null;
+  return {
+    slotIndex,
+    element,
+    ...(profileImageInternalMediaRef ? { profileImageInternalMediaRef } : {}),
+    ...(frontalImageInternalMediaRef ? { frontalImageInternalMediaRef } : {}),
+    ...(referenceImageInternalMediaRefs.length > 0 ? { referenceImageInternalMediaRefs } : {}),
+    ...(videoInternalMediaRef ? { videoInternalMediaRef } : {}),
+  };
+};
+
+const normalizeVideoReferences = (value: unknown): WorkflowReloadVideoReferences | null => {
+  if (value == null) return null;
+  if (!isObject(value) || value.version !== 1) return null;
+  const firstFrame = normalizeVideoFrameSlot(value.firstFrame);
+  const lastFrame = normalizeVideoFrameSlot(value.lastFrame);
+  const seedance2ReferenceImages = normalizeVideoMediaSlots(value.seedance2ReferenceImages);
+  const seedance2ReferenceVideos = normalizeVideoMediaSlots(value.seedance2ReferenceVideos);
+  const seedance2ReferenceAudio = normalizeVideoMediaSlots(value.seedance2ReferenceAudio);
+  const seenElementSlots = new Set<number>();
+  const klingElementSlots = Array.isArray(value.klingElementSlots)
+    ? value.klingElementSlots
+        .map((item) => normalizeVideoKlingElementSlot(item))
+        .filter((item): item is WorkflowReloadVideoKlingElementSlot => {
+          if (!item || seenElementSlots.has(item.slotIndex)) return false;
+          seenElementSlots.add(item.slotIndex);
+          return true;
+        })
+        .sort((left, right) => left.slotIndex - right.slotIndex)
+    : [];
+  if (
+    !firstFrame &&
+    !lastFrame &&
+    seedance2ReferenceImages.length === 0 &&
+    seedance2ReferenceVideos.length === 0 &&
+    seedance2ReferenceAudio.length === 0 &&
+    klingElementSlots.length === 0
+  ) {
+    return null;
+  }
+  return {
+    version: 1,
+    ...(firstFrame ? { firstFrame } : {}),
+    ...(lastFrame ? { lastFrame } : {}),
+    ...(seedance2ReferenceImages.length > 0 ? { seedance2ReferenceImages } : {}),
+    ...(seedance2ReferenceVideos.length > 0 ? { seedance2ReferenceVideos } : {}),
+    ...(seedance2ReferenceAudio.length > 0 ? { seedance2ReferenceAudio } : {}),
+    ...(klingElementSlots.length > 0 ? { klingElementSlots } : {}),
+  };
+};
+
 const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | null => {
   if (!isObject(value) || value.kind !== "video") return null;
   const aspect = asTrimmedString(value.aspect);
@@ -400,6 +570,7 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
     videoReferenceMode === "lip-sync"
       ? normalizeLipSyncAudioStoragePath(value.lipSyncAudioStoragePath as string | null)
       : null;
+  const videoReferences = normalizeVideoReferences(value.videoReferences);
   return {
     kind: "video",
     aspect,
@@ -411,6 +582,7 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
     autoFix: asBooleanOrNull(value.autoFix),
     referenceInputs: asStringArray(value.referenceInputs),
     internalMediaRefs: normalizeInternalRefs(value.internalMediaRefs),
+    ...(videoReferences ? { videoReferences } : {}),
     motionReferenceVideoUrl: requestedMotionReferenceVideoUrl,
     lipSyncAudioUrl,
     lipSyncAudioStoragePath,

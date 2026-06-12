@@ -156,6 +156,7 @@ sequenceDiagram
 
 - Image and video Create/Edit submissions build reload metadata beside, not inside, `generationReplay`.
 - Expert Edit image submissions persist secondary slot restore metadata inside the image `workflowReload` payload. The provider-facing `referenceInputs` order remains compact and still only includes token-linked secondary refs, but reload metadata preserves populated secondary slot URLs separately so Reference Grid workflow reload can hydrate the same secondary drop slots instead of guessing from compact provider input order.
+- Video submissions persist a `videoReferences` sidecar inside the video `workflowReload` payload for first frame, last frame, Seedance multimodal image/video/audio refs, and Kling/Seedance element media refs. Provider-facing payloads remain unchanged; the sidecar exists so Reference Grid workflow reload and project restore can hydrate the Video panel from the completed generation rather than reconstructing panel state from compact provider inputs.
 - The optimistic `StudioOutput` receives `workflowReload` immediately so current-session references can reload without waiting for project restore.
 - Submit handlers send `workflow_reload` to API routes and persistence services. Provider request bodies must not change except for this metadata sidecar.
 
@@ -163,6 +164,7 @@ sequenceDiagram
 
 - Reload is a manual edit-and-iterate action. It selects the originating workflow panel, restores prompt/model/aspect/resolution/reference/audio controls, and stops. The user must click Generate to submit a new output.
 - For Expert Edit image outputs, reload must restore secondary references by persisted slot identity when present. For example, a generation created with `@img10` must reload that reference into secondary slot 10, even if it was the second or third provider input after preflight. Populated secondary slots that were not sent to the provider are restore-only metadata: they should come back in the UI, but they must not be treated as provider inputs for the completed generation.
+- For Video outputs, reload must prefer the persisted `videoReferences` sidecar when present: first and last frame slots hydrate the primary Video reference slots, Seedance multimodal refs hydrate their image/video/audio arrays, and element slots hydrate the linked/direct reference elements. Legacy flat `referenceInputs` and legacy Seedance/Kling arrays remain compatibility fallback only when the sidecar is absent.
 - Reroll remains the immediate-submit behavior and continues to use `generationReplay`.
 - Outputs without valid `workflowReload` or a valid image replay compatibility derivation must not show the reload action.
 

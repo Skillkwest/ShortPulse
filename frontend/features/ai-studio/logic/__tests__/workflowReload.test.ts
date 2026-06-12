@@ -309,6 +309,96 @@ describe("workflowReload", () => {
     expect(isWorkflowReloadConfigV1(sfxReload)).toBe(true);
   });
 
+  it("normalizes video reference sidecar metadata", () => {
+    const firstFrameRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/first-frame.png",
+    };
+    const referenceImageRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/reference.png",
+    };
+    const reload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: { display: "Restore video refs" },
+      model: { id: "fal-ai/bytedance/seedance/v2/text-to-video" },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "keyframes",
+        durationSeconds: 5,
+        resolution: "720p",
+        generateAudio: false,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: [],
+        videoReferences: {
+          version: 1,
+          firstFrame: {
+            sourceUrl: "blob:http://localhost/first-frame",
+            internalMediaRef: firstFrameRef,
+          },
+          lastFrame: {
+            sourceUrl: "blob:http://localhost/missing-last-frame",
+          },
+          seedance2ReferenceImages: [
+            { slotIndex: 0, sourceUrl: " https://example.com/seed-image.png " },
+            { slotIndex: 0, sourceUrl: "https://example.com/duplicate.png" },
+            { slotIndex: 1, sourceUrl: "data:image/png;base64,missing" },
+          ],
+          klingElementSlots: [
+            {
+              slotIndex: 0,
+              element: {
+                id: "element-1",
+                profileImageUrl: "data:image/png;base64,missing-profile",
+                referenceImageUrls:
+                  "https://example.com/reference.png, blob:http://localhost/missing-reference",
+              },
+              referenceImageInternalMediaRefs: [referenceImageRef],
+            },
+          ],
+        },
+      },
+    });
+
+    expect(reload?.payload).toEqual(
+      expect.objectContaining({
+        kind: "video",
+        videoReferences: {
+          version: 1,
+          firstFrame: {
+            sourceUrl: "blob:http://localhost/first-frame",
+            internalMediaRef: firstFrameRef,
+          },
+          seedance2ReferenceImages: [
+            { slotIndex: 0, sourceUrl: "https://example.com/seed-image.png" },
+          ],
+          klingElementSlots: [
+            {
+              slotIndex: 0,
+              element: {
+                id: "element-1",
+                profileImageUrl: null,
+                referenceImageUrls: "https://example.com/reference.png",
+                slotIndex: 0,
+              },
+              referenceImageInternalMediaRefs: [referenceImageRef],
+            },
+          ],
+        },
+      })
+    );
+    expect(isWorkflowReloadConfigV1(reload)).toBe(true);
+  });
+
   it("builds voice reload configs with voice identity and source authority", () => {
     const voiceoverReload = buildWorkflowReloadConfigV1({
       capturedAt: "2026-06-06T12:00:00.000Z",

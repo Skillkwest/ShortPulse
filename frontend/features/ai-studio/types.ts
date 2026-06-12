@@ -179,6 +179,36 @@ export type WorkflowReloadKlingPromptShot = {
 
 export type WorkflowReloadKlingElement = Record<string, unknown>;
 
+export type WorkflowReloadVideoFrameSlot = {
+  sourceUrl: string;
+  internalMediaRef?: InternalMediaRef | null;
+};
+
+export type WorkflowReloadVideoMediaSlot = {
+  slotIndex: number;
+  sourceUrl: string;
+  internalMediaRef?: InternalMediaRef | null;
+};
+
+export type WorkflowReloadVideoKlingElementSlot = {
+  slotIndex: number;
+  element: WorkflowReloadKlingElement;
+  profileImageInternalMediaRef?: InternalMediaRef | null;
+  frontalImageInternalMediaRef?: InternalMediaRef | null;
+  referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
+  videoInternalMediaRef?: InternalMediaRef | null;
+};
+
+export type WorkflowReloadVideoReferences = {
+  version: 1;
+  firstFrame?: WorkflowReloadVideoFrameSlot | null;
+  lastFrame?: WorkflowReloadVideoFrameSlot | null;
+  seedance2ReferenceImages?: WorkflowReloadVideoMediaSlot[];
+  seedance2ReferenceVideos?: WorkflowReloadVideoMediaSlot[];
+  seedance2ReferenceAudio?: WorkflowReloadVideoMediaSlot[];
+  klingElementSlots?: WorkflowReloadVideoKlingElementSlot[];
+};
+
 export type WorkflowReloadVideoPayload = {
   kind: "video";
   aspect: string;
@@ -190,6 +220,7 @@ export type WorkflowReloadVideoPayload = {
   autoFix: boolean | null;
   referenceInputs: string[];
   internalMediaRefs?: Array<InternalMediaRef | null>;
+  videoReferences?: WorkflowReloadVideoReferences;
   motionReferenceVideoUrl?: string | null;
   lipSyncAudioUrl?: string | null;
   lipSyncAudioStoragePath?: string | null;

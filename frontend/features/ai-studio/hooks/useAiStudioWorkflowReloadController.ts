@@ -25,7 +25,9 @@ import type {
   WorkflowReloadMusicComposerMode,
   WorkflowReloadMusicSongBatchCount,
   WorkflowReloadSoundEffectsPayload,
+  WorkflowReloadVideoMediaSlot,
   WorkflowReloadVideoPayload,
+  WorkflowReloadVideoReferences,
   WorkflowReloadVoiceChangerPayload,
   WorkflowReloadVoiceChangerSource,
   WorkflowReloadVoiceoverPayload,
@@ -304,6 +306,98 @@ const mapKlingElements = (
   elements: readonly Record<string, unknown>[] = []
 ): AiStudioKlingElement[] => elements.map((element) => ({ ...element }) as AiStudioKlingElement);
 
+const mediaSlotsToUrls = (slots?: readonly WorkflowReloadVideoMediaSlot[]): string[] =>
+  slots?.map((slot) => slot.sourceUrl) ?? [];
+
+const splitReferenceImageUrls = (value: unknown): string[] =>
+  typeof value === "string"
+    ? value
+        .split(/[,\n]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
+const registerVideoReferenceSlots = (
+  videoReferences: WorkflowReloadVideoReferences | null | undefined
+): void => {
+  if (!videoReferences) return;
+  const urls: Array<string | null> = [];
+  const refs: Array<InternalMediaRef | null> = [];
+  const push = (url: string | null | undefined, ref: InternalMediaRef | null | undefined) => {
+    const normalizedUrl = typeof url === "string" ? url.trim() : "";
+    if (!normalizedUrl) return;
+    urls.push(normalizedUrl);
+    refs.push(ref ?? null);
+  };
+
+  push(videoReferences.firstFrame?.sourceUrl, videoReferences.firstFrame?.internalMediaRef);
+  push(videoReferences.lastFrame?.sourceUrl, videoReferences.lastFrame?.internalMediaRef);
+  videoReferences.seedance2ReferenceImages?.forEach((slot) =>
+    push(slot.sourceUrl, slot.internalMediaRef)
+  );
+  videoReferences.seedance2ReferenceVideos?.forEach((slot) =>
+    push(slot.sourceUrl, slot.internalMediaRef)
+  );
+  videoReferences.seedance2ReferenceAudio?.forEach((slot) =>
+    push(slot.sourceUrl, slot.internalMediaRef)
+  );
+  videoReferences.klingElementSlots?.forEach((slot) => {
+    const element = slot.element;
+    push(element.profileImageUrl as string | null | undefined, slot.profileImageInternalMediaRef);
+    push(element.frontalImageUrl as string | null | undefined, slot.frontalImageInternalMediaRef);
+    splitReferenceImageUrls(element.referenceImageUrls).forEach((url, index) => {
+      push(url, slot.referenceImageInternalMediaRefs?.[index] ?? null);
+    });
+    push(element.videoUrl as string | null | undefined, slot.videoInternalMediaRef);
+  });
+
+  registerInternalMediaRefsForUrls(urls, refs);
+};
+
+const toVideoReferenceSelectionState = ({
+  tool,
+  videoPayload,
+}: {
+  tool: ToolId;
+  videoPayload: WorkflowReloadVideoPayload;
+}): ReferenceSelectionAuthorityStateSeed => {
+  const videoReferences = videoPayload.videoReferences;
+  if (!videoReferences) {
+    return toReferenceSelectionState({
+      tool,
+      referenceInputs: videoPayload.referenceInputs,
+      internalMediaRefs: videoPayload.internalMediaRefs,
+      motionReferenceVideoUrl: videoPayload.motionReferenceVideoUrl ?? null,
+    });
+  }
+
+  const referenceImageUrl =
+    videoReferences.firstFrame?.sourceUrl ?? videoPayload.referenceInputs[0] ?? null;
+  const lastFrameUrl =
+    videoReferences.lastFrame?.sourceUrl ?? videoPayload.referenceInputs[1] ?? null;
+  const extraImageUrls = [lastFrameUrl, null, null];
+  const referenceImageInternalMediaRefs: Array<InternalMediaRef | null> = [
+    videoReferences.firstFrame?.internalMediaRef ?? videoPayload.internalMediaRefs?.[0] ?? null,
+    videoReferences.lastFrame?.internalMediaRef ?? videoPayload.internalMediaRefs?.[1] ?? null,
+    null,
+    null,
+  ];
+  registerInternalMediaRefsForUrls(
+    [referenceImageUrl, ...extraImageUrls],
+    referenceImageInternalMediaRefs
+  );
+
+  return {
+    selectedTool: tool,
+    showCreateTools: false,
+    referenceImageUrl,
+    extraImageUrls,
+    referenceImageInternalMediaRefs,
+    motionReferenceVideoUrl: videoPayload.motionReferenceVideoUrl ?? null,
+    useReferenceImageIndicator: Boolean(referenceImageUrl || extraImageUrls.some(Boolean)),
+  };
+};
+
 export const useAiStudioWorkflowReloadController = ({
   beginManualWorkflowReload,
   findOutputById,
@@ -446,6 +540,8 @@ export const useAiStudioWorkflowReloadController = ({
 
       if (payload.kind === "video") {
         const videoPayload: WorkflowReloadVideoPayload = payload;
+        const videoReferences = videoPayload.videoReferences;
+        registerVideoReferenceSlots(videoReferences);
         setVideoReferenceText(config.prompt.display);
         setAspect(videoPayload.aspect);
         setVideoReferenceMode(videoPayload.videoReferenceMode);
@@ -456,18 +552,25 @@ export const useAiStudioWorkflowReloadController = ({
         if (videoPayload.cameraFixed != null) setVideoCameraFixed(videoPayload.cameraFixed);
         if (videoPayload.autoFix != null) setVideoAutoFix(videoPayload.autoFix);
         setReferenceSelectionState(
-          toReferenceSelectionState({
-            tool: targetTool,
-            referenceInputs: videoPayload.referenceInputs,
-            internalMediaRefs: videoPayload.internalMediaRefs,
-            motionReferenceVideoUrl: videoPayload.motionReferenceVideoUrl ?? null,
-          })
+          toVideoReferenceSelectionState({ tool: targetTool, videoPayload })
         );
         setMotionReferenceVideoUrl(videoPayload.motionReferenceVideoUrl ?? null);
         if (videoPayload.seedance2InputMode) setSeedance2InputMode(videoPayload.seedance2InputMode);
-        setSeedance2ReferenceImageUrls(videoPayload.seedance2ReferenceImageUrls ?? []);
-        setSeedance2ReferenceVideoUrls(videoPayload.seedance2ReferenceVideoUrls ?? []);
-        setSeedance2ReferenceAudioUrls(videoPayload.seedance2ReferenceAudioUrls ?? []);
+        setSeedance2ReferenceImageUrls(
+          videoReferences?.seedance2ReferenceImages
+            ? mediaSlotsToUrls(videoReferences.seedance2ReferenceImages)
+            : (videoPayload.seedance2ReferenceImageUrls ?? [])
+        );
+        setSeedance2ReferenceVideoUrls(
+          videoReferences?.seedance2ReferenceVideos
+            ? mediaSlotsToUrls(videoReferences.seedance2ReferenceVideos)
+            : (videoPayload.seedance2ReferenceVideoUrls ?? [])
+        );
+        setSeedance2ReferenceAudioUrls(
+          videoReferences?.seedance2ReferenceAudio
+            ? mediaSlotsToUrls(videoReferences.seedance2ReferenceAudio)
+            : (videoPayload.seedance2ReferenceAudioUrls ?? [])
+        );
         if (videoPayload.seedance2ReturnLastFrame != null) {
           setSeedance2ReturnLastFrame(videoPayload.seedance2ReturnLastFrame);
         }
@@ -482,7 +585,11 @@ export const useAiStudioWorkflowReloadController = ({
         if (videoPayload.klingShotType) setKlingShotType(videoPayload.klingShotType);
         if (videoPayload.klingVoiceIds) setKlingVoiceIds(videoPayload.klingVoiceIds);
         setKlingMultiPrompts(videoPayload.klingMultiPrompts ?? []);
-        setKlingElements(mapKlingElements(videoPayload.klingElements));
+        setKlingElements(
+          videoReferences?.klingElementSlots?.length
+            ? mapKlingElements(videoReferences.klingElementSlots.map((slot) => slot.element))
+            : mapKlingElements(videoPayload.klingElements)
+        );
       }
 
       if (payload.kind === "music") {

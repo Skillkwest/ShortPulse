@@ -516,6 +516,8 @@ export const useAiStudioPageBaseRuntime = () => {
     getOutputById,
     referenceImageUrl,
     extraImageUrls,
+    videoReferenceImageUrl,
+    videoExtraImageUrls,
     outputSelectorStoreEnabled: FLAG_OUTPUT_SELECTOR_STORE,
     selectorCallbacksEnabled: FLAG_SELECTOR_CALLBACKS,
   });

@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { registerInternalMediaRefForUrl } from "../../../logic/referenceInputInternalMediaRegistry";
 import { buildSubmissionWorkflowReloadSnapshot } from "../outputBootstrap";
 
 describe("taskSubmission outputBootstrap", () => {
@@ -40,6 +41,113 @@ describe("taskSubmission outputBootstrap", () => {
           maxSecondarySlotCount: 10,
           primaryReferenceInputIndex: 0,
           secondarySlots: [{ slotIndex: 9, referenceInputIndex: 1 }],
+        },
+      })
+    );
+  });
+
+  it("carries video reference sidecar metadata into workflow reload payloads", () => {
+    const firstFrameRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/first-frame.png",
+    };
+    const lastFrameRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/last-frame.png",
+    };
+    const seedImageRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/seed-image.png",
+    };
+    const elementRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/element-profile.png",
+    };
+    registerInternalMediaRefForUrl("https://example.com/video-seed-image.png", seedImageRef);
+    registerInternalMediaRefForUrl("https://example.com/element-profile.png", elementRef);
+
+    const workflowReload = buildSubmissionWorkflowReloadSnapshot({
+      outputMode: "video",
+      originTool: "video",
+      panelKind: "video",
+      projectId: "project-1",
+      modelId: "fal-ai/bytedance/seedance/v2/text-to-video",
+      displayPrompt: "A locked-off shot with restored refs.",
+      submissionPrompt: "A locked-off shot with restored refs.",
+      aspect: "16:9",
+      imageResolution: null,
+      referenceInputs: [
+        "https://example.com/video-first-frame.png",
+        "https://example.com/video-last-frame.png",
+      ],
+      internalMediaRefs: [firstFrameRef, lastFrameRef],
+      videoReferenceMode: "keyframes",
+      durationSeconds: 5,
+      resolution: "720p",
+      generateAudio: false,
+      cameraFixed: true,
+      autoFix: false,
+      seedance2InputMode: "multimodal",
+      seedance2ReferenceImageUrls: ["https://example.com/video-seed-image.png"],
+      seedance2ReferenceVideoUrls: ["https://example.com/video-seed-video.mp4"],
+      seedance2ReferenceAudioUrls: ["https://example.com/video-seed-audio.mp3"],
+      klingElements: [
+        {
+          id: "element-1",
+          profileImageUrl: "https://example.com/element-profile.png",
+        },
+      ],
+    });
+
+    expect(workflowReload?.payload).toEqual(
+      expect.objectContaining({
+        kind: "video",
+        referenceInputs: [
+          "https://example.com/video-first-frame.png",
+          "https://example.com/video-last-frame.png",
+        ],
+        videoReferences: {
+          version: 1,
+          firstFrame: {
+            sourceUrl: "https://example.com/video-first-frame.png",
+            internalMediaRef: firstFrameRef,
+          },
+          lastFrame: {
+            sourceUrl: "https://example.com/video-last-frame.png",
+            internalMediaRef: lastFrameRef,
+          },
+          seedance2ReferenceImages: [
+            {
+              slotIndex: 0,
+              sourceUrl: "https://example.com/video-seed-image.png",
+              internalMediaRef: seedImageRef,
+            },
+          ],
+          seedance2ReferenceVideos: [
+            { slotIndex: 0, sourceUrl: "https://example.com/video-seed-video.mp4" },
+          ],
+          seedance2ReferenceAudio: [
+            { slotIndex: 0, sourceUrl: "https://example.com/video-seed-audio.mp3" },
+          ],
+          klingElementSlots: [
+            {
+              slotIndex: 0,
+              element: {
+                id: "element-1",
+                profileImageUrl: "https://example.com/element-profile.png",
+                slotIndex: 0,
+              },
+              profileImageInternalMediaRef: elementRef,
+            },
+          ],
         },
       })
     );

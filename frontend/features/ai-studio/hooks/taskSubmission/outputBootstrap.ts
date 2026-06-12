@@ -8,6 +8,7 @@ import {
   buildGenerationReplayConfigV1,
   buildGenerationReplayConfigV2,
 } from "../../logic/generationReplay";
+import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 import { buildWorkflowReloadConfigV1 } from "../../logic/workflowReload";
 import type {
   GenerationReplayConfig,
@@ -19,6 +20,7 @@ import type {
   WorkflowReloadConfig,
   WorkflowReloadExpertEditReferences,
   WorkflowReloadPanelKind,
+  WorkflowReloadVideoReferences,
 } from "../../types";
 
 type BuildPendingSubmissionOutputParams = {
@@ -89,6 +91,142 @@ type BuildSubmissionWorkflowReloadSnapshotParams = {
   klingVoiceIds?: [string, string];
   klingMultiPrompts?: { id: string; prompt: string; duration: number }[];
   klingElements?: Array<Record<string, unknown>>;
+};
+
+const MAX_VIDEO_RESTORE_MEDIA_SLOTS = 16;
+
+const asTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const isLocalOnlyUrl = (value: string) => /^blob:|^data:/i.test(value);
+
+const shouldKeepReloadMediaUrl = (
+  sourceUrl: string,
+  internalMediaRef: InternalMediaRef | null
+): boolean => !isLocalOnlyUrl(sourceUrl) || Boolean(internalMediaRef);
+
+const resolveReloadInternalMediaRef = (
+  sourceUrl: string | null | undefined,
+  explicitRef?: InternalMediaRef | null
+): InternalMediaRef | null => explicitRef ?? resolveInternalMediaRefForUrl(sourceUrl);
+
+const buildVideoFrameSlot = (
+  sourceUrl: string | null | undefined,
+  internalMediaRef?: InternalMediaRef | null
+) => {
+  const normalizedUrl = asTrimmedString(sourceUrl);
+  if (!normalizedUrl) return null;
+  const resolvedRef = resolveReloadInternalMediaRef(normalizedUrl, internalMediaRef);
+  if (!shouldKeepReloadMediaUrl(normalizedUrl, resolvedRef)) return null;
+  return {
+    sourceUrl: normalizedUrl,
+    ...(resolvedRef ? { internalMediaRef: resolvedRef } : {}),
+  };
+};
+
+const buildVideoMediaSlots = (
+  urls: readonly string[],
+  refs: readonly (InternalMediaRef | null | undefined)[] = []
+): NonNullable<WorkflowReloadVideoReferences["seedance2ReferenceImages"]> =>
+  urls
+    .slice(0, MAX_VIDEO_RESTORE_MEDIA_SLOTS)
+    .reduce<
+      NonNullable<WorkflowReloadVideoReferences["seedance2ReferenceImages"]>
+    >((slots, url, index) => {
+      const normalizedUrl = asTrimmedString(url);
+      if (!normalizedUrl) return slots;
+      const internalMediaRef = resolveReloadInternalMediaRef(normalizedUrl, refs[index] ?? null);
+      if (!shouldKeepReloadMediaUrl(normalizedUrl, internalMediaRef)) return slots;
+      slots.push({
+        slotIndex: index,
+        sourceUrl: normalizedUrl,
+        ...(internalMediaRef ? { internalMediaRef } : {}),
+      });
+      return slots;
+    }, []);
+
+const splitReferenceImageUrls = (value: unknown): string[] =>
+  typeof value === "string"
+    ? value
+        .split(/[,\n]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
+const buildKlingElementSlots = (
+  elements: readonly Record<string, unknown>[]
+): NonNullable<WorkflowReloadVideoReferences["klingElementSlots"]> =>
+  elements.slice(0, 6).map((element, fallbackIndex) => {
+    const slotIndex =
+      typeof element.slotIndex === "number" &&
+      Number.isInteger(element.slotIndex) &&
+      element.slotIndex >= 0
+        ? element.slotIndex
+        : fallbackIndex;
+    const profileImageUrl = asTrimmedString(element.profileImageUrl);
+    const frontalImageUrl = asTrimmedString(element.frontalImageUrl);
+    const referenceImageUrls = splitReferenceImageUrls(element.referenceImageUrls);
+    const videoUrl = asTrimmedString(element.videoUrl);
+    const profileImageInternalMediaRef = resolveReloadInternalMediaRef(profileImageUrl);
+    const frontalImageInternalMediaRef = resolveReloadInternalMediaRef(frontalImageUrl);
+    const referenceImageInternalMediaRefs = referenceImageUrls.map((url) =>
+      resolveReloadInternalMediaRef(url)
+    );
+    const videoInternalMediaRef = resolveReloadInternalMediaRef(videoUrl);
+
+    return {
+      slotIndex,
+      element: { ...element, slotIndex },
+      ...(profileImageInternalMediaRef ? { profileImageInternalMediaRef } : {}),
+      ...(frontalImageInternalMediaRef ? { frontalImageInternalMediaRef } : {}),
+      ...(referenceImageInternalMediaRefs.length > 0 ? { referenceImageInternalMediaRefs } : {}),
+      ...(videoInternalMediaRef ? { videoInternalMediaRef } : {}),
+    };
+  });
+
+const buildVideoReferences = ({
+  referenceInputs,
+  internalMediaRefs,
+  seedance2ReferenceImageUrls,
+  seedance2ReferenceVideoUrls,
+  seedance2ReferenceAudioUrls,
+  klingElements,
+}: {
+  referenceInputs: string[];
+  internalMediaRefs: Array<InternalMediaRef | null>;
+  seedance2ReferenceImageUrls: string[];
+  seedance2ReferenceVideoUrls: string[];
+  seedance2ReferenceAudioUrls: string[];
+  klingElements: Array<Record<string, unknown>>;
+}): WorkflowReloadVideoReferences | null => {
+  const firstFrame = buildVideoFrameSlot(referenceInputs[0], internalMediaRefs[0] ?? null);
+  const lastFrame = buildVideoFrameSlot(referenceInputs[1], internalMediaRefs[1] ?? null);
+  const seedance2ReferenceImages = buildVideoMediaSlots(seedance2ReferenceImageUrls);
+  const seedance2ReferenceVideos = buildVideoMediaSlots(seedance2ReferenceVideoUrls);
+  const seedance2ReferenceAudio = buildVideoMediaSlots(seedance2ReferenceAudioUrls);
+  const klingElementSlots = buildKlingElementSlots(klingElements);
+  if (
+    !firstFrame &&
+    !lastFrame &&
+    seedance2ReferenceImages.length === 0 &&
+    seedance2ReferenceVideos.length === 0 &&
+    seedance2ReferenceAudio.length === 0 &&
+    klingElementSlots.length === 0
+  ) {
+    return null;
+  }
+  return {
+    version: 1,
+    ...(firstFrame ? { firstFrame } : {}),
+    ...(lastFrame ? { lastFrame } : {}),
+    ...(seedance2ReferenceImages.length > 0 ? { seedance2ReferenceImages } : {}),
+    ...(seedance2ReferenceVideos.length > 0 ? { seedance2ReferenceVideos } : {}),
+    ...(seedance2ReferenceAudio.length > 0 ? { seedance2ReferenceAudio } : {}),
+    ...(klingElementSlots.length > 0 ? { klingElementSlots } : {}),
+  };
 };
 
 export const buildPendingSubmissionOutput = ({
@@ -261,6 +399,14 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
     });
   }
   if (outputMode !== "video") return null;
+  const videoReferences = buildVideoReferences({
+    referenceInputs,
+    internalMediaRefs,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls,
+    klingElements,
+  });
   return buildWorkflowReloadConfigV1({
     originTool,
     panelKind,
@@ -284,6 +430,7 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
       autoFix,
       referenceInputs,
       internalMediaRefs,
+      ...(videoReferences ? { videoReferences } : {}),
       motionReferenceVideoUrl,
       lipSyncAudioUrl,
       lipSyncAudioStoragePath,

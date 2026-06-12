@@ -857,10 +857,18 @@ describe("ExpertEditPanelView", () => {
     expect(mainStage).not.toBeNull();
     expect(primaryCanvasFrameStack).not.toBeNull();
 
+    const expectedStageHeight = Math.min(660, Math.max(420, window.innerWidth * 0.42));
+
     expect(primaryDropzone.style.aspectRatio).toBe("");
     expect(primaryCanvasFrameStack.style.aspectRatio).toBe("1 / 1");
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(420, 2);
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(420, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(
+      expectedStageHeight,
+      2
+    );
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(
+      expectedStageHeight,
+      2
+    );
 
     rerender(
       <ExpertEditPanelView
@@ -871,8 +879,14 @@ describe("ExpertEditPanelView", () => {
       />
     );
     expect(primaryCanvasFrameStack.style.aspectRatio).toBe("16 / 9");
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(746.67, 2);
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(420, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(
+      (expectedStageHeight * 16) / 9,
+      2
+    );
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(
+      expectedStageHeight,
+      2
+    );
 
     rerender(
       <ExpertEditPanelView
@@ -883,8 +897,14 @@ describe("ExpertEditPanelView", () => {
       />
     );
     expect(primaryCanvasFrameStack.style.aspectRatio).toBe("9 / 16");
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(236.25, 2);
-    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(420, 2);
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.width || "0")).toBeCloseTo(
+      (expectedStageHeight * 9) / 16,
+      2
+    );
+    expect(Number.parseFloat(primaryCanvasFrameStack.style.height || "0")).toBeCloseTo(
+      expectedStageHeight,
+      2
+    );
   });
 
   it("toggles styles panel via callback and reflects aria-expanded state", () => {

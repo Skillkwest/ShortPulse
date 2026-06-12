@@ -138,7 +138,7 @@
 
 .edit-expert-main-stage {
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
   display: grid;
   grid-template-columns:
     var(--edit-expert-side-rail-width-left, var(--edit-expert-side-rail-width))
@@ -1866,6 +1866,7 @@
 
 .edit-expert-primary-column > .edit-expert-column-wrapper--center {
   width: 100%;
+  align-items: stretch;
   gap: 8px;
 }
 
@@ -2040,6 +2041,10 @@
   overflow: visible;
   transform-origin: center center;
   will-change: transform;
+}
+
+.edit-expert-primary-stage-shell .edit-expert-stage-camera-layer {
+  justify-content: flex-start;
 }
 
 .edit-expert-primary-layer-frame {

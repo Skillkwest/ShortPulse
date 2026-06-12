@@ -25,7 +25,7 @@ describe("ai-studio adaptive layout container contract", () => {
       "@container ai-properties (max-width: 980px)"
     );
     expect(readStyle("ai-studio-video-theme.css")).toContain(
-      "@container ai-properties (max-width: 1320px)"
+      "@container ai-properties (max-width: 760px)"
     );
     expect(readStyle("ai-studio-sound-properties.css")).toContain(
       "@container ai-properties (max-width: 1100px)"
@@ -51,5 +51,13 @@ describe("ai-studio adaptive layout container contract", () => {
     expect(readStyle("elements-manager-embedded.css")).toContain(
       "@container ai-properties (max-width: 860px)"
     );
+  });
+
+  it("keeps the Video prompt composer column beside settings until the panel is genuinely compact", () => {
+    const css = readStyle("ai-studio-video-theme.css");
+
+    expect(css).toContain("grid-template-columns: minmax(280px, 0.46fr) minmax(0, 1.54fr);");
+    expect(css).toContain("@container ai-properties (max-width: 760px)");
+    expect(css).not.toContain("@container ai-properties (max-width: 1320px)");
   });
 });

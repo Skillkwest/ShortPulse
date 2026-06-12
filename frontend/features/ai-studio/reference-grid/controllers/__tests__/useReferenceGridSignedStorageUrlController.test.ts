@@ -110,7 +110,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     ).toEqual(["user-1/generations/images/image-1.png"]);
   });
 
-  it("collects saved media ids when storage paths are absent", () => {
+  it("collects saved media ids for media-row authority even when storage paths exist", () => {
     expect(
       collectReferenceGridSavedMediaIdsForSigning([
         createStorageBackedImage({
@@ -131,7 +131,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
           savedMediaIds: ["saved-media-2"],
         }),
       ])
-    ).toEqual(["saved-media-1"]);
+    ).toEqual(["saved-media-1", "saved-media-2"]);
   });
 
   it("signs visible reference-grid storage paths through the shared media signing cache", async () => {
@@ -332,6 +332,43 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     expect(projected.previewStoragePath).toBe("user-1/variants/images/saved-media-1/thumb.webp");
     expect(projected.fullStoragePath).toBe("user-1/generations/images/saved-media-1.png");
     expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/saved-full.png"]);
+  });
+
+  it("lets recovered media-id authority replace stale original preview paths with thumbnails", () => {
+    const output = createStorageBackedImage({
+      id: "saved-original-preview",
+      previewStoragePath: "user-1/generations/images/saved-media-1.png",
+      fullStoragePath: "user-1/generations/images/saved-media-1.png",
+      previewUrl: "https://signed.shortpulse.test/old-original.png",
+      resultUrls: ["https://signed.shortpulse.test/old-original.png"],
+      savedMediaIds: ["saved-media-1"],
+    });
+    const projected = applySignedMediaAuthorityToReferenceGridMediaOutput(
+      output,
+      new Map([
+        [
+          "saved-media-1",
+          {
+            mediaId: "saved-media-1",
+            fileType: "image/png",
+            previewStoragePath: "user-1/variants/images/saved-media-1/thumb.webp",
+            fullStoragePath: "user-1/generations/images/saved-media-1.png",
+            previewPosterStoragePath: null,
+            signedPreviewUrl: "https://signed.shortpulse.test/saved-thumb.webp",
+            signedFullUrl: "https://signed.shortpulse.test/saved-full.png",
+            signedPreviewPosterUrl: null,
+          },
+        ],
+      ])
+    );
+
+    expect(projected.previewStoragePath).toBe("user-1/variants/images/saved-media-1/thumb.webp");
+    expect(projected.previewUrl).toBe("https://signed.shortpulse.test/saved-thumb.webp");
+    expect(projected.fullStoragePath).toBe("user-1/generations/images/saved-media-1.png");
+    expect(projected.resultUrls).toEqual([
+      "https://signed.shortpulse.test/saved-full.png",
+      "https://signed.shortpulse.test/old-original.png",
+    ]);
   });
 
   it("projects signed video poster storage into previewPosterUrl without using it as full media", () => {

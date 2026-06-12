@@ -272,4 +272,50 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.fullUrl).toBe("https://signed.shortpulse.test/saved-full.png");
     expect(resolved.isImagePreview).toBe(true);
   });
+
+  it("prefers recovered thumbnail authority over stale original-path previews", () => {
+    const output = {
+      ...createImageOutput("out-saved-media-stale-preview"),
+      mediaSource: "library",
+      previewStoragePath: "user-1/generations/images/saved-media-1.png",
+      fullStoragePath: "user-1/generations/images/saved-media-1.png",
+      previewUrl: "https://signed.shortpulse.test/old-original.png",
+      resultUrls: ["https://signed.shortpulse.test/old-original.png"],
+      savedMediaIds: ["saved-media-1"],
+    } as unknown as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+        signedMediaAuthorityByMediaId: new Map([
+          [
+            "saved-media-1",
+            {
+              mediaId: "saved-media-1",
+              fileType: "image/png",
+              previewStoragePath: "user-1/variants/images/saved-media-1/thumb.webp",
+              fullStoragePath: "user-1/generations/images/saved-media-1.png",
+              previewPosterStoragePath: null,
+              signedPreviewUrl: "https://signed.shortpulse.test/saved-thumb.webp",
+              signedFullUrl: "https://signed.shortpulse.test/saved-full.png",
+              signedPreviewPosterUrl: null,
+            },
+          ],
+        ]),
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: projectReferenceGridMediaOutput(output),
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(resolved.authorityTier).toBe("reusable");
+    expect(resolved.previewUrl).toBe("https://signed.shortpulse.test/saved-thumb.webp");
+    expect(resolved.fullUrl).toBe("https://signed.shortpulse.test/saved-full.png");
+    expect(resolved.fallbackUrl).toBe("https://signed.shortpulse.test/saved-full.png");
+    expect(resolved.isImagePreview).toBe(true);
+  });
 });

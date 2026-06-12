@@ -7,6 +7,7 @@ const dnsLookupMock = vi.hoisted(() => vi.fn());
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const readProviderApiKeyMock = vi.fn();
+const getSupabaseAdminMock = vi.fn();
 
 vi.mock("node:dns/promises", () => ({
   default: {
@@ -21,6 +22,10 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/api/supabaseAdmin", () => ({
+  getSupabaseAdmin: () => getSupabaseAdminMock(),
 }));
 
 vi.mock("../../lib/server/providerIntegration/providerRuntimeConfig", () => ({
@@ -61,6 +66,20 @@ describe("POST /api/kie/upload-url", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     readProviderApiKeyMock.mockReturnValue("kie-test-key");
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          download: vi.fn().mockResolvedValue({
+            data: {
+              size: 4,
+              type: "image/png",
+              arrayBuffer: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer,
+            },
+            error: null,
+          }),
+        })),
+      },
+    });
   });
 
   afterEach(() => {
@@ -184,6 +203,66 @@ describe("POST /api/kie/upload-url", () => {
     expect(res.json).toHaveBeenCalledWith({
       url: "https://tempfile.redpandaai.co/files/signed-image.png",
       fileName: "signed-image.png",
+      mimeType: "image/png",
+    });
+  });
+
+  it("streams caller-owned storage paths to Kie without requiring a public source URL", async () => {
+    const downloadMock = vi.fn().mockResolvedValue({
+      data: {
+        size: 4,
+        type: "image/png",
+        arrayBuffer: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer,
+      },
+      error: null,
+    });
+    const fromMock = vi.fn(() => ({ download: downloadMock }));
+    getSupabaseAdminMock.mockReturnValueOnce({
+      storage: {
+        from: fromMock,
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        data: {
+          downloadUrl: "https://tempfile.redpandaai.co/files/storage-image.png",
+          fileName: "storage-image.png",
+          mimeType: "image/png",
+        },
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: "user-1/references/storage-image.png",
+        mediaKind: "image",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dnsLookupMock).not.toHaveBeenCalled();
+    expect(fromMock).toHaveBeenCalledWith("media_library");
+    expect(downloadMock).toHaveBeenCalledWith("user-1/references/storage-image.png");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    const uploadInit = fetchMock.mock.calls[0]?.[1] as { body?: FormData };
+    expect(uploadInit.body).toBeInstanceOf(FormData);
+    expect((uploadInit.body as FormData).get("uploadPath")).toBe("shortpulse/kie-video/images");
+    expect((uploadInit.body as FormData).get("fileName")).toBe("storage-image.png");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/storage-image.png",
+      fileName: "storage-image.png",
       mimeType: "image/png",
     });
   });

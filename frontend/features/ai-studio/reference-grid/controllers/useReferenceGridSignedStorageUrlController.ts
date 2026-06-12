@@ -91,11 +91,8 @@ const resolveSavedMediaId = (output: ReferenceGridMediaOutput): string | null =>
   output.savedMediaIds?.find((value) => typeof value === "string" && value.trim().length > 0) ??
   null;
 
-const needsSavedMediaAuthorityRecovery = (output: ReferenceGridMediaOutput): boolean =>
-  Boolean(resolveSavedMediaId(output)) &&
-  !asCanonicalStoragePath(output.previewStoragePath) &&
-  !asCanonicalStoragePath(output.previewPosterStoragePath) &&
-  !asCanonicalStoragePath(output.fullStoragePath);
+const shouldResolveSavedMediaAuthority = (output: ReferenceGridMediaOutput): boolean =>
+  Boolean(resolveSavedMediaId(output));
 
 export const collectReferenceGridStoragePaths = (
   outputs: readonly (ReferenceGridMediaOutput | null | undefined)[],
@@ -124,7 +121,7 @@ export const collectReferenceGridSavedMediaIdsForSigning = (
   const seen = new Set<string>();
   const mediaIds: string[] = [];
   outputs.forEach((output) => {
-    if (!output || !needsSavedMediaAuthorityRecovery(output)) return;
+    if (!output || !shouldResolveSavedMediaAuthority(output)) return;
     const mediaId = resolveSavedMediaId(output);
     if (!mediaId || seen.has(mediaId)) return;
     seen.add(mediaId);
@@ -181,25 +178,42 @@ export const applySignedMediaAuthorityToReferenceGridMediaOutput = (
   output: ReferenceGridMediaOutput,
   signedMediaAuthorityByMediaId: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>
 ): ReferenceGridMediaOutput => {
-  if (!needsSavedMediaAuthorityRecovery(output)) return output;
+  if (!shouldResolveSavedMediaAuthority(output)) return output;
   const mediaId = resolveSavedMediaId(output);
   const authority = mediaId ? signedMediaAuthorityByMediaId.get(mediaId) : null;
   if (!authority) return output;
 
-  const signedPreviewUrl = authority.signedPreviewUrl ?? authority.signedFullUrl;
-  const signedFullUrl = authority.signedFullUrl ?? authority.signedPreviewUrl;
-  const signedPosterUrl = authority.signedPreviewPosterUrl;
+  const signedPreviewUrl = authority.signedPreviewUrl ?? output.previewUrl;
+  const signedFullUrl = authority.signedFullUrl ?? output.resultUrls?.[0] ?? output.previewUrl;
+  const signedPosterUrl = authority.signedPreviewPosterUrl ?? output.previewPosterUrl;
 
-  if (!signedPreviewUrl && !signedFullUrl && !signedPosterUrl) return output;
+  const nextPreviewStoragePath = authority.previewStoragePath ?? output.previewStoragePath;
+  const nextFullStoragePath = authority.fullStoragePath ?? output.fullStoragePath;
+  const nextPreviewPosterStoragePath =
+    authority.previewPosterStoragePath ?? output.previewPosterStoragePath;
+  const nextResultUrls = signedFullUrl
+    ? [signedFullUrl, ...(output.resultUrls ?? []).filter((value) => value !== signedFullUrl)]
+    : output.resultUrls;
+
+  if (
+    nextPreviewStoragePath === output.previewStoragePath &&
+    nextFullStoragePath === output.fullStoragePath &&
+    nextPreviewPosterStoragePath === output.previewPosterStoragePath &&
+    signedPreviewUrl === output.previewUrl &&
+    signedPosterUrl === output.previewPosterUrl &&
+    nextResultUrls === output.resultUrls
+  ) {
+    return output;
+  }
 
   return {
     ...output,
-    previewStoragePath: authority.previewStoragePath ?? output.previewStoragePath,
-    fullStoragePath: authority.fullStoragePath ?? output.fullStoragePath,
-    previewPosterStoragePath: authority.previewPosterStoragePath ?? output.previewPosterStoragePath,
-    previewUrl: signedPreviewUrl ?? output.previewUrl,
-    previewPosterUrl: signedPosterUrl ?? output.previewPosterUrl,
-    resultUrls: signedFullUrl ? [signedFullUrl] : output.resultUrls,
+    previewStoragePath: nextPreviewStoragePath,
+    fullStoragePath: nextFullStoragePath,
+    previewPosterStoragePath: nextPreviewPosterStoragePath,
+    previewUrl: signedPreviewUrl,
+    previewPosterUrl: signedPosterUrl,
+    resultUrls: nextResultUrls,
   };
 };
 
@@ -232,18 +246,24 @@ export const useReferenceGridSignedStorageUrlController = ({
 
   useEffect(() => {
     const pathsForRequest = storagePathKey ? storagePathKey.split("\n") : [];
+    let cancelled = false;
 
     if (!pathsForRequest.length) {
-      setSigningPendingStoragePathSet((previous) =>
-        previous.size === 0 ? previous : new Set<string>()
-      );
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setSigningPendingStoragePathSet((previous) =>
+          previous.size === 0 ? previous : new Set<string>()
+        );
+      });
       return;
     }
 
-    let cancelled = false;
-    setSigningPendingStoragePathSet((previous) => {
-      const next = new Set(pathsForRequest);
-      return areStringSetsEqual(previous, next) ? previous : next;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSigningPendingStoragePathSet((previous) => {
+        const next = new Set(pathsForRequest);
+        return areStringSetsEqual(previous, next) ? previous : next;
+      });
     });
     void getSignedMediaUrlsBatch({
       bucket: REFERENCE_GRID_MEDIA_BUCKET,

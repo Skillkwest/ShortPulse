@@ -91,9 +91,12 @@ const KIE_TEMP_MOTION_REFERENCE_URL =
 const mockKieUploadRouteForFileUrls = (urlMap: Record<string, string>) => {
   vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
     const payload =
-      typeof init?.body === "string" ? (JSON.parse(init.body) as { fileUrl?: string }) : {};
-    const mappedUrl = payload.fileUrl ? urlMap[payload.fileUrl] : undefined;
-    return new Response(JSON.stringify({ url: mappedUrl ?? payload.fileUrl ?? "" }), {
+      typeof init?.body === "string"
+        ? (JSON.parse(init.body) as { fileUrl?: string; storagePath?: string })
+        : {};
+    const source = payload.storagePath ?? payload.fileUrl ?? "";
+    const mappedUrl = source ? urlMap[source] : undefined;
+    return new Response(JSON.stringify({ url: mappedUrl ?? source }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -786,7 +789,8 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          fileUrl: CANONICAL_MOTION_REFERENCE_URL,
+          storagePath: "user-1/videos/motion-control/motion.mp4",
+          mediaKind: "video",
           uploadPath: "shortpulse/kie-video/videos",
         }),
       })
@@ -1206,7 +1210,8 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fileUrl: signedUrl,
+          storagePath: "user-1/references/veo-first.png",
+          mediaKind: "image",
           uploadPath: "shortpulse/kie-video/images",
         }),
       })
@@ -2063,7 +2068,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     videoUploadMocks.prepareMotionReferenceVideoUrlOverride = vi.fn(async (url) => url);
     mockKieUploadRouteForFileUrls({
       "https://example.com/character.png": KIE_TEMP_CHARACTER_IMAGE_URL,
-      [CANONICAL_MOTION_REFERENCE_URL]: KIE_TEMP_MOTION_REFERENCE_URL,
+      "user-1/videos/motion-control/motion.mp4": KIE_TEMP_MOTION_REFERENCE_URL,
     });
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
@@ -2212,8 +2217,8 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fileUrl:
-            "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/elements/taylor/front.png?token=fresh",
+          storagePath: "user-1/elements/taylor/front.png",
+          mediaKind: "image",
           uploadPath: "shortpulse/kie-video/images",
         }),
       })
@@ -2304,7 +2309,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
-  it("uploads signed Seedance multimodal reference images through the server-side Kie path", async () => {
+  it("uploads Supabase-backed Seedance multimodal reference images by storage path", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
     const expSoon = Math.floor(Date.now() / 1000) + 60;
     const payload = Buffer.from(
@@ -2350,7 +2355,8 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fileUrl: signedReferenceUrl,
+          storagePath: "user-1/references/red-lantern-front.png",
+          mediaKind: "image",
           uploadPath: "shortpulse/kie-video/images",
         }),
       })
@@ -2409,6 +2415,82 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       expect.objectContaining({
         reference_image_urls: [
           "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/red-lantern-front.png",
+        ],
+      })
+    );
+  });
+
+  it("uploads Supabase-backed Seedance linked image slots by storage path", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    vi.mocked(submitKieSeedance2Video).mockResolvedValue({ request_id: "kie-seedance-2" });
+    const expSoon = Math.floor(Date.now() / 1000) + 60 * 60;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/references/direct-slot.png",
+        exp: expSoon,
+      })
+    ).toString("base64url");
+    const signedReferenceUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/references/direct-slot.png" +
+      `?token=header.${payload}.sig`;
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/direct-slot.png",
+      }),
+    } as Response);
+
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Use the direct slot image",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 10,
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      klingElements: [
+        {
+          id: "image-ref-1",
+          slotIndex: 0,
+          sourceKind: "reference-image",
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: "Image reference",
+          alias: "",
+          description: "",
+          profileImageUrl: signedReferenceUrl,
+          profileImageTransform: null,
+          frontalImageUrl: signedReferenceUrl,
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          storagePath: "user-1/references/direct-slot.png",
+          mediaKind: "image",
+          uploadPath: "shortpulse/kie-video/images",
+        }),
+      })
+    );
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference_image_urls: [
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/direct-slot.png",
         ],
       })
     );

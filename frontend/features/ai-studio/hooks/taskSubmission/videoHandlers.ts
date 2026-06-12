@@ -20,6 +20,7 @@ import {
   prepareMotionReferenceVideoUrl,
   prepareVideoUrlForSubmission,
 } from "../../utils/videoUpload";
+import { readRememberedObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
 import type { VideoSubmissionArgs } from "./types";
 import {
   getAiStudioKlingElementReferenceUrls,
@@ -242,6 +243,18 @@ const uploadUrlToKieTemporaryFile = async ({
   if (!normalizedUrl) return "";
   if (isKieHostedTemporaryMediaUrl(normalizedUrl)) return normalizedUrl;
 
+  const internalRef = resolveInternalMediaRefForUrl(normalizedUrl);
+  if (internalRef?.bucket === "media_library") {
+    const storagePath = resolveInternalMediaRefStoragePath(internalRef);
+    if (storagePath) {
+      return await uploadStoragePathToKieTemporaryFile({
+        storagePath,
+        mediaKind,
+        cache,
+      });
+    }
+  }
+
   const cached = cache.get(normalizedUrl);
   if (cached) return await cached;
 
@@ -286,6 +299,62 @@ const uploadUrlToKieTemporaryFile = async ({
     return await uploadPromise;
   } catch (error) {
     cache.delete(normalizedUrl);
+    throw error;
+  }
+};
+
+const uploadStoragePathToKieTemporaryFile = async ({
+  storagePath,
+  mediaKind,
+  cache,
+}: {
+  storagePath: string;
+  mediaKind: "image" | "video" | "audio";
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const normalizedStoragePath = storagePath.trim();
+  if (!normalizedStoragePath) return "";
+  const cacheKey = `storage:${mediaKind}:${normalizedStoragePath}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return await cached;
+
+  const uploadPromise = (async () => {
+    const response = await fetchWithAuth(KIE_UPLOAD_ROUTE, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: normalizedStoragePath,
+        mediaKind,
+        uploadPath: resolveKieUploadPath(mediaKind),
+      }),
+      shortpulseLogScope: "generation",
+    });
+
+    const { payload, bodyFormat } = await readKieUploadRoutePayload(response);
+    if (!response.ok) {
+      throw new Error(
+        resolveKieUploadFailureMessage({
+          response,
+          payload,
+          bodyFormat,
+        })
+      );
+    }
+
+    const uploadedUrl = payload.url?.trim();
+    if (!uploadedUrl) {
+      throw new Error("Temporary upload failed: missing uploaded URL.");
+    }
+    return uploadedUrl;
+  })();
+
+  cache.set(cacheKey, uploadPromise);
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    cache.delete(cacheKey);
     throw error;
   }
 };
@@ -359,6 +428,17 @@ const uploadSourceUrlToKieTemporaryFile = async ({
   if (cached) return await cached;
 
   const uploadPromise = (async () => {
+    const rememberedBlob = normalizedUrl.startsWith("blob:")
+      ? readRememberedObjectUrlBlob(normalizedUrl)
+      : null;
+    if (rememberedBlob) {
+      return await uploadBlobToKieTemporaryFile({
+        blob: rememberedBlob,
+        mediaKind,
+        cacheKey: `${cacheKey}:blob`,
+        cache,
+      });
+    }
     const sourceResponse = await fetch(normalizedUrl);
     if (!sourceResponse.ok) {
       throw new Error(`Unable to read local ${mediaKind} input (${sourceResponse.status}).`);

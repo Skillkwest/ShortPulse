@@ -2,9 +2,11 @@ import { Buffer } from "node:buffer";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
+import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { readProviderApiKey } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 
 const KIE_FILE_URL_UPLOAD_ENDPOINT =
@@ -18,6 +20,7 @@ const DNS_LOOKUP_TIMEOUT_MS = 2_500;
 const MAX_SOURCE_REDIRECTS = 3;
 const MAX_RAW_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_REMOTE_SOURCE_BYTES = 100 * 1024 * 1024;
+const MEDIA_LIBRARY_BUCKET = "media_library";
 
 export const config = {
   api: {
@@ -37,6 +40,7 @@ type ErrorResponse = {
 };
 
 type UploadTransport = "url_upload" | "remote_stream_upload" | "binary_stream_upload";
+type KieUploadMediaKind = "image" | "video" | "audio";
 
 type UploadDiagnostics = {
   transport: UploadTransport;
@@ -190,6 +194,44 @@ const parseSafeHttpUrl = async (value: string): Promise<URL> => {
 const inferFileNameFromUrl = (sourceUrl: URL): string | null => {
   const lastSegment = sourceUrl.pathname.split("/").filter(Boolean).pop() ?? "";
   return asNonEmptyString(lastSegment);
+};
+
+const inferFileNameFromStoragePath = (storagePath: string): string | null => {
+  const lastSegment = storagePath.split("/").filter(Boolean).pop() ?? "";
+  return asNonEmptyString(lastSegment);
+};
+
+const resolveMediaKind = (value: unknown): KieUploadMediaKind | null => {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (normalized === "image" || normalized === "video" || normalized === "audio") {
+    return normalized;
+  }
+  return null;
+};
+
+const inferMimeTypeFromPath = (
+  storagePathOrName: string,
+  mediaKind: KieUploadMediaKind
+): string => {
+  const normalized = storagePathOrName.trim().toLowerCase();
+  if (mediaKind === "image") {
+    if (/\.(?:jpg|jpeg)(?:$|[?#])/i.test(normalized)) return "image/jpeg";
+    if (/\.webp(?:$|[?#])/i.test(normalized)) return "image/webp";
+    if (/\.gif(?:$|[?#])/i.test(normalized)) return "image/gif";
+    return "image/png";
+  }
+  if (mediaKind === "video") {
+    if (/\.mov(?:$|[?#])/i.test(normalized)) return "video/quicktime";
+    if (/\.webm(?:$|[?#])/i.test(normalized)) return "video/webm";
+    return "video/mp4";
+  }
+  if (/\.wav(?:$|[?#])/i.test(normalized)) return "audio/wav";
+  if (/\.m4a(?:$|[?#])/i.test(normalized)) return "audio/mp4";
+  if (/\.aac(?:$|[?#])/i.test(normalized)) return "audio/aac";
+  if (/\.flac(?:$|[?#])/i.test(normalized)) return "audio/flac";
+  if (/\.(?:ogg|oga)(?:$|[?#])/i.test(normalized)) return "audio/ogg";
+  if (/\.webm(?:$|[?#])/i.test(normalized)) return "audio/webm";
+  return "audio/mpeg";
 };
 
 const readUploadPayload = (
@@ -535,8 +577,12 @@ const fetchPublicSource = async (sourceUrl: URL, signal: AbortSignal): Promise<R
   throw new KieUploadRequestError("Source URL redirected too many times.");
 };
 
-const readResponseBodyWithLimit = async (response: Response, maxBytes: number): Promise<Buffer> => {
-  const contentLength = Number(response.headers.get("content-length"));
+const readResponseBodyWithLimit = async (
+  response: Response | Blob,
+  maxBytes: number
+): Promise<Buffer> => {
+  const rawContentLength = "headers" in response ? response.headers.get("content-length") : null;
+  const contentLength = Number(rawContentLength);
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new KieUploadRequestError("Source file exceeds the maximum upload size.", 413);
   }
@@ -639,6 +685,73 @@ const uploadFileBufferToKie = async ({
   });
 };
 
+const downloadStorageObjectWithLimit = async ({
+  storagePath,
+  userId,
+}: {
+  storagePath: string;
+  userId: string;
+}): Promise<Blob> => {
+  let safeStoragePath: string;
+  try {
+    safeStoragePath = assertUserScopedMediaStoragePath({
+      path: storagePath,
+      userId,
+      label: "Kie upload storage path",
+    });
+  } catch (error) {
+    throw new KieUploadRequestError(
+      error instanceof Error ? error.message : "Kie upload storage path is invalid."
+    );
+  }
+
+  const { data, error } = await getSupabaseAdmin()
+    .storage.from(MEDIA_LIBRARY_BUCKET)
+    .download(safeStoragePath);
+  if (error || !data) {
+    throw new KieUploadRequestError(
+      error?.message
+        ? `Storage source fetch failed: ${error.message}`
+        : "Storage source not found.",
+      400
+    );
+  }
+  const size = typeof data.size === "number" ? data.size : null;
+  if (size !== null && size > MAX_RAW_UPLOAD_BYTES) {
+    throw new KieUploadRequestError("Source file exceeds the maximum upload size.", 413);
+  }
+  return data;
+};
+
+const uploadStorageSourceToKie = async ({
+  apiKey,
+  storagePath,
+  uploadPath,
+  fileName,
+  mediaKind,
+  userId,
+}: {
+  apiKey: string;
+  storagePath: string;
+  uploadPath: string;
+  fileName: string | null;
+  mediaKind: KieUploadMediaKind;
+  userId: string;
+}): Promise<UploadAttemptResult> => {
+  const storageObject = await downloadStorageObjectWithLimit({ storagePath, userId });
+  const storageBuffer = await readResponseBodyWithLimit(storageObject, MAX_RAW_UPLOAD_BYTES);
+  const storageMimeType =
+    asNonEmptyString((storageObject as { type?: unknown }).type) ??
+    inferMimeTypeFromPath(fileName ?? storagePath, mediaKind);
+  return await uploadFileBufferToKie({
+    apiKey,
+    fileBuffer: storageBuffer,
+    uploadPath,
+    fileName: fileName ?? inferFileNameFromStoragePath(storagePath),
+    mimeType: storageMimeType,
+  });
+};
+
 const readRawRequestBody = async (req: NextApiRequest): Promise<Buffer> =>
   await new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -705,10 +818,35 @@ export default async function handler(
       ? await (async () => {
           const payload = JSON.parse(bodyBuffer.toString("utf8")) as Record<string, unknown>;
           const fileUrl = asNonEmptyString(payload.fileUrl);
+          const storagePath = asNonEmptyString(payload.storagePath);
           const uploadPath = asNonEmptyString(payload.uploadPath);
           const fileName = asNonEmptyString(payload.fileName);
-          if (!fileUrl || !uploadPath) {
-            throw new KieUploadRequestError("fileUrl and uploadPath are required.");
+          const mediaKind = resolveMediaKind(payload.mediaKind);
+          if (!uploadPath) {
+            throw new KieUploadRequestError("uploadPath is required.");
+          }
+          if (storagePath) {
+            if (!mediaKind) {
+              throw new KieUploadRequestError(
+                "mediaKind must be 'image', 'video', or 'audio' when storagePath is provided."
+              );
+            }
+            const storageResult = await uploadStorageSourceToKie({
+              apiKey,
+              storagePath,
+              uploadPath,
+              fileName,
+              mediaKind,
+              userId: user.id,
+            });
+            return {
+              result: storageResult,
+              primaryResult: storageResult,
+              fallbackResult: null,
+            };
+          }
+          if (!fileUrl) {
+            throw new KieUploadRequestError("fileUrl or storagePath is required.");
           }
           const sourceUrl = await parseSafeHttpUrl(fileUrl);
           return await attemptKieUploadWithFallback({

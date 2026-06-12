@@ -1123,6 +1123,66 @@ describe("useReferencePropertiesInteractions", () => {
     expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
   });
 
+  it("keeps committed Seedance slot object URLs alive across panel unmounts", async () => {
+    const onSeedanceElementImageSlotChange = vi.fn();
+    const revokeObjectUrl = vi.fn();
+    URL.createObjectURL = vi.fn(() => "blob:selected-file");
+    URL.revokeObjectURL = revokeObjectUrl;
+
+    const { result, rerender, unmount } = renderHook(
+      ({ klingElements }) =>
+        useReferencePropertiesInteractions({
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null],
+          onPrimaryImageChange: vi.fn(),
+          onExtraImageChange: vi.fn(),
+          onPromptTextChange: vi.fn(),
+          klingMultiPrompts: [],
+          klingElements,
+          seedanceElementSlotCount: 6,
+          onSeedanceElementImageSlotChange,
+        }),
+      { initialProps: { klingElements: [] } }
+    );
+
+    const file = new File(["seedance-slot"], "seedance-slot.png", { type: "image/png" });
+    const event = {
+      target: {
+        files: [file],
+        value: "seedance-slot.png",
+      },
+    };
+
+    await act(async () => {
+      result.current.handleSeedanceElementImageFileSelection(2)(event as never);
+      await Promise.resolve();
+    });
+
+    rerender({
+      klingElements: [
+        {
+          id: "seedance-reference-2",
+          slotIndex: 2,
+          sourceKind: "reference-image",
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: "Image reference",
+          alias: "",
+          description: "",
+          profileImageUrl: "blob:selected-file",
+          profileImageTransform: null,
+          frontalImageUrl: "blob:selected-file",
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+      ],
+    });
+    unmount();
+
+    expect(revokeObjectUrl).not.toHaveBeenCalledWith("blob:selected-file");
+    expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
+  });
+
   it("accepts internal image drags for Seedance element slots", async () => {
     const onSeedanceElementImageSlotChange = vi.fn();
     const resolveInternalReferenceImageDropSource = vi.fn(async () => ({

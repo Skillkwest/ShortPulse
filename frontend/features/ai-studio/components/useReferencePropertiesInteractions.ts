@@ -414,14 +414,9 @@ export const useReferencePropertiesInteractions = ({
     });
   }, [extraImageUrls, klingElements, referenceImageUrl, releaseOwnedImageObjectUrl]);
 
-  useEffect(
-    () => () => {
-      Array.from(ownedImageObjectUrlsRef.current).forEach((url) => {
-        releaseOwnedImageObjectUrl(url);
-      });
-    },
-    [releaseOwnedImageObjectUrl]
-  );
+  // Committed image URLs live in parent workflow state, which survives panel unmounts
+  // during tool navigation. Revoking them here would leave restored slots pointing at
+  // dead blob URLs; replacement/removal cleanup still runs while the hook is mounted.
 
   const handleFileSelection =
     (setter: (url: string | null) => void) => (event: ChangeEvent<HTMLInputElement>) => {

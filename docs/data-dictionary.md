@@ -618,7 +618,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Active and admin-order indexes support dashboard and admin grid reads.
   - Update trigger stamps `updated_at` on row mutation.
   - Each row must have either `thumbnail_url` or `thumbnail_storage_path`.
-  - Uploaded rows may temporarily lack `thumbnail_display_*` fields until `frontend/scripts/backfill_dashboard_tutorial_thumbnail_derivatives.mjs` has processed them; runtime reads prefer display derivatives and only fall back to originals for legacy rows.
+  - Uploaded rows may temporarily lack `thumbnail_display_*` fields until `frontend/scripts/backfill_dashboard_tutorial_thumbnail_derivatives.mjs` has processed them; the same script supports explicit `--force` regeneration for rows that already have stale display derivatives and `--environment production` to target the production Supabase project from scoped repo env. Runtime reads prefer display derivatives and only fall back to originals for legacy rows.
   - Admin writes flow through `/api/admin/dashboard/tutorials` with service-role Supabase access.
   - Admin thumbnail uploads flow through `/api/admin/dashboard/tutorial-thumbnail/prepare` and `/api/admin/dashboard/tutorial-thumbnail/finalize`, with browser-direct signed upload into the private global thumbnail bucket. Finalization keeps the uploaded original as source material and stores optimized display derivative metadata (`thumbnail_display_*`) plus optional poster metadata (`thumbnail_poster_*`) for dashboard runtime reads; motion derivatives preserve the uploaded thumbnail duration while using the dashboard thumbnail display profile.
 

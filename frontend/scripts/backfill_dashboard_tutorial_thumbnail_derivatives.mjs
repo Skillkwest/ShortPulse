@@ -4,6 +4,7 @@
  * Backfill durable display derivatives for dashboard tutorial thumbnail uploads.
  *
  * Default mode is dry-run. Use `--apply --confirm-project-id <id>` to upload variants and update rows.
+ * Add `--force` to regenerate rows that already have display derivatives.
  */
 
 import crypto from "node:crypto";
@@ -32,6 +33,7 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_SOURCE_BYTES = 50 * 1024 * 1024;
 const MAX_DISPLAY_BYTES = dashboardTutorialThumbnailProfile.motionDisplayMaxBytes;
 const VIDEO_PREVIEW_SCALE_FILTER = `scale=${dashboardTutorialThumbnailProfile.motionDisplayMaxDimension}:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2`;
+const SUPABASE_ENVIRONMENTS = new Set(["development", "staging", "production"]);
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const FRONTEND_ROOT = path.join(REPO_ROOT, "frontend");
@@ -94,6 +96,8 @@ export const parseArgs = (argv) => {
   const apply = parseBooleanFlag(argv, "--apply", "--dry-run") ?? false;
   return {
     apply,
+    force: argv.includes("--force"),
+    environment: asTrimmedString(readArgValue(argv, "--environment"))?.toLowerCase() ?? null,
     limit: asPositiveInteger(readArgValue(argv, "--limit"), DEFAULT_LIMIT),
     timeoutMs: asPositiveInteger(readArgValue(argv, "--timeout-ms"), DEFAULT_TIMEOUT_MS),
     tutorialId: asTrimmedString(readArgValue(argv, "--tutorial-id")),
@@ -113,6 +117,8 @@ const usage = () => {
       "  --dry-run                 Default. Generate variants in memory without mutating Supabase.",
       "  --apply                   Upload variants and update dashboard_tutorials rows.",
       "  --confirm-project-id <id> Required with --apply. Must match the active Supabase project id.",
+      "  --force                   Regenerate rows that already have display derivatives.",
+      "  --environment <name>      Use scoped Supabase env: development, staging, or production.",
       "  --limit <n>               Max candidate rows to inspect/process (default 25).",
       "  --tutorial-id <uuid>      Restrict to one dashboard_tutorials row.",
       "  --ffmpeg-path <path>      Override ffmpeg binary path.",
@@ -130,6 +136,17 @@ const getRequiredEnv = (key) => {
   return String(value).trim();
 };
 
+const getRequiredScopedEnv = (environment, keySuffix) => {
+  const key = `SHORTPULSE_${environment.toUpperCase()}_${keySuffix}`;
+  const value = process.env[key];
+  if (!value || !String(value).trim()) {
+    throw new Error(
+      `Missing required environment variable for --environment ${environment}: ${key}`
+    );
+  }
+  return String(value).trim();
+};
+
 export const inferSupabaseProjectIdFromUrl = (value) => {
   const trimmed = asTrimmedString(value);
   if (!trimmed) return null;
@@ -140,6 +157,28 @@ export const inferSupabaseProjectIdFromUrl = (value) => {
   } catch {
     return null;
   }
+};
+
+export const resolveSupabaseRuntimeEnv = (environment) => {
+  if (!environment) {
+    return {
+      supabaseUrl: getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
+      serviceRoleKey: getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+      environment: "unscoped",
+    };
+  }
+  if (!SUPABASE_ENVIRONMENTS.has(environment)) {
+    throw new Error(
+      `Unsupported --environment ${environment}. Expected one of: ${Array.from(
+        SUPABASE_ENVIRONMENTS
+      ).join(", ")}.`
+    );
+  }
+  return {
+    supabaseUrl: getRequiredScopedEnv(environment, "SUPABASE_URL"),
+    serviceRoleKey: getRequiredScopedEnv(environment, "SUPABASE_SERVICE_ROLE_KEY"),
+    environment,
+  };
 };
 
 const assertApplyTargetConfirmed = ({ apply, confirmProjectId, actualProjectId }) => {
@@ -157,18 +196,18 @@ const assertApplyTargetConfirmed = ({ apply, confirmProjectId, actualProjectId }
   }
 };
 
-const loadClient = () => {
+const loadClient = (environment) => {
   loadEnvFile(path.join(REPO_ROOT, ".env.agent.local"));
   loadEnvFile(path.join(FRONTEND_ROOT, ".env.local"));
   loadEnvFile(path.join(REPO_ROOT, ".env.local"));
 
-  const supabaseUrl = getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const runtimeEnv = resolveSupabaseRuntimeEnv(environment);
   return {
-    supabase: createClient(supabaseUrl, serviceRoleKey, {
+    supabase: createClient(runtimeEnv.supabaseUrl, runtimeEnv.serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     }),
-    projectId: inferSupabaseProjectIdFromUrl(supabaseUrl),
+    projectId: inferSupabaseProjectIdFromUrl(runtimeEnv.supabaseUrl),
+    environment: runtimeEnv.environment,
   };
 };
 
@@ -326,7 +365,7 @@ const createMotionDerivative = async ({
   }
 };
 
-const normalizeCandidateRow = (value) => {
+export const normalizeCandidateRow = (value, { force = false } = {}) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value;
   const id = asTrimmedString(row.id);
@@ -334,20 +373,31 @@ const normalizeCandidateRow = (value) => {
   const sourcePath = normalizeStoragePath(row.thumbnail_storage_path);
   const sourceContentType = normalizeMimeType(row.thumbnail_content_type);
   const existingDisplayPath = normalizeStoragePath(row.thumbnail_display_storage_path);
-  if (!id || !sourcePath || existingDisplayPath) return null;
-  return { id, title, sourcePath, sourceContentType };
+  const existingPosterPath = normalizeStoragePath(row.thumbnail_poster_storage_path);
+  if (!id || !sourcePath || (existingDisplayPath && !force)) return null;
+  return {
+    id,
+    title,
+    sourcePath,
+    sourceContentType,
+    existingDisplayPath,
+    existingPosterPath,
+  };
 };
 
-const loadCandidates = async ({ supabase, limit, tutorialId }) => {
+const loadCandidates = async ({ supabase, limit, tutorialId, force }) => {
   let query = supabase
     .from("dashboard_tutorials")
     .select(
-      "id, title, thumbnail_storage_path, thumbnail_content_type, thumbnail_display_storage_path"
+      "id, title, thumbnail_storage_path, thumbnail_content_type, thumbnail_display_storage_path, thumbnail_poster_storage_path"
     )
     .not("thumbnail_storage_path", "is", null)
-    .is("thumbnail_display_storage_path", null)
     .order("updated_at", { ascending: false })
     .limit(limit);
+
+  if (!force) {
+    query = query.is("thumbnail_display_storage_path", null);
+  }
 
   if (tutorialId) {
     query = query.eq("id", tutorialId);
@@ -355,7 +405,9 @@ const loadCandidates = async ({ supabase, limit, tutorialId }) => {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message || "Unable to load dashboard tutorial candidates.");
-  return (Array.isArray(data) ? data : []).map(normalizeCandidateRow).filter(Boolean);
+  return (Array.isArray(data) ? data : [])
+    .map((row) => normalizeCandidateRow(row, { force }))
+    .filter(Boolean);
 };
 
 const processCandidate = async ({ supabase, candidate, options }) => {
@@ -441,7 +493,15 @@ const processCandidate = async ({ supabase, candidate, options }) => {
 
   return {
     ...candidate,
-    status: options.apply ? "updated" : "dry_run_ready",
+    status: options.apply
+      ? candidate.existingDisplayPath
+        ? "regenerated"
+        : "updated"
+      : candidate.existingDisplayPath
+        ? "dry_run_regenerate_ready"
+        : "dry_run_ready",
+    replacedDisplayStoragePath: candidate.existingDisplayPath,
+    replacedPosterStoragePath: candidate.existingPosterPath,
     displayStoragePath,
     displayContentType: derivative.displayContentType,
     displayMediaType: derivative.displayMediaType,
@@ -458,7 +518,7 @@ const main = async () => {
     return;
   }
 
-  const { supabase, projectId } = loadClient();
+  const { supabase, projectId, environment } = loadClient(options.environment);
   assertApplyTargetConfirmed({
     apply: options.apply,
     confirmProjectId: options.confirmProjectId,
@@ -469,6 +529,7 @@ const main = async () => {
     supabase,
     limit: options.limit,
     tutorialId: options.tutorialId,
+    force: options.force,
   });
   const results = [];
   for (const candidate of candidates) {
@@ -487,6 +548,8 @@ const main = async () => {
     `${JSON.stringify(
       {
         mode: options.apply ? "apply" : "dry-run",
+        environment,
+        force: options.force,
         projectId,
         candidateCount: candidates.length,
         results,

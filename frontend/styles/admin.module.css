@@ -2833,8 +2833,7 @@
     minmax(132px, 0.8fr)
     minmax(132px, 0.8fr)
     minmax(116px, 0.7fr)
-    minmax(132px, 0.8fr)
-    auto;
+    minmax(152px, 0.9fr);
   gap: 10px;
   align-items: end;
   padding: 12px;

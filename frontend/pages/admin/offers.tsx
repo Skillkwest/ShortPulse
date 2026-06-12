@@ -29,13 +29,11 @@ const OFFER_KIND_OPTIONS = [
 type OfferSlotRowProps = {
   draft: AdminDashboardOfferDraft;
   index: number;
-  isSaving: boolean;
   isDisabled: boolean;
   onChange: (patch: Partial<AdminDashboardOfferDraft>) => void;
-  onSave: () => void;
 };
 
-function OfferSlotRow({ draft, index, isSaving, isDisabled, onChange, onSave }: OfferSlotRowProps) {
+function OfferSlotRow({ draft, index, isDisabled, onChange }: OfferSlotRowProps) {
   return (
     <div className={styles.offerSlotRow}>
       <div className={styles.offerSlotNumber}>
@@ -153,10 +151,6 @@ function OfferSlotRow({ draft, index, isSaving, isDisabled, onChange, onSave }: 
           disabled={isDisabled}
         />
       </label>
-
-      <button type="button" className="ghost-btn mini" onClick={onSave} disabled={isDisabled}>
-        {isSaving ? "Saving..." : draft.id ? "Save" : "Create"}
-      </button>
     </div>
   );
 }
@@ -183,7 +177,6 @@ export default function AdminOffersPage() {
     error,
     updateDraft,
     loadOffers,
-    saveOfferSlot,
     saveAllOffers,
   } = useAdminOffersController({
     enabled: Boolean(user && adminEnabled),
@@ -241,10 +234,8 @@ export default function AdminOffersPage() {
               key={index}
               draft={draft}
               index={index}
-              isSaving={savingSlotIndex === index}
               isDisabled={savingAll || savingSlotIndex === index}
               onChange={(patch) => updateDraft(index, patch)}
-              onSave={() => void saveOfferSlot(index)}
             />
           ))}
         </div>

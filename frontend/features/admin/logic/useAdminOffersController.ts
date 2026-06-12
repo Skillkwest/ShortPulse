@@ -45,7 +45,6 @@ type UseAdminOffersControllerResult = {
   error: string | null;
   updateDraft: (slotIndex: number, patch: Partial<AdminDashboardOfferDraft>) => void;
   loadOffers: () => Promise<void>;
-  saveOfferSlot: (slotIndex: number) => Promise<void>;
   saveAllOffers: () => Promise<void>;
 };
 
@@ -311,38 +310,6 @@ export const useAdminOffersController = ({
     []
   );
 
-  const saveOfferSlot = React.useCallback(
-    async (slotIndex: number) => {
-      const draft = drafts[slotIndex] ?? emptyDraft(slotIndex);
-      const validation = buildOfferSavePayload(draft, slotIndex);
-      if (validation.error || (!validation.payload && draft.isActive)) {
-        setError(validation.error ?? "Offer is invalid.");
-        setResult(null);
-        return;
-      }
-      if (!validation.payload) {
-        setError(null);
-        setResult("No offer changes to save.");
-        return;
-      }
-
-      setSavingSlotIndex(slotIndex);
-      setError(null);
-      setResult(null);
-      try {
-        const savedOffer = await persistOfferPayload(validation.payload);
-        await loadOffers();
-        setResult(savedOffer.isActive ? "Offer saved and active." : "Offer saved as inactive.");
-      } catch (caughtError) {
-        setError(caughtError instanceof Error ? caughtError.message : "Failed to save offer.");
-        setResult(null);
-      } finally {
-        setSavingSlotIndex(null);
-      }
-    },
-    [drafts, loadOffers, persistOfferPayload]
-  );
-
   const saveAllOffers = React.useCallback(async () => {
     if (!dirtySlotIndexes.length) {
       setError(null);
@@ -409,7 +376,6 @@ export const useAdminOffersController = ({
     error,
     updateDraft,
     loadOffers,
-    saveOfferSlot,
     saveAllOffers,
   };
 };

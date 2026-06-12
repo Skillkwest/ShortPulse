@@ -96,9 +96,17 @@ export const useReferenceGridVirtualMetricsController = ({
       const defaultRequestedMaxColumns = isWideLayout
         ? config.referenceGridMaxColumnsWide
         : config.referenceGridMaxColumns;
+      const populatedCuratedColumnCap = Math.max(
+        config.referenceGridMinColumns,
+        nextOutputIds.length || config.referenceGridMinColumns
+      );
       const requestedMaxColumns =
         surface === "curated"
-          ? Math.min(config.quickSlotInventoryMaxColumns, config.referenceGridMaxColumnsWide)
+          ? Math.min(
+              config.quickSlotInventoryMaxColumns,
+              config.referenceGridMaxColumnsWide,
+              populatedCuratedColumnCap
+            )
           : defaultRequestedMaxColumns;
       const maxColumns = resolveReferenceGridMaxColumns({
         requestedMaxColumns,

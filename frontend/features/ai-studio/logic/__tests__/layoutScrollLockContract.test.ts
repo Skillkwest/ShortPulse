@@ -74,6 +74,23 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain("max-height: var(--ai-shell-column-max-height);");
   });
 
+  it("uses a shared zoom-safe right rail minimum across resizable AI Studio shells", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain(".ai-shell.ai-shell-resizable");
+    expect(css).toContain("minmax(var(--ai-shell-right-min-width, 440px), 1fr);");
+    expect(css).toContain(".ai-shell.ai-shell-resizable.ai-shell-expert-edit");
+    expect(css).toContain(".ai-shell.ai-shell-resizable.ai-shell-character-open");
+    expect(css).toContain("--ai-shell-right-min-width: 440px;");
+  });
+
+  it("starts Create with a wider resizable left column fallback", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain(".ai-shell.ai-shell-resizable.ai-shell-expert-create");
+    expect(css).toContain("var(--ai-shell-left-width, minmax(920px, 1040px))");
+  });
+
   it("keeps the fixed left toolbar scrollable when browser zoom reduces vertical space", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
 

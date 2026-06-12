@@ -387,9 +387,10 @@
 .create-composer-panel--no-history .create-composer-empty-state-shell {
   display: grid;
   flex: 1 1 auto;
-  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   row-gap: 10px;
   align-items: stretch;
+  align-content: stretch;
   width: 100%;
   min-height: 0;
 }
@@ -408,7 +409,7 @@
   grid-row: 2;
   display: grid;
   grid-template-rows: auto auto auto;
-  align-self: center;
+  align-self: end;
   align-content: start;
   row-gap: 10px;
   width: 100%;

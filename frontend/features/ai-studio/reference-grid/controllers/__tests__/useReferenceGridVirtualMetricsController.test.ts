@@ -76,8 +76,11 @@ const createMeasuredElement = ({
 
 type HarnessProps = {
   isWideLayout: boolean;
+  isCuratedSplitEnabled?: boolean;
   outputsLength: number;
   curatedOutputsLength: number;
+  gridWidth?: number;
+  curatedGridWidth?: number;
   perfDegradeLevel?: 0 | 1 | 2;
   suspendMeasurements?: boolean;
   outputIds?: string[];
@@ -89,8 +92,11 @@ const createOutputIds = (count: number, prefix: string) =>
 
 const useHarness = ({
   isWideLayout,
+  isCuratedSplitEnabled = false,
   outputsLength,
   curatedOutputsLength,
+  gridWidth = 640,
+  curatedGridWidth = 320,
   perfDegradeLevel = 0,
   suspendMeasurements = false,
   outputIds,
@@ -109,9 +115,15 @@ const useHarness = ({
     rowHeight: 220,
   });
   const scrollNode = React.useMemo(() => createMeasuredElement({ clientHeight: 420 }), []);
-  const gridNode = React.useMemo(() => createMeasuredElement({ clientWidth: 640 }), []);
+  const gridNode = React.useMemo(
+    () => createMeasuredElement({ clientWidth: gridWidth }),
+    [gridWidth]
+  );
   const curatedScrollNode = React.useMemo(() => createMeasuredElement({ clientHeight: 240 }), []);
-  const curatedGridNode = React.useMemo(() => createMeasuredElement({ clientWidth: 320 }), []);
+  const curatedGridNode = React.useMemo(
+    () => createMeasuredElement({ clientWidth: curatedGridWidth }),
+    [curatedGridWidth]
+  );
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(scrollNode);
   const gridRef = React.useRef<HTMLDivElement | null>(gridNode);
   const curatedScrollContainerRef = React.useRef<HTMLDivElement | null>(curatedScrollNode);
@@ -126,7 +138,7 @@ const useHarness = ({
   );
 
   useReferenceGridVirtualMetricsController({
-    isCuratedSplitEnabled: false,
+    isCuratedSplitEnabled,
     isWideLayout,
     outputsLength,
     curatedOutputsLength,
@@ -144,9 +156,9 @@ const useHarness = ({
       referenceGridMinColumns: 2,
       referenceGridMinCardPx: 124,
       referenceGridMinCardPxWide: 124,
-      referenceGridMaxColumns: 5,
-      referenceGridMaxColumnsWide: 5,
-      quickSlotInventoryMaxColumns: 5,
+      referenceGridMaxColumns: 6,
+      referenceGridMaxColumnsWide: 8,
+      quickSlotInventoryMaxColumns: 8,
       fallbackReferenceRowHeight: 220,
     },
   });
@@ -269,6 +281,34 @@ describe("useReferenceGridVirtualMetricsController", () => {
     );
 
     expect(result.current.virtualMetrics.columnCount).toBe(4);
+  });
+
+  it("fills expanded wide rails before hard pressure mode is reached", () => {
+    const { result } = renderHook(() =>
+      useHarness({
+        isWideLayout: true,
+        outputsLength: 152,
+        curatedOutputsLength: 0,
+        gridWidth: 1120,
+        perfDegradeLevel: 1,
+      })
+    );
+
+    expect(result.current.virtualMetrics.columnCount).toBe(6);
+  });
+
+  it("caps quick slot columns to populated slots so cards stretch into wide rails", () => {
+    const { result } = renderHook(() =>
+      useHarness({
+        isWideLayout: true,
+        isCuratedSplitEnabled: true,
+        outputsLength: 0,
+        curatedOutputsLength: 5,
+        curatedGridWidth: 1120,
+      })
+    );
+
+    expect(result.current.curatedVirtualMetrics.columnCount).toBe(5);
   });
 
   it("pins prepends to the top when the user is already at the top", () => {

@@ -165,6 +165,26 @@ describe("resolveAiShellLayoutMode", () => {
     ).toBe("compact-split");
   });
 
+  it("moves wide left-rail panels into compact split at 125 percent style widths before the right rail clips", () => {
+    expect(
+      resolveAiShellLayoutMode(1320, {
+        enabled: true,
+        isResizableViewport: true,
+        minLeftWidthPx: 920,
+        minRightWidthPx: AI_SHELL_RIGHT_MIN_PX,
+      })
+    ).toBe("compact-split");
+  });
+
+  it("clamps left panel width down to preserve a zoom-safe right rail", () => {
+    const bounds = getAiShellLeftWidthBounds(1320, {
+      minLeftWidthPx: 920,
+      minRightWidthPx: AI_SHELL_RIGHT_MIN_PX,
+    });
+
+    expect(bounds.min).toBe(1320 - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX);
+  });
+
   it("stacks when even fallback left plus compact right rail cannot fit", () => {
     expect(
       resolveAiShellLayoutMode(AI_SHELL_LEFT_MIN_FALLBACK_PX + AI_SHELL_RIGHT_COMPACT_MIN_PX, {

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useAiStudioShellResize } from "../useAiStudioShellResize";
 import {
+  AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_LEFT_WIDTH_STORAGE_KEY,
@@ -125,6 +126,39 @@ describe("useAiStudioShellResize", () => {
 
     await waitFor(() => {
       expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX);
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
+  it("uses the Create minimum when opening a collapsed Create shell", async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1600,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
+      })
+    );
+
+    const shellNode = {
+      getBoundingClientRect: () => ({ width: 1800 }),
+    } as HTMLElement;
+
+    act(() => {
+      result.current.shellRef.current = shellNode;
+      result.current.collapseToMin();
+    });
+
+    await waitFor(() => {
+      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
     });
 
     Object.defineProperty(window, "innerWidth", {

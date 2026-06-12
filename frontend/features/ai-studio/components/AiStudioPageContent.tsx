@@ -80,8 +80,6 @@ import {
   AI_SHELL_LEFT_SOUND_MIN_PX,
   AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
-  AI_SHELL_RIGHT_CANVAS_MIN_PX,
-  AI_SHELL_RIGHT_ELEMENTS_MIN_PX,
   resolveCreateShellResizeAction,
   shouldCollapseCreateOnSessionChange,
   shouldCollapseAiShellOnExpertEditPanelSelect,
@@ -1021,12 +1019,6 @@ export function AiStudioPageContent({
             ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
             : undefined;
   const maxLeftWidthPx = showCreatePropertiesPanel ? AI_SHELL_LEFT_CREATE_MAX_PX : undefined;
-  const minRightWidthPx =
-    selectedTool === "media-library"
-      ? AI_SHELL_RIGHT_CANVAS_MIN_PX
-      : selectedTool === "elements"
-        ? AI_SHELL_RIGHT_ELEMENTS_MIN_PX
-        : undefined;
   const defaultLeftRatio = isSoundWorkflow(selectedTool)
     ? 0.65
     : selectedTool === "character" || selectedTool === "elements"
@@ -1052,7 +1044,6 @@ export function AiStudioPageContent({
     enabled: Boolean(selectedTool),
     minLeftWidthPx,
     maxLeftWidthPx,
-    minRightWidthPx,
     defaultLeftRatio,
     minWidthResetKey: projectId,
   });

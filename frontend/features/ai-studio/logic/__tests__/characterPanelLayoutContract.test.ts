@@ -37,13 +37,13 @@ describe("character panel layout contract", () => {
     );
   });
 
-  it("allows the Character properties panel to shrink narrower than the default shell right-column minimum", () => {
+  it("keeps the Character shell on the shared zoom-safe right-column minimum", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
 
     expect(css).toContain(
       '.ai-studio-page[data-selected-tool="character"] .ai-shell.ai-shell-resizable,'
     );
-    expect(css).toContain("--ai-shell-right-min-width: 180px;");
+    expect(css).toContain("--ai-shell-right-min-width: 440px;");
   });
 
   it("pins the Character split host as the active flex child under the properties rail", () => {

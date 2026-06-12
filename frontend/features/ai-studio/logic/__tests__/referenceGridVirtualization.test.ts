@@ -37,6 +37,13 @@ describe("referenceGridVirtualization", () => {
       resolveReferenceGridMaxColumns({
         requestedMaxColumns: 8,
         itemCount: 60,
+        pressureLevel: 1,
+      })
+    ).toBe(6);
+    expect(
+      resolveReferenceGridMaxColumns({
+        requestedMaxColumns: 8,
+        itemCount: 60,
         pressureLevel: 2,
       })
     ).toBe(4);

@@ -73,7 +73,7 @@ export const resolveReferenceGridMaxColumns = ({
 }: ResolveReferenceGridMaxColumnsInput): number => {
   const safeRequested = Math.max(REFERENCE_GRID_MIN_COLUMNS, Math.floor(requestedMaxColumns));
   if (itemCount < 40) return safeRequested;
-  const highDensityCap = pressureLevel >= 1 ? 4 : safeRequested;
+  const highDensityCap = pressureLevel >= 2 ? 4 : pressureLevel >= 1 ? 6 : safeRequested;
   return Math.max(REFERENCE_GRID_MIN_COLUMNS, Math.min(safeRequested, highDensityCap));
 };
 

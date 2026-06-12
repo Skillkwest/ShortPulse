@@ -161,6 +161,16 @@ describe("expert edit layout contract", () => {
     expect(secondaryRow).toContain("max-width: 100%;");
   });
 
+  it("does not create an implicit second grid column when the edit layout stacks", () => {
+    const css = fs.readFileSync(expertEditCssPath, "utf8");
+
+    expect(css).toContain("@container ai-properties (max-width: 760px)");
+    expect(css).not.toContain("@container ai-properties (max-width: 980px)");
+    expect(css).toContain(".edit-expert-preset-toolbar,\n  .edit-expert-primary-column");
+    expect(css).toContain("grid-column: 1;");
+    expect(css).toContain(".edit-expert-primary-column {\n    grid-row: 2;");
+  });
+
   it("bottom-docks the edit control deck inside the center column", () => {
     const css = fs.readFileSync(expertEditCssPath, "utf8");
     const postStageWrapper = extractRuleBlock(css, ".edit-expert-post-stage-wrapper");

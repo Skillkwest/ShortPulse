@@ -77,6 +77,32 @@ const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
 const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 6;
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
 
+const buildSavedKlingElementRefreshKey = (
+  element: AiStudioKlingElement,
+  fallbackSlotIndex: number
+): string | null => {
+  const sourceKind: AiStudioKlingSavedEntitySourceKind | null = element.sourceCharacterId
+    ? "character"
+    : element.sourceElementId
+      ? "element"
+      : null;
+  const sourceId = element.sourceCharacterId ?? element.sourceElementId ?? null;
+  if (!sourceKind || !sourceId) return null;
+  return [
+    element.slotIndex ?? fallbackSlotIndex,
+    sourceKind,
+    sourceId,
+    element.sourceCharacterLookId ?? "",
+  ].join(":");
+};
+
+const hasKlingElementVisibleMedia = (element: AiStudioKlingElement): boolean =>
+  Boolean(
+    element.videoUrl.trim() ||
+    getAiStudioKlingElementReferenceUrls(element).length ||
+    element.profileImageUrl?.trim()
+  );
+
 type KlingPromptCharacterCounterProps = {
   count: number;
   limit: number;
@@ -360,6 +386,7 @@ export function VideoPropertiesPanel({
     replaceEnd: 0,
     target: "primary",
   });
+  const normalizedSavedKlingElementKeysRef = React.useRef<Set<string>>(new Set());
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isSeedance2FamilyModelSelectedForSlots = isSeedance2FamilyModelId(modelId);
   const klingElementSlotCount = isSeedance2FamilyModelSelectedForSlots
@@ -684,18 +711,23 @@ export function VideoPropertiesPanel({
     let cancelled = false;
 
     const normalizeAttachedElements = async () => {
+      const normalizedRefreshKeys: string[] = [];
       const normalizedSlots = await Promise.all(
         selectedKlingElements.map(async (element, index) => {
           if (!element) return null;
           const slotIndex = element.slotIndex ?? index;
 
           if (!element.sourceElementId && !element.sourceCharacterId) {
-            const hasLocalMedia = Boolean(
-              element.videoUrl.trim() ||
-              getAiStudioKlingElementReferenceUrls(element).length ||
-              element.profileImageUrl?.trim()
-            );
-            return hasLocalMedia ? { ...element, slotIndex } : null;
+            return hasKlingElementVisibleMedia(element) ? { ...element, slotIndex } : null;
+          }
+
+          const refreshKey = buildSavedKlingElementRefreshKey(element, index);
+          if (
+            refreshKey &&
+            normalizedSavedKlingElementKeysRef.current.has(refreshKey) &&
+            hasKlingElementVisibleMedia(element)
+          ) {
+            return { ...element, slotIndex };
           }
 
           try {
@@ -722,6 +754,9 @@ export function VideoPropertiesPanel({
                 element.alias?.trim()
               );
               return hasSessionPresence ? { ...element, slotIndex } : null;
+            }
+            if (refreshKey) {
+              normalizedRefreshKeys.push(refreshKey);
             }
             return { ...refreshedElement, slotIndex };
           } catch {
@@ -780,6 +815,9 @@ export function VideoPropertiesPanel({
       if (currentSignature !== nextSignature) {
         commitSelectedKlingElements(normalizedSlots);
       }
+      normalizedRefreshKeys.forEach((key) => {
+        normalizedSavedKlingElementKeysRef.current.add(key);
+      });
     };
 
     void normalizeAttachedElements();
@@ -817,6 +855,13 @@ export function VideoPropertiesPanel({
           sourceId,
           sourceCharacterLookId,
         });
+        const selectedRefreshKey = buildSavedKlingElementRefreshKey(
+          selectedElement,
+          elementPickerSlotIndex
+        );
+        if (selectedRefreshKey) {
+          normalizedSavedKlingElementKeysRef.current.add(selectedRefreshKey);
+        }
         const next = Array.from(
           { length: klingElementSlotCount },
           (_, index) => selectedKlingElements[index] ?? null

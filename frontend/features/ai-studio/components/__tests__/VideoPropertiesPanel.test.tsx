@@ -584,6 +584,54 @@ function KlingSparseSlotHarness() {
   );
 }
 
+function KlingElementAttachHarness({
+  onCommit,
+}: {
+  onCommit?: (elements: AiStudioKlingElement[]) => void;
+}) {
+  const [klingElements, setKlingElements] = React.useState<AiStudioKlingElement[]>([]);
+  const handleKlingElementsChange = (next: AiStudioKlingElement[]) => {
+    onCommit?.(next);
+    setKlingElements(next);
+  };
+
+  return (
+    <VideoPropertiesPanel
+      {...baseProps}
+      klingElements={klingElements}
+      onKlingElementsChange={handleKlingElementsChange}
+    />
+  );
+}
+
+function KlingInitialElementHarness() {
+  const [klingElements, setKlingElements] = React.useState<AiStudioKlingElement[]>([
+    {
+      id: "element-red-lantern",
+      slotIndex: 0,
+      sourceKind: "element",
+      sourceElementId: "element-red-lantern",
+      sourceCharacterId: null,
+      name: "Red Lantern",
+      alias: "redlantern",
+      description: "Warm lacquered lantern",
+      profileImageUrl: "https://signed.example.com/red-lantern-profile.jpg?token=old",
+      profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+      frontalImageUrl: "https://signed.example.com/red-lantern-01.jpg?token=old",
+      referenceImageUrls: "https://signed.example.com/red-lantern-02.jpg?token=old",
+      videoUrl: "",
+    },
+  ]);
+
+  return (
+    <VideoPropertiesPanel
+      {...baseProps}
+      klingElements={klingElements}
+      onKlingElementsChange={setKlingElements}
+    />
+  );
+}
+
 describe("VideoPropertiesPanel", () => {
   beforeEach(() => {
     referencePromptStepMock.mockClear();
@@ -1923,6 +1971,26 @@ describe("VideoPropertiesPanel", () => {
     });
   });
 
+  it("does not reload a freshly attached saved element after the parent state updates", async () => {
+    const onCommit = vi.fn();
+    render(<KlingElementAttachHarness onCommit={onCommit} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: /red lantern/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Replace attached element Red Lantern" })
+      ).toBeInTheDocument();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(loadElementManagerDraftByElementId).toHaveBeenCalledTimes(1);
+  });
+
   it("attaches a saved character to a Kling slot through the combined picker", async () => {
     const onKlingElementsChange = vi.fn();
     render(<VideoPropertiesPanel {...baseProps} onKlingElementsChange={onKlingElementsChange} />);
@@ -2198,6 +2266,44 @@ describe("VideoPropertiesPanel", () => {
       expect(loadElementManagerDraftByElementId).toHaveBeenCalledWith("element-red-lantern");
     });
     expect(onKlingElementsChange).not.toHaveBeenCalledWith([]);
+    expect(
+      screen.getByRole("button", { name: "Replace attached element Red Lantern" })
+    ).toBeInTheDocument();
+  });
+
+  it("refreshes a restored saved element once without looping on rotated signed URLs", async () => {
+    let loadCount = 0;
+    vi.mocked(loadElementManagerDraftByElementId).mockImplementation(async () => {
+      loadCount += 1;
+      return {
+        elementId: "element-red-lantern",
+        name: "Red Lantern",
+        alias: "redlantern",
+        status: "ready",
+        profileImageUrl: `https://signed.example.com/red-lantern-profile.jpg?token=fresh-${loadCount}`,
+        profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+        description: "Warm lacquered lantern",
+        assetType: "image",
+        imageReferenceUrls: [
+          `https://signed.example.com/red-lantern-01.jpg?token=fresh-${loadCount}`,
+          `https://signed.example.com/red-lantern-02.jpg?token=fresh-${loadCount}`,
+        ],
+        videoReferenceUrl: null,
+        updatedAt: "2026-04-07T00:00:00.000Z",
+        userId: "user-1",
+      };
+    });
+
+    render(<KlingInitialElementHarness />);
+
+    await waitFor(() => {
+      expect(loadElementManagerDraftByElementId).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(loadElementManagerDraftByElementId).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole("button", { name: "Replace attached element Red Lantern" })
     ).toBeInTheDocument();

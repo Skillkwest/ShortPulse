@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnifiedPresetsLibraryPanel } from "../UnifiedPresetsLibraryPanel";
@@ -31,25 +31,45 @@ describe("UnifiedPresetsLibraryPanel", () => {
   });
 
   it("restores prompt and Pulse built-ins from one confirmation action", async () => {
+    vi.useFakeTimers();
     const restorePromptBuiltIns = vi.fn(async () => true);
 
-    render(
-      <UnifiedPresetsLibraryPanel
-        promptPresets={[]}
-        selectedPromptPresetId={null}
-        onRestorePromptBuiltIns={restorePromptBuiltIns}
-      />
-    );
+    try {
+      render(
+        <UnifiedPresetsLibraryPanel
+          promptPresets={[]}
+          selectedPromptPresetId={null}
+          onRestorePromptBuiltIns={restorePromptBuiltIns}
+        />
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: /restore built-ins/i }));
+      fireEvent.click(screen.getByRole("button", { name: /restore built-ins/i }));
 
-    await screen.findByRole("dialog", { name: /restore built-ins/i });
-    fireEvent.click(screen.getByRole("button", { name: /^restore$/i }));
+      screen.getByRole("dialog", { name: /restore built-ins/i });
+      fireEvent.click(screen.getByRole("button", { name: /^restore$/i }));
 
-    await waitFor(() => {
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
       expect(restorePromptBuiltIns).toHaveBeenCalledTimes(1);
       expect(restoreDeletedBuiltInPresetIdsMock).toHaveBeenCalledTimes(1);
-    });
-    expect(await screen.findByText("Built-ins restored.")).toBeInTheDocument();
+      expect(screen.getByText("Built-ins restored.")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(2_200);
+      });
+      expect(screen.getByText("Built-ins restored.").closest(".app-message")).toHaveClass(
+        "is-fading"
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(260);
+      });
+      expect(screen.queryByText("Built-ins restored.")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

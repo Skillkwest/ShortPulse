@@ -4,7 +4,7 @@
  */
 import React from "react";
 import { ArrowCounterClockwise, Selection, Sparkle } from "phosphor-react";
-import { AppMessage } from "../../../components/AppMessage";
+import { AppMessage, useTransientAppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { PresetsLibraryPanel as PromptPresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { PulsePresetsLibraryPanel } from "./PulsePresetsLibraryPanel";
@@ -86,8 +86,12 @@ const UnifiedPresetsLibraryPanelContent = ({
   const [viewFilter, setViewFilter] = React.useState<PresetsLibraryViewFilter>("all");
   const [restoreConfirmOpen, setRestoreConfirmOpen] = React.useState(false);
   const [restoreSubmitting, setRestoreSubmitting] = React.useState(false);
-  const [restoreStatus, setRestoreStatus] = React.useState<string | null>(null);
   const [restoreError, setRestoreError] = React.useState<string | null>(null);
+  const {
+    message: restoreStatus,
+    show: showRestoreStatus,
+    clear: clearRestoreStatus,
+  } = useTransientAppMessage();
   const { deletedBuiltInPresetIds, restoreDeletedBuiltInPresetIds } =
     useCreatePulsePreferenceRuntime();
   const showPulses = viewFilter === "all" || viewFilter === "pulses";
@@ -98,7 +102,7 @@ const UnifiedPresetsLibraryPanelContent = ({
     if (restoreSubmitting) return;
     setRestoreSubmitting(true);
     setRestoreError(null);
-    setRestoreStatus(null);
+    clearRestoreStatus();
     try {
       const promptResult = onRestorePromptBuiltIns ? await onRestorePromptBuiltIns() : true;
       const pulseResult = await restoreDeletedBuiltInPresetIds();
@@ -106,14 +110,20 @@ const UnifiedPresetsLibraryPanelContent = ({
         setRestoreError("Unable to restore built-ins right now.");
         return;
       }
-      setRestoreStatus("Built-ins restored.");
+      showRestoreStatus("Built-ins restored.", "success");
       setRestoreConfirmOpen(false);
     } catch {
       setRestoreError("Unable to restore built-ins right now.");
     } finally {
       setRestoreSubmitting(false);
     }
-  }, [onRestorePromptBuiltIns, restoreDeletedBuiltInPresetIds, restoreSubmitting]);
+  }, [
+    clearRestoreStatus,
+    onRestorePromptBuiltIns,
+    restoreDeletedBuiltInPresetIds,
+    restoreSubmitting,
+    showRestoreStatus,
+  ]);
 
   return (
     <section className="merged-presets-library-panel" aria-label="Presets library">
@@ -126,7 +136,7 @@ const UnifiedPresetsLibraryPanelContent = ({
             disabled={restoreDisabled}
             onClick={() => {
               setRestoreError(null);
-              setRestoreStatus(null);
+              clearRestoreStatus();
               setRestoreConfirmOpen(true);
             }}
           >
@@ -136,10 +146,12 @@ const UnifiedPresetsLibraryPanelContent = ({
         </div>
         {restoreStatus ? (
           <AppMessage
-            className="tiny merged-presets-library-restore-message"
+            className={`tiny merged-presets-library-restore-message ${
+              restoreStatus.fading ? "is-fading" : ""
+            }`.trim()}
             tone="success"
             mode="inline"
-            message={restoreStatus}
+            message={restoreStatus.message}
           />
         ) : null}
         {restoreError && !restoreConfirmOpen ? (

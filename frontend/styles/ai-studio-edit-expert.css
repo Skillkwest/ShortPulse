@@ -6246,10 +6246,19 @@
   display: none;
 }
 
-@container ai-properties (max-width: 980px) {
+@container ai-properties (max-width: 760px) {
   .edit-expert-main-stage {
     grid-template-columns: minmax(0, 1fr);
     row-gap: 12px;
+  }
+
+  .edit-expert-preset-toolbar,
+  .edit-expert-primary-column {
+    grid-column: 1;
+  }
+
+  .edit-expert-primary-column {
+    grid-row: 2;
   }
 
   .edit-expert-sidebar-shell,

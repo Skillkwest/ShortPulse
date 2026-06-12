@@ -22,7 +22,7 @@ describe("ai-studio adaptive layout container contract", () => {
       "@container ai-properties (max-width: 900px)"
     );
     expect(readStyle("ai-studio-edit-expert.css")).toContain(
-      "@container ai-properties (max-width: 980px)"
+      "@container ai-properties (max-width: 760px)"
     );
     expect(readStyle("ai-studio-video-theme.css")).toContain(
       "@container ai-properties (max-width: 760px)"

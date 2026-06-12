@@ -23,6 +23,7 @@
   color: var(--app-message-text);
   box-shadow: var(--shadow-sm);
   letter-spacing: 0;
+  transition: opacity 260ms ease;
 }
 
 .app-message--error {
@@ -88,6 +89,10 @@
 
 .app-message.is-busy {
   opacity: 0.82;
+}
+
+.app-message.is-fading {
+  opacity: 0;
 }
 
 .app-message__copy {

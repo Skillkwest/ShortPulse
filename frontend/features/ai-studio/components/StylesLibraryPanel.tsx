@@ -17,7 +17,7 @@ import {
 } from "./style-creator/constants";
 import { captureStyleDropSnapshot, type ResolveInternalStyleDrop } from "./style-creator/intake";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
-import { AppMessage } from "../../../components/AppMessage";
+import { AppMessage, useTransientAppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -103,8 +103,12 @@ export function StylesLibraryPanel({
   );
   const [restoreConfirmOpen, setRestoreConfirmOpen] = React.useState(false);
   const [restoreSubmitting, setRestoreSubmitting] = React.useState(false);
-  const [restoreStatus, setRestoreStatus] = React.useState<string | null>(null);
   const [restoreError, setRestoreError] = React.useState<string | null>(null);
+  const {
+    message: restoreStatus,
+    show: showRestoreStatus,
+    clear: clearRestoreStatus,
+  } = useTransientAppMessage();
   const stylePromptCharacterCount = pendingStyleEdit?.details.stylePrompt.length ?? 0;
   const stylePromptNearLimit = stylePromptCharacterCount >= STYLE_PROMPT_NEAR_LIMIT_CHARACTERS;
   const stylePromptAtLimit = stylePromptCharacterCount >= STYLE_PROMPT_MAX_CHARACTERS;
@@ -118,21 +122,21 @@ export function StylesLibraryPanel({
     if (restoreSubmitting) return;
     setRestoreSubmitting(true);
     setRestoreError(null);
-    setRestoreStatus(null);
+    clearRestoreStatus();
     try {
       const restored = onRestoreBuiltInStyles ? await onRestoreBuiltInStyles() : false;
       if (!restored) {
         setRestoreError("Unable to restore built-in styles right now.");
         return;
       }
-      setRestoreStatus("Built-in styles restored.");
+      showRestoreStatus("Built-in styles restored.", "success");
       setRestoreConfirmOpen(false);
     } catch {
       setRestoreError("Unable to restore built-in styles right now.");
     } finally {
       setRestoreSubmitting(false);
     }
-  }, [onRestoreBuiltInStyles, restoreSubmitting]);
+  }, [clearRestoreStatus, onRestoreBuiltInStyles, restoreSubmitting, showRestoreStatus]);
 
   return (
     <section
@@ -153,7 +157,7 @@ export function StylesLibraryPanel({
               disabled={restoreSubmitting}
               onClick={() => {
                 setRestoreError(null);
-                setRestoreStatus(null);
+                clearRestoreStatus();
                 setRestoreConfirmOpen(true);
               }}
             >
@@ -168,10 +172,12 @@ export function StylesLibraryPanel({
         </p>
         {restoreStatus ? (
           <AppMessage
-            className="styles-library-restore-message tiny"
+            className={`styles-library-restore-message tiny ${
+              restoreStatus.fading ? "is-fading" : ""
+            }`.trim()}
             tone="success"
             mode="inline"
-            message={restoreStatus}
+            message={restoreStatus.message}
           />
         ) : null}
         {restoreError && !restoreConfirmOpen ? (

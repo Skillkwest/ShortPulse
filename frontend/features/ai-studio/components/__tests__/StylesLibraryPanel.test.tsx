@@ -3,7 +3,7 @@
  * Covers delete affordance visibility and confirm-modal delete behavior.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StylesLibraryPanel } from "../StylesLibraryPanel";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
@@ -1632,35 +1632,51 @@ describe("StylesLibraryPanel", () => {
   });
 
   it("confirms restore built-ins and calls the restore callback", async () => {
+    vi.useFakeTimers();
     const onRestoreBuiltInStyles = vi.fn().mockResolvedValue(true);
     const onDeleteStyle = vi.fn();
     const onSaveStyleDetails = vi.fn();
-    render(
-      <StylesLibraryPanel
-        styles={createStyles()}
-        onDeleteStyle={onDeleteStyle}
-        onSaveStyleDetails={onSaveStyleDetails}
-        onRestoreBuiltInStyles={onRestoreBuiltInStyles}
-      />
-    );
+    try {
+      render(
+        <StylesLibraryPanel
+          styles={createStyles()}
+          onDeleteStyle={onDeleteStyle}
+          onSaveStyleDetails={onSaveStyleDetails}
+          onRestoreBuiltInStyles={onRestoreBuiltInStyles}
+        />
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: "Restore built-ins" }));
-    expect(screen.getByRole("dialog", { name: "Restore built-in styles?" })).toHaveTextContent(
-      "Your custom Styles and custom order will stay unchanged."
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Restore" }));
+      fireEvent.click(screen.getByRole("button", { name: "Restore built-ins" }));
+      expect(screen.getByRole("dialog", { name: "Restore built-in styles?" })).toHaveTextContent(
+        "Your custom Styles and custom order will stay unchanged."
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Restore" }));
 
-    await waitFor(() => {
+      await act(async () => {
+        await Promise.resolve();
+      });
       expect(onRestoreBuiltInStyles).toHaveBeenCalledTimes(1);
-    });
-    expect(onDeleteStyle).not.toHaveBeenCalled();
-    expect(onSaveStyleDetails).not.toHaveBeenCalled();
-    await waitFor(() => {
+      expect(onDeleteStyle).not.toHaveBeenCalled();
+      expect(onSaveStyleDetails).not.toHaveBeenCalled();
       expect(
         screen.queryByRole("dialog", { name: "Restore built-in styles?" })
       ).not.toBeInTheDocument();
-    });
-    expect(screen.getByText("Built-in styles restored.")).toBeInTheDocument();
+      expect(screen.getByText("Built-in styles restored.")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(2_200);
+      });
+      expect(screen.getByText("Built-in styles restored.").closest(".app-message")).toHaveClass(
+        "is-fading"
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(260);
+      });
+      expect(screen.queryByText("Built-in styles restored.")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("opens edit modal when a style tile is clicked", () => {

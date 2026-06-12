@@ -12,6 +12,7 @@ export type DashboardTutorial = {
   youtubeUrl: string;
   thumbnailUrl: string;
   thumbnailMediaType: "image" | "video";
+  thumbnailPosterUrl?: string | null;
   thumbnailAlt: string;
   displayOrder: number;
 };
@@ -25,13 +26,16 @@ const DASHBOARD_TUTORIAL_GRID_SLOT_COUNT = 25;
 
 type DashboardTutorialVideoThumbnailProps = {
   src: string;
+  poster?: string | null;
 };
 
 /**
  * Plays short tutorial thumbnail clips as native muted loops.
  */
-function DashboardTutorialVideoThumbnail({ src }: DashboardTutorialVideoThumbnailProps) {
-  return <video src={src} muted playsInline autoPlay loop preload="auto" />;
+function DashboardTutorialVideoThumbnail({ src, poster }: DashboardTutorialVideoThumbnailProps) {
+  return (
+    <video src={src} poster={poster ?? undefined} muted playsInline autoPlay loop preload="auto" />
+  );
 }
 
 /**
@@ -59,7 +63,10 @@ export function DashboardTutorialGrid({ tutorials, launchHref }: DashboardTutori
               <span className="dashboard-tutorial-title">{tutorial.title}</span>
               <span className="dashboard-tutorial-thumbnail" aria-hidden="true">
                 {tutorial.thumbnailMediaType === "video" ? (
-                  <DashboardTutorialVideoThumbnail src={tutorial.thumbnailUrl} />
+                  <DashboardTutorialVideoThumbnail
+                    src={tutorial.thumbnailUrl}
+                    poster={tutorial.thumbnailPosterUrl}
+                  />
                 ) : (
                   <Image
                     className="dashboard-tutorial-thumbnail-image"

@@ -19,6 +19,14 @@ export type AdminDashboardTutorialDraft = {
   thumbnailFileSizeBytes: number | null;
   thumbnailContentType: string | null;
   thumbnailMediaType: "image" | "video";
+  thumbnailDisplayStoragePath: string | null;
+  thumbnailDisplayFileSizeBytes: number | null;
+  thumbnailDisplayContentType: string | null;
+  thumbnailDisplayMediaType: "image" | "video" | null;
+  thumbnailPosterUrl: string | null;
+  thumbnailPosterStoragePath: string | null;
+  thumbnailPosterFileSizeBytes: number | null;
+  thumbnailPosterContentType: string | null;
   thumbnailAlt: string;
   displayOrder: string;
   isActive: boolean;
@@ -57,6 +65,14 @@ const emptyDraft = (displayOrder = 1): AdminDashboardTutorialDraft => ({
   thumbnailFileSizeBytes: null,
   thumbnailContentType: null,
   thumbnailMediaType: "image",
+  thumbnailDisplayStoragePath: null,
+  thumbnailDisplayFileSizeBytes: null,
+  thumbnailDisplayContentType: null,
+  thumbnailDisplayMediaType: null,
+  thumbnailPosterUrl: null,
+  thumbnailPosterStoragePath: null,
+  thumbnailPosterFileSizeBytes: null,
+  thumbnailPosterContentType: null,
   thumbnailAlt: "",
   displayOrder: String(displayOrder),
   isActive: true,
@@ -79,6 +95,34 @@ const asAdminDashboardTutorial = (value: unknown): AdminDashboardTutorial | null
     row.thumbnailMediaType === "video" || row.thumbnailMediaType === "image"
       ? row.thumbnailMediaType
       : "image";
+  const thumbnailDisplayStoragePath =
+    typeof row.thumbnailDisplayStoragePath === "string"
+      ? row.thumbnailDisplayStoragePath.trim()
+      : null;
+  const thumbnailDisplayFileSizeBytes =
+    typeof row.thumbnailDisplayFileSizeBytes === "number"
+      ? row.thumbnailDisplayFileSizeBytes
+      : null;
+  const thumbnailDisplayContentType =
+    typeof row.thumbnailDisplayContentType === "string"
+      ? row.thumbnailDisplayContentType.trim()
+      : null;
+  const thumbnailDisplayMediaType =
+    row.thumbnailDisplayMediaType === "video" || row.thumbnailDisplayMediaType === "image"
+      ? row.thumbnailDisplayMediaType
+      : null;
+  const thumbnailPosterUrl =
+    typeof row.thumbnailPosterUrl === "string" ? row.thumbnailPosterUrl.trim() : null;
+  const thumbnailPosterStoragePath =
+    typeof row.thumbnailPosterStoragePath === "string"
+      ? row.thumbnailPosterStoragePath.trim()
+      : null;
+  const thumbnailPosterFileSizeBytes =
+    typeof row.thumbnailPosterFileSizeBytes === "number" ? row.thumbnailPosterFileSizeBytes : null;
+  const thumbnailPosterContentType =
+    typeof row.thumbnailPosterContentType === "string"
+      ? row.thumbnailPosterContentType.trim()
+      : null;
   if (!id || !title || !youtubeUrl || !thumbnailUrl) return null;
   return {
     id,
@@ -89,6 +133,14 @@ const asAdminDashboardTutorial = (value: unknown): AdminDashboardTutorial | null
     thumbnailFileSizeBytes,
     thumbnailContentType,
     thumbnailMediaType,
+    thumbnailDisplayStoragePath,
+    thumbnailDisplayFileSizeBytes,
+    thumbnailDisplayContentType,
+    thumbnailDisplayMediaType,
+    thumbnailPosterUrl,
+    thumbnailPosterStoragePath,
+    thumbnailPosterFileSizeBytes,
+    thumbnailPosterContentType,
     thumbnailAlt: typeof row.thumbnailAlt === "string" ? row.thumbnailAlt.trim() : "",
     displayOrder: typeof row.displayOrder === "number" ? row.displayOrder : 0,
     isActive: row.isActive === true,
@@ -106,6 +158,14 @@ const draftFromTutorial = (tutorial: AdminDashboardTutorial): AdminDashboardTuto
   thumbnailFileSizeBytes: tutorial.thumbnailFileSizeBytes,
   thumbnailContentType: tutorial.thumbnailContentType,
   thumbnailMediaType: tutorial.thumbnailMediaType,
+  thumbnailDisplayStoragePath: tutorial.thumbnailDisplayStoragePath,
+  thumbnailDisplayFileSizeBytes: tutorial.thumbnailDisplayFileSizeBytes,
+  thumbnailDisplayContentType: tutorial.thumbnailDisplayContentType,
+  thumbnailDisplayMediaType: tutorial.thumbnailDisplayMediaType,
+  thumbnailPosterUrl: tutorial.thumbnailPosterUrl,
+  thumbnailPosterStoragePath: tutorial.thumbnailPosterStoragePath,
+  thumbnailPosterFileSizeBytes: tutorial.thumbnailPosterFileSizeBytes,
+  thumbnailPosterContentType: tutorial.thumbnailPosterContentType,
   thumbnailAlt: tutorial.thumbnailAlt,
   displayOrder: String(tutorial.displayOrder),
   isActive: tutorial.isActive,
@@ -178,17 +238,64 @@ const asFinalizedThumbnail = (
   storagePath: string;
   signedUrl: string;
   mimeType: string;
-  mediaType: "image" | "video";
   fileSizeBytes: number;
+  displayStoragePath: string;
+  displaySignedUrl: string;
+  displayMimeType: string;
+  displayMediaType: "image" | "video";
+  displayFileSizeBytes: number;
+  posterStoragePath: string | null;
+  posterSignedUrl: string | null;
+  posterMimeType: string | null;
+  posterFileSizeBytes: number | null;
 } | null => {
   const record = asRecord(value);
   const storagePath = typeof record.storagePath === "string" ? record.storagePath : "";
   const signedUrl = typeof record.signedUrl === "string" ? record.signedUrl : "";
   const mimeType = typeof record.mimeType === "string" ? record.mimeType : "";
-  const mediaType = record.mediaType === "video" ? "video" : "image";
   const fileSizeBytes = typeof record.fileSizeBytes === "number" ? record.fileSizeBytes : 0;
-  if (!storagePath || !signedUrl || !mimeType || fileSizeBytes <= 0) return null;
-  return { storagePath, signedUrl, mimeType, mediaType, fileSizeBytes };
+  const displayStoragePath =
+    typeof record.displayStoragePath === "string" ? record.displayStoragePath : "";
+  const displaySignedUrl =
+    typeof record.displaySignedUrl === "string" ? record.displaySignedUrl : "";
+  const displayMimeType = typeof record.displayMimeType === "string" ? record.displayMimeType : "";
+  const displayMediaType = record.displayMediaType === "video" ? "video" : "image";
+  const displayFileSizeBytes =
+    typeof record.displayFileSizeBytes === "number" ? record.displayFileSizeBytes : 0;
+  const posterStoragePath =
+    typeof record.posterStoragePath === "string" ? record.posterStoragePath : null;
+  const posterSignedUrl =
+    typeof record.posterSignedUrl === "string" ? record.posterSignedUrl : null;
+  const posterMimeType = typeof record.posterMimeType === "string" ? record.posterMimeType : null;
+  const posterFileSizeBytes =
+    typeof record.posterFileSizeBytes === "number" ? record.posterFileSizeBytes : null;
+  if (
+    !storagePath ||
+    !signedUrl ||
+    !mimeType ||
+    fileSizeBytes <= 0 ||
+    !displayStoragePath ||
+    !displaySignedUrl ||
+    !displayMimeType ||
+    displayFileSizeBytes <= 0
+  ) {
+    return null;
+  }
+  return {
+    storagePath,
+    signedUrl,
+    mimeType,
+    fileSizeBytes,
+    displayStoragePath,
+    displaySignedUrl,
+    displayMimeType,
+    displayMediaType,
+    displayFileSizeBytes,
+    posterStoragePath,
+    posterSignedUrl,
+    posterMimeType,
+    posterFileSizeBytes,
+  };
 };
 
 /**
@@ -316,11 +423,19 @@ export const useAdminDashboardTutorialsController = ({
 
       setDraft((current) => ({
         ...current,
-        thumbnailUrl: thumbnail.signedUrl,
+        thumbnailUrl: thumbnail.displaySignedUrl,
         thumbnailStoragePath: thumbnail.storagePath,
         thumbnailFileSizeBytes: thumbnail.fileSizeBytes,
         thumbnailContentType: thumbnail.mimeType,
-        thumbnailMediaType: thumbnail.mediaType,
+        thumbnailMediaType: thumbnail.displayMediaType,
+        thumbnailDisplayStoragePath: thumbnail.displayStoragePath,
+        thumbnailDisplayFileSizeBytes: thumbnail.displayFileSizeBytes,
+        thumbnailDisplayContentType: thumbnail.displayMimeType,
+        thumbnailDisplayMediaType: thumbnail.displayMediaType,
+        thumbnailPosterUrl: thumbnail.posterSignedUrl,
+        thumbnailPosterStoragePath: thumbnail.posterStoragePath,
+        thumbnailPosterFileSizeBytes: thumbnail.posterFileSizeBytes,
+        thumbnailPosterContentType: thumbnail.posterMimeType,
       }));
       setResult("Thumbnail uploaded.");
     } catch (caughtError) {

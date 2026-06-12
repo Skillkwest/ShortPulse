@@ -4,9 +4,11 @@
  */
 import type { getSupabaseAdmin } from "./supabaseAdmin";
 import {
+  isDashboardTutorialThumbnailVariantStoragePath,
   isDashboardTutorialThumbnailStoragePath,
   normalizeDashboardTutorialThumbnailContentType,
   signDashboardTutorialThumbnailUrl,
+  type DashboardTutorialThumbnailDisplayContentType,
   type DashboardTutorialThumbnailContentType,
 } from "./dashboardTutorialAssets";
 
@@ -39,6 +41,13 @@ type RawDashboardTutorial = {
   thumbnail_file_size_bytes?: unknown;
   thumbnail_content_type?: unknown;
   thumbnail_media_type?: unknown;
+  thumbnail_display_storage_path?: unknown;
+  thumbnail_display_file_size_bytes?: unknown;
+  thumbnail_display_content_type?: unknown;
+  thumbnail_display_media_type?: unknown;
+  thumbnail_poster_storage_path?: unknown;
+  thumbnail_poster_file_size_bytes?: unknown;
+  thumbnail_poster_content_type?: unknown;
   thumbnail_alt?: unknown;
   display_order?: unknown;
   is_active?: unknown;
@@ -55,6 +64,14 @@ export type DashboardTutorial = {
   thumbnailFileSizeBytes: number | null;
   thumbnailContentType: DashboardTutorialThumbnailContentType | null;
   thumbnailMediaType: DashboardTutorialThumbnailMediaType;
+  thumbnailDisplayStoragePath: string | null;
+  thumbnailDisplayFileSizeBytes: number | null;
+  thumbnailDisplayContentType: DashboardTutorialThumbnailDisplayContentType | null;
+  thumbnailDisplayMediaType: DashboardTutorialThumbnailMediaType | null;
+  thumbnailPosterUrl: string | null;
+  thumbnailPosterStoragePath: string | null;
+  thumbnailPosterFileSizeBytes: number | null;
+  thumbnailPosterContentType: "image/jpeg" | null;
   thumbnailAlt: string;
   displayOrder: number;
   isActive: boolean;
@@ -74,6 +91,20 @@ const asTrimmed = (value: unknown): string => {
 
 const isThumbnailMediaType = (value: string): value is DashboardTutorialThumbnailMediaType =>
   DASHBOARD_TUTORIAL_THUMBNAIL_MEDIA_TYPES.includes(value as DashboardTutorialThumbnailMediaType);
+
+const normalizeDashboardTutorialThumbnailDisplayContentType = (
+  value: unknown
+): DashboardTutorialThumbnailDisplayContentType | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "image/jpeg" || normalized === "image/webp" || normalized === "video/mp4") {
+    return normalized;
+  }
+  return null;
+};
+
+const normalizeDashboardTutorialPosterContentType = (value: unknown): "image/jpeg" | null =>
+  typeof value === "string" && value.trim().toLowerCase() === "image/jpeg" ? "image/jpeg" : null;
 
 const isHttpsUrl = (value: string): boolean => {
   try {
@@ -114,10 +145,18 @@ const toDashboardTutorial = async (
   const youtubeUrl = asTrimmed(row.youtube_url);
   const storedThumbnailUrl = asTrimmed(row.thumbnail_url);
   const thumbnailStoragePath = asTrimmed(row.thumbnail_storage_path);
-  const thumbnailMediaTypeRaw = asTrimmed(row.thumbnail_media_type) || "image";
-  const thumbnailUrl = thumbnailStoragePath
-    ? await signDashboardTutorialThumbnailUrl(supabaseAdmin, thumbnailStoragePath)
+  const thumbnailDisplayStoragePath = asTrimmed(row.thumbnail_display_storage_path);
+  const thumbnailDisplayMediaTypeRaw = asTrimmed(row.thumbnail_display_media_type);
+  const thumbnailPosterStoragePath = asTrimmed(row.thumbnail_poster_storage_path);
+  const thumbnailMediaTypeRaw =
+    thumbnailDisplayMediaTypeRaw || asTrimmed(row.thumbnail_media_type) || "image";
+  const signableThumbnailStoragePath = thumbnailDisplayStoragePath || thumbnailStoragePath;
+  const thumbnailUrl = signableThumbnailStoragePath
+    ? await signDashboardTutorialThumbnailUrl(supabaseAdmin, signableThumbnailStoragePath)
     : storedThumbnailUrl;
+  const thumbnailPosterUrl = thumbnailPosterStoragePath
+    ? await signDashboardTutorialThumbnailUrl(supabaseAdmin, thumbnailPosterStoragePath)
+    : null;
 
   if (
     !id ||
@@ -125,6 +164,10 @@ const toDashboardTutorial = async (
     !youtubeUrl ||
     !thumbnailUrl ||
     (thumbnailStoragePath && !isDashboardTutorialThumbnailStoragePath(thumbnailStoragePath)) ||
+    (thumbnailDisplayStoragePath &&
+      !isDashboardTutorialThumbnailVariantStoragePath(thumbnailDisplayStoragePath)) ||
+    (thumbnailPosterStoragePath &&
+      !isDashboardTutorialThumbnailVariantStoragePath(thumbnailPosterStoragePath)) ||
     !isThumbnailMediaType(thumbnailMediaTypeRaw)
   ) {
     return null;
@@ -141,6 +184,20 @@ const toDashboardTutorial = async (
       row.thumbnail_content_type
     ),
     thumbnailMediaType: thumbnailMediaTypeRaw,
+    thumbnailDisplayStoragePath: thumbnailDisplayStoragePath || null,
+    thumbnailDisplayFileSizeBytes: asNullablePositiveInteger(row.thumbnail_display_file_size_bytes),
+    thumbnailDisplayContentType: normalizeDashboardTutorialThumbnailDisplayContentType(
+      row.thumbnail_display_content_type
+    ),
+    thumbnailDisplayMediaType: isThumbnailMediaType(thumbnailDisplayMediaTypeRaw)
+      ? thumbnailDisplayMediaTypeRaw
+      : null,
+    thumbnailPosterUrl,
+    thumbnailPosterStoragePath: thumbnailPosterStoragePath || null,
+    thumbnailPosterFileSizeBytes: asNullablePositiveInteger(row.thumbnail_poster_file_size_bytes),
+    thumbnailPosterContentType: normalizeDashboardTutorialPosterContentType(
+      row.thumbnail_poster_content_type
+    ),
     thumbnailAlt: asTrimmed(row.thumbnail_alt),
     displayOrder: typeof row.display_order === "number" ? row.display_order : 0,
     isActive: row.is_active === true,
@@ -157,13 +214,21 @@ const emptyNormalizedTutorial = (): Omit<DashboardTutorial, "id" | "createdAt" |
   thumbnailFileSizeBytes: null,
   thumbnailContentType: null,
   thumbnailMediaType: "image",
+  thumbnailDisplayStoragePath: null,
+  thumbnailDisplayFileSizeBytes: null,
+  thumbnailDisplayContentType: null,
+  thumbnailDisplayMediaType: null,
+  thumbnailPosterUrl: null,
+  thumbnailPosterStoragePath: null,
+  thumbnailPosterFileSizeBytes: null,
+  thumbnailPosterContentType: null,
   thumbnailAlt: "",
   displayOrder: 0,
   isActive: true,
 });
 
 const TUTORIAL_SELECT_WITH_STORAGE =
-  "id, title, youtube_url, thumbnail_url, thumbnail_storage_path, thumbnail_file_size_bytes, thumbnail_content_type, thumbnail_media_type, thumbnail_alt, display_order, is_active, created_at, updated_at";
+  "id, title, youtube_url, thumbnail_url, thumbnail_storage_path, thumbnail_file_size_bytes, thumbnail_content_type, thumbnail_media_type, thumbnail_display_storage_path, thumbnail_display_file_size_bytes, thumbnail_display_content_type, thumbnail_display_media_type, thumbnail_poster_storage_path, thumbnail_poster_file_size_bytes, thumbnail_poster_content_type, thumbnail_alt, display_order, is_active, created_at, updated_at";
 const TUTORIAL_SELECT_LEGACY =
   "id, title, youtube_url, thumbnail_url, thumbnail_media_type, thumbnail_alt, display_order, is_active, created_at, updated_at";
 
@@ -177,6 +242,8 @@ const missingTutorialStorageColumns = (error: unknown): boolean => {
     message.includes("thumbnail_storage_path") ||
     message.includes("thumbnail_file_size_bytes") ||
     message.includes("thumbnail_content_type") ||
+    message.includes("thumbnail_display_storage_path") ||
+    message.includes("thumbnail_poster_storage_path") ||
     (message.includes("schema cache") && message.includes("thumbnail"))
   );
 };
@@ -228,8 +295,20 @@ export const normalizeDashboardTutorialInput = (
   const thumbnailStoragePath = asTrimmed(
     payload.thumbnailStoragePath ?? payload.thumbnail_storage_path
   );
+  const thumbnailDisplayStoragePath = asTrimmed(
+    payload.thumbnailDisplayStoragePath ?? payload.thumbnail_display_storage_path
+  );
+  const thumbnailPosterStoragePath = asTrimmed(
+    payload.thumbnailPosterStoragePath ?? payload.thumbnail_poster_storage_path
+  );
   const thumbnailContentType = normalizeDashboardTutorialThumbnailContentType(
     payload.thumbnailContentType ?? payload.thumbnail_content_type
+  );
+  const thumbnailDisplayContentType = normalizeDashboardTutorialThumbnailDisplayContentType(
+    payload.thumbnailDisplayContentType ?? payload.thumbnail_display_content_type
+  );
+  const thumbnailPosterContentType = normalizeDashboardTutorialPosterContentType(
+    payload.thumbnailPosterContentType ?? payload.thumbnail_poster_content_type
   );
   const thumbnailFileSizeRaw = Number(
     payload.thumbnailFileSizeBytes ?? payload.thumbnail_file_size_bytes ?? 0
@@ -237,8 +316,23 @@ export const normalizeDashboardTutorialInput = (
   const thumbnailFileSizeBytes = Number.isSafeInteger(thumbnailFileSizeRaw)
     ? Math.max(0, Math.trunc(thumbnailFileSizeRaw))
     : 0;
+  const thumbnailDisplayFileSizeRaw = Number(
+    payload.thumbnailDisplayFileSizeBytes ?? payload.thumbnail_display_file_size_bytes ?? 0
+  );
+  const thumbnailDisplayFileSizeBytes = Number.isSafeInteger(thumbnailDisplayFileSizeRaw)
+    ? Math.max(0, Math.trunc(thumbnailDisplayFileSizeRaw))
+    : 0;
+  const thumbnailPosterFileSizeRaw = Number(
+    payload.thumbnailPosterFileSizeBytes ?? payload.thumbnail_poster_file_size_bytes ?? 0
+  );
+  const thumbnailPosterFileSizeBytes = Number.isSafeInteger(thumbnailPosterFileSizeRaw)
+    ? Math.max(0, Math.trunc(thumbnailPosterFileSizeRaw))
+    : 0;
   const thumbnailMediaTypeRaw =
     asTrimmed(payload.thumbnailMediaType ?? payload.thumbnail_media_type) || "image";
+  const thumbnailDisplayMediaTypeRaw = asTrimmed(
+    payload.thumbnailDisplayMediaType ?? payload.thumbnail_display_media_type
+  );
   const thumbnailAlt = asTrimmed(payload.thumbnailAlt ?? payload.thumbnail_alt);
   const displayOrderRaw = Number(payload.displayOrder ?? payload.display_order ?? 0);
   const displayOrder = Number.isFinite(displayOrderRaw)
@@ -275,6 +369,55 @@ export const normalizeDashboardTutorialInput = (
     if (!thumbnailFileSizeBytes) {
       return { tutorial: emptyNormalizedTutorial(), error: "Thumbnail file size is required." };
     }
+    if (thumbnailDisplayStoragePath) {
+      if (
+        thumbnailDisplayStoragePath.length > DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PATH_MAX_LENGTH ||
+        !isDashboardTutorialThumbnailVariantStoragePath(thumbnailDisplayStoragePath)
+      ) {
+        return {
+          tutorial: emptyNormalizedTutorial(),
+          error: "Thumbnail display storage path is invalid.",
+        };
+      }
+      if (!thumbnailDisplayContentType) {
+        return {
+          tutorial: emptyNormalizedTutorial(),
+          error: "Thumbnail display content type is invalid.",
+        };
+      }
+      if (!thumbnailDisplayFileSizeBytes) {
+        return {
+          tutorial: emptyNormalizedTutorial(),
+          error: "Thumbnail display file size is required.",
+        };
+      }
+      if (!isThumbnailMediaType(thumbnailDisplayMediaTypeRaw)) {
+        return { tutorial: emptyNormalizedTutorial(), error: "Thumbnail display type is invalid." };
+      }
+    }
+    if (thumbnailPosterStoragePath) {
+      if (
+        thumbnailPosterStoragePath.length > DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PATH_MAX_LENGTH ||
+        !isDashboardTutorialThumbnailVariantStoragePath(thumbnailPosterStoragePath)
+      ) {
+        return {
+          tutorial: emptyNormalizedTutorial(),
+          error: "Thumbnail poster storage path is invalid.",
+        };
+      }
+      if (!thumbnailPosterContentType) {
+        return {
+          tutorial: emptyNormalizedTutorial(),
+          error: "Thumbnail poster content type is invalid.",
+        };
+      }
+      if (!thumbnailPosterFileSizeBytes) {
+        return {
+          tutorial: emptyNormalizedTutorial(),
+          error: "Thumbnail poster file size is required.",
+        };
+      }
+    }
   } else if (
     !thumbnailUrl ||
     thumbnailUrl.length > DASHBOARD_TUTORIAL_THUMBNAIL_URL_MAX_LENGTH ||
@@ -300,7 +443,26 @@ export const normalizeDashboardTutorialInput = (
       thumbnailStoragePath: thumbnailStoragePath || null,
       thumbnailFileSizeBytes: thumbnailStoragePath ? thumbnailFileSizeBytes : null,
       thumbnailContentType: thumbnailStoragePath ? thumbnailContentType : null,
-      thumbnailMediaType: thumbnailMediaTypeRaw,
+      thumbnailMediaType: isThumbnailMediaType(thumbnailDisplayMediaTypeRaw)
+        ? thumbnailDisplayMediaTypeRaw
+        : thumbnailMediaTypeRaw,
+      thumbnailDisplayStoragePath: thumbnailStoragePath
+        ? thumbnailDisplayStoragePath || null
+        : null,
+      thumbnailDisplayFileSizeBytes:
+        thumbnailStoragePath && thumbnailDisplayStoragePath ? thumbnailDisplayFileSizeBytes : null,
+      thumbnailDisplayContentType:
+        thumbnailStoragePath && thumbnailDisplayStoragePath ? thumbnailDisplayContentType : null,
+      thumbnailDisplayMediaType:
+        thumbnailStoragePath && isThumbnailMediaType(thumbnailDisplayMediaTypeRaw)
+          ? thumbnailDisplayMediaTypeRaw
+          : null,
+      thumbnailPosterUrl: null,
+      thumbnailPosterStoragePath: thumbnailStoragePath ? thumbnailPosterStoragePath || null : null,
+      thumbnailPosterFileSizeBytes:
+        thumbnailStoragePath && thumbnailPosterStoragePath ? thumbnailPosterFileSizeBytes : null,
+      thumbnailPosterContentType:
+        thumbnailStoragePath && thumbnailPosterStoragePath ? thumbnailPosterContentType : null,
       thumbnailAlt,
       displayOrder,
       isActive: typeof isActive === "boolean" ? isActive : true,
@@ -394,6 +556,27 @@ export const saveDashboardTutorial = async (
     thumbnail_file_size_bytes: usesStoredThumbnail ? args.tutorial.thumbnailFileSizeBytes : null,
     thumbnail_content_type: usesStoredThumbnail ? args.tutorial.thumbnailContentType : null,
     thumbnail_media_type: args.tutorial.thumbnailMediaType,
+    thumbnail_display_storage_path: usesStoredThumbnail
+      ? args.tutorial.thumbnailDisplayStoragePath
+      : null,
+    thumbnail_display_file_size_bytes: usesStoredThumbnail
+      ? args.tutorial.thumbnailDisplayFileSizeBytes
+      : null,
+    thumbnail_display_content_type: usesStoredThumbnail
+      ? args.tutorial.thumbnailDisplayContentType
+      : null,
+    thumbnail_display_media_type: usesStoredThumbnail
+      ? args.tutorial.thumbnailDisplayMediaType
+      : null,
+    thumbnail_poster_storage_path: usesStoredThumbnail
+      ? args.tutorial.thumbnailPosterStoragePath
+      : null,
+    thumbnail_poster_file_size_bytes: usesStoredThumbnail
+      ? args.tutorial.thumbnailPosterFileSizeBytes
+      : null,
+    thumbnail_poster_content_type: usesStoredThumbnail
+      ? args.tutorial.thumbnailPosterContentType
+      : null,
     thumbnail_alt: args.tutorial.thumbnailAlt,
     display_order: args.tutorial.displayOrder,
     is_active: args.tutorial.isActive,

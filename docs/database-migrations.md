@@ -361,6 +361,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/152_add_audio_generation_display_title_rollback.sql`
     - `sql/migrations/rollback/153_add_dashboard_tutorials_rollback.sql`
     - `sql/migrations/rollback/154_add_dashboard_tutorial_thumbnail_uploads_rollback.sql`
+    - `sql/migrations/rollback/155_add_dashboard_tutorial_thumbnail_display_derivatives_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -436,7 +437,8 @@ Billing safety note:
 - Migration `150_restore_dashboard_announcement_publish_grants.sql` restores service-role execute access for the dashboard announcement publish RPC while keeping public, anon, and authenticated browser roles denied.
 - Migration `151_add_ai_studio_builtin_style_control_plane.sql` adds the service-role-only `ai_studio_builtin_style_runtime` singleton control-plane table for global built-in AI Studio Styles edited from `/admin/agent-instructions` and read by authenticated runtime clients through `/api/ai/built-in-styles`.
 - Migration `153_add_dashboard_tutorials.sql` adds the admin-managed `dashboard_tutorials` table for signed-in dashboard tutorial cards with active ordered reads, service-role writes, an atomic service-role reorder RPC, HTTPS thumbnail metadata, and no Supabase image transformations.
-- Migration `154_add_dashboard_tutorial_thumbnail_uploads.sql` adds the private `dashboard_tutorial_thumbnails` bucket plus stored-thumbnail columns so admins can upload local GIF/image/video tutorial thumbnails while dashboard reads sign original objects without Supabase image transformations.
+- Migration `154_add_dashboard_tutorial_thumbnail_uploads.sql` adds the private `dashboard_tutorial_thumbnails` bucket plus stored-thumbnail columns so admins can upload local GIF/image/video tutorial thumbnail source files without Supabase image transformations.
+- Migration `sql/migrations/155_add_dashboard_tutorial_thumbnail_display_derivatives.sql` adds durable display-derivative and poster metadata for dashboard tutorial thumbnails so dashboard reads can sign small app-owned display objects while preserving uploaded originals as source material.
 - Migration `063_add_media_folder_canvas_states.sql` added per-user/per-folder Media Library canvas snapshot persistence (`media_folder_canvas_states`) with folder-owner scoped cascade deletion before the folder-canvas runtime was retired.
 - Migration `064_backfill_media_files_from_storage_objects.sql` backfills missing durable `media_files` rows from `storage.objects` for All Media completeness (idempotent user/path insert checks, transient/character/variant exclusions, and rollback-target metadata tagging).
 - Migration `065_add_media_derivative_processing_fields.sql` adds image-derivative retry/lease control fields on `media_files`, an insert-default trigger that marks new image rows `pending`, and claim/backlog indexes for derivative workers.

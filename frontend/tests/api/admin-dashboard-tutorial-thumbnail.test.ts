@@ -8,6 +8,8 @@ import prepareHandler from "../../pages/api/admin/dashboard/tutorial-thumbnail/p
 const requireAdminUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const extractVideoPosterBufferMock = vi.fn();
+const extractVideoPreviewVariantBufferMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireAdminUser: (...args: unknown[]) => requireAdminUserMock(...args),
@@ -19,6 +21,12 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/videoPosterVariant", () => ({
+  extractVideoPosterBuffer: (...args: unknown[]) => extractVideoPosterBufferMock(...args),
+  extractVideoPreviewVariantBuffer: (...args: unknown[]) =>
+    extractVideoPreviewVariantBufferMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -35,6 +43,8 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
+    extractVideoPreviewVariantBufferMock.mockResolvedValue(Buffer.from("preview-mp4"));
+    extractVideoPosterBufferMock.mockResolvedValue(Buffer.from("poster-jpeg"));
   });
 
   it("prepares a signed upload target for a valid thumbnail file", async () => {
@@ -120,7 +130,7 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("finalizes an uploaded thumbnail and returns a signed original URL", async () => {
+  it("finalizes an uploaded thumbnail and returns signed derivative display URLs", async () => {
     const downloadMock = vi.fn(async () => ({
       data: {
         size: gifBytes.length,
@@ -128,12 +138,14 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
       },
       error: null,
     }));
-    const createSignedUrlMock = vi.fn(async () => ({
-      data: { signedUrl: "https://supabase.example.com/signed.gif" },
+    const uploadMock = vi.fn(async () => ({ data: { path: "variant" }, error: null }));
+    const createSignedUrlMock = vi.fn(async (path: string) => ({
+      data: { signedUrl: `https://supabase.example.com/${path}` },
       error: null,
     }));
     const storageFromMock = vi.fn(() => ({
       download: downloadMock,
+      upload: uploadMock,
       createSignedUrl: createSignedUrlMock,
     }));
     getSupabaseAdminMock.mockReturnValue({ storage: { from: storageFromMock } });
@@ -151,15 +163,55 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
     await finalizeHandler(req as never, res as never);
 
     expect(downloadMock).toHaveBeenCalledWith("tutorial-thumbnails/generated.gif");
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^tutorial-thumbnail-variants\/.+\/display\.mp4$/),
+      Buffer.from("preview-mp4"),
+      expect.objectContaining({
+        contentType: "video/mp4",
+        cacheControl: "31536000",
+        upsert: false,
+      })
+    );
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^tutorial-thumbnail-variants\/.+\/poster\.jpg$/),
+      Buffer.from("poster-jpeg"),
+      expect.objectContaining({
+        contentType: "image/jpeg",
+        cacheControl: "31536000",
+        upsert: false,
+      })
+    );
     expect(createSignedUrlMock).toHaveBeenCalledWith("tutorial-thumbnails/generated.gif", 86400);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^tutorial-thumbnail-variants\/.+\/display\.mp4$/),
+      86400
+    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^tutorial-thumbnail-variants\/.+\/poster\.jpg$/),
+      86400
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       thumbnail: {
         storagePath: "tutorial-thumbnails/generated.gif",
-        signedUrl: "https://supabase.example.com/signed.gif",
+        signedUrl: "https://supabase.example.com/tutorial-thumbnails/generated.gif",
         mimeType: "image/gif",
-        mediaType: "image",
         fileSizeBytes: gifBytes.length,
+        displayStoragePath: expect.stringMatching(
+          /^tutorial-thumbnail-variants\/.+\/display\.mp4$/
+        ),
+        displaySignedUrl: expect.stringMatching(
+          /^https:\/\/supabase\.example\.com\/tutorial-thumbnail-variants\/.+\/display\.mp4$/
+        ),
+        displayMimeType: "video/mp4",
+        displayMediaType: "video",
+        displayFileSizeBytes: Buffer.byteLength("preview-mp4"),
+        posterStoragePath: expect.stringMatching(/^tutorial-thumbnail-variants\/.+\/poster\.jpg$/),
+        posterSignedUrl: expect.stringMatching(
+          /^https:\/\/supabase\.example\.com\/tutorial-thumbnail-variants\/.+\/poster\.jpg$/
+        ),
+        posterMimeType: "image/jpeg",
+        posterFileSizeBytes: Buffer.byteLength("poster-jpeg"),
       },
     });
   });

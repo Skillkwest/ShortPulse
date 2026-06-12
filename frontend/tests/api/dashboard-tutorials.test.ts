@@ -58,6 +58,13 @@ describe("GET /api/dashboard/tutorials", () => {
         thumbnail_file_size_bytes: null,
         thumbnail_content_type: null,
         thumbnail_media_type: "image",
+        thumbnail_display_storage_path: null,
+        thumbnail_display_file_size_bytes: null,
+        thumbnail_display_content_type: null,
+        thumbnail_display_media_type: null,
+        thumbnail_poster_storage_path: null,
+        thumbnail_poster_file_size_bytes: null,
+        thumbnail_poster_content_type: null,
         thumbnail_alt: "Animated project creation preview",
         display_order: 1,
         is_active: true,
@@ -85,6 +92,14 @@ describe("GET /api/dashboard/tutorials", () => {
           thumbnailFileSizeBytes: null,
           thumbnailContentType: null,
           thumbnailMediaType: "image",
+          thumbnailDisplayStoragePath: null,
+          thumbnailDisplayFileSizeBytes: null,
+          thumbnailDisplayContentType: null,
+          thumbnailDisplayMediaType: null,
+          thumbnailPosterUrl: null,
+          thumbnailPosterStoragePath: null,
+          thumbnailPosterFileSizeBytes: null,
+          thumbnailPosterContentType: null,
           thumbnailAlt: "Animated project creation preview",
           displayOrder: 1,
           isActive: true,
@@ -147,6 +162,75 @@ describe("GET /api/dashboard/tutorials", () => {
           id: "tutorial-1",
           thumbnailUrl: "https://cdn.example.com/tutorial.gif",
           thumbnailStoragePath: null,
+        }),
+      ],
+    });
+  });
+
+  it("returns derivative display URLs for stored tutorial thumbnails", async () => {
+    const { client } = buildTutorialReadClient([
+      {
+        id: "tutorial-1",
+        title: "Create a project",
+        youtube_url: "https://www.youtube.com/watch?v=abc123",
+        thumbnail_url: null,
+        thumbnail_storage_path: "tutorial-thumbnails/source.gif",
+        thumbnail_file_size_bytes: 12345,
+        thumbnail_content_type: "image/gif",
+        thumbnail_media_type: "video",
+        thumbnail_display_storage_path: "tutorial-thumbnail-variants/variant/display.mp4",
+        thumbnail_display_file_size_bytes: 51234,
+        thumbnail_display_content_type: "video/mp4",
+        thumbnail_display_media_type: "video",
+        thumbnail_poster_storage_path: "tutorial-thumbnail-variants/variant/poster.jpg",
+        thumbnail_poster_file_size_bytes: 1234,
+        thumbnail_poster_content_type: "image/jpeg",
+        thumbnail_alt: "Animated project creation preview",
+        display_order: 1,
+        is_active: true,
+        created_at: "2026-06-10T00:00:00.000Z",
+        updated_at: "2026-06-10T00:00:00.000Z",
+      },
+    ]);
+    const createSignedUrlMock = vi.fn(async (path: string) => ({
+      data: { signedUrl: `https://supabase.example.com/${path}` },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      ...client,
+      storage: { from: vi.fn(() => ({ createSignedUrl: createSignedUrlMock })) },
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      "tutorial-thumbnail-variants/variant/display.mp4",
+      86400
+    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      "tutorial-thumbnail-variants/variant/poster.jpg",
+      86400
+    );
+    expect(createSignedUrlMock).not.toHaveBeenCalledWith(
+      "tutorial-thumbnails/source.gif",
+      expect.any(Number)
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      tutorials: [
+        expect.objectContaining({
+          id: "tutorial-1",
+          thumbnailUrl:
+            "https://supabase.example.com/tutorial-thumbnail-variants/variant/display.mp4",
+          thumbnailMediaType: "video",
+          thumbnailDisplayStoragePath: "tutorial-thumbnail-variants/variant/display.mp4",
+          thumbnailDisplayContentType: "video/mp4",
+          thumbnailDisplayMediaType: "video",
+          thumbnailPosterUrl:
+            "https://supabase.example.com/tutorial-thumbnail-variants/variant/poster.jpg",
+          thumbnailPosterStoragePath: "tutorial-thumbnail-variants/variant/poster.jpg",
         }),
       ],
     });

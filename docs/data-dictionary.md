@@ -612,7 +612,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Update trigger stamps `updated_at` on row mutation.
   - Each row must have either `thumbnail_url` or `thumbnail_storage_path`.
   - Admin writes flow through `/api/admin/dashboard/tutorials` with service-role Supabase access.
-  - Admin thumbnail uploads flow through `/api/admin/dashboard/tutorial-thumbnail/prepare` and `/api/admin/dashboard/tutorial-thumbnail/finalize`, with browser-direct signed upload into the private global thumbnail bucket.
+  - Admin thumbnail uploads flow through `/api/admin/dashboard/tutorial-thumbnail/prepare` and `/api/admin/dashboard/tutorial-thumbnail/finalize`, with browser-direct signed upload into the private global thumbnail bucket. Finalization keeps the uploaded original as source material and stores small display derivative metadata (`thumbnail_display_*`) plus optional poster metadata (`thumbnail_poster_*`) for dashboard runtime reads.
 
 ### Dashboard tutorial RPC contract
 

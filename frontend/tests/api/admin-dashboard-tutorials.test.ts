@@ -35,6 +35,13 @@ const savedTutorialRow = {
   thumbnail_file_size_bytes: null,
   thumbnail_content_type: null,
   thumbnail_media_type: "image",
+  thumbnail_display_storage_path: null,
+  thumbnail_display_file_size_bytes: null,
+  thumbnail_display_content_type: null,
+  thumbnail_display_media_type: null,
+  thumbnail_poster_storage_path: null,
+  thumbnail_poster_file_size_bytes: null,
+  thumbnail_poster_content_type: null,
   thumbnail_alt: "Animated dashboard tutorial preview",
   display_order: 1,
   is_active: true,
@@ -123,6 +130,14 @@ describe("/api/admin/dashboard/tutorials", () => {
         thumbnailFileSizeBytes: null,
         thumbnailContentType: null,
         thumbnailMediaType: "image",
+        thumbnailDisplayStoragePath: null,
+        thumbnailDisplayFileSizeBytes: null,
+        thumbnailDisplayContentType: null,
+        thumbnailDisplayMediaType: null,
+        thumbnailPosterUrl: null,
+        thumbnailPosterStoragePath: null,
+        thumbnailPosterFileSizeBytes: null,
+        thumbnailPosterContentType: null,
         thumbnailAlt: "Animated dashboard tutorial preview",
         displayOrder: 1,
         isActive: true,
@@ -182,6 +197,14 @@ describe("/api/admin/dashboard/tutorials", () => {
       thumbnail_storage_path: "tutorial-thumbnails/uploaded.gif",
       thumbnail_file_size_bytes: 12345,
       thumbnail_content_type: "image/gif",
+      thumbnail_media_type: "video",
+      thumbnail_display_storage_path: "tutorial-thumbnail-variants/uploaded/display.mp4",
+      thumbnail_display_file_size_bytes: 23456,
+      thumbnail_display_content_type: "video/mp4",
+      thumbnail_display_media_type: "video",
+      thumbnail_poster_storage_path: "tutorial-thumbnail-variants/uploaded/poster.jpg",
+      thumbnail_poster_file_size_bytes: 3456,
+      thumbnail_poster_content_type: "image/jpeg",
     };
     const maybeSingleMock = vi.fn(async () => ({ data: storedTutorialRow, error: null }));
     const selectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
@@ -206,7 +229,14 @@ describe("/api/admin/dashboard/tutorials", () => {
         thumbnailStoragePath: "tutorial-thumbnails/uploaded.gif",
         thumbnailFileSizeBytes: 12345,
         thumbnailContentType: "image/gif",
-        thumbnailMediaType: "image",
+        thumbnailMediaType: "video",
+        thumbnailDisplayStoragePath: "tutorial-thumbnail-variants/uploaded/display.mp4",
+        thumbnailDisplayFileSizeBytes: 23456,
+        thumbnailDisplayContentType: "video/mp4",
+        thumbnailDisplayMediaType: "video",
+        thumbnailPosterStoragePath: "tutorial-thumbnail-variants/uploaded/poster.jpg",
+        thumbnailPosterFileSizeBytes: 3456,
+        thumbnailPosterContentType: "image/jpeg",
         displayOrder: 1,
         isActive: true,
       },
@@ -221,10 +251,20 @@ describe("/api/admin/dashboard/tutorials", () => {
         thumbnail_storage_path: "tutorial-thumbnails/uploaded.gif",
         thumbnail_file_size_bytes: 12345,
         thumbnail_content_type: "image/gif",
+        thumbnail_display_storage_path: "tutorial-thumbnail-variants/uploaded/display.mp4",
+        thumbnail_display_file_size_bytes: 23456,
+        thumbnail_display_content_type: "video/mp4",
+        thumbnail_display_media_type: "video",
+        thumbnail_poster_storage_path: "tutorial-thumbnail-variants/uploaded/poster.jpg",
+        thumbnail_poster_file_size_bytes: 3456,
+        thumbnail_poster_content_type: "image/jpeg",
       })
     );
     expect(storageFromMock).toHaveBeenCalledWith("dashboard_tutorial_thumbnails");
-    expect(createSignedUrlMock).toHaveBeenCalledWith("tutorial-thumbnails/uploaded.gif", 86400);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      "tutorial-thumbnail-variants/uploaded/display.mp4",
+      86400
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       tutorial: expect.objectContaining({
@@ -232,6 +272,8 @@ describe("/api/admin/dashboard/tutorials", () => {
         thumbnailStoragePath: "tutorial-thumbnails/uploaded.gif",
         thumbnailFileSizeBytes: 12345,
         thumbnailContentType: "image/gif",
+        thumbnailDisplayStoragePath: "tutorial-thumbnail-variants/uploaded/display.mp4",
+        thumbnailPosterStoragePath: "tutorial-thumbnail-variants/uploaded/poster.jpg",
       }),
       message: "Tutorial saved and active.",
     });

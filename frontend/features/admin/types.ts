@@ -662,6 +662,14 @@ export type AdminDashboardTutorial = {
   thumbnailFileSizeBytes: number | null;
   thumbnailContentType: string | null;
   thumbnailMediaType: "image" | "video";
+  thumbnailDisplayStoragePath: string | null;
+  thumbnailDisplayFileSizeBytes: number | null;
+  thumbnailDisplayContentType: string | null;
+  thumbnailDisplayMediaType: "image" | "video" | null;
+  thumbnailPosterUrl: string | null;
+  thumbnailPosterStoragePath: string | null;
+  thumbnailPosterFileSizeBytes: number | null;
+  thumbnailPosterContentType: string | null;
   thumbnailAlt: string;
   displayOrder: number;
   isActive: boolean;

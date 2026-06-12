@@ -1,15 +1,19 @@
 /**
  * Server helpers for dashboard tutorial thumbnail storage.
- * Owns admin-only signed uploads, validation, and signed original delivery.
+ * Owns admin-only signed uploads, validation, durable display derivatives, and signed delivery.
  */
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 import type { getSupabaseAdmin } from "./supabaseAdmin";
+import { extractVideoPosterBuffer, extractVideoPreviewVariantBuffer } from "../videoPosterVariant";
 
 type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
 
 export const DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET = "dashboard_tutorial_thumbnails";
 export const DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PREFIX = "tutorial-thumbnails";
+export const DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX = "tutorial-thumbnail-variants";
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MAX_BYTES = 50 * 1024 * 1024;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_DISPLAY_MAX_BYTES = 5 * 1024 * 1024;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_SIGNED_URL_TTL_SECONDS = 24 * 60 * 60;
 
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES = [
@@ -24,6 +28,10 @@ export const DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES = [
 
 export type DashboardTutorialThumbnailContentType =
   (typeof DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES)[number];
+export type DashboardTutorialThumbnailDisplayContentType =
+  | "image/jpeg"
+  | "image/webp"
+  | "video/mp4";
 
 export type DashboardTutorialPreparedThumbnailUpload = {
   storagePath: string;
@@ -37,8 +45,16 @@ export type DashboardTutorialFinalizedThumbnailUpload = {
   storagePath: string;
   signedUrl: string;
   mimeType: DashboardTutorialThumbnailContentType;
-  mediaType: "image" | "video";
   fileSizeBytes: number;
+  displayStoragePath: string;
+  displaySignedUrl: string;
+  displayMimeType: DashboardTutorialThumbnailDisplayContentType;
+  displayMediaType: "image" | "video";
+  displayFileSizeBytes: number;
+  posterStoragePath: string | null;
+  posterSignedUrl: string | null;
+  posterMimeType: "image/jpeg" | null;
+  posterFileSizeBytes: number | null;
 };
 
 export class DashboardTutorialAssetError extends Error {
@@ -171,6 +187,24 @@ export const isDashboardTutorialThumbnailStoragePath = (value: string): boolean 
   return true;
 };
 
+export const isDashboardTutorialThumbnailVariantStoragePath = (value: string): boolean => {
+  if (!value || value.length > 500) return false;
+  if (!value.startsWith(`${DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX}/`)) return false;
+  if (
+    value.startsWith("/") ||
+    value.includes("//") ||
+    value.includes("..") ||
+    value.includes("\\")
+  ) {
+    return false;
+  }
+  return true;
+};
+
+export const isDashboardTutorialThumbnailObjectStoragePath = (value: string): boolean =>
+  isDashboardTutorialThumbnailStoragePath(value) ||
+  isDashboardTutorialThumbnailVariantStoragePath(value);
+
 export const normalizeDashboardTutorialThumbnailContentType = (
   value: unknown
 ): DashboardTutorialThumbnailContentType | null => normalizeMimeType(value);
@@ -204,6 +238,103 @@ const validateDeclaredUpload = ({
   }
 
   return mimeType;
+};
+
+const createImageDisplayDerivative = async (
+  sourceBuffer: Buffer
+): Promise<{
+  buffer: Buffer;
+  mimeType: DashboardTutorialThumbnailDisplayContentType;
+  mediaType: "image";
+}> => {
+  const buffer = await sharp(sourceBuffer, { failOn: "none" })
+    .rotate()
+    .resize({ width: 360, height: 360, fit: "cover", withoutEnlargement: true })
+    .webp({ quality: 76, effort: 4 })
+    .toBuffer();
+
+  if (
+    buffer.byteLength <= 0 ||
+    buffer.byteLength > DASHBOARD_TUTORIAL_THUMBNAIL_DISPLAY_MAX_BYTES
+  ) {
+    throw new DashboardTutorialAssetError(422, "Unable to create an optimized thumbnail preview.");
+  }
+
+  return {
+    buffer,
+    mimeType: "image/webp",
+    mediaType: "image",
+  };
+};
+
+const createMotionDisplayDerivatives = async ({
+  sourceBuffer,
+  mimeType,
+  storagePath,
+}: {
+  sourceBuffer: Buffer;
+  mimeType: DashboardTutorialThumbnailContentType;
+  storagePath: string;
+}): Promise<{
+  displayBuffer: Buffer;
+  displayMimeType: DashboardTutorialThumbnailDisplayContentType;
+  displayMediaType: "video";
+  posterBuffer: Buffer;
+}> => {
+  const [previewBuffer, posterBuffer] = await Promise.all([
+    extractVideoPreviewVariantBuffer({
+      videoBuffer: sourceBuffer,
+      videoMimeType: mimeType,
+      filename: storagePath,
+    }),
+    extractVideoPosterBuffer({
+      videoBuffer: sourceBuffer,
+      videoMimeType: mimeType,
+      filename: storagePath,
+    }),
+  ]);
+
+  if (
+    !previewBuffer ||
+    previewBuffer.byteLength <= 0 ||
+    previewBuffer.byteLength > DASHBOARD_TUTORIAL_THUMBNAIL_DISPLAY_MAX_BYTES ||
+    !posterBuffer ||
+    posterBuffer.byteLength <= 0 ||
+    posterBuffer.byteLength > DASHBOARD_TUTORIAL_THUMBNAIL_DISPLAY_MAX_BYTES
+  ) {
+    throw new DashboardTutorialAssetError(422, "Unable to create an optimized thumbnail preview.");
+  }
+
+  return {
+    displayBuffer: previewBuffer,
+    displayMimeType: "video/mp4",
+    displayMediaType: "video",
+    posterBuffer,
+  };
+};
+
+const uploadThumbnailObject = async ({
+  supabaseAdmin,
+  storagePath,
+  body,
+  contentType,
+}: {
+  supabaseAdmin: SupabaseAdminClient;
+  storagePath: string;
+  body: Buffer;
+  contentType: string;
+}): Promise<void> => {
+  const { error } = await supabaseAdmin.storage
+    .from(DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET)
+    .upload(storagePath, body, {
+      contentType,
+      cacheControl: "31536000",
+      upsert: false,
+    });
+
+  if (error) {
+    throwStorageOperationError(error, "Unable to store optimized thumbnail preview.");
+  }
 };
 
 /**
@@ -241,7 +372,7 @@ export const prepareDashboardTutorialThumbnailUpload = async (
 };
 
 /**
- * Verifies one prepared thumbnail object and returns its signed original URL.
+ * Verifies one prepared thumbnail object, creates display derivatives, and returns signed URLs.
  */
 export const finalizeDashboardTutorialThumbnailUpload = async (
   supabaseAdmin: SupabaseAdminClient,
@@ -286,24 +417,74 @@ export const finalizeDashboardTutorialThumbnailUpload = async (
     );
   }
 
-  const signedUrl = await signDashboardTutorialThumbnailUrl(supabaseAdmin, storagePath);
+  const sourceBuffer = Buffer.from(bytes);
+  const variantId = randomUUID();
+  const derivative =
+    detectedMimeType === "image/gif" || detectedMimeType.startsWith("video/")
+      ? await createMotionDisplayDerivatives({
+          sourceBuffer,
+          mimeType: detectedMimeType,
+          storagePath,
+        })
+      : await createImageDisplayDerivative(sourceBuffer);
+  const isMotionDerivative = "displayBuffer" in derivative;
+  const displayBuffer = isMotionDerivative ? derivative.displayBuffer : derivative.buffer;
+  const displayMimeType = isMotionDerivative ? derivative.displayMimeType : derivative.mimeType;
+  const displayMediaType = isMotionDerivative ? derivative.displayMediaType : derivative.mediaType;
+  const posterBuffer = isMotionDerivative ? derivative.posterBuffer : null;
+  const displayExtension = displayMimeType === "video/mp4" ? "mp4" : "webp";
+  const displayStoragePath = `${DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX}/${variantId}/display.${displayExtension}`;
+  const posterStoragePath = posterBuffer
+    ? `${DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX}/${variantId}/poster.jpg`
+    : null;
+
+  await uploadThumbnailObject({
+    supabaseAdmin,
+    storagePath: displayStoragePath,
+    body: displayBuffer,
+    contentType: displayMimeType,
+  });
+
+  if (posterStoragePath && posterBuffer) {
+    await uploadThumbnailObject({
+      supabaseAdmin,
+      storagePath: posterStoragePath,
+      body: posterBuffer,
+      contentType: "image/jpeg",
+    });
+  }
+
+  const [signedUrl, displaySignedUrl, posterSignedUrl] = await Promise.all([
+    signDashboardTutorialThumbnailUrl(supabaseAdmin, storagePath),
+    signDashboardTutorialThumbnailUrl(supabaseAdmin, displayStoragePath),
+    posterStoragePath ? signDashboardTutorialThumbnailUrl(supabaseAdmin, posterStoragePath) : null,
+  ]);
+
   return {
     storagePath,
     signedUrl,
     mimeType: detectedMimeType,
-    mediaType: resolveMediaType(detectedMimeType),
     fileSizeBytes: objectSize,
+    displayStoragePath,
+    displaySignedUrl,
+    displayMimeType,
+    displayMediaType,
+    displayFileSizeBytes: displayBuffer.byteLength,
+    posterStoragePath,
+    posterSignedUrl,
+    posterMimeType: posterStoragePath ? "image/jpeg" : null,
+    posterFileSizeBytes: posterBuffer ? posterBuffer.byteLength : null,
   };
 };
 
 /**
- * Creates a signed original URL for one stored tutorial thumbnail.
+ * Creates a signed URL for one stored tutorial thumbnail object.
  */
 export const signDashboardTutorialThumbnailUrl = async (
   supabaseAdmin: SupabaseAdminClient,
   storagePath: string
 ): Promise<string> => {
-  if (!isDashboardTutorialThumbnailStoragePath(storagePath)) {
+  if (!isDashboardTutorialThumbnailObjectStoragePath(storagePath)) {
     throw new DashboardTutorialAssetError(400, "Invalid thumbnail storage path.");
   }
   const { data, error } = await supabaseAdmin.storage

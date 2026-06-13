@@ -6,11 +6,15 @@ import { describe, expect, it } from "vitest";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
   AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
-  AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
+  AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_CREATE_MAX_PX,
+  AI_SHELL_LEFT_CREATE_MIN_PX,
+  AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
   AI_SHELL_LEFT_MIN_PX,
+  AI_SHELL_LEFT_SOUND_MIN_PX,
+  AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
   AI_SHELL_RIGHT_COMPACT_MIN_PX,
   AI_SHELL_RIGHT_MIN_PX,
@@ -143,6 +147,17 @@ describe("isAiShellResizeViewport", () => {
 });
 
 describe("resolveAiShellLayoutMode", () => {
+  const zoomPressureWidthPx = 1320;
+  const zoomPressureRightSafeLeftWidthPx =
+    zoomPressureWidthPx - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX;
+  const primaryWorkflowMinimums = [
+    { label: "Create", minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX },
+    { label: "Expert Edit", minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX },
+    { label: "Video", minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX },
+    { label: "Sound", minLeftWidthPx: AI_SHELL_LEFT_SOUND_MIN_PX },
+    { label: "Character", minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX },
+  ] as const;
+
   it("uses full split mode when requested left and right rails both fit", () => {
     expect(
       resolveAiShellLayoutMode(1400, {
@@ -184,6 +199,22 @@ describe("resolveAiShellLayoutMode", () => {
 
     expect(bounds.min).toBe(1320 - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX);
   });
+
+  it.each(primaryWorkflowMinimums)(
+    "keeps $label from consuming the right rail at 125 percent style widths",
+    ({ minLeftWidthPx }) => {
+      const bounds = getAiShellLeftWidthBounds(zoomPressureWidthPx, {
+        minLeftWidthPx,
+        minRightWidthPx: AI_SHELL_RIGHT_MIN_PX,
+      });
+
+      expect(bounds.max).toBe(zoomPressureRightSafeLeftWidthPx);
+      expect(bounds.min).toBe(Math.min(minLeftWidthPx, zoomPressureRightSafeLeftWidthPx));
+      expect(bounds.max + AI_SHELL_RIGHT_MIN_PX + AI_SHELL_DIVIDER_TRACK_PX).toBe(
+        zoomPressureWidthPx
+      );
+    }
+  );
 
   it("stacks when even fallback left plus compact right rail cannot fit", () => {
     expect(

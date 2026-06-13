@@ -11,18 +11,19 @@ import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInterna
 import { INTERNAL_REFERENCE_DRAG_ORIGIN, prepareReferenceDrag } from "../../utils/dragDrop";
 
 const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const uploadImageAssetToStorageMock = vi.hoisted(() => vi.fn());
-const uploadImageBlobToStorageMock = vi.hoisted(() => vi.fn());
-type ReferencePropertiesInteractionsParams = Parameters<
-  typeof useReferencePropertiesInteractions
->[0];
+const uploadImageBlobAssetToStorageMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: getSignedMediaUrlMock,
 }));
+vi.mock("../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
 vi.mock("../../utils/imageUpload", () => ({
   uploadImageAssetToStorage: (...args: unknown[]) => uploadImageAssetToStorageMock(...args),
-  uploadImageBlobToStorage: (...args: unknown[]) => uploadImageBlobToStorageMock(...args),
+  uploadImageBlobAssetToStorage: (...args: unknown[]) => uploadImageBlobAssetToStorageMock(...args),
 }));
 
 const makeInternalReferenceDragEvent = (overrides?: {
@@ -235,8 +236,9 @@ describe("useReferencePropertiesInteractions", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     getSignedMediaUrlMock.mockReset();
+    fetchWithAuthMock.mockReset();
     uploadImageAssetToStorageMock.mockReset();
-    uploadImageBlobToStorageMock.mockReset();
+    uploadImageBlobAssetToStorageMock.mockReset();
   });
 
   afterEach(() => {
@@ -1036,9 +1038,11 @@ describe("useReferencePropertiesInteractions", () => {
   it("stages Motion Control primary image file selections through reference-image upload", async () => {
     const onPrimaryImageChange = vi.fn();
     const file = new File(["large-image"], "large-character.png", { type: "image/png" });
-    uploadImageBlobToStorageMock.mockResolvedValueOnce(
-      "https://signed.shortpulse.test/images/reference/staged-character.png"
-    );
+    uploadImageBlobAssetToStorageMock.mockResolvedValueOnce({
+      url: "https://signed.shortpulse.test/images/reference/staged-character.png",
+      path: "user-1/reference-images/staged-character.png",
+      size: 11,
+    });
     const { result } = renderHook(() =>
       useReferencePropertiesInteractions({
         referenceImageUrl: null,
@@ -1062,7 +1066,7 @@ describe("useReferencePropertiesInteractions", () => {
       await result.current.handlePrimaryFileSelection(event);
     });
 
-    expect(uploadImageBlobToStorageMock).toHaveBeenCalledWith(file);
+    expect(uploadImageBlobAssetToStorageMock).toHaveBeenCalledWith(file);
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
     expect(onPrimaryImageChange).toHaveBeenCalledWith(
       "https://signed.shortpulse.test/images/reference/staged-character.png"
@@ -1138,7 +1142,11 @@ describe("useReferencePropertiesInteractions", () => {
 
   it("accepts file-selected images for Seedance element slots", async () => {
     const onSeedanceElementImageSlotChange = vi.fn();
-    URL.createObjectURL = vi.fn(() => "blob:selected-file");
+    uploadImageBlobAssetToStorageMock.mockResolvedValueOnce({
+      url: "https://cdn.test/staged-seedance-slot.png",
+      path: "user-1/reference-images/staged-seedance-slot.png",
+      size: 14,
+    });
 
     const { result } = renderHook(() =>
       useReferencePropertiesInteractions({
@@ -1165,40 +1173,45 @@ describe("useReferencePropertiesInteractions", () => {
     await act(async () => {
       result.current.handleSeedanceElementImageFileSelection(2)(event as never);
       await Promise.resolve();
+      await Promise.resolve();
     });
 
-    expect(onSeedanceElementImageSlotChange).toHaveBeenCalledWith(2, "blob:selected-file");
-    expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
+    expect(uploadImageBlobAssetToStorageMock).toHaveBeenCalledWith(file);
+    expect(onSeedanceElementImageSlotChange).toHaveBeenCalledWith(
+      2,
+      "https://cdn.test/staged-seedance-slot.png"
+    );
+    expect(resolveInternalMediaRefForUrl("https://cdn.test/staged-seedance-slot.png")).toEqual(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePath: "user-1/reference-images/staged-seedance-slot.png",
+      })
+    );
   });
 
-  it("keeps committed Seedance slot object URLs alive across panel unmounts", async () => {
+  it("does not create transient object URLs for Seedance slot file selections", async () => {
     const onSeedanceElementImageSlotChange = vi.fn();
     const revokeObjectUrl = vi.fn();
     URL.createObjectURL = vi.fn(() => "blob:selected-file");
     URL.revokeObjectURL = revokeObjectUrl;
+    uploadImageBlobAssetToStorageMock.mockResolvedValueOnce({
+      url: "https://cdn.test/staged-seedance-slot.png",
+      path: "user-1/reference-images/staged-seedance-slot.png",
+      size: 14,
+    });
 
-    const { result, rerender, unmount } = renderHook(
-      ({
-        klingElements,
-      }: {
-        klingElements: ReferencePropertiesInteractionsParams["klingElements"];
-      }) =>
-        useReferencePropertiesInteractions({
-          referenceImageUrl: null,
-          extraImageUrls: [null, null, null],
-          onPrimaryImageChange: vi.fn(),
-          onExtraImageChange: vi.fn(),
-          onPromptTextChange: vi.fn(),
-          klingMultiPrompts: [],
-          klingElements,
-          seedanceElementSlotCount: 6,
-          onSeedanceElementImageSlotChange,
-        }),
-      {
-        initialProps: {
-          klingElements: [] as ReferencePropertiesInteractionsParams["klingElements"],
-        },
-      }
+    const { result, unmount } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementImageSlotChange,
+      })
     );
 
     const file = new File(["seedance-slot"], "seedance-slot.png", { type: "image/png" });
@@ -1212,31 +1225,14 @@ describe("useReferencePropertiesInteractions", () => {
     await act(async () => {
       result.current.handleSeedanceElementImageFileSelection(2)(event as never);
       await Promise.resolve();
+      await Promise.resolve();
     });
 
-    rerender({
-      klingElements: [
-        {
-          id: "seedance-reference-2",
-          slotIndex: 2,
-          sourceKind: "reference-image",
-          sourceElementId: null,
-          sourceCharacterId: null,
-          name: "Image reference",
-          alias: "",
-          description: "",
-          profileImageUrl: "blob:selected-file",
-          profileImageTransform: null,
-          frontalImageUrl: "blob:selected-file",
-          referenceImageUrls: "",
-          videoUrl: "",
-        },
-      ],
-    });
     unmount();
 
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(revokeObjectUrl).not.toHaveBeenCalledWith("blob:selected-file");
-    expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
+    expect(readRememberedObjectUrlBlob("blob:selected-file")).toBeNull();
   });
 
   it("accepts internal image drags for Seedance element slots", async () => {
@@ -1302,6 +1298,16 @@ describe("useReferencePropertiesInteractions", () => {
 
   it("accepts canvas tear-out image payloads for Seedance element slots", async () => {
     const onSeedanceElementImageSlotChange = vi.fn();
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        storagePath: "user-1/reference-images/canvas-seedance-slot.png",
+        fileSize: 18,
+        delivery: {
+          previewUrl: "https://signed.shortpulse.test/images/reference/canvas-seedance-slot.png",
+        },
+      }),
+    });
 
     const { result } = renderHook(() =>
       useReferencePropertiesInteractions({
@@ -1317,7 +1323,7 @@ describe("useReferencePropertiesInteractions", () => {
       })
     );
 
-    act(() => {
+    await act(async () => {
       result.current.acceptSeedanceElementImageCanvasTearOutPayload(4, {
         kind: "image",
         internalPayload: null,
@@ -1333,11 +1339,31 @@ describe("useReferencePropertiesInteractions", () => {
           sourceSurface: "all-refs",
         },
       });
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/copy-from-url",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("https://cdn.shortpulse.test/canvas-seedance-slot.png"),
+      })
+    );
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
     expect(onSeedanceElementImageSlotChange).toHaveBeenCalledWith(
       4,
-      "https://cdn.shortpulse.test/canvas-seedance-slot.png"
+      "https://signed.shortpulse.test/images/reference/canvas-seedance-slot.png"
+    );
+    expect(
+      resolveInternalMediaRefForUrl(
+        "https://signed.shortpulse.test/images/reference/canvas-seedance-slot.png"
+      )
+    ).toEqual(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePath: "user-1/reference-images/canvas-seedance-slot.png",
+      })
     );
   });
 

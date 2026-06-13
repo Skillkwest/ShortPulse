@@ -120,6 +120,37 @@ describe("ExpertEditStageContextMenu", () => {
     expect(onWheel).toHaveBeenCalledTimes(1);
   });
 
+  it("allows stage wheel handlers to prevent the browser default", () => {
+    const onWheel = vi.fn((event: WheelEvent) => {
+      event.preventDefault();
+    });
+
+    render(
+      <PrimaryStageShell
+        stageRef={{ current: null }}
+        isEmpty={false}
+        isBusy={false}
+        onPointerDownCapture={vi.fn()}
+        onPointerMoveCapture={vi.fn()}
+        onPointerUpCapture={vi.fn()}
+        onPointerCancelCapture={vi.fn()}
+        onWheel={onWheel}
+      >
+        <div data-testid="nested-stage-image">image pixels</div>
+      </PrimaryStageShell>
+    );
+
+    const wheelEvent = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: -120,
+    });
+    screen.getByTestId("nested-stage-image").dispatchEvent(wheelEvent);
+
+    expect(onWheel).toHaveBeenCalledTimes(1);
+    expect(wheelEvent.defaultPrevented).toBe(true);
+  });
+
   it("does not route overlay-ui wheel events into stage zoom", () => {
     const onWheel = vi.fn();
 

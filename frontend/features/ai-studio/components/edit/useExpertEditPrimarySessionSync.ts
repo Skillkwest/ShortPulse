@@ -8,6 +8,7 @@ import { defaultLayerTransform } from "./expertEditLayerTransformUtils";
 import {
   enforceLayerStackInvariants,
   isExpertEditImageUrl,
+  layerHasImage,
   resolveLayerIndexOrFallback,
   type ExpertEditLayer,
 } from "./expertEditLayerSessionUtils";
@@ -59,12 +60,21 @@ export function useExpertEditPrimarySessionSync({
 
   React.useEffect(() => {
     const isInitialPrimarySync = !hasAppliedInitialPrimarySyncRef.current;
+    const previousPrimaryProp = previousPrimaryPropRef.current;
     if (!isInitialPrimarySync && previousPrimaryPropRef.current === normalizedReferenceImageUrl) {
       return;
     }
     hasAppliedInitialPrimarySyncRef.current = true;
     previousPrimaryPropRef.current = normalizedReferenceImageUrl;
     if (!isInitialPrimarySync && normalizedReferenceImageUrl === lastDispatchedPrimaryRef.current) {
+      return;
+    }
+    if (
+      isInitialPrimarySync &&
+      normalizedReferenceImageUrl == null &&
+      previousPrimaryProp == null &&
+      layers.some((layer) => layerHasImage(layer))
+    ) {
       return;
     }
 

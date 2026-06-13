@@ -1,7 +1,20 @@
 import React from "react";
+import {
+  type NonPassiveStageWheelHandler,
+  useNonPassiveWheelCapture,
+} from "./useNonPassiveWheelCapture";
 
 const focusKeyboardPanOwner = (element: HTMLDivElement | null) => {
   element?.focus({ preventScroll: true });
+};
+
+const assignRef = <T,>(ref: React.Ref<T> | undefined, value: T | null) => {
+  if (!ref) return;
+  if (typeof ref === "function") {
+    ref(value);
+    return;
+  }
+  (ref as React.MutableRefObject<T | null>).current = value;
 };
 
 type PrimaryStageShellProps = {
@@ -19,7 +32,7 @@ type PrimaryStageShellProps = {
   onPointerUp?: React.PointerEventHandler<HTMLDivElement>;
   onPointerCancel?: React.PointerEventHandler<HTMLDivElement>;
   onPointerLeave?: React.PointerEventHandler<HTMLDivElement>;
-  onWheel?: React.WheelEventHandler<HTMLDivElement>;
+  onWheel?: NonPassiveStageWheelHandler;
   onDrop?: React.DragEventHandler<HTMLDivElement>;
   onDragEnter?: React.DragEventHandler<HTMLDivElement>;
   onDragOver?: React.DragEventHandler<HTMLDivElement>;
@@ -47,6 +60,15 @@ export function PrimaryStageShell({
   onDragOver,
   onDragLeave,
 }: PrimaryStageShellProps) {
+  const stageElementRef = React.useRef<HTMLDivElement | null>(null);
+  const handleStageRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      stageElementRef.current = node;
+      assignRef(stageRef, node);
+    },
+    [stageRef]
+  );
+
   const handleBackdropPointerDown = React.useCallback<React.PointerEventHandler<HTMLDivElement>>(
     (event) => {
       if (event.target !== event.currentTarget) return;
@@ -88,7 +110,7 @@ export function PrimaryStageShell({
     [onPointerLeave]
   );
 
-  const handleBackdropWheel = React.useCallback<React.WheelEventHandler<HTMLDivElement>>(
+  const handleBackdropWheel = React.useCallback<NonPassiveStageWheelHandler>(
     (event) => {
       if (
         event.target instanceof Element &&
@@ -101,10 +123,14 @@ export function PrimaryStageShell({
     },
     [onWheel]
   );
+  useNonPassiveWheelCapture({
+    targetRef: stageElementRef,
+    onWheel: onWheel ? handleBackdropWheel : undefined,
+  });
 
   return (
     <div
-      ref={stageRef}
+      ref={handleStageRef}
       className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell edit-expert-transform-chrome-clip-boundary ${
         isEmpty ? "is-empty-stage" : ""
       }`}
@@ -122,7 +148,6 @@ export function PrimaryStageShell({
       onPointerUp={onPointerUp ? handleBackdropPointerUp : undefined}
       onPointerCancel={onPointerCancel ? handleBackdropPointerCancel : undefined}
       onPointerLeave={onPointerLeave ? handleBackdropPointerLeave : undefined}
-      onWheelCapture={onWheel ? handleBackdropWheel : undefined}
       onDrop={onDrop}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
@@ -305,7 +330,6 @@ type PrimaryCanvasFrameStackProps = {
   isDragActive: boolean;
   frameStackRef?: React.Ref<HTMLDivElement>;
   style: React.CSSProperties;
-  onWheel?: React.WheelEventHandler<HTMLDivElement>;
   onDrop?: React.DragEventHandler<HTMLDivElement>;
   onDragEnter?: React.DragEventHandler<HTMLDivElement>;
   onDragOver?: React.DragEventHandler<HTMLDivElement>;
@@ -318,7 +342,6 @@ export function PrimaryCanvasFrameStack({
   isDragActive,
   frameStackRef,
   style,
-  onWheel,
   onDrop,
   onDragEnter,
   onDragOver,
@@ -332,7 +355,6 @@ export function PrimaryCanvasFrameStack({
       }`}
       style={style}
       data-testid="edit-expert-primary-canvas-frame-stack"
-      onWheel={onWheel}
       onDrop={onDrop}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}

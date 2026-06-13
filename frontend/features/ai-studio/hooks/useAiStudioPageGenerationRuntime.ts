@@ -167,7 +167,6 @@ export const useAiStudioPageGenerationRuntime = ({
   createSelectedCharacterId,
   editReferenceText,
   editSubmitIntent,
-  extraImageUrls,
   generateOutput,
   getDefaultDurationSeconds,
   imageResolution,
@@ -195,7 +194,6 @@ export const useAiStudioPageGenerationRuntime = ({
   openModelModal,
   projectId,
   workspaceRuntimeKey = null,
-  referenceImageUrl,
   refreshBalance,
   refreshCharacterModeInjectionBundleForSubmission,
   regenerateOutput,
@@ -236,6 +234,9 @@ export const useAiStudioPageGenerationRuntime = ({
 }: UseAiStudioPageGenerationRuntimeParams) => {
   void createSelectedCharacterId;
   void isCreateCharacterBundleLoading;
+  const selectedToolReferenceInputs = resolveReferenceInputsForTool(selectedTool);
+  const effectiveReferenceImageUrl = selectedToolReferenceInputs.referenceImageUrl;
+  const effectiveExtraImageUrls = selectedToolReferenceInputs.extraImageUrls;
   const { visibleFailures, dismissFailure, focusFailure } =
     useAiStudioOptimisticDebitReconciliation({
       outputs,
@@ -261,8 +262,8 @@ export const useAiStudioPageGenerationRuntime = ({
     editReferenceText,
     videoReferenceText,
     videoReferenceMode,
-    referenceImageUrl,
-    extraImageUrls,
+    referenceImageUrl: effectiveReferenceImageUrl,
+    extraImageUrls: effectiveExtraImageUrls,
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
   });
 
@@ -279,7 +280,7 @@ export const useAiStudioPageGenerationRuntime = ({
     model,
     aspect,
     prompt: promptForViewModel,
-    referenceImageUrl,
+    referenceImageUrl: effectiveReferenceImageUrl,
     activeOutput,
     selectedTool,
     useReferenceImageIndicator,
@@ -291,7 +292,7 @@ export const useAiStudioPageGenerationRuntime = ({
     motionReferenceVideoPending,
     motionReferenceVideoError,
     motionReferenceVideoUrl,
-    extraImageUrls,
+    extraImageUrls: effectiveExtraImageUrls,
     imageResolution,
     videoGenerateAudio,
     klingWorkflowMode,

@@ -75,7 +75,29 @@ const VALIDATION_FAILURE_CONTEXT = {
   reasonCode: "USER_INPUT_VALIDATION",
 } as const;
 
+const DATA_URL_PATTERN = /^data:([^;,]+)?((?:;[^,]*)?),(.*)$/i;
+
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const isHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
+
+const readDataUrlBlob = (value: string, mediaKind: "image" | "video" | "audio"): Blob | null => {
+  const match = value.match(DATA_URL_PATTERN);
+  if (!match) return null;
+  const mimeType = (match[1] || "").trim().toLowerCase();
+  if (!mimeType.startsWith(`${mediaKind}/`)) return null;
+  const metadata = match[2] || "";
+  const payload = match[3] || "";
+  if (metadata.toLowerCase().includes(";base64")) {
+    const binary = globalThis.atob(payload.replace(/\s/g, ""));
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return new Blob([bytes], { type: mimeType });
+  }
+  return new Blob([decodeURIComponent(payload)], { type: mimeType });
+};
 
 const hasKlingElementMedia = (element: AiStudioKlingElement): boolean =>
   Boolean(element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length);
@@ -439,17 +461,28 @@ const uploadSourceUrlToKieTemporaryFile = async ({
         cache,
       });
     }
-    const sourceResponse = await fetch(normalizedUrl);
-    if (!sourceResponse.ok) {
-      throw new Error(`Unable to read local ${mediaKind} input (${sourceResponse.status}).`);
+    const dataUrlBlob = normalizedUrl.startsWith("data:")
+      ? readDataUrlBlob(normalizedUrl, mediaKind)
+      : null;
+    if (dataUrlBlob) {
+      return await uploadBlobToKieTemporaryFile({
+        blob: dataUrlBlob,
+        mediaKind,
+        cacheKey: `${cacheKey}:data-url`,
+        cache,
+      });
     }
-    const blob = await sourceResponse.blob();
-    return await uploadBlobToKieTemporaryFile({
-      blob,
-      mediaKind,
-      cacheKey: `${cacheKey}:blob`,
-      cache,
-    });
+    if (normalizedUrl.startsWith("blob:")) {
+      throw new Error(`Local ${mediaKind} input is no longer available. Re-add it and try again.`);
+    }
+    if (isHttpUrl(normalizedUrl)) {
+      return await uploadUrlToKieTemporaryFile({
+        url: normalizedUrl,
+        mediaKind,
+        cache,
+      });
+    }
+    throw new Error(`Unsupported local ${mediaKind} input URL.`);
   })();
 
   cache.set(cacheKey, uploadPromise);
@@ -689,18 +722,42 @@ const uploadSourceUrlToFalCdn = async ({
   if (cached) return await cached;
 
   const uploadPromise = (async () => {
-    const sourceResponse = await fetch(normalizedUrl);
-    if (!sourceResponse.ok) {
-      throw new Error(`Unable to read local ${mediaKind} input (${sourceResponse.status}).`);
+    const rememberedBlob = normalizedUrl.startsWith("blob:")
+      ? readRememberedObjectUrlBlob(normalizedUrl)
+      : null;
+    if (rememberedBlob) {
+      return await uploadBlobToFalCdn({
+        blob: rememberedBlob,
+        mediaKind,
+        cacheKey: `${cacheKey}:blob`,
+        compatibilityTarget,
+        cache,
+      });
     }
-    const blob = await sourceResponse.blob();
-    return await uploadBlobToFalCdn({
-      blob,
-      mediaKind,
-      cacheKey: `${cacheKey}:blob`,
-      compatibilityTarget,
-      cache,
-    });
+    const dataUrlBlob = normalizedUrl.startsWith("data:")
+      ? readDataUrlBlob(normalizedUrl, mediaKind)
+      : null;
+    if (dataUrlBlob) {
+      return await uploadBlobToFalCdn({
+        blob: dataUrlBlob,
+        mediaKind,
+        cacheKey: `${cacheKey}:data-url`,
+        compatibilityTarget,
+        cache,
+      });
+    }
+    if (normalizedUrl.startsWith("blob:")) {
+      throw new Error(`Local ${mediaKind} input is no longer available. Re-add it and try again.`);
+    }
+    if (isHttpUrl(normalizedUrl)) {
+      return await uploadUrlToFalCdn({
+        url: normalizedUrl,
+        mediaKind,
+        compatibilityTarget,
+        cache,
+      });
+    }
+    throw new Error(`Unsupported local ${mediaKind} input URL.`);
   })();
 
   cache.set(cacheKey, uploadPromise);

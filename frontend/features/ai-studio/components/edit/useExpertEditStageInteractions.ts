@@ -4,6 +4,7 @@ import {
   type ExpertEditStageMode,
   useExpertEditStageInteractionRouter,
 } from "./useExpertEditStageInteractionRouter";
+import type { NonPassiveStageWheelEvent } from "./useNonPassiveWheelCapture";
 
 type UseExpertEditStageInteractionsParams = {
   activeStageInteractionMode: ExpertEditStageMode;
@@ -16,10 +17,7 @@ type UseExpertEditStageInteractionsParams = {
   continueMarkupPanGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
   endMarkupPanGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
   endMarkupPanGestureOnLeave: (event: React.PointerEvent<HTMLDivElement>) => boolean;
-  handleStageViewportWheel: (
-    event: React.WheelEvent<HTMLDivElement>,
-    scope: "inline" | "modal"
-  ) => void;
+  handleStageViewportWheel: (event: NonPassiveStageWheelEvent, scope: "inline" | "modal") => void;
   handleMovePointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   handleMovePointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   handleMovePointerLeave: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -100,42 +98,27 @@ export const useExpertEditStageInteractions = ({
         if (!transformEditingEnabled) return;
         handleMovePointerDown(event);
       },
-      onPointerMove: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldContinuePanGesture(event)) return;
         if (!transformEditingEnabled) return;
         handleMovePointerMove(event);
       },
-      onPointerUp: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldEndPanGesture(event)) return;
         if (!transformEditingEnabled) return;
         endTransformPointerSession(event);
       },
-      onPointerCancel: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldEndPanGesture(event)) return;
         if (!transformEditingEnabled) return;
         endTransformPointerSession(event);
       },
-      onPointerLeave: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldEndPanGestureOnLeave(event)) return;
         if (!transformEditingEnabled) return;
         handleMovePointerLeave(event);
       },
-      onWheel: (
-        event: React.WheelEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onWheel: (event: NonPassiveStageWheelEvent, context: { scope: "inline" | "modal" }) => {
         handleStageViewportWheel(event, context.scope);
       },
     }),
@@ -163,38 +146,23 @@ export const useExpertEditStageInteractions = ({
         if (shouldHandlePanGesture(event, context, beginMarkupPanGesture)) return;
         handleInpaintStagePointerDown(event);
       },
-      onPointerMove: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldContinuePanGesture(event)) return;
         handleInpaintStagePointerMove(event);
       },
-      onPointerUp: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldEndPanGesture(event)) return;
         handleInpaintStagePointerUp(event);
       },
-      onPointerCancel: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldEndPanGesture(event)) return;
         handleInpaintStagePointerCancel(event);
       },
-      onPointerLeave: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldEndPanGestureOnLeave(event)) return;
         handleInpaintStagePointerLeave(event);
       },
-      onWheel: (
-        event: React.WheelEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onWheel: (event: NonPassiveStageWheelEvent, context: { scope: "inline" | "modal" }) => {
         handleStageViewportWheel(event, context.scope);
       },
     }),
@@ -222,26 +190,17 @@ export const useExpertEditStageInteractions = ({
         if (shouldHandlePanGesture(event, context, beginMarkupPanGesture)) return;
         beginMarkupDrawGesture(event);
       },
-      onPointerMove: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldContinuePanGesture(event)) return;
         continueMarkupDrawGesture(event);
       },
       onPointerUp: handleMarkupStagePointerTerminal,
       onPointerCancel: handleMarkupStagePointerTerminal,
-      onPointerLeave: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
         if (shouldEndPanGestureOnLeave(event)) return;
         endMarkupDrawGestureOnLeave(event);
       },
-      onWheel: (
-        event: React.WheelEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
+      onWheel: (event: NonPassiveStageWheelEvent, context: { scope: "inline" | "modal" }) => {
         handleStageViewportWheel(event, context.scope);
       },
     }),

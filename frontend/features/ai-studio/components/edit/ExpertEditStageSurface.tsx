@@ -5,6 +5,7 @@
 import React from "react";
 
 import { ExpertEditMarkupModalShell } from "./ExpertEditMarkupModalShell";
+import type { NonPassiveStageWheelHandler } from "./useNonPassiveWheelCapture";
 import {
   ExpertEditTransformChromeLayer,
   PrimaryCanvasFrameStack,
@@ -57,7 +58,7 @@ type ExpertEditInlineStageSurfaceProps = {
   onStageContextMenu?: React.MouseEventHandler<HTMLDivElement>;
   onStageClick?: React.MouseEventHandler<HTMLDivElement>;
   onStageDoubleClick?: React.MouseEventHandler<HTMLDivElement>;
-  onStageWheel?: React.WheelEventHandler<HTMLDivElement>;
+  onStageWheel?: NonPassiveStageWheelHandler;
   sceneContent: React.ReactNode;
   transformOverlay: React.ReactNode;
 };
@@ -195,8 +196,7 @@ type ExpertEditModalStageSurfaceProps = {
   onStageMouseDown: React.MouseEventHandler<HTMLDivElement>;
   onStageAuxClick: React.MouseEventHandler<HTMLDivElement>;
   interactionHandlers: StageInteractionHandlers;
-  onStageWheel: React.WheelEventHandler<HTMLDivElement>;
-  onStageWheelCapture: React.WheelEventHandler<HTMLDivElement>;
+  onStageWheel: NonPassiveStageWheelHandler;
   onStagePointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
   onStagePointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
   onStagePointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
@@ -226,7 +226,6 @@ export function ExpertEditModalStageSurface({
   onStageAuxClick,
   interactionHandlers,
   onStageWheel,
-  onStageWheelCapture,
   onStagePointerDownCapture,
   onStagePointerMoveCapture,
   onStagePointerUpCapture,
@@ -266,7 +265,6 @@ export function ExpertEditModalStageSurface({
       onStagePointerCancel={interactionHandlers.onPointerCancel}
       onStagePointerLeave={interactionHandlers.onPointerLeave}
       onStageWheel={onStageWheel}
-      onStageWheelCapture={onStageWheelCapture}
       onStagePointerDownCapture={onStagePointerDownCapture}
       onStagePointerMoveCapture={onStagePointerMoveCapture}
       onStagePointerUpCapture={onStagePointerUpCapture}

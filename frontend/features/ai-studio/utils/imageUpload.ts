@@ -21,7 +21,7 @@ import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
 import { readRememberedObjectUrlBlob } from "./objectUrlBlobRegistry";
 
-type ImageUploadResponse = {
+export type ImageUploadResponse = {
   url: string;
   path: string;
   size: number;
@@ -652,15 +652,24 @@ export const uploadImageAssetToStorage = async (
 /**
  * Uploads an in-memory image blob to storage without round-tripping through a fragile object URL.
  */
-export const uploadImageBlobToStorage = async (
+export const uploadImageBlobAssetToStorage = async (
   blob: Blob,
   options?: PrepareImageUrlOptions
-): Promise<string> => {
-  const uploaded = await uploadPreparedImageBlobToStorage({
+): Promise<ImageUploadResponse> =>
+  await uploadPreparedImageBlobToStorage({
     blob,
     sourceKind: "blob",
     options,
   });
+
+/**
+ * Uploads an in-memory image blob to storage and returns a signed HTTPS URL.
+ */
+export const uploadImageBlobToStorage = async (
+  blob: Blob,
+  options?: PrepareImageUrlOptions
+): Promise<string> => {
+  const uploaded = await uploadImageBlobAssetToStorage(blob, options);
   return uploaded.url;
 };
 

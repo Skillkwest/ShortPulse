@@ -2095,6 +2095,18 @@ describe("ExpertEditPanelView", () => {
     expect(onPromptTextChange).toHaveBeenCalledWith(resolveExpertEditPresetPromptById("selfie"));
   });
 
+  it("renders plain preset text visibly in the mirrored edit prompt composer", () => {
+    const expectedPrompt = resolveExpertEditPresetPromptById("selfie");
+    const { container, promptInput } = renderControlledPromptPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: /apply selfie preset/i }));
+
+    expect(promptInput.value).toBe(expectedPrompt);
+    const promptMirror = container.querySelector(".edit-expert-prompt-highlight");
+    expect(promptMirror).toBeTruthy();
+    expect(promptMirror?.textContent).toContain(expectedPrompt);
+  });
+
   it("inserts mapped prompt text when clicking a selected custom panel preset", () => {
     const onPromptTextChange = vi.fn();
     render(<ExpertEditPanelView {...baseProps} onPromptTextChange={onPromptTextChange} />);

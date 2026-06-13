@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, RefObject } from "react";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import { captureAiStudioDropSnapshot } from "../logic/aiStudioDropSnapshot";
 import {
@@ -43,7 +44,11 @@ import {
   prepareLocalImageBlobForEditIngress,
   prepareLocalImageFileForEditIngress,
 } from "../logic/editImageIngress";
-import { uploadImageAssetToStorage, uploadImageBlobToStorage } from "../utils/imageUpload";
+import {
+  uploadImageAssetToStorage,
+  uploadImageBlobAssetToStorage,
+  type ImageUploadResponse,
+} from "../utils/imageUpload";
 
 export type ReferenceStepKey =
   | "reference"
@@ -72,6 +77,15 @@ type ReferenceImageDropSnapshot = {
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   preferLocalRenderArtifact?: boolean;
+};
+
+type ServerCopiedImageResponse = {
+  storagePath?: unknown;
+  fileSize?: unknown;
+  delivery?: {
+    previewUrl?: unknown;
+    fullUrl?: unknown;
+  } | null;
 };
 
 type UseReferencePropertiesInteractionsParams = {
@@ -163,6 +177,55 @@ const createImageSlotInternalMediaRef = ({
     storagePath,
     mediaFileId: mediaId ?? null,
   });
+};
+
+const createUploadedImageInternalMediaRef = (uploaded: ImageUploadResponse) =>
+  createInternalMediaRef({
+    bucket: INTERNAL_MEDIA_REF_BUCKET,
+    storagePath: uploaded.path,
+  });
+
+const isHttpImageSourceUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
+
+const copyRemoteImageToStorage = async (sourceUrl: string): Promise<ImageUploadResponse> => {
+  const response = await fetchWithAuth("/api/media/copy-from-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: sourceUrl,
+      mode: "image",
+      source: "upload",
+      fileTypeHint: "image",
+      metadata: {
+        ai_studio_reference_provider_staging: true,
+      },
+    }),
+    shortpulseLogScope: "generation",
+  });
+  const payload = (await response.json().catch(() => null)) as ServerCopiedImageResponse | null;
+  if (!response.ok) {
+    throw new Error(
+      typeof (payload as { error?: unknown } | null)?.error === "string"
+        ? (payload as { error: string }).error
+        : "Unable to copy remote reference image."
+    );
+  }
+  const path = typeof payload?.storagePath === "string" ? payload.storagePath.trim() : "";
+  const delivery = payload?.delivery ?? null;
+  const url =
+    typeof delivery?.previewUrl === "string" && delivery.previewUrl.trim()
+      ? delivery.previewUrl.trim()
+      : typeof delivery?.fullUrl === "string" && delivery.fullUrl.trim()
+        ? delivery.fullUrl.trim()
+        : "";
+  if (!path || !url) {
+    throw new Error("Remote reference image copy did not return durable media.");
+  }
+  return {
+    url,
+    path,
+    size: typeof payload?.fileSize === "number" ? payload.fileSize : 0,
+  };
 };
 
 const resolveCanvasTearOutReferenceImageSnapshot = (
@@ -448,17 +511,19 @@ export const useReferencePropertiesInteractions = ({
     imageFile?: File | null;
     imageUrl?: string | null;
     imageBlob?: Blob | null;
-  }): Promise<string | null> => {
+  }): Promise<ImageUploadResponse | null> => {
     if (imageFile) {
-      return await uploadImageBlobToStorage(imageFile);
+      return await uploadImageBlobAssetToStorage(imageFile);
     }
     if (imageBlob) {
-      return await uploadImageBlobToStorage(imageBlob);
+      return await uploadImageBlobAssetToStorage(imageBlob);
     }
     const normalizedUrl = imageUrl?.trim() ?? "";
     if (!normalizedUrl) return null;
-    const uploaded = await uploadImageAssetToStorage(normalizedUrl);
-    return uploaded.url;
+    if (isHttpImageSourceUrl(normalizedUrl)) {
+      return await copyRemoteImageToStorage(normalizedUrl);
+    }
+    return await uploadImageAssetToStorage(normalizedUrl);
   };
 
   const handlePrimaryFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -474,9 +539,13 @@ export const useReferencePropertiesInteractions = ({
     }
     setPrimaryImageLoading(true);
     try {
-      const stagedUrl = await stageProviderImageSelection({ imageFile: file });
-      if (stagedUrl) {
-        onPrimaryImageChange(stagedUrl);
+      const stagedImage = await stageProviderImageSelection({ imageFile: file });
+      if (stagedImage) {
+        registerInternalMediaRefForUrl(
+          stagedImage.url,
+          createUploadedImageInternalMediaRef(stagedImage)
+        );
+        onPrimaryImageChange(stagedImage.url);
       }
     } catch (error) {
       console.error("AI Studio motion reference image staging failed:", error);
@@ -497,7 +566,8 @@ export const useReferencePropertiesInteractions = ({
   const acceptImageDropSnapshot = async (
     snapshot: ReferenceImageDropSnapshot,
     setter: (url: string | null) => void,
-    setLoading: (value: boolean) => void
+    setLoading: (value: boolean) => void,
+    options?: { stageForProviderAccess?: boolean }
   ) => {
     const {
       internalPayload,
@@ -626,22 +696,25 @@ export const useReferencePropertiesInteractions = ({
             })
           : nextUrl;
         if (!stableUrl) return;
-        const shouldStageProviderPrimaryImage =
-          setter === onPrimaryImageChange &&
-          stagePrimaryImageForProviderAccess &&
+        const shouldStageProviderImage =
+          (options?.stageForProviderAccess ||
+            (setter === onPrimaryImageChange && stagePrimaryImageForProviderAccess)) &&
           (fromFile || isLocalRenderArtifactUrl(stableUrl) || !resolvedInternalMediaRef);
-        if (shouldStageProviderPrimaryImage) {
+        if (shouldStageProviderImage) {
           const rememberedBlob = stableUrl.startsWith("blob:")
             ? readRememberedObjectUrlBlob(stableUrl)
             : null;
-          const stagedUrl = await stageProviderImageSelection({
+          const stagedImage = await stageProviderImageSelection({
             imageFile: fromFile ? (imageFile ?? null) : null,
             imageBlob: rememberedBlob,
             imageUrl: stableUrl,
           });
-          if (!stagedUrl) return;
-          registerInternalMediaRefForUrl(stagedUrl, resolvedInternalMediaRef);
-          commitImageUrl(setter, stagedUrl);
+          if (!stagedImage) return;
+          registerInternalMediaRefForUrl(
+            stagedImage.url,
+            resolvedInternalMediaRef ?? createUploadedImageInternalMediaRef(stagedImage)
+          );
+          commitImageUrl(setter, stagedImage.url);
           return;
         }
         registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
@@ -657,7 +730,11 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const handleImageDrop =
-    (setter: (url: string | null) => void, setLoading: (value: boolean) => void) =>
+    (
+      setter: (url: string | null) => void,
+      setLoading: (value: boolean) => void,
+      options?: { stageForProviderAccess?: boolean }
+    ) =>
     async (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
@@ -691,7 +768,8 @@ export const useReferencePropertiesInteractions = ({
           preferLocalRenderArtifact: Boolean(composerDisplayArtifactUrl),
         },
         setter,
-        setLoading
+        setLoading,
+        options
       );
     };
 
@@ -750,7 +828,8 @@ export const useReferencePropertiesInteractions = ({
     void acceptImageDropSnapshot(
       snapshot,
       (url) => onSeedanceElementImageSlotChange(index, url),
-      (value) => setSeedanceElementImageLoadingAt(index, value)
+      (value) => setSeedanceElementImageLoadingAt(index, value),
+      { stageForProviderAccess: true }
     );
   };
 
@@ -792,15 +871,40 @@ export const useReferencePropertiesInteractions = ({
     )(event);
   };
 
-  const handleSeedanceElementImageFileSelection = (index: number) =>
-    handleFileSelection((url) => onSeedanceElementImageSlotChange?.(index, url));
+  const handleSeedanceElementImageFileSelection =
+    (index: number) => (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (!isImageFile(file)) {
+        event.target.value = "";
+        return;
+      }
+      setSeedanceElementImageLoadingAt(index, true);
+      void (async () => {
+        try {
+          const stagedImage = await stageProviderImageSelection({ imageFile: file });
+          if (!stagedImage) return;
+          registerInternalMediaRefForUrl(
+            stagedImage.url,
+            createUploadedImageInternalMediaRef(stagedImage)
+          );
+          onSeedanceElementImageSlotChange?.(index, stagedImage.url);
+        } catch (error) {
+          console.error("AI Studio Seedance image reference staging failed:", error);
+        } finally {
+          setSeedanceElementImageLoadingAt(index, false);
+        }
+      })();
+      event.target.value = "";
+    };
 
   const handleSeedanceElementImageDrop = (index: number) => (event: DragEvent<HTMLDivElement>) => {
     setSeedanceElementImageDragActiveAt(index, false);
     if (!onSeedanceElementImageSlotChange) return;
     return handleImageDrop(
       (url) => onSeedanceElementImageSlotChange(index, url),
-      (value) => setSeedanceElementImageLoadingAt(index, value)
+      (value) => setSeedanceElementImageLoadingAt(index, value),
+      { stageForProviderAccess: true }
     )(event);
   };
 

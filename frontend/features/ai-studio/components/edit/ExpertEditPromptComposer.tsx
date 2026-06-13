@@ -69,9 +69,7 @@ export function ExpertEditPromptComposer({
   inlineGenerateDisabled,
   costCredits = null,
 }: ExpertEditPromptComposerProps) {
-  const hasPromptTokenHighlight = promptHighlightSegments.some(
-    (segment) => segment.kind !== "plain"
-  );
+  const shouldRenderPromptMirror = promptTextValue.length > 0;
 
   return (
     <div className={`edit-expert-bottom-row ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
@@ -83,7 +81,7 @@ export function ExpertEditPromptComposer({
             }`.trim()}
             ref={promptInputShellRef}
           >
-            {hasPromptTokenHighlight ? (
+            {shouldRenderPromptMirror ? (
               <div
                 ref={promptHighlightRef}
                 className="edit-expert-prompt-highlight"

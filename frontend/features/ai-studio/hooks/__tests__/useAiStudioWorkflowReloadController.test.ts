@@ -444,7 +444,7 @@ describe("useAiStudioWorkflowReloadController", () => {
       result.current.reloadWorkflowFromOutput("out-1");
     });
 
-    expect(params.setSelectedTool).toHaveBeenCalledWith("kling");
+    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
     expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
     expect(params.setVideoReferenceText).toHaveBeenCalledWith("A sweeping crane shot");
     expect(params.setAspect).toHaveBeenCalledWith("16:9");
@@ -456,7 +456,7 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.setVideoAutoFix).toHaveBeenCalledWith(true);
     expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
       expect.objectContaining({
-        selectedTool: "kling",
+        selectedTool: "video",
         referenceImageUrl: "https://example.com/frame.png",
         motionReferenceVideoUrl: "https://example.com/motion.mp4",
         useReferenceImageIndicator: true,

@@ -5,6 +5,7 @@
 import React from "react";
 
 import type { ExpertEditStageScope } from "./useExpertEditStageInteractionRouter";
+import type { NonPassiveStageWheelEvent } from "./useNonPassiveWheelCapture";
 import {
   elementHasPointerCapture,
   releasePointerCaptureSafely,
@@ -66,7 +67,7 @@ type UseExpertEditStageViewportControllerResult = {
   endMarkupPanGestureOnLeave: (event: React.PointerEvent<HTMLDivElement>) => boolean;
   handleStageViewportWheel: (
     event: Pick<
-      React.WheelEvent<HTMLDivElement>,
+      NonPassiveStageWheelEvent,
       "clientX" | "clientY" | "currentTarget" | "deltaY" | "preventDefault"
     >,
     scope: ExpertEditStageScope
@@ -359,7 +360,7 @@ export const useExpertEditStageViewportController = ({
   const handleStageViewportWheel = React.useCallback(
     (
       event: Pick<
-        React.WheelEvent<HTMLDivElement>,
+        NonPassiveStageWheelEvent,
         "clientX" | "clientY" | "currentTarget" | "deltaY" | "preventDefault"
       >,
       scope: ExpertEditStageScope

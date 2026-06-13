@@ -3,9 +3,10 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useExpertEditStageInteractions } from "../useExpertEditStageInteractions";
+import type { NonPassiveStageWheelEvent } from "../useNonPassiveWheelCapture";
 
 const createPointerEvent = () => ({}) as React.PointerEvent<HTMLDivElement>;
-const createWheelEvent = () => ({}) as React.WheelEvent<HTMLDivElement>;
+const createWheelEvent = () => ({}) as NonPassiveStageWheelEvent;
 
 const buildArgs = (activeStageInteractionMode: "move" | "inpaint" | "markup" = "move") => ({
   activeStageInteractionMode,

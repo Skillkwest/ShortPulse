@@ -153,6 +153,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Image-to-video models require at least one reference image; Create → Video may be text-only unless a specific model demands an image.
 - Drag/drop ignores non-image payloads and prefers real URLs over blobs when available.
 - Image-input video submit prep shares the same reference-preflight runtime as image/edit flows (dynamic budget + abortable local fetch/upload/signed-refresh stages). On timeout, submit fails fast with: `"Preparation timed out before generation started. Please retry."`
+- Seedance direct image slots selected from local files, canvas tear-outs, or external drops stage through the canonical reference-image upload contract before entering slot state. The staged URL is registered with its storage ref so generated Video workflow reload can restore the same direct image slot after project restore.
 - Generated Video outputs store manual workflow reload metadata in `workflow_reload`. The Video payload includes a `videoReferences` sidecar for first frame, last frame, Seedance multimodal image/video/audio references, and Kling/Seedance linked or direct element media. Reference Grid workflow reload must hydrate those slots from the sidecar when present, with legacy flat `referenceInputs`/Seedance/Kling arrays used only for older outputs that do not have the sidecar.
 
 ## Result ingestion & previews

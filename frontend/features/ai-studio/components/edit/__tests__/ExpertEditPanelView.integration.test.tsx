@@ -649,7 +649,7 @@ describe("ExpertEditPanelView interaction flow", () => {
     });
   });
 
-  it("does not reopen a stale transform box when edit starts with no current image authority", async () => {
+  it("reopens hydrated session layers when edit remounts without current host image authority", async () => {
     render(
       <ExpertEditPanelView
         aspect="9:16"
@@ -691,7 +691,7 @@ describe("ExpertEditPanelView interaction flow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByTestId("edit-expert-transform-overlay-inline")).not.toBeInTheDocument();
+      expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();
     });
   });
 });

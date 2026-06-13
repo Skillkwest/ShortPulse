@@ -382,9 +382,6 @@ export const resolveInitialLayerSessionState = ({
       layerIdCounter: 2,
     };
   };
-  if (!hasReferenceImageAuthority) {
-    return createEmptyLayerSessionState();
-  }
   if (!layerState?.layers?.length) {
     return createFallbackLayerState();
   }

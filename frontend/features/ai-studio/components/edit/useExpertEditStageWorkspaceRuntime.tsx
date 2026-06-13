@@ -17,9 +17,10 @@ import type { MarkupStroke } from "./markupStrokeController";
 import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 import type { LayerTransform } from "./expertEditLayerTransformUtils";
 import type { StageViewportSize } from "./expertEditViewportUtils";
+import type { NonPassiveStageWheelHandler } from "./useNonPassiveWheelCapture";
 
 type StageInteractionRouterHandlers = StageInteractionHandlers & {
-  onWheel: React.WheelEventHandler<HTMLDivElement>;
+  onWheel: NonPassiveStageWheelHandler;
 };
 
 type UseExpertEditStageWorkspaceRuntimeArgs = {
@@ -384,10 +385,6 @@ export function useExpertEditStageWorkspaceRuntime({
     onDragShield: handleMarkupModalDragShield,
     interactionHandlers: modalInteractionHandlers,
     onStageWheel: modalStageInteractionRouter.onWheel,
-    onStageWheelCapture: (event: React.WheelEvent<HTMLDivElement>) => {
-      modalStageInteractionRouter.onWheel(event);
-      event.stopPropagation();
-    },
     onStagePointerDownCapture: modalStagePanCaptureHandlers.onPointerDown,
     onStagePointerMoveCapture: modalStagePanCaptureHandlers.onPointerMove,
     onStagePointerUpCapture: modalStagePanCaptureHandlers.onPointerUp,

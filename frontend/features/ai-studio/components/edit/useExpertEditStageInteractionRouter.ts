@@ -3,6 +3,7 @@
  * Keeps tool lifecycle routing in one place so both surfaces honor the same behavior contract.
  */
 import React from "react";
+import type { NonPassiveStageWheelHandler } from "./useNonPassiveWheelCapture";
 
 export type ExpertEditStageScope = "inline" | "modal";
 export type ExpertEditStageMode = "move" | "inpaint" | "markup";
@@ -17,8 +18,8 @@ type StagePointerHandler = (
   context: StageInteractionContext
 ) => void;
 
-type StageWheelHandler = (
-  event: React.WheelEvent<HTMLDivElement>,
+export type ExpertEditStageWheelHandler = (
+  event: Parameters<NonPassiveStageWheelHandler>[0],
   context: StageInteractionContext
 ) => void;
 
@@ -28,7 +29,7 @@ export type ExpertEditStageHandlers = {
   onPointerUp: StagePointerHandler;
   onPointerCancel: StagePointerHandler;
   onPointerLeave: StagePointerHandler;
-  onWheel?: StageWheelHandler;
+  onWheel?: ExpertEditStageWheelHandler;
 };
 
 type UseExpertEditStageInteractionRouterParams = {
@@ -46,7 +47,7 @@ type UseExpertEditStageInteractionRouterResult = {
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => void;
-  onWheel: (event: React.WheelEvent<HTMLDivElement>) => void;
+  onWheel: NonPassiveStageWheelHandler;
 };
 
 const resolveHandlersByMode = ({
@@ -135,7 +136,7 @@ export const useExpertEditStageInteractionRouter = ({
   );
 
   const onWheel = React.useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
+    (event: Parameters<NonPassiveStageWheelHandler>[0]) => {
       if (isBlocked) return;
       activeHandlers.onWheel?.(event, context);
     },

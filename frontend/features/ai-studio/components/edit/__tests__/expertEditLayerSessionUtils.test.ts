@@ -96,7 +96,7 @@ describe("resolveInitialLayerSessionState", () => {
     });
   });
 
-  it("ignores stale restored edit layers when the current entry has no image authority", () => {
+  it("restores in-session edit layers when the host primary image is temporarily absent", () => {
     const state = resolveInitialLayerSessionState({
       referenceImageUrl: null,
       layerState: {
@@ -107,7 +107,7 @@ describe("resolveInitialLayerSessionState", () => {
           {
             id: "layer-1",
             name: "layer 1",
-            imageUrl: "https://example.com/stale-image.png",
+            imageUrl: "https://example.com/session-image.png",
             opacity: 1,
             isAutoNamed: true,
             ownsImageUrl: false,
@@ -122,11 +122,18 @@ describe("resolveInitialLayerSessionState", () => {
       },
     });
 
-    expect(state).toEqual({
-      layers: [],
-      foundationLayerId: null,
-      selectedLayerIndex: null,
-      layerIdCounter: 1,
+    expect(state.layers).toHaveLength(1);
+    expect(state.layers[0]?.imageUrl).toBe("https://example.com/session-image.png");
+    expect(state.layers[0]?.transform).toEqual({
+      translateXRatio: 0.2,
+      translateYRatio: -0.1,
+      scale: 0.8,
+      rotationDeg: 15,
+      flipX: false,
+      flipY: false,
     });
+    expect(state.foundationLayerId).toBe("layer-1");
+    expect(state.selectedLayerIndex).toBe(0);
+    expect(state.layerIdCounter).toBe(2);
   });
 });

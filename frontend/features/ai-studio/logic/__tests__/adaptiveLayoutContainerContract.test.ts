@@ -9,6 +9,135 @@ import { describe, expect, it } from "vitest";
 const readStyle = (fileName: string) =>
   fs.readFileSync(path.resolve(process.cwd(), "styles", fileName), "utf8");
 
+type ResponsiveSurfaceContract = {
+  label: string;
+  fileName: string;
+  containerBreakpoints?: number[];
+  fluidGridPattern?: string;
+};
+
+const responsiveSurfaceContracts: ResponsiveSurfaceContract[] = [
+  {
+    label: "Create",
+    fileName: "ai-studio-create-composer-responsive.css",
+    containerBreakpoints: [900],
+  },
+  {
+    label: "Edit",
+    fileName: "ai-studio-edit-expert.css",
+    containerBreakpoints: [760],
+  },
+  {
+    label: "Video",
+    fileName: "ai-studio-video-theme.css",
+    containerBreakpoints: [760],
+  },
+  {
+    label: "Sound",
+    fileName: "ai-studio-sound-properties.css",
+    containerBreakpoints: [1100, 760],
+  },
+  {
+    label: "Sound Voice",
+    fileName: "ai-studio-voices-properties.css",
+    containerBreakpoints: [720],
+  },
+  {
+    label: "Sound Text To Speech",
+    fileName: "ai-studio-tts-properties.css",
+    containerBreakpoints: [1100, 760],
+  },
+  {
+    label: "Sound Music",
+    fileName: "ai-studio-music-properties.css",
+    containerBreakpoints: [1180, 720],
+  },
+  {
+    label: "Sound Effects",
+    fileName: "ai-studio-sound-effects-properties.css",
+    containerBreakpoints: [720],
+  },
+  {
+    label: "Media Library",
+    fileName: "ai-studio-media-library-panel.css",
+    containerBreakpoints: [760],
+  },
+  {
+    label: "Characters",
+    fileName: "character-manager-embedded.css",
+    containerBreakpoints: [1100, 860],
+  },
+  {
+    label: "Elements",
+    fileName: "elements-manager-embedded.css",
+    containerBreakpoints: [860, 640],
+  },
+  {
+    label: "Styles",
+    fileName: "ai-studio-styles-library.css",
+    fluidGridPattern: "grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));",
+  },
+  {
+    label: "Presets",
+    fileName: "ai-studio-presets-library.css",
+    fluidGridPattern: "grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));",
+  },
+  {
+    label: "Pulse Presets",
+    fileName: "ai-studio-pulse-presets-library.css",
+    fluidGridPattern: "grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));",
+  },
+];
+
+const approvedExplicitColumnPlacements = [
+  {
+    fileName: "ai-studio-create-composer-output-generate.css",
+    selector:
+      ".create-composer-panel .create-composer-prompt-step .agent-message.agent-assistant.agent-message--with-output-generate .agent-output-bubble-controls",
+    column: "2",
+  },
+  {
+    fileName: "ai-studio-edit-expert.css",
+    selector: ".edit-expert-primary-column",
+    column: "2",
+  },
+  {
+    fileName: "ai-studio-music-properties.css",
+    selector: ".music-properties-topbar-center",
+    column: "2",
+  },
+] as const;
+
+const styleFilesForExplicitColumnAudit = fs
+  .readdirSync(path.resolve(process.cwd(), "styles"))
+  .filter(
+    (fileName) =>
+      fileName.endsWith(".css") &&
+      (fileName.startsWith("ai-studio-") || fileName.endsWith("-embedded.css"))
+  )
+  .sort();
+
+const normalizeSelector = (selector: string) => selector.trim().replace(/\s+/g, " ");
+
+const getExplicitColumnPlacements = (fileName: string) => {
+  const css = readStyle(fileName);
+  const placements: Array<{ fileName: string; selector: string; column: string }> = [];
+  const rulePattern = /([^{}@]+)\{([^{}]*)\}/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = rulePattern.exec(css)) !== null) {
+    const columnMatch = match[2].match(/grid-column:\s*([23])\s*;/);
+    if (!columnMatch) continue;
+    placements.push({
+      fileName,
+      selector: normalizeSelector(match[1]),
+      column: columnMatch[1],
+    });
+  }
+
+  return placements;
+};
+
 describe("ai-studio adaptive layout container contract", () => {
   it("names the properties rail as the adaptive layout container", () => {
     const css = readStyle("ai-studio-layout.css");
@@ -17,19 +146,25 @@ describe("ai-studio adaptive layout container contract", () => {
     expect(css).toContain("container-type: inline-size;");
   });
 
-  it("moves primary workflow responsive behavior onto the properties container", () => {
-    expect(readStyle("ai-studio-create-composer-responsive.css")).toContain(
-      "@container ai-properties (max-width: 900px)"
-    );
-    expect(readStyle("ai-studio-edit-expert.css")).toContain(
-      "@container ai-properties (max-width: 760px)"
-    );
-    expect(readStyle("ai-studio-video-theme.css")).toContain(
-      "@container ai-properties (max-width: 760px)"
-    );
-    expect(readStyle("ai-studio-sound-properties.css")).toContain(
-      "@container ai-properties (max-width: 1100px)"
-    );
+  it.each(responsiveSurfaceContracts)(
+    "keeps $label responsive behavior covered by the panel contract",
+    ({ fileName, containerBreakpoints, fluidGridPattern }) => {
+      const css = readStyle(fileName);
+
+      for (const breakpoint of containerBreakpoints ?? []) {
+        expect(css).toContain(`@container ai-properties (max-width: ${breakpoint}px)`);
+      }
+
+      if (fluidGridPattern) {
+        expect(css).toContain(fluidGridPattern);
+      }
+    }
+  );
+
+  it("keeps explicit grid column placements intentional across AI Studio panels", () => {
+    const actualPlacements = styleFilesForExplicitColumnAudit.flatMap(getExplicitColumnPlacements);
+
+    expect(actualPlacements).toEqual([...approvedExplicitColumnPlacements]);
   });
 
   it("keeps child sound workflows and libraries container-aware", () => {

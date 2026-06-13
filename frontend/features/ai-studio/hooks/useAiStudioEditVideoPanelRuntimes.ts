@@ -54,6 +54,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
   handleRegenerateWithDebit,
   resolveExpertEditVariantCostCredits,
 }: UseAiStudioEditVideoPanelRuntimesParams) => {
+  const liveExpertEditSessionState = base.getExpertEditSessionState();
   const editExpertPanelProps = useAiStudioEditExpertPanelProps({
     aspect: base.aspect,
     model: base.model,
@@ -108,7 +109,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     onDeleteSystemPreset: base.deleteExpertEditSystemPresetId,
     onRestoreDeletedSystemPresets: base.restoreDeletedExpertEditSystemPresetIds,
     systemPresetDefinitions: base.expertEditSystemPresetDefinitions,
-    sessionState: base.expertEditSessionState,
+    sessionState: liveExpertEditSessionState,
     onSessionStateChange: base.publishExpertEditSessionState,
   });
   const handleKlingVoiceIdChange = useCallback(

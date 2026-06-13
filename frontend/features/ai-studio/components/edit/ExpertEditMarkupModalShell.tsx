@@ -5,6 +5,10 @@
 import React from "react";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
+import {
+  type NonPassiveStageWheelHandler,
+  useNonPassiveWheelCapture,
+} from "./useNonPassiveWheelCapture";
 
 const assignRef = <T,>(ref: React.Ref<T | null> | undefined, value: T | null) => {
   if (!ref) return;
@@ -45,8 +49,7 @@ type ExpertEditMarkupModalShellProps = {
   onStagePointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
   onStagePointerCancel: (event: React.PointerEvent<HTMLDivElement>) => void;
   onStagePointerLeave: (event: React.PointerEvent<HTMLDivElement>) => void;
-  onStageWheel: (event: React.WheelEvent<HTMLDivElement>) => void;
-  onStageWheelCapture: (event: React.WheelEvent<HTMLDivElement>) => void;
+  onStageWheel: NonPassiveStageWheelHandler;
   onStagePointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
   onStagePointerMoveCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
   onStagePointerUpCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -75,7 +78,6 @@ export const ExpertEditMarkupModalShell = ({
   onStagePointerCancel,
   onStagePointerLeave,
   onStageWheel,
-  onStageWheelCapture,
   onStagePointerDownCapture,
   onStagePointerMoveCapture,
   onStagePointerUpCapture,
@@ -102,6 +104,17 @@ export const ExpertEditMarkupModalShell = ({
     },
     [stageRef]
   );
+  const handleNativeStageWheel = React.useCallback<NonPassiveStageWheelHandler>(
+    (event) => {
+      onStageWheel(event);
+      event.stopPropagation();
+    },
+    [onStageWheel]
+  );
+  useNonPassiveWheelCapture({
+    targetRef: stageElementRef,
+    onWheel: handleNativeStageWheel,
+  });
 
   React.useEffect(() => {
     if (isOpen) {
@@ -238,8 +251,6 @@ export const ExpertEditMarkupModalShell = ({
             onPointerUp={onStagePointerUp}
             onPointerCancel={onStagePointerCancel}
             onPointerLeave={onStagePointerLeave}
-            onWheelCapture={onStageWheelCapture}
-            onWheel={onStageWheel}
           >
             {stageContent}
           </div>

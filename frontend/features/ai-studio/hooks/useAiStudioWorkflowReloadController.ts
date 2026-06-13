@@ -216,7 +216,7 @@ const toReferenceSelectionState = ({
 const resolveTargetTool = (config: WorkflowReloadConfigV1): ToolId => {
   if (config.payload.kind === "voiceover") return "text-to-speech";
   if (config.payload.kind === "voice-changer") return "voice-changer";
-  if (config.payload.kind === "video") return config.originTool === "kling" ? "kling" : "video";
+  if (config.payload.kind === "video") return "video";
   return config.originTool;
 };
 

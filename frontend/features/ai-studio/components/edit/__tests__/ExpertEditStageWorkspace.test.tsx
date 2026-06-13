@@ -88,7 +88,6 @@ describe("ExpertEditStageWorkspace", () => {
             onPointerLeave: noopPointerHandler,
           },
           onStageWheel: noopWheelHandler,
-          onStageWheelCapture: noopWheelHandler,
           onStagePointerDownCapture: noopPointerHandler,
           onStagePointerMoveCapture: noopPointerHandler,
           onStagePointerUpCapture: noopPointerHandler,

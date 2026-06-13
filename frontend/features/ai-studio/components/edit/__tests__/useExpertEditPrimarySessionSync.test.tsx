@@ -277,7 +277,7 @@ describe("useExpertEditPrimarySessionSync", () => {
     expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
   });
 
-  it("removes a stale foundation layer on the initial sync pass when no host image exists", async () => {
+  it("preserves hydrated session layers on the initial sync pass when no host image exists", async () => {
     const onPrimaryImageChange = vi.fn();
     const rebasePanelHistoryLayerImage = vi.fn();
     const lastDispatchedPrimaryRef = { current: null as string | null };
@@ -288,7 +288,7 @@ describe("useExpertEditPrimarySessionSync", () => {
     const { result } = renderHook(() => {
       const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
         createLayer("layer-1", {
-          imageUrl: "https://example.com/stale.png",
+          imageUrl: "https://example.com/session.png",
           transform: {
             translateXRatio: 0.2,
             translateYRatio: -0.1,
@@ -321,7 +321,14 @@ describe("useExpertEditPrimarySessionSync", () => {
       await Promise.resolve();
     });
 
-    expect(result.current.layers).toHaveLength(0);
+    expect(result.current.layers).toHaveLength(1);
+    expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/session.png");
+    expect(result.current.layers[0]?.transform).toEqual({
+      translateXRatio: 0.2,
+      translateYRatio: -0.1,
+      scale: 0.75,
+      rotationDeg: 10,
+    });
     expect(rebasePanelHistoryLayerImage).not.toHaveBeenCalled();
   });
 

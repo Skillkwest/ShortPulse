@@ -8,6 +8,18 @@ import { useAiStudioPageGenerationRuntime } from "../useAiStudioPageGenerationRu
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
 
+const useAiStudioViewModelMock = vi.hoisted(() => vi.fn());
+
+const createViewModelMockResult = () => ({
+  currentCostCredits: 2,
+  promptReferenceGenerateCostCredits: null,
+  resolveModelPickerCredits: vi.fn(() => null),
+  hasSufficientCreditsForPromptReferenceGenerate: true,
+  isCreditGuardrail: false,
+  generationGuardrail: null,
+  referenceImageWarning: null,
+});
+
 vi.mock("../useAiStudioOptimisticDebitReconciliation", () => ({
   useAiStudioOptimisticDebitReconciliation: () => ({
     visibleFailures: [],
@@ -28,15 +40,7 @@ vi.mock("../useAiStudioPageDerivations", () => ({
 }));
 
 vi.mock("../useAiStudioViewModel", () => ({
-  useAiStudioViewModel: () => ({
-    currentCostCredits: 2,
-    promptReferenceGenerateCostCredits: null,
-    resolveModelPickerCredits: vi.fn(() => null),
-    hasSufficientCreditsForPromptReferenceGenerate: true,
-    isCreditGuardrail: false,
-    generationGuardrail: null,
-    referenceImageWarning: null,
-  }),
+  useAiStudioViewModel: (...args: unknown[]) => useAiStudioViewModelMock(...args),
 }));
 
 vi.mock("../useAiStudioWorkspaceActions", () => ({
@@ -85,7 +89,7 @@ const createParams = (
   generateOutput: vi.fn(),
   getDefaultDurationSeconds: vi.fn(() => 6),
   imageResolution: "model_default",
-  insertOptimisticGenerationPlaceholder: vi.fn(() => null),
+  insertOptimisticGenerationPlaceholder: vi.fn(() => "optimistic-output-1"),
   isCreateCharacterBundleLoading: false,
   isCreateCharacterModeEnabled: true,
   mode: "image",
@@ -143,6 +147,38 @@ const createParams = (
 describe("useAiStudioPageGenerationRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useAiStudioViewModelMock.mockImplementation(() => createViewModelMockResult());
+  });
+
+  it("passes Video reference slots to the view model when the active tool is video", () => {
+    const resolveReferenceInputsForTool = vi.fn((tool) =>
+      tool === "video"
+        ? {
+            referenceImageUrl: "https://cdn.test/video-first.png",
+            extraImageUrls: ["https://cdn.test/video-last.png", null, null],
+          }
+        : {
+            referenceImageUrl: null,
+            extraImageUrls: [null, null, null],
+          }
+    );
+    const params = createParams({
+      selectedTool: "video",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      resolveReferenceInputsForTool,
+    });
+
+    renderHook(() => useAiStudioPageGenerationRuntime(params));
+
+    expect(resolveReferenceInputsForTool).toHaveBeenCalledWith("video");
+    expect(useAiStudioViewModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedTool: "video",
+        referenceImageUrl: "https://cdn.test/video-first.png",
+        extraImageUrls: ["https://cdn.test/video-last.png", null, null],
+      })
+    );
   });
 
   it("hands refreshed Create Character Mode context to generation submit", async () => {

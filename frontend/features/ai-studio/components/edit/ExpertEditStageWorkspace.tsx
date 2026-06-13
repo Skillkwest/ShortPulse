@@ -8,6 +8,7 @@ import {
   type StagePanHandlers,
   type StageInteractionHandlers,
 } from "./ExpertEditStageSurface";
+import type { NonPassiveStageWheelHandler } from "./useNonPassiveWheelCapture";
 type ExpertEditStageWorkspaceProps = {
   sidebar: React.ReactNode;
   inlineStageHeaderControls?: React.ReactNode;
@@ -40,7 +41,7 @@ type ExpertEditStageWorkspaceProps = {
   onStageContextMenu: React.MouseEventHandler<HTMLDivElement>;
   onStageClick: React.MouseEventHandler<HTMLDivElement>;
   onStageDoubleClick: React.MouseEventHandler<HTMLDivElement>;
-  onInlineStageWheel: React.WheelEventHandler<HTMLDivElement>;
+  onInlineStageWheel: NonPassiveStageWheelHandler;
   inlineSceneContent: React.ReactNode;
   inlineTransformOverlay: React.ReactNode;
   inlinePostStageTools: React.ReactNode;
@@ -64,8 +65,7 @@ type ExpertEditStageWorkspaceProps = {
     onClose: () => void;
     onDragShield: React.DragEventHandler<HTMLDivElement>;
     interactionHandlers: StageInteractionHandlers;
-    onStageWheel: React.WheelEventHandler<HTMLDivElement>;
-    onStageWheelCapture: React.WheelEventHandler<HTMLDivElement>;
+    onStageWheel: NonPassiveStageWheelHandler;
     onStagePointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
     onStagePointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
     onStagePointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
@@ -224,7 +224,6 @@ export function ExpertEditStageWorkspace({
         onStageAuxClick={onStageAuxClick}
         interactionHandlers={modalSurface.interactionHandlers}
         onStageWheel={modalSurface.onStageWheel}
-        onStageWheelCapture={modalSurface.onStageWheelCapture}
         onStagePointerDownCapture={modalSurface.onStagePointerDownCapture}
         onStagePointerMoveCapture={modalSurface.onStagePointerMoveCapture}
         onStagePointerUpCapture={modalSurface.onStagePointerUpCapture}

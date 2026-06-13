@@ -75,7 +75,27 @@ export const useAiStudioShellResize = ({
   const resolveContainerWidth = useCallback((): number => {
     const shellNode = shellRef.current;
     if (!shellNode) return 0;
-    return shellNode.getBoundingClientRect().width;
+    const shellRect = shellNode.getBoundingClientRect();
+    const widthCandidates = [shellRect.width].filter(
+      (width) => Number.isFinite(width) && width > 0
+    );
+    const parentNode = shellNode.parentElement;
+    if (parentNode) {
+      const parentRect = parentNode.getBoundingClientRect();
+      if (Number.isFinite(parentNode.clientWidth) && parentNode.clientWidth > 0) {
+        widthCandidates.push(parentNode.clientWidth);
+      }
+      if (Number.isFinite(parentRect.width) && parentRect.width > 0) {
+        widthCandidates.push(parentRect.width);
+      }
+    }
+    if (typeof window !== "undefined" && Number.isFinite(window.innerWidth)) {
+      const visibleViewportWidth = Math.max(0, window.innerWidth - Math.max(0, shellRect.left));
+      if (visibleViewportWidth > 0) {
+        widthCandidates.push(visibleViewportWidth);
+      }
+    }
+    return Math.floor(Math.max(0, Math.min(...widthCandidates)));
   }, []);
 
   const stopResizing = useCallback(() => {

@@ -299,6 +299,8 @@ export default async function handler(
           : Math.round(durationSeconds * 1000);
     const songTitle = await titlePromise;
     const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
+    const resolvedLyricsText =
+      mode === "vocal" ? (lyricsText ?? normalizeOptionalString(generated.lyricsText)) : null;
     const submitLink = await charge.markSubmitted(providerRequestId, {
       source_mode: "music",
       song_id: generated.songId,
@@ -338,7 +340,7 @@ export default async function handler(
         provider_song_id: generated.songId,
         provider_prompt: providerPrompt,
         song_title: songTitle,
-        ...(lyricsText ? { lyrics_text: lyricsText } : {}),
+        ...(resolvedLyricsText ? { lyrics_text: resolvedLyricsText } : {}),
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
       beforeVisibleSettlement: async ({ generationId }) => {
@@ -383,7 +385,7 @@ export default async function handler(
         mimeType: generated.contentType,
         durationMs: responseDurationMs,
         waveformPeaks: null,
-        lyricsText,
+        lyricsText: resolvedLyricsText,
         musicMode: mode,
         title: songTitle,
         modelId,

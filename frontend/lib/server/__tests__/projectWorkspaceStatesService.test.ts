@@ -2534,6 +2534,87 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
+  it("does not fail the workspace save response when output display materialization is unavailable", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { workspaceUpsert } = createSupabaseMock({
+      outputDisplayReadError: "relation public.project_output_display_items does not exist",
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    try {
+      await expect(
+        upsertProjectWorkspaceStateForUser({
+          userId: "user-1",
+          projectId: "project-1",
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-display-materialization-fallback-save",
+            updatedAt: "2026-04-23T01:00:00.000Z",
+            meta: {
+              generatedAt: "2026-04-23T01:00:00.000Z",
+              checksum: "fnv1a32:display-materialization-fallback-save",
+            },
+            workspace: {
+              selectedTool: "create",
+              standardPrompt: "Project prompt",
+            },
+            outputs: {
+              active: [
+                {
+                  id: "library-display-fallback-save",
+                  mediaSource: "library",
+                  mode: "image",
+                  savedMediaIds: [MEDIA_ID_1],
+                },
+              ],
+              archived: [],
+            },
+            agent: {
+              messages: [],
+              input: "",
+              latestAgentPrompt: null,
+              promptOrigin: "manual",
+              chatModeEnabled: false,
+              pulseWorkflowSession: null,
+            },
+          },
+        })
+      ).resolves.toMatchObject({
+        saveOutcome: {
+          status: "saved_with_repair_pending",
+          repairStage: "project_output_display_sync",
+          repairMessage: expect.stringContaining(
+            "relation public.project_output_display_items does not exist"
+          ),
+        },
+        snapshot: {
+          outputs: {
+            active: [
+              expect.objectContaining({
+                id: "library-display-fallback-save",
+              }),
+            ],
+          },
+        },
+      });
+
+      expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] output display materialization skipped",
+        expect.objectContaining({
+          projectId: "project-1",
+          stage: "workspace save",
+          error: "relation public.project_output_display_items does not exist",
+        })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("accepts richer agent attachment fields while still sanitizing project workspace saves", async () => {
     createSupabaseMock();
 
@@ -2646,6 +2727,84 @@ describe("projectWorkspaceStatesService", () => {
       updatedAt: "2026-04-23T01:00:00.000Z",
     });
     expect(result?.snapshot.agentRuntimes).toBeDefined();
+  });
+
+  it("does not fail workspace reads when output display materialization is unavailable", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    createSupabaseMock({
+      outputDisplayReadError: "relation public.project_output_display_items does not exist",
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-display-materialization-fallback-read",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-03T12:00:00.000Z",
+          checkpointRevision: 4,
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "display-fallback-read",
+              mode: "image",
+              mediaSource: "library",
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: "display-fallback-read",
+          curatedReferenceIds: ["display-fallback-read"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    try {
+      await expect(
+        getProjectWorkspaceStateForUser({
+          userId: "user-1",
+          projectId: "project-1",
+        })
+      ).resolves.toMatchObject({
+        projectId: "project-1",
+        userId: "user-1",
+        snapshot: {
+          outputs: {
+            active: [
+              expect.objectContaining({
+                id: "display-fallback-read",
+              }),
+            ],
+            activeOutputId: null,
+            curatedReferenceIds: ["display-fallback-read"],
+          },
+        },
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] output display materialization skipped",
+        expect.objectContaining({
+          projectId: "project-1",
+          stage: "workspace read",
+          error: "relation public.project_output_display_items does not exist",
+        })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("materializes lightweight checkpoint outputs from display records on workspace read", async () => {

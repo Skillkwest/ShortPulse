@@ -75,6 +75,8 @@ type ProjectWorkspaceRepairPending = {
   message: string;
 };
 
+type ProjectWorkspaceMaterializationStage = "workspace read" | "workspace save";
+
 export class InvalidProjectWorkspaceSnapshotError extends Error {
   constructor(message = "Invalid project workspace snapshot") {
     super(message);
@@ -1214,6 +1216,61 @@ const convergeProjectWorkspaceGeneratedOutputsForRead = async ({
   }
 };
 
+const materializeProjectWorkspaceSnapshotForUserSafely = async ({
+  userId,
+  projectId,
+  snapshot,
+  stage,
+}: {
+  userId: string;
+  projectId: string;
+  snapshot: Record<string, unknown>;
+  stage: ProjectWorkspaceMaterializationStage;
+}): Promise<{
+  snapshot: Record<string, unknown>;
+  repairPending: ProjectWorkspaceRepairPending | null;
+}> => {
+  try {
+    return {
+      snapshot: await materializeProjectWorkspaceSnapshotForUser({
+        userId,
+        projectId,
+        snapshot,
+      }),
+      repairPending: null,
+    };
+  } catch (error) {
+    const errorMessage = toErrorMessage(error, "Unknown error");
+    const repairMessage = `Project workspace ${stage} failed during project output display materialization: ${errorMessage}`;
+    console.warn("[project-workspace] output display materialization skipped", {
+      projectId,
+      stage,
+      error: errorMessage,
+    });
+    void writeAppErrorLog({
+      source: "telemetry.ai_studio.project_workspace.output_display_materialization_fallback",
+      message:
+        "Project workspace continued from the durable checkpoint after output display materialization failed.",
+      userId,
+      statusCode: 200,
+      metadata: {
+        project_id: projectId,
+        fallback_stage: "project_output_display_materialization",
+        workspace_stage: stage,
+        repair_stage: "project_output_display_sync",
+        error: errorMessage,
+      },
+    }).catch(() => undefined);
+    return {
+      snapshot,
+      repairPending: {
+        stage: "project_output_display_sync",
+        message: repairMessage,
+      },
+    };
+  }
+};
+
 const prepareProjectWorkspaceSnapshotForReadResponse = async ({
   userId,
   projectId,
@@ -1223,15 +1280,16 @@ const prepareProjectWorkspaceSnapshotForReadResponse = async ({
   projectId: string;
   snapshot: Record<string, unknown>;
 }): Promise<Record<string, unknown>> => {
-  const materializedSnapshot = await materializeProjectWorkspaceSnapshotForUser({
+  const materialized = await materializeProjectWorkspaceSnapshotForUserSafely({
     userId,
     projectId,
     snapshot,
+    stage: "workspace read",
   });
   const sanitizedSnapshot = await canonicalizeProjectWorkspaceSnapshotForRead({
     userId,
     projectId,
-    snapshot: materializedSnapshot,
+    snapshot: materialized.snapshot,
   });
   const convergedSnapshot = await convergeProjectWorkspaceGeneratedOutputsForRead({
     userId,
@@ -1245,6 +1303,25 @@ const prepareProjectWorkspaceSnapshotForReadResponse = async ({
     trimGeneratedOutputMetadata: false,
   });
 };
+
+const prepareProjectWorkspaceSnapshotForSaveResponse = async ({
+  userId,
+  projectId,
+  snapshot,
+}: {
+  userId: string;
+  projectId: string;
+  snapshot: Record<string, unknown>;
+}): Promise<{
+  snapshot: Record<string, unknown>;
+  repairPending: ProjectWorkspaceRepairPending | null;
+}> =>
+  materializeProjectWorkspaceSnapshotForUserSafely({
+    userId,
+    projectId,
+    snapshot,
+    stage: "workspace save",
+  });
 
 const toProjectWorkspaceStateRecord = ({
   row,
@@ -1550,6 +1627,15 @@ export const upsertProjectWorkspaceStateForUser = async ({
     });
   }
 
+  const saveResponseSnapshot = await prepareProjectWorkspaceSnapshotForSaveResponse({
+    userId,
+    projectId,
+    snapshot: savedRow.snapshot,
+  });
+  if (saveResponseSnapshot.repairPending) {
+    addRepairPending(saveResponseSnapshot.repairPending);
+  }
+
   if (repairPending.length > 0) {
     const repairStage = repairPending[0]?.stage ?? "project_association_backfill";
     const repairMessage = repairPending.map((repair) => repair.message).join(" | ");
@@ -1563,11 +1649,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
     }
     return toProjectWorkspaceStateRecord({
       row: savedRow,
-      snapshot: await materializeProjectWorkspaceSnapshotForUser({
-        userId,
-        projectId,
-        snapshot: savedRow.snapshot,
-      }),
+      snapshot: saveResponseSnapshot.snapshot,
       saveOutcome: {
         status: "saved_with_repair_pending",
         repairStage,
@@ -1578,11 +1660,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
 
   return toProjectWorkspaceStateRecord({
     row: savedRow,
-    snapshot: await materializeProjectWorkspaceSnapshotForUser({
-      userId,
-      projectId,
-      snapshot: savedRow.snapshot,
-    }),
+    snapshot: saveResponseSnapshot.snapshot,
     saveOutcome: {
       status: "saved",
     },

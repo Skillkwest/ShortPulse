@@ -650,7 +650,7 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByText("Reference image required for generation")).toBeInTheDocument();
   });
 
-  it("toggles the shared Styles panel from the video prompt action cluster", () => {
+  it("toggles the shared Styles panel from the video generate actions", () => {
     const onStylesPanelToggle = vi.fn();
     const { rerender } = render(
       <VideoPropertiesPanel
@@ -662,6 +662,8 @@ describe("VideoPropertiesPanel", () => {
 
     const stylesButton = screen.getByRole("button", { name: "Styles" });
     expect(stylesButton).toHaveAttribute("aria-expanded", "false");
+    expect(stylesButton.closest(".video-right-generate-actions")).not.toBeNull();
+    expect(stylesButton.closest('[data-testid="reference-prompt-inline-action"]')).toBeNull();
 
     fireEvent.click(stylesButton);
     expect(onStylesPanelToggle).toHaveBeenCalledTimes(1);

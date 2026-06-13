@@ -221,6 +221,7 @@ describe("POST /api/elevenlabs/music", () => {
       buffer: Buffer.from("music"),
       contentType: "audio/mpeg",
       providerRequestId: "provider-music-vocal-1",
+      lyricsText: "The streetlights hum in harmony\nWe rise into the morning",
     });
     persistGeneratedAudioAssetMock.mockResolvedValue({
       generationId: "gen-music-vocal-1",
@@ -265,12 +266,18 @@ describe("POST /api/elevenlabs/music", () => {
     expect(persistGeneratedAudioAssetMock).toHaveBeenCalledWith(
       expect.objectContaining({
         extraMetadata: expect.objectContaining({
+          lyrics_text: "The streetlights hum in harmony\nWe rise into the morning",
           music_mode: "vocal",
           provider_prompt: expect.stringContaining("Generate and sing structured lyrics"),
         }),
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      output: expect.objectContaining({
+        lyricsText: "The streetlights hum in harmony\nWe rise into the morning",
+      }),
+    });
   });
 
   it("uses authored lyrics as the sung lyrics for vocal music when provided", async () => {
@@ -278,6 +285,7 @@ describe("POST /api/elevenlabs/music", () => {
       buffer: Buffer.from("music"),
       contentType: "audio/mpeg",
       providerRequestId: "provider-music-vocal-lyrics-1",
+      lyricsText: "Provider returned an alternate line.",
     });
     persistGeneratedAudioAssetMock.mockResolvedValue({
       generationId: "gen-music-vocal-lyrics-1",

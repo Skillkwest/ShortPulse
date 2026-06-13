@@ -57,6 +57,25 @@ const ELEVENLABS_TRANSIENT_UPSTREAM_CODES = new Set(["rate_limit_exceeded", "sys
 const ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS = 2;
 const ELEVENLABS_JSON_REQUEST_TIMEOUT_MS = 10_000;
 
+type ElevenLabsMusicDetailedMetadata = {
+  composition_plan?: {
+    sections?: Array<{
+      lines?: unknown;
+    }>;
+  };
+  compositionPlan?: {
+    sections?: Array<{
+      lines?: unknown;
+    }>;
+  };
+};
+
+type ElevenLabsMusicDetailedResponse = {
+  audioBuffer: Buffer;
+  audioContentType: string | null;
+  metadata: ElevenLabsMusicDetailedMetadata | null;
+};
+
 export type ElevenLabsVoice = {
   voiceId: string;
   name: string;
@@ -169,6 +188,120 @@ const normalizeOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const indexOfHeaderSeparator = (
+  buffer: Buffer
+): { index: number; separatorLength: number } | null => {
+  const crlfIndex = buffer.indexOf("\r\n\r\n");
+  if (crlfIndex >= 0) return { index: crlfIndex, separatorLength: 4 };
+  const lfIndex = buffer.indexOf("\n\n");
+  if (lfIndex >= 0) return { index: lfIndex, separatorLength: 2 };
+  return null;
+};
+
+const stripTrailingLineBreak = (buffer: Buffer): Buffer => {
+  if (buffer.length >= 2 && buffer[buffer.length - 2] === 13 && buffer[buffer.length - 1] === 10) {
+    return buffer.subarray(0, buffer.length - 2);
+  }
+  if (buffer.length >= 1 && buffer[buffer.length - 1] === 10) {
+    return buffer.subarray(0, buffer.length - 1);
+  }
+  return buffer;
+};
+
+const parseHeaderLines = (headerText: string): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  for (const line of headerText.split(/\r?\n/)) {
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex <= 0) continue;
+    headers[line.slice(0, separatorIndex).trim().toLowerCase()] = line
+      .slice(separatorIndex + 1)
+      .trim();
+  }
+  return headers;
+};
+
+const resolveMultipartBoundary = (contentType: string | null): string | null => {
+  if (!contentType) return null;
+  const boundaryMatch = contentType.match(/(?:^|;)\s*boundary=(?:"([^"]+)"|([^;]+))/i);
+  return (boundaryMatch?.[1] ?? boundaryMatch?.[2] ?? null)?.trim() || null;
+};
+
+const parseElevenLabsMusicDetailedMultipart = ({
+  buffer,
+  contentType,
+}: {
+  buffer: Buffer;
+  contentType: string | null;
+}): ElevenLabsMusicDetailedResponse => {
+  const boundary = resolveMultipartBoundary(contentType);
+  if (!boundary) {
+    return {
+      audioBuffer: buffer,
+      audioContentType: contentType,
+      metadata: null,
+    };
+  }
+
+  const boundaryMarker = Buffer.from(`--${boundary}`);
+  let cursor = buffer.indexOf(boundaryMarker);
+  let metadata: ElevenLabsMusicDetailedMetadata | null = null;
+  let audioBuffer: Buffer | null = null;
+  let audioContentType: string | null = null;
+
+  while (cursor >= 0) {
+    cursor += boundaryMarker.length;
+    if (buffer.subarray(cursor, cursor + 2).toString("utf8") === "--") break;
+    if (buffer[cursor] === 13 && buffer[cursor + 1] === 10) {
+      cursor += 2;
+    } else if (buffer[cursor] === 10) {
+      cursor += 1;
+    }
+
+    const nextBoundaryIndex = buffer.indexOf(boundaryMarker, cursor);
+    if (nextBoundaryIndex < 0) break;
+
+    const partBuffer = stripTrailingLineBreak(buffer.subarray(cursor, nextBoundaryIndex));
+    const separator = indexOfHeaderSeparator(partBuffer);
+    if (separator) {
+      const headers = parseHeaderLines(partBuffer.subarray(0, separator.index).toString("utf8"));
+      const partContentType = headers["content-type"]?.toLowerCase() ?? "";
+      const body = partBuffer.subarray(separator.index + separator.separatorLength);
+      if (partContentType.includes("application/json")) {
+        metadata = JSON.parse(body.toString("utf8")) as ElevenLabsMusicDetailedMetadata;
+      } else if (
+        partContentType.startsWith("audio/") ||
+        partContentType.includes("application/octet-stream")
+      ) {
+        audioBuffer = body;
+        audioContentType = headers["content-type"] ?? null;
+      }
+    }
+
+    cursor = nextBoundaryIndex;
+  }
+
+  return {
+    audioBuffer: audioBuffer ?? buffer,
+    audioContentType,
+    metadata,
+  };
+};
+
+const extractLyricsTextFromMusicMetadata = (
+  metadata: ElevenLabsMusicDetailedMetadata | null
+): string | null => {
+  const sections = metadata?.composition_plan?.sections ?? metadata?.compositionPlan?.sections;
+  if (!Array.isArray(sections)) return null;
+  const lines = sections.flatMap((section) =>
+    Array.isArray(section.lines)
+      ? section.lines
+          .map((line) => normalizeOptionalString(line))
+          .filter((line): line is string => Boolean(line))
+      : []
+  );
+  return lines.length ? lines.join("\n") : null;
 };
 
 const resolveAutosaveSaveOutcome = ({
@@ -851,9 +984,10 @@ export const generateElevenLabsMusic = async ({
   contentType: string;
   providerRequestId: string | null;
   songId: string | null;
+  lyricsText: string | null;
 }> => {
   const response = await fetch(
-    `${ELEVENLABS_BASE_URL}/v1/music?output_format=${encodeURIComponent(outputFormat)}`,
+    `${ELEVENLABS_BASE_URL}/v1/music/detailed?output_format=${encodeURIComponent(outputFormat)}`,
     {
       method: "POST",
       headers: {
@@ -862,6 +996,7 @@ export const generateElevenLabsMusic = async ({
       },
       body: JSON.stringify({
         prompt,
+        with_timestamps: false,
         ...body,
       }),
     }
@@ -870,11 +1005,16 @@ export const generateElevenLabsMusic = async ({
     throw await buildElevenLabsProviderError(response, "ElevenLabs music request failed.");
   }
   const arrayBuffer = await response.arrayBuffer();
-  return {
+  const detailedResponse = parseElevenLabsMusicDetailedMultipart({
     buffer: Buffer.from(arrayBuffer),
-    contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
+    contentType: response.headers.get("content-type"),
+  });
+  return {
+    buffer: detailedResponse.audioBuffer,
+    contentType: resolveOutputContentType(outputFormat, detailedResponse.audioContentType),
     providerRequestId: readProviderRequestId(response.headers),
     songId: normalizeOptionalString(response.headers.get("song-id")),
+    lyricsText: extractLyricsTextFromMusicMetadata(detailedResponse.metadata),
   };
 };
 

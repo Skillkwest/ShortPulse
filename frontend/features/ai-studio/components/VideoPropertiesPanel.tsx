@@ -1463,13 +1463,6 @@ export function VideoPropertiesPanel({
   const primaryPromptInlineAction = (
     <div className="video-prompt-inline-action-cluster">
       {primaryPromptCharacterCounter}
-      <StylesControl
-        isOpen={isStylesPanelOpen}
-        selectedStyleId={selectedStyleId}
-        styles={stylesCatalog}
-        onToggle={onStylesPanelToggle}
-        className="video-prompt-styles-control"
-      />
       <ComposerPinButton
         text={primaryPromptValue}
         onPinTextReference={onPinPromptReference}
@@ -2771,17 +2764,26 @@ export function VideoPropertiesPanel({
                       ariaLive="polite"
                     />
                   ) : null}
-                  <div className="video-right-generate-button">
-                    <AgentGenerateButton
-                      onClick={onRegenerate}
-                      disabled={
-                        Boolean(klingPromptGuardrailReason) ||
-                        isGenerateDisabled ||
-                        !hasRequiredPromptForGenerate ||
-                        shouldShowKlingReferenceImageWarning
-                      }
-                      cost={costCredits != null ? costCredits : "—"}
+                  <div className="video-right-generate-actions">
+                    <StylesControl
+                      isOpen={isStylesPanelOpen}
+                      selectedStyleId={selectedStyleId}
+                      styles={stylesCatalog}
+                      onToggle={onStylesPanelToggle}
+                      className="video-generate-styles-control"
                     />
+                    <div className="video-right-generate-button">
+                      <AgentGenerateButton
+                        onClick={onRegenerate}
+                        disabled={
+                          Boolean(klingPromptGuardrailReason) ||
+                          isGenerateDisabled ||
+                          !hasRequiredPromptForGenerate ||
+                          shouldShowKlingReferenceImageWarning
+                        }
+                        cost={costCredits != null ? costCredits : "—"}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

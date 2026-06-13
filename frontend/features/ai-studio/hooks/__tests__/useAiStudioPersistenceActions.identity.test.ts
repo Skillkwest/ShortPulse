@@ -297,6 +297,57 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(outputs.get("out-1")?.generationId).toBe(PROJECT_GENERATION_ID);
   });
 
+  it("persists generated music lyrics and mode metadata on manual library save", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mode: "audio",
+          resultUrls: ["https://signed.example/music.mp3"],
+          generationId: EXISTING_GENERATION_ID,
+          lyricsText: "City lights on the water\nWe keep moving through the night",
+          musicMode: "vocal",
+          audioSourceMode: "music",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1");
+    });
+
+    expect(saveMediaUrlToLibraryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: EXISTING_GENERATION_ID,
+        metadata: expect.objectContaining({
+          lyrics_text: "City lights on the water\nWe keep moving through the night",
+          music_mode: "vocal",
+          source_mode: "music",
+        }),
+      })
+    );
+  });
+
   it("associates already-saved media with the active project without reuploading", async () => {
     const outputs = new Map<string, StudioOutput>([
       [

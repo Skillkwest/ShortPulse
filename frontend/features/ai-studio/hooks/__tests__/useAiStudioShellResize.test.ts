@@ -4,16 +4,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useAiStudioShellResize } from "../useAiStudioShellResize";
 import {
+  AI_SHELL_DIVIDER_TRACK_PX,
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_LEFT_WIDTH_STORAGE_KEY,
   AI_SHELL_RIGHT_COMPACT_MIN_PX,
+  AI_SHELL_RIGHT_MIN_PX,
 } from "../../logic/shellResize";
 
 describe("useAiStudioShellResize", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    document.body.innerHTML = "";
   });
 
   it("does not read stored width or attach viewport listeners when disabled", () => {
@@ -255,6 +258,82 @@ describe("useAiStudioShellResize", () => {
       expect(result.current.showDivider).toBe(true);
       expect(result.current.rightColumnHidden).toBe(false);
       expect(result.current.shellStyle).toMatchObject({
+        "--ai-shell-right-min-width": `${AI_SHELL_RIGHT_COMPACT_MIN_PX}px`,
+      });
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
+  it("clamps against visible viewport width when the shell has already overflowed", async () => {
+    vi.spyOn(window.localStorage.__proto__, "getItem").mockReturnValue("1200");
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1280,
+    });
+
+    const parentNode = document.createElement("div");
+    const shellNode = document.createElement("section");
+    parentNode.appendChild(shellNode);
+    document.body.appendChild(parentNode);
+    Object.defineProperty(parentNode, "clientWidth", {
+      configurable: true,
+      value: 1000,
+    });
+    parentNode.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          width: 1000,
+          height: 800,
+          left: 280,
+          right: 1280,
+          top: 0,
+          bottom: 800,
+          x: 280,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+    shellNode.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          width: 1440,
+          height: 800,
+          left: 280,
+          right: 1720,
+          top: 0,
+          bottom: 800,
+          x: 280,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+        minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+      })
+    );
+
+    act(() => {
+      result.current.shellRef.current = shellNode;
+    });
+
+    const visibleShellWidth = window.innerWidth - 280;
+    const rightSafeLeftWidth =
+      visibleShellWidth - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX;
+
+    await waitFor(() => {
+      expect(result.current.shellLayoutMode).toBe("compact-split");
+      expect(result.current.leftWidthPx).toBe(rightSafeLeftWidth);
+      expect(result.current.rightColumnHidden).toBe(false);
+      expect(result.current.shellStyle).toMatchObject({
+        "--ai-shell-left-width": `${rightSafeLeftWidth}px`,
         "--ai-shell-right-min-width": `${AI_SHELL_RIGHT_COMPACT_MIN_PX}px`,
       });
     });

@@ -84,6 +84,15 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain("--ai-shell-right-min-width: 440px;");
   });
 
+  it("gives compact split mode its own right-rail-preserving CSS fallback", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain(".ai-shell.ai-shell-mode-compact-split.ai-shell-resizable");
+    expect(css).toContain("--ai-shell-right-min-width: 260px;");
+    expect(css).toContain("var(--ai-shell-left-width, minmax(420px, 1fr))");
+    expect(css).toContain("minmax(var(--ai-shell-right-min-width, 260px), 1fr);");
+  });
+
   it("starts Create with a wider resizable left column fallback", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
 

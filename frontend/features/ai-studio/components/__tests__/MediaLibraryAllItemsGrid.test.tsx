@@ -457,6 +457,21 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled();
   });
 
+  it("avoids auto-preloading posterless video previews under adaptive pressure", () => {
+    const props = baseProps();
+    const rowWithoutPoster = { ...props.mediaRows[0] } as Record<string, unknown>;
+    delete rowWithoutPoster.poster_variant_path;
+    delete rowWithoutPoster.thumb_variant_path;
+    props.mediaRows = [rowWithoutPoster as (typeof props.mediaRows)[number]];
+    props.adaptivePressureLevel = 1;
+
+    const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
+
+    const hoverVideo = container.querySelector("video");
+    expect(hoverVideo).not.toBeNull();
+    expect(hoverVideo).toHaveAttribute("preload", "metadata");
+  });
+
   it("renders audio cards with playable controls in the mixed all-media feed", () => {
     const props = baseProps();
     props.mediaRows = [

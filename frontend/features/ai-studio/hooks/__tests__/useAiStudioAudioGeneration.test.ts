@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { hardcodedMusicModelId } from "../../components/MusicPropertiesPanel";
 import { hardcodedSoundEffectsModelId } from "../../components/SoundEffectsPropertiesPanel";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 import { useAiStudioAudioGeneration } from "../useAiStudioAudioGeneration";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
@@ -537,8 +538,9 @@ describe("useAiStudioAudioGeneration", () => {
 
   it("blocks voice changer remux submissions unless two visible grid slots are available", async () => {
     let uiError: string | null = null;
-    const existingOutputs = Array.from({ length: 249 }, (_, index) =>
-      createPlaceholderOutput(`existing-${index + 1}`, `Existing ${index + 1}`)
+    const existingOutputs = Array.from(
+      { length: REFERENCE_GRID_MAX_VISIBLE_ITEMS - 1 },
+      (_, index) => createPlaceholderOutput(`existing-${index + 1}`, `Existing ${index + 1}`)
     );
     const setUiError = asDispatch<string | null>((value) => {
       uiError = typeof value === "function" ? value(uiError) : value;
@@ -610,7 +612,7 @@ describe("useAiStudioAudioGeneration", () => {
 
     expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
-    expect(uiError).toContain("200 items");
+    expect(uiError).toContain(`${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items`);
   });
 
   it("keeps music busy state active until parallel generations settle", async () => {

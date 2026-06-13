@@ -152,7 +152,7 @@ describe("useAiStudioOutputCollectionState", () => {
 
     expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
-      "active-201",
+      `active-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
       "already-archived",
     ]);
     expect(result.current.archivedOutputs[0]?.archiveReason).toBe("cleanup");

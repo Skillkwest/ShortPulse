@@ -74,7 +74,7 @@ describe("useAiStudioReferenceGridStateActions", () => {
     expect(Array.from(result.current.pendingFinalizeRemovalIds)).toEqual(["output-2"]);
   });
 
-  it("caps large all-refs collections at 200 visible outputs and archives overflow", () => {
+  it("caps large all-refs collections at the visible output limit and archives overflow", () => {
     const { result } = renderHook(() => {
       const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
       const [outputs, setOutputsState] = useState<StudioOutput[]>([]);
@@ -114,8 +114,8 @@ describe("useAiStudioReferenceGridStateActions", () => {
 
     expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
-      "output-201",
-      "output-202",
+      `output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
+      `output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
     ]);
     expect(
       result.current.archivedOutputs.every((output) => output.archiveReason === "cleanup")

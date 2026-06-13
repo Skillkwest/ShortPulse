@@ -70,7 +70,11 @@ export function ReferenceAudioPlayer({
   const requestPlayback = onRequestPlay ?? requestExclusiveSoundPlayback;
   const markPlaybackStarted = onPlaybackStarted ?? markExclusiveSoundPlaying;
   const clearPlayback = onPlaybackStopped ?? clearExclusiveSoundPlayback;
-  const [activeAudioUrl, setActiveAudioUrl] = React.useState(audioUrl?.trim() ?? "");
+  const [activeAudioUrl, setActiveAudioUrl] = React.useState(() =>
+    onResolveAudioUrl ? "" : (audioUrl?.trim() ?? "")
+  );
+  const activeAudioUrlRef = React.useRef(activeAudioUrl);
+  const waveformDecodeInFlightKeyRef = React.useRef<string | null>(null);
   const [isResolvingAudioUrl, setIsResolvingAudioUrl] = React.useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = React.useState(false);
   const [audioProgressRatio, setAudioProgressRatio] = React.useState(0);
@@ -140,39 +144,40 @@ export function ReferenceAudioPlayer({
     return null;
   }, [resolvedAudioDurationMs]);
 
-  const applyResolvedAudioUrl = React.useCallback(
-    (nextAudioUrl: string) => {
-      const normalizedNextAudioUrl = nextAudioUrl.trim();
-      if (!normalizedNextAudioUrl || normalizedNextAudioUrl === activeAudioUrl) {
-        return normalizedNextAudioUrl;
-      }
-      setActiveAudioUrl(normalizedNextAudioUrl);
-      const node = audioNodeRef.current;
-      if (node) {
-        node.src = normalizedNextAudioUrl;
-        try {
-          node.load();
-        } catch {
-          // Some test/browser environments do not expose a useful load implementation.
-        }
-      }
+  const applyResolvedAudioUrl = React.useCallback((nextAudioUrl: string) => {
+    const normalizedNextAudioUrl = nextAudioUrl.trim();
+    if (!normalizedNextAudioUrl || normalizedNextAudioUrl === activeAudioUrlRef.current) {
       return normalizedNextAudioUrl;
-    },
-    [activeAudioUrl]
-  );
+    }
+    activeAudioUrlRef.current = normalizedNextAudioUrl;
+    setActiveAudioUrl(normalizedNextAudioUrl);
+    const node = audioNodeRef.current;
+    if (node) {
+      node.src = normalizedNextAudioUrl;
+      try {
+        node.load();
+      } catch {
+        // Some test/browser environments do not expose a useful load implementation.
+      }
+    }
+    return normalizedNextAudioUrl;
+  }, []);
 
   React.useEffect(() => {
     setResolvedAudioDurationMs(durationMs ?? null);
   }, [audioId, durationMs]);
 
   React.useEffect(() => {
-    setActiveAudioUrl(audioUrl?.trim() ?? "");
-  }, [audioUrl]);
+    const nextAudioUrl = onResolveAudioUrl ? "" : (audioUrl?.trim() ?? "");
+    activeAudioUrlRef.current = nextAudioUrl;
+    setActiveAudioUrl(nextAudioUrl);
+  }, [audioUrl, onResolveAudioUrl]);
 
   React.useEffect(() => {
     setIsAudioPlaying(false);
     setAudioProgressRatio(0);
     setShouldDecodeWaveform(eagerWaveformDecode);
+    waveformDecodeInFlightKeyRef.current = null;
     readyNotifiedRef.current = false;
     audioNodeRef.current?.pause();
   }, [audioId, eagerWaveformDecode]);
@@ -188,12 +193,16 @@ export function ReferenceAudioPlayer({
   }, [fallbackAudioWaveformBars, hasDecodedWaveform, storedAudioWaveformPeaks]);
 
   React.useEffect(() => {
-    if (!activeAudioUrl) return;
+    if (!activeAudioUrl && !onResolveAudioUrl) return;
     if (storedAudioWaveformPeaks.length > 0) {
       setHasDecodedWaveform(true);
       return;
     }
+    if (hasDecodedWaveform) return;
     if (!shouldDecodeWaveform) return;
+    const decodeKey = onResolveAudioUrl ? `${audioId}:resolved` : `${audioId}:${activeAudioUrl}`;
+    if (waveformDecodeInFlightKeyRef.current === decodeKey) return;
+    waveformDecodeInFlightKeyRef.current = decodeKey;
     let cancelled = false;
     setHasDecodedWaveform(false);
 
@@ -201,13 +210,25 @@ export function ReferenceAudioPlayer({
       let decodeUrl = activeAudioUrl;
       if (onResolveAudioUrl) {
         decodeUrl = (await onResolveAudioUrl())?.trim() ?? "";
-        if (!decodeUrl) return;
+        if (!decodeUrl) {
+          if (!cancelled) waveformDecodeInFlightKeyRef.current = null;
+          return;
+        }
         applyResolvedAudioUrl(decodeUrl);
       }
-      const nextBars = await extractAudioWaveformPeaksFromUrl(decodeUrl, AUDIO_WAVEFORM_BAR_COUNT);
-      if (!cancelled && Array.isArray(nextBars) && nextBars.length > 0) {
-        setAudioWaveformBars(nextBars);
-        setHasDecodedWaveform(true);
+      try {
+        const nextBars = await extractAudioWaveformPeaksFromUrl(
+          decodeUrl,
+          AUDIO_WAVEFORM_BAR_COUNT
+        );
+        if (!cancelled && Array.isArray(nextBars) && nextBars.length > 0) {
+          setAudioWaveformBars(nextBars);
+          setHasDecodedWaveform(true);
+        } else if (!cancelled) {
+          waveformDecodeInFlightKeyRef.current = null;
+        }
+      } catch {
+        if (!cancelled) waveformDecodeInFlightKeyRef.current = null;
       }
     };
 
@@ -219,6 +240,8 @@ export function ReferenceAudioPlayer({
   }, [
     activeAudioUrl,
     applyResolvedAudioUrl,
+    audioId,
+    hasDecodedWaveform,
     onResolveAudioUrl,
     shouldDecodeWaveform,
     storedAudioWaveformPeaks,

@@ -13,6 +13,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
 import { createReadyLipSyncAudioState } from "../../logic/lipSyncAudioState";
 import {
@@ -134,7 +135,9 @@ describe("useAiStudioTaskSubmission", () => {
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
-        outputs: Array.from({ length: 200 }, (_, index) => createVisibleOutput(`out-${index}`)),
+        outputs: Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS }, (_, index) =>
+          createVisibleOutput(`out-${index}`)
+        ),
         setSaved: asDispatch(setSaved),
         getDefaultDurationSeconds: () => 6,
         notifyGenerationFailure,
@@ -149,7 +152,9 @@ describe("useAiStudioTaskSubmission", () => {
       await result.current("A polished studio portrait", []);
     });
 
-    expect(setUiError).toHaveBeenCalledWith(expect.stringContaining("200 items"));
+    expect(setUiError).toHaveBeenCalledWith(
+      expect.stringContaining(`${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items`)
+    );
     expect(setOutputs).not.toHaveBeenCalled();
     expect(handleImageModelSubmission).not.toHaveBeenCalled();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();

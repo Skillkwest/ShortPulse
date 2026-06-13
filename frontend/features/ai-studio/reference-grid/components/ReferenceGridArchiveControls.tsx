@@ -1,7 +1,10 @@
 import React from "react";
 import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import type { StudioOutput } from "../../types";
-import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../logic/referenceGridLimits";
+import {
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_WARN_VISIBLE_ITEMS,
+} from "../logic/referenceGridLimits";
 
 type ReferenceGridArchiveControlsProps = {
   archiveCount: number;
@@ -37,6 +40,8 @@ export function ReferenceGridArchiveControls({
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
 }: ReferenceGridArchiveControlsProps) {
+  const isNearActiveWorksetLimit = visibleItemCount >= REFERENCE_GRID_WARN_VISIBLE_ITEMS;
+
   return (
     <>
       {showHeader ? (
@@ -46,7 +51,16 @@ export function ReferenceGridArchiveControls({
           }`}
         >
           <div className="reference-all-refs-header-meta">
-            <p className="tiny subdued reference-all-refs-count">
+            <p
+              className={`tiny subdued reference-all-refs-count${
+                isNearActiveWorksetLimit ? " is-near-active-workset-limit" : ""
+              }`}
+              title={
+                isNearActiveWorksetLimit
+                  ? "Reference Grid is nearing the active workset limit."
+                  : undefined
+              }
+            >
               Media: {visibleItemCount}/{REFERENCE_GRID_MAX_VISIBLE_ITEMS}
             </p>
             <div

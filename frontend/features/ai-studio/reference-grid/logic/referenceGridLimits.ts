@@ -4,7 +4,8 @@
  */
 import type { StudioOutput } from "../../types";
 
-export const REFERENCE_GRID_MAX_VISIBLE_ITEMS = 200;
+export const REFERENCE_GRID_WARN_VISIBLE_ITEMS = 96;
+export const REFERENCE_GRID_MAX_VISIBLE_ITEMS = 128;
 
 export const REFERENCE_GRID_CAP_REACHED_MESSAGE = `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. Remove items from the grid or use Media Library as your archive before adding more.`;
 

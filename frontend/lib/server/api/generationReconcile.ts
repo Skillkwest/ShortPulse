@@ -149,13 +149,28 @@ const reconcileOneGeneration = async ({
     }));
   const requestId = normalizeString(identity.requestId);
 
-  const result = await executeGenerationRecovery({
-    actor: "user_reconcile",
-    generationId,
-    requestId,
-    userId,
-    routeLabel: "generation.reconcile",
-  });
+  let result: RecoveryExecutionResult;
+  try {
+    result = await executeGenerationRecovery({
+      actor: "user_reconcile",
+      generationId,
+      requestId,
+      userId,
+      routeLabel: "generation.reconcile",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      generationId,
+      requestId,
+      sourceRef: normalizeString(identity.sourceRef),
+      state: "skipped",
+      ok: false,
+      mediaFileIds: [],
+      mediaUrls: [],
+      note: message ? `reconcile_error: ${message}` : "reconcile_error",
+    };
+  }
 
   return {
     generationId: result.generationId,

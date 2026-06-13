@@ -42,6 +42,7 @@ describe("ReferenceAudioPlayer", () => {
       />
     );
 
+    expect(document.querySelector("audio")?.getAttribute("src")).toBeNull();
     await waitFor(() => {
       expect(extractAudioWaveformPeaksFromUrlMock).toHaveBeenCalledWith(
         "https://signed.test/fresh-audio.mp3",

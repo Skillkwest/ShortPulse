@@ -2576,96 +2576,113 @@ export function VideoPropertiesPanel({
                             </div>
                           </div>
                         </div>
-                        {customKlingPrompts.slice(1).map((shot, index) => (
-                          <div className="video-secondary-prompt-shell" key={shot.id}>
-                            {showShotLabels ? (
-                              <div className="video-shot-label-row">
-                                <span className="video-shot-label-pill">{`Shot ${index + 2}`}</span>
-                                <button
-                                  type="button"
-                                  className="video-shot-remove-button"
-                                  aria-label={`Remove shot ${index + 2}`}
-                                  onClick={() => removeKlingShot(shot.id)}
-                                >
-                                  <Trash size={14} weight="regular" aria-hidden="true" />
-                                </button>
-                              </div>
-                            ) : null}
-                            <div className="prompt-enhanced-wrapper has-token-highlight">
-                              <div
-                                className="prompt-token-highlight"
-                                aria-hidden="true"
-                                ref={(node) => {
-                                  customPromptHighlightRefs.current[shot.id] = node;
-                                }}
-                              >
-                                {buildKlingPromptHighlightSegments(
-                                  shot.prompt,
-                                  analyzeKlingPromptTokens(shot.prompt, klingPromptAttachedSlots)
-                                ).map((segment, segmentIndex) => (
-                                  <span
-                                    key={`custom-shot-highlight-${shot.id}-${segmentIndex}-${segment.kind}`}
-                                    className={`prompt-token-highlight-segment is-${segment.kind}`}
+                        {customKlingPrompts.slice(1).map((shot, index) => {
+                          const promptTokenDiagnostics = analyzeKlingPromptTokens(
+                            shot.prompt,
+                            klingPromptAttachedSlots
+                          );
+                          const promptHighlightSegments = buildKlingPromptHighlightSegments(
+                            shot.prompt,
+                            promptTokenDiagnostics
+                          );
+                          const hasPromptTokenHighlight = promptHighlightSegments.some(
+                            (segment) => segment.kind !== "plain"
+                          );
+
+                          return (
+                            <div className="video-secondary-prompt-shell" key={shot.id}>
+                              {showShotLabels ? (
+                                <div className="video-shot-label-row">
+                                  <span className="video-shot-label-pill">{`Shot ${index + 2}`}</span>
+                                  <button
+                                    type="button"
+                                    className="video-shot-remove-button"
+                                    aria-label={`Remove shot ${index + 2}`}
+                                    onClick={() => removeKlingShot(shot.id)}
                                   >
-                                    {segment.text}
-                                  </span>
-                                ))}
-                                <span className="prompt-token-highlight-segment prompt-token-highlight-segment--buffer">
-                                  {"\n"}
-                                </span>
-                              </div>
-                              <textarea
-                                className="prompt-input agent-step-textarea enhanced-prompt-input"
-                                ref={(node) => {
-                                  customPromptTextareaRefs.current[shot.id] = node;
-                                }}
-                                value={shot.prompt}
-                                onFocus={() => handlePromptSelection(shot.id)}
-                                onBlur={handlePromptBlur}
-                                onChange={(event) =>
-                                  handleCustomShotPromptChange(shot.id, event.target.value)
-                                }
-                                onKeyDown={(event) =>
-                                  handlePromptKeyDown(event, {
-                                    shotId: shot.id,
-                                    promptValue: shot.prompt,
-                                  })
-                                }
-                                onSelect={() => handlePromptSelection(shot.id)}
-                                onInput={(event) =>
-                                  resizeTextareaToViewport(
-                                    event.currentTarget as HTMLTextAreaElement
-                                  )
-                                }
-                                onScroll={(event) =>
-                                  syncTextareaMirrorScroll({
-                                    textarea: event.currentTarget,
-                                    mirror: customPromptHighlightRefs.current[shot.id],
-                                  })
-                                }
-                                onDrop={(event) =>
-                                  handlePromptDropWithKlingTokenInsert(event, {
-                                    shotId: shot.id,
-                                    promptValue: shot.prompt,
-                                  })
-                                }
-                                onDragOver={(event) => event.preventDefault()}
-                                rows={4}
-                                placeholder={`Describe shot ${index + 2}.`}
-                              />
-                              <div className="prompt-inline-action-slot video-prompt-character-inline-slot">
-                                <KlingPromptCharacterCounter
-                                  count={shot.prompt.length}
-                                  limit={KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS}
-                                  overLimit={
-                                    shot.prompt.length > KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
+                                    <Trash size={14} weight="regular" aria-hidden="true" />
+                                  </button>
+                                </div>
+                              ) : null}
+                              <div
+                                className={`prompt-enhanced-wrapper ${
+                                  hasPromptTokenHighlight ? "has-token-highlight" : ""
+                                }`.trim()}
+                              >
+                                {hasPromptTokenHighlight ? (
+                                  <div
+                                    className="prompt-token-highlight"
+                                    aria-hidden="true"
+                                    ref={(node) => {
+                                      customPromptHighlightRefs.current[shot.id] = node;
+                                    }}
+                                  >
+                                    {promptHighlightSegments.map((segment, segmentIndex) => (
+                                      <span
+                                        key={`custom-shot-highlight-${shot.id}-${segmentIndex}-${segment.kind}`}
+                                        className={`prompt-token-highlight-segment is-${segment.kind}`}
+                                      >
+                                        {segment.text}
+                                      </span>
+                                    ))}
+                                    <span className="prompt-token-highlight-segment prompt-token-highlight-segment--buffer">
+                                      {"\n"}
+                                    </span>
+                                  </div>
+                                ) : null}
+                                <textarea
+                                  className="prompt-input agent-step-textarea enhanced-prompt-input"
+                                  ref={(node) => {
+                                    customPromptTextareaRefs.current[shot.id] = node;
+                                  }}
+                                  value={shot.prompt}
+                                  onFocus={() => handlePromptSelection(shot.id)}
+                                  onBlur={handlePromptBlur}
+                                  onChange={(event) =>
+                                    handleCustomShotPromptChange(shot.id, event.target.value)
                                   }
-                                  ariaLabel={`Kling shot prompt character count: ${shot.prompt.length.toLocaleString()} / ${KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS.toLocaleString()}`}
+                                  onKeyDown={(event) =>
+                                    handlePromptKeyDown(event, {
+                                      shotId: shot.id,
+                                      promptValue: shot.prompt,
+                                    })
+                                  }
+                                  onSelect={() => handlePromptSelection(shot.id)}
+                                  onInput={(event) =>
+                                    resizeTextareaToViewport(
+                                      event.currentTarget as HTMLTextAreaElement
+                                    )
+                                  }
+                                  onScroll={(event) =>
+                                    syncTextareaMirrorScroll({
+                                      textarea: event.currentTarget,
+                                      mirror: customPromptHighlightRefs.current[shot.id],
+                                    })
+                                  }
+                                  onDrop={(event) =>
+                                    handlePromptDropWithKlingTokenInsert(event, {
+                                      shotId: shot.id,
+                                      promptValue: shot.prompt,
+                                    })
+                                  }
+                                  onDragOver={(event) => event.preventDefault()}
+                                  rows={4}
+                                  placeholder={`Describe shot ${index + 2}.`}
                                 />
+                                <div className="prompt-inline-action-slot video-prompt-character-inline-slot">
+                                  <KlingPromptCharacterCounter
+                                    count={shot.prompt.length}
+                                    limit={KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS}
+                                    overLimit={
+                                      shot.prompt.length > KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS
+                                    }
+                                    ariaLabel={`Kling shot prompt character count: ${shot.prompt.length.toLocaleString()} / ${KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS.toLocaleString()}`}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

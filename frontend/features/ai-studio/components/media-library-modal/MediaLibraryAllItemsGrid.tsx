@@ -103,6 +103,7 @@ type MediaCardShellProps = {
   cardPreviewUrl: string | null;
   hoverVideoUrl: string | null;
   posterPreviewUrl: string | null;
+  adaptivePressureLevel: 0 | 1 | 2;
   fetchPriorityAttr: "high" | "auto";
   getMediaCardRef: (fileId: string) => MediaCardRefCallback;
   onSelectMediaFile: (file: MediaFileRow) => void;
@@ -223,6 +224,7 @@ function MediaLibraryAllItemsMediaCard({
   cardPreviewUrl,
   hoverVideoUrl,
   posterPreviewUrl,
+  adaptivePressureLevel,
   fetchPriorityAttr,
   getMediaCardRef,
   onSelectMediaFile,
@@ -257,6 +259,7 @@ function MediaLibraryAllItemsMediaCard({
   const [isHoveringVideo, setIsHoveringVideo] = React.useState(false);
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const shouldRenderHoverVideo = Boolean(hasPosterBackedVideoPreview && hoverVideoUrl);
+  const fallbackVideoPreload = adaptivePressureLevel > 0 ? "metadata" : "auto";
   const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
   const durationMediaUrl = hoverVideoUrl ?? cardPreviewUrl ?? file.signedUrl ?? null;
 
@@ -389,8 +392,7 @@ function MediaLibraryAllItemsMediaCard({
               muted
               playsInline
               loop
-              // Posterless browse cards need the first frame, not just container metadata.
-              preload="auto"
+              preload={fallbackVideoPreload}
               onLoadedMetadata={(event) => {
                 const node = event.currentTarget;
                 if (node.videoWidth > 0 && node.videoHeight > 0) {
@@ -939,6 +941,7 @@ export function MediaLibraryAllItemsGrid({
                 cardPreviewUrl={cardPreviewUrl}
                 hoverVideoUrl={null}
                 posterPreviewUrl={null}
+                adaptivePressureLevel={adaptivePressureLevel}
                 fetchPriorityAttr={fetchPriorityAttr}
                 getMediaCardRef={getMediaCardRef}
                 onSelectMediaFile={onSelectMediaFile}
@@ -972,6 +975,7 @@ export function MediaLibraryAllItemsGrid({
                 cardPreviewUrl={cardPreviewUrl}
                 hoverVideoUrl={hoverVideoUrl ?? null}
                 posterPreviewUrl={posterPreviewUrl}
+                adaptivePressureLevel={adaptivePressureLevel}
                 fetchPriorityAttr={fetchPriorityAttr}
                 getMediaCardRef={getMediaCardRef}
                 onSelectMediaFile={onSelectMediaFile}

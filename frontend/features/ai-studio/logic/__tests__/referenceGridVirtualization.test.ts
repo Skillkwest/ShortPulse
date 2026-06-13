@@ -8,14 +8,14 @@ import {
 } from "../referenceGridVirtualization";
 
 describe("referenceGridVirtualization", () => {
-  it("resolves adaptive overscan rows for 20/50/60/100/300 scenarios", () => {
+  it("resolves adaptive overscan rows for 20/50/60/96/128 scenarios", () => {
     expect(resolveReferenceGridOverscanRows(20)).toBe(2);
     expect(resolveReferenceGridOverscanRows(50)).toBe(0);
     expect(resolveReferenceGridOverscanRows(60)).toBe(1);
-    expect(resolveReferenceGridOverscanRows(100)).toBe(1);
-    expect(resolveReferenceGridOverscanRows(300)).toBe(1);
+    expect(resolveReferenceGridOverscanRows(96)).toBe(1);
+    expect(resolveReferenceGridOverscanRows(128)).toBe(1);
     expect(resolveReferenceGridOverscanRows(50, { pressureLevel: 2 })).toBe(0);
-    expect(resolveReferenceGridOverscanRows(300, { pressureLevel: 1 })).toBe(0);
+    expect(resolveReferenceGridOverscanRows(128, { pressureLevel: 1 })).toBe(0);
   });
 
   it("caps wide column counts in high-density modes", () => {
@@ -51,12 +51,12 @@ describe("referenceGridVirtualization", () => {
 
   it("resolves density pressure before watchdog samples under large grids", () => {
     expect(resolveReferenceGridDensityPressureLevel({ itemCount: 80 })).toBe(0);
-    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 120 })).toBe(1);
-    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 240 })).toBe(2);
+    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 96 })).toBe(1);
+    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 128 })).toBe(2);
     expect(
       resolveReferenceGridDensityPressureLevel({
         itemCount: 20,
-        curatedItemCount: 240,
+        curatedItemCount: 128,
       })
     ).toBe(2);
   });

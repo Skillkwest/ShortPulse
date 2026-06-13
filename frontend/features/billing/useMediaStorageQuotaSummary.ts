@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ensureSupabaseQueryClient } from "../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, primeSupabaseSession } from "../../lib/supabaseClient";
 import { useResolvedProtectedSessionState } from "../../lib/protectedRouteSessionContext";
 import { getDefaultPlanStorageLimitBytes, type MediaStorageQuotaSummary } from "./storage";
 
@@ -55,7 +55,7 @@ export const useMediaStorageQuotaSummary = ({
   enabled?: boolean;
   fallbackPlanId?: string | null;
 }) => {
-  const { user } = useResolvedProtectedSessionState({
+  const { session, user } = useResolvedProtectedSessionState({
     enabled,
   });
   const [quotaSummary, setQuotaSummary] = useState<MediaStorageQuotaSummary | null>(null);
@@ -70,6 +70,9 @@ export const useMediaStorageQuotaSummary = ({
 
     setLoading(true);
     try {
+      if (session) {
+        primeSupabaseSession(session);
+      }
       const supabase = ensureSupabaseQueryClient();
       const { data, error } = await supabase.rpc("get_media_storage_quota_summary");
       if (error) {
@@ -106,7 +109,7 @@ export const useMediaStorageQuotaSummary = ({
     } finally {
       setLoading(false);
     }
-  }, [enabled, fallbackPlanId, user]);
+  }, [enabled, fallbackPlanId, session, user]);
 
   useEffect(() => {
     void refreshQuotaSummary();

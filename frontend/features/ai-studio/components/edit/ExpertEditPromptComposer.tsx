@@ -69,6 +69,10 @@ export function ExpertEditPromptComposer({
   inlineGenerateDisabled,
   costCredits = null,
 }: ExpertEditPromptComposerProps) {
+  const hasPromptTokenHighlight = promptHighlightSegments.some(
+    (segment) => segment.kind !== "plain"
+  );
+
   return (
     <div className={`edit-expert-bottom-row ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
       <div className="edit-expert-prompt-shell">
@@ -79,23 +83,25 @@ export function ExpertEditPromptComposer({
             }`.trim()}
             ref={promptInputShellRef}
           >
-            <div
-              ref={promptHighlightRef}
-              className="edit-expert-prompt-highlight"
-              aria-hidden="true"
-            >
-              {promptHighlightSegments.map((segment, index) => (
-                <span
-                  key={`prompt-highlight-${index}-${segment.kind}`}
-                  className={`edit-expert-prompt-highlight-segment is-${segment.kind}`}
-                >
-                  {segment.text}
+            {hasPromptTokenHighlight ? (
+              <div
+                ref={promptHighlightRef}
+                className="edit-expert-prompt-highlight"
+                aria-hidden="true"
+              >
+                {promptHighlightSegments.map((segment, index) => (
+                  <span
+                    key={`prompt-highlight-${index}-${segment.kind}`}
+                    className={`edit-expert-prompt-highlight-segment is-${segment.kind}`}
+                  >
+                    {segment.text}
+                  </span>
+                ))}
+                <span className="edit-expert-prompt-highlight-segment edit-expert-prompt-highlight-segment--buffer">
+                  {"\n"}
                 </span>
-              ))}
-              <span className="edit-expert-prompt-highlight-segment edit-expert-prompt-highlight-segment--buffer">
-                {"\n"}
-              </span>
-            </div>
+              </div>
+            ) : null}
             <textarea
               ref={promptTextareaRef}
               className="prompt-drop-input edit-expert-prompt-input"

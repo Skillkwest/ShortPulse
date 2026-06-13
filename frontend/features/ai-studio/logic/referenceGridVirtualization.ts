@@ -58,7 +58,7 @@ export const resolveReferenceGridOverscanRows = (
   const pressureLevel = options?.pressureLevel ?? 0;
   if (itemCount < 40) return 2;
   if (itemCount < 60) return 0;
-  if (itemCount <= 120) return pressureLevel >= 2 ? 0 : 1;
+  if (itemCount <= 96) return pressureLevel >= 2 ? 0 : 1;
   if (pressureLevel >= 1) return 0;
   return 1;
 };
@@ -85,8 +85,8 @@ export const resolveReferenceGridDensityPressureLevel = ({
   curatedItemCount = 0,
 }: ResolveReferenceGridDensityPressureInput): 0 | 1 | 2 => {
   const largestSurfaceCount = Math.max(0, Math.floor(Math.max(itemCount, curatedItemCount)));
-  if (largestSurfaceCount >= 240) return 2;
-  if (largestSurfaceCount >= 120) return 1;
+  if (largestSurfaceCount >= 128) return 2;
+  if (largestSurfaceCount >= 96) return 1;
   return 0;
 };
 

@@ -885,7 +885,7 @@ describe("useReferenceGridCardRenderController", () => {
     expect(hoverVideo?.getAttribute("src")).toBe("https://signed.test/video-2-full.mp4");
   });
 
-  it("uses the resolved card preview as the source for posterless generated videos", () => {
+  it("uses the resolved card preview as the source for posterless generated videos without auto-preload", () => {
     const output = createOutput({
       previewUrl: "https://tempfile.example.com/generated-video.mp4",
       resultUrls: ["https://tempfile.example.com/generated-video.mp4"],
@@ -941,7 +941,7 @@ describe("useReferenceGridCardRenderController", () => {
     expect(hoverVideo?.getAttribute("src")).toBe(
       "https://tempfile.example.com/generated-video.mp4"
     );
-    expect(hoverVideo?.getAttribute("preload")).toBe("auto");
+    expect(hoverVideo?.getAttribute("preload")).toBe("metadata");
     expect(hoverSource?.getAttribute("src")).toBe(
       "https://tempfile.example.com/generated-video.mp4"
     );

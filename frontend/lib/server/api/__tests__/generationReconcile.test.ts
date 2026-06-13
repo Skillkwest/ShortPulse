@@ -122,6 +122,45 @@ describe("generationReconcile", () => {
     });
   });
 
+  it("keeps reconciling later identities when one recovery attempt fails", async () => {
+    executeGenerationRecoveryMock.mockRejectedValueOnce(new Error("schema cache exploded"));
+
+    const result = await reconcileVisibleGenerationsForUser({
+      userId: "user-1",
+      identities: [
+        { generationId: "generation-failing", requestId: "request-failing", sourceRef: null },
+        { generationId: "generation-ok", requestId: "request-ok", sourceRef: null },
+      ],
+    });
+
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      attempted: 2,
+      results: [
+        {
+          generationId: "generation-failing",
+          requestId: "request-failing",
+          sourceRef: null,
+          state: "skipped",
+          ok: false,
+          mediaFileIds: [],
+          mediaUrls: [],
+          note: "reconcile_error: schema cache exploded",
+        },
+        {
+          generationId: "generation-1",
+          requestId: "request-1",
+          sourceRef: null,
+          state: "recovered",
+          ok: true,
+          mediaFileIds: ["media-1"],
+          mediaUrls: ["https://cdn.example.com/result.png"],
+          note: undefined,
+        },
+      ],
+    });
+  });
+
   it("resolves source refs through projection before recovery", async () => {
     readGenerationProjectionLinkBySourceRefMock.mockResolvedValueOnce({
       generationId: "generation-from-projection",

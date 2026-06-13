@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioReferenceIngestionActions } from "../useAiStudioReferenceIngestionActions";
 import type { StudioOutput } from "../../types";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 
 const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
@@ -675,7 +676,9 @@ describe("useAiStudioReferenceIngestionActions", () => {
       useAiStudioReferenceIngestionActions(
         createParams({
           projectId: "project-1",
-          outputs: Array.from({ length: 200 }, (_, index) => makeOutput({ id: `out-${index}` })),
+          outputs: Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS }, (_, index) =>
+            makeOutput({ id: `out-${index}` })
+          ),
           setOutputs,
           setUiError,
         })
@@ -688,7 +691,9 @@ describe("useAiStudioReferenceIngestionActions", () => {
 
     expect(uploadMediaFileMock).not.toHaveBeenCalled();
     expect(setOutputs).not.toHaveBeenCalled();
-    expect(setUiError).toHaveBeenCalledWith(expect.stringContaining("200 items"));
+    expect(setUiError).toHaveBeenCalledWith(
+      expect.stringContaining(`${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items`)
+    );
   });
 
   it("uses Reference Grid insertion time for local file uploads instead of the media row created_at", async () => {

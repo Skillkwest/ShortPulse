@@ -101,11 +101,11 @@ Use [docs/sops/sop_media_panel_performance_kpi.md](./sop_media_panel_performance
 
 ### 3a) Validate Reference Grid Active-Workset Cap
 
-1. Confirm the Reference Grid counter displays `Media: <visible>/200`.
-2. Add or restore references until the active workset reaches 200 visible items.
+1. Confirm the Reference Grid counter displays `Media: <visible>/128`.
+2. Add or restore references until the active workset reaches 128 visible items.
 3. Confirm new visible references are refused with cap copy instead of entering the hot path.
 4. Confirm restored or normalized over-cap active rows move into Archived with restore actions instead of being dropped.
-5. Confirm high-density posture starts before the cap is reached, with the launch threshold at 120 visible items.
+5. Confirm high-density posture starts before the cap is reached, with the launch threshold at 96 visible items.
 
 ### 3b) Validate Curated Split Behavior
 

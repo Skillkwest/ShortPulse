@@ -163,7 +163,7 @@ export default async function handler(
     });
     const providerRequestId = generated.providerRequestId;
     if (!providerRequestId) {
-      throw new Error("Fal FLUX 2 Klein did not return a request id.");
+      throw new Error("Style preview generation did not return a request id.");
     }
     const submitLink = await charge.markSubmitted(providerRequestId, {
       source_mode: "style_preview",

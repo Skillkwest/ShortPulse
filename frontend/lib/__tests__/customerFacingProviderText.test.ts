@@ -159,4 +159,20 @@ describe("customerFacingProviderText", () => {
       )
     ).toBe("The audio provider is at its concurrency limit right now. Please retry in 12 seconds.");
   });
+
+  it("removes style-preview provider and client identifiers from customer copy", () => {
+    expect(
+      sanitizeCustomerFacingProviderText(
+        "Fal FLUX 2 Klein status check failed.",
+        "Style preview generation failed."
+      )
+    ).toBe("the generation service status check failed.");
+
+    expect(
+      sanitizeCustomerFacingProviderText(
+        "flux2client returned fal-ai/flux-2/klein/9b status check failed.",
+        "Style preview generation failed."
+      )
+    ).toBe("the generation service returned the selected image model status check failed.");
+  });
 });

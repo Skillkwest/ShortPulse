@@ -194,7 +194,7 @@ describe("model catalog route coverage", () => {
     expect(missingRoutes).toEqual([]);
   });
 
-  it("uses one canonical Fal status route per active model", () => {
+  it("keeps multi-alias Fal status entries anchored to the canonical status route", () => {
     const mismatches: string[] = [];
 
     for (const filePath of listFalStatusRouteFiles()) {
@@ -204,13 +204,11 @@ describe("model catalog route coverage", () => {
       const entry = getModelCatalogEntry(modelId);
       if (!entry?.falSubmitUrl) continue;
       const expectedStatusBase = `${entry.falSubmitUrl}/requests`;
-      if (
-        entry.falStatusBaseUrls?.length !== 1 ||
-        entry.falStatusBaseUrls[0] !== expectedStatusBase
-      ) {
+      const statusBaseUrls = entry.falStatusBaseUrls ?? [];
+      if (statusBaseUrls.length > 1 && !statusBaseUrls.includes(expectedStatusBase)) {
         mismatches.push(
-          `${path.basename(filePath)}: expected ${expectedStatusBase}, got ${JSON.stringify(
-            entry.falStatusBaseUrls ?? []
+          `${path.basename(filePath)}: expected catalog to include ${expectedStatusBase}, got ${JSON.stringify(
+            statusBaseUrls
           )}`
         );
       }

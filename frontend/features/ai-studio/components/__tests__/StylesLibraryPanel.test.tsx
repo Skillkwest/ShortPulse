@@ -308,6 +308,32 @@ describe("StylesLibraryPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("removes provider and client identifiers from the style-preview failure banner", async () => {
+    const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
+    const error = new Error("flux2client Fal FLUX 2 Klein status check failed.") as Error & {
+      code: string;
+      userMessage: string;
+    };
+    error.code = "STYLE_PREVIEW_GENERATION_CLIENT_ERROR";
+    error.userMessage = "flux2client Fal FLUX 2 Klein status check failed.";
+    vi.mocked(postGenerateStylePreview).mockRejectedValue(error);
+    render(<StylesLibraryPanel styles={createStyles()} onSaveStyleDetails={onSaveStyleDetails} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add style" }));
+    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "Dream Glow" } });
+    fireEvent.change(screen.getByLabelText("Style Prompt"), {
+      target: { value: "ethereal highlights and dreamy bloom" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save style" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Style saved, but/i)).toBeInTheDocument();
+    });
+    const bannerMessage = screen.getByText(/Style saved, but/i).textContent ?? "";
+    expect(bannerMessage).toBe("Style saved, but the generation service status check failed.");
+    expect(bannerMessage).not.toMatch(/flux2client|flux2klein|FLUX 2 Klein|Fal|fal-ai/i);
+  });
+
   it("creates a new style when dropping a desktop image onto the styles library", async () => {
     const onSaveStyleDetails = vi.fn().mockResolvedValue(true);
     const originalImage = globalThis.Image;

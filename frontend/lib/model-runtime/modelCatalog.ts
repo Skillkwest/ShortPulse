@@ -258,7 +258,10 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "model_default",
     allowedResolutions: ["model_default"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/flux-2/klein/9b",
-    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/flux-2/klein/9b/requests"],
+    falStatusBaseUrls: [
+      "https://queue.fal.run/fal-ai/flux-2/requests",
+      "https://queue.fal.run/fal-ai/flux-2/klein/9b/requests",
+    ],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],

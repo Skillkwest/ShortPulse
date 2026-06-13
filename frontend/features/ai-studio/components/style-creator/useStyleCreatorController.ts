@@ -8,6 +8,7 @@ import {
   isStylePreviewGenerationError,
   postGenerateStylePreview,
 } from "../../logic/stylePreviewGeneration";
+import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import type { StylesLibraryStyleDetails } from "../../types";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import {
@@ -68,6 +69,8 @@ type TrackedStyleExtractionParams = {
   flow: "create_modal" | "library_drop";
   sourceImageUrl: string;
 };
+
+const STYLE_PREVIEW_GENERATION_GENERIC_MESSAGE = "Style preview generation failed.";
 
 const toPersistableStyleDetails = (
   details: StylesLibraryStyleDetails
@@ -712,9 +715,13 @@ export const useStyleCreatorController = ({
           );
         }
       } catch (error) {
-        const detail = isStylePreviewGenerationError(error)
+        const rawDetail = isStylePreviewGenerationError(error)
           ? error.userMessage
-          : "Style preview generation failed.";
+          : STYLE_PREVIEW_GENERATION_GENERIC_MESSAGE;
+        const detail = sanitizeCustomerFacingProviderText(
+          rawDetail,
+          STYLE_PREVIEW_GENERATION_GENERIC_MESSAGE
+        );
         setStylePreviewGenerationError(
           `Style saved, but ${detail.charAt(0).toLowerCase()}${detail.slice(1)}`
         );

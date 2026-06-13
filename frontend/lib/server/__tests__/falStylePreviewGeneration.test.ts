@@ -86,6 +86,12 @@ describe("falStylePreviewGeneration", () => {
         )
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "alias unavailable" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
         new Response("queued-preview-image-bytes", {
           status: 200,
           headers: { "Content-Type": "image/jpeg" },
@@ -100,13 +106,81 @@ describe("falStylePreviewGeneration", () => {
     });
 
     expect(fetchMock.mock.calls[1]?.[0]).toBe(
-      "https://queue.fal.run/fal-ai/flux-2/klein/9b/requests/fal-style-preview-queued/status"
+      "https://queue.fal.run/fal-ai/flux-2/requests/fal-style-preview-queued/status"
     );
     expect(fetchMock.mock.calls[2]?.[0]).toBe(
+      "https://queue.fal.run/fal-ai/flux-2/requests/fal-style-preview-queued"
+    );
+    expect(fetchMock.mock.calls[3]?.[0]).toBe(
       "https://queue.fal.run/fal-ai/flux-2/klein/9b/requests/fal-style-preview-queued"
     );
-    expect(fetchMock.mock.calls[3]?.[0]).toBe("https://fal.media/style-preview-queued.jpg");
+    expect(fetchMock.mock.calls[4]?.[0]).toBe("https://fal.media/style-preview-queued.jpg");
     expect(result.providerRequestId).toBe("fal-style-preview-queued");
     expect(result.buffer.toString()).toBe("queued-preview-image-bytes");
+  });
+
+  it("tries documented status aliases before failing a queued style preview", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ request_id: "fal-style-preview-alias" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "alias unavailable" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "COMPLETED" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "alias unavailable" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            images: [{ url: "https://fal.media/style-preview-alias.jpg" }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response("alias-preview-image-bytes", {
+          status: 200,
+          headers: { "Content-Type": "image/jpeg" },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateFalFluxKleinStylePreviewImage({
+      payload: buildFalFluxKleinStylePreviewPayload("dream glow"),
+      timeoutMs: 5000,
+      pollIntervalMs: 0,
+    });
+
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "https://queue.fal.run/fal-ai/flux-2/requests/fal-style-preview-alias/status"
+    );
+    expect(fetchMock.mock.calls[2]?.[0]).toBe(
+      "https://queue.fal.run/fal-ai/flux-2/klein/9b/requests/fal-style-preview-alias/status"
+    );
+    expect(fetchMock.mock.calls[3]?.[0]).toBe(
+      "https://queue.fal.run/fal-ai/flux-2/requests/fal-style-preview-alias"
+    );
+    expect(fetchMock.mock.calls[4]?.[0]).toBe(
+      "https://queue.fal.run/fal-ai/flux-2/klein/9b/requests/fal-style-preview-alias"
+    );
+    expect(result.providerRequestId).toBe("fal-style-preview-alias");
+    expect(result.buffer.toString()).toBe("alias-preview-image-bytes");
   });
 });

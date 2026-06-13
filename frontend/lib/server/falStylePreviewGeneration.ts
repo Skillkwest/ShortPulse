@@ -75,6 +75,9 @@ export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_OUTPUT_FORMAT = FAL_FLUX_2_KLEIN_OUT
 const STYLE_PREVIEW_ASPECT = "1:1";
 const FAL_FLUX_2_KLEIN_POLL_INTERVAL_MS = 2000;
 const FAL_FLUX_2_KLEIN_SUBMIT_TIMEOUT_SECONDS = 30;
+const STYLE_PREVIEW_STATUS_CHECK_FAILED_MESSAGE = "Style preview generation status check failed.";
+const STYLE_PREVIEW_FAILED_MESSAGE = "Style preview generation failed.";
+const STYLE_PREVIEW_SUBMIT_FAILED_MESSAGE = "Style preview generation submit failed.";
 
 const sleep = async (ms: number, signal: AbortSignal): Promise<void> => {
   if (ms <= 0) return;
@@ -123,11 +126,11 @@ const fetchGeneratedImage = async ({
   assertTrustedFalProviderUrl(imageUrl, "fal_flux_2_klein_media");
   const response = await fetch(imageUrl, { signal });
   if (!response.ok) {
-    throw new Error(`Fal FLUX 2 Klein media fetch failed (${response.status}).`);
+    throw new Error(`Style preview image fetch failed (${response.status}).`);
   }
   const contentType = response.headers.get("content-type")?.trim() || "image/jpeg";
   if (!contentType.toLowerCase().startsWith("image/")) {
-    throw new Error("Fal FLUX 2 Klein media response was not an image.");
+    throw new Error("Style preview image response was not an image.");
   }
   return {
     buffer: Buffer.from(await response.arrayBuffer()),
@@ -160,6 +163,7 @@ const resolvePayloadWithMedia = async ({
 }): Promise<Record<string, unknown>> => {
   while (Date.now() < timeoutAt) {
     await sleep(pollIntervalMs, signal);
+    let nonRetryableStatusFailure: string | null = null;
     for (const baseUrl of statusBaseUrls) {
       const response = await dispatchProviderStatusRequest({
         provider: FAL_PROVIDER_KEY,
@@ -180,9 +184,11 @@ const resolvePayloadWithMedia = async ({
         continue;
       }
       if (!response.ok) {
-        throw new Error(
-          readProviderFailureMessage(statusData.json, "Fal FLUX 2 Klein status check failed.")
+        nonRetryableStatusFailure = readProviderFailureMessage(
+          statusData.json,
+          STYLE_PREVIEW_STATUS_CHECK_FAILED_MESSAGE
         );
+        continue;
       }
 
       if (
@@ -204,9 +210,7 @@ const resolvePayloadWithMedia = async ({
           })
         : null;
       if (isProviderFailedStatus({ provider: FAL_PROVIDER_KEY, status })) {
-        throw new Error(
-          readProviderFailureMessage(statusData.json, "Fal FLUX 2 Klein style preview failed.")
-        );
+        throw new Error(readProviderFailureMessage(statusData.json, STYLE_PREVIEW_FAILED_MESSAGE));
       }
       if (!isProviderCompletedStatus({ provider: FAL_PROVIDER_KEY, status })) {
         continue;
@@ -244,9 +248,12 @@ const resolvePayloadWithMedia = async ({
         return resultProbe.payload;
       }
     }
+    if (nonRetryableStatusFailure) {
+      throw new Error(nonRetryableStatusFailure);
+    }
   }
 
-  throw new Error("Fal FLUX 2 Klein image generation timed out.");
+  throw new Error("Style preview image generation timed out.");
 };
 
 export const buildFalFluxKleinImagePayload = (
@@ -297,11 +304,11 @@ export const generateFalFluxKleinImage = async ({
     });
     if (!submitResult.response.ok) {
       throw new Error(
-        readProviderFailureMessage(submitResult.data, "Fal FLUX 2 Klein submit failed.")
+        readProviderFailureMessage(submitResult.data, STYLE_PREVIEW_SUBMIT_FAILED_MESSAGE)
       );
     }
     if (!submitResult.providerRequestId) {
-      throw new Error("Fal FLUX 2 Klein did not return a request id.");
+      throw new Error("Style preview generation did not return a request id.");
     }
 
     const submitMediaUrls = collectMediaUrls(submitResult.data);
@@ -318,7 +325,7 @@ export const generateFalFluxKleinImage = async ({
           });
     const [mediaUrl] = collectMediaUrls(mediaPayload);
     if (!mediaUrl) {
-      throw new Error("Fal FLUX 2 Klein completed without an image.");
+      throw new Error("Style preview generation completed without an image.");
     }
     const image = await fetchGeneratedImage({
       imageUrl: mediaUrl,

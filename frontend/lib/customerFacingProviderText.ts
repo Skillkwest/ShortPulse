@@ -32,6 +32,10 @@ const providerTextReplacements: Array<[RegExp, string]> = [
   [/11\s*labs/gi, AUDIO_SERVICE_LABEL],
   [/\bOpenAI\s+provider\s+down\b/gi, "The image service is temporarily unavailable."],
   [/\bprovider\s+down\b/gi, "The generation service is temporarily unavailable."],
+  [/fal-ai\/flux-2\/klein\/9b/gi, "the selected image model"],
+  [/\bFal\s+FLUX\s*2\s+Klein(?:\s*9B)?\b/gi, GENERATION_SERVICE_LABEL],
+  [/\bFLUX\s*2\s+Klein(?:\s*9B)?\b/gi, GENERATION_SERVICE_LABEL],
+  [/\bflux[-_ ]?2[-_ ]?(?:client|klein)\b/gi, GENERATION_SERVICE_LABEL],
   [/fal(\.ai)?/gi, GENERATION_SERVICE_LABEL],
   [/api\.openai\.com/gi, "the image service"],
   [/\bOpenAI\b/gi, "the image service"],
@@ -71,6 +75,7 @@ const stripProviderOperationalDetails = (value: string): string =>
     .replace(REQUEST_ID_INLINE_PATTERN, "")
     .replace(PROVIDER_REQUEST_TOKEN_PATTERN, "")
     .replace(SUPPORT_URL_PATTERN, "")
+    .replace(/\bthe generation service\s+the generation service\b/gi, GENERATION_SERVICE_LABEL)
     .replace(/\s+([.,!?])/g, "$1")
     .replace(/\s+/g, " ")
     .trim();

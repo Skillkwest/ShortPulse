@@ -3,6 +3,7 @@ import type { AgentPromptId } from "../../../../lib/agentPromptsConfig";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
 import {
+  RuntimeAgentPromptVersionMismatchError,
   resolveRuntimeAgentPromptForAdmin,
   saveRuntimeAgentPrompt,
 } from "../../../../lib/server/api/runtimeAgentPromptControlPlane";
@@ -60,6 +61,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const savedPrompt = await saveRuntimeAgentPrompt({
         promptId: STYLE_EXTRACT_PROMPT_ID,
         promptBody: parsed.promptBody,
+        expectedUpdatedAt:
+          typeof req.body?.expectedUpdatedAt === "string" || req.body?.expectedUpdatedAt === null
+            ? req.body.expectedUpdatedAt
+            : undefined,
         actorUserId: adminUser.id,
         actorEmail: adminUser.email ?? null,
       });
@@ -71,6 +76,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         source: "control_plane",
       });
     } catch (error) {
+      if (
+        error instanceof RuntimeAgentPromptVersionMismatchError ||
+        (error instanceof Error && error.name === "RuntimeAgentPromptVersionMismatchError")
+      ) {
+        return res.status(409).json({
+          code: "PROMPT_STALE",
+          error: "The style extraction prompt changed since you loaded it. Reload and try again.",
+        });
+      }
       await logApiRouteException({
         req,
         error,

@@ -1,8 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  isReferenceGridDocumentVisible,
   resolveReferenceGridValidHydrationOutputIds,
   shouldSuspendReferenceGridResizeMeasurements,
 } from "../useReferenceGridRuntimeScaffold";
+
+const mockDocumentVisibility = (visibilityState: DocumentVisibilityState) =>
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(visibilityState);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("resolveReferenceGridValidHydrationOutputIds", () => {
   it("keeps Quick Slot-only and active outputs valid for hydration pruning", () => {
@@ -50,5 +58,16 @@ describe("shouldSuspendReferenceGridResizeMeasurements", () => {
         isRailCanvasSplitResizeActive: false,
       })
     ).toBe(false);
+  });
+});
+
+describe("isReferenceGridDocumentVisible", () => {
+  it("treats hidden tabs as ineligible for reference-grid visual work", () => {
+    mockDocumentVisibility("hidden");
+    expect(isReferenceGridDocumentVisible()).toBe(false);
+
+    vi.restoreAllMocks();
+    mockDocumentVisibility("visible");
+    expect(isReferenceGridDocumentVisible()).toBe(true);
   });
 });

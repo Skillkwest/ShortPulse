@@ -133,6 +133,18 @@ describe("useAiStudioStylesRuntime", () => {
     }));
   });
 
+  it("forwards the catalog enabled gate to the built-in styles catalog", () => {
+    renderHook(() =>
+      useAiStudioStylesRuntime({
+        enabled: false,
+        selectedStyleId: null,
+        setSelectedStyleId: vi.fn(),
+      })
+    );
+
+    expect(mockUseBuiltInStyleCatalog).toHaveBeenCalledWith({ enabled: false });
+  });
+
   it("builds the visible catalog from built-ins, custom details, deleted ids, and ordering", async () => {
     detailsPreference.styleDetailsById = {
       cinematic: {

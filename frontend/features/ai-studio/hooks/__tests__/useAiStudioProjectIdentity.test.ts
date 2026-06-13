@@ -15,6 +15,7 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 
 vi.mock("../../logic/projectWorkspaceApiClient", () => ({
   getAiStudioProjectIdentityViaApi: vi.fn(),
+  invalidateAiStudioProjectWorkspaceBootstrapCache: vi.fn(),
 }));
 
 type MockRouter = {

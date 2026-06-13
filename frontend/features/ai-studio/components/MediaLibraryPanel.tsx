@@ -97,6 +97,7 @@ type MediaLibraryPanelProps = {
   onProjectNameCommit?: (value: string) => void;
   projectNameFocusRequestKey?: number;
   isMediaLibraryPanelExpanded?: boolean;
+  isStorageQuotaBlocked?: boolean;
   onExpandMediaLibraryPanel?: () => void;
   onCollapseMediaLibraryPanel?: () => void;
   resolveInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
@@ -131,6 +132,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onProjectNameCommit,
   projectNameFocusRequestKey = 0,
   isMediaLibraryPanelExpanded = false,
+  isStorageQuotaBlocked: routeStorageQuotaBlocked,
   onExpandMediaLibraryPanel,
   onCollapseMediaLibraryPanel,
   resolveInternalDropItem,
@@ -272,6 +274,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     projectId,
     activeFolderId,
     folders,
+    isStorageQuotaBlockedOverride: routeStorageQuotaBlocked,
     refreshActiveRows,
     refreshFolders,
     setFolderError,

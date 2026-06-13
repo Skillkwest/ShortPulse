@@ -13,7 +13,12 @@ import {
 type PersistSnapshotFn = (
   sessionId: string,
   snapshot: AiStudioSessionSnapshot,
-  options?: { keepalive?: boolean; title?: string | null; snapshotHash?: string | null }
+  options?: {
+    keepalive?: boolean;
+    title?: string | null;
+    snapshotHash?: string | null;
+    preparedSnapshot?: PreparedAiStudioSessionAutosaveSnapshot;
+  }
 ) => Promise<void> | void;
 
 type PersistErrorReason = "snapshot_too_large" | "snapshot_serialize_failed" | "persist_failed";
@@ -52,6 +57,7 @@ type PendingSnapshotState = {
   hash: string;
   title: string | null;
   snapshotBytes: number;
+  preparedSnapshot: PreparedAiStudioSessionAutosaveSnapshot;
 };
 
 type SnapshotPersistIdentity = Pick<PendingSnapshotState, "sessionId" | "hash" | "title">;
@@ -139,6 +145,7 @@ export const useAiStudioSessionAutosave = ({
               keepalive: shouldUseKeepalive,
               title: pending.title,
               snapshotHash: pending.hash,
+              preparedSnapshot: pending.preparedSnapshot,
             })
           );
           lastPersistFailureRef.current = null;
@@ -308,6 +315,7 @@ export const useAiStudioSessionAutosave = ({
       hash: serializedSnapshot.hash,
       title: serializedSnapshot.title,
       snapshotBytes: serializedSnapshot.bytes,
+      preparedSnapshot: serializedSnapshot,
     };
 
     if (inFlight) {

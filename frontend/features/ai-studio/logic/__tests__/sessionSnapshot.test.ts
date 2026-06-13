@@ -3,6 +3,7 @@ import {
   buildAiStudioSessionSnapshot,
   createAiStudioProjectWorkspaceSnapshot,
   createAiStudioProjectWorkspaceAutosaveCandidates,
+  iterateAiStudioProjectWorkspaceAutosaveCandidates,
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotExpertEdit,
   patchAiStudioSessionSnapshotWorkspace,
@@ -2134,6 +2135,65 @@ describe("sessionSnapshot", () => {
     const candidates = createAiStudioProjectWorkspaceAutosaveCandidates(snapshot);
 
     expect(candidates.map((candidate) => candidate.kind)).toEqual(["full"]);
+  });
+
+  it("defers reduced autosave candidate construction until the iterator advances", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-candidate-lazy-session",
+      updatedAt: "2026-05-25T21:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [createOutput({ id: "out-1" })],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+    });
+    Object.defineProperty(snapshot, "canvas", {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        throw new Error("Reduced autosave candidate was built eagerly.");
+      },
+    });
+
+    const iterator = iterateAiStudioProjectWorkspaceAutosaveCandidates(snapshot);
+    const first = iterator.next();
+
+    expect(first.done).toBe(false);
+    expect(first.value.kind).toBe("full");
+    expect(first.value.snapshot).toBe(snapshot);
+    expect(() => iterator.next()).toThrow("Reduced autosave candidate was built eagerly.");
   });
 
   it("removes failed outputs from project workspace snapshots and prunes dependent ids", () => {

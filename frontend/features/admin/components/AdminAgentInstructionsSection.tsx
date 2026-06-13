@@ -1021,7 +1021,10 @@ export function AdminAgentInstructionsSection() {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ promptBody: styleExtractPrompt }),
+        body: JSON.stringify({
+          promptBody: styleExtractPrompt,
+          expectedUpdatedAt: styleExtractPromptUpdatedAt,
+        }),
       });
       const payload = (await response.json()) as {
         promptBody?: unknown;
@@ -1046,7 +1049,7 @@ export function AdminAgentInstructionsSection() {
     } catch {
       setStyleExtractPromptSaveState("error");
     }
-  }, [hydrateStyleExtractPrompt, styleExtractPrompt]);
+  }, [hydrateStyleExtractPrompt, styleExtractPrompt, styleExtractPromptUpdatedAt]);
 
   const handleRemoveBuiltInStyleDraft = React.useCallback((localId: string) => {
     setBuiltInStyleDrafts((current) => current.filter((draft) => draft.localId !== localId));

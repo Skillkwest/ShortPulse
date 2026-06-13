@@ -917,20 +917,6 @@ export function AiStudioPageContent({
     resolvedCreateProperties.onExpertCreateModeChange != null;
   const expertCreateMode =
     resolvedCreateProperties.expertCreateMode ?? uncontrolledExpertCreateMode;
-  const {
-    handleDeleteStyle,
-    handleReorderStyle,
-    handleRestoreBuiltInStyles,
-    styleDetailsSaveError,
-    stylesDeleteError,
-    upsertStyleDetails,
-    visibleStylesCatalog,
-  } = useAiStudioStylesRuntime({
-    selectedStyleId,
-    setSelectedStyleId,
-    onSelectedStylePromptChange,
-    onSelectedStyleContextChange,
-  });
   const isQuickSlotToggleAvailable = Boolean(
     resolvedReferenceGridProps.onAddCuratedReference &&
     resolvedReferenceGridProps.onRemoveCuratedReference &&
@@ -959,6 +945,23 @@ export function AiStudioPageContent({
     return baseVisibility;
   }, [panelToggleAvailability, panelVisibility, selectedTool]);
   const isStylesPanelOpen = effectivePanelVisibility.styles;
+  const shouldLoadStylesCatalog =
+    isStylesPanelOpen || selectedTool === "styles" || selectedStyleId != null;
+  const {
+    handleDeleteStyle,
+    handleReorderStyle,
+    handleRestoreBuiltInStyles,
+    styleDetailsSaveError,
+    stylesDeleteError,
+    upsertStyleDetails,
+    visibleStylesCatalog,
+  } = useAiStudioStylesRuntime({
+    enabled: shouldLoadStylesCatalog,
+    selectedStyleId,
+    setSelectedStyleId,
+    onSelectedStylePromptChange,
+    onSelectedStyleContextChange,
+  });
   const headerShortcutStates = React.useMemo(
     () =>
       resolveHeaderShortcutStateMap({
@@ -1592,6 +1595,7 @@ export function AiStudioPageContent({
             onProjectNameCommit={onProjectNameCommit}
             projectNameFocusRequestKey={mediaLibraryProjectNameFocusRequestKey}
             isMediaLibraryPanelExpanded={isMediaLibraryPanelExpanded}
+            isStorageQuotaBlocked={isMediaStorageFull}
             onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
             onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
             resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
@@ -1612,6 +1616,7 @@ export function AiStudioPageContent({
       mediaLibraryDetailSelectionTarget,
       onMediaLibraryDetailSelectionTargetChange,
       projectId,
+      isMediaStorageFull,
       handleCollapseMediaLibraryPanel,
       handleExpandMediaLibraryPanel,
       isMediaLibraryPanelExpanded,

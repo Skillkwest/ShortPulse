@@ -10,6 +10,8 @@ import { buildUserScopedStorageKey } from "../../character-manager/logic/userSco
 const DEFAULT_MEDIA_AUTOSAVE_ENABLED = true;
 const MEDIA_AUTOSAVE_STORAGE_KEY = "shortpulse.ai_studio.media_autosave_enabled";
 const MEDIA_AUTOSAVE_RETRY_DELAY_MS = 15_000;
+export const MEDIA_AUTOSAVE_REMOTE_IDLE_TIMEOUT_MS = 1_500;
+export const MEDIA_AUTOSAVE_REMOTE_FALLBACK_DELAY_MS = 250;
 const buildMediaAutosaveStorageKey = (userId?: string | null): string =>
   buildUserScopedStorageKey(MEDIA_AUTOSAVE_STORAGE_KEY, userId);
 
@@ -44,6 +46,32 @@ const readLocalMediaAutosave = (userId?: string | null): boolean => {
 const writeLocalMediaAutosave = (value: boolean, userId?: string | null): void => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(buildMediaAutosaveStorageKey(userId), String(value));
+};
+
+const scheduleRemotePreferenceRead = (callback: () => void): (() => void) => {
+  if (typeof window === "undefined") return () => undefined;
+  let cancelled = false;
+  const run = () => {
+    if (!cancelled) callback();
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    const idleId = window.requestIdleCallback(run, {
+      timeout: MEDIA_AUTOSAVE_REMOTE_IDLE_TIMEOUT_MS,
+    });
+    return () => {
+      cancelled = true;
+      if (typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+    };
+  }
+
+  const timeoutId = window.setTimeout(run, MEDIA_AUTOSAVE_REMOTE_FALLBACK_DELAY_MS);
+  return () => {
+    cancelled = true;
+    window.clearTimeout(timeoutId);
+  };
 };
 
 /**
@@ -96,35 +124,53 @@ export const useMediaAutosavePreference = ({
     setLoading(true);
     setSyncState("loading");
 
-    (async () => {
-      try {
-        if (!sessionUserId) {
+    const runRemotePreferenceRead = () => {
+      void (async () => {
+        try {
+          const supabase = ensureSupabaseQueryClient();
           if (!active) return;
-          updateLocalValue(localValue, null);
+
+          const { data: storedPreference, error: preferenceError } = await supabase
+            .from("user_preferences")
+            .select("media_autosave_enabled")
+            .eq("user_id", sessionUserId)
+            .maybeSingle();
+          if (preferenceError) throw preferenceError;
+          if (!active) return;
+
+          const nextValue =
+            storedPreference?.media_autosave_enabled ?? DEFAULT_MEDIA_AUTOSAVE_ENABLED;
+          if (!hasLocalOverrideRef.current) {
+            updateLocalValue(nextValue, sessionUserId);
+          }
+
+          if (!active) return;
+          remoteSyncEnabledRef.current = true;
           setError(null);
           setSyncState("ready");
-          return;
+        } catch (err) {
+          if (!active) return;
+          if (isMissingUserPreferencesTableError(err)) {
+            remoteSyncEnabledRef.current = false;
+            updateLocalValue(localValue, sessionUserId);
+            setError(null);
+            setSyncState("ready");
+            return;
+          }
+          setError(err instanceof Error ? err.message : "Unable to load media autosave preference");
+          setSyncState("error");
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
         }
+      })();
+    };
 
-        const supabase = ensureSupabaseQueryClient();
+    if (!sessionUserId) {
+      try {
         if (!active) return;
-
-        const { data: storedPreference, error: preferenceError } = await supabase
-          .from("user_preferences")
-          .select("media_autosave_enabled")
-          .eq("user_id", sessionUserId)
-          .maybeSingle();
-        if (preferenceError) throw preferenceError;
-        if (!active) return;
-
-        const nextValue =
-          storedPreference?.media_autosave_enabled ?? DEFAULT_MEDIA_AUTOSAVE_ENABLED;
-        if (!hasLocalOverrideRef.current) {
-          updateLocalValue(nextValue, sessionUserId);
-        }
-
-        if (!active) return;
-        remoteSyncEnabledRef.current = true;
+        updateLocalValue(localValue, null);
         setError(null);
         setSyncState("ready");
       } catch (err) {
@@ -143,10 +189,16 @@ export const useMediaAutosavePreference = ({
           setLoading(false);
         }
       }
-    })();
+      return () => {
+        active = false;
+      };
+    }
+
+    const cancelRemotePreferenceRead = scheduleRemotePreferenceRead(runRemotePreferenceRead);
 
     return () => {
       active = false;
+      cancelRemotePreferenceRead();
     };
   }, [enabled, reloadVersion, sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
 

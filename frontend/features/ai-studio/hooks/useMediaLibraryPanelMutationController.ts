@@ -50,6 +50,7 @@ type UseMediaLibraryPanelMutationControllerParams = {
   projectId?: string | null;
   activeFolderId: string;
   folders: Array<{ id: string; name: string }>;
+  isStorageQuotaBlockedOverride?: boolean;
   refreshActiveRows: () => Promise<void>;
   refreshFolders: () => Promise<void>;
   setFolderError: (value: string | null) => void;
@@ -96,6 +97,7 @@ export const useMediaLibraryPanelMutationController = ({
   projectId = null,
   activeFolderId,
   folders,
+  isStorageQuotaBlockedOverride,
   refreshActiveRows,
   refreshFolders,
   setFolderError,
@@ -108,9 +110,9 @@ export const useMediaLibraryPanelMutationController = ({
     React.useState<PendingLibraryDeleteState | null>(null);
   const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = React.useState(false);
   const { quotaSummary } = useMediaStorageQuotaSummary({
-    enabled: true,
+    enabled: isStorageQuotaBlockedOverride == null,
   });
-  const isStorageQuotaBlocked = quotaSummary?.isOverLimit === true;
+  const isStorageQuotaBlocked = isStorageQuotaBlockedOverride ?? quotaSummary?.isOverLimit === true;
   const storageQuotaMessage = isStorageQuotaBlocked ? MEDIA_STORAGE_FULL_USER_MESSAGE : null;
 
   const refreshFolderState = React.useCallback(async () => {

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import {
+  clearAiStudioProjectWorkspaceBootstrapCacheForTests,
   getAiStudioProjectIdentityViaApi,
   getAiStudioProjectWorkspaceBootstrapViaApi,
   getAiStudioProjectWorkspaceSnapshotViaApi,
@@ -23,6 +24,7 @@ const addBreadcrumbMock = vi.mocked(addBreadcrumb);
 describe("projectWorkspaceApiClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAiStudioProjectWorkspaceBootstrapCacheForTests();
   });
 
   it("records a breadcrumb when project workspace save fails with an invalid snapshot response", async () => {
@@ -370,6 +372,58 @@ describe("projectWorkspaceApiClient", () => {
     });
   });
 
+  it("reuses prepared snapshot json when saving project workspace snapshots", async () => {
+    const snapshot = {
+      schemaVersion: 2,
+      sessionId: "session-1",
+      updatedAt: "2026-04-25T00:00:00.000Z",
+      workspace: {
+        prompt: "Prepared payload",
+      },
+    };
+    const serializedSnapshotJson = JSON.stringify(snapshot);
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          workspace: {
+            projectId: "project-1",
+            schemaVersion: 2,
+            snapshot,
+            createdAt: "2026-04-25T00:00:00.000Z",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: snapshot as never,
+        serializedSnapshotJson,
+      })
+    ).resolves.toMatchObject({
+      projectId: "project-1",
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: `{"schemaVersion":2,"snapshot":${serializedSnapshotJson}}`,
+      keepalive: false,
+      shortpulseLogScope: "app",
+      shortpulseRetryNetworkOnce: true,
+    });
+  });
+
   it("records a malformed-success breadcrumb when project workspace save returns 200 without workspace", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response(
@@ -692,6 +746,141 @@ describe("projectWorkspaceApiClient", () => {
       createdAt: "2026-04-25T00:00:00.000Z",
       updatedAt: "2026-04-25T00:00:00.000Z",
     });
+  });
+
+  it("reuses a fresh completed bootstrap result for near-sequential identity and workspace loads", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          project: {
+            id: "project-1",
+            title: "Project One",
+            createdAt: "2026-04-25T00:00:00.000Z",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+          workspace: {
+            projectId: "project-1",
+            schemaVersion: 2,
+            snapshot: {
+              schemaVersion: 2,
+              sessionId: "session-1",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+            createdAt: "2026-04-25T00:00:00.000Z",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      getAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+      })
+    ).resolves.toMatchObject({
+      projectId: "project-1",
+      schemaVersion: 2,
+    });
+    await expect(
+      getAiStudioProjectIdentityViaApi({
+        projectId: "project-1",
+      })
+    ).resolves.toEqual({
+      id: "project-1",
+      title: "Project One",
+      createdAt: "2026-04-25T00:00:00.000Z",
+      updatedAt: "2026-04-25T00:00:00.000Z",
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("invalidates completed bootstrap results before saving project workspace snapshots", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            project: {
+              id: "project-1",
+              title: "Project One",
+              createdAt: "2026-04-25T00:00:00.000Z",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+            workspace: null,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            workspace: {
+              projectId: "project-1",
+              schemaVersion: 2,
+              snapshot: {
+                schemaVersion: 2,
+                sessionId: "session-1",
+                updatedAt: "2026-04-25T00:00:00.000Z",
+              },
+              createdAt: "2026-04-25T00:00:00.000Z",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            project: {
+              id: "project-1",
+              title: "Project One",
+              createdAt: "2026-04-25T00:00:00.000Z",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+            workspace: null,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
+      );
+
+    await getAiStudioProjectIdentityViaApi({
+      projectId: "project-1",
+    });
+    await saveAiStudioProjectWorkspaceSnapshotViaApi({
+      projectId: "project-1",
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-25T00:00:00.000Z",
+      } as never,
+    });
+    await getAiStudioProjectIdentityViaApi({
+      projectId: "project-1",
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(3);
   });
 
   it("uses DELETE to reset the saved project workspace snapshot", async () => {

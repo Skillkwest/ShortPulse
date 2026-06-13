@@ -297,7 +297,7 @@ describe("useReferenceGridVirtualMetricsController", () => {
     expect(result.current.virtualMetrics.columnCount).toBe(6);
   });
 
-  it("caps quick slot columns to populated slots so cards stretch into wide rails", () => {
+  it("keeps sparse quick slot rows sized as if the row were full", () => {
     const { result } = renderHook(() =>
       useHarness({
         isWideLayout: true,
@@ -308,7 +308,7 @@ describe("useReferenceGridVirtualMetricsController", () => {
       })
     );
 
-    expect(result.current.curatedVirtualMetrics.columnCount).toBe(5);
+    expect(result.current.curatedVirtualMetrics.columnCount).toBe(8);
   });
 
   it("pins prepends to the top when the user is already at the top", () => {

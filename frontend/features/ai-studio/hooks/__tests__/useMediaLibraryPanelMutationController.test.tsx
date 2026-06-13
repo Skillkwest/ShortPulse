@@ -113,6 +113,36 @@ describe("useMediaLibraryPanelMutationController", () => {
     expect(uploadMediaFileMock).not.toHaveBeenCalled();
   });
 
+  it("uses a parent quota block value without starting a second quota summary load", async () => {
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelMutationController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        folders: [],
+        isStorageQuotaBlockedOverride: true,
+        refreshActiveRows: vi.fn().mockResolvedValue(undefined),
+        refreshFolders: vi.fn().mockResolvedValue(undefined),
+        setFolderError: vi.fn(),
+        setMembershipMessage: vi.fn(),
+        setMediaRows: vi.fn(),
+        setPromptRows: vi.fn(),
+      })
+    );
+
+    expect(quotaMocks.useMediaStorageQuotaSummary).toHaveBeenCalledWith({ enabled: false });
+    expect(result.current.isStorageQuotaBlocked).toBe(true);
+
+    await expect(
+      act(async () => {
+        await result.current.uploadDroppedFilesToFolder({
+          targetFolderId: "all_items",
+          files: [new File(["img"], "image.png", { type: "image/png" })],
+        });
+      })
+    ).rejects.toThrow(MEDIA_STORAGE_FULL_USER_MESSAGE);
+    expect(uploadMediaFileMock).not.toHaveBeenCalled();
+  });
+
   it("notifies the workspace when deleted library media must be removed from right-rail state", async () => {
     const onDeleteMediaRowsFromWorkspace = vi.fn();
 

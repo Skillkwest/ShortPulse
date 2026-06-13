@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useMediaAutosavePreference } from "../useMediaAutosavePreference";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  MEDIA_AUTOSAVE_REMOTE_FALLBACK_DELAY_MS,
+  useMediaAutosavePreference,
+} from "../useMediaAutosavePreference";
 import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../../lib/supabaseClient";
 
 type Deferred<T> = {
@@ -29,9 +32,15 @@ vi.mock("../../../../lib/supabaseClient", () => ({
 
 describe("useMediaAutosavePreference", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.mocked(ensureSupabaseQueryClient).mockReset();
     vi.mocked(useSupabaseSessionState).mockReset();
     window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("defers preference sync while disabled", async () => {
@@ -114,6 +123,53 @@ describe("useMediaAutosavePreference", () => {
     expect(window.localStorage.getItem("shortpulse.ai_studio.media_autosave_enabled:user-1")).toBe(
       "true"
     );
+  });
+
+  it("defers signed-in remote preference reads until the post-shell idle gate opens", async () => {
+    vi.useFakeTimers();
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { media_autosave_enabled: false }, error: null });
+
+    vi.mocked(useSupabaseSessionState).mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } } as never,
+      user: { id: "user-1" } as never,
+    });
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useMediaAutosavePreference());
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.syncState).toBe("loading");
+    expect(ensureSupabaseQueryClient).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MEDIA_AUTOSAVE_REMOTE_FALLBACK_DELAY_MS - 1);
+    });
+
+    expect(ensureSupabaseQueryClient).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+      await Promise.resolve();
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.mediaAutosaveEnabled).toBe(false);
+    expect(result.current.syncState).toBe("ready");
+    expect(ensureSupabaseQueryClient).toHaveBeenCalledTimes(1);
   });
 
   it("does not hydrate signed-in fallback from another user's global local preference", async () => {

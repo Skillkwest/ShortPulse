@@ -4,10 +4,22 @@
  */
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
 
 const voicePanelActiveSourceEffectMock = vi.hoisted(() => vi.fn());
+const mediaLibraryPanelPropsMock = vi.hoisted(() => vi.fn());
+const useAiStudioStylesRuntimeMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    handleDeleteStyle: vi.fn(),
+    handleReorderStyle: vi.fn(),
+    handleRestoreBuiltInStyles: vi.fn(),
+    styleDetailsSaveError: null,
+    stylesDeleteError: null,
+    upsertStyleDetails: vi.fn(),
+    visibleStylesCatalog: [],
+  }))
+);
 
 vi.mock("../AiStudioToolbar", () => ({
   AiStudioToolbar: () => <div data-testid="ai-studio-toolbar" />,
@@ -122,7 +134,10 @@ vi.mock("../VoicesPropertiesPanel", async () => {
 });
 
 vi.mock("../MediaLibraryPanel", () => ({
-  MediaLibraryPanel: () => <div data-testid="media-library-panel" />,
+  MediaLibraryPanel: (props: { isStorageQuotaBlocked?: boolean }) => {
+    mediaLibraryPanelPropsMock(props);
+    return <div data-testid="media-library-panel" />;
+  },
 }));
 
 vi.mock("../ElementsPanel", () => ({
@@ -166,14 +181,7 @@ vi.mock("../../hooks/useVoiceChangerSourceController", () => ({
 }));
 
 vi.mock("../../hooks/useAiStudioStylesRuntime", () => ({
-  useAiStudioStylesRuntime: () => ({
-    handleDeleteStyle: vi.fn(),
-    handleReorderStyle: vi.fn(),
-    styleDetailsSaveError: null,
-    stylesDeleteError: null,
-    upsertStyleDetails: vi.fn(),
-    visibleStylesCatalog: [],
-  }),
+  useAiStudioStylesRuntime: useAiStudioStylesRuntimeMock,
 }));
 
 vi.mock("../../hooks/aiStudioOutputStore", () => ({
@@ -254,6 +262,11 @@ const createProps = (
 });
 
 describe("AiStudioPageContent header project name", () => {
+  beforeEach(() => {
+    mediaLibraryPanelPropsMock.mockClear();
+    useAiStudioStylesRuntimeMock.mockClear();
+  });
+
   it("renders the credit coin and remaining over total credit label", () => {
     render(
       <AiStudioPageContent
@@ -391,5 +404,38 @@ describe("AiStudioPageContent header project name", () => {
       expect(voicePanelActiveSourceEffectMock).toHaveBeenCalledTimes(2);
     });
     expect(voicePanelActiveSourceEffectMock.mock.calls.length).toBeLessThan(3);
+  });
+
+  it("keeps the styles catalog disabled while Media Library is the active tool", () => {
+    render(<AiStudioPageContent {...createProps()} selectedTool="media-library" />);
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false })
+    );
+  });
+
+  it("enables the styles catalog when Styles is the active tool", () => {
+    render(<AiStudioPageContent {...createProps()} selectedTool="styles" />);
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true })
+    );
+  });
+
+  it("passes the route-level media storage block state into the Media Library panel", async () => {
+    render(
+      <AiStudioPageContent
+        {...createProps()}
+        selectedTool="media-library"
+        isMediaStorageFull
+        onAddLibraryMediaReference={vi.fn()}
+        onAddLibraryPromptReference={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByTestId("media-library-panel")).toBeInTheDocument();
+    expect(mediaLibraryPanelPropsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ isStorageQuotaBlocked: true })
+    );
   });
 });

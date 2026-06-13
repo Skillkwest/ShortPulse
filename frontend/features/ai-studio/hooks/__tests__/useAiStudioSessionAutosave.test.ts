@@ -516,6 +516,7 @@ describe("useAiStudioSessionAutosave", () => {
       snapshot,
       expect.objectContaining({
         title: "Prepared Project",
+        preparedSnapshot,
       })
     );
   });

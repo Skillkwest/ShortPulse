@@ -12,7 +12,11 @@ import {
 } from "../../lib/model-runtime/modelCatalog";
 import type { AuthenticatedApiUser } from "../../lib/server/api/auth";
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
-import { resolveRuntimeAgentPrompt } from "../../lib/server/api/runtimeAgentPromptControlPlane";
+import {
+  RequiredRuntimeAgentPromptMissingError,
+  RequiredRuntimeAgentPromptUnavailableError,
+  resolveRequiredRuntimeAgentPrompt,
+} from "../../lib/server/api/runtimeAgentPromptControlPlane";
 import {
   buildPromptCompilerCacheScopeKey,
   resolvePromptTemplateVersion,
@@ -229,24 +233,8 @@ export const executeStyleExtraction = async ({
   routeLabel?: string;
 }): Promise<StyleExtractionResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
-  const runtimePrompt = await resolveRuntimeAgentPrompt({
-    promptId: STYLE_EXTRACTOR_ID,
-  });
-  const systemPrompt = runtimePrompt.promptBody;
-  const promptTemplateVersion = systemPrompt
-    ? resolvePromptTemplateVersion({
-        route: "extract-style",
-        prompts: [systemPrompt],
-      })
-    : null;
-  const runtimeScopeKey = promptTemplateVersion
-    ? buildPromptCompilerCacheScopeKey({
-        route: "extract-style",
-        promptTemplateVersion,
-        policySchemaVersion: null,
-        controlPlanePolicyVersion: null,
-      })
-    : null;
+  let promptTemplateVersion: string | null = null;
+  let runtimeScopeKey: string | null = null;
   const emitStyleRouteTelemetry = ({
     statusCode,
     machineOutcome,
@@ -283,34 +271,6 @@ export const executeStyleExtraction = async ({
       routeLabel,
       source: "api.style_extraction.config_missing",
       message: "OPENAI_API_KEY is not set",
-      statusCode: 500,
-      userId: user.id,
-      userEmail: user.email ?? null,
-    });
-    const machineOutcome = buildAgentMachineOutcome({
-      outcomeClass: "route_error",
-      reasonCode: "CONFIG_MISSING",
-    });
-    emitStyleRouteTelemetry({
-      statusCode: 500,
-      machineOutcome,
-    });
-    return {
-      ok: false,
-      status: 500,
-      payload: {
-        ...machineOutcome,
-        error: STYLE_EXTRACTION_UNAVAILABLE_MESSAGE,
-      },
-    };
-  }
-
-  if (!systemPrompt) {
-    await logGenerationFailure({
-      req,
-      routeLabel,
-      source: "api.style_extraction.config_missing",
-      message: `${STYLE_EXTRACTOR_ID} is not set`,
       statusCode: 500,
       userId: user.id,
       userEmail: user.email ?? null,
@@ -391,6 +351,80 @@ export const executeStyleExtraction = async ({
       },
     };
   }
+
+  let runtimePrompt: Awaited<ReturnType<typeof resolveRequiredRuntimeAgentPrompt>>;
+  try {
+    runtimePrompt = await resolveRequiredRuntimeAgentPrompt({
+      promptId: STYLE_EXTRACTOR_ID,
+    });
+  } catch (error) {
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "CONFIG_MISSING",
+    });
+    if (
+      error instanceof RequiredRuntimeAgentPromptMissingError ||
+      error instanceof RequiredRuntimeAgentPromptUnavailableError ||
+      (error instanceof Error &&
+        (error.name === "RequiredRuntimeAgentPromptMissingError" ||
+          error.name === "RequiredRuntimeAgentPromptUnavailableError"))
+    ) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.style_extraction.config_missing",
+        message: error instanceof Error ? error.message : `${STYLE_EXTRACTOR_ID} is unavailable`,
+        statusCode: 503,
+        userId: user.id,
+        userEmail: user.email ?? null,
+      });
+      emitStyleRouteTelemetry({
+        statusCode: 503,
+        machineOutcome,
+      });
+      return {
+        ok: false,
+        status: 503,
+        payload: {
+          ...machineOutcome,
+          error: STYLE_EXTRACTION_UNAVAILABLE_MESSAGE,
+        },
+      };
+    }
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.style_extraction.config_missing",
+      message: error instanceof Error ? error.message : "Style extraction prompt lookup failed",
+      statusCode: 500,
+      stack: error instanceof Error ? (error.stack ?? null) : null,
+      userId: user.id,
+      userEmail: user.email ?? null,
+    });
+    emitStyleRouteTelemetry({
+      statusCode: 500,
+      machineOutcome,
+    });
+    return {
+      ok: false,
+      status: 500,
+      payload: {
+        ...machineOutcome,
+        error: STYLE_EXTRACTION_UNAVAILABLE_MESSAGE,
+      },
+    };
+  }
+  const systemPrompt = runtimePrompt.promptBody;
+  promptTemplateVersion = resolvePromptTemplateVersion({
+    route: "extract-style",
+    prompts: [systemPrompt],
+  });
+  runtimeScopeKey = buildPromptCompilerCacheScopeKey({
+    route: "extract-style",
+    promptTemplateVersion,
+    policySchemaVersion: null,
+    controlPlanePolicyVersion: null,
+  });
 
   try {
     const extractionStartedAt = Date.now();

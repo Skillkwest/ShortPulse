@@ -10,7 +10,7 @@ import {
   PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
 } from "../../../lib/ai-studio-session/projectWorkspaceLimits";
 import {
-  createAiStudioProjectWorkspaceAutosaveCandidates,
+  iterateAiStudioProjectWorkspaceAutosaveCandidates,
   type AiStudioProjectWorkspaceAutosaveCandidateKind,
   type AiStudioSessionSnapshot,
 } from "../logic/sessionSnapshot";
@@ -480,8 +480,9 @@ const resolveProjectAutosaveSnapshotSelectionComputation = (
     };
   }
   let fullPreparedSnapshot: PreparedAiStudioSessionAutosaveSnapshot | null = null;
-  for (const candidate of createAiStudioProjectWorkspaceAutosaveCandidates(sessionSnapshot)) {
+  for (const candidate of iterateAiStudioProjectWorkspaceAutosaveCandidates(sessionSnapshot)) {
     const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(candidate.snapshot, {
+      includeSerializedJson: true,
       title: null,
     });
     if (candidate.kind === "full") {
@@ -511,6 +512,7 @@ const resolveProjectAutosaveSnapshotSelectionComputation = (
       preparedSnapshot:
         fullPreparedSnapshot ??
         prepareAiStudioSessionAutosaveSnapshot(sessionSnapshot, {
+          includeSerializedJson: true,
           title: null,
         }),
     },
@@ -1039,12 +1041,17 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     async (
       activeProjectId: string,
       snapshot: AiStudioSessionSnapshot,
-      options?: { keepalive?: boolean; snapshotHash?: string | null }
+      options?: {
+        keepalive?: boolean;
+        snapshotHash?: string | null;
+        preparedSnapshot?: PreparedAiStudioSessionAutosaveSnapshot;
+      }
     ) => {
       const savedWorkspace = await saveAiStudioProjectWorkspaceSnapshotViaApi({
         projectId: activeProjectId,
         snapshot,
         keepalive: options?.keepalive,
+        serializedSnapshotJson: options?.preparedSnapshot?.serializedJson,
       });
       const localOutputIds = collectProjectSnapshotOutputIds(snapshot);
       const savedSnapshot =
@@ -1142,11 +1149,16 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     (
       activeProjectId: string,
       snapshot: AiStudioSessionSnapshot,
-      options?: { keepalive?: boolean; snapshotHash?: string | null }
+      options?: {
+        keepalive?: boolean;
+        snapshotHash?: string | null;
+        preparedSnapshot?: PreparedAiStudioSessionAutosaveSnapshot;
+      }
     ) =>
       persistProjectWorkspaceSnapshot(activeProjectId, snapshot, {
         keepalive: options?.keepalive,
         snapshotHash: options?.snapshotHash,
+        preparedSnapshot: options?.preparedSnapshot,
       }),
     [persistProjectWorkspaceSnapshot]
   );

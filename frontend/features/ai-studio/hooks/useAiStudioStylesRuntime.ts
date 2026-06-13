@@ -19,6 +19,7 @@ import {
 import type { StudioOutput } from "../types";
 
 type UseAiStudioStylesRuntimeParams = {
+  enabled?: boolean;
   selectedStyleId: string | null;
   setSelectedStyleId: Dispatch<SetStateAction<string | null>>;
   onSelectedStylePromptChange?: (stylePrompt: string | null) => void;
@@ -68,6 +69,7 @@ export const buildStylesCatalogWithDetails = (
 };
 
 export const useAiStudioStylesRuntime = ({
+  enabled = true,
   selectedStyleId,
   setSelectedStyleId,
   onSelectedStylePromptChange,
@@ -87,7 +89,7 @@ export const useAiStudioStylesRuntime = ({
   } = useStylesLibraryDeletedStyleIdsPreference();
   const { setStylePanelIds, removeStylePanelId, stylePanelIds } =
     useStylesLibraryPanelIdsPreference();
-  const builtInStyleCatalog = useBuiltInStyleCatalog();
+  const builtInStyleCatalog = useBuiltInStyleCatalog({ enabled });
 
   const builtInStyles = React.useMemo(
     () => buildBuiltInStyleTiles(builtInStyleCatalog.styleDefinitions),

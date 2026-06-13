@@ -4,6 +4,7 @@ export type PreparedAiStudioSessionAutosaveSnapshot = {
   hash: string | null;
   bytes: number;
   title: string | null;
+  serializedJson?: string;
 };
 
 export const utf8ByteLength = (value: string): number => {
@@ -48,6 +49,7 @@ export const prepareAiStudioSessionAutosaveSnapshot = (
   snapshot: AiStudioSessionSnapshot,
   options?: {
     serializedJson?: string;
+    includeSerializedJson?: boolean;
     title?: string | null;
   }
 ): PreparedAiStudioSessionAutosaveSnapshot => {
@@ -58,6 +60,7 @@ export const prepareAiStudioSessionAutosaveSnapshot = (
       hash: computeAutosaveSemanticHash(semanticJson),
       bytes: utf8ByteLength(json),
       title: options?.title ?? null,
+      ...(options?.includeSerializedJson === true ? { serializedJson: json } : {}),
     };
   } catch {
     return {

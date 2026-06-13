@@ -5,6 +5,8 @@ const requireAdminUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const resolveRuntimeAgentPromptForAdminMock = vi.fn();
 const saveRuntimeAgentPromptMock = vi.fn();
+const runtimePromptVersionMismatchError = new Error("stale");
+runtimePromptVersionMismatchError.name = "RuntimeAgentPromptVersionMismatchError";
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireAdminUser: (...args: unknown[]) => requireAdminUserMock(...args),
@@ -15,6 +17,7 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/api/runtimeAgentPromptControlPlane", () => ({
+  RuntimeAgentPromptVersionMismatchError: class RuntimeAgentPromptVersionMismatchError extends Error {},
   resolveRuntimeAgentPromptForAdmin: (...args: unknown[]) =>
     resolveRuntimeAgentPromptForAdminMock(...args),
   saveRuntimeAgentPrompt: (...args: unknown[]) => saveRuntimeAgentPromptMock(...args),
@@ -96,7 +99,10 @@ describe("admin style extract prompt API", () => {
 
     const req = {
       method: "PUT",
-      body: { promptBody: " Digital Illustration, soft bloom " },
+      body: {
+        promptBody: " Digital Illustration, soft bloom ",
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
     };
     const res = createMockResponse();
     await handler(req as never, res as never);
@@ -104,6 +110,7 @@ describe("admin style extract prompt API", () => {
     expect(saveRuntimeAgentPromptMock).toHaveBeenCalledWith({
       promptId: "OPENAI_PROMPT_STYLE_EXTRACT",
       promptBody: "Digital Illustration, soft bloom",
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
       actorUserId: "admin-1",
       actorEmail: "admin@example.com",
     });
@@ -165,5 +172,26 @@ describe("admin style extract prompt API", () => {
     expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Failed to save style extraction prompt." });
+  });
+
+  it("returns 409 when the stored style extraction prompt is stale", async () => {
+    saveRuntimeAgentPromptMock.mockRejectedValue(runtimePromptVersionMismatchError);
+
+    const req = {
+      method: "PUT",
+      body: {
+        promptBody: "Photographic, moody lighting",
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      code: "PROMPT_STALE",
+      error: "The style extraction prompt changed since you loaded it. Reload and try again.",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 });

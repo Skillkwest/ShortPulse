@@ -664,6 +664,7 @@ describe("Admin agent instructions page", () => {
     );
     expect(JSON.parse(String(saveRequest?.[1]?.body))).toEqual({
       promptBody: "Digital Illustration, soft bloom",
+      expectedUpdatedAt: "2026-05-05T18:00:00.000Z",
     });
     expect(promptBox).toHaveValue("Digital Illustration, soft bloom");
     expect(within(styleCard).getByText("Live override")).toBeInTheDocument();

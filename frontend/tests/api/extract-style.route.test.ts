@@ -7,6 +7,7 @@ import extractStyleHandler from "../../pages/api/ai/extract-style";
 
 const requireApiUserMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
+const resolveRequiredRuntimeAgentPromptMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -14,6 +15,23 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+}));
+
+vi.mock("../../lib/server/api/runtimeAgentPromptControlPlane", () => ({
+  RequiredRuntimeAgentPromptMissingError: class RequiredRuntimeAgentPromptMissingError extends Error {
+    constructor(promptId: string) {
+      super(`Runtime agent prompt ${promptId} is missing from the control plane.`);
+      this.name = "RequiredRuntimeAgentPromptMissingError";
+    }
+  },
+  RequiredRuntimeAgentPromptUnavailableError: class RequiredRuntimeAgentPromptUnavailableError extends Error {
+    constructor(promptId: string) {
+      super(`Runtime agent prompt ${promptId} requires a live control-plane connection.`);
+      this.name = "RequiredRuntimeAgentPromptUnavailableError";
+    }
+  },
+  resolveRequiredRuntimeAgentPrompt: (...args: unknown[]) =>
+    resolveRequiredRuntimeAgentPromptMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -30,6 +48,13 @@ describe("POST /api/ai/extract-style", () => {
     delete process.env.OPENAI_VISION_MODEL;
     delete process.env.OPENAI_VISION_FALLBACK_MODEL;
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
+    resolveRequiredRuntimeAgentPromptMock.mockResolvedValue({
+      promptId: "OPENAI_PROMPT_STYLE_EXTRACT",
+      promptBody: "Admin saved style extraction prompt.",
+      updatedAt: "2026-05-08T17:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      source: "control_plane",
+    });
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -109,6 +134,10 @@ describe("POST /api/ai/extract-style", () => {
         },
       },
     });
+    expect(requestBody.input[0].content[0]).toEqual({
+      type: "input_text",
+      text: "Admin saved style extraction prompt.",
+    });
     expect(requestBody.input[1].content[1]).toEqual(
       expect.objectContaining({
         type: "input_image",
@@ -159,6 +188,34 @@ describe("POST /api/ai/extract-style", () => {
         outcome_class: "upstream_error",
         reason_code: "UPSTREAM_OUTPUT_CONTRACT",
         retryable: false,
+      })
+    );
+  });
+
+  it("fails closed when the runtime style extraction prompt is unavailable", async () => {
+    const missingPromptError = new Error(
+      "Runtime agent prompt OPENAI_PROMPT_STYLE_EXTRACT is missing from the control plane."
+    );
+    missingPromptError.name = "RequiredRuntimeAgentPromptMissingError";
+    resolveRequiredRuntimeAgentPromptMock.mockRejectedValue(missingPromptError);
+
+    const req = {
+      method: "POST",
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "route_error",
+        reason_code: "CONFIG_MISSING",
+        retryable: false,
+        error: "Style extraction is temporarily unavailable.",
       })
     );
   });

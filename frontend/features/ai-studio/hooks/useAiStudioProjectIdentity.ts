@@ -6,7 +6,10 @@ import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { normalizeErrorText } from "../../../lib/errorText";
-import { getAiStudioProjectIdentityViaApi } from "../logic/projectWorkspaceApiClient";
+import {
+  getAiStudioProjectIdentityViaApi,
+  invalidateAiStudioProjectWorkspaceBootstrapCache,
+} from "../logic/projectWorkspaceApiClient";
 
 type AiStudioProjectRouteRecord = {
   id: string;
@@ -303,6 +306,7 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
       if (!nextProject) {
         throw new ProjectIdentityError("Project not found.", "invalid_payload");
       }
+      invalidateAiStudioProjectWorkspaceBootstrapCache(verifiedRouteProjectId);
       setRequestState({
         key: requestKey,
         project: nextProject,

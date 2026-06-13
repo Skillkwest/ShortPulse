@@ -265,6 +265,10 @@ export type AiStudioProjectWorkspaceAutosaveCandidateKind =
   | "full"
   | "without_canvas"
   | "without_archived_outputs";
+export type AiStudioProjectWorkspaceAutosaveCandidate = {
+  kind: AiStudioProjectWorkspaceAutosaveCandidateKind;
+  snapshot: AiStudioSessionSnapshot;
+};
 
 export type BuildAiStudioSessionSnapshotInput = {
   sessionId: string;
@@ -1117,30 +1121,14 @@ const stripCanvasFromSnapshot = (
 
 export const createAiStudioProjectWorkspaceAutosaveCandidates = (
   snapshot: AiStudioSessionSnapshot
-): Array<{
-  kind: AiStudioProjectWorkspaceAutosaveCandidateKind;
-  snapshot: AiStudioSessionSnapshot;
-}> => {
-  const candidates: Array<{
-    kind: AiStudioProjectWorkspaceAutosaveCandidateKind;
-    snapshot: AiStudioSessionSnapshot;
-  }> = [{ kind: "full", snapshot }];
-  if (snapshot.schemaVersion >= 2) {
-    const v2Snapshot = snapshot as AiStudioSessionSnapshotV2;
-    const withoutCanvas = stripCanvasFromSnapshot(v2Snapshot);
-    candidates.push(
-      { kind: "without_canvas", snapshot: withoutCanvas },
-      { kind: "without_archived_outputs", snapshot: stripArchivedOutputsFromSnapshot(v2Snapshot) }
-    );
-  } else {
-    candidates.push({
-      kind: "without_archived_outputs",
-      snapshot: stripArchivedOutputsFromSnapshot(snapshot),
-    });
-  }
+): AiStudioProjectWorkspaceAutosaveCandidate[] =>
+  Array.from(iterateAiStudioProjectWorkspaceAutosaveCandidates(snapshot));
 
+export function* iterateAiStudioProjectWorkspaceAutosaveCandidates(
+  snapshot: AiStudioSessionSnapshot
+): IterableIterator<AiStudioProjectWorkspaceAutosaveCandidate> {
   const seen = new Set<string>();
-  return candidates.filter((candidate) => {
+  const shouldYieldCandidate = (candidate: AiStudioProjectWorkspaceAutosaveCandidate): boolean => {
     const candidateChecksum =
       candidate.snapshot.schemaVersion >= 2
         ? ((candidate.snapshot as AiStudioSessionSnapshotV2).meta?.checksum ?? null)
@@ -1151,8 +1139,41 @@ export const createAiStudioProjectWorkspaceAutosaveCandidates = (
     if (seen.has(dedupeKey)) return false;
     seen.add(dedupeKey);
     return true;
-  });
-};
+  };
+
+  const fullCandidate: AiStudioProjectWorkspaceAutosaveCandidate = { kind: "full", snapshot };
+  if (shouldYieldCandidate(fullCandidate)) {
+    yield fullCandidate;
+  }
+
+  if (snapshot.schemaVersion >= 2) {
+    const v2Snapshot = snapshot as AiStudioSessionSnapshotV2;
+    const withoutCanvas = stripCanvasFromSnapshot(v2Snapshot);
+    const withoutCanvasCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
+      kind: "without_canvas",
+      snapshot: withoutCanvas,
+    };
+    if (shouldYieldCandidate(withoutCanvasCandidate)) {
+      yield withoutCanvasCandidate;
+    }
+    const withoutArchivedOutputsCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
+      kind: "without_archived_outputs",
+      snapshot: stripArchivedOutputsFromSnapshot(v2Snapshot),
+    };
+    if (shouldYieldCandidate(withoutArchivedOutputsCandidate)) {
+      yield withoutArchivedOutputsCandidate;
+    }
+    return;
+  }
+
+  const withoutArchivedOutputsCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
+    kind: "without_archived_outputs",
+    snapshot: stripArchivedOutputsFromSnapshot(snapshot),
+  };
+  if (shouldYieldCandidate(withoutArchivedOutputsCandidate)) {
+    yield withoutArchivedOutputsCandidate;
+  }
+}
 
 /**
  * Applies workspace-field patches to a v2 snapshot and recomputes metadata checksum.

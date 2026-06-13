@@ -913,6 +913,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         title: null,
         bytes: expect.any(Number),
         hash: expect.any(String),
+        serializedJson: JSON.stringify(snapshot),
       })
     );
     expect(lastWriteShadowArgs?.snapshot?.workspace.editReferenceText).toBe("");

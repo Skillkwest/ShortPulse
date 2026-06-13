@@ -281,6 +281,33 @@ const projectWorkspaceBootstrapInFlightRequests = new Map<
   string,
   Promise<AiStudioProjectWorkspaceBootstrapApiResult>
 >();
+const PROJECT_WORKSPACE_BOOTSTRAP_RECENT_RESULT_TTL_MS = 2_000;
+const projectWorkspaceBootstrapRecentResults = new Map<
+  string,
+  {
+    expiresAt: number;
+    result: AiStudioProjectWorkspaceBootstrapApiResult;
+  }
+>();
+const projectWorkspaceBootstrapCacheVersions = new Map<string, number>();
+
+const readProjectWorkspaceBootstrapCacheVersion = (projectId: string): number =>
+  projectWorkspaceBootstrapCacheVersions.get(projectId) ?? 0;
+
+export const invalidateAiStudioProjectWorkspaceBootstrapCache = (projectId: string) => {
+  projectWorkspaceBootstrapInFlightRequests.delete(projectId);
+  projectWorkspaceBootstrapRecentResults.delete(projectId);
+  projectWorkspaceBootstrapCacheVersions.set(
+    projectId,
+    readProjectWorkspaceBootstrapCacheVersion(projectId) + 1
+  );
+};
+
+export const clearAiStudioProjectWorkspaceBootstrapCacheForTests = () => {
+  projectWorkspaceBootstrapInFlightRequests.clear();
+  projectWorkspaceBootstrapRecentResults.clear();
+  projectWorkspaceBootstrapCacheVersions.clear();
+};
 
 export const getAiStudioProjectWorkspaceBootstrapViaApi = async ({
   projectId,
@@ -291,7 +318,15 @@ export const getAiStudioProjectWorkspaceBootstrapViaApi = async ({
   if (cachedRequest) {
     return await cachedRequest;
   }
+  const cachedResult = projectWorkspaceBootstrapRecentResults.get(projectId);
+  if (cachedResult) {
+    if (cachedResult.expiresAt > Date.now()) {
+      return cachedResult.result;
+    }
+    projectWorkspaceBootstrapRecentResults.delete(projectId);
+  }
 
+  const cacheVersion = readProjectWorkspaceBootstrapCacheVersion(projectId);
   const request = (async (): Promise<AiStudioProjectWorkspaceBootstrapApiResult> => {
     const response = await fetchWithAuth(
       `/api/projects/${encodeURIComponent(projectId)}/workspace`,
@@ -310,7 +345,7 @@ export const getAiStudioProjectWorkspaceBootstrapViaApi = async ({
       throw new ProjectWorkspaceBootstrapApiError(response.status, message);
     }
 
-    return {
+    const result = {
       project: toProjectWorkspaceBootstrapProjectRecord(payload?.project),
       workspace: payload?.workspace
         ? {
@@ -319,6 +354,13 @@ export const getAiStudioProjectWorkspaceBootstrapViaApi = async ({
           }
         : null,
     };
+    if (readProjectWorkspaceBootstrapCacheVersion(projectId) === cacheVersion) {
+      projectWorkspaceBootstrapRecentResults.set(projectId, {
+        expiresAt: Date.now() + PROJECT_WORKSPACE_BOOTSTRAP_RECENT_RESULT_TTL_MS,
+        result,
+      });
+    }
+    return result;
   })();
 
   projectWorkspaceBootstrapInFlightRequests.set(projectId, request);
@@ -379,20 +421,27 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
   projectId,
   snapshot,
   keepalive,
+  serializedSnapshotJson,
 }: {
   projectId: string;
   snapshot: AiStudioSessionSnapshot;
   keepalive?: boolean;
+  serializedSnapshotJson?: string;
 }): Promise<AiStudioProjectWorkspaceApiRecord> => {
+  invalidateAiStudioProjectWorkspaceBootstrapCache(projectId);
+  const requestBody =
+    serializedSnapshotJson && serializedSnapshotJson.trim().length > 0
+      ? `{"schemaVersion":${snapshot.schemaVersion},"snapshot":${serializedSnapshotJson}}`
+      : JSON.stringify({
+          schemaVersion: snapshot.schemaVersion,
+          snapshot,
+        });
   const response = await fetchWithAuth(`/api/projects/${encodeURIComponent(projectId)}/workspace`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      schemaVersion: snapshot.schemaVersion,
-      snapshot,
-    }),
+    body: requestBody,
     keepalive: keepalive === true,
     shortpulseLogScope: "app",
     shortpulseRetryNetworkOnce: true,
@@ -439,6 +488,7 @@ export const resetAiStudioProjectWorkspaceSnapshotViaApi = async ({
 }: {
   projectId: string;
 }): Promise<void> => {
+  invalidateAiStudioProjectWorkspaceBootstrapCache(projectId);
   const response = await fetchWithAuth(`/api/projects/${encodeURIComponent(projectId)}/workspace`, {
     method: "DELETE",
     shortpulseLogScope: "app",

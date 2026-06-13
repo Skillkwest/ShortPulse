@@ -122,6 +122,9 @@ export const shouldSuspendReferenceGridResizeMeasurements = ({
   return isAnyResizeInteractionActive && outputCount >= highDensityCardCount;
 };
 
+export const isReferenceGridDocumentVisible = (): boolean =>
+  typeof document === "undefined" || document.visibilityState === "visible";
+
 export const useReferenceGridRuntimeScaffold = ({
   outputs: outputsProp,
   archivedOutputs: archivedOutputsProp,
@@ -149,6 +152,17 @@ export const useReferenceGridRuntimeScaffold = ({
     });
 
   const isAnyModalOpen = useAiStudioAnyModalOpen();
+  const [documentVisible, setDocumentVisible] = useState(isReferenceGridDocumentVisible);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const syncDocumentVisibility = () => {
+      setDocumentVisible(isReferenceGridDocumentVisible());
+    };
+    syncDocumentVisibility();
+    document.addEventListener("visibilitychange", syncDocumentVisibility);
+    return () => document.removeEventListener("visibilitychange", syncDocumentVisibility);
+  }, []);
 
   const panelVisibilityResolved = React.useMemo(
     () => ({
@@ -388,6 +402,7 @@ export const useReferenceGridRuntimeScaffold = ({
     isRailCanvasSplitResizeActive: railCanvasSplit.isResizing,
   });
   const suspendBackgroundVisualWork =
+    !documentVisible ||
     (PERF_FLAG_MODAL_STABILITY_V1 && isAnyModalOpen) ||
     isDenseResizeSessionActive ||
     isRailCanvasInteractionActive;

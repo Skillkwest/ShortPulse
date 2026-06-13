@@ -1,6 +1,6 @@
 import React from "react";
 import { Pause, Play } from "phosphor-react";
-import type { StudioAudioSourceMode } from "../../types";
+import type { StudioAudioSourceMode, WorkflowReloadMusicMode } from "../../types";
 import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import {
   buildFallbackWaveformPeaks,
@@ -32,6 +32,7 @@ type SharedMediaDetailAudioPreviewProps = {
   audioSourceMode?: StudioAudioSourceMode | null;
   audioDurationMs?: number | null;
   audioWaveformPeaks?: number[] | null;
+  layout?: "centered" | "compact-row";
   playLabel?: string;
   pauseLabel?: string;
   onAudioPlay?: React.ReactEventHandler<HTMLAudioElement>;
@@ -67,6 +68,8 @@ type SharedMediaDetailPreviewMediaProps = {
   audioPreload?: "none" | "metadata" | "auto";
   audioId?: string;
   audioSourceMode?: StudioAudioSourceMode | null;
+  audioMusicMode?: WorkflowReloadMusicMode | null;
+  audioLyricsText?: string | null;
   audioDurationMs?: number | null;
   audioWaveformPeaks?: number[] | null;
   audioPlayLabel?: string;
@@ -98,6 +101,7 @@ function SharedMediaDetailAudioPreview({
   audioSourceMode = null,
   audioDurationMs = null,
   audioWaveformPeaks = null,
+  layout = "centered",
   playLabel = "Play audio preview",
   pauseLabel = "Pause audio preview",
   onAudioPlay,
@@ -280,8 +284,15 @@ function SharedMediaDetailAudioPreview({
     [progressRatio, seekAudioToRatio]
   );
 
+  const previewClassName = [
+    "detail-modal-audio-preview",
+    layout === "compact-row" ? "detail-modal-audio-preview--compact-row" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="detail-modal-audio-preview">
+    <div className={previewClassName}>
       <button
         type="button"
         className={`detail-modal-audio-play ${isPlaying ? "is-playing" : ""}`}
@@ -376,6 +387,46 @@ function SharedMediaDetailAudioPreview({
   );
 }
 
+function SharedMediaDetailMusicPreview({
+  lyricsText,
+  musicMode,
+  ...audioPreviewProps
+}: SharedMediaDetailAudioPreviewProps & {
+  lyricsText?: string | null;
+  musicMode?: WorkflowReloadMusicMode | null;
+}) {
+  const normalizedLyrics = lyricsText?.trim() ?? "";
+  const lyricsDisplay = musicMode === "instrumental" ? "Instrumental" : normalizedLyrics;
+
+  return (
+    <div className="detail-modal-music-preview">
+      <section className="detail-modal-music-lyrics" aria-label="Song lyrics">
+        <div className="detail-modal-music-lyrics-label">LYRICS</div>
+        <div className="detail-modal-music-lyrics-copy">
+          {lyricsDisplay ? (
+            lyricsDisplay
+              .split(/\r?\n/)
+              .map((line, index) => (
+                <p key={`${audioPreviewProps.audioId ?? "music"}-lyric-${index}`}>
+                  {line.trim() || "\u00a0"}
+                </p>
+              ))
+          ) : (
+            <p>Lyrics unavailable</p>
+          )}
+        </div>
+      </section>
+      <SharedMediaDetailAudioPreview
+        {...audioPreviewProps}
+        audioClassName={["detail-modal-audio-native--music", audioPreviewProps.audioClassName]
+          .filter(Boolean)
+          .join(" ")}
+        layout="compact-row"
+      />
+    </div>
+  );
+}
+
 /**
  * Shared media renderer for AI Studio detail surfaces.
  * Keeps image/video/audio display logic aligned across modal implementations.
@@ -406,6 +457,8 @@ export function SharedMediaDetailPreviewMedia({
   audioPreload = "metadata",
   audioId,
   audioSourceMode,
+  audioMusicMode,
+  audioLyricsText,
   audioDurationMs,
   audioWaveformPeaks,
   audioPlayLabel,
@@ -458,6 +511,31 @@ export function SharedMediaDetailPreviewMedia({
   }
 
   if (mediaKind === "audio") {
+    if (audioSourceMode === "music") {
+      return (
+        <SharedMediaDetailMusicPreview
+          mediaUrl={mediaUrl}
+          audioId={audioId}
+          audioClassName={audioClassName ?? imageClassName}
+          audioRef={audioRef}
+          audioAutoPlay={audioControls ? audioAutoPlay : false}
+          audioPreload={audioPreload}
+          audioSourceMode={audioSourceMode}
+          audioDurationMs={audioDurationMs}
+          audioWaveformPeaks={audioWaveformPeaks}
+          lyricsText={audioLyricsText}
+          musicMode={audioMusicMode}
+          playLabel={audioPlayLabel}
+          pauseLabel={audioPauseLabel}
+          onAudioPlay={onAudioPlay}
+          onAudioPause={onAudioPause}
+          onAudioEnded={onAudioEnded}
+          onAudioError={onAudioError}
+          onAudioVolumeChange={onAudioVolumeChange}
+        />
+      );
+    }
+
     return (
       <SharedMediaDetailAudioPreview
         mediaUrl={mediaUrl}

@@ -7,6 +7,7 @@ import {
   isVideoFile,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
+  resolveMediaMetadataMusicMode,
   resolveMediaMetadataLyricsText,
   resolveMediaMetadataPromptText,
   resolveMediaMetadataTranscriptText,
@@ -118,6 +119,9 @@ export const useMediaLibraryPanelSelectionController = ({
           audioSourceMode: isAudioFile(file.file_type)
             ? resolveMediaMetadataAudioSourceMode(file.metadata)
             : null,
+          musicMode: isAudioFile(file.file_type)
+            ? resolveMediaMetadataMusicMode(file.metadata)
+            : null,
           durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
           waveformPeaks: isAudioFile(file.file_type)
             ? resolveMediaMetadataWaveformPeaks(file.metadata)
@@ -206,6 +210,9 @@ export const useMediaLibraryPanelSelectionController = ({
             fullUrl: null,
             audioSourceMode: isAudioFile(file.file_type)
               ? resolveMediaMetadataAudioSourceMode(file.metadata)
+              : null,
+            musicMode: isAudioFile(file.file_type)
+              ? resolveMediaMetadataMusicMode(file.metadata)
               : null,
             durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
             waveformPeaks: isAudioFile(file.file_type)

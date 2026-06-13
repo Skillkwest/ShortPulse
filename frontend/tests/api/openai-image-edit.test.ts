@@ -186,8 +186,10 @@ describe("POST /api/openai/image-edit", () => {
   it("stops before provider submission when billing already returned a fail-closed response", async () => {
     chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
       res.status(402).json({
-        error: "Insufficient credits. Add credits or switch plans before retrying.",
+        error:
+          "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying.",
         code: "INSUFFICIENT_CREDITS",
+        chargeState: "not_reserved",
       });
       return null;
     });
@@ -211,8 +213,10 @@ describe("POST /api/openai/image-edit", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledTimes(1);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Insufficient credits. Add credits or switch plans before retrying.",
+      error:
+        "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying.",
       code: "INSUFFICIENT_CREDITS",
+      chargeState: "not_reserved",
     });
   });
 

@@ -182,11 +182,13 @@ vi.mock("../../logic/mediaLibraryPanelApi", async () => {
 
 vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
   MediaLibraryMediaGrid: (props: {
-    activeMedia: Array<{ id: string; filename: string }>;
+    activeMedia: Array<Record<string, unknown> & { id: string; filename: string }>;
     selectedIds: Set<string>;
-    onSelectMediaFile: (row: { id: string; filename: string }) => void;
-    onToggleMediaSelection?: (row: { id: string; filename: string }) => void;
-    onMediaDoubleClick?: (row: { id: string; filename: string }) => void;
+    onSelectMediaFile: (row: Record<string, unknown> & { id: string; filename: string }) => void;
+    onToggleMediaSelection?: (
+      row: Record<string, unknown> & { id: string; filename: string }
+    ) => void;
+    onMediaDoubleClick?: (row: Record<string, unknown> & { id: string; filename: string }) => void;
     resolveCardPreviewUrl?: (args: {
       signedUrl: string | null | undefined;
       fileType?: string | null;
@@ -201,6 +203,9 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
       filename: string;
       signedUrl?: string | null;
     }) => void;
+    onReloadWorkflowFromMedia?: (
+      row: Record<string, unknown> & { id: string; filename: string }
+    ) => void;
     onMediaContextMenu?: (
       event: React.MouseEvent<HTMLButtonElement>,
       row: { id: string; filename: string; signedUrl?: string | null }
@@ -254,6 +259,11 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
                 Download media {row.filename}
               </button>
             ) : null}
+            {props.onReloadWorkflowFromMedia ? (
+              <button type="button" onClick={() => props.onReloadWorkflowFromMedia?.(row)}>
+                Reload media workflow {row.filename}
+              </button>
+            ) : null}
             {props.showRemoveAction && props.onRemoveMediaFromFolder ? (
               <button type="button" onClick={() => props.onRemoveMediaFromFolder?.(row)}>
                 Remove media {row.filename}
@@ -273,11 +283,13 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
 
 vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
   MediaLibraryAllItemsGrid: (props: {
-    mediaRows: Array<{ id: string; filename: string }>;
+    mediaRows: Array<Record<string, unknown> & { id: string; filename: string }>;
     promptRows: Array<{ id: string; title: string | null; prompt_text: string }>;
     selectedIds: Set<string>;
-    onSelectMediaFile: (row: { id: string; filename: string }) => void;
-    onToggleMediaSelection?: (row: { id: string; filename: string }) => void;
+    onSelectMediaFile: (row: Record<string, unknown> & { id: string; filename: string }) => void;
+    onToggleMediaSelection?: (
+      row: Record<string, unknown> & { id: string; filename: string }
+    ) => void;
     onSelectPromptCard: (row: { id: string; title: string | null; prompt_text: string }) => void;
     onMediaDoubleClick?: (row: { id: string; filename: string }) => void;
     resolveCardPreviewUrl?: (args: {
@@ -294,6 +306,9 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
       filename: string;
       signedUrl?: string | null;
     }) => void;
+    onReloadWorkflowFromMedia?: (
+      row: Record<string, unknown> & { id: string; filename: string }
+    ) => void;
     showRemoveAction?: boolean;
     onRemoveMediaFromFolder?: (row: {
       id: string;
@@ -357,6 +372,11 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
             {props.onDownloadMediaFile ? (
               <button type="button" onClick={() => props.onDownloadMediaFile?.(row)}>
                 Download media {row.filename}
+              </button>
+            ) : null}
+            {props.onReloadWorkflowFromMedia ? (
+              <button type="button" onClick={() => props.onReloadWorkflowFromMedia?.(row)}>
+                Reload media workflow {row.filename}
               </button>
             ) : null}
             {props.showRemoveAction && props.onRemoveMediaFromFolder ? (
@@ -705,6 +725,113 @@ describe("MediaLibraryPanel", () => {
       | { selectedIds: Set<string> }
       | undefined;
     expect(selectedProps?.selectedIds.has("prompt-1")).toBe(false);
+  });
+
+  it("emits a generated video output with workflow reload metadata from saved media rows", async () => {
+    const onReloadWorkflowFromMedia = vi.fn();
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-13T15:00:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      restoreBehavior: "navigate_and_hydrate",
+      projectId: "project-1",
+      createMode: "standard",
+      pulse: null,
+      prompt: {
+        display: "Subtle wolf motion",
+      },
+      model: {
+        id: "kie-ai/kling-3.0",
+      },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "keyframes",
+        durationSeconds: 3,
+        resolution: "720p",
+        generateAudio: false,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: ["https://cdn.example.com/legacy-first.png"],
+        internalMediaRefs: [],
+        videoReferences: {
+          version: 1,
+          firstFrame: {
+            sourceUrl: "https://cdn.example.com/first-frame.png",
+            internalMediaRef: {
+              version: 1,
+              kind: "storage_object",
+              bucket: "media_library",
+              storagePath: "user-1/video/first-frame.png",
+            },
+          },
+          lastFrame: {
+            sourceUrl: "https://cdn.example.com/last-frame.png",
+            internalMediaRef: {
+              version: 1,
+              kind: "storage_object",
+              bucket: "media_library",
+              storagePath: "user-1/video/last-frame.png",
+            },
+          },
+        },
+      },
+    };
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "video-reload-1",
+          filename: "wolf-motion.mp4",
+          storage_path: "user-1/videos/wolf-motion.mp4",
+          preview_storage_path: "user-1/videos/wolf-motion.mp4",
+          file_type: "video/mp4",
+          source: "ai_studio",
+          source_ref: "generation-video-1",
+          created_at: "2026-06-13T15:01:00.000Z",
+          metadata: {
+            workflow_reload: workflowReload,
+          },
+          signedUrl: "https://cdn.example.com/wolf-motion.mp4",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+    });
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Reload media workflow wolf-motion.mp4" }));
+
+    expect(onReloadWorkflowFromMedia).toHaveBeenCalledTimes(1);
+    expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-library:video-reload-1",
+        mode: "video",
+        mediaSource: "generated",
+        generationId: "generation-video-1",
+        workflowReload,
+      })
+    );
+    const output = onReloadWorkflowFromMedia.mock.calls[0]?.[0];
+    expect(output.workflowReload.payload.videoReferences.firstFrame.sourceUrl).toBe(
+      "https://cdn.example.com/first-frame.png"
+    );
+    expect(output.workflowReload.payload.videoReferences.lastFrame.sourceUrl).toBe(
+      "https://cdn.example.com/last-frame.png"
+    );
   });
 
   it("shows folder prompts and media in the same grid without split section headings", async () => {
@@ -1087,6 +1214,86 @@ describe("MediaLibraryPanel", () => {
     const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestProps?.surface).toBe("elements-media-panel");
     expect(latestProps?.fixedVisualAspectRatio).toBe(4 / 5);
+  });
+
+  it("routes embedded Elements media reload actions through saved workflow metadata", async () => {
+    const onReloadWorkflowFromMedia = vi.fn();
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-13T15:30:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      restoreBehavior: "navigate_and_hydrate",
+      projectId: "project-1",
+      createMode: "standard",
+      pulse: null,
+      prompt: {
+        display: "Element-linked video",
+      },
+      model: {
+        id: "kie-ai/seedance-2",
+      },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "keyframes",
+        referenceInputs: [],
+        internalMediaRefs: [],
+        videoReferences: {
+          version: 1,
+          seedance2ReferenceImages: [
+            {
+              slotIndex: 0,
+              sourceUrl: "https://cdn.example.com/element-ref.png",
+            },
+          ],
+        },
+      },
+    };
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "embedded-video-1",
+          filename: "embedded-video.mp4",
+          storage_path: "user-1/videos/embedded-video.mp4",
+          preview_storage_path: "user-1/videos/embedded-video.mp4",
+          file_type: "video/mp4",
+          source: "ai_studio",
+          source_ref: "generation-embedded-video-1",
+          created_at: "2026-06-13T15:31:00.000Z",
+          metadata: {
+            workflow_reload: workflowReload,
+          },
+          signedUrl: "https://cdn.example.com/embedded-video.mp4",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+    });
+
+    render(
+      <ElementsEmbeddedMediaLibraryPanel onReloadWorkflowFromMedia={onReloadWorkflowFromMedia} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reload media workflow embedded-video.mp4" })
+    );
+
+    expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-library:embedded-video-1",
+        mode: "video",
+        mediaSource: "generated",
+        generationId: "generation-embedded-video-1",
+        workflowReload,
+      })
+    );
   });
 
   it("passes panel density config to media-only grids", async () => {

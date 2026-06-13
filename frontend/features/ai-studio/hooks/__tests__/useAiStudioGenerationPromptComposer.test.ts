@@ -279,7 +279,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
-  it("does not forward style context metadata for video tools", () => {
+  it("forwards style context metadata for video tools", () => {
     const submitTask = vi.fn();
     const params = createParams({
       submitTask,
@@ -302,9 +302,14 @@ describe("useAiStudioGenerationPromptComposer", () => {
       ["https://example.com/ref.png", "https://example.com/extra-1.png"],
       expect.objectContaining({
         displayPromptOverride: "prompt override",
+        styleContextOverride: {
+          applied: true,
+          styleId: "style-cinematic",
+          styleName: "Cinematic",
+          stylePrompt: "cinematic teal-and-amber treatment",
+        },
       })
     );
-    expect(submitTask.mock.calls[0]?.[2]).not.toHaveProperty("styleContextOverride");
   });
 
   it("uses video prompt and single primary input for standard video mode", () => {
@@ -678,11 +683,18 @@ describe("useAiStudioGenerationPromptComposer", () => {
     }
   });
 
-  it("does not append selected style prompt for video submissions", () => {
+  it("appends selected style prompt for video submissions while keeping display prompt unchanged", () => {
     const submitTask = vi.fn();
     const params = createParams({
+      model: "kie-ai/kling-3.0",
       selectedTool: "video",
       selectedStylePrompt: "cinematic editorial photography style, moody lighting",
+      selectedStyleContext: {
+        applied: true,
+        styleId: "style-video",
+        styleName: "Video Editorial",
+        stylePrompt: "cinematic editorial photography style, moody lighting",
+      },
       submitTask,
     });
     const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
@@ -692,9 +704,17 @@ describe("useAiStudioGenerationPromptComposer", () => {
     });
 
     expect(submitTask).toHaveBeenCalledWith(
-      "Video visible prompt",
+      "Video visible prompt\n\nVisual style reference: cinematic editorial photography style, moody lighting",
       ["https://example.com/ref.png", "https://example.com/extra-1.png"],
-      expect.objectContaining({ displayPromptOverride: "Video visible prompt" })
+      expect.objectContaining({
+        displayPromptOverride: "Video visible prompt",
+        styleContextOverride: {
+          applied: true,
+          styleId: "style-video",
+          styleName: "Video Editorial",
+          stylePrompt: "cinematic editorial photography style, moody lighting",
+        },
+      })
     );
   });
 });

@@ -131,6 +131,34 @@ const buildDirectSubmitUnavailablePayload = (retryAfterSeconds: number) => ({
   retryAfterSeconds,
 });
 
+const PROVIDER_CREDITS_UNAVAILABLE_MESSAGE =
+  "This image model is temporarily unavailable. Your ShortPulse credits were not charged.";
+const PROVIDER_CREDITS_UNAVAILABLE_DETAIL =
+  "The provider could not accept this request right now. Try another image model or retry after service is restored.";
+
+const classifyProviderSubmitFailure = ({
+  upstreamStatus,
+  providerBodyCode,
+}: {
+  upstreamStatus: number;
+  providerBodyCode: number | null;
+}): {
+  code: "PROVIDER_CREDITS_UNAVAILABLE";
+  clientStatus: 503;
+  message: string;
+  detail: string;
+  chargeState: "released";
+} | null => {
+  if (upstreamStatus !== 402 && providerBodyCode !== 402) return null;
+  return {
+    code: "PROVIDER_CREDITS_UNAVAILABLE",
+    clientStatus: 503,
+    message: PROVIDER_CREDITS_UNAVAILABLE_MESSAGE,
+    detail: PROVIDER_CREDITS_UNAVAILABLE_DETAIL,
+    chargeState: "released",
+  };
+};
+
 const applyRewrittenPromptToPayload = ({
   payload,
   rewrittenPrompt,
@@ -1058,25 +1086,37 @@ export const createFalSubmitHandler = ({
               provider: providerKey,
               payload: submitResult.data,
             });
+            const providerSubmitFailure = classifyProviderSubmitFailure({
+              upstreamStatus: submitResult.response.status,
+              providerBodyCode,
+            });
             const explicitContentFailure = normalizeExplicitContentFailure({
               message: contentPolicyMessage ?? upstreamMessage,
               detail: contentPolicyMessage ?? upstreamMessage,
               force: Boolean(contentPolicyMessage),
             });
-            const userFacingMessage = explicitContentFailure?.errorMessage ?? upstreamMessage;
-            const userFacingDetail = normalizeCustomerFacingProviderError(
-              explicitContentFailure?.errorDetail ?? submitResult.data,
-              userFacingMessage
-            );
-            const failureStatus =
+            const upstreamFailureStatus =
               submitResult.response.ok && !submitResult.providerRequestId
                 ? 502
                 : submitResult.response.status || 502;
+            const failureStatus = providerSubmitFailure?.clientStatus ?? upstreamFailureStatus;
+            const userFacingMessage =
+              providerSubmitFailure?.message ??
+              explicitContentFailure?.errorMessage ??
+              upstreamMessage;
+            const userFacingDetail =
+              providerSubmitFailure?.detail ??
+              normalizeCustomerFacingProviderError(
+                explicitContentFailure?.errorDetail ?? submitResult.data,
+                userFacingMessage
+              );
             await charge.refund("Auto-release: inline provider submit failed.", {
               reason: submitResult.providerRequestId
                 ? "direct_submit_failed"
                 : "direct_submit_missing_request_id",
+              failure_class: providerSubmitFailure?.code ?? "PROVIDER_SUBMIT_FAILED",
               upstream_status: submitResult.response.status,
+              client_status: failureStatus,
               upstream_target_url: submitResult.targetUrl,
               upstream_target_index: submitResult.targetIndex,
               upstream_payload: submitResult.data,
@@ -1094,9 +1134,14 @@ export const createFalSubmitHandler = ({
                 model_id: modelId,
                 source_ref: charge.sourceRef,
                 upstream_status: submitResult.response.status,
+                upstream_failure_status: upstreamFailureStatus,
+                client_status: failureStatus,
                 upstream_target_url: submitResult.targetUrl,
                 upstream_target_index: submitResult.targetIndex,
                 provider_request_id: submitResult.providerRequestId,
+                provider_submit_failure_class:
+                  providerSubmitFailure?.code ?? "PROVIDER_SUBMIT_FAILED",
+                charge_state: providerSubmitFailure?.chargeState ?? "released",
                 explicit_content_blocked: explicitContentFailure != null,
                 upstream_message: upstreamMessage,
                 provider_body_code: providerBodyCode,
@@ -1106,6 +1151,13 @@ export const createFalSubmitHandler = ({
               },
             });
             return res.status(failureStatus).json({
+              ...(providerSubmitFailure
+                ? {
+                    code: providerSubmitFailure.code,
+                    chargeState: providerSubmitFailure.chargeState,
+                    upstreamStatus: submitResult.response.status,
+                  }
+                : {}),
               error: userFacingMessage,
               detail: userFacingDetail,
             });

@@ -87,7 +87,12 @@ const resolvePromptForTool = ({
 };
 
 const shouldAttachStyleContextForTool = (tool: ToolId | null): boolean =>
-  tool === "create" || tool === "text" || tool === "image" || tool === "edit";
+  tool === "create" ||
+  tool === "text" ||
+  tool === "image" ||
+  tool === "edit" ||
+  tool === "video" ||
+  tool === "kling";
 
 const buildTaskSubmitOptions = ({
   modeOverride,

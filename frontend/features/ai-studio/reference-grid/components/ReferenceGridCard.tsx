@@ -26,7 +26,12 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_TITLE,
 } from "../../../../lib/explicitContentFailure";
-import { normalizeCustomerFacingProviderError } from "../../../../lib/customerFacingProviderText";
+import {
+  normalizeCustomerFacingProviderError,
+  normalizeProviderSideGenerationFailure,
+  resolveCustomerFacingModelLabel,
+} from "../../../../lib/customerFacingProviderText";
+import { resolveModelLabelById } from "../../../../lib/model-runtime/modelCatalog";
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
@@ -48,12 +53,24 @@ const resolveReferenceFailureSubtitle = (item: StudioOutput): string | null => {
   const shortMessage = item.errorMessageShort?.trim() ?? "";
   const detail = item.errorDetail?.trim() ?? "";
   const message = item.errorMessage?.trim() ?? "";
+  const modelLabel = resolveCustomerFacingModelLabel({
+    model: item.model,
+    modelId: item.modelId,
+    resolveModelLabel: resolveModelLabelById,
+    fallback: "Generation",
+  });
+  const normalizeFailure = (value: string): string =>
+    normalizeProviderSideGenerationFailure({
+      rawFailure: value,
+      normalizedFailure: normalizeCustomerFacingProviderError(value, value),
+      modelLabel,
+    });
   if (shortMessage && !GENERIC_FAILURE_MESSAGES.has(normalizeFailureCopy(shortMessage))) {
-    return normalizeCustomerFacingProviderError(shortMessage, shortMessage);
+    return normalizeFailure(shortMessage);
   }
-  if (detail) return normalizeCustomerFacingProviderError(detail, detail);
-  if (shortMessage) return normalizeCustomerFacingProviderError(shortMessage, shortMessage);
-  if (message) return normalizeCustomerFacingProviderError(message, message);
+  if (detail) return normalizeFailure(detail);
+  if (shortMessage) return normalizeFailure(shortMessage);
+  if (message) return normalizeFailure(message);
   return null;
 };
 

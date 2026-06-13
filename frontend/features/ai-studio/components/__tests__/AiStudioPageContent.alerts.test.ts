@@ -84,6 +84,30 @@ describe("groupVisibleFailuresForAlertStack", () => {
     ]);
   });
 
+  it("labels opaque upstream failures as provider-side with credit-release guidance", () => {
+    const grouped = groupVisibleFailuresForAlertStack([
+      {
+        id: "out-1",
+        model: "Kie Kling 3.0",
+        modelId: "kie-ai/kling-3.0",
+        prompt: "first",
+        errorMessage: "Internal Error, Please try again later.",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Internal Error, Please try again later.",
+      },
+    ]);
+
+    expect(grouped).toEqual([
+      {
+        ids: ["out-1"],
+        modelLabel: "Kling 3.0",
+        failureMessage:
+          "Kling 3.0 generation failed at the upstream provider. No ShortPulse credits are charged for provider-side failures; any temporary hold is released automatically. Please try again later.",
+        count: 1,
+      },
+    ]);
+  });
+
   it("de-brands legacy Kie model labels before grouping failure alerts", () => {
     const grouped = groupVisibleFailuresForAlertStack([
       {

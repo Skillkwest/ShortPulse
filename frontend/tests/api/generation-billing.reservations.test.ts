@@ -1108,8 +1108,10 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.setHeader).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(402);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Insufficient credits. Add credits or switch plans before retrying.",
+      error:
+        "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying.",
       code: "INSUFFICIENT_CREDITS",
+      chargeState: "not_reserved",
     });
   });
 

@@ -211,6 +211,7 @@ describe("POST /api/elevenlabs/music", () => {
       output: expect.objectContaining({
         modelId: "music_v1",
         durationMs: 182345,
+        musicMode: "instrumental",
       }),
     });
   });

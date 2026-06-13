@@ -921,7 +921,7 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
-  it("records compact Kie submit summaries on direct submit failures", async () => {
+  it("classifies provider credit failures while recording compact Kie submit summaries", async () => {
     const charge = {
       userId: "user-1",
       sourceRef: "source-ref-1",
@@ -973,7 +973,9 @@ describe("createFalSubmitHandler", () => {
     expect(charge.refund).toHaveBeenCalledWith(
       "Auto-release: inline provider submit failed.",
       expect.objectContaining({
+        failure_class: "PROVIDER_CREDITS_UNAVAILABLE",
         provider_body_code: 402,
+        client_status: 503,
         provider_submit_summary: expect.objectContaining({
           resolution: "480p",
           duration: "15",
@@ -985,8 +987,13 @@ describe("createFalSubmitHandler", () => {
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "api.fal_submit.direct_submit_failed",
-        statusCode: 402,
+        statusCode: 503,
         metadata: expect.objectContaining({
+          provider_submit_failure_class: "PROVIDER_CREDITS_UNAVAILABLE",
+          upstream_status: 402,
+          upstream_failure_status: 402,
+          client_status: 503,
+          charge_state: "released",
           provider_body_code: 402,
           provider_submit_summary: expect.objectContaining({
             resolution: "480p",
@@ -997,10 +1004,15 @@ describe("createFalSubmitHandler", () => {
         }),
       })
     );
-    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Credits insufficient",
-      detail: "Credits insufficient",
+      code: "PROVIDER_CREDITS_UNAVAILABLE",
+      chargeState: "released",
+      upstreamStatus: 402,
+      error:
+        "This image model is temporarily unavailable. Your ShortPulse credits were not charged.",
+      detail:
+        "The provider could not accept this request right now. Try another image model or retry after service is restored.",
     });
   });
 

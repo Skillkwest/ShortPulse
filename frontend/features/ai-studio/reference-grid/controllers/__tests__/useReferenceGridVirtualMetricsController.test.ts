@@ -1,6 +1,11 @@
 import React from "react";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  QUICK_SLOT_INVENTORY_MAX_COLUMNS,
+  REFERENCE_GRID_MAX_COLUMNS,
+  REFERENCE_GRID_MAX_COLUMNS_WIDE,
+} from "../../referenceGridConfig";
 import { useReferenceGridVirtualMetricsController } from "../useReferenceGridVirtualMetricsController";
 
 class MockResizeObserver {
@@ -156,9 +161,9 @@ const useHarness = ({
       referenceGridMinColumns: 2,
       referenceGridMinCardPx: 124,
       referenceGridMinCardPxWide: 124,
-      referenceGridMaxColumns: 6,
-      referenceGridMaxColumnsWide: 8,
-      quickSlotInventoryMaxColumns: 8,
+      referenceGridMaxColumns: REFERENCE_GRID_MAX_COLUMNS,
+      referenceGridMaxColumnsWide: REFERENCE_GRID_MAX_COLUMNS_WIDE,
+      quickSlotInventoryMaxColumns: QUICK_SLOT_INVENTORY_MAX_COLUMNS,
       fallbackReferenceRowHeight: 220,
     },
   });
@@ -175,6 +180,12 @@ describe("useReferenceGridVirtualMetricsController", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     MockResizeObserver.reset();
+  });
+
+  it("keeps Reference Grid and Quick Slot Inventory capped at five columns", () => {
+    expect(REFERENCE_GRID_MAX_COLUMNS).toBe(5);
+    expect(REFERENCE_GRID_MAX_COLUMNS_WIDE).toBe(5);
+    expect(QUICK_SLOT_INVENTORY_MAX_COLUMNS).toBe(5);
   });
 
   it("does not recreate resize observers when output counts change without layout changes", () => {
@@ -270,7 +281,7 @@ describe("useReferenceGridVirtualMetricsController", () => {
     expect(result.current.virtualMetrics.scrollTop).toBe(312);
   });
 
-  it("caps measured columns for high-density pressure", () => {
+  it("keeps high-density wide reference rows at five columns", () => {
     const { result } = renderHook(() =>
       useHarness({
         isWideLayout: true,
@@ -280,10 +291,10 @@ describe("useReferenceGridVirtualMetricsController", () => {
       })
     );
 
-    expect(result.current.virtualMetrics.columnCount).toBe(4);
+    expect(result.current.virtualMetrics.columnCount).toBe(5);
   });
 
-  it("fills expanded wide rails before hard pressure mode is reached", () => {
+  it("caps expanded wide reference rows at five columns", () => {
     const { result } = renderHook(() =>
       useHarness({
         isWideLayout: true,
@@ -294,10 +305,10 @@ describe("useReferenceGridVirtualMetricsController", () => {
       })
     );
 
-    expect(result.current.virtualMetrics.columnCount).toBe(6);
+    expect(result.current.virtualMetrics.columnCount).toBe(5);
   });
 
-  it("keeps sparse quick slot rows sized as if the row were full", () => {
+  it("keeps sparse quick slot rows sized as five-column rows", () => {
     const { result } = renderHook(() =>
       useHarness({
         isWideLayout: true,
@@ -308,7 +319,7 @@ describe("useReferenceGridVirtualMetricsController", () => {
       })
     );
 
-    expect(result.current.curatedVirtualMetrics.columnCount).toBe(8);
+    expect(result.current.curatedVirtualMetrics.columnCount).toBe(5);
   });
 
   it("pins prepends to the top when the user is already at the top", () => {

@@ -17,7 +17,14 @@ type AppendStylePromptToSubmissionParams = {
   adapterEnabled: boolean;
 };
 
-const STYLE_PROMPT_ENABLED_TOOLS = new Set<ToolId>(["create", "text", "image", "edit"]);
+const STYLE_PROMPT_ENABLED_TOOLS = new Set<ToolId>([
+  "create",
+  "text",
+  "image",
+  "edit",
+  "video",
+  "kling",
+]);
 
 const NANO_BANANA_STRATEGIES = new Set<PricingStrategyId>([
   "nano-banana-per-image",

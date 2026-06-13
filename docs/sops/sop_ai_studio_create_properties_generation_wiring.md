@@ -125,7 +125,7 @@ sequenceDiagram
 4. Prompt/reference composition:
 
 - `useAiStudioGenerationPromptComposer.generateOutput` resolves tool-specific prompt + reference pool and calls `submitTask`.
-- For Create/Edit workflows with a selected style, the composer appends the selected style prompt to the hidden submission prompt while preserving `displayPrompt` in UI/history.
+- For Create/Edit/Video workflows with a selected style, the composer appends the selected style prompt to the hidden submission prompt while preserving `displayPrompt` in UI/history.
 
 5. Submission lifecycle in `useAiStudioTaskSubmission`:
 

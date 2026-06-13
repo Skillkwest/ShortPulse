@@ -65,16 +65,28 @@ describe("stylePromptAdapter", () => {
     expect(compiled).toBe("Refine image\n\nVisual style reference: moody studio lighting");
   });
 
-  it("does not append style for non-style tools", () => {
+  it("appends style for video tools", () => {
     const compiled = appendStylePromptToSubmission({
       tool: "video",
       submissionPrompt: "Animate this shot",
       selectedStylePrompt: "cinematic",
-      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      modelId: "kie-ai/kling-3.0",
       adapterEnabled: true,
     });
 
-    expect(compiled).toBe("Animate this shot");
+    expect(compiled).toBe("Animate this shot\n\nVisual style reference: cinematic");
+  });
+
+  it("does not append style for non-style tools", () => {
+    const compiled = appendStylePromptToSubmission({
+      tool: "sound",
+      submissionPrompt: "Generate a riser",
+      selectedStylePrompt: "cinematic",
+      modelId: "unknown/model",
+      adapterEnabled: true,
+    });
+
+    expect(compiled).toBe("Generate a riser");
   });
 
   it("treats only explicit false as disabled flag value", () => {

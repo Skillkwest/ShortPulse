@@ -456,7 +456,7 @@ describe("ReferenceGrid curated split", () => {
     expect(card?.querySelector(".reference-loading")).toBeNull();
 
     fireEvent.doubleClick(card as HTMLDivElement);
-    expect(onOpenDetails).toHaveBeenCalledWith(generatedImage.id);
+    expect(onOpenDetails).toHaveBeenCalledWith(generatedImage.id, generatedImage);
   });
 
   it("renders posterless generated videos with a visible playable surface", () => {
@@ -492,11 +492,11 @@ describe("ReferenceGrid curated split", () => {
     expect(card?.querySelector(".reference-loading")).toBeNull();
     expect(videoNode).toBeTruthy();
     expect(videoNode?.getAttribute("src")).toBe("https://example.com/generated-video.mp4");
-    expect(videoNode?.getAttribute("preload")).toBe("auto");
-    expect(videoNode?.classList.contains("is-visible")).toBe(true);
+    expect(videoNode?.getAttribute("preload")).toBe("metadata");
+    expect(videoNode?.classList.contains("is-visible")).toBe(false);
 
     fireEvent.doubleClick(card as HTMLDivElement);
-    expect(onOpenDetails).toHaveBeenCalledWith(generatedVideo.id);
+    expect(onOpenDetails).toHaveBeenCalledWith(generatedVideo.id, generatedVideo);
   });
 
   it("renders generated video poster thumbnails even without a playable hover URL", () => {
@@ -2439,6 +2439,17 @@ describe("ReferenceGrid curated split", () => {
 
     expect(getByLabelText("Saved")).toBeInTheDocument();
     expect(queryByLabelText("Save to media library")).toBeNull();
+  });
+
+  it("opens Quick Slot Inventory at the canonical 35/65 default split", () => {
+    const { container } = render(<ReferenceGrid {...createProps()} />);
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+
+    expect(curatedSection).toBeTruthy();
+    expect(allRefsSection).toBeTruthy();
+    expect(curatedSection).toHaveStyle({ flexBasis: "35%" });
+    expect(allRefsSection).toHaveStyle({ flexBasis: "65%" });
   });
 
   it("snaps split toward inventory when clicking the divider pill", () => {

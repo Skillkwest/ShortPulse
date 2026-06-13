@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractCustomerFacingProviderError,
   normalizeCustomerFacingProviderError,
+  normalizeProviderSideGenerationFailure,
   resolveCustomerFacingModelLabel,
   sanitizeCustomerFacingProviderText,
 } from "../customerFacingProviderText";
@@ -158,6 +159,28 @@ describe("customerFacingProviderText", () => {
         "Generation failed."
       )
     ).toBe("The audio provider is at its concurrency limit right now. Please retry in 12 seconds.");
+  });
+
+  it("rewrites opaque upstream failures with provider-side credit guidance", () => {
+    expect(
+      normalizeProviderSideGenerationFailure({
+        rawFailure: "Internal Error, Please try again later.",
+        normalizedFailure: "Internal Error, Please try again later.",
+        modelLabel: "Kling 3.0",
+      })
+    ).toBe(
+      "Kling 3.0 generation failed at the upstream provider. No ShortPulse credits are charged for provider-side failures; any temporary hold is released automatically. Please try again later."
+    );
+  });
+
+  it("keeps specific validation failures unchanged", () => {
+    expect(
+      normalizeProviderSideGenerationFailure({
+        rawFailure: "Prompt is required.",
+        normalizedFailure: "Prompt is required.",
+        modelLabel: "Kling 3.0",
+      })
+    ).toBe("Prompt is required.");
   });
 
   it("removes style-preview provider and client identifiers from customer copy", () => {

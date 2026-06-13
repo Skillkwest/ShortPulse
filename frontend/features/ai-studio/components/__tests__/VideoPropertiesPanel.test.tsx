@@ -650,6 +650,57 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByText("Reference image required for generation")).toBeInTheDocument();
   });
 
+  it("toggles the shared Styles panel from the video prompt action cluster", () => {
+    const onStylesPanelToggle = vi.fn();
+    const { rerender } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        isStylesPanelOpen={false}
+        onStylesPanelToggle={onStylesPanelToggle}
+      />
+    );
+
+    const stylesButton = screen.getByRole("button", { name: "Styles" });
+    expect(stylesButton).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(stylesButton);
+    expect(onStylesPanelToggle).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <VideoPropertiesPanel
+        {...baseProps}
+        isStylesPanelOpen
+        onStylesPanelToggle={onStylesPanelToggle}
+      />
+    );
+    expect(screen.getByRole("button", { name: "Styles" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows the selected style preview on the video Styles button", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        selectedStyleId="video-style"
+        stylesCatalog={[
+          {
+            id: "video-style",
+            title: "Video Style",
+            stylePrompt: "cinematic grade",
+            previewUrl: "/Styles/Cinematic.png",
+            placeholder: false,
+          },
+        ]}
+      />
+    );
+
+    const stylesButton = screen.getByRole("button", { name: "Styles" });
+    const preview = stylesButton.querySelector(
+      ".edit-expert-styles-btn-preview"
+    ) as HTMLSpanElement | null;
+    expect(stylesButton).toHaveClass("has-selected-style");
+    expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
+  });
+
   it("places add references below video settings in Standard video setup", () => {
     render(<VideoPropertiesPanel {...baseProps} />);
 

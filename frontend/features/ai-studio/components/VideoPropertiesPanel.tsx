@@ -16,6 +16,7 @@ import { ReferenceMediaStep } from "./ReferenceMediaStep";
 import { AiStudioRecordPanelPrefab } from "./AiStudioRecordPanelPrefab";
 import { MotionRecorderModal } from "./MotionRecorderModal";
 import { ReferencePromptStep } from "./ReferencePromptStep";
+import { StylesControl } from "./StylesControl";
 import { ComposerPinButton } from "./shared/ComposerPinButton";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
@@ -69,6 +70,7 @@ import {
 import { insertPromptTokenAtSelection } from "../logic/promptTokenInsertion";
 import { buildElementProfileImageBackgroundStyle } from "../../elements-manager/logic/elementProfileImageTransform";
 import { syncTextareaMirrorScroll } from "./edit/expertEditInteractionUtils";
+import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
@@ -261,6 +263,10 @@ export type VideoPropertiesPanelProps = {
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
   onPinPromptReference?: (text: string) => void;
+  isStylesPanelOpen?: boolean;
+  onStylesPanelToggle?: () => void;
+  selectedStyleId?: string | null;
+  stylesCatalog?: readonly ExpertEditStyleTile[];
   onRegenerate: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   resolveMotionVideoUrlById?: (id: string | null) => string | null;
@@ -332,6 +338,10 @@ export function VideoPropertiesPanel({
   onExtraImageChange,
   onPromptTextChange,
   onPinPromptReference,
+  isStylesPanelOpen = false,
+  onStylesPanelToggle,
+  selectedStyleId = null,
+  stylesCatalog,
   onRegenerate,
   resolvePreviewUrlById,
   resolveMotionVideoUrlById,
@@ -1453,6 +1463,13 @@ export function VideoPropertiesPanel({
   const primaryPromptInlineAction = (
     <div className="video-prompt-inline-action-cluster">
       {primaryPromptCharacterCounter}
+      <StylesControl
+        isOpen={isStylesPanelOpen}
+        selectedStyleId={selectedStyleId}
+        styles={stylesCatalog}
+        onToggle={onStylesPanelToggle}
+        className="video-prompt-styles-control"
+      />
       <ComposerPinButton
         text={primaryPromptValue}
         onPinTextReference={onPinPromptReference}

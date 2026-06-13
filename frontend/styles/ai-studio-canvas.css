@@ -231,7 +231,7 @@
 }
 
 .reference-canvas-grid--wide {
-  --reference-grid-columns: 8;
+  --reference-grid-columns: 5;
 }
 
 .reference-canvas-scroll {

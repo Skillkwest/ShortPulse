@@ -1567,6 +1567,8 @@ function DetailModalContent({
               audioClassName="art-hero-audio"
               audioId={detailModalItem.media.id}
               audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
+              audioMusicMode={detailModalItem.media.musicMode ?? null}
+              audioLyricsText={detailModalItem.media.lyricsText ?? null}
               audioDurationMs={detailModalItem.media.durationMs ?? null}
               audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
               videoPosterUrl={detailVideoPosterUrl}

@@ -184,6 +184,18 @@ const fetchWithTimeout = async (
 const readApiErrorMessage = (payload: unknown): string => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return "Unexpected error";
   const data = payload as Record<string, unknown>;
+  if (data.code === "PROVIDER_CREDITS_UNAVAILABLE") {
+    return (
+      extractErrorTextCandidate(data.error) ??
+      "This image model is temporarily unavailable. Your ShortPulse credits were not charged."
+    );
+  }
+  if (data.code === "INSUFFICIENT_CREDITS") {
+    return (
+      extractErrorTextCandidate(data.error) ??
+      "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying."
+    );
+  }
   const explicitContentFailure = normalizeExplicitContentFailure({
     message:
       extractErrorTextCandidate(data.detail) ??

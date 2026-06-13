@@ -156,6 +156,7 @@ const mergeHydratedGeneratedOutput = (
   const nextTitle = existing.title?.trim() ? existing.title : hydrated.title;
   const nextLyricsText = existing.lyricsText?.trim() ? existing.lyricsText : hydrated.lyricsText;
   const nextAudioSourceMode = hydrated.audioSourceMode ?? existing.audioSourceMode;
+  const nextMusicMode = hydrated.musicMode ?? existing.musicMode;
   const merged: StudioOutput = {
     ...existing,
     prompt: existing.prompt?.trim() ? existing.prompt : hydrated.prompt,
@@ -219,6 +220,9 @@ const mergeHydratedGeneratedOutput = (
     "audioSourceMode" in hydrated
   ) {
     merged.audioSourceMode = nextAudioSourceMode ?? null;
+  }
+  if (nextMusicMode != null || "musicMode" in existing || "musicMode" in hydrated) {
+    merged.musicMode = nextMusicMode ?? null;
   }
   return preserveExistingOutputWhenUnchanged(existing, merged);
 };

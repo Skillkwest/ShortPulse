@@ -395,6 +395,7 @@ export type StudioOutput = {
   width?: number | null;
   height?: number | null;
   audioSourceMode?: StudioAudioSourceMode | null;
+  musicMode?: WorkflowReloadMusicMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   mediaSource?: StudioOutputMediaSource;

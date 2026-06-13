@@ -471,6 +471,8 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
     prompt: output.prompt,
     transcriptText: typeof output.transcriptText === "string" ? output.transcriptText : null,
     lyricsText: typeof output.lyricsText === "string" ? output.lyricsText : null,
+    musicMode:
+      output.musicMode === "instrumental" || output.musicMode === "vocal" ? output.musicMode : null,
     mode,
     aspect: typeof output.aspect === "string" ? output.aspect : FALLBACK_ASPECT,
     model: output.model,

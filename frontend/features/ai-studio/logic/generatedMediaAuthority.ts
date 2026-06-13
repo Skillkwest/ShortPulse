@@ -89,6 +89,14 @@ const resolveWorkflowReloadAudioSourceMode = (
   workflowReload: StudioOutput["workflowReload"] | undefined
 ): StudioOutput["audioSourceMode"] => (workflowReload?.payload?.kind === "music" ? "music" : null);
 
+const resolveWorkflowReloadMusicMode = (
+  workflowReload: StudioOutput["workflowReload"] | undefined
+): StudioOutput["musicMode"] => {
+  const payload = workflowReload?.payload;
+  if (payload?.kind !== "music") return null;
+  return payload.mode === "instrumental" || payload.mode === "vocal" ? payload.mode : null;
+};
+
 const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST = [
   "generation_id",
   "project_id",
@@ -601,6 +609,7 @@ const toHydratedGeneratedOutput = (
     title: asTrimmedString(row.display_title) ?? null,
     transcriptText: asTrimmedString(row.transcript_text) ?? null,
     lyricsText: resolveWorkflowReloadLyricsText(workflowReload),
+    musicMode: resolveWorkflowReloadMusicMode(workflowReload),
     mode,
     aspect: replayAspect ?? "1:1",
     model: resolveModelLabel(modelId ?? undefined),

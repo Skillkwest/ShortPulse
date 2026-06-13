@@ -562,6 +562,28 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByText('{"detail"', { exact: false })).toBeNull();
   });
 
+  it("labels opaque upstream failures as provider-side with credit-release guidance", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            model: "Kie Kling 3.0",
+            modelId: "kie-ai/kling-3.0",
+            errorMessage: "Internal Error, Please try again later.",
+            errorMessageShort: "Generation failed",
+            errorDetail: "Internal Error, Please try again later.",
+          }),
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        "Kling 3.0 generation failed at the upstream provider. No ShortPulse credits are charged for provider-side failures; any temporary hold is released automatically. Please try again later."
+      )
+    ).toBeInTheDocument();
+  });
+
   it("renders a loading spinner overlay when the card is loading", () => {
     const { container } = render(
       <ReferenceGridCard

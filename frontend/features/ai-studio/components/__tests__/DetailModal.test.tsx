@@ -669,9 +669,12 @@ describe("DetailModal", () => {
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("music");
+    expect(baseElement.querySelector(".detail-modal-music-preview")).not.toBeNull();
+    expect(baseElement.querySelector(".detail-modal-audio-preview--compact-row")).not.toBeNull();
     expect(screen.getByText("LYRICS")).toBeInTheDocument();
-    expect(screen.getByText(/Soft static on the wire/)).toBeInTheDocument();
-    expect(screen.getByText(/We keep moving through the night/)).toBeInTheDocument();
+    const lyricsSection = screen.getByLabelText("Song lyrics");
+    expect(lyricsSection).toHaveTextContent("Soft static on the wire");
+    expect(lyricsSection).toHaveTextContent("We keep moving through the night");
   });
 
   it("derives music lyrics display from the audio model when the output lacks audio source mode", () => {
@@ -736,6 +739,27 @@ describe("DetailModal", () => {
 
     expect(screen.getByText("LYRICS")).toBeInTheDocument();
     expect(screen.getByText("Headlights bloom over the rain")).toBeInTheDocument();
+  });
+
+  it("shows instrumental in the music lyrics section for instrumental music", () => {
+    render(
+      <DetailModal
+        output={buildGeneratedAudioOutput({
+          model: "ElevenLabs Music",
+          modelId: "eleven_music_v1",
+          audioSourceMode: "music",
+          musicMode: "instrumental",
+          lyricsText: null,
+        })}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("LYRICS")).toBeInTheDocument();
+    expect(screen.getByLabelText("Song lyrics")).toHaveTextContent("Instrumental");
+    expect(screen.queryByText("Lyrics unavailable")).not.toBeInTheDocument();
   });
 
   it("renders generated sound effects audio with the normalized header label only", () => {

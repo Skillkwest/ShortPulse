@@ -20,6 +20,7 @@ import {
 } from "../../../lib/explicitContentFailure";
 import {
   normalizeCustomerFacingProviderError,
+  normalizeProviderSideGenerationFailure,
   resolveCustomerFacingModelLabel,
 } from "../../../lib/customerFacingProviderText";
 import { resolveModelLabelById } from "../../../lib/model-runtime/modelCatalog";
@@ -564,10 +565,15 @@ export const groupVisibleFailuresForAlertStack = (
       : normalizedShortFailure && !GENERIC_GENERATION_FAILURE_LABELS.has(normalizedShortFailure)
         ? item.errorMessageShort
         : (item.errorDetail ?? item.errorMessage ?? item.errorMessageShort ?? "Generation failed");
-    const failureMessage = normalizeCustomerFacingProviderError(
+    const normalizedFailureMessage = normalizeCustomerFacingProviderError(
       rawFailureMessage,
       "Generation failed"
     );
+    const failureMessage = normalizeProviderSideGenerationFailure({
+      rawFailure: rawFailureMessage,
+      normalizedFailure: normalizedFailureMessage,
+      modelLabel,
+    });
     const groupKey = `${normalizeAlertText(modelLabel)}::${normalizeAlertText(failureMessage)}`;
     const existing = grouped.get(groupKey);
     if (existing) {
@@ -864,7 +870,9 @@ export function AiStudioPageContent({
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
   const showCreatePropertiesPanel = propertiesPanelKind === "create";
   const showExpertEditPanel = propertiesPanelKind === "edit";
-  const showStylesPanelEligible = showExpertEditPanel || showCreatePropertiesPanel;
+  const showVideoPropertiesPanel = propertiesPanelKind === "video";
+  const showStylesPanelEligible =
+    showExpertEditPanel || showCreatePropertiesPanel || showVideoPropertiesPanel;
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isCharacterShellPanelOpen = isCharacterShellTool(selectedTool);
   const [isCanvasVisible, setIsCanvasVisible] = React.useState(false);
@@ -1311,6 +1319,22 @@ export function AiStudioPageContent({
       visibleStylesCatalog,
     ]
   );
+  const resolvedVideoPropertiesWithStyles = React.useMemo(
+    () => ({
+      ...propertiesVideo,
+      isStylesPanelOpen,
+      onStylesPanelToggle: handleStylesPanelToggle,
+      selectedStyleId,
+      stylesCatalog: visibleStylesCatalog,
+    }),
+    [
+      handleStylesPanelToggle,
+      isStylesPanelOpen,
+      propertiesVideo,
+      selectedStyleId,
+      visibleStylesCatalog,
+    ]
+  );
   const resolvedPulseCreatePropertiesWithRuntime = React.useMemo(
     () =>
       resolvedPulseCreateProperties
@@ -1476,10 +1500,10 @@ export function AiStudioPageContent({
   const videoPropertiesPanelContent = React.useMemo(
     () => (
       <React.Suspense fallback={lazyPanelFallback}>
-        <LazyVideoPropertiesPanel {...propertiesVideo} />
+        <LazyVideoPropertiesPanel {...resolvedVideoPropertiesWithStyles} />
       </React.Suspense>
     ),
-    [propertiesVideo]
+    [resolvedVideoPropertiesWithStyles]
   );
   const characterPropertiesPanelContent = React.useMemo(
     () => (

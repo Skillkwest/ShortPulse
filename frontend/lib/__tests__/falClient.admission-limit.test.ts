@@ -133,6 +133,43 @@ describe("falClient generation admission error handling", () => {
     ).rejects.toThrow("Input video URL is not publicly reachable.");
   });
 
+  it("surfaces typed provider-credit outages without implying user credit loss", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          code: "PROVIDER_CREDITS_UNAVAILABLE",
+          chargeState: "released",
+          upstreamStatus: 402,
+        },
+        503
+      )
+    );
+
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
+    ).rejects.toThrow(
+      "This image model is temporarily unavailable. Your ShortPulse credits were not charged."
+    );
+  });
+
+  it("surfaces typed ShortPulse credit insufficiency as an account action", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          code: "INSUFFICIENT_CREDITS",
+          chargeState: "not_reserved",
+        },
+        402
+      )
+    );
+
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
+    ).rejects.toThrow(
+      "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying."
+    );
+  });
+
   it("maps generic validation envelopes with unsafe-content detail to explicit-content copy", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       createJsonResponse(

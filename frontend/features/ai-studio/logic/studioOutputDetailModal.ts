@@ -29,6 +29,15 @@ const resolveStudioOutputAudioSourceMode = (
   resolveOutputAudioSourceMode(output) ??
   (output.workflowReload?.payload?.kind === "music" ? "music" : null);
 
+const resolveStudioOutputMusicMode = (output: StudioOutput): StudioOutput["musicMode"] => {
+  if (output.musicMode === "instrumental" || output.musicMode === "vocal") {
+    return output.musicMode;
+  }
+  const payload = output.workflowReload?.payload;
+  if (payload?.kind !== "music") return null;
+  return payload.mode === "instrumental" || payload.mode === "vocal" ? payload.mode : null;
+};
+
 /**
  * Creates the canonical detail-modal contract for StudioOutput-backed right-rail previews.
  * This keeps the legacy DetailModal aligned with the shared cross-surface capability model.
@@ -87,6 +96,7 @@ export const createStudioOutputDetailModalItem = ({
     previewPosterStoragePath: output.previewPosterStoragePath ?? null,
     fullUrl: output.resultUrls?.find((candidate) => candidate?.trim()) ?? null,
     audioSourceMode: resolveStudioOutputAudioSourceMode(output),
+    musicMode: resolveStudioOutputMusicMode(output),
     durationMs: output.durationMs ?? null,
     waveformPeaks: output.waveformPeaks ?? null,
   },

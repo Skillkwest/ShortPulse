@@ -303,7 +303,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
   });
 
-  it("shows saved music lyrics in the shared audio detail blade", () => {
+  it("shows saved music lyrics in the shared music detail stage", () => {
     const musicFile: MediaFileRow = {
       id: "music-1",
       filename: "midnight-loop.mp3",
@@ -316,7 +316,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
       metadata: null,
     };
 
-    render(
+    const { baseElement } = render(
       <MediaLibraryPanelPreviewModal
         item={createPreviewItem(musicFile, "https://cdn.example.com/midnight-loop.mp3", {
           source: "ai_studio",
@@ -329,8 +329,39 @@ describe("MediaLibraryPanelPreviewModal", () => {
       />
     );
 
+    expect(baseElement.querySelector(".detail-modal-music-preview")).not.toBeNull();
+    expect(baseElement.querySelector(".detail-modal-audio-preview--compact-row")).not.toBeNull();
     expect(screen.getByText("LYRICS")).toBeInTheDocument();
-    expect(screen.getByText("Moonlight folded in the glass")).toBeInTheDocument();
+    expect(screen.getByLabelText("Song lyrics")).toHaveTextContent("Moonlight folded in the glass");
+  });
+
+  it("shows instrumental for saved instrumental music references", () => {
+    const musicFile: MediaFileRow = {
+      id: "music-2",
+      filename: "instrumental-loop.mp3",
+      storage_path: "user-1/media-library/instrumental-loop.mp3",
+      preview_storage_path: "user-1/media-library/instrumental-loop.mp3",
+      file_type: "audio/mpeg",
+      source: "ai_studio",
+      source_ref: "generation-music-2",
+      signedUrl: "https://cdn.example.com/instrumental-loop.mp3",
+      metadata: null,
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(musicFile, "https://cdn.example.com/instrumental-loop.mp3", {
+          source: "ai_studio",
+          audioSourceMode: "music",
+          musicMode: "instrumental",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText("Song lyrics")).toHaveTextContent("Instrumental");
   });
 
   it("does not render transform or optimizer image urls as focused preview media", () => {

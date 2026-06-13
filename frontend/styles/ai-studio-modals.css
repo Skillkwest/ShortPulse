@@ -609,6 +609,76 @@
   gap: 18px;
 }
 
+.detail-modal-music-preview {
+  width: min(780px, 100%);
+  height: 100%;
+  max-height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 18px;
+  padding: clamp(22px, 4vh, 46px) clamp(18px, 4vw, 44px);
+}
+
+.detail-modal-music-lyrics {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+}
+
+.detail-modal-music-lyrics-label {
+  color: rgba(180, 188, 198, 0.72);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.detail-modal-music-lyrics-copy {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 10px;
+  color: rgba(238, 243, 248, 0.92);
+  font-size: clamp(15px, 1.35vw, 18px);
+  line-height: 1.72;
+  white-space: pre-wrap;
+}
+
+.detail-modal-music-lyrics-copy p {
+  margin: 0 0 0.65em;
+}
+
+.detail-modal-music-preview .detail-modal-audio-preview--compact-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: stretch;
+  gap: 16px;
+}
+
+.detail-modal-audio-preview--compact-row .detail-modal-audio-play {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+}
+
+.detail-modal-audio-preview--compact-row .detail-modal-audio-waveform-shell {
+  gap: 7px;
+}
+
+.detail-modal-audio-preview--compact-row .detail-modal-audio-waveform {
+  height: 58px;
+  gap: 2px;
+}
+
+.detail-modal-audio-preview--compact-row .detail-modal-audio-wavebar-track,
+.detail-modal-audio-preview--compact-row .detail-modal-audio-wavebar-fill {
+  min-height: 5px;
+}
+
 .detail-modal-audio-play {
   display: inline-flex;
   align-items: center;
@@ -739,6 +809,19 @@
 
   .detail-modal-audio-waveform {
     height: 96px;
+  }
+
+  .detail-modal-music-preview {
+    padding: 22px 18px;
+  }
+
+  .detail-modal-music-preview .detail-modal-audio-preview--compact-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .detail-modal-audio-preview--compact-row .detail-modal-audio-waveform {
+    height: 50px;
   }
 }
 

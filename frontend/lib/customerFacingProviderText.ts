@@ -5,6 +5,8 @@
 const AUDIO_SERVICE_LABEL = "the audio service";
 const GENERATION_SERVICE_LABEL = "the generation service";
 const AUDIO_PROVIDER_PLACEHOLDER = "__SHORTPULSE_AUDIO_PROVIDER__";
+const PROVIDER_CREDIT_RELEASE_NOTICE =
+  "No ShortPulse credits are charged for provider-side failures; any temporary hold is released automatically.";
 
 const SAFETY_VIOLATIONS_PATTERN = /\bsafety_violations\s*=\s*\[([^\]]*)\]/i;
 const PROVIDER_SUPPORT_TEXT_PATTERN =
@@ -14,6 +16,8 @@ const REQUEST_ID_TEXT_PATTERN = /\b(?:and\s+)?include\s+the\s+request\s+ID\s+[a-
 const REQUEST_ID_INLINE_PATTERN = /\brequest\s+ID\s*[:#]?\s*[a-z0-9_:-]+\.?/gi;
 const PROVIDER_REQUEST_TOKEN_PATTERN = /\breq_[a-z0-9]+\b/gi;
 const SUPPORT_URL_PATTERN = /\b(?:https?:\/\/)?help\.openai\.com\S*/gi;
+const OPAQUE_UPSTREAM_FAILURE_PATTERN =
+  /\b(?:internal error|try again later|temporarily unavailable|service unavailable|provider reported failed state)\b/i;
 
 const providerTextReplacements: Array<[RegExp, string]> = [
   [
@@ -272,6 +276,31 @@ export const normalizeCustomerFacingProviderError = (
   value: unknown,
   fallback = "Generation failed."
 ): string => extractCustomerFacingProviderError(value) ?? fallback;
+
+const isOpaqueUpstreamProviderFailure = (...values: Array<unknown>): boolean =>
+  values.some((value) => {
+    if (typeof value !== "string") return false;
+    return OPAQUE_UPSTREAM_FAILURE_PATTERN.test(value);
+  });
+
+export const normalizeProviderSideGenerationFailure = ({
+  rawFailure,
+  normalizedFailure,
+  modelLabel,
+}: {
+  rawFailure: unknown;
+  normalizedFailure: string;
+  modelLabel?: string | null;
+}): string => {
+  if (!isOpaqueUpstreamProviderFailure(rawFailure, normalizedFailure)) {
+    return normalizedFailure;
+  }
+  const subject =
+    typeof modelLabel === "string" && modelLabel.trim() && modelLabel.trim() !== "Generation"
+      ? `${modelLabel.trim()} generation`
+      : "This generation";
+  return `${subject} failed at the upstream provider. ${PROVIDER_CREDIT_RELEASE_NOTICE} Please try again later.`;
+};
 
 export const resolveCustomerFacingModelLabel = ({
   model,

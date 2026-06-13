@@ -1,4 +1,4 @@
-import type { StudioAudioSourceMode } from "../types";
+import type { StudioAudioSourceMode, WorkflowReloadMusicMode } from "../types";
 import type {
   SharedMediaDetailCapabilities,
   SharedMediaDetailItemBase,
@@ -29,6 +29,7 @@ export type MediaLibraryDetailSelectionPayload = {
   previewPosterStoragePath?: string | null;
   fullUrl?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
+  musicMode?: WorkflowReloadMusicMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
 };
@@ -67,6 +68,7 @@ type MediaLibraryDetailFields = {
   previewPosterStoragePath?: string | null;
   fullUrl?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
+  musicMode?: WorkflowReloadMusicMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
 };

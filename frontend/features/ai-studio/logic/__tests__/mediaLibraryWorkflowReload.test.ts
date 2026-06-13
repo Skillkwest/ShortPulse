@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { MediaFileRow } from "../mediaLibraryModalModel";
-import { resolveMediaMetadataLyricsText } from "../mediaLibraryModalModel";
+import {
+  resolveMediaMetadataLyricsText,
+  resolveMediaMetadataMusicMode,
+} from "../mediaLibraryModalModel";
 import {
   canReloadMediaLibraryWorkflow,
   createMediaLibraryWorkflowReloadOutput,
@@ -65,6 +68,84 @@ describe("mediaLibraryWorkflowReload", () => {
     expect(canReloadMediaLibraryWorkflow(createRow())).toBe(true);
   });
 
+  it("preserves video workflow sidecar references from saved AI Studio media rows", () => {
+    const videoWorkflowReload = {
+      ...workflowReload,
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: {
+        display: "Restore a wolf keyframe video",
+      },
+      model: {
+        id: "kie-ai/kling-3.0",
+      },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "keyframes",
+        durationSeconds: 3,
+        resolution: "720p",
+        generateAudio: false,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: ["https://cdn.example.com/legacy-first.png"],
+        internalMediaRefs: [],
+        videoReferences: {
+          version: 1,
+          firstFrame: {
+            sourceUrl: "https://cdn.example.com/first-frame.png",
+            internalMediaRef: {
+              version: 1,
+              kind: "storage_object",
+              bucket: "media_library",
+              storagePath: "user-1/video/first-frame.png",
+            },
+          },
+          lastFrame: {
+            sourceUrl: "https://cdn.example.com/last-frame.png",
+            internalMediaRef: {
+              version: 1,
+              kind: "storage_object",
+              bucket: "media_library",
+              storagePath: "user-1/video/last-frame.png",
+            },
+          },
+        },
+      },
+    } as const;
+
+    const output = createMediaLibraryWorkflowReloadOutput(
+      createRow({
+        filename: "wolf-motion.mp4",
+        file_type: "video/mp4",
+        signedUrl: "https://cdn.example.com/wolf-motion.mp4",
+        metadata: {
+          workflow_reload: videoWorkflowReload,
+        },
+      })
+    );
+
+    expect(output).toMatchObject({
+      id: "media-library:media-1",
+      mode: "video",
+      aspect: "16:9",
+      modelId: "kie-ai/kling-3.0",
+      mediaSource: "generated",
+      workflowReload: videoWorkflowReload,
+    });
+    expect(output?.workflowReload?.payload.kind).toBe("video");
+    if (output?.workflowReload?.payload.kind !== "video") {
+      throw new Error("Expected video workflow reload payload");
+    }
+    expect(output.workflowReload.payload.videoReferences?.firstFrame?.sourceUrl).toBe(
+      "https://cdn.example.com/first-frame.png"
+    );
+    expect(output.workflowReload.payload.videoReferences?.lastFrame?.sourceUrl).toBe(
+      "https://cdn.example.com/last-frame.png"
+    );
+  });
+
   it("rejects uploaded media and mismatched saved workflow metadata", () => {
     expect(
       createMediaLibraryWorkflowReloadOutput(
@@ -99,5 +180,20 @@ describe("mediaLibraryWorkflowReload", () => {
         },
       })
     ).toBe("Workflow saved lyric");
+  });
+
+  it("resolves saved music mode from direct metadata and workflow reload payloads", () => {
+    expect(resolveMediaMetadataMusicMode({ music_mode: "instrumental" })).toBe("instrumental");
+    expect(resolveMediaMetadataMusicMode({ musicMode: "vocal" })).toBe("vocal");
+    expect(
+      resolveMediaMetadataMusicMode({
+        workflow_reload: {
+          payload: {
+            kind: "music",
+            mode: "instrumental",
+          },
+        },
+      })
+    ).toBe("instrumental");
   });
 });

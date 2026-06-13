@@ -3,7 +3,7 @@
  * Defines the future cross-surface selection and capability model for media details.
  */
 import type { CanvasWorkspaceInstanceId } from "../canvas/canvasWorkspaceContracts";
-import type { StudioAudioSourceMode, StudioOutput } from "../../types";
+import type { StudioAudioSourceMode, StudioOutput, WorkflowReloadMusicMode } from "../../types";
 import type { ReactNode } from "react";
 
 export type SharedMediaDetailSurface =
@@ -64,6 +64,7 @@ export type SharedMediaDetailMedia = {
   previewPosterStoragePath?: string | null;
   fullUrl?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
+  musicMode?: WorkflowReloadMusicMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
 };

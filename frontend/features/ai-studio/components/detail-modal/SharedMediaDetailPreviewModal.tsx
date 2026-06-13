@@ -156,6 +156,8 @@ export function SharedMediaDetailPreviewModal({
             audioClassName={audioClassName}
             audioId={item.media.id}
             audioSourceMode={item.media.audioSourceMode ?? null}
+            audioMusicMode={item.media.musicMode ?? null}
+            audioLyricsText={item.media.lyricsText ?? null}
             audioDurationMs={item.media.durationMs ?? null}
             audioWaveformPeaks={item.media.waveformPeaks ?? null}
             videoRef={videoRef}

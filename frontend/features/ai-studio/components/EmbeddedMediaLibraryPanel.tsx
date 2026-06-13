@@ -29,6 +29,7 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
+import { createMediaLibraryWorkflowReloadOutput } from "../logic/mediaLibraryWorkflowReload";
 import {
   getMediaLibrarySurfaceConfig,
   resolvePanelMixedAllMediaSignBudget,
@@ -59,6 +60,7 @@ import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPrompt
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
+import type { StudioOutput } from "../types";
 
 export type EmbeddedMediaLibraryPanelSurface = "elements-media-panel" | "character-media-panel";
 
@@ -79,6 +81,7 @@ type EmbeddedMediaLibraryPanelProps = {
   fixedVisualAspectRatio?: number | null;
   onSelectMedia?: (payload: MediaLibrarySelectionPayload) => void;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
+  onReloadWorkflowFromMedia?: (output: StudioOutput) => void;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
@@ -104,6 +107,7 @@ export function EmbeddedMediaLibraryPanel({
   fixedVisualAspectRatio = null,
   onSelectMedia,
   onDeleteMediaRowsFromWorkspace,
+  onReloadWorkflowFromMedia,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
 }: EmbeddedMediaLibraryPanelProps) {
@@ -342,6 +346,16 @@ export function EmbeddedMediaLibraryPanel({
   });
   const mediaCardUsesAssignment = mediaCardInteractionMode === "assignment";
   const activeSelectedMediaIds = mediaCardUsesAssignment ? EMPTY_SET : selectedIds;
+
+  const handleReloadWorkflowFromMedia = React.useCallback(
+    (file: MediaFileRow) => {
+      if (!onReloadWorkflowFromMedia) return;
+      const output = createMediaLibraryWorkflowReloadOutput(file);
+      if (!output) return;
+      onReloadWorkflowFromMedia(output);
+    },
+    [onReloadWorkflowFromMedia]
+  );
 
   React.useEffect(() => {
     closeDetailModal();
@@ -654,6 +668,7 @@ export function EmbeddedMediaLibraryPanel({
           });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
+        onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -671,6 +686,7 @@ export function EmbeddedMediaLibraryPanel({
       getMediaCardRef,
       handleCardDragEnd,
       handleDownloadMediaFile,
+      handleReloadWorkflowFromMedia,
       handleMediaCardContextMenu,
       handleMediaCardDoubleClick,
       handleMediaCardDragStart,
@@ -734,6 +750,7 @@ export function EmbeddedMediaLibraryPanel({
           });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
+        onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -754,6 +771,7 @@ export function EmbeddedMediaLibraryPanel({
       getMediaCardRef,
       handleCardDragEnd,
       handleDownloadMediaFile,
+      handleReloadWorkflowFromMedia,
       handleMediaCardContextMenu,
       handleMediaCardDoubleClick,
       handleMediaCardDragStart,
@@ -1055,6 +1073,9 @@ export function EmbeddedMediaLibraryPanel({
         onPreviewError={handleDetailModalMediaError}
         onDownloadItem={(item) => {
           handleDownloadMediaFile(item.file);
+        }}
+        onReloadWorkflowItem={(item) => {
+          handleReloadWorkflowFromMedia(item.file);
         }}
         onDeleteItem={(item) => {
           setPendingLibraryDelete({

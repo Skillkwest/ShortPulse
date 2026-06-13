@@ -19,6 +19,7 @@ import type {
   StudioOutputSaveState,
   ToolId,
   WorkflowReloadConfig,
+  WorkflowReloadMusicMode,
 } from "../types";
 import { buildWorkflowReloadConfigV1 } from "../logic/workflowReload";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
@@ -115,6 +116,7 @@ type MusicGenerateSuccessResponse = {
     durationMs: number | null;
     waveformPeaks: number[] | null;
     lyricsText?: string | null;
+    musicMode?: WorkflowReloadMusicMode | null;
     title?: string | null;
     modelId: string;
     saveState?: StudioOutputSaveState;
@@ -446,6 +448,10 @@ const applyAudioOutputToPlaceholder = ({
     transcriptText:
       (payload as { transcriptText?: string | null }).transcriptText ?? item.transcriptText ?? null,
     lyricsText: (payload as { lyricsText?: string | null }).lyricsText ?? item.lyricsText ?? null,
+    musicMode:
+      (payload as { musicMode?: WorkflowReloadMusicMode | null }).musicMode ??
+      item.musicMode ??
+      null,
     model: modelLabel,
     modelId: payload.modelId,
     provider: payload.provider,

@@ -59,6 +59,7 @@ type GenerateMusicSuccessResponse = {
     durationMs: number | null;
     waveformPeaks: null;
     lyricsText: string | null;
+    musicMode: "instrumental" | "vocal";
     title: string;
     modelId: string;
     saveState: "saved" | "idle" | "failed" | "blocked_storage";
@@ -383,6 +384,7 @@ export default async function handler(
         durationMs: responseDurationMs,
         waveformPeaks: null,
         lyricsText,
+        musicMode: mode,
         title: songTitle,
         modelId,
         saveState: persisted.saveState,

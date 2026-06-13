@@ -109,6 +109,7 @@ export type AiStudioSessionOutputV1 = {
   errorMessageShort?: string | null;
   errorDetail?: string | null;
   audioSourceMode?: import("../types").StudioAudioSourceMode | null;
+  musicMode?: import("../types").WorkflowReloadMusicMode | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   resultUrls?: string[];
@@ -569,6 +570,8 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     prompt: output.prompt,
     transcriptText: typeof output.transcriptText === "string" ? output.transcriptText : null,
     lyricsText: typeof output.lyricsText === "string" ? output.lyricsText : null,
+    musicMode:
+      output.musicMode === "instrumental" || output.musicMode === "vocal" ? output.musicMode : null,
     mode: output.mode,
     aspect: output.aspect,
     model: output.model,

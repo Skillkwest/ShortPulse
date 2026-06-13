@@ -823,6 +823,7 @@ describe("sessionSnapshot", () => {
           id: "audio-duration",
           mode: "audio",
           audioSourceMode: "music",
+          musicMode: "instrumental",
           durationMs: 4_000,
           waveformPeaks: [10, 30, 20],
           previewStoragePath: "user-1/audio/audio-duration.mp3",
@@ -856,6 +857,7 @@ describe("sessionSnapshot", () => {
         expect.objectContaining({
           id: "audio-duration",
           audioSourceMode: "music",
+          musicMode: "instrumental",
           durationMs: 4_000,
           waveformPeaks: [10, 30, 20],
         }),

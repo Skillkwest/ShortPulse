@@ -101,15 +101,7 @@ jobs:
           SQL_FILE="$SQL_REALPATH"
 
           echo "Applying $SQL_RELATIVE"
-          PSQL_TARGET="$SUPABASE_DB_URL"
-          DB_HOST="$(node -e 'const url = new URL(process.env.SUPABASE_DB_URL); process.stdout.write(url.hostname);')"
-          DB_HOSTADDR="$(getent ahostsv4 "$DB_HOST" | awk 'NR == 1 { print $1 }')"
-          if [ -n "$DB_HOSTADDR" ]; then
-            echo "Using IPv4 hostaddr for hosted database connection."
-            PSQL_TARGET="$(SUPABASE_DB_HOSTADDR="$DB_HOSTADDR" node -e 'const url = new URL(process.env.SUPABASE_DB_URL); url.searchParams.set("hostaddr", process.env.SUPABASE_DB_HOSTADDR); process.stdout.write(url.toString());')"
-          fi
-
-          psql "$PSQL_TARGET" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/hosted_sql_apply.log
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/hosted_sql_apply.log
 
       - name: Verify hosted SQL lint after apply
         env:

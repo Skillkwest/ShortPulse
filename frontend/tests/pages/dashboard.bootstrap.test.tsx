@@ -3,6 +3,7 @@
  */
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
 
@@ -26,17 +27,20 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
-    prefetch: _prefetch,
+    prefetch,
     ...rest
   }: {
     children: ReactNode;
     href: string;
     prefetch?: boolean;
-  } & Record<string, unknown>) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
+  } & Record<string, unknown>) => {
+    void prefetch;
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 vi.mock("next/image", () => ({
@@ -179,7 +183,7 @@ describe("Dashboard bootstrap state", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps the dashboard loader for a persisted signed-in session until auth resolves, then settles into the authenticated view", async () => {
+  it("keeps the first signed-in client render aligned with the static public dashboard, then resolves auth", async () => {
     const snapshot: {
       initialized: boolean;
       session: { user: typeof appUser } | null;
@@ -191,9 +195,14 @@ describe("Dashboard bootstrap state", () => {
     };
     useSupabaseSessionStateMock.mockImplementation(() => snapshot);
 
-    const { rerender } = render(<DashboardPage />);
+    expect(renderToString(<DashboardPage />)).toContain(
+      "The creative studio for <span>AI creators</span>"
+    );
 
-    expect(screen.getByRole("status")).toHaveTextContent("Loading dashboard");
+    const { rerender } = render(<DashboardPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Loading dashboard");
+    });
     expect(
       screen.getByText("Checking your session before your dashboard workspace loads.")
     ).toBeInTheDocument();

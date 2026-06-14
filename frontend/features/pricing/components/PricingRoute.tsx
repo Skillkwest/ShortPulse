@@ -28,9 +28,17 @@ if (typeof window !== "undefined" && readSupabaseSessionBootstrapHint()) {
  * Renders the public pricing route.
  */
 export function PricingRoute({ billingCatalog }: PricingRouteProps) {
-  const shouldResolveSession = readSupabaseSessionBootstrapHint();
+  const [shouldResolveSession, setShouldResolveSession] = useState(false);
   const [loadedSessionAwareComponent, setLoadedSessionAwareComponent] =
     useState<PricingRouteSessionAwareComponent | null>(null);
+
+  useEffect(() => {
+    if (!readSupabaseSessionBootstrapHint()) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setShouldResolveSession(true);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   useEffect(() => {
     if (!shouldResolveSession) return;

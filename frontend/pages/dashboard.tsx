@@ -61,7 +61,7 @@ export default function DashboardPage({
   dashboardOffers = [],
   dashboardTutorials = [],
 }: Partial<DashboardPageStaticProps> = {}) {
-  const shouldResolveSession = readSupabaseSessionBootstrapHint();
+  const [shouldResolveSession, setShouldResolveSession] = useState(false);
   const [SessionAwareDashboardRoute, setSessionAwareDashboardRoute] =
     useState<SessionAwareDashboardRouteComponent | null>(() => dashboardRouteSessionAwareComponent);
 
@@ -72,6 +72,14 @@ export default function DashboardPage({
       document.body.classList.remove("dashboard-body");
       document.documentElement.classList.remove("dashboard-body");
     };
+  }, []);
+
+  useEffect(() => {
+    if (!readSupabaseSessionBootstrapHint()) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setShouldResolveSession(true);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {

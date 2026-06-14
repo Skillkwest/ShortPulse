@@ -114,6 +114,8 @@ describe("PricingRoute auth bootstrap", () => {
 
     render(<PricingRoute billingCatalog={{ plans: [], packages: [], storageAddons: [] }} />);
 
+    expect(useSupabaseSessionStateMock).not.toHaveBeenCalled();
+
     await waitFor(() => {
       expect(useSupabaseSessionStateMock).toHaveBeenCalledWith({ enabled: true });
     });

@@ -26,17 +26,20 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
-    prefetch: _prefetch,
+    prefetch,
     ...rest
   }: {
     children: ReactNode;
     href: string;
     prefetch?: boolean;
-  } & Record<string, unknown>) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
+  } & Record<string, unknown>) => {
+    void prefetch;
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 vi.mock("next/image", () => ({
@@ -250,8 +253,9 @@ describe("Dashboard announcement rendering", () => {
 
     render(<DashboardPage />);
 
-    await waitFor(() => expect(screen.getByText("Create your first project")).toBeInTheDocument());
-    const tutorialButton = screen.getByRole("button", {
+    await screen.findByRole("button", { name: "Profile menu" });
+    await screen.findByRole("heading", { name: /start with a guided walkthrough/i });
+    const tutorialButton = await screen.findByRole("button", {
       name: "Create your first project: open tutorial",
     });
     expect(tutorialButton.querySelector("video")).toHaveAttribute(

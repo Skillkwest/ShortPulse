@@ -4,7 +4,13 @@ Purpose: help Scott and Scott's Codex agent get the ShortPulse dashboard branch 
 
 This folder is the handoff package for the dashboard visual/aesthetic lane. Follow it before making changes.
 
-For a copy/paste prompt Scott can give directly to his Codex agent, use `Scott/codex-agent-startup-prompt.md`.
+For copy/paste prompts Scott can give directly to his Codex agent, use:
+
+- `Scott/codex-agent-startup-prompt.md`: first-time clone/fetch/checkout and local startup.
+- `Scott/local-environment-doctor-prompt.md`: diagnose local setup, env, or thumbnail loading issues without edits.
+- `Scott/dashboard-baseline-audit-prompt.md`: no-edit dashboard visual audit before changing UI.
+- `Scott/dashboard-implementation-prompt.md`: scoped dashboard visual implementation prompt after a plan is approved.
+- `Scott/dashboard-validation-and-handoff-prompt.md`: final validation and handoff prompt after changes.
 
 ## Lane Boundary
 

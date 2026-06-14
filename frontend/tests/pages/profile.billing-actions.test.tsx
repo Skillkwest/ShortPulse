@@ -309,7 +309,7 @@ describe("Profile credits actions", () => {
     render(<ProfilePage />);
     fireEvent.click(screen.getByRole("button", { name: "Refresh credits" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveTextContent(
       "Unable to sync credits right now. Please try again."
     );
   });
@@ -330,7 +330,7 @@ describe("Profile credits actions", () => {
         method: "POST",
       });
     });
-    expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Portal unavailable");
   });
 
   it("disables Stripe portal controls for internal comp contracts", async () => {

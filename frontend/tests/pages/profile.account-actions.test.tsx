@@ -211,7 +211,7 @@ describe("Profile account actions", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Update email" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveTextContent(
       "Too many email confirmation requests were made. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another."
     );
   });
@@ -224,7 +224,7 @@ describe("Profile account actions", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Update email" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Enter your current password.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enter your current password.");
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 
@@ -257,7 +257,7 @@ describe("Profile account actions", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveTextContent(
       "Too many reset emails were requested. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another."
     );
   });
@@ -267,7 +267,7 @@ describe("Profile account actions", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("No email is available for reset.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("No email is available for reset.");
     expect(resetPasswordForEmailMock).not.toHaveBeenCalled();
   });
 

@@ -476,7 +476,7 @@ describe("Profile subscription actions", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetPlanId: "free", billingInterval: "month" }),
     });
-    expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Portal unavailable");
   });
 
   it("routes upgrade actions through the billing portal handler", async () => {
@@ -491,7 +491,7 @@ describe("Profile subscription actions", () => {
         body: JSON.stringify({ targetPlanId: "business", billingInterval: "month" }),
       });
     });
-    expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Portal unavailable");
   });
 
   it("uses the selected annual billing interval for upgrade actions", async () => {
@@ -507,7 +507,7 @@ describe("Profile subscription actions", () => {
         body: JSON.stringify({ targetPlanId: "business", billingInterval: "year" }),
       });
     });
-    expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Portal unavailable");
   });
 
   it("disables annual paid-plan actions when the target plan has no live annual offer", async () => {

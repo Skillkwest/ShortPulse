@@ -180,7 +180,8 @@ describe("useAiStudioReferenceSelectionState", () => {
     rerender({ authorityKey: "session:test:create:pulse" });
 
     const standardState = result.current.getAuthorityState("session:test:create:standard");
-    expect(standardState.referenceImageInternalMediaRefs.slice(0, 2)).toEqual([
+    const standardInternalRefs = standardState.referenceImageInternalMediaRefs ?? [];
+    expect(standardInternalRefs.slice(0, 2)).toEqual([
       {
         version: 1,
         kind: "storage_object",
@@ -194,9 +195,7 @@ describe("useAiStudioReferenceSelectionState", () => {
         storagePath: "user-1/references/b.png",
       },
     ]);
-    expect(
-      standardState.referenceImageInternalMediaRefs.slice(2).every((ref) => ref === null)
-    ).toBe(true);
+    expect(standardInternalRefs.slice(2).every((ref) => ref === null)).toBe(true);
   });
 
   it("refreshes stale signed frame URLs for the video reference slot", async () => {

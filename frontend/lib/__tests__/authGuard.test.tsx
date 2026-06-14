@@ -8,6 +8,7 @@ import { useProtectedRoute } from "../authGuard";
 const useRouterMock = vi.hoisted(() => vi.fn());
 const refreshSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/router", () => ({
@@ -17,6 +18,7 @@ vi.mock("next/router", () => ({
 vi.mock("../supabaseClient", () => ({
   refreshSupabaseSession: (...args: unknown[]) => refreshSupabaseSessionMock(...args),
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+  primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
 }));
 
 vi.mock("../supabaseSessionHints", () => ({

@@ -81,6 +81,7 @@ const createHydrationPayload = (active: StudioOutput[]): AiStudioSessionHydratio
     videoReferenceText: "",
     videoReferenceMode: "standard",
     lipSyncAudioUrl: null,
+    lipSyncAudioStoragePath: null,
     lipSyncAudioDurationMs: null,
     lipSyncTurboMode: false,
     videoDurationSeconds: 6,

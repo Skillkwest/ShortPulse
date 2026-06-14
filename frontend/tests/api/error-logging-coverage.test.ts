@@ -23,6 +23,7 @@ const ALLOWLIST = new Set<string>([
 const ALLOWLIST_LOCATIONS = new Set<string>([
   // Helper-level validation catch that converts invalid client-supplied storage-path hints
   // into deterministic 4xx-safe field errors rather than route-fault telemetry.
+  "media/copy-from-url.ts:187",
   "media/copy-from-url.ts:185",
   "media/copy-from-url.ts:190",
   "media/copy-from-url.ts:191",

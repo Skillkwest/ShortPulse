@@ -667,6 +667,64 @@ describe("projects routes", () => {
     });
   });
 
+  it("omits the workspace snapshot from preferred minimal save responses", async () => {
+    upsertProjectWorkspaceStateForUserMock.mockResolvedValueOnce({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-2",
+        workspace: {
+          prompt: "large saved prompt",
+        },
+      },
+      createdAt: "2026-04-23T00:00:00.000Z",
+      updatedAt: "2026-04-23T01:00:00.000Z",
+      saveOutcome: {
+        status: "saved",
+      },
+    });
+    const req = {
+      method: "PUT",
+      query: { projectId: "project-1" },
+      headers: {
+        prefer: "return=minimal",
+      },
+      body: {
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-2",
+          workspace: {
+            prompt: "large saved prompt",
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await workspaceHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      project: {
+        id: "project-1",
+        title: "Untitled project",
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T00:00:00.000Z",
+      },
+      workspace: {
+        projectId: "project-1",
+        schemaVersion: 2,
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+      },
+      saveOutcome: {
+        status: "saved",
+      },
+    });
+  });
+
   it("returns 400 for invalid project workspace snapshots", async () => {
     upsertProjectWorkspaceStateForUserMock.mockRejectedValueOnce(
       new MockInvalidProjectWorkspaceSnapshotError("Invalid project workspace snapshot")

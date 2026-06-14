@@ -175,6 +175,8 @@ const {
         setVideoReferenceText: vi.fn(),
         expertEditSessionState: null,
         setExpertEditSessionState: vi.fn(),
+        getExpertEditSessionState: vi.fn(() => null),
+        publishExpertEditSessionState: vi.fn(),
         setSharedPrompt: vi.fn(),
         useReferenceImageIndicator: false,
         detailOutput: null,

@@ -19,7 +19,7 @@ export type AiStudioProjectWorkspaceSaveOutcome = {
 export type AiStudioProjectWorkspaceApiRecord = {
   projectId: string;
   schemaVersion: number;
-  snapshot: unknown;
+  snapshot?: unknown;
   createdAt: string;
   updatedAt: string;
   saveOutcome?: AiStudioProjectWorkspaceSaveOutcome;
@@ -440,6 +440,7 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      Prefer: "return=minimal",
     },
     body: requestBody,
     keepalive: keepalive === true,

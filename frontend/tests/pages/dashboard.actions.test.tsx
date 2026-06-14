@@ -12,6 +12,7 @@ const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const signOutSupabaseSessionMock = vi.hoisted(() => vi.fn());
@@ -61,6 +62,7 @@ vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
   ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+  primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
   readPersistedSupabaseSessionHint: (...args: unknown[]) =>
     readPersistedSupabaseSessionHintMock(...args),
   signOutSupabaseSession: (...args: unknown[]) => signOutSupabaseSessionMock(...args),

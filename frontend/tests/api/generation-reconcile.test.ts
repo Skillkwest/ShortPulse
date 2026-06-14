@@ -3,6 +3,7 @@ import handler from "../../pages/api/generation/reconcile";
 
 const requireApiUserMock = vi.fn();
 const reconcileVisibleGenerationsForUserMock = vi.fn();
+const reconcileVisibleProjectGenerationsForUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -25,8 +26,11 @@ vi.mock("../../lib/server/api/generationReconcile", () => {
           return { generationId, requestId, sourceRef };
         })
         .filter(Boolean),
+    normalizeGenerationReconcileProjectId: (value: unknown) => normalizeString(value),
     reconcileVisibleGenerationsForUser: (...args: unknown[]) =>
       reconcileVisibleGenerationsForUserMock(...args),
+    reconcileVisibleProjectGenerationsForUser: (...args: unknown[]) =>
+      reconcileVisibleProjectGenerationsForUserMock(...args),
   };
 });
 

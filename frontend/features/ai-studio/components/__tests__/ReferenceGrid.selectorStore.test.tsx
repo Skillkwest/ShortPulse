@@ -12,6 +12,10 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: vi.fn(),
 }));
 
+vi.mock("../../logic/sessionRestoreMediaSigning", () => ({
+  resolveSessionRestoreSignedMediaAuthorityByMediaId: vi.fn(async () => new Map()),
+}));
+
 class MockResizeObserver {
   observe() {
     return undefined;

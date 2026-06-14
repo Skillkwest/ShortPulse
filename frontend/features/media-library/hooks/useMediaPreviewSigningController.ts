@@ -329,8 +329,8 @@ export const useMediaPreviewSigningController = <
               0,
               resolveBackgroundHydrateFallbackLimit(surface)
             )) {
-              if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
-              void hydrateViaStorageDownload(unresolvedRow);
+              if (unresolvedAfterResolver.has(unresolvedRow.id))
+                void hydrateViaStorageDownload(unresolvedRow);
             }
           }
           finalizeMediaSignCompletion({

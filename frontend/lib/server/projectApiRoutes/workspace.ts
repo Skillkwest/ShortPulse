@@ -23,7 +23,7 @@ type ProjectWorkspaceSuccessResponse = {
   workspace: {
     projectId: string;
     schemaVersion: number;
-    snapshot: Record<string, unknown>;
+    snapshot?: Record<string, unknown>;
     createdAt: string;
     updatedAt: string;
   } | null;
@@ -147,6 +147,16 @@ const resolveWorkspaceFailureDetails = ({
   return `${resolveWorkspaceErrorMessage(method)} during ${stage}.`;
 };
 
+const prefersMinimalWorkspaceSaveResponse = (req: NextApiRequest): boolean => {
+  if (req.method !== "PUT") return false;
+  const preferHeader = req.headers?.prefer;
+  const normalized = Array.isArray(preferHeader) ? preferHeader.join(",") : (preferHeader ?? "");
+  return normalized
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .includes("return=minimal");
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ProjectWorkspaceSuccessResponse | ProjectWorkspaceErrorResponse>
@@ -204,6 +214,7 @@ export default async function handler(
             userId: user.id,
             projectId,
           });
+    const includeWorkspaceSnapshot = !prefersMinimalWorkspaceSaveResponse(req);
 
     return res.status(200).json({
       project: {
@@ -216,7 +227,7 @@ export default async function handler(
         ? {
             projectId: workspace.projectId,
             schemaVersion: workspace.schemaVersion,
-            snapshot: workspace.snapshot,
+            ...(includeWorkspaceSnapshot ? { snapshot: workspace.snapshot } : {}),
             createdAt: workspace.createdAt,
             updatedAt: workspace.updatedAt,
           }

@@ -301,11 +301,6 @@ describe("projectWorkspaceApiClient", () => {
           workspace: {
             projectId: "project-1",
             schemaVersion: 2,
-            snapshot: {
-              schemaVersion: 2,
-              sessionId: "session-1",
-              updatedAt: "2026-04-25T00:00:00.000Z",
-            },
             createdAt: "2026-04-25T00:00:00.000Z",
             updatedAt: "2026-04-25T00:00:00.000Z",
           },
@@ -346,6 +341,7 @@ describe("projectWorkspaceApiClient", () => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        Prefer: "return=minimal",
       },
       body: JSON.stringify({
         schemaVersion: 2,
@@ -416,6 +412,7 @@ describe("projectWorkspaceApiClient", () => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        Prefer: "return=minimal",
       },
       body: `{"schemaVersion":2,"snapshot":${serializedSnapshotJson}}`,
       keepalive: false,

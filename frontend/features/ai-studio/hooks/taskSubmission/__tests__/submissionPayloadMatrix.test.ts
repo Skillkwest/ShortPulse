@@ -36,6 +36,7 @@ import { resolveSubmissionHandlerRoute } from "../routing";
 import type { ImageSubmissionArgs, VideoSubmissionArgs } from "../types";
 
 const falClientMocks = vi.hoisted(() => ({
+  fetchWithAuth: vi.fn(),
   submitFalBriaBackgroundRemove: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
   submitFalOmniHuman: vi.fn(),
@@ -89,7 +90,12 @@ vi.mock("../../../../../lib/falClient", () => {
   };
 });
 
+vi.mock("../../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: (...args: unknown[]) => falClientMocks.fetchWithAuth(...args),
+}));
+
 const {
+  fetchWithAuth,
   submitFalBriaBackgroundRemove,
   submitFalFlux2Klein,
   submitFalOmniHuman,
@@ -289,6 +295,12 @@ const submitSpyByName = {
 } as const;
 
 const resetFalSubmitMocks = () => {
+  vi.mocked(fetchWithAuth).mockReset();
+  vi.mocked(fetchWithAuth).mockImplementation(async () => ({
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify({ url: "https://v3.fal.media/files/staged/mock-input" }),
+  }));
   Object.values(submitSpyByName).forEach((spy, index) => {
     spy.mockReset();
     spy.mockResolvedValue({ request_id: `req-${index + 1}` });

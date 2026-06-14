@@ -375,8 +375,11 @@ describe("useExpertEditTransformController", () => {
         );
       });
 
-      expect(resolveViewportOffsetPixels.mock.calls.at(0)?.[1]).toBe(modalStageElement);
-      expect(resolveViewportOffsetPixels.mock.calls.at(0)?.[0]).toMatchObject({
+      const viewportOffsetCall = resolveViewportOffsetPixels.mock.calls.at(0) as
+        | unknown[]
+        | undefined;
+      expect(viewportOffsetCall?.[1]).toBe(modalStageElement);
+      expect(viewportOffsetCall?.[0]).toMatchObject({
         width: 200,
         height: 200,
       });

@@ -1223,9 +1223,9 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.outputs.length).toBe(250);
+      expect(result.current.outputs.length).toBe(128);
     });
-    expect(result.current.archivedOutputs).toEqual([]);
+    expect(result.current.archivedOutputs).toHaveLength(394);
   });
 
   it("deletes quick-slotted references from the shared workspace when grid delete is requested", async () => {

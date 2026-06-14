@@ -61,7 +61,7 @@ describe("useMediaStorageQuotaSummary", () => {
     const session = { access_token: "protected-token", user: { id: "user-1" } } as Session;
     const user = { id: "user-1", email: "user@example.com" } as User;
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(ProtectedRouteSessionProvider, { session, user }, children);
+      createElement(ProtectedRouteSessionProvider, { session, user, children });
 
     renderHook(() => useMediaStorageQuotaSummary({ enabled: true }), { wrapper });
 

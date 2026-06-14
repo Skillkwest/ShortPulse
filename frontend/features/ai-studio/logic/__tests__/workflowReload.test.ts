@@ -158,6 +158,11 @@ describe("workflowReload", () => {
         cameraFixed: false,
         autoFix: true,
         referenceInputs: ["https://example.com/frame.png"],
+        styleContext: {
+          applied: true,
+          styleId: "video-style",
+          stylePrompt: "high-contrast coastal grit",
+        },
         klingCfgScale: 0.7,
         klingWorkflowMode: "multi",
         klingShotType: "customize",
@@ -206,6 +211,16 @@ describe("workflowReload", () => {
     });
 
     expect(isWorkflowReloadConfigV1(videoReload)).toBe(true);
+    expect(videoReload?.payload).toEqual(
+      expect.objectContaining({
+        kind: "video",
+        styleContext: {
+          applied: true,
+          styleId: "video-style",
+          stylePrompt: "high-contrast coastal grit",
+        },
+      })
+    );
     const lipSyncReload = buildWorkflowReloadConfigV1({
       capturedAt: "2026-06-06T12:00:00.000Z",
       originTool: "video",

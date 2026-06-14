@@ -65,6 +65,7 @@ type GenerationProjectionDeliveryRow = {
   queue_state?: unknown;
   error_message_short?: unknown;
   error_detail?: unknown;
+  error_payload?: unknown;
   hidden_in_reference_grid?: unknown;
   reference_grid_visible?: unknown;
   generation_replay?: unknown;
@@ -118,6 +119,7 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST = [
   "queue_state",
   "error_message_short",
   "error_detail",
+  "error_payload",
   "hidden_in_reference_grid",
   "reference_grid_visible",
   "generation_replay",
@@ -131,24 +133,56 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST = [
 
 const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS =
   GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST.join(", ");
-const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE =
+const OPTIONAL_GENERATION_PROJECTION_DELIVERY_COLUMNS = ["display_title", "error_payload"] as const;
+type OptionalGenerationProjectionDeliveryColumn =
+  (typeof OPTIONAL_GENERATION_PROJECTION_DELIVERY_COLUMNS)[number];
+const buildGenerationProjectionDeliverySelectColumns = (
+  omittedColumns: ReadonlySet<OptionalGenerationProjectionDeliveryColumn>
+): string =>
   GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST.filter(
-    (column) => column !== "display_title"
+    (column) => !omittedColumns.has(column as OptionalGenerationProjectionDeliveryColumn)
   ).join(", ");
 
-const isMissingGenerationProjectionDisplayTitleColumnError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
+const resolveMissingGenerationProjectionOptionalColumn = (
+  error: unknown
+): OptionalGenerationProjectionDeliveryColumn | null => {
+  if (!error || typeof error !== "object") return null;
   const record = error as { code?: unknown; message?: unknown; details?: unknown };
   const code = typeof record.code === "string" ? record.code : null;
   const messageParts = [record.message, record.details]
     .filter((value): value is string => typeof value === "string")
     .join(" ")
     .toLowerCase();
-  if (!messageParts.includes("display_title")) return false;
-  if (!messageParts.includes("generation_projection")) return false;
+  if (!messageParts.includes("generation_projection")) return null;
+  if (
+    code !== "42703" &&
+    code !== "PGRST204" &&
+    !/does not exist|schema cache/.test(messageParts)
+  ) {
+    return null;
+  }
   return (
-    code === "42703" || code === "PGRST204" || /does not exist|schema cache/.test(messageParts)
+    OPTIONAL_GENERATION_PROJECTION_DELIVERY_COLUMNS.find((column) =>
+      messageParts.includes(column)
+    ) ?? null
   );
+};
+
+const loadGenerationProjectionWithOptionalColumnFallback = async <
+  TResult extends { error: unknown },
+>(
+  loadRows: (selectColumns: string) => Promise<TResult>
+): Promise<TResult> => {
+  const omittedColumns = new Set<OptionalGenerationProjectionDeliveryColumn>();
+  while (true) {
+    const selectColumns = omittedColumns.size
+      ? buildGenerationProjectionDeliverySelectColumns(omittedColumns)
+      : GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS;
+    const result = await loadRows(selectColumns);
+    const missingColumn = resolveMissingGenerationProjectionOptionalColumn(result.error);
+    if (!missingColumn || omittedColumns.has(missingColumn)) return result;
+    omittedColumns.add(missingColumn);
+  }
 };
 
 export type GeneratedMediaFileRecord = {
@@ -209,6 +243,7 @@ export type GenerationProjectionLifecycle = {
   referenceGridVisible: boolean;
   errorMessageShort: string | null;
   errorDetail: string | null;
+  errorPayload?: unknown | null;
 };
 
 const VIDEO_MODEL_MARKER_PATTERN =
@@ -602,6 +637,7 @@ const toHydratedGeneratedOutput = (
     | undefined;
   const errorMessageShort = asTrimmedString(row.error_message_short) ?? undefined;
   const errorDetail = asTrimmedString(row.error_detail) ?? undefined;
+  const errorPayload = row.error_payload ?? null;
 
   return {
     id: `generated:${generationId}`,
@@ -626,6 +662,7 @@ const toHydratedGeneratedOutput = (
     errorMessage: errorMessageShort ?? null,
     errorMessageShort: errorMessageShort ?? null,
     errorDetail: errorDetail ?? null,
+    errorPayload,
     resultUrls,
     previewUrl,
     previewPosterUrl,
@@ -660,6 +697,7 @@ const toProjectionLifecycle = (
     referenceGridVisible: row.reference_grid_visible !== false,
     errorMessageShort: asTrimmedString(row.error_message_short),
     errorDetail: asTrimmedString(row.error_detail),
+    errorPayload: row.error_payload ?? null,
   };
 };
 
@@ -1512,14 +1550,8 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
       }
       return await projectionQuery.maybeSingle();
     };
-    let { data: projectionData, error: projectionError } = await loadProjection(
-      GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS
-    );
-    if (projectionError && isMissingGenerationProjectionDisplayTitleColumnError(projectionError)) {
-      ({ data: projectionData, error: projectionError } = await loadProjection(
-        GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE
-      ));
-    }
+    const { data: projectionData, error: projectionError } =
+      await loadGenerationProjectionWithOptionalColumnFallback(loadProjection);
     if (!projectionError) {
       const projectionDelivery = toProjectionDelivery(
         projectionData as GenerationProjectionDeliveryRow | null
@@ -1623,15 +1655,22 @@ export const resolveGenerationProjectionLifecycle = async ({
   });
   if (!resolvedGenerationId) return null;
 
-  const { data, error } = await supabase
-    .from("generation_projection")
-    .select(
+  const loadProjectionLifecycle = async (selectColumns: string) =>
+    await supabase
+      .from("generation_projection")
+      .select(selectColumns)
+      .eq("user_id", userId)
+      .eq("generation_id", resolvedGenerationId)
+      .limit(1)
+      .maybeSingle();
+  let { data, error } = await loadProjectionLifecycle(
+    "generation_id, task_state, queue_state, error_message_short, error_detail, error_payload, hidden_in_reference_grid, reference_grid_visible"
+  );
+  if (resolveMissingGenerationProjectionOptionalColumn(error) === "error_payload") {
+    ({ data, error } = await loadProjectionLifecycle(
       "generation_id, task_state, queue_state, error_message_short, error_detail, hidden_in_reference_grid, reference_grid_visible"
-    )
-    .eq("user_id", userId)
-    .eq("generation_id", resolvedGenerationId)
-    .limit(1)
-    .maybeSingle();
+    ));
+  }
   if (error) return null;
   return toProjectionLifecycle(data as GenerationProjectionDeliveryRow | null);
 };
@@ -1862,27 +1901,11 @@ export const listVisibleGeneratedOutputs = async ({
           .order("updated_at", { ascending: false })
           .limit(boundedLimit);
       };
-      let [{ data: directProjectData, error: directProjectError }, associatedProjectionResult] =
+      const [{ data: directProjectData, error: directProjectError }, associatedProjectionResult] =
         await Promise.all([
-          loadDirectProjectRows(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS),
-          loadAssociatedProjectionRows(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS),
+          loadGenerationProjectionWithOptionalColumnFallback(loadDirectProjectRows),
+          loadGenerationProjectionWithOptionalColumnFallback(loadAssociatedProjectionRows),
         ]);
-      if (
-        directProjectError &&
-        isMissingGenerationProjectionDisplayTitleColumnError(directProjectError)
-      ) {
-        ({ data: directProjectData, error: directProjectError } = await loadDirectProjectRows(
-          GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE
-        ));
-      }
-      if (
-        associatedProjectionResult.error &&
-        isMissingGenerationProjectionDisplayTitleColumnError(associatedProjectionResult.error)
-      ) {
-        associatedProjectionResult = await loadAssociatedProjectionRows(
-          GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE
-        );
-      }
       if (directProjectError && associatedProjectionResult.error) return [];
 
       const rowsByGenerationId = new Map<string, unknown>();
@@ -1946,17 +1969,8 @@ export const listVisibleGeneratedOutputs = async ({
         }
         return await projectionQuery.limit(boundedLimit);
       };
-      let projectionResult = await loadProjectionRows(
-        GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS
-      );
-      if (
-        projectionResult.error &&
-        isMissingGenerationProjectionDisplayTitleColumnError(projectionResult.error)
-      ) {
-        projectionResult = await loadProjectionRows(
-          GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS_WITHOUT_DISPLAY_TITLE
-        );
-      }
+      const projectionResult =
+        await loadGenerationProjectionWithOptionalColumnFallback(loadProjectionRows);
       if (projectionResult.error || !Array.isArray(projectionResult.data)) return [];
       data = [...projectionResult.data].sort((a, b) => {
         const aRecencyMs =

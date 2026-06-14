@@ -4,10 +4,11 @@
  */
 import type { getSupabaseAdmin } from "./supabaseAdmin";
 import {
+  DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET,
+  DASHBOARD_TUTORIAL_THUMBNAIL_SIGNED_URL_TTL_SECONDS,
   isDashboardTutorialThumbnailVariantStoragePath,
   isDashboardTutorialThumbnailStoragePath,
   normalizeDashboardTutorialThumbnailContentType,
-  signDashboardTutorialThumbnailUrl,
   type DashboardTutorialThumbnailDisplayContentType,
   type DashboardTutorialThumbnailContentType,
 } from "./dashboardTutorialAssets";
@@ -134,10 +135,69 @@ const asNullablePositiveInteger = (value: unknown): number | null => {
   return value;
 };
 
-const toDashboardTutorial = async (
+const collectDashboardTutorialThumbnailPaths = (rows: unknown[]): string[] => {
+  const storagePaths = new Set<string>();
+  rows.forEach((value) => {
+    if (!value || typeof value !== "object") return;
+    const row = value as RawDashboardTutorial;
+    const thumbnailStoragePath = asTrimmed(row.thumbnail_storage_path);
+    const thumbnailDisplayStoragePath = asTrimmed(row.thumbnail_display_storage_path);
+    const thumbnailPosterStoragePath = asTrimmed(row.thumbnail_poster_storage_path);
+    if (
+      thumbnailDisplayStoragePath &&
+      isDashboardTutorialThumbnailVariantStoragePath(thumbnailDisplayStoragePath)
+    ) {
+      storagePaths.add(thumbnailDisplayStoragePath);
+    } else if (
+      thumbnailStoragePath &&
+      isDashboardTutorialThumbnailStoragePath(thumbnailStoragePath)
+    ) {
+      storagePaths.add(thumbnailStoragePath);
+    }
+    if (
+      thumbnailPosterStoragePath &&
+      isDashboardTutorialThumbnailVariantStoragePath(thumbnailPosterStoragePath)
+    ) {
+      storagePaths.add(thumbnailPosterStoragePath);
+    }
+  });
+  return [...storagePaths];
+};
+
+const signDashboardTutorialThumbnailUrls = async (
   supabaseAdmin: SupabaseAdminClient,
-  value: unknown
-): Promise<DashboardTutorial | null> => {
+  storagePaths: string[]
+): Promise<Map<string, string | null>> => {
+  const signedUrlByPath = new Map<string, string | null>();
+  storagePaths.forEach((path) => signedUrlByPath.set(path, null));
+  if (storagePaths.length === 0) return signedUrlByPath;
+
+  const { data, error } = await supabaseAdmin.storage
+    .from(DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET)
+    .createSignedUrls(storagePaths, DASHBOARD_TUTORIAL_THUMBNAIL_SIGNED_URL_TTL_SECONDS);
+  if (error) {
+    throw new Error(error.message || "Failed to sign dashboard tutorial thumbnail URLs.");
+  }
+
+  (Array.isArray(data) ? data : []).forEach((signedUrlResult, index) => {
+    const result = signedUrlResult as { path?: unknown; signedUrl?: unknown };
+    const path =
+      typeof result.path === "string" && result.path.length > 0 ? result.path : storagePaths[index];
+    signedUrlByPath.set(
+      path,
+      typeof result.signedUrl === "string" && result.signedUrl.trim().length > 0
+        ? result.signedUrl
+        : null
+    );
+  });
+
+  return signedUrlByPath;
+};
+
+const toDashboardTutorial = (
+  value: unknown,
+  signedUrlByPath: Map<string, string | null>
+): DashboardTutorial | null => {
   if (!value || typeof value !== "object") return null;
   const row = value as RawDashboardTutorial;
   const id = typeof row.id === "string" ? row.id : "";
@@ -152,10 +212,10 @@ const toDashboardTutorial = async (
     thumbnailDisplayMediaTypeRaw || asTrimmed(row.thumbnail_media_type) || "image";
   const signableThumbnailStoragePath = thumbnailDisplayStoragePath || thumbnailStoragePath;
   const thumbnailUrl = signableThumbnailStoragePath
-    ? await signDashboardTutorialThumbnailUrl(supabaseAdmin, signableThumbnailStoragePath)
+    ? (signedUrlByPath.get(signableThumbnailStoragePath) ?? "")
     : storedThumbnailUrl;
   const thumbnailPosterUrl = thumbnailPosterStoragePath
-    ? await signDashboardTutorialThumbnailUrl(supabaseAdmin, thumbnailPosterStoragePath)
+    ? (signedUrlByPath.get(thumbnailPosterStoragePath) ?? null)
     : null;
 
   if (
@@ -252,9 +312,12 @@ const serializeTutorialRows = async (
   supabaseAdmin: SupabaseAdminClient,
   rows: unknown[] | null
 ): Promise<DashboardTutorial[]> => {
-  const tutorials = await Promise.all(
-    (Array.isArray(rows) ? rows : []).map((row) => toDashboardTutorial(supabaseAdmin, row))
+  const rowList = Array.isArray(rows) ? rows : [];
+  const signedUrlByPath = await signDashboardTutorialThumbnailUrls(
+    supabaseAdmin,
+    collectDashboardTutorialThumbnailPaths(rowList)
   );
+  const tutorials = rowList.map((row) => toDashboardTutorial(row, signedUrlByPath));
   return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
 };
 
@@ -625,7 +688,7 @@ export const saveDashboardTutorial = async (
         throw new Error(legacyResult.error.message || "Failed to save dashboard tutorial.");
       }
 
-      const legacyTutorial = await toDashboardTutorial(supabaseAdmin, legacyResult.data);
+      const [legacyTutorial] = await serializeTutorialRows(supabaseAdmin, [legacyResult.data]);
       if (!legacyTutorial) {
         throw new Error("Saved dashboard tutorial payload is invalid.");
       }
@@ -634,7 +697,7 @@ export const saveDashboardTutorial = async (
     throw new Error(result.error.message || "Failed to save dashboard tutorial.");
   }
 
-  const tutorial = await toDashboardTutorial(supabaseAdmin, result.data);
+  const [tutorial] = await serializeTutorialRows(supabaseAdmin, [result.data]);
   if (!tutorial) {
     throw new Error("Saved dashboard tutorial payload is invalid.");
   }

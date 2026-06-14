@@ -47,7 +47,7 @@ describe("ReportIssuePage", () => {
   it("shows the same captured context that it submits to the API", async () => {
     render(<ReportIssuePage />);
 
-    expect(screen.getByText("Captured context")).toBeInTheDocument();
+    expect(screen.getByText(/Captured context:/)).toBeInTheDocument();
     expect(screen.getByText("/dashboard")).toBeInTheDocument();
     expect(screen.queryByText("Route context")).not.toBeInTheDocument();
 
@@ -70,7 +70,7 @@ describe("ReportIssuePage", () => {
     });
 
     expect(
-      await screen.findByText("Your report was sent to the ShortPulse admins. Thank you.")
+      await screen.findByText("Report sent. It is now in the admin Reports queue.")
     ).toBeInTheDocument();
   });
 });

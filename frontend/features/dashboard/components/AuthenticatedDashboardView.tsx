@@ -129,6 +129,7 @@ export function AuthenticatedDashboardView({
                   href="/onboarding"
                   className="hero-onboarding"
                   aria-label="Onboarding Courses: Guided walkthroughs for Creator Studio workflows"
+                  prefetch={false}
                 >
                   <div>
                     <p className="eyebrow tiny">Quick start</p>
@@ -144,6 +145,7 @@ export function AuthenticatedDashboardView({
                   href="/onboarding?section=workflows"
                   className="hero-onboarding hero-workflow-card"
                   aria-label="AI Workflow Lessons: Deep dives on creation playbooks and applied prompts"
+                  prefetch={false}
                 >
                   <div>
                     <p className="eyebrow tiny">Workflows</p>
@@ -190,6 +192,7 @@ export function AuthenticatedDashboardView({
                 tabIndex={tool.disabled ? -1 : undefined}
                 role="article"
                 aria-label={`${tool.title}: ${tool.description}`}
+                prefetch={false}
               >
                 {tool.image ? (
                   <div className="tool-card-hero">

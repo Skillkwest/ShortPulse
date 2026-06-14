@@ -1,3 +1,6 @@
+/**
+ * Operator issue-report queue for reviewing signed-in user submissions.
+ */
 import { useMemo, useState } from "react";
 import type { IssueReportStatus } from "../../../lib/issueReports";
 import type { AdminIssueReportRow, AdminIssueReportSummary, AdminPagination } from "../types";
@@ -69,21 +72,26 @@ export function AdminReportsPanel({
   const showingLabel = hasStoredReports
     ? `Showing ${reports.length} of ${reportSummary.totalCount} reports`
     : "No reports submitted yet";
+  const countFilters: Array<{
+    label: string;
+    value: "all" | IssueReportStatus;
+    count: number;
+  }> = [
+    { label: "All", value: "all", count: reportSummary.totalCount },
+    { label: "New", value: "new", count: reportSummary.newCount },
+    { label: "Reviewing", value: "reviewing", count: reportSummary.reviewingCount },
+    { label: "Resolved", value: "resolved", count: reportSummary.resolvedCount },
+  ];
 
   return (
     <>
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <p className={styles.adminSectionEyebrow}>Report Queue</p>
-            <h2 className={styles.adminSectionTitle}>Manual issue review</h2>
-            <p className={styles.adminReportsLead}>
-              Signed-in user reports land here with account linkage, so admins can review issues
-              without bouncing between inboxes.
-            </p>
+            <p className={styles.adminSectionEyebrow}>Reports</p>
+            <h2 className={styles.adminSectionTitle}>User issue queue</h2>
           </div>
           <div className={styles.adminReportsHeaderActions}>
-            <span className={styles.adminReportsMetaPill}>{showingLabel}</span>
             <button
               type="button"
               className="ghost-btn mini"
@@ -95,56 +103,36 @@ export function AdminReportsPanel({
           </div>
         </div>
 
-        <div className={styles.adminReportsSummaryGrid}>
-          <article className={styles.adminCard}>
-            <p className={styles.adminLabel}>Total reports</p>
-            <p className={styles.adminMetric}>{reportSummary.totalCount}</p>
-            <p className="tiny subdued">All stored issue reports</p>
-          </article>
-          <article className={styles.adminCard}>
-            <p className={styles.adminLabel}>New</p>
-            <p className={styles.adminMetric}>{reportSummary.newCount}</p>
-            <p className="tiny subdued">Still untouched in admin</p>
-          </article>
-          <article className={styles.adminCard}>
-            <p className={styles.adminLabel}>Reviewing</p>
-            <p className={styles.adminMetric}>{reportSummary.reviewingCount}</p>
-            <p className="tiny subdued">Actively being worked</p>
-          </article>
-          <article className={styles.adminCard}>
-            <p className={styles.adminLabel}>Resolved</p>
-            <p className={styles.adminMetric}>{reportSummary.resolvedCount}</p>
-            <p className="tiny subdued">Handled and documented</p>
-          </article>
+        <div className={styles.adminReportsSummaryStrip} aria-label="Report status filters">
+          {countFilters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              aria-label={`${filter.label} reports: ${filter.count}`}
+              className={[
+                styles.adminReportsStatButton,
+                reportStatusFilter === filter.value ? styles.adminReportsStatButtonActive : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => onReportStatusFilterChange(filter.value)}
+            >
+              <span>{filter.label}</span>
+              <strong>{filter.count}</strong>
+            </button>
+          ))}
         </div>
 
         <div className={styles.adminReportsToolbar}>
-          <div className={styles.filterGrid}>
-            <label className={styles.reportFilterField}>
-              <span className="tiny subdued">Status</span>
-              <select
-                className={styles.reportFilterSelect}
-                value={reportStatusFilter}
-                onChange={(event) =>
-                  onReportStatusFilterChange(event.target.value as "all" | IssueReportStatus)
-                }
-              >
-                <option value="all">All statuses</option>
-                <option value="new">New</option>
-                <option value="reviewing">Reviewing</option>
-                <option value="resolved">Resolved</option>
-              </select>
-            </label>
-            <label className={styles.reportFilterField}>
-              <span className="tiny subdued">Search</span>
-              <input
-                className={styles.searchInput}
-                value={reportSearch}
-                onChange={(event) => onReportSearchChange(event.target.value)}
-                placeholder="Search by email, user id, message, or path"
-              />
-            </label>
-          </div>
+          <label className={styles.reportFilterField}>
+            <span className="tiny subdued">Search reports</span>
+            <input
+              className={styles.searchInput}
+              value={reportSearch}
+              onChange={(event) => onReportSearchChange(event.target.value)}
+              placeholder="Email, user id, message, or path"
+            />
+          </label>
           {hasActiveFilters ? (
             <button
               type="button"
@@ -162,11 +150,9 @@ export function AdminReportsPanel({
         <div className={styles.adminTableShell}>
           <div className={styles.adminReportsTableMeta}>
             <div className={styles.adminReportsTableMetaBlock}>
-              <span className="tiny subdued">Queue view</span>
               <strong>{showingLabel}</strong>
             </div>
             <div className={styles.adminReportsTableMetaBlock}>
-              <span className="tiny subdued">Current filter</span>
               <strong>
                 {reportStatusFilter === "all" ? "All statuses" : statusLabel(reportStatusFilter)}
               </strong>

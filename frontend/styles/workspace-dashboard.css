@@ -805,6 +805,9 @@ button.hero-onboarding {
   display: grid;
   grid-template-rows: auto auto;
   align-content: start;
+  contain: layout paint style;
+  content-visibility: auto;
+  contain-intrinsic-size: 176px 176px;
   overflow: hidden;
   min-width: 0;
   padding: 0;

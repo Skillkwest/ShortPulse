@@ -528,7 +528,7 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByText("NSFW")).toBeNull();
   });
 
-  it("prefers detailed provider validation copy when the short failure label is generic", () => {
+  it("keeps provider validation detail out of compact failure subtitles", () => {
     render(
       <ReferenceGridCard
         {...createProps({
@@ -541,11 +541,11 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(screen.getByText("text must be 2000 characters or fewer.")).toBeInTheDocument();
-    expect(screen.queryByText("Generation failed", { selector: ".fail-subtitle" })).toBeNull();
+    expect(screen.getByText("Invalid request")).toBeInTheDocument();
+    expect(screen.queryByText("text must be 2000 characters or fewer.")).toBeNull();
   });
 
-  it("normalizes raw JSON validation detail before rendering the failure subtitle", () => {
+  it("keeps raw JSON validation detail out of compact failure subtitles", () => {
     render(
       <ReferenceGridCard
         {...createProps({
@@ -558,11 +558,12 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(screen.getByText("Prompt is required.")).toBeInTheDocument();
+    expect(screen.getByText("Invalid request")).toBeInTheDocument();
+    expect(screen.queryByText("Prompt is required.")).toBeNull();
     expect(screen.queryByText('{"detail"', { exact: false })).toBeNull();
   });
 
-  it("labels opaque upstream failures as provider-side with credit-release guidance", () => {
+  it("condenses opaque upstream failures for compact failure subtitles", () => {
     render(
       <ReferenceGridCard
         {...createProps({
@@ -577,11 +578,8 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(
-      screen.getByText(
-        "Kling 3.0 generation failed at the upstream provider. No ShortPulse credits are charged for provider-side failures; any temporary hold is released automatically. Please try again later."
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText("Kling 3.0 generation failed at t…")).toBeInTheDocument();
+    expect(screen.queryByText("No ShortPulse credits are charged", { exact: false })).toBeNull();
   });
 
   it("renders a loading spinner overlay when the card is loading", () => {

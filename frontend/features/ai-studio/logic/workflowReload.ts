@@ -571,6 +571,7 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
       ? normalizeLipSyncAudioStoragePath(value.lipSyncAudioStoragePath as string | null)
       : null;
   const videoReferences = normalizeVideoReferences(value.videoReferences);
+  const styleContext = normalizeStyleContext(value.styleContext);
   return {
     kind: "video",
     aspect,
@@ -582,6 +583,7 @@ const normalizeVideoPayload = (value: unknown): WorkflowReloadVideoPayload | nul
     autoFix: asBooleanOrNull(value.autoFix),
     referenceInputs: asStringArray(value.referenceInputs),
     internalMediaRefs: normalizeInternalRefs(value.internalMediaRefs),
+    ...(styleContext ? { styleContext } : {}),
     ...(videoReferences ? { videoReferences } : {}),
     motionReferenceVideoUrl: requestedMotionReferenceVideoUrl,
     lipSyncAudioUrl,

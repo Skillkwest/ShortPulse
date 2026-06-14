@@ -26,13 +26,8 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_TITLE,
 } from "../../../../lib/explicitContentFailure";
-import {
-  normalizeCustomerFacingProviderError,
-  normalizeProviderSideGenerationFailure,
-  resolveCustomerFacingModelLabel,
-} from "../../../../lib/customerFacingProviderText";
-import { resolveModelLabelById } from "../../../../lib/model-runtime/modelCatalog";
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
+import { resolveCompactErrorMessage } from "../../logic/errorPresentation";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
@@ -40,39 +35,6 @@ import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlay
 
 const HYDRATION_FALLBACK_LOADED_MS = 1500;
 const HYDRATION_MISSING_SOURCE_FALLBACK_MS = 6000;
-const GENERIC_FAILURE_MESSAGES = new Set([
-  "generation failed",
-  "invalid request",
-  "request failed",
-]);
-
-const normalizeFailureCopy = (value: string | null | undefined): string =>
-  (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-
-const resolveReferenceFailureSubtitle = (item: StudioOutput): string | null => {
-  const shortMessage = item.errorMessageShort?.trim() ?? "";
-  const detail = item.errorDetail?.trim() ?? "";
-  const message = item.errorMessage?.trim() ?? "";
-  const modelLabel = resolveCustomerFacingModelLabel({
-    model: item.model,
-    modelId: item.modelId,
-    resolveModelLabel: resolveModelLabelById,
-    fallback: "Generation",
-  });
-  const normalizeFailure = (value: string): string =>
-    normalizeProviderSideGenerationFailure({
-      rawFailure: value,
-      normalizedFailure: normalizeCustomerFacingProviderError(value, value),
-      modelLabel,
-    });
-  if (shortMessage && !GENERIC_FAILURE_MESSAGES.has(normalizeFailureCopy(shortMessage))) {
-    return normalizeFailure(shortMessage);
-  }
-  if (detail) return normalizeFailure(detail);
-  if (shortMessage) return normalizeFailure(shortMessage);
-  if (message) return normalizeFailure(message);
-  return null;
-};
 
 export type ReferenceGridCardProps = {
   item: StudioOutput;
@@ -270,7 +232,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       onDeleteOutput)
   );
   const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
-  const resolvedFailureSubtitle = isFailing ? resolveReferenceFailureSubtitle(item) : null;
+  const resolvedFailureSubtitle = isFailing ? resolveCompactErrorMessage(item) : null;
   const canDragReference = Boolean(item.previewText) || canDragReferenceOutput(item);
   const dragPreviewKind = isImagePreview
     ? "image"

@@ -1734,14 +1734,22 @@
 
 .edit-expert-stage-overlay-ui {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 8px;
+  right: 8px;
   z-index: 1005;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: calc(100% - 16px);
   pointer-events: auto;
 }
 
 .edit-expert-stage-delete-btn {
   position: relative;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 28px;
   opacity: 1;
   pointer-events: auto;
 }
@@ -1894,8 +1902,8 @@
 }
 
 .edit-expert-primary-column-header {
+  display: none;
   width: 100%;
-  display: flex;
   justify-content: flex-end;
   align-items: center;
   min-width: 0;
@@ -1913,7 +1921,8 @@
   width: auto;
   display: flex;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  gap: 6px;
   max-width: 100%;
 }
 
@@ -5211,12 +5220,16 @@
 }
 
 .edit-expert-stage-history-controls .edit-expert-move-history-btn {
+  height: 28px;
+  min-height: 28px;
   padding-inline: 10px;
 }
 
 .edit-expert-stage-history-controls .edit-expert-flip-action-btn {
   width: 30px;
+  height: 28px;
   min-width: 30px;
+  flex: 0 0 30px;
   padding-inline: 0;
 }
 

@@ -147,7 +147,7 @@ describe("admin pulse built-ins API", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error:
-        "expectedUpdatedAt is required so fallback catalog content cannot overwrite live built-ins.",
+        "expectedUpdatedAt is required so non-live catalog content cannot overwrite live built-ins.",
     });
   });
 

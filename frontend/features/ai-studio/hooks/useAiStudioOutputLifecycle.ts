@@ -268,11 +268,13 @@ export const useAiStudioOutputLifecycle = ({
     (outputId: string, message: string, detail?: string, context?: GenerationFailureContext) => {
       delete pendingAutoSavesRef.current[outputId];
       const outputContext = findOutputById(outputId);
+      const rawErrorPayload = context?.errorPayload ?? null;
+      const rawErrorDetail = detail ?? message;
       const safeMessage = normalizeErrorText(message, {
         fallback: "Generation failed",
         maxLength: 140,
       });
-      const safeDetail = normalizeErrorText(detail ?? message, {
+      const safeDetail = normalizeErrorText(rawErrorDetail, {
         fallback: safeMessage,
         maxLength: 320,
       });
@@ -282,7 +284,11 @@ export const useAiStudioOutputLifecycle = ({
       });
       const resolvedMessage = explicitContentFailure?.errorMessage ?? safeMessage;
       const resolvedShortMessage = explicitContentFailure?.errorMessageShort ?? safeMessage;
-      const resolvedDetail = explicitContentFailure?.errorDetail ?? safeDetail;
+      const resolvedDetail =
+        explicitContentFailure?.errorDetail ??
+        (typeof rawErrorDetail === "string" && rawErrorDetail.trim()
+          ? rawErrorDetail.trim()
+          : safeDetail);
       updateOutputById(outputId, (item) => {
         if (
           item.taskState === "fail" &&
@@ -290,7 +296,8 @@ export const useAiStudioOutputLifecycle = ({
           item.timestamp === "Failed" &&
           item.errorMessage === resolvedMessage &&
           item.errorMessageShort === resolvedShortMessage &&
-          item.errorDetail === resolvedDetail
+          item.errorDetail === resolvedDetail &&
+          item.errorPayload === rawErrorPayload
         ) {
           return item;
         }
@@ -302,6 +309,7 @@ export const useAiStudioOutputLifecycle = ({
           errorMessage: resolvedMessage,
           errorMessageShort: resolvedShortMessage,
           errorDetail: resolvedDetail,
+          errorPayload: rawErrorPayload,
         };
       });
       const telemetryMode = context?.telemetryMode ?? "incident";
@@ -315,6 +323,7 @@ export const useAiStudioOutputLifecycle = ({
           metadata: {
             output_id: outputId,
             detail: resolvedDetail,
+            error_payload: rawErrorPayload,
             model: outputContext?.model ?? null,
             model_id: outputContext?.modelId ?? null,
             provider: outputContext?.provider ?? null,

@@ -157,6 +157,7 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(repairStaleTerminalGenerationProjectionsMock).toHaveBeenCalledWith({
       supabaseAdmin: expect.any(Object),
       limit: 10,
+      onAssociationFailure: expect.any(Function),
     });
     expect(processPendingAudioCompanionArtBatchMock).toHaveBeenCalledWith({
       limit: 6,
@@ -172,6 +173,9 @@ describe("runGenerationControlPlaneCycle", () => {
         claimed: 0,
         reservationCleanupScanned: 2,
         reservationCleanupReleased: 1,
+        projectionRepairScanned: 0,
+        projectionRepairRepaired: 0,
+        projectionRepairSkipped: 0,
         audioCompanionArtClaimed: 0,
         audioCompanionArtProcessed: 0,
         audioCompanionArtReady: 0,
@@ -252,6 +256,7 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(repairStaleTerminalGenerationProjectionsMock).toHaveBeenCalledWith({
       supabaseAdmin: expect.any(Object),
       limit: 10,
+      onAssociationFailure: expect.any(Function),
     });
     expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
       supabaseAdmin: expect.any(Object),
@@ -260,6 +265,59 @@ describe("runGenerationControlPlaneCycle", () => {
       minAgeSeconds: 0,
       leaseSeconds: expect.any(Number),
     });
+  });
+
+  it("surfaces projection repair metrics and logs project association repair failures", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+    repairStaleTerminalGenerationProjectionsMock.mockImplementationOnce(
+      async ({ onAssociationFailure }) => {
+        await onAssociationFailure({
+          stage: "media",
+          userId: "user-1",
+          projectId: "project-1",
+          generationId: "generation-1",
+          mediaFileIds: ["media-1"],
+          error: new Error("association failed"),
+        });
+        return {
+          scanned: 3,
+          repaired: 2,
+          skipped: 1,
+        };
+      }
+    );
+
+    const result = await runGenerationControlPlaneCycle({
+      context: {
+        routeLabel: "worker/generation-control-plane",
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        projectionRepairScanned: 3,
+        projectionRepairRepaired: 2,
+        projectionRepairSkipped: 1,
+      })
+    );
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.any(Error),
+        routeLabel: "worker/generation-control-plane",
+        metadata: expect.objectContaining({
+          stage: "projection_repair_project_association",
+          association_stage: "media",
+          user_id: "user-1",
+          project_id: "project-1",
+          generation_id: "generation-1",
+          media_file_ids: ["media-1"],
+        }),
+      })
+    );
   });
 
   it("keeps the primary cycle on accepted-generation recovery", async () => {

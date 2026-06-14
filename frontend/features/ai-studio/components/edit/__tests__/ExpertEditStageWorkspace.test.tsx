@@ -16,6 +16,7 @@ describe("ExpertEditStageWorkspace", () => {
     render(
       <ExpertEditStageWorkspace
         sidebar={null}
+        inlineStageHeaderControls={<button type="button">Undo</button>}
         hasPrimaryCompositePreview
         selectedLayerName="Layer 1"
         onDeleteSelectedLayer={onDeleteSelectedLayer}
@@ -110,6 +111,8 @@ describe("ExpertEditStageWorkspace", () => {
     );
 
     const deleteButton = screen.getByRole("button", { name: "Delete selected layer (Layer 1)" });
+    const overlayRow = deleteButton.closest(".edit-expert-stage-overlay-ui");
+    expect(overlayRow).toContainElement(screen.getByRole("button", { name: "Undo" }));
     expect(deleteButton).toHaveClass("edit-expert-stage-delete-btn");
     expect(deleteButton).not.toHaveClass("edit-expert-layer-delete-btn");
 

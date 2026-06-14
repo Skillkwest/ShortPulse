@@ -130,17 +130,26 @@ export function PublicDashboardRoute({
           actionSlot={
             <div className="public-dashboard-actions" aria-label="Guest actions">
               <div className="public-dashboard-auth-column">
-                <Link href={loginHref} className="public-dashboard-action public-dashboard-login">
+                <Link
+                  href={loginHref}
+                  className="public-dashboard-action public-dashboard-login"
+                  prefetch={false}
+                >
                   Login
                 </Link>
                 <Link
                   href={pricingHref}
                   className="public-dashboard-action public-dashboard-pricing"
+                  prefetch={false}
                 >
                   Pricing
                 </Link>
               </div>
-              <Link href={signupHref} className="public-dashboard-action public-dashboard-signup">
+              <Link
+                href={signupHref}
+                className="public-dashboard-action public-dashboard-signup"
+                prefetch={false}
+              >
                 Sign up
               </Link>
             </div>

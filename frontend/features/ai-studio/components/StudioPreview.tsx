@@ -7,7 +7,7 @@ import { ArrowClockwise, CloudArrowUp, ImageSquare, UploadSimple } from "phospho
 import { AppMessage } from "../../../components/AppMessage";
 import { StudioOutput } from "../types";
 import { isVideoUrl } from "../logic/stateParsers";
-import { normalizeCustomerFacingProviderError } from "../../../lib/customerFacingProviderText";
+import { resolveCompactErrorMessage } from "../logic/errorPresentation";
 
 type StudioPreviewProps = {
   activeOutput: StudioOutput | null;
@@ -49,12 +49,8 @@ function StudioPreviewComponent({
     previewMedia && activeOutput?.mode !== "image" && isVideoUrl(previewMedia)
   );
   const taskState = activeOutput?.taskState;
-  const errorMessage = activeOutput
-    ? normalizeCustomerFacingProviderError(
-        activeOutput.errorMessageShort ?? activeOutput.errorMessage,
-        ""
-      )
-    : null;
+  const errorMessage =
+    activeOutput && taskState === "fail" ? resolveCompactErrorMessage(activeOutput) : null;
   const handleReferenceDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (preventFileDrop(event)) {
       const files = event.dataTransfer.files;

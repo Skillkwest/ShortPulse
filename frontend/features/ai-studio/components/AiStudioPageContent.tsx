@@ -14,16 +14,7 @@ import {
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AppMessage } from "../../../components/AppMessage";
-import {
-  EXPLICIT_CONTENT_FAILURE_DETAIL,
-  isExplicitContentFailureMessage,
-} from "../../../lib/explicitContentFailure";
-import {
-  normalizeCustomerFacingProviderError,
-  normalizeProviderSideGenerationFailure,
-  resolveCustomerFacingModelLabel,
-} from "../../../lib/customerFacingProviderText";
-import { resolveModelLabelById } from "../../../lib/model-runtime/modelCatalog";
+import { normalizeCustomerFacingProviderError } from "../../../lib/customerFacingProviderText";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { PresetsPanelLoader } from "./PresetsPanelLoader";
@@ -64,6 +55,7 @@ import type { MediaFileRow } from "../logic/mediaLibraryModalModel";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isCharacterShellTool, isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { isSoundWorkflow } from "../logic/workflowIdentity";
+import { resolveAiStudioErrorPresentation } from "../logic/errorPresentation";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
   PERF_FLAG_SHELL_DECOUPLE,
@@ -127,7 +119,14 @@ import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 
 type FailureCard = Pick<
   StudioOutput,
-  "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorMessageShort" | "errorDetail"
+  | "id"
+  | "model"
+  | "modelId"
+  | "prompt"
+  | "errorMessage"
+  | "errorMessageShort"
+  | "errorDetail"
+  | "errorPayload"
 >;
 
 type GroupedFailureCard = {
@@ -538,42 +537,14 @@ const AiStudioAlertBanner = ({
 const normalizeAlertText = (value: string | null | undefined): string =>
   (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
-const GENERIC_GENERATION_FAILURE_LABELS = new Set([
-  "generation failed",
-  "invalid request",
-  "request failed",
-]);
-
 export const groupVisibleFailuresForAlertStack = (
   visibleFailures: FailureCard[]
 ): GroupedFailureCard[] => {
   const grouped = new Map<string, GroupedFailureCard>();
   visibleFailures.forEach((item) => {
-    const modelLabel = resolveCustomerFacingModelLabel({
-      model: item.model,
-      modelId: item.modelId,
-      resolveModelLabel: resolveModelLabelById,
-      fallback: "Generation",
-    });
-    const isExplicitContentFailure =
-      isExplicitContentFailureMessage(item.errorDetail) ||
-      isExplicitContentFailureMessage(item.errorMessage) ||
-      isExplicitContentFailureMessage(item.errorMessageShort);
-    const normalizedShortFailure = normalizeAlertText(item.errorMessageShort);
-    const rawFailureMessage = isExplicitContentFailure
-      ? EXPLICIT_CONTENT_FAILURE_DETAIL
-      : normalizedShortFailure && !GENERIC_GENERATION_FAILURE_LABELS.has(normalizedShortFailure)
-        ? item.errorMessageShort
-        : (item.errorDetail ?? item.errorMessage ?? item.errorMessageShort ?? "Generation failed");
-    const normalizedFailureMessage = normalizeCustomerFacingProviderError(
-      rawFailureMessage,
-      "Generation failed"
-    );
-    const failureMessage = normalizeProviderSideGenerationFailure({
-      rawFailure: rawFailureMessage,
-      normalizedFailure: normalizedFailureMessage,
-      modelLabel,
-    });
+    const presentation = resolveAiStudioErrorPresentation(item);
+    const modelLabel = presentation.modelLabel;
+    const failureMessage = presentation.bannerMessage;
     const groupKey = `${normalizeAlertText(modelLabel)}::${normalizeAlertText(failureMessage)}`;
     const existing = grouped.get(groupKey);
     if (existing) {
@@ -603,19 +574,10 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   const suppressUiErrorForFailureStack =
     normalizedUiError.length > 0 &&
     visibleFailures.some((item) => {
-      const modelLabel = resolveCustomerFacingModelLabel({
-        model: item.model,
-        modelId: item.modelId,
-        resolveModelLabel: resolveModelLabelById,
-        fallback: "Generation",
-      });
-      const detail = normalizeCustomerFacingProviderError(
-        item.errorDetail ?? item.errorMessage ?? "",
-        ""
-      );
-      const normalizedDetail = normalizeAlertText(detail);
+      const presentation = resolveAiStudioErrorPresentation(item);
+      const normalizedDetail = normalizeAlertText(presentation.bannerMessage);
       if (!normalizedDetail) return false;
-      const normalizedModelLabel = normalizeAlertText(modelLabel);
+      const normalizedModelLabel = normalizeAlertText(presentation.modelLabel);
       return (
         normalizedUiError === normalizedDetail ||
         normalizedUiError === `${normalizedModelLabel} failed: ${normalizedDetail}`

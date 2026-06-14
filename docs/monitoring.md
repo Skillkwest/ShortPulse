@@ -176,6 +176,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - observation inbox: `observationClaimed`, `observationProcessed`, `observationIgnored`, `observationFailed`, `observationErrors`
   - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
   - audio companion art: `audioCompanionArtClaimed`, `audioCompanionArtProcessed`, `audioCompanionArtReady`, `audioCompanionArtFailed`, `audioCompanionArtSkipped`, `audioCompanionArtErrors`
+  - projection repair counts: `projectionRepairScanned`, `projectionRepairRepaired`, `projectionRepairSkipped`
   - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`, `stageTimings.projectionRepair.durationMs`, `stageTimings.audioCompanionArtProcessing.durationMs`
 - Convergence target:
   - no sustained active workload (`claimed`, `requeued` no longer persistently elevated),

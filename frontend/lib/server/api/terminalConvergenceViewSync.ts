@@ -288,6 +288,7 @@ export const syncTerminalFailureViewState = async ({
   abandoned,
   completedAt,
   errorDetail,
+  errorPayload,
   errorMessage,
   errorMessageShort,
   projectionLatestAttemptId,
@@ -298,6 +299,7 @@ export const syncTerminalFailureViewState = async ({
   abandoned: boolean;
   completedAt: string;
   errorDetail: string;
+  errorPayload?: unknown;
   errorMessage: string;
   errorMessageShort: string;
   projectionLatestAttemptId?: string | null;
@@ -338,6 +340,7 @@ export const syncTerminalFailureViewState = async ({
       errorMessage,
       errorMessageShort,
       errorDetail,
+      ...(errorPayload !== undefined ? { errorPayload } : {}),
       saveState: "idle",
       hiddenInReferenceGrid,
       referenceGridVisible,

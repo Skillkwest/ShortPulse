@@ -80,6 +80,10 @@ describe("GET /api/dashboard/tutorials", () => {
 
     expect(fromMock).toHaveBeenCalledWith("dashboard_tutorials");
     expect(eqMock).toHaveBeenCalledWith("is_active", true);
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Cache-Control",
+      "public, max-age=60, s-maxage=300, stale-while-revalidate=3600"
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       tutorials: [
@@ -192,30 +196,25 @@ describe("GET /api/dashboard/tutorials", () => {
         updated_at: "2026-06-10T00:00:00.000Z",
       },
     ]);
-    const createSignedUrlMock = vi.fn(async (path: string) => ({
-      data: { signedUrl: `https://supabase.example.com/${path}` },
+    const createSignedUrlsMock = vi.fn(async (paths: string[]) => ({
+      data: paths.map((path) => ({ path, signedUrl: `https://supabase.example.com/${path}` })),
       error: null,
     }));
     getSupabaseAdminMock.mockReturnValue({
       ...client,
-      storage: { from: vi.fn(() => ({ createSignedUrl: createSignedUrlMock })) },
+      storage: { from: vi.fn(() => ({ createSignedUrls: createSignedUrlsMock })) },
     });
 
     const req = { method: "GET" };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(
-      "tutorial-thumbnail-variants/variant/display.mp4",
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(
+      [
+        "tutorial-thumbnail-variants/variant/display.mp4",
+        "tutorial-thumbnail-variants/variant/poster.jpg",
+      ],
       86400
-    );
-    expect(createSignedUrlMock).toHaveBeenCalledWith(
-      "tutorial-thumbnail-variants/variant/poster.jpg",
-      86400
-    );
-    expect(createSignedUrlMock).not.toHaveBeenCalledWith(
-      "tutorial-thumbnails/source.gif",
-      expect.any(Number)
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({

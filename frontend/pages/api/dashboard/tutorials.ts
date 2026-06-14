@@ -18,6 +18,9 @@ type DashboardTutorialsErrorResponse = {
   error: string;
 };
 
+const DASHBOARD_TUTORIALS_CACHE_CONTROL =
+  "public, max-age=60, s-maxage=300, stale-while-revalidate=3600";
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<DashboardTutorialsResponse | DashboardTutorialsErrorResponse>
@@ -30,6 +33,7 @@ export default async function handler(
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const tutorials = await readActiveDashboardTutorials(supabaseAdmin);
+    res.setHeader("Cache-Control", DASHBOARD_TUTORIALS_CACHE_CONTROL);
     return res.status(200).json({ tutorials });
   } catch (error) {
     await logApiRouteException({

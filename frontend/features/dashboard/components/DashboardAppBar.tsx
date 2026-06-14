@@ -41,7 +41,12 @@ export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: Dashboar
   return (
     <header className="app-bar">
       {brandHref ? (
-        <Link href={brandHref} className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
+        <Link
+          href={brandHref}
+          className="brand-mark brand-mark-logo"
+          aria-label="ShortPulse home"
+          prefetch={false}
+        >
           {brandLogo}
         </Link>
       ) : (
@@ -70,6 +75,7 @@ export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: Dashboar
                   href={item.href}
                   className="header-stat-card header-stat-card-link"
                   aria-label={`${item.label}: ${item.value}`}
+                  prefetch={false}
                 >
                   {cardBody}
                 </Link>

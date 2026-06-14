@@ -9,7 +9,7 @@ import { getSupabaseAdmin } from "./api/supabaseAdmin";
 const DEFAULT_PROJECT_TITLE = "Untitled project";
 const PROJECT_TITLE_MAX_LENGTH = 120;
 const DEFAULT_PROJECT_LIST_LIMIT = 6;
-const MAX_PROJECT_LIST_LIMIT = 24;
+export const MAX_PROJECT_LIST_LIMIT = 24;
 const PROJECT_LIST_ALL = "all";
 const MEDIA_BUCKET = "media_library";
 const PROJECT_PREVIEW_SIGNED_URL_TTL_SECONDS = 3600;
@@ -346,6 +346,15 @@ export const parseProjectListLimit = (value: unknown): ProjectListLimit | null =
   return parsed;
 };
 
+export const parseProjectListOffset = (value: unknown): number | null => {
+  if (value == null || value === "") return 0;
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string") return null;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 0) return null;
+  return parsed;
+};
+
 export const createProjectForUser = async ({
   userId,
   title,
@@ -397,9 +406,11 @@ export const getProjectForUser = async ({
 export const listProjectsForUser = async ({
   userId,
   limit = DEFAULT_PROJECT_LIST_LIMIT,
+  offset = 0,
 }: {
   userId: string;
   limit?: ProjectListLimit;
+  offset?: number;
 }): Promise<ProjectRecord[]> => {
   const supabaseAdmin = getSupabaseAdmin();
   let query = supabaseAdmin
@@ -411,7 +422,8 @@ export const listProjectsForUser = async ({
 
   if (limit !== PROJECT_LIST_ALL) {
     const safeLimit = Math.max(1, Math.min(Math.trunc(limit), MAX_PROJECT_LIST_LIMIT));
-    query = query.limit(safeLimit);
+    const safeOffset = Math.max(0, Math.trunc(offset));
+    query = query.range(safeOffset, safeOffset + safeLimit - 1);
   }
 
   const { data, error } = await query;
@@ -495,21 +507,25 @@ export const listProjectsForUser = async ({
     pathsToSign.forEach((path) => {
       signedUrlByPath.set(path, null);
     });
-    await Promise.all(
-      pathsToSign.map(async (path) => {
-        const { data, error } = await storage.createSignedUrl(
-          path,
-          PROJECT_PREVIEW_SIGNED_URL_TTL_SECONDS
-        );
-        if (error) return;
+    const { data, error } = await storage.createSignedUrls(
+      pathsToSign,
+      PROJECT_PREVIEW_SIGNED_URL_TTL_SECONDS
+    );
+    if (!error) {
+      (Array.isArray(data) ? data : []).forEach((signedUrlResult, index) => {
+        const result = signedUrlResult as { path?: unknown; signedUrl?: unknown };
+        const path =
+          typeof result.path === "string" && result.path.length > 0
+            ? result.path
+            : pathsToSign[index];
         signedUrlByPath.set(
           path,
-          typeof data?.signedUrl === "string" && data.signedUrl.trim().length > 0
-            ? data.signedUrl
+          typeof result.signedUrl === "string" && result.signedUrl.trim().length > 0
+            ? result.signedUrl
             : null
         );
-      })
-    );
+      });
+    }
   }
 
   previewCandidatesByProjectId.forEach((candidates, projectId) => {

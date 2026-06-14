@@ -4422,13 +4422,6 @@
   margin: 8px 0 12px;
 }
 
-.adminReportsLead {
-  margin: 6px 0 0;
-  max-width: 720px;
-  color: var(--admin-text-muted);
-  line-height: 1.5;
-}
-
 .adminReportsHeaderActions {
   display: flex;
   align-items: center;
@@ -4437,25 +4430,49 @@
   justify-content: flex-end;
 }
 
-.adminReportsMetaPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 11px;
-  border-radius: 999px;
-  border: 1px solid var(--admin-border);
-  background: rgba(255, 255, 255, 0.025);
-  color: var(--admin-text);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.adminReportsSummaryGrid {
+.adminReportsSummaryStrip {
   display: grid;
   grid-template-columns: repeat(4, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.adminReportsStatButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 8px;
+  background: var(--admin-surface-2);
+  color: var(--admin-text);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.adminReportsStatButton span {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.adminReportsStatButton strong {
+  color: var(--admin-text-strong);
+  font-size: 18px;
+}
+
+.adminReportsStatButton:hover {
+  border-color: var(--admin-border);
+  background: var(--admin-surface-3);
+}
+
+.adminReportsStatButtonActive {
+  border-color: var(--admin-accent-border);
+  background: var(--admin-accent-soft);
 }
 
 .adminReportsToolbar {
@@ -4463,7 +4480,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .reportFilterField {
@@ -4471,32 +4488,7 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-}
-
-.reportFilterSelect {
-  appearance: none;
-  width: 100%;
-  padding: 10px 38px 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--admin-border);
-  background:
-    linear-gradient(45deg, transparent 50%, var(--admin-text-muted) 50%),
-    linear-gradient(135deg, var(--admin-text-muted) 50%, transparent 50%), var(--admin-surface-1);
-  background-position:
-    calc(100% - 18px) calc(50% - 2px),
-    calc(100% - 12px) calc(50% - 2px),
-    0 0;
-  background-size:
-    6px 6px,
-    6px 6px,
-    100% 100%;
-  background-repeat: no-repeat;
-  color: var(--admin-text-strong);
-}
-
-.reportFilterSelect:focus {
-  outline: none;
-  border-color: var(--admin-focus);
+  flex: 1 1 320px;
 }
 
 .adminReportsTableMeta {
@@ -4504,7 +4496,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  color: var(--admin-text-muted);
 }
 
 .adminReportsTableMetaBlock {
@@ -4610,29 +4603,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 88px;
-  padding: 5px 10px;
+  min-width: 82px;
+  padding: 4px 8px;
   border-radius: 999px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--admin-border-soft);
   font-size: 12px;
   font-weight: 700;
 }
 
 .reportStatusNew {
-  border-color: var(--admin-accent-border);
-  background: var(--admin-accent-soft);
-  color: var(--admin-accent-text);
+  border-color: var(--admin-border);
+  background: transparent;
+  color: var(--admin-text-strong);
 }
 
 .reportStatusReviewing {
-  border-color: var(--admin-warning-border-strong);
-  background: var(--admin-warning-soft);
+  border-color: var(--admin-warning-border);
+  background: transparent;
   color: var(--admin-warning-text);
 }
 
 .reportStatusResolved {
-  border-color: rgba(88, 193, 132, 0.46);
-  background: rgba(88, 193, 132, 0.1);
+  border-color: rgba(88, 193, 132, 0.34);
+  background: transparent;
   color: #d7ffe6;
 }
 
@@ -4640,7 +4633,7 @@
   width: 100%;
   min-height: 120px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--admin-border);
   background: rgba(8, 10, 14, 0.72);
   color: var(--admin-text-strong);
@@ -4677,10 +4670,10 @@
   display: grid;
   gap: 10px;
   padding: 16px;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid var(--admin-border-strong);
   background: var(--admin-surface-2);
-  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
 }
 
 .adminModalGrid {
@@ -4694,7 +4687,7 @@
   max-height: 280px;
   overflow: auto;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--admin-border-soft);
   background: rgba(8, 10, 14, 0.72);
   color: var(--admin-text-strong);
@@ -4718,8 +4711,8 @@
 }
 
 .adminTableRowButton:hover {
-  border-color: var(--admin-focus);
-  transform: translateY(-1px);
+  border-color: var(--admin-border);
+  transform: none;
   box-shadow: none;
 }
 
@@ -4760,8 +4753,8 @@
     flex-direction: column;
   }
 
-  .adminReportsSummaryGrid {
-    grid-template-columns: 1fr;
+  .adminReportsSummaryStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .adminReportsHead,

@@ -45,7 +45,7 @@ export function DashboardQuickActionCard({
 
   if (href) {
     return (
-      <Link href={href} className={className} aria-label={ariaLabel}>
+      <Link href={href} className={className} aria-label={ariaLabel} prefetch={false}>
         {content}
       </Link>
     );

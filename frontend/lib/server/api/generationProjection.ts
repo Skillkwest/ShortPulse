@@ -3,6 +3,14 @@ import { readPersistedGenerationOutputs } from "./generationOutputs";
 import { readMediaDeliveryPathsById } from "./mediaDeliveryPaths";
 import { upsertGenerationPublication } from "./generationPublications";
 import { toErrorMessage } from "./errorMessage";
+import {
+  associateGenerationWithProjectForUser,
+  associateMediaFilesWithProjectForUser,
+} from "../projectGenerationAssociationsService";
+import {
+  readGenerationProjectIdFromContext,
+  readGenerationWorkspaceRuntimeKeyFromMetadata,
+} from "./generationWorkspaceRuntimeKey";
 
 type JsonObject = Record<string, unknown>;
 
@@ -33,6 +41,7 @@ export type UpsertGenerationProjectionInput = {
   errorMessage?: string | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
+  errorPayload?: unknown;
   saveState?: string | null;
   saveError?: string | null;
   hiddenInReferenceGrid?: boolean;
@@ -76,6 +85,7 @@ export type GenerationProjectionStatusContext = {
   queueState: string | null;
   errorMessageShort: string | null;
   errorDetail: string | null;
+  errorPayload: unknown | null;
   saveState: string | null;
   saveError: string | null;
 };
@@ -92,6 +102,7 @@ export type GenerationProjectionQueueContext = {
   queueState: string | null;
   errorMessageShort: string | null;
   errorDetail: string | null;
+  errorPayload: unknown | null;
 };
 
 export type GenerationProjectionLink = {
@@ -107,6 +118,7 @@ export type GenerationProjectionOwnershipContext = {
 type RepairableProjectionRow = {
   generationId: string;
   userId: string;
+  projectId: string | null;
   workspaceRuntimeKey: string | null;
   sourceRef: string | null;
   requestId: string | null;
@@ -124,6 +136,7 @@ type RepairableProjectionRow = {
   characterContext: JsonObject;
   styleContext: JsonObject;
   startedAt: string | null;
+  taskState: string | null;
 };
 
 type RepairableGenerationRow = {
@@ -137,6 +150,8 @@ type RepairableGenerationRow = {
   failureReasonCode: string | null;
   errorMessage: string | null;
   completedAt: string | null;
+  createdAt: string | null;
+  metadata: JsonObject;
 };
 
 export type TerminalGenerationProjectionRepairMetrics = {
@@ -145,11 +160,23 @@ export type TerminalGenerationProjectionRepairMetrics = {
   skipped: number;
 };
 
+type TerminalGenerationProjectionAssociationFailureStage = "generation" | "media";
+
+type TerminalGenerationProjectionAssociationFailure = {
+  stage: TerminalGenerationProjectionAssociationFailureStage;
+  userId: string;
+  projectId: string;
+  generationId: string;
+  mediaFileIds?: string[];
+  error: unknown;
+};
+
 const OPTIONAL_GENERATION_PROJECTION_COLUMNS = [
   "workspace_runtime_key",
   "workflow_reload",
   "save_error",
   "display_title",
+  "error_payload",
 ] as const;
 
 type OptionalGenerationProjectionColumn = (typeof OPTIONAL_GENERATION_PROJECTION_COLUMNS)[number];
@@ -178,6 +205,7 @@ const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow |
   return {
     generationId,
     userId,
+    projectId: asString(row.project_id),
     workspaceRuntimeKey: asString(row.workspace_runtime_key),
     sourceRef: asString(row.source_ref),
     requestId: asString(row.request_id),
@@ -195,6 +223,7 @@ const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow |
     characterContext: asObject(row.character_context),
     styleContext: asObject(row.style_context),
     startedAt: asString(row.started_at),
+    taskState: asString(row.task_state),
   };
 };
 
@@ -216,7 +245,139 @@ const parseRepairableGenerationRow = (value: unknown): RepairableGenerationRow |
     failureReasonCode: asString(row.failure_reason_code),
     errorMessage: asString(row.error_message),
     completedAt: asString(row.completed_at),
+    createdAt: asString(row.created_at),
+    metadata: asObject(row.metadata),
   };
+};
+
+const readMetadataObject = (metadata: JsonObject, ...keys: string[]): JsonObject => {
+  for (const key of keys) {
+    const value = metadata[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as JsonObject;
+    }
+  }
+  return {};
+};
+
+const readRepairProjectIdFromMetadata = (metadata: JsonObject): string | null =>
+  readGenerationProjectIdFromContext(
+    readMetadataObject(metadata, "shortpulse_context", "shortpulseContext")
+  );
+
+const isTerminalProjectionTaskState = (value: string | null): boolean => {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === "success" || normalized === "fail";
+};
+
+const resolveRepairProjectId = ({
+  generation,
+  projection,
+}: {
+  generation: RepairableGenerationRow;
+  projection: RepairableProjectionRow | null;
+}): string | null => projection?.projectId ?? readRepairProjectIdFromMetadata(generation.metadata);
+
+const resolveRepairWorkspaceRuntimeKey = ({
+  generation,
+  projection,
+}: {
+  generation: RepairableGenerationRow;
+  projection: RepairableProjectionRow | null;
+}): string | null =>
+  projection?.workspaceRuntimeKey ??
+  readGenerationWorkspaceRuntimeKeyFromMetadata(generation.metadata);
+
+const resolveRepairSourceRef = ({
+  generation,
+  projection,
+}: {
+  generation: RepairableGenerationRow;
+  projection: RepairableProjectionRow | null;
+}): string | null => projection?.sourceRef ?? asString(generation.metadata.source_ref);
+
+const buildRepairProjectionFallback = ({
+  generation,
+  projection,
+}: {
+  generation: RepairableGenerationRow;
+  projection: RepairableProjectionRow | null;
+}): RepairableProjectionRow => {
+  const metadata = generation.metadata;
+  return {
+    generationId: generation.generationId,
+    userId: generation.userId,
+    projectId: readRepairProjectIdFromMetadata(metadata),
+    workspaceRuntimeKey: readGenerationWorkspaceRuntimeKeyFromMetadata(metadata),
+    sourceRef: asString(metadata.source_ref),
+    requestId: generation.requestId,
+    provider: generation.provider,
+    providerRequestId: generation.requestId,
+    latestAttemptId: null,
+    displayPrompt: generation.promptText,
+    displayTitle: null,
+    transcriptText: null,
+    modelId: generation.modelId,
+    hiddenInReferenceGrid: false,
+    referenceGridVisible: true,
+    generationReplay: readMetadataObject(metadata, "generation_replay", "generationReplay"),
+    workflowReload: readMetadataObject(metadata, "workflow_reload", "workflowReload"),
+    characterContext: readMetadataObject(metadata, "character_context", "characterContext"),
+    styleContext: readMetadataObject(metadata, "style_context", "styleContext"),
+    startedAt: generation.createdAt,
+    taskState: projection?.taskState ?? null,
+  };
+};
+
+const readRepairableProjectionRowsWithFallback = async ({
+  selectColumns,
+  runSelect,
+}: {
+  selectColumns: readonly string[];
+  runSelect: (columns: readonly string[]) => Promise<{ data: unknown; error: unknown }>;
+}): Promise<RepairableProjectionRow[]> => {
+  let activeColumns = [...selectColumns];
+  const omittedOptionalColumns = new Set<OptionalGenerationProjectionColumn>();
+  while (true) {
+    const response = await runSelect(activeColumns);
+    const missingColumn = resolveMissingOptionalProjectionColumn(response.error);
+    if (!response.error) {
+      return Array.isArray(response.data)
+        ? response.data
+            .map((row) => parseRepairableProjectionRow(row))
+            .filter((row): row is RepairableProjectionRow => Boolean(row))
+        : [];
+    }
+    if (
+      !missingColumn ||
+      omittedOptionalColumns.has(missingColumn) ||
+      !activeColumns.includes(missingColumn)
+    ) {
+      throw response.error;
+    }
+    omittedOptionalColumns.add(missingColumn);
+    activeColumns = activeColumns.filter((column) => column !== missingColumn);
+  }
+};
+
+const loadRepairableProjectionRowsByGenerationIds = async ({
+  adminClient,
+  generationIds,
+  selectColumns,
+}: {
+  adminClient: ReturnType<typeof getSupabaseAdmin>;
+  generationIds: string[];
+  selectColumns: readonly string[];
+}): Promise<RepairableProjectionRow[]> => {
+  if (!generationIds.length) return [];
+  return await readRepairableProjectionRowsWithFallback({
+    selectColumns,
+    runSelect: async (columns) =>
+      await adminClient
+        .from("generation_projection")
+        .select(columns.join(", "))
+        .in("generation_id", generationIds),
+  });
 };
 
 const readFailedProjectionMessage = (
@@ -296,6 +457,7 @@ export const upsertGenerationProjection = async ({
   errorMessage,
   errorMessageShort,
   errorDetail,
+  errorPayload,
   saveState,
   saveError,
   hiddenInReferenceGrid,
@@ -351,6 +513,12 @@ export const upsertGenerationProjection = async ({
     started_at: startedAt,
     completed_at: completedAt,
   };
+
+  if (errorPayload !== undefined) {
+    payload.error_payload = errorPayload;
+  } else if (taskState === "success") {
+    payload.error_payload = null;
+  }
 
   for (const [key, value] of Object.entries(stringFields)) {
     if (value === null) {
@@ -421,7 +589,7 @@ export const readGenerationProjectionStatusContext = async ({
     const { data, error } = await adminClient
       .from("generation_projection")
       .select(
-        "generation_id, result_urls, publication_state, status, task_state, queue_state, error_message_short, error_detail, save_state, save_error, updated_at"
+        "generation_id, result_urls, publication_state, status, task_state, queue_state, error_message_short, error_detail, error_payload, save_state, save_error, updated_at"
       )
       .eq("user_id", userId)
       .eq(column, requestId)
@@ -443,6 +611,7 @@ export const readGenerationProjectionStatusContext = async ({
         queueState: asString(row.queue_state),
         errorMessageShort: asString(row.error_message_short),
         errorDetail: asString(row.error_detail),
+        errorPayload: row.error_payload ?? null,
         saveState: asString(row.save_state),
         saveError: asString(row.save_error),
       };
@@ -483,6 +652,7 @@ export const readGenerationProjectionQueueContext = async ({
         "queue_state",
         "error_message_short",
         "error_detail",
+        "error_payload",
       ].join(", ")
     )
     .eq("user_id", userId)
@@ -507,6 +677,7 @@ export const readGenerationProjectionQueueContext = async ({
     queueState: asString(row.queue_state),
     errorMessageShort: asString(row.error_message_short),
     errorDetail: asString(row.error_detail),
+    errorPayload: row.error_payload ?? null,
   };
 };
 
@@ -698,11 +869,15 @@ export const repairStaleTerminalGenerationProjections = async ({
   limit = 25,
   minAgeSeconds = 15 * 60,
   now = new Date(),
+  onAssociationFailure,
 }: {
   supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
   limit?: number;
   minAgeSeconds?: number;
   now?: Date;
+  onAssociationFailure?: (
+    failure: TerminalGenerationProjectionAssociationFailure
+  ) => Promise<void> | void;
 }): Promise<TerminalGenerationProjectionRepairMetrics> => {
   const adminClient = supabaseAdmin ?? getSupabaseAdmin();
   const cutoffIso = new Date(now.getTime() - Math.max(0, minAgeSeconds) * 1000).toISOString();
@@ -710,6 +885,7 @@ export const repairStaleTerminalGenerationProjections = async ({
   const repairSelectColumns = [
     "generation_id",
     "user_id",
+    "project_id",
     "workspace_runtime_key",
     "source_ref",
     "request_id",
@@ -727,32 +903,88 @@ export const repairStaleTerminalGenerationProjections = async ({
     "character_context",
     "style_context",
     "started_at",
+    "task_state",
   ];
-  const loadStaleProjectionRows = async (selectColumns: readonly string[]) =>
-    await adminClient
-      .from("generation_projection")
-      .select(selectColumns.join(", "))
-      .in("task_state", ["pending", "running"])
-      .lte("updated_at", cutoffIso)
-      .order("updated_at", { ascending: true })
-      .limit(limit);
+  const projectionRows = await readRepairableProjectionRowsWithFallback({
+    selectColumns: repairSelectColumns,
+    runSelect: async (columns) =>
+      await adminClient
+        .from("generation_projection")
+        .select(columns.join(", "))
+        .in("task_state", ["pending", "running"])
+        .lte("updated_at", cutoffIso)
+        .order("updated_at", { ascending: true })
+        .limit(limit),
+  });
+  const existingProjectionIds = new Set(projectionRows.map((row) => row.generationId));
+  const remainingTerminalGenerationLimit = Math.max(0, limit - projectionRows.length);
+  if (remainingTerminalGenerationLimit > 0) {
+    const terminalScanPageSize = remainingTerminalGenerationLimit;
+    const terminalScanMaxRows = Math.max(terminalScanPageSize, Math.min(250, limit * 10));
+    let terminalScanOffset = 0;
+    while (projectionRows.length < limit && terminalScanOffset < terminalScanMaxRows) {
+      const terminalGenerationResponse = await adminClient
+        .from("ai_generations")
+        .select(
+          "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, error_message, completed_at, created_at, metadata"
+        )
+        .in("status", ["success", "fail"])
+        .lte("completed_at", cutoffIso)
+        .order("completed_at", { ascending: false, nullsFirst: false })
+        .range(terminalScanOffset, terminalScanOffset + terminalScanPageSize - 1);
+      if (terminalGenerationResponse.error) throw terminalGenerationResponse.error;
 
-  let staleProjectionResponse = await loadStaleProjectionRows(repairSelectColumns);
-  if (
-    staleProjectionResponse.error &&
-    resolveMissingOptionalProjectionColumn(staleProjectionResponse.error) === "display_title"
-  ) {
-    staleProjectionResponse = await loadStaleProjectionRows(
-      repairSelectColumns.filter((column) => column !== "display_title")
-    );
+      const terminalGenerations = Array.isArray(terminalGenerationResponse.data)
+        ? terminalGenerationResponse.data
+            .map((row) => parseRepairableGenerationRow(row))
+            .filter((row): row is RepairableGenerationRow => Boolean(row))
+            .filter((row) => !existingProjectionIds.has(row.generationId))
+        : [];
+      if (!terminalGenerations.length) {
+        if (
+          !Array.isArray(terminalGenerationResponse.data) ||
+          terminalGenerationResponse.data.length < terminalScanPageSize
+        ) {
+          break;
+        }
+        terminalScanOffset += terminalScanPageSize;
+        continue;
+      }
+
+      const projectionByGenerationId = new Map(
+        (
+          await loadRepairableProjectionRowsByGenerationIds({
+            adminClient,
+            generationIds: terminalGenerations.map((row) => row.generationId),
+            selectColumns: repairSelectColumns,
+          })
+        ).map((row) => [row.generationId, row])
+      );
+      const remainingSlots = Math.max(0, limit - projectionRows.length);
+      projectionRows.push(
+        ...terminalGenerations
+          .filter((generation) => {
+            const projection = projectionByGenerationId.get(generation.generationId) ?? null;
+            return !projection || !isTerminalProjectionTaskState(projection.taskState);
+          })
+          .map((generation) =>
+            buildRepairProjectionFallback({
+              generation,
+              projection: projectionByGenerationId.get(generation.generationId) ?? null,
+            })
+          )
+          .slice(0, remainingSlots)
+      );
+      if (
+        !Array.isArray(terminalGenerationResponse.data) ||
+        terminalGenerationResponse.data.length < terminalScanPageSize
+      ) {
+        break;
+      }
+      terminalScanOffset += terminalScanPageSize;
+    }
   }
-  if (staleProjectionResponse.error) throw staleProjectionResponse.error;
 
-  const projectionRows = Array.isArray(staleProjectionResponse.data)
-    ? staleProjectionResponse.data
-        .map((row) => parseRepairableProjectionRow(row))
-        .filter((row): row is RepairableProjectionRow => Boolean(row))
-    : [];
   if (!projectionRows.length) {
     return { scanned: 0, repaired: 0, skipped: 0 };
   }
@@ -760,7 +992,7 @@ export const repairStaleTerminalGenerationProjections = async ({
   const generationResponse = await adminClient
     .from("ai_generations")
     .select(
-      "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, error_message, completed_at"
+      "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, error_message, completed_at, created_at, metadata"
     )
     .in(
       "id",
@@ -792,6 +1024,9 @@ export const repairStaleTerminalGenerationProjections = async ({
     }
 
     if (generation.status === "success") {
+      const projectId = resolveRepairProjectId({ generation, projection });
+      const workspaceRuntimeKey = resolveRepairWorkspaceRuntimeKey({ generation, projection });
+      const sourceRef = resolveRepairSourceRef({ generation, projection });
       const outputRows = await readPersistedGenerationOutputs({
         generationId: projection.generationId,
         userId: projection.userId,
@@ -827,8 +1062,9 @@ export const repairStaleTerminalGenerationProjections = async ({
         supabaseAdmin: adminClient,
         generationId: projection.generationId,
         userId: projection.userId,
-        workspaceRuntimeKey: projection.workspaceRuntimeKey,
-        sourceRef: projection.sourceRef,
+        projectId,
+        workspaceRuntimeKey,
+        sourceRef,
         requestId: projection.requestId ?? generation.requestId,
         provider: projection.provider ?? generation.provider,
         providerRequestId: projection.providerRequestId ?? generation.requestId,
@@ -884,10 +1120,46 @@ export const repairStaleTerminalGenerationProjections = async ({
           });
         })
       );
+      if (projectId) {
+        await associateGenerationWithProjectForUser({
+          userId: projection.userId,
+          projectId,
+          generationId: projection.generationId,
+        }).catch(async (error) => {
+          await onAssociationFailure?.({
+            stage: "generation",
+            userId: projection.userId,
+            projectId,
+            generationId: projection.generationId,
+            error,
+          });
+          return false;
+        });
+        if (verifiedSavedMediaIds.length > 0) {
+          await associateMediaFilesWithProjectForUser({
+            userId: projection.userId,
+            projectId,
+            mediaFileIds: verifiedSavedMediaIds,
+          }).catch(async (error) => {
+            await onAssociationFailure?.({
+              stage: "media",
+              userId: projection.userId,
+              projectId,
+              generationId: projection.generationId,
+              mediaFileIds: verifiedSavedMediaIds,
+              error,
+            });
+            return false;
+          });
+        }
+      }
       repaired += 1;
       continue;
     }
 
+    const projectId = resolveRepairProjectId({ generation, projection });
+    const workspaceRuntimeKey = resolveRepairWorkspaceRuntimeKey({ generation, projection });
+    const sourceRef = resolveRepairSourceRef({ generation, projection });
     const message = readFailedProjectionMessage(
       generation.failureReasonCode,
       generation.errorMessage
@@ -896,8 +1168,9 @@ export const repairStaleTerminalGenerationProjections = async ({
       supabaseAdmin: adminClient,
       generationId: projection.generationId,
       userId: projection.userId,
-      workspaceRuntimeKey: projection.workspaceRuntimeKey,
-      sourceRef: projection.sourceRef,
+      projectId,
+      workspaceRuntimeKey,
+      sourceRef,
       requestId: projection.requestId ?? generation.requestId,
       provider: projection.provider ?? generation.provider,
       providerRequestId: projection.providerRequestId ?? generation.requestId,
@@ -924,6 +1197,22 @@ export const repairStaleTerminalGenerationProjections = async ({
       startedAt: projection.startedAt,
       completedAt: generation.completedAt,
     });
+    if (projectId) {
+      await associateGenerationWithProjectForUser({
+        userId: projection.userId,
+        projectId,
+        generationId: projection.generationId,
+      }).catch(async (error) => {
+        await onAssociationFailure?.({
+          stage: "generation",
+          userId: projection.userId,
+          projectId,
+          generationId: projection.generationId,
+          error,
+        });
+        return false;
+      });
+    }
     repaired += 1;
   }
 

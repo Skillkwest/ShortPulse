@@ -65,6 +65,11 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
    `generation_projection.workspace_runtime_key` (for example `session:<sid>`).
    Plain sessions must not fall back to user-global generated-output startup
    hydration when the workspace runtime key is absent.
+6. Projection repair must also converge terminal `ai_generations` rows that have
+   persisted outputs but missing/nonterminal `generation_projection` rows. When
+   generation metadata carries project context, repair preserves autosave
+   semantics while best-effort associating the generation to
+   `project_generation_items` and verified saved media to `project_media_items`.
 
 ## Lifecycle Versus Visibility Contract
 
@@ -167,6 +172,7 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
    - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
    - audio companion art: `audioCompanionArtClaimed`, `audioCompanionArtProcessed`, `audioCompanionArtReady`, `audioCompanionArtFailed`, `audioCompanionArtSkipped`, `audioCompanionArtErrors`
+   - projection repair counts: `projectionRepairScanned`, `projectionRepairRepaired`, `projectionRepairSkipped`.
    - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`, `stageTimings.projectionRepair.durationMs`, `stageTimings.audioCompanionArtProcessing.durationMs`.
 3. Treat the control-plane stage ownership as:
    - `runCycle.ts` decides stage order,

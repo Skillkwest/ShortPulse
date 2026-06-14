@@ -235,6 +235,10 @@ export const useAiStudioTaskOrchestration = ({
                 projectionLifecycle.taskState === "fail" ? failure.message : item.errorMessageShort,
               errorDetail:
                 projectionLifecycle.taskState === "fail" ? failure.detail : item.errorDetail,
+              errorPayload:
+                projectionLifecycle.taskState === "fail"
+                  ? (projectionLifecycle.errorPayload ?? item.errorPayload ?? null)
+                  : item.errorPayload,
             }));
             return;
           }

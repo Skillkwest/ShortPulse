@@ -26,6 +26,7 @@ export type PersistedGenerationStatusContext = {
   queueState?: "queued" | "dispatching" | "dispatched" | "failed" | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
+  errorPayload?: unknown | null;
 };
 
 const isSuccessfulProjectionStatus = (value: string | null | undefined): boolean => {
@@ -247,6 +248,7 @@ export const buildPersistedFailedPayload = ({
   generationId,
   errorMessage,
   errorDetail,
+  errorPayload,
   providerState,
   queueState,
 }: {
@@ -254,6 +256,7 @@ export const buildPersistedFailedPayload = ({
   generationId?: string | null;
   errorMessage: string;
   errorDetail?: unknown;
+  errorPayload?: unknown;
   providerState?: string | null;
   queueState?: string | null;
 }) => ({
@@ -265,6 +268,7 @@ export const buildPersistedFailedPayload = ({
   state: "error",
   error: errorMessage,
   detail: errorDetail ?? errorMessage,
+  ...(errorPayload !== undefined ? { errorPayload } : {}),
   shortpulseLifecycle: buildShortPulseLifecycleHint({
     taskState: "fail",
     isTerminal: true,
@@ -326,6 +330,7 @@ export const readPersistedGenerationStatusContext = async ({
                   normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
                 errorMessageShort: projectionContext.errorMessageShort,
                 errorDetail: projectionContext.errorDetail,
+                errorPayload: projectionContext.errorPayload,
                 saveState:
                   projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
                 saveError: projectionContext.saveError,
@@ -353,6 +358,7 @@ export const readPersistedGenerationStatusContext = async ({
           queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
           errorMessageShort: projectionContext.errorMessageShort,
           errorDetail: projectionContext.errorDetail,
+          errorPayload: projectionContext.errorPayload,
           saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
           saveError: projectionContext.saveError,
         };
@@ -384,6 +390,7 @@ export const readPersistedGenerationStatusContext = async ({
                 normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
               errorMessageShort: projectionContext.errorMessageShort,
               errorDetail: projectionContext.errorDetail,
+              errorPayload: projectionContext.errorPayload,
               saveState:
                 projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
               saveError: projectionContext.saveError,
@@ -403,6 +410,7 @@ export const readPersistedGenerationStatusContext = async ({
         queueState: normalizePersistedQueueState(projectionContext.queueState),
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
+        errorPayload: projectionContext.errorPayload,
         saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
         saveError: projectionContext.saveError,
       };
@@ -422,6 +430,7 @@ export const readPersistedGenerationStatusContext = async ({
         queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
+        errorPayload: projectionContext.errorPayload,
         saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
         saveError: projectionContext.saveError,
       };
@@ -435,6 +444,7 @@ export const readPersistedGenerationStatusContext = async ({
         queueState: normalizePersistedQueueState(projectionContext.queueState),
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
+        errorPayload: projectionContext.errorPayload,
         saveState: projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
         saveError: projectionContext.saveError,
       };

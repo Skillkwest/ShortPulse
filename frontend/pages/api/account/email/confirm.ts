@@ -8,8 +8,6 @@ type ConfirmEmailResponse = {
   email: string | null;
 };
 
-const CONFIRM_EMAIL_SYNC_ERROR_MESSAGE = "Unable to finish confirming your email change.";
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{ error: string } | ConfirmEmailResponse>
@@ -28,17 +26,14 @@ export default async function handler(
       email: user.email ?? null,
       displayName: resolveAuthDisplayName(user),
     });
-
-    return res.status(200).json({ email: user.email ?? null });
   } catch (error) {
     await logApiRouteException({
       req,
       error,
-      routeLabel: "account/email/confirm",
+      routeLabel: "account/email/confirm.stripe-sync",
       user,
     });
-    return res.status(500).json({
-      error: CONFIRM_EMAIL_SYNC_ERROR_MESSAGE,
-    });
   }
+
+  return res.status(200).json({ email: user.email ?? null });
 }

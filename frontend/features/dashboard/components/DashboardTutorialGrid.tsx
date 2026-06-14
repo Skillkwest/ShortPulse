@@ -3,7 +3,7 @@
  * Renders admin-managed tutorial cards for public and signed-in dashboard surfaces.
  */
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardTutorialModal } from "./DashboardTutorialModal";
 
 export type DashboardTutorial = {
@@ -23,18 +23,66 @@ type DashboardTutorialGridProps = {
 };
 
 const DASHBOARD_TUTORIAL_GRID_SLOT_COUNT = 25;
+const DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET = 5;
 
 type DashboardTutorialVideoThumbnailProps = {
+  shouldAutoActivate: boolean;
   src: string;
   poster?: string | null;
 };
 
 /**
- * Plays short tutorial thumbnail clips as native muted loops.
+ * Returns whether animated tutorial thumbnails should run automatically for this browser.
  */
-function DashboardTutorialVideoThumbnail({ src, poster }: DashboardTutorialVideoThumbnailProps) {
+function canPlayDashboardTutorialMotion() {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
+  const connection = navigator as Navigator & {
+    connection?: {
+      saveData?: boolean;
+    };
+  };
+  return connection.connection?.saveData !== true;
+}
+
+/**
+ * Plays tutorial thumbnail clips only after first-paint poster display or explicit user intent.
+ */
+function DashboardTutorialVideoThumbnail({
+  shouldAutoActivate,
+  src,
+  poster,
+}: DashboardTutorialVideoThumbnailProps) {
+  const [motionAllowed, setMotionAllowed] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+
+  useEffect(() => {
+    const canPlayMotion = canPlayDashboardTutorialMotion();
+    setMotionAllowed(canPlayMotion);
+    if (canPlayMotion && shouldAutoActivate) {
+      setIsActive(true);
+    }
+  }, [shouldAutoActivate]);
+
+  const activateThumbnail = useCallback(() => {
+    if (motionAllowed) {
+      setIsActive(true);
+    }
+  }, [motionAllowed]);
+
   return (
-    <video src={src} poster={poster ?? undefined} muted playsInline autoPlay loop preload="auto" />
+    <video
+      src={isActive ? src : undefined}
+      poster={poster ?? undefined}
+      muted
+      playsInline
+      autoPlay={isActive}
+      loop={isActive}
+      preload={isActive ? "metadata" : "none"}
+      onPointerEnter={activateThumbnail}
+      onFocus={activateThumbnail}
+      onTouchStart={activateThumbnail}
+    />
   );
 }
 
@@ -43,9 +91,13 @@ function DashboardTutorialVideoThumbnail({ src, poster }: DashboardTutorialVideo
  */
 export function DashboardTutorialGrid({ tutorials, launchHref }: DashboardTutorialGridProps) {
   const [selectedTutorial, setSelectedTutorial] = useState<DashboardTutorial | null>(null);
-  const tutorialGridSlots = Array.from(
-    { length: Math.max(DASHBOARD_TUTORIAL_GRID_SLOT_COUNT, tutorials.length) },
-    (_, index) => tutorials[index] ?? null
+  const tutorialGridSlots = useMemo(
+    () =>
+      Array.from(
+        { length: Math.max(DASHBOARD_TUTORIAL_GRID_SLOT_COUNT, tutorials.length) },
+        (_, index) => tutorials[index] ?? null
+      ),
+    [tutorials]
   );
 
   return (
@@ -64,6 +116,7 @@ export function DashboardTutorialGrid({ tutorials, launchHref }: DashboardTutori
               <span className="dashboard-tutorial-thumbnail" aria-hidden="true">
                 {tutorial.thumbnailMediaType === "video" ? (
                   <DashboardTutorialVideoThumbnail
+                    shouldAutoActivate={index < DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET}
                     src={tutorial.thumbnailUrl}
                     poster={tutorial.thumbnailPosterUrl}
                   />
@@ -74,7 +127,7 @@ export function DashboardTutorialGrid({ tutorials, launchHref }: DashboardTutori
                     alt=""
                     width={640}
                     height={640}
-                    loading="eager"
+                    loading={index < DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET ? "eager" : "lazy"}
                     unoptimized
                   />
                 )}

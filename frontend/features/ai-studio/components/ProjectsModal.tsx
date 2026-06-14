@@ -24,6 +24,8 @@ type ProjectListRecord = {
 
 type ProjectsModalPayload = {
   projects?: ProjectListRecord[];
+  hasMore?: unknown;
+  nextOffset?: unknown;
   error?: unknown;
   details?: unknown;
 };
@@ -37,11 +39,29 @@ type ProjectsModalProps = {
 };
 
 type ProjectsLoadState =
-  | { status: "idle" | "loading"; projects: ProjectListRecord[]; error: null }
-  | { status: "ready"; projects: ProjectListRecord[]; error: null }
-  | { status: "error"; projects: ProjectListRecord[]; error: string };
+  | {
+      status: "idle" | "loading";
+      projects: ProjectListRecord[];
+      error: null;
+      hasMore: boolean;
+      nextOffset: number | null;
+    }
+  | {
+      status: "ready";
+      projects: ProjectListRecord[];
+      error: null;
+      hasMore: boolean;
+      nextOffset: number | null;
+    }
+  | {
+      status: "error";
+      projects: ProjectListRecord[];
+      error: string;
+      hasMore: boolean;
+      nextOffset: number | null;
+    };
 
-const PROJECT_LIST_ALL_QUERY = "all";
+const PROJECT_LIST_PAGE_SIZE = 12;
 
 const removeProjectFromLoadState = (
   current: ProjectsLoadState,
@@ -50,6 +70,17 @@ const removeProjectFromLoadState = (
   status: "ready",
   projects: current.projects.filter((project) => project.id !== projectId),
   error: null,
+  hasMore: current.hasMore,
+  nextOffset: current.nextOffset,
+});
+
+const normalizeProjectPagePayload = (payload: ProjectsModalPayload) => ({
+  projects: Array.isArray(payload.projects) ? payload.projects : [],
+  hasMore: payload.hasMore === true,
+  nextOffset:
+    typeof payload.nextOffset === "number" && Number.isSafeInteger(payload.nextOffset)
+      ? payload.nextOffset
+      : null,
 });
 
 const resolveProjectsLoadErrorMessage = (
@@ -92,7 +123,10 @@ export function ProjectsModal({
     status: "idle",
     projects: [],
     error: null,
+    hasMore: false,
+    nextOffset: 0,
   });
+  const loadStateRef = React.useRef(loadState);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [pendingProjectId, setPendingProjectId] = React.useState<string | null>(null);
   const [deleteConfirmProject, setDeleteConfirmProject] = React.useState<ProjectListRecord | null>(
@@ -124,15 +158,26 @@ export function ProjectsModal({
     },
   });
 
-  const loadProjects = React.useCallback(() => {
+  React.useEffect(() => {
+    loadStateRef.current = loadState;
+  }, [loadState]);
+
+  const loadProjects = React.useCallback((options: { append?: boolean } = {}) => {
     let cancelled = false;
+    const shouldAppend = options.append === true;
+    const currentLoadState = loadStateRef.current;
+    const requestOffset = shouldAppend
+      ? (currentLoadState.nextOffset ?? currentLoadState.projects.length)
+      : 0;
     setLoadState((current) => ({
       status: "loading",
       projects: current.projects,
       error: null,
+      hasMore: current.hasMore,
+      nextOffset: current.nextOffset,
     }));
 
-    void fetchWithAuth(`/api/projects?limit=${PROJECT_LIST_ALL_QUERY}`, {
+    void fetchWithAuth(`/api/projects?limit=${PROJECT_LIST_PAGE_SIZE}&offset=${requestOffset}`, {
       method: "GET",
       shortpulseAuthTimeoutMs: 5000,
     })
@@ -142,19 +187,26 @@ export function ProjectsModal({
           throw new Error(resolveProjectsLoadErrorMessage(response.status, payload));
         }
         if (cancelled) return;
-        setLoadState({
+        const projectPage = normalizeProjectPagePayload(payload);
+        setLoadState((current) => ({
           status: "ready",
-          projects: Array.isArray(payload.projects) ? payload.projects : [],
+          projects: shouldAppend
+            ? [...current.projects, ...projectPage.projects]
+            : projectPage.projects,
           error: null,
-        });
+          hasMore: projectPage.hasMore,
+          nextOffset: projectPage.nextOffset,
+        }));
       })
       .catch((error) => {
         if (cancelled) return;
-        setLoadState({
+        setLoadState((current) => ({
           status: "error",
-          projects: [],
+          projects: shouldAppend ? current.projects : [],
           error: error instanceof Error ? error.message : "Failed to load projects.",
-        });
+          hasMore: shouldAppend ? current.hasMore : false,
+          nextOffset: shouldAppend ? current.nextOffset : 0,
+        }));
       });
 
     return () => {
@@ -464,7 +516,7 @@ export function ProjectsModal({
                               >
                                 {/* Signed thumbnail URLs are already surface-sized for this modal. */}
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={url} alt="" />
+                                <img src={url} alt="" loading="lazy" decoding="async" />
                               </span>
                             ))}
                           </div>
@@ -487,6 +539,20 @@ export function ProjectsModal({
                   </div>
                 );
               })}
+            </div>
+          ) : null}
+          {loadState.projects.length > 0 && loadState.hasMore ? (
+            <div className="ai-projects-modal-load-more">
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => {
+                  loadProjects({ append: true });
+                }}
+                disabled={loadState.status === "loading" || hasProjectActionInFlight}
+              >
+                {loadState.status === "loading" ? "Loading..." : "Load more"}
+              </button>
             </div>
           ) : null}
         </div>

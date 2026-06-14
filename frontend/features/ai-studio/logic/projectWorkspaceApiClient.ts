@@ -235,6 +235,36 @@ const maybeLogProjectWorkspaceSaveFailure = ({
   });
 };
 
+const maybeLogProjectWorkspaceBootstrapFailure = ({
+  projectId,
+  status,
+  responseDetails,
+}: {
+  projectId: string;
+  status: number;
+  responseDetails: ProjectWorkspaceApiResponseDetails;
+}) => {
+  const payload = responseDetails.payload;
+  addBreadcrumb({
+    type: "network",
+    level: status >= 500 ? "error" : "warn",
+    message: "ai_studio_project_workspace_bootstrap_failed",
+    data: {
+      project_id: projectId,
+      status,
+      failure_stage: resolveProjectWorkspaceFailureStage(payload),
+      error:
+        resolveProjectWorkspacePayloadMessage({
+          payload,
+          preferDetails: status >= 500,
+        }) || responseDetails.scalarMessage,
+      content_type: responseDetails.contentType,
+      payload_parse_mode: responseDetails.parseMode,
+      raw_error_excerpt: responseDetails.rawErrorExcerpt || null,
+    },
+  });
+};
+
 const maybeLogMalformedProjectWorkspaceSaveSuccess = ({
   projectId,
   responseDetails,
@@ -341,6 +371,11 @@ export const getAiStudioProjectWorkspaceBootstrapViaApi = async ({
     const payload = responseDetails.payload;
 
     if (!response.ok) {
+      maybeLogProjectWorkspaceBootstrapFailure({
+        projectId,
+        status: response.status,
+        responseDetails,
+      });
       const message = resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
       throw new ProjectWorkspaceBootstrapApiError(response.status, message);
     }

@@ -34,7 +34,14 @@ type UseAiStudioOptimisticDebitReconciliationParams = {
 
 type FailureCard = Pick<
   StudioOutput,
-  "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorMessageShort" | "errorDetail"
+  | "id"
+  | "model"
+  | "modelId"
+  | "prompt"
+  | "errorMessage"
+  | "errorMessageShort"
+  | "errorDetail"
+  | "errorPayload"
 >;
 type ReconciliationOutputLite = Pick<StudioOutput, "id" | "taskId" | "taskState" | "errorMessage">;
 const EMPTY_FAILURES: FailureCard[] = [];
@@ -69,7 +76,8 @@ const areFailureCardListsEqual = (left: FailureCard[], right: FailureCard[]) => 
       item.prompt === rhs?.prompt &&
       item.errorMessage === rhs?.errorMessage &&
       item.errorMessageShort === rhs?.errorMessageShort &&
-      item.errorDetail === rhs?.errorDetail
+      item.errorDetail === rhs?.errorDetail &&
+      item.errorPayload === rhs?.errorPayload
     );
   });
 };
@@ -121,6 +129,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
         errorMessage: item.errorMessage ?? null,
         errorMessageShort: item.errorMessageShort ?? null,
         errorDetail: item.errorDetail ?? null,
+        errorPayload: item.errorPayload ?? null,
       }));
   }, areFailureCardListsEqual);
   const overrideOutputLite = useMemo<ReconciliationOutputLite[]>(
@@ -151,6 +160,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
           errorMessage: item.errorMessage ?? null,
           errorMessageShort: item.errorMessageShort ?? null,
           errorDetail: item.errorDetail ?? null,
+          errorPayload: item.errorPayload ?? null,
         })),
     [outputsOverride, suppressedFailureIdSet]
   );

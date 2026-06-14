@@ -3,6 +3,15 @@ import {
   repairStaleTerminalGenerationProjections,
   upsertGenerationProjection,
 } from "../generationProjection";
+import {
+  associateGenerationWithProjectForUser,
+  associateMediaFilesWithProjectForUser,
+} from "../../projectGenerationAssociationsService";
+
+vi.mock("../../projectGenerationAssociationsService", () => ({
+  associateGenerationWithProjectForUser: vi.fn(async () => true),
+  associateMediaFilesWithProjectForUser: vi.fn(async () => true),
+}));
 
 const createSupabaseAdmin = ({
   projectionRows,
@@ -36,16 +45,32 @@ const createSupabaseAdmin = ({
         select:
           projectionSelectImpl ??
           (() => ({
-            in: () => ({
-              lte: () => ({
-                order: () => ({
-                  limit: async () => ({
-                    data: projectionRows,
-                    error: null,
+            in: (column: string, values: string[]) => {
+              const rows =
+                column === "generation_id"
+                  ? projectionRows.filter((row) => values.includes(String(row.generation_id)))
+                  : column === "task_state"
+                    ? projectionRows.filter((row) =>
+                        values.includes(String(row.task_state ?? "running"))
+                      )
+                    : projectionRows;
+              if (column === "generation_id") {
+                return Promise.resolve({
+                  data: rows,
+                  error: null,
+                });
+              }
+              return {
+                lte: () => ({
+                  order: () => ({
+                    limit: async () => ({
+                      data: rows,
+                      error: null,
+                    }),
                   }),
                 }),
-              }),
-            }),
+              };
+            },
           })),
         upsert,
       };
@@ -54,12 +79,30 @@ const createSupabaseAdmin = ({
     if (table === "ai_generations") {
       return {
         select: () => ({
-          in: () => ({
-            limit: async () => ({
-              data: generationRows,
-              error: null,
-            }),
-          }),
+          in: (column: string, values: string[]) => {
+            const byGenerationIds = column === "id";
+            const rows = byGenerationIds
+              ? generationRows.filter((row) => values.includes(String(row.id)))
+              : generationRows.filter((row) => values.includes(String(row.status)));
+            return {
+              limit: async () => ({
+                data: rows,
+                error: null,
+              }),
+              lte: () => ({
+                order: () => ({
+                  limit: async () => ({
+                    data: rows,
+                    error: null,
+                  }),
+                  range: async (from: number, to: number) => ({
+                    data: rows.slice(from, to + 1),
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          },
         }),
       };
     }
@@ -438,6 +481,341 @@ describe("repairStaleTerminalGenerationProjections", () => {
       })
     );
   });
+
+  it("reconstructs missing terminal success projections from generation metadata", async () => {
+    vi.mocked(associateGenerationWithProjectForUser).mockClear();
+    vi.mocked(associateMediaFilesWithProjectForUser).mockClear();
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [
+        {
+          id: "gen-missing-projection",
+          user_id: "user-project",
+          request_id: "req-project",
+          provider: "fal",
+          model_id: "fal-ai/flux",
+          prompt_text: "project prompt",
+          status: "success",
+          failure_reason_code: null,
+          completed_at: "2026-04-10T23:20:00.000Z",
+          created_at: "2026-04-10T23:00:00.000Z",
+          metadata: {
+            source_ref: "source-project",
+            shortpulse_context: {
+              project_id: "project-1",
+            },
+            generation_replay: { prompt: "project prompt" },
+            workflow_reload: { version: 1, originTool: "create" },
+          },
+        },
+      ],
+      outputRows: [
+        {
+          id: "output-project",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/project.png",
+          media_file_id: "media-project",
+        },
+      ],
+      mediaRows: [
+        {
+          id: "media-project",
+          user_id: "user-project",
+          storage_path: "user-project/generations/images/project.png",
+          preview_storage_path: "user-project/generations/images/project-preview.png",
+          file_type: "image/png",
+        },
+      ],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 10,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-missing-projection",
+        user_id: "user-project",
+        project_id: "project-1",
+        source_ref: "source-project",
+        status: "ready",
+        task_state: "success",
+        publication_state: "published",
+        result_urls: ["https://cdn.shortpulse.test/project.png"],
+        saved_media_ids: ["media-project"],
+        generation_replay: { prompt: "project prompt" },
+        workflow_reload: { version: 1, originTool: "create" },
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+    expect(associateGenerationWithProjectForUser).toHaveBeenCalledWith({
+      userId: "user-project",
+      projectId: "project-1",
+      generationId: "gen-missing-projection",
+    });
+    expect(associateMediaFilesWithProjectForUser).toHaveBeenCalledWith({
+      userId: "user-project",
+      projectId: "project-1",
+      mediaFileIds: ["media-project"],
+    });
+  });
+
+  it("pages past healthy terminal projections to repair older missing projections", async () => {
+    vi.mocked(associateGenerationWithProjectForUser).mockClear();
+    vi.mocked(associateMediaFilesWithProjectForUser).mockClear();
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [
+        {
+          generation_id: "gen-healthy-1",
+          user_id: "user-project",
+          task_state: "success",
+        },
+        {
+          generation_id: "gen-healthy-2",
+          user_id: "user-project",
+          task_state: "success",
+        },
+      ],
+      generationRows: [
+        {
+          id: "gen-healthy-1",
+          user_id: "user-project",
+          request_id: "req-healthy-1",
+          provider: "fal",
+          model_id: "fal-ai/flux",
+          prompt_text: "healthy prompt 1",
+          status: "success",
+          completed_at: "2026-04-10T23:29:00.000Z",
+          created_at: "2026-04-10T23:00:00.000Z",
+          metadata: {},
+        },
+        {
+          id: "gen-healthy-2",
+          user_id: "user-project",
+          request_id: "req-healthy-2",
+          provider: "fal",
+          model_id: "fal-ai/flux",
+          prompt_text: "healthy prompt 2",
+          status: "success",
+          completed_at: "2026-04-10T23:28:00.000Z",
+          created_at: "2026-04-10T23:00:00.000Z",
+          metadata: {},
+        },
+        {
+          id: "gen-missing-older",
+          user_id: "user-project",
+          request_id: "req-missing-older",
+          provider: "fal",
+          model_id: "fal-ai/flux",
+          prompt_text: "older missing prompt",
+          status: "success",
+          completed_at: "2026-04-10T23:20:00.000Z",
+          created_at: "2026-04-10T23:00:00.000Z",
+          metadata: {
+            shortpulse_context: {
+              project_id: "project-older",
+            },
+          },
+        },
+      ],
+      outputRows: [
+        {
+          id: "output-older",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/older.png",
+          media_file_id: "media-older",
+        },
+      ],
+      mediaRows: [
+        {
+          id: "media-older",
+          user_id: "user-project",
+          storage_path: "user-project/generations/images/older.png",
+          preview_storage_path: "user-project/generations/images/older-preview.png",
+          file_type: "image/png",
+        },
+      ],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 1,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-missing-older",
+        user_id: "user-project",
+        project_id: "project-older",
+        task_state: "success",
+        publication_state: "published",
+        result_urls: ["https://cdn.shortpulse.test/older.png"],
+        saved_media_ids: ["media-older"],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+  });
+
+  it("reports project association failures without failing projection repair", async () => {
+    vi.mocked(associateGenerationWithProjectForUser).mockRejectedValueOnce(
+      new Error("association unavailable")
+    );
+    vi.mocked(associateMediaFilesWithProjectForUser).mockClear();
+    const onAssociationFailure = vi.fn();
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [
+        {
+          id: "gen-association-failure",
+          user_id: "user-project",
+          request_id: "req-association-failure",
+          provider: "fal",
+          model_id: "fal-ai/flux",
+          prompt_text: "association failure prompt",
+          status: "success",
+          completed_at: "2026-04-10T23:20:00.000Z",
+          created_at: "2026-04-10T23:00:00.000Z",
+          metadata: {
+            shortpulse_context: {
+              project_id: "project-association-failure",
+            },
+          },
+        },
+      ],
+      outputRows: [
+        {
+          id: "output-association-failure",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/association-failure.png",
+          media_file_id: "media-association-failure",
+        },
+      ],
+      mediaRows: [
+        {
+          id: "media-association-failure",
+          user_id: "user-project",
+          storage_path: "user-project/generations/images/association-failure.png",
+          preview_storage_path: "user-project/generations/images/association-failure-preview.png",
+          file_type: "image/png",
+        },
+      ],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 10,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+      onAssociationFailure,
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(onAssociationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: "generation",
+        userId: "user-project",
+        projectId: "project-association-failure",
+        generationId: "gen-association-failure",
+        error: expect.any(Error),
+      })
+    );
+  });
+
+  it("keeps autosave-skipped missing projections suppressed without creating media associations", async () => {
+    vi.mocked(associateGenerationWithProjectForUser).mockClear();
+    vi.mocked(associateMediaFilesWithProjectForUser).mockClear();
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [
+        {
+          id: "gen-autosave-off",
+          user_id: "user-autosave-off",
+          request_id: "req-autosave-off",
+          provider: "fal",
+          model_id: "fal-ai/flux",
+          prompt_text: "autosave off prompt",
+          status: "success",
+          failure_reason_code: null,
+          completed_at: "2026-04-10T23:20:00.000Z",
+          created_at: "2026-04-10T23:00:00.000Z",
+          metadata: {
+            source_ref: "source-autosave-off",
+            shortpulse_context: {
+              project_id: "project-2",
+            },
+            autosave_decision: "autosave_skipped",
+            autosave_decision_reason: "autosave_disabled",
+          },
+        },
+      ],
+      outputRows: [
+        {
+          id: "output-autosave-off",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/autosave-off.png",
+          media_file_id: null,
+        },
+      ],
+      mediaRows: [],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 10,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-autosave-off",
+        user_id: "user-autosave-off",
+        project_id: "project-2",
+        task_state: "success",
+        publication_state: "suppressed",
+        save_state: "idle",
+        result_urls: ["https://cdn.shortpulse.test/autosave-off.png"],
+        saved_media_ids: [],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+    expect(associateGenerationWithProjectForUser).toHaveBeenCalledWith({
+      userId: "user-autosave-off",
+      projectId: "project-2",
+      generationId: "gen-autosave-off",
+    });
+    expect(associateMediaFilesWithProjectForUser).not.toHaveBeenCalled();
+  });
 });
 
 describe("upsertGenerationProjection", () => {
@@ -469,11 +847,48 @@ describe("upsertGenerationProjection", () => {
       error_message: null,
       error_message_short: null,
       error_detail: null,
+      error_payload: null,
       save_error: null,
     });
     expect(options).toMatchObject({
       onConflict: "generation_id",
     });
+  });
+
+  it("writes raw error payloads onto failed projection rows", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+    });
+    const errorPayload = {
+      error: {
+        message: "Provider rejected image_urls[0].",
+        request_id: "req-provider",
+      },
+    };
+
+    await upsertGenerationProjection({
+      generationId: "gen-error-payload",
+      userId: "user-error-payload",
+      status: "ready",
+      taskState: "fail",
+      errorMessage: "Generation failed",
+      errorMessageShort: "Generation failed",
+      errorDetail: "Provider rejected image_urls[0].",
+      errorPayload,
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-error-payload",
+        user_id: "user-error-payload",
+        error_payload: errorPayload,
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
   });
 
   it("writes storage-blocked save_error copy onto projection rows", async () => {
@@ -646,6 +1061,49 @@ describe("upsertGenerationProjection", () => {
       user_id: "user-display-title-compat",
     });
     expect(supabaseAdmin.upsert.mock.calls[1]?.[0]).not.toHaveProperty("display_title");
+  });
+
+  it("retries without error_payload when hosted schema is missing that column", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+      upsertImpl: async (payload) => {
+        if ("error_payload" in payload) {
+          return {
+            data: null,
+            error: {
+              code: "PGRST204",
+              message:
+                "Could not find the 'error_payload' column of 'generation_projection' in the schema cache",
+            },
+          };
+        }
+        return {
+          data: payload,
+          error: null,
+        };
+      },
+    });
+
+    await upsertGenerationProjection({
+      generationId: "gen-error-payload-compat",
+      userId: "user-error-payload-compat",
+      taskState: "fail",
+      errorPayload: { error: "provider failed" },
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
+    expect(supabaseAdmin.upsert).toHaveBeenCalledTimes(2);
+    expect(supabaseAdmin.upsert.mock.calls[0]?.[0]).toMatchObject({
+      generation_id: "gen-error-payload-compat",
+      user_id: "user-error-payload-compat",
+      error_payload: { error: "provider failed" },
+    });
+    expect(supabaseAdmin.upsert.mock.calls[1]?.[0]).toMatchObject({
+      generation_id: "gen-error-payload-compat",
+      user_id: "user-error-payload-compat",
+    });
+    expect(supabaseAdmin.upsert.mock.calls[1]?.[0]).not.toHaveProperty("error_payload");
   });
 
   it("retries stale terminal repair scan without display_title when hosted schema is stale", async () => {

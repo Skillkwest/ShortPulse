@@ -25,6 +25,24 @@ if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
   exit 1
 fi
 
+DB_HOST="$(
+  python3 - <<'PY'
+import os
+from urllib.parse import urlparse
+
+parsed = urlparse(os.environ.get("SUPABASE_DB_URL", ""))
+print(parsed.hostname or "")
+PY
+)"
+
+if [[ -n "$DB_HOST" && -n "$(command -v getent || true)" ]]; then
+  DB_HOSTADDR="$(getent ahostsv4 "$DB_HOST" 2>/dev/null | awk 'NR == 1 { print $1 }')"
+  if [[ -n "$DB_HOSTADDR" ]]; then
+    export PGHOSTADDR="$DB_HOSTADDR"
+    echo "[reliability-diagnostics] Using IPv4 hostaddr for hosted DB connectivity."
+  fi
+fi
+
 MODE="${RELIABILITY_DIAGNOSTICS_MODE:-warn}"
 if [[ "$MODE" != "warn" && "$MODE" != "enforce" ]]; then
   echo "[reliability-diagnostics] Unknown mode '$MODE'. Allowed: warn, enforce."

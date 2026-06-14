@@ -26,10 +26,12 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    prefetch: _prefetch,
     ...rest
   }: {
     children: ReactNode;
     href: string;
+    prefetch?: boolean;
   } & Record<string, unknown>) => (
     <a href={href} {...rest}>
       {children}
@@ -325,7 +327,7 @@ describe("Dashboard guest route", () => {
     );
   });
 
-  it("renders video tutorial thumbnails as native loops without early seek control", async () => {
+  it("renders video tutorial thumbnails with bounded metadata preload", async () => {
     publicFetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -352,7 +354,7 @@ describe("Dashboard guest route", () => {
     const thumbnailVideo = tutorialButton.querySelector("video");
 
     expect(thumbnailVideo).toBeInTheDocument();
-    expect(thumbnailVideo).toHaveAttribute("preload", "auto");
+    expect(thumbnailVideo).toHaveAttribute("preload", "metadata");
     expect(thumbnailVideo).toHaveAttribute("loop");
     expect(thumbnailVideo).toHaveAttribute("poster", "https://cdn.example.com/tutorial-poster.jpg");
   });

@@ -37,6 +37,9 @@ export type GenerationControlPlaneCycleResult = {
   reservationCleanupScanned: number;
   reservationCleanupReleased: number;
   reservationCleanupErrors: number;
+  projectionRepairScanned: number;
+  projectionRepairRepaired: number;
+  projectionRepairSkipped: number;
   audioCompanionArtClaimed: number;
   audioCompanionArtProcessed: number;
   audioCompanionArtReady: number;

@@ -119,12 +119,49 @@ describe("admin standard system prompt API", () => {
       actorEmail: "admin@example.com",
     });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "no-store, max-age=0");
     expect(res.json).toHaveBeenCalledWith({
       promptId: "STUDIO_AGENT_SYSTEM",
       promptBody: "Return one final prompt.",
       updatedAt: "2026-05-08T17:05:00.000Z",
       updatedByEmail: "admin@example.com",
       source: "control_plane",
+    });
+  });
+
+  it("rejects saves that omit the expected updatedAt token", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        promptBody: "Return one final prompt.",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveRuntimeAgentPromptMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "expectedUpdatedAt is required so non-live prompt content cannot overwrite the live Standard system prompt.",
+    });
+  });
+
+  it("rejects non-string expected updatedAt tokens", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        promptBody: "Return one final prompt.",
+        expectedUpdatedAt: 123,
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveRuntimeAgentPromptMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "expectedUpdatedAt must be a string or null.",
     });
   });
 

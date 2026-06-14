@@ -1499,6 +1499,126 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("captures video workflow reload metadata for style, frames, and element slots", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "keyframes",
+        videoReferenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        seedance2InputMode: "multimodal",
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [
+          {
+            id: "direct-image-slot",
+            slotIndex: 0,
+            sourceKind: "reference-image",
+            name: "Image reference",
+            profileImageUrl: "https://example.com/element-profile.png",
+            frontalImageUrl: "https://example.com/element-profile.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current(
+        "A styled Seedance shot",
+        ["https://example.com/first.png", "https://example.com/last.png"],
+        {
+          modeOverride: "video",
+          selectedToolOverride: "video",
+          styleContextOverride: {
+            applied: true,
+            styleId: "video-style",
+            styleName: "Video Style",
+            stylePrompt: "stormy handheld realism",
+          },
+        }
+      );
+    });
+
+    const workflowReload = outputs[0]?.workflowReload;
+    expect(workflowReload?.payload).toEqual(
+      expect.objectContaining({
+        kind: "video",
+        styleContext: {
+          applied: true,
+          styleId: "video-style",
+          styleName: "Video Style",
+          stylePrompt: "stormy handheld realism",
+        },
+        videoReferences: expect.objectContaining({
+          firstFrame: expect.objectContaining({
+            sourceUrl: "https://example.com/first.png",
+          }),
+          lastFrame: expect.objectContaining({
+            sourceUrl: "https://example.com/last.png",
+          }),
+          klingElementSlots: [
+            expect.objectContaining({
+              slotIndex: 0,
+              element: expect.objectContaining({
+                id: "direct-image-slot",
+                profileImageUrl: "https://example.com/element-profile.png",
+                frontalImageUrl: "https://example.com/element-profile.png",
+              }),
+            }),
+          ],
+        }),
+      })
+    );
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowReload,
+      })
+    );
+  });
+
   it("routes standard video to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

@@ -77,6 +77,7 @@ type GenerationFailureContext = {
   noMediaAttempt?: number;
   elapsedMs?: number;
   maxWaitMs?: number;
+  errorPayload?: unknown;
 };
 
 type TaskCallbacks = {
@@ -409,6 +410,7 @@ export function useAiStudioTasks({
           notifyGenerationFailure(outputId, failure.message, failure.detail, {
             reasonCode: "provider_error",
             providerState: projectionLifecycle.queueState ?? projectionLifecycle.taskState ?? null,
+            errorPayload: projectionLifecycle.errorPayload,
           });
         }
         queueOutputUpdate(outputId, (item) => ({
@@ -430,6 +432,10 @@ export function useAiStudioTasks({
               ? failure.shortMessage
               : item.errorMessageShort,
           errorDetail: projectionLifecycle.taskState === "fail" ? failure.detail : item.errorDetail,
+          errorPayload:
+            projectionLifecycle.taskState === "fail"
+              ? (projectionLifecycle.errorPayload ?? item.errorPayload ?? null)
+              : item.errorPayload,
         }));
         if (projectionLifecycle.taskState === "fail" && onGenerationFailure) {
           onGenerationFailure({
@@ -987,6 +993,7 @@ export function useAiStudioTasks({
                   errorMessage: item.errorMessage == null ? item.errorMessage : null,
                   errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
                   errorDetail: item.errorDetail == null ? item.errorDetail : null,
+                  errorPayload: item.errorPayload == null ? item.errorPayload : null,
                 };
               });
               if (onGenerationSuccess) {
@@ -1029,6 +1036,7 @@ export function useAiStudioTasks({
                 pollAttempt: attempt,
                 elapsedMs: Date.now() - startedAt,
                 maxWaitMs,
+                errorPayload: lifecycleHint?.errorPayload,
               });
               queueOutputUpdate(outputId, (item) => ({
                 ...item,
@@ -1043,6 +1051,10 @@ export function useAiStudioTasks({
                   item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
                 errorDetail:
                   item.errorDetail === safeFailureDetail ? item.errorDetail : safeFailureDetail,
+                errorPayload:
+                  item.errorPayload === lifecycleHint?.errorPayload
+                    ? item.errorPayload
+                    : (lifecycleHint?.errorPayload ?? null),
               }));
               if (onGenerationFailure) {
                 onGenerationFailure({
@@ -1257,6 +1269,7 @@ export function useAiStudioTasks({
                 pollAttempt: attempt,
                 elapsedMs: Date.now() - startedAt,
                 maxWaitMs,
+                errorPayload: status,
               });
               queueOutputUpdate(outputId, (item) => ({
                 ...item,
@@ -1272,6 +1285,7 @@ export function useAiStudioTasks({
                     : rawFailure.shortMessage,
                 errorDetail:
                   item.errorDetail === rawFailure.detail ? item.errorDetail : rawFailure.detail,
+                errorPayload: item.errorPayload === status ? item.errorPayload : status,
               }));
               if (onGenerationFailure) {
                 onGenerationFailure({

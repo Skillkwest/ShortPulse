@@ -37,7 +37,7 @@ const validateExpectedUpdatedAt = (
     return {
       ok: false,
       message:
-        "expectedUpdatedAt is required so fallback catalog content cannot overwrite live built-ins.",
+        "expectedUpdatedAt is required so non-live catalog content cannot overwrite live built-ins.",
     };
   }
   if (value === null) {

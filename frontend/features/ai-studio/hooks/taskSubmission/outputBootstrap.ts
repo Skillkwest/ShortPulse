@@ -430,6 +430,7 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
       autoFix,
       referenceInputs,
       internalMediaRefs,
+      styleContext,
       ...(videoReferences ? { videoReferences } : {}),
       motionReferenceVideoUrl,
       lipSyncAudioUrl,

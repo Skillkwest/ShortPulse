@@ -172,9 +172,7 @@ describe("auth callback url route", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL must match when both are configured.",
-    });
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to resolve app origin." });
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         req,

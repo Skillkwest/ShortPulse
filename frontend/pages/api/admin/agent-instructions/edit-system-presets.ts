@@ -23,9 +23,30 @@ const validatePresetDefinitions = (
   return { ok: true, presetDefinitions };
 };
 
+const validateExpectedUpdatedAt = (
+  value: unknown
+): { ok: true; expectedUpdatedAt: string | null } | { ok: false; message: string } => {
+  if (value === undefined) {
+    return {
+      ok: false,
+      message:
+        "expectedUpdatedAt is required so non-live catalog content cannot overwrite live Edit presets.",
+    };
+  }
+  if (value === null) {
+    return { ok: true, expectedUpdatedAt: null };
+  }
+  if (typeof value !== "string") {
+    return { ok: false, message: "expectedUpdatedAt must be a string or null." };
+  }
+  const normalized = value.trim();
+  return { ok: true, expectedUpdatedAt: normalized.length > 0 ? normalized : null };
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const adminUser = await requireAdminUser(req, res);
   if (!adminUser) return;
+  res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (req.method === "GET") {
     try {
@@ -53,14 +74,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!parsed.ok) {
       return res.status(400).json({ error: parsed.message });
     }
+    const expectedUpdatedAt = validateExpectedUpdatedAt(req.body?.expectedUpdatedAt);
+    if (!expectedUpdatedAt.ok) {
+      return res.status(400).json({ error: expectedUpdatedAt.message });
+    }
 
     try {
       const savedCatalog = await saveExpertEditSystemPresetCatalog({
         presetDefinitions: parsed.presetDefinitions,
-        expectedUpdatedAt:
-          typeof req.body?.expectedUpdatedAt === "string" || req.body?.expectedUpdatedAt === null
-            ? req.body.expectedUpdatedAt
-            : undefined,
+        expectedUpdatedAt: expectedUpdatedAt.expectedUpdatedAt,
         actorUserId: adminUser.id,
         actorEmail: adminUser.email ?? null,
       });

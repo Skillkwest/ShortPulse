@@ -29,6 +29,7 @@ import {
   getReferenceGridAvailableSlots,
   REFERENCE_GRID_CAP_REACHED_MESSAGE,
 } from "../reference-grid/logic/referenceGridLimits";
+import type { NotifyGenerationFailure } from "./generationFailureReporting";
 
 type VoicesGenerateSuccessResponse = {
   output: {
@@ -146,7 +147,7 @@ type UseAiStudioAudioGenerationParams = {
     providerOverride?: string | null;
     submissionModeOverride?: "provider-task" | "direct-request";
   }) => string | null;
-  notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
+  notifyGenerationFailure: NotifyGenerationFailure;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
 };
@@ -639,7 +640,8 @@ export const useAiStudioAudioGeneration = ({
           notifyGenerationFailure(
             optimisticOutputId,
             message,
-            sanitizeCustomerFacingProviderText(errorPayload?.details, message)
+            sanitizeCustomerFacingProviderText(errorPayload?.details, message),
+            { errorPayload }
           );
           setUiError(message);
           return;
@@ -760,7 +762,8 @@ export const useAiStudioAudioGeneration = ({
           notifyGenerationFailure(
             optimisticOutputId,
             message,
-            sanitizeCustomerFacingProviderText(errorPayload?.details, message)
+            sanitizeCustomerFacingProviderText(errorPayload?.details, message),
+            { errorPayload }
           );
           setUiError(message);
           return false;
@@ -859,7 +862,8 @@ export const useAiStudioAudioGeneration = ({
           notifyGenerationFailure(
             optimisticOutputId,
             message,
-            sanitizeCustomerFacingProviderText(errorPayload?.details, message)
+            sanitizeCustomerFacingProviderText(errorPayload?.details, message),
+            { errorPayload }
           );
           setUiError(message);
           return;

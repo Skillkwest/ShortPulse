@@ -421,6 +421,12 @@ describe("useAiStudioWorkflowReloadController", () => {
         cameraFixed: true,
         autoFix: true,
         referenceInputs: ["https://example.com/frame.png"],
+        styleContext: {
+          applied: true,
+          styleId: "video-style",
+          styleName: "Video Style",
+          stylePrompt: "stormy handheld realism",
+        },
         motionReferenceVideoUrl: "https://example.com/motion.mp4",
         seedance2InputMode: "multimodal",
         seedance2ReferenceAudioUrls: ["https://example.com/ref.mp3"],
@@ -445,7 +451,15 @@ describe("useAiStudioWorkflowReloadController", () => {
     });
 
     expect(params.setSelectedTool).toHaveBeenCalledWith("video");
+    expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
     expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.prepareImageStyleWorkflowReload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applied: true,
+        styleId: "video-style",
+        stylePrompt: "stormy handheld realism",
+      })
+    );
     expect(params.setVideoReferenceText).toHaveBeenCalledWith("A sweeping crane shot");
     expect(params.setAspect).toHaveBeenCalledWith("16:9");
     expect(params.setVideoReferenceMode).toHaveBeenCalledWith("motion");

@@ -139,24 +139,24 @@ export function ExpertEditStageWorkspace({
         <div
           className={`edit-expert-primary-column edit-expert-primary-column-shell ${shouldBlurPromptUnderlay ? "is-composer-expanded" : ""}`.trim()}
         >
-          {inlineStageHeaderControls ? (
-            <div className="edit-expert-primary-column-header">{inlineStageHeaderControls}</div>
-          ) : null}
           <ExpertEditInlineStageSurface
             stageRef={inlineStageRef}
             isEmpty={!hasPrimaryCompositePreview}
             isBusy={isPrimaryStageBusy}
             overlayActions={
-              hasPrimaryCompositePreview && selectedLayerName ? (
+              inlineStageHeaderControls || (hasPrimaryCompositePreview && selectedLayerName) ? (
                 <div className="edit-expert-stage-overlay-ui">
-                  <button
-                    type="button"
-                    className="edit-expert-stage-delete-btn"
-                    aria-label={`Delete selected layer (${selectedLayerName})`}
-                    onClick={onDeleteSelectedLayer}
-                  >
-                    <TrashSimple size={12} weight="regular" />
-                  </button>
+                  {inlineStageHeaderControls}
+                  {hasPrimaryCompositePreview && selectedLayerName ? (
+                    <button
+                      type="button"
+                      className="edit-expert-stage-delete-btn"
+                      aria-label={`Delete selected layer (${selectedLayerName})`}
+                      onClick={onDeleteSelectedLayer}
+                    >
+                      <TrashSimple size={12} weight="regular" />
+                    </button>
+                  ) : null}
                 </div>
               ) : null
             }

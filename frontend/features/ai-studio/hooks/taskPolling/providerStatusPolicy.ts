@@ -37,6 +37,7 @@ export type ShortPulseLifecycleHint = {
   saveError?: string | null;
   errorMessage?: string | null;
   errorDetail?: unknown;
+  errorPayload?: unknown;
   providerState?: string | null;
   recoveryPending?: boolean;
   queueState?: string | null;
@@ -358,6 +359,7 @@ export const readShortPulseLifecycleHint = (value: unknown): ShortPulseLifecycle
       : {}),
     errorMessage: typeof lifecycle.errorMessage === "string" ? lifecycle.errorMessage : null,
     errorDetail: lifecycle.errorDetail,
+    errorPayload: row.errorPayload ?? lifecycle.errorPayload ?? null,
     providerState: typeof lifecycle.providerState === "string" ? lifecycle.providerState : null,
     recoveryPending: lifecycle.recoveryPending === true,
     queueState: typeof lifecycle.queueState === "string" ? lifecycle.queueState : null,

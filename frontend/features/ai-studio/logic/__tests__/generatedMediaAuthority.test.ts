@@ -166,6 +166,7 @@ describe("generatedMediaAuthority", () => {
       referenceGridVisible: false,
       errorMessageShort: "Generation abandoned by user.",
       errorDetail: "Generation abandoned by user.",
+      errorPayload: null,
     });
   });
 

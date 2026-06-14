@@ -179,6 +179,32 @@ describe("admin built-in Styles API", () => {
     });
   });
 
+  it("rejects saves that omit the expected updatedAt token", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        styleDefinitions: [
+          {
+            styleId: "cinematic",
+            title: "Cinematic",
+            stylePrompt: "cinematic prompt",
+            previewImageUrl: "/Styles/Cinematic.png",
+            schemaVersion: 1,
+          },
+        ],
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveBuiltInStyleCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "expectedUpdatedAt is required so non-live catalog content cannot overwrite live built-in Styles.",
+    });
+  });
+
   it("returns 409 when the stored built-in Styles catalog is stale", async () => {
     saveBuiltInStyleCatalogMock.mockRejectedValue(
       new MockBuiltInStyleCatalogVersionMismatchError()

@@ -210,11 +210,14 @@ describe("/api/admin/dashboard/tutorials", () => {
     const selectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
     const insertMock = vi.fn(() => ({ select: selectMock }));
     const fromMock = vi.fn(() => ({ insert: insertMock }));
-    const createSignedUrlMock = vi.fn(async () => ({
-      data: { signedUrl: "https://supabase.example.com/signed-uploaded.gif" },
+    const createSignedUrlsMock = vi.fn(async (paths: string[]) => ({
+      data: paths.map((path) => ({
+        path,
+        signedUrl: `https://supabase.example.com/${path}`,
+      })),
       error: null,
     }));
-    const storageFromMock = vi.fn(() => ({ createSignedUrl: createSignedUrlMock }));
+    const storageFromMock = vi.fn(() => ({ createSignedUrls: createSignedUrlsMock }));
     getSupabaseAdminMock.mockReturnValue({
       from: fromMock,
       storage: { from: storageFromMock },
@@ -261,18 +264,24 @@ describe("/api/admin/dashboard/tutorials", () => {
       })
     );
     expect(storageFromMock).toHaveBeenCalledWith("dashboard_tutorial_thumbnails");
-    expect(createSignedUrlMock).toHaveBeenCalledWith(
-      "tutorial-thumbnail-variants/uploaded/display.mp4",
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(
+      [
+        "tutorial-thumbnail-variants/uploaded/display.mp4",
+        "tutorial-thumbnail-variants/uploaded/poster.jpg",
+      ],
       86400
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       tutorial: expect.objectContaining({
-        thumbnailUrl: "https://supabase.example.com/signed-uploaded.gif",
+        thumbnailUrl:
+          "https://supabase.example.com/tutorial-thumbnail-variants/uploaded/display.mp4",
         thumbnailStoragePath: "tutorial-thumbnails/uploaded.gif",
         thumbnailFileSizeBytes: 12345,
         thumbnailContentType: "image/gif",
         thumbnailDisplayStoragePath: "tutorial-thumbnail-variants/uploaded/display.mp4",
+        thumbnailPosterUrl:
+          "https://supabase.example.com/tutorial-thumbnail-variants/uploaded/poster.jpg",
         thumbnailPosterStoragePath: "tutorial-thumbnail-variants/uploaded/poster.jpg",
       }),
       message: "Tutorial saved and active.",

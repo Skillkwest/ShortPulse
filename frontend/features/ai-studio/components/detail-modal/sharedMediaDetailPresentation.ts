@@ -14,9 +14,20 @@ export const resolveSharedMediaDetailBladeContent = ({
   promptTextOverride = null,
   transcriptTextOverride = null,
 }: ResolveSharedMediaDetailBladeContentOptions): {
-  label: "LYRICS" | "PROMPT" | "TRANSCRIPT";
+  label: "ERROR" | "LYRICS" | "PROMPT" | "TRANSCRIPT";
   value: string;
 } => {
+  const errorContent = item.presentation?.errorContent;
+  const errorDetail = errorContent?.detail?.trim();
+  if (errorDetail) {
+    const summary = errorContent?.summary?.trim();
+    const rawPayload = errorContent?.rawPayload?.trim();
+    return {
+      label: "ERROR",
+      value: [summary, errorDetail, rawPayload].filter(Boolean).join("\n\n"),
+    };
+  }
+
   const transcriptText =
     transcriptTextOverride?.trim() || item.media.transcriptText?.trim() || null;
   if (transcriptText) {

@@ -84,12 +84,49 @@ describe("admin edit system presets API", () => {
       actorEmail: "admin@example.com",
     });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "no-store, max-age=0");
     expect(res.json).toHaveBeenCalledWith({
       presetDefinitions: [{ presetId: "selfie", label: "Selfie", prompt: "Prompt text" }],
       updatedAt: "2026-05-08T17:05:00.000Z",
       updatedByEmail: "admin@example.com",
       source: "control_plane",
       degraded: false,
+    });
+  });
+
+  it("rejects saves that omit the expected updatedAt token", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        presetDefinitions: [{ presetId: "selfie", label: "Selfie", prompt: "Prompt text" }],
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveExpertEditSystemPresetCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "expectedUpdatedAt is required so non-live catalog content cannot overwrite live Edit presets.",
+    });
+  });
+
+  it("rejects non-string expected updatedAt tokens", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        presetDefinitions: [{ presetId: "selfie", label: "Selfie", prompt: "Prompt text" }],
+        expectedUpdatedAt: 123,
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveExpertEditSystemPresetCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "expectedUpdatedAt must be a string or null.",
     });
   });
 

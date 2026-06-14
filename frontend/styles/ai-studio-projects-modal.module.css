@@ -284,6 +284,12 @@
   padding-right: 0;
 }
 
+.bootstrapStyleScope :global(.ai-projects-modal-load-more) {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 4px;
+}
+
 .bootstrapStyleScope
   :global(.ai-projects-modal-card-preview-grid)[data-count="1"]
   :global(.ai-projects-modal-card-preview-tile) {

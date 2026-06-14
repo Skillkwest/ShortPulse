@@ -541,6 +541,7 @@ export const useAiStudioWorkflowReloadController = ({
       if (payload.kind === "video") {
         const videoPayload: WorkflowReloadVideoPayload = payload;
         const videoReferences = videoPayload.videoReferences;
+        prepareImageStyleWorkflowReload?.(videoPayload.styleContext ?? output.styleContext ?? null);
         registerVideoReferenceSlots(videoReferences);
         setVideoReferenceText(config.prompt.display);
         setAspect(videoPayload.aspect);

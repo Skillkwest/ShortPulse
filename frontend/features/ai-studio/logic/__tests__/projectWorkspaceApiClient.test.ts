@@ -504,6 +504,61 @@ describe("projectWorkspaceApiClient", () => {
       shortpulseAuthTimeoutMs: 5000,
       shortpulseRetryNetworkOnce: true,
     });
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "warn",
+      message: "ai_studio_project_workspace_bootstrap_failed",
+      data: {
+        project_id: "project-1",
+        status: 404,
+        failure_stage: null,
+        error: "",
+        content_type: "text/html",
+        payload_parse_mode: "text",
+        raw_error_excerpt: "Server returned an invalid error response.",
+      },
+    });
+  });
+
+  it("records structured breadcrumbs when project workspace bootstrap fails server-side", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Failed to load project workspace",
+          details: "Failed to load project workspace during workspace read: database unavailable",
+          failureStage: "workspace read",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      getAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+      })
+    ).rejects.toThrow(
+      "Failed to load project workspace snapshot: Failed to load project workspace during workspace read: database unavailable"
+    );
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_bootstrap_failed",
+      data: {
+        project_id: "project-1",
+        status: 500,
+        failure_stage: "workspace read",
+        error: "Failed to load project workspace during workspace read: database unavailable",
+        content_type: "application/json",
+        payload_parse_mode: "json_object",
+        raw_error_excerpt: null,
+      },
+    });
   });
 
   it("loads project identity from the existing project workspace bootstrap route", async () => {

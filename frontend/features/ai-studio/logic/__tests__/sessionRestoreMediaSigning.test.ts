@@ -431,6 +431,63 @@ describe("sessionRestoreMediaSigning", () => {
     );
   });
 
+  it("dedupes concurrent media authority lookups for the same restored media id", async () => {
+    let resolveMediaQuery!: (value: unknown) => void;
+    mediaFilesQueryMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveMediaQuery = resolve;
+      })
+    );
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user-1/images/shared-full.png", "https://signed/shared-full.png"]])
+    );
+
+    const firstAuthorityPromise = resolveSessionRestoreSignedMediaAuthorityByMediaId([
+      "media-shared",
+    ]);
+    const secondAuthorityPromise = resolveSessionRestoreSignedMediaAuthorityByMediaId([
+      "media-shared",
+    ]);
+
+    expect(mediaFilesQueryMock).toHaveBeenCalledTimes(1);
+    expect(mediaFilesQueryMock).toHaveBeenCalledWith("id", ["media-shared"]);
+
+    resolveMediaQuery({
+      data: [
+        {
+          id: "media-shared",
+          storage_path: "user-1/images/shared-full.png",
+          file_type: "image",
+          poster_variant_path: null,
+          thumb_variant_path: null,
+          preview_variant_path: null,
+        },
+      ],
+      error: null,
+    });
+
+    const [firstAuthorityByMediaId, secondAuthorityByMediaId] = await Promise.all([
+      firstAuthorityPromise,
+      secondAuthorityPromise,
+    ]);
+
+    expect(mediaFilesQueryMock).toHaveBeenCalledTimes(1);
+    expect(firstAuthorityByMediaId.get("media-shared")).toEqual(
+      expect.objectContaining({
+        mediaId: "media-shared",
+        fullStoragePath: "user-1/images/shared-full.png",
+        signedFullUrl: "https://signed/shared-full.png",
+      })
+    );
+    expect(secondAuthorityByMediaId.get("media-shared")).toEqual(
+      expect.objectContaining({
+        mediaId: "media-shared",
+        fullStoragePath: "user-1/images/shared-full.png",
+        signedFullUrl: "https://signed/shared-full.png",
+      })
+    );
+  });
+
   it("recovers stripped generated storage authority from generation identity during session restore", async () => {
     const rows = [
       createOutput({

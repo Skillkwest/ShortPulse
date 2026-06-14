@@ -95,6 +95,12 @@ describe("taskSubmission outputBootstrap", () => {
       generateAudio: false,
       cameraFixed: true,
       autoFix: false,
+      styleContext: {
+        applied: true,
+        styleId: "noir",
+        styleName: "Noir",
+        stylePrompt: "deep contrast and hard rim light",
+      },
       seedance2InputMode: "multimodal",
       seedance2ReferenceImageUrls: ["https://example.com/video-seed-image.png"],
       seedance2ReferenceVideoUrls: ["https://example.com/video-seed-video.mp4"],
@@ -110,6 +116,12 @@ describe("taskSubmission outputBootstrap", () => {
     expect(workflowReload?.payload).toEqual(
       expect.objectContaining({
         kind: "video",
+        styleContext: {
+          applied: true,
+          styleId: "noir",
+          styleName: "Noir",
+          stylePrompt: "deep contrast and hard rim light",
+        },
         referenceInputs: [
           "https://example.com/video-first-frame.png",
           "https://example.com/video-last-frame.png",

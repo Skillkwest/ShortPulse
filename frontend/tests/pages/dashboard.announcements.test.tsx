@@ -3,7 +3,7 @@
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
@@ -16,6 +16,7 @@ const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const publicFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -25,10 +26,12 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    prefetch: _prefetch,
     ...rest
   }: {
     children: ReactNode;
     href: string;
+    prefetch?: boolean;
   } & Record<string, unknown>) => (
     <a href={href} {...rest}>
       {children}
@@ -167,13 +170,20 @@ describe("Dashboard announcement rendering", () => {
     readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
     ensureSupabaseQueryClientMock.mockReturnValue(buildSupabaseClient());
+    publicFetchMock.mockReset();
+    vi.stubGlobal("fetch", publicFetchMock);
+    publicFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ tutorials: [] }),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("renders active announcement title and message when available", async () => {
-    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
-      if (String(url) === "/api/dashboard/tutorials") {
-        return { ok: true, json: async () => ({ tutorials: [] }) };
-      }
+    fetchWithAuthMock.mockImplementation(async () => {
       return {
         ok: true,
         json: async () => ({
@@ -198,10 +208,7 @@ describe("Dashboard announcement rendering", () => {
   });
 
   it("renders fallback helper copy when no active announcement exists", async () => {
-    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
-      if (String(url) === "/api/dashboard/tutorials") {
-        return { ok: true, json: async () => ({ tutorials: [] }) };
-      }
+    fetchWithAuthMock.mockImplementation(async () => {
       return {
         ok: true,
         json: async () => ({ announcement: null }),
@@ -217,26 +224,24 @@ describe("Dashboard announcement rendering", () => {
   });
 
   it("renders active dashboard tutorial cards from the global tutorial hub", async () => {
-    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
-      if (String(url) === "/api/dashboard/tutorials") {
-        return {
-          ok: true,
-          json: async () => ({
-            tutorials: [
-              {
-                id: "tutorial-1",
-                title: "Create your first project",
-                youtubeUrl: "https://www.youtube.com/watch?v=abc123",
-                thumbnailUrl: "https://cdn.example.com/tutorial.mp4",
-                thumbnailPosterUrl: "https://cdn.example.com/tutorial-poster.jpg",
-                thumbnailMediaType: "video",
-                thumbnailAlt: "Animated project creation preview",
-                displayOrder: 1,
-              },
-            ],
-          }),
-        };
-      }
+    publicFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        tutorials: [
+          {
+            id: "tutorial-1",
+            title: "Create your first project",
+            youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+            thumbnailUrl: "https://cdn.example.com/tutorial.mp4",
+            thumbnailPosterUrl: "https://cdn.example.com/tutorial-poster.jpg",
+            thumbnailMediaType: "video",
+            thumbnailAlt: "Animated project creation preview",
+            displayOrder: 1,
+          },
+        ],
+      }),
+    });
+    fetchWithAuthMock.mockImplementation(async () => {
       return {
         ok: true,
         json: async () => ({ announcement: null }),
@@ -264,6 +269,12 @@ describe("Dashboard announcement rendering", () => {
       "href",
       "/ai-studio"
     );
+    expect(publicFetchMock).toHaveBeenCalledWith("/api/dashboard/tutorials", {
+      method: "GET",
+    });
+    expect(fetchWithAuthMock).not.toHaveBeenCalledWith("/api/dashboard/tutorials", {
+      method: "GET",
+    });
     await vi.dynamicImportSettled();
   });
 

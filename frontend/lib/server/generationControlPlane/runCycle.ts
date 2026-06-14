@@ -102,6 +102,9 @@ export const runGenerationControlPlaneCycle = async ({
   let reservationCleanupScanned = 0;
   let reservationCleanupReleased = 0;
   let reservationCleanupErrors = 0;
+  let projectionRepairScanned = 0;
+  let projectionRepairRepaired = 0;
+  let projectionRepairSkipped = 0;
   let observationClaimed = 0;
   let observationProcessed = 0;
   let observationIgnored = 0;
@@ -229,10 +232,34 @@ export const runGenerationControlPlaneCycle = async ({
 
   await measureStage("projectionRepair", async () => {
     try {
-      await repairStaleTerminalGenerationProjections({
+      const projectionRepairMetrics = await repairStaleTerminalGenerationProjections({
         supabaseAdmin,
         limit: Math.max(effectiveReconcilerBatchSize, 10),
+        onAssociationFailure: async ({
+          stage,
+          userId,
+          projectId,
+          generationId,
+          mediaFileIds,
+          error,
+        }) => {
+          await logControlPlaneException({
+            context,
+            error,
+            metadata: {
+              stage: "projection_repair_project_association",
+              association_stage: stage,
+              user_id: userId,
+              project_id: projectId,
+              generation_id: generationId,
+              media_file_ids: mediaFileIds ?? [],
+            },
+          });
+        },
       });
+      projectionRepairScanned = projectionRepairMetrics.scanned;
+      projectionRepairRepaired = projectionRepairMetrics.repaired;
+      projectionRepairSkipped = projectionRepairMetrics.skipped;
     } catch (error) {
       await logControlPlaneException({
         context,
@@ -285,6 +312,9 @@ export const runGenerationControlPlaneCycle = async ({
     reservationCleanupScanned,
     reservationCleanupReleased,
     reservationCleanupErrors,
+    projectionRepairScanned,
+    projectionRepairRepaired,
+    projectionRepairSkipped,
     audioCompanionArtClaimed,
     audioCompanionArtProcessed,
     audioCompanionArtReady,

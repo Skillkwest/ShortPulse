@@ -552,6 +552,7 @@ export const createFalStatusHandler = ({
         providerState,
         errorMessage: fallbackMessage,
         errorDetail: fallbackDetail,
+        errorPayload: fallbackDetail ?? null,
         failureReasonCode,
       });
       if (!settlement.ok) {
@@ -618,6 +619,7 @@ export const createFalStatusHandler = ({
             fallbackMessage,
           errorDetail:
             canonicalContext.errorDetail ?? canonicalContext.errorMessageShort ?? fallbackDetail,
+          errorPayload: canonicalContext.errorPayload ?? fallbackDetail ?? null,
           providerState,
           queueState: canonicalContext.queueState ?? "failed",
         }),

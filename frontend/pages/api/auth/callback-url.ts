@@ -15,6 +15,8 @@ type ErrorResponse = {
   error: string;
 };
 
+const CALLBACK_URL_RESOLUTION_ERROR = "Unable to resolve app origin.";
+
 const readQueryValue = (value: string | string[] | undefined): string | null => {
   if (Array.isArray(value)) return typeof value[0] === "string" ? value[0] : null;
   return typeof value === "string" ? value : null;
@@ -47,7 +49,7 @@ export default async function handler(
           auth_flow: flow,
         },
       });
-      return res.status(500).json({ error: "Unable to resolve app origin." });
+      return res.status(500).json({ error: CALLBACK_URL_RESOLUTION_ERROR });
     }
 
     return res.status(200).json({
@@ -67,7 +69,7 @@ export default async function handler(
       },
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Unable to resolve app origin.",
+      error: CALLBACK_URL_RESOLUTION_ERROR,
     });
   }
 }

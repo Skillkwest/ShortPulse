@@ -46,6 +46,7 @@ type DirectGenerationFailureInput = DirectGenerationSettlementInput & {
   providerState: string | null;
   errorMessage: string;
   errorDetail?: unknown;
+  errorPayload?: unknown;
   failureReasonCode?: string;
 };
 
@@ -591,6 +592,7 @@ export const settleDirectGenerationFailure = async ({
   providerState,
   errorMessage,
   errorDetail,
+  errorPayload,
   failureReasonCode = "provider_error",
 }: DirectGenerationFailureInput): Promise<DirectGenerationSettlementResult> => {
   const generation = await readGenerationContext({
@@ -610,6 +612,7 @@ export const settleDirectGenerationFailure = async ({
   const nowIso = new Date().toISOString();
   const normalizedErrorMessage = asString(errorMessage) ?? "Generation failed";
   const normalizedErrorDetail = stringifyDetail(errorDetail, normalizedErrorMessage);
+  const durableErrorPayload = errorPayload ?? errorDetail ?? null;
   const generationMetadata = asObject(generation.metadata);
   const abandonment = await readGenerationAbandonmentContext({
     userId: generation.user_id,
@@ -696,6 +699,7 @@ export const settleDirectGenerationFailure = async ({
       direct_terminal_settlement: true,
       provider_state: providerState,
       error_detail: normalizedErrorDetail,
+      error_payload: durableErrorPayload,
       user_abandoned: isAbandoned,
     },
     abandonedNoRefund: isAbandoned && abandonment.noRefund,
@@ -721,6 +725,7 @@ export const settleDirectGenerationFailure = async ({
     abandoned: isAbandoned,
     completedAt: nowIso,
     errorDetail: normalizedErrorDetail,
+    errorPayload: durableErrorPayload,
     errorMessage: normalizedErrorMessage,
     errorMessageShort: normalizedErrorMessage,
     projectionLatestAttemptId: attempt?.id ?? null,

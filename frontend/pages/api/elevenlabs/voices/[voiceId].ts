@@ -7,6 +7,10 @@ import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFaci
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import {
+  readElevenLabsProviderError,
+  resolveElevenLabsProviderUserMessage,
+} from "../../../../lib/server/api/elevenlabsProviderError";
+import {
   deleteSavedVoiceForUser,
   listSavedVoicesForUser,
 } from "../../../../lib/server/api/userSavedVoices";
@@ -29,6 +33,8 @@ type DeleteVoiceSuccessResponse = {
 type DeleteVoiceErrorResponse = {
   error: string;
   details?: string;
+  code?: string;
+  retryAfterSeconds?: number;
 };
 
 const normalizeVoiceId = (value: string | string[] | undefined): string | null => {
@@ -178,6 +184,22 @@ export default async function handler(
       scope: "generation",
       user,
     });
+
+    const providerError = readElevenLabsProviderError(error);
+    if (providerError && (providerError.status === 429 || providerError.status === 503)) {
+      if (providerError.retryAfterSeconds !== null) {
+        res.setHeader("Retry-After", String(providerError.retryAfterSeconds));
+      }
+      return res.status(providerError.status).json({
+        error: "Unable to delete voice",
+        details: sanitizeCustomerFacingProviderText(
+          resolveElevenLabsProviderUserMessage(providerError),
+          "Unable to delete voice."
+        ),
+        code: providerError.code ?? undefined,
+        retryAfterSeconds: providerError.retryAfterSeconds ?? undefined,
+      });
+    }
 
     return res.status(500).json({
       error: "Unable to delete voice",

@@ -80,7 +80,11 @@ export function DashboardTutorialModal({
         )}
 
         <footer className="dashboard-tutorial-modal-actions">
-          <Link href={launchHref} className="primary-btn dashboard-tutorial-modal-launch">
+          <Link
+            href={launchHref}
+            className="primary-btn dashboard-tutorial-modal-launch"
+            prefetch={false}
+          >
             <span>Launch AI Studio</span>
             <ArrowRight size={18} weight="bold" aria-hidden="true" />
           </Link>

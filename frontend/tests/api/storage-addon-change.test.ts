@@ -130,6 +130,7 @@ describe("POST /api/billing/storage-addon/change", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
+    process.env.STRIPE_SECRET_KEY = "sk_test_key";
     requireApiUserMock.mockResolvedValue({
       id: "user-1",
       email: "user@example.com",
@@ -394,6 +395,62 @@ describe("POST /api/billing/storage-addon/change", () => {
     expect(stripeGetMock).not.toHaveBeenCalled();
     expect(stripePostFormMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("returns a clear configuration response before Stripe mutation when Stripe is unavailable", async () => {
+    delete process.env.STRIPE_SECRET_KEY;
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "studio",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "studio",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_100gb",
+          display_name: "Extra 100 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_100gb__current",
+            storage_addon_id: "storage_100gb",
+            stripe_price_id: "price_storage_100",
+            recurring_price_cents: 1500,
+            storage_limit_bytes: 107374182400,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [],
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_100gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(readVerifiedStripeSubscriptionForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(501);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Stripe is not configured on the server yet.",
+    });
   });
 
   it("blocks duplicate add-on purchases when Stripe already has the item but local sync is stale", async () => {

@@ -1,3 +1,6 @@
+/**
+ * Signed-in issue intake page for sending user reports into the admin review queue.
+ */
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useState, type FormEvent } from "react";
@@ -68,7 +71,7 @@ export default function ReportIssuePage() {
       setMessage("");
       setSubmitState({
         kind: "success",
-        message: "Your report was sent to the ShortPulse admins. Thank you.",
+        message: "Report sent. It is now in the admin Reports queue.",
       });
     } catch (error) {
       setSubmitState({
@@ -92,11 +95,10 @@ export default function ReportIssuePage() {
       <main className="page">
         <section className={styles.reportShell}>
           <div className={styles.reportHeader}>
-            <p className="eyebrow">Support</p>
             <h1 className={styles.reportTitle}>Report an issue</h1>
-            <p className="subdued">
-              Send a note directly to the ShortPulse admin review queue if something is broken,
-              confusing, or blocking your work.
+            <p className={styles.reportIntro}>
+              Tell us what broke or felt confusing. We attach your signed-in account and route
+              context automatically.
             </p>
           </div>
 
@@ -105,20 +107,14 @@ export default function ReportIssuePage() {
               <p className="subdued">Checking your session…</p>
             ) : (
               <form className={styles.reportForm} onSubmit={handleSubmit}>
-                <div className={styles.reportMetaRow}>
-                  <div className={styles.metaCard}>
-                    <span className="tiny subdued">Signed-in email</span>
-                    <strong>{user?.email ?? "Unknown account"}</strong>
-                  </div>
-                  <div className={styles.metaCard}>
-                    <span className="tiny subdued">Captured context</span>
-                    <strong>
-                      {capturedContext === "/report-issue" ? "Current page" : capturedContext}
-                    </strong>
-                    <span className="tiny subdued">
-                      We attach the ShortPulse route context we can verify for triage.
-                    </span>
-                  </div>
+                <div className={styles.reportMetaRow} aria-label="Report context">
+                  <span>
+                    <strong>Signed-in email:</strong> {user?.email ?? "Unknown account"}
+                  </span>
+                  <span>
+                    <strong>Captured context:</strong>{" "}
+                    {capturedContext === "/report-issue" ? "Current page" : capturedContext}
+                  </span>
                 </div>
 
                 <label className={styles.reportField}>
@@ -127,8 +123,8 @@ export default function ReportIssuePage() {
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
                     maxLength={ISSUE_REPORT_MESSAGE_MAX_LENGTH}
-                    rows={8}
-                    placeholder="Tell us what happened, what you expected, and anything else that might help us reproduce it."
+                    rows={9}
+                    placeholder="What happened? What did you expect? Add any steps that would help reproduce it."
                   />
                 </label>
 

@@ -4,7 +4,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { listProjectsForUser, parseProjectListLimit } from "../../../lib/server/projectsService";
+import {
+  MAX_PROJECT_LIST_LIMIT,
+  listProjectsForUser,
+  parseProjectListLimit,
+  parseProjectListOffset,
+} from "../../../lib/server/projectsService";
 
 type ProjectListResponse = {
   projects: Array<{
@@ -14,6 +19,8 @@ type ProjectListResponse = {
     updatedAt: string;
     previewImageUrls: string[];
   }>;
+  hasMore?: boolean;
+  nextOffset?: number | null;
 };
 
 type ProjectListErrorResponse = {
@@ -37,20 +44,31 @@ export default async function handler(
   if (limit == null) {
     return res.status(400).json({ error: "Invalid project list limit" });
   }
+  const offset = parseProjectListOffset(req.query.offset);
+  if (offset == null) {
+    return res.status(400).json({ error: "Invalid project list offset" });
+  }
 
   try {
+    const pageLimit =
+      typeof limit === "number" ? Math.min(limit + 1, MAX_PROJECT_LIST_LIMIT) : limit;
     const projects = await listProjectsForUser({
       userId: user.id,
-      limit,
+      limit: pageLimit,
+      offset,
     });
+    const hasMore = typeof limit === "number" && projects.length > limit;
+    const visibleProjects = typeof limit === "number" ? projects.slice(0, limit) : projects;
     return res.status(200).json({
-      projects: projects.map((project) => ({
+      projects: visibleProjects.map((project) => ({
         id: project.id,
         title: project.title,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         previewImageUrls: project.previewImageUrls ?? [],
       })),
+      hasMore,
+      nextOffset: hasMore ? offset + visibleProjects.length : null,
     });
   } catch (error) {
     await logApiRouteException({

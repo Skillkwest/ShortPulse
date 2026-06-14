@@ -27,6 +27,7 @@ vi.mock("../../lib/server/elevenlabs", () => ({
 }));
 
 const createMockResponse = () => ({
+  setHeader: vi.fn(),
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
@@ -165,6 +166,60 @@ describe("DELETE /api/elevenlabs/voices/[voiceId]", () => {
       status: "ok",
       voiceId: "voice-clone-1",
       action: "delete",
+    });
+  });
+
+  it("preserves provider retry status when upstream voice deletion is rate limited", async () => {
+    listSavedVoicesForUserMock.mockResolvedValue([
+      {
+        voiceId: "voice-clone-1",
+        name: "Cloned Voice",
+        previewUrl: null,
+        description: "User clone",
+        provider: "elevenlabs",
+        isFallback: false,
+        createdAt: new Date().toISOString(),
+        originKind: "provider-user-created",
+        savedSource: "voice-clone",
+        providerDeleteEligible: true,
+      },
+    ]);
+    listElevenLabsVoicesMock.mockResolvedValue([
+      {
+        voiceId: "voice-clone-1",
+        name: "Cloned Voice",
+        previewUrl: null,
+        description: "User clone",
+        isFallback: false,
+        providerCategory: "cloned",
+        providerVoiceType: "personal",
+      },
+    ]);
+    deleteElevenLabsVoiceMock.mockRejectedValueOnce(
+      Object.assign(new Error("too_many_concurrent_requests: req_sensitive"), {
+        status: 429,
+        code: "too_many_concurrent_requests",
+        retryAfterSeconds: 12,
+      })
+    );
+
+    const req = {
+      method: "DELETE",
+      query: { voiceId: "voice-clone-1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(deleteSavedVoiceForUserMock).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "12");
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to delete voice",
+      details:
+        "The audio provider is at its concurrency limit right now. Please retry in 12 seconds.",
+      code: "too_many_concurrent_requests",
+      retryAfterSeconds: 12,
     });
   });
 

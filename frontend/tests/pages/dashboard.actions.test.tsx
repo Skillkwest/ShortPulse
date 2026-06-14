@@ -17,6 +17,7 @@ const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const signOutSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const publicFetchMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
 const routerPushMock = vi.hoisted(() => vi.fn());
 const signOutMock = vi.hoisted(() => vi.fn());
@@ -29,10 +30,12 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    prefetch: _prefetch,
     ...rest
   }: {
     children: ReactNode;
     href: string;
+    prefetch?: boolean;
   } & Record<string, unknown>) => (
     <a href={href} {...rest}>
       {children}
@@ -152,6 +155,12 @@ describe("Dashboard actions", () => {
     signOutMock.mockResolvedValue({ error: null });
     signOutSupabaseSessionMock.mockReset();
     signOutSupabaseSessionMock.mockResolvedValue(undefined);
+    publicFetchMock.mockReset();
+    vi.stubGlobal("fetch", publicFetchMock);
+    publicFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ tutorials: [] }),
+    });
 
     useRouterMock.mockReturnValue({ replace: routerReplaceMock, push: routerPushMock });
     useCreditsMock.mockReturnValue({
@@ -186,7 +195,7 @@ describe("Dashboard actions", () => {
           json: async () => ({ announcement: null }),
         };
       }
-      if (input === "/api/projects?limit=all") {
+      if (input === "/api/projects?limit=12&offset=0") {
         return {
           ok: true,
           json: async () => ({
@@ -204,6 +213,25 @@ describe("Dashboard actions", () => {
                 updatedAt: "2026-04-22T01:00:00.000Z",
               },
             ],
+            hasMore: true,
+            nextOffset: 2,
+          }),
+        };
+      }
+      if (input === "/api/projects?limit=12&offset=2") {
+        return {
+          ok: true,
+          json: async () => ({
+            projects: [
+              {
+                id: "project-3",
+                title: "Project Three",
+                createdAt: "2026-04-21T00:00:00.000Z",
+                updatedAt: "2026-04-21T01:00:00.000Z",
+              },
+            ],
+            hasMore: false,
+            nextOffset: null,
           }),
         };
       }
@@ -222,6 +250,7 @@ describe("Dashboard actions", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     document.body.classList.remove("dashboard-body");
     document.documentElement.classList.remove("dashboard-body");
   });
@@ -326,7 +355,7 @@ describe("Dashboard actions", () => {
     render(<DashboardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: /New Project:/i }));
-    expect(screen.getByRole("dialog", { name: "Name project" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Name project" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "Launch Campaign" },
@@ -362,6 +391,16 @@ describe("Dashboard actions", () => {
     );
 
     expect(await screen.findByRole("dialog", { name: "Projects" })).toBeInTheDocument();
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/projects?limit=12&offset=0",
+      expect.objectContaining({ method: "GET" })
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Open project Project Three" })
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open project Project One" }));
 

@@ -62,6 +62,23 @@ type MediaStoragePathRow = {
   thumb_variant_path?: unknown;
   preview_variant_path?: unknown;
 };
+type MediaStorageAuthority = SessionRecoveredStorageAuthority & { fileType: string | null };
+
+const inFlightMediaStorageAuthorityByMediaId = new Map<
+  string,
+  Promise<MediaStorageAuthority | null>
+>();
+
+const createDeferredMediaStorageAuthority = () => {
+  let resolve!: (value: MediaStorageAuthority | null) => void;
+  const promise = new Promise<MediaStorageAuthority | null>((res) => {
+    resolve = res;
+  });
+  return {
+    promise,
+    resolve,
+  };
+};
 
 const toNormalizedNullableString = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
@@ -123,41 +140,79 @@ const resolveRecoveredStorageAuthorityFromMediaRow = (
 
 const resolveMediaStorageAuthorityByMediaId = async (
   mediaIds: readonly string[]
-): Promise<Map<string, SessionRecoveredStorageAuthority & { fileType: string | null }>> => {
+): Promise<Map<string, MediaStorageAuthority>> => {
   const normalizedMediaIds = normalizeMediaIds(mediaIds);
-  const authorityByMediaId = new Map<
-    string,
-    SessionRecoveredStorageAuthority & { fileType: string | null }
-  >();
+  const authorityByMediaId = new Map<string, MediaStorageAuthority>();
   if (normalizedMediaIds.length === 0) return authorityByMediaId;
 
-  const supabase = ensureSupabaseQueryClient();
-  let data: MediaStoragePathRow[] | null = null;
-  try {
-    const response = await supabase
-      .from("media_files")
-      .select(
-        "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-      )
-      .in("id", normalizedMediaIds);
-    data = response.error
-      ? []
-      : Array.isArray(response.data)
-        ? (response.data as MediaStoragePathRow[])
-        : [];
-  } catch {
-    data = [];
+  const pendingAuthorityEntries: Array<readonly [string, Promise<MediaStorageAuthority | null>]> =
+    [];
+  const mediaIdsToQuery: string[] = [];
+  normalizedMediaIds.forEach((mediaId) => {
+    const pendingAuthority = inFlightMediaStorageAuthorityByMediaId.get(mediaId);
+    if (pendingAuthority) {
+      pendingAuthorityEntries.push([mediaId, pendingAuthority]);
+      return;
+    }
+    mediaIdsToQuery.push(mediaId);
+  });
+
+  const pendingAuthorityResolution = Promise.all(
+    pendingAuthorityEntries.map(async ([mediaId, pendingAuthority]) => {
+      const authority = await pendingAuthority.catch(() => null);
+      if (authority) authorityByMediaId.set(mediaId, authority);
+    })
+  );
+
+  if (mediaIdsToQuery.length > 0) {
+    const deferredByMediaId = new Map<
+      string,
+      ReturnType<typeof createDeferredMediaStorageAuthority>
+    >();
+    mediaIdsToQuery.forEach((mediaId) => {
+      const deferred = createDeferredMediaStorageAuthority();
+      deferredByMediaId.set(mediaId, deferred);
+      inFlightMediaStorageAuthorityByMediaId.set(mediaId, deferred.promise);
+    });
+
+    const resolvedAuthorityByMediaId = new Map<string, MediaStorageAuthority>();
+    const supabase = ensureSupabaseQueryClient();
+    let data: MediaStoragePathRow[] | null = null;
+    try {
+      const response = await supabase
+        .from("media_files")
+        .select(
+          "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+        )
+        .in("id", mediaIdsToQuery);
+      data = response.error
+        ? []
+        : Array.isArray(response.data)
+          ? (response.data as MediaStoragePathRow[])
+          : [];
+    } catch {
+      data = [];
+    }
+
+    (data ?? []).forEach((row) => {
+      const mediaId = toNormalizedNullableString(typeof row.id === "string" ? row.id : null);
+      if (!mediaId) return;
+      const fileType = typeof row.file_type === "string" ? row.file_type.toLowerCase() : null;
+      resolvedAuthorityByMediaId.set(mediaId, {
+        ...resolveRecoveredStorageAuthorityFromMediaRow(row),
+        fileType,
+      });
+    });
+
+    mediaIdsToQuery.forEach((mediaId) => {
+      const authority = resolvedAuthorityByMediaId.get(mediaId) ?? null;
+      if (authority) authorityByMediaId.set(mediaId, authority);
+      deferredByMediaId.get(mediaId)?.resolve(authority);
+      inFlightMediaStorageAuthorityByMediaId.delete(mediaId);
+    });
   }
 
-  (data ?? []).forEach((row) => {
-    const mediaId = toNormalizedNullableString(typeof row.id === "string" ? row.id : null);
-    if (!mediaId) return;
-    const fileType = typeof row.file_type === "string" ? row.file_type.toLowerCase() : null;
-    authorityByMediaId.set(mediaId, {
-      ...resolveRecoveredStorageAuthorityFromMediaRow(row),
-      fileType,
-    });
-  });
+  await pendingAuthorityResolution;
 
   return authorityByMediaId;
 };

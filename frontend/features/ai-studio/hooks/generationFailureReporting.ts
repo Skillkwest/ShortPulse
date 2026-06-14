@@ -8,6 +8,7 @@ export type GenerationFailureContext = {
   elapsedMs?: number | null;
   maxWaitMs?: number | null;
   telemetryMode?: GenerationFailureTelemetryMode;
+  errorPayload?: unknown;
 };
 
 export type NotifyGenerationFailure = (

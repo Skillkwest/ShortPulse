@@ -63,11 +63,20 @@ export default async function handler(
       },
     });
 
-    await syncStripeCustomerForUser({
-      userId: user.id,
-      email: user.email ?? null,
-      displayName,
-    });
+    try {
+      await syncStripeCustomerForUser({
+        userId: user.id,
+        email: user.email ?? null,
+        displayName,
+      });
+    } catch (syncError) {
+      await logApiRouteException({
+        req,
+        error: syncError,
+        routeLabel: "account/profile/update.stripe-sync",
+        user,
+      });
+    }
 
     return res.status(200).json({ displayName });
   } catch (error) {

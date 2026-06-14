@@ -80,6 +80,11 @@ export type SharedMediaDetailPresentation = {
   kindLabel?: string | null;
   topBarItems?: SharedMediaDetailTopBarItem[] | null;
   bladePlaceholder?: string | null;
+  errorContent?: {
+    summary: string;
+    detail: string;
+    rawPayload?: string | null;
+  } | null;
 };
 
 export type SharedMediaDetailActionIntent = "default" | "save" | "danger";

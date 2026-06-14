@@ -95,6 +95,38 @@ describe("account identity routes", () => {
     expect(res.json).toHaveBeenCalledWith({ displayName: "Alice Example" });
   });
 
+  it("keeps a successful profile update when downstream Stripe sync fails", async () => {
+    syncStripeCustomerForUserMock.mockRejectedValueOnce(
+      new Error("Stripe customer mode mismatch detected.")
+    );
+    const req = {
+      method: "POST",
+      body: { displayName: "Alice Example" },
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await profileHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).toHaveBeenCalledWith({
+      req,
+      payload: {
+        data: {
+          display_name: "Alice Example",
+          full_name: "Alice Example",
+        },
+      },
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "account/profile/update.stripe-sync",
+      user: expect.objectContaining({ id: "user-1" }),
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ displayName: "Alice Example" });
+  });
+
   it("updates email through the server-owned email route using forwarded request origin when no canonical base url is configured", async () => {
     const req = {
       method: "POST",
@@ -343,7 +375,7 @@ describe("account identity routes", () => {
     expect(res.json).toHaveBeenCalledWith({ email: "user@example.com" });
   });
 
-  it("sanitizes downstream billing sync failures on the confirmed email route", async () => {
+  it("keeps confirmed email completion when downstream Stripe sync fails", async () => {
     syncStripeCustomerForUserMock.mockRejectedValueOnce(
       new Error("No such customer: 'cus_sensitive_123'; a similar object exists in test mode.")
     );
@@ -358,12 +390,10 @@ describe("account identity routes", () => {
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
       req,
       error: expect.any(Error),
-      routeLabel: "account/email/confirm",
+      routeLabel: "account/email/confirm.stripe-sync",
       user: expect.objectContaining({ id: "user-1" }),
     });
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Unable to finish confirming your email change.",
-    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ email: "user@example.com" });
   });
 });

@@ -115,6 +115,7 @@ describe("admin style extract prompt API", () => {
       actorEmail: "admin@example.com",
     });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "no-store, max-age=0");
     expect(res.json).toHaveBeenCalledWith({
       promptId: "OPENAI_PROMPT_STYLE_EXTRACT",
       promptBody: "Digital Illustration, soft bloom",
@@ -135,6 +136,42 @@ describe("admin style extract prompt API", () => {
     expect(saveRuntimeAgentPromptMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "promptBody cannot be empty." });
+  });
+
+  it("rejects saves that omit the expected updatedAt token", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        promptBody: "Photographic, moody lighting",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveRuntimeAgentPromptMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "expectedUpdatedAt is required so non-live prompt content cannot overwrite the live style extraction prompt.",
+    });
+  });
+
+  it("rejects non-string expected updatedAt tokens", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        promptBody: "Photographic, moody lighting",
+        expectedUpdatedAt: 123,
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveRuntimeAgentPromptMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "expectedUpdatedAt must be a string or null.",
+    });
   });
 
   it("returns 405 for unsupported methods", async () => {
@@ -164,7 +201,10 @@ describe("admin style extract prompt API", () => {
 
     const req = {
       method: "PUT",
-      body: { promptBody: "Photographic, moody lighting" },
+      body: {
+        promptBody: "Photographic, moody lighting",
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
     };
     const res = createMockResponse();
     await handler(req as never, res as never);

@@ -272,6 +272,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .json({ error: `${addon.display_name} is not active on this workspace.` });
     }
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(501).json({ error: "Stripe is not configured on the server yet." });
+    }
+
     const stripeSubscription = await readVerifiedStripeSubscriptionForUser({
       userId: user.id,
       stripeSubscriptionId,

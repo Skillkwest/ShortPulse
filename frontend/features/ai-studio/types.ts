@@ -220,6 +220,7 @@ export type WorkflowReloadVideoPayload = {
   autoFix: boolean | null;
   referenceInputs: string[];
   internalMediaRefs?: Array<InternalMediaRef | null>;
+  styleContext?: StudioOutputStyleContext;
   videoReferences?: WorkflowReloadVideoReferences;
   motionReferenceVideoUrl?: string | null;
   lipSyncAudioUrl?: string | null;
@@ -381,6 +382,7 @@ export type StudioOutput = {
   errorMessage?: string | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
+  errorPayload?: unknown | null;
   resultUrls?: string[];
   previewUrl?: string;
   previewPosterUrl?: string | null;

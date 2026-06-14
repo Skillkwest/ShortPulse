@@ -143,25 +143,6 @@ export function AuthenticatedDashboardRoute({
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    void loadProjectsModal().then((component) => {
-      if (!cancelled) {
-        setProjectsModalComponent(() => component);
-      }
-    });
-    void loadProjectNameModal().then((component) => {
-      if (!cancelled) {
-        setProjectNameModalComponent(() => component);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
     function handleClick(event: MouseEvent) {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
         setProfileMenuOpen(false);
@@ -330,7 +311,7 @@ export function AuthenticatedDashboardRoute({
 
     const loadDashboardTutorials = async () => {
       try {
-        const response = await fetchWithAuth("/api/dashboard/tutorials", {
+        const response = await fetch("/api/dashboard/tutorials", {
           method: "GET",
         });
         if (!response.ok) {
@@ -431,21 +412,31 @@ export function AuthenticatedDashboardRoute({
               </button>
               {profileMenuOpen ? (
                 <div className="profile-dropdown">
-                  <Link href="/profile?section=account" onClick={() => setProfileMenuOpen(false)}>
+                  <Link
+                    href="/profile?section=account"
+                    onClick={() => setProfileMenuOpen(false)}
+                    prefetch={false}
+                  >
                     Account & profile settings
                   </Link>
                   <Link
                     href="/profile?section=subscription"
                     onClick={() => setProfileMenuOpen(false)}
+                    prefetch={false}
                   >
                     Subscription plans
                   </Link>
-                  <Link href="/profile?section=credits" onClick={() => setProfileMenuOpen(false)}>
+                  <Link
+                    href="/profile?section=credits"
+                    onClick={() => setProfileMenuOpen(false)}
+                    prefetch={false}
+                  >
                     Credits & billing
                   </Link>
                   <Link
                     href="/report-issue?from=%2Fdashboard"
                     onClick={() => setProfileMenuOpen(false)}
+                    prefetch={false}
                   >
                     Report an issue
                   </Link>

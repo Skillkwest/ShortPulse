@@ -3,7 +3,7 @@
  */
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
@@ -16,6 +16,7 @@ const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const publicFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -25,10 +26,12 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    prefetch: _prefetch,
     ...rest
   }: {
     children: ReactNode;
     href: string;
+    prefetch?: boolean;
   } & Record<string, unknown>) => (
     <a href={href} {...rest}>
       {children}
@@ -147,6 +150,12 @@ describe("Dashboard bootstrap state", () => {
     });
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
     ensureSupabaseQueryClientMock.mockReturnValue(buildSupabaseClient());
+    publicFetchMock.mockReset();
+    vi.stubGlobal("fetch", publicFetchMock);
+    publicFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ tutorials: [] }),
+    });
     readPersistedSupabaseSessionHintMock.mockReturnValue(true);
     readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
     fetchWithAuthMock.mockImplementation(async (input: unknown) => {
@@ -156,14 +165,18 @@ describe("Dashboard bootstrap state", () => {
           json: async () => ({ announcement: null }),
         };
       }
-      if (input === "/api/projects?limit=all") {
+      if (input === "/api/projects?limit=12&offset=0") {
         return {
           ok: true,
-          json: async () => ({ projects: [] }),
+          json: async () => ({ projects: [], hasMore: false, nextOffset: null }),
         };
       }
       throw new Error(`Unexpected fetch ${String(input)}`);
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("keeps the dashboard loader for a persisted signed-in session until auth resolves, then settles into the authenticated view", async () => {

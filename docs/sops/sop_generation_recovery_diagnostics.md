@@ -142,6 +142,12 @@ Treat these as protected runtime invariants during cleanup or refactor work:
 
 Use this path when local `SUPABASE_DB_URL` is unavailable.
 
+The GitHub Environment `SUPABASE_DB_URL` must be IPv4-compatible. Use the
+Supavisor session pooler URL for GitHub-hosted diagnostics unless the Supabase
+project has the IPv4 add-on enabled; `db.<project-ref>.supabase.co` direct or
+dedicated-pooler URLs resolve to IPv6 by default and GitHub Actions cannot
+reach them.
+
 1. Dispatch workflow:
    ```bash
    gh workflow run reliability-control-plane-diagnostics.yml \

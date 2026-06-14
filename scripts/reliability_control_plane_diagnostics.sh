@@ -45,6 +45,13 @@ if [[ -n "$DB_HOST" && -n "$(command -v getent || true)" ]]; then
   fi
 fi
 
+if [[ "${GITHUB_ACTIONS:-}" == "true" && "$DB_HOST" == db.*.supabase.co && -z "${PGHOSTADDR:-}" ]]; then
+  echo "[reliability-diagnostics] GitHub Actions cannot reach Supabase db.* hosts when they resolve to IPv6 only."
+  echo "[reliability-diagnostics] Set the GitHub Environment SUPABASE_DB_URL to the Supavisor session pooler URL"
+  echo "[reliability-diagnostics] (IPv4-compatible, port 5432), or enable the Supabase IPv4 add-on for this project."
+  exit 1
+fi
+
 MODE="${RELIABILITY_DIAGNOSTICS_MODE:-warn}"
 if [[ "$MODE" != "warn" && "$MODE" != "enforce" ]]; then
   echo "[reliability-diagnostics] Unknown mode '$MODE'. Allowed: warn, enforce."

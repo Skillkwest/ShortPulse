@@ -264,6 +264,7 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 10. Hosted-runner fallback is required when `SUPABASE_DB_URL` is unavailable in local shell context.
 
 - Use `.github/workflows/reliability-control-plane-diagnostics.yml` for read-only reliability diagnostics against `staging`/`production`.
+- GitHub Environment `SUPABASE_DB_URL` must be IPv4-compatible for hosted SQL workflows; use the Supavisor session pooler URL unless the Supabase IPv4 add-on is enabled.
 - Runner script authority: `scripts/reliability_control_plane_diagnostics.sh`.
 - Keep mode at `warn` for first-time environment validation; use `enforce` only after baseline reliability evidence is established.
 - Use `.github/workflows/apply-control-plane-ops-sql.yml` for environment-scoped scheduler SQL apply operations (`configure_bypass_secret`, `configure_generation_recovery_cron_secret`, `configure_generation_recovery_scheduler`, `configure_media_derivative_scheduler`, `configure_admin_user_health_fleet_scheduler`).

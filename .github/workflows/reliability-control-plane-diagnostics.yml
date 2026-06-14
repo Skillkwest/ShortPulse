@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target_environment:
-        description: "GitHub Environment containing SUPABASE_DB_URL"
+        description: "GitHub Environment containing IPv4-compatible SUPABASE_DB_URL"
         required: true
         type: choice
         options:

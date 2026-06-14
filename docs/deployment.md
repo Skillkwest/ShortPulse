@@ -97,7 +97,7 @@ as applicable):
   - `STRIPE_WEBHOOK_SECRET`
   - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (optional override; default `300`)
 - CI/CD deploy gate:
-  - `SUPABASE_DB_URL` (GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`, `.github/workflows/reliability-control-plane-diagnostics.yml`)
+  - `SUPABASE_DB_URL` (IPv4-compatible GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`, `.github/workflows/reliability-control-plane-diagnostics.yml`)
   - `SHORTPULSE_VERCEL_API_TOKEN` (optional for `scripts/verify_deployment_route_parity.mjs`; when absent, the script now falls back to the authenticated `vercel` CLI session, and still accepts `VERCEL_API_TOKEN` as an alternate token source)
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
@@ -173,8 +173,13 @@ GitHub Environment naming rule:
 
 Set GitHub Environment secret `SUPABASE_DB_URL` for:
 
-- `production` -> `postgresql://postgres:<password>@db.<production-project-ref>.supabase.co:5432/postgres?sslmode=require`
-- `staging` -> staging database URL (unchanged)
+- `production` -> Supavisor session pooler URL, for example `postgres://postgres.<production-project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require`
+- `staging` -> staging Supavisor session pooler URL
+
+Do not use a Supabase `db.<project-ref>.supabase.co` direct or dedicated-pooler
+URL for GitHub-hosted SQL workflows unless the project has the Supabase IPv4
+add-on enabled. GitHub Actions is IPv4-only for this use case, while Supabase
+direct database hosts resolve to IPv6 by default.
 
 Verification:
 

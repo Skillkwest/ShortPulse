@@ -4,6 +4,8 @@ Purpose: help Scott and Scott's Codex agent get the ShortPulse dashboard branch 
 
 This folder is the handoff package for the dashboard visual/aesthetic lane. Follow it before making changes.
 
+For a copy/paste prompt Scott can give directly to his Codex agent, use `Scott/codex-agent-startup-prompt.md`.
+
 ## Lane Boundary
 
 - Branch: `codex/brother-dashboard-aesthetics`

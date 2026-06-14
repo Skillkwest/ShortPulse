@@ -2244,6 +2244,10 @@ body.ai-shell-resizing * {
   border: 1px solid var(--ai-toolbar-secondary-fg);
   box-shadow: none;
   color: var(--ai-toolbar-secondary-fg);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ai-toolbar[data-primary-active]

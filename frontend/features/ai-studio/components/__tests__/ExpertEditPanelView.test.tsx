@@ -975,13 +975,13 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Remove Background" })).not.toBeDisabled();
   });
 
-  it("disables flatten action until at least one layer image exists", async () => {
+  it("shows flatten action only after at least one layer image exists", async () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
 
-    const flattenButton = screen.getByRole("button", { name: /flatten layers/i });
-    expect(flattenButton).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /flatten layers/i })).toBeNull();
 
     await uploadPrimaryFile(container, "layer-1.png");
+    const flattenButton = screen.getByRole("button", { name: /flatten layers/i });
     expect(flattenButton).not.toBeDisabled();
   });
 
@@ -1516,7 +1516,7 @@ describe("ExpertEditPanelView", () => {
 
     const promptInput = screen.getByLabelText("Edit prompt") as HTMLTextAreaElement;
     const promptRow = promptInput.closest(".edit-expert-bottom-row") as HTMLDivElement;
-    const flattenButton = screen.getByRole("button", { name: /flatten layers/i });
+    const removeBackgroundButton = screen.getByRole("button", { name: /remove background/i });
 
     expect(promptRow.className).toContain("is-collapsed");
 
@@ -1525,7 +1525,7 @@ describe("ExpertEditPanelView", () => {
     expect(promptInput.value).toContain("Line six");
     promptInput.style.height = "520px";
 
-    fireEvent.blur(promptInput, { relatedTarget: flattenButton });
+    fireEvent.blur(promptInput, { relatedTarget: removeBackgroundButton });
     expect(promptRow.className).toContain("is-collapsed");
     expect(promptInput.value).toContain("Line six");
     expect(promptInput.style.height).toBe("72px");
@@ -2704,16 +2704,26 @@ describe("ExpertEditPanelView", () => {
     expect(presetToolbar?.contains(sidebarShell)).toBe(true);
   });
 
-  it("renders flatten inside the layers panel and keeps remove background in the utility actions stack", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
+  it("shows the flatten footer in the layers panel only after layers exist", async () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
 
     const layersToolbar = screen.getByLabelText("Edit layers toolbar");
     const utilityActions = screen.getByLabelText("Edit utility actions");
+
+    expect(within(layersToolbar).queryByRole("button", { name: /flatten layers/i })).toBeNull();
+    expect(within(layersToolbar).queryByLabelText("Flatten layer action")).toBeNull();
+    expect(layersToolbar.querySelector(".edit-expert-preset-divider")).toBeNull();
+    expect(
+      within(utilityActions).getByRole("button", { name: /remove background/i })
+    ).toBeInTheDocument();
+
+    await uploadPrimaryFile(container, "layer-1.png");
 
     expect(
       within(layersToolbar).getByRole("button", { name: /flatten layers/i })
     ).toBeInTheDocument();
     expect(within(layersToolbar).getByLabelText("Flatten layer action")).toBeInTheDocument();
+    expect(layersToolbar.querySelector(".edit-expert-preset-divider")).not.toBeNull();
     expect(within(utilityActions).queryByRole("button", { name: /flatten layers/i })).toBeNull();
     expect(
       within(utilityActions).getByRole("button", { name: /remove background/i })

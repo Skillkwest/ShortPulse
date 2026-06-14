@@ -259,7 +259,7 @@ export function ExpertEditLayersPanel({
                 )
               )}
             </div>
-            {!isModalScope ? (
+            {!isModalScope && layers.length > 0 ? (
               <>
                 <div className="edit-expert-preset-divider" aria-hidden="true" />
                 <ExpertEditLayerUtilityActions

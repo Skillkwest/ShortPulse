@@ -336,6 +336,8 @@ select
   g.completed_at,
   nullif(
     coalesce(
+      g.metadata ->> 'project_id',
+      g.metadata ->> 'projectId',
       g.metadata -> 'shortpulse_context' ->> 'project_id',
       g.metadata -> 'shortpulse_context' ->> 'projectId',
       g.metadata -> 'shortpulseContext' ->> 'project_id',
@@ -388,6 +390,8 @@ where lower(coalesce(g.status, '')) = 'success'
     or (
       nullif(
         coalesce(
+          g.metadata ->> 'project_id',
+          g.metadata ->> 'projectId',
           g.metadata -> 'shortpulse_context' ->> 'project_id',
           g.metadata -> 'shortpulse_context' ->> 'projectId',
           g.metadata -> 'shortpulseContext' ->> 'project_id',

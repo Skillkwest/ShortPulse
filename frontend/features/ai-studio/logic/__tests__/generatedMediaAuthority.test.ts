@@ -2039,15 +2039,29 @@ describe("generatedMediaAuthority", () => {
 
   it("scopes project generated-output hydration to runtime identities when provided", async () => {
     const requestLookupBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-project-runtime-1",
-      },
+      data: [
+        {
+          request_id: "req-project-runtime-1",
+          generation_id: "gen-project-runtime-1",
+        },
+      ],
       error: null,
     });
     const associationLookupBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-project-runtime-1",
-      },
+      data: [
+        {
+          generation_id: "gen-project-runtime-1",
+        },
+      ],
+      error: null,
+    });
+    const associationProjectionLookupBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-runtime-1",
+          project_id: "project-1",
+        },
+      ],
       error: null,
     });
     const projectGenerationBuilder = createAwaitableSelectBuilder({
@@ -2123,6 +2137,7 @@ describe("generatedMediaAuthority", () => {
     const generationProjectionSelect = vi
       .fn()
       .mockImplementationOnce(() => requestLookupBuilder)
+      .mockImplementationOnce(() => associationProjectionLookupBuilder)
       .mockImplementationOnce(() => directProjectProjectionBuilder)
       .mockImplementationOnce(() => associatedProjectionBuilder);
 
@@ -2163,7 +2178,13 @@ describe("generatedMediaAuthority", () => {
       }),
     ]);
 
-    expect(requestLookupBuilder.eq).toHaveBeenCalledWith("request_id", "req-project-runtime-1");
+    expect(requestLookupBuilder.in).toHaveBeenCalledWith("request_id", ["req-project-runtime-1"]);
+    expect(associationLookupBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-project-runtime-1",
+    ]);
+    expect(associationProjectionLookupBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-project-runtime-1",
+    ]);
     expect(projectGenerationBuilder.in).toHaveBeenCalledWith("generation_id", [
       "gen-project-runtime-1",
     ]);

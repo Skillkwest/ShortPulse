@@ -36,10 +36,12 @@ PY
 )"
 
 if [[ -n "$DB_HOST" && -n "$(command -v getent || true)" ]]; then
-  DB_HOSTADDR="$(getent ahostsv4 "$DB_HOST" 2>/dev/null | awk 'NR == 1 { print $1 }')"
+  DB_HOSTADDR="$(getent ahostsv4 "$DB_HOST" 2>/dev/null | awk 'NR == 1 { print $1 }' || true)"
   if [[ -n "$DB_HOSTADDR" ]]; then
     export PGHOSTADDR="$DB_HOSTADDR"
     echo "[reliability-diagnostics] Using IPv4 hostaddr for hosted DB connectivity."
+  else
+    echo "[reliability-diagnostics] IPv4 hostaddr lookup unavailable; using normal hostname resolution."
   fi
 fi
 
@@ -54,6 +56,7 @@ SQL_FILES=(
   "$ROOT_DIR/sql/check_pg_net_failure_taxonomy.sql"
   "$ROOT_DIR/sql/check_generation_queue_dispatch_latency.sql"
   "$ROOT_DIR/sql/check_generation_recovery_media_visible_latency.sql"
+  "$ROOT_DIR/sql/check_generation_convergence_defect_classes.sql"
   "$ROOT_DIR/sql/check_runtime_sql_security_audit.sql"
   "$ROOT_DIR/sql/check_generation_settlement_integrity.sql"
   "$ROOT_DIR/sql/check_control_plane_enforce_gate.sql"
@@ -128,6 +131,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "  - \`sql/check_pg_net_failure_taxonomy.sql\`"
     echo "  - \`sql/check_generation_queue_dispatch_latency.sql\`"
     echo "  - \`sql/check_generation_recovery_media_visible_latency.sql\`"
+    echo "  - \`sql/check_generation_convergence_defect_classes.sql\`"
     echo "  - \`sql/check_runtime_sql_security_audit.sql\`"
     echo "  - \`sql/check_generation_settlement_integrity.sql\`"
     echo "  - \`sql/check_control_plane_enforce_gate.sql\`"

@@ -29,6 +29,8 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 - The local Homebrew `libpq` client is approved for Nuclo hosted proof work. If `psql` is missing again, Nuclo may reinstall `libpq` without re-asking. Current known client path is `/opt/homebrew/opt/libpq/bin/psql`.
 - Authenticated `vercel` CLI sessions are sufficient for Nuclo's live env audits; a separate token is not required when the shell is already logged in.
 - GitHub rulesets are the source of truth for current branch governance posture. Do not rely on classic branch-protection assumptions alone.
+- `scripts/check_billing_launch_readiness.mjs` proves production signup billing DB objects only when the production DB URL is exposed as `SUPABASE_DB_URL` or `SHORTPULSE_PRODUCTION_SUPABASE_DB_URL`; when only `SHORTPULSE_PRODUCTION_DB_URL` is present, map it explicitly and put `/opt/homebrew/opt/libpq/bin` on `PATH` so child `psql` calls resolve.
+- The reliability diagnostics workflow is not proof just because the wrapper succeeds. Confirm `scripts/reliability_control_plane_diagnostics.sh` reaches the intended SQL files; on 2026-06-14 the runner referenced missing `sql/check_generation_queue_dispatch_latency.sql` and stopped before the runtime SQL security audit.
 - Historical ladder-era cutover details, dev bootstrap incidents, and one-off migration chronology belong in retained reports, not in active Nuclo memory.
 
 ## Open Follow-Ups

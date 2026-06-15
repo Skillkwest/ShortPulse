@@ -3,35 +3,16 @@
 Status: active
 Owner: Nuclo
 Created: 2026-06-14
-Source lane: Dave/security + billing proof boundary
+Source lane: async generation convergence proof / Supabase DB URL hosted diagnostics
 Target environment: production only
 
 ## Objective
 
-Complete the hosted production proof boundary for the current launch-security and billing-readiness audit.
+Resolve the production GitHub Environment `SUPABASE_DB_URL` blocker so the hosted reliability control-plane diagnostics workflow can run real SQL against the production Supabase database, then produce a decision-grade closeout for the async generation convergence proof boundary.
 
-The user wants decision-grade proof that ShortPulse production prevents cross-user access and cross-account billing/media/credit use. Dave has already completed the repo/source/local-test portion and a production API-boundary smoke pass. The remaining work belongs to Nuclo because it requires production Supabase DB URL access, hosted SQL execution, GitHub Environment/Vercel/Supabase source-of-truth checks, and possibly production-safe environment repair.
+The current product question is whether completed async generations converge correctly into durable account/project media surfaces after the user leaves AI Studio and returns later. Gear Ball/Codex already hardened the application and diagnostics runner path. The remaining blocker belongs to Nuclo because the hosted proof path depends on production GitHub Environment secret wiring for the Supabase database URL.
 
-Do not treat staging as a substitute for production for this handoff.
-
-## Scope
-
-In scope:
-
-- Run the production hosted SQL security audit and prove `failing_checks = 0`.
-- Prove production signup billing bootstrap DB objects exist.
-- Re-run billing launch readiness with production DB URL available.
-- Verify the production Stripe webhook endpoint event posture if Nuclo has the live Stripe secret or can inspect provider state safely.
-- Decide whether the GitHub reliability diagnostics workflow needs an environment/runner fix, a repo fix, or a Gear Ball handoff.
-- If safe test accounts already exist, complete non-destructive two-account production isolation probes.
-
-Out of scope unless the user separately approves the exact action:
-
-- Deleting Supabase auth users or user-owned rows/files.
-- Creating/deleting short-lived production users.
-- Charging cards, creating Stripe checkout sessions for real purchases, mutating customer subscriptions, or adding/removing real storage add-ons.
-- Pushing/committing/deploying; hand to Gear Ball if GitHub production branch execution is needed.
-- Using staging as evidence for production.
+Do not treat staging as production evidence for this handoff.
 
 ## Required Startup
 
@@ -41,279 +22,359 @@ Before action, load:
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/memory.md`
 - `docs/agents/solo-owner-launch-trust-standard.md`
-- `docs/security-checklist.md`
+- `docs/deployment.md`
+- `docs/sops/sop_generation_recovery_diagnostics.md`
 - `docs/sops/sop_sql_migration_operations.md`
-- `docs/sops/sop_nuclo_supabase_migration_apply_and_validation.md`
-- `docs/sops/sop_nuclo_destructive_data_guard.md`
-- `docs/sops/sop_nuclo_production_smoke_test.md`
+- `.github/workflows/reliability-control-plane-diagnostics.yml`
+- `scripts/reliability_control_plane_diagnostics.sh`
 
 Confirm:
 
 - local branch is `production`
 - `git config --local shortpulse.allowedBranch` is `production`
-- target Supabase project is production, not working-development or staging
+- GitHub workflow/ref target is `production`
 - target app URL is `https://www.shortpulse.ai`
+- target Supabase project is production, not staging or working-development
 - no raw secret values are printed, copied into docs, or pasted into reports
 
-## Evidence Already Collected
+## Current State
 
-Dave completed these production-safe checks on 2026-06-14:
+### Application/runtime posture already proven
 
-1. Billing launch readiness:
+Production smoke checks already completed in this lane:
 
-```bash
-node scripts/check_billing_launch_readiness.mjs --base-url https://www.shortpulse.ai
-```
+- `https://www.shortpulse.ai/` returned `200`.
+- Unauthenticated `POST https://www.shortpulse.ai/api/internal/generation-recovery/run` returned `401 {"error":"Unauthorized"}`.
 
-Result:
+Meaning:
 
-- `pass=7 warn=2 fail=0 loaded_env_files=3`
-- Passed production URL, Vercel env contract, billing route parity, signup callback URL, public pricing catalog, production Supabase billing catalog, and internal billing renewal fail-closed.
-- Warnings:
-  - `signup_billing_trigger` unproven because no local production DB URL was available.
-  - `stripe_webhook_endpoint` unproven because no local `STRIPE_SECRET_KEY` was available.
+- the public production app is responding
+- the protected generation recovery route exists in production
+- the route is guarded
+- this does not prove an authenticated recovery cycle ran, because the current shell did not have the cron secret
 
-2. Production unauthenticated fail-closed probe:
+### Relevant production commits already on `production`
 
-- Credits snapshot, media list, media sign-batch, Stripe checkout, Stripe portal, subscription change, storage add-on change, admin access, and internal billing renewal all returned `401`.
-- Summary: `pass=9 fail=0`
+The following work is already on GitHub `production`:
 
-3. Production authenticated boundary probe:
+1. `c3e369d51 Harden generated output project convergence`
+   - added paged terminal projection repair so stale terminal candidates are not starved behind healthy recent terminal projections
+   - added project/media association failure visibility
+   - added projection repair metrics to the control-plane cycle response
+   - added/fixed convergence-defect SQL coverage
+   - added `sql/check_generation_convergence_defect_classes.sql` to `scripts/reliability_control_plane_diagnostics.sh`
 
-- First attempt minted a token against the wrong Supabase host and correctly got `401` from production.
-- Correct production host was verified from Vercel production env as `ftgrqgjrchpimronuhop.supabase.co`.
-- With a token minted against production Supabase:
-  - credits snapshot returned `200`
-  - credit packages returned `200`
-  - media list returned `200`
-  - in-scope nonexistent media sign returned `200` with null URL
-  - out-of-scope media sign returned `403`
-  - unknown/unowned Fal provider request status returned `403`
-  - ElevenLabs voices returned `200`
-  - admin access returned `200` because the available audit account is admin
-- Summary: `pass=8 fail=0`
-- Caveat: this did not prove non-admin admin denial because the available audit account is admin.
+2. `8d13f1738 Clarify hosted Supabase diagnostics connectivity`
+   - made the diagnostics runner fail fast when GitHub Actions is pointed at a Supabase `db.*.supabase.co` URL that resolves IPv6-only
+   - updated `.github/workflows/reliability-control-plane-diagnostics.yml`
+   - updated `docs/deployment.md`
+   - updated `docs/sops/sop_generation_recovery_diagnostics.md`
+   - updated `docs/sops/sop_sql_migration_operations.md`
 
-4. GitHub production reliability diagnostics workflow:
+### Hosted diagnostics run history
 
-Triggered:
+Run `27499672228`
 
-```bash
-gh workflow run "Reliability Control-Plane Diagnostics" \
-  --repo sleepyseamonster/ShortPulse \
-  --ref production \
-  -f target_environment=production \
-  -f mode=warn
-```
+- Ref: `production`
+- Head SHA: `3331c4837d8001c6b7cba6178c34b3753bb73975`
+- Result: warn-mode wrapper completed, but diagnostics did not produce useful SQL logs.
+- Cause: older runner could exit before logging because `getent ahostsv4` returned no row under `set -euo pipefail`.
+
+Run `27515522399`
+
+- Ref: `production`
+- Head SHA: `23a507a88ddd69e4b6f574db3f2421fb364ae5ed`
+- Result: artifact contained real runner output but failed before SQL execution.
+- Failure:
+  - `psql: error: connection to server at "db.ftgrqgjrchpimronuhop.supabase.co" (...IPv6...), port 6543 failed: Network is unreachable`
+- Interpretation:
+  - runner code reached the SQL phase
+  - GitHub Actions could not reach the production Supabase DB URL because it resolved IPv6-only
+
+Run `27515598372`
+
+- Ref: `production`
+- Head SHA: `8d13f1738571be9b7065b4bb05a70d83b80f06b8`
+- Result: artifact confirmed the new fast-fail blocker message.
+- Artifact message:
+  - `IPv4 hostaddr lookup unavailable; using normal hostname resolution.`
+  - `GitHub Actions cannot reach Supabase db.* hosts when they resolve to IPv6 only.`
+  - `Set the GitHub Environment SUPABASE_DB_URL to the Supavisor session pooler URL`
+  - `(IPv4-compatible, port 5432), or enable the Supabase IPv4 add-on for this project.`
+
+## Root Cause
+
+GitHub Environment `production` currently has a `SUPABASE_DB_URL` value that resolves to a Supabase `db.<project-ref>.supabase.co` host on port `6543`.
+
+Supabase direct/dedicated database hosts are IPv6 by default unless the project has the IPv4 add-on. GitHub Actions cannot reach IPv6-only database hosts from the hosted runner. Therefore the reliability diagnostics workflow cannot execute any production SQL until the GitHub Environment `production` `SUPABASE_DB_URL` is updated to an IPv4-compatible connection target.
+
+Canonical fix options:
+
+1. Preferred: set GitHub Environment `production` secret `SUPABASE_DB_URL` to the production Supavisor session pooler connection string, using port `5432`.
+2. Acceptable but likely lower ROI: enable the Supabase IPv4 add-on for the production project and keep using the current `db.*` host.
+
+Do not add another runner fallback, alternate SQL authority, or staging substitute. Fix the canonical environment secret or explicitly document why the IPv4 add-on was chosen.
+
+## Approved Scope For Nuclo
+
+In scope:
+
+- inspect GitHub Environment `production` secret names and update timestamps without printing values
+- inspect Supabase production project connection options through safe CLI/provider surfaces
+- determine the correct production Supavisor session pooler URL format
+- coordinate with the user if the database password or pooler URL cannot be recovered safely
+- update GitHub Environment `production` `SUPABASE_DB_URL` when Nuclo has explicit current-thread approval and the correct production pooler URL/password
+- rerun `.github/workflows/reliability-control-plane-diagnostics.yml` on `production` in `warn` mode
+- download and inspect diagnostics artifacts
+- confirm the SQL bundle actually executed, including `sql/check_generation_convergence_defect_classes.sql`
+- produce the closeout artifact under `docs/records/artifacts/agent/nuclo/reports/`
+- archive this handoff under `docs/agents/nuclo/previous-handoffs/` after completion
+- update `docs/agents/nuclo/memory.md` only for concise durable lessons
+
+Out of scope unless the user separately approves the exact action:
+
+- printing, pasting, committing, or documenting raw database URLs, passwords, service-role keys, bearer tokens, or Stripe keys
+- using staging as proof for production
+- deleting Supabase auth users or user-owned rows/files
+- running Docker-based Supabase workflows
+- changing Vercel production runtime env values
+- changing Stripe state
+- running billing/provider/generation mutations
+- changing unrelated workflows that merely happen to use `SUPABASE_DB_URL`
+
+## Primary Task Sequence
+
+### 1. Prove The Current Secret Posture Without Exposing Values
 
 Run:
 
-- `27499752066`
-
-Result:
-
-- GitHub job completed successfully as a warn-mode wrapper.
-- Annotation: `reliability_control_plane_diagnostics failed in warn mode.`
-- SQL diagnostics did not reach `sql/check_runtime_sql_security_audit.sql`.
-- Artifact uploaded only an empty `reliability_control_plane_diagnostics.log`.
-
-Likely cause:
-
-- The committed production-branch version of `scripts/reliability_control_plane_diagnostics.sh` can exit silently during IPv4 host lookup when `getent ahostsv4` returns no row under `set -euo pipefail`.
-- The local worktree already contains an uncommitted change to add `|| true` to that lookup and print a fallback message, plus an added generation convergence diagnostic. Do not assume the GitHub workflow proves SQL health until this runner issue is resolved or the SQL is run directly with `psql`.
-
-## Primary Nuclo Tasks
-
-### 1. Run Production Runtime SQL Security Audit
-
-Preferred direct proof when Nuclo has the production DB URL:
-
 ```bash
-psql "$SHORTPULSE_PRODUCTION_DB_URL" -v ON_ERROR_STOP=1 -f sql/check_runtime_sql_security_audit.sql
+gh secret list --env production --repo sleepyseamonster/ShortPulse
 ```
 
-or, if Nuclo uses the generic variable:
+Capture only:
 
-```bash
-SUPABASE_DB_URL="$SHORTPULSE_PRODUCTION_DB_URL" \
-  scripts/reliability_control_plane_diagnostics.sh
+- whether `SUPABASE_DB_URL` exists
+- its update timestamp if displayed
+- whether any separate pooler/IPv4 DB URL secret already exists
+
+Do not print the secret value. GitHub does not allow reading secret values anyway; do not try to bypass that.
+
+### 2. Identify The Correct Production Pooler URL Source
+
+Preferred source order:
+
+1. Supabase Dashboard/database connection panel for the production project
+2. Supabase CLI/provider metadata if it exposes the connection target safely
+3. User-provided production Supavisor session pooler URL
+
+Expected URL shape:
+
+```text
+postgres://postgres.<production-project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
 ```
 
-Expected:
+Important:
 
-- detail rows all pass
-- summary reports `failing_checks = 0`
+- project ref is `ftgrqgjrchpimronuhop` based on prior production proof
+- exact pooler region/host must come from Supabase, not guessing
+- password must come from the existing production DB credential source or the user
+- never store the raw URL in repo files or reports
 
-If any check fails:
+If Nuclo cannot obtain the pooler URL/password safely, stop and ask the user for the exact production Supavisor session pooler connection string or approval to retrieve/reset the DB password through the proper provider path.
 
-- report the exact check name, object name, role/grant/policy/function involved, and severity
-- do not paste raw connection strings or secrets
-- do not apply a repair until the root cause is mapped and the user approves production mutation if needed
+### 3. Update GitHub Environment Secret Only When Authorized
 
-If local `psql` is unavailable:
-
-- Nuclo memory says Homebrew `libpq` is approved for hosted proof work.
-- Known expected client path: `/opt/homebrew/opt/libpq/bin/psql`
-- Installing/restoring the local client is acceptable for Nuclo proof work, but do not use Docker-based Supabase workflows.
-
-### 2. Prove Signup Billing Bootstrap DB Objects
-
-With `SHORTPULSE_PRODUCTION_DB_URL` available, re-run:
+If Nuclo has the correct production pooler URL and current-thread approval to mutate GitHub Environment secrets, update:
 
 ```bash
-node scripts/check_billing_launch_readiness.mjs --base-url https://www.shortpulse.ai
+gh secret set SUPABASE_DB_URL \
+  --env production \
+  --repo sleepyseamonster/ShortPulse
 ```
 
-Expected improvement:
+Paste the value through stdin/interactive prompt only. Do not echo it in shell history, docs, chat, or logs.
 
-- `signup_billing_trigger` should pass.
+If Nuclo uses a temporary file for secret input, place it outside the repo, delete it immediately after use, and do not treat it as source of truth.
 
-The script checks:
-
-- function `public.handle_new_user_billing_setup`
-- trigger `auth.users.on_auth_user_created_billing_setup`
-
-If this still warns or fails, run the targeted SQL from `scripts/check_billing_launch_readiness.mjs` manually and report which object is missing. Do not repair until the target production DB and migration source are confirmed.
-
-### 3. Decide The Reliability Workflow Repair Path
-
-The GitHub workflow is useful only if it can run the SQL scripts. Current run `27499752066` did not.
-
-Nuclo should decide one of:
-
-1. Direct proof is enough for this launch gate:
-   - run the SQL locally with production DB URL and record results.
-2. Workflow proof is required:
-   - coordinate with Gear Ball for commit/push of the runner fix on `production`.
-   - after the fix is on GitHub `production`, rerun workflow in `warn` or `enforce` mode.
-3. GitHub Environment secret posture is wrong:
-   - inspect GitHub Environment `production` secret mapping for `SUPABASE_DB_URL`.
-   - logs show the env was masked as present, so this is less likely than runner-host lookup failure.
-
-Do not claim the workflow proved SQL posture until logs show the SQL files actually ran.
-
-### 4. Verify Stripe Webhook Endpoint Event Posture
-
-If Nuclo has safe access to the live Stripe secret or Stripe provider console:
+After update:
 
 ```bash
-node scripts/check_billing_launch_readiness.mjs --base-url https://www.shortpulse.ai
+gh secret list --env production --repo sleepyseamonster/ShortPulse
 ```
 
-Expected improvement:
+Capture only existence/update timestamp.
 
-- `stripe_webhook_endpoint` should pass.
+### 4. Rerun Production Reliability Diagnostics
 
-Required endpoint:
-
-- `https://www.shortpulse.ai/api/billing/stripe/webhook`
-
-Required events:
-
-- `checkout.session.completed`
-- `checkout.session.async_payment_succeeded`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `invoice.payment_succeeded`
-
-If Nuclo does not own Stripe provider access, hand that sub-proof to Money Stuff or the user instead of guessing from repo code.
-
-### 5. Complete Two-Account Production Isolation Proof Only If Safe Accounts Exist
-
-Dave did not create/delete production users because Nuclo's destructive-data guard and Dave's safety rules require explicit approval for auth-user lifecycle mutations.
-
-If Nuclo already has two safe non-admin production test accounts, run a non-destructive two-account matrix:
-
-- User A token can read User A protected basics:
-  - `GET /api/credits/snapshot` -> `200`
-  - `GET /api/billing/credit-packages` -> `200`
-  - `POST /api/media/list` with a valid body -> `200`
-- User A token cannot sign a path under User B's UUID:
-  - `POST /api/media/sign-batch` -> `403`
-- User B token cannot sign a path under User A's UUID:
-  - `POST /api/media/sign-batch` -> `403`
-- Non-admin user token cannot access admin:
-  - `GET /api/admin/access` -> `403`
-- Unknown/unowned provider request IDs fail closed:
-  - `POST /api/fal/seedream-status` with fake `requestId` -> `403`
-
-Only test real cross-user project/media/provider IDs if they belong to dedicated test accounts or the user explicitly approves that access pattern. Do not inspect or print customer-private rows.
-
-Avoid:
-
-- checkout session creation
-- Stripe portal session creation
-- subscription change
-- storage add-on mutation
-- generation submit
-- credit-consuming provider calls
-
-Those require separate explicit approval because they create billing/provider/customer state.
-
-## Decision-Grade Closeout Required From Nuclo
-
-Close with:
-
-- Claim:
-  - whether the production hosted SQL/security/billing proof boundary is pass, partial, or blocked
-- Environment:
-  - production URL
-  - production Supabase project ref
-  - GitHub branch/ref used
-  - whether evidence came from direct DB, GitHub workflow, Vercel, Stripe, production API, or local source
-- Evidence:
-  - exact command(s)
-  - run IDs if GitHub was used
-  - summary counts
-  - `failing_checks` value from runtime SQL audit
-  - billing readiness pass/warn/fail counts
-- Unknowns:
-  - any skipped Stripe or two-user proof
-  - any account-class caveats such as admin-only audit account
-- Stop condition:
-  - stop when production SQL audit reports `failing_checks = 0`, signup trigger proof passes, billing readiness has no DB-related warnings, and remaining two-user/Stripe/purchase proof is either passed or explicitly deferred to the right owner with approval requirements.
-
-## Do Not Do These Things
-
-- Do not use staging as production evidence.
-- Do not print `SUPABASE_DB_URL`, service-role keys, anon keys, bearer tokens, Stripe keys, or customer data.
-- Do not delete auth users or user-owned rows/files.
-- Do not run Docker-based Supabase commands.
-- Do not commit, push, deploy, or mutate GitHub/Vercel/Supabase/Stripe state without explicit current-thread approval.
-- Do not convert temporary env files into source of truth.
-
-## Suggested First Command Sequence
+Dispatch:
 
 ```bash
-git branch --show-current
-git config --local --get shortpulse.allowedBranch
-
-# Confirm psql exists; if not, restore Homebrew libpq per Nuclo memory.
-which psql || test -x /opt/homebrew/opt/libpq/bin/psql
-
-# Direct SQL gate.
-psql "$SHORTPULSE_PRODUCTION_DB_URL" -v ON_ERROR_STOP=1 -f sql/check_runtime_sql_security_audit.sql
-
-# Billing/signup proof with DB URL available.
-node scripts/check_billing_launch_readiness.mjs --base-url https://www.shortpulse.ai
-```
-
-If `psql` is only available at the Homebrew libpq path:
-
-```bash
-export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
-```
-
-If using the GitHub workflow after runner fix:
-
-```bash
-gh workflow run "Reliability Control-Plane Diagnostics" \
+gh workflow run reliability-control-plane-diagnostics.yml \
   --repo sleepyseamonster/ShortPulse \
   --ref production \
   -f target_environment=production \
   -f mode=warn
-
-gh run watch <run-id> --repo sleepyseamonster/ShortPulse --exit-status
-gh run view <run-id> --repo sleepyseamonster/ShortPulse --log
 ```
+
+Track:
+
+```bash
+gh run list \
+  --repo sleepyseamonster/ShortPulse \
+  --workflow reliability-control-plane-diagnostics.yml \
+  --limit 5
+
+gh run watch <run-id> \
+  --repo sleepyseamonster/ShortPulse \
+  --exit-status
+```
+
+Download artifact:
+
+```bash
+rm -rf /tmp/reliability-diagnostics-prod-<run-id>
+mkdir -p /tmp/reliability-diagnostics-prod-<run-id>
+
+gh run download <run-id> \
+  --repo sleepyseamonster/ShortPulse \
+  --dir /tmp/reliability-diagnostics-prod-<run-id>
+```
+
+Required artifact files:
+
+- `reliability_control_plane_diagnostics.log`
+- `reliability_control_plane_diagnostics/combined.log`
+- per-SQL logs for every bundled SQL file
+
+Required SQL files to confirm in logs:
+
+- `sql/check_control_plane_scheduler_health.sql`
+- `sql/check_pg_net_failure_taxonomy.sql`
+- `sql/check_generation_queue_dispatch_latency.sql`
+- `sql/check_generation_recovery_media_visible_latency.sql`
+- `sql/check_generation_convergence_defect_classes.sql`
+- `sql/check_runtime_sql_security_audit.sql`
+- `sql/check_generation_settlement_integrity.sql`
+- `sql/check_control_plane_enforce_gate.sql`
+
+If the workflow wrapper reports success but the artifact does not show these SQL files actually ran, do not treat the workflow as proof.
+
+### 5. Interpret Async Generation Convergence Evidence
+
+From `check_generation_convergence_defect_classes.sql`, report the metric rows for:
+
+- `success_with_outputs_total`
+- `outputs_without_publications`
+- `partial_publication_coverage`
+- `published_without_projection`
+- `terminal_success_outputs_missing_projection`
+- `published_with_nonterminal_projection`
+- `terminal_observation_with_nonterminal_projection`
+- `project_metadata_missing_projection_project_scope`
+- `project_projection_missing_generation_association`
+- `project_owned_media_missing_project_media_association`
+- `ignored_missing_generation_observations`
+- `ignored_other_observations`
+- `failed_observations`
+
+Expected launch-safe direction:
+
+- terminal/project/media convergence defect counts should be `0`, or every nonzero count must have a concrete, bounded explanation and repair owner
+- detail rows should not show current completed generations with durable output media missing publication/projection/project/media association
+
+If any defect class is nonzero:
+
+- identify the defect class
+- count affected rows
+- include only non-sensitive identifiers needed for repair triage
+- do not print user private prompts/media contents/secrets
+- decide whether the defect belongs to:
+  - environment/DB ownership (Nuclo)
+  - runtime recovery/control-plane code (Gear Ball/Codex)
+  - billing/provider/account posture (Money Stuff/user)
+
+### 6. Confirm Runtime SQL Security And Scheduler Gates
+
+From `check_runtime_sql_security_audit.sql`:
+
+- report `failing_checks`
+- expected: `0`
+
+From `check_control_plane_enforce_gate.sql`:
+
+- report failing check count if present
+- expected: `0`
+
+From scheduler/latency checks:
+
+- report whether scheduler health SQL completed
+- report any recovery/media visible latency outliers that would affect async user-return reliability
+
+Do not overclaim if diagnostics run in `warn` mode. Treat `warn` as evidence collection; use the SQL values and logs for the actual conclusion.
+
+## Closeout Nuclo Must Produce
+
+Create a retained report:
+
+```text
+docs/records/artifacts/agent/nuclo/reports/2026-06-14-production-supabase-db-url-reliability-diagnostics-closeout.md
+```
+
+The report must include:
+
+- status: pass, partial, or blocked
+- production URL: `https://www.shortpulse.ai`
+- production Supabase project ref: `ftgrqgjrchpimronuhop`
+- GitHub branch/ref and commit SHA used
+- GitHub diagnostics run ID and URL
+- whether GitHub Environment `SUPABASE_DB_URL` was updated, without exposing the value
+- source used for the pooler URL, without exposing the raw secret
+- artifact files inspected
+- SQL files confirmed executed
+- convergence defect metrics
+- runtime SQL security result, including `failing_checks`
+- scheduler/enforce-gate result
+- remaining unknowns and owners
+- explicit statement whether this proves the async generation background-completion/convergence proof boundary
+
+If complete, archive this handoff to:
+
+```text
+docs/agents/nuclo/previous-handoffs/2026-06-14-production-supabase-db-url-reliability-diagnostics.md
+```
+
+Then reset `docs/agents/nuclo/CURRENT-HANDOFF.md` to the no-active-handoff placeholder.
+
+If blocked, leave this handoff active and update the report with the exact blocker and required user/provider action.
+
+## Stop Conditions
+
+Stop and close as pass when:
+
+- GitHub Environment `production` `SUPABASE_DB_URL` is IPv4-compatible
+- production reliability diagnostics run from GitHub Actions executes the full SQL bundle
+- `check_generation_convergence_defect_classes.sql` results are captured and interpreted
+- runtime SQL security audit reports no failing checks
+- control-plane enforce gate reports no failing checks
+- remaining async generation/media/project convergence unknowns are either zero or routed to the correct owner with exact evidence
+- closeout report and archived handoff are created
+
+Stop and close as blocked when:
+
+- the correct production Supavisor session pooler URL/password is unavailable
+- the user has not approved the required GitHub Environment secret mutation
+- Supabase requires an IPv4 add-on decision that Nuclo cannot make without user approval
+- the hosted workflow still cannot connect after the secret is corrected
+- SQL runs but exposes nonzero convergence/security defects that require code/data changes outside Nuclo's lane
+
+## Do Not Do These Things
+
+- Do not use staging evidence for production.
+- Do not print raw DB URLs, passwords, service-role keys, anon keys, bearer tokens, Stripe keys, or customer data.
+- Do not inspect or expose customer-private media/prompt contents.
+- Do not delete auth users, storage objects, project rows, generation rows, media rows, or billing rows.
+- Do not run Docker-based Supabase commands.
+- Do not treat a warn-mode GitHub wrapper success as proof unless the SQL logs executed.
+- Do not create fallback diagnostics paths or duplicate SQL authorities.
+- Do not change UI/UX/runtime behavior for this handoff.

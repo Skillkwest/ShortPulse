@@ -22,6 +22,7 @@ Current context note:
 - `2026-05-30-generated-image-admitted-variant-post-migration-proof.md`: hosted production proof after migration `140`, including lint, live constraint verification, storage-scope drift results, and the pre-deploy admitted-variant baseline.
 - `2026-06-01-media-files-preview-field-authority-proof.md`: hosted production proof that `media_files` preview authority is canonical variant/original fields rather than a `preview_storage_path` column, including live PostgREST rejection evidence and the hand-back to Holomony.
 - `2026-06-02-kie-vercel-production-env-audit.md`: read-only Vercel environment audit for Kie/Kling auth failures, covering key-name precedence, submit-URL override posture, effective env-pull observations, and the remaining contradiction between CLI pull output and operator dashboard claim.
+- `2026-06-14-production-security-billing-proof-closeout.md`: production-only hosted SQL security and billing bootstrap closeout, including runtime SQL audit `failing_checks = 0`, signup trigger proof, billing readiness results, and explicit deferrals for Stripe/two-account/workflow proof.
 
 Load when:
 
@@ -31,6 +32,7 @@ Load when:
 - you need the post-migration hosted proof before Gutan deploys app code or runs production smoke
 - you need the hosted proof packet for `media_files.preview_storage_path` browser `400` errors before Holomony removes stale app queries
 - you need the Kie/Kling Vercel env audit packet before another agent continues the runtime auth-failure investigation
+- you need the production security/billing hosted proof boundary before continuing Stripe, two-account isolation, or reliability-workflow release evidence
 
 ### Foundation And Environment Model
 

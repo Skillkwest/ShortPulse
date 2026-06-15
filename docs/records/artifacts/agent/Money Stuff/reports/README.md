@@ -11,6 +11,8 @@ Create a dated report when a run:
 
 Current notable report:
 
+- `2026-06-15-live-stripe-provider-and-two-account-billing-proof-closeout.md` — provider setup closeout proving the live Stripe production webhook endpoint now exists, Vercel production has the matching webhook secret after redeploy, and `billing:launch-readiness` returns `passed = 9`, `warnings = 0`, `failed = 0`; stops before real purchase testing pending Account A / Account B and transaction approval.
+- `2026-06-15-live-stripe-production-billing-proof-closeout.md` — fresh blocker closeout for the active live-Stripe provider-proof handoff after production readiness still passed every non-Stripe gate but this session still lacked live provider access and approved two-account production purchase inputs.
 - `2026-06-15-stripe-billing-provider-proof-closeout.md` — blocker closeout for the production signup/billing launch-proof handoff after production readiness checks passed the non-Stripe posture gates but local Stripe provider proof and the two-account production transaction matrix remained unavailable.
 - `2026-06-03-money-stuff-belongings-audit.md` — verifies that Money Stuff's true owned artifacts are already housed in her canonical folders and that shared indexes or other agents' historical reports should not be rehomed into her area.
 - `2026-05-30-admin-priced-billed-credit-migration-plan.md` — compact master migration plan for moving AI usage billed-credit authority onto admin-priced canonical variant rows.

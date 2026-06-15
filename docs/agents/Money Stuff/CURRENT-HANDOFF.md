@@ -4,23 +4,45 @@ Status: no active Money Stuff handoff is currently open.
 
 ## Most Recent Closed Handoff
 
+- `2026-06-15` live Stripe provider and two-account billing proof:
+  - archived handoff: `docs/agents/Money Stuff/previous-handoffs/2026-06-15-live-stripe-provider-and-two-account-billing-proof.md`
+  - retained closeout: `docs/records/artifacts/agent/Money Stuff/reports/2026-06-15-live-stripe-provider-and-two-account-billing-proof-closeout.md`
+- `2026-06-15` live Stripe production billing proof:
+  - archived handoff: `docs/agents/Money Stuff/previous-handoffs/2026-06-15-live-stripe-production-billing-proof.md`
+  - retained blocker closeout: `docs/records/artifacts/agent/Money Stuff/reports/2026-06-15-live-stripe-production-billing-proof-closeout.md`
 - `2026-06-15` production signup and billing launch proof:
   - archived handoff: `docs/agents/Money Stuff/previous-handoffs/2026-06-15-production-signup-and-billing-launch-proof.md`
   - retained blocker closeout: `docs/records/artifacts/agent/Money Stuff/reports/2026-06-15-stripe-billing-provider-proof-closeout.md`
 
 ## Result
 
-- The lane closed on explicit blockers, not on full production billing pass.
-- Blocking conditions were:
-  - no local/session `STRIPE_SECRET_KEY` for read-only Stripe provider proof
-  - no approved two-account non-admin production transaction/isolation matrix
-- Post-review repo-side correction:
-  - `npm -C frontend run billing:launch-readiness -- --base-url https://www.shortpulse.ai --json` now returns `passed = 8`, `warnings = 1`, `failed = 0`
-  - the only remaining readiness-script warning is `stripe_webhook_endpoint`
+- The live Stripe provider setup issue is resolved.
+- Latest retained provider-proof command:
+  - `npm -C frontend run billing:launch-readiness -- --base-url https://www.shortpulse.ai --json`
+- Latest retained provider-proof packet result after Stripe endpoint creation, Vercel secret replacement, and production redeploy:
+  - `passed = 9`
+  - `warnings = 0`
+  - `failed = 0`
+- Current local replay without a live `STRIPE_SECRET_KEY` in this shell falls back to:
+  - `passed = 8`
+  - `warnings = 1`
+  - `failed = 0`
+  - remaining warning: `stripe_webhook_endpoint`
+- The full two-account transaction/isolation matrix is not complete yet.
+- Remaining blockers:
+  - no safe non-admin production Account A
+  - no safe non-admin production Account B
+  - no explicit approval for real production subscription, top-up, and recurring storage/media add-on mutations
+  - no payment method/test approach
+  - no cleanup rules for real production billing mutations
+  - live Stripe secret was exposed in chat and should be rotated after the proof sequence
 
 ## Reopen Condition
 
-Open a new Money Stuff handoff only when at least the first missing proof input is available:
+Open a new Money Stuff handoff when the user provides:
 
-1. live Stripe provider access in the current shell/session for read-only webhook/account proof, and
-2. if purchase proof is desired, two safe non-admin production accounts plus explicit approval for real production billing mutations
+1. safe non-admin production Account A / Account B,
+2. explicit approval for the real production purchase matrix,
+3. payment method/test approach,
+4. cleanup rules, and
+5. a rotated live Stripe secret or Dashboard/API access if further provider proof is needed after rotation.

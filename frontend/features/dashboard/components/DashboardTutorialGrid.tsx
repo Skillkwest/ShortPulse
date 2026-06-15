@@ -3,7 +3,7 @@
  * Renders admin-managed tutorial cards for public and signed-in dashboard surfaces.
  */
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardTutorialModal } from "./DashboardTutorialModal";
 
 export type DashboardTutorial = {
@@ -24,9 +24,10 @@ type DashboardTutorialGridProps = {
 
 const DASHBOARD_TUTORIAL_GRID_SLOT_COUNT = 25;
 const DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET = 5;
+const DASHBOARD_TUTORIAL_DEFERRED_AUTO_PLAY_STAGGER_MS = 180;
 
 type DashboardTutorialVideoThumbnailProps = {
-  shouldAutoActivate: boolean;
+  autoActivateDelayMs: number;
   src: string;
   poster?: string | null;
 };
@@ -49,36 +50,86 @@ function canPlayDashboardTutorialMotion() {
  * Plays tutorial thumbnail clips only after first-paint poster display or explicit user intent.
  */
 function DashboardTutorialVideoThumbnail({
-  shouldAutoActivate,
+  autoActivateDelayMs,
   src,
   poster,
 }: DashboardTutorialVideoThumbnailProps) {
-  const [motionAllowed, setMotionAllowed] = useState(false);
-  const [isActive, setIsActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [motionAllowed] = useState(canPlayDashboardTutorialMotion);
+  const [isNearViewport, setIsNearViewport] = useState(
+    () => typeof window === "undefined" || typeof IntersectionObserver === "undefined"
+  );
+  const [isPlaybackRequested, setIsPlaybackRequested] = useState(false);
+  const shouldRenderActiveVideo = motionAllowed && isNearViewport && isPlaybackRequested;
 
   useEffect(() => {
-    const canPlayMotion = canPlayDashboardTutorialMotion();
-    setMotionAllowed(canPlayMotion);
-    if (canPlayMotion && shouldAutoActivate) {
-      setIsActive(true);
+    if (typeof IntersectionObserver === "undefined") return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsNearViewport(Boolean(entry?.isIntersecting));
+      },
+      {
+        rootMargin: "160px 0px",
+        threshold: 0.1,
+      }
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!motionAllowed || !isNearViewport) return;
+
+    const activationTimer = window.setTimeout(() => {
+      setIsPlaybackRequested(true);
+    }, autoActivateDelayMs);
+    return () => window.clearTimeout(activationTimer);
+  }, [autoActivateDelayMs, isNearViewport, motionAllowed]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!shouldRenderActiveVideo) {
+      try {
+        video.pause();
+      } catch {
+        // Test DOMs and some constrained browsers can omit media controls.
+      }
+      return;
     }
-  }, [shouldAutoActivate]);
+
+    try {
+      const playResult = video.play();
+      if (playResult && typeof playResult.catch === "function") {
+        void playResult.catch(() => {
+          window.setTimeout(() => setIsPlaybackRequested(false), 0);
+        });
+      }
+    } catch {
+      window.setTimeout(() => setIsPlaybackRequested(false), 0);
+    }
+  }, [shouldRenderActiveVideo, src]);
 
   const activateThumbnail = useCallback(() => {
     if (motionAllowed) {
-      setIsActive(true);
+      setIsNearViewport(true);
+      setIsPlaybackRequested(true);
     }
   }, [motionAllowed]);
 
   return (
     <video
-      src={isActive ? src : undefined}
+      ref={videoRef}
+      src={shouldRenderActiveVideo ? src : undefined}
       poster={poster ?? undefined}
       muted
       playsInline
-      autoPlay={isActive}
-      loop={isActive}
-      preload={isActive ? "metadata" : "none"}
+      autoPlay={shouldRenderActiveVideo}
+      loop={shouldRenderActiveVideo}
+      preload={shouldRenderActiveVideo ? "metadata" : "none"}
       onPointerEnter={activateThumbnail}
       onFocus={activateThumbnail}
       onTouchStart={activateThumbnail}
@@ -116,7 +167,12 @@ export function DashboardTutorialGrid({ tutorials, launchHref }: DashboardTutori
               <span className="dashboard-tutorial-thumbnail" aria-hidden="true">
                 {tutorial.thumbnailMediaType === "video" ? (
                   <DashboardTutorialVideoThumbnail
-                    shouldAutoActivate={index < DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET}
+                    autoActivateDelayMs={
+                      index < DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET
+                        ? 0
+                        : (index - DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET + 1) *
+                          DASHBOARD_TUTORIAL_DEFERRED_AUTO_PLAY_STAGGER_MS
+                    }
                     src={tutorial.thumbnailUrl}
                     poster={tutorial.thumbnailPosterUrl}
                   />

@@ -1,7 +1,7 @@
 /**
  * Dashboard route tests for the new guest/public mode.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
@@ -18,6 +18,9 @@ const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const publicFetchMock = vi.hoisted(() => vi.fn());
 
+let playMediaMock: ReturnType<typeof vi.fn<() => Promise<void>>>;
+let pauseMediaMock: ReturnType<typeof vi.fn<() => void>>;
+
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -32,11 +35,14 @@ vi.mock("next/link", () => ({
     children: ReactNode;
     href: string;
     prefetch?: boolean;
-  } & Record<string, unknown>) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
+  } & Record<string, unknown>) => {
+    void _prefetch;
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 vi.mock("next/image", () => ({
@@ -86,6 +92,10 @@ vi.mock("../../lib/authenticatedFetch", () => ({
 describe("Dashboard guest route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    playMediaMock = vi.fn<() => Promise<void>>(() => Promise.resolve());
+    pauseMediaMock = vi.fn<() => void>();
+    vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(playMediaMock);
+    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(pauseMediaMock);
     vi.stubGlobal("fetch", publicFetchMock);
     publicFetchMock.mockReturnValue(new Promise(() => {}));
     useRouterMock.mockReturnValue({
@@ -113,6 +123,7 @@ describe("Dashboard guest route", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -351,9 +362,49 @@ describe("Dashboard guest route", () => {
     const thumbnailVideo = tutorialButton.querySelector("video");
 
     expect(thumbnailVideo).toBeInTheDocument();
-    expect(thumbnailVideo).toHaveAttribute("preload", "metadata");
-    expect(thumbnailVideo).toHaveAttribute("loop");
+    await waitFor(() => {
+      expect(thumbnailVideo).toHaveAttribute("preload", "metadata");
+      expect(thumbnailVideo).toHaveAttribute("loop");
+    });
     expect(thumbnailVideo).toHaveAttribute("poster", "https://cdn.example.com/tutorial-poster.jpg");
+  });
+
+  it("auto-starts video tutorial thumbnails beyond the initial eager budget without hover", async () => {
+    publicFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tutorials: Array.from({ length: 6 }, (_, index) => ({
+          id: `tutorial-${index + 1}`,
+          title: `Tutorial ${index + 1}`,
+          youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+          thumbnailUrl: `https://cdn.example.com/tutorial-${index + 1}.mp4`,
+          thumbnailPosterUrl: `https://cdn.example.com/tutorial-${index + 1}-poster.jpg`,
+          thumbnailMediaType: "video",
+          thumbnailAlt: `Tutorial ${index + 1} preview`,
+          displayOrder: index + 1,
+        })),
+      }),
+    });
+
+    render(<DashboardPage dashboardTutorials={[]} />);
+
+    const deferredTutorialButton = await screen.findByRole("button", {
+      name: "Tutorial 6: open tutorial",
+    });
+    const deferredThumbnailVideo = deferredTutorialButton.querySelector("video");
+
+    expect(deferredThumbnailVideo).toBeInTheDocument();
+    await waitFor(
+      () => {
+        expect(deferredThumbnailVideo).toHaveAttribute(
+          "src",
+          "https://cdn.example.com/tutorial-6.mp4"
+        );
+        expect(deferredThumbnailVideo).toHaveAttribute("preload", "metadata");
+      },
+      { timeout: 1200 }
+    );
+    expect(playMediaMock).toHaveBeenCalled();
   });
 
   it("hydrates public tutorial cards from the dashboard tutorials endpoint", async () => {

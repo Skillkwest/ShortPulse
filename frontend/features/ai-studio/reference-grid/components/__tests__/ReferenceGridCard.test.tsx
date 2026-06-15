@@ -289,7 +289,7 @@ describe("ReferenceGridCard", () => {
     fireEvent.click(screen.getByLabelText("Reload workflow"));
 
     expect(onSelectOutput).toHaveBeenCalledWith("out-1");
-    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output);
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "image" });
   });
 
   it("shows workflow reload for restorable generated video references", () => {
@@ -344,7 +344,7 @@ describe("ReferenceGridCard", () => {
     fireEvent.click(reloadButton);
 
     expect(onSelectOutput).toHaveBeenCalledWith("out-1");
-    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output);
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
   });
 
   it("places workflow reload immediately to the right of image re-roll", () => {
@@ -417,6 +417,46 @@ describe("ReferenceGridCard", () => {
     );
 
     expect(screen.queryByLabelText("Reload workflow")).toBeNull();
+  });
+
+  it("routes video preview workflow reload through the video media hint", () => {
+    const onReloadWorkflowOutput = vi.fn();
+    const onSelectOutput = vi.fn();
+    const output = createOutput({
+      taskState: "success",
+      mediaSource: "generated",
+      modelId: "kie-ai/kling-3.0",
+      generationReplay: {
+        version: 1,
+        mode: "image",
+        submitTool: "edit",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        displayPrompt: "Prompt",
+        submissionPrompt: "Prompt",
+        aspect: "16:9",
+        imageResolution: "2K",
+        referenceInputs: [],
+        capturedAt: "2026-06-06T12:00:00.000Z",
+      },
+      previewUrl: "https://example.com/video.mp4",
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: output,
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/video.mp4",
+          onReloadWorkflowOutput,
+          onSelectOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Reload workflow"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("out-1");
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
   });
 
   it("starts and stops video playback on hover", async () => {

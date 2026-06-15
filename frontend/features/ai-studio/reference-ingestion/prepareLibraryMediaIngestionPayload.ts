@@ -6,6 +6,7 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { isWorkflowReloadConfigV1 } from "../logic/workflowReload";
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
 import type { ReferenceIngestionInput } from "./types";
 
@@ -14,10 +15,17 @@ const SIGNED_URL_TTL_SECONDS = 3600;
 
 type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>["payload"];
 type MediaStoragePathRow = {
+  filename?: unknown;
+  file_type?: unknown;
+  height?: unknown;
+  metadata?: unknown;
   storage_path?: unknown;
   poster_variant_path?: unknown;
+  source?: unknown;
+  source_ref?: unknown;
   thumb_variant_path?: unknown;
   preview_variant_path?: unknown;
+  width?: unknown;
 };
 
 const normalizeText = (value: string | null | undefined): string | null => {
@@ -105,39 +113,85 @@ const resolveStoragePathsFromMediaId = async (
   mediaId: string,
   fileType: LibraryMediaPayload["fileType"]
 ): Promise<{
+  filename: string | null;
+  source: string | null;
+  sourceRef: string | null;
+  workflowReload: LibraryMediaPayload["workflowReload"] | null;
   previewStoragePath: string | null;
   previewPosterStoragePath: string | null;
   fullStoragePath: string | null;
+  width: number | undefined;
+  height: number | undefined;
 }> => {
   const normalizedMediaId = normalizeText(mediaId);
   if (!normalizedMediaId) {
     return {
+      filename: null,
+      source: null,
+      sourceRef: null,
+      workflowReload: null,
       previewStoragePath: null,
       previewPosterStoragePath: null,
       fullStoragePath: null,
+      width: undefined,
+      height: undefined,
     };
   }
   try {
     const supabase = ensureSupabaseQueryClient();
     const { data, error } = (await supabase
       .from("media_files")
-      .select("storage_path, poster_variant_path, thumb_variant_path, preview_variant_path")
+      .select(
+        "filename, file_type, width, height, source, source_ref, metadata, storage_path, poster_variant_path, thumb_variant_path, preview_variant_path"
+      )
       .eq("id", normalizedMediaId)
       .limit(1)
       .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown };
     if (error) {
       return {
+        filename: null,
+        source: null,
+        sourceRef: null,
+        workflowReload: null,
         previewStoragePath: null,
         previewPosterStoragePath: null,
         fullStoragePath: null,
+        width: undefined,
+        height: undefined,
       };
     }
-    return resolveStoragePathsFromRow(data, fileType);
+    const paths = resolveStoragePathsFromRow(data, fileType);
+    const metadata =
+      data?.metadata && typeof data.metadata === "object"
+        ? (data.metadata as Record<string, unknown>)
+        : null;
+    const workflowReload = isWorkflowReloadConfigV1(metadata?.workflow_reload)
+      ? metadata.workflow_reload
+      : null;
+    const width =
+      typeof data?.width === "number" && Number.isFinite(data.width) ? data.width : undefined;
+    const height =
+      typeof data?.height === "number" && Number.isFinite(data.height) ? data.height : undefined;
+    return {
+      filename: normalizeText(typeof data?.filename === "string" ? data.filename : null),
+      source: normalizeText(typeof data?.source === "string" ? data.source : null),
+      sourceRef: normalizeText(typeof data?.source_ref === "string" ? data.source_ref : null),
+      workflowReload,
+      ...paths,
+      width,
+      height,
+    };
   } catch {
     return {
+      filename: null,
+      source: null,
+      sourceRef: null,
+      workflowReload: null,
       previewStoragePath: null,
       previewPosterStoragePath: null,
       fullStoragePath: null,
+      width: undefined,
+      height: undefined,
     };
   }
 };
@@ -173,13 +227,30 @@ export const prepareLibraryMediaIngestionPayload = async (
     asCanonicalStoragePath(payload.fullStoragePath) ?? initialPreviewStoragePath;
   const initialCompanionArtStoragePath =
     payload.fileType === "audio" ? asCanonicalStoragePath(payload.companionArtStoragePath) : null;
+  const normalizedSource = normalizeText(payload.source);
+  const normalizedSourceRef = normalizeText(payload.sourceRef ?? payload.generationId ?? null);
+  const hasWorkflowReload = isWorkflowReloadConfigV1(payload.workflowReload);
+  const looksLikeGeneratedMedia =
+    normalizedSource === "ai_studio" || Boolean(normalizedSourceRef) || hasWorkflowReload;
   const needsMediaIdFallback =
     !initialPreviewStoragePath ||
     !initialFullStoragePath ||
-    (payload.fileType === "video" && !initialPreviewPosterStoragePath);
+    (payload.fileType === "video" && !initialPreviewPosterStoragePath) ||
+    !normalizedSource ||
+    (looksLikeGeneratedMedia && (!normalizedSourceRef || !hasWorkflowReload));
   const mediaIdFallbackPaths = needsMediaIdFallback
     ? await resolveStoragePathsFromMediaId(payload.id, payload.fileType)
-    : { previewStoragePath: null, previewPosterStoragePath: null, fullStoragePath: null };
+    : {
+        filename: null,
+        source: null,
+        sourceRef: null,
+        workflowReload: null,
+        previewStoragePath: null,
+        previewPosterStoragePath: null,
+        fullStoragePath: null,
+        width: undefined,
+        height: undefined,
+      };
   const normalizedPreviewPosterStoragePath =
     payload.fileType === "video"
       ? (initialPreviewPosterStoragePath ?? mediaIdFallbackPaths.previewPosterStoragePath)
@@ -244,5 +315,20 @@ export const prepareLibraryMediaIngestionPayload = async (
     fullUrl: resolvedFullUrl ?? null,
     companionArtUrl: resolvedCompanionArtUrl,
     companionArtStoragePath: initialCompanionArtStoragePath,
+    filename: normalizeText(payload.filename) ?? mediaIdFallbackPaths.filename,
+    source: normalizedSource ?? mediaIdFallbackPaths.source,
+    sourceRef:
+      normalizeText(payload.sourceRef) ??
+      normalizeText(payload.generationId) ??
+      mediaIdFallbackPaths.sourceRef,
+    generationId:
+      normalizeText(payload.generationId) ??
+      normalizeText(payload.sourceRef) ??
+      mediaIdFallbackPaths.sourceRef,
+    workflowReload: hasWorkflowReload
+      ? payload.workflowReload
+      : mediaIdFallbackPaths.workflowReload,
+    width: payload.width ?? mediaIdFallbackPaths.width,
+    height: payload.height ?? mediaIdFallbackPaths.height,
   };
 };

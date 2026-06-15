@@ -22,6 +22,7 @@ import {
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import { resolveMediaLibraryWorkflowReloadConfig } from "../logic/mediaLibraryWorkflowReload";
 import { downloadBlobToFile } from "../logic/referenceDownload";
 import type { MediaLibraryMediaDragPreview } from "../components/media-library-modal/MediaLibraryAllItemsGrid";
 
@@ -80,6 +81,8 @@ export const useMediaLibraryPanelItemInteractions = ({
       });
       const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
       const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
+      const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
+      const sourceRef = file.source_ref?.trim() || null;
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
         source: "mediaLibrary",
@@ -93,6 +96,9 @@ export const useMediaLibraryPanelItemInteractions = ({
           promptText,
           transcriptText,
           source: file.source ?? null,
+          sourceRef,
+          generationId: sourceRef,
+          workflowReload,
           previewStoragePath,
           fullStoragePath: file.storage_path,
           previewUrl,

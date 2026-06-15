@@ -29,7 +29,10 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
-import { createMediaLibraryWorkflowReloadOutput } from "../logic/mediaLibraryWorkflowReload";
+import {
+  createMediaLibraryWorkflowReloadOutput,
+  resolveMediaLibraryWorkflowReloadMediaKindHint,
+} from "../logic/mediaLibraryWorkflowReload";
 import {
   getMediaLibrarySurfaceConfig,
   resolvePanelMixedAllMediaSignBudget,
@@ -58,7 +61,7 @@ import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGr
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
-import type { StudioOutput } from "../types";
+import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 type RootMediaLibraryTab = MediaLibraryPanelItemType;
@@ -105,7 +108,10 @@ type MediaLibraryPanelProps = {
     id: string;
   } | null>;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
-  onReloadWorkflowFromMedia?: (output: StudioOutput) => void;
+  onReloadWorkflowFromMedia?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
@@ -568,7 +574,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       if (!onReloadWorkflowFromMedia) return;
       const output = createMediaLibraryWorkflowReloadOutput(file);
       if (!output) return;
-      onReloadWorkflowFromMedia(output);
+      onReloadWorkflowFromMedia(output, {
+        mediaKindHint: resolveMediaLibraryWorkflowReloadMediaKindHint(file),
+      });
     },
     [onReloadWorkflowFromMedia]
   );

@@ -823,7 +823,8 @@ describe("MediaLibraryPanel", () => {
         mediaSource: "generated",
         generationId: "generation-video-1",
         workflowReload,
-      })
+      }),
+      { mediaKindHint: "video" }
     );
     const output = onReloadWorkflowFromMedia.mock.calls[0]?.[0];
     expect(output.workflowReload.payload.videoReferences.firstFrame.sourceUrl).toBe(
@@ -1292,7 +1293,8 @@ describe("MediaLibraryPanel", () => {
         mediaSource: "generated",
         generationId: "generation-embedded-video-1",
         workflowReload,
-      })
+      }),
+      { mediaKindHint: "video" }
     );
   });
 

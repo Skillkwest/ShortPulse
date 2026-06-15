@@ -42,6 +42,26 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
   ...overrides,
 });
 
+const workflowReload = {
+  version: 1,
+  source: "ai_studio_generation",
+  capturedAt: "2026-06-15T10:00:00.000Z",
+  originTool: "create",
+  panelKind: "create",
+  outputMode: "image",
+  restoreBehavior: "navigate_and_hydrate",
+  prompt: { display: "A glass lighthouse" },
+  model: { id: "fal-ai/imagen4/preview" },
+  payload: {
+    kind: "image",
+    submitTool: "create",
+    aspect: "16:9",
+    imageResolution: "1K",
+    referenceInputs: [],
+    internalMediaRefs: [],
+  },
+} as const;
+
 describe("buildStudioOutputsFromReferenceInput", () => {
   beforeEach(() => {
     mapUploadsFromFilesMock.mockReset();
@@ -240,6 +260,51 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.resultUrls).toEqual(["https://example.com/preview.jpg"]);
     expect(output?.savedMediaIds).toEqual(["media-1"]);
     expect(output?.saveState).toBe("saved");
+  });
+
+  it("builds reloadable generated output from AI Studio library media with workflow metadata", async () => {
+    const context: ReferenceIngestionContext = {
+      ...createContext(),
+      nowIso: () => "2026-05-25T12:34:56.000Z",
+    };
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-generated-1",
+          url: "https://example.com/preview.jpg",
+          fileType: "image",
+          filename: "Reference A",
+          source: "ai_studio",
+          sourceRef: "generation-1",
+          generationId: "generation-1",
+          workflowReload,
+          previewStoragePath: "user/preview.jpg",
+          fullStoragePath: "user/full.jpg",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output).toEqual(
+      expect.objectContaining({
+        id: "library-id-1",
+        prompt: "A glass lighthouse",
+        mode: "image",
+        aspect: "16:9",
+        model: "fal-ai/imagen4/preview",
+        modelId: "fal-ai/imagen4/preview",
+        generationId: "generation-1",
+        timestamp: "Generation",
+        mediaSource: "generated",
+        createdAt: "2026-05-25T12:34:56.000Z",
+        workflowReload,
+        savedMediaIds: ["media-generated-1"],
+      })
+    );
   });
 
   it("builds library media output from durable authority without a current signed URL", async () => {

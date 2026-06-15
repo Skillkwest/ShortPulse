@@ -29,7 +29,7 @@ import {
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import { resolveCompactErrorMessage } from "../../logic/errorPresentation";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
-import type { StudioOutput } from "../../types";
+import type { StudioOutput, WorkflowReloadMediaKindHint } from "../../types";
 import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlayer";
 
@@ -85,7 +85,10 @@ export type ReferenceGridCardProps = {
   onAudioPlaybackStopped?: (instanceKey: string) => void;
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
-  onReloadWorkflowOutput?: (output: StudioOutput) => void;
+  onReloadWorkflowOutput?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
@@ -203,8 +206,15 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     (isPromptOnly || isImagePreview || isVideoPreview || isAudioPreview)
   );
   const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
+  const workflowReloadMediaKindHint: WorkflowReloadMediaKindHint =
+    item.mode === "video" || isVideoPreview
+      ? "video"
+      : item.mode === "audio" || isAudioPreview
+        ? "audio"
+        : "image";
   const shouldShowWorkflowReloadAction = Boolean(
-    onReloadWorkflowOutput && canReloadWorkflowOutput(item)
+    onReloadWorkflowOutput &&
+    canReloadWorkflowOutput(item, { mediaKindHint: workflowReloadMediaKindHint })
   );
   const shouldPlaceWorkflowReloadInVideoCorner = Boolean(
     shouldShowWorkflowReloadAction && (item.mode === "video" || isVideoPreview)
@@ -714,7 +724,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);
-                onReloadWorkflowOutput?.(item);
+                onReloadWorkflowOutput?.(item, { mediaKindHint: workflowReloadMediaKindHint });
               }}
             >
               <FlowArrow size={16} weight="bold" aria-hidden />
@@ -734,7 +744,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             onClick={(event) => {
               event.stopPropagation();
               onSelectOutput(item.id);
-              onReloadWorkflowOutput?.(item);
+              onReloadWorkflowOutput?.(item, { mediaKindHint: workflowReloadMediaKindHint });
             }}
           >
             <FlowArrow size={16} weight="bold" aria-hidden />

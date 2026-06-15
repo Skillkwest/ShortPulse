@@ -110,7 +110,7 @@ describe("useAiStudioReferenceExperienceRuntime", () => {
 
     result.current.referenceGridProps.onReloadWorkflowOutput?.(output);
 
-    expect(reloadWorkflowFromStudioOutput).toHaveBeenCalledWith(output);
+    expect(reloadWorkflowFromStudioOutput).toHaveBeenCalledWith(output, undefined);
     expect(reloadWorkflowFromOutput).not.toHaveBeenCalled();
   });
 });

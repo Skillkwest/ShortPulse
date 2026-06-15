@@ -28,6 +28,7 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "media/copy-from-url.ts:190",
   "media/copy-from-url.ts:191",
   "media/copy-from-url.ts:194",
+  "media/copy-from-url.ts:214",
   "media/copy-from-url.ts:1090",
   "media/copy-from-url.ts:1115",
   "media/copy-from-url.ts:1277",

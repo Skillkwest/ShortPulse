@@ -140,6 +140,33 @@ const asObjectMetadata = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 
+const maybeFillMissingWorkflowReloadMetadata = async ({
+  userId,
+  mediaFileId,
+  existingMetadata,
+  incomingMetadata,
+}: {
+  userId: string;
+  mediaFileId: string;
+  existingMetadata: Record<string, unknown> | null;
+  incomingMetadata: Record<string, unknown> | null | undefined;
+}): Promise<void> => {
+  const incomingWorkflowReload = asObjectMetadata(incomingMetadata).workflow_reload;
+  if (!incomingWorkflowReload) return;
+  const currentMetadata = asObjectMetadata(existingMetadata);
+  if (currentMetadata.workflow_reload) return;
+  await getSupabaseAdmin()
+    .from("media_files")
+    .update({
+      metadata: {
+        ...currentMetadata,
+        workflow_reload: incomingWorkflowReload,
+      },
+    })
+    .eq("user_id", userId)
+    .eq("id", mediaFileId);
+};
+
 const toSafeUserScopedPath = ({
   path,
   userId,
@@ -1378,6 +1405,16 @@ export default async function handler(
             }
           }
           try {
+            await maybeFillMissingWorkflowReloadMetadata({
+              userId: user.id,
+              mediaFileId: existing.id,
+              existingMetadata: existing.metadata,
+              incomingMetadata: metadata,
+            });
+          } catch {
+            // best-effort saved media metadata mirror only
+          }
+          try {
             await reconcileOwnedGenerationOutputSlot({
               generationId,
               userId: user.id,
@@ -1648,6 +1685,16 @@ export default async function handler(
                 error,
               });
             }
+          }
+          try {
+            await maybeFillMissingWorkflowReloadMetadata({
+              userId: user.id,
+              mediaFileId: existing.id,
+              existingMetadata: existing.metadata,
+              incomingMetadata: metadata,
+            });
+          } catch {
+            // best-effort saved media metadata mirror only
           }
           const delivery = await resolveDelivery({
             userId: user.id,

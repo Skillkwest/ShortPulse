@@ -502,6 +502,50 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.setKlingElements).toHaveBeenCalledWith([{ id: "el-1", frontalImageUrl: "" }]);
   });
 
+  it("uses the video media hint to reload misclassified video references into the video panel", () => {
+    const output: StudioOutput = {
+      ...makeOutput(),
+      mode: "image",
+      modelId: "kie-ai/kling-3.0",
+      previewUrl: "https://example.com/generated-video.mp4",
+      durationMs: 6_000,
+      generationReplay: {
+        version: 2,
+        mode: "image",
+        submitTool: "edit",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        displayPrompt: "Restore this as video",
+        submissionPrompt: "Restore this as video",
+        aspect: "16:9",
+        imageResolution: "2K",
+        referenceInputs: ["https://example.com/first-frame.png"],
+        internalMediaRefs: [],
+        capturedAt: "2026-06-06T12:00:00.000Z",
+      },
+    };
+    const params = makeParams(output);
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromStudioOutput(output, { mediaKindHint: "video" });
+    });
+
+    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
+    expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
+    expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.setVideoReferenceText).toHaveBeenCalledWith("Restore this as video");
+    expect(params.setAspect).toHaveBeenCalledWith("16:9");
+    expect(params.setVideoReferenceMode).toHaveBeenCalledWith("standard");
+    expect(params.setVideoDurationSeconds).toHaveBeenCalledWith(6);
+    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedTool: "video",
+        referenceImageUrl: "https://example.com/first-frame.png",
+      })
+    );
+    expect(params.setEditReferenceText).not.toHaveBeenCalled();
+  });
+
   it("hydrates video workflow reference sidecar media and internal refs", () => {
     const firstFrameRef = {
       version: 1 as const,

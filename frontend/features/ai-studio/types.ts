@@ -111,6 +111,7 @@ export type WorkflowReloadPanelKind =
   | "voices";
 
 export type WorkflowReloadCreateMode = "standard" | "pulse";
+export type WorkflowReloadMediaKindHint = "image" | "video" | "audio";
 
 export type WorkflowReloadPrompt = {
   display: string;

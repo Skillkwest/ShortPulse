@@ -7,6 +7,7 @@ import {
 import {
   canReloadMediaLibraryWorkflow,
   createMediaLibraryWorkflowReloadOutput,
+  resolveMediaLibraryWorkflowReloadMediaKindHint,
 } from "../mediaLibraryWorkflowReload";
 
 const workflowReload = {
@@ -66,6 +67,15 @@ describe("mediaLibraryWorkflowReload", () => {
       workflowReload,
     });
     expect(canReloadMediaLibraryWorkflow(createRow())).toBe(true);
+  });
+
+  it("derives the reload media-kind hint from the saved media file type", () => {
+    expect(resolveMediaLibraryWorkflowReloadMediaKindHint(createRow())).toBe("image");
+    expect(
+      resolveMediaLibraryWorkflowReloadMediaKindHint(
+        createRow({ filename: "wolf-motion.mp4", file_type: "video/mp4" })
+      )
+    ).toBe("video");
   });
 
   it("preserves video workflow sidecar references from saved AI Studio media rows", () => {

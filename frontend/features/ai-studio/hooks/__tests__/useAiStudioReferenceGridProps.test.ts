@@ -106,7 +106,7 @@ describe("useAiStudioReferenceGridProps", () => {
     });
     expect(retryOutputStatus).toHaveBeenCalledWith("out-1");
     expect(handleRerollOutput).toHaveBeenCalledWith("out-1");
-    expect(handleReloadWorkflowOutput).toHaveBeenCalledWith(output);
+    expect(handleReloadWorkflowOutput).toHaveBeenCalledWith(output, undefined);
   });
 
   it("stores the selected output snapshot when opening details", () => {

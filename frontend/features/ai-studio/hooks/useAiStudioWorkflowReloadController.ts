@@ -8,6 +8,7 @@ import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import type { VoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
 import {
   canReloadWorkflowOutput,
+  type ResolveWorkflowReloadConfigOptions,
   resolveWorkflowReloadConfigForOutput,
 } from "../logic/workflowReload";
 import type { AiStudioKlingElement } from "../logic/klingElements";
@@ -470,9 +471,12 @@ export const useAiStudioWorkflowReloadController = ({
   );
 
   const reloadWorkflowFromStudioOutput = useCallback(
-    (output: StudioOutput): WorkflowReloadResult => {
+    (
+      output: StudioOutput,
+      options: ResolveWorkflowReloadConfigOptions = {}
+    ): WorkflowReloadResult => {
       const normalizedOutputId = output.id.trim();
-      if (!canReloadWorkflowOutput(output)) {
+      if (!canReloadWorkflowOutput(output, options)) {
         return fail(
           output.mediaSource === "generated" ? "unsupported_legacy_output" : "invalid_metadata",
           normalizedOutputId,
@@ -480,7 +484,7 @@ export const useAiStudioWorkflowReloadController = ({
         );
       }
 
-      const config = resolveWorkflowReloadConfigForOutput(output);
+      const config = resolveWorkflowReloadConfigForOutput(output, options);
       if (!config) {
         return fail("invalid_metadata", normalizedOutputId, RELOAD_MISSING_NOTICE);
       }

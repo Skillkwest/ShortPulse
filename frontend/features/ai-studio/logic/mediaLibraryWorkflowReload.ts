@@ -1,19 +1,25 @@
 /**
  * Adapts explicit saved media workflow reload metadata into the AI Studio reload contract.
  */
-import type { StudioMode, StudioOutput, WorkflowReloadConfigV1 } from "../types";
+import type { StudioOutput, WorkflowReloadConfigV1, WorkflowReloadMediaKindHint } from "../types";
 import type { MediaFileRow } from "./mediaLibraryModalModel";
 import { isWorkflowReloadConfigV1 } from "./workflowReload";
 
 const AI_STUDIO_MEDIA_SOURCE = "ai_studio";
 
-const modeFromFileType = (fileType: string | null | undefined): StudioMode | null => {
+const modeFromFileType = (
+  fileType: string | null | undefined
+): WorkflowReloadMediaKindHint | null => {
   const normalized = (fileType ?? "").toLowerCase();
   if (normalized.startsWith("image")) return "image";
   if (normalized.startsWith("video")) return "video";
   if (normalized.startsWith("audio")) return "audio";
   return null;
 };
+
+export const resolveMediaLibraryWorkflowReloadMediaKindHint = (
+  file: MediaFileRow
+): WorkflowReloadMediaKindHint | null => modeFromFileType(file.file_type);
 
 const aspectFromWorkflowReload = (config: WorkflowReloadConfigV1): string => {
   if (config.payload.kind === "image" || config.payload.kind === "video") {

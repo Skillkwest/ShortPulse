@@ -8,7 +8,7 @@ import {
   asCanonicalStoragePath,
   logAdaptiveDetailFullQualityUsed,
 } from "../../../lib/adaptive-media";
-import { StudioOutput } from "../types";
+import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
 import { resolveStudioOutputMediaDisplayAuthority } from "../logic/referenceGridMedia";
 import { downloadUrlToFile } from "../logic/referenceDownload";
@@ -63,13 +63,36 @@ type DetailModalProps = {
   onDeleteOutput: (id: string) => void;
   onDownloadReference?: (id: string) => void;
   onSaveReference?: (id: string) => void;
-  onReloadWorkflowReference?: (output: StudioOutput) => void;
+  onReloadWorkflowReference?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
   isMediaStorageFull?: boolean;
   onSavePrompt?: (promptText: string) => void;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
+};
+
+const resolveDetailWorkflowReloadMediaKindHint = (
+  output: StudioOutput
+): WorkflowReloadMediaKindHint => {
+  if (
+    output.mode === "video" ||
+    isVideoUrl(output.previewUrl) ||
+    isVideoUrl(output.fullStoragePath)
+  ) {
+    return "video";
+  }
+  if (
+    output.mode === "audio" ||
+    isAudioUrl(output.previewUrl) ||
+    isAudioUrl(output.fullStoragePath)
+  ) {
+    return "audio";
+  }
+  return "image";
 };
 
 /**
@@ -251,6 +274,7 @@ function DetailModalContent({
   });
 
   const outputId = output?.id ?? null;
+  const workflowReloadMediaKindHint = resolveDetailWorkflowReloadMediaKindHint(output);
   const savedMediaIdsSignature = serializeDetailAuthorityList(output.savedMediaIds);
   const resultUrlsSignature = serializeDetailAuthorityList(output.resultUrls);
   const stableSavedMediaIds = useMemo(
@@ -1226,8 +1250,8 @@ function DetailModalContent({
   }, [isMediaSaveDisabled, onSaveReference, outputId]);
   const handleReloadWorkflowReference = useCallback(() => {
     if (!onReloadWorkflowReference) return;
-    onReloadWorkflowReference(output);
-  }, [onReloadWorkflowReference, output]);
+    onReloadWorkflowReference(output, { mediaKindHint: workflowReloadMediaKindHint });
+  }, [onReloadWorkflowReference, output, workflowReloadMediaKindHint]);
 
   const handlePreviewAspectLoad = useCallback(
     (width: number, height: number) => {
@@ -1399,10 +1423,14 @@ function DetailModalContent({
     setDeleteConfirmOutputId(null);
     handleCloseModal();
   };
+  const shouldShowWorkflowReloadAction = Boolean(
+    onReloadWorkflowReference &&
+    canReloadWorkflowOutput(output, { mediaKindHint: workflowReloadMediaKindHint })
+  );
 
   const sharedMediaActionItems = useMemo<SharedMediaDetailActionItem[]>(
     () => [
-      ...(onReloadWorkflowReference && canReloadWorkflowOutput(output)
+      ...(shouldShowWorkflowReloadAction
         ? [
             {
               id: "reload-workflow",
@@ -1436,8 +1464,7 @@ function DetailModalContent({
       isMediaSaveButtonVisible,
       isMediaStorageFull,
       mediaSaveState,
-      onReloadWorkflowReference,
-      output,
+      shouldShowWorkflowReloadAction,
     ]
   );
 

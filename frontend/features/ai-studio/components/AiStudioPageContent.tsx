@@ -45,7 +45,7 @@ import type {
   AiStudioCreatePanelContract,
   AiStudioReferenceGridContract,
 } from "../hooks/contracts/pageContentContracts";
-import type { StudioOutput, ToolId } from "../types";
+import type { StudioOutput, ToolId, WorkflowReloadMediaKindHint } from "../types";
 import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
@@ -680,8 +680,14 @@ export type AiStudioPageContentProps = {
   onDeleteOutput: (id: string) => void;
   onDetailDownload?: (id: string) => void;
   onDetailSaveReference?: (id: string) => void;
-  onDetailReloadWorkflow?: (output: StudioOutput) => void;
-  onMediaLibraryReloadWorkflow?: (output: StudioOutput) => void;
+  onDetailReloadWorkflow?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
+  onMediaLibraryReloadWorkflow?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
   onDetailSavePrompt?: (promptText: string) => void;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;

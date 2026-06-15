@@ -29,7 +29,11 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
-import { createMediaLibraryWorkflowReloadOutput } from "../logic/mediaLibraryWorkflowReload";
+import {
+  createMediaLibraryWorkflowReloadOutput,
+  resolveMediaLibraryWorkflowReloadConfig,
+  resolveMediaLibraryWorkflowReloadMediaKindHint,
+} from "../logic/mediaLibraryWorkflowReload";
 import {
   getMediaLibrarySurfaceConfig,
   resolvePanelMixedAllMediaSignBudget,
@@ -60,7 +64,7 @@ import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPrompt
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
-import type { StudioOutput } from "../types";
+import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 
 export type EmbeddedMediaLibraryPanelSurface = "elements-media-panel" | "character-media-panel";
 
@@ -81,7 +85,10 @@ type EmbeddedMediaLibraryPanelProps = {
   fixedVisualAspectRatio?: number | null;
   onSelectMedia?: (payload: MediaLibrarySelectionPayload) => void;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
-  onReloadWorkflowFromMedia?: (output: StudioOutput) => void;
+  onReloadWorkflowFromMedia?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
@@ -352,7 +359,9 @@ export function EmbeddedMediaLibraryPanel({
       if (!onReloadWorkflowFromMedia) return;
       const output = createMediaLibraryWorkflowReloadOutput(file);
       if (!output) return;
-      onReloadWorkflowFromMedia(output);
+      onReloadWorkflowFromMedia(output, {
+        mediaKindHint: resolveMediaLibraryWorkflowReloadMediaKindHint(file),
+      });
     },
     [onReloadWorkflowFromMedia]
   );
@@ -449,6 +458,8 @@ export function EmbeddedMediaLibraryPanel({
       });
       const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
       const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
+      const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
+      const sourceRef = file.source_ref?.trim() || null;
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
         source: "mediaLibrary",
@@ -466,6 +477,9 @@ export function EmbeddedMediaLibraryPanel({
           promptText,
           transcriptText,
           source: file.source ?? null,
+          sourceRef,
+          generationId: sourceRef,
+          workflowReload,
           previewStoragePath: file.preview_storage_path ?? file.storage_path,
           fullStoragePath: file.storage_path,
           previewUrl: signedUrl || null,

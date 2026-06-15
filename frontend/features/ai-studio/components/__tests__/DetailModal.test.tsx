@@ -501,7 +501,9 @@ describe("DetailModal", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Reload workflow" }));
-    expect(onReloadWorkflowReference).toHaveBeenCalledWith(restorableOutput);
+    expect(onReloadWorkflowReference).toHaveBeenCalledWith(restorableOutput, {
+      mediaKindHint: "image",
+    });
 
     rerender(
       <DetailModal

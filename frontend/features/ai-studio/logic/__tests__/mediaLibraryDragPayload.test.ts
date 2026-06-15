@@ -91,6 +91,8 @@ describe("mediaLibraryDragPayload", () => {
         filename: null,
         promptText: "fallback prompt",
         source: null,
+        sourceRef: null,
+        generationId: null,
         transcriptText: null,
         previewStoragePath: null,
         fullStoragePath: null,
@@ -133,6 +135,8 @@ describe("mediaLibraryDragPayload", () => {
         filename: null,
         promptText: null,
         source: null,
+        sourceRef: null,
+        generationId: null,
         transcriptText: null,
         previewStoragePath: null,
         fullStoragePath: null,
@@ -227,6 +231,69 @@ describe("mediaLibraryDragPayload", () => {
         id: "media-transcript-1",
         promptText: "clip.mp4 -> Narrator video",
         transcriptText: "I can hear the city waking up below us.",
+      }),
+    });
+  });
+
+  it("serializes generated media source refs and reload metadata in the custom payload", () => {
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-15T10:00:00.000Z",
+      originTool: "create",
+      panelKind: "create",
+      outputMode: "image",
+      restoreBehavior: "navigate_and_hydrate",
+      prompt: { display: "A glass lighthouse" },
+      model: { id: "fal-ai/imagen4/preview" },
+      payload: {
+        kind: "image",
+        submitTool: "create",
+        aspect: "16:9",
+        imageResolution: "1K",
+        referenceInputs: [],
+        internalMediaRefs: [],
+      },
+    };
+    const transferData = new Map<string, string>();
+    const transfer = {
+      setData: vi.fn((type: string, value: string) => {
+        transferData.set(type, value);
+      }),
+      getData: vi.fn((type: string) => transferData.get(type) ?? ""),
+    } as unknown as DataTransfer;
+
+    writeMediaLibraryDragPayload(transfer, {
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-generated-1",
+        url: "https://cdn.test/generated.png",
+        fileType: "image",
+        source: "ai_studio",
+        sourceRef: "generation-1",
+        generationId: "generation-1",
+        workflowReload,
+      },
+    });
+
+    expect(transfer.setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-source-ref",
+      "generation-1"
+    );
+    expect(transfer.setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-generation-id",
+      "generation-1"
+    );
+    expect(readMediaLibraryDragPayload(transfer)).toEqual({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: expect.objectContaining({
+        id: "media-generated-1",
+        source: "ai_studio",
+        sourceRef: "generation-1",
+        generationId: "generation-1",
+        workflowReload,
       }),
     });
   });

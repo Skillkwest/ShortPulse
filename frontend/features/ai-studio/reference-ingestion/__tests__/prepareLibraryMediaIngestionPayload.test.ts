@@ -5,6 +5,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prepareLibraryMediaIngestionPayload } from "../prepareLibraryMediaIngestionPayload";
 
+const workflowReload = {
+  version: 1,
+  source: "ai_studio_generation",
+  capturedAt: "2026-06-15T10:00:00.000Z",
+  originTool: "create",
+  panelKind: "create",
+  outputMode: "image",
+  restoreBehavior: "navigate_and_hydrate",
+  prompt: { display: "A glass lighthouse" },
+  model: { id: "fal-ai/imagen4/preview" },
+  payload: {
+    kind: "image",
+    submitTool: "create",
+    aspect: "16:9",
+    imageResolution: "1K",
+    referenceInputs: [],
+    internalMediaRefs: [],
+  },
+} as const;
+
 const {
   getSignedMediaUrlMock,
   refreshSupabaseSignedUrlIfNeededMock,
@@ -206,7 +226,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.url).toBe("https://signed.example.com/full/by-id.jpg");
   });
 
-  it("queries only canonical media_files storage and variant columns for media-id fallback", async () => {
+  it("queries canonical media_files storage, source, and metadata columns for media-id fallback", async () => {
     mediaFilesMaybeSingleMock.mockResolvedValueOnce({
       data: {
         storage_path: "user-1/full/by-storage-only.jpg",
@@ -229,7 +249,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     });
 
     expect(mediaFilesSelectMock).toHaveBeenCalledWith(
-      "storage_path, poster_variant_path, thumb_variant_path, preview_variant_path"
+      "filename, file_type, width, height, source, source_ref, metadata, storage_path, poster_variant_path, thumb_variant_path, preview_variant_path"
     );
     expect(mediaFilesSelectMock).not.toHaveBeenCalledWith(
       expect.stringContaining("preview_storage_path")
@@ -239,6 +259,49 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.previewUrl).toBe("https://signed.example.com/full/by-storage-only.jpg");
     expect(result.fullUrl).toBe("https://signed.example.com/full/by-storage-only.jpg");
     expect(result.url).toBe("https://signed.example.com/full/by-storage-only.jpg");
+  });
+
+  it("hydrates AI Studio source refs and workflow reload metadata from media-id fallback", async () => {
+    mediaFilesMaybeSingleMock.mockResolvedValueOnce({
+      data: {
+        filename: "generated.png",
+        source: "ai_studio",
+        source_ref: "generation-1",
+        width: 1280,
+        height: 720,
+        metadata: {
+          workflow_reload: workflowReload,
+        },
+        thumb_variant_path: "user-1/previews/generated.jpg",
+        storage_path: "user-1/full/generated.jpg",
+      },
+      error: null,
+    });
+    getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
+      if (storagePath === "user-1/previews/generated.jpg") {
+        return "https://signed.example.com/previews/generated.jpg";
+      }
+      if (storagePath === "user-1/full/generated.jpg") {
+        return "https://signed.example.com/full/generated.jpg";
+      }
+      return null;
+    });
+
+    const result = await prepareLibraryMediaIngestionPayload({
+      id: "media-generated-1",
+      url: "https://expired.example.com/generated.jpg",
+      fileType: "image",
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+
+    expect(result.source).toBe("ai_studio");
+    expect(result.sourceRef).toBe("generation-1");
+    expect(result.generationId).toBe("generation-1");
+    expect(result.workflowReload).toEqual(workflowReload);
+    expect(result.filename).toBe("generated.png");
+    expect(result.width).toBe(1280);
+    expect(result.height).toBe(720);
   });
 
   it("normalizes poster-backed video preview storage to the playable full storage path", async () => {

@@ -2,7 +2,12 @@
  * Canonical reference ingestion contracts.
  * Defines source-tagged input variants that map all ingestion entry points to one adapter.
  */
-import type { StudioAudioSourceMode, StudioMode, StudioOutput } from "../types";
+import type {
+  StudioAudioSourceMode,
+  StudioMode,
+  StudioOutput,
+  WorkflowReloadConfig,
+} from "../types";
 
 export type ReferenceIngestionSource = "filePicker" | "drop" | "paste" | "mediaLibrary" | "agent";
 export type LibraryMediaFileType = "image" | "video" | "audio";
@@ -38,6 +43,9 @@ export type ReferenceIngestionInput =
         promptText?: string | null;
         transcriptText?: string | null;
         source?: string | null;
+        sourceRef?: string | null;
+        generationId?: string | null;
+        workflowReload?: WorkflowReloadConfig | Record<string, unknown> | null;
         previewStoragePath?: string | null;
         fullStoragePath?: string | null;
         previewUrl?: string | null;

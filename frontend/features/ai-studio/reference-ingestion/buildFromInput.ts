@@ -3,8 +3,9 @@
  * Converts all supported ingestion inputs (file picker, drop, paste, media-library, agent)
  * into canonical StudioOutput records while preserving existing behavior.
  */
-import type { StudioOutput } from "../types";
+import type { StudioMode, StudioOutput, WorkflowReloadConfigV1 } from "../types";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import { isWorkflowReloadConfigV1 } from "../logic/workflowReload";
 import { isAudioUrl, isVideoUrl, mapUploadsFromFiles } from "../logic/stateParsers";
 import type {
   ReferenceIngestionContext,
@@ -146,17 +147,30 @@ const buildLibraryMediaOutput = ({
 
   const resultUrls = fullUrl ? [fullUrl] : undefined;
   const referenceGridCreatedAt = resolveNowIso(context);
+  const workflowReload = isWorkflowReloadConfigV1(payload.workflowReload)
+    ? payload.workflowReload
+    : null;
+  const payloadMode: StudioMode =
+    payload.fileType === "audio" ? "audio" : payload.fileType === "video" ? "video" : "image";
+  const generationId = payload.generationId?.trim() || payload.sourceRef?.trim() || undefined;
+  const isReloadableGeneratedLibraryMedia =
+    payload.source === "ai_studio" &&
+    workflowReload != null &&
+    workflowReload.outputMode === payloadMode;
+  const generatedAspect = resolveAspectFromWorkflowReload(workflowReload);
 
   return {
     id,
-    prompt: resolvedPromptText,
+    prompt: isReloadableGeneratedLibraryMedia ? workflowReload.prompt.display : resolvedPromptText,
     transcriptText: payload.transcriptText?.trim() || null,
-    mode: payload.fileType === "audio" ? "audio" : payload.fileType === "video" ? "video" : "image",
-    aspect: context.aspect,
-    model: displayModelLabel,
+    mode: isReloadableGeneratedLibraryMedia ? workflowReload.outputMode : payloadMode,
+    aspect: isReloadableGeneratedLibraryMedia ? generatedAspect : context.aspect,
+    model: isReloadableGeneratedLibraryMedia ? workflowReload.model.id : displayModelLabel,
     // Reference Grid ordering is based on when an item enters the grid, not when
     // the backing Media Library row or generation was originally created.
     createdAt: referenceGridCreatedAt,
+    modelId: isReloadableGeneratedLibraryMedia ? workflowReload.model.id : undefined,
+    generationId: isReloadableGeneratedLibraryMedia ? generationId : undefined,
     status: "ready",
     timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
     previewUrl,
@@ -170,9 +184,7 @@ const buildLibraryMediaOutput = ({
     audioSourceMode: payload.fileType === "audio" ? (payload.audioSourceMode ?? null) : null,
     durationMs: payload.durationMs ?? null,
     waveformPeaks: Array.isArray(payload.waveformPeaks) ? payload.waveformPeaks : null,
-    // Media Library drag source is durable media-file authority even when the row
-    // originally came from an AI Studio generation.
-    mediaSource: "library",
+    mediaSource: isReloadableGeneratedLibraryMedia ? "generated" : "library",
     previewTier:
       payload.fileType === "video"
         ? "preview_loop"
@@ -184,7 +196,15 @@ const buildLibraryMediaOutput = ({
     saveState: payload.id ? "saved" : "idle",
     saveError: null,
     savedMediaIds: payload.id ? [payload.id] : undefined,
+    workflowReload: isReloadableGeneratedLibraryMedia ? workflowReload : undefined,
   };
+};
+
+const resolveAspectFromWorkflowReload = (config: WorkflowReloadConfigV1 | null): string => {
+  if (config?.payload.kind === "image" || config?.payload.kind === "video") {
+    return config.payload.aspect;
+  }
+  return "auto";
 };
 
 /**

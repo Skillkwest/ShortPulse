@@ -15,6 +15,7 @@ import type {
   WorkflowReloadExpertEditReferences,
   WorkflowReloadImagePayload,
   WorkflowReloadKlingPromptShot,
+  WorkflowReloadMediaKindHint,
   WorkflowReloadMusicComposerMode,
   WorkflowReloadMusicFormat,
   WorkflowReloadMusicMode,
@@ -39,6 +40,7 @@ import type {
 import { MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT } from "./expertEditReferenceSlots";
 import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "./generationReplay";
 import { isNonDurableLipSyncAudioUrl, normalizeLipSyncAudioStoragePath } from "./lipSyncAudioState";
+import { isAudioUrl, isVideoUrl } from "./stateParsers";
 
 export type BuildWorkflowReloadConfigV1Input = {
   capturedAt?: string;
@@ -766,6 +768,10 @@ const isPayloadCompatibleWithOutputMode = (
   return outputMode === "audio";
 };
 
+export type ResolveWorkflowReloadConfigOptions = {
+  mediaKindHint?: WorkflowReloadMediaKindHint | null;
+};
+
 export const buildWorkflowReloadConfigV1 = ({
   capturedAt,
   originTool,
@@ -855,14 +861,129 @@ export const deriveImageWorkflowReloadFromGenerationReplay = (
   });
 };
 
-export const resolveWorkflowReloadConfigForOutput = (
+const VIDEO_MODEL_ID_PATTERN = /(?:kling|veo|seedance|omnihuman|video)/i;
+
+const hasNonImageDelivery = (output: StudioOutput): boolean => {
+  if (output.mode === "video" || output.mode === "audio") return true;
+  const urls = [
+    output.previewUrl,
+    output.previewPosterUrl,
+    output.previewStoragePath,
+    output.fullStoragePath,
+    output.localObjectUrl,
+    ...(output.resultUrls ?? []),
+  ];
+  return urls.some((url) => Boolean(url && (isVideoUrl(url) || isAudioUrl(url))));
+};
+
+const asWorkflowReloadRecord = (value: unknown): Record<string, unknown> | null =>
+  isObject(value) ? value : null;
+
+const resolveVideoFallbackModelId = (
+  output: StudioOutput,
+  rawConfig: Record<string, unknown> | null,
+  imageReload: WorkflowReloadConfigV1 | null
+): string | null => {
+  const outputModelId = asTrimmedString(output.modelId);
+  if (outputModelId) return outputModelId;
+  const rawModelId = normalizeModel(rawConfig?.model)?.id ?? null;
+  if (rawModelId && VIDEO_MODEL_ID_PATTERN.test(rawModelId)) return rawModelId;
+  const replayModelId = imageReload?.model.id ?? null;
+  if (replayModelId && VIDEO_MODEL_ID_PATTERN.test(replayModelId)) return replayModelId;
+  return null;
+};
+
+const deriveVideoWorkflowReloadFromOutput = (
   output: StudioOutput
 ): WorkflowReloadConfigV1 | null => {
-  if (isWorkflowReloadConfigV1(output.workflowReload)) return output.workflowReload;
+  const rawConfig = asWorkflowReloadRecord(output.workflowReload);
+  const rawPayload = asWorkflowReloadRecord(rawConfig?.payload);
+  const rawPrompt = normalizePrompt(rawConfig?.prompt);
+  const rawProjectId = asOptionalString(rawConfig?.projectId);
+
+  if (rawPayload?.kind === "video") {
+    const rawVideoModelId = normalizeModel(rawConfig?.model)?.id ?? asTrimmedString(output.modelId);
+    if (rawVideoModelId) {
+      const coercedVideoReload = buildWorkflowReloadConfigV1({
+        capturedAt: asTrimmedString(rawConfig?.capturedAt) ?? undefined,
+        originTool: isOriginTool(rawConfig?.originTool) ? rawConfig?.originTool : "video",
+        panelKind: "video",
+        outputMode: "video",
+        projectId: rawProjectId,
+        prompt: rawPrompt ?? { display: output.prompt },
+        model: { id: rawVideoModelId },
+        payload: rawPayload as unknown as WorkflowReloadVideoPayload,
+      });
+      if (coercedVideoReload) return coercedVideoReload;
+    }
+  }
+
+  const imageReload =
+    isWorkflowReloadConfigV1(output.workflowReload) &&
+    output.workflowReload.payload.kind === "image"
+      ? output.workflowReload
+      : deriveImageWorkflowReloadFromGenerationReplay(output.generationReplay);
+  const imagePayload = imageReload?.payload.kind === "image" ? imageReload.payload : null;
+  const modelId = resolveVideoFallbackModelId(output, rawConfig, imageReload);
+  const aspect = asTrimmedString(imagePayload?.aspect) ?? asTrimmedString(output.aspect);
+  if (!modelId || !aspect) return null;
+
+  const referenceInputs = imagePayload?.referenceInputs ?? [];
+  const internalMediaRefs = imagePayload?.internalMediaRefs ?? [];
+  const durationSeconds =
+    typeof output.durationMs === "number" && Number.isFinite(output.durationMs)
+      ? Math.max(0, Math.round(output.durationMs / 1000))
+      : null;
+
+  return buildWorkflowReloadConfigV1({
+    capturedAt: imageReload?.capturedAt,
+    originTool: "video",
+    panelKind: "video",
+    outputMode: "video",
+    projectId: imageReload?.projectId ?? rawProjectId,
+    prompt: imageReload?.prompt ?? rawPrompt ?? { display: output.prompt },
+    model: { id: modelId },
+    payload: {
+      kind: "video",
+      aspect,
+      videoReferenceMode: referenceInputs.length >= 2 ? "keyframes" : "standard",
+      durationSeconds,
+      resolution: null,
+      generateAudio: null,
+      cameraFixed: null,
+      autoFix: null,
+      referenceInputs,
+      internalMediaRefs,
+      styleContext: imagePayload?.styleContext ?? output.styleContext,
+      seedance2InputMode: null,
+      seedance2ReferenceImageUrls: [],
+      seedance2ReferenceVideoUrls: [],
+      seedance2ReferenceAudioUrls: [],
+      seedance2ReturnLastFrame: null,
+      seedance2WebSearch: null,
+      klingElements: [],
+    },
+  });
+};
+
+export const resolveWorkflowReloadConfigForOutput = (
+  output: StudioOutput,
+  options: ResolveWorkflowReloadConfigOptions = {}
+): WorkflowReloadConfigV1 | null => {
+  const workflowReload = isWorkflowReloadConfigV1(output.workflowReload)
+    ? output.workflowReload
+    : null;
+  if (workflowReload?.payload.kind === "video") return workflowReload;
+  if (options.mediaKindHint === "video") return deriveVideoWorkflowReloadFromOutput(output);
+  if (workflowReload) return workflowReload;
+  if (output.workflowReload != null || hasNonImageDelivery(output)) return null;
   return deriveImageWorkflowReloadFromGenerationReplay(output.generationReplay);
 };
 
-export const canReloadWorkflowOutput = (output: StudioOutput): boolean => {
+export const canReloadWorkflowOutput = (
+  output: StudioOutput,
+  options: ResolveWorkflowReloadConfigOptions = {}
+): boolean => {
   if (output.mediaSource !== "generated") return false;
-  return resolveWorkflowReloadConfigForOutput(output) != null;
+  return resolveWorkflowReloadConfigForOutput(output, options) != null;
 };

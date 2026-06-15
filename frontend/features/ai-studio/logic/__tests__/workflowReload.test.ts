@@ -555,6 +555,112 @@ describe("workflowReload", () => {
         },
       })
     ).toBe(true);
+    expect(
+      canReloadWorkflowOutput({
+        ...baseOutput,
+        previewUrl: "https://example.com/video.mp4",
+        generationReplay: {
+          version: 1,
+          mode: "image",
+          submitTool: "edit",
+          modelId: "model-1",
+          displayPrompt: "Prompt",
+          submissionPrompt: "Prompt",
+          aspect: "1:1",
+          imageResolution: null,
+          referenceInputs: [],
+          capturedAt: "2026-06-06T12:00:00.000Z",
+        },
+      })
+    ).toBe(false);
+    expect(
+      resolveWorkflowReloadConfigForOutput({
+        ...baseOutput,
+        previewUrl: "https://example.com/video.mp4",
+        generationReplay: {
+          version: 1,
+          mode: "image",
+          submitTool: "edit",
+          modelId: "model-1",
+          displayPrompt: "Prompt",
+          submissionPrompt: "Prompt",
+          aspect: "1:1",
+          imageResolution: null,
+          referenceInputs: [],
+          capturedAt: "2026-06-06T12:00:00.000Z",
+        },
+      })
+    ).toBeNull();
+    expect(
+      resolveWorkflowReloadConfigForOutput(
+        {
+          ...baseOutput,
+          modelId: "kie-ai/kling-3.0",
+          previewUrl: "https://example.com/video.mp4",
+          generationReplay: {
+            version: 1,
+            mode: "image",
+            submitTool: "edit",
+            modelId: "model-1",
+            displayPrompt: "Prompt",
+            submissionPrompt: "Prompt",
+            aspect: "1:1",
+            imageResolution: null,
+            referenceInputs: ["https://example.com/first-frame.png"],
+            capturedAt: "2026-06-06T12:00:00.000Z",
+          },
+        },
+        { mediaKindHint: "video" }
+      )
+    ).toEqual(
+      expect.objectContaining({
+        originTool: "video",
+        panelKind: "video",
+        outputMode: "video",
+        model: { id: "kie-ai/kling-3.0" },
+        payload: expect.objectContaining({
+          kind: "video",
+          videoReferenceMode: "standard",
+          referenceInputs: ["https://example.com/first-frame.png"],
+        }),
+      })
+    );
+    expect(
+      canReloadWorkflowOutput({
+        ...baseOutput,
+        workflowReload: {
+          version: 1,
+          source: "ai_studio_generation",
+          capturedAt: "2026-06-06T12:00:00.000Z",
+          originTool: "video",
+          panelKind: "video",
+          outputMode: "video",
+          restoreBehavior: "navigate_and_hydrate",
+          pulse: null,
+          prompt: { display: "Prompt" },
+          model: { id: "model-1" },
+          payload: {
+            kind: "image",
+            submitTool: "edit",
+            aspect: "1:1",
+            imageResolution: null,
+            referenceInputs: [],
+          },
+        },
+        generationReplay: {
+          version: 1,
+          mode: "image",
+          submitTool: "edit",
+          modelId: "model-1",
+          displayPrompt: "Prompt",
+          submissionPrompt: "Prompt",
+          aspect: "1:1",
+          imageResolution: null,
+          referenceInputs: [],
+          capturedAt: "2026-06-06T12:00:00.000Z",
+        },
+      })
+    ).toBe(false);
     expect(resolveWorkflowReloadConfigForOutput(baseOutput)).toBeNull();
   });
 

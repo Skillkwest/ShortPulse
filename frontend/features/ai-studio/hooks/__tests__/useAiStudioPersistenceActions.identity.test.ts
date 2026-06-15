@@ -348,6 +348,84 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     );
   });
 
+  it("persists workflow reload and replay metadata mirrors on manual library save", async () => {
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-15T10:00:00.000Z",
+      originTool: "create",
+      panelKind: "create",
+      outputMode: "image",
+      restoreBehavior: "navigate_and_hydrate",
+      prompt: { display: "A glass lighthouse" },
+      model: { id: "fal-ai/imagen4/preview" },
+      payload: {
+        kind: "image",
+        submitTool: "create",
+        aspect: "16:9",
+        imageResolution: "1K",
+        referenceInputs: [],
+        internalMediaRefs: [],
+      },
+    };
+    const generationReplay = {
+      version: 1,
+      source: "ai_studio_generation",
+      submitTool: "create",
+      prompt: "A glass lighthouse",
+      model: "fal-ai/imagen4/preview",
+      aspect: "16:9",
+      referenceInputs: [],
+    };
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          resultUrls: ["https://signed.example/generated.png"],
+          generationId: EXISTING_GENERATION_ID,
+          workflowReload,
+          generationReplay,
+          styleContext: { styleId: "style-1", stylePrompt: "studio glass lighting" },
+        } as Partial<StudioOutput>),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1");
+    });
+
+    expect(saveMediaUrlToLibraryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: EXISTING_GENERATION_ID,
+        metadata: expect.objectContaining({
+          workflow_reload: workflowReload,
+          generation_replay: generationReplay,
+          style_context: { styleId: "style-1", stylePrompt: "studio glass lighting" },
+        }),
+      })
+    );
+  });
+
   it("associates already-saved media with the active project without reuploading", async () => {
     const outputs = new Map<string, StudioOutput>([
       [

@@ -5,7 +5,7 @@
 import React, { useCallback } from "react";
 import { ReferenceGridCard } from "../components/ReferenceGridCard";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
-import type { StudioOutput } from "../../types";
+import type { StudioOutput, WorkflowReloadMediaKindHint } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { ReferenceComposerImageDragArtifact } from "../../utils/dragDrop";
 import { isVideoUrl } from "../../logic/stateParsers";
@@ -74,7 +74,10 @@ type UseReferenceGridCardRenderControllerArgs = {
   audioPlaybackController: ReferenceGridSingleAudioPlaybackController;
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
-  onReloadWorkflowOutput?: (output: StudioOutput) => void;
+  onReloadWorkflowOutput?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;

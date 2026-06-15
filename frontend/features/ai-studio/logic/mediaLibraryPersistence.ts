@@ -23,6 +23,14 @@ import {
 import type { StudioMode } from "../types";
 
 type MediaLibraryFileType = "image" | "video" | "audio";
+type ExistingAiStudioMediaRow = {
+  id: string;
+  storagePath: string | null;
+  fileType: MediaLibraryFileType;
+  metadata: Record<string, unknown> | null;
+  posterVariantPath: string | null;
+  previewVariantPath: string | null;
+};
 
 const BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
@@ -109,6 +117,35 @@ const asOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const maybeFillMissingWorkflowReloadMetadata = async ({
+  supabase,
+  userId,
+  mediaFileId,
+  existingMetadata,
+  incomingMetadata,
+}: {
+  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
+  userId: string;
+  mediaFileId: string;
+  existingMetadata: Record<string, unknown> | null;
+  incomingMetadata: Record<string, unknown> | null | undefined;
+}): Promise<void> => {
+  const incomingWorkflowReload = asRecord(incomingMetadata).workflow_reload;
+  if (!incomingWorkflowReload) return;
+  const currentMetadata = asRecord(existingMetadata);
+  if (currentMetadata.workflow_reload) return;
+  await supabase
+    .from("media_files")
+    .update({
+      metadata: {
+        ...currentMetadata,
+        workflow_reload: incomingWorkflowReload,
+      },
+    })
+    .eq("user_id", userId)
+    .eq("id", mediaFileId);
 };
 
 const resolveExtension = (contentType: string | null, url: string) => {
@@ -556,13 +593,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   userId: string;
   generationId: string;
   index: number;
-}): Promise<{
-  id: string;
-  storagePath: string | null;
-  fileType: MediaLibraryFileType;
-  posterVariantPath: string | null;
-  previewVariantPath: string | null;
-} | null> => {
+}): Promise<ExistingAiStudioMediaRow | null> => {
   const publicationMediaRow = await resolvePublishedGenerationMediaByIndex({
     supabase,
     generationId,
@@ -573,6 +604,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
       id: publicationMediaRow.mediaFileId,
       storagePath: publicationMediaRow.storagePath,
       fileType: publicationMediaRow.fileType,
+      metadata: null,
       posterVariantPath: publicationMediaRow.posterVariantPath,
       previewVariantPath: publicationMediaRow.previewVariantPath,
     };
@@ -591,7 +623,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     if (mediaFileId) {
       const { data: canonicalMediaRow, error: canonicalMediaError } = await supabase
         .from("media_files")
-        .select("id, storage_path, file_type, poster_variant_path, preview_variant_path")
+        .select("id, storage_path, file_type, metadata, poster_variant_path, preview_variant_path")
         .eq("user_id", userId)
         .eq("id", mediaFileId)
         .limit(1)
@@ -611,6 +643,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
             id,
             storagePath,
             fileType,
+            metadata: asRecord(canonicalMediaRow.metadata),
             posterVariantPath: asOptionalString(canonicalMediaRow.poster_variant_path),
             previewVariantPath: asOptionalString(canonicalMediaRow.preview_variant_path),
           };
@@ -621,16 +654,10 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
 
   const readByMetadataField = async (
     metadataField: "generation_output_index" | "index"
-  ): Promise<{
-    id: string;
-    storagePath: string | null;
-    fileType: MediaLibraryFileType;
-    posterVariantPath: string | null;
-    previewVariantPath: string | null;
-  } | null> => {
+  ): Promise<ExistingAiStudioMediaRow | null> => {
     const { data, error } = await supabase
       .from("media_files")
-      .select("id, storage_path, file_type, poster_variant_path, preview_variant_path")
+      .select("id, storage_path, file_type, metadata, poster_variant_path, preview_variant_path")
       .eq("user_id", userId)
       .eq("source", "ai_studio")
       .eq("source_ref", generationId)
@@ -652,6 +679,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
       id,
       storagePath,
       fileType,
+      metadata: asRecord(data.metadata),
       posterVariantPath: asOptionalString(data.poster_variant_path),
       previewVariantPath: asOptionalString(data.preview_variant_path),
     };
@@ -975,13 +1003,7 @@ const readExistingAiStudioMediaRowByOutputIndexWithRetry = async ({
   userId: string;
   generationId: string;
   index: number;
-}): Promise<{
-  id: string;
-  storagePath: string | null;
-  fileType: MediaLibraryFileType;
-  posterVariantPath: string | null;
-  previewVariantPath: string | null;
-} | null> => {
+}): Promise<ExistingAiStudioMediaRow | null> => {
   for (let attempt = 0; attempt < AI_STUDIO_EXISTING_ROW_RETRY_ATTEMPTS; attempt += 1) {
     const existingRow = await readExistingAiStudioMediaRowByOutputIndex({
       supabase,
@@ -1211,6 +1233,17 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         }
       }
       try {
+        await maybeFillMissingWorkflowReloadMetadata({
+          supabase,
+          userId,
+          mediaFileId: existingRow.id,
+          existingMetadata: existingRow.metadata,
+          incomingMetadata: input.metadata,
+        });
+      } catch {
+        // best-effort saved media metadata mirror only
+      }
+      try {
         await attachMediaFileToAiStudioGenerationOutput({
           supabase,
           userId,
@@ -1408,6 +1441,17 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
           }
         } catch {
           // best-effort cleanup only
+        }
+        try {
+          await maybeFillMissingWorkflowReloadMetadata({
+            supabase,
+            userId,
+            mediaFileId: existingRow.id,
+            existingMetadata: existingRow.metadata,
+            incomingMetadata: input.metadata,
+          });
+        } catch {
+          // best-effort saved media metadata mirror only
         }
         try {
           await attachMediaFileToAiStudioGenerationOutput({

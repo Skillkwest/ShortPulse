@@ -7,7 +7,7 @@ import type { CanvasPropertiesPanelProps } from "../components/canvas/useAiStudi
 import type { PastedMediaReference } from "./controllers/referenceGridClipboard";
 import type { ReferenceGridPanelVisibility } from "./referenceGridConfig";
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
-import type { StudioOutput, ToolId } from "../types";
+import type { StudioOutput, ToolId, WorkflowReloadMediaKindHint } from "../types";
 
 export type LibraryMediaReferencePayload = Extract<
   ReferenceIngestionInput,
@@ -43,7 +43,10 @@ export type ReferenceGridProps = {
   onDownload?: (output: StudioOutput) => void;
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
-  onReloadWorkflowOutput?: (output: StudioOutput) => void;
+  onReloadWorkflowOutput?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onAddCuratedReference?: (id: string) => void;

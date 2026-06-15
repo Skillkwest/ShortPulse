@@ -52,6 +52,7 @@ type UseAiStudioPageSessionPersistenceParams = {
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
+  isAutosaveWorkDeferred?: boolean;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
@@ -73,6 +74,7 @@ export const useAiStudioPageSessionPersistence = ({
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
+  isAutosaveWorkDeferred = false,
   applyEmptyProjectState,
   resetProjectAgentConversation,
   setUiNotice,
@@ -120,6 +122,7 @@ export const useAiStudioPageSessionPersistence = ({
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot,
+    isAutosaveWorkDeferred,
     applyEmptyProjectState,
     resetProjectAgentConversation,
     onPersistenceWarning: handleSessionPersistenceWarning,

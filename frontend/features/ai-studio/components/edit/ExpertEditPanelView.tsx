@@ -63,7 +63,6 @@ import { resolveBlobDimensions, revokeObjectUrlSafe } from "./expertEditPanelUti
 import {
   createIdleMarkupPanPointerSession,
   type MarkupPanPointerSession,
-  isResolvedStageViewportSize,
 } from "./expertEditViewportUtils";
 import {
   areLayerTransformsEqual,
@@ -80,7 +79,6 @@ import {
 import { cloneMarkupStrokesSnapshot } from "./expertEditSessionState";
 import { isClientPointInsideElementBounds } from "./expertEditInteractionUtils";
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = true;
-const EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON = 0.001;
 
 const resolveDefaultVisibleSecondarySlotIndexes = (
   values: readonly (string | null)[]
@@ -621,12 +619,6 @@ export function ExpertEditPanelView({
     imageHasInteractiveMask;
   const shouldShowMarkupBrushReticle = isMarkupToolSelected && hasPrimaryCompositePreview;
   const morePresetsSurfaceId = React.useId();
-  const activeStageViewportSize = React.useMemo(() => {
-    if (isMarkupExpandSelected && isResolvedStageViewportSize(markupModalViewportSize)) {
-      return markupModalViewportSize;
-    }
-    return inlineCompositionSurfaceViewportSize;
-  }, [inlineCompositionSurfaceViewportSize, isMarkupExpandSelected, markupModalViewportSize]);
   const [isPrimaryCanvasTearOutActive, setIsPrimaryCanvasTearOutActive] = React.useState(false);
   const [isPromptCanvasTearOutActive, setIsPromptCanvasTearOutActive] = React.useState(false);
   const canAcceptEditCanvasTearOutPayload = React.useCallback(
@@ -702,37 +694,13 @@ export function ExpertEditPanelView({
     canvasTearOutTargetRegistry,
     promptInputShellRef,
   ]);
-  const isStageViewportAtDefaultForSubmit = React.useMemo(
-    () =>
-      Math.abs(stageViewport.scale - 1) <= EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON &&
-      Math.abs(stageViewport.offsetXRatio) <= EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON &&
-      Math.abs(stageViewport.offsetYRatio) <= EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON,
-    [stageViewport]
-  );
-
   const resolveStageFlattenSnapshot = React.useCallback(() => {
-    const cameraViewportWidth = Math.max(1, activeStageViewportSize.width);
-    const cameraViewportHeight = Math.max(1, activeStageViewportSize.height);
     return {
       outputAspectRatio: primaryCompositionSurfaceAspectRatioValue,
-      camera: {
-        scale: stageViewport.scale,
-        offsetX: stageViewport.offsetXRatio * cameraViewportWidth,
-        offsetY: stageViewport.offsetYRatio * cameraViewportHeight,
-        viewportWidth: cameraViewportWidth,
-        viewportHeight: cameraViewportHeight,
-      },
-      canReusePrimarySourceUrl: isStageViewportAtDefaultForSubmit,
+      camera: null,
+      canReusePrimarySourceUrl: true,
     };
-  }, [
-    activeStageViewportSize.height,
-    activeStageViewportSize.width,
-    isStageViewportAtDefaultForSubmit,
-    primaryCompositionSurfaceAspectRatioValue,
-    stageViewport.offsetXRatio,
-    stageViewport.offsetYRatio,
-    stageViewport.scale,
-  ]);
+  }, [primaryCompositionSurfaceAspectRatioValue]);
   const {
     isFlattenPending,
     removeBackgroundPendingLayerId,
@@ -762,7 +730,6 @@ export function ExpertEditPanelView({
 
   const reusablePrimarySourceUrl = React.useMemo(() => {
     if (populatedLayerCount !== 1) return null;
-    if (!isStageViewportAtDefaultForSubmit) return null;
     const primaryLayer = layers.find((layer) => layerHasImage(layer)) ?? null;
     const primaryUrl = primaryLayer?.imageUrl?.trim() ?? "";
     if (!primaryLayer || !primaryUrl) return null;
@@ -774,7 +741,6 @@ export function ExpertEditPanelView({
     }
     return primaryUrl;
   }, [
-    isStageViewportAtDefaultForSubmit,
     layers,
     populatedLayerCount,
     primaryCompositionSurfaceAspectRatioValue,

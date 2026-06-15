@@ -863,8 +863,8 @@ export const deriveImageWorkflowReloadFromGenerationReplay = (
 
 const VIDEO_MODEL_ID_PATTERN = /(?:kling|veo|seedance|omnihuman|video)/i;
 
-const hasNonImageDelivery = (output: StudioOutput): boolean => {
-  if (output.mode === "video" || output.mode === "audio") return true;
+const hasVideoDelivery = (output: StudioOutput): boolean => {
+  if (output.mode === "video") return true;
   const urls = [
     output.previewUrl,
     output.previewPosterUrl,
@@ -873,7 +873,20 @@ const hasNonImageDelivery = (output: StudioOutput): boolean => {
     output.localObjectUrl,
     ...(output.resultUrls ?? []),
   ];
-  return urls.some((url) => Boolean(url && (isVideoUrl(url) || isAudioUrl(url))));
+  return urls.some((url) => Boolean(url && isVideoUrl(url)));
+};
+
+const hasNonImageDelivery = (output: StudioOutput): boolean => {
+  if (hasVideoDelivery(output) || output.mode === "audio") return true;
+  const urls = [
+    output.previewUrl,
+    output.previewPosterUrl,
+    output.previewStoragePath,
+    output.fullStoragePath,
+    output.localObjectUrl,
+    ...(output.resultUrls ?? []),
+  ];
+  return urls.some((url) => Boolean(url && isAudioUrl(url)));
 };
 
 const asWorkflowReloadRecord = (value: unknown): Record<string, unknown> | null =>
@@ -974,7 +987,9 @@ export const resolveWorkflowReloadConfigForOutput = (
     ? output.workflowReload
     : null;
   if (workflowReload?.payload.kind === "video") return workflowReload;
-  if (options.mediaKindHint === "video") return deriveVideoWorkflowReloadFromOutput(output);
+  if (options.mediaKindHint === "video" || hasVideoDelivery(output)) {
+    return deriveVideoWorkflowReloadFromOutput(output);
+  }
   if (workflowReload) return workflowReload;
   if (output.workflowReload != null || hasNonImageDelivery(output)) return null;
   return deriveImageWorkflowReloadFromGenerationReplay(output.generationReplay);

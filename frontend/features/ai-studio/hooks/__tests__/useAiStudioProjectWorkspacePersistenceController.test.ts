@@ -977,6 +977,57 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("defers project autosave snapshot rebuilds while canvas interaction is active", async () => {
+    const initialSnapshot = createAiStudioProjectWorkspaceSnapshot(createSnapshot());
+    const updatedSnapshot = {
+      ...initialSnapshot,
+      updatedAt: "2026-04-24T18:01:00.000Z",
+    };
+    const buildSessionSnapshot = vi.fn(() => updatedSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { rerender } = renderHook(
+      ({ isAutosaveWorkDeferred }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSessionSnapshot,
+          hydrateFromSessionSnapshot,
+          isAutosaveWorkDeferred,
+        }),
+      {
+        initialProps: {
+          isAutosaveWorkDeferred: false,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({ isAutosaveWorkDeferred: false });
+    await flushBootstrapVisibilityLatch();
+
+    expect(buildSessionSnapshot).toHaveBeenCalledTimes(1);
+    const preparedSnapshotBeforeInteraction =
+      mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]?.preparedSnapshot;
+
+    rerender({ isAutosaveWorkDeferred: true });
+
+    expect(buildSessionSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]?.preparedSnapshot).toEqual(
+      preparedSnapshotBeforeInteraction
+    );
+
+    rerender({ isAutosaveWorkDeferred: false });
+
+    expect(buildSessionSnapshot).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps autosave disabled until the built project snapshot reflects restored quick slots and full durable canvas state", async () => {
     const restoredSnapshot = {
       ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),

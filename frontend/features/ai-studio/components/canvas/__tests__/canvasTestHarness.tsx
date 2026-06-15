@@ -174,6 +174,7 @@ export type CanvasHarnessProps = {
   resolveCanvasDroppedMediaReference?: ResolveCanvasDroppedMediaReference;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   isItemDraggable?: boolean;
+  onInteractionActiveChange?: (active: boolean) => void;
   onItemDragStart?: (id: string, event: React.DragEvent<HTMLElement>) => void;
   onItemDragEnd?: (id: string, event: React.DragEvent<HTMLElement>) => void;
   onOpenMediaDetail?: (item: CanvasSceneItem, instanceId: CanvasWorkspaceInstanceId) => void;
@@ -194,6 +195,7 @@ export function CanvasHarness({
   resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   isItemDraggable = false,
+  onInteractionActiveChange,
   onItemDragStart,
   onItemDragEnd,
   onOpenMediaDetail,
@@ -224,6 +226,7 @@ export function CanvasHarness({
         <CanvasPropertiesPanel
           {...canvasProps}
           isItemDraggable={isItemDraggable}
+          onInteractionActiveChange={onInteractionActiveChange}
           onItemDragStart={onItemDragStart}
           onItemDragEnd={onItemDragEnd}
           onCanvasMediaRenderError={onCanvasMediaRenderError}
@@ -270,6 +273,7 @@ export function SeededCanvasHarness({
   resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   isItemDraggable = false,
+  onInteractionActiveChange,
   onItemDragStart,
   onItemDragEnd,
   onOpenMediaDetail,
@@ -300,6 +304,7 @@ export function SeededCanvasHarness({
         <CanvasPropertiesPanel
           {...mainCanvasProps}
           isItemDraggable={isItemDraggable}
+          onInteractionActiveChange={onInteractionActiveChange}
           onItemDragStart={onItemDragStart}
           onItemDragEnd={onItemDragEnd}
           onCanvasMediaRenderError={onCanvasMediaRenderError}

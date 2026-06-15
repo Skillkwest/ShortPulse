@@ -236,22 +236,22 @@ describe("useReferenceGridHorizontalSplit", () => {
       useReferenceGridHorizontalSplit({
         enabled: true,
         containerRef,
-        defaultTopRatio: 0.45,
+        defaultTopRatio: 0.4,
         minTopSectionHeightPx: 12,
         minBottomSectionHeightPx: 12,
         preserveTopPixelsOnContainerGrowth: false,
       })
     );
 
-    expect(result.current.topRatio).toBeCloseTo(0.45, 3);
+    expect(result.current.topRatio).toBeCloseTo(0.4, 3);
 
     containerHeight = 600;
     act(() => {
       MockResizeObserver.trigger();
     });
 
-    expect(result.current.topRatio).toBeCloseTo(0.45, 3);
-    expect(result.current.topSectionHeightPx).toBeCloseTo(270, 3);
+    expect(result.current.topRatio).toBeCloseTo(0.4, 3);
+    expect(result.current.topSectionHeightPx).toBeCloseTo(240, 3);
   });
 
   it("preserves the current top ratio when the split container shrinks", () => {

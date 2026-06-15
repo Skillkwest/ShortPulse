@@ -52,7 +52,7 @@ import {
   prefixProjectWorkspaceQuickSlotDiagnostics,
   shouldReportProjectWorkspaceQuickSlotDiagnostics,
 } from "../logic/projectWorkspaceQuickSlotDiagnostics";
-import { parsePulseChatProjectState } from "../pulseChats/pulseChatThread";
+import { resolvePulseChatProjectStateSignature } from "../pulseChats/pulseChatThread";
 import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
@@ -68,6 +68,7 @@ type UseAiStudioProjectWorkspacePersistenceControllerParams = {
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
+  isAutosaveWorkDeferred?: boolean;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
   onPersistenceWarning?: (
@@ -422,7 +423,7 @@ const resolveProjectAutosaveUnlockSignature = (
     canvasSignature: resolveProjectRestoreCanvasSignature(snapshot),
     pulseChats:
       snapshot.schemaVersion >= 2
-        ? parsePulseChatProjectState(
+        ? resolvePulseChatProjectStateSignature(
             (snapshot as AiStudioSessionSnapshot & { pulseChats?: unknown }).pulseChats ?? null
           )
         : null,
@@ -542,6 +543,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
+  isAutosaveWorkDeferred = false,
   applyEmptyProjectState,
   resetProjectAgentConversation,
   onPersistenceWarning,
@@ -605,6 +607,14 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     Partial<Record<keyof typeof PROJECT_WORKSPACE_PHASE_SLOW_THRESHOLDS_MS, number>>
   >({});
   const quickSlotAutosaveCandidateTelemetryKeyRef = useRef<string | null>(null);
+  const [lastBaseSessionSnapshotComputation, setLastBaseSessionSnapshotComputation] = useState<{
+    snapshot: AiStudioSessionSnapshot | null;
+    durationMs: number | null;
+  } | null>(null);
+  const [lastSessionSnapshotComputation, setLastSessionSnapshotComputation] = useState<{
+    snapshot: AiStudioSessionSnapshot | null;
+    durationMs: number | null;
+  } | null>(null);
   const resolveCachedSnapshotByteBreakdown = useCallback(
     (snapshot: AiStudioSessionSnapshot | null): ProjectSnapshotByteBreakdown => {
       if (!snapshot) {
@@ -658,7 +668,10 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     },
     [projectBootstrapSettled, projectId, resolveCachedSnapshotByteBreakdown]
   );
-  const baseSessionSnapshotComputation = useMemo(() => {
+  const liveBaseSessionSnapshotComputation = useMemo(() => {
+    if (isAutosaveWorkDeferred) {
+      return null;
+    }
     if (!sessionId || !projectBootstrapSettled) {
       return {
         snapshot: null as AiStudioSessionSnapshot | null,
@@ -671,8 +684,39 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       snapshot: nextSnapshot,
       durationMs: resolvePerfNow() - startedAt,
     };
-  }, [buildBaseSessionSnapshot, projectBootstrapSettled, sessionId]);
+  }, [buildBaseSessionSnapshot, isAutosaveWorkDeferred, projectBootstrapSettled, sessionId]);
+  const baseSessionSnapshotComputation =
+    liveBaseSessionSnapshotComputation ??
+    (lastBaseSessionSnapshotComputation
+      ? {
+          snapshot: lastBaseSessionSnapshotComputation.snapshot,
+          durationMs: null as number | null,
+        }
+      : {
+          snapshot: null as AiStudioSessionSnapshot | null,
+          durationMs: null as number | null,
+        });
   const baseSessionSnapshot = baseSessionSnapshotComputation.snapshot;
+
+  useEffect(() => {
+    if (!liveBaseSessionSnapshotComputation) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLastBaseSessionSnapshotComputation((current) => {
+        if (
+          current?.snapshot === liveBaseSessionSnapshotComputation.snapshot &&
+          current.durationMs === liveBaseSessionSnapshotComputation.durationMs
+        ) {
+          return current;
+        }
+        return liveBaseSessionSnapshotComputation;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [liveBaseSessionSnapshotComputation]);
 
   useEffect(() => {
     if (baseSessionSnapshotComputation.durationMs == null) return;
@@ -687,7 +731,10 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     });
   }, [baseSessionSnapshotComputation, maybeReportSlowProjectWorkspacePhase]);
 
-  const sessionSnapshotComputation = useMemo(() => {
+  const liveSessionSnapshotComputation = useMemo(() => {
+    if (isAutosaveWorkDeferred) {
+      return null;
+    }
     if (!baseSessionSnapshot) {
       return {
         snapshot: baseSessionSnapshot,
@@ -702,8 +749,39 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       snapshot: nextSnapshot,
       durationMs: resolvePerfNow() - startedAt,
     };
-  }, [baseSessionSnapshot, patchSessionSnapshot]);
+  }, [baseSessionSnapshot, isAutosaveWorkDeferred, patchSessionSnapshot]);
+  const sessionSnapshotComputation =
+    liveSessionSnapshotComputation ??
+    (lastSessionSnapshotComputation
+      ? {
+          snapshot: lastSessionSnapshotComputation.snapshot,
+          durationMs: null as number | null,
+        }
+      : {
+          snapshot: baseSessionSnapshot,
+          durationMs: null as number | null,
+        });
   const sessionSnapshot = sessionSnapshotComputation.snapshot;
+
+  useEffect(() => {
+    if (!liveSessionSnapshotComputation) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLastSessionSnapshotComputation((current) => {
+        if (
+          current?.snapshot === liveSessionSnapshotComputation.snapshot &&
+          current.durationMs === liveSessionSnapshotComputation.durationMs
+        ) {
+          return current;
+        }
+        return liveSessionSnapshotComputation;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [liveSessionSnapshotComputation]);
 
   useEffect(() => {
     if (sessionSnapshotComputation.durationMs == null) return;

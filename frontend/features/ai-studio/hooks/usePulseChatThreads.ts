@@ -17,7 +17,7 @@ import {
   buildPulseChatProjectThreadRecord,
   buildPulseChatThreadSnapshot,
   mergePulseChatThreadRuntime,
-  parsePulseChatProjectState,
+  resolvePulseChatRuntimeSignature,
   upsertPulseChatProjectThread,
   type PulseChatProjectState,
   type PulseChatThreadSnapshot,
@@ -96,7 +96,7 @@ export const usePulseChatThreads = ({
       return;
     }
 
-    const runtimeSignature = JSON.stringify({
+    const runtimeSignature = resolvePulseChatRuntimeSignature({
       presetId: activePresetId,
       pulseSessionInstanceId,
       pulsePrompt,
@@ -108,18 +108,16 @@ export const usePulseChatThreads = ({
     lastRuntimeSignatureRef.current = runtimeSignature;
 
     setProjectPulseChatState((current) => {
-      const normalized = parsePulseChatProjectState(current);
       const activeThread =
-        normalized.activeThreadId != null
-          ? (normalized.threads.find((thread) => thread.threadId === normalized.activeThreadId) ??
-            null)
+        current.activeThreadId != null
+          ? (current.threads.find((thread) => thread.threadId === current.activeThreadId) ?? null)
           : null;
       const shouldReuseActiveThread =
         activeThread?.snapshot.workspace.activePulsePresetId === activePresetId &&
         activeThread.snapshot.workspace.pulseSessionInstanceId === pulseSessionInstanceId;
       const threadId = shouldReuseActiveThread ? activeThread.threadId : createThreadId();
       const existingThreadSnapshot =
-        normalized.threads.find((thread) => thread.threadId === threadId)?.snapshot ?? null;
+        current.threads.find((thread) => thread.threadId === threadId)?.snapshot ?? null;
       const snapshot = buildPulseChatThreadSnapshot({
         presetId: activePresetId,
         presetLabel: activePresetLabel,
@@ -134,7 +132,7 @@ export const usePulseChatThreads = ({
         threadId,
         snapshot,
       });
-      return upsertPulseChatProjectThread(normalized, record, {
+      return upsertPulseChatProjectThread(current, record, {
         activeThreadId: threadId,
       });
     });
@@ -152,8 +150,7 @@ export const usePulseChatThreads = ({
 
   const openThread = useCallback(
     async (threadId: string) => {
-      const normalizedState = parsePulseChatProjectState(projectPulseChatState);
-      const thread = normalizedState.threads.find((entry) => entry.threadId === threadId);
+      const thread = projectPulseChatState.threads.find((entry) => entry.threadId === threadId);
       if (!thread) {
         reportError("Saved Pulse chat is unavailable.");
         return;
@@ -166,7 +163,7 @@ export const usePulseChatThreads = ({
           snapshot: thread.snapshot,
         });
         setProjectPulseChatState((current) =>
-          upsertPulseChatProjectThread(parsePulseChatProjectState(current), thread, {
+          upsertPulseChatProjectThread(current, thread, {
             activeThreadId: threadId,
           })
         );
@@ -181,20 +178,15 @@ export const usePulseChatThreads = ({
     [openThreadSnapshot, projectPulseChatState, reportError, setProjectPulseChatState]
   );
 
-  const normalizedState = useMemo(
-    () => parsePulseChatProjectState(projectPulseChatState),
-    [projectPulseChatState]
-  );
-
   return useMemo(
     () => ({
-      threads: normalizedState.threads,
-      activeThreadId: normalizedState.activeThreadId,
+      threads: projectPulseChatState.threads,
+      activeThreadId: projectPulseChatState.activeThreadId,
       loading: false,
       error,
       openingThreadId,
       openThread,
     }),
-    [error, normalizedState, openThread, openingThreadId]
+    [error, projectPulseChatState, openThread, openingThreadId]
   );
 };

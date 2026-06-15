@@ -380,6 +380,12 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     ).toBeNull();
   });
 
+  it("suppresses describe-image inline helper copy in the create composer", () => {
+    expect(
+      resolveCreateComposerInlineGuardrailReason("Add or select an image to describe.")
+    ).toBeNull();
+  });
+
   it("keeps the create mode toggle in the standard panel path", () => {
     render(
       <StandardCreatePropertiesPanel {...baseProps} createModeToggle={<span>mode-toggle</span>} />

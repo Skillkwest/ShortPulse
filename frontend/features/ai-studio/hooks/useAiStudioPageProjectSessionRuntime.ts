@@ -52,6 +52,7 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
+  isAutosaveWorkDeferred?: boolean;
   patchProjectWorkspaceSnapshot?: (snapshot: AiStudioSessionSnapshot) => AiStudioSessionSnapshot;
   persistedAgentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
   persistedPulseAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
@@ -106,6 +107,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
   hydrateStandardFromSessionAgentSnapshot,
   hydrateCanvasSessionState,
   hydrateFromSessionSnapshot,
+  isAutosaveWorkDeferred = false,
   patchProjectWorkspaceSnapshot,
   persistedAgentRuntime,
   persistedPulseAgentRuntime,
@@ -167,10 +169,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
       state: durableCanvasState,
     };
   }, [canvasSessionState]);
-  const projectDurableCanvasState = useMemo(
-    () => projectDurableCanvasPayload.state,
-    [projectDurableCanvasPayload.signature]
-  );
+  const projectDurableCanvasState = projectDurableCanvasPayload.state;
 
   const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
     () => ({
@@ -320,6 +319,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
     hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot: hydrateCanvasSessionState,
+    isAutosaveWorkDeferred,
     applyEmptyProjectState,
     resetProjectAgentConversation,
     setUiNotice,

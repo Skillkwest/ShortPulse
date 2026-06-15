@@ -69,6 +69,17 @@ const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGrid
   ...overrides,
 });
 
+const createDragTransfer = (): DataTransfer =>
+  ({
+    files: { length: 0, item: () => null },
+    types: [],
+    effectAllowed: "copy",
+    dropEffect: "copy",
+    setData: vi.fn(),
+    getData: vi.fn(() => ""),
+    setDragImage: vi.fn(),
+  }) as unknown as DataTransfer;
+
 describe("ReferenceGrid canvas split", () => {
   beforeEach(() => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
@@ -110,8 +121,13 @@ describe("ReferenceGrid canvas split", () => {
   });
 
   it("suspends background visual work while the rail canvas is interacting", async () => {
+    const onInteractionActiveChange = vi.fn();
     const { container } = render(
-      <ReferenceGrid {...createProps({ railCanvasProps: {} as never })} />
+      <ReferenceGrid
+        {...createProps({
+          railCanvasProps: { onInteractionActiveChange } as never,
+        })}
+      />
     );
 
     const panel = container.querySelector(".reference-canvas-panel");
@@ -123,11 +139,43 @@ describe("ReferenceGrid canvas split", () => {
       expect(panel).toHaveAttribute("data-rail-canvas-interaction-active", "true");
       expect(panel).toHaveAttribute("data-grid-background-visual-work-suspended", "true");
     });
+    expect(onInteractionActiveChange).toHaveBeenLastCalledWith(true);
 
     fireEvent.pointerUp(screen.getByTestId("canvas-properties-panel"));
 
     await waitFor(() => {
       expect(panel).toHaveAttribute("data-rail-canvas-interaction-active", "false");
+      expect(panel).toHaveAttribute("data-grid-background-visual-work-suspended", "false");
+    });
+    expect(onInteractionActiveChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("suspends background visual work while a reference card drag is active", async () => {
+    const { container } = render(
+      <ReferenceGrid {...createProps({ railCanvasProps: {} as never })} />
+    );
+
+    const panel = container.querySelector(".reference-canvas-panel");
+    const card = container.querySelector(".reference-card");
+    expect(card).toBeTruthy();
+    expect(panel).toHaveAttribute("data-reference-card-drag-active", "false");
+    expect(panel).toHaveAttribute("data-grid-background-visual-work-suspended", "false");
+
+    fireEvent.dragStart(card as HTMLElement, {
+      dataTransfer: createDragTransfer(),
+    });
+
+    await waitFor(() => {
+      expect(panel).toHaveAttribute("data-reference-card-drag-active", "true");
+      expect(panel).toHaveAttribute("data-grid-background-visual-work-suspended", "true");
+    });
+
+    fireEvent.dragEnd(card as HTMLElement, {
+      dataTransfer: createDragTransfer(),
+    });
+
+    await waitFor(() => {
+      expect(panel).toHaveAttribute("data-reference-card-drag-active", "false");
       expect(panel).toHaveAttribute("data-grid-background-visual-work-suspended", "false");
     });
   });

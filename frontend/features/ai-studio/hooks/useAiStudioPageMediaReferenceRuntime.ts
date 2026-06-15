@@ -256,6 +256,7 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
   setDetailSelectionTarget: (target: SharedMediaDetailSelectionTarget | null) => void;
   setUiError?: (message: string | null) => void;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  onRailCanvasInteractionActiveChange?: (active: boolean) => void;
 };
 
 /**
@@ -275,6 +276,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   setDetailSelectionTarget,
   setUiError,
   canvasTearOutTargetRegistry,
+  onRailCanvasInteractionActiveChange,
 }: UseAiStudioPageMediaReferenceRuntimeParams) => {
   const canvasMediaRestoreAuthorityCacheRef = useRef(
     new Map<string, SessionSignedMediaRestoreAuthority>()
@@ -1382,12 +1384,14 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       onItemDragStart: handleRailCanvasItemDragStart,
       onItemDragEnd: handleRailCanvasItemDragEnd,
       onCanvasMediaRenderError: handleCanvasMediaRenderError,
+      onInteractionActiveChange: onRailCanvasInteractionActiveChange,
     }),
     [
       baseRailCanvasProps,
       handleCanvasMediaRenderError,
       handleRailCanvasItemDragEnd,
       handleRailCanvasItemDragStart,
+      onRailCanvasInteractionActiveChange,
     ]
   );
   const stableRailCanvasProps = useCanvasPropertiesPanelLivePropsBridge(railCanvasProps);

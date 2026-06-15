@@ -117,6 +117,29 @@ const resolvePulseChatMessageSignature = (
       : [],
   });
 
+export const resolvePulseChatRuntimeSignature = ({
+  presetId,
+  pulseSessionInstanceId,
+  pulsePrompt,
+  runtime,
+}: {
+  presetId: string;
+  pulseSessionInstanceId: string;
+  pulsePrompt: string;
+  runtime: AiStudioSessionAgentV1;
+}): string =>
+  JSON.stringify({
+    presetId,
+    pulseSessionInstanceId,
+    pulsePrompt,
+    input: runtime.input,
+    latestAgentPrompt: runtime.latestAgentPrompt ?? null,
+    promptOrigin: runtime.promptOrigin,
+    chatModeEnabled: true,
+    pulseWorkflowSession: runtime.pulseWorkflowSession ?? null,
+    messages: runtime.messages.map(resolvePulseChatMessageSignature),
+  });
+
 const mergePulseChatMessages = (
   previousMessages: AiStudioSessionAgentV1["messages"],
   currentMessages: AiStudioSessionAgentV1["messages"]
@@ -124,20 +147,19 @@ const mergePulseChatMessages = (
   if (previousMessages.length === 0) return currentMessages;
   if (currentMessages.length === 0) return previousMessages;
 
+  const previousSignatures = previousMessages.map(resolvePulseChatMessageSignature);
+  const currentSignatures = currentMessages.map(resolvePulseChatMessageSignature);
   const maxOverlap = Math.min(previousMessages.length, currentMessages.length);
   for (let overlap = maxOverlap; overlap > 0; overlap -= 1) {
     let matches = true;
     for (let index = 0; index < overlap; index += 1) {
-      const previousMessage = previousMessages[previousMessages.length - overlap + index];
-      const currentMessage = currentMessages[index];
-      if (!previousMessage || !currentMessage) {
+      const previousSignature = previousSignatures[previousMessages.length - overlap + index];
+      const currentSignature = currentSignatures[index];
+      if (!previousSignature || !currentSignature) {
         matches = false;
         break;
       }
-      if (
-        resolvePulseChatMessageSignature(previousMessage) !==
-        resolvePulseChatMessageSignature(currentMessage)
-      ) {
+      if (previousSignature !== currentSignature) {
         matches = false;
         break;
       }
@@ -376,6 +398,68 @@ export const parsePulseChatProjectState = (value: unknown): PulseChatProjectStat
         : null,
     threads: sortProjectThreads(parsedThreads),
   };
+};
+
+export const resolvePulseChatProjectStateSignature = (value: unknown): string => {
+  if (!value || typeof value !== "object") {
+    return JSON.stringify(createEmptyPulseChatProjectState());
+  }
+  const typed = value as Partial<PulseChatProjectState>;
+  if (typed.schemaVersion !== PULSE_CHAT_PROJECT_STATE_SCHEMA_VERSION) {
+    return JSON.stringify(createEmptyPulseChatProjectState());
+  }
+
+  const seen = new Set<string>();
+  const threads = Array.isArray(typed.threads)
+    ? typed.threads
+        .map((thread) => {
+          if (!thread || typeof thread !== "object") return null;
+          const row = thread as Partial<PulseChatProjectThreadRecord> & { snapshot?: unknown };
+          const threadId = normalizeText(row.threadId);
+          const snapshot = parsePulseChatThreadSnapshot(row.snapshot);
+          const updatedAt = normalizeIsoTimestamp(row.updatedAt ?? snapshot?.meta.updatedAt);
+          if (!threadId || !snapshot || !updatedAt || seen.has(threadId)) {
+            return null;
+          }
+          seen.add(threadId);
+          const lastMessage = snapshot.runtime.messages.at(-1) ?? null;
+          return {
+            threadId,
+            title: normalizeText(row.title) ?? null,
+            presetId: snapshot.workspace.activePulsePresetId,
+            presetLabel: snapshot.meta.presetLabel,
+            updatedAt,
+            pulseSessionInstanceId: snapshot.workspace.pulseSessionInstanceId,
+            pulsePrompt: snapshot.workspace.pulsePrompt,
+            input: snapshot.runtime.input,
+            latestAgentPrompt: snapshot.runtime.latestAgentPrompt ?? null,
+            promptOrigin: snapshot.runtime.promptOrigin,
+            pulseWorkflowSession: snapshot.runtime.pulseWorkflowSession ?? null,
+            messageCount: snapshot.runtime.messages.length,
+            lastMessageSignature: lastMessage
+              ? resolvePulseChatMessageSignature(lastMessage)
+              : null,
+          };
+        })
+        .filter((thread): thread is NonNullable<typeof thread> => Boolean(thread))
+    : [];
+
+  const activeThreadId = normalizeText(typed.activeThreadId);
+  const sortedThreads = threads.sort((left, right) => {
+    const leftMs = Date.parse(left.updatedAt);
+    const rightMs = Date.parse(right.updatedAt);
+    if (leftMs !== rightMs) return rightMs - leftMs;
+    return right.threadId.localeCompare(left.threadId);
+  });
+
+  return JSON.stringify({
+    schemaVersion: PULSE_CHAT_PROJECT_STATE_SCHEMA_VERSION,
+    activeThreadId:
+      activeThreadId && sortedThreads.some((thread) => thread.threadId === activeThreadId)
+        ? activeThreadId
+        : null,
+    threads: sortedThreads,
+  });
 };
 
 export const buildPulseChatHydrationPayload = (

@@ -15,7 +15,6 @@ export type StandardCreatePrimaryActionDecision =
       kind: "noop";
       reason:
         | "disabled"
-        | "upstream_disabled"
         | "image_attachment_failed"
         | "image_attachment_preparing"
         | "empty_visible_prompt";
@@ -80,9 +79,7 @@ export const resolveStandardCreatePrimaryActionDecision = ({
     return { kind: "noop", reason: "disabled" };
   }
 
-  if (isGenerateDisabled) {
-    return { kind: "noop", reason: "upstream_disabled" };
-  }
+  void isGenerateDisabled;
 
   const imageAttachmentBlockReason = resolveImageAttachmentBlockReason(agentAttachments);
   if (imageAttachmentBlockReason) {

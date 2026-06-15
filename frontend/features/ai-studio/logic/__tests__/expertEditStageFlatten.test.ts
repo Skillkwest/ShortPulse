@@ -205,6 +205,34 @@ describe("expertEditStageFlatten", () => {
     ]);
   });
 
+  it("keeps the output canvas as the crop frame while scaled layers extend beyond it", () => {
+    const instructions = buildStageFlattenDrawPlan({
+      decodedLayers: [
+        {
+          width: 4096,
+          height: 2304,
+          opacity: 1,
+          transform: {
+            translateXRatio: 0,
+            translateYRatio: 0,
+            scale: 1.4,
+            rotationDeg: 0,
+          },
+        },
+      ],
+      outputWidth: 2048,
+      outputHeight: 1152,
+    });
+
+    expect(instructions[0]).toMatchObject({
+      drawWidth: 2048,
+      drawHeight: 1152,
+      scale: 1.4,
+      scaleX: 1.4,
+      scaleY: 1.4,
+    });
+  });
+
   it("composes visible layers with camera framing and bottom-to-top draw order", async () => {
     const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
     const originalCanvasToBlob = HTMLCanvasElement.prototype.toBlob;

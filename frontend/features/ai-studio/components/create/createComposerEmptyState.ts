@@ -8,6 +8,7 @@ type ResolveCreateComposerNoHistoryShellParams = {
 };
 
 const BANNED_CREATE_INLINE_GUARDRAIL_COPY = new Set([
+  "Add or select an image to describe.",
   "Enter a prompt to generate.",
   "Pricing is unavailable for this configuration. Retry in a moment.",
 ]);

@@ -380,11 +380,25 @@ const CanvasSceneItemGhostView = React.memo(function CanvasSceneItemGhostView({
     >
       {item.kind === "image" ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="canvas-scene-item__image" src={item.src} alt="" draggable={false} />
+        <img
+          className="canvas-scene-item__image"
+          src={item.src}
+          alt=""
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+        />
       ) : item.kind === "video" ? (
         item.posterUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img className="canvas-scene-item__video" src={item.posterUrl} alt="" draggable={false} />
+          <img
+            className="canvas-scene-item__video"
+            src={item.posterUrl}
+            alt=""
+            draggable={false}
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <div className="canvas-scene-item__video-placeholder">
             <span>Video</span>
@@ -440,11 +454,25 @@ const CanvasTearOutDragGhostView = React.memo(function CanvasTearOutDragGhostVie
     >
       {item.kind === "image" ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="canvas-scene-item__image" src={item.src} alt="" draggable={false} />
+        <img
+          className="canvas-scene-item__image"
+          src={item.src}
+          alt=""
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+        />
       ) : item.kind === "video" ? (
         item.posterUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img className="canvas-scene-item__video" src={item.posterUrl} alt="" draggable={false} />
+          <img
+            className="canvas-scene-item__video"
+            src={item.posterUrl}
+            alt=""
+            draggable={false}
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <div className="canvas-scene-item__video-placeholder">
             <span>Video</span>
@@ -523,43 +551,63 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
   });
   const interactionActiveRef = React.useRef(false);
   const wheelInteractionIdleTimeoutRef = React.useRef<number | null>(null);
+  const itemById = React.useMemo(() => {
+    const next = new Map<string, CanvasSceneItem>();
+    items.forEach((item) => {
+      next.set(item.id, item);
+    });
+    return next;
+  }, [items]);
+  const itemDragPreviewActiveItemId = itemDragPreview?.activeItemId ?? null;
+  const itemDragPreviewItemIds = itemDragPreview?.itemIds ?? null;
   const itemDragPreviewIdSet = React.useMemo(
-    () => new Set(itemDragPreview?.itemIds ?? []),
-    [itemDragPreview]
+    () => new Set(itemDragPreviewItemIds ?? []),
+    [itemDragPreviewItemIds]
   );
-  const itemDragPreviewItems = React.useMemo(
-    () => (itemDragPreview ? items.filter((item) => itemDragPreviewIdSet.has(item.id)) : []),
-    [itemDragPreview, itemDragPreviewIdSet, items]
-  );
+  const itemDragPreviewItems = React.useMemo(() => {
+    if (!itemDragPreviewItemIds) return [];
+    return itemDragPreviewItemIds
+      .map((itemId) => itemById.get(itemId) ?? null)
+      .filter((item): item is CanvasSceneItem => Boolean(item));
+  }, [itemById, itemDragPreviewItemIds]);
+  const tearOutDragPreviewActiveItemId = tearOutDragPreview?.activeItemId ?? null;
   const tearOutDragPreviewItem = React.useMemo(
     () =>
-      tearOutDragPreview
-        ? (items.find((item) => item.id === tearOutDragPreview.activeItemId) ?? null)
+      tearOutDragPreviewActiveItemId
+        ? (itemById.get(tearOutDragPreviewActiveItemId) ?? null)
         : null,
-    [items, tearOutDragPreview]
+    [itemById, tearOutDragPreviewActiveItemId]
   );
   const renderedItems = React.useMemo(() => {
     const preservedItemIds = new Set<string>();
     if (editingTextItemId) preservedItemIds.add(editingTextItemId);
-    if (itemDragPreview?.activeItemId) preservedItemIds.add(itemDragPreview.activeItemId);
-    itemDragPreview?.itemIds.forEach((id) => preservedItemIds.add(id));
-    if (tearOutDragPreview?.activeItemId) preservedItemIds.add(tearOutDragPreview.activeItemId);
+    if (itemDragPreviewActiveItemId) preservedItemIds.add(itemDragPreviewActiveItemId);
+    itemDragPreviewIdSet.forEach((id) => preservedItemIds.add(id));
+    if (tearOutDragPreviewActiveItemId) preservedItemIds.add(tearOutDragPreviewActiveItemId);
 
     return items.filter((item) => {
       if (item.selected || preservedItemIds.has(item.id)) return true;
       return isCanvasItemInsideViewport({ item, camera, viewportSize });
     });
-  }, [camera, editingTextItemId, itemDragPreview, items, tearOutDragPreview, viewportSize]);
+  }, [
+    camera,
+    editingTextItemId,
+    itemDragPreviewActiveItemId,
+    itemDragPreviewIdSet,
+    items,
+    tearOutDragPreviewActiveItemId,
+    viewportSize,
+  ]);
   const activeMediaErrorKeys = React.useMemo(() => {
     const nextKeys = new Set<string>();
-    items.forEach((item) => {
+    renderedItems.forEach((item) => {
       const errorKey = resolveCanvasMediaErrorKey(item);
       if (errorKey) {
         nextKeys.add(errorKey);
       }
     });
     return nextKeys;
-  }, [items]);
+  }, [renderedItems]);
 
   const markCanvasMediaError = React.useCallback((errorKey: string | null) => {
     if (!errorKey) return;
@@ -805,8 +853,22 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
                   onItemPointerCancel(id, event);
                   setCanvasInteractionActive(false);
                 }}
-                onItemDragStart={onItemDragStart}
-                onItemDragEnd={onItemDragEnd}
+                onItemDragStart={
+                  onItemDragStart
+                    ? (id, event) => {
+                        setCanvasInteractionActive(true);
+                        onItemDragStart(id, event);
+                      }
+                    : undefined
+                }
+                onItemDragEnd={
+                  onItemDragEnd
+                    ? (id, event) => {
+                        onItemDragEnd(id, event);
+                        setCanvasInteractionActive(false);
+                      }
+                    : undefined
+                }
                 onItemContextMenu={onItemContextMenu}
                 onItemDoubleClick={onItemDoubleClick}
                 onPinTextItem={onPinTextItem}

@@ -626,6 +626,26 @@ describe("workflowReload", () => {
       })
     );
     expect(
+      resolveWorkflowReloadConfigForOutput({
+        ...baseOutput,
+        mode: "video",
+        modelId: "kie-ai/kling-3.0",
+        previewUrl: "https://example.com/signed-video",
+        workflowReload: workflowReload ?? undefined,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        originTool: "video",
+        panelKind: "video",
+        outputMode: "video",
+        model: { id: "kie-ai/kling-3.0" },
+        payload: expect.objectContaining({
+          kind: "video",
+          videoReferenceMode: "standard",
+        }),
+      })
+    );
+    expect(
       canReloadWorkflowOutput({
         ...baseOutput,
         workflowReload: {

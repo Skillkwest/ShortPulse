@@ -2,7 +2,7 @@
  * AI Studio workspace page.
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { AiStudioPageShell } from "../components/AiStudioPageShell";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
@@ -31,7 +31,6 @@ import { useStandardCreateAgentRuntime } from "../createRuntime/useStandardCreat
 import type { MediaFileRow } from "../logic/mediaLibraryModalModel";
 import {
   createEmptyPulseChatProjectState,
-  parsePulseChatProjectState,
   type PulseChatProjectState,
 } from "../pulseChats/pulseChatThread";
 import {
@@ -196,6 +195,7 @@ const AiStudioPageRuntimeBody = ({
     hydrateFromSessionSnapshot,
     imageResolution,
     insertOptimisticGenerationPlaceholder,
+    isRailCanvasInteractionActive,
     isCreateCharacterBundleLoading,
     isCreateCharacterModeEnabled,
     isProjectsModalOpen,
@@ -309,10 +309,6 @@ const AiStudioPageRuntimeBody = ({
     activeCreateAgentRuntime.kind === "pulse" ? activeCreateAgentRuntime : null;
   const handlePulsePresetStart = visiblePulseCreateAgentRuntime?.handlePulsePresetStart;
   const handlePulsePresetRestartRuntime = visiblePulseCreateAgentRuntime?.handlePulsePresetRestart;
-  const parsedProjectPulseChatState = useMemo(
-    () => parsePulseChatProjectState(projectPulseChatState),
-    [projectPulseChatState]
-  );
   const createCharacterWorkflowReloadRequestRef = React.useRef(0);
   React.useEffect(() => {
     setCreateCharacterWorkflowReloadPrep((characterContext) => {
@@ -449,10 +445,10 @@ const AiStudioPageRuntimeBody = ({
       }
       return patchAiStudioSessionSnapshotPulseChats(
         snapshot as AiStudioSessionSnapshotV2,
-        parsedProjectPulseChatState.threads.length > 0 ? parsedProjectPulseChatState : null
+        projectPulseChatState.threads.length > 0 ? projectPulseChatState : null
       );
     },
-    [parsedProjectPulseChatState]
+    [projectPulseChatState]
   );
   const {
     sessionRestoreCandidate,
@@ -481,6 +477,7 @@ const AiStudioPageRuntimeBody = ({
       standardCreateAgentRuntime.hydrateFromSessionAgentSnapshot,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
+    isAutosaveWorkDeferred: isRailCanvasInteractionActive,
     patchProjectWorkspaceSnapshot,
     persistedAgentRuntime,
     persistedPulseAgentRuntime: pulseCreateAgentRuntime.persistedAgentRuntime,

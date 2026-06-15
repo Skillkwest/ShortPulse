@@ -103,15 +103,23 @@ function ReferenceGridComponent({
 }: ReferenceGridProps) {
   incrementFreezeInvestigationCounter("referenceGrid.render");
   const [isRailCanvasInteractionActive, setIsRailCanvasInteractionActive] = React.useState(false);
+  const [isReferenceCardDragActive, setIsReferenceCardDragActive] = React.useState(false);
+  const handleRailCanvasInteractionActiveChange = React.useCallback(
+    (active: boolean) => {
+      setIsRailCanvasInteractionActive(active);
+      railCanvasProps?.onInteractionActiveChange?.(active);
+    },
+    [railCanvasProps]
+  );
   const effectiveRailCanvasProps = React.useMemo(
     () =>
       railCanvasProps
         ? {
             ...railCanvasProps,
-            onInteractionActiveChange: setIsRailCanvasInteractionActive,
+            onInteractionActiveChange: handleRailCanvasInteractionActiveChange,
           }
         : undefined,
-    [railCanvasProps]
+    [handleRailCanvasInteractionActiveChange, railCanvasProps]
   );
   const {
     allOutputIds,
@@ -232,6 +240,7 @@ function ReferenceGridComponent({
     railCanvasProps: effectiveRailCanvasProps,
     isShellResizeActive,
     isRailCanvasInteractionActive,
+    isReferenceCardDragActive,
   });
   setFreezeInvestigationGauge("referenceGrid.allOutputsCount", allOutputIds.length);
   setFreezeInvestigationGauge("referenceGrid.archivedOutputsCount", archivedOutputs.length);
@@ -434,7 +443,9 @@ function ReferenceGridComponent({
       onPasteTextReference,
     });
 
-  const { handleCardDragStart, handleCardDragEnd } = useReferenceGridCardDragController();
+  const { handleCardDragStart, handleCardDragEnd } = useReferenceGridCardDragController({
+    onReferenceCardDragActiveChange: setIsReferenceCardDragActive,
+  });
 
   const {
     handleCuratedSectionDrop,
@@ -540,6 +551,7 @@ function ReferenceGridComponent({
       data-grid-last-swap-burst-count={previewSwapMetrics.lastSwapBurstCount}
       data-grid-background-visual-work-suspended={suspendBackgroundVisualWork ? "true" : "false"}
       data-rail-canvas-interaction-active={isRailCanvasInteractionActive ? "true" : "false"}
+      data-reference-card-drag-active={isReferenceCardDragActive ? "true" : "false"}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
       onDragEnter={handleCanvasDragEnter}

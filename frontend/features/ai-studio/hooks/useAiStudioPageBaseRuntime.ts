@@ -470,6 +470,7 @@ export const useAiStudioPageBaseRuntime = () => {
     ensureOutputPersisted,
   });
   const canvasTearOutTargetRegistry = useAiStudioCanvasTearOutTargets();
+  const [isRailCanvasInteractionActive, setIsRailCanvasInteractionActive] = useState(false);
   const {
     canvasSessionState,
     handleQuickSlotDroppedFiles,
@@ -494,6 +495,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setDetailSelectionTarget,
     setUiError,
     canvasTearOutTargetRegistry,
+    onRailCanvasInteractionActiveChange: setIsRailCanvasInteractionActive,
   });
   const sharedDetailModalItem = useMemo(() => {
     if (detailSelectionTarget?.kind !== "canvas-item") return null;
@@ -737,6 +739,7 @@ export const useAiStudioPageBaseRuntime = () => {
     pulseSessionInstanceId,
     pulseWorkflowSession,
     railCanvasProps,
+    isRailCanvasInteractionActive,
     referenceGridFileInputRef,
     referenceGridPreconnectOrigin,
     referenceGridReadyOutputIds,

@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AiStudioSessionAgentV1 } from "../../logic/sessionSnapshot";
-import type { PulseChatProjectState } from "../../pulseChats/pulseChatThread";
+import {
+  buildPulseChatProjectThreadRecord,
+  buildPulseChatThreadSnapshot,
+  type PulseChatProjectState,
+} from "../../pulseChats/pulseChatThread";
 import { usePulseChatThreads } from "../usePulseChatThreads";
 
 type HookProps = {
@@ -120,5 +124,59 @@ describe("usePulseChatThreads", () => {
       expect(result.current.threads).toHaveLength(2);
       expect(result.current.activeThreadId).toBe(secondThreadId);
     });
+  });
+
+  it("opens an existing project-owned thread and marks it active", async () => {
+    const savedSnapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Saved prompt",
+      runtime: buildRuntime([
+        {
+          id: "message-1",
+          role: "user",
+          content: "Open this saved chat.",
+        },
+      ]),
+      updatedAt: "2026-06-15T12:00:00.000Z",
+    });
+    const savedThread = buildPulseChatProjectThreadRecord({
+      threadId: "thread-1",
+      snapshot: savedSnapshot,
+    });
+    const openThreadSnapshot = vi.fn(async () => undefined);
+
+    const { result } = renderHook(() => {
+      const [projectPulseChatState, setProjectPulseChatState] = useState<PulseChatProjectState>({
+        schemaVersion: 1 as const,
+        activeThreadId: null,
+        threads: [savedThread],
+      });
+
+      return usePulseChatThreads({
+        enabled: true,
+        projectPulseChatState,
+        setProjectPulseChatState,
+        expertCreateMode: "pulse",
+        activePresetId: null,
+        activePresetLabel: null,
+        pulseSessionInstanceId: null,
+        pulsePrompt: "",
+        persistedAgentRuntime: buildRuntime([]),
+        openThreadSnapshot,
+      });
+    });
+
+    await act(async () => {
+      await result.current.openThread("thread-1");
+    });
+
+    expect(openThreadSnapshot).toHaveBeenCalledWith({
+      threadId: "thread-1",
+      snapshot: savedSnapshot,
+    });
+    expect(result.current.activeThreadId).toBe("thread-1");
+    expect(result.current.openingThreadId).toBeNull();
   });
 });

@@ -82,6 +82,7 @@ type UseReferenceGridRuntimeScaffoldArgs = Pick<
   | "isShellResizeActive"
 > & {
   isRailCanvasInteractionActive?: boolean;
+  isReferenceCardDragActive?: boolean;
 };
 
 export const resolveReferenceGridValidHydrationOutputIds = ({
@@ -142,6 +143,7 @@ export const useReferenceGridRuntimeScaffold = ({
   railCanvasProps,
   isShellResizeActive = false,
   isRailCanvasInteractionActive = false,
+  isReferenceCardDragActive = false,
 }: UseReferenceGridRuntimeScaffoldArgs) => {
   const { allOutputIds, archivedOutputs, curatedOutputIds, curatedOutputs, outputById } =
     useReferenceGridOutputCollections({
@@ -406,7 +408,8 @@ export const useReferenceGridRuntimeScaffold = ({
     !documentVisible ||
     (PERF_FLAG_MODAL_STABILITY_V1 && isAnyModalOpen) ||
     isDenseResizeSessionActive ||
-    isRailCanvasInteractionActive;
+    isRailCanvasInteractionActive ||
+    isReferenceCardDragActive;
 
   const lastRenderCommitAtRef = React.useRef<number>(0);
   const autoplayEnabledIdSet = React.useMemo(

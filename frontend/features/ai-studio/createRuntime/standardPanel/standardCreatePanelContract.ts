@@ -181,8 +181,6 @@ export const buildStandardCreatePanelProps = ({
     reason: StandardCreatePrimaryActionNoopReason
   ): string | null => {
     switch (reason) {
-      case "upstream_disabled":
-        return generationGuardrail;
       case "image_attachment_failed":
         return "Attached image failed to prepare. Remove it or retry the attachment.";
       case "image_attachment_preparing":

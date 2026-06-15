@@ -1422,7 +1422,16 @@ describe("Canvas interaction behavior", () => {
 
   it("keeps Shift drag export lane and avoids pointer-move scene drag", async () => {
     const onItemDragStart = vi.fn();
-    render(<CanvasHarness isItemDraggable onItemDragStart={onItemDragStart} />);
+    const onItemDragEnd = vi.fn();
+    const onInteractionActiveChange = vi.fn();
+    render(
+      <CanvasHarness
+        isItemDraggable
+        onInteractionActiveChange={onInteractionActiveChange}
+        onItemDragStart={onItemDragStart}
+        onItemDragEnd={onItemDragEnd}
+      />
+    );
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
 
@@ -1459,11 +1468,18 @@ describe("Canvas interaction behavior", () => {
       shiftKey: true,
       dataTransfer: createTransfer({}),
     });
+    fireEvent.dragEnd(item, {
+      shiftKey: true,
+      dataTransfer: createTransfer({}),
+    });
     fireEvent.keyUp(window, {
       key: "Shift",
     });
 
     expect(onItemDragStart).toHaveBeenCalledTimes(1);
+    expect(onItemDragEnd).toHaveBeenCalledTimes(1);
+    expect(onInteractionActiveChange).toHaveBeenNthCalledWith(1, true);
+    expect(onInteractionActiveChange).toHaveBeenLastCalledWith(false);
     expect(screen.queryByTestId(/canvas-item-ghost-/)).not.toBeInTheDocument();
     expect(Number(item.getAttribute("data-x"))).toBe(startX);
     expect(Number(item.getAttribute("data-y"))).toBe(startY);

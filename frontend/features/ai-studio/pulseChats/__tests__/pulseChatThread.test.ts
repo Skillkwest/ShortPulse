@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { AiStudioSessionAgentV1 } from "../../logic/sessionSnapshot";
 import {
+  buildPulseChatProjectThreadRecord,
   buildPulseChatThreadSnapshot,
   MAX_PULSE_CHAT_SAVED_MESSAGES,
   mergePulseChatThreadRuntime,
+  resolvePulseChatProjectStateSignature,
 } from "../pulseChatThread";
 
 const buildRuntime = (messages: AiStudioSessionAgentV1["messages"]): AiStudioSessionAgentV1 => ({
@@ -93,5 +95,168 @@ describe("mergePulseChatThreadRuntime", () => {
     expect(merged.messages).toHaveLength(MAX_PULSE_CHAT_SAVED_MESSAGES);
     expect(merged.messages[0]?.id).not.toBe("existing-0");
     expect(merged.messages.at(-1)?.id).toBe("recent-23");
+  });
+});
+
+describe("resolvePulseChatProjectStateSignature", () => {
+  it("summarizes saved threads without serializing the full transcript history", () => {
+    const historicMessage = {
+      id: "historic-user",
+      role: "user" as const,
+      content: `historic transcript payload ${"x".repeat(1024)}`,
+    };
+    const lastMessage = {
+      id: "latest-assistant",
+      role: "assistant" as const,
+      content: "Latest answer",
+    };
+    const snapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Pulse prompt",
+      runtime: buildRuntime([historicMessage, lastMessage]),
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+    const record = buildPulseChatProjectThreadRecord({
+      threadId: "thread-1",
+      title: "Thread 1",
+      snapshot,
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+
+    const signature = resolvePulseChatProjectStateSignature({
+      schemaVersion: 1,
+      activeThreadId: "thread-1",
+      threads: [record],
+    });
+
+    expect(signature).toContain("latest-assistant");
+    expect(signature).toContain("Latest answer");
+    expect(signature).toContain('"messageCount":2');
+    expect(signature).not.toContain("historic transcript payload");
+  });
+
+  it("changes when thread identity, recency, or latest message changes", () => {
+    const baseSnapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Pulse prompt",
+      runtime: buildRuntime([
+        {
+          id: "first-user",
+          role: "user",
+          content: "First prompt",
+        },
+        {
+          id: "latest-assistant",
+          role: "assistant",
+          content: "Latest answer",
+        },
+      ]),
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+    const changedLatestMessageSnapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Pulse prompt",
+      runtime: buildRuntime([
+        {
+          id: "first-user",
+          role: "user",
+          content: "First prompt",
+        },
+        {
+          id: "latest-assistant",
+          role: "assistant",
+          content: "Changed latest answer",
+        },
+      ]),
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+    const baseRecord = buildPulseChatProjectThreadRecord({
+      threadId: "thread-1",
+      snapshot: baseSnapshot,
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+
+    const baseSignature = resolvePulseChatProjectStateSignature({
+      schemaVersion: 1,
+      activeThreadId: "thread-1",
+      threads: [baseRecord],
+    });
+    const changedUpdatedAtSignature = resolvePulseChatProjectStateSignature({
+      schemaVersion: 1,
+      activeThreadId: "thread-1",
+      threads: [
+        {
+          ...baseRecord,
+          updatedAt: "2026-04-24T18:01:00.000Z",
+        },
+      ],
+    });
+    const changedLatestMessageSignature = resolvePulseChatProjectStateSignature({
+      schemaVersion: 1,
+      activeThreadId: "thread-1",
+      threads: [
+        buildPulseChatProjectThreadRecord({
+          threadId: "thread-1",
+          snapshot: changedLatestMessageSnapshot,
+          updatedAt: "2026-04-24T18:00:00.000Z",
+        }),
+      ],
+    });
+    const changedActiveThreadSignature = resolvePulseChatProjectStateSignature({
+      schemaVersion: 1,
+      activeThreadId: null,
+      threads: [baseRecord],
+    });
+
+    expect(changedUpdatedAtSignature).not.toBe(baseSignature);
+    expect(changedLatestMessageSignature).not.toBe(baseSignature);
+    expect(changedActiveThreadSignature).not.toBe(baseSignature);
+  });
+
+  it("normalizes equivalent thread ordering", () => {
+    const olderRecord = buildPulseChatProjectThreadRecord({
+      threadId: "older-thread",
+      snapshot: buildPulseChatThreadSnapshot({
+        presetId: "preset-1",
+        presetLabel: "Story Builder",
+        pulseSessionInstanceId: "session-1",
+        pulsePrompt: "Pulse prompt",
+        runtime: buildRuntime([{ id: "older", role: "user", content: "Older" }]),
+        updatedAt: "2026-04-24T18:00:00.000Z",
+      }),
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+    const newerRecord = buildPulseChatProjectThreadRecord({
+      threadId: "newer-thread",
+      snapshot: buildPulseChatThreadSnapshot({
+        presetId: "preset-2",
+        presetLabel: "Story Builder",
+        pulseSessionInstanceId: "session-2",
+        pulsePrompt: "Pulse prompt",
+        runtime: buildRuntime([{ id: "newer", role: "user", content: "Newer" }]),
+        updatedAt: "2026-04-24T18:01:00.000Z",
+      }),
+      updatedAt: "2026-04-24T18:01:00.000Z",
+    });
+
+    expect(
+      resolvePulseChatProjectStateSignature({
+        schemaVersion: 1,
+        activeThreadId: "newer-thread",
+        threads: [olderRecord, newerRecord],
+      })
+    ).toBe(
+      resolvePulseChatProjectStateSignature({
+        schemaVersion: 1,
+        activeThreadId: "newer-thread",
+        threads: [newerRecord, olderRecord],
+      })
+    );
   });
 });

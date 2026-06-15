@@ -61,6 +61,7 @@ Related signed-out dashboard entry:
 - Orbiting items should represent ShortPulse capabilities/workflows, not third-party vendor app names. Current direction replaces items like Magnific, Higgsfield, Suno, Eleven Labs, Free Pick, and Voice with many ShortPulse actions such as Generate Images, Clone Yourself, Image to Video, SFX, VFX, Viral Ads, Product Ads, Voiceovers, and Generate Scripts.
 - The capability orbit should use polished mini-icons and compact labels across multiple rings so it reads like an ecosystem of creative powers around the ShortPulse core, not a vendor replacement logo list.
 - Labels should remain visible at all times. Depth should be expressed through dimming, blur, saturation, and brightness changes as satellites pass the upper/back arc, not through hiding labels.
+- Capability labels may use a subtle dark glass backing to preserve readability over the orbit, but avoid heavy blocks that make the system feel like a tag cloud.
 - A revert reference for the orbit before the premium depth pass is saved at `Scott/orbit-before-premium-pass.diff`.
 
 Current implementation audit on 2026-06-15:

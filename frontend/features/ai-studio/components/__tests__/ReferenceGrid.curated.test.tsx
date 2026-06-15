@@ -2436,15 +2436,15 @@ describe("ReferenceGrid curated split", () => {
     expect(queryByLabelText("Save to media library")).toBeNull();
   });
 
-  it("opens Quick Slot Inventory at the canonical 35/65 default split", () => {
+  it("opens Quick Slot Inventory at the canonical 45/55 default split", () => {
     const { container } = render(<ReferenceGrid {...createProps()} />);
     const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
     const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
 
     expect(curatedSection).toBeTruthy();
     expect(allRefsSection).toBeTruthy();
-    expect(curatedSection).toHaveStyle({ flexBasis: "35%" });
-    expect(allRefsSection).toHaveStyle({ flexBasis: "65%" });
+    expect(curatedSection).toHaveStyle({ flexBasis: "45%" });
+    expect(allRefsSection).toHaveStyle({ flexBasis: "55%" });
   });
 
   it("snaps split toward inventory when clicking the divider pill", () => {

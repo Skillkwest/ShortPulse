@@ -1185,6 +1185,88 @@ const resolveProjectionDeliveryByGenerationId = async ({
     globalThis.setTimeout(flushProjectionDeliveryResolutionBatch, 0);
   });
 
+type PendingPublishedGenerationDeliveryResolution = {
+  supabase: SupabaseClient;
+  userId: string | null;
+  generationId: string;
+  resolve: (delivery: VisibleGenerationDelivery | null) => void;
+};
+
+const pendingPublishedGenerationDeliveryResolutions: PendingPublishedGenerationDeliveryResolution[] =
+  [];
+let publishedGenerationDeliveryBatchScheduled = false;
+
+const toDirectPublishedGenerationDelivery = ({
+  publicationRow,
+  mediaRow,
+}: {
+  publicationRow: GenerationPublicationRow;
+  mediaRow: GeneratedMediaLibraryRow | null;
+}): VisibleGenerationDelivery | null => {
+  const previewUrl = asTrimmedString(publicationRow.preview_url);
+  const fullUrl = asTrimmedString(publicationRow.full_url);
+  const previewStoragePath = asCanonicalStoragePath(
+    asTrimmedString(publicationRow.preview_storage_path)
+  );
+  const fullStoragePath = asCanonicalStoragePath(asTrimmedString(publicationRow.full_storage_path));
+  if (!previewUrl && !fullUrl && !previewStoragePath && !fullStoragePath) return null;
+
+  const mediaPosterStoragePath =
+    mediaRow?.fileType === "video" ? asCanonicalStoragePath(mediaRow.posterVariantPath) : null;
+  const mediaPreviewVariantPath =
+    mediaRow?.fileType === "video" ? asCanonicalStoragePath(mediaRow.previewVariantPath) : null;
+  const resolvedPreviewStoragePath =
+    mediaRow?.fileType === "video"
+      ? resolveVideoDeliveryPrimaryStoragePath({
+          mode: "video",
+          previewStoragePath: mediaPreviewVariantPath ?? previewStoragePath,
+          fullStoragePath,
+        })
+      : (previewStoragePath ?? fullStoragePath);
+
+  return {
+    previewUrl,
+    previewPosterUrl: null,
+    previewPosterStoragePath: mediaPosterStoragePath,
+    fullUrl,
+    previewStoragePath: resolvedPreviewStoragePath,
+    fullStoragePath,
+    companionArtUrl: null,
+    companionArtStoragePath: null,
+    companionArtStatus: null,
+  };
+};
+
+const toCanonicalMediaVisibleGenerationDelivery = (
+  mediaRow: GeneratedMediaLibraryRow | null
+): VisibleGenerationDelivery | null => {
+  if (!mediaRow) return null;
+  const fullStoragePath = asCanonicalStoragePath(mediaRow.storagePath);
+  const previewPosterStoragePath =
+    mediaRow.fileType === "video" ? asCanonicalStoragePath(mediaRow.posterVariantPath) : null;
+  const previewStoragePath =
+    mediaRow.fileType === "video"
+      ? resolveVideoDeliveryPrimaryStoragePath({
+          mode: "video",
+          previewStoragePath: asCanonicalStoragePath(mediaRow.previewVariantPath),
+          fullStoragePath,
+        })
+      : fullStoragePath;
+  if (!previewStoragePath && !fullStoragePath && !previewPosterStoragePath) return null;
+
+  return {
+    previewUrl: null,
+    previewPosterUrl: null,
+    previewPosterStoragePath,
+    fullUrl: null,
+    previewStoragePath,
+    fullStoragePath,
+    companionArtUrl: null,
+    companionArtStoragePath: null,
+    companionArtStatus: null,
+  };
+};
+
 const resolveCanonicalGenerationIdFromRuntimeIdentity = async ({
   supabase,
   userId,
@@ -1485,6 +1567,182 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
   return mediaByGenerationId;
 };
 
+const resolvePublishedGenerationDeliveryBatch = async (
+  entries: PendingPublishedGenerationDeliveryResolution[]
+): Promise<Map<PendingPublishedGenerationDeliveryResolution, VisibleGenerationDelivery>> => {
+  const deliveryByEntry = new Map<
+    PendingPublishedGenerationDeliveryResolution,
+    VisibleGenerationDelivery
+  >();
+  const firstEntry = entries[0];
+  if (!firstEntry) return deliveryByEntry;
+
+  const generationIds = Array.from(new Set(entries.map((entry) => entry.generationId)));
+  const publicationByGenerationId = new Map<string, GenerationPublicationRow>();
+  let publicationRows: GenerationPublicationRow[] = [];
+  try {
+    let publicationQuery = firstEntry.supabase
+      .from("generation_publications")
+      .select(
+        "generation_id, owned_media_file_id, preview_url, full_url, preview_storage_path, full_storage_path, created_at"
+      )
+      .in("generation_id", generationIds)
+      .eq("publication_state", "published")
+      .order("created_at", { ascending: false })
+      .limit(Math.max(generationIds.length * 50, generationIds.length));
+    if (firstEntry.userId) {
+      publicationQuery = publicationQuery.eq("user_id", firstEntry.userId);
+    }
+    const { data, error } = await publicationQuery;
+    if (error) return deliveryByEntry;
+    publicationRows = Array.isArray(data)
+      ? (data as GenerationPublicationRow[])
+      : data
+        ? [data as GenerationPublicationRow]
+        : [];
+  } catch {
+    return deliveryByEntry;
+  }
+
+  for (const rawRow of publicationRows) {
+    const generationId =
+      asTrimmedString(rawRow.generation_id) ??
+      (generationIds.length === 1 ? firstEntry.generationId : null);
+    if (!generationId || publicationByGenerationId.has(generationId)) continue;
+    publicationByGenerationId.set(generationId, rawRow);
+  }
+
+  const mediaFileIds = Array.from(
+    new Set(
+      publicationRows
+        .map((row) => asTrimmedString(row.owned_media_file_id))
+        .filter((mediaFileId): mediaFileId is string => Boolean(mediaFileId))
+    )
+  );
+  const mediaById = new Map<string, GeneratedMediaLibraryRow>();
+  if (mediaFileIds.length) {
+    try {
+      let mediaQuery = firstEntry.supabase
+        .from("media_files")
+        .select(
+          "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path, width, height, metadata"
+        )
+        .in("id", mediaFileIds)
+        .limit(mediaFileIds.length);
+      if (firstEntry.userId) {
+        mediaQuery = mediaQuery.eq("user_id", firstEntry.userId);
+      }
+      const { data, error } = await mediaQuery;
+      const mediaRows = Array.isArray(data) ? data : data ? [data] : [];
+      if (!error) {
+        for (const rawRow of mediaRows) {
+          const mediaRow = toGeneratedMediaLibraryRow(rawRow as MediaFileRow);
+          if (mediaRow) mediaById.set(mediaRow.mediaFileId, mediaRow);
+        }
+      }
+    } catch {
+      // Missing media rows simply leave the existing projection delivery untouched.
+    }
+  }
+
+  const missingGenerationIds: string[] = [];
+  for (const generationId of generationIds) {
+    const publicationRow = publicationByGenerationId.get(generationId);
+    const mediaFileId = asTrimmedString(publicationRow?.owned_media_file_id);
+    const mediaRow = mediaFileId ? (mediaById.get(mediaFileId) ?? null) : null;
+    const directDelivery = publicationRow
+      ? toDirectPublishedGenerationDelivery({
+          publicationRow,
+          mediaRow,
+        })
+      : null;
+    const delivery = directDelivery ?? toCanonicalMediaVisibleGenerationDelivery(mediaRow);
+    if (delivery) {
+      entries
+        .filter((entry) => entry.generationId === generationId)
+        .forEach((entry) => deliveryByEntry.set(entry, delivery));
+      continue;
+    }
+    missingGenerationIds.push(generationId);
+  }
+
+  if (firstEntry.userId && missingGenerationIds.length) {
+    const canonicalMediaByGenerationId = await resolveLatestPublishedGenerationMediaByGenerationIds(
+      {
+        supabase: firstEntry.supabase,
+        generationIds: missingGenerationIds,
+        userId: firstEntry.userId,
+      }
+    );
+    for (const generationId of missingGenerationIds) {
+      const delivery = toCanonicalMediaVisibleGenerationDelivery(
+        canonicalMediaByGenerationId.get(generationId) ?? null
+      );
+      if (!delivery) continue;
+      entries
+        .filter((entry) => entry.generationId === generationId)
+        .forEach((entry) => deliveryByEntry.set(entry, delivery));
+    }
+  }
+
+  return deliveryByEntry;
+};
+
+const flushPublishedGenerationDeliveryResolutionBatch = () => {
+  const pendingEntries = pendingPublishedGenerationDeliveryResolutions.splice(0);
+  publishedGenerationDeliveryBatchScheduled = false;
+  const entriesBySupabase = new Map<
+    SupabaseClient,
+    PendingPublishedGenerationDeliveryResolution[]
+  >();
+  pendingEntries.forEach((entry) => {
+    const entries = entriesBySupabase.get(entry.supabase) ?? [];
+    entries.push(entry);
+    entriesBySupabase.set(entry.supabase, entries);
+  });
+
+  entriesBySupabase.forEach((supabaseEntries) => {
+    const entriesByUser = new Map<string, PendingPublishedGenerationDeliveryResolution[]>();
+    supabaseEntries.forEach((entry) => {
+      const userKey = entry.userId ?? "";
+      const entries = entriesByUser.get(userKey) ?? [];
+      entries.push(entry);
+      entriesByUser.set(userKey, entries);
+    });
+
+    entriesByUser.forEach((userEntries) => {
+      void resolvePublishedGenerationDeliveryBatch(userEntries)
+        .then((deliveryByEntry) => {
+          userEntries.forEach((entry) => entry.resolve(deliveryByEntry.get(entry) ?? null));
+        })
+        .catch(() => {
+          userEntries.forEach((entry) => entry.resolve(null));
+        });
+    });
+  });
+};
+
+const resolvePublishedGenerationDeliveryByGenerationId = async ({
+  supabase,
+  generationId,
+  userId,
+}: {
+  supabase: SupabaseClient;
+  generationId: string;
+  userId?: string | null;
+}): Promise<VisibleGenerationDelivery | null> =>
+  await new Promise((resolve) => {
+    pendingPublishedGenerationDeliveryResolutions.push({
+      supabase,
+      generationId,
+      userId: asTrimmedString(userId),
+      resolve,
+    });
+    if (publishedGenerationDeliveryBatchScheduled) return;
+    publishedGenerationDeliveryBatchScheduled = true;
+    globalThis.setTimeout(flushPublishedGenerationDeliveryResolutionBatch, 0);
+  });
+
 const applyPublishedGeneratedMediaAuthority = (
   outputs: StudioOutput[],
   mediaByGenerationId: Map<string, GeneratedMediaLibraryRow>
@@ -1686,120 +1944,6 @@ export const resolveLatestPublishedGenerationMediaFile = async ({
   }
 
   return null;
-};
-
-const resolvePublishedGenerationDeliveryByGenerationId = async ({
-  supabase,
-  generationId,
-  userId,
-}: {
-  supabase: SupabaseClient;
-  generationId: string;
-  userId?: string | null;
-}): Promise<VisibleGenerationDelivery | null> => {
-  try {
-    let query = supabase
-      .from("generation_publications")
-      .select(
-        "owned_media_file_id, preview_url, full_url, preview_storage_path, full_storage_path, created_at"
-      )
-      .eq("generation_id", generationId)
-      .eq("publication_state", "published")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    const resolvedUserId = asTrimmedString(userId);
-    if (resolvedUserId) {
-      query = query.eq("user_id", resolvedUserId);
-    }
-    const { data, error } = await query;
-    if (error) return null;
-
-    for (const rawRow of Array.isArray(data) ? data : []) {
-      const row = rawRow as GenerationPublicationRow;
-      const previewUrl = asTrimmedString(row.preview_url);
-      const fullUrl = asTrimmedString(row.full_url);
-      const ownedMediaFileId = asTrimmedString(row.owned_media_file_id);
-      const previewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
-      const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row.full_storage_path));
-      if (previewUrl || fullUrl || previewStoragePath || fullStoragePath) {
-        const mediaRow = ownedMediaFileId
-          ? await resolveGeneratedMediaLibraryRowById({
-              supabase,
-              mediaFileId: ownedMediaFileId,
-            })
-          : null;
-        const mediaPosterStoragePath =
-          mediaRow?.fileType === "video"
-            ? asCanonicalStoragePath(mediaRow.posterVariantPath)
-            : null;
-        const mediaPreviewVariantPath =
-          mediaRow?.fileType === "video"
-            ? asCanonicalStoragePath(mediaRow.previewVariantPath)
-            : null;
-        const resolvedPreviewStoragePath =
-          mediaRow?.fileType === "video"
-            ? resolveVideoDeliveryPrimaryStoragePath({
-                mode: "video",
-                previewStoragePath: mediaPreviewVariantPath ?? previewStoragePath,
-                fullStoragePath,
-              })
-            : (previewStoragePath ?? fullStoragePath);
-        return {
-          previewUrl,
-          previewPosterUrl: null,
-          previewPosterStoragePath: mediaPosterStoragePath,
-          fullUrl,
-          previewStoragePath: resolvedPreviewStoragePath,
-          fullStoragePath,
-          companionArtUrl: null,
-          companionArtStoragePath: null,
-          companionArtStatus: null,
-        };
-      }
-    }
-
-    if (resolvedUserId) {
-      const canonicalMediaByGenerationId =
-        await resolveLatestPublishedGenerationMediaByGenerationIds({
-          supabase,
-          generationIds: [generationId],
-          userId: resolvedUserId,
-        });
-      const canonicalMediaRow = canonicalMediaByGenerationId.get(generationId);
-      if (canonicalMediaRow) {
-        const fullStoragePath = asCanonicalStoragePath(canonicalMediaRow.storagePath);
-        const previewPosterStoragePath =
-          canonicalMediaRow.fileType === "video"
-            ? asCanonicalStoragePath(canonicalMediaRow.posterVariantPath)
-            : null;
-        const previewStoragePath =
-          canonicalMediaRow.fileType === "video"
-            ? resolveVideoDeliveryPrimaryStoragePath({
-                mode: "video",
-                previewStoragePath: asCanonicalStoragePath(canonicalMediaRow.previewVariantPath),
-                fullStoragePath,
-              })
-            : fullStoragePath;
-        if (previewStoragePath || fullStoragePath || previewPosterStoragePath) {
-          return {
-            previewUrl: null,
-            previewPosterUrl: null,
-            previewPosterStoragePath,
-            fullUrl: null,
-            previewStoragePath,
-            fullStoragePath,
-            companionArtUrl: null,
-            companionArtStoragePath: null,
-            companionArtStatus: null,
-          };
-        }
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
 };
 
 export const resolveVisibleGenerationDeliveryByGenerationId = async ({

@@ -3224,4 +3224,160 @@ describe("generatedMediaAuthority", () => {
     ]);
     expect(generationProjectionSelect).toHaveBeenCalledTimes(3);
   });
+
+  it("batches concurrent published delivery hydration for remote-only videos", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/generations/videos/gen-published-batch-a/full.mp4",
+          "https://signed.test/published-batch-a-full.mp4",
+        ],
+        [
+          "user-1/variants/videos/media-published-batch-a/poster_720.jpg",
+          "https://signed.test/published-batch-a-poster.jpg",
+        ],
+        [
+          "user-1/generations/videos/gen-published-batch-b/full.mp4",
+          "https://signed.test/published-batch-b-full.mp4",
+        ],
+        [
+          "user-1/variants/videos/media-published-batch-b/poster_720.jpg",
+          "https://signed.test/published-batch-b-poster.jpg",
+        ],
+      ])
+    );
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-published-batch-a",
+          preview_url: "https://fal.test/published-batch-a-preview.mp4",
+          result_urls: ["https://fal.test/published-batch-a-full.mp4"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+        {
+          generation_id: "gen-published-batch-b",
+          preview_url: "https://fal.test/published-batch-b-preview.mp4",
+          result_urls: ["https://fal.test/published-batch-b-full.mp4"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-published-batch-a",
+          owned_media_file_id: "media-published-batch-a",
+          preview_url: null,
+          full_url: null,
+          preview_storage_path: "user-1/generations/videos/gen-published-batch-a/full.mp4",
+          full_storage_path: "user-1/generations/videos/gen-published-batch-a/full.mp4",
+          created_at: "2026-05-13T00:00:02.000Z",
+        },
+        {
+          generation_id: "gen-published-batch-b",
+          owned_media_file_id: "media-published-batch-b",
+          preview_url: null,
+          full_url: null,
+          preview_storage_path: "user-1/generations/videos/gen-published-batch-b/full.mp4",
+          full_storage_path: "user-1/generations/videos/gen-published-batch-b/full.mp4",
+          created_at: "2026-05-13T00:00:01.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-published-batch-a",
+          storage_path: "user-1/generations/videos/gen-published-batch-a/full.mp4",
+          file_type: "video",
+          filename: "published-batch-a.mp4",
+          poster_variant_path: "user-1/variants/videos/media-published-batch-a/poster_720.jpg",
+          preview_variant_path: null,
+        },
+        {
+          id: "media-published-batch-b",
+          storage_path: "user-1/generations/videos/gen-published-batch-b/full.mp4",
+          file_type: "video",
+          filename: "published-batch-b.mp4",
+          poster_variant_path: "user-1/variants/videos/media-published-batch-b/poster_720.jpg",
+          preview_variant_path: null,
+        },
+      ],
+      error: null,
+    });
+    const generationProjectionSelect = vi.fn(() => projectionDeliveryBuilder);
+    const generationPublicationsSelect = vi.fn(() => publicationBuilder);
+    const mediaFilesSelect = vi.fn(() => mediaBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: generationProjectionSelect,
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: generationPublicationsSelect,
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: mediaFilesSelect,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      Promise.all([
+        resolveVisibleGenerationDelivery({
+          generationId: "gen-published-batch-a",
+        }),
+        resolveVisibleGenerationDelivery({
+          generationId: "gen-published-batch-b",
+        }),
+      ])
+    ).resolves.toEqual([
+      expect.objectContaining({
+        previewUrl: "https://signed.test/published-batch-a-full.mp4",
+        previewPosterUrl: "https://signed.test/published-batch-a-poster.jpg",
+        previewStoragePath: "user-1/generations/videos/gen-published-batch-a/full.mp4",
+        fullStoragePath: "user-1/generations/videos/gen-published-batch-a/full.mp4",
+      }),
+      expect.objectContaining({
+        previewUrl: "https://signed.test/published-batch-b-full.mp4",
+        previewPosterUrl: "https://signed.test/published-batch-b-poster.jpg",
+        previewStoragePath: "user-1/generations/videos/gen-published-batch-b/full.mp4",
+        fullStoragePath: "user-1/generations/videos/gen-published-batch-b/full.mp4",
+      }),
+    ]);
+    expect(projectionDeliveryBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-published-batch-a",
+      "gen-published-batch-b",
+    ]);
+    expect(publicationBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-published-batch-a",
+      "gen-published-batch-b",
+    ]);
+    expect(mediaBuilder.in).toHaveBeenCalledWith("id", [
+      "media-published-batch-a",
+      "media-published-batch-b",
+    ]);
+    expect(publicationBuilder.eq).not.toHaveBeenCalledWith("generation_id", expect.anything());
+    expect(mediaBuilder.eq).not.toHaveBeenCalledWith("id", expect.anything());
+    expect(generationPublicationsSelect).toHaveBeenCalledTimes(1);
+    expect(mediaFilesSelect).toHaveBeenCalledTimes(1);
+  });
 });

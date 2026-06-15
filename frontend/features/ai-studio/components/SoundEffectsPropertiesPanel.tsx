@@ -133,7 +133,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     handlePointerCancel: handleInspirationPointerCancel,
     handleChipPointerDown: handleInspirationChipPointerDown,
   } = useAudioInspirationRail({
-    disabled: isGenerating,
     scrollStepPx: inspirationScrollStepPx,
     scrollStrategy: "scrollBy",
     scrollSyncDelayMs: 180,
@@ -286,7 +285,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                 maxLength={maxPromptCharacters}
                 placeholder={soundEffectPromptPlaceholder}
                 aria-label="Sound effect prompt"
-                readOnly={isGenerating}
               />
 
               <div
@@ -328,7 +326,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                         key={chip.label}
                         type="button"
                         className="sound-effects-properties-inspiration-chip"
-                        disabled={isGenerating}
                         onPointerDown={handleInspirationChipPointerDown}
                         onClick={() => handleInspirationChipClick(chip)}
                       >
@@ -342,7 +339,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                       type="button"
                       className="sound-effects-properties-inspiration-arrow"
                       onClick={() => scrollInspirationBy("backward")}
-                      disabled={isGenerating || !inspirationScrollState.canScrollBack}
+                      disabled={!inspirationScrollState.canScrollBack}
                       aria-label="Scroll inspiration left"
                     >
                       ←
@@ -351,7 +348,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                       type="button"
                       className="sound-effects-properties-inspiration-arrow"
                       onClick={() => scrollInspirationBy("forward")}
-                      disabled={isGenerating || !inspirationScrollState.canScrollForward}
+                      disabled={!inspirationScrollState.canScrollForward}
                       aria-label="Scroll inspiration right"
                     >
                       →
@@ -373,7 +370,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                     role="switch"
                     aria-checked={loopEnabled}
                     aria-label="Loop sound effect"
-                    disabled={isGenerating}
                     onClick={() => setLoopEnabled((currentValue) => !currentValue)}
                   >
                     <span className="sound-effects-properties-loop-switch-label">Loop</span>
@@ -401,7 +397,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                       aria-expanded={isDurationMenuOpen}
                       aria-label="Sound effect duration"
                       title={selectedDurationOption.title}
-                      disabled={isGenerating}
                       onClick={() => setIsDurationMenuOpen((currentValue) => !currentValue)}
                     >
                       <span className="sound-effects-properties-footer-pill-icon">

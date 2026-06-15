@@ -5,6 +5,7 @@
 import { filterTrustedMediaDirectPreviewUrls } from "../mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
+import { chunkValues } from "./queryBatching";
 
 const DEFAULT_PROJECT_TITLE = "Untitled project";
 const PROJECT_TITLE_MAX_LENGTH = 120;
@@ -313,6 +314,24 @@ const resolveProjectPreviewImageCandidatesFromDisplayRecords = ({
   });
 };
 
+const resolveProjectPreviewDisplayOutputIdsFromSnapshot = (
+  snapshot: Record<string, unknown> | null | undefined
+): string[] => {
+  const outputsRecord = asRecord(asRecord(snapshot).outputs);
+  const outputIds = [
+    ...asStringArray(outputsRecord.curatedReferenceIds),
+    ...(Array.isArray(outputsRecord.active)
+      ? outputsRecord.active
+          .map((row) => {
+            const id = asRecord(row).id;
+            return typeof id === "string" ? id.trim() : "";
+          })
+          .filter((id) => id.length > 0)
+      : []),
+  ];
+  return Array.from(new Set(outputIds));
+};
+
 export const resolveProjectPreviewImageUrlsFromSnapshot = (
   snapshot: Record<string, unknown> | null | undefined,
   userId?: string | null
@@ -450,29 +469,72 @@ export const listProjectsForUser = async ({
     throw new Error(workspaceError.message || "Failed to list project previews");
   }
 
+  const workspacePreviewRows = (workspaceRows ?? []) as ProjectWorkspacePreviewRow[];
   const projectIds = projects.map((project) => project.id);
-  const { data: displayRows, error: displayError } = await supabaseAdmin
-    .from("project_output_display_items")
-    .select(
-      [
-        "project_id",
-        "output_id",
-        "mode",
-        "task_state",
-        "preview_url_fallback",
-        "result_urls_fallback",
-        "preview_storage_path",
-        "full_storage_path",
-        "hidden_in_reference_grid",
-      ].join(", ")
-    )
-    .eq("user_id", userId)
-    .in("project_id", projectIds);
+  const displayOutputIdsByProjectId = new Map<string, string[]>();
+  const legacyDisplayFallbackProjectIds: string[] = [];
+  workspacePreviewRows.forEach((workspaceRow) => {
+    const outputIds = resolveProjectPreviewDisplayOutputIdsFromSnapshot(workspaceRow.snapshot);
+    displayOutputIdsByProjectId.set(workspaceRow.project_id, outputIds);
+    if (outputIds.length === 0) {
+      legacyDisplayFallbackProjectIds.push(workspaceRow.project_id);
+    }
+  });
+
+  const displayRows: ProjectOutputDisplayPreviewRow[] = [];
+  let displayError: { message?: string } | null = null;
+  const displaySelectColumns = [
+    "project_id",
+    "output_id",
+    "mode",
+    "task_state",
+    "preview_url_fallback",
+    "result_urls_fallback",
+    "preview_storage_path",
+    "full_storage_path",
+    "hidden_in_reference_grid",
+  ].join(", ");
+  const candidateDisplayOutputIds = Array.from(
+    new Set([...displayOutputIdsByProjectId.values()].flat())
+  );
+  for (const outputIdChunk of chunkValues(candidateDisplayOutputIds)) {
+    if (outputIdChunk.length === 0 || displayError) continue;
+    const { data, error } = await supabaseAdmin
+      .from("project_output_display_items")
+      .select(displaySelectColumns)
+      .eq("user_id", userId)
+      .eq("mode", "image")
+      .in("project_id", projectIds)
+      .in("output_id", outputIdChunk);
+    if (error) {
+      displayError = error;
+      break;
+    }
+    displayRows.push(
+      ...((Array.isArray(data) ? data : []) as unknown as ProjectOutputDisplayPreviewRow[])
+    );
+  }
+  if (!displayError && legacyDisplayFallbackProjectIds.length > 0) {
+    for (const projectIdChunk of chunkValues(legacyDisplayFallbackProjectIds)) {
+      const { data, error } = await supabaseAdmin
+        .from("project_output_display_items")
+        .select(displaySelectColumns)
+        .eq("user_id", userId)
+        .eq("mode", "image")
+        .in("project_id", projectIdChunk);
+      if (error) {
+        displayError = error;
+        break;
+      }
+      displayRows.push(
+        ...((Array.isArray(data) ? data : []) as unknown as ProjectOutputDisplayPreviewRow[])
+      );
+    }
+  }
 
   const displayRowsByProjectId = new Map<string, ProjectOutputDisplayPreviewRow[]>();
   if (!displayError) {
-    (Array.isArray(displayRows) ? displayRows : []).forEach((row) => {
-      const displayRow = row as unknown as ProjectOutputDisplayPreviewRow;
+    displayRows.forEach((displayRow) => {
       const rows = displayRowsByProjectId.get(displayRow.project_id) ?? [];
       rows.push(displayRow);
       displayRowsByProjectId.set(displayRow.project_id, rows);
@@ -483,8 +545,7 @@ export const listProjectsForUser = async ({
   const previewCandidatesByProjectId = new Map<string, ProjectPreviewCandidate[]>();
   const storagePathsToSign = new Set<string>();
 
-  (workspaceRows ?? []).forEach((row) => {
-    const workspaceRow = row as ProjectWorkspacePreviewRow;
+  workspacePreviewRows.forEach((workspaceRow) => {
     const displayCandidates = resolveProjectPreviewImageCandidatesFromDisplayRecords({
       snapshot: workspaceRow.snapshot,
       displayRows: displayRowsByProjectId.get(workspaceRow.project_id) ?? [],

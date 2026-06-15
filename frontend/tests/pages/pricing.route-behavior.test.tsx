@@ -133,7 +133,7 @@ describe("Pricing route behavior", () => {
       expect(routerPushMock).toHaveBeenCalledTimes(1);
     });
     expect(routerPushMock).toHaveBeenCalledWith(
-      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
+      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio&mode=signup"
     );
     await waitFor(() => {
       expect(trackBillingUpgradeClickedMock).toHaveBeenCalledWith(

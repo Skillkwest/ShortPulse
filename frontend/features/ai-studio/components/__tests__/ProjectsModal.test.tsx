@@ -84,7 +84,7 @@ describe("ProjectsModal", () => {
     );
 
     expect(await screen.findByRole("dialog", { name: "Projects" })).toBeInTheDocument();
-    expect(mockedFetchWithAuth).toHaveBeenCalledWith("/api/projects?limit=all", {
+    expect(mockedFetchWithAuth).toHaveBeenCalledWith("/api/projects?limit=12&offset=0", {
       method: "GET",
       shortpulseAuthTimeoutMs: 5000,
     });

@@ -315,19 +315,29 @@ describe("SoundEffectsPropertiesPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps generate enabled while generation is running", () => {
+  it("keeps prompt authoring controls interactive while generation is running", () => {
     render(<SoundEffectsPropertiesPanel isGenerating onGenerate={vi.fn()} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
       target: { value: "Layered whoosh with a clean sparkle tail." },
     });
 
-    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveAttribute(
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).not.toHaveAttribute(
       "readonly"
     );
+    fireEvent.click(screen.getByRole("button", { name: "cinematic boom" }));
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
+      "Layered whoosh with a clean sparkle tail.\n\nHuge cinematic boom with a deep sub impact, long trailer-style decay, and a cavernous low-end tail that feels massive and dramatic."
+    );
+
+    fireEvent.click(screen.getByRole("switch", { name: "Loop sound effect" }));
+    expect(screen.getByRole("switch", { name: "Loop sound effect" })).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: "Sound effect duration" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generate");
-    expect(screen.getByRole("switch", { name: "Loop sound effect" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "cinematic boom" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "cinematic boom" })).toBeEnabled();
   });
 });

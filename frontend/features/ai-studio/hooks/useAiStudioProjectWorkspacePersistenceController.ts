@@ -2,7 +2,15 @@
  * AI Studio project-workspace persistence controller.
  * Orchestrates project-owned restore/apply and debounced autosave against project workspace authority.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import {
@@ -709,6 +717,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       snapshot: sessionSnapshotComputation.snapshot,
     });
   }, [maybeReportSlowProjectWorkspacePhase, sessionSnapshotComputation]);
+  const deferredSessionSnapshot = useDeferredValue(sessionSnapshot);
 
   const expectedProjectRestoreVisibilitySignature = useMemo(
     () =>
@@ -775,8 +784,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const activeAutosaveNoticeRef = useRef<ProjectWorkspaceAutosaveNoticeDetails | null>(null);
   const quickSlotSaveResultTelemetryRef = useRef<{ key: string; emittedAt: number } | null>(null);
   const autosaveSnapshotSelectionComputation = useMemo(
-    () => resolveProjectAutosaveSnapshotSelectionComputation(sessionSnapshot),
-    [sessionSnapshot]
+    () => resolveProjectAutosaveSnapshotSelectionComputation(deferredSessionSnapshot),
+    [deferredSessionSnapshot]
   );
   const autosaveSnapshotSelection = autosaveSnapshotSelectionComputation.selection;
   const autosaveUnlockSignature = useMemo(

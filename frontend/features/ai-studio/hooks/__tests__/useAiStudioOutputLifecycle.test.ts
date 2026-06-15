@@ -237,10 +237,10 @@ describe("useAiStudioOutputLifecycle", () => {
     expect(result.current.outputs[0]?.prompt).toBe("Original prompt");
 
     act(() => {
-      result.current.updateOutputPrompt("out-1", "  Updated prompt  ");
+      result.current.updateOutputPrompt("out-1", "  Updated prompt\nwith a second line  ");
     });
-    expect(result.current.outputs[0]?.prompt).toBe("Updated prompt");
-    expect(result.current.outputs[0]?.previewText).toBe("Updated prompt");
+    expect(result.current.outputs[0]?.prompt).toBe("Updated prompt\nwith a second line");
+    expect(result.current.outputs[0]?.previewText).toBe("Updated prompt\nwith a second line");
     expect(result.current.outputs[0]?.timestamp).toBe("Edited");
   });
 

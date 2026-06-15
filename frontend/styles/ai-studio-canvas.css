@@ -742,6 +742,14 @@
   align-items: center;
 }
 
+.reference-canvas-panel .reference-card-audio-player {
+  transform: translateY(5px);
+}
+
+.reference-canvas-panel .reference-card-audio-player-row {
+  gap: 8px;
+}
+
 .reference-card-audio-play {
   display: inline-flex;
   align-items: center;
@@ -772,6 +780,18 @@
   box-sizing: border-box;
 }
 
+.reference-canvas-panel .reference-card-audio-play {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.reference-canvas-panel .reference-card-audio-play svg {
+  width: 21px;
+  height: 21px;
+}
+
 .reference-card-audio-play:hover,
 .reference-card-audio-play:focus-visible,
 .reference-card-audio-play.is-playing {
@@ -799,6 +819,10 @@
   flex-direction: column;
   gap: 7px;
   align-items: center;
+}
+
+.reference-canvas-panel .reference-card-audio-waveform-shell {
+  gap: 4px;
 }
 
 .reference-card-audio-waveform {

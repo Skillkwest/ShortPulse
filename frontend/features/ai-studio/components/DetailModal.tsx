@@ -205,7 +205,6 @@ function DetailModalContent({
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
   const [promptLibrarySavedOutputId, setPromptLibrarySavedOutputId] = useState<string | null>(null);
-  const [textDetailEditingOutputId, setTextDetailEditingOutputId] = useState<string | null>(null);
   const [loadedPreviewAspect, setLoadedPreviewAspect] = useState<{
     outputId: string;
     url: string;
@@ -742,7 +741,6 @@ function DetailModalContent({
   const isPromptEditable = baseDetailModalItem.capabilities.canEditPrompt;
   const trimmedPrompt = draftPrompt.trim();
   const hasPromptEdits = trimmedPrompt !== displayPromptText.trim();
-  const isTextDetailEditing = Boolean(outputId && textDetailEditingOutputId === outputId);
   const detailModalStyle = useMemo(() => {
     if (isPromptOnly) return undefined;
     if (!previewAspectRatio || !Number.isFinite(previewAspectRatio)) return undefined;
@@ -1013,7 +1011,6 @@ function DetailModalContent({
     clearPromptLibrarySavedTimer();
     setPromptOnlySavedOutputId(null);
     setPromptLibrarySavedOutputId(null);
-    setTextDetailEditingOutputId(null);
     setDeleteConfirmOutputId(null);
     setImageZoomScaleByOutput(null);
     setImagePanByOutput(null);
@@ -1175,8 +1172,15 @@ function DetailModalContent({
     ]
   );
 
-  const handleSavePromptToLibrary = useCallback(() => {
-    if (!trimmedPrompt || !onSavePrompt) return;
+  const handleSaveTextDetail = useCallback(() => {
+    if (!trimmedPrompt) return;
+    const committedEdit = commitTextReferenceEdit({ showFeedback: true });
+    if (!onSavePrompt) {
+      if (!committedEdit && outputId) {
+        setPromptOnlySavedOutputId(outputId);
+      }
+      return;
+    }
     onSavePrompt(draftPrompt);
     if (!outputId) return;
     setPromptLibrarySavedOutputId(outputId);
@@ -1186,7 +1190,14 @@ function DetailModalContent({
       setPromptLibrarySavedOutputId((current) => (current === outputId ? null : current));
       promptLibrarySavedTimerRef.current = null;
     }, 1400);
-  }, [clearPromptLibrarySavedTimer, draftPrompt, onSavePrompt, outputId, trimmedPrompt]);
+  }, [
+    clearPromptLibrarySavedTimer,
+    commitTextReferenceEdit,
+    draftPrompt,
+    onSavePrompt,
+    outputId,
+    trimmedPrompt,
+  ]);
 
   const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!isPromptEditable || !outputId) return;
@@ -1200,48 +1211,6 @@ function DetailModalContent({
       [outputId]: nextValue,
     }));
   };
-
-  const handleTextDetailEditStart = useCallback(
-    (event: React.MouseEvent<HTMLTextAreaElement>) => {
-      if (!isPromptEditable || !outputId) return;
-      const textarea = event.currentTarget;
-      setTextDetailEditingOutputId(outputId);
-      if (typeof window === "undefined") {
-        textarea.focus();
-        return;
-      }
-      window.requestAnimationFrame(() => {
-        textarea.focus();
-        const selectionEnd = textarea.value.length;
-        textarea.setSelectionRange(selectionEnd, selectionEnd);
-      });
-    },
-    [isPromptEditable, outputId]
-  );
-
-  const handleTextDetailBlur = useCallback(() => {
-    commitTextReferenceEdit({ showFeedback: true });
-    setTextDetailEditingOutputId(null);
-  }, [commitTextReferenceEdit]);
-
-  const handleTextDetailKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (
-        event.key !== "Enter" ||
-        event.shiftKey ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey
-      ) {
-        return;
-      }
-      event.preventDefault();
-      commitTextReferenceEdit({ showFeedback: true });
-      setTextDetailEditingOutputId(null);
-      event.currentTarget.blur();
-    },
-    [commitTextReferenceEdit]
-  );
 
   const handleDownload = useCallback(() => {
     if (output?.id && onDownloadReference) {
@@ -1485,23 +1454,33 @@ function DetailModalContent({
         icon: <TrashSimple size={16} weight="bold" aria-hidden />,
         className: "is-icon-only",
       },
-      ...(detailModalItem.capabilities.canSavePrompt && onSavePrompt
+      ...(isPromptEditable || (detailModalItem.capabilities.canSavePrompt && onSavePrompt)
         ? [
             {
               id: "save-prompt",
-              label: isPromptLibrarySaved ? "Saved" : "Save",
-              onClick: handleSavePromptToLibrary,
-              disabled: !trimmedPrompt || isPromptLibrarySaved,
+              label: isPromptOnlySaved || isPromptLibrarySaved ? "Saved" : "Save",
+              onClick: handleSaveTextDetail,
+              disabled:
+                !trimmedPrompt ||
+                isPromptOnlySaved ||
+                isPromptLibrarySaved ||
+                (!hasPromptEdits && !onSavePrompt),
               intent: "save" as const,
-              state: isPromptLibrarySaved ? ("saved" as const) : ("default" as const),
+              state:
+                isPromptOnlySaved || isPromptLibrarySaved
+                  ? ("saved" as const)
+                  : ("default" as const),
             },
           ]
         : []),
     ],
     [
       detailModalItem.capabilities.canSavePrompt,
+      handleSaveTextDetail,
       handleRequestDelete,
-      handleSavePromptToLibrary,
+      hasPromptEdits,
+      isPromptEditable,
+      isPromptOnlySaved,
       isPromptLibrarySaved,
       onSavePrompt,
       trimmedPrompt,
@@ -1709,14 +1688,11 @@ function DetailModalContent({
           stageClassName="art-image-vessel art-text-detail-vessel"
           stage={
             <textarea
-              className={`art-text-detail-textarea ${isTextDetailEditing ? "is-editing" : ""}`.trim()}
+              className={`art-text-detail-textarea ${isPromptEditable ? "is-editing" : ""}`.trim()}
               ref={promptOnlyTextareaRef}
               value={draftPrompt}
               onChange={handlePromptChange}
-              onDoubleClick={handleTextDetailEditStart}
-              onBlur={handleTextDetailBlur}
-              onKeyDown={handleTextDetailKeyDown}
-              readOnly={!isPromptEditable || !isTextDetailEditing}
+              readOnly={!isPromptEditable}
               rows={12}
               placeholder="Describe your adjustments..."
             />

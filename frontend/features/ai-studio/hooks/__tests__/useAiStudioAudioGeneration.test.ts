@@ -247,7 +247,13 @@ describe("useAiStudioAudioGeneration", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-sfx",
       "Please retry later.",
-      "Please retry later."
+      "Please retry later.",
+      {
+        errorPayload: {
+          error: "Provider unavailable",
+          details: "Please retry later.",
+        },
+      }
     );
   });
 
@@ -306,7 +312,13 @@ describe("useAiStudioAudioGeneration", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-music-fail",
       "text must be 2000 characters or fewer.",
-      "text must be 2000 characters or fewer."
+      "text must be 2000 characters or fewer.",
+      {
+        errorPayload: {
+          error: "Invalid request",
+          details: "text must be 2000 characters or fewer.",
+        },
+      }
     );
   });
 
@@ -372,7 +384,14 @@ describe("useAiStudioAudioGeneration", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-music-limit",
       "Shared generation capacity is busy right now. Please retry in 13 seconds.",
-      "Shared generation capacity is busy right now. Please retry in 13 seconds."
+      "Shared generation capacity is busy right now. Please retry in 13 seconds.",
+      {
+        errorPayload: {
+          error: "Too many active generations. Please retry shortly.",
+          code: "GENERATION_ADMISSION_LIMIT",
+          admissionScope: "shared_provider",
+        },
+      }
     );
   });
 

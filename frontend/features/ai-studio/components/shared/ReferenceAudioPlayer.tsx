@@ -58,7 +58,7 @@ export function ReferenceAudioPlayer({
   onResolveAudioUrl,
   onReady,
   onError,
-  eagerWaveformDecode = true,
+  eagerWaveformDecode = false,
   onRequestPlay,
   onPlaybackStarted,
   onPlaybackStopped,

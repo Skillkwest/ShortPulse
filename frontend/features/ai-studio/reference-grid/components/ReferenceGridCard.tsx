@@ -534,7 +534,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               markLoaded(item.id, { notifyAutoSave: false });
             }
           }}
-          eagerWaveformDecode
+          eagerWaveformDecode={false}
           onRequestPlay={onRequestAudioPlay}
           onPlaybackStarted={onAudioPlaybackStarted}
           onPlaybackStopped={onAudioPlaybackStopped}

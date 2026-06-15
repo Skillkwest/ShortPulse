@@ -3,6 +3,7 @@
  * Verifies the current project title is rendered in the centered hero/header slot only when available.
  */
 import React from "react";
+import { act } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
@@ -228,6 +229,9 @@ const createProps = (
     activeOutputId: null,
     onSelectOutput: vi.fn(),
     onOpenDetails: vi.fn(),
+    onAddCuratedReference: vi.fn(),
+    onRemoveCuratedReference: vi.fn(),
+    onReorderCuratedReference: vi.fn(),
     onPasteTextReference: vi.fn(),
     onPasteMediaReference: vi.fn(),
     railCanvasProps: {},
@@ -348,51 +352,115 @@ describe("AiStudioPageContent header project name", () => {
   });
 
   it("toggles Canvas visibility from the header button through the page shell contract", () => {
-    render(<AiStudioPageContent {...createProps()} />);
+    vi.useFakeTimers();
+    try {
+      render(<AiStudioPageContent {...createProps()} />);
 
-    const canvasButton = screen.getByRole("button", { name: "Canvas" });
-    const shellFrame = screen.getByTestId("ai-studio-shell-frame");
+      const canvasButton = screen.getByRole("button", { name: "Canvas" });
+      const shellFrame = screen.getByTestId("ai-studio-shell-frame");
 
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
-    expect(shellFrame).toHaveAttribute("data-canvas-visible", "false");
+      expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+      expect(shellFrame).toHaveAttribute("data-canvas-visible", "false");
 
-    fireEvent.click(canvasButton);
+      fireEvent.click(canvasButton);
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
 
-    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
-    expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
+      expect(canvasButton).toHaveAttribute("aria-pressed", "true");
+      expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
 
-    fireEvent.click(canvasButton);
+      fireEvent.click(canvasButton);
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
 
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
-    expect(shellFrame).toHaveAttribute("data-canvas-visible", "false");
+      expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+      expect(shellFrame).toHaveAttribute("data-canvas-visible", "false");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("isolates Canvas on double-click and restores the previous right-rail layout on click", () => {
-    render(<AiStudioPageContent {...createProps()} />);
+    vi.useFakeTimers();
+    try {
+      render(<AiStudioPageContent {...createProps()} />);
 
-    const canvasButton = screen.getByRole("button", { name: "Canvas" });
-    const shellFrame = screen.getByTestId("ai-studio-shell-frame");
+      const canvasButton = screen.getByRole("button", { name: "Canvas" });
+      const shellFrame = screen.getByTestId("ai-studio-shell-frame");
 
-    fireEvent.click(canvasButton);
-    expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
-    expect(shellFrame).toHaveAttribute("data-show-preview-rail", "true");
-    expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
+      fireEvent.click(canvasButton);
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
+      expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
+      expect(shellFrame).toHaveAttribute("data-show-preview-rail", "true");
+      expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
 
-    fireEvent.doubleClick(canvasButton);
+      fireEvent.click(canvasButton, { detail: 1 });
+      fireEvent.click(canvasButton, { detail: 2 });
+      fireEvent.doubleClick(canvasButton, { detail: 2 });
 
-    expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
-    expect(shellFrame).toHaveAttribute("data-show-preview-rail", "false");
-    expect(screen.queryByRole("button", { name: "Reference Grid" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Quick Slot Inventory" })).not.toBeInTheDocument();
+      expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
+      expect(shellFrame).toHaveAttribute("data-show-preview-rail", "false");
+      expect(screen.queryByRole("button", { name: "Reference Grid" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Quick Slot Inventory" })
+      ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Canvas" }));
+      fireEvent.click(screen.getByRole("button", { name: "Canvas" }));
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
 
-    expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
-    expect(shellFrame).toHaveAttribute("data-show-preview-rail", "true");
-    expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
+      expect(shellFrame).toHaveAttribute("data-canvas-visible", "true");
+      expect(shellFrame).toHaveAttribute("data-show-preview-rail", "true");
+      expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
+
+  it.each([
+    ["Canvas", "true"],
+    ["Quick Slot Inventory", "false"],
+    ["Reference Grid", "false"],
+  ] as const)(
+    "expands %s from the real browser double-click sequence",
+    (buttonName, expectedCanvasVisible) => {
+      vi.useFakeTimers();
+      try {
+        render(<AiStudioPageContent {...createProps()} />);
+
+        const targetButton = screen.getByRole("button", { name: buttonName });
+        const shellFrame = screen.getByTestId("ai-studio-shell-frame");
+
+        fireEvent.click(targetButton, { detail: 1 });
+        fireEvent.click(targetButton, { detail: 2 });
+        fireEvent.doubleClick(targetButton, { detail: 2 });
+
+        expect(shellFrame).toHaveAttribute("data-canvas-visible", expectedCanvasVisible);
+        expect(shellFrame).toHaveAttribute("data-show-preview-rail", "false");
+        expect(screen.getByRole("button", { name: buttonName })).toBeInTheDocument();
+        for (const otherButtonName of ["Canvas", "Quick Slot Inventory", "Reference Grid"]) {
+          if (otherButtonName === buttonName) continue;
+          expect(screen.queryByRole("button", { name: otherButtonName })).not.toBeInTheDocument();
+        }
+
+        fireEvent.click(screen.getByRole("button", { name: "Restore previous panel layout" }));
+
+        expect(shellFrame).toHaveAttribute("data-show-preview-rail", "true");
+        expect(screen.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
 
   it("settles when the Voices panel reports the same active voice changer video source", async () => {
     voicePanelActiveSourceEffectMock.mockClear();

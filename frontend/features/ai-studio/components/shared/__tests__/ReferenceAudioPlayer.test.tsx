@@ -29,6 +29,19 @@ describe("ReferenceAudioPlayer", () => {
     extractAudioWaveformPeaksFromUrlMock.mockReset();
   });
 
+  it("does not decode waveform data on mount by default", async () => {
+    render(
+      <ReferenceAudioPlayer
+        audioId="audio-lazy"
+        audioUrl="https://signed.test/lazy-audio.mp3"
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+      />
+    );
+
+    expect(extractAudioWaveformPeaksFromUrlMock).not.toHaveBeenCalled();
+  });
+
   it("resolves a fresh signed URL before eager waveform decode", async () => {
     const resolveAudioUrl = vi.fn(async () => "https://signed.test/fresh-audio.mp3");
 
@@ -38,6 +51,7 @@ describe("ReferenceAudioPlayer", () => {
         audioUrl="https://signed.test/stale-audio.mp3"
         playLabel="Play audio"
         pauseLabel="Pause audio"
+        eagerWaveformDecode
         onResolveAudioUrl={resolveAudioUrl}
       />
     );

@@ -131,6 +131,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
           intent,
           planId,
           billingInterval: selectedBillingInterval,
+          mode: "signup",
         })
       );
       return;

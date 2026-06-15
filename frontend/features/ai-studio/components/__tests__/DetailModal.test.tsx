@@ -170,6 +170,7 @@ describe("DetailModal", () => {
   });
 
   it("renders text references in the shared detail modal with regular actions", () => {
+    const onUpdatePrompt = vi.fn();
     const onSavePrompt = vi.fn();
     const { baseElement } = render(
       <DetailModal
@@ -183,7 +184,7 @@ describe("DetailModal", () => {
           prompt: "Original prompt",
         }}
         onClose={vi.fn()}
-        onUpdatePrompt={vi.fn()}
+        onUpdatePrompt={onUpdatePrompt}
         onDeleteOutput={vi.fn()}
         onSavePrompt={onSavePrompt}
       />
@@ -202,16 +203,15 @@ describe("DetailModal", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("is-icon-only");
 
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
-    expect(promptTextarea).toHaveAttribute("readonly");
-    fireEvent.doubleClick(promptTextarea);
     fireEvent.change(promptTextarea, { target: { value: "Updated prompt for library" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt for library");
     expect(onSavePrompt).toHaveBeenCalledWith("Updated prompt for library");
     expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
   });
 
-  it("edits text references after double click and applies changes on blur", () => {
+  it("edits text references immediately and applies changes on Save", () => {
     const onUpdatePrompt = vi.fn();
     render(
       <DetailModal
@@ -228,20 +228,17 @@ describe("DetailModal", () => {
     );
 
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
-    expect(promptTextarea).toHaveAttribute("readonly");
-
-    fireEvent.doubleClick(promptTextarea);
     expect(promptTextarea).not.toHaveAttribute("readonly");
 
     fireEvent.change(promptTextarea, {
       target: { value: "Updated prompt in reference" },
     });
-    fireEvent.blur(promptTextarea);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt in reference");
   });
 
-  it("applies text reference edits on Enter", () => {
+  it("keeps Enter as a text newline instead of a save shortcut", () => {
     const onUpdatePrompt = vi.fn();
     render(
       <DetailModal
@@ -258,13 +255,13 @@ describe("DetailModal", () => {
     );
 
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
-    fireEvent.doubleClick(promptTextarea);
     fireEvent.change(promptTextarea, {
-      target: { value: "Updated prompt in reference" },
+      target: { value: "Updated prompt\nwith a second line" },
     });
     fireEvent.keyDown(promptTextarea, { key: "Enter" });
 
-    expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt in reference");
+    expect(promptTextarea).toHaveValue("Updated prompt\nwith a second line");
+    expect(onUpdatePrompt).not.toHaveBeenCalled();
   });
 
   it("applies text reference edits when the modal closes", () => {
@@ -285,7 +282,6 @@ describe("DetailModal", () => {
     );
 
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
-    fireEvent.doubleClick(promptTextarea);
     fireEvent.change(promptTextarea, {
       target: { value: "Updated prompt before close" },
     });

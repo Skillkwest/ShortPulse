@@ -60,12 +60,15 @@ const mockProjectListSupabase = ({
     ],
     error: null,
   }));
-  const displayIn = vi.fn(async () => ({
+  const displayProjectIn = vi.fn(() => ({
+    in: displayOutputIn,
+  }));
+  const displayOutputIn = vi.fn(async () => ({
     data: displayError ? null : displayRows,
     error: displayError ? { message: displayError } : null,
   }));
-  const createSignedUrl = vi.fn(async (path: string) => ({
-    data: { signedUrl: `signed:${path}` },
+  const createSignedUrls = vi.fn(async (paths: string[]) => ({
+    data: paths.map((path) => ({ path, signedUrl: `signed:${path}` })),
     error: null,
   }));
   const supabaseMock = {
@@ -90,24 +93,27 @@ const mockProjectListSupabase = ({
         };
       }
       if (table === "project_output_display_items") {
+        const query: {
+          eq: ReturnType<typeof vi.fn>;
+          in: ReturnType<typeof vi.fn>;
+        } = {
+          eq: vi.fn(() => query),
+          in: displayProjectIn,
+        };
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: displayIn,
-            })),
-          })),
+          select: vi.fn(() => query),
         };
       }
       throw new Error(`Unexpected table: ${table}`);
     }),
     storage: {
       from: vi.fn(() => ({
-        createSignedUrl,
+        createSignedUrls,
       })),
     },
   };
   getSupabaseAdminMock.mockReturnValue(supabaseMock as never);
-  return { createSignedUrl, displayIn, workspaceIn };
+  return { createSignedUrls, displayOutputIn, displayProjectIn, workspaceIn };
 };
 
 describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
@@ -272,7 +278,7 @@ describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
 
 describe("listProjectsForUser preview composition", () => {
   it("prefers checkpoint plus display-record previews over rich snapshot parsing", async () => {
-    mockProjectListSupabase({
+    const { displayOutputIn, displayProjectIn } = mockProjectListSupabase({
       workspaceSnapshot: {
         outputs: {
           curatedReferenceIds: ["quick-display"],
@@ -321,6 +327,8 @@ describe("listProjectsForUser preview composition", () => {
         previewImageUrls: ["signed:user-1/generated/display-quick.png"],
       }),
     ]);
+    expect(displayProjectIn).toHaveBeenCalledWith("project_id", [PROJECT_ID_1]);
+    expect(displayOutputIn).toHaveBeenCalledWith("output_id", ["quick-display", "grid-display"]);
   });
 
   it("falls back to snapshot-derived project previews when display records are unavailable", async () => {

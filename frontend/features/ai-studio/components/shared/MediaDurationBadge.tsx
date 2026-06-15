@@ -12,6 +12,11 @@ type MediaDurationBadgeProps = {
 
 export type MediaDurationBadgeKind = "audio" | "music" | "sound-effects" | "video";
 
+const MEDIA_DURATION_PROBE_MAX_INFLIGHT = 2;
+const mediaDurationProbeCache = new Map<string, number | null>();
+let mediaDurationProbeInflightCount = 0;
+const mediaDurationProbeQueue: Array<() => void> = [];
+
 const normalizeDurationMs = (value: number | null | undefined): number | null => {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
   return Math.max(0, Math.round(value));
@@ -56,6 +61,96 @@ function MediaDurationBadgeIcon({ kind }: { kind: MediaDurationBadgeKind }) {
   }
 }
 
+const resolveDurationProbeCacheKey = ({
+  mediaKind,
+  mediaUrl,
+}: {
+  mediaKind: "audio" | "video";
+  mediaUrl: string;
+}): string => `${mediaKind}:${mediaUrl}`;
+
+const runNextDurationProbe = () => {
+  if (mediaDurationProbeInflightCount >= MEDIA_DURATION_PROBE_MAX_INFLIGHT) return;
+  const nextProbe = mediaDurationProbeQueue.shift();
+  if (!nextProbe) return;
+  mediaDurationProbeInflightCount += 1;
+  nextProbe();
+};
+
+const completeDurationProbe = () => {
+  mediaDurationProbeInflightCount = Math.max(0, mediaDurationProbeInflightCount - 1);
+  runNextDurationProbe();
+};
+
+const requestQueuedMediaDurationProbe = ({
+  mediaKind,
+  mediaUrl,
+}: {
+  mediaKind: "audio" | "video";
+  mediaUrl: string;
+}): Promise<number | null> => {
+  const cacheKey = resolveDurationProbeCacheKey({ mediaKind, mediaUrl });
+  if (mediaDurationProbeCache.has(cacheKey)) {
+    return Promise.resolve(mediaDurationProbeCache.get(cacheKey) ?? null);
+  }
+
+  return new Promise((resolve) => {
+    const runProbe = () => {
+      if (typeof document === "undefined") {
+        completeDurationProbe();
+        resolve(null);
+        return;
+      }
+
+      let settled = false;
+      const media =
+        mediaKind === "audio" ? document.createElement("audio") : document.createElement("video");
+      media.preload = "metadata";
+
+      function handleLoadedMetadata() {
+        const nextDurationSeconds = media.duration;
+        if (!Number.isFinite(nextDurationSeconds) || nextDurationSeconds < 0) {
+          settle(null);
+          return;
+        }
+        settle(Math.max(0, Math.round(nextDurationSeconds * 1000)));
+      }
+
+      function handleError() {
+        settle(null);
+      }
+
+      function settle(nextDurationMs: number | null) {
+        if (settled) return;
+        settled = true;
+        mediaDurationProbeCache.set(cacheKey, nextDurationMs);
+        media.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        media.removeEventListener("error", handleError);
+        media.removeAttribute("src");
+        try {
+          media.load();
+        } catch {
+          // Some browser/test environments throw when resetting detached media.
+        }
+        completeDurationProbe();
+        resolve(nextDurationMs);
+      }
+
+      media.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
+      media.addEventListener("error", handleError, { once: true });
+      media.src = mediaUrl;
+      try {
+        media.load();
+      } catch {
+        settle(null);
+      }
+    };
+
+    mediaDurationProbeQueue.push(runProbe);
+    runNextDurationProbe();
+  });
+};
+
 export function MediaDurationBadge({
   durationMs = null,
   mediaUrl = null,
@@ -80,37 +175,16 @@ export function MediaDurationBadge({
     }
 
     let cancelled = false;
-    const media =
-      mediaKind === "audio" ? document.createElement("audio") : document.createElement("video");
-    media.preload = "metadata";
-    media.src = normalizedMediaUrl;
-
-    const finalize = (nextDurationMs: number | null) => {
-      if (cancelled) return;
-      setResolvedDurationMs(nextDurationMs);
-    };
-
-    const handleLoadedMetadata = () => {
-      const nextDurationSeconds = media.duration;
-      if (!Number.isFinite(nextDurationSeconds) || nextDurationSeconds < 0) {
-        finalize(null);
-        return;
+    void requestQueuedMediaDurationProbe({ mediaKind, mediaUrl: normalizedMediaUrl }).then(
+      (nextDurationMs) => {
+        if (!cancelled) {
+          setResolvedDurationMs(nextDurationMs);
+        }
       }
-      finalize(Math.max(0, Math.round(nextDurationSeconds * 1000)));
-    };
-
-    const handleError = () => finalize(null);
-
-    media.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
-    media.addEventListener("error", handleError, { once: true });
-    media.load();
+    );
 
     return () => {
       cancelled = true;
-      media.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      media.removeEventListener("error", handleError);
-      media.removeAttribute("src");
-      media.load();
     };
   }, [durationMs, mediaKind, mediaUrl]);
 

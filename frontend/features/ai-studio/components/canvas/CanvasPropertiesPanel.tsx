@@ -12,6 +12,12 @@ import { CanvasAudioCard } from "./CanvasAudioCard";
 import { CANVAS_TEXT_ITEM_MIN_HEIGHT } from "./canvasGeometry";
 
 const CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX = 14;
+const CANVAS_VIEWPORT_CULL_OVERSCAN_PX = 480;
+
+type CanvasViewportSize = {
+  width: number;
+  height: number;
+};
 
 const resolveCanvasMediaErrorKey = (item: CanvasSceneItem): string | null => {
   if (item.kind === "image") {
@@ -24,6 +30,37 @@ const resolveCanvasMediaErrorKey = (item: CanvasSceneItem): string | null => {
     return `${item.id}:audio:${item.audioUrl}`;
   }
   return null;
+};
+
+const getCanvasItemHeight = (item: CanvasSceneItem): number =>
+  item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height;
+
+const isCanvasItemInsideViewport = ({
+  item,
+  camera,
+  viewportSize,
+}: {
+  item: CanvasSceneItem;
+  camera: CanvasPropertiesPanelProps["camera"];
+  viewportSize: CanvasViewportSize;
+}): boolean => {
+  if (viewportSize.width <= 0 || viewportSize.height <= 0 || camera.zoom <= 0) return true;
+  const overscanWorldPx = CANVAS_VIEWPORT_CULL_OVERSCAN_PX / camera.zoom;
+  const viewportLeft = -camera.x / camera.zoom - overscanWorldPx;
+  const viewportTop = -camera.y / camera.zoom - overscanWorldPx;
+  const viewportRight = (-camera.x + viewportSize.width) / camera.zoom + overscanWorldPx;
+  const viewportBottom = (-camera.y + viewportSize.height) / camera.zoom + overscanWorldPx;
+  const itemLeft = item.x;
+  const itemTop = item.y;
+  const itemRight = item.x + item.width;
+  const itemBottom = item.y + getCanvasItemHeight(item);
+
+  return (
+    itemRight >= viewportLeft &&
+    itemLeft <= viewportRight &&
+    itemBottom >= viewportTop &&
+    itemTop <= viewportBottom
+  );
 };
 
 const useResolvedCanvasPropertiesPanelProps = (
@@ -476,6 +513,10 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
   const [isNativeDragModifierArmed, setIsNativeDragModifierArmed] = React.useState(false);
+  const [viewportSize, setViewportSize] = React.useState<CanvasViewportSize>({
+    width: 0,
+    height: 0,
+  });
   const interactionActiveRef = React.useRef(false);
   const wheelInteractionIdleTimeoutRef = React.useRef<number | null>(null);
   const itemDragPreviewIdSet = React.useMemo(
@@ -493,6 +534,18 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
         : null,
     [items, tearOutDragPreview]
   );
+  const renderedItems = React.useMemo(() => {
+    const preservedItemIds = new Set<string>();
+    if (editingTextItemId) preservedItemIds.add(editingTextItemId);
+    if (itemDragPreview?.activeItemId) preservedItemIds.add(itemDragPreview.activeItemId);
+    itemDragPreview?.itemIds.forEach((id) => preservedItemIds.add(id));
+    if (tearOutDragPreview?.activeItemId) preservedItemIds.add(tearOutDragPreview.activeItemId);
+
+    return items.filter((item) => {
+      if (item.selected || preservedItemIds.has(item.id)) return true;
+      return isCanvasItemInsideViewport({ item, camera, viewportSize });
+    });
+  }, [camera, editingTextItemId, itemDragPreview, items, tearOutDragPreview, viewportSize]);
   const activeMediaErrorKeys = React.useMemo(() => {
     const nextKeys = new Set<string>();
     items.forEach((item) => {
@@ -617,6 +670,31 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     };
   }, [releaseWheelInteractionAfterIdle, setCanvasInteractionActive, viewportRef]);
 
+  React.useEffect(() => {
+    const viewportNode = viewportRef.current;
+    if (!viewportNode) return;
+
+    const updateViewportSize = () => {
+      const bounds = viewportNode.getBoundingClientRect();
+      const nextWidth = Math.round(bounds.width || viewportNode.clientWidth || 0);
+      const nextHeight = Math.round(bounds.height || viewportNode.clientHeight || 0);
+      setViewportSize((current) => {
+        if (current.width === nextWidth && current.height === nextHeight) return current;
+        return { width: nextWidth, height: nextHeight };
+      });
+    };
+
+    updateViewportSize();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateViewportSize);
+      return () => window.removeEventListener("resize", updateViewportSize);
+    }
+
+    const resizeObserver = new ResizeObserver(updateViewportSize);
+    resizeObserver.observe(viewportNode);
+    return () => resizeObserver.disconnect();
+  }, [viewportRef]);
+
   return (
     <section className="canvas-properties-panel">
       <div
@@ -629,6 +707,9 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
         data-camera-x={camera.x}
         data-camera-y={camera.y}
         data-camera-zoom={camera.zoom}
+        data-canvas-rendered-item-count={renderedItems.length}
+        data-canvas-total-item-count={items.length}
+        data-canvas-culled-item-count={Math.max(0, items.length - renderedItems.length)}
         tabIndex={0}
         onPointerDown={(event) => {
           setCanvasInteractionActive(true);
@@ -685,7 +766,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
               </div>
             </article>
           ))}
-          {items.map((item) => {
+          {renderedItems.map((item) => {
             const isEditingTextItem = item.kind === "text" && editingTextItemId === item.id;
             const showTextResizeHandles =
               isTextResizeEnabled && item.kind === "text" && item.selected && !isEditingTextItem;

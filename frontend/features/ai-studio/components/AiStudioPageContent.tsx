@@ -67,12 +67,12 @@ import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry"
 import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
-  AI_SHELL_LEFT_CREATE_MAX_PX,
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_SOUND_MIN_PX,
   AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
+  AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
   resolveCreateShellResizeAction,
   shouldCollapseCreateOnSessionChange,
   shouldCollapseAiShellOnExpertEditPanelSelect,
@@ -334,6 +334,7 @@ type RightColumnDropPayload =
 const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
 const DROPPED_AUDIO_URL_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:[?#].*)?$/i;
 const DROPPED_VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogv|webm)(?:[?#].*)?$/i;
+const HEADER_SHORTCUT_SINGLE_CLICK_DELAY_MS = 250;
 
 const parseDropUrlCandidate = (value: string): string | null => {
   const candidate = value.trim();
@@ -942,6 +943,36 @@ export function AiStudioPageContent({
   );
   const visibleHeaderShortcutButtons = React.useMemo(() => AI_STUDIO_HEADER_SHORTCUT_BUTTONS, []);
   const expandedRightRailSnapshotRef = React.useRef<RightRailExpandedSnapshot | null>(null);
+  const pendingHeaderShortcutClickRef = React.useRef<number | null>(null);
+  const clearPendingHeaderShortcutClick = React.useCallback(() => {
+    const pendingClick = pendingHeaderShortcutClickRef.current;
+    if (pendingClick == null) return;
+    window.clearTimeout(pendingClick);
+    pendingHeaderShortcutClickRef.current = null;
+  }, []);
+  React.useEffect(() => clearPendingHeaderShortcutClick, [clearPendingHeaderShortcutClick]);
+  const handleHeaderShortcutClickIntent = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, action: () => void) => {
+      clearPendingHeaderShortcutClick();
+      if (event.detail === 0) {
+        action();
+        return;
+      }
+      if (event.detail > 1) return;
+      pendingHeaderShortcutClickRef.current = window.setTimeout(() => {
+        pendingHeaderShortcutClickRef.current = null;
+        action();
+      }, HEADER_SHORTCUT_SINGLE_CLICK_DELAY_MS);
+    },
+    [clearPendingHeaderShortcutClick]
+  );
+  const handleHeaderShortcutDoubleClickIntent = React.useCallback(
+    (action: () => void) => {
+      clearPendingHeaderShortcutClick();
+      action();
+    },
+    [clearPendingHeaderShortcutClick]
+  );
   const clearExpandedRightRailSession = React.useCallback(() => {
     expandedRightRailSnapshotRef.current = null;
     setExpandedRightRailTarget(null);
@@ -994,7 +1025,7 @@ export function AiStudioPageContent({
           : showExpertEditPanel
             ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
             : undefined;
-  const maxLeftWidthPx = showCreatePropertiesPanel ? AI_SHELL_LEFT_CREATE_MAX_PX : undefined;
+  const minRightWidthPx = showCreatePropertiesPanel ? AI_SHELL_RIGHT_COLLAPSED_MIN_PX : undefined;
   const defaultLeftRatio = isSoundWorkflow(selectedTool)
     ? 0.65
     : selectedTool === "character" || selectedTool === "elements"
@@ -1019,7 +1050,7 @@ export function AiStudioPageContent({
   } = useAiStudioShellResize({
     enabled: Boolean(selectedTool),
     minLeftWidthPx,
-    maxLeftWidthPx,
+    minRightWidthPx,
     defaultLeftRatio,
     minWidthResetKey: projectId,
   });
@@ -1821,9 +1852,13 @@ export function AiStudioPageContent({
                     type="button"
                     className="ai-hero-shortcut-button"
                     aria-pressed={isCanvasVisible}
-                    onClick={handleCanvasVisibilityToggle}
+                    onClick={(event) => {
+                      handleHeaderShortcutClickIntent(event, handleCanvasVisibilityToggle);
+                    }}
                     onDoubleClick={() => {
-                      handleExpandedRightRailToggle("canvas");
+                      handleHeaderShortcutDoubleClickIntent(() => {
+                        handleExpandedRightRailToggle("canvas");
+                      });
                     }}
                   >
                     Canvas
@@ -1841,9 +1876,15 @@ export function AiStudioPageContent({
                       className="ai-hero-shortcut-button"
                       aria-pressed={buttonState.pressed}
                       disabled={buttonState.disabled}
-                      onClick={() => handleHeaderShortcutToggle(shortcut.id)}
+                      onClick={(event) => {
+                        handleHeaderShortcutClickIntent(event, () =>
+                          handleHeaderShortcutToggle(shortcut.id)
+                        );
+                      }}
                       onDoubleClick={() => {
-                        handleExpandedRightRailToggle(shortcut.id);
+                        handleHeaderShortcutDoubleClickIntent(() => {
+                          handleExpandedRightRailToggle(shortcut.id);
+                        });
                       }}
                     >
                       {shortcut.label}

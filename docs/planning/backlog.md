@@ -42,9 +42,6 @@ Structure (locked):
 
 ## Program 3: Structural Decomposition
 
-- [ ] Split oversized AI Studio orchestration surfaces once the current runtime and media behavior is stable, focusing on `frontend/features/ai-studio/routes/AiStudioRouteApp.tsx` and `frontend/features/ai-studio/components/AiStudioPageContent.tsx` now that `frontend/pages/ai-studio.tsx` is only a thin dynamic entry.
-- [ ] Split oversized AI Studio properties-panel surfaces once behavior is stable, starting with `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx` and `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`.
-- [ ] Split oversized shared runtime modules into smaller ownership seams once convergence behavior is stable, starting with `frontend/lib/server/falIntegration/recoveryExecution.ts` and `frontend/lib/server/api/falStatusProxy.ts`.
 - [ ] Revisit typography foundation cleanup after the low-risk Google Fonts import removal: decide whether system fonts should become the canonical primary stack, then normalize remaining hard-coded `Inter` / `Satoshi` references and refresh the related design inventory docs.
       Reference: `frontend/styles/foundation.css`, `frontend/features/character-manager/components/CharacterDescriptionEditorCard.tsx`, `frontend/features/elements-manager/components/ElementsDescriptionEditorCard.tsx`, `docs/design/ai-studio-style-inventory.md`
 
@@ -52,6 +49,5 @@ Structure (locked):
 
 - [ ] Build a complete, polished collection of small delete buttons.
 - [ ] Build a complete, polished collection of small save buttons.
-- [ ] Finish the Dashboard redesign pass by retiring the remaining staged/legacy posture and tightening the long-term styling structure.
 
 ## Program 5: Release Confidence And Research

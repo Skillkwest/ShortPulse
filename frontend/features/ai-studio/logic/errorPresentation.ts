@@ -114,11 +114,16 @@ export const resolveAiStudioErrorPresentation = (
     !isGenericFailureMessage(output.errorMessageShort) && output.errorMessageShort?.trim()
       ? output.errorMessageShort
       : null;
+  const rawDetailedMessage =
+    !isGenericFailureMessage(output.errorMessage) && output.errorMessage?.trim()
+      ? output.errorMessage
+      : null;
   const rawMessage = firstPresent(
-    rawCompact,
-    output.errorMessage,
+    rawDetailedMessage,
     output.errorDetail,
     rawPayload,
+    rawCompact,
+    output.errorMessage,
     "Generation failed"
   );
   const modelLabel = resolveModelLabel(output);

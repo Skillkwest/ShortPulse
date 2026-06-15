@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveAiStudioErrorPresentation } from "../errorPresentation";
 import type { StudioOutput } from "../../types";
+import { AI_STUDIO_ERROR_SCENARIOS } from "../../testing/errorScenarioFixtures";
 
 const createFailedOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-error",
@@ -15,6 +16,24 @@ const createFailedOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput
 });
 
 describe("resolveAiStudioErrorPresentation", () => {
+  it.each(AI_STUDIO_ERROR_SCENARIOS)(
+    "normalizes $label across card, banner, and detail surfaces",
+    (scenario) => {
+      const presentation = resolveAiStudioErrorPresentation(scenario.output);
+
+      expect(presentation.category).toBe(scenario.expectedCategory);
+      expect(presentation.compactMessage).toContain(
+        scenario.expectedCompactText ?? scenario.expectedCardText
+      );
+      expect(presentation.bannerMessage).toContain(scenario.expectedBannerText);
+      expect(presentation.technicalDetail).toContain(scenario.expectedDetailText);
+      expect(presentation.rawPayload).toEqual(scenario.output.errorPayload ?? null);
+      for (const hiddenProbe of scenario.hiddenCardProbes) {
+        expect(presentation.compactMessage).not.toContain(hiddenProbe);
+      }
+    }
+  );
+
   it("uses compact copy for grid surfaces while preserving full technical detail", () => {
     const providerPayload = {
       error: {

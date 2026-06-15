@@ -3,6 +3,7 @@
  * Encodes dual-canvas scene + viewport + transient edit state for durable session persistence.
  */
 import type { CanvasCamera, CanvasSceneItem } from "../components/canvas/canvasTypes";
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import {
   CANVAS_AUDIO_ITEM_HEIGHT,
   CANVAS_AUDIO_ITEM_WIDTH,
@@ -39,6 +40,7 @@ type CanvasSceneItemSnapshotV1 =
       sourceSurface: ReferenceDragSourceSurface | null;
       mediaId: string | null;
       src: string;
+      srcStoragePath: string | null;
       alt: string;
       width: number;
       height: number;
@@ -54,6 +56,7 @@ type CanvasSceneItemSnapshotV1 =
       sourceSurface: ReferenceDragSourceSurface | null;
       mediaId: string | null;
       audioUrl: string;
+      audioStoragePath: string | null;
       title: string | null;
       companionArtUrl: string | null;
       companionArtStoragePath: string | null;
@@ -74,7 +77,9 @@ type CanvasSceneItemSnapshotV1 =
       sourceSurface: ReferenceDragSourceSurface | null;
       mediaId: string | null;
       videoUrl: string;
+      videoStoragePath: string | null;
       posterUrl: string | null;
+      posterStoragePath: string | null;
       title: string | null;
       durationMs: number | null;
       width: number;
@@ -205,6 +210,9 @@ const asDurableNullableCanvasMediaSource = (value: unknown): string | null => {
   return normalized && isDurableCanvasMediaSource(normalized) ? normalized : null;
 };
 
+const asCanvasStoragePath = (value: unknown): string | null =>
+  typeof value === "string" ? asCanonicalStoragePath(value) : null;
+
 const sortCanvasItemsForCap = (items: CanvasSceneItem[]): CanvasSceneItem[] =>
   [...items].sort((left, right) => {
     if (left.z !== right.z) return left.z - right.z;
@@ -230,6 +238,7 @@ const sanitizeCanvasSceneItem = (
         skippedNonDurableImage: true,
       };
     }
+    const srcStoragePath = asCanvasStoragePath(value.srcStoragePath);
     const width = Math.max(1, Math.round(asFiniteNumber(value.width, 1) * 100) / 100);
     const height = Math.max(1, Math.round(asFiniteNumber(value.height, 1) * 100) / 100);
     return {
@@ -244,6 +253,7 @@ const sanitizeCanvasSceneItem = (
         sourceSurface: normalizeSourceSurface(value.sourceSurface),
         mediaId: asNullableString(value.mediaId),
         src,
+        ...(srcStoragePath ? { srcStoragePath } : {}),
         alt: asString(value.alt, ""),
         width,
         height,
@@ -260,6 +270,7 @@ const sanitizeCanvasSceneItem = (
         skippedNonDurableImage: true,
       };
     }
+    const audioStoragePath = asCanvasStoragePath(value.audioStoragePath);
     const width = Math.max(
       1,
       Math.round(asFiniteNumber(value.width, CANVAS_AUDIO_ITEM_WIDTH) * 100) / 100
@@ -280,6 +291,7 @@ const sanitizeCanvasSceneItem = (
         sourceSurface: normalizeSourceSurface(value.sourceSurface),
         mediaId: asNullableString(value.mediaId),
         audioUrl,
+        ...(audioStoragePath ? { audioStoragePath } : {}),
         title: asNullableString(value.title),
         companionArtUrl: asNullableString(value.companionArtUrl),
         companionArtStoragePath: asNullableString(value.companionArtStoragePath),
@@ -304,6 +316,8 @@ const sanitizeCanvasSceneItem = (
         skippedNonDurableImage: true,
       };
     }
+    const videoStoragePath = asCanvasStoragePath(value.videoStoragePath);
+    const posterStoragePath = asCanvasStoragePath(value.posterStoragePath);
     const width = Math.max(
       1,
       Math.round(asFiniteNumber(value.width, CANVAS_IMAGE_ITEM_WIDTH) * 100) / 100
@@ -324,7 +338,9 @@ const sanitizeCanvasSceneItem = (
         sourceSurface: normalizeSourceSurface(value.sourceSurface),
         mediaId: asNullableString(value.mediaId),
         videoUrl,
+        ...(videoStoragePath ? { videoStoragePath } : {}),
         posterUrl: asDurableNullableCanvasMediaSource(value.posterUrl),
+        ...(posterStoragePath ? { posterStoragePath } : {}),
         title: asNullableString(value.title),
         durationMs:
           typeof value.durationMs === "number" && Number.isFinite(value.durationMs)
@@ -398,6 +414,7 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
           sourceSurface: item.sourceSurface ?? null,
           mediaId: item.mediaId,
           src: item.src,
+          srcStoragePath: item.srcStoragePath ?? null,
           alt: item.alt,
           width: item.width,
           height: item.height,
@@ -414,6 +431,7 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
             sourceSurface: item.sourceSurface ?? null,
             mediaId: item.mediaId,
             audioUrl: item.audioUrl,
+            audioStoragePath: item.audioStoragePath ?? null,
             title: item.title ?? null,
             companionArtUrl: item.companionArtUrl ?? null,
             companionArtStoragePath: item.companionArtStoragePath ?? null,
@@ -435,7 +453,9 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
               sourceSurface: item.sourceSurface ?? null,
               mediaId: item.mediaId,
               videoUrl: item.videoUrl,
+              videoStoragePath: item.videoStoragePath ?? null,
               posterUrl: item.posterUrl ?? null,
+              posterStoragePath: item.posterStoragePath ?? null,
               title: item.title ?? null,
               durationMs: item.durationMs ?? null,
               width: item.width,
@@ -538,6 +558,7 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
     if (kind === "image") {
       const src = asString(record.src, "").trim();
       if (!isDurableCanvasMediaSource(src)) return;
+      const srcStoragePath = asCanvasStoragePath(record.srcStoragePath);
       parsed.push({
         id,
         kind: "image",
@@ -549,6 +570,7 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         sourceSurface: normalizeSourceSurface(record.sourceSurface),
         mediaId: asNullableString(record.mediaId),
         src,
+        ...(srcStoragePath ? { srcStoragePath } : {}),
         alt: asString(record.alt, ""),
         width: Math.max(1, Math.round(asFiniteNumber(record.width, 220) * 100) / 100),
         height: Math.max(1, Math.round(asFiniteNumber(record.height, 275) * 100) / 100),
@@ -559,6 +581,7 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
       const audioUrl = asString(record.audioUrl, "").trim();
       if (!isDurableCanvasMediaSource(audioUrl)) return;
       const durationMs = asNullableFiniteNumber(record.durationMs);
+      const audioStoragePath = asCanvasStoragePath(record.audioStoragePath);
       parsed.push({
         id,
         kind: "audio",
@@ -570,6 +593,7 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         sourceSurface: normalizeSourceSurface(record.sourceSurface),
         mediaId: asNullableString(record.mediaId),
         audioUrl,
+        ...(audioStoragePath ? { audioStoragePath } : {}),
         title: asNullableString(record.title),
         companionArtUrl: asNullableString(record.companionArtUrl),
         companionArtStoragePath: asNullableString(record.companionArtStoragePath),
@@ -591,6 +615,8 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
       const videoUrl = asString(record.videoUrl, "").trim();
       if (!isDurableCanvasMediaSource(videoUrl)) return;
       const durationMs = asNullableFiniteNumber(record.durationMs);
+      const videoStoragePath = asCanvasStoragePath(record.videoStoragePath);
+      const posterStoragePath = asCanvasStoragePath(record.posterStoragePath);
       parsed.push({
         id,
         kind: "video",
@@ -602,7 +628,9 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         sourceSurface: normalizeSourceSurface(record.sourceSurface),
         mediaId: asNullableString(record.mediaId),
         videoUrl,
+        ...(videoStoragePath ? { videoStoragePath } : {}),
         posterUrl: asDurableNullableCanvasMediaSource(record.posterUrl),
+        ...(posterStoragePath ? { posterStoragePath } : {}),
         title: asNullableString(record.title),
         durationMs: durationMs === null ? null : Math.max(0, Math.round(durationMs)),
         width: Math.max(

@@ -954,7 +954,6 @@ function DetailModalContent({
 
   useEffect(() => {
     syncTextareaHeight(promptTextareaRef.current);
-    syncTextareaHeight(promptOnlyTextareaRef.current);
   }, [draftPrompt, generatedVoiceChangerTranscript, syncTextareaHeight]);
 
   useEffect(() => {

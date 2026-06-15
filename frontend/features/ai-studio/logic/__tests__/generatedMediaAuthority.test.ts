@@ -6,6 +6,7 @@ import {
   resolveVisibleGenerationDelivery,
   resolveVisibleGenerationReconcile,
 } from "../generatedMediaAuthority";
+import { getAiStudioErrorScenario } from "../../testing/errorScenarioFixtures";
 
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
@@ -2690,6 +2691,7 @@ describe("generatedMediaAuthority", () => {
   });
 
   it("restores failed project-scoped projection outputs as error references during active hydration", async () => {
+    const scenario = getAiStudioErrorScenario("provider_upstream");
     const projectGenerationBuilder = createAwaitableSelectBuilder({
       data: [],
       error: null,
@@ -2710,8 +2712,9 @@ describe("generatedMediaAuthority", () => {
           full_storage_path: null,
           task_state: "fail",
           queue_state: "failed",
-          error_message_short: "Unknown error",
-          error_detail: "Unknown error",
+          error_message_short: scenario.output.errorMessageShort,
+          error_detail: scenario.output.errorDetail,
+          error_payload: scenario.output.errorPayload,
           hidden_in_reference_grid: false,
           reference_grid_visible: true,
           generation_replay: {},
@@ -2748,9 +2751,10 @@ describe("generatedMediaAuthority", () => {
         prompt: "A failed voiceover",
         taskState: "fail",
         timestamp: "Failed",
-        errorMessage: "Unknown error",
-        errorMessageShort: "Unknown error",
-        errorDetail: "Unknown error",
+        errorMessage: scenario.output.errorMessageShort,
+        errorMessageShort: scenario.output.errorMessageShort,
+        errorDetail: scenario.output.errorDetail,
+        errorPayload: scenario.output.errorPayload,
         resultUrls: [],
         previewUrl: undefined,
         hiddenInReferenceGrid: false,

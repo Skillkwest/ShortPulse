@@ -7,6 +7,7 @@ import {
 } from "../../../../../lib/explicitContentFailure";
 import { resolveRequiredAudioMusicModelId } from "../../../../../lib/model-runtime/modelCatalog";
 import type { StudioOutput } from "../../../types";
+import { AI_STUDIO_ERROR_SCENARIOS } from "../../../testing/errorScenarioFixtures";
 import { __resetExclusiveSoundPlaybackForTests } from "../../../components/shared/exclusiveSoundPlayback";
 import { ReferenceGridCard } from "../ReferenceGridCard";
 
@@ -225,6 +226,24 @@ describe("ReferenceGridCard", () => {
     fireEvent.doubleClick(screen.getByRole("button"));
 
     expect(onOpenDetails).toHaveBeenCalledWith("image-ref-1", imageOutput);
+  });
+
+  it("opens failed error references in details on double click", () => {
+    const onOpenDetails = vi.fn();
+    const failedOutput = AI_STUDIO_ERROR_SCENARIOS[1]!.output;
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: failedOutput,
+          onOpenDetails,
+        })}
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByRole("button"));
+
+    expect(onOpenDetails).toHaveBeenCalledWith(failedOutput.id, failedOutput);
   });
 
   it("shows workflow reload for restorable generated references", () => {
@@ -528,7 +547,7 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByText("NSFW")).toBeNull();
   });
 
-  it("keeps provider validation detail out of compact failure subtitles", () => {
+  it("condenses provider validation detail in compact failure subtitles", () => {
     render(
       <ReferenceGridCard
         {...createProps({
@@ -541,11 +560,11 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(screen.getByText("Invalid request")).toBeInTheDocument();
+    expect(screen.getByText("text must be 2000 characters or …")).toBeInTheDocument();
     expect(screen.queryByText("text must be 2000 characters or fewer.")).toBeNull();
   });
 
-  it("keeps raw JSON validation detail out of compact failure subtitles", () => {
+  it("normalizes raw JSON validation detail in compact failure subtitles", () => {
     render(
       <ReferenceGridCard
         {...createProps({
@@ -558,10 +577,23 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(screen.getByText("Invalid request")).toBeInTheDocument();
-    expect(screen.queryByText("Prompt is required.")).toBeNull();
+    expect(screen.getByText("Prompt is required.")).toBeInTheDocument();
     expect(screen.queryByText('{"detail"', { exact: false })).toBeNull();
   });
+
+  it.each(AI_STUDIO_ERROR_SCENARIOS)(
+    "shows compact card copy for $label without leaking full detail",
+    (scenario) => {
+      render(<ReferenceGridCard {...createProps({ item: scenario.output })} />);
+
+      expect(
+        screen.getAllByText((content) => content.includes(scenario.expectedCardText)).length
+      ).toBeGreaterThan(0);
+      for (const hiddenProbe of scenario.hiddenCardProbes) {
+        expect(screen.queryByText(hiddenProbe, { exact: false })).toBeNull();
+      }
+    }
+  );
 
   it("condenses opaque upstream failures for compact failure subtitles", () => {
     render(

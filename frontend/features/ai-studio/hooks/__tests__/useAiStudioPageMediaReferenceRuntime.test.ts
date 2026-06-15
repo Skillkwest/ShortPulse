@@ -24,6 +24,7 @@ type MockDualCanvasArgs = {
     payload: InternalReferenceDragPayload,
     resolved: unknown
   ) => Promise<unknown> | unknown;
+  prepareCanvasMediaLibraryDrop?: (payload: unknown) => Promise<unknown> | unknown;
   resolveCanvasDroppedMediaReference?: (payload: {
     url: string;
     mimeType?: string | null;
@@ -1020,6 +1021,84 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
   });
 
+  it("vetoes stale internal canvas drops when durable storage signing fails", async () => {
+    const output = makeOutput({
+      id: "output-image-signing-failure",
+      mode: "image",
+      prompt: "Signing failure",
+      previewStoragePath: "user-1/variants/images/signing-failure.webp",
+      fullStoragePath: "user-1/generations/images/signing-failure.png",
+      previewUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-signing-failure"],
+    });
+    mediaSigningMocks.getSignedMediaUrl.mockRejectedValueOnce(new Error("signing failed"));
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const payload = makePayload({
+      outputId: output.id,
+      referenceId: output.id,
+      mediaKind: "image",
+      referenceUrl: "https://expired.shortpulse.test/stale-transfer.png",
+      referenceRenderUrl: "https://expired.shortpulse.test/stale-transfer.png",
+    });
+    const syncResolved = latestDualCanvasArgs?.resolveCanvasDropReference?.(payload);
+    const prepared = await latestDualCanvasArgs?.prepareResolvedInternalCanvasDrop?.(
+      payload,
+      syncResolved ?? null
+    );
+
+    expect(syncResolved).toMatchObject({
+      kind: "image",
+      src: "https://expired.shortpulse.test/stale-transfer.png",
+      srcStoragePath: "user-1/generations/images/signing-failure.png",
+    });
+    expect(prepared).toBeNull();
+  });
+
+  it("preserves storage authority for media-library canvas drops", async () => {
+    const addLibraryMediaReferenceToQuickSlot = vi.fn(async () => "library-output-1");
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        addLibraryMediaReferenceToQuickSlot,
+      })
+    );
+
+    const prepared = await latestDualCanvasArgs?.prepareCanvasMediaLibraryDrop?.({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-library-image-1",
+        url: "https://cdn.shortpulse.test/library-image.png",
+        fileType: "image",
+        filename: "library-image.png",
+        previewStoragePath: "user-1/library/library-image-preview.webp",
+        fullStoragePath: "user-1/library/library-image-full.png",
+        previewUrl: "https://expired.shortpulse.test/library-image-preview.webp",
+        fullUrl: "https://expired.shortpulse.test/library-image-full.png",
+        width: 640,
+        height: 480,
+      },
+    });
+
+    expect(prepared).toMatchObject({
+      kind: "image",
+      outputId: "library-output-1",
+      mediaId: "media-library-image-1",
+      src: "https://signed.shortpulse.test/user-1/library/library-image-preview.webp",
+      srcStoragePath: "user-1/library/library-image-full.png",
+      alt: "library-image.png",
+    });
+  });
+
   it("resolves dropped video files into canvas video items", async () => {
     const file = new File(["video"], "clip-1.mp4", { type: "video/mp4" });
     const ingestReferenceFiles = vi.fn(async () => [
@@ -1620,6 +1699,60 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     ).toHaveBeenCalledWith(["saved-media-direct-1"]);
   });
 
+  it("refreshes restored canvas media from stored paths when output and media ids are unavailable", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-storage-path-1",
+          kind: "image" as const,
+          x: 12,
+          y: 24,
+          z: 1,
+          selected: false,
+          outputId: null,
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          src: "https://expired.shortpulse.test/canvas-image.png",
+          srcStoragePath: "user-1/images/storage-path-refresh.png",
+          alt: "Canvas image",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        getOutputSnapshot: () => createOutputSnapshot(),
+      })
+    );
+
+    await waitFor(() => {
+      expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+        ...mockedCanvasSessionState,
+        items: [
+          expect.objectContaining({
+            id: "canvas-image-storage-path-1",
+            src: "https://signed.shortpulse.test/user-1/images/storage-path-refresh.png",
+            srcStoragePath: "user-1/images/storage-path-refresh.png",
+          }),
+        ],
+      });
+    });
+    expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/images/storage-path-refresh.png",
+    });
+  });
+
   it("retries failed canvas image renders through fresh output media authority", async () => {
     mockedCanvasSessionState = {
       items: [
@@ -1691,6 +1824,65 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       bucket: "media_library",
       storagePath: "user-1/images/render-error/full.png",
       forceRefresh: true,
+    });
+  });
+
+  it("retries failed canvas image renders through stored path authority without ids", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-storage-render-error-1",
+          kind: "image" as const,
+          x: 12,
+          y: 24,
+          z: 1,
+          selected: false,
+          outputId: null,
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          src: "https://expired.shortpulse.test/canvas-image.png",
+          srcStoragePath: "user-1/images/storage-render-error.png",
+          alt: "Expired image",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        getOutputSnapshot: () => createOutputSnapshot(),
+      })
+    );
+    mediaSigningMocks.getSignedMediaUrl.mockClear();
+
+    act(() => {
+      result.current.railCanvasProps.onCanvasMediaRenderError?.(mockedCanvasSessionState.items[0]);
+    });
+
+    await waitFor(() => {
+      expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+        bucket: "media_library",
+        storagePath: "user-1/images/storage-render-error.png",
+        forceRefresh: true,
+      });
+      expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+        ...mockedCanvasSessionState,
+        items: [
+          expect.objectContaining({
+            id: "canvas-image-storage-render-error-1",
+            src: "https://signed.shortpulse.test/user-1/images/storage-render-error.png",
+          }),
+        ],
+      });
     });
   });
 

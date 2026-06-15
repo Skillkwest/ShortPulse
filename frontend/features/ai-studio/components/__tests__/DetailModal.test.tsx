@@ -2,10 +2,13 @@
  * DetailModal behavior tests.
  * Verifies character attribution rendering for character-mode generated outputs.
  */
+import { useState, type ComponentProps } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DetailModal } from "../DetailModal";
+import { ReferenceGridCard } from "../../reference-grid/components/ReferenceGridCard";
 import type { StudioOutput } from "../../types";
+import { getAiStudioErrorScenario } from "../../testing/errorScenarioFixtures";
 
 const baseOutput: StudioOutput = {
   id: "out-1",
@@ -33,7 +36,76 @@ const buildGeneratedAudioOutput = (overrides: Partial<StudioOutput> = {}): Studi
   ...overrides,
 });
 
+const createReferenceGridCardProps = (
+  overrides: Partial<ComponentProps<typeof ReferenceGridCard>> = {}
+): ComponentProps<typeof ReferenceGridCard> => ({
+  item: baseOutput,
+  authorityTier: "reusable",
+  dragSourceSurface: "all-refs",
+  videoNodeKey: "video-node-key",
+  activeOutputId: null,
+  isLoading: false,
+  loadingVisual: "none",
+  cardPreviewUrl: null,
+  isVideoPreview: false,
+  isImagePreview: false,
+  canAutoplayVideo: false,
+  videoPreload: "none",
+  isPromptOnly: false,
+  isLinkedPromptReference: false,
+  canRetryStatus: false,
+  imageSrc: undefined,
+  imageLoading: "lazy",
+  imageFetchPriority: "low",
+  onSelectOutput: vi.fn(),
+  onOpenDetails: vi.fn(),
+  onCardDragStart: vi.fn(),
+  onCardDragEnd: vi.fn(),
+  registerVideoNode: vi.fn(),
+  markLoaded: vi.fn(),
+  onAutoplayStarted: vi.fn(),
+  onAutoplayStopped: vi.fn(),
+  ...overrides,
+});
+
 describe("DetailModal", () => {
+  it("opens a failed reference from the grid and shows full provider detail in the modal", () => {
+    const scenario = getAiStudioErrorScenario("provider_upstream");
+
+    function ErrorReferenceHarness() {
+      const [detailOutput, setDetailOutput] = useState<StudioOutput | null>(null);
+      return (
+        <>
+          <ReferenceGridCard
+            {...createReferenceGridCardProps({
+              item: scenario.output,
+              onOpenDetails: (_id, output) => setDetailOutput(output ?? null),
+            })}
+          />
+          <DetailModal
+            output={detailOutput}
+            onClose={() => setDetailOutput(null)}
+            onUpdatePrompt={vi.fn()}
+            onDeleteOutput={vi.fn()}
+          />
+        </>
+      );
+    }
+
+    render(<ErrorReferenceHarness />);
+
+    expect(
+      screen.getByText((content) => content.includes(scenario.expectedCardText))
+    ).toBeVisible();
+    expect(screen.queryByText("req_provider_upstream", { exact: false })).toBeNull();
+
+    fireEvent.doubleClick(screen.getByRole("button"));
+
+    expect(screen.getByText("ERROR")).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/Internal Error, Please try again later./)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/req_provider_upstream/)).toBeInTheDocument();
+  });
+
   it("shows character and style attribution with the actual model used", () => {
     render(
       <DetailModal

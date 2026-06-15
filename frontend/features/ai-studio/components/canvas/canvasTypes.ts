@@ -32,6 +32,7 @@ export type CanvasImageItem = CanvasSceneItemBase & {
   kind: "image";
   mediaId: string | null;
   src: string;
+  srcStoragePath?: string | null;
   alt: string;
   width: number;
   height: number;
@@ -41,7 +42,9 @@ export type CanvasVideoItem = CanvasSceneItemBase & {
   kind: "video";
   mediaId: string | null;
   videoUrl: string;
+  videoStoragePath?: string | null;
   posterUrl?: string | null;
+  posterStoragePath?: string | null;
   title?: string | null;
   durationMs?: number | null;
   width: number;
@@ -59,6 +62,7 @@ export type CanvasAudioItem = CanvasSceneItemBase & {
   kind: "audio";
   mediaId: string | null;
   audioUrl: string;
+  audioStoragePath?: string | null;
   title: string | null;
   companionArtUrl?: string | null;
   companionArtStoragePath?: string | null;
@@ -82,6 +86,7 @@ export type CanvasDropResolution =
       kind: "image";
       mediaId: string | null;
       src: string;
+      srcStoragePath?: string | null;
       alt: string;
       width?: number;
       height?: number;
@@ -90,7 +95,9 @@ export type CanvasDropResolution =
       kind: "video";
       mediaId: string | null;
       videoUrl: string;
+      videoStoragePath?: string | null;
       posterUrl?: string | null;
+      posterStoragePath?: string | null;
       title?: string | null;
       durationMs?: number | null;
       width?: number;
@@ -104,6 +111,7 @@ export type CanvasDropResolution =
       kind: "audio";
       mediaId: string | null;
       audioUrl: string;
+      audioStoragePath?: string | null;
       title?: string | null;
       companionArtUrl?: string | null;
       companionArtStoragePath?: string | null;

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioOptimisticDebitReconciliation } from "../useAiStudioOptimisticDebitReconciliation";
+import { getAiStudioErrorScenario } from "../../testing/errorScenarioFixtures";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -142,14 +143,10 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
 
   it("dismisses and focuses failure rows", () => {
     const setDetailOutputId = vi.fn();
+    const scenario = getAiStudioErrorScenario("provider_upstream");
     const { result } = renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
-        outputs: [
-          makeOutput("out-fail", "fail", {
-            errorMessage: "Failure",
-            errorMessageShort: "Content not allowed",
-          }),
-        ],
+        outputs: [scenario.output],
         optimisticDebitEntries: [],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(vi.fn()),
         refreshBalance: vi.fn(async () => 10),
@@ -157,18 +154,18 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
       })
     );
 
-    expect(result.current.visibleFailures.map((item) => item.id)).toEqual(["out-fail"]);
-    expect(result.current.visibleFailures[0]?.errorMessageShort).toBe("Content not allowed");
+    expect(result.current.visibleFailures.map((item) => item.id)).toEqual([scenario.output.id]);
+    expect(result.current.visibleFailures[0]?.errorPayload).toEqual(scenario.output.errorPayload);
 
     act(() => {
-      result.current.dismissFailure("out-fail");
+      result.current.dismissFailure(scenario.output.id);
     });
     expect(result.current.visibleFailures).toEqual([]);
 
     act(() => {
-      result.current.focusFailure("out-fail");
+      result.current.focusFailure(scenario.output.id);
     });
-    expect(setDetailOutputId).toHaveBeenCalledWith("out-fail");
+    expect(setDetailOutputId).toHaveBeenCalledWith(scenario.output.id);
   });
 
   it("excludes hidden failed outputs from visible failures", () => {

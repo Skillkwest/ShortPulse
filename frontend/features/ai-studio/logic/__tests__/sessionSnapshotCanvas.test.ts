@@ -179,6 +179,7 @@ describe("sessionSnapshotCanvas", () => {
         sourceSurface: "all-refs",
         mediaId: "media-audio-1",
         audioUrl: "https://example.com/audio-reference.mp3",
+        audioStoragePath: "user-1/audio/audio-reference.mp3",
         title: "Canvas audio",
         companionArtUrl: "https://example.com/audio-reference-cover.webp",
         companionArtStoragePath: "user-1/audio/audio-reference-cover.webp",
@@ -195,6 +196,7 @@ describe("sessionSnapshotCanvas", () => {
       expect.objectContaining({
         id: "audio-1",
         kind: "audio",
+        audioStoragePath: "user-1/audio/audio-reference.mp3",
         title: "Canvas audio",
         companionArtUrl: "https://example.com/audio-reference-cover.webp",
         companionArtStoragePath: "user-1/audio/audio-reference-cover.webp",
@@ -209,6 +211,7 @@ describe("sessionSnapshotCanvas", () => {
       expect.objectContaining({
         id: "audio-1",
         kind: "audio",
+        audioStoragePath: "user-1/audio/audio-reference.mp3",
         title: "Canvas audio",
         companionArtUrl: "https://example.com/audio-reference-cover.webp",
         companionArtStoragePath: "user-1/audio/audio-reference-cover.webp",
@@ -235,7 +238,9 @@ describe("sessionSnapshotCanvas", () => {
         sourceSurface: "curated",
         mediaId: "media-video-1",
         videoUrl: "https://example.com/video-reference.mp4",
+        videoStoragePath: "user-1/video/video-reference.mp4",
         posterUrl: "https://example.com/video-reference-poster.webp",
+        posterStoragePath: "user-1/video/video-reference-poster.webp",
         title: "Canvas video",
         durationMs: 8_000,
         width: 275,
@@ -249,7 +254,9 @@ describe("sessionSnapshotCanvas", () => {
         id: "video-1",
         kind: "video",
         videoUrl: "https://example.com/video-reference.mp4",
+        videoStoragePath: "user-1/video/video-reference.mp4",
         posterUrl: "https://example.com/video-reference-poster.webp",
+        posterStoragePath: "user-1/video/video-reference-poster.webp",
         title: "Canvas video",
         durationMs: 8_000,
       }),
@@ -261,7 +268,9 @@ describe("sessionSnapshotCanvas", () => {
         id: "video-1",
         kind: "video",
         videoUrl: "https://example.com/video-reference.mp4",
+        videoStoragePath: "user-1/video/video-reference.mp4",
         posterUrl: "https://example.com/video-reference-poster.webp",
+        posterStoragePath: "user-1/video/video-reference-poster.webp",
         title: "Canvas video",
         durationMs: 8_000,
         width: 275,
@@ -295,5 +304,65 @@ describe("sessionSnapshotCanvas", () => {
     const snapshot = serializeAiStudioSessionCanvasState(state);
     expect(snapshot.scene.items).toHaveLength(0);
     expect(snapshot.meta.skippedNonDurableImageCount).toBe(1);
+  });
+
+  it("round-trips image storage authority and rejects signed URLs as storage paths", () => {
+    const state = createCanvasState(0);
+    state.items = [
+      {
+        id: "image-with-storage",
+        kind: "image",
+        x: 10,
+        y: 20,
+        z: 2,
+        selected: false,
+        outputId: null,
+        sourceSurface: "all-refs",
+        mediaId: null,
+        src: "https://signed.shortpulse.test/render/image.png",
+        srcStoragePath: "user-1/images/canonical-image.png",
+        alt: "Stored image",
+        width: 320,
+        height: 180,
+      },
+      {
+        id: "image-with-signed-storage",
+        kind: "image",
+        x: 20,
+        y: 30,
+        z: 3,
+        selected: false,
+        outputId: null,
+        sourceSurface: "all-refs",
+        mediaId: null,
+        src: "https://signed.shortpulse.test/render/signed-image.png",
+        srcStoragePath: "https://signed.shortpulse.test/not-a-storage-path.png",
+        alt: "Signed path should not persist as authority",
+        width: 320,
+        height: 180,
+      },
+    ];
+
+    const snapshot = serializeAiStudioSessionCanvasState(state);
+    expect(snapshot.scene.items).toEqual([
+      expect.objectContaining({
+        id: "image-with-storage",
+        srcStoragePath: "user-1/images/canonical-image.png",
+      }),
+      expect.objectContaining({
+        id: "image-with-signed-storage",
+        srcStoragePath: null,
+      }),
+    ]);
+
+    const parsed = parseAiStudioSessionCanvasState(snapshot);
+    expect(parsed?.items[0]).toMatchObject({
+      id: "image-with-storage",
+      srcStoragePath: "user-1/images/canonical-image.png",
+    });
+    expect(parsed?.items[1]).toMatchObject({
+      id: "image-with-signed-storage",
+    });
+    expect(parsed?.items[1]).not.toHaveProperty("srcStoragePath");
   });
 });

@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { groupVisibleFailuresForAlertStack } from "../AiStudioPageContent";
+import { AI_STUDIO_ERROR_SCENARIOS } from "../../testing/errorScenarioFixtures";
 
 describe("groupVisibleFailuresForAlertStack", () => {
+  it.each(AI_STUDIO_ERROR_SCENARIOS)("uses normalized banner copy for $label", (scenario) => {
+    const grouped = groupVisibleFailuresForAlertStack([scenario.output]);
+
+    expect(grouped).toEqual([
+      expect.objectContaining({
+        ids: [scenario.output.id],
+        failureMessage: expect.stringContaining(scenario.expectedBannerText),
+        count: 1,
+      }),
+    ]);
+  });
+
   it("groups repeated failures with the same model label and message", () => {
     const grouped = groupVisibleFailuresForAlertStack([
       {

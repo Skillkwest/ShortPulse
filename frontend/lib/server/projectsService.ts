@@ -70,6 +70,7 @@ export type ProjectRecord = {
 };
 
 export type ProjectListLimit = number | typeof PROJECT_LIST_ALL;
+export type ProjectListPreviewMode = "include" | "none";
 
 const toProjectRecord = (row: ProjectRow): ProjectRecord => ({
   id: row.id,
@@ -374,6 +375,15 @@ export const parseProjectListOffset = (value: unknown): number | null => {
   return parsed;
 };
 
+export const parseProjectListPreviewMode = (value: unknown): ProjectListPreviewMode | null => {
+  if (value == null || value === "") return "include";
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string") return null;
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === "include" || normalized === "none") return normalized;
+  return null;
+};
+
 export const createProjectForUser = async ({
   userId,
   title,
@@ -426,10 +436,12 @@ export const listProjectsForUser = async ({
   userId,
   limit = DEFAULT_PROJECT_LIST_LIMIT,
   offset = 0,
+  includePreviews = true,
 }: {
   userId: string;
   limit?: ProjectListLimit;
   offset?: number;
+  includePreviews?: boolean;
 }): Promise<ProjectRecord[]> => {
   const supabaseAdmin = getSupabaseAdmin();
   let query = supabaseAdmin
@@ -452,7 +464,7 @@ export const listProjectsForUser = async ({
   }
 
   const projects = (data ?? []).map((row) => toProjectRecord(row as ProjectRow));
-  if (projects.length === 0) {
+  if (projects.length === 0 || !includePreviews) {
     return projects;
   }
 

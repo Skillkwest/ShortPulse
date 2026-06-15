@@ -863,30 +863,219 @@ const resolveCanonicalGenerationId = async ({
     generationId,
   });
 
-const resolveProjectionGenerationIdByColumn = async ({
+const resolveProjectAssociatedGenerationIdSet = async ({
+  supabase,
+  userId,
+  projectId,
+  generationIds,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string | null;
+  generationIds: readonly string[];
+}): Promise<Set<string>> => {
+  const normalizedGenerationIds = Array.from(
+    new Set(
+      generationIds
+        .map((generationId) => asTrimmedString(generationId))
+        .filter((generationId): generationId is string => Boolean(generationId))
+    )
+  );
+  const associatedGenerationIds = new Set<string>();
+  if (normalizedGenerationIds.length === 0) return associatedGenerationIds;
+  if (!projectId) {
+    normalizedGenerationIds.forEach((generationId) => associatedGenerationIds.add(generationId));
+    return associatedGenerationIds;
+  }
+
+  const [associationResult, projectionResult] = await Promise.all([
+    supabase
+      .from("project_generation_items")
+      .select("generation_id")
+      .eq("user_id", userId)
+      .eq("project_id", projectId)
+      .in("generation_id", normalizedGenerationIds),
+    supabase
+      .from("generation_projection")
+      .select("generation_id, project_id")
+      .eq("user_id", userId)
+      .eq("project_id", projectId)
+      .in("generation_id", normalizedGenerationIds),
+  ]);
+
+  if (!associationResult.error && Array.isArray(associationResult.data)) {
+    associationResult.data.forEach((row) => {
+      const generationId =
+        row && typeof row === "object" && !Array.isArray(row)
+          ? asTrimmedString((row as Record<string, unknown>).generation_id)
+          : null;
+      if (generationId) associatedGenerationIds.add(generationId);
+    });
+  }
+  if (!projectionResult.error && Array.isArray(projectionResult.data)) {
+    projectionResult.data.forEach((row) => {
+      const record =
+        row && typeof row === "object" && !Array.isArray(row)
+          ? (row as Record<string, unknown>)
+          : null;
+      const generationId = record ? asTrimmedString(record.generation_id) : null;
+      if (generationId && asTrimmedString(record?.project_id) === projectId) {
+        associatedGenerationIds.add(generationId);
+      }
+    });
+  }
+  return associatedGenerationIds;
+};
+
+const resolveProjectionGenerationIdsByColumn = async ({
   supabase,
   userId,
   column,
-  value,
+  values,
 }: {
   supabase: SupabaseClient;
   userId: string;
   column: "request_id" | "source_ref";
-  value: string | null;
-}): Promise<string | null> => {
-  const normalizedValue = asTrimmedString(value);
-  if (!normalizedValue) return null;
+  values: readonly string[];
+}): Promise<Map<string, string>> => {
+  const normalizedValues = Array.from(
+    new Set(
+      values
+        .map((value) => asTrimmedString(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  const generationIdByValue = new Map<string, string>();
+  if (normalizedValues.length === 0) return generationIdByValue;
 
-  const { data: projectionData, error: projectionError } = await supabase
+  const { data, error } = await supabase
     .from("generation_projection")
-    .select("generation_id")
+    .select(`generation_id, ${column}`)
     .eq("user_id", userId)
-    .eq(column, normalizedValue)
-    .limit(1)
-    .maybeSingle();
-  if (projectionError) return null;
+    .in(column, normalizedValues);
+  if (error || !Array.isArray(data)) return generationIdByValue;
 
-  return asTrimmedString((projectionData as Record<string, unknown> | null)?.generation_id);
+  data.forEach((row) => {
+    const record =
+      row && typeof row === "object" && !Array.isArray(row)
+        ? (row as Record<string, unknown>)
+        : null;
+    const key = record ? asTrimmedString(record[column]) : null;
+    const generationId = record ? asTrimmedString(record.generation_id) : null;
+    if (key && generationId && !generationIdByValue.has(key)) {
+      generationIdByValue.set(key, generationId);
+    }
+  });
+  return generationIdByValue;
+};
+
+type PendingCanonicalRuntimeIdentityResolution = {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string | null;
+  generationId: string | null;
+  requestId: string | null;
+  sourceRef: string | null;
+  resolve: (generationId: string | null) => void;
+};
+
+const pendingCanonicalRuntimeIdentityResolutions: PendingCanonicalRuntimeIdentityResolution[] = [];
+let canonicalRuntimeIdentityBatchScheduled = false;
+
+const resolveCanonicalRuntimeIdentityBatch = async (
+  entries: PendingCanonicalRuntimeIdentityResolution[]
+): Promise<Map<PendingCanonicalRuntimeIdentityResolution, string>> => {
+  const resolvedGenerationIdByEntry = new Map<PendingCanonicalRuntimeIdentityResolution, string>();
+  if (entries.length === 0) return resolvedGenerationIdByEntry;
+  const firstEntry = entries[0];
+  if (!firstEntry) return resolvedGenerationIdByEntry;
+
+  const generationIdByRequestId = await resolveProjectionGenerationIdsByColumn({
+    supabase: firstEntry.supabase,
+    userId: firstEntry.userId,
+    column: "request_id",
+    values: entries.map((entry) => entry.requestId ?? ""),
+  });
+  const generationIdBySourceRef = await resolveProjectionGenerationIdsByColumn({
+    supabase: firstEntry.supabase,
+    userId: firstEntry.userId,
+    column: "source_ref",
+    values: entries
+      .filter((entry) => !entry.requestId || !generationIdByRequestId.get(entry.requestId))
+      .map((entry) => entry.sourceRef ?? ""),
+  });
+
+  const candidateGenerationIds = entries.flatMap((entry) => {
+    const candidates = [
+      entry.requestId ? generationIdByRequestId.get(entry.requestId) : null,
+      entry.sourceRef ? generationIdBySourceRef.get(entry.sourceRef) : null,
+      entry.generationId,
+    ];
+    return candidates.filter((generationId): generationId is string => Boolean(generationId));
+  });
+  const associatedGenerationIds = await resolveProjectAssociatedGenerationIdSet({
+    supabase: firstEntry.supabase,
+    userId: firstEntry.userId,
+    projectId: firstEntry.projectId,
+    generationIds: candidateGenerationIds,
+  });
+
+  entries.forEach((entry) => {
+    const candidates = [
+      entry.requestId ? generationIdByRequestId.get(entry.requestId) : null,
+      entry.sourceRef ? generationIdBySourceRef.get(entry.sourceRef) : null,
+      entry.generationId,
+    ];
+    const resolvedGenerationId = candidates.find(
+      (generationId): generationId is string =>
+        typeof generationId === "string" && associatedGenerationIds.has(generationId)
+    );
+    if (resolvedGenerationId) resolvedGenerationIdByEntry.set(entry, resolvedGenerationId);
+  });
+
+  return resolvedGenerationIdByEntry;
+};
+
+const flushCanonicalRuntimeIdentityResolutionBatch = () => {
+  const pendingEntries = pendingCanonicalRuntimeIdentityResolutions.splice(0);
+  canonicalRuntimeIdentityBatchScheduled = false;
+  const entriesBySupabase = new Map<SupabaseClient, PendingCanonicalRuntimeIdentityResolution[]>();
+  pendingEntries.forEach((entry) => {
+    const entries = entriesBySupabase.get(entry.supabase) ?? [];
+    entries.push(entry);
+    entriesBySupabase.set(entry.supabase, entries);
+  });
+
+  entriesBySupabase.forEach((supabaseEntries) => {
+    const entriesByScope = new Map<string, PendingCanonicalRuntimeIdentityResolution[]>();
+    supabaseEntries.forEach((entry) => {
+      const scopeKey = `${entry.userId}\u0000${entry.projectId ?? ""}`;
+      const entries = entriesByScope.get(scopeKey) ?? [];
+      entries.push(entry);
+      entriesByScope.set(scopeKey, entries);
+    });
+
+    entriesByScope.forEach((scopeEntries) => {
+      void resolveCanonicalRuntimeIdentityBatch(scopeEntries)
+        .then((resolvedGenerationIdByEntry) => {
+          scopeEntries.forEach((entry) => {
+            entry.resolve(resolvedGenerationIdByEntry.get(entry) ?? null);
+          });
+        })
+        .catch(() => {
+          scopeEntries.forEach((entry) => entry.resolve(null));
+        });
+    });
+  });
+};
+
+const enqueueCanonicalRuntimeIdentityResolution = (
+  entry: PendingCanonicalRuntimeIdentityResolution
+) => {
+  pendingCanonicalRuntimeIdentityResolutions.push(entry);
+  if (canonicalRuntimeIdentityBatchScheduled) return;
+  canonicalRuntimeIdentityBatchScheduled = true;
+  globalThis.setTimeout(flushCanonicalRuntimeIdentityResolutionBatch, 0);
 };
 
 const resolveCanonicalGenerationIdFromRuntimeIdentity = async ({
@@ -904,44 +1093,22 @@ const resolveCanonicalGenerationIdFromRuntimeIdentity = async ({
   requestId?: string | null;
   sourceRef?: string | null;
 }): Promise<string | null> => {
-  const triedGenerationIds = new Set<string>();
+  const normalizedGenerationId = asTrimmedString(generationId);
+  const normalizedRequestId = asTrimmedString(requestId);
+  const normalizedSourceRef = asTrimmedString(sourceRef);
+  if (!normalizedGenerationId && !normalizedRequestId && !normalizedSourceRef) return null;
 
-  const resolveCandidate = async (candidateGenerationId: string | null): Promise<string | null> => {
-    const normalizedCandidateGenerationId = asTrimmedString(candidateGenerationId);
-    if (
-      !normalizedCandidateGenerationId ||
-      triedGenerationIds.has(normalizedCandidateGenerationId)
-    ) {
-      return null;
-    }
-    triedGenerationIds.add(normalizedCandidateGenerationId);
-    return await resolveCanonicalGenerationId({
+  return await new Promise<string | null>((resolve) => {
+    enqueueCanonicalRuntimeIdentityResolution({
       supabase,
       userId,
-      projectId,
-      generationId: normalizedCandidateGenerationId,
+      projectId: resolveProjectId(projectId ?? null),
+      generationId: normalizedGenerationId,
+      requestId: normalizedRequestId,
+      sourceRef: normalizedSourceRef,
+      resolve,
     });
-  };
-
-  const requestScopedGenerationId = await resolveProjectionGenerationIdByColumn({
-    supabase,
-    userId,
-    column: "request_id",
-    value: requestId ?? null,
   });
-  const resolvedRequestScopedGenerationId = await resolveCandidate(requestScopedGenerationId);
-  if (resolvedRequestScopedGenerationId) return resolvedRequestScopedGenerationId;
-
-  const sourceScopedGenerationId = await resolveProjectionGenerationIdByColumn({
-    supabase,
-    userId,
-    column: "source_ref",
-    value: sourceRef ?? null,
-  });
-  const resolvedSourceScopedGenerationId = await resolveCandidate(sourceScopedGenerationId);
-  if (resolvedSourceScopedGenerationId) return resolvedSourceScopedGenerationId;
-
-  return await resolveCandidate(generationId ?? null);
 };
 
 export const resolveGenerationIdForRequestId = async ({
@@ -1791,64 +1958,13 @@ const resolveCanonicalGenerationIdsForRuntimeIdentities = async ({
         .filter((generationId): generationId is string => Boolean(generationId))
     )
   );
-  const resolveProjectAssociatedGenerationIdSet = async (
-    candidateGenerationIds: readonly string[]
-  ): Promise<Set<string>> => {
-    const normalizedGenerationIds = Array.from(
-      new Set(
-        candidateGenerationIds
-          .map((generationId) => asTrimmedString(generationId))
-          .filter((generationId): generationId is string => Boolean(generationId))
-      )
-    );
-    const associatedGenerationIds = new Set<string>();
-    if (normalizedGenerationIds.length === 0) return associatedGenerationIds;
-    if (!projectId) {
-      normalizedGenerationIds.forEach((generationId) => associatedGenerationIds.add(generationId));
-      return associatedGenerationIds;
-    }
 
-    const [associationResult, projectionResult] = await Promise.all([
-      supabase
-        .from("project_generation_items")
-        .select("generation_id")
-        .eq("user_id", userId)
-        .eq("project_id", projectId)
-        .in("generation_id", normalizedGenerationIds),
-      supabase
-        .from("generation_projection")
-        .select("generation_id, project_id")
-        .eq("user_id", userId)
-        .eq("project_id", projectId)
-        .in("generation_id", normalizedGenerationIds),
-    ]);
-
-    if (!associationResult.error && Array.isArray(associationResult.data)) {
-      associationResult.data.forEach((row) => {
-        const generationId =
-          row && typeof row === "object" && !Array.isArray(row)
-            ? asTrimmedString((row as Record<string, unknown>).generation_id)
-            : null;
-        if (generationId) associatedGenerationIds.add(generationId);
-      });
-    }
-    if (!projectionResult.error && Array.isArray(projectionResult.data)) {
-      projectionResult.data.forEach((row) => {
-        const record =
-          row && typeof row === "object" && !Array.isArray(row)
-            ? (row as Record<string, unknown>)
-            : null;
-        const generationId = record ? asTrimmedString(record.generation_id) : null;
-        if (generationId && asTrimmedString(record?.project_id) === projectId) {
-          associatedGenerationIds.add(generationId);
-        }
-      });
-    }
-    return associatedGenerationIds;
-  };
-
-  const directAssociatedGenerationIds =
-    await resolveProjectAssociatedGenerationIdSet(directGenerationIds);
+  const directAssociatedGenerationIds = await resolveProjectAssociatedGenerationIdSet({
+    supabase,
+    userId,
+    projectId,
+    generationIds: directGenerationIds,
+  });
   const unresolvedRuntimeIdentities: VisibleGeneratedOutputRuntimeIdentity[] = [];
   normalizedRuntimeIdentities.forEach((runtimeIdentity) => {
     const generationId = asTrimmedString(runtimeIdentity.generationId);
@@ -1862,49 +1978,20 @@ const resolveCanonicalGenerationIdsForRuntimeIdentities = async ({
     return [...resolvedGenerationIds];
   }
 
-  const readProjectionGenerationIdByColumn = async (
-    column: "request_id" | "source_ref",
-    values: readonly string[]
-  ): Promise<Map<string, string>> => {
-    const normalizedValues = Array.from(
-      new Set(
-        values
-          .map((value) => asTrimmedString(value))
-          .filter((value): value is string => Boolean(value))
-      )
-    );
-    const generationIdByValue = new Map<string, string>();
-    if (normalizedValues.length === 0) return generationIdByValue;
-    const { data, error } = await supabase
-      .from("generation_projection")
-      .select(`generation_id, ${column}`)
-      .eq("user_id", userId)
-      .in(column, normalizedValues);
-    if (error || !Array.isArray(data)) return generationIdByValue;
-    data.forEach((row) => {
-      const record =
-        row && typeof row === "object" && !Array.isArray(row)
-          ? (row as Record<string, unknown>)
-          : null;
-      const key = record ? asTrimmedString(record[column]) : null;
-      const generationId = record ? asTrimmedString(record.generation_id) : null;
-      if (key && generationId && !generationIdByValue.has(key)) {
-        generationIdByValue.set(key, generationId);
-      }
-    });
-    return generationIdByValue;
-  };
-
-  const generationIdByRequestId = await readProjectionGenerationIdByColumn(
-    "request_id",
-    unresolvedRuntimeIdentities.map((identity) => identity.requestId ?? "")
-  );
-  const generationIdBySourceRef = await readProjectionGenerationIdByColumn(
-    "source_ref",
-    unresolvedRuntimeIdentities
+  const generationIdByRequestId = await resolveProjectionGenerationIdsByColumn({
+    supabase,
+    userId,
+    column: "request_id",
+    values: unresolvedRuntimeIdentities.map((identity) => identity.requestId ?? ""),
+  });
+  const generationIdBySourceRef = await resolveProjectionGenerationIdsByColumn({
+    supabase,
+    userId,
+    column: "source_ref",
+    values: unresolvedRuntimeIdentities
       .filter((identity) => !identity.requestId || !generationIdByRequestId.get(identity.requestId))
-      .map((identity) => identity.sourceRef ?? "")
-  );
+      .map((identity) => identity.sourceRef ?? ""),
+  });
   const identityResolvedGenerationIds = new Set<string>();
   unresolvedRuntimeIdentities.forEach((runtimeIdentity) => {
     const requestGenerationId = runtimeIdentity.requestId
@@ -1918,9 +2005,12 @@ const resolveCanonicalGenerationIdsForRuntimeIdentities = async ({
     if (resolvedGenerationId) identityResolvedGenerationIds.add(resolvedGenerationId);
   });
 
-  const associatedResolvedGenerationIds = await resolveProjectAssociatedGenerationIdSet([
-    ...identityResolvedGenerationIds,
-  ]);
+  const associatedResolvedGenerationIds = await resolveProjectAssociatedGenerationIdSet({
+    supabase,
+    userId,
+    projectId,
+    generationIds: [...identityResolvedGenerationIds],
+  });
   unresolvedRuntimeIdentities.forEach((runtimeIdentity) => {
     const requestGenerationId = runtimeIdentity.requestId
       ? generationIdByRequestId.get(runtimeIdentity.requestId)

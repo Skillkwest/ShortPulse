@@ -269,12 +269,10 @@ describe("ReferenceGrid curated split", () => {
     vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_CURATED_SPLIT", "false");
     vi.resetModules();
     const { ReferenceGrid: ReloadedReferenceGrid } = await import("../ReferenceGrid");
-    const onOpenMediaLibrary = vi.fn();
 
     const { container } = render(
       <ReloadedReferenceGrid
         {...createProps({
-          onOpenMediaLibrary,
           panelVisibility: {
             quickSlot: false,
             referenceGrid: true,
@@ -305,12 +303,9 @@ describe("ReferenceGrid curated split", () => {
     expect(
       within(allRefsSection as HTMLElement).getByRole("button", { name: /add files/i })
     ).toBeInTheDocument();
-    const mediaLibraryButton = within(allRefsSection as HTMLElement).getByRole("button", {
-      name: /media library/i,
-    });
-    expect(mediaLibraryButton).toBeInTheDocument();
-    fireEvent.click(mediaLibraryButton);
-    expect(onOpenMediaLibrary).toHaveBeenCalledTimes(1);
+    expect(
+      within(allRefsSection as HTMLElement).queryByRole("button", { name: /media library/i })
+    ).toBeNull();
   });
 
   it("keeps the primary pending output on spinner visuals after timeout fallback kicks in", () => {

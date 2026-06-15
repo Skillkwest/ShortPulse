@@ -19,13 +19,12 @@ describe("ReferenceGridArchiveControls", () => {
         archivedOutputs={[]}
         onToggleArchivePanel={vi.fn()}
         onTriggerFileSelect={vi.fn()}
-        onOpenMediaLibrary={vi.fn()}
       />
     );
 
     expect(screen.getByText(`Media: 7/${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Media Library" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Media Library" })).toBeNull();
   });
 
   it("marks the visible media count when the active workset is near the cap", () => {

@@ -45,7 +45,6 @@ const createProps = (): React.ComponentProps<typeof ReferenceGridSections> => ({
   archivedOutputs: [],
   onToggleArchivePanel: vi.fn(),
   onTriggerFileSelect: vi.fn(),
-  onOpenMediaLibrary: vi.fn(),
   onRestoreArchivedOutput: vi.fn(),
   onRestoreAllArchivedOutputs: vi.fn(),
   railCanvasProps: {} as never,

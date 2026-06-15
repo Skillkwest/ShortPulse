@@ -32,7 +32,6 @@ const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGrid
   onPasteTextReference: vi.fn(),
   onPasteMediaReference: vi.fn(),
   onTriggerFileSelect: vi.fn(),
-  onOpenMediaLibrary: vi.fn(),
   onSaveToLibrary: vi.fn(),
   onDownload: vi.fn(),
   onRetryStatus: vi.fn(),

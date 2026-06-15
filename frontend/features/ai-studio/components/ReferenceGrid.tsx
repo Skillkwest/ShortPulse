@@ -80,7 +80,6 @@ function ReferenceGridComponent({
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
   onTriggerFileSelect,
-  onOpenMediaLibrary,
   onSaveToLibrary,
   onDownload,
   onRetryStatus,
@@ -567,7 +566,6 @@ function ReferenceGridComponent({
         archivedOutputs={archivedOutputs}
         onToggleArchivePanel={() => setIsArchivePanelOpen((prev) => !prev)}
         onTriggerFileSelect={onTriggerFileSelect}
-        onOpenMediaLibrary={onOpenMediaLibrary}
         onRestoreArchivedOutput={onRestoreArchivedOutput}
         onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
         railCanvasSectionRef={railCanvasSectionRef}

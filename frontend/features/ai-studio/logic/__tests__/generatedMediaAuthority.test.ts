@@ -172,9 +172,12 @@ describe("generatedMediaAuthority", () => {
 
   it("resolves visible generation reconcile by request id through projection identity", async () => {
     const projectionIdentityBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-request-1",
-      },
+      data: [
+        {
+          generation_id: "gen-request-1",
+          request_id: "req-visible-1",
+        },
+      ],
       error: null,
     });
     const projectionDeliveryBuilder = createAwaitableSelectBuilder({
@@ -239,9 +242,12 @@ describe("generatedMediaAuthority", () => {
       ])
     );
     const projectionIdentityBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-request-durable-1",
-      },
+      data: [
+        {
+          generation_id: "gen-request-durable-1",
+          request_id: "req-visible-durable-1",
+        },
+      ],
       error: null,
     });
     const projectionDeliveryBuilder = createAwaitableSelectBuilder({
@@ -343,9 +349,12 @@ describe("generatedMediaAuthority", () => {
       ])
     );
     const projectionIdentityBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-request-canonical-1",
-      },
+      data: [
+        {
+          generation_id: "gen-request-canonical-1",
+          request_id: "req-visible-canonical-1",
+        },
+      ],
       error: null,
     });
     const projectionDeliveryBuilder = createAwaitableSelectBuilder({
@@ -2794,9 +2803,11 @@ describe("generatedMediaAuthority", () => {
 
   it("requires project generation association before reconciling project-route outputs", async () => {
     const projectGenerationBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-project-1",
-      },
+      data: [
+        {
+          generation_id: "gen-project-1",
+        },
+      ],
       error: null,
     });
     const projectionDeliveryBuilder = createAwaitableSelectBuilder({
@@ -2883,14 +2894,16 @@ describe("generatedMediaAuthority", () => {
 
   it("reconciles project-route outputs from projection project scope when association is missing", async () => {
     const projectGenerationBuilder = createAwaitableSelectBuilder({
-      data: null,
+      data: [],
       error: null,
     });
     const projectProjectionBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-project-projection-reconcile",
-        project_id: "project-1",
-      },
+      data: [
+        {
+          generation_id: "gen-project-projection-reconcile",
+          project_id: "project-1",
+        },
+      ],
       error: null,
     });
     const projectionDeliveryBuilder = createAwaitableSelectBuilder({
@@ -2947,20 +2960,25 @@ describe("generatedMediaAuthority", () => {
 
   it("reconciles project-route outputs from request identity when the explicit generation id is stale", async () => {
     const requestIdentityBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-project-request-reconcile",
-      },
+      data: [
+        {
+          generation_id: "gen-project-request-reconcile",
+          request_id: "req-project-request-reconcile",
+        },
+      ],
       error: null,
     });
     const projectGenerationBuilder = createAwaitableSelectBuilder({
-      data: null,
+      data: [],
       error: null,
     });
     const projectProjectionBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-project-request-reconcile",
-        project_id: "project-1",
-      },
+      data: [
+        {
+          generation_id: "gen-project-request-reconcile",
+          project_id: "project-1",
+        },
+      ],
       error: null,
     });
     const projectionDeliveryBuilder = createAwaitableSelectBuilder({
@@ -3019,20 +3037,25 @@ describe("generatedMediaAuthority", () => {
 
   it("reconciles project-route outputs from source refs when request ids are unavailable", async () => {
     const sourceRefIdentityBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-project-source-reconcile",
-      },
+      data: [
+        {
+          generation_id: "gen-project-source-reconcile",
+          source_ref: "source-project-source-reconcile",
+        },
+      ],
       error: null,
     });
     const projectGenerationBuilder = createAwaitableSelectBuilder({
-      data: null,
+      data: [],
       error: null,
     });
     const projectProjectionBuilder = createAwaitableSelectBuilder({
-      data: {
-        generation_id: "gen-project-source-reconcile",
-        project_id: "project-1",
-      },
+      data: [
+        {
+          generation_id: "gen-project-source-reconcile",
+          project_id: "project-1",
+        },
+      ],
       error: null,
     });
     const projectionDeliveryBuilder = createAwaitableSelectBuilder({
@@ -3087,5 +3110,110 @@ describe("generatedMediaAuthority", () => {
       fullStoragePath: "user-1/generations/images/gen-project-source-reconcile/full.png",
       resultUrls: ["https://fal.test/project-source-full.png"],
     });
+  });
+
+  it("batches concurrent project-route reconcile identity lookups", async () => {
+    const requestIdentityBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-batch-a",
+          request_id: "req-project-batch-a",
+        },
+        {
+          generation_id: "gen-project-batch-b",
+          request_id: "req-project-batch-b",
+        },
+      ],
+      error: null,
+    });
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "gen-project-batch-a" }, { generation_id: "gen-project-batch-b" }],
+      error: null,
+    });
+    const projectProjectionBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const firstDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://fal.test/project-batch-a-preview.png",
+        result_urls: ["https://fal.test/project-batch-a-full.png"],
+        preview_storage_path: "user-1/generations/images/gen-project-batch-a/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-batch-a/full.png",
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const secondDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://fal.test/project-batch-b-preview.png",
+        result_urls: ["https://fal.test/project-batch-b-full.png"],
+        preview_storage_path: "user-1/generations/images/gen-project-batch-b/preview.png",
+        full_storage_path: "user-1/generations/images/gen-project-batch-b/full.png",
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const generationProjectionSelect = vi
+      .fn()
+      .mockImplementationOnce(() => requestIdentityBuilder)
+      .mockImplementationOnce(() => projectProjectionBuilder)
+      .mockImplementationOnce(() => firstDeliveryBuilder)
+      .mockImplementationOnce(() => secondDeliveryBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        if (table === "generation_projection") {
+          return {
+            select: generationProjectionSelect,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      Promise.all([
+        resolveVisibleGenerationReconcile({
+          generationId: "gen-stale-project-a",
+          requestId: "req-project-batch-a",
+          projectId: "project-1",
+        }),
+        resolveVisibleGenerationReconcile({
+          generationId: "gen-stale-project-b",
+          requestId: "req-project-batch-b",
+          projectId: "project-1",
+        }),
+      ])
+    ).resolves.toEqual([
+      expect.objectContaining({
+        generationId: "gen-project-batch-a",
+        previewUrl: "https://fal.test/project-batch-a-preview.png",
+      }),
+      expect.objectContaining({
+        generationId: "gen-project-batch-b",
+        previewUrl: "https://fal.test/project-batch-b-preview.png",
+      }),
+    ]);
+    expect(requestIdentityBuilder.in).toHaveBeenCalledWith("request_id", [
+      "req-project-batch-a",
+      "req-project-batch-b",
+    ]);
+    expect(projectGenerationBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-project-batch-a",
+      "gen-stale-project-a",
+      "gen-project-batch-b",
+      "gen-stale-project-b",
+    ]);
+    expect(generationProjectionSelect).toHaveBeenCalledTimes(4);
   });
 });

@@ -570,6 +570,188 @@ describe("repairStaleTerminalGenerationProjections", () => {
     });
   });
 
+  it("reconstructs missing terminal success projections from root project metadata", async () => {
+    vi.mocked(associateGenerationWithProjectForUser).mockClear();
+    vi.mocked(associateMediaFilesWithProjectForUser).mockClear();
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [
+        {
+          id: "gen-root-project-metadata",
+          user_id: "user-root-project",
+          request_id: "req-root-project",
+          provider: "elevenlabs",
+          model_id: "eleven_music",
+          prompt_text: "root project prompt",
+          status: "success",
+          failure_reason_code: null,
+          completed_at: "2026-04-10T23:20:00.000Z",
+          created_at: "2026-04-10T23:00:00.000Z",
+          metadata: {
+            project_id: "project-root-1",
+            source_ref: "source-root-project",
+            generation_replay: { prompt: "root project prompt" },
+            workflow_reload: { version: 1, originTool: "music" },
+          },
+        },
+      ],
+      outputRows: [
+        {
+          id: "output-root-project",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/root-project.mp3",
+          media_file_id: "media-root-project",
+        },
+      ],
+      mediaRows: [
+        {
+          id: "media-root-project",
+          user_id: "user-root-project",
+          storage_path: "user-root-project/generations/audio/root-project.mp3",
+          preview_storage_path: "user-root-project/generations/audio/root-project-preview.png",
+          file_type: "audio/mpeg",
+        },
+      ],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 10,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-root-project-metadata",
+        user_id: "user-root-project",
+        project_id: "project-root-1",
+        source_ref: "source-root-project",
+        task_state: "success",
+        publication_state: "published",
+        result_urls: ["https://cdn.shortpulse.test/root-project.mp3"],
+        saved_media_ids: ["media-root-project"],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+    expect(associateGenerationWithProjectForUser).toHaveBeenCalledWith({
+      userId: "user-root-project",
+      projectId: "project-root-1",
+      generationId: "gen-root-project-metadata",
+    });
+    expect(associateMediaFilesWithProjectForUser).toHaveBeenCalledWith({
+      userId: "user-root-project",
+      projectId: "project-root-1",
+      mediaFileIds: ["media-root-project"],
+    });
+  });
+
+  it("backfills project scope on existing terminal projections without publishing suppressed rows", async () => {
+    vi.mocked(associateGenerationWithProjectForUser).mockClear();
+    vi.mocked(associateMediaFilesWithProjectForUser).mockClear();
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [
+        {
+          generation_id: "gen-terminal-project-backfill",
+          user_id: "user-terminal-project",
+          project_id: null,
+          source_ref: "source-terminal-project",
+          request_id: "req-terminal-project",
+          provider: "elevenlabs",
+          provider_request_id: "req-terminal-project",
+          display_prompt: "terminal project prompt",
+          model_id: "eleven_music",
+          task_state: "success",
+          publication_state: "suppressed",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: false,
+          workflow_reload: { version: 1, originTool: "music" },
+          started_at: "2026-04-10T23:00:00.000Z",
+        },
+      ],
+      generationRows: [
+        {
+          id: "gen-terminal-project-backfill",
+          user_id: "user-terminal-project",
+          request_id: "req-terminal-project",
+          provider: "elevenlabs",
+          model_id: "eleven_music",
+          prompt_text: "terminal project prompt",
+          status: "success",
+          failure_reason_code: null,
+          completed_at: "2026-04-10T23:20:00.000Z",
+          created_at: "2026-04-10T23:00:00.000Z",
+          metadata: {
+            project_id: "project-terminal-1",
+          },
+        },
+      ],
+      outputRows: [
+        {
+          id: "output-terminal-project",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/terminal-project.mp3",
+          media_file_id: "media-terminal-project",
+        },
+      ],
+      mediaRows: [
+        {
+          id: "media-terminal-project",
+          user_id: "user-terminal-project",
+          storage_path: "user-terminal-project/generations/audio/terminal-project.mp3",
+          preview_storage_path:
+            "user-terminal-project/generations/audio/terminal-project-preview.png",
+          file_type: "audio/mpeg",
+        },
+      ],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 10,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-terminal-project-backfill",
+        user_id: "user-terminal-project",
+        project_id: "project-terminal-1",
+        task_state: "success",
+        publication_state: "suppressed",
+        reference_grid_visible: false,
+        result_urls: ["https://cdn.shortpulse.test/terminal-project.mp3"],
+        saved_media_ids: ["media-terminal-project"],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+    expect(associateGenerationWithProjectForUser).toHaveBeenCalledWith({
+      userId: "user-terminal-project",
+      projectId: "project-terminal-1",
+      generationId: "gen-terminal-project-backfill",
+    });
+    expect(associateMediaFilesWithProjectForUser).toHaveBeenCalledWith({
+      userId: "user-terminal-project",
+      projectId: "project-terminal-1",
+      mediaFileIds: ["media-terminal-project"],
+    });
+  });
+
   it("pages past healthy terminal projections to repair older missing projections", async () => {
     vi.mocked(associateGenerationWithProjectForUser).mockClear();
     vi.mocked(associateMediaFilesWithProjectForUser).mockClear();

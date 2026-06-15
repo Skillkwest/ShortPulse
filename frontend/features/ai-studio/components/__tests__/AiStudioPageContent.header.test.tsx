@@ -6,9 +6,27 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
+import { AI_SHELL_RIGHT_COLLAPSED_MIN_PX } from "../../logic/shellResize";
+import type { ToolId } from "../../types";
 
 const voicePanelActiveSourceEffectMock = vi.hoisted(() => vi.fn());
 const mediaLibraryPanelPropsMock = vi.hoisted(() => vi.fn());
+const useAiStudioShellResizeMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    shellRef: { current: null },
+    leftColumnRef: { current: null },
+    leftWidthPx: null,
+    showDivider: false,
+    isResizing: false,
+    shellStyle: {},
+    collapseToMin: vi.fn(),
+    resetToDefaultWidth: vi.fn(),
+    restoreWidth: vi.fn(),
+    expandToMax: vi.fn(),
+    dividerProps: {},
+    rightColumnHidden: false,
+  }))
+);
 const useAiStudioStylesRuntimeMock = vi.hoisted(() =>
   vi.fn(() => ({
     handleDeleteStyle: vi.fn(),
@@ -145,20 +163,7 @@ vi.mock("../ElementsPanel", () => ({
 }));
 
 vi.mock("../../hooks/useAiStudioShellResize", () => ({
-  useAiStudioShellResize: () => ({
-    shellRef: { current: null },
-    leftColumnRef: { current: null },
-    leftWidthPx: null,
-    showDivider: false,
-    isResizing: false,
-    shellStyle: {},
-    collapseToMin: vi.fn(),
-    resetToDefaultWidth: vi.fn(),
-    restoreWidth: vi.fn(),
-    expandToMax: vi.fn(),
-    dividerProps: {},
-    rightColumnHidden: false,
-  }),
+  useAiStudioShellResize: useAiStudioShellResizeMock,
 }));
 
 vi.mock("../../hooks/useAiStudioShellDndController", () => ({
@@ -267,6 +272,7 @@ const createProps = (
 describe("AiStudioPageContent header project name", () => {
   beforeEach(() => {
     mediaLibraryPanelPropsMock.mockClear();
+    useAiStudioShellResizeMock.mockClear();
     useAiStudioStylesRuntimeMock.mockClear();
   });
 
@@ -434,4 +440,50 @@ describe("AiStudioPageContent header project name", () => {
       expect.objectContaining({ isStorageQuotaBlocked: true })
     );
   });
+
+  it.each([
+    "create",
+    "text",
+    "edit",
+    "image",
+    "video",
+    "kling",
+    "sound",
+    "voices",
+    "text-to-speech",
+    "voice-changer",
+    "sound-effects",
+    "music",
+  ] satisfies ToolId[])(
+    "allows %s to collapse the global right rail when the shell expands",
+    (selectedTool) => {
+      render(<AiStudioPageContent {...createProps()} selectedTool={selectedTool} />);
+
+      expect(useAiStudioShellResizeMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+        })
+      );
+    }
+  );
+
+  it.each([
+    "character",
+    "elements",
+    "media-library",
+    "styles",
+    "presets",
+    null,
+  ] satisfies Array<ToolId | null>)(
+    "preserves the default right-rail minimum for %s",
+    (selectedTool) => {
+      render(<AiStudioPageContent {...createProps()} selectedTool={selectedTool} />);
+
+      expect(useAiStudioShellResizeMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          minRightWidthPx: undefined,
+        })
+      );
+    }
+  );
 });

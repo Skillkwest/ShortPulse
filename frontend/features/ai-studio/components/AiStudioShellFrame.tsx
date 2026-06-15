@@ -115,7 +115,6 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
             onDropFiles={handleReferenceGridFiles}
             onTriggerFilePicker={triggerFilePicker}
             selectedTool={selectedTool}
-            onOpenMediaLibrary={onOpenMediaLibrary}
           />
           {showPreviewRail ? (
             <AiStudioPreviewRail

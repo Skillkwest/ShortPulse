@@ -107,9 +107,6 @@ export const areReferenceGridPropsEqual = (
   if (previous.onTriggerFileSelect !== next.onTriggerFileSelect) {
     return false;
   }
-  if (previous.onOpenMediaLibrary !== next.onOpenMediaLibrary) {
-    return false;
-  }
   if (previous.onSaveToLibrary !== next.onSaveToLibrary) {
     return false;
   }

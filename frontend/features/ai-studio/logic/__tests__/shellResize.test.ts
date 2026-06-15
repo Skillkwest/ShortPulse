@@ -68,15 +68,23 @@ describe("getAiShellLeftWidthBounds", () => {
     expect(bounds.max).toBe(1700 - AI_SHELL_DIVIDER_TRACK_PX);
   });
 
-  it("supports collapsing the right column when a caller allows a zero right minimum", () => {
-    const bounds = getAiShellLeftWidthBounds(1700, {
-      minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
-      minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
-    });
+  it.each([
+    { label: "Create", minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX },
+    { label: "Expert Edit", minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX },
+    { label: "Video", minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX },
+    { label: "Sound", minLeftWidthPx: AI_SHELL_LEFT_SOUND_MIN_PX },
+  ])(
+    "supports collapsing the right column for $label when a caller allows a zero right minimum",
+    ({ minLeftWidthPx }) => {
+      const bounds = getAiShellLeftWidthBounds(1700, {
+        minLeftWidthPx,
+        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+      });
 
-    expect(bounds.min).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
-    expect(bounds.max).toBe(1700 - AI_SHELL_DIVIDER_TRACK_PX);
-  });
+      expect(bounds.min).toBe(minLeftWidthPx);
+      expect(bounds.max).toBe(1700 - AI_SHELL_DIVIDER_TRACK_PX);
+    }
+  );
 });
 
 describe("clampAiShellLeftWidth", () => {
@@ -109,14 +117,22 @@ describe("clampAiShellLeftWidth", () => {
     ).toBe(1600 - AI_SHELL_DIVIDER_TRACK_PX);
   });
 
-  it("allows Create-style shells to clamp at the screen edge when the right rail is collapsible", () => {
-    expect(
-      clampAiShellLeftWidth(2000, 1600, {
-        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
-        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
-      })
-    ).toBe(1600 - AI_SHELL_DIVIDER_TRACK_PX);
-  });
+  it.each([
+    { label: "Create", minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX },
+    { label: "Expert Edit", minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX },
+    { label: "Video", minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX },
+    { label: "Sound", minLeftWidthPx: AI_SHELL_LEFT_SOUND_MIN_PX },
+  ])(
+    "allows $label shells to clamp at the screen edge when the right rail is collapsible",
+    ({ minLeftWidthPx }) => {
+      expect(
+        clampAiShellLeftWidth(2000, 1600, {
+          minLeftWidthPx,
+          minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+        })
+      ).toBe(1600 - AI_SHELL_DIVIDER_TRACK_PX);
+    }
+  );
 });
 
 describe("getDefaultAiShellLeftWidth", () => {

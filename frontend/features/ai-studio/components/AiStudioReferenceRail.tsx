@@ -14,7 +14,6 @@ type AiStudioReferenceRailProps = {
   onDropFiles: (files: FileList) => void;
   onTriggerFilePicker: () => void;
   selectedTool: ToolId | null;
-  onOpenMediaLibrary?: () => void;
 };
 
 const areAiStudioReferenceRailPropsEqual = (
@@ -24,15 +23,13 @@ const areAiStudioReferenceRailPropsEqual = (
   areReferenceGridPropsEqual(previous.referenceGridProps, next.referenceGridProps) &&
   previous.onDropFiles === next.onDropFiles &&
   previous.onTriggerFilePicker === next.onTriggerFilePicker &&
-  previous.selectedTool === next.selectedTool &&
-  previous.onOpenMediaLibrary === next.onOpenMediaLibrary;
+  previous.selectedTool === next.selectedTool;
 
 export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
   referenceGridProps,
   onDropFiles,
   onTriggerFilePicker,
   selectedTool,
-  onOpenMediaLibrary,
 }: AiStudioReferenceRailProps) {
   recordAiStudioShellSectionRender("reference");
   return (
@@ -43,7 +40,6 @@ export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
           onDropFiles={onDropFiles}
           onTriggerFileSelect={onTriggerFilePicker}
           selectedTool={selectedTool}
-          onOpenMediaLibrary={onOpenMediaLibrary}
         />
       </div>
     </div>

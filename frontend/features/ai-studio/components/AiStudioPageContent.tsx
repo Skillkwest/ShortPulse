@@ -961,7 +961,12 @@ export function AiStudioPageContent({
           : showExpertEditPanel
             ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
             : undefined;
-  const minRightWidthPx = showCreatePropertiesPanel ? AI_SHELL_RIGHT_COLLAPSED_MIN_PX : undefined;
+  const isCollapsibleRightRailShell =
+    showCreatePropertiesPanel ||
+    showExpertEditPanel ||
+    showVideoPropertiesPanel ||
+    isSoundWorkflow(selectedTool);
+  const minRightWidthPx = isCollapsibleRightRailShell ? AI_SHELL_RIGHT_COLLAPSED_MIN_PX : undefined;
   const defaultLeftRatio = isSoundWorkflow(selectedTool)
     ? 0.65
     : selectedTool === "character" || selectedTool === "elements"

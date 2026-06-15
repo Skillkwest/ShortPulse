@@ -195,11 +195,9 @@
   box-shadow: none;
 }
 
-/* Reference Grid Media Library CTA: mirror Media Library hot-pink-on-navy theme. */
+/* Reference Grid upload CTA and Media Library panel action styling. */
 .reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library,
-.preview-column-header .reference-grid-media-library-btn,
 .preview-column-header .reference-grid-add-files-btn,
-.reference-all-refs-header .reference-grid-media-library-btn,
 .reference-all-refs-header .reference-grid-add-files-btn {
   position: relative;
   overflow: hidden;
@@ -219,9 +217,7 @@
 }
 
 .reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library span,
-.preview-column-header .reference-grid-media-library-btn span,
 .preview-column-header .reference-grid-add-files-btn span,
-.reference-all-refs-header .reference-grid-media-library-btn span,
 .reference-all-refs-header .reference-grid-add-files-btn span {
   position: relative;
   z-index: 1;
@@ -230,9 +226,7 @@
 }
 
 .reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library svg,
-.preview-column-header .reference-grid-media-library-btn svg,
 .preview-column-header .reference-grid-add-files-btn svg,
-.reference-all-refs-header .reference-grid-media-library-btn svg,
 .reference-all-refs-header .reference-grid-add-files-btn svg {
   position: relative;
   z-index: 1;
@@ -242,36 +236,28 @@
   transition: color 0.18s ease;
 }
 
-/* Compact the two Reference Grid upload CTAs without affecting other media buttons. */
-.preview-column-header .reference-grid-media-library-btn,
+/* Compact the Reference Grid upload CTA without affecting other media buttons. */
 .preview-column-header .reference-grid-add-files-btn,
-.reference-all-refs-header .reference-grid-media-library-btn,
 .reference-all-refs-header .reference-grid-add-files-btn {
   min-height: 32px;
   padding: 6px 12px;
   gap: 5px;
 }
 
-.preview-column-header .reference-grid-media-library-btn span,
 .preview-column-header .reference-grid-add-files-btn span,
-.reference-all-refs-header .reference-grid-media-library-btn span,
 .reference-all-refs-header .reference-grid-add-files-btn span {
   font-size: 12px;
   font-weight: 600;
 }
 
-.preview-column-header .reference-grid-media-library-btn svg,
 .preview-column-header .reference-grid-add-files-btn svg,
-.reference-all-refs-header .reference-grid-media-library-btn svg,
 .reference-all-refs-header .reference-grid-add-files-btn svg {
   width: 14px;
   height: 14px;
 }
 
 .reference-canvas-panel
-  .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:hover:not(:disabled),
-.preview-column-header .reference-grid-media-library-btn:hover:not(:disabled),
-.reference-all-refs-header .reference-grid-media-library-btn:hover:not(:disabled) {
+  .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:hover:not(:disabled) {
   transform: translateY(-1px);
   border: 1px solid rgba(255, 123, 167, 0.56);
   background: linear-gradient(
@@ -302,16 +288,12 @@
 }
 
 .reference-canvas-panel
-  .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:active:not(:disabled),
-.preview-column-header .reference-grid-media-library-btn:active:not(:disabled),
-.reference-all-refs-header .reference-grid-media-library-btn:active:not(:disabled) {
+  .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:active:not(:disabled) {
   transform: translateY(0);
 }
 
 .reference-canvas-panel
-  .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:focus-visible,
-.preview-column-header .reference-grid-media-library-btn:focus-visible,
-.reference-all-refs-header .reference-grid-media-library-btn:focus-visible {
+  .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:focus-visible {
   outline: 2px solid rgba(255, 156, 215, 0.92);
   outline-offset: 2px;
 }
@@ -322,9 +304,7 @@
   outline-offset: 2px;
 }
 
-.reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:disabled,
-.preview-column-header .reference-grid-media-library-btn:disabled,
-.reference-all-refs-header .reference-grid-media-library-btn:disabled {
+.reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:disabled {
   opacity: 0.62;
   border-color: rgba(255, 140, 204, 0.34);
   box-shadow: none;

@@ -27,6 +27,7 @@ const upsertProjectWorkspaceStateForUserMock = vi.fn();
 const parseProjectIdMock = vi.fn();
 const parseProjectListLimitMock = vi.fn();
 const parseProjectListOffsetMock = vi.fn();
+const parseProjectListPreviewModeMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -47,6 +48,7 @@ vi.mock("../../lib/server/projectsService", () => ({
   parseProjectId: (...args: unknown[]) => parseProjectIdMock(...args),
   parseProjectListLimit: (...args: unknown[]) => parseProjectListLimitMock(...args),
   parseProjectListOffset: (...args: unknown[]) => parseProjectListOffsetMock(...args),
+  parseProjectListPreviewMode: (...args: unknown[]) => parseProjectListPreviewModeMock(...args),
 }));
 
 vi.mock("../../lib/server/projectWorkspaceStatesService", () => ({
@@ -112,6 +114,7 @@ describe("projects routes", () => {
     );
     parseProjectListLimitMock.mockReturnValue(3);
     parseProjectListOffsetMock.mockReturnValue(0);
+    parseProjectListPreviewModeMock.mockReturnValue("include");
     createProjectForUserMock.mockResolvedValue({
       id: "project-1",
       title: "Untitled project",
@@ -233,7 +236,12 @@ describe("projects routes", () => {
 
     await collectionHandler(req as never, res as never);
 
-    expect(listProjectsForUserMock).toHaveBeenCalledWith({ userId: "user-1", limit: 4, offset: 0 });
+    expect(listProjectsForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      limit: 4,
+      offset: 0,
+      includePreviews: true,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       projects: [
@@ -280,7 +288,12 @@ describe("projects routes", () => {
 
     await collectionHandler(req as never, res as never);
 
-    expect(listProjectsForUserMock).toHaveBeenCalledWith({ userId: "user-1", limit: 3, offset: 0 });
+    expect(listProjectsForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      limit: 3,
+      offset: 0,
+      includePreviews: true,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       projects: [
@@ -303,6 +316,23 @@ describe("projects routes", () => {
       userId: "user-1",
       limit: "all",
       offset: 0,
+      includePreviews: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("can list projects without preview enrichment for visible-first modal loading", async () => {
+    parseProjectListPreviewModeMock.mockReturnValueOnce("none");
+    const req = { method: "GET", query: { limit: "3", previewMode: "none" } };
+    const res = createMockResponse();
+
+    await collectionHandler(req as never, res as never);
+
+    expect(listProjectsForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      limit: 4,
+      offset: 0,
+      includePreviews: false,
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -327,6 +357,17 @@ describe("projects routes", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid project list offset" });
+  });
+
+  it("returns 400 for invalid project list preview mode", async () => {
+    parseProjectListPreviewModeMock.mockReturnValueOnce(null);
+    const req = { method: "GET", query: { limit: "3", previewMode: "bad" } };
+    const res = createMockResponse();
+
+    await collectionHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "Invalid project list preview mode" });
   });
 
   it("does not expose internal project list errors to callers", async () => {

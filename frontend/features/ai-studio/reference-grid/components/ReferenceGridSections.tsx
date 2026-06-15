@@ -39,7 +39,6 @@ type ReferenceGridSectionsProps = {
   archivedOutputs: StudioOutput[];
   onToggleArchivePanel: () => void;
   onTriggerFileSelect?: () => void;
-  onOpenMediaLibrary?: () => void;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
   railCanvasProps?: CanvasPropertiesPanelProps;
@@ -101,7 +100,6 @@ export function ReferenceGridSections({
   archivedOutputs,
   onToggleArchivePanel,
   onTriggerFileSelect,
-  onOpenMediaLibrary,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
   railCanvasProps,
@@ -460,7 +458,6 @@ export function ReferenceGridSections({
                     hideUploadActions={hideReferenceGridUploadActions}
                     onToggleArchivePanel={onToggleArchivePanel}
                     onTriggerFileSelect={onTriggerFileSelect}
-                    onOpenMediaLibrary={onOpenMediaLibrary}
                     onRestoreArchivedOutput={onRestoreArchivedOutput}
                     onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
                   />
@@ -543,7 +540,6 @@ export function ReferenceGridSections({
                       hideUploadActions={hideReferenceGridUploadActions}
                       onToggleArchivePanel={onToggleArchivePanel}
                       onTriggerFileSelect={onTriggerFileSelect}
-                      onOpenMediaLibrary={onOpenMediaLibrary}
                       onRestoreArchivedOutput={onRestoreArchivedOutput}
                       onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
                     />

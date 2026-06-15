@@ -83,6 +83,19 @@ const normalizeProjectPagePayload = (payload: ProjectsModalPayload) => ({
       : null,
 });
 
+const mergeProjectPreviewUrls = (
+  projects: ProjectListRecord[],
+  previewProjects: ProjectListRecord[]
+): ProjectListRecord[] => {
+  const previewUrlsByProjectId = new Map(
+    previewProjects.map((project) => [project.id, project.previewImageUrls ?? []])
+  );
+  return projects.map((project) => {
+    const previewImageUrls = previewUrlsByProjectId.get(project.id);
+    return previewImageUrls ? { ...project, previewImageUrls } : project;
+  });
+};
+
 const resolveProjectsLoadErrorMessage = (
   status: number,
   payload: ProjectsModalPayload | null
@@ -177,7 +190,9 @@ export function ProjectsModal({
       nextOffset: current.nextOffset,
     }));
 
-    void fetchWithAuth(`/api/projects?limit=${PROJECT_LIST_PAGE_SIZE}&offset=${requestOffset}`, {
+    const requestPath = `/api/projects?limit=${PROJECT_LIST_PAGE_SIZE}&offset=${requestOffset}`;
+
+    void fetchWithAuth(`${requestPath}&previewMode=none`, {
       method: "GET",
       shortpulseAuthTimeoutMs: 5000,
     })
@@ -197,6 +212,28 @@ export function ProjectsModal({
           hasMore: projectPage.hasMore,
           nextOffset: projectPage.nextOffset,
         }));
+
+        window.setTimeout(() => {
+          if (cancelled) return;
+          void fetchWithAuth(requestPath, {
+            method: "GET",
+            shortpulseAuthTimeoutMs: 5000,
+          })
+            .then(async (previewResponse) => {
+              const previewPayload = (await previewResponse
+                .json()
+                .catch(() => ({}))) as ProjectsModalPayload;
+              if (!previewResponse.ok || cancelled) return;
+              const previewPage = normalizeProjectPagePayload(previewPayload);
+              setLoadState((current) => ({
+                ...current,
+                projects: mergeProjectPreviewUrls(current.projects, previewPage.projects),
+              }));
+            })
+            .catch(() => {
+              // Project previews are enrichment; the modal remains usable without them.
+            });
+        }, 250);
       })
       .catch((error) => {
         if (cancelled) return;

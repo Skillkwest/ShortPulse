@@ -9,6 +9,7 @@ import {
   listProjectsForUser,
   parseProjectListLimit,
   parseProjectListOffset,
+  parseProjectListPreviewMode,
 } from "../../../lib/server/projectsService";
 
 type ProjectListResponse = {
@@ -48,6 +49,10 @@ export default async function handler(
   if (offset == null) {
     return res.status(400).json({ error: "Invalid project list offset" });
   }
+  const previewMode = parseProjectListPreviewMode(req.query.previewMode);
+  if (previewMode == null) {
+    return res.status(400).json({ error: "Invalid project list preview mode" });
+  }
 
   try {
     const pageLimit =
@@ -56,6 +61,7 @@ export default async function handler(
       userId: user.id,
       limit: pageLimit,
       offset,
+      includePreviews: previewMode === "include",
     });
     const hasMore = typeof limit === "number" && projects.length > limit;
     const visibleProjects = typeof limit === "number" ? projects.slice(0, limit) : projects;

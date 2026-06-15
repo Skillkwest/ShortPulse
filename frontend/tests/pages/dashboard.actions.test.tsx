@@ -195,7 +195,10 @@ describe("Dashboard actions", () => {
           json: async () => ({ announcement: null }),
         };
       }
-      if (input === "/api/projects?limit=12&offset=0") {
+      if (
+        input === "/api/projects?limit=12&offset=0" ||
+        input === "/api/projects?limit=12&offset=0&previewMode=none"
+      ) {
         return {
           ok: true,
           json: async () => ({
@@ -218,7 +221,10 @@ describe("Dashboard actions", () => {
           }),
         };
       }
-      if (input === "/api/projects?limit=12&offset=2") {
+      if (
+        input === "/api/projects?limit=12&offset=2" ||
+        input === "/api/projects?limit=12&offset=2&previewMode=none"
+      ) {
         return {
           ok: true,
           json: async () => ({
@@ -392,7 +398,7 @@ describe("Dashboard actions", () => {
 
     expect(await screen.findByRole("dialog", { name: "Projects" })).toBeInTheDocument();
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/projects?limit=12&offset=0",
+      "/api/projects?limit=12&offset=0&previewMode=none",
       expect.objectContaining({ method: "GET" })
     );
 

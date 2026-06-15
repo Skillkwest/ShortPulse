@@ -39,7 +39,6 @@ export type ReferenceGridProps = {
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   onTriggerFileSelect?: () => void;
-  onOpenMediaLibrary?: () => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
   onRetryStatus?: (output: StudioOutput) => void;

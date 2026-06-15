@@ -8,6 +8,8 @@ import {
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_MIN_PX,
+  AI_SHELL_LEFT_SOUND_MIN_PX,
+  AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_LEFT_WIDTH_STORAGE_KEY,
   AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
   AI_SHELL_RIGHT_COMPACT_MIN_PX,
@@ -345,48 +347,56 @@ describe("useAiStudioShellResize", () => {
     });
   });
 
-  it("allows Create to expand to the right edge and unmount right-rail content", async () => {
-    const originalInnerWidth = window.innerWidth;
-    Object.defineProperty(window, "innerWidth", {
-      configurable: true,
-      value: 1800,
-    });
-
-    const { result } = renderHook(() =>
-      useAiStudioShellResize({
-        enabled: true,
-        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
-        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
-      })
-    );
-
-    act(() => {
-      result.current.shellRef.current = {
-        getBoundingClientRect: () => ({ width: 1800 }),
-      } as HTMLElement;
-    });
-
-    await waitFor(() => {
-      expect(result.current.showDivider).toBe(true);
-    });
-
-    act(() => {
-      result.current.expandToMax();
-    });
-
-    await waitFor(() => {
-      expect(result.current.leftWidthPx).toBe(1800 - AI_SHELL_DIVIDER_TRACK_PX);
-      expect(result.current.rightColumnHidden).toBe(true);
-      expect(result.current.shellStyle).toMatchObject({
-        "--ai-shell-left-width": `${1800 - AI_SHELL_DIVIDER_TRACK_PX}px`,
-        "--ai-shell-right-min-width": `${AI_SHELL_RIGHT_COLLAPSED_MIN_PX}px`,
-        "--ai-shell-right-visibility": "0",
+  it.each([
+    { label: "Create", minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX },
+    { label: "Expert Edit", minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX },
+    { label: "Video", minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX },
+    { label: "Sound", minLeftWidthPx: AI_SHELL_LEFT_SOUND_MIN_PX },
+  ])(
+    "allows $label to expand to the right edge and unmount right-rail content",
+    async ({ minLeftWidthPx }) => {
+      const originalInnerWidth = window.innerWidth;
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1800,
       });
-    });
 
-    Object.defineProperty(window, "innerWidth", {
-      configurable: true,
-      value: originalInnerWidth,
-    });
-  });
+      const { result } = renderHook(() =>
+        useAiStudioShellResize({
+          enabled: true,
+          minLeftWidthPx,
+          minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+        })
+      );
+
+      act(() => {
+        result.current.shellRef.current = {
+          getBoundingClientRect: () => ({ width: 1800 }),
+        } as HTMLElement;
+      });
+
+      await waitFor(() => {
+        expect(result.current.showDivider).toBe(true);
+      });
+
+      act(() => {
+        result.current.expandToMax();
+      });
+
+      await waitFor(() => {
+        expect(result.current.leftWidthPx).toBe(1800 - AI_SHELL_DIVIDER_TRACK_PX);
+        expect(result.current.rightColumnHidden).toBe(true);
+        expect(result.current.shellStyle).toMatchObject({
+          "--ai-shell-left-width": `${1800 - AI_SHELL_DIVIDER_TRACK_PX}px`,
+          "--ai-shell-right-min-width": `${AI_SHELL_RIGHT_COLLAPSED_MIN_PX}px`,
+          "--ai-shell-right-visibility": "0",
+        });
+      });
+
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: originalInnerWidth,
+      });
+    }
+  );
 });

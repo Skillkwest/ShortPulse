@@ -137,6 +137,8 @@ type RepairableProjectionRow = {
   styleContext: JsonObject;
   startedAt: string | null;
   taskState: string | null;
+  publicationState: string | null;
+  repairReason: "stale_projection" | "generation_fallback" | "project_scope_backfill";
 };
 
 type RepairableGenerationRow = {
@@ -224,6 +226,8 @@ const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow |
     styleContext: asObject(row.style_context),
     startedAt: asString(row.started_at),
     taskState: asString(row.task_state),
+    publicationState: asString(row.publication_state),
+    repairReason: "stale_projection",
   };
 };
 
@@ -261,6 +265,7 @@ const readMetadataObject = (metadata: JsonObject, ...keys: string[]): JsonObject
 };
 
 const readRepairProjectIdFromMetadata = (metadata: JsonObject): string | null =>
+  readGenerationProjectIdFromContext(metadata) ??
   readGenerationProjectIdFromContext(
     readMetadataObject(metadata, "shortpulse_context", "shortpulseContext")
   );
@@ -326,6 +331,8 @@ const buildRepairProjectionFallback = ({
     styleContext: readMetadataObject(metadata, "style_context", "styleContext"),
     startedAt: generation.createdAt,
     taskState: projection?.taskState ?? null,
+    publicationState: projection?.publicationState ?? null,
+    repairReason: "generation_fallback",
   };
 };
 
@@ -904,6 +911,7 @@ export const repairStaleTerminalGenerationProjections = async ({
     "style_context",
     "started_at",
     "task_state",
+    "publication_state",
   ];
   const projectionRows = await readRepairableProjectionRowsWithFallback({
     selectColumns: repairSelectColumns,
@@ -965,14 +973,24 @@ export const repairStaleTerminalGenerationProjections = async ({
         ...terminalGenerations
           .filter((generation) => {
             const projection = projectionByGenerationId.get(generation.generationId) ?? null;
-            return !projection || !isTerminalProjectionTaskState(projection.taskState);
+            if (!projection || !isTerminalProjectionTaskState(projection.taskState)) return true;
+            return (
+              !projection.projectId && Boolean(readRepairProjectIdFromMetadata(generation.metadata))
+            );
           })
-          .map((generation) =>
-            buildRepairProjectionFallback({
+          .map((generation) => {
+            const projection = projectionByGenerationId.get(generation.generationId) ?? null;
+            if (projection && isTerminalProjectionTaskState(projection.taskState)) {
+              return {
+                ...projection,
+                repairReason: "project_scope_backfill" as const,
+              };
+            }
+            return buildRepairProjectionFallback({
               generation,
-              projection: projectionByGenerationId.get(generation.generationId) ?? null,
-            })
-          )
+              projection,
+            });
+          })
           .slice(0, remainingSlots)
       );
       if (
@@ -1025,6 +1043,10 @@ export const repairStaleTerminalGenerationProjections = async ({
 
     if (generation.status === "success") {
       const projectId = resolveRepairProjectId({ generation, projection });
+      if (projection.repairReason === "project_scope_backfill" && !projectId) {
+        skipped += 1;
+        continue;
+      }
       const workspaceRuntimeKey = resolveRepairWorkspaceRuntimeKey({ generation, projection });
       const sourceRef = resolveRepairSourceRef({ generation, projection });
       const outputRows = await readPersistedGenerationOutputs({
@@ -1056,7 +1078,17 @@ export const repairStaleTerminalGenerationProjections = async ({
             typeof row.mediaFileId === "string" && deliveryPathsByMediaId.has(row.mediaFileId)
         );
       const hasDisplayableResultMedia = resultUrls.length > 0;
-      const referenceGridVisible = hasDisplayableResultMedia && !projection.hiddenInReferenceGrid;
+      const preservesSuppressedPublication =
+        projection.publicationState?.toLowerCase() === "suppressed";
+      const publicationState = preservesSuppressedPublication
+        ? "suppressed"
+        : allOutputsOwned
+          ? "published"
+          : "suppressed";
+      const referenceGridVisible =
+        preservesSuppressedPublication && projection.referenceGridVisible === false
+          ? false
+          : hasDisplayableResultMedia && !projection.hiddenInReferenceGrid;
 
       await upsertGenerationProjection({
         supabaseAdmin: adminClient,
@@ -1082,7 +1114,7 @@ export const repairStaleTerminalGenerationProjections = async ({
         saveState: "idle",
         hiddenInReferenceGrid: projection.hiddenInReferenceGrid,
         referenceGridVisible,
-        publicationState: allOutputsOwned ? "published" : "suppressed",
+        publicationState,
         resultUrls,
         savedMediaIds: allOutputsOwned ? verifiedSavedMediaIds : [],
         generationReplay: projection.generationReplay,
@@ -1092,7 +1124,6 @@ export const repairStaleTerminalGenerationProjections = async ({
         startedAt: projection.startedAt,
         completedAt: generation.completedAt,
       });
-      const publicationState = allOutputsOwned ? "published" : "suppressed";
       await Promise.all(
         outputRows.map(async (row) => {
           if (!row.id) return;
@@ -1158,6 +1189,10 @@ export const repairStaleTerminalGenerationProjections = async ({
     }
 
     const projectId = resolveRepairProjectId({ generation, projection });
+    if (projection.repairReason === "project_scope_backfill" && !projectId) {
+      skipped += 1;
+      continue;
+    }
     const workspaceRuntimeKey = resolveRepairWorkspaceRuntimeKey({ generation, projection });
     const sourceRef = resolveRepairSourceRef({ generation, projection });
     const message = readFailedProjectionMessage(

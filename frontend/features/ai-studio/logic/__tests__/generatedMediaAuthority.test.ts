@@ -3138,36 +3138,36 @@ describe("generatedMediaAuthority", () => {
       data: [],
       error: null,
     });
-    const firstDeliveryBuilder = createAwaitableSelectBuilder({
-      data: {
-        preview_url: "https://fal.test/project-batch-a-preview.png",
-        result_urls: ["https://fal.test/project-batch-a-full.png"],
-        preview_storage_path: "user-1/generations/images/gen-project-batch-a/preview.png",
-        full_storage_path: "user-1/generations/images/gen-project-batch-a/full.png",
-        task_state: "success",
-        hidden_in_reference_grid: false,
-        reference_grid_visible: true,
-      },
-      error: null,
-    });
-    const secondDeliveryBuilder = createAwaitableSelectBuilder({
-      data: {
-        preview_url: "https://fal.test/project-batch-b-preview.png",
-        result_urls: ["https://fal.test/project-batch-b-full.png"],
-        preview_storage_path: "user-1/generations/images/gen-project-batch-b/preview.png",
-        full_storage_path: "user-1/generations/images/gen-project-batch-b/full.png",
-        task_state: "success",
-        hidden_in_reference_grid: false,
-        reference_grid_visible: true,
-      },
+    const deliveryBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-batch-a",
+          preview_url: "https://fal.test/project-batch-a-preview.png",
+          result_urls: ["https://fal.test/project-batch-a-full.png"],
+          preview_storage_path: "user-1/generations/images/gen-project-batch-a/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-batch-a/full.png",
+          task_state: "success",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+        {
+          generation_id: "gen-project-batch-b",
+          preview_url: "https://fal.test/project-batch-b-preview.png",
+          result_urls: ["https://fal.test/project-batch-b-full.png"],
+          preview_storage_path: "user-1/generations/images/gen-project-batch-b/preview.png",
+          full_storage_path: "user-1/generations/images/gen-project-batch-b/full.png",
+          task_state: "success",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
       error: null,
     });
     const generationProjectionSelect = vi
       .fn()
       .mockImplementationOnce(() => requestIdentityBuilder)
       .mockImplementationOnce(() => projectProjectionBuilder)
-      .mockImplementationOnce(() => firstDeliveryBuilder)
-      .mockImplementationOnce(() => secondDeliveryBuilder);
+      .mockImplementationOnce(() => deliveryBuilder);
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
@@ -3218,6 +3218,10 @@ describe("generatedMediaAuthority", () => {
       "gen-project-batch-b",
       "gen-stale-project-b",
     ]);
-    expect(generationProjectionSelect).toHaveBeenCalledTimes(4);
+    expect(deliveryBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-project-batch-a",
+      "gen-project-batch-b",
+    ]);
+    expect(generationProjectionSelect).toHaveBeenCalledTimes(3);
   });
 });

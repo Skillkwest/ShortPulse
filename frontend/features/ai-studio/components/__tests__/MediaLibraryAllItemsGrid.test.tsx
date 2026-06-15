@@ -499,8 +499,9 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(screen.queryByAltText("voice-note-1.mp3")).toBeNull();
   });
 
-  it("downloads signed audio from the mixed-feed inline audio button without selecting or playing", () => {
+  it("renders mixed-feed audio download and delete together in the hover action row", () => {
     const props = baseProps();
+    props.showDeleteAction = true;
     props.mediaRows = [
       {
         id: "audio-1",
@@ -514,15 +515,32 @@ describe("MediaLibraryAllItemsGrid", () => {
       },
     ];
 
-    render(<MediaLibraryAllItemsGrid {...props} />);
+    const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Download audio voice-note-1.mp3" }));
+    const downloadButton = screen.getByRole("button", {
+      name: "Download media voice-note-1.mp3",
+    });
+    const deleteButton = screen.getByRole("button", {
+      name: "Delete media voice-note-1.mp3",
+    });
+    const actionRow = downloadButton.parentElement;
+
+    expect(actionRow).toHaveClass("media-library-panel-card-actions");
+    expect(actionRow).toContainElement(deleteButton);
+    expect(container.querySelector(".reference-card-audio-download")).toBeNull();
+
+    fireEvent.click(downloadButton);
 
     expect(props.onDownloadMediaFile).toHaveBeenCalledWith(
       expect.objectContaining({ id: "audio-1" })
     );
     expect(props.onSelectMediaFile).not.toHaveBeenCalled();
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+
+    fireEvent.click(deleteButton);
+    expect(props.onDeleteMediaFromLibrary).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "audio-1" })
+    );
   });
 
   it("marks signed audio URLs as loaded when the player becomes ready", () => {

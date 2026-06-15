@@ -1425,6 +1425,67 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
   });
 
+  it("does not rescan output authority for transient canvas state changes", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-transient-1",
+          kind: "image" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: false,
+          outputId: "output-image-transient-1",
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          src: "https://signed.shortpulse.test/transient-image.png",
+          alt: "Transient image",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const getOutputSnapshot = vi.fn(() => createOutputSnapshot());
+    const getOutputById = vi.fn(() => null);
+
+    const { rerender } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById,
+        getOutputSnapshot,
+      })
+    );
+
+    await waitFor(() => {
+      expect(getOutputSnapshot).toHaveBeenCalled();
+    });
+    const outputSnapshotCallsAfterMount = getOutputSnapshot.mock.calls.length;
+
+    mockedCanvasSessionState = {
+      ...mockedCanvasSessionState,
+      items: mockedCanvasSessionState.items.map((item) => ({
+        ...item,
+        selected: true,
+      })),
+      draftTextEntry: { x: 100, y: 200, value: "typing" },
+      textEditSession: { itemId: "canvas-image-transient-1", value: "editing" },
+      draftOwnerInstanceId: "main",
+      textEditOwnerInstanceId: "rail",
+      mainCamera: { x: 200, y: -100, zoom: 1.5 },
+      railCamera: { x: -50, y: 25, zoom: 0.8 },
+    };
+
+    rerender();
+
+    expect(getOutputSnapshot).toHaveBeenCalledTimes(outputSnapshotCallsAfterMount);
+  });
+
   it("hydrates restored canvas video posters from output storage authority without a media id", async () => {
     mockedCanvasSessionState = {
       items: [

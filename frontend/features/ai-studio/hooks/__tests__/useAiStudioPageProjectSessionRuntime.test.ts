@@ -9,7 +9,10 @@ import {
   type AiStudioSessionSnapshotV2,
 } from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
-import { parseAiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
+import {
+  parseAiStudioSessionCanvasState,
+  type AiStudioSessionCanvasState,
+} from "../../logic/sessionSnapshotCanvas";
 import { createProjectRestoreSnapshot } from "../../logic/projectRestoreSnapshot";
 import { useAiStudioPageProjectSessionRuntime } from "../useAiStudioPageProjectSessionRuntime";
 
@@ -162,6 +165,116 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     expect(normalizedCanvas?.textEditSession).toBeNull();
     expect(normalizedCanvas?.items[0]?.selected).toBe(false);
     expect("expertEdit" in normalized).toBe(false);
+  });
+
+  it("keeps the project snapshot builder stable across transient canvas edits", () => {
+    const buildProjectWorkspaceSnapshot = vi.fn(() => createEmptyAiStudioSessionSnapshot());
+    const hydrateFromSessionSnapshot = vi.fn((snapshot: AiStudioSessionSnapshot) =>
+      createHydrationPayload(snapshot)
+    );
+    const persistedAgentRuntime = {
+      messages: [],
+      input: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual" as const,
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    };
+    const baseCanvasState: AiStudioSessionCanvasState = {
+      items: [
+        {
+          id: "canvas-text-1",
+          kind: "text" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: false,
+          outputId: null,
+          sourceSurface: null,
+          text: "Committed text",
+          width: 260,
+          height: 80,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+
+    const { rerender } = renderHook(
+      ({ canvasSessionState }) =>
+        useAiStudioPageProjectSessionRuntime({
+          activeCreateAgentKind: "standard",
+          activeCreatePulsePresetId: null,
+          activeSessionPersistenceSessionId: "session-1",
+          buildProjectWorkspaceSnapshot,
+          buildSessionSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
+          canvasSessionState,
+          createSelectedCharacterId: "",
+          createSelectedCharacterLookId: "",
+          expertCreateMode: "standard",
+          expertEditSessionRevision: 0,
+          getExpertEditSessionState: vi.fn(() => null),
+          hasActivePulseSession: false,
+          hydrateActiveFromSessionAgentSnapshot: vi.fn(),
+          hydrateCanvasSessionState: vi.fn(),
+          hydrateFromSessionSnapshot,
+          persistedAgentRuntime,
+          projectId: "project-1",
+          projectRouteRequested: true,
+          pulseWorkflowSession: null,
+          resetActiveProjectAgentConversation: vi.fn(),
+          sessionPersistenceTitleOverride: null,
+          setCreateSelectedCharacterId: vi.fn(),
+          setCreateSelectedCharacterLookId: vi.fn(),
+          setIsCreateCharacterModeEnabled: vi.fn(),
+          setExpertEditSessionState: vi.fn(),
+          setMusicPromptDraft: createNoopDraftSetter(),
+          setMusicLyricsDraft: createNoopDraftSetter(),
+          setSoundEffectsPromptDraft: createNoopDraftSetter(),
+          setUiNotice: vi.fn(),
+          setVoiceDesignPromptDraft: createNoopDraftSetter(),
+          setVoiceScriptDraft: createNoopDraftSetter(),
+        }),
+      {
+        initialProps: {
+          canvasSessionState: baseCanvasState,
+        },
+      }
+    );
+
+    const firstBuildBaseSessionSnapshot = useAiStudioPageSessionPersistenceMock.mock.calls[0]?.[0]
+      .buildBaseSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot;
+
+    rerender({
+      canvasSessionState: {
+        ...baseCanvasState,
+        items: baseCanvasState.items.map((item) => ({
+          ...item,
+          selected: true,
+        })),
+        draftTextEntry: { x: 100, y: 200, value: "typing" },
+        textEditSession: { itemId: "canvas-text-1", value: "editing" },
+        draftOwnerInstanceId: "main" as const,
+        textEditOwnerInstanceId: "rail" as const,
+      },
+    });
+
+    const nextBuildBaseSessionSnapshot = useAiStudioPageSessionPersistenceMock.mock.calls.at(
+      -1
+    )?.[0].buildBaseSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot;
+    const builtSnapshot = nextBuildBaseSessionSnapshot("session-1");
+    const builtCanvas = parseAiStudioSessionCanvasState(
+      (builtSnapshot as AiStudioSessionSnapshotV2).canvas ?? null
+    );
+
+    expect(nextBuildBaseSessionSnapshot).toBe(firstBuildBaseSessionSnapshot);
+    expect(builtCanvas?.draftTextEntry).toBeNull();
+    expect(builtCanvas?.textEditSession).toBeNull();
+    expect(builtCanvas?.items[0]?.selected).toBe(false);
   });
 
   it("hydrates project snapshots through the blank Create restore contract", () => {

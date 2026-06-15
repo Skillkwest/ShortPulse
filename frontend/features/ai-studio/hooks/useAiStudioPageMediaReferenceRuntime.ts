@@ -103,6 +103,67 @@ const resolveCanvasMediaFallbackUrl = (item: CanvasSceneItem): string | null => 
   return null;
 };
 
+const normalizeCanvasAuthorityString = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+type CanvasMediaAuthoritySignatureEntry = {
+  id: string;
+  kind: "image" | "video" | "audio";
+  outputId: string | null;
+  mediaId: string | null;
+  mediaUrl: string | null;
+  mediaStoragePath: string | null;
+  posterUrl?: string | null;
+  posterStoragePath?: string | null;
+  companionArtUrl?: string | null;
+  companionArtStoragePath?: string | null;
+};
+
+const resolveCanvasMediaAuthoritySignature = (items: readonly CanvasSceneItem[]): string => {
+  const entries: CanvasMediaAuthoritySignatureEntry[] = [];
+  items.forEach((item) => {
+    if (item.kind === "image") {
+      entries.push({
+        id: item.id,
+        kind: item.kind,
+        outputId: normalizeCanvasAuthorityString(item.outputId),
+        mediaId: normalizeCanvasAuthorityString(item.mediaId),
+        mediaUrl: normalizeCanvasAuthorityString(item.src),
+        mediaStoragePath: normalizeCanvasAuthorityString(item.srcStoragePath),
+      });
+      return;
+    }
+    if (item.kind === "video") {
+      entries.push({
+        id: item.id,
+        kind: item.kind,
+        outputId: normalizeCanvasAuthorityString(item.outputId),
+        mediaId: normalizeCanvasAuthorityString(item.mediaId),
+        mediaUrl: normalizeCanvasAuthorityString(item.videoUrl),
+        mediaStoragePath: normalizeCanvasAuthorityString(item.videoStoragePath),
+        posterUrl: normalizeCanvasAuthorityString(item.posterUrl),
+        posterStoragePath: normalizeCanvasAuthorityString(item.posterStoragePath),
+      });
+      return;
+    }
+    if (item.kind === "audio") {
+      entries.push({
+        id: item.id,
+        kind: item.kind,
+        outputId: normalizeCanvasAuthorityString(item.outputId),
+        mediaId: normalizeCanvasAuthorityString(item.mediaId),
+        mediaUrl: normalizeCanvasAuthorityString(item.audioUrl),
+        mediaStoragePath: normalizeCanvasAuthorityString(item.audioStoragePath),
+        companionArtUrl: normalizeCanvasAuthorityString(item.companionArtUrl),
+        companionArtStoragePath: normalizeCanvasAuthorityString(item.companionArtStoragePath),
+      });
+    }
+  });
+  return JSON.stringify(entries);
+};
+
 const resolveCanvasPrimaryStoragePathFromOutput = (output: StudioOutput): string | null =>
   asCanonicalStoragePath(output.fullStoragePath) ??
   asCanonicalStoragePath(output.previewStoragePath);
@@ -837,6 +898,10 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   });
   const canvasSessionStateRef = useRef<CanvasWorkspaceSessionState>(canvasSessionState);
   const canvasMediaRenderRetryKeysRef = useRef(new Set<string>());
+  const canvasMediaAuthoritySignature = useMemo(
+    () => resolveCanvasMediaAuthoritySignature(canvasSessionState.items),
+    [canvasSessionState.items]
+  );
 
   useEffect(() => {
     canvasSessionStateRef.current = canvasSessionState;
@@ -1328,6 +1393,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   const stableRailCanvasProps = useCanvasPropertiesPanelLivePropsBridge(railCanvasProps);
 
   useEffect(() => {
+    const currentState = canvasSessionStateRef.current;
     const outputSnapshot = getOutputSnapshot();
     const projectionOutputs = [
       ...outputSnapshot.outputOrder
@@ -1338,7 +1404,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         .filter((item): item is StudioOutput => Boolean(item)),
     ];
     let changed = false;
-    const nextItems = canvasSessionState.items.map((item) => {
+    const nextItems = currentState.items.map((item) => {
       if (
         (item.kind !== "image" && item.kind !== "audio" && item.kind !== "video") ||
         !item.outputId
@@ -1446,11 +1512,11 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     });
     if (!changed) return;
     hydrateCanvasSessionState({
-      ...canvasSessionState,
+      ...currentState,
       items: nextItems,
     });
   }, [
-    canvasSessionState,
+    canvasMediaAuthoritySignature,
     getOutputById,
     getOutputSnapshot,
     hydrateCanvasSessionState,
@@ -1458,6 +1524,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   ]);
 
   useEffect(() => {
+    const currentState = canvasSessionStateRef.current;
     const outputSnapshot = getOutputSnapshot();
     const projectionOutputs = [
       ...outputSnapshot.outputOrder
@@ -1467,7 +1534,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         .map((id) => outputSnapshot.archivedOutputById[id])
         .filter((item): item is StudioOutput => Boolean(item)),
     ];
-    const candidates = canvasSessionState.items.flatMap((item) => {
+    const candidates = currentState.items.flatMap((item) => {
       if (item.kind !== "video" || !item.outputId || item.posterUrl) return [];
       const resolvedOutputId =
         resolveReferenceProjectionIds([item.outputId], projectionOutputs, {
@@ -1532,7 +1599,8 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       if (resolvedByItemId.size === 0) return;
 
       let changed = false;
-      const nextItems = canvasSessionState.items.map((item) => {
+      const latestState = canvasSessionStateRef.current;
+      const nextItems = latestState.items.map((item) => {
         if (item.kind !== "video") return item;
         const entry = resolvedByItemId.get(item.id);
         const posterUrl = entry?.resolved.posterUrl?.trim() || null;
@@ -1564,7 +1632,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
 
       if (!changed) return;
       hydrateCanvasSessionState({
-        ...canvasSessionState,
+        ...latestState,
         items: nextItems,
       });
     });
@@ -1573,7 +1641,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       cancelled = true;
     };
   }, [
-    canvasSessionState,
+    canvasMediaAuthoritySignature,
     getOutputById,
     getOutputSnapshot,
     hydrateCanvasSessionState,
@@ -1581,9 +1649,10 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   ]);
 
   useEffect(() => {
+    const currentState = canvasSessionStateRef.current;
     const mediaIds = Array.from(
       new Set(
-        canvasSessionState.items
+        currentState.items
           .map((item) =>
             (item.kind === "image" || item.kind === "audio" || item.kind === "video") &&
             item.mediaId
@@ -1596,8 +1665,9 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     if (mediaIds.length === 0) return;
 
     const applyCachedAuthority = (): boolean => {
+      const latestState = canvasSessionStateRef.current;
       let changed = false;
-      const nextItems = canvasSessionState.items.map((item) => {
+      const nextItems = latestState.items.map((item) => {
         if (
           (item.kind !== "image" && item.kind !== "audio" && item.kind !== "video") ||
           !item.mediaId
@@ -1649,7 +1719,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
 
       if (!changed) return false;
       hydrateCanvasSessionState({
-        ...canvasSessionState,
+        ...latestState,
         items: nextItems,
       });
       return true;
@@ -1687,12 +1757,13 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     return () => {
       cancelled = true;
     };
-  }, [canvasSessionState, hydrateCanvasSessionState]);
+  }, [canvasMediaAuthoritySignature, hydrateCanvasSessionState]);
 
   useEffect(() => {
+    const currentState = canvasSessionStateRef.current;
     const storagePaths = Array.from(
       new Set(
-        canvasSessionState.items.flatMap((item) => {
+        currentState.items.flatMap((item) => {
           const { mediaStoragePath, posterStoragePath } = resolveCanvasSceneItemStoragePaths(item);
           return [mediaStoragePath, posterStoragePath].filter(
             (storagePath): storagePath is string => Boolean(storagePath)
@@ -1703,8 +1774,9 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     if (storagePaths.length === 0) return;
 
     const applyCachedStoredMediaUrls = (): boolean => {
+      const latestState = canvasSessionStateRef.current;
       let changed = false;
-      const nextItems = canvasSessionState.items.map((item) => {
+      const nextItems = latestState.items.map((item) => {
         const { mediaStoragePath, posterStoragePath } = resolveCanvasSceneItemStoragePaths(item);
         const signedMediaUrl = mediaStoragePath
           ? canvasStoredMediaUrlCacheRef.current.get(mediaStoragePath)
@@ -1752,7 +1824,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
 
       if (!changed) return false;
       hydrateCanvasSessionState({
-        ...canvasSessionState,
+        ...latestState,
         items: nextItems,
       });
       return true;
@@ -1800,7 +1872,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     return () => {
       cancelled = true;
     };
-  }, [canvasSessionState, hydrateCanvasSessionState]);
+  }, [canvasMediaAuthoritySignature, hydrateCanvasSessionState]);
 
   return {
     canvasSessionState,

@@ -205,8 +205,9 @@ describe("MediaLibraryMediaGrid", () => {
     expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note.mp3");
   });
 
-  it("downloads signed audio from the inline audio card button without selecting or playing", () => {
+  it("renders signed audio download and delete together in the hover action row", () => {
     const props = baseProps();
+    props.showDeleteAction = true;
     props.activeMedia = [
       {
         id: "audio-1",
@@ -219,9 +220,17 @@ describe("MediaLibraryMediaGrid", () => {
       },
     ];
 
-    render(<MediaLibraryMediaGrid {...props} />);
+    const { container } = render(<MediaLibraryMediaGrid {...props} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Download audio voice-note.mp3" }));
+    const downloadButton = screen.getByRole("button", { name: "Download audio voice-note.mp3" });
+    const deleteButton = screen.getByRole("button", { name: "Delete voice-note.mp3 from library" });
+    const actionRow = downloadButton.parentElement;
+
+    expect(actionRow).toHaveClass("media-library-panel-card-actions");
+    expect(actionRow).toContainElement(deleteButton);
+    expect(container.querySelector(".reference-card-audio-download")).toBeNull();
+
+    fireEvent.click(downloadButton);
 
     expect(props.onDownloadMediaFile).toHaveBeenCalledWith(
       expect.objectContaining({ id: "audio-1" })
@@ -229,6 +238,11 @@ describe("MediaLibraryMediaGrid", () => {
     expect(props.onSelectMediaFile).not.toHaveBeenCalled();
     expect(props.onToggleMediaSelection).not.toHaveBeenCalled();
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+
+    fireEvent.click(deleteButton);
+    expect(props.onDeleteMediaFromLibrary).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "audio-1" })
+    );
   });
 
   it("shows workflow reload actions only for restorable AI Studio media rows", () => {

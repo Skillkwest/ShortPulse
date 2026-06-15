@@ -12,7 +12,11 @@ import {
   type AiStudioSessionSnapshotV2,
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
-import { type AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
+import {
+  createProjectDurableAiStudioSessionCanvasState,
+  serializeAiStudioSessionCanvasState,
+  type AiStudioSessionCanvasState,
+} from "../logic/sessionSnapshotCanvas";
 import { createProjectRestoreSnapshot } from "../logic/projectRestoreSnapshot";
 import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
@@ -79,6 +83,10 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
 type BuildSessionSnapshotArgs = Parameters<
   UseAiStudioPageProjectSessionRuntimeParams["buildSessionSnapshot"]
 >[0];
+
+const resolveProjectDurableCanvasSignature = (
+  state: AiStudioSessionCanvasState | null
+): string | null => (state ? JSON.stringify(serializeAiStudioSessionCanvasState(state)) : null);
 
 /**
  * Returns page-level project/session persistence runtime for AI Studio.
@@ -152,6 +160,17 @@ export const useAiStudioPageProjectSessionRuntime = ({
       : createEmptyAiStudioSessionAgentState());
   const hasStoredPulseRuntime =
     Boolean(activeCreatePulsePresetId) && Boolean(pulseSessionInstanceId);
+  const projectDurableCanvasPayload = useMemo(() => {
+    const durableCanvasState = createProjectDurableAiStudioSessionCanvasState(canvasSessionState);
+    return {
+      signature: resolveProjectDurableCanvasSignature(durableCanvasState),
+      state: durableCanvasState,
+    };
+  }, [canvasSessionState]);
+  const projectDurableCanvasState = useMemo(
+    () => projectDurableCanvasPayload.state,
+    [projectDurableCanvasPayload.signature]
+  );
 
   const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
     () => ({
@@ -190,9 +209,9 @@ export const useAiStudioPageProjectSessionRuntime = ({
         buildProjectWorkspaceSnapshot({
           sessionId: args.sessionId,
         }),
-        canvasSessionState
+        projectDurableCanvasState
       ),
-    [buildProjectWorkspaceSnapshot, canvasSessionState]
+    [buildProjectWorkspaceSnapshot, projectDurableCanvasState]
   );
 
   const hydrateProjectAwareSessionSnapshot = useCallback(

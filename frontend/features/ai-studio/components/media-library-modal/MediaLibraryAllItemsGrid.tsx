@@ -620,13 +620,6 @@ function MediaLibraryAllItemsAudioCard({
           playLabel={`Play audio ${file.filename}`}
           pauseLabel={`Pause audio ${file.filename}`}
           downloadLabel={`Download audio ${file.filename || "media"}`}
-          onDownload={
-            canShowDownloadAction
-              ? () => {
-                  onDownloadMediaFile?.(file);
-                }
-              : undefined
-          }
           onResolveAudioUrl={onRequestSignedUrl ? () => onRequestSignedUrl(file) : undefined}
           onReady={() => {
             markSignedUrlLoaded();
@@ -638,7 +631,7 @@ function MediaLibraryAllItemsAudioCard({
       {showCardActions ? (
         <MediaLibraryAllItemsCardActions
           file={file}
-          canShowDownloadAction={false}
+          canShowDownloadAction={canShowDownloadAction}
           canShowWorkflowReloadAction={canShowWorkflowReloadAction}
           canShowRemoveAction={canShowRemoveAction}
           canShowDeleteAction={canShowDeleteAction}
@@ -955,9 +948,7 @@ export function MediaLibraryAllItemsGrid({
                 onSignedUrlLoaded={onSignedUrlLoaded}
                 onRequestSignedUrl={onRequestSignedUrl}
                 cacheAspectRatio={cacheAspectRatio}
-                showCardActions={
-                  canShowWorkflowReloadAction || canShowRemoveAction || canShowDeleteAction
-                }
+                showCardActions={shouldShowCardActions}
                 canShowDownloadAction={canShowDownloadAction}
                 canShowWorkflowReloadAction={canShowWorkflowReloadAction}
                 canShowRemoveAction={canShowRemoveAction}

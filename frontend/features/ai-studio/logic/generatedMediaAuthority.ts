@@ -1078,6 +1078,113 @@ const enqueueCanonicalRuntimeIdentityResolution = (
   globalThis.setTimeout(flushCanonicalRuntimeIdentityResolutionBatch, 0);
 };
 
+type PendingProjectionDeliveryResolution = {
+  supabase: SupabaseClient;
+  userId: string | null;
+  generationId: string;
+  resolve: (delivery: VisibleGenerationDelivery | null) => void;
+};
+
+const pendingProjectionDeliveryResolutions: PendingProjectionDeliveryResolution[] = [];
+let projectionDeliveryBatchScheduled = false;
+
+const resolveProjectionDeliveryBatch = async (
+  entries: PendingProjectionDeliveryResolution[]
+): Promise<Map<PendingProjectionDeliveryResolution, VisibleGenerationDelivery>> => {
+  const deliveryByEntry = new Map<PendingProjectionDeliveryResolution, VisibleGenerationDelivery>();
+  const firstEntry = entries[0];
+  if (!firstEntry) return deliveryByEntry;
+  const generationIds = Array.from(new Set(entries.map((entry) => entry.generationId)));
+
+  const loadProjectionRows = async (selectColumns: string) => {
+    let projectionQuery = firstEntry.supabase
+      .from("generation_projection")
+      .select(selectColumns)
+      .in("generation_id", generationIds)
+      .limit(generationIds.length);
+    if (firstEntry.userId) {
+      projectionQuery = projectionQuery.eq("user_id", firstEntry.userId);
+    }
+    return await projectionQuery;
+  };
+  const { data, error } =
+    await loadGenerationProjectionWithOptionalColumnFallback(loadProjectionRows);
+  if (error) return deliveryByEntry;
+
+  const projectionRows = Array.isArray(data) ? data : data ? [data] : [];
+  const projectionDeliveryByGenerationId = new Map<string, VisibleGenerationDelivery>();
+  projectionRows.forEach((row) => {
+    const record =
+      row && typeof row === "object" && !Array.isArray(row)
+        ? (row as GenerationProjectionDeliveryRow)
+        : null;
+    const generationId =
+      asTrimmedString(record?.generation_id) ??
+      (entries.length === 1 ? firstEntry.generationId : null);
+    if (!generationId || projectionDeliveryByGenerationId.has(generationId)) return;
+    const delivery = toProjectionDelivery(record);
+    if (delivery) projectionDeliveryByGenerationId.set(generationId, delivery);
+  });
+
+  entries.forEach((entry) => {
+    const delivery = projectionDeliveryByGenerationId.get(entry.generationId);
+    if (delivery) deliveryByEntry.set(entry, delivery);
+  });
+  return deliveryByEntry;
+};
+
+const flushProjectionDeliveryResolutionBatch = () => {
+  const pendingEntries = pendingProjectionDeliveryResolutions.splice(0);
+  projectionDeliveryBatchScheduled = false;
+  const entriesBySupabase = new Map<SupabaseClient, PendingProjectionDeliveryResolution[]>();
+  pendingEntries.forEach((entry) => {
+    const entries = entriesBySupabase.get(entry.supabase) ?? [];
+    entries.push(entry);
+    entriesBySupabase.set(entry.supabase, entries);
+  });
+
+  entriesBySupabase.forEach((supabaseEntries) => {
+    const entriesByUser = new Map<string, PendingProjectionDeliveryResolution[]>();
+    supabaseEntries.forEach((entry) => {
+      const userKey = entry.userId ?? "";
+      const entries = entriesByUser.get(userKey) ?? [];
+      entries.push(entry);
+      entriesByUser.set(userKey, entries);
+    });
+
+    entriesByUser.forEach((userEntries) => {
+      void resolveProjectionDeliveryBatch(userEntries)
+        .then((deliveryByEntry) => {
+          userEntries.forEach((entry) => entry.resolve(deliveryByEntry.get(entry) ?? null));
+        })
+        .catch(() => {
+          userEntries.forEach((entry) => entry.resolve(null));
+        });
+    });
+  });
+};
+
+const resolveProjectionDeliveryByGenerationId = async ({
+  supabase,
+  generationId,
+  userId,
+}: {
+  supabase: SupabaseClient;
+  generationId: string;
+  userId: string | null;
+}): Promise<VisibleGenerationDelivery | null> =>
+  await new Promise((resolve) => {
+    pendingProjectionDeliveryResolutions.push({
+      supabase,
+      generationId,
+      userId,
+      resolve,
+    });
+    if (projectionDeliveryBatchScheduled) return;
+    projectionDeliveryBatchScheduled = true;
+    globalThis.setTimeout(flushProjectionDeliveryResolutionBatch, 0);
+  });
+
 const resolveCanonicalGenerationIdFromRuntimeIdentity = async ({
   supabase,
   userId,
@@ -1706,68 +1813,55 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
 }): Promise<VisibleGenerationDelivery | null> => {
   try {
     const resolvedUserId = asTrimmedString(userId);
-    const loadProjection = async (selectColumns: string) => {
-      let projectionQuery = supabase
-        .from("generation_projection")
-        .select(selectColumns)
-        .eq("generation_id", generationId)
-        .limit(1);
-      if (resolvedUserId) {
-        projectionQuery = projectionQuery.eq("user_id", resolvedUserId);
-      }
-      return await projectionQuery.maybeSingle();
-    };
-    const { data: projectionData, error: projectionError } =
-      await loadGenerationProjectionWithOptionalColumnFallback(loadProjection);
-    if (!projectionError) {
-      const projectionDelivery = toProjectionDelivery(
-        projectionData as GenerationProjectionDeliveryRow | null
+    const projectionDelivery = await resolveProjectionDeliveryByGenerationId({
+      supabase,
+      generationId,
+      userId: resolvedUserId,
+    });
+    if (projectionDelivery) {
+      const projectionUrls = [projectionDelivery.previewUrl, projectionDelivery.fullUrl].filter(
+        (url): url is string => Boolean(url)
       );
-      if (projectionDelivery) {
-        const projectionUrls = [projectionDelivery.previewUrl, projectionDelivery.fullUrl].filter(
-          (url): url is string => Boolean(url)
-        );
-        const needsVideoPoster =
-          !projectionDelivery.previewPosterStoragePath &&
-          projectionUrls.some((url) => isVideoUrl(url));
-        const needsPublishedStorageAuthority =
-          resolvedUserId &&
-          (!projectionDelivery.previewStoragePath || !projectionDelivery.fullStoragePath);
-        if ((needsVideoPoster || needsPublishedStorageAuthority) && resolvedUserId) {
-          const publishedDelivery = await resolvePublishedGenerationDeliveryByGenerationId({
-            supabase,
-            generationId,
-            userId: resolvedUserId,
-          });
-          if (publishedDelivery) {
-            const mergedDelivery = {
-              ...projectionDelivery,
-              previewPosterUrl:
-                projectionDelivery.previewPosterUrl ?? publishedDelivery.previewPosterUrl,
-              previewPosterStoragePath:
-                projectionDelivery.previewPosterStoragePath ??
-                publishedDelivery.previewPosterStoragePath,
-              companionArtStoragePath:
-                projectionDelivery.companionArtStoragePath ??
-                publishedDelivery.companionArtStoragePath,
-              companionArtStatus:
-                projectionDelivery.companionArtStatus ?? publishedDelivery.companionArtStatus,
-              previewStoragePath:
-                projectionDelivery.previewStoragePath ?? publishedDelivery.previewStoragePath,
-              fullStoragePath:
-                projectionDelivery.fullStoragePath ?? publishedDelivery.fullStoragePath,
-            };
-            if (!hasVisibleGenerationDeliveryDisplayAuthority(mergedDelivery)) {
-              return null;
-            }
-            return await signVisibleGenerationDelivery(mergedDelivery);
+      const needsVideoPoster =
+        !projectionDelivery.previewPosterStoragePath &&
+        projectionUrls.some((url) => isVideoUrl(url));
+      const needsPublishedStorageAuthority =
+        resolvedUserId &&
+        (!projectionDelivery.previewStoragePath || !projectionDelivery.fullStoragePath);
+      if ((needsVideoPoster || needsPublishedStorageAuthority) && resolvedUserId) {
+        const publishedDelivery = await resolvePublishedGenerationDeliveryByGenerationId({
+          supabase,
+          generationId,
+          userId: resolvedUserId,
+        });
+        if (publishedDelivery) {
+          const mergedDelivery = {
+            ...projectionDelivery,
+            previewPosterUrl:
+              projectionDelivery.previewPosterUrl ?? publishedDelivery.previewPosterUrl,
+            previewPosterStoragePath:
+              projectionDelivery.previewPosterStoragePath ??
+              publishedDelivery.previewPosterStoragePath,
+            companionArtStoragePath:
+              projectionDelivery.companionArtStoragePath ??
+              publishedDelivery.companionArtStoragePath,
+            companionArtStatus:
+              projectionDelivery.companionArtStatus ?? publishedDelivery.companionArtStatus,
+            previewStoragePath:
+              projectionDelivery.previewStoragePath ?? publishedDelivery.previewStoragePath,
+            fullStoragePath:
+              projectionDelivery.fullStoragePath ?? publishedDelivery.fullStoragePath,
+          };
+          if (!hasVisibleGenerationDeliveryDisplayAuthority(mergedDelivery)) {
+            return null;
           }
+          return await signVisibleGenerationDelivery(mergedDelivery);
         }
-        if (!hasVisibleGenerationDeliveryDisplayAuthority(projectionDelivery)) {
-          return null;
-        }
-        return await signVisibleGenerationDelivery(projectionDelivery);
       }
+      if (!hasVisibleGenerationDeliveryDisplayAuthority(projectionDelivery)) {
+        return null;
+      }
+      return await signVisibleGenerationDelivery(projectionDelivery);
     }
 
     return null;

@@ -36,3 +36,5 @@ Purpose: retain dated project-persistence audit packets, implementation investig
   - concise handoff tying together the measured hotspot, ADR 0089, the build contract, and the exact next implementation scope
 - `2026-06-03-large-project-persistence-implementation-checkpoint.md`
   - implemented checkpoint for the hybrid persistence patch, including changed seams, proof, validation boundary, and stop condition
+- `2026-06-15-ai-studio-large-project-canvas-responsiveness-handoff.md`
+  - Enate-to-Datserok start-here handoff for auditing whether transient Canvas interactions wake large-project autosave, snapshot composition, or media reconciliation work

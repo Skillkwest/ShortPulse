@@ -1039,10 +1039,8 @@
 
 .media-library-panel-media-card-shell:hover .media-library-panel-card-actions,
 .media-library-panel-media-card-shell:focus-within .media-library-panel-card-actions,
-.media-library-panel-media-card-shell.is-active .media-library-panel-card-actions,
 .media-library-panel-prompt-reference-shell:hover .media-library-panel-card-actions,
-.media-library-panel-prompt-reference-shell:focus-within .media-library-panel-card-actions,
-.media-library-panel-prompt-reference-shell.is-active .media-library-panel-card-actions {
+.media-library-panel-prompt-reference-shell:focus-within .media-library-panel-card-actions {
   opacity: 1;
   pointer-events: auto;
 }

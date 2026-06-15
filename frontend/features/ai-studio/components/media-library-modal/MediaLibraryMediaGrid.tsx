@@ -209,6 +209,7 @@ export function MediaLibraryMediaGrid({
           );
           const shouldShowCardActions =
             canShowDownloadAction ||
+            canShowAudioDownloadAction ||
             canShowWorkflowReloadAction ||
             canShowRemoveAction ||
             canShowDeleteAction;
@@ -325,13 +326,6 @@ export function MediaLibraryMediaGrid({
                     playLabel={`Play audio ${file.filename}`}
                     pauseLabel={`Pause audio ${file.filename}`}
                     downloadLabel={`Download audio ${file.filename || "media"}`}
-                    onDownload={
-                      canShowAudioDownloadAction
-                        ? () => {
-                            onDownloadMediaFile?.(file);
-                          }
-                        : undefined
-                    }
                     onResolveAudioUrl={
                       onRequestSignedUrl ? () => onRequestSignedUrl(file) : undefined
                     }
@@ -342,11 +336,11 @@ export function MediaLibraryMediaGrid({
                 </div>
                 {shouldShowCardActions ? (
                   <div className="media-library-panel-card-actions" aria-label="Folder actions">
-                    {canShowDownloadAction ? (
+                    {canShowAudioDownloadAction ? (
                       <button
                         type="button"
                         className="reference-card-action-btn media-library-panel-card-download-btn"
-                        aria-label={`Download ${file.filename || "media"}`}
+                        aria-label={`Download audio ${file.filename || "media"}`}
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();

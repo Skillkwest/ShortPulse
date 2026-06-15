@@ -21,6 +21,42 @@ type StageFlattenSnapshot = {
   canReusePrimarySourceUrl?: boolean;
 };
 
+const TRANSFORM_IDENTITY_EPSILON = 0.0001;
+
+const isNearlyEqual = (left: number, right: number) =>
+  Math.abs(left - right) <= TRANSFORM_IDENTITY_EPSILON;
+
+const isIdentityStageFlattenLayer = (layer: ExpertEditStageFlattenLayer): boolean => {
+  const transform = layer.transform;
+  const opacity =
+    typeof layer.opacity === "number" && Number.isFinite(layer.opacity) ? layer.opacity : 1;
+  if (!isNearlyEqual(opacity, 1)) return false;
+  if (!transform) return true;
+  return (
+    isNearlyEqual(transform.translateXRatio ?? 0, 0) &&
+    isNearlyEqual(transform.translateYRatio ?? 0, 0) &&
+    isNearlyEqual(transform.scale ?? 1, 1) &&
+    isNearlyEqual(transform.rotationDeg ?? 0, 0) &&
+    !transform.flipX &&
+    !transform.flipY
+  );
+};
+
+const canReusePrimarySourceForStageExport = (
+  layers: ExpertEditStageFlattenLayer[],
+  flattenSnapshot: StageFlattenSnapshot | undefined
+): boolean => {
+  if (!(flattenSnapshot?.canReusePrimarySourceUrl ?? true)) return false;
+  const populatedLayers = layers.filter(
+    (layer) => typeof layer.imageUrl === "string" && layer.imageUrl.trim().length > 0
+  );
+  const primaryLayer = populatedLayers[0];
+  return (
+    populatedLayers.length === 1 &&
+    Boolean(primaryLayer && isIdentityStageFlattenLayer(primaryLayer))
+  );
+};
+
 export type ExpertEditStageExportParams = {
   layers: ExpertEditStageFlattenLayer[];
   reusablePrimarySourceUrl?: string | null;
@@ -60,7 +96,7 @@ export const exportExpertEditStageArtifacts = async ({
     !isInpaintSubmitSelected &&
     !isMarkupSubmitSelected &&
     reusablePrimarySourceUrlTrimmed.length > 0 &&
-    (flattenSnapshot?.canReusePrimarySourceUrl ?? true);
+    canReusePrimarySourceForStageExport(layers, flattenSnapshot);
   const flattenedBlob = shouldReusePrimarySourceUrl
     ? null
     : await composePrimaryStageLayersToBlob(layers, {

@@ -35,7 +35,19 @@ describe("exportExpertEditStageArtifacts", () => {
     const resolveBlobDimensions = vi.fn(async () => ({ width: 1024, height: 1024 }));
 
     const result = await exportExpertEditStageArtifacts({
-      layers: [{ id: "layer-1" } as never],
+      layers: [
+        {
+          id: "layer-1",
+          imageUrl: "https://cdn.test/reusable-primary.png",
+          opacity: 1,
+          transform: {
+            translateXRatio: 0,
+            translateYRatio: 0,
+            scale: 1,
+            rotationDeg: 0,
+          },
+        } as never,
+      ],
       reusablePrimarySourceUrl: " https://cdn.test/reusable-primary.png ",
       markupStrokes: [],
       editSubmitIntent: "standard",
@@ -97,6 +109,104 @@ describe("exportExpertEditStageArtifacts", () => {
           viewportWidth: 400,
           viewportHeight: 400,
         },
+        maxOutputSizePx: 2048,
+      })
+    );
+  });
+
+  it("disables durable source reuse when the single visible layer was resized", async () => {
+    const exportSelectedLayerMaskBlob = vi.fn(async () => null);
+    const resolveBlobDimensions = vi.fn(async () => ({ width: 1024, height: 1024 }));
+
+    const transformedLayer = {
+      id: "layer-1",
+      imageUrl: "https://cdn.test/reusable-primary.png",
+      opacity: 1,
+      transform: {
+        translateXRatio: 0,
+        translateYRatio: 0,
+        scale: 1.35,
+        rotationDeg: 0,
+      },
+    } as never;
+
+    const result = await exportExpertEditStageArtifacts({
+      layers: [transformedLayer],
+      reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+      flattenTargetLongestEdgePx: 2048,
+      markupStrokes: [],
+      editSubmitIntent: "standard",
+      hasSelectedLayerMask: false,
+      exportSelectedLayerMaskBlob,
+      resolveBlobDimensions,
+      resolveStageFlattenSnapshot: vi.fn(() => ({
+        outputAspectRatio: 1,
+        canReusePrimarySourceUrl: true,
+      })),
+    });
+
+    expect(result.reusablePrimarySourceUrl).toBeNull();
+    expect(result.flattenedBlob).toBeInstanceOf(Blob);
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledWith(
+      [transformedLayer],
+      expect.objectContaining({
+        mimeType: "image/png",
+        outputAspectRatio: 1,
+        maxOutputSizePx: 2048,
+      })
+    );
+  });
+
+  it("disables durable source reuse when multiple visible layers are present", async () => {
+    const exportSelectedLayerMaskBlob = vi.fn(async () => null);
+    const resolveBlobDimensions = vi.fn(async () => ({ width: 1024, height: 1024 }));
+    const layers = [
+      {
+        id: "layer-1",
+        imageUrl: "https://cdn.test/reusable-primary.png",
+        opacity: 1,
+        transform: {
+          translateXRatio: 0,
+          translateYRatio: 0,
+          scale: 1,
+          rotationDeg: 0,
+        },
+      },
+      {
+        id: "layer-2",
+        imageUrl: "https://cdn.test/overlay.png",
+        opacity: 1,
+        transform: {
+          translateXRatio: 0,
+          translateYRatio: 0,
+          scale: 1,
+          rotationDeg: 0,
+        },
+      },
+    ] as never;
+
+    const result = await exportExpertEditStageArtifacts({
+      layers,
+      reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+      flattenTargetLongestEdgePx: 2048,
+      markupStrokes: [],
+      editSubmitIntent: "standard",
+      hasSelectedLayerMask: false,
+      exportSelectedLayerMaskBlob,
+      resolveBlobDimensions,
+      resolveStageFlattenSnapshot: vi.fn(() => ({
+        outputAspectRatio: 1,
+        canReusePrimarySourceUrl: true,
+      })),
+    });
+
+    expect(result.reusablePrimarySourceUrl).toBeNull();
+    expect(result.flattenedBlob).toBeInstanceOf(Blob);
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledWith(
+      layers,
+      expect.objectContaining({
+        mimeType: "image/png",
+        outputAspectRatio: 1,
         maxOutputSizePx: 2048,
       })
     );

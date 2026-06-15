@@ -180,4 +180,3 @@ Re-run this proof if any of these change:
 - Vercel production env contract
 - Stripe webhook endpoint configuration
 - production auth/admin test-account posture
-

@@ -10,6 +10,7 @@ import {
   isProjectGeneratedWorkspaceOutput,
 } from "../ai-studio-session/projectWorkspaceSnapshot";
 import {
+  extractTrustedSupabaseSignedMediaStoragePath,
   filterTrustedMediaDirectPreviewUrls,
   isSupabaseRenderImageUrl,
 } from "../mediaPreviewTrustPolicy";
@@ -233,6 +234,120 @@ const sanitizeProjectWorkspaceSnapshot = (
     },
     options
   ) as unknown as Record<string, unknown>;
+
+const normalizeOwnedCanvasStoragePath = ({
+  value,
+  fallbackUrl,
+  userId,
+}: {
+  value: unknown;
+  fallbackUrl: unknown;
+  userId: string;
+}): string | null => {
+  const explicitPath = normalizeOptionalString(value);
+  if (explicitPath && isUserScopedMediaStoragePath(explicitPath, userId)) {
+    return explicitPath;
+  }
+  return extractTrustedSupabaseSignedMediaStoragePath(
+    typeof fallbackUrl === "string" ? fallbackUrl : null,
+    { userId }
+  );
+};
+
+const preserveProjectWorkspaceCanvasStorageAuthority = ({
+  userId,
+  snapshot,
+}: {
+  userId: string;
+  snapshot: Record<string, unknown>;
+}): Record<string, unknown> => {
+  const canvas = asRecord(snapshot.canvas);
+  const scene = asRecord(canvas.scene);
+  const items = Array.isArray(scene.items) ? scene.items : null;
+  if (!items) return snapshot;
+
+  let changed = false;
+  const nextItems = items.map((item) => {
+    const record = asRecord(item);
+    if (record.kind === "image") {
+      const srcStoragePath = normalizeOwnedCanvasStoragePath({
+        value: record.srcStoragePath,
+        fallbackUrl: record.src,
+        userId,
+      });
+      if (!srcStoragePath || record.srcStoragePath === srcStoragePath) return item;
+      changed = true;
+      return {
+        ...record,
+        srcStoragePath,
+      };
+    }
+
+    if (record.kind === "video") {
+      const videoStoragePath = normalizeOwnedCanvasStoragePath({
+        value: record.videoStoragePath,
+        fallbackUrl: record.videoUrl,
+        userId,
+      });
+      const posterStoragePath = normalizeOwnedCanvasStoragePath({
+        value: record.posterStoragePath,
+        fallbackUrl: record.posterUrl,
+        userId,
+      });
+      const nextRecord = {
+        ...record,
+      };
+      if (videoStoragePath && record.videoStoragePath !== videoStoragePath) {
+        nextRecord.videoStoragePath = videoStoragePath;
+        changed = true;
+      }
+      if (posterStoragePath && record.posterStoragePath !== posterStoragePath) {
+        nextRecord.posterStoragePath = posterStoragePath;
+        changed = true;
+      }
+      return nextRecord;
+    }
+
+    if (record.kind === "audio") {
+      const audioStoragePath = normalizeOwnedCanvasStoragePath({
+        value: record.audioStoragePath,
+        fallbackUrl: record.audioUrl,
+        userId,
+      });
+      const companionArtStoragePath = normalizeOwnedCanvasStoragePath({
+        value: record.companionArtStoragePath,
+        fallbackUrl: record.companionArtUrl,
+        userId,
+      });
+      const nextRecord = {
+        ...record,
+      };
+      if (audioStoragePath && record.audioStoragePath !== audioStoragePath) {
+        nextRecord.audioStoragePath = audioStoragePath;
+        changed = true;
+      }
+      if (companionArtStoragePath && record.companionArtStoragePath !== companionArtStoragePath) {
+        nextRecord.companionArtStoragePath = companionArtStoragePath;
+        changed = true;
+      }
+      return nextRecord;
+    }
+
+    return item;
+  });
+
+  if (!changed) return snapshot;
+  return {
+    ...snapshot,
+    canvas: {
+      ...canvas,
+      scene: {
+        ...scene,
+        items: nextItems,
+      },
+    },
+  };
+};
 
 const collectSnapshotAssociationIds = (snapshot: Record<string, unknown>) => {
   const outputsRecord = asRecord(snapshot.outputs);
@@ -1042,9 +1157,13 @@ const prepareProjectWorkspaceSnapshotForWrite = async ({
   ownedGenerationIds: string[];
   repairPending: ProjectWorkspaceRepairPending | null;
 }> => {
-  const baseSanitizedSnapshot = sanitizeProjectWorkspaceOutputsByShape({
+  const canvasStorageAuthoritySnapshot = preserveProjectWorkspaceCanvasStorageAuthority({
     userId,
     snapshot,
+  });
+  const baseSanitizedSnapshot = sanitizeProjectWorkspaceOutputsByShape({
+    userId,
+    snapshot: canvasStorageAuthoritySnapshot,
   });
   const {
     ownedMediaFileIds,
@@ -1280,10 +1399,14 @@ const prepareProjectWorkspaceSnapshotForReadResponse = async ({
   projectId: string;
   snapshot: Record<string, unknown>;
 }): Promise<Record<string, unknown>> => {
+  const canvasStorageAuthoritySnapshot = preserveProjectWorkspaceCanvasStorageAuthority({
+    userId,
+    snapshot,
+  });
   const materialized = await materializeProjectWorkspaceSnapshotForUserSafely({
     userId,
     projectId,
-    snapshot,
+    snapshot: canvasStorageAuthoritySnapshot,
     stage: "workspace read",
   });
   const sanitizedSnapshot = await canonicalizeProjectWorkspaceSnapshotForRead({
@@ -1315,13 +1438,18 @@ const prepareProjectWorkspaceSnapshotForSaveResponse = async ({
 }): Promise<{
   snapshot: Record<string, unknown>;
   repairPending: ProjectWorkspaceRepairPending | null;
-}> =>
-  materializeProjectWorkspaceSnapshotForUserSafely({
+}> => {
+  const canvasStorageAuthoritySnapshot = preserveProjectWorkspaceCanvasStorageAuthority({
+    userId,
+    snapshot,
+  });
+  return materializeProjectWorkspaceSnapshotForUserSafely({
     userId,
     projectId,
-    snapshot,
+    snapshot: canvasStorageAuthoritySnapshot,
     stage: "workspace save",
   });
+};
 
 const toProjectWorkspaceStateRecord = ({
   row,
@@ -1408,7 +1536,11 @@ export const upsertProjectWorkspaceStateForUser = async ({
   if (!parsedSnapshot || !parseAiStudioSessionSnapshotShape(parsedSnapshot)) {
     throw new InvalidProjectWorkspaceSnapshotError();
   }
-  const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(parsedSnapshot);
+  const canvasStorageAuthoritySnapshot = preserveProjectWorkspaceCanvasStorageAuthority({
+    userId,
+    snapshot: parsedSnapshot,
+  });
+  const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(canvasStorageAuthoritySnapshot);
   const preparedSnapshot = await prepareProjectWorkspaceSnapshotForWrite({
     userId,
     snapshot: sanitizedSnapshot,

@@ -189,6 +189,35 @@ export const isTrustedMediaDirectPreviewUrl = (
   return isUserScopedPath(extractedPath, userId);
 };
 
+export const extractTrustedSupabaseSignedMediaStoragePath = (
+  url: string | null | undefined,
+  options: {
+    userId: string;
+  }
+): string | null => {
+  if (typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed || !isSupabaseObjectSignedStorageUrl(trimmed)) return null;
+  if (
+    !isTrustedMediaDirectPreviewUrl(trimmed, {
+      userId: options.userId,
+      requireUserScope: true,
+    })
+  ) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    const extractedPath = extractObjectPathFromUrl(parsedUrl);
+    return extractedPath && isUserScopedPath(extractedPath, options.userId)
+      ? extractedPath.trim().replace(/^\/+/, "")
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 export const filterTrustedMediaDirectPreviewUrls = (
   urls: string[],
   options?: {

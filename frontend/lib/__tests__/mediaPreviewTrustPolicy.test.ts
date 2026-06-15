@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canUseNextImageOptimizerForUrl,
+  extractTrustedSupabaseSignedMediaStoragePath,
   filterTrustedMediaDirectPreviewUrls,
   isTrustedMediaDirectPreviewUrl,
 } from "../mediaPreviewTrustPolicy";
@@ -19,6 +20,12 @@ describe("mediaPreviewTrustPolicy", () => {
         { userId: "user-1", requireUserScope: true }
       )
     ).toBe(true);
+    expect(
+      extractTrustedSupabaseSignedMediaStoragePath(
+        "https://project.supabase.co/storage/v1/object/sign/media_library/user-1/images/a.png?token=abc",
+        { userId: "user-1" }
+      )
+    ).toBe("user-1/images/a.png");
   });
 
   it("rejects supabase render-image URLs for direct preview and optimizer use", () => {
@@ -38,6 +45,11 @@ describe("mediaPreviewTrustPolicy", () => {
         "/storage/v1/render/image/sign/media_library/user-1/images/a.png?token=abc&width=320"
       )
     ).toBe(false);
+    expect(
+      extractTrustedSupabaseSignedMediaStoragePath(renderUrl, {
+        userId: "user-1",
+      })
+    ).toBeNull();
   });
 
   it("blocks untrusted external direct preview hosts by default", () => {
@@ -49,6 +61,12 @@ describe("mediaPreviewTrustPolicy", () => {
         requireUserScope: true,
       })
     ).toBe(false);
+    expect(
+      extractTrustedSupabaseSignedMediaStoragePath(
+        "https://cdn.example.com/storage/v1/object/sign/media_library/user-1/images/a.png?token=abc",
+        { userId: "user-1" }
+      )
+    ).toBeNull();
   });
 
   it("allows allowlisted external direct preview hosts only when enabled and user scoped", () => {
@@ -67,6 +85,12 @@ describe("mediaPreviewTrustPolicy", () => {
         requireUserScope: true,
       })
     ).toBe(false);
+    expect(
+      extractTrustedSupabaseSignedMediaStoragePath(
+        "https://project.supabase.co/storage/v1/object/sign/media_library/user-2/images/a.png?token=abc",
+        { userId: "user-1" }
+      )
+    ).toBeNull();
   });
 
   it("allows built-in trusted provider result hosts when external previews are enabled", () => {

@@ -26,6 +26,8 @@ const PROMPT_ID_1 = "33333333-3333-4333-8333-333333333333";
 const GENERATION_ID_1 = "44444444-4444-4444-8444-444444444444";
 const GENERATION_ID_2 = "55555555-5555-4555-8555-555555555555";
 const MEDIA_VIDEO_ID_1 = "66666666-6666-4666-8666-666666666666";
+const createTrustedSignedMediaUrl = (path: string) =>
+  `https://project.supabase.co/${["storage", "v1", "object", "sign"].join("/")}/media_library/${path}?token=expired`;
 
 const createCanonicalCheckpointSnapshot = (
   snapshot: Record<string, unknown>,
@@ -1966,6 +1968,228 @@ describe("projectWorkspaceStatesService", () => {
         rail: { x: -2, y: 5, zoom: 0.8 },
       },
     });
+  });
+
+  it("recovers owned canvas storage paths from trusted media URLs before workspace save", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    try {
+      await upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-canvas-signed-url-save",
+          updatedAt: "2026-05-31T19:10:00.000Z",
+          meta: {
+            generatedAt: "2026-05-31T19:10:00.000Z",
+            checksum: "fnv1a32:canvas-signed-url-save",
+          },
+          workspace: {},
+          outputs: {
+            active: [],
+            archived: [],
+          },
+          canvas: {
+            scene: {
+              items: [
+                {
+                  id: "canvas-image-legacy",
+                  kind: "image",
+                  x: 0,
+                  y: 0,
+                  z: 1,
+                  selected: false,
+                  outputId: "out-missing-image",
+                  sourceSurface: "all-refs",
+                  mediaId: null,
+                  src: createTrustedSignedMediaUrl("user-1/generations/images/legacy.png"),
+                  alt: "Legacy image",
+                  width: 320,
+                  height: 180,
+                },
+                {
+                  id: "canvas-video-legacy",
+                  kind: "video",
+                  x: 10,
+                  y: 12,
+                  z: 2,
+                  selected: false,
+                  outputId: "out-missing-video",
+                  sourceSurface: "all-refs",
+                  mediaId: null,
+                  videoUrl: createTrustedSignedMediaUrl("user-1/generations/videos/legacy.mp4"),
+                  posterUrl: createTrustedSignedMediaUrl(
+                    "user-1/variants/videos/legacy/poster_720.jpg"
+                  ),
+                  title: "Legacy video",
+                  durationMs: 1000,
+                  width: 320,
+                  height: 180,
+                },
+              ],
+            },
+            viewports: {
+              main: { x: 0, y: 0, zoom: 1 },
+              rail: { x: 0, y: 0, zoom: 1 },
+            },
+            transient: {
+              draftTextEntry: null,
+              textEditSession: null,
+              draftOwnerInstanceId: null,
+              textEditOwnerInstanceId: null,
+            },
+            meta: {
+              schemaVersion: 1,
+              itemCount: 2,
+              truncatedItemCount: 0,
+              skippedNonDurableImageCount: 0,
+            },
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect(firstWorkspaceUpsertArg?.snapshot?.canvas).toMatchObject({
+      scene: {
+        items: [
+          expect.objectContaining({
+            id: "canvas-image-legacy",
+            outputId: "out-missing-image",
+            srcStoragePath: "user-1/generations/images/legacy.png",
+          }),
+          expect.objectContaining({
+            id: "canvas-video-legacy",
+            outputId: "out-missing-video",
+            videoStoragePath: "user-1/generations/videos/legacy.mp4",
+            posterStoragePath: "user-1/variants/videos/legacy/poster_720.jpg",
+          }),
+        ],
+      },
+    });
+  });
+
+  it("does not recover canvas storage paths from foreign or render-image media URLs", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    try {
+      await upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-canvas-foreign-signed-url-save",
+          updatedAt: "2026-05-31T19:20:00.000Z",
+          meta: {
+            generatedAt: "2026-05-31T19:20:00.000Z",
+            checksum: "fnv1a32:canvas-foreign-signed-url-save",
+          },
+          workspace: {},
+          outputs: {
+            active: [],
+            archived: [],
+          },
+          canvas: {
+            scene: {
+              items: [
+                {
+                  id: "canvas-image-foreign",
+                  kind: "image",
+                  x: 0,
+                  y: 0,
+                  z: 1,
+                  selected: false,
+                  outputId: "out-foreign-image",
+                  sourceSurface: "all-refs",
+                  mediaId: null,
+                  src: createTrustedSignedMediaUrl("user-2/generations/images/foreign.png"),
+                  alt: "Foreign image",
+                  width: 320,
+                  height: 180,
+                },
+                {
+                  id: "canvas-image-render",
+                  kind: "image",
+                  x: 0,
+                  y: 0,
+                  z: 2,
+                  selected: false,
+                  outputId: "out-render-image",
+                  sourceSurface: "all-refs",
+                  mediaId: null,
+                  src: "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/generations/images/render.png?token=expired&width=320",
+                  alt: "Render image",
+                  width: 320,
+                  height: 180,
+                },
+              ],
+            },
+            viewports: {
+              main: { x: 0, y: 0, zoom: 1 },
+              rail: { x: 0, y: 0, zoom: 1 },
+            },
+            transient: {
+              draftTextEntry: null,
+              textEditSession: null,
+              draftOwnerInstanceId: null,
+              textEditOwnerInstanceId: null,
+            },
+            meta: {
+              schemaVersion: 1,
+              itemCount: 2,
+              truncatedItemCount: 0,
+              skippedNonDurableImageCount: 0,
+            },
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    const savedCanvasItems = ((
+      firstWorkspaceUpsertArg?.snapshot?.canvas as { scene?: { items?: unknown[] } }
+    )?.scene?.items ?? []) as Array<Record<string, unknown>>;
+
+    expect(savedCanvasItems).toHaveLength(2);
+    expect(savedCanvasItems[0]?.srcStoragePath).toBeNull();
+    expect(savedCanvasItems[1]?.srcStoragePath).toBeNull();
   });
 
   it("strips out-of-scope preview storage paths before saving project workspace snapshots", async () => {
@@ -4432,6 +4656,120 @@ describe("projectWorkspaceStatesService", () => {
         }),
       ],
     });
+  });
+
+  it("recovers owned canvas storage paths from trusted media URLs during workspace read", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+
+    try {
+      createSupabaseMock({
+        workspaceSnapshot: {
+          schemaVersion: 2,
+          sessionId: "session-canvas-signed-url-read",
+          updatedAt: "2026-05-31T19:30:00.000Z",
+          meta: {
+            generatedAt: "2026-05-31T19:30:00.000Z",
+            checksum: "fnv1a32:canvas-signed-url-read",
+          },
+          outputs: {
+            active: [],
+            archived: [],
+          },
+          canvas: {
+            scene: {
+              items: [
+                {
+                  id: "canvas-image-legacy-read",
+                  kind: "image",
+                  x: 0,
+                  y: 0,
+                  z: 1,
+                  selected: false,
+                  outputId: "out-missing-image",
+                  sourceSurface: "all-refs",
+                  mediaId: null,
+                  src: createTrustedSignedMediaUrl("user-1/generations/images/legacy-read.png"),
+                  alt: "Legacy image",
+                  width: 320,
+                  height: 180,
+                },
+                {
+                  id: "canvas-video-legacy-read",
+                  kind: "video",
+                  x: 10,
+                  y: 12,
+                  z: 2,
+                  selected: false,
+                  outputId: "out-missing-video",
+                  sourceSurface: "all-refs",
+                  mediaId: null,
+                  videoUrl: createTrustedSignedMediaUrl(
+                    "user-1/generations/videos/legacy-read.mp4"
+                  ),
+                  posterUrl: createTrustedSignedMediaUrl(
+                    "user-1/variants/videos/legacy-read/poster_720.jpg"
+                  ),
+                  title: "Legacy video",
+                  durationMs: 1000,
+                  width: 320,
+                  height: 180,
+                },
+              ],
+            },
+            viewports: {
+              main: { x: 0, y: 0, zoom: 1 },
+              rail: { x: 0, y: 0, zoom: 1 },
+            },
+            transient: {
+              draftTextEntry: null,
+              textEditSession: null,
+              draftOwnerInstanceId: null,
+              textEditOwnerInstanceId: null,
+            },
+            meta: {
+              schemaVersion: 1,
+              itemCount: 2,
+              truncatedItemCount: 0,
+              skippedNonDurableImageCount: 0,
+            },
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+        associatedSnapshotGenerationIds: [],
+        recentGenerationIds: [],
+        projectionRows: [],
+      });
+
+      const result = await getProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+
+      expect(result?.snapshot.canvas).toMatchObject({
+        scene: {
+          items: [
+            expect.objectContaining({
+              id: "canvas-image-legacy-read",
+              srcStoragePath: "user-1/generations/images/legacy-read.png",
+            }),
+            expect.objectContaining({
+              id: "canvas-video-legacy-read",
+              videoStoragePath: "user-1/generations/videos/legacy-read.mp4",
+              posterStoragePath: "user-1/variants/videos/legacy-read/poster_720.jpg",
+            }),
+          ],
+        },
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("retains quick-slot generated outputs during workspace read when ownership is projection-backed", async () => {

@@ -168,7 +168,7 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
   });
 
-  it("submits signup with the hidden baseline plan and returns to sign-in with a confirmation notice", async () => {
+  it("submits signup without a client-selected plan and returns to pricing after confirmation", async () => {
     render(<AuthPage />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Sign up" }));
@@ -183,10 +183,7 @@ describe("Auth route behavior", () => {
       email: "new@example.com",
       password: "strongpass",
       options: {
-        data: {
-          plan: "free",
-        },
-        emailRedirectTo: "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fdashboard",
+        emailRedirectTo: "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fpricing",
       },
     });
 
@@ -194,6 +191,24 @@ describe("Auth route behavior", () => {
       screen.getByText("Check your email to confirm your account, then sign in to continue.")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Forgot password?" })).toBeInTheDocument();
+  });
+
+  it("redirects direct signup sessions to pricing instead of dashboard", async () => {
+    routerState.query = { mode: "signup", next: "/dashboard" };
+    signUpMock.mockResolvedValue({
+      error: null,
+      data: { session: { user: { id: "user-new" } } },
+    });
+
+    render(<AuthPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "buyer@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/pricing");
+    });
   });
 
   it("shows a clear cooldown message when Supabase throttles signup confirmation emails", async () => {

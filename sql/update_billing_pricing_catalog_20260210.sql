@@ -12,7 +12,7 @@ set monthly_price_cents = case id
   else monthly_price_cents
 end,
 monthly_credits_cents = case id
-  when 'free' then 100
+  when 'free' then 0
   when 'media' then 600
   when 'studio' then 3000
   when 'business' then 12000

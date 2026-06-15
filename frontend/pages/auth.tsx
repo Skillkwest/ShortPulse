@@ -14,6 +14,7 @@ import {
   fetchCanonicalAuthCallbackUrl,
   resolveNextPath,
   resolveNextPathFromAsPath,
+  resolveSignupNextPath,
 } from "../lib/authRedirects";
 import {
   resolvePasswordResetErrorMessage,
@@ -29,7 +30,6 @@ import { trackSignupCompleted, trackSignupSubmitted } from "../lib/growthTelemet
 
 type Mode = "signin" | "signup";
 
-const DEFAULT_PLAN = "free";
 const MIN_PASSWORD_LENGTH = 8;
 
 const authClass = (...names: Array<string | false | null | undefined>) =>
@@ -71,6 +71,8 @@ export default function AuthPage() {
     }
     return resolveNextPathFromAsPath(router.asPath || "");
   }, [router.asPath, router.isReady, router.query.next]);
+  const signupNextPath = useMemo(() => resolveSignupNextPath(nextPath), [nextPath]);
+  const postAuthPath = mode === "signup" ? signupNextPath : nextPath;
 
   useEffect(() => {
     setMode(requestedMode);
@@ -80,13 +82,13 @@ export default function AuthPage() {
     void readSupabaseSession()
       .then((session) => {
         if (session) {
-          router.replace(nextPath);
+          router.replace(postAuthPath);
         }
       })
       .catch((error) => {
         if (isSupabaseAbortError(error)) return;
       });
-  }, [router, nextPath]);
+  }, [router, postAuthPath]);
 
   const isSubmitDisabled = !email.trim() || !password || loading;
 
@@ -101,7 +103,7 @@ export default function AuthPage() {
       if (mode === "signup") {
         const emailRedirectTo = await fetchCanonicalAuthCallbackUrl({
           flow: "signup",
-          nextPath,
+          nextPath: signupNextPath,
         });
         if (!emailRedirectTo) {
           throw new Error(
@@ -116,9 +118,6 @@ export default function AuthPage() {
           email: normalizedEmail,
           password,
           options: {
-            data: {
-              plan: DEFAULT_PLAN,
-            },
             emailRedirectTo,
           },
         });
@@ -146,7 +145,7 @@ export default function AuthPage() {
         if (signInError) throw signInError;
         primeSupabaseSession(data.session ?? null);
       }
-      router.push(nextPath);
+      router.push(postAuthPath);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Unable to authenticate"));
     } finally {

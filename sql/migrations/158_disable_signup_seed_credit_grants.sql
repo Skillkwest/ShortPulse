@@ -1,7 +1,15 @@
--- Enforce the hidden zero-credit baseline as the only default plan for new user bootstrap.
--- Safe to run multiple times.
+-- Disable automatic signup credit grants for the hidden baseline fallback plan.
+-- New users may get a baseline billing profile for account bootstrapping, but
+-- paid credits must come from Stripe-backed subscription or top-up flows.
 
-create or replace function handle_new_user_billing_setup()
+update public.billing_plans
+   set monthly_credits_cents = 0,
+       monthly_price_cents = 0,
+       stripe_price_id = null,
+       is_active = true
+ where id = 'free';
+
+create or replace function public.handle_new_user_billing_setup()
 returns trigger
 language plpgsql
 security definer
@@ -20,7 +28,7 @@ declare
     exception_detail text;
     exception_hint text;
 begin
-    -- Never trust client-provided metadata for initial plan assignment.
+    -- Never trust client-provided metadata for plan assignment at signup.
     desired_plan := 'free';
 
     select exists (
@@ -55,23 +63,33 @@ begin
         return new;
     end if;
 
-    -- Self-heal hidden baseline plan metadata if `free` was accidentally removed.
-    insert into billing_plans (id, display_name, monthly_price_cents, monthly_credits_cents, stripe_price_id, is_active)
+    insert into public.billing_plans (
+        id,
+        display_name,
+        monthly_price_cents,
+        monthly_credits_cents,
+        stripe_price_id,
+        is_active
+    )
     values (desired_plan, 'Baseline fallback', 0, 0, null, true)
     on conflict (id) do update
       set display_name = excluded.display_name,
           monthly_price_cents = excluded.monthly_price_cents,
           monthly_credits_cents = excluded.monthly_credits_cents,
+          stripe_price_id = excluded.stripe_price_id,
           is_active = true;
 
-    insert into billing_profiles (user_id, plan_id, subscription_status)
+    insert into public.billing_profiles (user_id, plan_id, subscription_status)
     values (new.id, desired_plan, 'active')
     on conflict (user_id) do update
       set plan_id = excluded.plan_id,
-          subscription_status = coalesce(billing_profiles.subscription_status, excluded.subscription_status);
+          subscription_status = coalesce(
+              public.billing_profiles.subscription_status,
+              excluded.subscription_status
+          );
 
     if has_balance_table then
-        insert into ai_credit_balance (user_id, balance_cents)
+        insert into public.ai_credit_balance (user_id, balance_cents)
         values (new.id, 0)
         on conflict (user_id) do nothing;
     end if;
@@ -97,12 +115,14 @@ exception
 
             if has_app_error_logs_table then
                 error_fingerprint := md5(
-                    coalesce(exception_state, '') || '|handle_new_user_billing_setup|' || coalesce(exception_message, '')
+                    coalesce(exception_state, '') ||
+                    '|handle_new_user_billing_setup|' ||
+                    coalesce(exception_message, '')
                 );
 
                 select id
                   into existing_error_id
-                  from app_error_logs
+                  from public.app_error_logs
                  where fingerprint = error_fingerprint
                    and source = 'db.trigger.handle_new_user_billing_setup'
                    and status = 'open'
@@ -111,7 +131,7 @@ exception
                  limit 1;
 
                 if existing_error_id is not null then
-                    update app_error_logs
+                    update public.app_error_logs
                        set last_seen_at = now(),
                            occurrences_count = greatest(coalesce(occurrences_count, 1), 1) + 1,
                            severity = 'high',
@@ -129,7 +149,7 @@ exception
                            )
                      where id = existing_error_id;
                 else
-                    insert into app_error_logs (
+                    insert into public.app_error_logs (
                         fingerprint,
                         source,
                         scope,
@@ -171,10 +191,14 @@ exception
             end if;
         exception
             when others then
-                raise warning 'app_error_logs write failed in handle_new_user_billing_setup for user %: %', new.id, sqlerrm;
+                raise warning 'app_error_logs write failed in handle_new_user_billing_setup for user %: %',
+                    new.id,
+                    sqlerrm;
         end;
 
-        raise warning 'handle_new_user_billing_setup failed for user %: %', new.id, coalesce(exception_message, sqlerrm);
+        raise warning 'handle_new_user_billing_setup failed for user %: %',
+            new.id,
+            coalesce(exception_message, sqlerrm);
         return new;
 end;
 $$;
@@ -184,4 +208,4 @@ revoke all on function public.handle_new_user_billing_setup() from public;
 drop trigger if exists on_auth_user_created_billing_setup on auth.users;
 create trigger on_auth_user_created_billing_setup
 after insert on auth.users
-for each row execute function handle_new_user_billing_setup();
+for each row execute function public.handle_new_user_billing_setup();

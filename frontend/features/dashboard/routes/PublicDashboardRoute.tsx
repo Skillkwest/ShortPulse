@@ -106,7 +106,7 @@ export function PublicDashboardRoute({
   }, []);
 
   const loginHref = buildDashboardAuthPath();
-  const signupHref = buildDashboardAuthPath({ mode: "signup" });
+  const signupHref = buildPricingPath();
   const pricingHref = buildPricingPath();
   const guestCreateProjectHref = buildPricingPath({ intent: "create-project" });
 

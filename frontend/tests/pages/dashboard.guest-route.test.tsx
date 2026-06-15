@@ -172,10 +172,7 @@ describe("Dashboard guest route", () => {
       "/auth?next=%2Fdashboard"
     );
     expect(screen.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
-    expect(screen.getByRole("link", { name: "Sign up" })).toHaveAttribute(
-      "href",
-      "/auth?next=%2Fdashboard&mode=signup"
-    );
+    expect(screen.getByRole("link", { name: "Sign up" })).toHaveAttribute("href", "/pricing");
     expect(screen.getByRole("link", { name: "ShortPulse home" })).toHaveAttribute("href", "/");
     expect(screen.queryByText("Public dashboard")).not.toBeInTheDocument();
     expect(screen.queryByText(/workspace entry are now one surface/i)).not.toBeInTheDocument();

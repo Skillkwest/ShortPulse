@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchCanonicalAuthCallbackUrl, resolveNextPath } from "../../lib/authRedirects";
+import {
+  fetchCanonicalAuthCallbackUrl,
+  resolveNextPath,
+  resolveSignupNextPath,
+} from "../../lib/authRedirects";
 
 describe("auth redirect helpers", () => {
   afterEach(() => {
@@ -54,5 +58,14 @@ describe("auth redirect helpers", () => {
     expect(resolveNextPath("/\\evil.example.com/character")).toBe("/dashboard");
     expect(resolveNextPath("/\\/evil.example.com/character")).toBe("/dashboard");
     expect(resolveNextPath("/auth?next=%2Fcharacter")).toBe("/dashboard");
+  });
+
+  it("routes signup returns to pricing while preserving selected pricing plans", () => {
+    expect(resolveSignupNextPath("/dashboard")).toBe("/pricing");
+    expect(resolveSignupNextPath("/ai-studio")).toBe("/pricing");
+    expect(resolveSignupNextPath("/pricing")).toBe("/pricing");
+    expect(resolveSignupNextPath("/pricing?intent=create-project&plan=starter")).toBe(
+      "/pricing?intent=create-project&plan=starter"
+    );
   });
 });

@@ -904,12 +904,9 @@ set search_path = public
 as $$
 declare
     desired_plan text;
-    starter_credits integer;
     has_profiles_table boolean;
     has_plans_table boolean;
     has_balance_table boolean;
-    has_ledger_table boolean;
-    has_source_ref_index boolean;
     has_app_error_logs_table boolean;
     existing_error_id uuid;
     error_fingerprint text;
@@ -948,15 +945,6 @@ begin
            and c.relkind in ('r', 'p')
     ) into has_balance_table;
 
-    select exists (
-        select 1
-          from pg_class c
-          join pg_namespace n on n.oid = c.relnamespace
-         where n.nspname = 'public'
-           and c.relname = 'ai_credit_ledger'
-           and c.relkind in ('r', 'p')
-    ) into has_ledger_table;
-
     if not has_profiles_table or not has_plans_table then
         raise notice 'Skipping billing bootstrap because billing tables are missing.';
         return new;
@@ -981,54 +969,6 @@ begin
         insert into ai_credit_balance (user_id, balance_cents)
         values (new.id, 0)
         on conflict (user_id) do nothing;
-    end if;
-
-    if not has_ledger_table then
-        raise notice 'Skipping baseline credit seed because ai_credit_ledger table is missing.';
-        return new;
-    end if;
-
-    select monthly_credits_cents into starter_credits
-      from billing_plans
-     where id = desired_plan;
-
-    if coalesce(starter_credits, 0) > 0 then
-        select exists (
-            select 1
-              from pg_indexes
-             where schemaname = 'public'
-               and tablename = 'ai_credit_ledger'
-               and indexname = 'ux_ai_credit_ledger_source_ref'
-        ) into has_source_ref_index;
-
-        if has_source_ref_index then
-            insert into ai_credit_ledger (user_id, change_cents, reason, source, source_ref, metadata)
-            values (
-                new.id,
-                starter_credits,
-                'Initial plan allocation',
-                'signup_seed',
-                new.id::text,
-                jsonb_build_object('plan_id', desired_plan)
-            )
-            on conflict (user_id, source, source_ref) do nothing;
-        else
-            insert into ai_credit_ledger (user_id, change_cents, reason, source, source_ref, metadata)
-            select
-                new.id,
-                starter_credits,
-                'Initial plan allocation',
-                'signup_seed',
-                new.id::text,
-                jsonb_build_object('plan_id', desired_plan)
-            where not exists (
-                select 1
-                from ai_credit_ledger l
-                where l.user_id = new.id
-                  and l.source = 'signup_seed'
-                  and l.source_ref = new.id::text
-            );
-        end if;
     end if;
 
     return new;
@@ -1171,20 +1111,3 @@ begin
     end if;
 end
 $$;
-
-insert into ai_credit_ledger (user_id, change_cents, reason, source, source_ref, metadata)
-select
-    bp.user_id,
-    p.monthly_credits_cents,
-    'Initial plan allocation',
-    'signup_seed',
-    bp.user_id::text,
-    jsonb_build_object('plan_id', bp.plan_id, 'backfilled', true)
-from billing_profiles bp
-join billing_plans p on p.id = bp.plan_id
-left join ai_credit_ledger l
-  on l.user_id = bp.user_id
- and l.source = 'signup_seed'
- and l.source_ref = bp.user_id::text
-where l.id is null
-  and p.monthly_credits_cents > 0;

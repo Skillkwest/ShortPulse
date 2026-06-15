@@ -3,6 +3,7 @@ export type AuthCallbackFlow = "signup" | "recovery" | "email-change";
 export const AUTH_ENTRY_PATH = "/auth";
 export const AUTH_CALLBACK_PATH = "/auth/callback";
 export const DEFAULT_POST_AUTH_PATH = "/dashboard";
+export const DEFAULT_SIGNUP_NEXT_PATH = "/pricing";
 const LEGACY_CHARACTER_AUTH_NEXT_PATHS = new Map<string, string>([
   ["/character", "/ai-studio"],
   ["/character-soon", "/ai-studio"],
@@ -35,6 +36,12 @@ export const resolveNextPathFromAsPath = (asPath: string): string => {
   const queryString = readQueryStringFromAsPath(asPath);
   if (!queryString) return DEFAULT_POST_AUTH_PATH;
   return resolveNextPath(new URLSearchParams(queryString).get("next") ?? undefined);
+};
+
+export const resolveSignupNextPath = (nextPath: string): string => {
+  const candidatePathname = (nextPath.split(/[?#]/, 1)[0] ?? nextPath).replace(/\/+$/, "") || "/";
+  if (candidatePathname === DEFAULT_SIGNUP_NEXT_PATH) return nextPath;
+  return DEFAULT_SIGNUP_NEXT_PATH;
 };
 
 export const resolveAuthCallbackFlow = (

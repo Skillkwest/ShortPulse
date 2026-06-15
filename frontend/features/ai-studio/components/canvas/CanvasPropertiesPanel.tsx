@@ -240,6 +240,8 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
           src={item.src}
           alt={item.alt}
           draggable={false}
+          loading="lazy"
+          decoding="async"
           onLoad={() => clearCanvasMediaError(mediaErrorKey)}
           onError={() => {
             markCanvasMediaError(mediaErrorKey);
@@ -255,6 +257,8 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
               src={item.posterUrl}
               alt={item.title?.trim() || "Canvas video"}
               draggable={false}
+              loading="lazy"
+              decoding="async"
               onLoad={() => clearCanvasMediaError(mediaErrorKey)}
               onError={() => {
                 markCanvasMediaError(mediaErrorKey);

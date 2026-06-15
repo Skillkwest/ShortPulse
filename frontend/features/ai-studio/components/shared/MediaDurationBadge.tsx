@@ -14,6 +14,7 @@ export type MediaDurationBadgeKind = "audio" | "music" | "sound-effects" | "vide
 
 const MEDIA_DURATION_PROBE_MAX_INFLIGHT = 2;
 const mediaDurationProbeCache = new Map<string, number | null>();
+const mediaDurationProbeInFlightByKey = new Map<string, Promise<number | null>>();
 let mediaDurationProbeInflightCount = 0;
 const mediaDurationProbeQueue: Array<() => void> = [];
 
@@ -93,10 +94,13 @@ const requestQueuedMediaDurationProbe = ({
   if (mediaDurationProbeCache.has(cacheKey)) {
     return Promise.resolve(mediaDurationProbeCache.get(cacheKey) ?? null);
   }
+  const pendingProbe = mediaDurationProbeInFlightByKey.get(cacheKey);
+  if (pendingProbe) return pendingProbe;
 
-  return new Promise((resolve) => {
+  const durationProbePromise = new Promise<number | null>((resolve) => {
     const runProbe = () => {
       if (typeof document === "undefined") {
+        mediaDurationProbeInFlightByKey.delete(cacheKey);
         completeDurationProbe();
         resolve(null);
         return;
@@ -124,6 +128,7 @@ const requestQueuedMediaDurationProbe = ({
         if (settled) return;
         settled = true;
         mediaDurationProbeCache.set(cacheKey, nextDurationMs);
+        mediaDurationProbeInFlightByKey.delete(cacheKey);
         media.removeEventListener("loadedmetadata", handleLoadedMetadata);
         media.removeEventListener("error", handleError);
         media.removeAttribute("src");
@@ -149,6 +154,8 @@ const requestQueuedMediaDurationProbe = ({
     mediaDurationProbeQueue.push(runProbe);
     runNextDurationProbe();
   });
+  mediaDurationProbeInFlightByKey.set(cacheKey, durationProbePromise);
+  return durationProbePromise;
 };
 
 export function MediaDurationBadge({
@@ -163,12 +170,18 @@ export function MediaDurationBadge({
   );
 
   React.useEffect(() => {
+    const normalizedMediaUrl = mediaUrl?.trim() ?? "";
     const explicitDurationMs = normalizeDurationMs(durationMs);
     if (explicitDurationMs != null) {
+      if (normalizedMediaUrl) {
+        mediaDurationProbeCache.set(
+          resolveDurationProbeCacheKey({ mediaKind, mediaUrl: normalizedMediaUrl }),
+          explicitDurationMs
+        );
+      }
       setResolvedDurationMs(explicitDurationMs);
       return;
     }
-    const normalizedMediaUrl = mediaUrl?.trim() ?? "";
     if (!normalizedMediaUrl || typeof document === "undefined") {
       setResolvedDurationMs(null);
       return;

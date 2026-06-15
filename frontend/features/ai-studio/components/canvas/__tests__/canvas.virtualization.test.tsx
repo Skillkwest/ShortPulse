@@ -55,7 +55,9 @@ describe("Canvas viewport virtualization", () => {
       window.dispatchEvent(new Event("resize"));
     });
 
-    expect(await screen.findByTestId("canvas-item-visible-image")).toBeInTheDocument();
+    const visibleImage = await screen.findByAltText("Visible canvas image");
+    expect(visibleImage).toHaveAttribute("loading", "lazy");
+    expect(visibleImage).toHaveAttribute("decoding", "async");
     await waitFor(() => {
       expect(screen.queryByTestId("canvas-item-offscreen-image")).not.toBeInTheDocument();
     });

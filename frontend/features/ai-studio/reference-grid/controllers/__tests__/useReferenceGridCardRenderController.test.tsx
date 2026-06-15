@@ -942,9 +942,7 @@ describe("useReferenceGridCardRenderController", () => {
       "https://tempfile.example.com/generated-video.mp4"
     );
     expect(hoverVideo?.getAttribute("preload")).toBe("metadata");
-    expect(hoverSource?.getAttribute("src")).toBe(
-      "https://tempfile.example.com/generated-video.mp4"
-    );
+    expect(hoverSource).toBeNull();
   });
 
   it("does not crash when the audio playback controller is unexpectedly missing", () => {

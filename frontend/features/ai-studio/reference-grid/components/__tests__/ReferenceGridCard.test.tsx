@@ -419,7 +419,7 @@ describe("ReferenceGridCard", () => {
 
     expect(videoNode?.draggable).toBe(false);
     expect(videoNode?.getAttribute("src")).toBe("https://example.com/video.mp4");
-    expect(videoSource?.getAttribute("src")).toBe("https://example.com/video.mp4");
+    expect(videoSource).toBeNull();
 
     fireEvent.pointerEnter(card);
     expect(playMock).toHaveBeenCalled();

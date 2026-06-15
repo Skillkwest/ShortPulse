@@ -4,7 +4,6 @@
  */
 import React from "react";
 import {
-  Eye,
   FlowArrow,
   Globe,
   PencilSimple,
@@ -82,11 +81,9 @@ import {
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import {
   createInitialPanelVisibility,
-  resolveExpandedRightRailVisibility,
   resolveEffectivePanelVisibility,
   resolveHeaderShortcutStateMap,
   togglePanelVisibilityByShortcut,
-  type ExpandableRightRailHeaderButtonId,
   type HeaderShortcutId,
   type PanelVisibilityState,
 } from "../logic/panelVisibility";
@@ -317,11 +314,6 @@ const lazyPanelFallback = <p className="tiny subdued">Loading panel...</p>;
 
 type RightColumnDropMode = "none" | "text" | "media";
 type PastedMediaReference = { url: string; mimeType?: string | null };
-type RightRailExpandedSnapshot = {
-  selectedTool: ToolId | null;
-  isCanvasVisible: boolean;
-  panelVisibility: PanelVisibilityState;
-};
 type RightColumnDropPayload =
   | { kind: "none" }
   | { kind: "internal" }
@@ -334,7 +326,6 @@ type RightColumnDropPayload =
 const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
 const DROPPED_AUDIO_URL_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:[?#].*)?$/i;
 const DROPPED_VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogv|webm)(?:[?#].*)?$/i;
-const HEADER_SHORTCUT_SINGLE_CLICK_DELAY_MS = 250;
 
 const parseDropUrlCandidate = (value: string): string | null => {
   const candidate = value.trim();
@@ -842,8 +833,6 @@ export function AiStudioPageContent({
   const [panelVisibility, setPanelVisibility] = React.useState<PanelVisibilityState>(
     createInitialPanelVisibility
   );
-  const [expandedRightRailTarget, setExpandedRightRailTarget] =
-    React.useState<ExpandableRightRailHeaderButtonId | null>(null);
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const handleWorkflowReloadStylePrep = React.useCallback(
     (styleContext: StudioOutput["styleContext"] | null) => {
@@ -942,56 +931,8 @@ export function AiStudioPageContent({
     [effectivePanelVisibility, panelToggleAvailability]
   );
   const visibleHeaderShortcutButtons = React.useMemo(() => AI_STUDIO_HEADER_SHORTCUT_BUTTONS, []);
-  const expandedRightRailSnapshotRef = React.useRef<RightRailExpandedSnapshot | null>(null);
-  const pendingHeaderShortcutClickRef = React.useRef<number | null>(null);
-  const clearPendingHeaderShortcutClick = React.useCallback(() => {
-    const pendingClick = pendingHeaderShortcutClickRef.current;
-    if (pendingClick == null) return;
-    window.clearTimeout(pendingClick);
-    pendingHeaderShortcutClickRef.current = null;
-  }, []);
-  React.useEffect(() => clearPendingHeaderShortcutClick, [clearPendingHeaderShortcutClick]);
-  const handleHeaderShortcutClickIntent = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, action: () => void) => {
-      clearPendingHeaderShortcutClick();
-      if (event.detail === 0) {
-        action();
-        return;
-      }
-      if (event.detail > 1) return;
-      pendingHeaderShortcutClickRef.current = window.setTimeout(() => {
-        pendingHeaderShortcutClickRef.current = null;
-        action();
-      }, HEADER_SHORTCUT_SINGLE_CLICK_DELAY_MS);
-    },
-    [clearPendingHeaderShortcutClick]
-  );
-  const handleHeaderShortcutDoubleClickIntent = React.useCallback(
-    (action: () => void) => {
-      clearPendingHeaderShortcutClick();
-      action();
-    },
-    [clearPendingHeaderShortcutClick]
-  );
-  const clearExpandedRightRailSession = React.useCallback(() => {
-    expandedRightRailSnapshotRef.current = null;
-    setExpandedRightRailTarget(null);
-  }, []);
-  const restoreExpandedRightRailLayout = React.useCallback(() => {
-    const expandedSnapshot = expandedRightRailSnapshotRef.current;
-    if (!expandedSnapshot) return;
-    setIsCanvasVisible(expandedSnapshot.isCanvasVisible);
-    setPanelVisibility(expandedSnapshot.panelVisibility);
-    clearExpandedRightRailSession();
-    onSelectTool(expandedSnapshot.selectedTool);
-  }, [clearExpandedRightRailSession, onSelectTool]);
   const handleHeaderShortcutToggle = React.useCallback(
     (shortcutId: HeaderShortcutId) => {
-      if (expandedRightRailTarget === shortcutId) {
-        restoreExpandedRightRailLayout();
-        return;
-      }
-      clearExpandedRightRailSession();
       setPanelVisibility((previous) => {
         return togglePanelVisibilityByShortcut({
           panelVisibility: previous,
@@ -1000,12 +941,7 @@ export function AiStudioPageContent({
         });
       });
     },
-    [
-      clearExpandedRightRailSession,
-      expandedRightRailTarget,
-      panelToggleAvailability,
-      restoreExpandedRightRailLayout,
-    ]
+    [panelToggleAvailability]
   );
   const { activeCount } = useOutputCounts();
   React.useEffect(() => {
@@ -1073,19 +1009,6 @@ export function AiStudioPageContent({
     mediaLibraryExpandedWidthRef.current = null;
     setIsMediaLibraryPanelExpanded(false);
   }, [selectedTool]);
-  const previousSelectedToolForExpandedSessionRef = React.useRef<ToolId | null>(selectedTool);
-  React.useEffect(() => {
-    const previousSelectedToolForExpandedSession =
-      previousSelectedToolForExpandedSessionRef.current;
-    if (
-      expandedRightRailTarget != null &&
-      previousSelectedToolForExpandedSession !== selectedTool &&
-      selectedTool !== null
-    ) {
-      clearExpandedRightRailSession();
-    }
-    previousSelectedToolForExpandedSessionRef.current = selectedTool;
-  }, [clearExpandedRightRailSession, expandedRightRailTarget, selectedTool]);
   const effectiveRightColumnHidden = rightColumnHidden;
   const shellClassName = [
     "ai-shell",
@@ -1189,7 +1112,6 @@ export function AiStudioPageContent({
   ]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
-    clearExpandedRightRailSession();
     setPanelVisibility((previous) => {
       return togglePanelVisibilityByShortcut({
         panelVisibility: previous,
@@ -1197,7 +1119,7 @@ export function AiStudioPageContent({
         availability: panelToggleAvailability,
       });
     });
-  }, [clearExpandedRightRailSession, panelToggleAvailability]);
+  }, [panelToggleAvailability]);
   const handleExpertCreateModeChange = React.useCallback(
     (nextMode: "standard" | "pulse") => {
       if (expertCreateMode === nextMode) return;
@@ -1210,46 +1132,8 @@ export function AiStudioPageContent({
     [expertCreateMode, isExpertCreateModeControlled, resolvedCreateProperties]
   );
   const handleCanvasVisibilityToggle = React.useCallback(() => {
-    if (expandedRightRailTarget === "canvas") {
-      restoreExpandedRightRailLayout();
-      return;
-    }
-    clearExpandedRightRailSession();
     setIsCanvasVisible((previous) => !previous);
-  }, [clearExpandedRightRailSession, expandedRightRailTarget, restoreExpandedRightRailLayout]);
-  const handleExpandedRightRailToggle = React.useCallback(
-    (target: ExpandableRightRailHeaderButtonId) => {
-      const expandedSnapshot = expandedRightRailSnapshotRef.current;
-      if (expandedRightRailTarget === target && expandedSnapshot) {
-        restoreExpandedRightRailLayout();
-        return;
-      }
-      if (!expandedSnapshot) {
-        expandedRightRailSnapshotRef.current = {
-          selectedTool,
-          isCanvasVisible,
-          panelVisibility,
-        };
-      }
-      const nextExpandedVisibility = resolveExpandedRightRailVisibility({
-        target,
-        availability: panelToggleAvailability,
-      });
-      setIsCanvasVisible(nextExpandedVisibility.isCanvasVisible);
-      setPanelVisibility(nextExpandedVisibility.panelVisibility);
-      onSelectTool(null);
-      setExpandedRightRailTarget(target);
-    },
-    [
-      expandedRightRailTarget,
-      isCanvasVisible,
-      onSelectTool,
-      panelToggleAvailability,
-      panelVisibility,
-      restoreExpandedRightRailLayout,
-      selectedTool,
-    ]
-  );
+  }, []);
   const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
     setSelectedStyleId(styleId);
     setPanelVisibility((previous) => {
@@ -1262,10 +1146,9 @@ export function AiStudioPageContent({
   }, []);
   const handleToolSelection = React.useCallback(
     (tool: ToolId | null) => {
-      clearExpandedRightRailSession();
       onSelectTool(tool);
     },
-    [clearExpandedRightRailSession, onSelectTool]
+    [onSelectTool]
   );
   const resolvedExpertEditProperties = React.useMemo(
     () => ({
@@ -1460,7 +1343,6 @@ export function AiStudioPageContent({
     const shouldRenderPulseCreateProperties =
       resolvedCreateProperties.expertCreateMode === "pulse" &&
       resolvedPulseCreatePropertiesWithRuntime;
-    // eslint-disable-next-line react-hooks/refs -- Mode-owned panel props are pass-through render inputs; any nested refs are owned by the child panel.
     if (shouldRenderPulseCreateProperties) {
       return (
         <PulseCreatePropertiesPanel
@@ -1469,7 +1351,6 @@ export function AiStudioPageContent({
         />
       );
     }
-    // eslint-disable-next-line react-hooks/refs -- Mode-owned panel props are pass-through render inputs; any nested refs are owned by the child panel.
     if (!resolvedStandardCreatePropertiesWithStyles) return null;
     return (
       <StandardCreatePropertiesPanel
@@ -1847,27 +1728,15 @@ export function AiStudioPageContent({
           <div className="hero-right">
             <div className="ai-hero-shortcut-cluster">
               <div className="ai-hero-shortcut-buttons" aria-label="AI Studio header shortcuts">
-                {expandedRightRailTarget == null || expandedRightRailTarget === "canvas" ? (
-                  <button
-                    type="button"
-                    className="ai-hero-shortcut-button"
-                    aria-pressed={isCanvasVisible}
-                    onClick={(event) => {
-                      handleHeaderShortcutClickIntent(event, handleCanvasVisibilityToggle);
-                    }}
-                    onDoubleClick={() => {
-                      handleHeaderShortcutDoubleClickIntent(() => {
-                        handleExpandedRightRailToggle("canvas");
-                      });
-                    }}
-                  >
-                    Canvas
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className="ai-hero-shortcut-button"
+                  aria-pressed={isCanvasVisible}
+                  onClick={handleCanvasVisibilityToggle}
+                >
+                  Canvas
+                </button>
                 {visibleHeaderShortcutButtons.map((shortcut) => {
-                  if (expandedRightRailTarget != null && expandedRightRailTarget !== shortcut.id) {
-                    return null;
-                  }
                   const buttonState = headerShortcutStates[shortcut.id];
                   return (
                     <button
@@ -1876,34 +1745,13 @@ export function AiStudioPageContent({
                       className="ai-hero-shortcut-button"
                       aria-pressed={buttonState.pressed}
                       disabled={buttonState.disabled}
-                      onClick={(event) => {
-                        handleHeaderShortcutClickIntent(event, () =>
-                          handleHeaderShortcutToggle(shortcut.id)
-                        );
-                      }}
-                      onDoubleClick={() => {
-                        handleHeaderShortcutDoubleClickIntent(() => {
-                          handleExpandedRightRailToggle(shortcut.id);
-                        });
-                      }}
+                      onClick={() => handleHeaderShortcutToggle(shortcut.id)}
                     >
                       {shortcut.label}
                     </button>
                   );
                 })}
               </div>
-              {expandedRightRailTarget != null ? (
-                <button
-                  type="button"
-                  className="ai-hero-shortcut-icon-button"
-                  aria-label="Restore previous panel layout"
-                  aria-pressed="true"
-                  title="Restore previous panel layout"
-                  onClick={restoreExpandedRightRailLayout}
-                >
-                  <Eye size={16} weight="regular" aria-hidden="true" />
-                </button>
-              ) : null}
             </div>
           </div>
         </section>
@@ -1946,7 +1794,7 @@ export function AiStudioPageContent({
               handleReferenceGridFiles={handleReferenceGridFiles}
               triggerFilePicker={triggerFilePicker}
               onOpenMediaLibrary={onOpenMediaLibrary}
-              showPreviewRail={expandedRightRailTarget == null}
+              showPreviewRail
             />
             {comingSoon ? (
               <section className="ai-coming-soon" aria-live="polite">

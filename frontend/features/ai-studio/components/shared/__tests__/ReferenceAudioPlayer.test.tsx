@@ -42,6 +42,20 @@ describe("ReferenceAudioPlayer", () => {
     expect(extractAudioWaveformPeaksFromUrlMock).not.toHaveBeenCalled();
   });
 
+  it("does not preload audio metadata when duration is already known", () => {
+    render(
+      <ReferenceAudioPlayer
+        audioId="audio-known-duration"
+        audioUrl="https://signed.test/known-duration.mp3"
+        durationMs={12_000}
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+      />
+    );
+
+    expect(document.querySelector("audio")?.getAttribute("preload")).toBe("none");
+  });
+
   it("resolves a fresh signed URL before eager waveform decode", async () => {
     const resolveAudioUrl = vi.fn(async () => "https://signed.test/fresh-audio.mp3");
 

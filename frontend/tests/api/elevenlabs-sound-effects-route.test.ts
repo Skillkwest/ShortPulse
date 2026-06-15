@@ -9,6 +9,7 @@ const generateElevenLabsSoundEffectMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const markAudioCompanionArtPendingMock = vi.fn();
 const probeMediaDurationSecondsMock = vi.fn();
+const generateSoundEffectTitleBestEffortMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -62,6 +63,11 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
   probeMediaDurationSeconds: (...args: unknown[]) => probeMediaDurationSecondsMock(...args),
 }));
 
+vi.mock("../../lib/server/audioTitleGeneration", () => ({
+  generateSoundEffectTitleBestEffort: (...args: unknown[]) =>
+    generateSoundEffectTitleBestEffortMock(...args),
+}));
+
 const createMockResponse = () => ({
   setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
@@ -100,6 +106,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     });
     markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
     probeMediaDurationSecondsMock.mockResolvedValue(2.4);
+    generateSoundEffectTitleBestEffortMock.mockResolvedValue("Huge Downlift Boom");
   });
 
   it("rejects out-of-range explicit durations", async () => {
@@ -236,6 +243,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         requestId: "billing-source-sfx-1",
         providerRequestId: "provider-sfx-1",
         projectId: "project-1",
+        displayTitle: "Huge Downlift Boom",
         extraMetadata: expect.objectContaining({
           debited_credits: 15,
           duration_ms: 2400,
@@ -243,6 +251,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
           loop_enabled: true,
           provider_character_cost: 100,
           provider_request_id: "provider-sfx-1",
+          sound_effect_title: "Huge Downlift Boom",
           shortpulse_context: {
             mode: "audio",
             selected_tool: "sound-effects",
@@ -252,6 +261,11 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         }),
       })
     );
+    expect(generateSoundEffectTitleBestEffortMock).toHaveBeenCalledWith({
+      promptText: "Huge downlift boom.",
+      durationSeconds: null,
+      loop: true,
+    });
     expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
       userId: "user-1",
       providerRequestId: "provider-sfx-1",
@@ -282,6 +296,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         mimeType: "audio/mpeg",
         durationMs: 2400,
         waveformPeaks: null,
+        title: "Huge Downlift Boom",
         modelId: "eleven_text_to_sound_v2",
         characterCost: 100,
       },

@@ -23,6 +23,7 @@ import {
 import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
 import { probeMediaDurationSeconds } from "../../../lib/server/mediaAudioExtraction";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
+import { generateSoundEffectTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
 
 type SoundEffectsRequestBody = {
   text?: unknown;
@@ -53,6 +54,7 @@ type GenerateSoundEffectSuccessResponse = {
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: null;
+    title: string;
     modelId: string;
     characterCost: number | null;
     saveState: "saved" | "idle" | "failed" | "blocked_storage";
@@ -161,6 +163,11 @@ export default async function handler(
     });
     if (!charge) return;
     const settledCharge = charge;
+    const titlePromise = generateSoundEffectTitleBestEffort({
+      promptText: text,
+      durationSeconds,
+      loop,
+    });
 
     const generated = await generateElevenLabsSoundEffect({
       text,
@@ -188,6 +195,7 @@ export default async function handler(
         : durationSeconds == null
           ? null
           : Math.round(durationSeconds * 1000);
+    const soundEffectTitle = await titlePromise;
     const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
     const submitLink = await charge.markSubmitted(providerRequestId, {
       source_mode: "sound-effects",
@@ -207,6 +215,7 @@ export default async function handler(
       projectId,
       workspaceRuntimeKey,
       sourceMode: "sound-effects",
+      displayTitle: soundEffectTitle,
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
@@ -223,6 +232,7 @@ export default async function handler(
         prompt_influence: DEFAULT_PROMPT_INFLUENCE,
         provider_character_cost: generated.characterCost,
         provider_request_id: providerRequestId,
+        sound_effect_title: soundEffectTitle,
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
       beforeVisibleSettlement: async ({ generationId }) => {
@@ -267,6 +277,7 @@ export default async function handler(
         mimeType: generated.contentType,
         durationMs: responseDurationMs,
         waveformPeaks: null,
+        title: soundEffectTitle,
         modelId,
         characterCost: generated.characterCost,
         saveState: persisted.saveState,

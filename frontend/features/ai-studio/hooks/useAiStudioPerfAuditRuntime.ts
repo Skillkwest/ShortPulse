@@ -198,6 +198,8 @@ type AiStudioPerfWindow = Window & {
         note?: string;
       }>;
     }>;
+    getProjectWorkspaceAutosavePerfCounters: () => ProjectWorkspaceAutosavePerfCounters;
+    resetProjectWorkspaceAutosavePerfCounters: () => void;
   };
 };
 
@@ -1285,6 +1287,10 @@ export function useAiStudioPerfAuditRuntime({
         console.table(gates);
         console.log("[shortpulse][project-workspace-autosave-typing-audit]", result);
         return result;
+      },
+      getProjectWorkspaceAutosavePerfCounters: () => getProjectWorkspaceAutosavePerfCounters(),
+      resetProjectWorkspaceAutosavePerfCounters: () => {
+        resetProjectWorkspaceAutosavePerfCounters();
       },
     };
 

@@ -555,7 +555,9 @@ export function ReferenceAudioPlayer({
         </div>
         <audio
           className="reference-card-audio"
-          preload="metadata"
+          preload={
+            resolvedAudioDurationMs != null && resolvedAudioDurationMs > 0 ? "none" : "metadata"
+          }
           ref={audioNodeRef}
           src={activeAudioUrl || undefined}
           onLoadedMetadata={(event) => {

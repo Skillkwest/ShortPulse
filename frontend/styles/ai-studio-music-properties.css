@@ -13,6 +13,11 @@
   overflow: hidden;
 }
 
+.music-properties-panel[aria-busy="true"] {
+  cursor: auto;
+  pointer-events: auto;
+}
+
 .ai-studio-page[data-selected-tool="music"] .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;

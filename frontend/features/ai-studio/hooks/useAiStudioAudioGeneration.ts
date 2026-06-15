@@ -92,6 +92,7 @@ type SoundEffectsGenerateSuccessResponse = {
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: number[] | null;
+    title?: string | null;
     modelId: string;
     characterCost: number | null;
     saveState?: StudioOutputSaveState;

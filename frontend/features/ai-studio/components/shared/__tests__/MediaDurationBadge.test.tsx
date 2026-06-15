@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MediaDurationBadge } from "../MediaDurationBadge";
 
@@ -33,6 +33,12 @@ const createFakeMediaElement = (): FakeMediaElement => {
   return fakeMedia;
 };
 
+const resolveLoadedMetadata = async (fakeMedia: FakeMediaElement | undefined) => {
+  await act(async () => {
+    fakeMedia?.listeners.loadedmetadata?.(new Event("loadedmetadata"));
+  });
+};
+
 describe("MediaDurationBadge", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -65,10 +71,58 @@ describe("MediaDurationBadge", () => {
 
     expect(createdMediaElements).toHaveLength(2);
 
-    await act(async () => {
-      createdMediaElements[0]?.listeners.loadedmetadata?.(new Event("loadedmetadata"));
-    });
+    await resolveLoadedMetadata(createdMediaElements[0]);
 
     expect(createdMediaElements).toHaveLength(3);
+    await resolveLoadedMetadata(createdMediaElements[1]);
+    await resolveLoadedMetadata(createdMediaElements[2]);
+    await resolveLoadedMetadata(createdMediaElements[3]);
+  });
+
+  it("dedupes in-flight probes for matching media URLs", () => {
+    const actualCreateElement = document.createElement.bind(document);
+    const createdMediaElements: FakeMediaElement[] = [];
+
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      if (tagName === "audio" || tagName === "video") {
+        const fakeMedia = createFakeMediaElement();
+        createdMediaElements.push(fakeMedia);
+        return fakeMedia as unknown as HTMLElement;
+      }
+      return actualCreateElement(tagName);
+    });
+
+    render(
+      <>
+        <MediaDurationBadge mediaKind="video" mediaUrl="https://media.test/shared-video.mp4" />
+        <MediaDurationBadge mediaKind="video" mediaUrl="https://media.test/shared-video.mp4" />
+      </>
+    );
+
+    expect(createdMediaElements).toHaveLength(1);
+  });
+
+  it("reuses explicit duration metadata without probing the same URL later", () => {
+    const actualCreateElement = document.createElement.bind(document);
+    const createdMediaElements: FakeMediaElement[] = [];
+
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      if (tagName === "audio" || tagName === "video") {
+        const fakeMedia = createFakeMediaElement();
+        createdMediaElements.push(fakeMedia);
+        return fakeMedia as unknown as HTMLElement;
+      }
+      return actualCreateElement(tagName);
+    });
+
+    const mediaUrl = "https://media.test/cached-duration.mp4";
+    const { rerender } = render(
+      <MediaDurationBadge mediaKind="video" mediaUrl={mediaUrl} durationMs={42_000} />
+    );
+
+    rerender(<MediaDurationBadge mediaKind="video" mediaUrl={mediaUrl} />);
+
+    expect(createdMediaElements).toHaveLength(0);
+    expect(screen.getByText("0:42")).toBeInTheDocument();
   });
 });

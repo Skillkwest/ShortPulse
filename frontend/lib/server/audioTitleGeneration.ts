@@ -5,6 +5,7 @@ export const GENERATED_SONG_TITLE_MAX_CHARACTERS = 40;
 
 const TITLE_GENERATION_TIMEOUT_MS = 2_000;
 const UNTITLED_TRACK_TITLE = "Untitled Track";
+const UNTITLED_SOUND_EFFECT_TITLE = "Untitled Effect";
 
 export type GenerateSongTitleInput = {
   promptText: string;
@@ -13,6 +14,13 @@ export type GenerateSongTitleInput = {
   mode?: string | null;
   bpm?: number | null;
   energyPercent?: number | null;
+  providerPrompt?: string | null;
+};
+
+export type GenerateSoundEffectTitleInput = {
+  promptText: string;
+  durationSeconds?: number | null;
+  loop?: boolean | null;
   providerPrompt?: string | null;
 };
 
@@ -60,6 +68,18 @@ export const buildFallbackSongTitle = (input: GenerateSongTitleInput): string =>
   return clampGeneratedSongTitle(toTitleCase(words.join(" "))) ?? UNTITLED_TRACK_TITLE;
 };
 
+export const buildFallbackSoundEffectTitle = (input: GenerateSoundEffectTitleInput): string => {
+  const source = normalizeString(input.promptText) ?? normalizeString(input.providerPrompt) ?? "";
+  const withoutLabels = source
+    .replace(/\b(sound effects?|sfx|duration|loop|prompt influence)\b\s*:/gi, " ")
+    .replace(/[^a-z0-9' -]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!withoutLabels) return UNTITLED_SOUND_EFFECT_TITLE;
+  const words = withoutLabels.split(" ").filter(Boolean).slice(0, 6);
+  return clampGeneratedSongTitle(toTitleCase(words.join(" "))) ?? UNTITLED_SOUND_EFFECT_TITLE;
+};
+
 const buildTitlePrompt = (input: GenerateSongTitleInput): string =>
   [
     `User prompt: ${normalizeString(input.promptText) ?? ""}`,
@@ -69,6 +89,16 @@ const buildTitlePrompt = (input: GenerateSongTitleInput): string =>
     input.mode ? `Mode: ${input.mode}` : null,
     typeof input.bpm === "number" ? `BPM: ${input.bpm}` : null,
     typeof input.energyPercent === "number" ? `Energy: ${input.energyPercent}%` : null,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+
+const buildSoundEffectTitlePrompt = (input: GenerateSoundEffectTitleInput): string =>
+  [
+    `User prompt: ${normalizeString(input.promptText) ?? ""}`,
+    input.providerPrompt ? `Provider prompt: ${input.providerPrompt}` : null,
+    typeof input.durationSeconds === "number" ? `Duration: ${input.durationSeconds}s` : null,
+    typeof input.loop === "boolean" ? `Loop: ${input.loop ? "yes" : "no"}` : null,
   ]
     .filter((line): line is string => Boolean(line))
     .join("\n");
@@ -117,6 +147,54 @@ export const generateMusicSongTitleBestEffort = async (
         type: "json_schema",
         json_schema: {
           name: "shortpulse_song_title",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              title: {
+                type: "string",
+                maxLength: GENERATED_SONG_TITLE_MAX_CHARACTERS,
+              },
+            },
+            required: ["title"],
+          },
+        },
+      },
+    });
+    if (!response.ok) return fallbackTitle;
+    return readGeneratedTitle(await response.json().catch(() => null)) ?? fallbackTitle;
+  } catch {
+    return fallbackTitle;
+  }
+};
+
+export const generateSoundEffectTitleBestEffort = async (
+  input: GenerateSoundEffectTitleInput
+): Promise<string> => {
+  const fallbackTitle = buildFallbackSoundEffectTitle(input);
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) return fallbackTitle;
+
+  try {
+    const response = await fetchOpenAiCompatibleChatCompletion({
+      apiKey,
+      model: resolveRequiredAiStudioTextPromptModelId(),
+      timeoutMs: TITLE_GENERATION_TIMEOUT_MS,
+      messages: [
+        {
+          role: "system",
+          content: `Create one concise original sound-effect title. Return JSON only. The title must be ${GENERATED_SONG_TITLE_MAX_CHARACTERS} characters or fewer, readable in a small media card, and contain no quotes, emoji, provider names, or explanations.`,
+        },
+        {
+          role: "user",
+          content: buildSoundEffectTitlePrompt(input),
+        },
+      ],
+      responseFormat: {
+        type: "json_schema",
+        json_schema: {
+          name: "shortpulse_sound_effect_title",
           strict: true,
           schema: {
             type: "object",

@@ -119,6 +119,11 @@ const styleFilesForExplicitColumnAudit = fs
 
 const normalizeSelector = (selector: string) => selector.trim().replace(/\s+/g, " ");
 
+const extractRuleBlock = (css: string, selector: string) => {
+  const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`);
+  return css.match(pattern)?.[1] ?? "";
+};
+
 const getExplicitColumnPlacements = (fileName: string) => {
   const css = readStyle(fileName);
   const placements: Array<{ fileName: string; selector: string; column: string }> = [];
@@ -186,6 +191,19 @@ describe("ai-studio adaptive layout container contract", () => {
     expect(readStyle("elements-manager-embedded.css")).toContain(
       "@container ai-properties (max-width: 860px)"
     );
+  });
+
+  it("keeps busy music and sound effects composers interactive", () => {
+    const musicCss = readStyle("ai-studio-music-properties.css");
+    const soundEffectsCss = readStyle("ai-studio-sound-effects-properties.css");
+    const musicBusyRule = extractRuleBlock(musicCss, '.music-properties-panel[aria-busy="true"]');
+    const soundEffectsBusyRule = extractRuleBlock(
+      soundEffectsCss,
+      '.sound-effects-properties-panel[aria-busy="true"]'
+    );
+
+    expect(musicBusyRule).toContain("pointer-events: auto;");
+    expect(soundEffectsBusyRule).toContain("pointer-events: auto;");
   });
 
   it("keeps the Video prompt composer column beside settings until the panel is genuinely compact", () => {

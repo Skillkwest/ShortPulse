@@ -495,9 +495,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             setIsHoverVideoVisible(false);
             onAutoplayStopped(item.id);
           }}
-        >
-          {resolvedHoverVideoUrl ? <source src={resolvedHoverVideoUrl} /> : null}
-        </video>
+        />
       ) : null}
       {shouldRenderImageElement ? (
         // eslint-disable-next-line @next/next/no-img-element

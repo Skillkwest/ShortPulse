@@ -11,6 +11,7 @@ For copy/paste prompts Scott can give directly to his Codex agent, use:
 - `Scott/dashboard-baseline-audit-prompt.md`: no-edit dashboard visual audit before changing UI.
 - `Scott/dashboard-implementation-prompt.md`: scoped dashboard visual implementation prompt after a plan is approved.
 - `Scott/dashboard-validation-and-handoff-prompt.md`: final validation and handoff prompt after changes.
+- `Scott/worktree-test-commit-push-sop.md`: standard operating procedure for testing, committing, and pushing worktree changes on the dashboard branch.
 
 ## Lane Boundary
 

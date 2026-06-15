@@ -20,6 +20,7 @@ export type DashboardTutorial = {
 type DashboardTutorialGridProps = {
   tutorials: DashboardTutorial[];
   launchHref: string;
+  autoPlayBudget?: number;
 };
 
 const DASHBOARD_TUTORIAL_GRID_SLOT_COUNT = 25;
@@ -53,22 +54,25 @@ function DashboardTutorialVideoThumbnail({
   src,
   poster,
 }: DashboardTutorialVideoThumbnailProps) {
-  const [motionAllowed, setMotionAllowed] = useState(false);
   const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
-    const canPlayMotion = canPlayDashboardTutorialMotion();
-    setMotionAllowed(canPlayMotion);
-    if (canPlayMotion && shouldAutoActivate) {
-      setIsActive(true);
-    }
+    if (!shouldAutoActivate || typeof window === "undefined") return;
+    const frameId = window.requestAnimationFrame(() => {
+      if (canPlayDashboardTutorialMotion()) {
+        setIsActive(true);
+      }
+    });
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
   }, [shouldAutoActivate]);
 
   const activateThumbnail = useCallback(() => {
-    if (motionAllowed) {
+    if (canPlayDashboardTutorialMotion()) {
       setIsActive(true);
     }
-  }, [motionAllowed]);
+  }, []);
 
   return (
     <video
@@ -89,7 +93,11 @@ function DashboardTutorialVideoThumbnail({
 /**
  * Renders dashboard tutorial cards in the shared 25-slot tutorial grid.
  */
-export function DashboardTutorialGrid({ tutorials, launchHref }: DashboardTutorialGridProps) {
+export function DashboardTutorialGrid({
+  tutorials,
+  launchHref,
+  autoPlayBudget = DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET,
+}: DashboardTutorialGridProps) {
   const [selectedTutorial, setSelectedTutorial] = useState<DashboardTutorial | null>(null);
   const tutorialGridSlots = useMemo(
     () =>
@@ -116,7 +124,7 @@ export function DashboardTutorialGrid({ tutorials, launchHref }: DashboardTutori
               <span className="dashboard-tutorial-thumbnail" aria-hidden="true">
                 {tutorial.thumbnailMediaType === "video" ? (
                   <DashboardTutorialVideoThumbnail
-                    shouldAutoActivate={index < DASHBOARD_TUTORIAL_AUTO_PLAY_BUDGET}
+                    shouldAutoActivate={index < autoPlayBudget}
                     src={tutorial.thumbnailUrl}
                     poster={tutorial.thumbnailPosterUrl}
                   />

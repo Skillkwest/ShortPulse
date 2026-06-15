@@ -124,7 +124,7 @@ export function PublicDashboardRoute({
         Skip to main content
       </a>
 
-      <main id="main-content" className="page page-wide dashboard-refresh">
+      <main id="main-content" className="page page-wide dashboard-refresh public-dashboard-page">
         <DashboardAppBar
           cards={buildGuestHeaderCards(dashboardOffers)}
           actionSlot={

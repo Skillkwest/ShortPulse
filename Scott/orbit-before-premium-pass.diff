@@ -1,0 +1,407 @@
+diff --git a/Scott/homepage-aesthetic-memory.md b/Scott/homepage-aesthetic-memory.md
+index 551a75409..c4d62111c 100644
+--- a/Scott/homepage-aesthetic-memory.md
++++ b/Scott/homepage-aesthetic-memory.md
+@@ -55,6 +55,11 @@ Related signed-out dashboard entry:
+ - If animated, the connected core logo itself should wipe/fade from 100% opacity to 0% opacity from left to right in a heartbeat rhythm. The core background may remain, but the logo layer should visibly erase left-to-right with the pulse.
+ - Section copy such as "Shortpulse replaces all these tools" should be screen-reader-only for now. Do not show the small visible intro block above the orbit unless Scott asks to restore it.
+ - The orbit section can use huge low-opacity serif background words, currently "CREATE" and "ANYTHING", as an atmospheric layer behind the solar-system orbit.
++- The orbit system should be vertically centered against the large `CREATE / ANYTHING` background words, not sit low beneath them.
++- The `CREATE / ANYTHING` background words should sit centered directly behind the ShortPulse core, not high above it.
++- Orbiting app logos should fade into darkness as they pass upward toward the thumbnail card section above.
++- Orbiting items should represent ShortPulse capabilities/workflows, not third-party vendor app names. Current direction replaces items like Magnific, Higgsfield, Suno, Eleven Labs, Free Pick, and Voice with many ShortPulse actions such as Generate Images, Clone Yourself, Image to Video, SFX, VFX, Viral Ads, Product Ads, Voiceovers, and Generate Scripts.
++- The capability orbit should use polished mini-icons and compact labels across multiple rings so it reads like an ecosystem of creative powers around the ShortPulse core, not a vendor replacement logo list.
+ 
+ Current implementation audit on 2026-06-15:
+ 
+diff --git a/frontend/features/dashboard/components/GuestDashboardView.tsx b/frontend/features/dashboard/components/GuestDashboardView.tsx
+index 0045796e9..62e161cab 100644
+--- a/frontend/features/dashboard/components/GuestDashboardView.tsx
++++ b/frontend/features/dashboard/components/GuestDashboardView.tsx
+@@ -2,16 +2,47 @@
+  * Guest-mode dashboard content.
+  * Presents the public dashboard hero and guest CTA card.
+  */
++import type { CSSProperties } from "react";
+ import Link from "next/link";
+ import {
++  Article,
++  ArrowsClockwise,
++  BoundingBox,
++  Browsers,
+   Camera,
++  Cards,
++  ChartLineUp,
++  Copy,
++  Cube,
++  Eye,
++  FaceMask,
++  FileText,
++  FilmSlate,
++  FilmStrip,
++  FrameCorners,
++  Headphones,
+   ImageSquare,
+   MagicWand,
++  MaskHappy,
+   Microphone,
+   MusicNotes,
++  Package,
++  Palette,
++  PaintBrush,
+   PencilSimpleLine,
+-  Selection,
++  PenNib,
++  Person,
++  PersonSimpleRun,
++  PresentationChart,
++  ShoppingBag,
++  SpeakerHigh,
+   Sparkle,
++  Stack,
++  TextT,
++  TiktokLogo,
++  User,
++  UserFocus,
++  Users,
+   VideoCamera,
+   WaveSine,
+   type Icon,
+@@ -39,19 +70,55 @@ const heroBackgroundVideoSrc = "/dashboard/homepage-hero-background.mp4";
+ const orbitTools: Array<{
+   label: string;
+   Icon: Icon;
+-  className: string;
++  tone: "coral" | "cyan" | "gold" | "violet" | "green";
+ }> = [
+-  { label: "Higgsfield", Icon: Sparkle, className: "orbit-path-higgsfield" },
+-  { label: "Magnific", Icon: Camera, className: "orbit-path-magnific" },
+-  { label: "Open Art", Icon: ImageSquare, className: "orbit-path-open-art" },
+-  { label: "Krea", Icon: MagicWand, className: "orbit-path-krea" },
+-  { label: "Dzine", Icon: PencilSimpleLine, className: "orbit-path-dzine" },
+-  { label: "Kling", Icon: VideoCamera, className: "orbit-path-kling" },
+-  { label: "Eleven Labs", Icon: WaveSine, className: "orbit-path-eleven-labs" },
+-  { label: "Suno", Icon: MusicNotes, className: "orbit-path-suno" },
+-  { label: "Free Pick", Icon: Selection, className: "orbit-path-free-pick" },
++  { label: "Generate Images", Icon: ImageSquare, tone: "coral" },
++  { label: "Create Characters", Icon: UserFocus, tone: "cyan" },
++  { label: "Create Influencers", Icon: Users, tone: "gold" },
++  { label: "Clone Yourself", Icon: Copy, tone: "violet" },
++  { label: "Generate Image Prompts", Icon: TextT, tone: "green" },
++  { label: "Generate Video Prompts", Icon: FilmStrip, tone: "coral" },
++  { label: "Edit Images", Icon: PencilSimpleLine, tone: "cyan" },
++  { label: "Create Storyboards", Icon: PresentationChart, tone: "gold" },
++  { label: "Digital Try-ons", Icon: ShoppingBag, tone: "violet" },
++  { label: "Create Styles", Icon: Palette, tone: "green" },
++  { label: "Face Repair", Icon: FaceMask, tone: "coral" },
++  { label: "Image to Video", Icon: VideoCamera, tone: "cyan" },
++  { label: "End Frames", Icon: FrameCorners, tone: "gold" },
++  { label: "Multi-shot Video", Icon: Stack, tone: "violet" },
++  { label: "Character Consistency", Icon: Person, tone: "green" },
++  { label: "Multi-character", Icon: Cards, tone: "coral" },
++  { label: "Clone Voices", Icon: Microphone, tone: "cyan" },
++  { label: "Swap Voices", Icon: ArrowsClockwise, tone: "gold" },
++  { label: "SFX", Icon: WaveSine, tone: "violet" },
++  { label: "VFX", Icon: Sparkle, tone: "green" },
++  { label: "Generate Music", Icon: MusicNotes, tone: "coral" },
++  { label: "Voice Swap", Icon: SpeakerHigh, tone: "cyan" },
++  { label: "Music Videos", Icon: FilmSlate, tone: "gold" },
++  { label: "Podcasts", Icon: Headphones, tone: "violet" },
++  { label: "Anime Films", Icon: MaskHappy, tone: "green" },
++  { label: "Cinematic Films", Icon: Camera, tone: "coral" },
++  { label: "Pixar Style Films", Icon: PaintBrush, tone: "cyan" },
++  { label: "UGC", Icon: User, tone: "gold" },
++  { label: "TikTok Shop", Icon: TiktokLogo, tone: "violet" },
++  { label: "Viral Ads", Icon: ChartLineUp, tone: "green" },
++  { label: "Product Ads", Icon: Package, tone: "coral" },
++  { label: "Character Sheets", Icon: Article, tone: "cyan" },
++  { label: "Storyboards", Icon: Browsers, tone: "gold" },
++  { label: "Ideation", Icon: MagicWand, tone: "violet" },
++  { label: "Viral Skits", Icon: PersonSimpleRun, tone: "green" },
++  { label: "Lip Sync", Icon: Microphone, tone: "coral" },
++  { label: "Motion Tracking", Icon: BoundingBox, tone: "cyan" },
++  { label: "Enhance Realism", Icon: Eye, tone: "gold" },
++  { label: "Enhance Skin Texture", Icon: Sparkle, tone: "violet" },
++  { label: "Voiceovers", Icon: PenNib, tone: "green" },
++  { label: "Generate Scripts", Icon: FileText, tone: "coral" },
++  { label: "Product Ads", Icon: Cube, tone: "cyan" },
+ ];
+ 
++const orbitRadii = [318, 412, 512, 616];
++const orbitDurations = [58, 74, 92, 112];
++
+ /**
+  * Renders the public guest dashboard mode.
+  */
+@@ -144,24 +211,32 @@ export function GuestDashboardView({
+           <div className="public-home-orbit-ring public-home-orbit-ring-middle" aria-hidden="true" />
+           <div className="public-home-orbit-ring public-home-orbit-ring-inner" aria-hidden="true" />
+           <div className="public-home-orbit-core" aria-hidden="true" />
+-          {orbitTools.map(({ label, Icon, className }) => (
+-            <div key={label} className={`public-home-orbit-path ${className}`}>
+-              <div className="public-home-orbit-tool">
+-                <span className="public-home-orbit-icon" aria-hidden="true">
+-                  <Icon size={22} weight="bold" />
+-                </span>
+-                <span>{label}</span>
++          {orbitTools.map(({ label, Icon, tone }, index) => {
++            const ringIndex = index % orbitRadii.length;
++            const angle = (index * 137.5 + ringIndex * 10) % 360;
++            const orbitStyle = {
++              "--orbit-radius": `${orbitRadii[ringIndex]}px`,
++              "--orbit-angle": `${angle}deg`,
++              "--orbit-counter-start": `${-angle}deg`,
++              "--orbit-counter-end": `${-angle - 360}deg`,
++              "--orbit-duration": `${orbitDurations[ringIndex]}s`,
++            } as CSSProperties;
++
++            return (
++              <div
++                key={`${label}-${index}`}
++                className="public-home-orbit-path"
++                style={orbitStyle}
++              >
++                <div className={`public-home-orbit-tool orbit-tool-${tone}`}>
++                  <span className="public-home-orbit-icon" aria-hidden="true">
++                    <Icon size={18} weight="bold" />
++                  </span>
++                  <span>{label}</span>
++                </div>
+               </div>
+-            </div>
+-          ))}
+-          <div className="public-home-orbit-path orbit-path-voice">
+-            <div className="public-home-orbit-tool">
+-              <span className="public-home-orbit-icon" aria-hidden="true">
+-                <Microphone size={22} weight="bold" />
+-              </span>
+-              <span>Voice</span>
+-            </div>
+-          </div>
++            );
++          })}
+         </div>
+       </section>
+     </>
+diff --git a/frontend/styles/workspace-dashboard.css b/frontend/styles/workspace-dashboard.css
+index 18e0d6382..3994a98d3 100644
+--- a/frontend/styles/workspace-dashboard.css
++++ b/frontend/styles/workspace-dashboard.css
+@@ -1287,8 +1287,7 @@ body.dashboard-body:has(.public-dashboard-page) {
+ }
+ 
+ .public-home-orbit::before,
+-.public-home-orbit::after,
+-.public-home-orbit-stage-fade {
++.public-home-orbit::after {
+   content: "";
+   position: absolute;
+   pointer-events: none;
+@@ -1309,10 +1308,10 @@ body.dashboard-body:has(.public-dashboard-page) {
+   right: 0;
+   left: 0;
+   z-index: 8;
+-  height: clamp(150px, 18vw, 260px);
++  height: clamp(104px, 12vw, 176px);
+   background:
+-    linear-gradient(180deg, #03060d 0%, rgba(3, 6, 13, 0.96) 24%, rgba(3, 6, 13, 0.72) 58%, transparent 100%),
+-    radial-gradient(ellipse at 50% 0%, rgba(3, 6, 13, 0.96), transparent 70%);
++    linear-gradient(180deg, rgba(3, 6, 13, 0.9) 0%, rgba(3, 6, 13, 0.62) 38%, rgba(3, 6, 13, 0.24) 72%, transparent 100%),
++    radial-gradient(ellipse at 50% 0%, rgba(3, 6, 13, 0.56), transparent 72%);
+ }
+ 
+ .public-home-orbit h2 {
+@@ -1352,7 +1351,9 @@ body.dashboard-body:has(.public-dashboard-page) {
+ 
+ .public-home-orbit-backdrop-text {
+   position: absolute;
+-  inset: clamp(10px, 1.2vw, 22px) max(-22px, -1.4vw) auto;
++  top: 50%;
++  right: max(-22px, -1.4vw);
++  left: max(-22px, -1.4vw);
+   z-index: 1;
+   display: grid;
+   gap: clamp(54px, 6vw, 102px);
+@@ -1371,6 +1372,7 @@ body.dashboard-body:has(.public-dashboard-page) {
+     0 22px 80px rgba(0, 0, 0, 0.42);
+   opacity: 0.92;
+   mix-blend-mode: screen;
++  transform: translateY(-42%);
+ }
+ 
+ .public-home-orbit-backdrop-text span {
+@@ -1380,7 +1382,7 @@ body.dashboard-body:has(.public-dashboard-page) {
+ .public-home-orbit-stage {
+   position: relative;
+   z-index: 3;
+-  width: min(100%, 1080px);
++  width: min(100%, 1480px);
+   aspect-ratio: 1 / 1;
+   margin-top: clamp(-162px, -8.6vw, -86px);
+   transform: translateY(clamp(-72px, -4vw, -34px));
+@@ -1490,8 +1492,8 @@ body.dashboard-body:has(.public-dashboard-page) {
+   top: 50%;
+   left: 50%;
+   z-index: 6;
+-  width: 430px;
+-  height: 430px;
++  width: 260px;
++  height: 260px;
+   border-radius: 999px;
+   transform: translate(-50%, -50%);
+   animation: public-home-core-thump 2.85s ease-in-out infinite;
+@@ -1501,8 +1503,8 @@ body.dashboard-body:has(.public-dashboard-page) {
+     radial-gradient(circle at 50% 50%, rgba(255, 52, 96, 0.2), rgba(8, 8, 14, 0.98) 64%),
+     #05070c;
+   box-shadow:
+-    0 0 82px rgba(255, 67, 46, 0.56),
+-    0 0 150px rgba(255, 171, 45, 0.2),
++    0 0 48px rgba(255, 67, 46, 0.44),
++    0 0 92px rgba(255, 171, 45, 0.14),
+     inset 0 0 0 1px rgba(255, 65, 98, 0.5);
+ }
+ 
+@@ -1566,12 +1568,15 @@ body.dashboard-body:has(.public-dashboard-page) {
+   z-index: 5;
+   display: grid;
+   justify-items: center;
+-  gap: 8px;
+-  width: 116px;
+-  color: rgba(244, 245, 247, 0.76);
+-  font-size: 13px;
++  gap: 6px;
++  width: 106px;
++  color: rgba(244, 245, 247, 0.7);
++  font-size: 10.5px;
+   font-weight: 800;
++  line-height: 1.06;
++  letter-spacing: -0.02em;
+   text-align: center;
++  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.72);
+   animation: public-home-orbit-tool-counter-spin var(--orbit-duration) linear infinite;
+   transform: translate(-50%, -50%);
+   pointer-events: auto;
+@@ -1580,8 +1585,8 @@ body.dashboard-body:has(.public-dashboard-page) {
+ .public-home-orbit-icon {
+   display: grid;
+   place-items: center;
+-  width: 62px;
+-  height: 62px;
++  width: 46px;
++  height: 46px;
+   border-radius: 999px;
+   border: 1px solid rgba(244, 245, 247, 0.14);
+   background:
+@@ -1589,79 +1594,29 @@ body.dashboard-body:has(.public-dashboard-page) {
+     rgba(18, 23, 30, 0.92);
+   color: rgba(244, 245, 247, 0.92);
+   box-shadow:
+-    0 14px 34px rgba(0, 0, 0, 0.45),
+-    0 0 20px rgba(255, 73, 57, 0.08),
++    0 12px 26px rgba(0, 0, 0, 0.48),
++    0 0 18px var(--orbit-tool-glow, rgba(255, 73, 57, 0.08)),
+     inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+ }
+ 
+-.orbit-path-higgsfield {
+-  --orbit-radius: 374px;
+-  --orbit-angle: -90deg;
+-  --orbit-counter-start: 90deg;
+-  --orbit-counter-end: -270deg;
+-}
+-
+-.orbit-path-magnific {
+-  --orbit-radius: 446px;
+-  --orbit-angle: -54deg;
+-  --orbit-counter-start: 54deg;
+-  --orbit-counter-end: -306deg;
+-}
+-
+-.orbit-path-open-art {
+-  --orbit-radius: 476px;
+-  --orbit-angle: -18deg;
+-  --orbit-counter-start: 18deg;
+-  --orbit-counter-end: -342deg;
+-}
+-
+-.orbit-path-krea {
+-  --orbit-radius: 428px;
+-  --orbit-angle: 18deg;
+-  --orbit-counter-start: -18deg;
+-  --orbit-counter-end: -378deg;
+-}
+-
+-.orbit-path-dzine {
+-  --orbit-radius: 388px;
+-  --orbit-angle: 54deg;
+-  --orbit-counter-start: -54deg;
+-  --orbit-counter-end: -414deg;
+-}
+-
+-.orbit-path-kling {
+-  --orbit-radius: 462px;
+-  --orbit-angle: 90deg;
+-  --orbit-counter-start: -90deg;
+-  --orbit-counter-end: -450deg;
++.orbit-tool-coral {
++  --orbit-tool-glow: rgba(255, 74, 82, 0.22);
+ }
+ 
+-.orbit-path-eleven-labs {
+-  --orbit-radius: 426px;
+-  --orbit-angle: 126deg;
+-  --orbit-counter-start: -126deg;
+-  --orbit-counter-end: -486deg;
++.orbit-tool-cyan {
++  --orbit-tool-glow: rgba(30, 213, 234, 0.18);
+ }
+ 
+-.orbit-path-suno {
+-  --orbit-radius: 448px;
+-  --orbit-angle: 162deg;
+-  --orbit-counter-start: -162deg;
+-  --orbit-counter-end: -522deg;
++.orbit-tool-gold {
++  --orbit-tool-glow: rgba(255, 157, 46, 0.2);
+ }
+ 
+-.orbit-path-free-pick {
+-  --orbit-radius: 402px;
+-  --orbit-angle: 198deg;
+-  --orbit-counter-start: -198deg;
+-  --orbit-counter-end: -558deg;
++.orbit-tool-violet {
++  --orbit-tool-glow: rgba(158, 105, 255, 0.18);
+ }
+ 
+-.orbit-path-voice {
+-  --orbit-radius: 286px;
+-  --orbit-angle: 234deg;
+-  --orbit-counter-start: -234deg;
+-  --orbit-counter-end: -594deg;
++.orbit-tool-green {
++  --orbit-tool-glow: rgba(96, 229, 152, 0.16);
+ }
+ 
+ @keyframes public-home-orbit-path-spin {
+@@ -1689,16 +1644,16 @@ body.dashboard-body:has(.public-dashboard-page) {
+   100% {
+     transform: translate(-50%, -50%) scale(1);
+     box-shadow:
+-      0 0 82px rgba(255, 67, 46, 0.56),
+-      0 0 150px rgba(255, 171, 45, 0.2),
++      0 0 48px rgba(255, 67, 46, 0.44),
++      0 0 92px rgba(255, 171, 45, 0.14),
+       inset 0 0 0 1px rgba(255, 65, 98, 0.5);
+   }
+ 
+   12% {
+     transform: translate(-50%, -50%) scale(1.018);
+     box-shadow:
+-      0 0 104px rgba(255, 67, 46, 0.7),
+-      0 0 178px rgba(255, 171, 45, 0.28),
++      0 0 62px rgba(255, 67, 46, 0.58),
++      0 0 112px rgba(255, 171, 45, 0.2),
+       inset 0 0 0 1px rgba(255, 89, 119, 0.68);
+   }
+ 

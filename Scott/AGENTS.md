@@ -10,4 +10,16 @@ Stay inside the dashboard visual/aesthetic lane unless the ShortPulse owner expl
 - Signed-in dashboard: signed-in `/dashboard`.
 - Dashboard tutorial thumbnail presentation.
 
+## Temporary Owner Rules
+
+Until Scott explicitly says otherwise:
+
+- Production is off-limits in all capacities.
+- Never touch production.
+- Never apply changes to production.
+- Never switch to a production branch or environment.
+- Only work on branch `codex/brother-dashboard-aesthetics`.
+- Never leave branch `codex/brother-dashboard-aesthetics`.
+- Save Scott-agent memories, artifacts, and instructions under `Scott/`.
+
 Do not add secrets to this folder or anywhere in the repo.

@@ -15,6 +15,16 @@ const workerScript = path.resolve(
   "run_generation_control_plane_worker.mjs"
 );
 const nextArgs = ["dev", ...process.argv.slice(2)];
+const nextLaunchArgs = isWindows
+  ? [
+      "/d",
+      "/s",
+      "/c",
+      `"${[nextBin, ...nextArgs]
+        .map((value) => `"${String(value).replace(/"/g, '\\"')}"`)
+        .join(" ")}"`,
+    ]
+  : nextArgs;
 
 const children = new Set();
 let shuttingDown = false;
@@ -67,7 +77,11 @@ process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
 
 console.info("[dev] starting Next.js and generation control-plane worker");
-spawnChild({ label: "next", command: nextBin, args: nextArgs });
+spawnChild({
+  label: "next",
+  command: isWindows ? process.env.ComSpec ?? "cmd.exe" : nextBin,
+  args: nextLaunchArgs,
+});
 spawnChild({
   label: "generation-worker",
   command: nodeBin,

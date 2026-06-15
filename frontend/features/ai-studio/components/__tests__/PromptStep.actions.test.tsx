@@ -894,6 +894,23 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByText("Thinking…")).toBeInTheDocument();
   });
 
+  it("renders the Standard online-research label in the history thinking row", () => {
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentMessages={[{ id: "u-1", role: "user", content: "research CDANCE lengths" }]}
+        agentIsSending
+        agentThinkingLabel="Researching online…"
+      />
+    );
+
+    expect(
+      container.querySelector(".agent-messages .agent-message.agent-thinking-message")
+    ).toBeTruthy();
+    expect(screen.getByText("Researching online…")).toBeInTheDocument();
+    expect(screen.queryByText("Thinking…")).toBeNull();
+  });
+
   it("keeps generation-driven history thinking enabled by default for non-create consumers", () => {
     const { container } = render(
       <PromptStep

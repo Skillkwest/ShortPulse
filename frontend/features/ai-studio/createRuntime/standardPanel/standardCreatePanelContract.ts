@@ -37,6 +37,7 @@ export type BuildStandardCreatePanelPropsParams = {
   agentInput: string;
   chatModeEnabled: boolean;
   agentBusy: boolean;
+  agentThinkingLabel?: string | null;
   agentAttachmentError: string | null;
   agentError?: string | null;
   stagedAgentPrompt?: string | null;
@@ -112,6 +113,7 @@ export const buildStandardCreatePanelProps = ({
   agentInput,
   chatModeEnabled,
   agentBusy,
+  agentThinkingLabel,
   agentAttachmentError,
   agentError,
   stagedAgentPrompt,
@@ -211,6 +213,7 @@ export const buildStandardCreatePanelProps = ({
     agentInput,
     chatModeEnabled,
     agentIsSending: agentBusy,
+    agentThinkingLabel,
     agentError: agentAttachmentError ?? agentError ?? undefined,
     stagedPrompt: stagedAgentPrompt,
     assistantBubbleMedia,

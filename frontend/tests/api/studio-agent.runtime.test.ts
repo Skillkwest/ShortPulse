@@ -465,7 +465,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
       method: "POST",
       body: {
         ...createBaseRequestBody(),
-        messages: [{ role: "user", content: "Look up the latest OpenAI web search docs." }],
+        messages: [{ role: "user", content: "First, research optimal CDANCE lengths." }],
       },
     };
     const res = createMockResponse();
@@ -488,7 +488,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     };
     expect(requestBody.store).toBe(false);
     expect(requestBody.tools).toEqual([{ type: "web_search" }]);
-    expect(requestBody.tool_choice).toBe("auto");
+    expect(requestBody.tool_choice).toBe("required");
     expect(requestBody).not.toHaveProperty("previous_response_id");
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload).toEqual(

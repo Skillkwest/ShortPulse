@@ -1,5 +1,9 @@
 import type { MutableRefObject } from "react";
 import type { AgentContext } from "../../../../prefabs/agent";
+import {
+  resolveStandardWebSearchToolChoice,
+  resolveStandardWebSearchUiMode,
+} from "../../../agent-runtime/standardWebSearch";
 import { normalizePromptText } from "../../logic/agentPromptOwnership";
 import {
   recordCreateWorkflowEvent,
@@ -50,6 +54,7 @@ export type RunStandardCreateAgentSendParams = Pick<
   standardSessionMemory?: StandardSessionMemory;
   notifyBootstrapPending: () => void;
   preparedImageUrlCacheRef: MutableRefObject<PreparedImageUrlCache>;
+  setAgentOnlineLookupPending?: (value: boolean) => void;
   textOverride?: string;
   options?: AgentSendOptions;
 };
@@ -93,6 +98,7 @@ export const runStandardCreateAgentSend = async ({
   lastAssistantMessage,
   notifyBootstrapPending,
   preparedImageUrlCacheRef,
+  setAgentOnlineLookupPending,
   textOverride,
   options,
 }: RunStandardCreateAgentSendParams): Promise<{
@@ -132,6 +138,15 @@ export const runStandardCreateAgentSend = async ({
     image_attachments: outboundAttachments.filter((item) => item.kind === "image").length,
     prompt_chars: outboundText.length,
   });
+  setAgentOnlineLookupPending?.(
+    Boolean(
+      resolveStandardWebSearchToolChoice({
+        flow: hasImageAttachment ? "MIXED" : "TEXT_ONLY",
+        latestUserText: outboundText,
+        mode: resolveStandardWebSearchUiMode(),
+      })
+    )
+  );
   if (!agentSessionEnabled) setAgentSessionEnabled(true);
   setAgentAttachmentError(null);
   agentUiBusyRef.current = true;
@@ -349,6 +364,7 @@ export const runStandardCreateAgentSend = async ({
       return { prompt: appliedPrompt, referenceTitle: STANDARD_AGENT_PROMPT_REFERENCE_TITLE };
     }
   } finally {
+    setAgentOnlineLookupPending?.(false);
     agentUiBusyRef.current = false;
     setAgentUiBusy(false);
   }

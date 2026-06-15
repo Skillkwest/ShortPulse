@@ -52,6 +52,7 @@ export type StandardCreateAgentRuntimeState = {
   agentInput: string;
   chatModeEnabled: boolean;
   agentBusy: boolean;
+  agentThinkingLabel?: string | null;
   agentIsSending: boolean;
   agentUiBusy: boolean;
   agentAttachmentError: string | null;

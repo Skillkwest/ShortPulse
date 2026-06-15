@@ -94,6 +94,7 @@ export type AgentChatPanelProps = {
   showInput?: boolean;
   showThinkingIndicator?: boolean;
   thinkingIndicatorPlacement?: "panel" | "history";
+  thinkingIndicatorLabel?: string;
   dropHintText?: string;
   emptyStateText?: string;
   historyHeaderContent?: React.ReactNode;
@@ -137,6 +138,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   showInput = true,
   showThinkingIndicator = true,
   thinkingIndicatorPlacement = "panel",
+  thinkingIndicatorLabel = "Thinking…",
   dropHintText = "Drag & drop reference cards here to attach context.",
   emptyStateText = "Drop references and send your next instruction.",
   historyHeaderContent,
@@ -898,7 +900,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
               {shouldRenderThinkingInHistory ? (
                 <div className="agent-message agent-assistant agent-thinking-message">
                   <p className="tiny agent-thinking agent-thinking--history" aria-live="polite">
-                    Thinking…
+                    {thinkingIndicatorLabel}
                   </p>
                 </div>
               ) : null}
@@ -910,7 +912,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       ) : null}
       {shouldShowThinkingIndicator && thinkingIndicatorPlacement !== "history" ? (
         <p className="agent-thinking" aria-live="polite">
-          Thinking…
+          {thinkingIndicatorLabel}
         </p>
       ) : null}
       {showInput ? (

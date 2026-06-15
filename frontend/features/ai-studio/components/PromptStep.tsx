@@ -24,6 +24,7 @@ export function PromptStep({
   agentInput = "",
   chatModeEnabled = true,
   agentIsSending = false,
+  agentThinkingLabel,
   agentError,
   stagedPrompt = null,
   assistantBubbleMedia,
@@ -369,6 +370,7 @@ export function PromptStep({
                 setPromptMode={setPromptMode}
                 onClearAgentChat={onClearAgentChat}
                 promptThinking={chatThinking}
+                thinkingIndicatorLabel={agentThinkingLabel}
                 hideAgentIntroMessage={hideAgentIntroMessage}
                 hideEmptyAgentChatState={hideEmptyAgentChatState}
                 emptyAgentChatSpacerClassName={emptyAgentChatSpacerClassName}

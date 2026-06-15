@@ -21,7 +21,6 @@ import {
   fetchStudioAgentChatCompletion,
   formatStudioAgentErrorMessage,
   resolveStudioAgentOpenAiConfig,
-  type StudioAgentStandardWebSearchMode,
 } from "../studioAgentOpenAiGateway";
 import {
   hasInboundStudioAgentCanonicalPrompt,
@@ -56,6 +55,10 @@ import {
   RequiredRuntimeAgentPromptUnavailableError,
 } from "../../../lib/server/api/runtimeAgentPromptControlPlane";
 import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs/agent";
+import {
+  resolveStandardWebSearchToolChoice,
+  type StandardWebSearchToolChoice,
+} from "../standardWebSearch";
 
 const STANDARD_ROUTE_LABEL = "ai/studio-agent-standard";
 const STANDARD_TELEMETRY_PATH = "standard_agent";
@@ -78,7 +81,6 @@ const STANDARD_RESPONSE_STYLE_GUIDANCE = [
   '- "Reply with: 1 2 3"',
 ].join("\n");
 type StandardOpenAiImageDetail = "high" | "auto";
-type StandardWebSearchToolChoice = "auto" | "required";
 
 const STANDARD_DIRECTIVE_SHIFT_VERBS = new Set([
   "add",
@@ -153,37 +155,6 @@ const isLikelyStandardEvaluationRequest = (value: string): boolean => {
   return /(too generic|what('|’)s weak|what is weak|what works|what('|’)s working|how would you improve|how can i improve|is this working|does this work|evaluate|critique|what('|’)s off|what is off|what('|’)s wrong|what is wrong)\b/.test(
     normalized
   );
-};
-
-const isLikelyStandardWebSearchRequest = (value: string): boolean => {
-  const normalized = value.trim().toLowerCase();
-  if (!normalized.length) {
-    return false;
-  }
-  return /\b(current|latest|recent|today|tonight|this week|this month|news|updated?|up[- ]to[- ]date|look up|search|web|internet|source|sources|verify|fact[- ]check|fact check|price|pricing|law|legal|regulation|api docs|documentation|released?|available|model availability)\b/.test(
-    normalized
-  );
-};
-
-const resolveStandardWebSearchToolChoice = ({
-  flow,
-  latestUserText,
-  mode,
-}: {
-  flow: "TEXT_ONLY" | "MIXED";
-  latestUserText: string;
-  mode: StudioAgentStandardWebSearchMode;
-}): StandardWebSearchToolChoice | null => {
-  if (mode === "off" || flow !== "TEXT_ONLY") {
-    return null;
-  }
-  if (mode === "required") {
-    return "required";
-  }
-  if (mode === "auto") {
-    return "auto";
-  }
-  return isLikelyStandardWebSearchRequest(latestUserText) ? "auto" : null;
 };
 
 const clipStandardSystemContextField = (value?: string | null): string | null => {

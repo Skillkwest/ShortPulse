@@ -31,6 +31,7 @@ export type PromptStepProps = {
   agentInput?: string;
   chatModeEnabled?: boolean;
   agentIsSending?: boolean;
+  agentThinkingLabel?: string;
   agentError?: string;
   stagedPrompt?: string | null;
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;

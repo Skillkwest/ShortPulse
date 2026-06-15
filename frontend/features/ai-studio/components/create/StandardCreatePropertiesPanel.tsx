@@ -51,6 +51,7 @@ export type StandardCreatePropertiesPanelProps = {
   agentInput?: string;
   chatModeEnabled?: boolean;
   agentIsSending?: boolean;
+  agentThinkingLabel?: string | null;
   agentError?: string;
   stagedPrompt?: string | null;
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
@@ -134,6 +135,7 @@ export function StandardCreatePropertiesPanel({
   agentInput = "",
   chatModeEnabled = false,
   agentIsSending = false,
+  agentThinkingLabel = null,
   agentError,
   stagedPrompt = null,
   assistantBubbleMedia,
@@ -339,6 +341,7 @@ export function StandardCreatePropertiesPanel({
     agentMessages,
     agentInput,
     agentIsSending,
+    agentThinkingLabel: agentThinkingLabel ?? undefined,
     agentError,
     stagedPrompt,
     assistantBubbleMedia,

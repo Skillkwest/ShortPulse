@@ -27,6 +27,7 @@ type StandardPromptStepChatSurfaceProps = {
   setPromptMode: React.Dispatch<React.SetStateAction<"enhanced" | "chat">>;
   onClearAgentChat?: () => void;
   promptThinking: boolean;
+  thinkingIndicatorLabel?: string;
   hideAgentIntroMessage: boolean;
   hideEmptyAgentChatState: boolean;
   forceRenderAgentChatPanel: boolean;
@@ -100,6 +101,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   setPromptMode,
   onClearAgentChat,
   promptThinking,
+  thinkingIndicatorLabel,
   hideAgentIntroMessage,
   hideEmptyAgentChatState,
   forceRenderAgentChatPanel,
@@ -202,6 +204,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         isSending={promptThinking}
         showThinkingIndicator
         thinkingIndicatorPlacement="history"
+        thinkingIndicatorLabel={thinkingIndicatorLabel}
         stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
         assistantBubbleMedia={assistantBubbleMedia}
         stagedAttachments={dropToInputComposer ? [] : stagedAttachments}

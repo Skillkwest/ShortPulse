@@ -39,6 +39,7 @@ export const buildStandardCreateRuntimeResult = ({
     agentInput: agentRuntime.agentInput,
     chatModeEnabled: agentRuntime.chatModeEnabled,
     agentBusy: agentRuntime.agentBusy,
+    agentThinkingLabel: agentRuntime.agentThinkingLabel,
     agentAttachmentError: agentRuntime.agentAttachmentError,
     agentError: agentRuntime.agentError,
     stagedAgentPrompt: agentRuntime.stagedAgentPrompt,

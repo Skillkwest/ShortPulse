@@ -1371,6 +1371,24 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.getByText("Thinking…")).toBeInTheDocument();
   });
 
+  it("uses a custom thinking label when provided", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "u-1", role: "user", content: "Research this." }]}
+        input=""
+        isSending
+        showThinkingIndicator
+        thinkingIndicatorPlacement="history"
+        thinkingIndicatorLabel="Researching online…"
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Researching online…")).toBeInTheDocument();
+    expect(screen.queryByText("Thinking…")).toBeNull();
+  });
+
   it("shows a send spinner while the panel is sending", () => {
     const { container } = render(
       <AgentChatPanel

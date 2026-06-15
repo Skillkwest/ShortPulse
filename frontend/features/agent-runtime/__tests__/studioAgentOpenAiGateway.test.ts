@@ -22,6 +22,8 @@ describe("studioAgentOpenAiGateway", () => {
       openAiPulseModel: "gpt-5.5",
       standardResponsesEnabled: false,
       standardChatFallbackEnabled: true,
+      standardWebSearchEnabled: false,
+      standardWebSearchMode: "off",
       requestTimeoutMs: 20000,
       visionTimeoutMs: 20000,
       turnTimeoutMs: 20000,
@@ -112,12 +114,29 @@ describe("studioAgentOpenAiGateway", () => {
       OPENAI_MODEL: "gpt-base",
       STUDIO_AGENT_STANDARD_RESPONSES_ENABLED: "true",
       STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED: "false",
+      STUDIO_AGENT_STANDARD_WEB_SEARCH_ENABLED: "true",
+      STUDIO_AGENT_STANDARD_WEB_SEARCH_MODE: "required",
     } as unknown as NodeJS.ProcessEnv);
 
     expect(defaultConfig.standardResponsesEnabled).toBe(false);
     expect(defaultConfig.standardChatFallbackEnabled).toBe(true);
+    expect(defaultConfig.standardWebSearchEnabled).toBe(false);
+    expect(defaultConfig.standardWebSearchMode).toBe("off");
     expect(responsesConfig.standardResponsesEnabled).toBe(true);
     expect(responsesConfig.standardChatFallbackEnabled).toBe(false);
+    expect(responsesConfig.standardWebSearchEnabled).toBe(true);
+    expect(responsesConfig.standardWebSearchMode).toBe("required");
+  });
+
+  it("defaults enabled Standard web search to intent mode", () => {
+    const config = resolveStudioAgentOpenAiConfig({
+      OPENAI_MODEL: "gpt-base",
+      STUDIO_AGENT_STANDARD_WEB_SEARCH_ENABLED: "true",
+      STUDIO_AGENT_STANDARD_WEB_SEARCH_MODE: "unknown",
+    } as unknown as NodeJS.ProcessEnv);
+
+    expect(config.standardWebSearchEnabled).toBe(true);
+    expect(config.standardWebSearchMode).toBe("intent");
   });
 
   it("formats timeout errors deterministically", () => {

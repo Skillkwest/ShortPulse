@@ -6,6 +6,10 @@ import {
   resolveRequiredStudioAgentDefaultModelId,
   resolveRequiredStudioAgentDefaultVisionModelId,
 } from "../../lib/model-runtime/modelCatalog";
+import {
+  resolveStandardWebSearchMode,
+  type StudioAgentStandardWebSearchMode,
+} from "./standardWebSearch";
 
 const DEFAULT_OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = resolveRequiredStudioAgentDefaultModelId();
@@ -22,7 +26,6 @@ const MAX_UPSTREAM_RETRY_BASE_DELAY_MS = 5000;
 const DEFAULT_UPSTREAM_RETRY_MAX_DELAY_MS = 1200;
 const MIN_UPSTREAM_RETRY_MAX_DELAY_MS = 0;
 const MAX_UPSTREAM_RETRY_MAX_DELAY_MS = 10000;
-export type StudioAgentStandardWebSearchMode = "off" | "auto" | "intent" | "required";
 
 const parseStudioAgentTimeoutMs = (
   value: string | undefined,
@@ -62,26 +65,6 @@ const resolveModelEnv = (candidate: string | undefined, fallback: string): strin
 
 const parseBooleanEnv = (value: string | undefined): boolean =>
   String(value ?? "").toLowerCase() === "true";
-
-const resolveStandardWebSearchMode = ({
-  value,
-  enabled,
-}: {
-  value: string | undefined;
-  enabled: boolean;
-}): StudioAgentStandardWebSearchMode => {
-  if (!enabled) return "off";
-  const normalized = value?.trim().toLowerCase();
-  if (
-    normalized === "off" ||
-    normalized === "auto" ||
-    normalized === "intent" ||
-    normalized === "required"
-  ) {
-    return normalized;
-  }
-  return "intent";
-};
 
 export const resolveStudioAgentOpenAiConfig = (
   env: NodeJS.ProcessEnv = process.env

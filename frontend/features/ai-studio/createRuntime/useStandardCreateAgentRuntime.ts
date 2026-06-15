@@ -84,6 +84,7 @@ export const useStandardCreateAgentRuntime = ({
   const agentEnabled = agentFlag && agentSessionEnabled;
   const agentBootstrapReady = Boolean(sessionId);
   const [agentUiBusy, setAgentUiBusy] = useState(false);
+  const [agentOnlineLookupPending, setAgentOnlineLookupPending] = useState(false);
   const agentUiBusyRef = useRef(false);
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
   const [promptOrigin, setPromptOrigin] = useState<PromptOrigin>("manual");
@@ -236,6 +237,7 @@ export const useStandardCreateAgentRuntime = ({
         lastAssistantMessage: latestAssistantMessage,
         notifyBootstrapPending,
         preparedImageUrlCacheRef,
+        setAgentOnlineLookupPending,
         textOverride,
         options,
       }),
@@ -258,6 +260,7 @@ export const useStandardCreateAgentRuntime = ({
       trackAgentUiEvent,
       updateMessageById,
       standardSessionMemory,
+      setAgentOnlineLookupPending,
     ]
   );
 
@@ -385,6 +388,7 @@ export const useStandardCreateAgentRuntime = ({
     agentError,
     agentIsSending,
     agentUiBusy,
+    agentThinkingLabel: agentOnlineLookupPending ? "Researching online…" : null,
     agentBusy,
     agentInput,
     agentAttachmentError,

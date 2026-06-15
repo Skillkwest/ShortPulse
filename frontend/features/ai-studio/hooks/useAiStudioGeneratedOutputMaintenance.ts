@@ -271,7 +271,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   const [canonicalGeneratedHydrationSettled, setCanonicalGeneratedHydrationSettled] = useState(
     !(shouldHydrateProjectGeneratedOutputs || shouldHydratePlainSessionGeneratedOutputs)
   );
-  const canonicalGeneratedHydrationStartedRef = useRef(false);
+  const canonicalGeneratedHydrationRunKeySetRef = useRef<Set<string>>(new Set());
   const canonicalGeneratedOutputSyncInFlightRef = useRef(false);
   const audioCompanionArtSyncInFlightRef = useRef(false);
   const canonicalGeneratedOutputSyncLastActiveAtRef = useRef<number | null>(null);
@@ -289,7 +289,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   useEffect(() => {
     if (activeBaseRuntimeAuthorityKeyRef.current === baseRuntimeAuthorityKey) return;
     activeBaseRuntimeAuthorityKeyRef.current = baseRuntimeAuthorityKey;
-    canonicalGeneratedHydrationStartedRef.current = false;
+    canonicalGeneratedHydrationRunKeySetRef.current.clear();
     canonicalGeneratedOutputSyncInFlightRef.current = false;
     audioCompanionArtSyncInFlightRef.current = false;
     canonicalGeneratedOutputSyncLastActiveAtRef.current = null;
@@ -298,6 +298,24 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     generatedVideoPosterRepairKeySetRef.current.clear();
     storageVideoPosterRepairKeySetRef.current.clear();
   }, [baseRuntimeAuthorityKey]);
+
+  const canonicalGeneratedHydrationRunKey = useMemo(() => {
+    if (!shouldHydrateProjectGeneratedOutputs && !shouldHydratePlainSessionGeneratedOutputs) {
+      return null;
+    }
+    const authorityScope = shouldHydrateProjectGeneratedOutputs
+      ? `project:${projectId ?? ""}`
+      : `workspace:${workspaceRuntimeKey ?? ""}`;
+    const unresolvedRuntimeSignature = canonicalGeneratedOutputSyncSignature || "startup";
+    return [baseRuntimeAuthorityKey, authorityScope, unresolvedRuntimeSignature].join("|");
+  }, [
+    baseRuntimeAuthorityKey,
+    canonicalGeneratedOutputSyncSignature,
+    projectId,
+    shouldHydratePlainSessionGeneratedOutputs,
+    shouldHydrateProjectGeneratedOutputs,
+    workspaceRuntimeKey,
+  ]);
 
   useEffect(() => {
     setCanonicalGeneratedHydrationSettled(
@@ -318,13 +336,14 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   }, []);
 
   useEffect(() => {
-    if (
-      canonicalGeneratedHydrationStartedRef.current ||
-      (!shouldHydrateProjectGeneratedOutputs && !shouldHydratePlainSessionGeneratedOutputs)
-    ) {
+    if (!canonicalGeneratedHydrationRunKey) {
       return;
     }
-    canonicalGeneratedHydrationStartedRef.current = true;
+    if (canonicalGeneratedHydrationRunKeySetRef.current.has(canonicalGeneratedHydrationRunKey)) {
+      return;
+    }
+    canonicalGeneratedHydrationRunKeySetRef.current.add(canonicalGeneratedHydrationRunKey);
+    setCanonicalGeneratedHydrationSettled(false);
     let cancelled = false;
 
     void (async () => {
@@ -363,6 +382,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       cancelled = true;
     };
   }, [
+    canonicalGeneratedHydrationRunKey,
     projectId,
     setOutputsState,
     shouldHydratePlainSessionGeneratedOutputs,

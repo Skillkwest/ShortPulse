@@ -51,6 +51,33 @@ const mockMediaRows = (rows: unknown[]) => {
   return builders;
 };
 
+const mockMediaRowsByColumn = (rowsByColumn: Record<string, unknown[]>) => {
+  const builders: Array<ReturnType<typeof createMediaRowsBuilder> & { column?: string }> = [];
+  ensureSupabaseQueryClientMock.mockReturnValue({
+    from: vi.fn((table: string) => {
+      if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
+      return {
+        select: vi.fn(() => {
+          const builder = createMediaRowsBuilder([]) as ReturnType<
+            typeof createMediaRowsBuilder
+          > & { column?: string };
+          builder.in.mockImplementation((column: string) => {
+            builder.column = column;
+            return builder;
+          });
+          builder.limit.mockImplementation(async () => ({
+            data: rowsByColumn[builder.column ?? ""] ?? [],
+            error: null,
+          }));
+          builders.push(builder);
+          return builder;
+        }),
+      };
+    }),
+  });
+  return builders;
+};
+
 describe("resolveVideoPosterRepairsForOutputs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -177,5 +204,78 @@ describe("resolveVideoPosterRepairsForOutputs", () => {
 
     expect(repairs.size).toBe(0);
     expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+  });
+
+  it("skips preview-variant lookup when storage rows already cover preview paths", async () => {
+    const builders = mockMediaRowsByColumn({
+      storage_path: [
+        {
+          id: "media-5",
+          file_type: "video",
+          storage_path: "user-1/generations/videos/out-5.mp4",
+          preview_variant_path: "user-1/variants/videos/media-5/preview_loop_360p.mp4",
+          poster_variant_path: "user-1/variants/videos/media-5/poster_720.jpg",
+        },
+      ],
+    });
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        ["user-1/variants/videos/media-5/poster_720.jpg", "https://signed.test/poster-5.jpg"],
+      ])
+    );
+
+    const repairs = await resolveVideoPosterRepairsForOutputs([
+      makeOutput({
+        id: "out-5",
+        previewUrl: "https://signed.test/out-5.mp4",
+        previewStoragePath: "user-1/variants/videos/media-5/preview_loop_360p.mp4",
+        fullStoragePath: "user-1/generations/videos/out-5.mp4",
+      }),
+    ]);
+
+    expect(repairs.get("out-5")).toMatchObject({
+      previewPosterUrl: "https://signed.test/poster-5.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/media-5/poster_720.jpg",
+    });
+    expect(builders.map((builder) => builder.in.mock.calls[0]?.[0])).toEqual(["storage_path"]);
+  });
+
+  it("falls back to preview-variant lookup when storage rows do not cover the path", async () => {
+    const builders = mockMediaRowsByColumn({
+      storage_path: [],
+      preview_variant_path: [
+        {
+          id: "media-6",
+          file_type: "video",
+          storage_path: "user-1/generations/videos/out-6.mp4",
+          preview_variant_path: "user-1/variants/videos/media-6/preview_loop_360p.mp4",
+          poster_variant_path: "user-1/variants/videos/media-6/poster_720.jpg",
+        },
+      ],
+    });
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        ["user-1/variants/videos/media-6/poster_720.jpg", "https://signed.test/poster-6.jpg"],
+      ])
+    );
+
+    const repairs = await resolveVideoPosterRepairsForOutputs([
+      makeOutput({
+        id: "out-6",
+        previewUrl: "https://signed.test/out-6.mp4",
+        previewStoragePath: "user-1/variants/videos/media-6/preview_loop_360p.mp4",
+        fullStoragePath: null,
+      }),
+    ]);
+
+    expect(repairs.get("out-6")).toMatchObject({
+      previewPosterUrl: "https://signed.test/poster-6.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/media-6/poster_720.jpg",
+      fullStoragePath: "user-1/generations/videos/out-6.mp4",
+    });
+    expect(builders.map((builder) => builder.in.mock.calls[0]?.[0])).toEqual([
+      "storage_path",
+      "preview_variant_path",
+    ]);
   });
 });

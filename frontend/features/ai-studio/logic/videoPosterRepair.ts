@@ -125,6 +125,39 @@ const dedupeRows = (rows: MediaFilePosterRow[]): MediaFilePosterRow[] => {
   return Array.from(byKey.values());
 };
 
+const collectCoveredStoragePaths = (rows: MediaFilePosterRow[]): Set<string> => {
+  const covered = new Set<string>();
+  rows.forEach((row) => {
+    [
+      asCanonicalStoragePath(maybeString(row.storage_path)),
+      asCanonicalStoragePath(maybeString(row.preview_variant_path)),
+    ].forEach((path) => {
+      if (path) covered.add(path);
+    });
+  });
+  return covered;
+};
+
+const selectMediaRowsForPosterRepair = async ({
+  mediaIds,
+  storagePaths,
+}: {
+  mediaIds: string[];
+  storagePaths: string[];
+}): Promise<MediaFilePosterRow[]> => {
+  const [byId, byStoragePath] = await Promise.all([
+    selectMediaRows("id", mediaIds),
+    selectMediaRows("storage_path", storagePaths),
+  ]);
+  const coveredStoragePaths = collectCoveredStoragePaths([...byId, ...byStoragePath]);
+  const previewVariantPathsToQuery = storagePaths.filter((path) => !coveredStoragePaths.has(path));
+  const byPreviewStoragePath = await selectMediaRows(
+    "preview_variant_path",
+    previewVariantPathsToQuery
+  );
+  return dedupeRows([...byId, ...byStoragePath, ...byPreviewStoragePath]);
+};
+
 const resolveBestRowForOutput = (
   output: StudioOutput,
   rows: MediaFilePosterRow[]
@@ -172,12 +205,7 @@ export const resolveVideoPosterRepairsForOutputs = async (
 
   let mediaRows: MediaFilePosterRow[] = [];
   try {
-    const [byId, byStoragePath, byPreviewStoragePath] = await Promise.all([
-      selectMediaRows("id", mediaIds),
-      selectMediaRows("storage_path", storagePaths),
-      selectMediaRows("preview_variant_path", storagePaths),
-    ]);
-    mediaRows = dedupeRows([...byId, ...byStoragePath, ...byPreviewStoragePath]);
+    mediaRows = await selectMediaRowsForPosterRepair({ mediaIds, storagePaths });
   } catch {
     mediaRows = [];
   }

@@ -63,7 +63,7 @@ type DetailModalProps = {
   onDeleteOutput: (id: string) => void;
   onDownloadReference?: (id: string) => void;
   onSaveReference?: (id: string) => void;
-  onReloadWorkflowReference?: (id: string) => void;
+  onReloadWorkflowReference?: (output: StudioOutput) => void;
   isMediaStorageFull?: boolean;
   onSavePrompt?: (promptText: string) => void;
   refreshCharacterOptions?: () => Promise<
@@ -1225,9 +1225,9 @@ function DetailModalContent({
     onSaveReference(outputId);
   }, [isMediaSaveDisabled, onSaveReference, outputId]);
   const handleReloadWorkflowReference = useCallback(() => {
-    if (!outputId || !onReloadWorkflowReference) return;
-    onReloadWorkflowReference(outputId);
-  }, [onReloadWorkflowReference, outputId]);
+    if (!onReloadWorkflowReference) return;
+    onReloadWorkflowReference(output);
+  }, [onReloadWorkflowReference, output]);
 
   const handlePreviewAspectLoad = useCallback(
     (width: number, height: number) => {

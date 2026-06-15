@@ -343,6 +343,7 @@ export const useReferenceGridRuntimeScaffold = ({
     minBottomSectionHeightPx: horizontalSplitMinBottomSectionHeightPx,
     allRefsSnapTopHeightPx: curatedHeaderHeightPx,
     collapseTopHeightPx: curatedHeaderHeightPx,
+    preserveTopPixelsOnContainerGrowth: false,
   });
   const stylesSplitContainerRef = stylesSplitUsesNestedContainer
     ? referenceGridStylesStackRef

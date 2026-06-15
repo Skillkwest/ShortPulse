@@ -35,7 +35,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   handleAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   retryOutputStatus: (id: string) => void;
   handleRerollOutput?: (id: string) => void;
-  handleReloadWorkflowOutput?: (id: string) => void;
+  handleReloadWorkflowOutput?: (output: StudioOutput) => void;
   deleteOutput: (id: string) => void;
   clearGenerationOutput?: (id: string) => void;
   addCuratedReference?: (id: string) => void;
@@ -126,7 +126,7 @@ export const useAiStudioReferenceGridProps = ({
         : undefined,
       onReloadWorkflowOutput: handleReloadWorkflowOutput
         ? (output) => {
-            handleReloadWorkflowOutput(output.id);
+            handleReloadWorkflowOutput(output);
           }
         : undefined,
       onDeleteOutput: deleteOutput,

@@ -84,6 +84,7 @@ const renderMaintenanceHook = ({
       });
       return {
         outputs,
+        setOutputs,
         canonicalGeneratedHydrationSettled: maintenance.canonicalGeneratedHydrationSettled,
       };
     },
@@ -158,6 +159,52 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       workspaceRuntimeKey: null,
     });
     expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(2, {
+      projectId: "project-1",
+      workspaceRuntimeKey: null,
+    });
+  });
+
+  it("re-arms project hydration when restore later introduces unresolved generated shells", async () => {
+    const restoredShell: StudioOutput = {
+      ...hydratedOutput,
+      prompt: "",
+      generationId: undefined,
+      taskId: undefined,
+      taskState: "pending",
+      previewUrl: undefined,
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [],
+      savedMediaIds: [],
+    };
+    listVisibleGeneratedOutputsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([hydratedOutput]);
+
+    const { result } = renderMaintenanceHook();
+
+    await waitFor(() => {
+      expect(result.current.canonicalGeneratedHydrationSettled).toBe(true);
+    });
+    expect(result.current.outputs).toEqual([]);
+
+    act(() => {
+      result.current.setOutputs([restoredShell]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs).toEqual([
+        expect.objectContaining({
+          id: "generated:generation-1",
+          generationId: "generation-1",
+          taskState: "success",
+          previewUrl: "https://cdn.example.com/project-output.png",
+          resultUrls: ["https://cdn.example.com/project-output.png"],
+        }),
+      ]);
+    });
+    expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
       projectId: "project-1",
       workspaceRuntimeKey: null,
     });

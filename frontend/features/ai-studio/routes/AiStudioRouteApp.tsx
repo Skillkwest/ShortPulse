@@ -854,7 +854,7 @@ const AiStudioPageRuntimeBody = ({
     onDeleteOutput,
     onDetailDownload,
     onDetailSaveReference,
-    onDetailReloadWorkflow: base.reloadWorkflowFromOutput,
+    onDetailReloadWorkflow: base.reloadWorkflowFromStudioOutput,
     onMediaLibraryReloadWorkflow: base.reloadWorkflowFromStudioOutput,
     onDetailSavePrompt,
     onAddLibraryMediaReference: addLibraryMediaReference,

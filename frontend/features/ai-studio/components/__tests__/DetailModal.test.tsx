@@ -501,7 +501,7 @@ describe("DetailModal", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Reload workflow" }));
-    expect(onReloadWorkflowReference).toHaveBeenCalledWith("out-1");
+    expect(onReloadWorkflowReference).toHaveBeenCalledWith(restorableOutput);
 
     rerender(
       <DetailModal

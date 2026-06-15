@@ -26,6 +26,7 @@ type UseReferenceGridHorizontalSplitArgs = {
   allRefsSnapTopHeightPx?: number;
   collapseTopHeightPx?: number;
   ariaLabel?: string;
+  preserveTopPixelsOnContainerGrowth?: boolean;
 };
 
 type DragSession = {
@@ -124,6 +125,7 @@ export const useReferenceGridHorizontalSplit = ({
   allRefsSnapTopHeightPx = DEFAULT_ALL_REFS_SNAP_TOP_HEIGHT_PX,
   collapseTopHeightPx,
   ariaLabel = "Resize Quick Slot Inventory and Reference Grid sections",
+  preserveTopPixelsOnContainerGrowth = true,
 }: UseReferenceGridHorizontalSplitArgs) => {
   const normalizedMinTopRatioFloor = clamp(minTopRatioFloor, 0, 0.98);
   const dragSessionRef = useRef<DragSession | null>(null);
@@ -205,7 +207,8 @@ export const useReferenceGridHorizontalSplit = ({
       const previousHeight =
         containerHeightRef.current > 0 ? containerHeightRef.current : nextHeight;
       containerHeightRef.current = nextHeight;
-      const shouldPreserveTopPixels = nextHeight >= previousHeight;
+      const shouldPreserveTopPixels =
+        preserveTopPixelsOnContainerGrowth && nextHeight >= previousHeight;
       const preservedTopHeightPx = topRatioRef.current * Math.max(1, previousHeight);
       const nextRatio = shouldPreserveTopPixels
         ? preservedTopHeightPx / Math.max(1, nextHeight)
@@ -214,7 +217,7 @@ export const useReferenceGridHorizontalSplit = ({
       if (Math.abs(topRatioRef.current - clampedRatio) < 0.001) return;
       commitTopRatio(clampedRatio);
     },
-    [clampTopRatio, commitTopRatio]
+    [clampTopRatio, commitTopRatio, preserveTopPixelsOnContainerGrowth]
   );
 
   const applyDeltaPx = useCallback(

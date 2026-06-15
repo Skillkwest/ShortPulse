@@ -41,7 +41,7 @@ const createParams = (
 });
 
 describe("useAiStudioReferenceGridProps", () => {
-  it("routes output action callbacks through output id wrappers", () => {
+  it("routes output action callbacks while preserving reload workflow snapshots", () => {
     const handleSaveReference = vi.fn();
     const handleDownloadReference = vi.fn();
     const handlePasteTextReference = vi.fn();
@@ -106,7 +106,7 @@ describe("useAiStudioReferenceGridProps", () => {
     });
     expect(retryOutputStatus).toHaveBeenCalledWith("out-1");
     expect(handleRerollOutput).toHaveBeenCalledWith("out-1");
-    expect(handleReloadWorkflowOutput).toHaveBeenCalledWith("out-1");
+    expect(handleReloadWorkflowOutput).toHaveBeenCalledWith(output);
   });
 
   it("stores the selected output snapshot when opening details", () => {

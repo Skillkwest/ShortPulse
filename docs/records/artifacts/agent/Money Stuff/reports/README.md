@@ -11,6 +11,7 @@ Create a dated report when a run:
 
 Current notable report:
 
+- `2026-06-15-stripe-billing-provider-proof-closeout.md` — blocker closeout for the production signup/billing launch-proof handoff after production readiness checks passed the non-Stripe posture gates but local Stripe provider proof and the two-account production transaction matrix remained unavailable.
 - `2026-06-03-money-stuff-belongings-audit.md` — verifies that Money Stuff's true owned artifacts are already housed in her canonical folders and that shared indexes or other agents' historical reports should not be rehomed into her area.
 - `2026-05-30-admin-priced-billed-credit-migration-plan.md` — compact master migration plan for moving AI usage billed-credit authority onto admin-priced canonical variant rows.
 - `2026-05-30-create-admin-priced-billed-credit-implementation-plan.md` — Create-only execution plan defining the exact billed-credit lookup key, consumer cutover set, and proof gate for the first migration lane.

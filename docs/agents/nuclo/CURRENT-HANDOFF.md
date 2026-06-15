@@ -6,6 +6,14 @@ Created: 2026-06-14
 Source lane: async generation convergence proof / Supabase DB URL hosted diagnostics
 Target environment: production only
 
+Latest status, 2026-06-15T03:35Z UTC:
+
+- Nuclo repaired GitHub Environment `production` `SUPABASE_DB_URL` to the Dashboard-confirmed production Supavisor session pooler without exposing the raw secret.
+- Hosted run `27522410789` executed the full SQL bundle on `production`.
+- Environment connectivity, runtime SQL security, settlement integrity, scheduler health, pg_net posture, and control-plane enforce gate passed.
+- Overall handoff remains active because production convergence diagnostics returned nonzero defect classes: `project_metadata_missing_projection_project_scope = 124`, `project_owned_media_missing_project_media_association = 1`, `published_without_projection = 4`, and `terminal_success_outputs_missing_projection = 4`.
+- Retained report: `docs/records/artifacts/agent/nuclo/reports/2026-06-14-production-supabase-db-url-reliability-diagnostics-closeout.md`.
+
 ## Objective
 
 Resolve the production GitHub Environment `SUPABASE_DB_URL` blocker so the hosted reliability control-plane diagnostics workflow can run real SQL against the production Supabase database, then produce a decision-grade closeout for the async generation convergence proof boundary.

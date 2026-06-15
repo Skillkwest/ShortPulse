@@ -28,6 +28,17 @@ const LOADED_ENV_FILES = loadLocalEnv({
   defaultPaths: [".env.agent.local", ".env.local", "frontend/.env.local"],
 });
 
+const PSQL_COMMAND_CANDIDATES = Array.from(
+  new Set(
+    [
+      process.env.PSQL_BIN?.trim(),
+      "/opt/homebrew/opt/libpq/bin/psql",
+      "/usr/local/opt/libpq/bin/psql",
+      "psql",
+    ].filter(Boolean),
+  ),
+);
+
 const ensureProductionBaseUrl = (baseUrl, reporter) => {
   if (baseUrl !== "https://www.shortpulse.ai") {
     reporter.warn(
@@ -252,13 +263,14 @@ const checkSignupTrigger = async (args, reporter) => {
 
   const dbUrl =
     process.env.SHORTPULSE_PRODUCTION_SUPABASE_DB_URL?.trim() ??
+    process.env.SHORTPULSE_PRODUCTION_DB_URL?.trim() ??
     process.env.SUPABASE_DB_URL?.trim() ??
     "";
   if (!dbUrl) {
     reporter.warn(
       "signup_billing_trigger",
       "Production auth.users billing trigger proof is unproven because no production DB URL is available locally.",
-      "Expected SHORTPULSE_PRODUCTION_SUPABASE_DB_URL or SUPABASE_DB_URL.",
+      "Expected SHORTPULSE_PRODUCTION_SUPABASE_DB_URL, SHORTPULSE_PRODUCTION_DB_URL, or SUPABASE_DB_URL.",
     );
     return;
   }
@@ -289,14 +301,36 @@ with checks as (
 select coalesce(json_agg(checks order by check_name), '[]'::json) from checks;
 `;
 
-  const { stdout } = await execFileAsync(
-    "psql",
-    [dbUrl, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", sql],
-    {
-      encoding: "utf8",
-      maxBuffer: 1024 * 1024,
-    },
-  );
+  let stdout = null;
+  const missingPsqlCommands = [];
+  for (const psqlCommand of PSQL_COMMAND_CANDIDATES) {
+    try {
+      const result = await execFileAsync(
+        psqlCommand,
+        [dbUrl, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", sql],
+        {
+          encoding: "utf8",
+          maxBuffer: 1024 * 1024,
+        },
+      );
+      stdout = result.stdout;
+      break;
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        missingPsqlCommands.push(psqlCommand);
+        continue;
+      }
+      throw error;
+    }
+  }
+  if (stdout === null) {
+    reporter.warn(
+      "signup_billing_trigger",
+      "Production auth.users billing trigger proof is unproven because no psql client is available locally.",
+      `Tried: ${missingPsqlCommands.join(", ")}`,
+    );
+    return;
+  }
   const rows = JSON.parse(stdout.trim() || "[]");
   const failed = rows.filter((row) => row.ok !== true).map((row) => row.check_name);
   if (failed.length > 0) {

@@ -490,6 +490,7 @@ function ReferenceGridComponent({
     generationLoadingCardIdSet,
     hydrationLoadingCardIdSet,
     perfDegradeLevel: effectivePerfDegradeLevel,
+    suspendBackgroundVisualWork,
     visibleCardItems,
     curatedVisibleCardItems,
     visibleQuickSlotIdSet,

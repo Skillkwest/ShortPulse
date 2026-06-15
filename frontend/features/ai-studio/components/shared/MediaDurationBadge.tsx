@@ -8,6 +8,7 @@ type MediaDurationBadgeProps = {
   mediaKind: "audio" | "video";
   audioSourceMode?: StudioAudioSourceMode | null;
   className?: string;
+  allowProbe?: boolean;
 };
 
 export type MediaDurationBadgeKind = "audio" | "music" | "sound-effects" | "video";
@@ -164,6 +165,7 @@ export function MediaDurationBadge({
   mediaKind,
   audioSourceMode = null,
   className,
+  allowProbe = true,
 }: MediaDurationBadgeProps) {
   const [resolvedDurationMs, setResolvedDurationMs] = React.useState<number | null>(() =>
     normalizeDurationMs(durationMs)
@@ -182,7 +184,7 @@ export function MediaDurationBadge({
       setResolvedDurationMs(explicitDurationMs);
       return;
     }
-    if (!normalizedMediaUrl || typeof document === "undefined") {
+    if (!allowProbe || !normalizedMediaUrl || typeof document === "undefined") {
       setResolvedDurationMs(null);
       return;
     }
@@ -199,7 +201,7 @@ export function MediaDurationBadge({
     return () => {
       cancelled = true;
     };
-  }, [durationMs, mediaKind, mediaUrl]);
+  }, [allowProbe, durationMs, mediaKind, mediaUrl]);
 
   if (resolvedDurationMs == null) return null;
 

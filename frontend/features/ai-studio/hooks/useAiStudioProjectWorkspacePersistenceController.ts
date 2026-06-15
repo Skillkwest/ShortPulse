@@ -685,17 +685,20 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       durationMs: resolvePerfNow() - startedAt,
     };
   }, [buildBaseSessionSnapshot, isAutosaveWorkDeferred, projectBootstrapSettled, sessionId]);
-  const baseSessionSnapshotComputation =
-    liveBaseSessionSnapshotComputation ??
-    (lastBaseSessionSnapshotComputation
-      ? {
-          snapshot: lastBaseSessionSnapshotComputation.snapshot,
-          durationMs: null as number | null,
-        }
-      : {
-          snapshot: null as AiStudioSessionSnapshot | null,
-          durationMs: null as number | null,
-        });
+  const baseSessionSnapshotComputation = useMemo(
+    () =>
+      liveBaseSessionSnapshotComputation ??
+      (lastBaseSessionSnapshotComputation
+        ? {
+            snapshot: lastBaseSessionSnapshotComputation.snapshot,
+            durationMs: null as number | null,
+          }
+        : {
+            snapshot: null as AiStudioSessionSnapshot | null,
+            durationMs: null as number | null,
+          }),
+    [lastBaseSessionSnapshotComputation, liveBaseSessionSnapshotComputation]
+  );
   const baseSessionSnapshot = baseSessionSnapshotComputation.snapshot;
 
   useEffect(() => {
@@ -750,17 +753,20 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       durationMs: resolvePerfNow() - startedAt,
     };
   }, [baseSessionSnapshot, isAutosaveWorkDeferred, patchSessionSnapshot]);
-  const sessionSnapshotComputation =
-    liveSessionSnapshotComputation ??
-    (lastSessionSnapshotComputation
-      ? {
-          snapshot: lastSessionSnapshotComputation.snapshot,
-          durationMs: null as number | null,
-        }
-      : {
-          snapshot: baseSessionSnapshot,
-          durationMs: null as number | null,
-        });
+  const sessionSnapshotComputation = useMemo(
+    () =>
+      liveSessionSnapshotComputation ??
+      (lastSessionSnapshotComputation
+        ? {
+            snapshot: lastSessionSnapshotComputation.snapshot,
+            durationMs: null as number | null,
+          }
+        : {
+            snapshot: baseSessionSnapshot,
+            durationMs: null as number | null,
+          }),
+    [baseSessionSnapshot, lastSessionSnapshotComputation, liveSessionSnapshotComputation]
+  );
   const sessionSnapshot = sessionSnapshotComputation.snapshot;
 
   useEffect(() => {

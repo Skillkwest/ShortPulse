@@ -50,6 +50,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   generationLoadingCardIdSet: Set<string>;
   hydrationLoadingCardIdSet: Set<string>;
   perfDegradeLevel: 0 | 1 | 2;
+  suspendBackgroundVisualWork?: boolean;
   visibleCardItems: ReferenceGridVisibleCard[];
   curatedVisibleCardItems: ReferenceGridVisibleCard[];
   visibleQuickSlotIdSet: Set<string>;
@@ -109,6 +110,7 @@ export const useReferenceGridCardRenderController = ({
   generationLoadingCardIdSet,
   hydrationLoadingCardIdSet,
   perfDegradeLevel,
+  suspendBackgroundVisualWork = false,
   visibleCardItems,
   curatedVisibleCardItems,
   visibleQuickSlotIdSet,
@@ -277,6 +279,7 @@ export const useReferenceGridCardRenderController = ({
           isAudioPreview={card.isAudioPreview}
           canAutoplayVideo={canAutoplayVideo}
           videoPreload={shouldWarmVideoPreview ? "metadata" : "none"}
+          allowDurationProbe={!suspendBackgroundVisualWork}
           isPromptOnly={isPromptOnly}
           isLinkedPromptReference={isLinkedPromptReference}
           canRetryStatus={canRetryStatus}
@@ -368,6 +371,7 @@ export const useReferenceGridCardRenderController = ({
       loadingCardIdSet,
       perfDegradeLevel,
       registerVideoNode,
+      suspendBackgroundVisualWork,
       visibleQuickSlotIdSet,
     ]
   );

@@ -125,4 +125,41 @@ describe("MediaDurationBadge", () => {
     expect(createdMediaElements).toHaveLength(0);
     expect(screen.getByText("0:42")).toBeInTheDocument();
   });
+
+  it("can suppress hidden duration probes while still rendering explicit durations", () => {
+    const actualCreateElement = document.createElement.bind(document);
+    const createdMediaElements: FakeMediaElement[] = [];
+
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      if (tagName === "audio" || tagName === "video") {
+        const fakeMedia = createFakeMediaElement();
+        createdMediaElements.push(fakeMedia);
+        return fakeMedia as unknown as HTMLElement;
+      }
+      return actualCreateElement(tagName);
+    });
+
+    const { rerender } = render(
+      <MediaDurationBadge
+        mediaKind="video"
+        mediaUrl="https://media.test/suppressed-video.mp4"
+        allowProbe={false}
+      />
+    );
+
+    expect(createdMediaElements).toHaveLength(0);
+    expect(screen.queryByText("0:12")).not.toBeInTheDocument();
+
+    rerender(
+      <MediaDurationBadge
+        mediaKind="video"
+        mediaUrl="https://media.test/suppressed-video.mp4"
+        durationMs={12_000}
+        allowProbe={false}
+      />
+    );
+
+    expect(createdMediaElements).toHaveLength(0);
+    expect(screen.getByText("0:12")).toBeInTheDocument();
+  });
 });

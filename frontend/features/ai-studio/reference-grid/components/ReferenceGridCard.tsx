@@ -53,6 +53,7 @@ export type ReferenceGridCardProps = {
   isAudioPreview?: boolean;
   canAutoplayVideo: boolean;
   videoPreload: "auto" | "metadata" | "none";
+  allowDurationProbe?: boolean;
   isPromptOnly: boolean;
   isLinkedPromptReference: boolean;
   canRetryStatus: boolean;
@@ -144,6 +145,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   isAudioPreview = false,
   canAutoplayVideo,
   videoPreload,
+  allowDurationProbe = true,
   isPromptOnly,
   isLinkedPromptReference,
   canRetryStatus,
@@ -554,6 +556,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           durationMs={item.durationMs ?? null}
           mediaUrl={videoDurationMediaUrl}
           mediaKind="video"
+          allowProbe={allowDurationProbe}
         />
       ) : null}
       {shouldShowMediaUnavailable ? (

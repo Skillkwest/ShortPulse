@@ -21,6 +21,7 @@ import {
   fetchStudioAgentChatCompletion,
   formatStudioAgentErrorMessage,
   resolveStudioAgentOpenAiConfig,
+  type StudioAgentStandardWebSearchMode,
 } from "../studioAgentOpenAiGateway";
 import {
   hasInboundStudioAgentCanonicalPrompt,
@@ -77,6 +78,7 @@ const STANDARD_RESPONSE_STYLE_GUIDANCE = [
   '- "Reply with: 1 2 3"',
 ].join("\n");
 type StandardOpenAiImageDetail = "high" | "auto";
+type StandardWebSearchToolChoice = "auto" | "required";
 
 const STANDARD_DIRECTIVE_SHIFT_VERBS = new Set([
   "add",
@@ -151,6 +153,37 @@ const isLikelyStandardEvaluationRequest = (value: string): boolean => {
   return /(too generic|what('|’)s weak|what is weak|what works|what('|’)s working|how would you improve|how can i improve|is this working|does this work|evaluate|critique|what('|’)s off|what is off|what('|’)s wrong|what is wrong)\b/.test(
     normalized
   );
+};
+
+const isLikelyStandardWebSearchRequest = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.length) {
+    return false;
+  }
+  return /\b(current|latest|recent|today|tonight|this week|this month|news|updated?|up[- ]to[- ]date|look up|search|web|internet|source|sources|verify|fact[- ]check|fact check|price|pricing|law|legal|regulation|api docs|documentation|released?|available|model availability)\b/.test(
+    normalized
+  );
+};
+
+const resolveStandardWebSearchToolChoice = ({
+  flow,
+  latestUserText,
+  mode,
+}: {
+  flow: "TEXT_ONLY" | "MIXED";
+  latestUserText: string;
+  mode: StudioAgentStandardWebSearchMode;
+}): StandardWebSearchToolChoice | null => {
+  if (mode === "off" || flow !== "TEXT_ONLY") {
+    return null;
+  }
+  if (mode === "required") {
+    return "required";
+  }
+  if (mode === "auto") {
+    return "auto";
+  }
+  return isLikelyStandardWebSearchRequest(latestUserText) ? "auto" : null;
 };
 
 const clipStandardSystemContextField = (value?: string | null): string | null => {
@@ -483,6 +516,7 @@ const executeStandardOpenAiWithRetry = async ({
   retryMaxDelayMs,
   responsesEnabled,
   chatFallbackEnabled,
+  webSearchToolChoice,
   env,
 }: {
   apiKey: string;
@@ -495,6 +529,7 @@ const executeStandardOpenAiWithRetry = async ({
   retryMaxDelayMs: number;
   responsesEnabled: boolean;
   chatFallbackEnabled: boolean;
+  webSearchToolChoice?: StandardWebSearchToolChoice | null;
   env?: NodeJS.ProcessEnv;
 }): Promise<
   | { ok: true; response: Response; retryCount: number; transport: "chat" | "responses" }
@@ -508,6 +543,9 @@ const executeStandardOpenAiWithRetry = async ({
 > => {
   let attempt = 1;
   let retryCount = 0;
+  const requiresResponsesTransport = Boolean(webSearchToolChoice);
+  const effectiveResponsesEnabled = responsesEnabled || requiresResponsesTransport;
+  const effectiveChatFallbackEnabled = requiresResponsesTransport ? false : chatFallbackEnabled;
 
   const executeChatTurn = async (): Promise<Response> =>
     await fetchStudioAgentChatCompletion({
@@ -525,7 +563,7 @@ const executeStandardOpenAiWithRetry = async ({
 
   while (true) {
     try {
-      if (!responsesEnabled) {
+      if (!effectiveResponsesEnabled) {
         const response = await executeChatTurn();
         if (response.ok) {
           return { ok: true, response, retryCount, transport: "chat" };
@@ -559,13 +597,19 @@ const executeStandardOpenAiWithRetry = async ({
             model,
             input: buildOpenAiResponsesInput(messages),
             store: false,
+            ...(webSearchToolChoice
+              ? {
+                  tools: [{ type: "web_search" }],
+                  tool_choice: webSearchToolChoice,
+                }
+              : {}),
           },
         });
         if (response.ok) {
           return { ok: true, response, retryCount, transport: "responses" };
         }
 
-        if (chatFallbackEnabled) {
+        if (effectiveChatFallbackEnabled) {
           const fallbackResponse = await executeChatTurn();
           if (fallbackResponse.ok) {
             return { ok: true, response: fallbackResponse, retryCount, transport: "chat" };
@@ -1002,6 +1046,11 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     textPayloadChars,
   });
   const standardModel = executionProfile.model;
+  const webSearchToolChoice = resolveStandardWebSearchToolChoice({
+    flow,
+    latestUserText: resolveLatestStandardUserText(messages),
+    mode: openAiConfig.standardWebSearchMode,
+  });
   const openAiRoundTripStartedAt = Date.now();
   const standardOpenAiMessages = buildStandardOpenAiMessages({
     messages,
@@ -1021,14 +1070,13 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       retryMaxDelayMs: openAiConfig.upstreamRetryMaxDelayMs,
       responsesEnabled: openAiConfig.standardResponsesEnabled,
       chatFallbackEnabled: openAiConfig.standardChatFallbackEnabled,
+      webSearchToolChoice,
       env: {
         ...process.env,
-        SHORTPULSE_OPENAI_RESPONSES_ENABLED: openAiConfig.standardResponsesEnabled
-          ? "true"
-          : "false",
-        SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED: openAiConfig.standardChatFallbackEnabled
-          ? "true"
-          : "false",
+        SHORTPULSE_OPENAI_RESPONSES_ENABLED:
+          openAiConfig.standardResponsesEnabled || Boolean(webSearchToolChoice) ? "true" : "false",
+        SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED:
+          openAiConfig.standardChatFallbackEnabled && !webSearchToolChoice ? "true" : "false",
       },
     });
     markStage("standard_openai_roundtrip", openAiRoundTripStartedAt);

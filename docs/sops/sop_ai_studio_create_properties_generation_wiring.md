@@ -225,6 +225,7 @@ sequenceDiagram
 1. Client send path:
 
 - `useStandardCreateAgentRuntime` and `usePulseCreateAgentRuntime` bind the reusable agent state engine to explicit Standard/Pulse transports, context builders, and response parsers. Standard posts only to `/api/ai/studio-agent-standard`; Pulse posts only to `/api/ai/studio-agent-pulse`.
+- Standard web-search access, when enabled by server env, is owned by `/api/ai/studio-agent-standard` and the Standard Responses transport only. It is not a Create generation-submit flag, not a Pulse capability, and not a shared right-rail or model-picker control.
 
 2. Studio-agent server path:
 

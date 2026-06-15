@@ -22,6 +22,7 @@ const MAX_UPSTREAM_RETRY_BASE_DELAY_MS = 5000;
 const DEFAULT_UPSTREAM_RETRY_MAX_DELAY_MS = 1200;
 const MIN_UPSTREAM_RETRY_MAX_DELAY_MS = 0;
 const MAX_UPSTREAM_RETRY_MAX_DELAY_MS = 10000;
+export type StudioAgentStandardWebSearchMode = "off" | "auto" | "intent" | "required";
 
 const parseStudioAgentTimeoutMs = (
   value: string | undefined,
@@ -59,6 +60,29 @@ const resolveModelEnv = (candidate: string | undefined, fallback: string): strin
   return trimmed && trimmed.length ? trimmed : fallback;
 };
 
+const parseBooleanEnv = (value: string | undefined): boolean =>
+  String(value ?? "").toLowerCase() === "true";
+
+const resolveStandardWebSearchMode = ({
+  value,
+  enabled,
+}: {
+  value: string | undefined;
+  enabled: boolean;
+}): StudioAgentStandardWebSearchMode => {
+  if (!enabled) return "off";
+  const normalized = value?.trim().toLowerCase();
+  if (
+    normalized === "off" ||
+    normalized === "auto" ||
+    normalized === "intent" ||
+    normalized === "required"
+  ) {
+    return normalized;
+  }
+  return "intent";
+};
+
 export const resolveStudioAgentOpenAiConfig = (
   env: NodeJS.ProcessEnv = process.env
 ): {
@@ -70,6 +94,8 @@ export const resolveStudioAgentOpenAiConfig = (
   openAiPulseModel: string;
   standardResponsesEnabled: boolean;
   standardChatFallbackEnabled: boolean;
+  standardWebSearchEnabled: boolean;
+  standardWebSearchMode: StudioAgentStandardWebSearchMode;
   requestTimeoutMs: number;
   visionTimeoutMs: number;
   turnTimeoutMs: number;
@@ -87,10 +113,14 @@ export const resolveStudioAgentOpenAiConfig = (
     openAiThinkerModel
   );
   const openAiPulseModel = resolveModelEnv(env.STUDIO_AGENT_PULSE_MODEL, openAiModel);
-  const standardResponsesEnabled =
-    String(env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED ?? "").toLowerCase() === "true";
+  const standardResponsesEnabled = parseBooleanEnv(env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED);
   const standardChatFallbackEnabled =
     String(env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED ?? "true").toLowerCase() !== "false";
+  const standardWebSearchEnabled = parseBooleanEnv(env.STUDIO_AGENT_STANDARD_WEB_SEARCH_ENABLED);
+  const standardWebSearchMode = resolveStandardWebSearchMode({
+    value: env.STUDIO_AGENT_STANDARD_WEB_SEARCH_MODE,
+    enabled: standardWebSearchEnabled,
+  });
   const requestTimeoutMs = parseStudioAgentTimeoutMs(env.STUDIO_AGENT_TIMEOUT_MS);
   const visionTimeoutMs = parseStudioAgentTimeoutMs(
     env.STUDIO_AGENT_VISION_TIMEOUT_MS,
@@ -132,6 +162,8 @@ export const resolveStudioAgentOpenAiConfig = (
     openAiPulseModel,
     standardResponsesEnabled,
     standardChatFallbackEnabled,
+    standardWebSearchEnabled,
+    standardWebSearchMode,
     requestTimeoutMs,
     visionTimeoutMs,
     turnTimeoutMs,

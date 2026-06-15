@@ -184,6 +184,8 @@ const resetRuntimeTestState = () => {
   delete process.env.STUDIO_AGENT_UPSTREAM_RETRY_MAX_MS;
   delete process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED;
   delete process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED;
+  delete process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_ENABLED;
+  delete process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_MODE;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT;
@@ -434,6 +436,101 @@ describe("AI Studio Create agent runtime boundaries", () => {
         reason_code: "SUCCESS_MESSAGE",
       })
     );
+  });
+
+  it("adds the Standard web-search tool on eligible text turns", async () => {
+    process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_MODE = "intent";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "resp_standard_web_1",
+          model: "gpt-5.5",
+          output: [
+            {
+              content: [
+                {
+                  type: "output_text",
+                  text: "The latest model notes are available from OpenAI.",
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [{ role: "user", content: "Look up the latest OpenAI web search docs." }],
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/responses",
+      expect.objectContaining({
+        body: expect.stringContaining('"web_search"'),
+      })
+    );
+    const requestBody = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
+    ) as {
+      store?: boolean;
+      tools?: Array<{ type?: string }>;
+      tool_choice?: string;
+      previous_response_id?: string;
+    };
+    expect(requestBody.store).toBe(false);
+    expect(requestBody.tools).toEqual([{ type: "web_search" }]);
+    expect(requestBody.tool_choice).toBe("auto");
+    expect(requestBody).not.toHaveProperty("previous_response_id");
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message: "The latest model notes are available from OpenAI.",
+        canonicalPrompt: null,
+        conversationState: null,
+      })
+    );
+  });
+
+  it("does not silently fall back to Chat Completions for Standard web-search turns", async () => {
+    process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_MODE = "required";
+    process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "true";
+    process.env.STUDIO_AGENT_UPSTREAM_MAX_ATTEMPTS = "1";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response("responses unavailable", {
+        status: 503,
+        headers: { "Content-Type": "text/plain" },
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [{ role: "user", content: "What changed today?" }],
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/responses",
+      expect.objectContaining({
+        body: expect.stringContaining('"tool_choice":"required"'),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(503);
   });
 
   it("keeps explicit Standard prompt artifacts on the success_prompt lane", async () => {

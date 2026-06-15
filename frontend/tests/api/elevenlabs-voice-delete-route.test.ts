@@ -36,7 +36,7 @@ describe("DELETE /api/elevenlabs/voices/[voiceId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
   });
 
   it("removes a saved non-provider-owned voice from ShortPulse only", async () => {

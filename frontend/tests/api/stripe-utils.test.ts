@@ -30,7 +30,7 @@ describe("stripe utils", () => {
   });
 
   it("verifies valid Stripe signatures and rejects stale signatures", () => {
-    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_secret";
+    process.env.STRIPE_WEBHOOK_SECRET = "stripe_webhook_test_secret";
     process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS = "300";
 
     const rawBody = JSON.stringify({ id: "evt_123", type: "checkout.session.completed" });

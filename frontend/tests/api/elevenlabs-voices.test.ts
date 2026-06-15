@@ -74,7 +74,7 @@ describe("GET /api/elevenlabs/voices", () => {
         providerVoiceType: "default",
       },
     ]);
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
 
     const req = {
       method: "GET",
@@ -128,7 +128,7 @@ describe("GET /api/elevenlabs/voices", () => {
         providerVoiceType: "personal",
       },
     ]);
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
 
     const req = {
       method: "GET",
@@ -160,7 +160,7 @@ describe("GET /api/elevenlabs/voices", () => {
         providerVoiceType: null,
       },
     ]);
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
 
     const req = {
       method: "GET",
@@ -210,7 +210,7 @@ describe("GET /api/elevenlabs/voices", () => {
         providerVoiceType: "personal",
       },
     ]);
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
 
     const req = {
       method: "GET",
@@ -254,7 +254,7 @@ describe("GET /api/elevenlabs/voices", () => {
         providerVoiceType: "default",
       },
     ]);
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
 
     const req = {
       method: "GET",
@@ -321,7 +321,7 @@ describe("GET /api/elevenlabs/voices", () => {
   });
 
   it("falls back to defaults on live voice lookup failures", async () => {
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
     listElevenLabsVoicesMock.mockRejectedValue(new Error("provider unavailable"));
 
     const req = {
@@ -351,7 +351,7 @@ describe("GET /api/elevenlabs/voices", () => {
   });
 
   it("keeps saved voices when live voice lookup fails", async () => {
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
     listSavedVoicesForUserWithDiagnosticsMock.mockResolvedValue({
       voices: [
         {
@@ -405,7 +405,7 @@ describe("GET /api/elevenlabs/voices", () => {
 
   it("falls back when live voice lookup times out", async () => {
     vi.useFakeTimers();
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
     listElevenLabsVoicesMock.mockImplementation(() => new Promise(() => undefined));
 
     const req = {
@@ -451,7 +451,7 @@ describe("GET /api/elevenlabs/voices", () => {
         providerVoiceType: "default",
       },
     ]);
-    process.env.ELEVENLABS_API_KEY = "sk_live_mock";
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
 
     const req = {
       method: "GET",

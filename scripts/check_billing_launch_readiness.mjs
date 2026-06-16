@@ -189,6 +189,14 @@ const supabaseRest = async ({ baseUrl, serviceRoleKey }, path) => {
   return body ? JSON.parse(body) : null;
 };
 
+const redactSensitiveDiagnostics = (value) => {
+  const text = String(value ?? "");
+  return text
+    .replace(/postgres(?:ql)?:\/\/[^@\s]+@/gi, "postgresql://[redacted]@")
+    .replace(/(SUPABASE_(?:ACCESS|MANAGEMENT_API)_TOKEN=)[^\s]+/gi, "$1[redacted]")
+    .replace(/(STRIPE_SECRET_KEY=)[^\s]+/gi, "$1[redacted]");
+};
+
 const checkProductionSupabaseCatalog = async (reporter) => {
   const config = resolveProductionSupabaseConfig();
   if (!config) {
@@ -437,7 +445,7 @@ select coalesce(json_agg(checks order by check_name), '[]'::json) from checks;
         missingPsqlCommands.push(psqlCommand);
         continue;
       }
-      throw error;
+      throw new Error(redactSensitiveDiagnostics(error instanceof Error ? error.message : error));
     }
   }
   if (stdout === null) {
@@ -629,7 +637,10 @@ const main = async () => {
     try {
       await runCheck();
     } catch (error) {
-      reporter.fail(id, error instanceof Error ? error.message : String(error));
+      reporter.fail(
+        id,
+        redactSensitiveDiagnostics(error instanceof Error ? error.message : error),
+      );
     }
   }
 
@@ -642,7 +653,9 @@ const main = async () => {
 
 main().catch((error) => {
   console.error(
-    `[billing-launch-readiness] error=${error instanceof Error ? error.message : String(error)}`,
+    `[billing-launch-readiness] error=${redactSensitiveDiagnostics(
+      error instanceof Error ? error.message : error,
+    )}`,
   );
   process.exit(1);
 });

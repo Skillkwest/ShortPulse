@@ -290,6 +290,7 @@ function ReferenceGridComponent({
   const { signedStorageUrlByPath, signedMediaAuthorityByMediaId, signingPendingStoragePathSet } =
     useReferenceGridSignedStorageUrlController({
       outputs: storageSigningMediaOutputs,
+      suspendSigningRequests: suspendBackgroundVisualWork,
     });
   const { resolveCardMedia } = useReferenceGridResolvedMediaController({
     previewQualityPressureLevel,

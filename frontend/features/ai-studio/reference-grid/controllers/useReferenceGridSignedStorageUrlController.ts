@@ -220,9 +220,11 @@ export const applySignedMediaAuthorityToReferenceGridMediaOutput = (
 export const useReferenceGridSignedStorageUrlController = ({
   outputs,
   signingMode = "card-preview",
+  suspendSigningRequests = false,
 }: {
   outputs: readonly (ReferenceGridMediaOutput | null | undefined)[];
   signingMode?: ReferenceGridStorageSigningMode;
+  suspendSigningRequests?: boolean;
 }) => {
   const storagePaths = useMemo(
     () => collectReferenceGridStoragePaths(outputs, { signingMode }),
@@ -247,6 +249,8 @@ export const useReferenceGridSignedStorageUrlController = ({
   useEffect(() => {
     const pathsForRequest = storagePathKey ? storagePathKey.split("\n") : [];
     let cancelled = false;
+
+    if (suspendSigningRequests) return;
 
     if (!pathsForRequest.length) {
       queueMicrotask(() => {
@@ -303,12 +307,12 @@ export const useReferenceGridSignedStorageUrlController = ({
     return () => {
       cancelled = true;
     };
-  }, [storagePathKey]);
+  }, [storagePathKey, suspendSigningRequests]);
 
   useEffect(() => {
     const mediaIdsForRequest = savedMediaIdKey ? savedMediaIdKey.split("\n") : [];
 
-    if (!mediaIdsForRequest.length) return;
+    if (suspendSigningRequests || !mediaIdsForRequest.length) return;
 
     let cancelled = false;
     void resolveSessionRestoreSignedMediaAuthorityByMediaId(mediaIdsForRequest).then(
@@ -325,7 +329,7 @@ export const useReferenceGridSignedStorageUrlController = ({
     return () => {
       cancelled = true;
     };
-  }, [savedMediaIdKey]);
+  }, [savedMediaIdKey, suspendSigningRequests]);
 
   return {
     signedStorageUrlByPath,

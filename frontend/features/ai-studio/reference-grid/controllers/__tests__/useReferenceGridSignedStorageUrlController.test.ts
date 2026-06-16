@@ -193,6 +193,100 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     });
   });
 
+  it("defers storage signing while background visual work is suspended", async () => {
+    const output = createStorageBackedImage();
+    const { rerender, result } = renderHook(
+      ({ suspendSigningRequests }: { suspendSigningRequests: boolean }) =>
+        useReferenceGridSignedStorageUrlController({
+          outputs: [output],
+          suspendSigningRequests,
+        }),
+      {
+        initialProps: {
+          suspendSigningRequests: true,
+        },
+      }
+    );
+
+    expect(getSignedMediaUrlsBatch).not.toHaveBeenCalled();
+    expect(result.current.signingPendingStoragePathSet.size).toBe(0);
+    expect(result.current.signedStorageUrlByPath.size).toBe(0);
+
+    rerender({ suspendSigningRequests: false });
+
+    await waitFor(() => {
+      expect(getSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
+      expect(result.current.signedStorageUrlByPath.get(output.previewStoragePath ?? "")).toBe(
+        "https://signed.shortpulse.test/preview.webp"
+      );
+    });
+  });
+
+  it("preserves existing signed urls while suspended and resumes signing new paths afterward", async () => {
+    const initialOutput = createStorageBackedImage();
+    const nextOutput = createStorageBackedImage({
+      id: "image-2",
+      previewStoragePath: "user-1/variants/images/image-2/preview.webp",
+      fullStoragePath: "user-1/generations/images/image-2.png",
+      generationId: "gen-2",
+    });
+    const { rerender, result } = renderHook(
+      ({
+        outputs,
+        suspendSigningRequests,
+      }: {
+        outputs: ReferenceGridMediaOutput[];
+        suspendSigningRequests: boolean;
+      }) =>
+        useReferenceGridSignedStorageUrlController({
+          outputs,
+          suspendSigningRequests,
+        }),
+      {
+        initialProps: {
+          outputs: [initialOutput],
+          suspendSigningRequests: false,
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(
+        result.current.signedStorageUrlByPath.get(initialOutput.previewStoragePath ?? "")
+      ).toBe("https://signed.shortpulse.test/preview.webp");
+    });
+    vi.mocked(getSignedMediaUrlsBatch).mockResolvedValueOnce(
+      new Map([
+        [
+          "user-1/variants/images/image-2/preview.webp",
+          "https://signed.shortpulse.test/image-2-preview.webp",
+        ],
+      ])
+    );
+
+    rerender({
+      outputs: [nextOutput],
+      suspendSigningRequests: true,
+    });
+
+    expect(result.current.signedStorageUrlByPath.get(initialOutput.previewStoragePath ?? "")).toBe(
+      "https://signed.shortpulse.test/preview.webp"
+    );
+    expect(getSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
+
+    rerender({
+      outputs: [nextOutput],
+      suspendSigningRequests: false,
+    });
+
+    await waitFor(() => {
+      expect(getSignedMediaUrlsBatch).toHaveBeenCalledTimes(2);
+      expect(result.current.signedStorageUrlByPath.get(nextOutput.previewStoragePath ?? "")).toBe(
+        "https://signed.shortpulse.test/image-2-preview.webp"
+      );
+    });
+  });
+
   it("clears pending signing state when storage signing fails", async () => {
     vi.mocked(getSignedMediaUrlsBatch).mockRejectedValueOnce(new Error("signing failed"));
     const output = createStorageBackedImage();
@@ -251,6 +345,55 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     expect(resolveSessionRestoreSignedMediaAuthorityByMediaId).toHaveBeenCalledWith([
       "saved-media-1",
     ]);
+  });
+
+  it("defers saved media authority signing while background visual work is suspended", async () => {
+    const output = createStorageBackedImage({
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-1"],
+    });
+    const { rerender, result } = renderHook(
+      ({ suspendSigningRequests }: { suspendSigningRequests: boolean }) =>
+        useReferenceGridSignedStorageUrlController({
+          outputs: [output],
+          suspendSigningRequests,
+        }),
+      {
+        initialProps: {
+          suspendSigningRequests: true,
+        },
+      }
+    );
+
+    expect(resolveSessionRestoreSignedMediaAuthorityByMediaId).not.toHaveBeenCalled();
+
+    vi.mocked(resolveSessionRestoreSignedMediaAuthorityByMediaId).mockResolvedValueOnce(
+      new Map([
+        [
+          "saved-media-1",
+          {
+            mediaId: "saved-media-1",
+            fileType: "image/png",
+            previewStoragePath: "user-1/variants/images/saved-media-1/thumb.webp",
+            fullStoragePath: "user-1/generations/images/saved-media-1.png",
+            previewPosterStoragePath: null,
+            signedPreviewUrl: "https://signed.shortpulse.test/saved-preview.webp",
+            signedFullUrl: "https://signed.shortpulse.test/saved-full.png",
+            signedPreviewPosterUrl: null,
+          },
+        ],
+      ])
+    );
+
+    rerender({ suspendSigningRequests: false });
+
+    await waitFor(() => {
+      expect(
+        result.current.signedMediaAuthorityByMediaId.get("saved-media-1")?.signedPreviewUrl
+      ).toBe("https://signed.shortpulse.test/saved-preview.webp");
+    });
   });
 
   it("does not re-sign equivalent storage path sets when output array identity changes", async () => {

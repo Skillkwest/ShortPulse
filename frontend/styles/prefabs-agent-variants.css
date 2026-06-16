@@ -304,11 +304,20 @@
 }
 
 .agent-message-rich-link {
-  color: inherit;
+  color: #f0c15c;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   text-decoration: underline;
+  text-decoration-color: rgba(240, 193, 92, 0.85);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+.agent-message-rich-link:hover,
+.agent-message-rich-link:focus-visible {
+  color: #ffd77a;
+  text-decoration-color: #ffd77a;
 }
 
 .agent-message-rich-lead {

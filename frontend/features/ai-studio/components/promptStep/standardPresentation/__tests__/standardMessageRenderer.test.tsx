@@ -4,6 +4,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { PulseGuidedMessageBody } from "../../PulseGuidedMessageBody";
 import { StandardMessageRenderer } from "../standardMessageRenderer";
 import { parseStandardMessagePresentation } from "../standardMessageParser";
 
@@ -51,6 +52,7 @@ describe("StandardMessageRenderer", () => {
     const link = screen.getByRole("link", {
       name: "https://www.instagram.com/kirk_artman/",
     });
+    expect(link).toHaveClass("agent-message-rich-link");
     expect(link).toHaveAttribute("href", "https://www.instagram.com/kirk_artman/");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
@@ -127,6 +129,13 @@ describe("StandardMessageRenderer", () => {
 
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByText("Check https://example.com/user-input")).toBeInTheDocument();
+  });
+
+  it("does not leak Standard assistant linkification into Pulse guided messages", () => {
+    render(<PulseGuidedMessageBody content="Check https://example.com/pulse" />);
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("Check https://example.com/pulse")).toBeInTheDocument();
   });
 
   it("parses the Standard presentation policy without changing message content", () => {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AiStudioProtectedRouteEntry from "../../features/ai-studio/routes/AiStudioProtectedRouteEntry";
@@ -6,23 +6,36 @@ import AiStudioProtectedRouteEntry from "../../features/ai-studio/routes/AiStudi
 const routerState = vi.hoisted(() => ({
   pathname: "/ai-studio",
   asPath: "/ai-studio?projectId=project-1",
+  query: { projectId: "project-1" } as Record<string, string>,
 }));
 const replaceMock = vi.hoisted(() => vi.fn());
+const createProjectMock = vi.hoisted(() => vi.fn());
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useMediaComplianceGateMock = vi.hoisted(() => vi.fn());
 const mediaComplianceGatePropsSpy = vi.hoisted(() => vi.fn());
 
 vi.mock("next/router", () => ({
-  useRouter: () => ({
-    pathname: routerState.pathname,
-    asPath: routerState.asPath,
-    replace: replaceMock,
-    events: {
-      on: vi.fn(),
-      off: vi.fn(),
-    },
-  }),
+  useRouter: (() => {
+    const router = {
+      get pathname() {
+        return routerState.pathname;
+      },
+      get asPath() {
+        return routerState.asPath;
+      },
+      get query() {
+        return routerState.query;
+      },
+      replace: replaceMock,
+      events: {
+        on: vi.fn(),
+        off: vi.fn(),
+      },
+    };
+    return () => router;
+  })(),
 }));
 
 vi.mock("../../components/AppErrorBoundary", () => ({
@@ -42,6 +55,14 @@ vi.mock("../../features/compliance/hooks/useMediaComplianceGate", () => ({
 
 vi.mock("../../lib/authGuard", () => ({
   useProtectedRoute: (...args: unknown[]) => useProtectedRouteMock(...args),
+}));
+
+vi.mock("../../features/projects/logic/projectCreateClient", () => ({
+  createProject: (...args: unknown[]) => createProjectMock(...args),
+}));
+
+vi.mock("../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
 const baseComplianceState = {
@@ -74,8 +95,26 @@ const renderRouteEntry = () =>
 describe("AiStudioProtectedRouteEntry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
     routerState.pathname = "/ai-studio";
     routerState.asPath = "/ai-studio?projectId=project-1";
+    routerState.query = { projectId: "project-1" };
+    createProjectMock.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000001",
+      title: "Untitled Project",
+      createdAt: "2026-06-15T18:00:00.000Z",
+      updatedAt: "2026-06-15T18:00:00.000Z",
+    });
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        project: {
+          id: "00000000-0000-4000-8000-000000000099",
+          title: "Untitled Project",
+        },
+      }),
+    } as Response);
 
     useProtectedRouteMock.mockReturnValue({
       loading: false,
@@ -108,6 +147,7 @@ describe("AiStudioProtectedRouteEntry", () => {
   it("uses the AI Studio entry shell while checking media compliance", () => {
     routerState.pathname = "/ai-studio";
     routerState.asPath = "/ai-studio";
+    routerState.query = {};
     useMediaComplianceGateMock.mockReturnValue({
       ...baseComplianceState,
       initialized: false,
@@ -123,6 +163,135 @@ describe("AiStudioProtectedRouteEntry", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project loading progress")).toBeInTheDocument();
     expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
+  });
+
+  it("creates a saved checkout project after consent clears before opening AI Studio", async () => {
+    routerState.asPath =
+      "/ai-studio?checkout=subscription_success&project=new&checkout_session_id=cs_test_123";
+    routerState.query = {
+      checkout: "subscription_success",
+      project: "new",
+      checkout_session_id: "cs_test_123",
+    };
+
+    renderRouteEntry();
+
+    expect(screen.getByText("Creating Untitled Project")).toBeInTheDocument();
+    expect(
+      screen.getByText("Saving your starter project before AI Studio opens.")
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledWith("Untitled Project");
+      expect(replaceMock).toHaveBeenCalledWith(
+        {
+          pathname: "/ai-studio",
+          query: { projectId: "00000000-0000-4000-8000-000000000001" },
+        },
+        undefined,
+        { shallow: false }
+      );
+    });
+    expect(window.sessionStorage.getItem("shortpulse.checkoutProject.cs_test_123")).toBe(
+      "00000000-0000-4000-8000-000000000001"
+    );
+    expect(window.sessionStorage.getItem("shortpulse.checkoutProject.user-1:cs_test_123")).toBe(
+      "00000000-0000-4000-8000-000000000001"
+    );
+  });
+
+  it("waits for media consent before creating a checkout project", () => {
+    routerState.asPath =
+      "/ai-studio?checkout=subscription_success&project=new&checkout_session_id=cs_test_123";
+    routerState.query = {
+      checkout: "subscription_success",
+      project: "new",
+      checkout_session_id: "cs_test_123",
+    };
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+      accepted: false,
+      status: "needs_consent",
+    });
+
+    renderRouteEntry();
+
+    expect(screen.getByTestId("media-compliance-gate")).toBeInTheDocument();
+    expect(createProjectMock).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses an already-created checkout project for the same Stripe session", async () => {
+    routerState.asPath =
+      "/ai-studio?checkout=subscription_success&project=new&checkout_session_id=cs_test_123";
+    routerState.query = {
+      checkout: "subscription_success",
+      project: "new",
+      checkout_session_id: "cs_test_123",
+    };
+    window.sessionStorage.setItem(
+      "shortpulse.checkoutProject.cs_test_123",
+      "00000000-0000-4000-8000-000000000099"
+    );
+
+    renderRouteEntry();
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/projects/00000000-0000-4000-8000-000000000099",
+        {
+          method: "GET",
+          shortpulseAuthTimeoutMs: 5000,
+          shortpulseRetryNetworkOnce: true,
+        }
+      );
+      expect(createProjectMock).not.toHaveBeenCalled();
+      expect(replaceMock).toHaveBeenCalledWith(
+        {
+          pathname: "/ai-studio",
+          query: { projectId: "00000000-0000-4000-8000-000000000099" },
+        },
+        undefined,
+        { shallow: false }
+      );
+    });
+  });
+
+  it("does not reuse a cached checkout project when it no longer belongs to the signed-in user", async () => {
+    routerState.asPath =
+      "/ai-studio?checkout=subscription_success&project=new&checkout_session_id=cs_test_123";
+    routerState.query = {
+      checkout: "subscription_success",
+      project: "new",
+      checkout_session_id: "cs_test_123",
+    };
+    window.sessionStorage.setItem(
+      "shortpulse.checkoutProject.user-1:cs_test_123",
+      "00000000-0000-4000-8000-000000000099"
+    );
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: "Project not found" }),
+    } as Response);
+
+    renderRouteEntry();
+
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledWith("Untitled Project");
+      expect(replaceMock).toHaveBeenCalledWith(
+        {
+          pathname: "/ai-studio",
+          query: { projectId: "00000000-0000-4000-8000-000000000001" },
+        },
+        undefined,
+        { shallow: false }
+      );
+    });
+    expect(window.sessionStorage.getItem("shortpulse.checkoutProject.user-1:cs_test_123")).toBe(
+      "00000000-0000-4000-8000-000000000001"
+    );
   });
 
   it("keeps the explicit compliance form when acceptance is still required", () => {

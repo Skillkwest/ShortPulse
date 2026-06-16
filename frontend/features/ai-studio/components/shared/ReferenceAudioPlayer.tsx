@@ -68,6 +68,7 @@ export function ReferenceAudioPlayer({
   const audioNodeRef = React.useRef<HTMLAudioElement | null>(null);
   const readyNotifiedRef = React.useRef(false);
   const isWaveformSeekingRef = React.useRef(false);
+  const suppressNextAudioClickRef = React.useRef(false);
   const resolvedAudioInstanceKey = audioInstanceKey ?? audioId;
   const requestPlayback = onRequestPlay ?? requestExclusiveSoundPlayback;
   const markPlaybackStarted = onPlaybackStarted ?? markExclusiveSoundPlaying;
@@ -76,6 +77,7 @@ export function ReferenceAudioPlayer({
     onResolveAudioUrl ? "" : (audioUrl?.trim() ?? "")
   );
   const activeAudioUrlRef = React.useRef(activeAudioUrl);
+  const onResolveAudioUrlRef = React.useRef(onResolveAudioUrl);
   const audioUrlResolutionPromiseRef = React.useRef<Promise<string> | null>(null);
   const waveformDecodeInFlightKeyRef = React.useRef<string | null>(null);
   const [isResolvingAudioUrl, setIsResolvingAudioUrl] = React.useState(false);
@@ -99,6 +101,7 @@ export function ReferenceAudioPlayer({
   const [hasDecodedWaveform, setHasDecodedWaveform] = React.useState(
     storedAudioWaveformPeaks.length > 0
   );
+  const hasAudioUrlResolver = Boolean(onResolveAudioUrl);
   const [shouldDecodeWaveform, setShouldDecodeWaveform] = React.useState(eagerWaveformDecode);
   const [audioWaveformBars, setAudioWaveformBars] = React.useState<number[]>(
     storedAudioWaveformPeaks.length > 0 ? storedAudioWaveformPeaks : fallbackAudioWaveformBars
@@ -116,6 +119,10 @@ export function ReferenceAudioPlayer({
       backgroundPosition: "center center, center top, center center",
     };
   }, [backgroundImageUrl]);
+
+  React.useEffect(() => {
+    onResolveAudioUrlRef.current = onResolveAudioUrl;
+  }, [onResolveAudioUrl]);
 
   const audioWaveformColumns = React.useMemo(
     () =>
@@ -167,7 +174,8 @@ export function ReferenceAudioPlayer({
   }, []);
 
   const resolveFreshAudioUrl = React.useCallback(async () => {
-    if (!onResolveAudioUrl) {
+    const resolveAudioUrl = onResolveAudioUrlRef.current;
+    if (!resolveAudioUrl) {
       return activeAudioUrlRef.current;
     }
     if (audioUrlResolutionPromiseRef.current) {
@@ -175,7 +183,7 @@ export function ReferenceAudioPlayer({
     }
     const resolutionPromise = (async () => {
       try {
-        const resolvedUrl = await onResolveAudioUrl();
+        const resolvedUrl = await resolveAudioUrl();
         const normalizedResolvedUrl = resolvedUrl?.trim() ?? "";
         if (normalizedResolvedUrl) {
           applyResolvedAudioUrl(normalizedResolvedUrl);
@@ -192,18 +200,18 @@ export function ReferenceAudioPlayer({
       }
     });
     return resolutionPromise;
-  }, [applyResolvedAudioUrl, onResolveAudioUrl]);
+  }, [applyResolvedAudioUrl]);
 
   React.useEffect(() => {
     setResolvedAudioDurationMs(durationMs ?? null);
   }, [audioId, durationMs]);
 
   React.useEffect(() => {
-    if (onResolveAudioUrl) return;
+    if (onResolveAudioUrlRef.current) return;
     const nextAudioUrl = audioUrl?.trim() ?? "";
     activeAudioUrlRef.current = nextAudioUrl;
     setActiveAudioUrl(nextAudioUrl);
-  }, [audioUrl, onResolveAudioUrl]);
+  }, [audioUrl]);
 
   React.useEffect(() => {
     setIsAudioPlaying(false);
@@ -213,14 +221,15 @@ export function ReferenceAudioPlayer({
     audioUrlResolutionPromiseRef.current = null;
     readyNotifiedRef.current = false;
     audioNodeRef.current?.pause();
-    if (onResolveAudioUrl) {
+    if (onResolveAudioUrlRef.current) {
       activeAudioUrlRef.current = "";
       setActiveAudioUrl("");
     }
-  }, [audioId, eagerWaveformDecode, onResolveAudioUrl]);
+  }, [audioId, eagerWaveformDecode]);
 
   React.useEffect(() => {
-    if (!resolveAudioUrlOnMount || !onResolveAudioUrl || activeAudioUrlRef.current) return;
+    if (!resolveAudioUrlOnMount || !onResolveAudioUrlRef.current || activeAudioUrlRef.current)
+      return;
     let cancelled = false;
     setIsResolvingAudioUrl(true);
     void resolveFreshAudioUrl().finally(() => {
@@ -229,7 +238,7 @@ export function ReferenceAudioPlayer({
     return () => {
       cancelled = true;
     };
-  }, [audioId, onResolveAudioUrl, resolveAudioUrlOnMount, resolveFreshAudioUrl]);
+  }, [audioId, resolveAudioUrlOnMount, resolveFreshAudioUrl]);
 
   React.useEffect(() => {
     if (storedAudioWaveformPeaks.length > 0) {
@@ -242,14 +251,14 @@ export function ReferenceAudioPlayer({
   }, [fallbackAudioWaveformBars, hasDecodedWaveform, storedAudioWaveformPeaks]);
 
   React.useEffect(() => {
-    if (!activeAudioUrl && !onResolveAudioUrl) return;
+    if (!activeAudioUrl && !hasAudioUrlResolver) return;
     if (storedAudioWaveformPeaks.length > 0) {
       setHasDecodedWaveform(true);
       return;
     }
     if (hasDecodedWaveform) return;
     if (!shouldDecodeWaveform) return;
-    const decodeKey = onResolveAudioUrl ? `${audioId}:resolved` : `${audioId}:${activeAudioUrl}`;
+    const decodeKey = hasAudioUrlResolver ? `${audioId}:resolved` : `${audioId}:${activeAudioUrl}`;
     if (waveformDecodeInFlightKeyRef.current === decodeKey) return;
     waveformDecodeInFlightKeyRef.current = decodeKey;
     let cancelled = false;
@@ -257,7 +266,7 @@ export function ReferenceAudioPlayer({
 
     const decodeWaveform = async () => {
       let decodeUrl = activeAudioUrlRef.current || activeAudioUrl;
-      if (onResolveAudioUrl && !decodeUrl) {
+      if (hasAudioUrlResolver && !decodeUrl) {
         decodeUrl = await resolveFreshAudioUrl();
         if (!decodeUrl) {
           if (!cancelled) waveformDecodeInFlightKeyRef.current = null;
@@ -289,7 +298,7 @@ export function ReferenceAudioPlayer({
     activeAudioUrl,
     audioId,
     hasDecodedWaveform,
-    onResolveAudioUrl,
+    hasAudioUrlResolver,
     resolveFreshAudioUrl,
     shouldDecodeWaveform,
     storedAudioWaveformPeaks,
@@ -309,67 +318,85 @@ export function ReferenceAudioPlayer({
     onReady?.();
   }, [onReady]);
 
+  const toggleAudioPlayback = React.useCallback(async () => {
+    onActivate?.();
+    if (!shouldDecodeWaveform) setShouldDecodeWaveform(true);
+    const node = audioNodeRef.current;
+    if (!node) return;
+    if (isAudioPlaying) {
+      node.pause();
+      setIsAudioPlaying(false);
+      return;
+    }
+    let playbackUrl = activeAudioUrlRef.current;
+    if (hasAudioUrlResolver && !playbackUrl) {
+      if (isResolvingAudioUrl) return;
+      setIsResolvingAudioUrl(true);
+      try {
+        playbackUrl = await resolveFreshAudioUrl();
+      } finally {
+        setIsResolvingAudioUrl(false);
+      }
+      if (!playbackUrl) {
+        onError?.();
+        return;
+      }
+    } else if (!playbackUrl) {
+      return;
+    }
+    if (
+      node.ended ||
+      (Number.isFinite(node.duration) && node.duration > 0 && node.currentTime >= node.duration)
+    ) {
+      node.currentTime = 0;
+      setAudioProgressRatio(0);
+    }
+    try {
+      requestPlayback({
+        instanceKey: resolvedAudioInstanceKey,
+        pause: () => {
+          audioNodeRef.current?.pause();
+        },
+      });
+      await node.play();
+    } catch {
+      clearPlayback(resolvedAudioInstanceKey);
+      setIsAudioPlaying(false);
+    }
+  }, [
+    clearPlayback,
+    isAudioPlaying,
+    isResolvingAudioUrl,
+    onActivate,
+    onError,
+    hasAudioUrlResolver,
+    requestPlayback,
+    resolveFreshAudioUrl,
+    resolvedAudioInstanceKey,
+    shouldDecodeWaveform,
+  ]);
+
+  const handleAudioPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) return;
+      event.stopPropagation();
+      suppressNextAudioClickRef.current = true;
+      void toggleAudioPlayback();
+    },
+    [toggleAudioPlayback]
+  );
+
   const handleAudioToggle = React.useCallback(
-    async (event: React.MouseEvent<HTMLButtonElement>) => {
+    (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
       event.stopPropagation();
-      onActivate?.();
-      if (!shouldDecodeWaveform) setShouldDecodeWaveform(true);
-      const node = audioNodeRef.current;
-      if (!node) return;
-      if (isAudioPlaying) {
-        node.pause();
-        setIsAudioPlaying(false);
+      if (suppressNextAudioClickRef.current) {
+        suppressNextAudioClickRef.current = false;
         return;
       }
-      let playbackUrl = activeAudioUrlRef.current;
-      if (onResolveAudioUrl && !playbackUrl) {
-        if (isResolvingAudioUrl) return;
-        setIsResolvingAudioUrl(true);
-        try {
-          playbackUrl = await resolveFreshAudioUrl();
-        } finally {
-          setIsResolvingAudioUrl(false);
-        }
-        if (!playbackUrl) {
-          onError?.();
-          return;
-        }
-      } else if (!playbackUrl) {
-        return;
-      }
-      if (
-        node.ended ||
-        (Number.isFinite(node.duration) && node.duration > 0 && node.currentTime >= node.duration)
-      ) {
-        node.currentTime = 0;
-        setAudioProgressRatio(0);
-      }
-      try {
-        requestPlayback({
-          instanceKey: resolvedAudioInstanceKey,
-          pause: () => {
-            audioNodeRef.current?.pause();
-          },
-        });
-        await node.play();
-      } catch {
-        clearPlayback(resolvedAudioInstanceKey);
-        setIsAudioPlaying(false);
-      }
+      void toggleAudioPlayback();
     },
-    [
-      clearPlayback,
-      isAudioPlaying,
-      isResolvingAudioUrl,
-      onActivate,
-      onError,
-      onResolveAudioUrl,
-      requestPlayback,
-      resolveFreshAudioUrl,
-      resolvedAudioInstanceKey,
-      shouldDecodeWaveform,
-    ]
+    [toggleAudioPlayback]
   );
 
   const handleAudioDownload = React.useCallback(
@@ -532,13 +559,12 @@ export function ReferenceAudioPlayer({
               }
               aria-pressed={isAudioPlaying}
               disabled={isResolvingAudioUrl}
+              onPointerDown={handleAudioPointerDown}
               onDoubleClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
               }}
-              onClick={(event) => {
-                void handleAudioToggle(event);
-              }}
+              onClick={handleAudioToggle}
             >
               {isAudioPlaying ? (
                 <Pause size={24} weight="fill" aria-hidden="true" />

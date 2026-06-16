@@ -134,4 +134,37 @@ describe("ReferenceAudioPlayer", () => {
     });
     expect(resolveAudioUrl).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps a pre-resolved URL when the resolver callback identity changes", async () => {
+    const firstResolver = vi.fn(async () => "https://signed.test/stable-audio.mp3");
+    const secondResolver = vi.fn(async () => "https://signed.test/should-not-resign.mp3");
+    const props = {
+      audioId: "audio-stable-resolver",
+      audioUrl: "https://signed.test/stale-stable.mp3",
+      playLabel: "Play audio",
+      pauseLabel: "Pause audio",
+      resolveAudioUrlOnMount: true,
+    };
+
+    const { rerender } = render(
+      <ReferenceAudioPlayer {...props} onResolveAudioUrl={firstResolver} />
+    );
+
+    const audio = document.querySelector("audio");
+    await waitFor(() => {
+      expect(audio?.getAttribute("src")).toBe("https://signed.test/stable-audio.mp3");
+    });
+
+    rerender(<ReferenceAudioPlayer {...props} onResolveAudioUrl={secondResolver} />);
+
+    expect(audio?.getAttribute("src")).toBe("https://signed.test/stable-audio.mp3");
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+
+    await waitFor(() => {
+      expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+    });
+    expect(firstResolver).toHaveBeenCalledTimes(1);
+    expect(secondResolver).not.toHaveBeenCalled();
+    expect(audio?.getAttribute("src")).toBe("https://signed.test/stable-audio.mp3");
+  });
 });

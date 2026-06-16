@@ -164,11 +164,6 @@ function AiStudioToolbarComponent({
           const isActive = isCreateParent ? isCreateSelected : selectedTool === tool.id;
           const handleClick = () => {
             if (isCreateParent) {
-              if (isActive) {
-                onToggleCreateTools(false);
-                onSelectTool(null);
-                return;
-              }
               // Create now behaves exactly like the old Text child action.
               onToggleCreateTools(false);
               onSelectTool("create");
@@ -212,17 +207,7 @@ function AiStudioToolbarComponent({
                 onClick={() => {
                   if (tool.id === "sound") {
                     onToggleCreateTools(false);
-                    if (isSoundSelected) {
-                      onSelectTool(null);
-                      return;
-                    }
                     onSelectTool("voices");
-                    return;
-                  }
-                  const isToggleablePrimary = tool.id === "video" || tool.id === "edit";
-                  if (isToggleablePrimary && isActive) {
-                    onToggleCreateTools(false);
-                    onSelectTool(null);
                     return;
                   }
                   onToggleCreateTools(false);
@@ -274,7 +259,6 @@ function AiStudioToolbarComponent({
             const IconComponent = toolIcons[tool.id];
             const isCharacterShortcut = tool.id === "character";
             const isMediaLibraryTool = tool.id === "media-library";
-            const isElementsTool = tool.id === "elements";
             const isActive = isCharacterShortcut
               ? isCharacterSelected
               : isMediaLibraryTool
@@ -286,21 +270,6 @@ function AiStudioToolbarComponent({
                 type="button"
                 className={`toolbar-item toolbar-item-secondary ${isActive ? "is-active" : ""}`}
                 onClick={() => {
-                  if (isCharacterShortcut && isCharacterSelected) {
-                    onToggleCreateTools(false);
-                    onSelectTool(null);
-                    return;
-                  }
-                  if (isMediaLibraryTool && isActive) {
-                    onToggleCreateTools(false);
-                    onSelectTool(null);
-                    return;
-                  }
-                  if (isElementsTool && isActive) {
-                    onToggleCreateTools(false);
-                    onSelectTool(null);
-                    return;
-                  }
                   onToggleCreateTools(false);
                   onSelectTool(tool.id);
                 }}

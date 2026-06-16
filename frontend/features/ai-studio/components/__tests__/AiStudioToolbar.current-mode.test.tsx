@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioToolbar } from "../AiStudioToolbar";
+import type { ToolId } from "../../types";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
@@ -139,6 +140,40 @@ describe("AiStudioToolbar current mode", () => {
     expect(onToggleCreateTools).toHaveBeenCalledWith(false);
     expect(onSelectTool).toHaveBeenCalledWith("create");
   });
+
+  it.each([
+    ["Create", "create", "create"],
+    ["Edit", "edit", "edit"],
+    ["Video", "video", "video"],
+    ["Sound", "voices", "voices"],
+    ["Media", "media-library", "media-library"],
+    ["Characters", "character", "character"],
+    ["Elements", "elements", "elements"],
+    ["Presets", "presets", "presets"],
+    ["Styles", "styles", "styles"],
+  ] satisfies Array<[string, ToolId, ToolId]>)(
+    "keeps the active %s rail panel open on repeat click",
+    (label, selectedTool, expectedTool) => {
+      const onSelectTool = vi.fn();
+      const onToggleCreateTools = vi.fn();
+
+      render(
+        <AiStudioToolbar
+          selectedTool={selectedTool}
+          showCreateTools={false}
+          onOpenProjects={vi.fn()}
+          onSelectTool={onSelectTool}
+          onToggleCreateTools={onToggleCreateTools}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: label }));
+
+      expect(onToggleCreateTools).toHaveBeenCalledWith(false);
+      expect(onSelectTool).toHaveBeenCalledWith(expectedTool);
+      expect(onSelectTool).not.toHaveBeenCalledWith(null);
+    }
+  );
 
   it("renders Characters in Libraries instead of the primary workflow section", () => {
     const onSelectTool = vi.fn();

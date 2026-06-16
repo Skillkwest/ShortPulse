@@ -61,8 +61,10 @@ const BULLET_ITEM_PATTERN = /^\s*[-*•]\s+/;
 const HINT_LINE_PATTERN =
   /^(?:Reply with|Type your own|or type your own|Type one|Choose one|Pick one|You can also|If none fit|If you want)/i;
 const SEPARATOR_PATTERN = /^(?:-{3,}|\*{3,}|_{3,})$/;
-const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/gi;
-const BARE_URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
+const DOMAIN_URL_PATTERN =
+  /(?:https?:\/\/[^\s<>"'`]+|(?:www\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?:\/[^\s<>"'`]*)?)/gi;
+const MARKDOWN_LINK_PATTERN =
+  /\[([^\]\n]+)\]((?:\((?:https?:\/\/[^\s)]+|(?:www\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?:\/[^\s)]*)?)\)))/gi;
 const TRAILING_URL_PUNCTUATION_PATTERN = /[),.!?;:]+$/;
 
 const normalizeText = (value: string): string =>
@@ -230,6 +232,13 @@ const isSafeHttpUrl = (value: string): boolean => {
   }
 };
 
+const normalizeStandardLinkHref = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const href = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return isSafeHttpUrl(href) ? href : null;
+};
+
 const renderStandardLink = ({ href, label, key }: { href: string; label: string; key: string }) => (
   <a
     key={key}
@@ -298,20 +307,22 @@ const renderBareUrlText = (value: string, keyPrefix: string): React.ReactNode[] 
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
 
-  for (const match of value.matchAll(BARE_URL_PATTERN)) {
+  for (const match of value.matchAll(DOMAIN_URL_PATTERN)) {
     const index = match.index ?? 0;
     const token = match[0] ?? "";
     const trimmedHref = token.replace(TRAILING_URL_PUNCTUATION_PATTERN, "");
     const trailingText = token.slice(trimmedHref.length);
+    const precedingCharacter = index > 0 ? value[index - 1] : "";
 
     if (index > lastIndex) {
       nodes.push(...renderInlineEmphasisText(value.slice(lastIndex, index), `${keyPrefix}-pre`));
     }
 
-    if (trimmedHref && isSafeHttpUrl(trimmedHref)) {
+    const href = precedingCharacter === "@" ? null : normalizeStandardLinkHref(trimmedHref);
+    if (href) {
       nodes.push(
         renderStandardLink({
-          href: trimmedHref,
+          href,
           label: trimmedHref,
           key: `${keyPrefix}-url-${index}-${trimmedHref}`,
         })
@@ -348,13 +359,14 @@ const renderInlineText = (
     const index = match.index ?? 0;
     const rawToken = match[0] ?? "";
     const label = match[1]?.trim() ?? "";
-    const href = match[2]?.trim() ?? "";
+    const rawHref = rawToken.match(/\((.+)\)$/)?.[1]?.trim() ?? "";
 
     if (index > lastIndex) {
       nodes.push(...renderBareUrlText(value.slice(lastIndex, index), `${keyPrefix}-pre-md`));
     }
 
-    if (label && isSafeHttpUrl(href)) {
+    const href = normalizeStandardLinkHref(rawHref);
+    if (label && href) {
       nodes.push(
         renderStandardLink({
           href,

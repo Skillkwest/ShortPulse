@@ -256,7 +256,8 @@ const buildStandardReplyBehaviorBlock = ({
 
   if (webSearchToolChoice) {
     lines.push(
-      "- This turn has web search tooling available for current information. Use the provided web search tool and do not claim that you lack web or live lookup access."
+      "- This turn has web search tooling available for current information. Use the provided web search tool and do not claim that you lack web or live lookup access.",
+      "- If the user asks you to open, go to, or take them to a webpage, provide the direct URL or Markdown link instead of claiming that you opened the page or controlled the browser."
     );
   }
 

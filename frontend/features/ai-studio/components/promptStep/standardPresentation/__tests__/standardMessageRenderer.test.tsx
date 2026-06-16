@@ -56,6 +56,32 @@ describe("StandardMessageRenderer", () => {
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
+  it("renders Standard assistant bare domains as clickable https links", () => {
+    render(
+      <StandardMessageRenderer
+        content={"Go directly by entering this in your browser: `instagram.com/kirkartman`."}
+        tone="assistant"
+      />
+    );
+
+    const link = screen.getByRole("link", {
+      name: "instagram.com/kirkartman",
+    });
+    expect(link).toHaveAttribute("href", "https://instagram.com/kirkartman");
+  });
+
+  it("renders Standard assistant source domains as clickable links", () => {
+    render(
+      <StandardMessageRenderer
+        content={"Closest result was a creator page. (nextlevelpfc.com)"}
+        tone="assistant"
+      />
+    );
+
+    const link = screen.getByRole("link", { name: "nextlevelpfc.com" });
+    expect(link).toHaveAttribute("href", "https://nextlevelpfc.com");
+  });
+
   it("renders Standard assistant markdown URLs as clickable links", () => {
     render(
       <StandardMessageRenderer
@@ -66,6 +92,18 @@ describe("StandardMessageRenderer", () => {
 
     const link = screen.getByRole("link", { name: "Skool profile" });
     expect(link).toHaveAttribute("href", "https://www.skool.com/@kirkartman");
+  });
+
+  it("renders Standard assistant markdown links without a scheme as clickable https links", () => {
+    render(
+      <StandardMessageRenderer
+        content={"Try [the direct Instagram handle](instagram.com/kirkartman)."}
+        tone="assistant"
+      />
+    );
+
+    const link = screen.getByRole("link", { name: "the direct Instagram handle" });
+    expect(link).toHaveAttribute("href", "https://instagram.com/kirkartman");
   });
 
   it("keeps Standard user content on the basic contract", () => {

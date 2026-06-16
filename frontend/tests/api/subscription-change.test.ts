@@ -173,6 +173,18 @@ describe("POST /api/billing/subscription/change", () => {
         data: [{ id: "si_base", quantity: 1, price: { id: "price_media" } }],
       },
     });
+    stripeGetMock.mockResolvedValue({
+      id: "price_business",
+      active: true,
+      currency: "usd",
+      unit_amount: 12900,
+      recurring: { interval: "month" },
+      metadata: {
+        shortpulse_catalog_type: "plan",
+        shortpulse_plan_id: "business",
+      },
+      product: null,
+    });
     getCanonicalAppBaseUrlMock.mockReturnValue("https://app.shortpulse.test");
   });
 
@@ -298,7 +310,10 @@ describe("POST /api/billing/subscription/change", () => {
 
     const req = {
       method: "POST",
-      body: { targetPlanId: "business" },
+      body: {
+        targetPlanId: "business",
+        checkoutCancelPath: "/pricing?intent=create-project&plan=business&interval=month",
+      },
       socket: { remoteAddress: "127.0.0.1" },
     };
     const res = createMockResponse();
@@ -310,10 +325,129 @@ describe("POST /api/billing/subscription/change", () => {
         mode: "subscription",
         "line_items[0][price]": "price_business",
         success_url:
-          "https://app.shortpulse.test/profile?section=subscription&plan_change=checkout_success",
+          "https://app.shortpulse.test/ai-studio?checkout=subscription_success&project=new&checkout_session_id={CHECKOUT_SESSION_ID}",
+        cancel_url:
+          "https://app.shortpulse.test/pricing?intent=create-project&plan=business&interval=month",
+        "metadata[billing_interval]": "month",
+        "subscription_data[metadata][billing_interval]": "month",
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("keeps profile as the checkout cancel fallback when the requested cancel path is not pricing", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "free",
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+        },
+        billingContract: null,
+        billingPlan: {
+          id: "business",
+          display_name: "Business",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            stripe_price_id: "price_business",
+            billing_interval: "month",
+            recurring_price_cents: 12900,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+    stripePostFormMock.mockResolvedValue({
+      id: "cs_124",
+      url: "https://stripe.test/checkout_business",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        targetPlanId: "business",
+        checkoutCancelPath: "https://evil.example/pricing",
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(stripePostFormMock).toHaveBeenCalledWith(
+      "/checkout/sessions",
+      expect.objectContaining({
+        cancel_url:
+          "https://app.shortpulse.test/profile?section=subscription&plan_change=checkout_cancel",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("fails closed before checkout when the Stripe price interval does not match the selected interval", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "free",
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+        },
+        billingContract: null,
+        billingPlan: {
+          id: "business",
+          display_name: "Business",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "business__year",
+            plan_id: "business",
+            stripe_price_id: "price_business_year",
+            billing_interval: "year",
+            recurring_price_cents: 274800,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+    stripeGetMock.mockResolvedValueOnce({
+      id: "price_business_year",
+      active: true,
+      currency: "usd",
+      unit_amount: 274800,
+      recurring: { interval: "month" },
+      metadata: {
+        shortpulse_catalog_type: "plan",
+        shortpulse_plan_id: "business",
+      },
+      product: null,
+    });
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business", billingInterval: "year" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Selected plan checkout is temporarily unavailable because its Stripe price does not match the billing catalog.",
+    });
+    expect(stripePostFormMock).not.toHaveBeenCalled();
   });
 
   it("falls back to the generic subscription-update portal flow for multi-item subscriptions", async () => {

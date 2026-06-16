@@ -153,6 +153,11 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
         body: JSON.stringify({
           targetPlanId: planId,
           billingInterval: selectedBillingInterval,
+          checkoutCancelPath: buildPricingPath({
+            intent,
+            planId,
+            billingInterval: selectedBillingInterval,
+          }),
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as {

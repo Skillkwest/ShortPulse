@@ -63,25 +63,6 @@
   gap: 14px;
 }
 
-.profile-avatar-chip {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--profile-radius);
-  background: rgba(10, 16, 24, 0.92);
-  border: 1px solid rgba(37, 169, 191, 0.4);
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  color: #e8fbff;
-  letter-spacing: 0;
-}
-
-.profile-avatar-chip-lg {
-  width: 60px;
-  height: 60px;
-  font-size: 18px;
-}
-
 .profile-identity-copy {
   min-width: 0;
 }
@@ -94,20 +75,6 @@
 
 .profile-identity-copy .subdued {
   max-width: 72ch;
-}
-
-.profile-account-summary-line {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  color: rgba(231, 238, 244, 0.9);
-  font-size: 14px;
-}
-
-.profile-account-summary-line span {
-  color: rgba(213, 222, 231, 0.7);
 }
 
 .profile-account-summary-grid {

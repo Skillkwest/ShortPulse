@@ -14,10 +14,15 @@ import {
   readVerifiedStripeSubscriptionForUser,
   type StripeSubscriptionResponse,
 } from "../../../../lib/server/api/stripeCustomer";
+import {
+  CatalogStripePriceValidationError,
+  validateStripePriceForCatalogRow,
+} from "../../../../lib/server/api/adminPricingCatalog";
 
 type ChangeSubscriptionRequest = {
   targetPlanId?: string;
   billingInterval?: "month" | "year";
+  checkoutCancelPath?: string;
 };
 
 type BillingProfileRow = {
@@ -105,6 +110,32 @@ const compareOfferRecency = (left: BillingPlanOfferRow, right: BillingPlanOfferR
 
 const resolveProfileReturnUrl = (status: string) =>
   `${getCanonicalAppBaseUrl()}/profile?section=subscription&plan_change=${status}`;
+
+const resolveCheckoutSuccessUrl = () =>
+  `${getCanonicalAppBaseUrl()}/ai-studio?checkout=subscription_success&project=new&checkout_session_id={CHECKOUT_SESSION_ID}`;
+
+const resolvePricingCheckoutCancelUrl = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const candidate = value.trim();
+  if (
+    !candidate ||
+    candidate.includes("\\") ||
+    !candidate.startsWith("/") ||
+    candidate.startsWith("//")
+  ) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(candidate, getCanonicalAppBaseUrl());
+    if (parsed.origin !== getCanonicalAppBaseUrl()) return null;
+    const normalizedPathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    if (normalizedPathname !== "/pricing") return null;
+    return `${getCanonicalAppBaseUrl()}${parsed.pathname}${parsed.search}`;
+  } catch {
+    return null;
+  }
+};
 
 const resolveActivePlanId = (
   billingProfile: BillingProfileRow | null,
@@ -462,22 +493,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(409).json({ error: "Selected plan is not purchasable yet." });
     }
 
+    try {
+      await validateStripePriceForCatalogRow({
+        stripePriceId: targetOffer.stripe_price_id,
+        expectedAmountCents: targetOffer.recurring_price_cents,
+        expectedInterval: billingInterval,
+        catalogType: "plan",
+        expectedMetadataIdKey: "shortpulse_plan_id",
+        expectedMetadataIdValue: targetPlanId,
+      });
+    } catch (error) {
+      if (error instanceof CatalogStripePriceValidationError) {
+        return res.status(409).json({
+          error:
+            "Selected plan checkout is temporarily unavailable because its Stripe price does not match the billing catalog.",
+        });
+      }
+      throw error;
+    }
+
+    const cancelUrl =
+      resolvePricingCheckoutCancelUrl(body.checkoutCancelPath) ??
+      resolveProfileReturnUrl("checkout_cancel");
+
     const session = await stripePostForm<StripeCheckoutSession>("/checkout/sessions", {
       mode: "subscription",
       customer: stripeCustomerId,
       allow_promotion_codes: true,
       "line_items[0][price]": targetOffer.stripe_price_id,
       "line_items[0][quantity]": 1,
-      success_url: resolveProfileReturnUrl("checkout_success"),
-      cancel_url: resolveProfileReturnUrl("checkout_cancel"),
+      success_url: resolveCheckoutSuccessUrl(),
+      cancel_url: cancelUrl,
       client_reference_id: user.id,
       "metadata[user_id]": user.id,
       "metadata[billing_plan_id]": targetPlanId,
       "metadata[billing_offer_id]": targetOffer.id,
+      "metadata[billing_interval]": billingInterval,
       "metadata[max_concurrent_generations]": targetOffer.max_concurrent_generations,
       "subscription_data[metadata][user_id]": user.id,
       "subscription_data[metadata][billing_plan_id]": targetPlanId,
       "subscription_data[metadata][billing_offer_id]": targetOffer.id,
+      "subscription_data[metadata][billing_interval]": billingInterval,
       "subscription_data[metadata][max_concurrent_generations]":
         targetOffer.max_concurrent_generations,
     });
@@ -496,7 +552,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error,
       routeLabel: "billing/subscription/change",
       user,
-      metadata: { target_plan_id: targetPlanId },
+      metadata: { target_plan_id: targetPlanId, billing_interval: billingInterval },
     });
     return res.status(500).json({
       error: "Unable to start the subscription change.",

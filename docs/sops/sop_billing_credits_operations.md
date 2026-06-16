@@ -124,6 +124,7 @@ Primary path:
 - `/admin` Stripe customer repair -> `/api/admin/billing/customer-sync` so operators can repair selected-account Stripe customer email/name drift without impersonating the user.
 - `/admin` Stripe billing handoff -> `/api/admin/billing/portal` so operators can open the selected account directly in Stripe for billed subscription changes, payment-method updates, and invoice review after customer identity has been synced.
 - `/admin` user list -> the signed-in admin email is called out in a dedicated summary and its matching user row is pinned to the top of the loaded page results when present.
+- Paid acquisition Checkout success -> `/ai-studio?checkout=subscription_success&project=new&checkout_session_id={CHECKOUT_SESSION_ID}`. After auth and media consent gates clear, AI Studio creates one saved `Untitled Project` through `POST /api/projects/create`, stores the Stripe session-to-project handoff in browser session storage as a duplicate-navigation guard, and replaces the URL with `/ai-studio?projectId=<uuid>`.
 - `npm -C frontend run billing:launch-readiness` for a read-only production launch-readiness audit of billing-critical Vercel routes/env, signup callback origin, public pricing catalog, production Supabase billing catalog/linkage, the billing renewal worker fail-closed boundary, and optional DB-trigger/Stripe-webhook proof when read credentials are available. The DB-trigger proof accepts `SHORTPULSE_PRODUCTION_DB_URL`, `SHORTPULSE_PRODUCTION_SUPABASE_DB_URL`, or `SUPABASE_DB_URL`, and the Stripe webhook proof requires a live `STRIPE_SECRET_KEY` in the shell/session.
 - `npm -C frontend run billing:contracts:verify -- --limit 25` for batch contract-vs-Stripe reconciliation using service-role Supabase access plus live Stripe subscription reads.
 - `/admin/user-health` diagnostics -> `/api/admin/user-health` for user-level generation/queue/reservation/ledger health checks, cost-without-success signals, and guided next actions.
@@ -209,7 +210,9 @@ Recommended operator sequence:
 6. Verify `/profile?section=subscription` still routes each plan card to the intended self-serve flow:
    - baseline-fallback/internal-comp to paid should open Stripe Checkout for the selected target plan
    - Stripe-managed paid upgrades/downgrades should open a Stripe Billing Portal plan-change flow
+   - Stripe-managed same-plan monthly/annual interval switches should stay on the current plan card and open the Stripe Billing Portal plan-change flow for the selected interval
    - internal-comp back to the hidden baseline fallback should complete in-app and return the user to the subscription section
+   - pricing-page acquisition cancellations should return to `/pricing` with the selected plan/interval preserved, not to protected account-management gates
 7. After any AI usage pricing change, verify AI Studio button display and one server-side debit path still agree on the same canonical billed-credit row.
 
 ## Charging model behavior

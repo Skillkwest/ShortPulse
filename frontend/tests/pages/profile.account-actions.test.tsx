@@ -1,9 +1,9 @@
 /**
  * Profile account-action tests for save, email, reset, and logout flows.
  */
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
 import {
   ensureSupabaseClient,
@@ -152,6 +152,10 @@ describe("Profile account actions", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("saves the display name through Supabase auth metadata", async () => {
     render(<ProfilePage />);
 
@@ -193,6 +197,34 @@ describe("Profile account actions", () => {
       "Email update requested. Check your inbox to confirm."
     );
     expect(refreshSupabaseSessionModuleMock).toHaveBeenCalled();
+  });
+
+  it("automatically clears the email update success notice", async () => {
+    vi.useFakeTimers();
+    render(<ProfilePage />);
+
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "alice@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Current password"), {
+      target: { value: "secret-pass" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Update email" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Email update requested. Check your inbox to confirm."
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(6000);
+    });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("shows a clear cooldown message when Supabase throttles email confirmation requests", async () => {

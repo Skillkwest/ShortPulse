@@ -11,9 +11,6 @@ import { profileClass } from "../profileRouteStyles";
 import { ProfileMetricCard, ProfileNoticeBanner } from "./ProfileSurface";
 
 type ProfileWorkspaceShellProps = {
-  displayInitials: string;
-  displayName: string;
-  accountEmail: string;
   planLabel: string;
   creditsLabel: string;
   storageLabel: string;
@@ -30,9 +27,6 @@ type ProfileWorkspaceShellProps = {
  * Renders the shared profile-page shell, section navigation, and status notice.
  */
 export function ProfileWorkspaceShell({
-  displayInitials,
-  displayName,
-  accountEmail,
   planLabel,
   creditsLabel,
   storageLabel,
@@ -49,17 +43,10 @@ export function ProfileWorkspaceShell({
       <header className={profileClass("app-bar", "profile-app-bar")}>
         <div className={profileClass("profile-app-bar-main")}>
           <div className={profileClass("profile-identity")}>
-            <div className={profileClass("profile-avatar-chip", "profile-avatar-chip-lg")}>
-              {displayInitials}
-            </div>
             <div className={profileClass("profile-identity-copy")}>
               <p className="eyebrow">Account workspace</p>
               <h1>{title}</h1>
               <p className="subdued">{body}</p>
-              <div className={profileClass("profile-account-summary-line")}>
-                <strong>{displayName}</strong>
-                <span>{accountEmail || "No email on file"}</span>
-              </div>
             </div>
           </div>
         </div>

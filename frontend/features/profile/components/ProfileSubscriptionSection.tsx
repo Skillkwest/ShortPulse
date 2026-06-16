@@ -201,6 +201,10 @@ export function ProfileSubscriptionSection({
               const planView = buildPlanView({ planId: plan.id, plans: visibleBillingPlans });
               const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
               const isCurrentPlan = activePlan.id === plan.id;
+              const isCurrentBillingInterval =
+                isCurrentPlan && selectedBillingInterval === currentSubscriptionBillingInterval;
+              const isPlanIntervalChange =
+                isCurrentPlan && selectedBillingInterval !== currentSubscriptionBillingInterval;
               const candidatePlanRank = getPlanTierRank(plan.id, visibleBillingPlans);
               const isHigherTier = candidatePlanRank > activePlanRank;
               const isLowerTier = candidatePlanRank < activePlanRank;
@@ -210,11 +214,12 @@ export function ProfileSubscriptionSection({
               const paidPlanLabel = currentSubscriptionPriceCents === 0 || isInternalCompContract;
               const billingLabel = selectedBillingInterval === "year" ? "annual" : "monthly";
               const intervalUnavailable =
-                selectedBillingInterval === "year" &&
-                !isCurrentPlan &&
-                !isFree &&
-                !planPricing.hasLiveOffer;
-              const actionButton = isCurrentPlan ? (
+                selectedBillingInterval === "year" && !isFree && !planPricing.hasLiveOffer;
+              const intervalChangeLabel =
+                selectedBillingInterval === "year"
+                  ? "Upgrade to annual billing"
+                  : "Downgrade to monthly billing";
+              const actionButton = isCurrentBillingInterval ? (
                 <button
                   type="button"
                   className={profileClass("profile-button", "ghost-btn")}
@@ -232,6 +237,18 @@ export function ProfileSubscriptionSection({
                   disabled
                 >
                   Annual unavailable
+                </button>
+              ) : isPlanIntervalChange && !isFree ? (
+                <button
+                  type="button"
+                  className={profileClass(
+                    "profile-button",
+                    selectedBillingInterval === "year" ? "primary-btn" : "ghost-btn"
+                  )}
+                  onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
+                  disabled={isActionLoading}
+                >
+                  {isActionLoading ? "Opening Stripe…" : intervalChangeLabel}
                 </button>
               ) : isCurrentInternalCompPlan ? (
                 <button

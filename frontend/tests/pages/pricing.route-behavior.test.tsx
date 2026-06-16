@@ -346,6 +346,7 @@ describe("Pricing route behavior", () => {
           body: JSON.stringify({
             targetPlanId: "studio",
             billingInterval: "year",
+            checkoutCancelPath: "/pricing?intent=create-project&plan=studio",
           }),
         })
       );

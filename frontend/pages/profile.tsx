@@ -64,6 +64,8 @@ const sections: readonly ProfileSectionItem[] = [
   { key: "transactions", label: "Transactions", icon: Receipt },
 ];
 
+const PROFILE_SUCCESS_NOTICE_AUTO_DISMISS_MS = 6000;
+
 type BillingSyncScope = "credits" | "subscription" | "storage";
 
 function resolveFallbackMonthlyRenewalDate(startedAt: string | null): string | null {
@@ -207,6 +209,16 @@ export default function ProfilePage() {
     setDisplayNameInput(defaultName);
     setWorkspaceEmail(user?.email || "");
   }, [user]);
+
+  useEffect(() => {
+    if (notice?.tone !== "success") return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setNotice((currentNotice) => (currentNotice === notice ? null : currentNotice));
+    }, PROFILE_SUCCESS_NOTICE_AUTO_DISMISS_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [notice]);
 
   const loadBillingProfile = async (currentUser: User) => {
     setBillingProfileLoading(true);
@@ -597,9 +609,6 @@ export default function ProfilePage() {
     });
   }, [section, user]);
 
-  const displayName = displayNameInput || user?.email || "User";
-  const displayInitials = displayName.slice(0, 2).toUpperCase();
-
   const currentSubscriptionPriceCents =
     billingContract?.recurring_price_cents ?? activePlan.monthlyPriceCents;
   const currentSubscriptionBillingInterval =
@@ -630,7 +639,6 @@ export default function ProfilePage() {
   const mediaAutosaveSaving = mediaAutosaveSyncState === "saving";
   const mediaAutosaveDisabled = mediaAutosaveLoading || mediaAutosaveSaving;
   const content = getProfileSectionContent(section);
-  const accountEmailLabel = workspaceEmail.trim() || user?.email || "";
   const accountCreditsLabel = balanceLoading
     ? "Syncing"
     : balanceCents == null
@@ -971,9 +979,6 @@ export default function ProfilePage() {
         )}
       >
         <ProfileWorkspaceShell
-          displayInitials={displayInitials}
-          displayName={displayName}
-          accountEmail={accountEmailLabel}
           planLabel={activePlan.displayName}
           creditsLabel={accountCreditsLabel}
           storageLabel={accountStorageLabel}

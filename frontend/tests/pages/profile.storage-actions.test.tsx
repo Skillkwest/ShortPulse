@@ -3,7 +3,7 @@
  */
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
@@ -294,6 +294,10 @@ describe("Profile storage actions", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("renders storage usage and recurring add-ons", async () => {
     render(<ProfilePage />);
 
@@ -408,4 +412,30 @@ describe("Profile storage actions", () => {
     );
     expect(refreshQuotaSummaryMock.mock.calls.length).toBeGreaterThan(initialQuotaRefreshCalls);
   }, 15000);
+
+  it("automatically clears the storage add-on success notice", async () => {
+    render(<ProfilePage />);
+
+    const removeButton = await screen.findByRole("button", { name: "Remove" });
+    vi.useFakeTimers();
+
+    await act(async () => {
+      fireEvent.click(removeButton);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByText("Storage add-on update submitted. Stripe is syncing your workspace now.")
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+
+    expect(
+      screen.queryByText("Storage add-on update submitted. Stripe is syncing your workspace now.")
+    ).not.toBeInTheDocument();
+  });
 });

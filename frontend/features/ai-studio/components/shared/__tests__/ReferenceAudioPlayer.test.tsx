@@ -135,6 +135,35 @@ describe("ReferenceAudioPlayer", () => {
     expect(resolveAudioUrl).toHaveBeenCalledTimes(1);
   });
 
+  it("starts playback on pointer down and suppresses the follow-up click", async () => {
+    const resolveAudioUrl = vi.fn(async () => "https://signed.test/pointer-audio.mp3");
+
+    render(
+      <ReferenceAudioPlayer
+        audioId="audio-pointer"
+        audioUrl="https://signed.test/stale-pointer.mp3"
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+        onResolveAudioUrl={resolveAudioUrl}
+        resolveAudioUrlOnMount
+      />
+    );
+
+    const audio = document.querySelector("audio");
+    await waitFor(() => {
+      expect(audio?.getAttribute("src")).toBe("https://signed.test/pointer-audio.mp3");
+    });
+
+    const playButton = screen.getByRole("button", { name: "Play audio" });
+    fireEvent.pointerDown(playButton, { button: 0 });
+    fireEvent.click(playButton);
+
+    await waitFor(() => {
+      expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
+    });
+    expect(resolveAudioUrl).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a pre-resolved URL when the resolver callback identity changes", async () => {
     const firstResolver = vi.fn(async () => "https://signed.test/stable-audio.mp3");
     const secondResolver = vi.fn(async () => "https://signed.test/should-not-resign.mp3");

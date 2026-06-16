@@ -3,6 +3,12 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioToolbar } from "../AiStudioToolbar";
+import {
+  librariesToolList,
+  primaryToolList,
+  soundChildTools,
+  workflowToolList,
+} from "../../constants";
 import type { ToolId } from "../../types";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
@@ -79,6 +85,16 @@ const mockElementRect = (element: Element, rect: Partial<DOMRect>) => {
   });
 };
 
+const leftRailRepeatClickCases = [
+  ...primaryToolList.map((tool) => [tool.label, tool.id, tool.id]),
+  ...workflowToolList.map((tool) => {
+    const activeTool = tool.id === "sound" ? "voices" : tool.id;
+    return [tool.label, activeTool, activeTool] satisfies [string, ToolId, ToolId];
+  }),
+  ...soundChildTools.map((tool) => [tool.label, tool.id, tool.id]),
+  ...librariesToolList.map((tool) => [tool.label, tool.id, tool.id]),
+] satisfies Array<[string, ToolId, ToolId]>;
+
 describe("AiStudioToolbar current mode", () => {
   beforeEach(() => {
     routerReplaceMock.mockReset();
@@ -141,17 +157,7 @@ describe("AiStudioToolbar current mode", () => {
     expect(onSelectTool).toHaveBeenCalledWith("create");
   });
 
-  it.each([
-    ["Create", "create", "create"],
-    ["Edit", "edit", "edit"],
-    ["Video", "video", "video"],
-    ["Sound", "voices", "voices"],
-    ["Media", "media-library", "media-library"],
-    ["Characters", "character", "character"],
-    ["Elements", "elements", "elements"],
-    ["Presets", "presets", "presets"],
-    ["Styles", "styles", "styles"],
-  ] satisfies Array<[string, ToolId, ToolId]>)(
+  it.each(leftRailRepeatClickCases)(
     "keeps the active %s rail panel open on repeat click",
     (label, selectedTool, expectedTool) => {
       const onSelectTool = vi.fn();

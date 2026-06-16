@@ -120,6 +120,7 @@
 }
 
 .profile-subscription-hero-card {
+  align-items: flex-start;
   background: var(--profile-themed-surface);
   border: 1px solid rgba(146, 159, 177, 0.18);
 }

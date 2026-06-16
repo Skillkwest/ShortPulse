@@ -147,6 +147,7 @@ const createSupabaseAdminMock = (
 
   const createQueryBuilder = (selectClause: string) => {
     const eqFilters: Array<{ column: string; value: string }> = [];
+    const likeFilters: Array<{ column: string; pattern: string }> = [];
     const ilikeFilters: Array<{ column: string; pattern: string }> = [];
     const notLikeFilters: Array<{ column: string; pattern: string }> = [];
     const ltFilters: Array<{ column: string; value: string }> = [];
@@ -157,6 +158,7 @@ const createSupabaseAdminMock = (
     const builder: {
       eq: ReturnType<typeof vi.fn>;
       in: ReturnType<typeof vi.fn>;
+      like: ReturnType<typeof vi.fn>;
       ilike: ReturnType<typeof vi.fn>;
       not: ReturnType<typeof vi.fn>;
       or: ReturnType<typeof vi.fn>;
@@ -170,6 +172,10 @@ const createSupabaseAdminMock = (
       }),
       in: vi.fn((column: string, values: string[]) => {
         inFilters.push({ column, values });
+        return builder;
+      }),
+      like: vi.fn((column: string, pattern: string) => {
+        likeFilters.push({ column, pattern });
         return builder;
       }),
       ilike: vi.fn((column: string, pattern: string) => {
@@ -203,6 +209,14 @@ const createSupabaseAdminMock = (
           const allowed = new Set(filter.values);
           filtered = filtered.filter((row) =>
             allowed.has(String((row as Record<string, unknown>)[filter.column] ?? ""))
+          );
+        }
+        for (const filter of likeFilters) {
+          filtered = filtered.filter((row) =>
+            matchesIlike(
+              String((row as Record<string, unknown>)[filter.column] ?? ""),
+              filter.pattern
+            )
           );
         }
         for (const filter of ilikeFilters) {
@@ -253,12 +267,21 @@ const createSupabaseAdminMock = (
 
   const createCountQueryBuilder = () => {
     const eqFilters: Array<{ column: string; value: string }> = [];
+    const likeFilters: Array<{ column: string; pattern: string }> = [];
     const notLikeFilters: Array<{ column: string; pattern: string }> = [];
 
     const resolveCount = async () => {
       let filtered = [...rows];
       for (const filter of eqFilters) {
         filtered = filtered.filter((row) => matchesEqFilter(row, filter.column, filter.value));
+      }
+      for (const filter of likeFilters) {
+        filtered = filtered.filter((row) =>
+          matchesIlike(
+            String((row as Record<string, unknown>)[filter.column] ?? ""),
+            filter.pattern
+          )
+        );
       }
       for (const filter of notLikeFilters) {
         filtered = filtered.filter(
@@ -282,6 +305,7 @@ const createSupabaseAdminMock = (
 
     type CountQueryBuilder = {
       eq: (column: string, value: string) => CountQueryBuilder;
+      like: (column: string, pattern: string) => CountQueryBuilder;
       not: (column: string, operator: string, pattern: string) => CountQueryBuilder;
       then: (
         onFulfilled?: ((value: CountQueryResult) => unknown) | null,
@@ -294,6 +318,10 @@ const createSupabaseAdminMock = (
     const builder: CountQueryBuilder = {
       eq: vi.fn((column: string, value: string) => {
         eqFilters.push({ column, value });
+        return builder;
+      }),
+      like: vi.fn((column: string, pattern: string) => {
+        likeFilters.push({ column, pattern });
         return builder;
       }),
       not: vi.fn((column: string, operator: string, pattern: string) => {
@@ -567,6 +595,146 @@ describe("POST /api/media/list", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         rows: [expect.objectContaining({ id: "media-safe-1" })],
+      })
+    );
+  });
+
+  it("pages over displayable caller-scoped media instead of letting newer unsafe rows mask valid rows", async () => {
+    createSupabaseAdminMock([
+      {
+        id: "unsafe-newer",
+        user_id: "user-1",
+        filename: "unsafe-newer.png",
+        storage_path: "legacy/uploads/unsafe-newer.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-21T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "unsafe-traversal",
+        user_id: "user-1",
+        filename: "unsafe-traversal.png",
+        storage_path: "user-1/../unsafe-traversal.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T11:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "safe-older",
+        user_id: "user-1",
+        filename: "safe-older.png",
+        storage_path: "user-1/upload/safe-older.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        query: "",
+        cursor: null,
+        limit: 1,
+        surface: "media-library-panel",
+        profile: "expanded",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [expect.objectContaining({ id: "safe-older" })],
+      })
+    );
+  });
+
+  it("counts only caller-scoped displayable media for root saved totals", async () => {
+    createSupabaseAdminMock([
+      {
+        id: "safe-counted",
+        user_id: "user-1",
+        filename: "safe-counted.png",
+        storage_path: "user-1/upload/safe-counted.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-21T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "unsafe-not-counted",
+        user_id: "user-1",
+        filename: "unsafe-not-counted.png",
+        storage_path: "legacy/uploads/unsafe-not-counted.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        cursor: null,
+        limit: 1,
+        surface: "media-library-panel",
+        includeLibraryTotalCount: true,
+        countOnly: true,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [],
+        libraryTotalCount: 1,
       })
     );
   });

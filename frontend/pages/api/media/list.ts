@@ -219,6 +219,23 @@ const withMediaKindFilter = <
   return query;
 };
 
+const withSafeUserScopedStoragePathFilter = <
+  T extends {
+    like: (column: string, pattern: string) => T;
+    not: (column: string, operator: string, value: string) => T;
+  },
+>(
+  query: T,
+  userId: string
+): T =>
+  // Keep this in the base query before ordering/limit so invalid rows cannot consume a page.
+  query
+    .like("storage_path", `${userId}/%`)
+    .not("storage_path", "like", `${userId}/../%`)
+    .not("storage_path", "like", `${userId}/..`)
+    .not("storage_path", "like", "%/../%")
+    .not("storage_path", "like", "%/..");
+
 const clampLimit = (surface: MediaListSurface, value: unknown): number => {
   const maxLimit = LIMIT_BY_SURFACE[surface];
   const parsed = Number(value);
@@ -430,6 +447,7 @@ const resolveLibraryTotalCount = async ({
       .from("media_files")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
+    query = withSafeUserScopedStoragePathFilter(query, userId);
     if (characterScopeExclusionEnabled) {
       query = query.not("storage_path", "like", `${userId}/characters/%`);
     }
@@ -594,6 +612,7 @@ export default async function handler(
             : selectColumns
         )
         .eq("user_id", user.id);
+      queryBuilder = withSafeUserScopedStoragePathFilter(queryBuilder, user.id);
       if (characterScopeExclusionEnabled) {
         queryBuilder = queryBuilder.not("storage_path", "like", `${user.id}/characters/%`);
       }

@@ -192,16 +192,22 @@ describe("MediaLibraryMediaGrid", () => {
 
     expect(audioNode).not.toBeNull();
     expect(audioNode).not.toHaveAttribute("src");
-    fireEvent.click(screen.getByRole("button", { name: "Play audio voice-note.mp3" }));
-
     await waitFor(() => {
       expect(props.onRequestSignedUrl).toHaveBeenCalledWith(
         expect.objectContaining({ id: "audio-1" })
       );
     });
     await waitFor(() => {
+      expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note.mp3");
+    });
+    vi.mocked(props.onRequestSignedUrl).mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio voice-note.mp3" }));
+
+    await waitFor(() => {
       expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
     });
+    expect(props.onRequestSignedUrl).not.toHaveBeenCalled();
     expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note.mp3");
   });
 

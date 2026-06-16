@@ -33,6 +33,7 @@ export type ReferenceAudioPlayerProps = {
   onActivate?: () => void;
   onDownload?: () => void;
   onResolveAudioUrl?: () => Promise<string | null>;
+  resolveAudioUrlOnMount?: boolean;
   onReady?: () => void;
   onError?: () => void;
   eagerWaveformDecode?: boolean;
@@ -56,6 +57,7 @@ export function ReferenceAudioPlayer({
   onActivate,
   onDownload,
   onResolveAudioUrl,
+  resolveAudioUrlOnMount = false,
   onReady,
   onError,
   eagerWaveformDecode = false,
@@ -74,6 +76,7 @@ export function ReferenceAudioPlayer({
     onResolveAudioUrl ? "" : (audioUrl?.trim() ?? "")
   );
   const activeAudioUrlRef = React.useRef(activeAudioUrl);
+  const audioUrlResolutionPromiseRef = React.useRef<Promise<string> | null>(null);
   const waveformDecodeInFlightKeyRef = React.useRef<string | null>(null);
   const [isResolvingAudioUrl, setIsResolvingAudioUrl] = React.useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = React.useState(false);
@@ -163,12 +166,41 @@ export function ReferenceAudioPlayer({
     return normalizedNextAudioUrl;
   }, []);
 
+  const resolveFreshAudioUrl = React.useCallback(async () => {
+    if (!onResolveAudioUrl) {
+      return activeAudioUrlRef.current;
+    }
+    if (audioUrlResolutionPromiseRef.current) {
+      return audioUrlResolutionPromiseRef.current;
+    }
+    const resolutionPromise = (async () => {
+      try {
+        const resolvedUrl = await onResolveAudioUrl();
+        const normalizedResolvedUrl = resolvedUrl?.trim() ?? "";
+        if (normalizedResolvedUrl) {
+          applyResolvedAudioUrl(normalizedResolvedUrl);
+        }
+        return normalizedResolvedUrl;
+      } catch {
+        return "";
+      }
+    })();
+    audioUrlResolutionPromiseRef.current = resolutionPromise;
+    void resolutionPromise.finally(() => {
+      if (audioUrlResolutionPromiseRef.current === resolutionPromise) {
+        audioUrlResolutionPromiseRef.current = null;
+      }
+    });
+    return resolutionPromise;
+  }, [applyResolvedAudioUrl, onResolveAudioUrl]);
+
   React.useEffect(() => {
     setResolvedAudioDurationMs(durationMs ?? null);
   }, [audioId, durationMs]);
 
   React.useEffect(() => {
-    const nextAudioUrl = onResolveAudioUrl ? "" : (audioUrl?.trim() ?? "");
+    if (onResolveAudioUrl) return;
+    const nextAudioUrl = audioUrl?.trim() ?? "";
     activeAudioUrlRef.current = nextAudioUrl;
     setActiveAudioUrl(nextAudioUrl);
   }, [audioUrl, onResolveAudioUrl]);
@@ -178,9 +210,26 @@ export function ReferenceAudioPlayer({
     setAudioProgressRatio(0);
     setShouldDecodeWaveform(eagerWaveformDecode);
     waveformDecodeInFlightKeyRef.current = null;
+    audioUrlResolutionPromiseRef.current = null;
     readyNotifiedRef.current = false;
     audioNodeRef.current?.pause();
-  }, [audioId, eagerWaveformDecode]);
+    if (onResolveAudioUrl) {
+      activeAudioUrlRef.current = "";
+      setActiveAudioUrl("");
+    }
+  }, [audioId, eagerWaveformDecode, onResolveAudioUrl]);
+
+  React.useEffect(() => {
+    if (!resolveAudioUrlOnMount || !onResolveAudioUrl || activeAudioUrlRef.current) return;
+    let cancelled = false;
+    setIsResolvingAudioUrl(true);
+    void resolveFreshAudioUrl().finally(() => {
+      if (!cancelled) setIsResolvingAudioUrl(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [audioId, onResolveAudioUrl, resolveAudioUrlOnMount, resolveFreshAudioUrl]);
 
   React.useEffect(() => {
     if (storedAudioWaveformPeaks.length > 0) {
@@ -207,14 +256,13 @@ export function ReferenceAudioPlayer({
     setHasDecodedWaveform(false);
 
     const decodeWaveform = async () => {
-      let decodeUrl = activeAudioUrl;
-      if (onResolveAudioUrl) {
-        decodeUrl = (await onResolveAudioUrl())?.trim() ?? "";
+      let decodeUrl = activeAudioUrlRef.current || activeAudioUrl;
+      if (onResolveAudioUrl && !decodeUrl) {
+        decodeUrl = await resolveFreshAudioUrl();
         if (!decodeUrl) {
           if (!cancelled) waveformDecodeInFlightKeyRef.current = null;
           return;
         }
-        applyResolvedAudioUrl(decodeUrl);
       }
       try {
         const nextBars = await extractAudioWaveformPeaksFromUrl(
@@ -239,10 +287,10 @@ export function ReferenceAudioPlayer({
     };
   }, [
     activeAudioUrl,
-    applyResolvedAudioUrl,
     audioId,
     hasDecodedWaveform,
     onResolveAudioUrl,
+    resolveFreshAudioUrl,
     shouldDecodeWaveform,
     storedAudioWaveformPeaks,
   ]);
@@ -274,12 +322,12 @@ export function ReferenceAudioPlayer({
         setIsAudioPlaying(false);
         return;
       }
-      let playbackUrl = activeAudioUrl;
-      if (onResolveAudioUrl) {
+      let playbackUrl = activeAudioUrlRef.current;
+      if (onResolveAudioUrl && !playbackUrl) {
         if (isResolvingAudioUrl) return;
         setIsResolvingAudioUrl(true);
         try {
-          playbackUrl = (await onResolveAudioUrl())?.trim() ?? "";
+          playbackUrl = await resolveFreshAudioUrl();
         } finally {
           setIsResolvingAudioUrl(false);
         }
@@ -287,7 +335,6 @@ export function ReferenceAudioPlayer({
           onError?.();
           return;
         }
-        applyResolvedAudioUrl(playbackUrl);
       } else if (!playbackUrl) {
         return;
       }
@@ -312,8 +359,6 @@ export function ReferenceAudioPlayer({
       }
     },
     [
-      activeAudioUrl,
-      applyResolvedAudioUrl,
       clearPlayback,
       isAudioPlaying,
       isResolvingAudioUrl,
@@ -321,6 +366,7 @@ export function ReferenceAudioPlayer({
       onError,
       onResolveAudioUrl,
       requestPlayback,
+      resolveFreshAudioUrl,
       resolvedAudioInstanceKey,
       shouldDecodeWaveform,
     ]

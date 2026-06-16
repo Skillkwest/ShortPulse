@@ -613,11 +613,11 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     expect(audioNode).not.toBeNull();
     expect(audioNode).not.toHaveAttribute("src");
-    expect(screen.getByRole("button", { name: "Play audio voice-note-1.mp3" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Loading Play audio voice-note-1.mp3" })
+    ).toBeDisabled();
     expect(screen.getByText("0:15")).toBeInTheDocument();
     expect(container.querySelector('[data-media-duration-kind="sound-effects"]')).not.toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Play audio voice-note-1.mp3" }));
 
     await waitFor(() => {
       expect(props.onRequestSignedUrl).toHaveBeenCalledWith(
@@ -625,8 +625,16 @@ describe("MediaLibraryAllItemsGrid", () => {
       );
     });
     await waitFor(() => {
+      expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note-1.mp3");
+    });
+    vi.mocked(props.onRequestSignedUrl).mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio voice-note-1.mp3" }));
+
+    await waitFor(() => {
       expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
     });
+    expect(props.onRequestSignedUrl).not.toHaveBeenCalled();
     expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note-1.mp3");
   });
 

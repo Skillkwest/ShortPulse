@@ -621,6 +621,7 @@ function MediaLibraryAllItemsAudioCard({
           pauseLabel={`Pause audio ${file.filename}`}
           downloadLabel={`Download audio ${file.filename || "media"}`}
           onResolveAudioUrl={onRequestSignedUrl ? () => onRequestSignedUrl(file) : undefined}
+          resolveAudioUrlOnMount={Boolean(onRequestSignedUrl)}
           onReady={() => {
             markSignedUrlLoaded();
           }}

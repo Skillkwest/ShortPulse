@@ -106,4 +106,32 @@ describe("ReferenceAudioPlayer", () => {
     const audio = document.querySelector("audio");
     expect(audio?.getAttribute("src")).toBe("https://signed.test/fresh-playback.mp3");
   });
+
+  it("pre-resolves a fresh signed URL so the click path can play synchronously", async () => {
+    const resolveAudioUrl = vi.fn(async () => "https://signed.test/pre-resolved-audio.mp3");
+
+    render(
+      <ReferenceAudioPlayer
+        audioId="audio-3"
+        audioUrl="https://signed.test/stale-pre-resolved.mp3"
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+        onResolveAudioUrl={resolveAudioUrl}
+        resolveAudioUrlOnMount
+      />
+    );
+
+    const audio = document.querySelector("audio");
+    await waitFor(() => {
+      expect(audio?.getAttribute("src")).toBe("https://signed.test/pre-resolved-audio.mp3");
+    });
+    expect(resolveAudioUrl).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+
+    await waitFor(() => {
+      expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+    });
+    expect(resolveAudioUrl).toHaveBeenCalledTimes(1);
+  });
 });

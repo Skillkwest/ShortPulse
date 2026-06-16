@@ -329,6 +329,7 @@ export function MediaLibraryMediaGrid({
                     onResolveAudioUrl={
                       onRequestSignedUrl ? () => onRequestSignedUrl(file) : undefined
                     }
+                    resolveAudioUrlOnMount={Boolean(onRequestSignedUrl)}
                     onReady={() => onSignedUrlLoaded(file.id)}
                     onError={() => onMediaPreviewError(file, audioUrl)}
                     eagerWaveformDecode={false}

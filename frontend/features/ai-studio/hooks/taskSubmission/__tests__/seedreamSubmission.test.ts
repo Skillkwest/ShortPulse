@@ -4,6 +4,10 @@ import { handleImageModelSubmission } from "../imageHandlers";
 import type { ImageSubmissionArgs } from "../types";
 import { getModelConfig } from "../../../logic/modelRegistry";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+} from "../../../../../lib/model-runtime/providerModelIds";
+import {
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
   FAL_NANO_BANANA_2_EDIT_MODEL_ID,
   FAL_NANO_BANANA_2_MODEL_ID,
@@ -30,6 +34,8 @@ const falClientMocks = vi.hoisted(() => ({
   submitFalNanoBanana2Edit: vi.fn(),
   submitFalNanoBananaProEdit: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
+  submitKieGptImage2Text: vi.fn(),
+  submitKieGptImage2Edit: vi.fn(),
 }));
 
 vi.mock("../../../../../lib/falClient", () => {
@@ -53,6 +59,10 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitFalNanoBananaProEdit(payload);
       case FAL_FLUX_2_KLEIN_9B_MODEL_ID:
         return falClientMocks.submitFalFlux2Klein(payload);
+      case KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID:
+        return falClientMocks.submitKieGptImage2Text(payload);
+      case KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID:
+        return falClientMocks.submitKieGptImage2Edit(payload);
       default:
         return Promise.reject(new Error(`Unhandled queued submit model ${modelId}`));
     }
@@ -77,6 +87,8 @@ const {
   submitFalNanoBanana2Edit,
   submitFalNanoBananaProEdit,
   submitFalFlux2Klein,
+  submitKieGptImage2Text,
+  submitKieGptImage2Edit,
 } = falClientMocks;
 
 const makeArgs = (overrides: Partial<ImageSubmissionArgs> = {}): ImageSubmissionArgs => ({
@@ -133,6 +145,10 @@ describe("Seedream submission payloads", () => {
     vi.mocked(submitFalNanoBanana2Edit).mockResolvedValue({ request_id: "nano-2-edit-req" });
     vi.mocked(submitFalNanoBananaProEdit).mockResolvedValue({ request_id: "nano-pro-edit-req" });
     vi.mocked(submitFalFlux2Klein).mockResolvedValue({ request_id: "flux2-klein-req" });
+    vi.mocked(submitKieGptImage2Text).mockResolvedValue({ request_id: "kie-gpt-image-2-req" });
+    vi.mocked(submitKieGptImage2Edit).mockResolvedValue({
+      request_id: "kie-gpt-image-2-edit-req",
+    });
     vi.mocked(submitOpenAiGptImage2).mockResolvedValue({
       output: {
         provider: "openai-image",
@@ -191,6 +207,64 @@ describe("Seedream submission payloads", () => {
       undefined,
       {
         request_id: "seedream-req",
+      }
+    );
+  });
+
+  it("sends explicit 16:9 aspect ratio to Kie GPT Image 2 text-to-image", async () => {
+    const args = makeArgs({
+      finalModel: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      modelConfig: getModelConfig(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID),
+      aspect: "16:9",
+      requestedResolution: "2K",
+      preparedImageInputs: [],
+    });
+
+    await handleDefaultModelSubmission(args);
+
+    expect(submitKieGptImage2Text).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "A polished portrait",
+        aspect_ratio: "16:9",
+        resolution: "2K",
+      })
+    );
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "kie-gpt-image-2-req",
+      "kie-gpt-image-2",
+      undefined,
+      {
+        request_id: "kie-gpt-image-2-req",
+      }
+    );
+  });
+
+  it("sends explicit 16:9 aspect ratio to Kie GPT Image 2 image-to-image", async () => {
+    const args = makeArgs({
+      finalModel: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+      modelConfig: getModelConfig(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID),
+      aspect: "16:9",
+      requestedResolution: "2K",
+      preparedImageInputs: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
+    });
+
+    const handled = await handleImageModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieGptImage2Edit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "A polished portrait",
+        input_urls: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
+        aspect_ratio: "16:9",
+        resolution: "2K",
+      })
+    );
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "kie-gpt-image-2-edit-req",
+      "kie-gpt-image-2-edit",
+      undefined,
+      {
+        request_id: "kie-gpt-image-2-edit-req",
       }
     );
   });

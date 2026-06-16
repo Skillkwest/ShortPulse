@@ -534,6 +534,61 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
+  it("forwards aspect and image-resolution overrides to generation submission", () => {
+    const submitTask = vi.fn();
+    const params = createParams({ submitTask });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("prompt override", {
+        modelIdOverride: "kie-ai/gpt-image-2-image-to-image",
+        aspectOverride: "16:9",
+        imageResolutionOverride: "2K",
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "prompt override",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.objectContaining({
+        modelIdOverride: "kie-ai/gpt-image-2-image-to-image",
+        aspectOverride: "16:9",
+        imageResolutionOverride: "2K",
+      })
+    );
+  });
+
+  it("forwards aspect and image-resolution overrides to regenerate submission", () => {
+    const submitTask = vi.fn();
+    const params = createParams({ submitTask, selectedTool: "edit" });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.regenerateOutput({
+        modelIdOverride: "kie-ai/gpt-image-2-image-to-image",
+        aspectOverride: "16:9",
+        imageResolutionOverride: "2K",
+        referenceInputsMode: "replace",
+        referenceInputsOverride: ["https://example.com/replay-ref.png"],
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "edit prompt",
+      ["https://example.com/replay-ref.png"],
+      expect.objectContaining({
+        selectedToolOverride: "edit",
+        modelIdOverride: "kie-ai/gpt-image-2-image-to-image",
+        aspectOverride: "16:9",
+        imageResolutionOverride: "2K",
+      })
+    );
+  });
+
   it("appends selected style prompt to submission text while keeping display prompt unchanged", () => {
     const submitTask = vi.fn();
     const params = createParams({

@@ -103,6 +103,8 @@ const buildTaskSubmitOptions = ({
   characterContextOverride,
   styleContextOverrideToSubmit,
   modelIdOverride,
+  aspectOverride,
+  imageResolutionOverride,
   inpaintOverride,
   hideOutputFromReferenceGrid,
   outputIdOverride,
@@ -115,6 +117,8 @@ const buildTaskSubmitOptions = ({
   characterContextOverride?: AiStudioTaskSubmitOptions["characterContextOverride"];
   styleContextOverrideToSubmit?: AiStudioTaskSubmitOptions["styleContextOverride"];
   modelIdOverride?: AiStudioTaskSubmitOptions["modelIdOverride"];
+  aspectOverride?: AiStudioTaskSubmitOptions["aspectOverride"];
+  imageResolutionOverride?: AiStudioTaskSubmitOptions["imageResolutionOverride"];
   inpaintOverride?: AiStudioTaskSubmitOptions["inpaintOverride"];
   hideOutputFromReferenceGrid?: AiStudioTaskSubmitOptions["hideOutputFromReferenceGrid"];
   outputIdOverride?: AiStudioTaskSubmitOptions["outputIdOverride"];
@@ -127,6 +131,8 @@ const buildTaskSubmitOptions = ({
     internalMediaRefsOverride,
     characterContextOverride,
     modelIdOverride,
+    aspectOverride,
+    imageResolutionOverride,
     inpaintOverride,
     hideOutputFromReferenceGrid,
     ...(styleContextOverrideToSubmit
@@ -261,6 +267,8 @@ export const useAiStudioGenerationPromptComposer = ({
           characterContextOverride: options?.characterContextOverride,
           styleContextOverrideToSubmit,
           modelIdOverride: options?.modelIdOverride,
+          aspectOverride: options?.aspectOverride,
+          imageResolutionOverride: options?.imageResolutionOverride,
           inpaintOverride: options?.inpaintOverride,
           hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
           outputIdOverride: options?.outputIdOverride,
@@ -347,6 +355,8 @@ export const useAiStudioGenerationPromptComposer = ({
           characterContextOverride: options?.characterContextOverride,
           styleContextOverrideToSubmit,
           modelIdOverride: options?.modelIdOverride,
+          aspectOverride: options?.aspectOverride,
+          imageResolutionOverride: options?.imageResolutionOverride,
           outputIdOverride: options?.outputIdOverride,
           inpaintOverride: options?.inpaintOverride,
           hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,

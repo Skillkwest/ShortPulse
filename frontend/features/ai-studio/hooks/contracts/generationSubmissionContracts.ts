@@ -13,6 +13,8 @@ type AiStudioForwardedGenerateSubmitOptions = Pick<
   | "styleContextOverride"
   | "outputIdOverride"
   | "modelIdOverride"
+  | "aspectOverride"
+  | "imageResolutionOverride"
   | "inpaintOverride"
   | "hideOutputFromReferenceGrid"
   | "expertEditReferences"

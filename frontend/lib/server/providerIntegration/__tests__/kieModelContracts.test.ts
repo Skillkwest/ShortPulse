@@ -286,6 +286,26 @@ describe("kieModelContracts", () => {
       normalizeKieSubmitPayloadForModel({
         modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
         payload: {
+          prompt: "A landscape poster using the alias field",
+          aspectRatio: "16:9",
+          resolution: "2K",
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-text-to-image",
+      input: {
+        prompt: "A landscape poster using the alias field",
+        aspect_ratio: "16:9",
+        resolution: "2K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
+      },
+    });
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        payload: {
           prompt: "Auto aspect should stay provider-safe",
           aspect_ratio: "auto",
           resolution: "2K",
@@ -388,6 +408,28 @@ describe("kieModelContracts", () => {
         prompt: "Preserve the face and change the wardrobe",
         input_urls: ["https://example.com/ref-1.png", "https://example.com/ref-2.png"],
         aspect_ratio: "1:1",
+        resolution: "2K",
+        enable_safety_checker: false,
+        safety_tolerance: 5,
+      },
+    });
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          prompt: "Alias landscape edit",
+          input_urls: ["https://example.com/reference.png"],
+          aspectRatio: "16:9",
+          resolution: "2K",
+        },
+      })
+    ).toEqual({
+      model: "gpt-image-2-image-to-image",
+      input: {
+        prompt: "Alias landscape edit",
+        input_urls: ["https://example.com/reference.png"],
+        aspect_ratio: "16:9",
         resolution: "2K",
         enable_safety_checker: false,
         safety_tolerance: 5,

@@ -21,6 +21,7 @@ import { AppMessage, useTransientAppMessage } from "../../../components/AppMessa
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import styleLibraryStyles from "../../../styles/ai-studio-styles-library.module.css";
 
 export type StylesLibraryPanelProps = {
   styles: readonly ExpertEditStyleTile[];
@@ -140,7 +141,9 @@ export function StylesLibraryPanel({
 
   return (
     <section
-      className={`styles-library-panel ${stylesLibraryDropActive ? "is-drop-active" : ""}`.trim()}
+      className={`styles-library-panel ${styleLibraryStyles.bootstrapStyleScope} ${
+        stylesLibraryDropActive ? "is-drop-active" : ""
+      }`.trim()}
       aria-label="Styles library"
       onDragEnter={handleStylesLibraryDragEnter}
       onDragOver={handleStylesLibraryDragOver}

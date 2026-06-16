@@ -300,7 +300,10 @@ const summarizeProviderSubmitPayload = ({
   const source = readSubmitPayloadSource(payload);
   const summary: Record<string, unknown> = {};
   const providerModel = asProviderString(payload.model);
-  const aspectRatio = asProviderString(source.aspect_ratio) ?? asProviderString(source.aspect);
+  const aspectRatio =
+    asProviderString(source.aspect_ratio) ??
+    asProviderString(source.aspect) ??
+    asProviderString(source.aspectRatio);
   const resolution = asProviderString(source.resolution);
   const duration =
     asProviderString(source.duration) ??
